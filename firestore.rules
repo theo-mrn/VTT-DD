@@ -37,6 +37,25 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null
         && resource.data.creatorId == request.auth.uid;
+
+      // Systèmes de jeu personnalisés créés par le MJ (JSON pur, jamais de code exécutable) —
+      // lecture ouverte à toute la table, écriture réservée au MJ.
+      match /gameSystemOverrides/{systemId} {
+        allow read: if isRoomMember(roomId);
+        allow write: if isRoomMJ(roomId);
+      }
+    }
+
+    // ── Catalogue de systèmes de règles (partagé, indépendant d'une salle) ────
+    // JSON pur (GameSystemDefinition sérialisé), jamais de code exécutable.
+    // Lecture ouverte à tout utilisateur authentifié (ce ne sont que des règles de jeu,
+    // pas des données sensibles) ; écriture réservée au créateur.
+    match /gameSystems/{systemId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && resource.data.ownerId == request.auth.uid;
     }
 
     // ── Personnages ────────────────────────────────────────────────────────────

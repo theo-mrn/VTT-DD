@@ -12,6 +12,8 @@ import { useGame } from '@/contexts/GameContext';
 import { Trophy, Shield, Wand2, Target, Users, Crown, Star, Sword, Heart, Zap, TrendingUp, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { resolveCharacterStats } from '@/lib/rules-engine';
 
 interface Character {
   id: string;
@@ -21,107 +23,67 @@ interface Character {
   Race?: string;
   imageURL?: string;
   imageURLFinal?: string;
-  PV?: number;
-  PV_Max?: number;
-  Defense?: number;
-  Contact?: number;
-  Magie?: number;
-  Distance?: number;
-  INIT?: number;
-  FOR?: number;
-  DEX?: number;
-  CON?: number;
-  SAG?: number;
-  INT?: number;
-  CHA?: number;
   type?: string;
-  // Stats avec bonus appliqués
-  FOR_Final?: number;
-  DEX_Final?: number;
-  CON_Final?: number;
-  INT_Final?: number;
-  SAG_Final?: number;
-  CHA_Final?: number;
-  PV_Final?: number;
-  PV_Max_Final?: number;
-  Defense_Final?: number;
-  Contact_Final?: number;
-  Magie_Final?: number;
-  Distance_Final?: number;
-  INIT_Final?: number;
+  [key: string]: unknown;
 }
 
 interface StatOption {
-  key: keyof Character;
+  key: string;
   label: string;
   icon: React.ReactNode;
-  color: string;
 }
+
+// Icônes par clé connue (dnd-classic) — une stat custom sans icône dédiée retombe sur TrendingUp.
+const STAT_ICONS: Record<string, React.ReactNode> = {
+  FOR: <Crown size={14} />,
+  DEX: <Target size={14} />,
+  CON: <Shield size={14} />,
+  INT: <Star size={14} />,
+  SAG: <Trophy size={14} />,
+  CHA: <Users size={14} />,
+  Defense: <Shield size={14} />,
+  INIT: <Zap size={14} />,
+  Contact: <Sword size={14} />,
+  Distance: <Target size={14} />,
+  Magie: <Wand2 size={14} />,
+  PV_Max: <Heart size={14} />,
+};
 
 export function Statistiques() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedStat, setSelectedStat] = useState<keyof Character>('FOR');
+  const { user } = useGame();
+  const roomIdValue = user?.roomId;
+  const { gameSystem, tableCustomStats } = useGameSystem(roomIdValue ?? null);
+  const [selectedStat, setSelectedStat] = useState<string>('FOR');
 
-  // Fonction pour calculer les stats finales avec les bonus actifs
+  // Calcule les stats finales (modificateur/valeur + bonus) via le moteur de règles partagé,
+  // remplace le calcul dupliqué de bonus + formules qui était fait ici en dur.
   const calculateFinalStats = async (character: Character, roomId: string) => {
     const bonusCollection = collection(db, `Bonus/${roomId}/${character.Nomperso}`);
     const bonusSnapshot = await getDocs(bonusCollection);
 
-    // Initialiser les totaux avec les stats de base
-    const totals = {
-      FOR: character.FOR || 0,
-      DEX: character.DEX || 0,
-      CON: character.CON || 0,
-      INT: character.INT || 0,
-      SAG: character.SAG || 0,
-      CHA: character.CHA || 0,
-      PV: character.PV || 0,
-      PV_Max: character.PV_Max || 0,
-      Defense: character.Defense || 0,
-      Contact: character.Contact || 0,
-      Magie: character.Magie || 0,
-      Distance: character.Distance || 0,
-      INIT: character.INIT || 0,
-    };
-
-    // Parcourir tous les bonus et additionner ceux qui sont actifs
+    const bonuses: Record<string, number> = {};
     bonusSnapshot.docs.forEach((bonusDoc) => {
       const bonusData = bonusDoc.data();
-
-      // Vérifier si le bonus est actif (par défaut true si non spécifié)
       const isActive = bonusData.active !== false;
-
-      if (isActive) {
-        // Additionner chaque stat si elle existe dans le bonus
-        Object.keys(totals).forEach((stat) => {
-          if (bonusData[stat] && typeof bonusData[stat] === 'number') {
-            totals[stat as keyof typeof totals] += bonusData[stat];
-          }
-        });
+      if (!isActive) return;
+      for (const [key, value] of Object.entries(bonusData)) {
+        if (typeof value === 'number') bonuses[key] = (bonuses[key] ?? 0) + value;
       }
     });
 
-    return {
-      FOR_Final: totals.FOR,
-      DEX_Final: totals.DEX,
-      CON_Final: totals.CON,
-      INT_Final: totals.INT,
-      SAG_Final: totals.SAG,
-      CHA_Final: totals.CHA,
-      PV_Final: totals.PV,
-      PV_Max_Final: totals.PV_Max,
-      Defense_Final: totals.Defense,
-      Contact_Final: totals.Contact,
-      Magie_Final: totals.Magie,
-      Distance_Final: totals.Distance,
-      INIT_Final: totals.INIT,
-    };
+    const resolved = resolveCharacterStats(gameSystem, tableCustomStats, character, bonuses);
+    const finalStats: Record<string, number> = {};
+    for (const def of [...gameSystem.stats, ...tableCustomStats]) {
+      if (def.category === 'meta') continue;
+      const useModifier = def.category === 'ability' && def.key in resolved.modifiers;
+      const value = useModifier ? resolved.modifiers[def.key] : resolved.values[def.key];
+      if (typeof value === 'number') finalStats[`${def.key}_Final`] = value;
+    }
+    return finalStats;
   };
-
-  const { user } = useGame();
-  const roomIdValue = user?.roomId;
 
   useEffect(() => {
     if (!roomIdValue) {
@@ -155,33 +117,19 @@ export function Statistiques() {
     fetchCharacters();
   }, [roomIdValue]);
 
-  const statOptions: StatOption[] = [
-    { key: 'FOR', label: 'Force', icon: <Crown size={14} />, color: '#c0a080' },
-    { key: 'DEX', label: 'Dextérité', icon: <Target size={14} />, color: '#c0a080' },
-    { key: 'CON', label: 'Constitution', icon: <Shield size={14} />, color: '#c0a080' },
-    { key: 'INT', label: 'Intelligence', icon: <Star size={14} />, color: '#c0a080' },
-    { key: 'SAG', label: 'Sagesse', icon: <Trophy size={14} />, color: '#c0a080' },
-    { key: 'CHA', label: 'Charisme', icon: <Users size={14} />, color: '#c0a080' },
-    { key: 'Defense', label: 'Défense', icon: <Shield size={14} />, color: '#c0a080' },
-    { key: 'INIT', label: 'Initiative', icon: <Zap size={14} />, color: '#c0a080' },
-    { key: 'Contact', label: 'Contact', icon: <Sword size={14} />, color: '#c0a080' },
-    { key: 'Distance', label: 'Distance', icon: <Target size={14} />, color: '#c0a080' },
-    { key: 'Magie', label: 'Magie', icon: <Wand2 size={14} />, color: '#c0a080' },
-    { key: 'PV_Max', label: 'PV Max', icon: <Heart size={14} />, color: '#c0a080' }
-  ];
+  // Dérivé du système de jeu actif — fonctionne pour dnd-classic ET tout système custom.
+  const statOptions: StatOption[] = [...gameSystem.stats, ...tableCustomStats]
+    .filter((s) => s.category !== 'meta')
+    .map((s) => ({ key: s.key, label: s.label, icon: STAT_ICONS[s.key] ?? <TrendingUp size={14} /> }));
 
   const getCurrentStat = () => statOptions.find(stat => stat.key === selectedStat) || statOptions[0];
 
   // Fonction pour obtenir la valeur finale (avec bonus) d'une stat
-  const getFinalStatValue = (char: Character, stat: keyof Character): number => {
-    // Mapper la stat vers sa version _Final
-    const finalStatKey = `${stat}_Final` as keyof Character;
-
-    // Si la stat finale existe, l'utiliser, sinon utiliser la stat de base
+  const getFinalStatValue = (char: Character, stat: string): number => {
+    const finalStatKey = `${stat}_Final`;
     if (finalStatKey in char && typeof char[finalStatKey] === 'number') {
       return char[finalStatKey] as number;
     }
-
     return (char[stat] as number) || 0;
   };
 

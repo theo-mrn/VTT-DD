@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2 } from 'lucide-react'
-import { auth, db, doc, getDoc, setDoc, storage } from '@/lib/firebase'
+import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check } from 'lucide-react'
+import { auth, db, doc, getDoc, setDoc, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -16,6 +16,8 @@ import { StoreModal } from '@/components/store/store-modal'
 import { AppBackground } from '@/components/ui/background-components'
 import { toast } from 'sonner'
 import { Aclonica } from "next/font/google"
+import { moduleRegistry } from '@/modules/registry'
+import { GameSystemEditor, emptyGameSystem, type Draft } from '@/components/(fiches)/game-system/GameSystemManagerPanel'
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
 
@@ -30,6 +32,7 @@ interface Room {
   allowCharacterCreation?: boolean;
   bannedUsers?: string[];
   occupantsCount?: number;
+  gameSystemId?: string;
 }
 
 export default function CreerPageComponent() {
@@ -39,18 +42,29 @@ export default function CreerPageComponent() {
     maxPlayers: 4,
     isPublic: false,
     allowCharacterCreation: true,
+    gameSystemId: 'dnd-classic',
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userData, setUserData] = useState<any>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
+  const [customSystemDraft, setCustomSystemDraft] = useState<Draft | null>(null)
+  const [showSystemEditor, setShowSystemEditor] = useState(false)
   const router = useRouter()
+
+  const CUSTOM_SYSTEM_ID = '__draft__'
 
   const imagePreview = useMemo(() => {
     if (!imageFile) return null
     return URL.createObjectURL(imageFile)
   }, [imageFile])
+
+  const gameSystems = useMemo(() => moduleRegistry.getAllGameSystemModules().map((m) => ({
+    id: m.gameSystem.systemId,
+    name: m.manifest.name,
+    description: m.manifest.description,
+  })), [])
 
   useEffect(() => {
     return () => {
@@ -110,15 +124,31 @@ export default function CreerPageComponent() {
         imageUrl = await getDownloadURL(imageRef)
       }
 
-      const roomData = { ...newRoom, imageUrl, creatorId: userId }
-      await setDoc(doc(db, 'Salle', code), roomData)
+      const usesCustomSystem = newRoom.gameSystemId === CUSTOM_SYSTEM_ID && customSystemDraft
+      const finalGameSystemId = usesCustomSystem ? `custom_${code}` : newRoom.gameSystemId
+
+      const roomData = { ...newRoom, gameSystemId: finalGameSystemId, imageUrl, creatorId: userId }
+
+      const batch = writeBatch(db)
+      batch.set(doc(db, 'Salle', code), roomData)
+      if (usesCustomSystem) {
+        batch.set(doc(db, 'gameSystems', finalGameSystemId!), {
+          ...customSystemDraft,
+          systemId: finalGameSystemId,
+          ownerId: userId,
+          visibility: 'private',
+          createdAt: serverTimestamp(),
+        })
+      }
+      await batch.commit()
 
       const userRoomRef = doc(db, `users/${userId}`)
       await setDoc(userRoomRef, { room_id: code }, { merge: true })
       await setDoc(doc(db, `users/${userId}/rooms`, code), { id: code })
 
-      setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: false, allowCharacterCreation: true })
+      setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: false, allowCharacterCreation: true, gameSystemId: 'dnd-classic' })
       setImageFile(null)
+      setCustomSystemDraft(null)
 
       toast.success("Salle créée avec succès !")
       router.push(`/personnages`)
@@ -139,6 +169,22 @@ export default function CreerPageComponent() {
 
   const handleToggleCreationChange = () => {
     setNewRoom((prev) => ({ ...prev, allowCharacterCreation: !prev.allowCharacterCreation }))
+  }
+
+  const handleSelectGameSystem = (gameSystemId: string) => {
+    setNewRoom((prev) => ({ ...prev, gameSystemId }))
+  }
+
+  const handleOpenCustomSystemEditor = () => {
+    if (!customSystemDraft) {
+      setCustomSystemDraft(emptyGameSystem(CUSTOM_SYSTEM_ID, ''))
+    }
+    setShowSystemEditor(true)
+  }
+
+  const handleFinishCustomSystemEditor = () => {
+    setShowSystemEditor(false)
+    setNewRoom((prev) => ({ ...prev, gameSystemId: CUSTOM_SYSTEM_ID }))
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,6 +322,67 @@ export default function CreerPageComponent() {
                   />
                 </div>
 
+                {/* Game system */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Système de règles *</label>
+                  <p className="text-xs text-[var(--text-secondary)] ml-1">
+                    Ce choix est définitif : il ne sera plus possible d&apos;en changer une fois la campagne créée.
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {gameSystems.map((system) => {
+                      const isSelected = (newRoom.gameSystemId || 'dnd-classic') === system.id
+                      return (
+                        <button
+                          key={system.id}
+                          type="button"
+                          onClick={() => handleSelectGameSystem(system.id)}
+                          className="text-left p-4 rounded-xl border transition-all backdrop-blur-sm"
+                          style={{
+                            borderColor: isSelected ? 'var(--accent-brown)' : 'var(--border-color)',
+                            background: isSelected ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'color-mix(in srgb, var(--bg-card) 40%, transparent)',
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-sm text-[var(--text-primary)]">{system.name}</span>
+                            {isSelected && <Check className="h-4 w-4 shrink-0 text-[var(--accent-brown)]" />}
+                          </div>
+                          <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{system.description}</p>
+                        </button>
+                      )
+                    })}
+
+                    {customSystemDraft && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectGameSystem(CUSTOM_SYSTEM_ID)}
+                        className="text-left p-4 rounded-xl border transition-all backdrop-blur-sm"
+                        style={{
+                          borderColor: newRoom.gameSystemId === CUSTOM_SYSTEM_ID ? 'var(--accent-brown)' : 'var(--border-color)',
+                          background: newRoom.gameSystemId === CUSTOM_SYSTEM_ID ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'color-mix(in srgb, var(--bg-card) 40%, transparent)',
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-[var(--text-primary)]">{customSystemDraft.name || 'Mon système personnalisé'}</span>
+                          {newRoom.gameSystemId === CUSTOM_SYSTEM_ID && <Check className="h-4 w-4 shrink-0 text-[var(--accent-brown)]" />}
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">
+                          {customSystemDraft.description || `${customSystemDraft.stats.length} caractéristique${customSystemDraft.stats.length > 1 ? 's' : ''}`}
+                        </p>
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenCustomSystemEditor}
+                    className="w-full py-2.5 px-3 rounded-xl border border-dashed text-xs font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                  >
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    {customSystemDraft ? 'Modifier mon système personnalisé' : 'Créer un système personnalisé'}
+                  </button>
+                </div>
+
                 {/* Image upload */}
                 <div className="space-y-2">
                   <label className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Image de couverture *</label>
@@ -343,6 +450,18 @@ export default function CreerPageComponent() {
           </div>
         </div>
       </div>
+
+      {showSystemEditor && customSystemDraft && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex flex-col p-4 sm:p-8">
+          <div className="flex-1 min-h-0 max-w-5xl w-full mx-auto rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-color)' }}>
+            <GameSystemEditor
+              draft={customSystemDraft}
+              onBack={handleFinishCustomSystemEditor}
+              onSave={(next) => setCustomSystemDraft(next)}
+            />
+          </div>
+        </div>
+      )}
     </AppBackground>
   )
 }

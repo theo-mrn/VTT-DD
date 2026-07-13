@@ -15,17 +15,8 @@ import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 import { useCharacter } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
-
-interface RollableStat {
-  key: string;
-  label: string;
-  rawValue: number;
-  hasModifier: boolean;
-}
-
-interface CharacterModifiers {
-  [key: string]: number;
-}
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { getRollableStats, applyVariablesToNotation, type RollableStat } from '@/lib/rules-engine';
 
 interface FirebaseRoll {
   id: string;
@@ -73,62 +64,16 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const userName = isMJ ? "MJ" : (selectedCharacter?.Nomperso || "Utilisateur");
   const userAvatar = isMJ ? undefined : (selectedCharacter?.imageURLFinal || selectedCharacter?.imageURL || undefined);
 
+  const { gameSystem, tableCustomStats } = useGameSystem(roomId);
+  const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
+
+  // rawValue inclut déjà le modificateur/valeur ET les bonus (inventaire+compétences) —
+  // délégué au moteur de règles partagé, remplace le calcul dupliqué avec application du bonus
+  // séparée dans replaceCharacteristics().
   const rollableStats = useMemo(() => {
     if (!selectedCharacter) return [];
-
-    const defaultRollable: Record<string, boolean> = {
-      FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true,
-      Defense: false, Contact: false, Magie: false, Distance: false, INIT: false,
-    };
-    const statRollableOverrides: Record<string, boolean> = selectedCharacter.statRollable ?? {};
-
-    const builtinDefs = [
-      { key: 'FOR', label: 'FOR', hasModifier: true },
-      { key: 'DEX', label: 'DEX', hasModifier: true },
-      { key: 'CON', label: 'CON', hasModifier: true },
-      { key: 'SAG', label: 'SAG', hasModifier: true },
-      { key: 'INT', label: 'INT', hasModifier: true },
-      { key: 'CHA', label: 'CHA', hasModifier: true },
-      { key: 'Defense', label: 'Déf', hasModifier: false },
-      { key: 'Contact', label: 'Ctt', hasModifier: false },
-      { key: 'Magie', label: 'Mag', hasModifier: false },
-      { key: 'Distance', label: 'Dst', hasModifier: false },
-      { key: 'INIT', label: 'INIT', hasModifier: false },
-    ];
-
-    const rollables: RollableStat[] = builtinDefs
-      .filter((s) => (s.key in statRollableOverrides ? statRollableOverrides[s.key] : defaultRollable[s.key] ?? false))
-      .map((s) => ({
-        key: s.key,
-        label: s.label,
-        rawValue: Number(selectedCharacter[s.key as keyof typeof selectedCharacter] ?? (s.hasModifier ? 10 : 0)),
-        hasModifier: s.hasModifier,
-      }));
-
-    const customFields = (selectedCharacter.customFields as any[]) ?? [];
-    customFields
-      .filter((f) => f.isRollable && (f.type === 'number' || f.type === 'percent'))
-      .forEach((f) => {
-        rollables.push({
-          key: f.label,
-          label: f.label.length > 5 ? f.label.substring(0, 5) : f.label,
-          rawValue: Number(f.value) || 0,
-          hasModifier: !!(f.hasModifier && f.type === 'number'),
-        });
-      });
-
-    return rollables;
-  }, [selectedCharacter]);
-
-  const characterModifiers = useMemo(() => {
-    const modifiersMap: CharacterModifiers = {};
-    rollableStats.forEach((s: RollableStat) => {
-      modifiersMap[s.key] = s.rawValue;
-    });
-    return modifiersMap;
-  }, [rollableStats]);
-
-  const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
+    return getRollableStats(gameSystem, tableCustomStats, selectedCharacter, selectedCharacter.statRollable, totalBonuses);
+  }, [selectedCharacter, gameSystem, tableCustomStats, totalBonuses]);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -317,41 +262,11 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
 
   const replaceCharacteristics = (notation: string): string => {
-    if (!rollableStats.length && !characterModifiers || Object.keys(characterModifiers).length === 0) {
-      return notation;
-    }
-
-    let processedNotation = notation;
-
-    // Build a sorted list of keys (longest first to avoid partial matches)
-    const allKeys = rollableStats.length > 0
-      ? rollableStats.map(s => s.key)
-      : Object.keys(characterModifiers);
-
-    const sortedKeys = [...allKeys].sort((a, b) => b.length - a.length);
-    const escapedKeys = sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const regex = new RegExp(`\\b(${escapedKeys.join('|')})\\b`, 'gi');
-
-    processedNotation = processedNotation.replace(regex, (match) => {
-      // Find matching stat (case-insensitive)
-      const stat = rollableStats.find(s => s.key.toLowerCase() === match.toLowerCase());
-      if (stat) {
-        let baseValue = stat.rawValue;
-        if (totalBonuses && stat.key in totalBonuses) {
-          baseValue += totalBonuses[stat.key as keyof typeof totalBonuses] || 0;
-        }
-
-        const val = stat.hasModifier
-          ? Math.floor((baseValue - 10) / 2)
-          : baseValue;
-        return val.toString();
-      }
-      // Fallback to old map
-      const raw = characterModifiers[match] ?? characterModifiers[match.toUpperCase()] ?? 0;
-      return raw.toString();
-    });
-
-    return processedNotation;
+    // rollableStats.rawValue inclut déjà le modificateur (si applicable) ET les bonus —
+    // délégué au moteur de règles partagé (même implémentation que character-variables.ts/Discord).
+    const variables: Record<string, number> = {};
+    for (const stat of rollableStats) variables[stat.key] = stat.rawValue;
+    return applyVariablesToNotation(notation, variables);
   };
 
   const parseDiceRequests = (notation: string) => {
@@ -1264,9 +1179,9 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                         {!isMJ && rollableStats.length > 0 && (
                           <div id="vtt-dice-modifiers" className="flex flex-wrap gap-1.5">
                             {rollableStats.map(stat => {
-                              const effectiveValue = stat.hasModifier
-                                ? Math.floor((stat.rawValue - 10) / 2)
-                                : stat.rawValue;
+                              // stat.rawValue est déjà la valeur finale (modificateur+bonus, ou valeur+bonus) —
+                              // calculée par le moteur de règles partagé (getRollableStats), à ne pas retraiter ici.
+                              const effectiveValue = stat.rawValue;
                               const sign = effectiveValue >= 0 ? '+' : '';
                               return (
                                 <button
@@ -1276,7 +1191,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                                   style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
                                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
                                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
-                                  title={`${stat.label}: ${sign}${effectiveValue}${stat.hasModifier ? ` (base ${stat.rawValue})` : ''}`}
+                                  title={`${stat.label}: ${sign}${effectiveValue}`}
                                 >
                                   <span className="uppercase tracking-wider">{stat.label}</span>
                                   <span className="opacity-60 text-[9px]">{sign}{effectiveValue}</span>

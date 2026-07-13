@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Heart, Shield, Info, Lock } from 'lucide-react';
@@ -436,17 +437,19 @@ interface WidgetCustomGroupProps extends WidgetProps {
 }
 
 export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, label, fieldIds = [], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
-    const { selectedCharacter, getDisplayValue, getDisplayModifier } = useCharacter();
+    const { selectedCharacter, roomId, getDisplayValue, getDisplayModifier } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
+    const { gameSystem } = useGameSystem(roomId);
 
     if (!selectedCharacter) return null;
 
-    const baseStatsKeys = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'];
+    const baseStatsKeys = gameSystem.stats.filter(s => s.category !== 'meta').map(s => s.key);
+    const abilityKeys = gameSystem.stats.filter(s => s.category === 'ability').map(s => s.key);
 
     const resolvedFields = fieldIds.map((id: string) => {
         // Check if it's a base stat
         if (baseStatsKeys.includes(id)) {
-            const isAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(id);
+            const isAbility = abilityKeys.includes(id);
             return {
                 id,
                 label: id,
@@ -499,7 +502,7 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
             <div className={`flex-1 flex flex-col h-full overflow-hidden ${unifiedContainerClasses}`} style={isUnified ? style : undefined}>
                 <div className={containerClassName} style={containerStyle}>
                     {resolvedFields.map((field) => {
-                        const isBaseAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(field.id);
+                        const isBaseAbility = abilityKeys.includes(field.id);
                         const hidden = isFieldHidden(field.id) || (field.id === 'PV' && isFieldHidden('PV_Max'));
 
                         let displayValue: string;
@@ -575,6 +578,10 @@ export function GroupCreationSection({
     justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch',
     mode?: 'create' | 'edit'
 }) {
+    const { roomId } = useCharacter();
+    const { gameSystem } = useGameSystem(roomId);
+    const baseStatIds = gameSystem.stats.filter(s => s.category !== 'meta').map(s => s.key);
+
     const [label, setLabel] = useState(initialLabel);
     const [selectedIds, setSelectedIds] = useState<string[]>(initialFieldIds);
     const [layout, setLayout] = useState<'horizontal' | 'vertical' | 'grid'>(initialLayout || 'horizontal');
@@ -683,7 +690,7 @@ export function GroupCreationSection({
 
             <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
                 <div className="text-[9px] font-bold text-gray-500 uppercase px-2 mb-1">Attributs de base</div>
-                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(id => (
+                {baseStatIds.map(id => (
                     <label key={id} className="flex items-center gap-2 px-2 py-1 hover:bg-[color:var(--bg-secondary,#2a2a2a)] rounded cursor-pointer group">
                         <input
                             type="checkbox"

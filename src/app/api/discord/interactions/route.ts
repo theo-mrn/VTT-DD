@@ -3,7 +3,9 @@ import { InteractionType, InteractionResponseType, verifyKey } from 'discord-int
 import { adminDb } from '@/lib/firebase-admin';
 import { createHash } from 'crypto';
 import { Timestamp } from 'firebase-admin/firestore';
-import { buildCharacterVariables, applyVariables } from '@/lib/character-variables';
+import { applyVariables } from '@/lib/character-variables';
+import { resolveCharacterStats, buildDiceVariables, resolveRoomGameSystem } from '@/lib/rules-engine';
+import type { GameSystemDefinition } from '@/modules/game-system/types';
 import { waitUntil } from '@vercel/functions';
 
 const DISCORD_API = 'https://discord.com/api/v10';
@@ -102,27 +104,6 @@ async function editOriginalResponse(appId: string, token: string, data: object) 
 
 // ── Resolve linked VTT account from Discord user ID ───────────────────────────
 
-const MODIFIER_STATS = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'];
-const DIRECT_STATS = ['Defense', 'Contact', 'Magie', 'Distance', 'INIT'];
-
-function buildVariablesFromChar(c: Record<string, any>): Record<string, number> {
-    const vars: Record<string, number> = {};
-    for (const key of MODIFIER_STATS) {
-        const v = c[`${key}_F`] ?? c[key];
-        if (v !== undefined) vars[key] = c[`${key}_F`] !== undefined ? Number(v) : Math.floor((Number(v) - 10) / 2);
-    }
-    for (const key of DIRECT_STATS) {
-        const v = c[`${key}_F`] ?? c[key];
-        if (v !== undefined) vars[key] = Number(v);
-    }
-    for (const field of (c.customFields ?? [])) {
-        if (!field.isRollable || !field.label) continue;
-        const val = Number(field.value) || 0;
-        vars[field.label] = field.hasModifier ? Math.floor((val - 10) / 2) : val;
-    }
-    return vars;
-}
-
 async function resolveLinkedUser(discordId: string) {
     const linkDoc = await adminDb.doc(`discordLinks/${discordId}`).get();
     if (!linkDoc.exists) return null;
@@ -137,15 +118,33 @@ async function resolveLinkedUser(discordId: string) {
     const roomId: string | null = userData.room_id ?? null;
     const persoId: string | null = userData.persoId ?? null;
 
-    // Fetch character doc once — avatar + variables en un seul appel
+    // Fetch character + room docs — avatar + variables (via le moteur de règles partagé) en deux appels
     let avatar: string | undefined;
     let variables: Record<string, number> = {};
     if (!isMJ && roomId && persoId) {
-        const charDoc = await adminDb.doc(`cartes/${roomId}/characters/${persoId}`).get();
+        const [charDoc, roomDoc] = await Promise.all([
+            adminDb.doc(`cartes/${roomId}/characters/${persoId}`).get(),
+            adminDb.doc(`Salle/${roomId}`).get(),
+        ]);
         if (charDoc.exists) {
             const c = charDoc.data()!;
             avatar = c.imageURLFinal || c.imageURL || undefined;
-            variables = buildVariablesFromChar(c);
+
+            const roomData = roomDoc.exists ? roomDoc.data() : undefined;
+            let override: GameSystemDefinition | null = null;
+            if (roomData?.gameSystemId) {
+                const catalogDoc = await adminDb.doc(`gameSystems/${roomData.gameSystemId}`).get();
+                if (catalogDoc.exists) {
+                    override = catalogDoc.data() as GameSystemDefinition;
+                } else {
+                    const overrideDoc = await adminDb.doc(`Salle/${roomId}/gameSystemOverrides/${roomData.gameSystemId}`).get();
+                    if (overrideDoc.exists) override = overrideDoc.data() as GameSystemDefinition;
+                }
+            }
+
+            const { gameSystem, tableCustomStats } = resolveRoomGameSystem(roomData, override);
+            const resolved = resolveCharacterStats(gameSystem, tableCustomStats, c);
+            variables = buildDiceVariables(resolved, [...gameSystem.stats, ...tableCustomStats], c);
         }
     }
 

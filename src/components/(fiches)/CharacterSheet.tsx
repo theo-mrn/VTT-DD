@@ -8,6 +8,7 @@ import { useGame } from '@/contexts/GameContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 
 interface Character {
   id: string;
@@ -23,20 +24,11 @@ interface Character {
   isGif?: boolean;
   PV?: number;
   PV_Max?: number;
-  Defense?: number;
-  Contact?: number;
-  Magie?: number;
-  Distance?: number;
   INIT?: number;
-  FOR?: number;
-  DEX?: number;
-  CON?: number;
-  SAG?: number;
-  INT?: number;
-  CHA?: number;
   type?: string;
   deVie?: string;
   privateFields?: string[];
+  [key: string]: unknown;
 }
 
 const PRIVATE_PLACEHOLDER = '???';
@@ -70,13 +62,19 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   const [character, setCharacter] = useState<Character | null>(null);
   const { totalBonuses: bonuses } = useCalculatedBonuses(roomId, character?.Nomperso);
   const { persoId: userPersoId, isMJ } = useGame();
+  const { gameSystem } = useGameSystem(roomId);
   const [activeTab, setActiveTab] = useState<TabType>('character');
+
+  const abilityStats = gameSystem.stats.filter((s) => s.category === 'ability');
+  const combatAttackKeys = gameSystem.combatAttackKeys ?? ['Contact', 'Distance', 'Magie'];
+  const defenseKey = gameSystem.combatDefenseKey ?? 'Defense';
+  const combatColors = ['text-orange-400', 'text-green-400', 'text-purple-400'];
 
   useEffect(() => {
     const loadCharacter = async () => {
       const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters`, characterId));
       if (characterDoc.exists()) {
-        setCharacter({ id: characterDoc.id, ...characterDoc.data() as Omit<Character, 'id'> });
+        setCharacter({ id: characterDoc.id, ...characterDoc.data() } as Character);
       }
     };
 
@@ -266,51 +264,46 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
                         <Shield className="text-blue-500" size={28} />
                         <div className="text-left">
-                          <div className="text-xs text-gray-400 flex items-center gap-1">Défense {isFieldPrivate('Defense') && <Lock size={10} className="text-[#c0a080]" />}</div>
-                          <div className="text-2xl font-bold text-white">{isFieldHidden('Defense') ? PRIVATE_PLACEHOLDER : getDisplayValue("Defense")}</div>
+                          <div className="text-xs text-gray-400 flex items-center gap-1">Défense {isFieldPrivate(defenseKey) && <Lock size={10} className="text-[#c0a080]" />}</div>
+                          <div className="text-2xl font-bold text-white">{isFieldHidden(defenseKey) ? PRIVATE_PLACEHOLDER : getDisplayValue(defenseKey)}</div>
                         </div>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {isFieldHidden('Defense') ? <p>Information privée.</p> : (
+                      {isFieldHidden(defenseKey) ? <p>Information privée.</p> : (
                         <>
-                          <p>Base: {character.Defense}</p>
-                          <p>Bonus: {bonuses ? bonuses.Defense || 0 : 0}</p>
+                          <p>Base: {String(character[defenseKey] ?? '')}</p>
+                          <p>Bonus: {bonuses ? bonuses[defenseKey] || 0 : 0}</p>
                         </>
                       )}
                     </TooltipContent>
                   </Tooltip>
                 </div>
 
-                {/* Ability Scores */}
+                {/* Ability Scores — dérivé du système de jeu actif */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Caractéristiques</h3>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                    {[
-                      { name: 'FOR', fullName: 'Force', value: getModifier(character.FOR || 0), base: character.FOR },
-                      { name: 'DEX', fullName: 'Dextérité', value: getModifier(character.DEX || 0), base: character.DEX },
-                      { name: 'CON', fullName: 'Constitution', value: getModifier(character.CON || 0), base: character.CON },
-                      { name: 'INT', fullName: 'Intelligence', value: getModifier(character.INT || 0), base: character.INT },
-                      { name: 'SAG', fullName: 'Sagesse', value: getModifier(character.SAG || 0), base: character.SAG },
-                      { name: 'CHA', fullName: 'Charisme', value: getModifier(character.CHA || 0), base: character.CHA },
-                    ].map((ability) => {
-                      const hidden = isFieldHidden(ability.name);
+                    {abilityStats.map((statDef) => {
+                      const base = Number(character[statDef.key] ?? 0);
+                      const value = getModifier(base);
+                      const hidden = isFieldHidden(statDef.key);
                       return (
-                        <Tooltip key={ability.name}>
+                        <Tooltip key={statDef.key}>
                           <TooltipTrigger className="w-full">
                             <div className="bg-[#252525] p-3 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
                               <div className="text-xs font-semibold text-[#c0a080] mb-1 flex items-center justify-center gap-1">
-                                {ability.name}
-                                {isFieldPrivate(ability.name) && <Lock size={9} />}
+                                {statDef.key}
+                                {isFieldPrivate(statDef.key) && <Lock size={9} />}
                               </div>
                               {hidden ? (
                                 <div className="text-2xl font-bold text-gray-400">{PRIVATE_PLACEHOLDER}</div>
                               ) : (
                                 <>
-                                  <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {ability.value >= 0 ? '+' : ''}{ability.value}
+                                  <div className={`text-2xl font-bold ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {value >= 0 ? '+' : ''}{value}
                                   </div>
-                                  <div className="text-xs text-gray-500 mt-1">{ability.base}</div>
+                                  <div className="text-xs text-gray-500 mt-1">{base}</div>
                                 </>
                               )}
                             </div>
@@ -318,9 +311,9 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                           <TooltipContent>
                             {hidden ? <p>Information privée.</p> : (
                               <>
-                                <p className="font-medium">{ability.fullName}</p>
-                                <p>Base: {ability.base}</p>
-                                <p>Bonus: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
+                                <p className="font-medium">{statDef.label}</p>
+                                <p>Base: {base}</p>
+                                <p>Bonus: {bonuses ? bonuses[statDef.key] || 0 : 0}</p>
                               </>
                             )}
                           </TooltipContent>
@@ -330,32 +323,31 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                   </div>
                 </div>
 
-                {/* Combat Stats */}
+                {/* Combat Stats — clés dérivées du système de jeu actif (jusqu'à 3, mêmes couleurs fixes) */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Combat</h3>
                   <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { name: 'Contact', value: getDisplayValue("Contact"), color: 'text-orange-400' },
-                      { name: 'Distance', value: getDisplayValue("Distance"), color: 'text-green-400' },
-                      { name: 'Magie', value: getDisplayValue("Magie"), color: 'text-purple-400' }
-                    ].map((stat) => {
-                      const hidden = isFieldHidden(stat.name);
+                    {combatAttackKeys.slice(0, 3).map((key, i) => {
+                      const hidden = isFieldHidden(key);
+                      const label = gameSystem.stats.find((s) => s.key === key)?.label ?? key;
+                      const value = getDisplayValue(key);
+                      const color = combatColors[i] ?? 'text-gray-300';
                       return (
-                        <Tooltip key={stat.name}>
+                        <Tooltip key={key}>
                           <TooltipTrigger className="w-full">
                             <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
                               <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
-                                {stat.name}
-                                {isFieldPrivate(stat.name) && <Lock size={9} />}
+                                {label}
+                                {isFieldPrivate(key) && <Lock size={9} />}
                               </h4>
-                              <span className={`text-2xl font-bold ${hidden ? 'text-gray-400' : stat.color}`}>{hidden ? PRIVATE_PLACEHOLDER : stat.value}</span>
+                              <span className={`text-2xl font-bold ${hidden ? 'text-gray-400' : color}`}>{hidden ? PRIVATE_PLACEHOLDER : value}</span>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
                             {hidden ? <p>Information privée.</p> : (
                               <>
-                                <p>Base: {character[stat.name as keyof Character]}</p>
-                                <p>Bonus: {bonuses ? bonuses[stat.name] || 0 : 0}</p>
+                                <p>Base: {String(character[key] ?? '')}</p>
+                                <p>Bonus: {bonuses ? bonuses[key] || 0 : 0}</p>
                               </>
                             )}
                           </TooltipContent>

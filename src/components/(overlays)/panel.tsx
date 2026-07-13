@@ -31,6 +31,8 @@ import { RoomUsersManager } from "@/app/home/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/home/components/RoomSettingsManager";
 import { ChallengesButton } from '@/components/(challenges)/challenges-button';
 import FileLibrary from '@/components/(infos)/FileLibrary';
+import GameSystemManagerPanel from '@/components/(fiches)/game-system/GameSystemManagerPanel';
+import { Dices } from "lucide-react";
 
 type SidebarProps = {
   onClose: () => void;
@@ -321,6 +323,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <Library className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
               <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
             </button>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("regles")}
+            >
+              <Dices className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Règles du jeu</span>
+            </button>
           </>
         )}
 
@@ -504,6 +514,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
           <FileLibrary />
+        </div>
+      )}
+
+      {openDialog === 'regles' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <div className="flex-1 min-h-0">
+            <GameSystemManagerPanel />
+          </div>
         </div>
       )}
 

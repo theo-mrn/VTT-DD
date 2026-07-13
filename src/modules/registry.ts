@@ -7,6 +7,7 @@ import type {
   CharacterWidgetContribution,
   ConditionContribution,
 } from './types';
+import { isGameSystemModule, type GameSystemModule } from './game-system/types';
 
 class ModuleRegistry {
   private modules = new Map<string, ModuleDefinition>();
@@ -49,6 +50,15 @@ class ModuleRegistry {
 
   getModule(id: string): ModuleDefinition | undefined {
     return this.modules.get(id);
+  }
+
+  getGameSystemModule(id: string): GameSystemModule | undefined {
+    const mod = this.modules.get(id);
+    return mod && isGameSystemModule(mod) ? mod : undefined;
+  }
+
+  getAllGameSystemModules(): GameSystemModule[] {
+    return Array.from(this.modules.values()).filter(isGameSystemModule);
   }
 
   getAllModules(): ModuleDefinition[] {

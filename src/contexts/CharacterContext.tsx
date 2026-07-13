@@ -14,6 +14,8 @@ import {
 import { useGame } from './GameContext';
 import { Layout } from 'react-grid-layout';
 import { useCalculatedBonuses } from '@/hooks/useCharacterData';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { resolveCharacterStats } from '@/lib/rules-engine';
 
 // ==================== TYPES ====================
 
@@ -169,6 +171,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const { totalBonuses: bonuses, categorizedBonuses } = useCalculatedBonuses(roomId, selectedCharacter?.Nomperso);
+  const { gameSystem, tableCustomStats } = useGameSystem(roomId);
   const [competences, setCompetences] = useState<Competence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -196,30 +199,29 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   }, [selectedCharacter, bonuses]);
 
   // ==================== SYNCHRONISATION DES STATS "_F" (lues côté serveur : Discord, challenge-tracker) ====================
-  // Les stats "ability" affichent leur modificateur (floor((val-10)/2) + bonus), les autres leur valeur brute + bonus.
-  // Calculé et écrit une seule fois par changement réel (pas à chaque appel de getDisplayValue/getDisplayModifier
-  // pendant le rendu), pour éviter un flot continu d'écritures Firestore identiques à chaque re-render.
-  const ABILITY_STATS: (keyof Character)[] = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'];
-  const FINAL_STAT_KEYS: (keyof Character)[] = ['CHA', 'CON', 'Contact', 'DEX', 'Defense', 'Distance', 'FOR', 'INIT', 'INT', 'Magie', 'PV', 'SAG', 'PV_Max'];
-
-  // Signature stable des entrées du calcul : ne change que si une stat de base, un bonus, ou les
-  // valeurs _F déjà stockées changent réellement — pas à chaque nouvelle référence d'objet du snapshot.
+  // Délègue le calcul au moteur de règles partagé (resolveCharacterStats) piloté par le système de jeu
+  // actif de la room — remplace la logique de calcul FOR/DEX/.../Defense/Contact/... codée en dur ici.
+  // Les stats "ability" écrivent leur modificateur (+bonus), les autres leur valeur finale (+bonus),
+  // exactement comme avant. Calculé et écrit une seule fois par changement réel (pas à chaque render).
   const finalStatsInputSignature = useMemo(() => {
     if (!selectedCharacter) return null;
-    return FINAL_STAT_KEYS.map(stat => `${stat}:${selectedCharacter[stat] ?? 0}:${selectedCharacter[`${stat}_F`] ?? ''}`).join('|')
-      + '||' + (bonuses ? FINAL_STAT_KEYS.map(stat => bonuses[stat] || 0).join(',') : '');
+    const allDefs = [...gameSystem.stats, ...tableCustomStats].filter(d => d.category !== 'meta');
+    return allDefs.map(def => `${def.key}:${selectedCharacter[def.key] ?? 0}:${selectedCharacter[`${def.key}_F`] ?? ''}`).join('|')
+      + '||' + (bonuses ? allDefs.map(def => bonuses[def.key] || 0).join(',') : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCharacter, bonuses]);
+  }, [selectedCharacter, bonuses, gameSystem, tableCustomStats]);
 
   useEffect(() => {
     if (!selectedCharacter || !roomId || finalStatsInputSignature === null) return;
 
+    const resolved = resolveCharacterStats(gameSystem, tableCustomStats, selectedCharacter, bonuses ?? undefined);
+    const allDefs = [...gameSystem.stats, ...tableCustomStats].filter(d => d.category !== 'meta');
+
     const updates: Partial<Record<string, number>> = {};
-    for (const stat of FINAL_STAT_KEYS) {
-      const baseValue = parseInt(selectedCharacter[stat] as any || "0");
-      const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
-      const finalValue = ABILITY_STATS.includes(stat) ? getModifier(baseValue) + bonusValue : baseValue + bonusValue;
-      const key = `${stat}_F`;
+    for (const def of allDefs) {
+      const useModifier = def.category === 'ability' && def.key in resolved.modifiers;
+      const finalValue = useModifier ? resolved.modifiers[def.key] : Number(resolved.values[def.key] ?? 0);
+      const key = `${def.key}_F`;
 
       if (selectedCharacter[key] !== finalValue) {
         updates[key] = finalValue;
@@ -232,7 +234,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       .catch(error => {
         console.error('Erreur lors de la synchronisation des stats finales:', error);
       });
-  }, [finalStatsInputSignature, roomId]);
+  }, [finalStatsInputSignature, roomId, gameSystem, tableCustomStats]);
 
   // ==================== CHARGEMENT DES PERSONNAGES ====================
 
