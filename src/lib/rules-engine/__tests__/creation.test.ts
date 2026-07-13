@@ -249,6 +249,66 @@ describe('rollCharacterStats — stat vital avec sa propre rollFormula (ex PV = 
     expect(result.derived.Endurance_Max).toBe(30);
     expect(result.derived.Endurance).toBe(15);
   });
+
+  test('BUG RÉEL corrigé : une stat DERIVED (pas seulement vital) avec sa propre rollFormula '
+    + '(ex PV_Max = aléatoire entre 1 et 20) est bien tirée UNE FOIS et sa valeur figée est ensuite '
+    + 'utilisée par une stat vital qui la référence (ex PV = Variable→PV_Max) — avant ce correctif, '
+    + 'le moteur ignorait la rollFormula des stats derived, donc PV_Max restait à 0 et PV divergeait', () => {
+    const gameSystem = {
+      systemId: 'test-derived-roll',
+      stats: [
+        abilityStat('Corps', { defaultValue: 10 }),
+        {
+          key: 'PV_Max', label: 'PV Max', category: 'derived' as const, dataType: 'number' as const, origin: 'module' as const,
+          rollFormula: { type: 'add' as const, args: [{ type: 'dice' as const, notation: '1d20' }, { type: 'const' as const, value: 0 }] },
+        },
+        {
+          key: 'PV', label: 'PV', category: 'vital' as const, dataType: 'number' as const, origin: 'module' as const,
+          minFormula: { type: 'const' as const, value: 0 },
+          maxFormula: { type: 'stat' as const, key: 'PV_Max' },
+          rollFormula: { type: 'stat' as const, key: 'PV_Max' },
+        },
+      ],
+    };
+    for (let i = 0; i < 20; i++) {
+      const result = rollCharacterStats(gameSystem, {}, [], {});
+      const pvMax = Number(result.derived.PV_Max);
+      expect(pvMax).toBeGreaterThanOrEqual(1);
+      expect(pvMax).toBeLessThanOrEqual(20);
+      // PV doit refléter la VRAIE valeur tirée pour PV_Max, jamais une valeur différente ou 0.
+      expect(result.derived.PV).toBe(pvMax);
+    }
+  });
+
+  test('BUG RÉEL corrigé (cas exact signalé) : une stat DERIVED qui a À LA FOIS une valueFormula '
+    + '(valeur par défaut/protégée, ex PV_Max = const 10) ET une rollFormula (ex aléatoire entre 7 et '
+    + '20) doit utiliser la rollFormula UNE SEULE FOIS à la création, jamais recalculer valueFormula à '
+    + 'chaque appel — sinon PV_Max change à chaque résolution et diverge de PV qui la référence', () => {
+    const gameSystem = {
+      systemId: 'test-derived-both-formulas',
+      stats: [
+        abilityStat('Corps', { defaultValue: 10 }),
+        {
+          key: 'PV_Max', label: 'PV Max', category: 'derived' as const, dataType: 'number' as const, origin: 'module' as const,
+          valueFormula: { type: 'const' as const, value: 10 }, // valeur par défaut historique (protégée)
+          rollFormula: { type: 'add' as const, args: [{ type: 'dice' as const, notation: '1d14' }, { type: 'const' as const, value: 6 }] }, // aléatoire 7-20
+        },
+        {
+          key: 'PV', label: 'PV', category: 'vital' as const, dataType: 'number' as const, origin: 'module' as const,
+          minFormula: { type: 'const' as const, value: 0 },
+          maxFormula: { type: 'stat' as const, key: 'PV_Max' },
+          rollFormula: { type: 'stat' as const, key: 'PV_Max' },
+        },
+      ],
+    };
+    for (let i = 0; i < 20; i++) {
+      const result = rollCharacterStats(gameSystem, {}, [], {});
+      const pvMax = Number(result.derived.PV_Max);
+      expect(pvMax).toBeGreaterThanOrEqual(7);
+      expect(pvMax).toBeLessThanOrEqual(20);
+      expect(result.derived.PV).toBe(pvMax);
+    }
+  });
 });
 
 describe('evaluateRollConstraintAggregate — fonction pure (agrégat + opérateur + cible)', () => {

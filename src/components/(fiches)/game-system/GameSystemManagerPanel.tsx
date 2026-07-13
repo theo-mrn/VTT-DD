@@ -1021,7 +1021,7 @@ function StatDetail({ stat, allStats, onChange, onRemove }: {
   // donc il vaut mieux bloquer à l'édition (MJ) plutôt que de laisser l'erreur remonter au joueur.
   const handleRollFormulaChange = (node: StatDefinition['rollFormula'] | null) => {
     const candidateStats = allStats.map((s) => (s.key === stat.key ? { ...s, rollFormula: node ?? undefined } : s));
-    const cycleKey = findRollFormulaCycle(candidateStats.filter((s) => s.category === 'ability'));
+    const cycleKey = findRollFormulaCycle(candidateStats.filter((s) => s.category === 'ability' || s.category === 'derived' || s.category === 'vital'));
     if (cycleKey) {
       setCycleError(`Cette formule crée une dépendance circulaire (via "${cycleKey}") — impossible à résoudre au tirage. Modifiez-la pour casser la boucle.`);
       return;
@@ -1051,8 +1051,11 @@ function StatDetail({ stat, allStats, onChange, onRemove }: {
       <div className="space-y-4 max-w-md">
         {/* Une "ability" (libre) est calculée UNE FOIS à la création via rollFormula (ex "aléatoire
             entre 6 et 20"), jamais recalculée ensuite — le joueur peut modifier la valeur après coup.
-            Une stat "calculée" (derived) utilise valueFormula, réévaluée en continu (ex Défense). */}
-        {kind === 'derived' ? (
+            Une stat "calculée" (derived) utilise valueFormula, réévaluée en continu (ex Défense), ET
+            peut EN PLUS avoir sa propre rollFormula optionnelle (ex PV Max = aléatoire 7-20 tiré une
+            seule fois à la création, au lieu du calcul normal réévalué en continu) — les deux blocs
+            restent visibles et éditables indépendamment, jamais l'un au prix de l'autre. */}
+        {kind === 'derived' && (
           <FormulaEditor
             key={`${stat.key}:value`}
             targetLabel={stat.label || 'Cette stat'}
@@ -1060,51 +1063,73 @@ function StatDetail({ stat, allStats, onChange, onRemove }: {
             onChange={(node) => onChange({ valueFormula: node ?? undefined, category: node ? 'derived' : 'ability' })}
             availableStats={referenceableStats}
           />
-        ) : (
+        )}
+
+        {stat.category !== 'derived' && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+              Génération à la création (optionnel)
+            </label>
+            <FormulaEditor
+              key={`${stat.key}:roll`}
+              targetLabel={stat.label || 'Cette stat'}
+              value={stat.rollFormula ?? (stat.category === 'vital' && stat.maxFormula ? stat.maxFormula : null)}
+              onChange={handleRollFormulaChange}
+              availableStats={referenceableStats}
+            />
+            {cycleError && (
+              <p className="text-[11px] font-bold" style={{ color: '#e05a5a' }}>{cycleError}</p>
+            )}
+            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              {stat.category === 'vital'
+                ? 'Évaluée une seule fois à la création (ex Variable → Maximum), puis le joueur modifie librement (PV qui descend en combat) — toujours dans les bornes définies ci-dessous.'
+                : 'Sans règle ci-dessus, le joueur part de la valeur de départ ci-dessous et la modifie librement.'}
+            </p>
+          </div>
+        )}
+
+        {stat.category === 'ability' && (
           <>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                Génération à la création (optionnel)
-              </label>
-              <FormulaEditor
-                key={`${stat.key}:roll`}
-                targetLabel={stat.label || 'Cette stat'}
-                value={stat.rollFormula ?? (stat.category === 'vital' && stat.maxFormula ? stat.maxFormula : null)}
-                onChange={handleRollFormulaChange}
-                availableStats={referenceableStats}
-              />
-              {cycleError && (
-                <p className="text-[11px] font-bold" style={{ color: '#e05a5a' }}>{cycleError}</p>
-              )}
-              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                {stat.category === 'vital'
-                  ? 'Évaluée une seule fois à la création (ex Variable → Maximum), puis le joueur modifie librement (PV qui descend en combat) — toujours dans les bornes définies ci-dessous.'
-                  : 'Sans règle ci-dessus, le joueur part de la valeur de départ ci-dessous et la modifie librement.'}
-              </p>
-            </div>
+            <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Valeur de départ
+              <input type="number" value={Number(stat.defaultValue ?? 10)} onChange={(e) => onChange({ defaultValue: Number(e.target.value) })} className="w-16 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center" style={{ color: 'var(--text-primary)' }} />
+            </label>
 
-            {stat.category !== 'vital' && (
-              <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Valeur de départ
-                <input type="number" value={Number(stat.defaultValue ?? 10)} onChange={(e) => onChange({ defaultValue: Number(e.target.value) })} className="w-16 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center" style={{ color: 'var(--text-primary)' }} />
-              </label>
-            )}
-
-            {stat.category !== 'vital' && (
-              <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:border-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-dark)' }}>
-                <input type="checkbox" checked={!!stat.rollUsesModifier} onChange={(e) => onChange({
-                  rollUsesModifier: e.target.checked,
-                })} className="mt-0.5 accent-[var(--accent-brown)]" />
-                <div>
-                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>S&apos;affiche comme un modificateur</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                    Style D&amp;D : cette stat s&apos;affiche partout (fiche, lanceur de dés) sous forme de modificateur au lieu de sa valeur brute.
-                    Le calcul du modificateur lui-même (mod()) est commun à tout le système — configurable dans l&apos;onglet &quot;Modificateur&quot; à gauche.
-                  </p>
-                </div>
-              </label>
-            )}
+            <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors hover:border-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-dark)' }}>
+              <input type="checkbox" checked={!!stat.rollUsesModifier} onChange={(e) => onChange({
+                rollUsesModifier: e.target.checked,
+              })} className="mt-0.5 accent-[var(--accent-brown)]" />
+              <div>
+                <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>S&apos;affiche comme un modificateur</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  Style D&amp;D : cette stat s&apos;affiche partout (fiche, lanceur de dés) sous forme de modificateur au lieu de sa valeur brute.
+                  Le calcul du modificateur lui-même (mod()) est commun à tout le système — configurable dans l&apos;onglet &quot;Modificateur&quot; à gauche.
+                </p>
+              </div>
+            </label>
           </>
+        )}
+
+        {kind === 'derived' && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+              Génération à la création (optionnel)
+            </label>
+            <FormulaEditor
+              key={`${stat.key}:roll`}
+              targetLabel={stat.label || 'Cette stat'}
+              value={stat.rollFormula ?? null}
+              onChange={handleRollFormulaChange}
+              availableStats={referenceableStats}
+            />
+            {cycleError && (
+              <p className="text-[11px] font-bold" style={{ color: '#e05a5a' }}>{cycleError}</p>
+            )}
+            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              Optionnel : si définie, cette valeur est tirée UNE SEULE FOIS à la création et figée ensuite
+              (ex PV Max = aléatoire entre 7 et 20), au lieu d&apos;être recalculée en continu comme ci-dessus.
+            </p>
+          </div>
         )}
 
         {/* Bornes optionnelles, identiques pour toute stat (ex PV : Minimum=0, Maximum=Variable→PV_Max) —

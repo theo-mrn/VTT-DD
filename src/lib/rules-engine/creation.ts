@@ -41,14 +41,15 @@ function sortByRollDependencies(stats: StatDefinition[]): StatDefinition[] {
 }
 
 /**
- * Détecte si les rollFormula d'un ensemble d'abilities forment un cycle (ex FOR dépend de FORM qui
- * dépend de FOR) — à utiliser à l'ÉDITION (UI MJ) pour empêcher d'enregistrer une configuration qui
- * ferait planter le tirage à la création de personnage, plutôt que de laisser l'erreur remonter
- * jusqu'à l'écran joueur. Retourne la clé de la première stat impliquée dans un cycle, ou null.
+ * Détecte si les rollFormula d'un ensemble de stats (ability, derived ou vital) forment un cycle (ex FOR
+ * dépend de FORM qui dépend de FOR, ou PV_Max dépend de PV qui dépend de PV_Max) — à utiliser à
+ * l'ÉDITION (UI MJ) pour empêcher d'enregistrer une configuration qui ferait planter le tirage à la
+ * création de personnage, plutôt que de laisser l'erreur remonter jusqu'à l'écran joueur. Retourne la
+ * clé de la première stat impliquée dans un cycle, ou null.
  */
-export function findRollFormulaCycle(abilities: StatDefinition[]): string | null {
+export function findRollFormulaCycle(stats: StatDefinition[]): string | null {
   try {
-    sortByRollDependencies(abilities.filter((s) => s.rollFormula));
+    sortByRollDependencies(stats.filter((s) => s.rollFormula));
     return null;
   } catch (e) {
     if (e instanceof FormulaCycleError) return e.key;
@@ -122,12 +123,15 @@ function abilitiesOf(gameSystem: GameSystemDefinition): StatDefinition[] {
   return gameSystem.stats.filter((s) => s.category === 'ability');
 }
 
-/** Stats 'vital' avec leur propre rollFormula (ex PV = Variable→PV_Max) — valeur de départ tirée UNE
- *  FOIS à la création, comme une ability, puis modifiée librement par le joueur ensuite (PV qui descend
- *  en combat). Une stat vital SANS rollFormula garde son comportement normal (résolue par ses bornes
- *  min/maxFormula dans resolveCharacterStats, ex démarre à son Maximum). */
-function vitalsWithRollFormulaOf(gameSystem: GameSystemDefinition): StatDefinition[] {
-  return gameSystem.stats.filter((s) => s.category === 'vital' && s.rollFormula);
+/** Stats 'vital' OU 'derived' avec leur propre rollFormula (ex PV_Max = aléatoire entre 1 et 20,
+ *  PV = Variable→PV_Max) — valeur de départ tirée UNE FOIS à la création, comme une ability, puis
+ *  (pour une stat vital) modifiée librement par le joueur ensuite (PV qui descend en combat). Une stat
+ *  'derived' avec rollFormula garde ensuite cette valeur figée (comportement identique à une valeur
+ *  stockée normale, jamais retirée) — sans rollFormula, elle continue d'être recalculée en continu
+ *  depuis valueFormula comme d'habitude. Une stat vital SANS rollFormula garde son comportement normal
+ *  (résolue par ses bornes min/maxFormula dans resolveCharacterStats, ex démarre à son Maximum). */
+function rollableDerivedOrVitalsOf(gameSystem: GameSystemDefinition): StatDefinition[] {
+  return gameSystem.stats.filter((s) => (s.category === 'vital' || s.category === 'derived') && s.rollFormula);
 }
 
 /**
@@ -255,22 +259,32 @@ export function rollCharacterStats(
     abilities[key] = rolledAbilities[key] + (raceModifiers[key] || 0);
   }
 
-  // Une stat vital avec sa propre rollFormula (ex PV = Variable→PV_Max) a besoin des stats dérivées déjà
-  // résolues (ex PV_Max) pour évaluer sa formule — première passe SANS cette stat encore stockée, pour
-  // obtenir un contexte complet (abilities + derived), puis on tire sa valeur de départ dessus.
-  const vitalRollDefs = vitalsWithRollFormulaOf(gameSystem);
+  // Une stat 'derived' ou 'vital' avec sa propre rollFormula (ex PV_Max = aléatoire entre 1 et 20,
+  // PV = Variable→PV_Max) a besoin des autres stats déjà résolues (abilities + derived/vital déjà
+  // tirées avant elle dans l'ordre de ses dépendances) pour évaluer sa formule — première passe SANS
+  // aucune de ces stats encore stockée, pour obtenir un contexte de base (abilities + derived normales),
+  // puis chacune est tirée à son tour et vient enrichir le contexte pour la suivante (ex PV_Max doit
+  // être résolue avant PV qui la référence).
+  const rollableDefs = sortByRollDependencies(rollableDerivedOrVitalsOf(gameSystem));
   const firstPass = resolveCharacterStats(gameSystem, tableCustomStats, { ...extraFields, ...abilities });
   const statDefsForRoll = Object.fromEntries(gameSystem.stats.map((s) => [s.key, s]));
-  const vitalRolled: Record<string, number> = {};
-  for (const stat of vitalRollDefs) {
-    const ctx: FormulaContext = { rawStats: firstPass.values, statDefs: statDefsForRoll };
-    vitalRolled[stat.key] = evaluateFormula(stat.rollFormula!, ctx);
+  const rolledDerivedOrVital: Record<string, number> = {};
+  for (const stat of rollableDefs) {
+    // _rawContext: true fait qu'un noeud {type:'stat', key} lit directement rawStats[key] (la valeur
+    // déjà tirée pour une stat précédente dans CETTE boucle, ex PV_Max), au lieu de repasser par
+    // resolveStatValue qui — pour une stat 'derived' avec valueFormula — ignorerait cette valeur tirée
+    // et recalculerait depuis valueFormula (ex retomberait sur la constante par défaut de PV_Max au lieu
+    // de son tirage aléatoire). Même mécanisme que pour une formule de modificateur (cf. formula.ts).
+    const ctx: FormulaContext = { rawStats: { ...firstPass.values, ...rolledDerivedOrVital }, statDefs: statDefsForRoll, _rawContext: true };
+    rolledDerivedOrVital[stat.key] = evaluateFormula(stat.rollFormula!, ctx);
   }
 
-  // Résolution finale : la valeur de départ tirée pour chaque stat vital est passée comme "déjà stockée"
-  // (comme une valeur de personnage existante), pour que ses bornes min/maxFormula s'appliquent normalement
-  // au lieu de retomber sur le calcul par défaut "démarre au Maximum" réservé aux stats sans rollFormula.
-  const resolved = resolveCharacterStats(gameSystem, tableCustomStats, { ...extraFields, ...abilities, ...vitalRolled });
+  // Résolution finale : la valeur de départ tirée pour chaque stat derived/vital est passée comme "déjà
+  // stockée" (comme une valeur de personnage existante), pour qu'une stat 'derived' garde cette valeur
+  // figée au lieu d'être recalculée depuis valueFormula, et qu'une stat 'vital' voie ses bornes
+  // min/maxFormula s'appliquer normalement au lieu de retomber sur le calcul par défaut "démarre au
+  // Maximum" réservé aux stats sans rollFormula.
+  const resolved = resolveCharacterStats(gameSystem, tableCustomStats, { ...extraFields, ...abilities, ...rolledDerivedOrVital });
   const derived: Record<string, number | string | boolean> = {};
   for (const [key, value] of Object.entries(resolved.values)) {
     if (!abilityKeys.includes(key)) derived[key] = value;
