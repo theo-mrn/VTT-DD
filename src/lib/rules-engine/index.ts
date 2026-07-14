@@ -17,9 +17,11 @@ export { resolveGameSystemById, resolveRoomGameSystem, type RoomGameSystemDoc } 
 export {
   rollAbilities,
   rollCharacterStats,
+  rollGroupEntityStats,
   findRollFormulaCycle,
   evaluateRollConstraintAggregate,
   RollConstraintUnsatisfiableError,
   DEFAULT_MAX_ATTEMPTS,
   type RolledCharacterStats,
+  type RolledGroupEntityStats,
 } from './creation';

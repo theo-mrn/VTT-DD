@@ -44,6 +44,15 @@ service cloud.firestore {
         allow read: if isRoomMember(roomId);
         allow write: if isRoomMJ(roomId);
       }
+
+      // Instances de l'entité de groupe (schéma GameSystemDefinition.groupEntityStats, nom libre défini
+      // par le MJ — ex "Vaisseau", "Base secrète") — possédée par la table entière, pas par un personnage
+      // individuel : lecture ouverte à toute la table, écriture réservée au MJ (même modèle que
+      // gameSystemOverrides ci-dessus).
+      match /groupEntities/{entityId} {
+        allow read: if isRoomMember(roomId);
+        allow write: if isRoomMJ(roomId);
+      }
     }
 
     // ── Catalogue de systèmes de règles (partagé, indépendant d'une salle) ────

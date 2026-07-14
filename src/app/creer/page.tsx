@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check } from 'lucide-react'
-import { auth, db, doc, getDoc, setDoc, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
+import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check, Upload } from 'lucide-react'
+import { auth, db, doc, getDoc, setDoc, addDoc, collection, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -19,6 +19,8 @@ import { Aclonica } from "next/font/google"
 import { moduleRegistry } from '@/modules/registry'
 import { GameSystemEditor, emptyGameSystem, type Draft } from '@/components/(fiches)/game-system/GameSystemManagerPanel'
 import { stripUndefinedDeep } from '@/modules/game-system/transfer'
+import { parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer'
+import { importCharacterExport } from '@/utils/characterTransfer'
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
 
@@ -52,6 +54,7 @@ export default function CreerPageComponent() {
   const [isStoreOpen, setIsStoreOpen] = useState(false)
   const [customSystemDraft, setCustomSystemDraft] = useState<Draft | null>(null)
   const [showSystemEditor, setShowSystemEditor] = useState(false)
+  const [importedBundle, setImportedBundle] = useState<RoomExportBundle | null>(null)
   const router = useRouter()
 
   const CUSTOM_SYSTEM_ID = '__draft__'
@@ -148,9 +151,30 @@ export default function CreerPageComponent() {
       await setDoc(userRoomRef, { room_id: code }, { merge: true })
       await setDoc(doc(db, `users/${userId}/rooms`, code), { id: code })
 
+      // Sauvegarde importée (bouton "Importer une sauvegarde" ci-dessus) : le système de règles est
+      // déjà écrit via customSystemDraft/usesCustomSystem ci-dessus — il ne reste que les entités de
+      // groupe et les personnages à recréer, la salle venant tout juste d'obtenir son code. La salle
+      // existe déjà à ce stade : une erreur ici ne doit jamais être confondue avec un échec de création.
+      try {
+        if (importedBundle?.groupEntities) {
+          for (const entity of importedBundle.groupEntities.entities) {
+            await addDoc(collection(db, `Salle/${code}/groupEntities`), entity)
+          }
+        }
+        if (importedBundle?.characters) {
+          for (const character of importedBundle.characters) {
+            await importCharacterExport(code, character)
+          }
+        }
+      } catch (importError) {
+        console.error("Error restoring imported bundle:", importError)
+        toast.error("La salle est créée, mais certaines entités/personnages importés n'ont pas pu être restaurés.")
+      }
+
       setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: false, allowCharacterCreation: true, gameSystemId: 'dnd-classic' })
       setImageFile(null)
       setCustomSystemDraft(null)
+      setImportedBundle(null)
 
       toast.success("Salle créée avec succès !")
       router.push(`/personnages`)
@@ -193,6 +217,54 @@ export default function CreerPageComponent() {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0])
     }
+  }
+
+  // Import d'une sauvegarde (fichier produit par le panneau MJ "Export/Import") directement à la
+  // création de la salle : la salle n'existe pas encore, donc le système/entités/personnages ne
+  // peuvent pas être écrits en Firestore tout de suite — le système custom pré-remplit l'éditeur
+  // (comme un système "fait main"), le reste (entités de groupe, personnages) est appliqué juste après
+  // la création de la salle dans handleCreateRoom, une fois le code de salle connu.
+  const handleImportBundleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const bundle = parseRoomExportBundle(event.target?.result as string)
+        if (bundle.gameSystem) {
+          setCustomSystemDraft({
+            systemId: CUSTOM_SYSTEM_ID,
+            name: bundle.gameSystem.name,
+            description: bundle.gameSystem.description,
+            stats: bundle.gameSystem.stats,
+            creation: bundle.gameSystem.creation,
+            combatDefenseKey: bundle.gameSystem.combatDefenseKey,
+            combatAttackKeys: bundle.gameSystem.combatAttackKeys,
+            modifierFormula: bundle.gameSystem.modifierFormula,
+            statGroups: bundle.gameSystem.statGroups,
+            races: bundle.gameSystem.races,
+            profiles: bundle.gameSystem.profiles,
+            raceLabel: bundle.gameSystem.raceLabel,
+            profileLabel: bundle.gameSystem.profileLabel,
+            groupEntityLabel: bundle.gameSystem.groupEntityLabel,
+            groupEntityStats: bundle.gameSystem.groupEntityStats,
+            groupEntityCreation: bundle.gameSystem.groupEntityCreation,
+          })
+          setNewRoom((prev) => ({ ...prev, gameSystemId: CUSTOM_SYSTEM_ID }))
+        }
+        setImportedBundle(bundle)
+        const parts = [
+          bundle.gameSystem && 'le système de règles',
+          bundle.groupEntities && `${bundle.groupEntities.entities.length} entité(s) de groupe`,
+          bundle.characters && `${bundle.characters.length} personnage(s)`,
+        ].filter(Boolean)
+        toast.success(parts.length ? `Sauvegarde chargée : ${parts.join(', ')}.` : 'Sauvegarde chargée.')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Fichier invalide.')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   return (
@@ -278,6 +350,13 @@ export default function CreerPageComponent() {
               </div>
 
               <form onSubmit={handleCreateRoom} className="space-y-6">
+                {/* Import d'une sauvegarde (fichier du panneau MJ Export/Import) */}
+                <label className="flex items-center justify-center gap-2 w-full py-3 px-3 rounded-xl border border-dashed text-xs font-bold cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <Upload className="h-3.5 w-3.5 shrink-0" />
+                  {importedBundle ? 'Remplacer la sauvegarde importée' : 'Importer une sauvegarde (système, entités, personnages)'}
+                  <input type="file" accept="application/json" onChange={handleImportBundleFile} className="hidden" />
+                </label>
+
                 {/* Title + Players */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">

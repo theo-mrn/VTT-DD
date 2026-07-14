@@ -1,4 +1,4 @@
-import { rollAbilities, rollCharacterStats, evaluateRollConstraintAggregate, RollConstraintUnsatisfiableError } from '../creation';
+import { rollAbilities, rollCharacterStats, rollGroupEntityStats, evaluateRollConstraintAggregate, RollConstraintUnsatisfiableError } from '../creation';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
 import type { StatDefinition, RollConstraintRule } from '@/modules/game-system/types';
 
@@ -439,5 +439,41 @@ describe('rollAbilities — contraintes de tirage multiples (rollConstraints[], 
       // FORM doit toujours refléter la VRAIE valeur de FOR de cette tentative, jamais 0/désynchronisée.
       expect(rolled.FORM).toBe(rolled.FOR + mod(rolled.FOR) + 1);
     }
+  });
+});
+
+describe('rollGroupEntityStats — génération d\'une entité de groupe (ex vaisseau, pas de personnage)', () => {
+  test('tire les stats "ability" du schéma groupEntityStats, indépendamment de gameSystem.stats (personnage)', () => {
+    const gameSystem = {
+      systemId: 'test-group-entity',
+      stats: [abilityStat('FOR')], // stats de personnage : ne doivent jamais être mélangées à l'entité de groupe
+      groupEntityStats: [
+        { key: 'Vitesse', label: 'Vitesse', category: 'ability' as const, dataType: 'number' as const, origin: 'module' as const, rollFormula: { type: 'const' as const, value: 5 } },
+      ],
+    };
+    const result = rollGroupEntityStats(gameSystem);
+    expect(result.abilities.Vitesse).toBe(5);
+    expect(result.abilities.FOR).toBeUndefined();
+  });
+
+  test('une stat derived du schéma groupEntityStats est calculée à partir des abilities tirées', () => {
+    const gameSystem = {
+      systemId: 'test-group-entity-derived',
+      stats: [],
+      groupEntityStats: [
+        { key: 'Blindage', label: 'Blindage', category: 'ability' as const, dataType: 'number' as const, origin: 'module' as const, rollFormula: { type: 'const' as const, value: 4 } },
+        { key: 'Encaissement', label: 'Encaissement', category: 'derived' as const, dataType: 'number' as const, origin: 'module' as const, valueFormula: { type: 'add' as const, args: [{ type: 'const' as const, value: 1 }, { type: 'stat' as const, key: 'Blindage' }] } },
+      ],
+    };
+    const result = rollGroupEntityStats(gameSystem);
+    expect(result.abilities.Blindage).toBe(4);
+    expect(result.derived.Encaissement).toBe(5);
+  });
+
+  test('sans groupEntityStats défini, retourne des collections vides sans planter', () => {
+    const gameSystem = { systemId: 'test-group-entity-empty', stats: [] };
+    const result = rollGroupEntityStats(gameSystem);
+    expect(result.abilities).toEqual({});
+    expect(result.derived).toEqual({});
   });
 });

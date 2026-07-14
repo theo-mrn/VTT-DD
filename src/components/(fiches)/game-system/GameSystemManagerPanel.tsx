@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { db, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from '@/lib/firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
@@ -90,9 +90,14 @@ export type Draft = GameSystemDefinition & { name: string; description: string }
 export default function GameSystemManagerPanel() {
   const { isMJ, user } = useGame();
   const roomId = (user as { roomId?: string } | null)?.roomId ?? null;
+  const uid = (user as { uid?: string } | null)?.uid ?? null;
 
   const [activeSystemId, setActiveSystemId] = useState<string>('dnd-classic');
-  const [overrides, setOverrides] = useState<Record<string, Draft>>({});
+  // Systèmes custom accessibles au MJ courant, quelle que soit leur source de stockage :
+  // catalogue partagé gameSystems/{id} (nouveau, filtré par ownerId) OU legacy scopé à la room
+  // Salle/{roomId}/gameSystemOverrides/{id} (anciennes salles). Fusionnés dans une seule map, avec
+  // sourceKind pour savoir où écrire au moment de la sauvegarde/suppression.
+  const [overrides, setOverrides] = useState<Record<string, Draft & { sourceKind: 'catalog' | 'legacy' }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [confirmSwitchTo, setConfirmSwitchTo] = useState<string | null>(null);
   const [editingSystemId, setEditingSystemId] = useState<string | null>(null);
@@ -103,13 +108,28 @@ export default function GameSystemManagerPanel() {
       setActiveSystemId((snap.data()?.gameSystemId as string) || 'dnd-classic');
       setIsLoading(false);
     });
+
+    let catalogEntries: Record<string, Draft & { sourceKind: 'catalog' | 'legacy' }> = {};
+    let legacyEntries: Record<string, Draft & { sourceKind: 'catalog' | 'legacy' }> = {};
+    const mergeAndSet = () => setOverrides({ ...legacyEntries, ...catalogEntries });
+
     const unsubOverrides = onSnapshot(collection(db, `Salle/${roomId}/gameSystemOverrides`), (snap) => {
-      const next: Record<string, Draft> = {};
-      snap.forEach((d) => { next[d.id] = d.data() as Draft; });
-      setOverrides(next);
+      legacyEntries = {};
+      snap.forEach((d) => { legacyEntries[d.id] = { ...(d.data() as Draft), sourceKind: 'legacy' }; });
+      mergeAndSet();
     });
-    return () => { unsubRoom(); unsubOverrides(); };
-  }, [roomId]);
+
+    // Catalogue partagé : uniquement les systèmes créés par ce MJ (pas tout le catalogue global).
+    const unsubCatalog = uid
+      ? onSnapshot(query(collection(db, 'gameSystems'), where('ownerId', '==', uid)), (snap) => {
+          catalogEntries = {};
+          snap.forEach((d) => { catalogEntries[d.id] = { ...(d.data() as Draft), sourceKind: 'catalog' }; });
+          mergeAndSet();
+        })
+      : () => {};
+
+    return () => { unsubRoom(); unsubOverrides(); unsubCatalog(); };
+  }, [roomId, uid]);
 
   const builtinSystems = useMemo(() => moduleRegistry.getAllGameSystemModules(), []);
 
@@ -169,7 +189,9 @@ export default function GameSystemManagerPanel() {
       return;
     }
     if (!confirm('Supprimer ce système ? Cette action est définitive.')) return;
-    deleteDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, systemId));
+    const sourceKind = overrides[systemId]?.sourceKind ?? 'legacy';
+    const ref = sourceKind === 'catalog' ? doc(db, 'gameSystems', systemId) : doc(db, `Salle/${roomId}/gameSystemOverrides`, systemId);
+    deleteDoc(ref);
   };
 
   if (!isMJ) {
@@ -195,11 +217,14 @@ export default function GameSystemManagerPanel() {
       setEditingSystemId(null);
       return null;
     }
+    const ref = draft.sourceKind === 'catalog'
+      ? doc(db, 'gameSystems', editingSystemId)
+      : doc(db, `Salle/${roomId}/gameSystemOverrides`, editingSystemId);
     return (
       <GameSystemEditor
         draft={draft}
         onBack={() => setEditingSystemId(null)}
-        onSave={(next) => updateDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, editingSystemId), stripUndefinedDeep(next) as unknown as Record<string, unknown>)}
+        onSave={(next) => updateDoc(ref, stripUndefinedDeep(next) as unknown as Record<string, unknown>)}
       />
     );
   }
@@ -317,7 +342,9 @@ type SelectionId =
   | { kind: 'test' }
   | { kind: 'characters' }
   | { kind: 'race'; id: string }
-  | { kind: 'profile'; id: string };
+  | { kind: 'profile'; id: string }
+  | { kind: 'groupEntity' }
+  | { kind: 'groupEntityStat'; key: string };
 
 export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   const [local, setLocal] = useState<Draft>(draft);
@@ -401,6 +428,23 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
   const selectedRace = selection.kind === 'race' ? races.find((r) => r.id === selection.id) : undefined;
   const selectedProfile = selection.kind === 'profile' ? profiles.find((p) => p.id === selection.id) : undefined;
 
+  // ── Schéma de stats de l'entité de GROUPE (nom libre défini par le MJ, ex "Vaisseau", "Base secrète")
+  //    — généricité identique aux stats de personnage, cf. StatList/StatDetail ci-dessus. Les instances
+  //    vivent séparément, hors de ce Draft, dans Salle/{roomId}/groupEntities. ──
+  const groupEntityStats = local.groupEntityStats ?? [];
+  const groupEntityLabel = local.groupEntityLabel || 'Entité de groupe';
+  const addGroupEntityStat = () => {
+    const stat = emptyStat(groupEntityStats.map((s) => s.key));
+    save({ ...local, groupEntityStats: [...groupEntityStats, stat] });
+    setSelection({ kind: 'groupEntityStat', key: stat.key });
+  };
+  const updateGroupEntityStat = (key: string, patch: Partial<StatDefinition>) => save({ ...local, groupEntityStats: groupEntityStats.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
+  const removeGroupEntityStat = (key: string) => {
+    save({ ...local, groupEntityStats: groupEntityStats.filter((s) => s.key !== key) });
+    if (selection.kind === 'groupEntityStat' && selection.key === key) setSelection({ kind: 'groupEntity' });
+  };
+  const selectedGroupEntityStat = selection.kind === 'groupEntityStat' ? groupEntityStats.find((s) => s.key === selection.key) : undefined;
+
   const handleExport = () => {
     const exportData = buildGameSystemExport(local);
     downloadGameSystemExport(exportData, `${local.name || local.systemId}.json`);
@@ -430,6 +474,11 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           statGroups: imported.statGroups,
           races: imported.races,
           profiles: imported.profiles,
+          raceLabel: imported.raceLabel,
+          profileLabel: imported.profileLabel,
+          groupEntityLabel: imported.groupEntityLabel,
+          groupEntityStats: imported.groupEntityStats,
+          groupEntityCreation: imported.groupEntityCreation,
         });
         setSelection({ kind: 'general' });
         toast.success('Système importé.');
@@ -463,6 +512,7 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           <input type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
         </label>
         {isSaving && <span className="text-[10px] shrink-0" style={{ color: 'var(--text-secondary)' }}>Enregistré…</span>}
+        <div className="w-10 shrink-0" />
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
@@ -472,6 +522,7 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           <NavRow label="Modificateur" active={selection.kind === 'modifier'} onClick={() => setSelection({ kind: 'modifier' })} />
           <NavRow label="Tirage" active={selection.kind === 'roll'} onClick={() => setSelection({ kind: 'roll' })} />
           <NavRow label="Personnages" active={selection.kind === 'characters'} onClick={() => setSelection({ kind: 'characters' })} />
+          <NavRow label={groupEntityLabel} active={selection.kind === 'groupEntity'} onClick={() => setSelection({ kind: 'groupEntity' })} />
           <NavRow label="Tester" active={selection.kind === 'test'} onClick={() => setSelection({ kind: 'test' })} />
 
           {selection.kind === 'characters' || selectedRace || selectedProfile ? (
@@ -494,6 +545,25 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
                   <Plus size={12} /> Ajouter : {local.profileLabel || 'Profil'}
                 </button>
               </div>
+            </div>
+          ) : null}
+
+          {selection.kind === 'groupEntity' || selectedGroupEntityStat ? (
+            <div className="pl-2.5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>Stats ({groupEntityLabel.toLowerCase()})</p>
+              {groupEntityStats.map((s) => (
+                <StatNavRow
+                  key={s.key}
+                  stat={s}
+                  active={selection.kind === 'groupEntityStat' && selection.key === s.key}
+                  autoFocus={selection.kind === 'groupEntityStat' && selection.key === s.key && !s.label}
+                  onClick={() => setSelection({ kind: 'groupEntityStat', key: s.key })}
+                  onRename={(label) => updateGroupEntityStat(s.key, { label })}
+                />
+              ))}
+              <button onClick={addGroupEntityStat} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                <Plus size={12} /> Ajouter une stat
+              </button>
             </div>
           ) : null}
 
@@ -571,6 +641,29 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           )}
           {selectedProfile && (
             <ProfileDetail profile={selectedProfile} onChange={(patch) => updateProfile(selectedProfile.id, patch)} onRemove={() => removeProfile(selectedProfile.id)} />
+          )}
+          {selection.kind === 'groupEntity' && (
+            <div>
+              <DetailHeader title="Entité de groupe" hint="Une entité possédée par le groupe (la table), pas par un personnage — le MJ choisit ce qu'elle représente pour son système (ex Vaisseau, Base secrète, Guilde) et définit ses stats, avec le même mécanisme que les caractéristiques de personnage. Les instances se gèrent depuis le menu du MJ, pas ici." />
+              <div className="space-y-4 max-w-md">
+                <label className="space-y-1 block">
+                  <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Nom affiché</span>
+                  <input
+                    type="text"
+                    value={local.groupEntityLabel ?? ''}
+                    onChange={(e) => setLocal({ ...local, groupEntityLabel: e.target.value || undefined })}
+                    onBlur={() => save(local)}
+                    placeholder="ex Vaisseau, Base secrète, Guilde"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                </label>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{groupEntityStats.length} stat{groupEntityStats.length > 1 ? 's' : ''} définie{groupEntityStats.length > 1 ? 's' : ''}.</p>
+              </div>
+            </div>
+          )}
+          {selectedGroupEntityStat && (
+            <StatDetail stat={selectedGroupEntityStat} allStats={groupEntityStats} onChange={(patch) => updateGroupEntityStat(selectedGroupEntityStat.key, patch)} onRemove={() => removeGroupEntityStat(selectedGroupEntityStat.key)} />
           )}
         </div>
       </div>

@@ -139,6 +139,20 @@ export interface GameSystemDefinition {
   raceLabel?: string;
   /** Nom d'affichage libre pour la catégorie "profils" (ex "Classe", "Archétype", "Voie"). Absent = "Profil". */
   profileLabel?: string;
+  /** Nom d'affichage libre pour l'entité possédée par le GROUPE (la table), pas par un personnage
+   *  individuel — le MJ choisit ce que représente cette entité pour son système (ex "Vaisseau", "Base
+   *  secrète", "Caravane", "Guilde"). Absent = aucune entité de groupe activée pour ce système
+   *  (`groupEntityStats` reste vide/non pertinent tant que ce label n'est pas défini). */
+  groupEntityLabel?: string;
+  /** Schéma de stats de l'entité de groupe — généricité identique à `stats` ci-dessus (mêmes mécanismes :
+   *  formules, catégories, groupes), mais appliqué à une entité de la table plutôt qu'à un personnage.
+   *  Absent/vide = pas de stats configurées. Les instances vivent séparément, dans
+   *  Salle/{roomId}/groupEntities. */
+  groupEntityStats?: StatDefinition[];
+  /** Règle de génération optionnelle pour une NOUVELLE entité de groupe (ex tirage initial d'une stat) —
+   *  distincte de `creation` (personnages) : pas de rollConstraints/applyRacialModifiers, une entité de
+   *  groupe n'a pas de race. */
+  groupEntityCreation?: { method: 'roll' | 'manual'; rollFormula?: FormulaNode };
 }
 
 export interface RacialAbility {

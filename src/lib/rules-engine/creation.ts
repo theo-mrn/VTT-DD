@@ -292,3 +292,52 @@ export function rollCharacterStats(
 
   return { rolledAbilities, abilities, derived };
 }
+
+export interface RolledGroupEntityStats {
+  /** Valeurs de départ (category='ability') tirées pour cette entité de groupe. */
+  abilities: Record<string, number>;
+  /** Stats dérivées/vitales calculées à partir de ces valeurs. */
+  derived: Record<string, number | string | boolean>;
+}
+
+/**
+ * Génère une nouvelle entité de groupe (abilities + stats dérivées) selon le schéma groupEntityStats
+ * du système de jeu actif — même mécanisme que rollCharacterStats, mais pour une entité possédée par
+ * le groupe (nom libre défini par le MJ, ex "Vaisseau", "Base secrète"), pas par un personnage : pas de
+ * modificateurs raciaux (pas de race pour une entité de groupe), et la règle de tirage vient de
+ * gameSystem.groupEntityCreation (méthode réduite, pas de rollConstraints/applyRacialModifiers).
+ */
+export function rollGroupEntityStats(
+  gameSystem: GameSystemDefinition,
+  extraFields: Record<string, unknown> = {},
+): RolledGroupEntityStats {
+  const groupEntityStats = gameSystem.groupEntityStats ?? [];
+  const groupEntitySystem: GameSystemDefinition = { systemId: gameSystem.systemId, stats: groupEntityStats, modifierFormula: gameSystem.modifierFormula };
+  const rule: CharacterCreationRule = { method: gameSystem.groupEntityCreation?.method ?? 'manual', rollFormula: gameSystem.groupEntityCreation?.rollFormula };
+
+  const abilityDefs = groupEntityStats.filter((s) => s.category === 'ability');
+  const abilityKeys = abilityDefs.map((s) => s.key);
+
+  const abilities = rollAbilities(rule, abilityDefs, gameSystem.modifierFormula);
+
+  // Même logique en deux passes que rollCharacterStats : une stat 'derived'/'vital' avec sa propre
+  // rollFormula est tirée une fois, dans l'ordre de ses dépendances, après les abilities.
+  const rollableDefs = sortByRollDependencies(
+    groupEntityStats.filter((s) => (s.category === 'vital' || s.category === 'derived') && s.rollFormula),
+  );
+  const firstPass = resolveCharacterStats(groupEntitySystem, [], { ...extraFields, ...abilities });
+  const statDefsForRoll = Object.fromEntries(groupEntityStats.map((s) => [s.key, s]));
+  const rolledDerivedOrVital: Record<string, number> = {};
+  for (const stat of rollableDefs) {
+    const ctx: FormulaContext = { rawStats: { ...firstPass.values, ...rolledDerivedOrVital }, statDefs: statDefsForRoll, _rawContext: true };
+    rolledDerivedOrVital[stat.key] = evaluateFormula(stat.rollFormula!, ctx);
+  }
+
+  const resolved = resolveCharacterStats(groupEntitySystem, [], { ...extraFields, ...abilities, ...rolledDerivedOrVital });
+  const derived: Record<string, number | string | boolean> = {};
+  for (const [key, value] of Object.entries(resolved.values)) {
+    if (!abilityKeys.includes(key)) derived[key] = value;
+  }
+
+  return { abilities, derived };
+}

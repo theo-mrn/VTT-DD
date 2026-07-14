@@ -6,6 +6,8 @@ import type {
   StatDefinition,
 } from './types';
 
+type GroupEntityCreationRule = { method: 'roll' | 'manual'; rollFormula?: FormulaNode };
+
 // Miroir de src/utils/characterTransfer.ts (mêmes conventions : exportVersion/exportedAt, blob +
 // URL.createObjectURL pour le téléchargement, JSON.parse + validation manuelle pour l'import — aucune
 // lib de validation externe dans le projet, on reste sur ce style pour rester cohérent).
@@ -25,6 +27,11 @@ export interface GameSystemExportData {
   statGroups?: string[];
   races: RaceDefinition[];
   profiles: ProfileDefinition[];
+  raceLabel?: string;
+  profileLabel?: string;
+  groupEntityLabel?: string;
+  groupEntityStats: StatDefinition[];
+  groupEntityCreation?: GroupEntityCreationRule;
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -40,6 +47,11 @@ export interface GameSystemExportSource {
   statGroups?: string[];
   races?: RaceDefinition[];
   profiles?: ProfileDefinition[];
+  raceLabel?: string;
+  profileLabel?: string;
+  groupEntityLabel?: string;
+  groupEntityStats?: StatDefinition[];
+  groupEntityCreation?: GroupEntityCreationRule;
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -55,11 +67,16 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
     statGroups: source.statGroups ?? [],
     races: source.races ?? [],
     profiles: source.profiles ?? [],
+    groupEntityStats: source.groupEntityStats ?? [],
   };
   if (source.creation != null) result.creation = source.creation;
   if (source.combatDefenseKey != null) result.combatDefenseKey = source.combatDefenseKey;
   if (source.combatAttackKeys != null) result.combatAttackKeys = source.combatAttackKeys;
   if (source.modifierFormula != null) result.modifierFormula = source.modifierFormula;
+  if (source.raceLabel != null) result.raceLabel = source.raceLabel;
+  if (source.profileLabel != null) result.profileLabel = source.profileLabel;
+  if (source.groupEntityLabel != null) result.groupEntityLabel = source.groupEntityLabel;
+  if (source.groupEntityCreation != null) result.groupEntityCreation = source.groupEntityCreation;
   return result;
 }
 
@@ -102,10 +119,16 @@ function isStatDefinition(v: unknown): v is StatDefinition {
 }
 
 export function parseGameSystemExport(raw: string): GameSystemExportData {
-  const json = JSON.parse(raw);
-  if (!json || typeof json !== 'object') {
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object') {
     throw new Error('Fichier invalide : contenu JSON attendu.');
   }
+  // Tolère un fichier bundle (export du panneau Export/Import global, ex { gameSystem: {...}, ... })
+  // déposé par erreur dans un import qui n'attend qu'un système seul : on déroule json.gameSystem
+  // plutôt que de rejeter le fichier avec une erreur qui ne renseigne pas l'utilisateur sur la cause réelle.
+  const json = (!Array.isArray(parsed.stats) && parsed.gameSystem && typeof parsed.gameSystem === 'object')
+    ? parsed.gameSystem
+    : parsed;
   if (!Array.isArray(json.stats) || json.stats.length === 0 || !json.stats.every(isStatDefinition)) {
     throw new Error('Fichier invalide : aucune caractéristique valide trouvée.');
   }
@@ -119,6 +142,7 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
     statGroups: Array.isArray(json.statGroups) ? json.statGroups : [],
     races: Array.isArray(json.races) ? json.races : [],
     profiles: Array.isArray(json.profiles) ? json.profiles : [],
+    groupEntityStats: Array.isArray(json.groupEntityStats) ? json.groupEntityStats : [],
   };
   // Champs optionnels : ajoutés seulement s'ils sont réellement présents dans le fichier — jamais
   // écrits comme `undefined` explicite (Firestore rejette toute clé dont la valeur est undefined).
@@ -126,5 +150,9 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (typeof json.combatDefenseKey === 'string') result.combatDefenseKey = json.combatDefenseKey;
   if (Array.isArray(json.combatAttackKeys)) result.combatAttackKeys = json.combatAttackKeys;
   if (json.modifierFormula != null) result.modifierFormula = json.modifierFormula;
+  if (typeof json.raceLabel === 'string') result.raceLabel = json.raceLabel;
+  if (typeof json.profileLabel === 'string') result.profileLabel = json.profileLabel;
+  if (typeof json.groupEntityLabel === 'string') result.groupEntityLabel = json.groupEntityLabel;
+  if (json.groupEntityCreation != null) result.groupEntityCreation = json.groupEntityCreation;
   return result;
 }

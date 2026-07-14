@@ -35,6 +35,11 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     statGroups: ['Caractéristiques'],
     races: [race],
     profiles: [profile],
+    raceLabel: 'Espèce',
+    profileLabel: 'Classe',
+    groupEntityLabel: 'Vaisseau',
+    groupEntityStats: [statDef('Vitesse'), statDef('Blindage', { category: 'derived', valueFormula: { type: 'const', value: 5 } })],
+    groupEntityCreation: { method: 'roll', rollFormula: { type: 'const', value: 5 } },
   };
 
   test('build() produit un export complet avec version/date, sans systemId', () => {
@@ -63,14 +68,24 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect(parsed.races).toEqual([race]);
     expect(parsed.races[0].abilities).toEqual(race.abilities);
     expect(parsed.profiles).toEqual([profile]);
+    expect(parsed.raceLabel).toBe('Espèce');
+    expect(parsed.profileLabel).toBe('Classe');
+    expect(parsed.groupEntityLabel).toBe('Vaisseau');
+    expect(parsed.groupEntityStats).toEqual(source.groupEntityStats);
+    expect(parsed.groupEntityCreation).toEqual(source.groupEntityCreation);
   });
 
-  test('rétrocompat : races/profiles/statGroups absents du JSON par défaut à []', () => {
+  test('rétrocompat : races/profiles/statGroups/groupEntityStats absents du JSON par défaut à []', () => {
     const minimal = { stats: [statDef('FOR')] };
     const parsed = parseGameSystemExport(JSON.stringify(minimal));
     expect(parsed.races).toEqual([]);
     expect(parsed.profiles).toEqual([]);
     expect(parsed.statGroups).toEqual([]);
+    expect(parsed.groupEntityStats).toEqual([]);
+    expect('raceLabel' in parsed).toBe(false);
+    expect('profileLabel' in parsed).toBe(false);
+    expect('groupEntityLabel' in parsed).toBe(false);
+    expect('groupEntityCreation' in parsed).toBe(false);
   });
 
   test('rejette un JSON sans stats', () => {
@@ -92,6 +107,15 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
 
   test('rejette un texte qui n\'est pas du JSON valide', () => {
     expect(() => parseGameSystemExport('pas du json')).toThrow();
+  });
+
+  test('BUG RÉEL corrigé : un fichier bundle (export du panneau Export/Import global, sans stats à la '
+    + 'racine mais avec .gameSystem) est déroulé automatiquement au lieu d\'être rejeté avec '
+    + '"aucune caractéristique valide trouvée" — piège si l\'utilisateur se trompe de bouton d\'import', () => {
+    const bundle = { exportVersion: 1, exportedAt: 'x', gameSystem: { name: 'Sys', description: '', stats: [statDef('FOR')] } };
+    const parsed = parseGameSystemExport(JSON.stringify(bundle));
+    expect(parsed.name).toBe('Sys');
+    expect(parsed.stats).toEqual([statDef('FOR')]);
   });
 
   test('BUG RÉEL corrigé : un fichier sans modifierFormula/creation/combatDefenseKey ne produit '
