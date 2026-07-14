@@ -528,6 +528,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       )}
 
+
       <Dialog open={openDialog === 'joueurs'} onOpenChange={(open) => !open && setOpenDialog(null)}>
         <DialogContent className="sm:max-w-md bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] shadow-2xl p-0 overflow-hidden">
           <DialogHeader className="px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-dark)]/50">

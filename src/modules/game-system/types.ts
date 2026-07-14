@@ -103,6 +103,10 @@ export interface CharacterCreationRule {
   rollFormula?: FormulaNode;
   rollConstraints?: RollConstraintRule[];
   applyRacialModifiers?: boolean;
+  /** Nombre maximum de fois que le joueur peut cliquer "Lancer les dés" à la création — absent = illimité
+   *  (comportement historique inchangé). Limite le nombre de CLICS, pas une notion de "meilleur tirage" :
+   *  le joueur garde le dernier résultat obtenu, le bouton se désactive une fois la limite atteinte. */
+  maxRolls?: number;
 }
 
 // ─── Game system definition ─────────────────────────────────────────
@@ -124,6 +128,50 @@ export interface GameSystemDefinition {
    *  pour permettre de créer un groupe vide avant d'y ranger des stats. Sans rapport avec StatCategory
    *  (ability/derived/vital/meta), qui reste le type de calcul technique de la stat. */
   statGroups?: string[];
+  /** Espèces/races proposées aux joueurs à la création de personnage (remplace race.json pour un
+   *  système custom) — génériques, leurs modificateurs référencent les clés de `stats` ci-dessus. */
+  races?: RaceDefinition[];
+  /** Profils/classes proposés aux joueurs à la création de personnage (remplace profile.json). */
+  profiles?: ProfileDefinition[];
+  /** Nom d'affichage libre pour la catégorie "races" (ex "Espèce", "Origine", "Lignée") — remplace
+   *  uniquement le libellé affiché aux joueurs (onglet, titres) ; le champ interne character.Race et
+   *  la structure RaceDefinition restent inchangés. Absent = "Race" (défaut). */
+  raceLabel?: string;
+  /** Nom d'affichage libre pour la catégorie "profils" (ex "Classe", "Archétype", "Voie"). Absent = "Profil". */
+  profileLabel?: string;
+}
+
+export interface RacialAbility {
+  /** Identifiant stable (généré côté UI, ex crypto.randomUUID()). */
+  id: string;
+  label: string;
+  /** Texte libre, affiché sur la fiche — pas d'effet mécanique automatisé (comme capacite_*.json). */
+  description?: string;
+}
+
+export interface RaceDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  image?: string;
+  /** Modificateurs appliqués aux stats du système actif à la création — clés = StatDefinition.key
+   *  du système en cours (générique, pas FOR/DEX en dur). Ex { FOR: -2, CHA: 2 } ou { car3: 2 }. */
+  modifiers: Record<string, number>;
+  abilities: RacialAbility[];
+  /** Taille moyenne (cm), proposée comme valeur de départ à la création. */
+  avgHeight?: number;
+  /** Poids moyen (kg), proposé comme valeur de départ à la création. */
+  avgWeight?: number;
+}
+
+export interface ProfileDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  image?: string;
+  /** Notation de dé texte (ex "d8", "d12") — réutilisée telle quelle par le mécanisme diceField déjà
+   *  existant (ex PV_Max = 1 + mod(CON) + diceField:deVie), pas de nouveau mécanisme de dé. */
+  hitDie?: string;
 }
 
 /** Un module de type 'game-system' fournit gameSystem en plus des champs ModuleDefinition standards. */

@@ -5,10 +5,12 @@ import { db, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from '@
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator } from '@/modules/game-system/types';
+import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility } from '@/modules/game-system/types';
 import { FormulaEditor } from './FormulaEditor';
 import { findRollFormulaCycle, rollCharacterStats, groupStats } from '@/lib/rules-engine';
-import { Check, Plus, Trash2, Copy, AlertTriangle, ChevronLeft, Dice6, GripVertical, Pencil } from 'lucide-react';
+import { buildGameSystemExport, downloadGameSystemExport, parseGameSystemExport, stripUndefinedDeep } from '@/modules/game-system/transfer';
+import { toast } from 'sonner';
+import { Check, Plus, Trash2, Copy, AlertTriangle, ChevronLeft, Dice6, GripVertical, Pencil, Download, Upload } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -78,6 +80,8 @@ export function emptyGameSystem(systemId: string, name: string): Draft {
     stats: defaultVitalStats(),
     creation: { method: 'manual' },
     statGroups: [],
+    races: [],
+    profiles: [],
   };
 }
 
@@ -195,7 +199,7 @@ export default function GameSystemManagerPanel() {
       <GameSystemEditor
         draft={draft}
         onBack={() => setEditingSystemId(null)}
-        onSave={(next) => updateDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, editingSystemId), next as unknown as Record<string, unknown>)}
+        onSave={(next) => updateDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, editingSystemId), stripUndefinedDeep(next) as unknown as Record<string, unknown>)}
       />
     );
   }
@@ -305,7 +309,15 @@ function statKind(stat: StatDefinition): 'ability' | 'derived' {
   return stat.valueFormula ? 'derived' : 'ability';
 }
 
-type SelectionId = { kind: 'stat'; key: string } | { kind: 'general' } | { kind: 'modifier' } | { kind: 'roll' } | { kind: 'test' };
+type SelectionId =
+  | { kind: 'stat'; key: string }
+  | { kind: 'general' }
+  | { kind: 'modifier' }
+  | { kind: 'roll' }
+  | { kind: 'test' }
+  | { kind: 'characters' }
+  | { kind: 'race'; id: string }
+  | { kind: 'profile'; id: string };
 
 export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   const [local, setLocal] = useState<Draft>(draft);
@@ -363,6 +375,72 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
   const moveStatToGroup = (key: string, group: string | undefined) => updateStat(key, { group });
   const reorderStats = (nextStats: StatDefinition[]) => save({ ...local, stats: nextStats });
 
+  // ── Races/profils (personnages jouables proposés à la création, remplace race.json/profile.json) ──
+  const races = local.races ?? [];
+  const profiles = local.profiles ?? [];
+  const addRace = () => {
+    const race: RaceDefinition = { id: makeId('content'), label: '', modifiers: {}, abilities: [] };
+    save({ ...local, races: [...races, race] });
+    setSelection({ kind: 'race', id: race.id });
+  };
+  const updateRace = (id: string, patch: Partial<RaceDefinition>) => save({ ...local, races: races.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+  const removeRace = (id: string) => {
+    save({ ...local, races: races.filter((r) => r.id !== id) });
+    if (selection.kind === 'race' && selection.id === id) setSelection({ kind: 'characters' });
+  };
+  const addProfile = () => {
+    const profile: ProfileDefinition = { id: makeId('content'), label: '' };
+    save({ ...local, profiles: [...profiles, profile] });
+    setSelection({ kind: 'profile', id: profile.id });
+  };
+  const updateProfile = (id: string, patch: Partial<ProfileDefinition>) => save({ ...local, profiles: profiles.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+  const removeProfile = (id: string) => {
+    save({ ...local, profiles: profiles.filter((p) => p.id !== id) });
+    if (selection.kind === 'profile' && selection.id === id) setSelection({ kind: 'characters' });
+  };
+  const selectedRace = selection.kind === 'race' ? races.find((r) => r.id === selection.id) : undefined;
+  const selectedProfile = selection.kind === 'profile' ? profiles.find((p) => p.id === selection.id) : undefined;
+
+  const handleExport = () => {
+    const exportData = buildGameSystemExport(local);
+    downloadGameSystemExport(exportData, `${local.name || local.systemId}.json`);
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = parseGameSystemExport(event.target?.result as string);
+        const isNotEmpty = local.stats.length > defaultVitalStats().length || races.length > 0 || profiles.length > 0;
+        if (isNotEmpty && !window.confirm('Importer remplacera les caractéristiques, contraintes de tirage, races et profils actuels. Continuer ?')) {
+          return;
+        }
+        save({
+          ...local,
+          name: imported.name || local.name,
+          description: imported.description || local.description,
+          stats: imported.stats,
+          creation: imported.creation,
+          combatDefenseKey: imported.combatDefenseKey,
+          combatAttackKeys: imported.combatAttackKeys,
+          modifierFormula: imported.modifierFormula,
+          statGroups: imported.statGroups,
+          races: imported.races,
+          profiles: imported.profiles,
+        });
+        setSelection({ kind: 'general' });
+        toast.success('Système importé.');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Fichier invalide.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="w-full h-full min-w-0 flex flex-col" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
       <div className="p-4 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-color)' }}>
@@ -377,6 +455,13 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
             style={{ fontFamily: 'var(--font-title)' }}
           />
         </div>
+        <button onClick={handleExport} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }} title="Exporter ce système en fichier JSON">
+          <Download size={13} /> Exporter
+        </button>
+        <label className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0 cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }} title="Importer un système depuis un fichier JSON">
+          <Upload size={13} /> Importer
+          <input type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
+        </label>
         {isSaving && <span className="text-[10px] shrink-0" style={{ color: 'var(--text-secondary)' }}>Enregistré…</span>}
       </div>
 
@@ -386,7 +471,31 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           <NavRow label="Général" active={selection.kind === 'general'} onClick={() => setSelection({ kind: 'general' })} />
           <NavRow label="Modificateur" active={selection.kind === 'modifier'} onClick={() => setSelection({ kind: 'modifier' })} />
           <NavRow label="Tirage" active={selection.kind === 'roll'} onClick={() => setSelection({ kind: 'roll' })} />
+          <NavRow label="Personnages" active={selection.kind === 'characters'} onClick={() => setSelection({ kind: 'characters' })} />
           <NavRow label="Tester" active={selection.kind === 'test'} onClick={() => setSelection({ kind: 'test' })} />
+
+          {selection.kind === 'characters' || selectedRace || selectedProfile ? (
+            <div className="pl-2.5 space-y-2 pt-1">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>{local.raceLabel || 'Races'}</p>
+                {races.map((r) => (
+                  <NavRow key={r.id} label={r.label || '(sans nom)'} active={selection.kind === 'race' && selection.id === r.id} onClick={() => setSelection({ kind: 'race', id: r.id })} />
+                ))}
+                <button onClick={addRace} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <Plus size={12} /> Ajouter : {local.raceLabel || 'Race'}
+                </button>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>{local.profileLabel || 'Profils'}</p>
+                {profiles.map((p) => (
+                  <NavRow key={p.id} label={p.label || '(sans nom)'} active={selection.kind === 'profile' && selection.id === p.id} onClick={() => setSelection({ kind: 'profile', id: p.id })} />
+                ))}
+                <button onClick={addProfile} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <Plus size={12} /> Ajouter : {local.profileLabel || 'Profil'}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <StatList
             stats={local.stats}
@@ -419,6 +528,49 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           )}
           {selection.kind === 'stat' && selectedStat && (
             <StatDetail stat={selectedStat} allStats={local.stats} onChange={(patch) => updateStat(selectedStat.key, patch)} onRemove={() => removeStat(selectedStat.key)} />
+          )}
+          {selection.kind === 'characters' && (
+            <div>
+              <DetailHeader title="Personnages" hint="Espèces et profils proposés aux joueurs à la création — applique des modificateurs de caractéristiques génériques, quel que soit le système de règles actif." />
+              <div className="space-y-4 max-w-md">
+                <div className="flex items-center gap-4">
+                  <label className="flex-1 space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Nom affiché (races)</span>
+                    <input
+                      type="text"
+                      value={local.raceLabel ?? ''}
+                      onChange={(e) => setLocal({ ...local, raceLabel: e.target.value || undefined })}
+                      onBlur={() => save(local)}
+                      placeholder="Race"
+                      className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    />
+                  </label>
+                  <label className="flex-1 space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Nom affiché (profils)</span>
+                    <input
+                      type="text"
+                      value={local.profileLabel ?? ''}
+                      onChange={(e) => setLocal({ ...local, profileLabel: e.target.value || undefined })}
+                      onBlur={() => save(local)}
+                      placeholder="Profil"
+                      className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+                      style={{ color: 'var(--text-primary)' }}
+                    />
+                  </label>
+                </div>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  Change uniquement le nom affiché aux joueurs (ex &quot;Espèce&quot; au lieu de &quot;Race&quot;) — sans effet sur les données elles-mêmes.
+                </p>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{races.length} {(local.raceLabel || 'race').toLowerCase()}{races.length > 1 ? 's' : ''}, {profiles.length} {(local.profileLabel || 'profil').toLowerCase()}{profiles.length > 1 ? 's' : ''}.</p>
+              </div>
+            </div>
+          )}
+          {selectedRace && (
+            <RaceDetail race={selectedRace} availableStats={local.stats.filter((s) => s.category === 'ability')} onChange={(patch) => updateRace(selectedRace.id, patch)} onRemove={() => removeRace(selectedRace.id)} />
+          )}
+          {selectedProfile && (
+            <ProfileDetail profile={selectedProfile} onChange={(patch) => updateProfile(selectedProfile.id, patch)} onRemove={() => removeProfile(selectedProfile.id)} />
           )}
         </div>
       </div>
@@ -776,8 +928,8 @@ const OPERATOR_LABELS: Record<RollComparisonOperator, string> = {
   '>=': '≥',
 };
 
-function makeConstraintId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `constraint-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function makeId(prefix: string): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function RollConstraintPanel({ local, onSave }: { local: Draft; onSave: (next: Draft) => void }) {
@@ -791,7 +943,7 @@ function RollConstraintPanel({ local, onSave }: { local: Draft; onSave: (next: D
 
   const addConstraint = () => {
     const newConstraint: RollConstraintRule = {
-      id: makeConstraintId(),
+      id: makeId('constraint'),
       statKeys: [],
       aggregate: 'evenCount',
       operator: '=',
@@ -820,6 +972,22 @@ function RollConstraintPanel({ local, onSave }: { local: Draft; onSave: (next: D
         hint="Ajoute des règles sur le tirage des caractéristiques : chaque contrainte porte sur ses propres caractéristiques choisies, et compare un agrégat (nombre de pairs, somme...) à une valeur cible."
       />
       <div className="space-y-4 max-w-md">
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Nombre de tirages autorisés (optionnel)
+          <input
+            type="number"
+            min={1}
+            value={creation.maxRolls ?? ''}
+            onChange={(e) => onSave({ ...local, creation: { ...creation, maxRolls: e.target.value ? Number(e.target.value) : undefined } })}
+            placeholder="Illimité"
+            className="w-24 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+        <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          Laisser vide pour un nombre illimité de tirages (comportement par défaut). Une valeur (ex 1) désactive le bouton &quot;Lancer les dés&quot; à la création une fois ce nombre atteint.
+        </p>
+
         {constraints.length === 0 && (
           <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Aucune contrainte pour le moment.</p>
         )}
@@ -1143,6 +1311,218 @@ function StatDetail({ stat, allStats, onChange, onRemove }: {
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Proposée par défaut dans le lanceur de dés des joueurs.</p>
           </div>
         </label>
+      </div>
+    </div>
+  );
+}
+
+function RaceDetail({ race, availableStats, onChange, onRemove }: {
+  race: RaceDefinition;
+  availableStats: StatDefinition[];
+  onChange: (patch: Partial<RaceDefinition>) => void;
+  onRemove: () => void;
+}) {
+  const toggleStat = (key: string, included: boolean) => {
+    const nextModifiers = { ...race.modifiers };
+    if (included) nextModifiers[key] = nextModifiers[key] ?? 0;
+    else delete nextModifiers[key];
+    onChange({ modifiers: nextModifiers });
+  };
+  const updateModifier = (key: string, value: number) => onChange({ modifiers: { ...race.modifiers, [key]: value } });
+
+  const addAbility = () => onChange({ abilities: [...race.abilities, { id: makeId('ability'), label: '' }] });
+  const updateAbility = (id: string, patch: Partial<RacialAbility>) => onChange({ abilities: race.abilities.map((a) => (a.id === id ? { ...a, ...patch } : a)) });
+  const removeAbility = (id: string) => onChange({ abilities: race.abilities.filter((a) => a.id !== id) });
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+        <input
+          value={race.label}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder="Nom de la race (ex Elfe)"
+          className="text-lg font-bold bg-transparent border-none outline-none flex-1 min-w-0 placeholder:opacity-40"
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-title)' }}
+        />
+        <button onClick={onRemove} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1.5 shrink-0"><Trash2 size={16} /></button>
+      </div>
+
+      <div className="space-y-4 max-w-md">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Description</label>
+          <textarea
+            value={race.description ?? ''}
+            onChange={(e) => onChange({ description: e.target.value })}
+            rows={3}
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm resize-y"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </div>
+
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Image (URL)
+          <input
+            type="text"
+            value={race.image ?? ''}
+            onChange={(e) => onChange({ image: e.target.value })}
+            placeholder="/images/races/elfe.webp"
+            className="flex-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            Taille moyenne (cm)
+            <input type="number" value={race.avgHeight ?? ''} onChange={(e) => onChange({ avgHeight: e.target.value ? Number(e.target.value) : undefined })} className="w-20 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center" style={{ color: 'var(--text-primary)' }} />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            Poids moyen (kg)
+            <input type="number" value={race.avgWeight ?? ''} onChange={(e) => onChange({ avgWeight: e.target.value ? Number(e.target.value) : undefined })} className="w-20 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center" style={{ color: 'var(--text-primary)' }} />
+          </label>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Modificateurs de caractéristiques</label>
+          {availableStats.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {availableStats.map((stat) => {
+                  const included = stat.key in race.modifiers;
+                  return (
+                    <button
+                      key={stat.key}
+                      type="button"
+                      onClick={() => toggleStat(stat.key, !included)}
+                      className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                      style={{
+                        borderColor: included ? 'var(--accent-brown)' : 'var(--border-color)',
+                        background: included ? 'color-mix(in srgb, var(--accent-brown) 15%, transparent)' : 'var(--bg-dark)',
+                        color: included ? 'var(--accent-brown)' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {included && <Check size={12} />}
+                      {stat.label || stat.key}
+                    </button>
+                  );
+                })}
+              </div>
+              {Object.keys(race.modifiers).length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {Object.keys(race.modifiers).map((key) => {
+                    const stat = availableStats.find((s) => s.key === key);
+                    return (
+                      <label key={key} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        {stat?.label || key}
+                        <input
+                          type="number"
+                          value={race.modifiers[key]}
+                          onChange={(e) => updateModifier(key, Number(e.target.value))}
+                          className="w-14 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center"
+                          style={{ color: 'var(--text-primary)' }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Aucune caractéristique définie dans ce système.</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Capacités raciales</label>
+          <div className="space-y-2">
+            {race.abilities.map((ability) => (
+              <div key={ability.id} className="p-2.5 rounded-lg border space-y-1.5" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-dark)' }}>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={ability.label}
+                    onChange={(e) => updateAbility(ability.id, { label: e.target.value })}
+                    placeholder="Nom de la capacité"
+                    className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm font-bold placeholder:opacity-40"
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                  <button onClick={() => removeAbility(ability.id)} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1 shrink-0"><Trash2 size={13} /></button>
+                </div>
+                <textarea
+                  value={ability.description ?? ''}
+                  onChange={(e) => updateAbility(ability.id, { description: e.target.value })}
+                  placeholder="Description (texte libre, affichée sur la fiche)"
+                  rows={2}
+                  className="w-full bg-transparent border-none outline-none text-xs resize-y placeholder:opacity-40"
+                  style={{ color: 'var(--text-secondary)' }}
+                />
+              </div>
+            ))}
+          </div>
+          <button onClick={addAbility} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+            <Plus size={12} /> Ajouter une capacité
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileDetail({ profile, onChange, onRemove }: {
+  profile: ProfileDefinition;
+  onChange: (patch: Partial<ProfileDefinition>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+        <input
+          value={profile.label}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder="Nom du profil (ex Guerrier)"
+          className="text-lg font-bold bg-transparent border-none outline-none flex-1 min-w-0 placeholder:opacity-40"
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-title)' }}
+        />
+        <button onClick={onRemove} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1.5 shrink-0"><Trash2 size={16} /></button>
+      </div>
+
+      <div className="space-y-4 max-w-md">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Description</label>
+          <textarea
+            value={profile.description ?? ''}
+            onChange={(e) => onChange({ description: e.target.value })}
+            rows={3}
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm resize-y"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </div>
+
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Image (URL)
+          <input
+            type="text"
+            value={profile.image ?? ''}
+            onChange={(e) => onChange({ image: e.target.value })}
+            placeholder="/images/profiles/guerrier.webp"
+            className="flex-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Dé de vie (optionnel)
+          <input
+            type="text"
+            value={profile.hitDie ?? ''}
+            onChange={(e) => onChange({ hitDie: e.target.value || undefined })}
+            placeholder="ex d8"
+            className="w-20 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm text-center"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+        <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          Utilisé par une stat vitale ayant une formule référençant le dé de vie (ex PV Max = 1 + mod(CON) + dé de vie).
+        </p>
       </div>
     </div>
   );

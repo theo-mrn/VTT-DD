@@ -20,6 +20,7 @@ import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(compete
 import { toast } from 'sonner'
 import { rollCharacterStats, statsToDefaults, groupStats } from '@/lib/rules-engine'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
 
 
 
@@ -85,6 +86,19 @@ export default function CharacterCreationPage() {
   const isDndClassic = gameSystem.systemId === 'dnd-classic'
   const abilityStats = gameSystem.stats.filter((s) => s.category === 'ability')
 
+  // Races/profils : dnd-classic lit toujours race.json/profile.json (legacy, converti à la volée dans
+  // le même format que RaceDefinition/ProfileDefinition) ; tout autre système lit gameSystem.races/profiles,
+  // défini par le MJ dans l'éditeur de règles — générique, aucune clé D&D en dur.
+  const races: RaceDefinition[] = isDndClassic
+    ? Object.entries(raceData).map(([id, r]) => ({ id, label: id.replace('_', ' '), description: r.description, image: r.image, modifiers: r.modificateurs || {}, abilities: [], avgHeight: (r as any).tailleMoyenne, avgWeight: (r as any).poidsMoyen }))
+    : (gameSystem.races ?? [])
+  const profiles: ProfileDefinition[] = isDndClassic
+    ? Object.entries(profileData).map(([id, p]) => ({ id, label: id, description: p.description, image: p.image, hitDie: p.hitDie }))
+    : (gameSystem.profiles ?? [])
+  const hasRaceProfileContent = isDndClassic || races.length > 0 || profiles.length > 0
+  const raceLabel = isDndClassic ? 'Race' : (gameSystem.raceLabel || 'Race')
+  const profileLabel = isDndClassic ? 'Profil' : (gameSystem.profileLabel || 'Profil')
+
   const [baseStats, setBaseStats] = useState<Record<string, number>>({})
   const [character, setCharacter] = useState<CharacterState>(BASE_CHARACTER)
   const [statsInitialized, setStatsInitialized] = useState(false)
@@ -109,11 +123,18 @@ export default function CharacterCreationPage() {
 
   const calculateModifier = (value: number) => Math.floor((value - 10) / 2)
 
+  // Nombre de fois où le joueur a cliqué "Lancer les dés" — le MJ peut limiter ce nombre via
+  // gameSystem.creation.maxRolls (absent = illimité, comportement historique inchangé).
+  const [rollCount, setRollCount] = useState(0)
+  const maxRolls = gameSystem.creation?.maxRolls
+  const rollsExhausted = maxRolls != null && rollCount >= maxRolls
+
   // Délègue au moteur de règles partagé (src/lib/rules-engine), branché sur le système de règles
   // actif de la room (dnd-classic ou un système custom défini par le MJ) — remplace la génération
   // 3d6 + contrainte + formules dérivées codées en dur en dnd-classic uniquement.
   const rollStats = () => {
-    const raceMods = isDndClassic ? (raceData[character.Race as string]?.modificateurs || {}) : {}
+    if (rollsExhausted) return
+    const raceMods = races.find((r) => r.id === character.Race)?.modifiers ?? {}
     const result = rollCharacterStats(gameSystem, raceMods, tableCustomStats, { deVie: character.deVie })
 
     setBaseStats(result.rolledAbilities)
@@ -123,6 +144,7 @@ export default function CharacterCreationPage() {
       ...result.abilities,
       ...result.derived,
     }))
+    setRollCount((c) => c + 1)
   }
 
   useEffect(() => {
@@ -266,10 +288,10 @@ export default function CharacterCreationPage() {
   }
 
 
-  // Espèce/Profil (race.json/profile.json, mods raciaux, dé de vie) sont un contenu propre à
-  // dnd-classic — masqués du flow de création pour tout autre système de règles actif.
+  // Espèce/Profil : visibles si dnd-classic (race.json/profile.json legacy) OU si le MJ a défini des
+  // races/profils custom pour le système actif — masqués si le système n'en propose aucun.
   type TabId = 'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image';
-  const tabsOrder: TabId[] = isDndClassic
+  const tabsOrder: TabId[] = hasRaceProfileContent
     ? ['info', 'race', 'profile', 'competences', 'stats', 'inventory', 'image']
     : ['info', 'competences', 'stats', 'inventory', 'image'];
   const nextStep = useCallback(() => {
@@ -323,6 +345,9 @@ export default function CharacterCreationPage() {
 
   // Helper to get preview image based on active source
   const getPreviewImage = useCallback(() => {
+    const selectedRace = races.find((r) => r.id === character.Race)
+    const selectedProfile = profiles.find((p) => p.id === character.Profile)
+
     // Custom image always takes priority when explicitly selected
     if (activeImageSource === 'custom' && customImage) return customImage
 
@@ -331,21 +356,20 @@ export default function CharacterCreationPage() {
       // If an image was selected from gallery, it's stored in character.imageURL
       if (character.imageURL) return character.imageURL
       // Otherwise fall back to default race image
-      if (character.Race && raceData[character.Race]?.image) return raceData[character.Race].image
+      if (selectedRace?.image) return selectedRace.image
     }
 
     // For profile source: use profile's default image
-    if (activeImageSource === 'profile' && character.Profile && profileData[character.Profile]?.image)
-      return profileData[character.Profile].image
+    if (activeImageSource === 'profile' && selectedProfile?.image) return selectedProfile.image
 
     // Fallback hierarchy
     if (customImage) return customImage
     if (character.imageURL) return character.imageURL
-    if (character.Race && raceData[character.Race]?.image) return raceData[character.Race].image
-    if (character.Profile && profileData[character.Profile]?.image) return profileData[character.Profile].image
+    if (selectedRace?.image) return selectedRace.image
+    if (selectedProfile?.image) return selectedProfile.image
 
     return ''
-  }, [activeImageSource, customImage, character.Race, character.Profile, character.imageURL, raceData, profileData])
+  }, [activeImageSource, customImage, character.Race, character.Profile, character.imageURL, races, profiles])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -360,35 +384,33 @@ export default function CharacterCreationPage() {
   }
 
   const renderSelectionPanel = useCallback(() => {
-    const selectRace = (raceName: string) => {
-      const currentRace = raceData[raceName]
-      const mods = currentRace.modificateurs || {}
+    const selectRace = (raceId: string) => {
+      const currentRace = races.find((r) => r.id === raceId)
+      if (!currentRace) return
+      const mods = currentRace.modifiers
 
-      // Calculate default height/weight based on race average
-      const avgHeight = (currentRace as any).tailleMoyenne || 175;
-      const avgWeight = (currentRace as any).poidsMoyen || 75;
+      const patch: Record<string, number> = {}
+      for (const stat of abilityStats) {
+        patch[stat.key] = (baseStats[stat.key] ?? 0) + (mods[stat.key] || 0)
+      }
 
       setCharacter(prev => ({
         ...prev,
-        Race: raceName,
-        FOR: baseStats.FOR + (mods.FOR || 0),
-        DEX: baseStats.DEX + (mods.DEX || 0),
-        CON: baseStats.CON + (mods.CON || 0),
-        INT: baseStats.INT + (mods.INT || 0),
-        SAG: baseStats.SAG + (mods.SAG || 0),
-        CHA: baseStats.CHA + (mods.CHA || 0),
-        Taille: avgHeight,
-        Poids: avgWeight,
+        Race: raceId,
+        ...patch,
+        Taille: currentRace.avgHeight ?? 175,
+        Poids: currentRace.avgWeight ?? 75,
       }))
       setActiveImageSource('race')
     }
 
-    const selectProfile = (profileName: string) => {
-      const currentProfile = profileData[profileName]
+    const selectProfile = (profileId: string) => {
+      const currentProfile = profiles.find((p) => p.id === profileId)
+      if (!currentProfile) return
       setCharacter(prev => ({
         ...prev,
-        Profile: profileName,
-        deVie: currentProfile.hitDie,
+        Profile: profileId,
+        deVie: currentProfile.hitDie ?? prev.deVie,
       }))
       if (activeImageSource !== 'custom') {
         setActiveImageSource('profile')
@@ -403,18 +425,18 @@ export default function CharacterCreationPage() {
           <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
             {character.Race ? (
               <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                Race: {character.Race.replace('_', ' ')}
+                {raceLabel}: {character.Race.replace('_', ' ')}
               </span>
             ) : null}
 
             {character.Profile ? (
               <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                Classe: {character.Profile}
+                {profileLabel}: {character.Profile}
               </span>
             ) : null}
 
             {!character.Race && !character.Profile && (
-              <span>Sélectionnez une race et une classe pour votre personnage</span>
+              <span>Sélectionnez {raceLabel.toLowerCase() === profileLabel.toLowerCase() ? `un(e) ${raceLabel.toLowerCase()}` : `un(e) ${raceLabel.toLowerCase()} et un(e) ${profileLabel.toLowerCase()}`} pour votre personnage</span>
             )}
           </div>
 
@@ -422,12 +444,12 @@ export default function CharacterCreationPage() {
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
               {currentTab === 'race'
-                ? Object.entries(raceData).map(([raceName, race]) => {
-                  const isSelected = character.Race === raceName
+                ? races.map((race) => {
+                  const isSelected = character.Race === race.id
                   return (
                     <div
-                      key={raceName}
-                      onClick={() => selectRace(raceName)}
+                      key={race.id}
+                      onClick={() => selectRace(race.id)}
                       className={`
                           group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                           border
@@ -442,7 +464,7 @@ export default function CharacterCreationPage() {
                         {race.image && (
                           <img
                             src={race.image}
-                            alt={raceName}
+                            alt={race.label}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         )}
@@ -452,13 +474,13 @@ export default function CharacterCreationPage() {
                       {/* Content Layer */}
                       <div className="relative flex-1 flex flex-col justify-end p-4">
                         <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
-                          {raceName.replace('_', ' ')}
+                          {race.label.replace('_', ' ')}
                         </h3>
 
                         {/* Footer with mods */}
                         <div className="flex gap-1">
-                          {Object.entries(race.modificateurs || {}).slice(0, 2).map(([k, v]) => (
-                            <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {(v as number) > 0 ? '+' : ''}{v as number}</span>
+                          {Object.entries(race.modifiers).slice(0, 2).map(([k, v]) => (
+                            <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
                           ))}
                         </div>
                       </div>
@@ -472,12 +494,12 @@ export default function CharacterCreationPage() {
                     </div>
                   )
                 })
-                : Object.entries(profileData).map(([profileName, profile]) => {
-                  const isSelected = character.Profile === profileName
+                : profiles.map((profile) => {
+                  const isSelected = character.Profile === profile.id
                   return (
                     <div
-                      key={profileName}
-                      onClick={() => selectProfile(profileName)}
+                      key={profile.id}
+                      onClick={() => selectProfile(profile.id)}
                       className={`
                           group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                           border
@@ -492,7 +514,7 @@ export default function CharacterCreationPage() {
                         {profile.image && (
                           <img
                             src={profile.image}
-                            alt={profileName}
+                            alt={profile.label}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         )}
@@ -502,11 +524,11 @@ export default function CharacterCreationPage() {
                       {/* Content Layer */}
                       <div className="relative flex-1 flex flex-col justify-end p-4">
                         <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
-                          {profileName}
+                          {profile.label}
                         </h3>
 
                         {/* Footer */}
-                        <span className="text-xs text-red-300">DV: {profile.hitDie}</span>
+                        {profile.hitDie && <span className="text-xs text-red-300">DV: {profile.hitDie}</span>}
                       </div>
 
                       {/* Selection Indicator */}
@@ -543,30 +565,43 @@ export default function CharacterCreationPage() {
             {/* Stats & Info */}
             <div className="px-6 pb-24 space-y-6">
               {/* Description */}
-              {(character.Race || character.Profile) && (
-                <div className="prose prose-invert prose-sm">
-                  {character.Race && raceData[character.Race] && (
-                    <div className="mb-4">
-                      <h4 className="text-[#c0a080] text-sm font-bold mb-1">{character.Race.replace('_', ' ')}</h4>
-                      <p className="text-zinc-400 text-xs leading-relaxed">{raceData[character.Race].description}</p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {Object.entries(raceData[character.Race].modificateurs || {}).map(([stat, mod]) => (
-                          <span key={stat} className="text-[10px] bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30 text-[#c0a080]">
-                            {stat} {(mod as number) > 0 ? '+' : ''}{mod as number}
-                          </span>
-                        ))}
+              {(character.Race || character.Profile) && (() => {
+                const selectedRace = races.find((r) => r.id === character.Race)
+                const selectedProfile = profiles.find((p) => p.id === character.Profile)
+                return (
+                  <div className="prose prose-invert prose-sm">
+                    {selectedRace && (
+                      <div className="mb-4">
+                        <h4 className="text-[#c0a080] text-sm font-bold mb-1">{selectedRace.label.replace('_', ' ')}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{selectedRace.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {Object.entries(selectedRace.modifiers).map(([stat, mod]) => (
+                            <span key={stat} className="text-[10px] bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30 text-[#c0a080]">
+                              {stat} {mod > 0 ? '+' : ''}{mod}
+                            </span>
+                          ))}
+                        </div>
+                        {selectedRace.abilities.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {selectedRace.abilities.map((ability) => (
+                              <p key={ability.id} className="text-zinc-400 text-xs leading-relaxed">
+                                <span className="text-[#c0a080] font-bold">{ability.label}</span>{ability.description ? ` : ${ability.description}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  {character.Profile && profileData[character.Profile] && (
-                    <div>
-                      <h4 className="text-[#c0a080] text-sm font-bold mb-1">{character.Profile}</h4>
-                      <p className="text-zinc-400 text-xs leading-relaxed">{profileData[character.Profile].description}</p>
-                      <p className="text-red-300 text-xs mt-2">Dé de vie: {profileData[character.Profile].hitDie}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                    {selectedProfile && (
+                      <div>
+                        <h4 className="text-[#c0a080] text-sm font-bold mb-1">{selectedProfile.label}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{selectedProfile.description}</p>
+                        {selectedProfile.hitDie && <p className="text-red-300 text-xs mt-2">Dé de vie: {selectedProfile.hitDie}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
@@ -586,7 +621,7 @@ export default function CharacterCreationPage() {
         </div>
       </div>
     )
-  }, [currentTab, character.Race, character.Profile, raceData, profileData, getPreviewImage, activeImageSource, customImage, baseStats])
+  }, [currentTab, character.Race, character.Profile, races, profiles, getPreviewImage, activeImageSource, customImage, baseStats, abilityStats])
 
 
   const renderStatsSelection = useCallback(() => {
@@ -610,7 +645,7 @@ export default function CharacterCreationPage() {
 
     const StatCard = ({ label, statKey, icon: Icon, hasModifier }: { label: string, statKey: string, icon: any, hasModifier: boolean }) => {
       const baseVal = baseStats[statKey] ?? 0
-      const raceMod = isDndClassic ? ((raceData[character.Race]?.modificateurs as any)?.[statKey] || 0) : 0
+      const raceMod = races.find((r) => r.id === character.Race)?.modifiers[statKey] || 0
       const finalVal = Number(character[statKey] ?? baseVal)
       const finalMod = calculateModifier(finalVal)
 
@@ -668,11 +703,15 @@ export default function CharacterCreationPage() {
           <div className="flex flex-col items-end gap-2">
             <Button
               onClick={rollStats}
-              className="bg-[#c0a080] text-[#09090b] hover:bg-[#d0b090] border-none font-bold shadow-lg shadow-[#c0a080]/20 transition-all transform hover:scale-105 active:scale-95"
+              disabled={rollsExhausted}
+              className="bg-[#c0a080] text-[#09090b] hover:bg-[#d0b090] border-none font-bold shadow-lg shadow-[#c0a080]/20 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Dice6 className="mr-2 h-4 w-4" />
               Lancer les dés
             </Button>
+            {maxRolls != null && (
+              <span className="text-xs text-zinc-500">{rollCount}/{maxRolls} tirage{maxRolls > 1 ? 's' : ''} utilisé{rollCount > 1 ? 's' : ''}</span>
+            )}
           </div>
         </div>
 
@@ -735,8 +774,8 @@ export default function CharacterCreationPage() {
           </Button>
           <Button
             onClick={nextStep}
-            disabled={isDndClassic && (!character.Race || !character.Profile)}
-            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${!isDndClassic || (character.Race && character.Profile) ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-[#c0a080]/20' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+            disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-[#c0a080]/20' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
           >
             Suivant
             <ChevronRight className="w-4 h-4 ml-2" />
@@ -744,22 +783,22 @@ export default function CharacterCreationPage() {
         </div>
       </div>
     )
-  }, [character, baseStats, raceData, abilityStats, gameSystem, isDndClassic])
+  }, [character, baseStats, races, abilityStats, gameSystem, hasRaceProfileContent])
 
 
   if (!userId) return <p>Loading...</p>
 
-  const tabsList = [
+  const tabsList: { id: TabId; label: string; icon: typeof User }[] = [
     { id: 'info', label: 'INFORMATIONS', icon: User },
-    ...(isDndClassic ? [
-      { id: 'race', label: 'ESPÈCE', icon: Dna },
-      { id: 'profile', label: 'PROFIL', icon: Swords },
-    ] as const : []),
+    ...(hasRaceProfileContent ? [
+      { id: 'race' as TabId, label: raceLabel.toUpperCase(), icon: Dna },
+      { id: 'profile' as TabId, label: profileLabel.toUpperCase(), icon: Swords },
+    ] : []),
     { id: 'competences', label: 'COMPÉTENCES', icon: Zap },
     { id: 'stats', label: 'CARACTÉRISTIQUES', icon: Dice6 },
     { id: 'inventory', label: 'INVENTAIRE', icon: BookOpen },
     { id: 'image', label: 'PORTRAIT', icon: Images }
-  ] as const;
+  ];
 
   return (
     <div className="flex flex-col items-center min-h-screen py-8 bg-background">
@@ -811,8 +850,8 @@ export default function CharacterCreationPage() {
                     <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                     <Button
                       onClick={nextStep}
-                      disabled={isDndClassic && (!character.Race || !character.Profile)}
-                      className={`font-bold transition-all ${!isDndClassic || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                      disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                     >
                       Suivant <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>
@@ -835,8 +874,8 @@ export default function CharacterCreationPage() {
                   <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                   <Button
                     onClick={nextStep}
-                    disabled={isDndClassic && (!character.Race || !character.Profile)}
-                    className={`font-bold transition-all ${!isDndClassic || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                   >
                     Suivant <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>
@@ -866,8 +905,8 @@ export default function CharacterCreationPage() {
                   <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                   <Button
                     onClick={nextStep}
-                    disabled={isDndClassic && (!character.Race || !character.Profile)}
-                    className={`font-bold transition-all ${!isDndClassic || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                   >
                     Suivant <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>

@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { Aclonica } from "next/font/google"
 import { moduleRegistry } from '@/modules/registry'
 import { GameSystemEditor, emptyGameSystem, type Draft } from '@/components/(fiches)/game-system/GameSystemManagerPanel'
+import { stripUndefinedDeep } from '@/modules/game-system/transfer'
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
 
@@ -132,8 +133,9 @@ export default function CreerPageComponent() {
       const batch = writeBatch(db)
       batch.set(doc(db, 'Salle', code), roomData)
       if (usesCustomSystem) {
+        const cleanedDraft = stripUndefinedDeep(customSystemDraft)
         batch.set(doc(db, 'gameSystems', finalGameSystemId!), {
-          ...customSystemDraft,
+          ...cleanedDraft,
           systemId: finalGameSystemId,
           ownerId: userId,
           visibility: 'private',
