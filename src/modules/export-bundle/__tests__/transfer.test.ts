@@ -1,6 +1,7 @@
 import { buildRoomExportBundle, parseRoomExportBundle, downloadRoomExportBundle, type RoomExportBundleSource } from '../transfer';
 import type { StatDefinition } from '@/modules/game-system/types';
 import type { CharacterExportData } from '@/utils/characterTransfer';
+import type { ContentDoc } from '@/modules/game-content/types';
 
 function statDef(key: string): StatDefinition {
   return { key, label: key, category: 'ability', dataType: 'number', origin: 'module' };
@@ -17,6 +18,9 @@ const characters: CharacterExportData[] = [
     inventory: [],
     bonuses: [],
   },
+];
+const content: ContentDoc[] = [
+  { kind: 'equipment', name: 'armes', category: 'armes', items: [{ nom: 'Pistolet blaster', prix: '400' }] },
 ];
 
 describe('buildRoomExportBundle / parseRoomExportBundle — round-trip', () => {
@@ -36,8 +40,8 @@ describe('buildRoomExportBundle / parseRoomExportBundle — round-trip', () => {
     expect('characters' in bundle).toBe(false);
   });
 
-  test('les 3 sections cochées => round-trip build -> stringify -> parse fidèle', () => {
-    const source: RoomExportBundleSource = { gameSystem: gameSystemSource, groupEntities, characters };
+  test('les 4 sections cochées (dont content) => round-trip build -> stringify -> parse fidèle', () => {
+    const source: RoomExportBundleSource = { gameSystem: gameSystemSource, groupEntities, characters, content };
     const bundle = buildRoomExportBundle(source);
     const raw = JSON.stringify(bundle);
     const parsed = parseRoomExportBundle(raw);
@@ -46,6 +50,24 @@ describe('buildRoomExportBundle / parseRoomExportBundle — round-trip', () => {
     expect(parsed.gameSystem?.stats).toEqual(gameSystemSource.stats);
     expect(parsed.groupEntities).toEqual(groupEntities);
     expect(parsed.characters).toEqual(characters);
+    expect(parsed.content).toEqual(content);
+  });
+
+  test('ignore un doc de content malformé (kind inconnu ou name manquant) plutôt que de planter', () => {
+    const raw = JSON.stringify({
+      exportVersion: 1,
+      exportedAt: 'x',
+      content: [{ kind: 'equipment', name: 'valide', category: 'armes', items: [] }, { kind: 'inconnu', name: 'x' }, { name: 'sans kind' }],
+    });
+    const parsed = parseRoomExportBundle(raw);
+    expect(parsed.content).toHaveLength(1);
+    expect(parsed.content?.[0]).toMatchObject({ kind: 'equipment', name: 'valide' });
+  });
+
+  test('content absent du bundle => clé absente au parse (pas de tableau vide implicite)', () => {
+    const bundle = buildRoomExportBundle({ gameSystem: gameSystemSource });
+    const parsed = parseRoomExportBundle(JSON.stringify(bundle));
+    expect('content' in parsed).toBe(false);
   });
 
   test('rétrocompat : un bundle sans une section donnée reste sans cette section au parse (pas de clé undefined)', () => {

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "WebFetch(domain:thompsonpeters.com)",
+      "Bash(tee /tmp/tsc_out.txt)"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import { buildGameSystemExport, parseGameSystemExport, type GameSystemExportData, type GameSystemExportSource } from '@/modules/game-system/transfer';
 import type { CharacterExportData } from '@/utils/characterTransfer';
+import type { ContentDoc, ContentKind } from '@/modules/game-content/types';
 
 // Miroir des conventions déjà en place dans game-system/transfer.ts et utils/characterTransfer.ts :
 // exportVersion/exportedAt, blob + URL.createObjectURL pour le téléchargement, JSON.parse + validation
@@ -18,12 +19,16 @@ export interface RoomExportBundle {
   gameSystem?: GameSystemExportData;
   groupEntities?: GroupEntitiesExportData;
   characters?: CharacterExportData[];
+  /** Contenu de jeu du système (sous-collection Firestore content : équipement, bestiaire, voies...) —
+   *  docs bruts sans id (l'id Firestore est régénéré à l'import), cf src/modules/game-content/types.ts. */
+  content?: ContentDoc[];
 }
 
 export interface RoomExportBundleSource {
   gameSystem?: GameSystemExportSource;
   groupEntities?: GroupEntitiesExportData;
   characters?: CharacterExportData[];
+  content?: ContentDoc[];
 }
 
 /** N'ajoute une section que si elle a été fournie — jamais de clé `undefined` explicite (même règle
@@ -36,6 +41,7 @@ export function buildRoomExportBundle(source: RoomExportBundleSource): RoomExpor
   if (source.gameSystem != null) result.gameSystem = buildGameSystemExport(source.gameSystem);
   if (source.groupEntities != null) result.groupEntities = source.groupEntities;
   if (source.characters != null) result.characters = source.characters;
+  if (source.content != null) result.content = source.content;
   return result;
 }
 
@@ -64,6 +70,14 @@ function isCharacterExportData(v: unknown): v is CharacterExportData {
   return !!c.character && typeof (c.character as Record<string, unknown>).Nomperso === 'string';
 }
 
+const VALID_CONTENT_KINDS: ContentKind[] = ['path', 'bestiary', 'bestiaryIndex', 'equipment', 'itemDescriptions'];
+
+function isContentDoc(v: unknown): v is ContentDoc {
+  if (!v || typeof v !== 'object') return false;
+  const c = v as Record<string, unknown>;
+  return typeof c.name === 'string' && VALID_CONTENT_KINDS.includes(c.kind as ContentKind);
+}
+
 export function parseRoomExportBundle(raw: string): RoomExportBundle {
   const json = JSON.parse(raw);
   if (!json || typeof json !== 'object' || Array.isArray(json)) {
@@ -90,6 +104,11 @@ export function parseRoomExportBundle(raw: string): RoomExportBundle {
 
   if (Array.isArray(json.characters) && json.characters.every(isCharacterExportData)) {
     result.characters = json.characters;
+  }
+
+  if (Array.isArray(json.content)) {
+    const valid = json.content.filter(isContentDoc);
+    if (valid.length > 0) result.content = valid;
   }
 
   return result;

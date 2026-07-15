@@ -309,7 +309,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <span className="text-sm font-medium">Images</span>
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => window.open('/ressources/marche', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/marche?roomId=${gameUser.roomId}` : '/ressources/marche', '_blank')}
               className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
             >
               <Store className="w-4 h-4 text-[var(--accent-brown)]" />

@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db, doc, onSnapshot } from '@/lib/firebase';
+import { db, doc, onSnapshot, auth, onAuthStateChanged } from '@/lib/firebase';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
 import type { GameSystemDefinition, StatDefinition } from './types';
 
 const DEFAULT_GAME_SYSTEM_ID = 'dnd-classic';
+const LOG_PREFIX = '[useGameSystem]';
 
 export interface UseGameSystemResult {
   gameSystem: GameSystemDefinition;
@@ -32,53 +33,108 @@ function narrativeOverlay(data: Partial<GameSystemDefinition>): Partial<GameSyst
   return overlay;
 }
 
-/**
- * Charge le système de règles actif d'une room (Salle/{roomId}.gameSystemId, défaut 'dnd-classic')
- * + les stats custom de table (Salle/{roomId}.customStats). Rétrocompatible par construction :
- * une room sans ces champs se comporte exactement comme avant (système dnd-classic, pas de custom).
- */
+/** Vrai dès que Firebase Auth a résolu son état initial (connecté ou non). Un onSnapshot lancé avant
+ *  cette résolution (ex nouvel onglet ouvert via window.open, session pas encore restaurée depuis le
+ *  stockage local) peut essuyer un refus de permission transitoire — sans attendre ici, rien ne
+ *  retenterait la lecture une fois réellement authentifié. */
+function useAuthReady(): boolean {
+  const [ready, setReady] = useState(() => {
+    const initial = auth.currentUser !== null;
+    console.log(`${LOG_PREFIX} useAuthReady init — auth.currentUser=${auth.currentUser?.uid ?? 'null'}, ready=${initial}`);
+    return initial;
+  });
+  useEffect(() => {
+    if (ready) return;
+    console.log(`${LOG_PREFIX} useAuthReady: en attente de onAuthStateChanged...`);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log(`${LOG_PREFIX} onAuthStateChanged déclenché — user=${user?.uid ?? 'null'}`);
+      setReady(true);
+    });
+    return () => unsubscribe();
+  }, [ready]);
+  return ready;
+}
+
+/** Résout le système de règles actif d'une room : d'abord gameSystemId (Salle/{roomId}), puis soit un
+ *  module builtin en mémoire (dnd-classic) superposé de son contenu narratif seedé, soit un système
+ *  custom lu dans le catalogue partagé gameSystems/{id} ou en legacy Salle/{roomId}/gameSystemOverrides.
+ *  roomId=null (hors contexte de salle, ex page /ressources) => système par défaut immédiat, aucune
+ *  lecture Firestore. */
 export function useGameSystem(roomId: string | null): UseGameSystemResult {
+  const authReady = useAuthReady();
+
   const [gameSystemId, setGameSystemId] = useState<string>(DEFAULT_GAME_SYSTEM_ID);
   const [tableCustomStats, setTableCustomStats] = useState<StatDefinition[]>([]);
+  const [roomLoaded, setRoomLoaded] = useState(false);
+
   const [overrideDefinition, setOverrideDefinition] = useState<GameSystemDefinition | null>(null);
   const [overrideSource, setOverrideSource] = useState<'catalog' | 'legacy' | null>(null);
   const [builtinOverlay, setBuiltinOverlay] = useState<Partial<GameSystemDefinition> | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [systemLoaded, setSystemLoaded] = useState(false);
 
+  // Étape 1 : résoudre gameSystemId depuis Salle/{roomId}.
   useEffect(() => {
     if (!roomId) {
+      console.log(`${LOG_PREFIX} [étape 1] roomId=null → système par défaut '${DEFAULT_GAME_SYSTEM_ID}', pas de lecture Firestore.`);
       setGameSystemId(DEFAULT_GAME_SYSTEM_ID);
       setTableCustomStats([]);
-      setIsLoading(false);
+      setRoomLoaded(true);
+      return;
+    }
+    if (!authReady) {
+      console.log(`${LOG_PREFIX} [étape 1] roomId='${roomId}' mais authReady=false → on attend avant de lire Salle/${roomId}.`);
       return;
     }
 
-    setIsLoading(true);
-    const unsubscribe = onSnapshot(doc(db, 'Salle', roomId), (snap) => {
-      const data = snap.data();
-      setGameSystemId((data?.gameSystemId as string) || DEFAULT_GAME_SYSTEM_ID);
-      setTableCustomStats((data?.customStats as StatDefinition[]) || []);
-      setIsLoading(false);
-    }, () => setIsLoading(false));
-
+    console.log(`${LOG_PREFIX} [étape 1] abonnement à Salle/${roomId}...`);
+    setRoomLoaded(false);
+    const unsubscribe = onSnapshot(
+      doc(db, 'Salle', roomId),
+      (snap) => {
+        const data = snap.data();
+        const resolvedId = (data?.gameSystemId as string) || DEFAULT_GAME_SYSTEM_ID;
+        console.log(`${LOG_PREFIX} [étape 1] Salle/${roomId} résolu — gameSystemId='${resolvedId}', exists=${snap.exists()}`);
+        setGameSystemId(resolvedId);
+        setTableCustomStats((data?.customStats as StatDefinition[]) || []);
+        setRoomLoaded(true);
+      },
+      (error) => {
+        console.error(`${LOG_PREFIX} [étape 1] ERREUR lecture Salle/${roomId}:`, error.code, error.message);
+        setGameSystemId(DEFAULT_GAME_SYSTEM_ID);
+        setRoomLoaded(true);
+      },
+    );
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, authReady]);
 
-  // Un gameSystemId sans module enregistré en mémoire (builtin/externe) est résolu comme un système
-  // custom créé par le MJ : d'abord le catalogue partagé gameSystems/{id} (nouveau), sinon fallback sur
-  // l'ancien chemin scopé à la room Salle/{roomId}/gameSystemOverrides/{id} (compat salles existantes).
-  // Un module builtin (ex dnd-classic) s'abonne AUSSI à gameSystems/{id} : son contenu NARRATIF seedé
-  // (races, profils, règles — cf scripts/seed-game-content.mjs) est superposé au module, sans jamais
-  // écraser ses stats/formules qui restent la source de vérité du code.
+  // Étape 2 : une fois gameSystemId connu, résoudre la définition du système (builtin + overlay narratif,
+  // ou catalogue custom, ou legacy).
   useEffect(() => {
+    if (!authReady || !roomLoaded) {
+      console.log(`${LOG_PREFIX} [étape 2] en attente — authReady=${authReady}, roomLoaded=${roomLoaded}`);
+      return;
+    }
+
     const registered = moduleRegistry.getGameSystemModule(gameSystemId);
+    console.log(`${LOG_PREFIX} [étape 2] gameSystemId='${gameSystemId}', module builtin trouvé=${!!registered}`);
+    setSystemLoaded(false);
 
     if (registered) {
       setOverrideDefinition(null);
       setOverrideSource(null);
-      const unsubscribe = onSnapshot(doc(db, 'gameSystems', gameSystemId), (snap) => {
-        setBuiltinOverlay(snap.exists() ? narrativeOverlay(snap.data() as Partial<GameSystemDefinition>) : null);
-      }, () => setBuiltinOverlay(null));
+      const unsubscribe = onSnapshot(
+        doc(db, 'gameSystems', gameSystemId),
+        (snap) => {
+          console.log(`${LOG_PREFIX} [étape 2] overlay narratif de '${gameSystemId}' — exists=${snap.exists()}`);
+          setBuiltinOverlay(snap.exists() ? narrativeOverlay(snap.data() as Partial<GameSystemDefinition>) : null);
+          setSystemLoaded(true);
+        },
+        (error) => {
+          console.error(`${LOG_PREFIX} [étape 2] ERREUR overlay narratif '${gameSystemId}':`, error.code, error.message);
+          setBuiltinOverlay(null);
+          setSystemLoaded(true);
+        },
+      );
       return () => unsubscribe();
     }
 
@@ -86,42 +142,54 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
     if (!roomId) {
       setOverrideDefinition(null);
       setOverrideSource(null);
+      setSystemLoaded(true);
       return;
     }
-    // Les callbacks d'erreur sont indispensables : sans eux, un refus de permission (ex utilisateur
-    // pas encore authentifié) devient un "Uncaught Error in snapshot listener" dans la console.
-    const subscribeLegacy = () => onSnapshot(doc(db, `Salle/${roomId}/gameSystemOverrides`, gameSystemId), (legacySnap) => {
-      setOverrideDefinition(legacySnap.exists() ? (legacySnap.data() as GameSystemDefinition) : null);
-      setOverrideSource(legacySnap.exists() ? 'legacy' : null);
-    }, () => {
-      setOverrideDefinition(null);
-      setOverrideSource(null);
-    });
 
+    // Système custom (pas de module builtin) : catalogue partagé gameSystems/{id} en priorité, sinon
+    // repli sur l'ancien chemin scopé à la room Salle/{roomId}/gameSystemOverrides/{id}.
     let unsubscribeLegacy: (() => void) | null = null;
-    const unsubscribeCatalog = onSnapshot(doc(db, 'gameSystems', gameSystemId), (catalogSnap) => {
-      if (catalogSnap.exists()) {
-        unsubscribeLegacy?.();
-        unsubscribeLegacy = null;
-        setOverrideDefinition(catalogSnap.data() as GameSystemDefinition);
-        setOverrideSource('catalog');
-        return;
-      }
-      if (!unsubscribeLegacy) {
-        unsubscribeLegacy = subscribeLegacy();
-      }
-    }, () => {
-      // Lecture du catalogue refusée (ex pas encore connecté) : tenter quand même le chemin legacy
-      // de la salle, qui a ses propres règles d'accès (membre de la salle).
-      if (!unsubscribeLegacy) {
-        unsubscribeLegacy = subscribeLegacy();
-      }
-    });
+    const subscribeLegacy = () => onSnapshot(
+      doc(db, `Salle/${roomId}/gameSystemOverrides`, gameSystemId),
+      (legacySnap) => {
+        console.log(`${LOG_PREFIX} [étape 2] legacy Salle/${roomId}/gameSystemOverrides/${gameSystemId} — exists=${legacySnap.exists()}`);
+        setOverrideDefinition(legacySnap.exists() ? (legacySnap.data() as GameSystemDefinition) : null);
+        setOverrideSource(legacySnap.exists() ? 'legacy' : null);
+        setSystemLoaded(true);
+      },
+      (error) => {
+        console.error(`${LOG_PREFIX} [étape 2] ERREUR legacy '${gameSystemId}':`, error.code, error.message);
+        setOverrideDefinition(null);
+        setOverrideSource(null);
+        setSystemLoaded(true);
+      },
+    );
+
+    const unsubscribeCatalog = onSnapshot(
+      doc(db, 'gameSystems', gameSystemId),
+      (catalogSnap) => {
+        console.log(`${LOG_PREFIX} [étape 2] catalogue gameSystems/${gameSystemId} — exists=${catalogSnap.exists()}`);
+        if (catalogSnap.exists()) {
+          unsubscribeLegacy?.();
+          unsubscribeLegacy = null;
+          setOverrideDefinition(catalogSnap.data() as GameSystemDefinition);
+          setOverrideSource('catalog');
+          setSystemLoaded(true);
+          return;
+        }
+        if (!unsubscribeLegacy) unsubscribeLegacy = subscribeLegacy();
+      },
+      (error) => {
+        console.error(`${LOG_PREFIX} [étape 2] ERREUR catalogue '${gameSystemId}':`, error.code, error.message);
+        if (!unsubscribeLegacy) unsubscribeLegacy = subscribeLegacy();
+      },
+    );
+
     return () => {
       unsubscribeCatalog();
       unsubscribeLegacy?.();
     };
-  }, [roomId, gameSystemId]);
+  }, [roomId, gameSystemId, authReady, roomLoaded]);
 
   const registered = moduleRegistry.getGameSystemModule(gameSystemId);
   const gameSystem = registered
@@ -131,6 +199,8 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
   const contentPath = !registered && overrideSource === 'legacy' && roomId
     ? `Salle/${roomId}/gameSystemOverrides/${gameSystemId}/content`
     : `gameSystems/${registered || overrideDefinition ? gameSystemId : DEFAULT_GAME_SYSTEM_ID}/content`;
+
+  const isLoading = !roomLoaded || !systemLoaded;
 
   return { gameSystem, tableCustomStats, isLoading, contentPath };
 }

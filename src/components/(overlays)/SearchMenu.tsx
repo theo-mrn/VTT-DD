@@ -6,7 +6,7 @@ import { useCompetences, Competence } from "@/contexts/CompetencesContext";
 import { useParams } from "next/navigation";
 import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import { useGameContent } from "@/modules/game-content/useGameContent";
-import type { BestiaryChunkDoc } from "@/modules/game-content/types";
+import type { BestiaryChunkDoc, EquipmentDoc } from "@/modules/game-content/types";
 import debounce from "lodash/debounce";
 import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,20 +26,6 @@ const TABS = [
     { id: "objets", label: "Objets", icon: Package },
     { id: "bestiaire", label: "Bestiaire", icon: Skull },
 ] as const;
-
-// Item d'équipement issu de /tabs/data.json
-type EquipmentItem = {
-    nom: string;
-    type?: string;
-    portée?: string;
-    dégâts?: string;
-    prix?: string;
-    DEF?: string;
-    commentaires?: string;
-    effet?: string;
-    utilisation?: string;
-};
-type EquipmentData = Record<string, EquipmentItem[]>;
 
 // Monstre issu de /tabs/bestiairy.json
 type MonsterAction = { Nom: string; Description: string; Toucher?: number };
@@ -111,43 +97,45 @@ export default function SearchMenu() {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("all");
     const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
-    const [items, setItems] = useState<Competence[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Charge la liste des objets (/tabs/data.json) et la transforme en Competence[] — contenu D&D
-    // legacy, uniquement pour une salle dnd-classic.
-    useEffect(() => {
-        if (!isDndClassic) { setItems([]); return; }
-        fetch('/tabs/data.json')
-            .then(res => res.json())
-            .then((data: EquipmentData) => {
-                const mapped: Competence[] = [];
-                for (const [category, list] of Object.entries(data)) {
-                    if (!Array.isArray(list)) continue;
-                    for (const item of list) {
-                        // Construit une description lisible à partir des champs présents
-                        const lines = [
-                            item.type && `Type : ${item.type}`,
-                            item.portée && `Portée : ${item.portée}`,
-                            item.dégâts && `Dégâts : ${item.dégâts}`,
-                            item.DEF && `DEF : ${item.DEF}`,
-                            item.effet && item.effet,
-                            item.utilisation && item.utilisation,
-                            item.commentaires && item.commentaires,
-                            item.prix && `Prix : ${item.prix}`,
-                        ].filter(Boolean);
-                        mapped.push({
-                            titre: item.nom,
-                            description: lines.join('\n'),
-                            type: item.type || category.replace(/_/g, ' '),
-                            source: `${ITEM_SOURCE_PREFIX} ${category.replace(/_/g, ' ')}`,
-                        });
-                    }
-                }
-                setItems(mapped);
-            })
-            .catch(err => console.error('Error loading data.json:', err));
-    }, [isDndClassic]);
+    // Équipement du SYSTÈME ACTIF (Firestore, kind 'equipment' — un doc par catégorie, cf
+    // scripts/seed-game-content.mjs pour dnd-classic, ou tout système custom type Star Wars) transformé
+    // en Competence[] — plus de data.json statique gaté sur isDndClassic.
+    const { docs: equipmentDocs } = useGameContent<EquipmentDoc & { id: string }>('equipment');
+    const items = useMemo(() => {
+        const mapped: Competence[] = [];
+        for (const eqDoc of equipmentDocs) {
+            for (const item of eqDoc.items ?? []) {
+                const type = typeof item.type === 'string' ? item.type : undefined;
+                const portee = typeof item.portée === 'string' ? item.portée : undefined;
+                const degats = typeof item.dégâts === 'string' ? item.dégâts : undefined;
+                const def = typeof item.DEF === 'string' ? item.DEF : undefined;
+                const effet = typeof item.effet === 'string' ? item.effet : undefined;
+                const utilisation = typeof item.utilisation === 'string' ? item.utilisation : undefined;
+                const commentaires = typeof item.commentaires === 'string' ? item.commentaires : undefined;
+                const prix = typeof item.prix === 'string' ? item.prix : undefined;
+                // Construit une description lisible à partir des champs présents
+                const lines = [
+                    type && `Type : ${type}`,
+                    portee && `Portée : ${portee}`,
+                    degats && `Dégâts : ${degats}`,
+                    def && `DEF : ${def}`,
+                    effet,
+                    utilisation,
+                    commentaires,
+                    prix && `Prix : ${prix}`,
+                ].filter(Boolean);
+                mapped.push({
+                    titre: item.nom,
+                    description: lines.join('\n'),
+                    type: type || eqDoc.category.replace(/_/g, ' '),
+                    source: `${ITEM_SOURCE_PREFIX} ${eqDoc.category.replace(/_/g, ' ')}`,
+                });
+            }
+        }
+        return mapped;
+    }, [equipmentDocs]);
 
     // Bestiaire du SYSTÈME ACTIF (Firestore, kind 'bestiary' — seedé pour dnd-classic, propre à chaque
     // système custom) transformé en Competence[] — plus de bestiairy.json statique.

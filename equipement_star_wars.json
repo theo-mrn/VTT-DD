@@ -1,0 +1,101 @@
+{
+  "exportVersion": 1,
+  "equipment": [
+    {
+      "category": "armes_distance_standard",
+      "items": [
+        { "nom": "Pistolet blaster", "type": "Distance (Légère)", "portée": "Moyenne", "dégâts": "6", "prix": "400", "encombrement": "1", "rareté": "2", "commentaires": "L'arme de poing la plus répandue de la galaxie." },
+        { "nom": "Blaster lourd", "type": "Distance (Légère)", "portée": "Moyenne", "dégâts": "7", "prix": "700", "encombrement": "1", "rareté": "3", "commentaires": "Qualité Vicious 1." },
+        { "nom": "Fusil blaster", "type": "Distance (Lourde)", "portée": "Longue", "dégâts": "9", "prix": "700", "encombrement": "3", "rareté": "3", "commentaires": "Qualité Accurate 1." },
+        { "nom": "Carabine blaster", "type": "Distance (Légère)", "portée": "Moyenne", "dégâts": "7", "prix": "450", "encombrement": "2", "rareté": "3" },
+        { "nom": "Fusil de précision blaster", "type": "Distance (Lourde)", "portée": "Extrême", "dégâts": "10", "prix": "3000", "encombrement": "4", "rareté": "6", "commentaires": "Qualités Accurate 1, Pierce 2, Cumbersome 3, Prepare 1." },
+        { "nom": "Blaster de poche", "type": "Distance (Légère)", "portée": "Courte", "dégâts": "5", "prix": "200", "encombrement": "1", "rareté": "4", "commentaires": "Facile à dissimuler." },
+        { "nom": "Fusil blaster lourd", "type": "Distance (Lourde)", "portée": "Longue", "dégâts": "10", "prix": "1500", "encombrement": "5", "rareté": "6", "commentaires": "Qualité Cumbersome 3, Auto-Fire." },
+        { "nom": "Lance-grenades", "type": "Distance (Lourde)", "portée": "Courte", "dégâts": "8", "prix": "2000", "encombrement": "4", "rareté": "6", "commentaires": "Qualités Blast 6, Limited Ammo 3." },
+        { "nom": "Arbalète de poing", "type": "Distance (Légère)", "portée": "Courte", "dégâts": "5", "prix": "250", "encombrement": "1", "rareté": "3", "commentaires": "Silencieuse, sans énergie détectable." },
+        { "nom": "Arc composite", "type": "Distance (Lourde)", "portée": "Moyenne", "dégâts": "6", "prix": "400", "encombrement": "2", "rareté": "3" }
+      ]
+    },
+    {
+      "category": "armes_distance_exotiques",
+      "items": [
+        { "nom": "Tensor Rifle", "type": "Distance (Lourde)", "portée": "Moyenne", "dégâts": "7", "prix": "1350", "encombrement": "4", "rareté": "6", "commentaires": "Qualités Ensnare, Vicious 2." },
+        { "nom": "Sonic Blaster Rifle", "type": "Distance (Lourde)", "portée": "Moyenne", "dégâts": "5", "prix": "3700", "encombrement": "4", "rareté": "6", "commentaires": "Qualités Cumbersome 3, Slow-Firing 1, Concussive 2, Blast 8, Knockdown." },
+        { "nom": "Stunpulse Cannon", "type": "Distance (Lourde)", "portée": "Moyenne", "dégâts": "9", "prix": "2600", "encombrement": "4", "rareté": "6", "commentaires": "Qualités Inaccurate, Stun Damage, Auto-Fire, Disorient 1, Vicious 1." },
+        { "nom": "Jawamake Flechette Cannon", "type": "Distance (Lourde)", "portée": "Courte", "dégâts": "6", "prix": "600", "encombrement": "3", "rareté": "4", "commentaires": "Qualité Blast 6." },
+        { "nom": "Jawamake Incendiary Target Pistol", "type": "Distance (Légère)", "portée": "Longue", "dégâts": "6", "prix": "1200", "encombrement": "2", "rareté": "6", "commentaires": "Qualités Burn 2, Vicious 1." },
+        { "nom": "Bladed Flashpistol", "type": "Distance (Légère) / Mêlée", "portée": "Moyenne", "dégâts": "7", "prix": "1800", "encombrement": "2", "rareté": "7", "commentaires": "Qualités Prepare 1, Accurate." },
+        { "nom": "Wrist-mounted Concussion Mini-grenade Launcher", "type": "Distance (Légère)", "portée": "—", "dégâts": "—", "prix": "2250", "encombrement": "2", "rareté": "7", "commentaires": "Qualité Limited Ammo 3." },
+        { "nom": "Permacrete Detonator", "type": "Explosif", "portée": "—", "dégâts": "10", "prix": "600", "encombrement": "2", "rareté": "6", "commentaires": "Qualités Blast 6, Breach 1, Limited Ammo 1, Prepare 2." },
+        { "nom": "Flash Mine", "type": "Mine (Proximité)", "portée": "—", "dégâts": "—", "prix": "300", "encombrement": "1", "rareté": "6", "commentaires": "Qualités Blast 0, Limited Ammo 1, Prepare 2, Ensnare, Disorient 1." },
+        { "nom": "Sonic Mine", "type": "Mine (Proximité)", "portée": "—", "dégâts": "4", "prix": "400", "encombrement": "1", "rareté": "6", "commentaires": "Qualités Blast 1, Disorient 2, Pierce 5, Limited Ammo 1, Prepare 2." },
+        { "nom": "MM9 Rocket System", "type": "Distance (Légère)", "portée": "—", "dégâts": "—", "prix": "1900", "encombrement": "3", "rareté": "5", "commentaires": "Qualités Prepare 1, Guided 2, Limited Ammo 1." },
+        { "nom": "Whipcord Launcher", "type": "Distance (Légère)", "portée": "Courte", "dégâts": "5", "prix": "600", "encombrement": "1", "rareté": "5", "commentaires": "Qualités Ensnare 3, Stun Damage." }
+      ]
+    },
+    {
+      "category": "armes_melee",
+      "items": [
+        { "nom": "Couteau", "type": "Mêlée", "portée": "Engagée", "dégâts": "+1", "prix": "5", "encombrement": "1", "rareté": "0" },
+        { "nom": "Bâton de combat", "type": "Mêlée", "portée": "Engagée", "dégâts": "+1", "prix": "5", "encombrement": "2", "rareté": "0", "commentaires": "Qualité Defensive 1." },
+        { "nom": "Vibrolame", "type": "Mêlée", "portée": "Engagée", "dégâts": "+2", "prix": "500", "encombrement": "2", "rareté": "3", "commentaires": "Qualité Pierce 2." },
+        { "nom": "Vibromachette", "type": "Mêlée", "portée": "Engagée", "dégâts": "+3", "prix": "1000", "encombrement": "4", "rareté": "5", "commentaires": "Qualités Pierce 2, Sunder." },
+        { "nom": "Matraque électrique", "type": "Mêlée", "portée": "Engagée", "dégâts": "+1", "prix": "5", "encombrement": "1", "rareté": "0", "commentaires": "Qualité Stun Damage." },
+        { "nom": "Vibrowhip", "type": "Mêlée", "portée": "Courte", "dégâts": "+2", "prix": "950", "encombrement": "3", "rareté": "7", "commentaires": "Qualités Pierce 2, Vicious 1, Inaccurate." },
+        { "nom": "Electroblade Training Sword", "type": "Mêlée (Sabre d'entraînement)", "portée": "Engagée", "dégâts": "5", "prix": "1000", "encombrement": "2", "rareté": "10", "commentaires": "Qualités Stun Damage, Defensive 1, Disorient 2, Pierce 5." }
+      ]
+    },
+    {
+      "category": "armures",
+      "items": [
+        { "nom": "Combinaison de combat", "def": "0", "encaissement": "1", "prix": "1000", "encombrement": "2", "rareté": "3", "commentaires": "Combat Jumpsuit — légère et discrète." },
+        { "nom": "Armure légère", "def": "1", "encaissement": "1", "prix": "1000", "encombrement": "3", "rareté": "4", "commentaires": "Protection basique portable au quotidien." },
+        { "nom": "Armure lourde de combat", "def": "2", "encaissement": "2", "prix": "3500", "encombrement": "5", "rareté": "6", "commentaires": "Encombrante mais très protectrice." },
+        { "nom": "Armure Ubese", "def": "1", "encaissement": "1", "prix": "2200", "encombrement": "4", "rareté": "6", "commentaires": "Fait aussi office d'équipement environnemental (masque respiratoire)." },
+        { "nom": "Robe de combat Jedi ancienne", "def": "0", "encaissement": "1", "prix": "5000", "encombrement": "1", "rareté": "8", "commentaires": "Traitée au cortosis." },
+        { "nom": "Robes d'ombre de chasseur", "def": "0", "encaissement": "1", "prix": "1200", "encombrement": "1", "rareté": "4", "commentaires": "Améliore les tests de Discrétion d'un cran." },
+        { "nom": "Combinaison utilitaire", "def": "0", "encaissement": "1", "prix": "1000", "encombrement": "2", "rareté": "2", "commentaires": "Augmente le seuil d'encombrement de 3." },
+        { "nom": "Équipement de maintenance de vaisseau", "def": "0", "encaissement": "3", "prix": "1100", "encombrement": "5", "rareté": "3", "commentaires": "Malus aux tests de Volonté et d'Agilité." },
+        { "nom": "Combinaison mimétique", "def": "0", "encaissement": "1", "prix": "6000", "encombrement": "2", "rareté": "6", "commentaires": "Quasi-invisibilité, consomme des packs d'énergie." },
+        { "nom": "Combinaison fine Jawa", "def": "0", "encaissement": "0", "prix": "1200", "encombrement": "1", "rareté": "3", "commentaires": "Réduit d'1 les évaluations de dangers environnementaux (feu, acide...)." }
+      ]
+    },
+    {
+      "category": "equipement_general",
+      "items": [
+        { "nom": "Oreillette comlink", "prix": "250", "encombrement": "0", "rareté": "3", "commentaires": "Communication discrète insérée dans l'oreille." },
+        { "nom": "Holoprojecteur portable", "prix": "150", "encombrement": "0", "rareté": "2", "commentaires": "Comlink + projection d'hologrammes jusqu'à 2 mètres." },
+        { "nom": "Lomin-ale", "prix": "10", "encombrement": "0", "rareté": "1", "commentaires": "Boisson alcoolisée populaire des cantinas de la Bordure Extérieure." },
+        { "nom": "Stout Darkmoon", "prix": "15", "encombrement": "0", "rareté": "1", "commentaires": "Selon un test de Résilience, ajoute Avantage ou Menace au prochain test social." },
+        { "nom": "Repas chaud", "prix": "20", "encombrement": "0", "rareté": "1", "commentaires": "Régénère de la Tension par succès/avantage obtenu au test de cuisine." },
+        { "nom": "Fixations de bottes magnétiques", "prix": "300", "encombrement": "2", "rareté": "3", "commentaires": "Inflige 2 Menaces aux tests d'Agilité en apesanteur/surface métallique." },
+        { "nom": "Bottes répulsives", "prix": "2200", "encombrement": "2", "rareté": "5", "commentaires": "Permet de planer jusqu'à 30 minutes près du sol." },
+        { "nom": "Étui rapide de rôdeur", "prix": "500", "encombrement": "1", "rareté": "4", "commentaires": "Réduit l'encombrement d'un pistolet de 1." },
+        { "nom": "Patch de Ryll", "prix": "50", "encombrement": "0", "rareté": "1", "commentaires": "Patch topique régénérant de la Tension." },
+        { "nom": "Stimulant d'endurance surrénale", "prix": "200", "encombrement": "0", "rareté": "5", "commentaires": "Bonus aux tests médicaux pour blessures critiques." },
+        { "nom": "Implant de communication cybernétique", "prix": "400", "encombrement": "0", "rareté": "3", "commentaires": "Implant crânien faisant office de comlink et d'enregistreur audio." },
+        { "nom": "Cocktail de phéromones", "prix": "300", "encombrement": "0", "rareté": "3", "commentaires": "Aérosol ajoutant aléatoirement des Avantages ou Menaces aux tests sociaux pendant une heure." },
+        { "nom": "Cylindre de code", "prix": "150", "encombrement": "0", "rareté": "2", "commentaires": "Clé télécommandée sécurisée programmable pour verrous physiques." },
+        { "nom": "Aérosol amortisseur", "prix": "400", "encombrement": "1", "rareté": "4", "commentaires": "Accorde +1 Encaissement à une personne pendant un round." },
+        { "nom": "Clé à hydro-impulsion", "prix": "100", "encombrement": "2", "rareté": "1", "commentaires": "Outil multi-usage retirant une Menace aux tests de Mécanique." },
+        { "nom": "Traîneau répulsif", "prix": "1500", "encombrement": "—", "rareté": "2", "commentaires": "Micro-véhicule transportant deux éléments de Silhouette 1 à vitesse de marche." }
+      ]
+    },
+    {
+      "category": "attachments",
+      "items": [
+        { "nom": "Poignée de duel", "type": "Épées/Vibrolames", "prix": "1500", "rareté": "5", "encombrement": "1 point de fixation", "commentaires": "Accorde Defensive +2 à l'arme." },
+        { "nom": "Détente rapide", "type": "Armes à distance", "prix": "1000", "rareté": "4", "encombrement": "1 point de fixation", "commentaires": "Accorde Auto-Fire, ajoute 1 Menace." },
+        { "nom": "Cellule d'énergie", "type": "Armes de mêlée", "prix": "750", "rareté": "4", "encombrement": "1 point de fixation", "commentaires": "Accorde Disorient +2, Dégâts +1." },
+        { "nom": "Lanceur de grappin", "type": "Pistolets blaster", "prix": "400", "rareté": "2", "encombrement": "1 point de fixation", "commentaires": "Permet une attaque à crochet (Ensnare 2)." },
+        { "nom": "Interrupteur suicide", "type": "Armes blaster", "prix": "300", "rareté": "3", "encombrement": "1 point de fixation", "commentaires": "L'arme peut être surchargée pour faire office d'explosif." },
+        { "nom": "Télémètre électronique compact", "type": "Pistolets", "prix": "1600", "rareté": "5", "encombrement": "1 point de fixation", "commentaires": "Qualité Prepare 1, bonus de portée." },
+        { "nom": "Pulsateur de puissance", "type": "Pistolets blaster", "prix": "1000", "rareté": "4", "encombrement": "2 points de fixation", "commentaires": "Augmente les dégâts de +2, augmente la difficulté du tir." },
+        { "nom": "Filet électrifié", "type": "Armes de mêlée", "prix": "950", "rareté": "3", "encombrement": "2 points de fixation", "commentaires": "Ajoute la propriété Stun 2 à une arme de mêlée." },
+        { "nom": "Sous-couche biorestaurative", "type": "Armure", "prix": "2000", "rareté": "5", "encombrement": "2 points de fixation", "commentaires": "Bonus en Médecine, régénère 1 Blessure par combat." },
+        { "nom": "Blindage balistique", "type": "Armure", "prix": "1800", "rareté": "5", "encombrement": "2 points de fixation", "commentaires": "+2 Défense contre les attaques physiques." },
+        { "nom": "Surtissu de survie", "type": "Armure", "prix": "1100", "rareté": "4", "encombrement": "1 point de fixation", "commentaires": "Rend la qualité Sunder inefficace contre le porteur." }
+      ]
+    }
+  ]
+}

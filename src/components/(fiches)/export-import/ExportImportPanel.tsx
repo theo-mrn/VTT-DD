@@ -5,6 +5,8 @@ import { db, collection, getDocs, doc, setDoc, addDoc } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { buildRoomExportBundle, downloadRoomExportBundle, parseRoomExportBundle } from '@/modules/export-bundle/transfer';
+import { stripUndefinedDeep } from '@/modules/game-system/transfer';
+import type { ContentDoc } from '@/modules/game-content/types';
 import { buildCharacterExport, importCharacterExport, type CharacterExportData } from '@/utils/characterTransfer';
 import type { Character } from '@/contexts/CharacterContext';
 import { Download, Upload } from 'lucide-react';
@@ -19,11 +21,12 @@ import { toast } from 'sonner';
 export default function ExportImportPanel() {
   const { isMJ, user } = useGame();
   const roomId = user?.roomId ?? null;
-  const { gameSystem } = useGameSystem(roomId);
+  const { gameSystem, contentPath } = useGameSystem(roomId);
 
   const [includeGameSystem, setIncludeGameSystem] = useState(true);
   const [includeGroupEntities, setIncludeGroupEntities] = useState(true);
   const [includeCharacters, setIncludeCharacters] = useState(true);
+  const [includeContent, setIncludeContent] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -57,6 +60,11 @@ export default function ExportImportPanel() {
         source.characters = characters;
       }
 
+      if (includeContent) {
+        const contentSnap = await getDocs(collection(db, contentPath));
+        source.content = contentSnap.docs.map((d) => d.data() as ContentDoc);
+      }
+
       const bundle = buildRoomExportBundle(source);
       downloadRoomExportBundle(bundle, `table_${roomId}.json`);
       toast.success('Export généré.');
@@ -77,10 +85,17 @@ export default function ExportImportPanel() {
       try {
         const bundle = parseRoomExportBundle(event.target?.result as string);
         let importedCount = 0;
+        // Si un nouveau système est importé dans ce même fichier, le contenu (équipement, bestiaire,
+        // voies) doit suivre CE système fraîchement créé, pas l'ancien système actif de la salle.
+        let targetContentPath = contentPath;
 
         if (bundle.gameSystem) {
           const id = `custom_${Date.now()}`;
-          await setDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, id), {
+          targetContentPath = `Salle/${roomId}/gameSystemOverrides/${id}/content`;
+          // stripUndefinedDeep : un champ optionnel absent du bundle importé (ex combatDefenseKey) reste
+          // une clé `undefined` explicite tant qu'on ne l'omet pas — Firestore rejette setDoc() dans ce
+          // cas (Unsupported field value: undefined), même niché.
+          await setDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, id), stripUndefinedDeep({
             systemId: id,
             name: bundle.gameSystem.name,
             description: bundle.gameSystem.description,
@@ -97,7 +112,9 @@ export default function ExportImportPanel() {
             groupEntityLabel: bundle.gameSystem.groupEntityLabel,
             groupEntityStats: bundle.gameSystem.groupEntityStats,
             groupEntityCreation: bundle.gameSystem.groupEntityCreation,
-          });
+            symbolDice: bundle.gameSystem.symbolDice,
+            rules: bundle.gameSystem.rules,
+          }));
           await setDoc(doc(db, 'Salle', roomId), { gameSystemId: id }, { merge: true });
           importedCount += 1;
         }
@@ -114,6 +131,13 @@ export default function ExportImportPanel() {
             await importCharacterExport(roomId, character);
           }
           importedCount += bundle.characters.length;
+        }
+
+        if (bundle.content) {
+          for (const contentDoc of bundle.content) {
+            await addDoc(collection(db, targetContentPath), contentDoc);
+          }
+          importedCount += bundle.content.length;
         }
 
         toast.success(`Import terminé (${importedCount} élément(s)).`);
@@ -162,13 +186,17 @@ export default function ExportImportPanel() {
               {entityLabel} (flotte)
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={includeContent} onChange={(e) => setIncludeContent(e.target.checked)} className="accent-[var(--accent-brown)]" />
+              Contenu (équipement, bestiaire, voies)
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={includeCharacters} onChange={(e) => setIncludeCharacters(e.target.checked)} className="accent-[var(--accent-brown)]" />
               Personnages (tous)
             </label>
           </div>
           <button
             onClick={handleExport}
-            disabled={isExporting || (!includeGameSystem && !includeGroupEntities && !includeCharacters)}
+            disabled={isExporting || (!includeGameSystem && !includeGroupEntities && !includeCharacters && !includeContent)}
             className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)] disabled:opacity-40 disabled:pointer-events-none"
             style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
           >

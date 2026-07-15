@@ -10,11 +10,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, MinusCircle, PlusCircle, Lock, Eye } from 'lucide-react';
+import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, MinusCircle, PlusCircle, Lock, Eye, Package } from 'lucide-react';
 import { db, doc, collection, updateDoc, setDoc, deleteDoc, addDoc, getDoc, getDocs, query, where } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useCharacterInventory, useCharacterBonuses, useSingleItemBonus } from '@/hooks/useCharacterData';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { useGameContent } from '@/modules/game-content/useGameContent';
+import type { EquipmentDoc } from '@/modules/game-content/types';
 
 interface InventoryItem {
   id: string;
@@ -50,6 +52,9 @@ interface ItemDescription {
   description: string;
 }
 
+// Objets D&D historiques : gardés en repli UNIQUEMENT pour le système dnd-classic, tant que le
+// contenu Firestore 'equipment' de ce système n'est pas seedé (cf scripts/seed-game-content.mjs,
+// phase 3 du plan de migration). Tout système custom (Star Wars, etc.) n'a QUE son contenu Firestore.
 const predefinedItems: Record<string, string[]> = {
   'armes-contact': ['Épée à une main', 'Épée à deux mains', 'Épée longue', 'Katana', 'Rapière', 'Hache', 'Marteau'],
   'armes-distance': ['Arc léger', 'Arc lourd', 'Arbalète', 'Couteaux de lancer'],
@@ -70,6 +75,12 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'nourriture': <Apple className="w-6 h-6 text-[var(--accent-brown)]" />,
   'autre': <ChevronRight className="w-6 h-6 text-[var(--accent-brown)]" />,
 };
+/** Icône par défaut pour une catégorie d'équipement custom (ex 'armes_distance_standard' côté
+ *  Star Wars) qui n'a pas d'entrée dédiée dans categoryIcons ci-dessus. */
+const DEFAULT_CATEGORY_ICON = <Package className="w-6 h-6 text-[var(--accent-brown)]" />;
+function getCategoryIcon(category: string): React.ReactNode {
+  return categoryIcons[category] ?? DEFAULT_CATEGORY_ICON;
+}
 
 const PRIVATE_PLACEHOLDER = '???';
 
@@ -137,6 +148,33 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
 
     loadItemDescriptions();
   }, [isDndClassic]);
+
+  // Équipement du SYSTÈME ACTIF (Firestore, kind 'equipment' — un doc par catégorie, cf
+  // scripts/seed-game-content.mjs pour dnd-classic, ou tout système custom type Star Wars). Chaque
+  // EquipmentItem.nom devient un objet cliquable dans le dialogue d'ajout ; son éventuel champ
+  // `commentaires` sert de description dans le tooltip (pas besoin d'un fichier séparé comme Items.json).
+  const { docs: equipmentDocs } = useGameContent<EquipmentDoc & { id: string }>('equipment');
+  const catalogCategories = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    for (const eqDoc of equipmentDocs) {
+      result[eqDoc.category] = (eqDoc.items ?? []).map((item) => item.nom);
+    }
+    return result;
+  }, [equipmentDocs]);
+  const catalogDescriptions = useMemo(() => {
+    const result: Record<string, ItemDescription> = {};
+    for (const eqDoc of equipmentDocs) {
+      for (const item of eqDoc.items ?? []) {
+        const commentaires = typeof item.commentaires === 'string' ? item.commentaires : undefined;
+        if (commentaires) result[item.nom.toLowerCase()] = { name: item.nom, description: commentaires };
+      }
+    }
+    return result;
+  }, [equipmentDocs]);
+  // dnd-classic tant que non seedé en Firestore -> repli sur les listes historiques ; tout système
+  // custom (ou dnd-classic une fois seedé) n'affiche QUE son contenu Firestore, jamais les deux mélangés.
+  const displayedCategories = Object.keys(catalogCategories).length > 0 ? catalogCategories : (isDndClassic ? predefinedItems : {});
+  const displayedDescriptions = Object.keys(catalogDescriptions).length > 0 ? catalogDescriptions : itemDescriptions;
 
   // Utilisation des nouveaux hooks centralisés
   const inventory = useCharacterInventory<InventoryItem>(roomId, playerName);
@@ -712,12 +750,12 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           return a.quantity - b.quantity;
         case 'category':
         default:
-          // Trier par catégorie puis par nom
-          const categoryOrder = Object.keys(predefinedItems);
+          // Trier par catégorie (celles du système actif) puis par nom
+          const categoryOrder = Object.keys(displayedCategories);
           const categoryCompare = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
           return categoryCompare !== 0 ? categoryCompare : a.message.localeCompare(b.message);
       }
-    }), [inventory, searchTerm, sortBy]);
+    }), [inventory, searchTerm, sortBy, displayedCategories]);
 
 
 
@@ -764,7 +802,13 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                       <p className="font-semibold">Ajouter un objet</p>
                     </TooltipContent>
                   </Tooltip>
-                  <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[90vh] !max-h-[90vh] grid-rows-[1fr] [&>div]:h-full [&>div>div]:h-full [&>div>div]:flex [&>div>div]:flex-col [&>div>div]:overflow-hidden">
+                  {/* unstyled : DialogContent en mode par défaut enveloppe children dans deux div avec
+                      p-6/overflow-hidden fixes (cf src/components/ui/dialog.tsx) — incompatible avec un
+                      dialogue plein-écran qui doit gérer lui-même son scroll interne. On reconstruit ici
+                      le même habillage visuel (fond, bordure, radius) en flex flex-col h-full propre. */}
+                  <DialogContent unstyled className="!max-w-[95vw] !w-[95vw] !h-[90vh] !max-h-[90vh]">
+                    <div className="w-full h-full rounded-2xl relative isolate bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)] flex flex-col overflow-hidden">
+                    <div className="w-full h-full p-6 flex flex-col min-h-0 relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 text-black/90 dark:text-white">
                     <DialogHeader className="flex-shrink-0 pb-3 border-b border-[var(--border-color)]">
                       <DialogTitle className="text-lg flex items-center gap-2 text-[var(--accent-brown)]">
                         <Plus className="w-5 h-5" />
@@ -808,7 +852,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                             >
                               Tout
                             </button>
-                            {Object.keys(predefinedItems).map((cat) => (
+                            {Object.keys(displayedCategories).map((cat) => (
                               <button
                                 key={cat}
                                 onClick={() => setCurrentCategory(cat)}
@@ -817,8 +861,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                   : 'bg-[var(--bg-dark)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-brown)] hover:text-[var(--text-primary)]'
                                   }`}
                               >
-                                <span className="[&>svg]:w-4 [&>svg]:h-4">{categoryIcons[cat]}</span>
-                                {cat}
+                                <span className="[&>svg]:w-4 [&>svg]:h-4">{getCategoryIcon(cat)}</span>
+                                {cat.replace(/_/g, ' ')}
                               </button>
                             ))}
                           </div>
@@ -827,13 +871,13 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                         {/* Scrollable items */}
                         <div className="overflow-y-auto flex-1 min-h-0 pr-2 custom-scrollbar">
                           {(() => {
-                            const categoriesToShow = Object.entries(predefinedItems)
+                            const categoriesToShow = Object.entries(displayedCategories)
                               .filter(([key]) => currentCategory === 'all' || !currentCategory || currentCategory === key);
 
                             const hasAnyResults = categoriesToShow.some(([, items]) =>
                               items.some(item => {
                                 const s = dialogSearchTerm.toLowerCase();
-                                const desc = itemDescriptions[item.toLowerCase()];
+                                const desc = displayedDescriptions[item.toLowerCase()];
                                 return item.toLowerCase().includes(s) || (desc && desc.description.toLowerCase().includes(s));
                               })
                             );
@@ -853,7 +897,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                 {categoriesToShow.map(([categoryKey, items]) => {
                                   const filtered = items.filter(item => {
                                     const s = dialogSearchTerm.toLowerCase();
-                                    const desc = itemDescriptions[item.toLowerCase()];
+                                    const desc = displayedDescriptions[item.toLowerCase()];
                                     return item.toLowerCase().includes(s) || (desc && desc.description.toLowerCase().includes(s));
                                   });
                                   if (filtered.length === 0) return null;
@@ -861,14 +905,14 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                   return (
                                     <div key={categoryKey}>
                                       <div className="flex items-center gap-3 mb-4">
-                                        <span className="[&>svg]:w-5 [&>svg]:h-5">{categoryIcons[categoryKey]}</span>
-                                        <span className="text-sm font-bold text-[var(--accent-brown)] uppercase tracking-wider">{categoryKey}</span>
+                                        <span className="[&>svg]:w-5 [&>svg]:h-5">{getCategoryIcon(categoryKey)}</span>
+                                        <span className="text-sm font-bold text-[var(--accent-brown)] uppercase tracking-wider">{categoryKey.replace(/_/g, ' ')}</span>
                                         <div className="flex-1 h-px bg-[var(--border-color)]" />
                                         <span className="text-xs text-[var(--text-secondary)] bg-[var(--bg-dark)] px-2 py-0.5 rounded-full">{filtered.length}</span>
                                       </div>
                                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                         {filtered.map(item => {
-                                          const desc = itemDescriptions[item.toLowerCase()];
+                                          const desc = displayedDescriptions[item.toLowerCase()];
                                           return (
                                             <Tooltip key={item}>
                                               <TooltipTrigger asChild>
@@ -877,7 +921,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                                   onClick={() => handleAddPredefinedItem(item, categoryKey)}
                                                 >
                                                   <div className="flex items-center gap-3">
-                                                    <span className="[&>svg]:w-5 [&>svg]:h-5 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">{categoryIcons[categoryKey]}</span>
+                                                    <span className="[&>svg]:w-5 [&>svg]:h-5 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">{getCategoryIcon(categoryKey)}</span>
                                                     <span className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors line-clamp-1">{item}</span>
                                                   </div>
                                                   {desc && (
@@ -904,6 +948,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                         </div>
                       </div>
 
+                    </div>
+                    </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -937,11 +983,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                             <SelectValue placeholder="Choisir une catégorie..." />
                           </SelectTrigger>
                           <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
-                            {Object.keys(predefinedItems).map((category) => (
+                            {Object.keys(displayedCategories).map((category) => (
                               <SelectItem key={category} value={category}>
                                 <div className="flex items-center gap-2 text-sm">
-                                  <span className="[&>svg]:w-4 [&>svg]:h-4">{categoryIcons[category]}</span>
-                                  {category}
+                                  <span className="[&>svg]:w-4 [&>svg]:h-4">{getCategoryIcon(category)}</span>
+                                  {category.replace(/_/g, ' ')}
                                 </div>
                               </SelectItem>
                             ))}
@@ -986,7 +1032,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                   ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
                                   : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                                   }`}>
-                                  {categoryIcons[item.category]}
+                                  {getCategoryIcon(item.category)}
                                 </div>
                                 {/* Badge de quantité */}
                                 <div className="absolute -top-1 -right-1 bg-[var(--accent-brown)] text-white rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-1.5 border-2 border-[var(--bg-card)] font-bold text-xs shadow-lg">
@@ -1090,7 +1136,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                               ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
                               : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                               }`}>
-                              {categoryIcons[item.category]}
+                              {getCategoryIcon(item.category)}
                             </div>
                             {/* Badge de quantité */}
                             <div className="absolute -top-1 -right-1 bg-[var(--accent-brown)] text-white rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-1.5 border-2 border-[var(--bg-card)] font-bold text-xs shadow-lg">

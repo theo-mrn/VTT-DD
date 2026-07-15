@@ -11,6 +11,12 @@ import type { ContentDoc, ContentKind } from './types';
 // cf types.ts) — remplace progressivement les fetch('/tabs/*.json') éparpillés (SearchMenu, wiki,
 // inventaire, CompetencesContext...). Abonnement LAZY par kind : le onSnapshot d'un kind n'est créé
 // qu'au premier composant qui le demande — ouvrir l'inventaire ne charge pas le bestiaire.
+//
+// IMPORTANT (bug corrigé) : un SEUL effet gère tout l'abonnement (déclenché par contentPath ET par la
+// liste de kinds demandés) — reset + resouscription complète à chaque changement, jamais de logique
+// répartie entre un effet "reset" et un effet "ensureSubscribed" séparés : l'ordre d'exécution
+// parent/enfant de React entre ces deux effets créait une course où le nettoyage arrivait après la
+// tentative de resouscription, laissant le cache vidé indéfiniment (isLoading bloqué à true).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type ContentDocWithId = ContentDoc & { id: string };
@@ -18,21 +24,17 @@ export type ContentDocWithId = ContentDoc & { id: string };
 interface GameContentContextValue {
   contentPath: string;
   docsByKind: Partial<Record<ContentKind, ContentDocWithId[]>>;
-  ensureSubscribed: (kind: ContentKind) => void;
+  requestKind: (kind: ContentKind) => void;
 }
 
 const GameContentContext = createContext<GameContentContextValue | null>(null);
+const LOG_PREFIX = '[useGameContent]';
 
-// Référence stable pour "aucun doc encore chargé pour ce kind" — évite qu'un `docs ?? []` inline crée
-// un nouveau tableau (donc une nouvelle référence) à chaque render, ce qui déclencherait en boucle tout
-// useEffect ayant `docs` en dépendance chez un consommateur (ex un système sans bestiaire configuré).
 const EMPTY_DOCS: ContentDocWithId[] = [];
 
 /** Lit ?roomId=... directement via window.location plutôt que useSearchParams() — évite d'exiger un
- *  <Suspense> autour du Provider racine (useSearchParams() suspend le rendu tant que les search params
- *  ne sont pas résolus, ce qui bloquait ici tout l'arbre indéfiniment). Recalculé au montage uniquement :
- *  cette page n'est de toute façon jamais navigée en interne (toujours ouverte via window.open), la
- *  query string ne change donc pas après le premier rendu. */
+ *  <Suspense> autour du Provider racine. Recalculé au montage uniquement : cette page est toujours
+ *  ouverte via window.open (jamais de navigation interne qui changerait la query string ensuite). */
 function useRoomIdFromUrl(): string | null {
   const params = useParams();
   const roomIdFromRouteParam = (params?.roomid as string) ?? null;
@@ -40,8 +42,10 @@ function useRoomIdFromUrl(): string | null {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setRoomIdFromQuery(new URLSearchParams(window.location.search).get('roomId'));
-  }, []);
+    const fromQuery = new URLSearchParams(window.location.search).get('roomId');
+    console.log(`${LOG_PREFIX} useRoomIdFromUrl — routeParam=${roomIdFromRouteParam ?? 'null'}, query=${fromQuery ?? 'null'}`);
+    setRoomIdFromQuery(fromQuery);
+  }, [roomIdFromRouteParam]);
 
   return roomIdFromRouteParam ?? roomIdFromQuery;
 }
@@ -49,39 +53,50 @@ function useRoomIdFromUrl(): string | null {
 function GameContentProviderInner({ roomId, children }: { roomId: string | null; children: React.ReactNode }) {
   const { contentPath } = useGameSystem(roomId);
   const [docsByKind, setDocsByKind] = useState<Partial<Record<ContentKind, ContentDocWithId[]>>>({});
+  // Kinds demandés par au moins un consommateur monté — en state (pas juste un ref) pour que son
+  // changement redéclenche bien l'effet d'abonnement ci-dessous.
+  const [requestedKinds, setRequestedKinds] = useState<ContentKind[]>([]);
   const subscriptionsRef = useRef<Map<ContentKind, () => void>>(new Map());
-  const contentPathRef = useRef(contentPath);
 
-  // Changement de système actif (donc de contentPath) : on repart de zéro — les abonnements en cours
-  // pointent vers l'ancienne collection, le cache ne doit jamais mélanger deux systèmes.
+  console.log(`${LOG_PREFIX} GameContentProviderInner render — roomId=${roomId ?? 'null'}, contentPath='${contentPath}', kinds=[${requestedKinds.join(', ')}]`);
+
+  const requestKind = useCallback((kind: ContentKind) => {
+    setRequestedKinds((prev) => (prev.includes(kind) ? prev : [...prev, kind]));
+  }, []);
+
+  // SEUL effet qui (re)souscrit : se redéclenche sur changement de contentPath (nouveau système) OU de
+  // requestedKinds (nouveau consommateur) — reset complet + resouscription de TOUS les kinds demandés
+  // à chaque fois, jamais de logique partielle qui dépendrait de l'état d'un abonnement précédent.
   useEffect(() => {
-    if (contentPathRef.current === contentPath) return;
-    contentPathRef.current = contentPath;
+    console.log(`${LOG_PREFIX} (re)abonnement — contentPath='${contentPath}', kinds=[${requestedKinds.join(', ')}]`);
+    setDocsByKind({});
     subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
     subscriptionsRef.current.clear();
-    setDocsByKind({});
-  }, [contentPath]);
 
-  useEffect(() => {
-    const subscriptions = subscriptionsRef.current;
-    return () => subscriptions.forEach((unsubscribe) => unsubscribe());
-  }, []);
+    for (const kind of requestedKinds) {
+      const unsubscribe = onSnapshot(
+        query(collection(db, contentPath), where('kind', '==', kind)),
+        (snap) => {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as ContentDoc) })) as ContentDocWithId[];
+          console.log(`${LOG_PREFIX} snapshot('${kind}') sur '${contentPath}' — ${docs.length} doc(s).`);
+          setDocsByKind((prev) => ({ ...prev, [kind]: docs }));
+        },
+        (error) => {
+          console.error(`${LOG_PREFIX} ERREUR snapshot('${kind}') sur '${contentPath}':`, error.code, error.message);
+          setDocsByKind((prev) => ({ ...prev, [kind]: [] }));
+        },
+      );
+      subscriptionsRef.current.set(kind, unsubscribe);
+    }
 
-  const ensureSubscribed = useCallback((kind: ContentKind) => {
-    if (subscriptionsRef.current.has(kind)) return;
-    const unsubscribe = onSnapshot(
-      query(collection(db, contentPathRef.current), where('kind', '==', kind)),
-      (snap) => {
-        const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as ContentDoc) })) as ContentDocWithId[];
-        setDocsByKind((prev) => ({ ...prev, [kind]: docs }));
-      },
-      () => setDocsByKind((prev) => ({ ...prev, [kind]: [] })),
-    );
-    subscriptionsRef.current.set(kind, unsubscribe);
-  }, []);
+    return () => {
+      subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
+      subscriptionsRef.current.clear();
+    };
+  }, [contentPath, requestedKinds]);
 
   return (
-    <GameContentContext.Provider value={{ contentPath, docsByKind, ensureSubscribed }}>
+    <GameContentContext.Provider value={{ contentPath, docsByKind, requestKind }}>
       {children}
     </GameContentContext.Provider>
   );
@@ -107,17 +122,21 @@ export interface UseGameContentResult<T extends ContentDocWithId = ContentDocWit
 
 export function useGameContent<T extends ContentDocWithId = ContentDocWithId>(kind: ContentKind): UseGameContentResult<T> {
   const ctx = useContext(GameContentContext);
-  if (!ctx) {
-    throw new Error('useGameContent doit être utilisé sous <GameContentProvider> (layout de salle).');
-  }
-  const { contentPath, docsByKind, ensureSubscribed } = ctx;
 
   useEffect(() => {
-    ensureSubscribed(kind);
-    // contentPath en dépendance : après un changement de système, le cache est vidé et il faut
-    // recréer l'abonnement de ce kind sur la nouvelle collection.
-  }, [kind, contentPath, ensureSubscribed]);
+    if (!ctx) {
+      console.error(`${LOG_PREFIX} useGameContent('${kind}') appelé hors de <GameContentProvider> — vérifier que le Provider est bien monté au-dessus dans l'arbre (layout racine).`);
+      return;
+    }
+    ctx.requestKind(kind);
+  }, [kind, ctx]);
 
-  const docs = docsByKind[kind];
-  return { docs: (docs ?? EMPTY_DOCS) as T[], isLoading: docs === undefined, contentPath };
+  if (!ctx) {
+    // Ne jamais planter toute la page pour ça : un composant qui rend avant l'hydratation complète du
+    // Provider (ou un mismatch HMR en dev) doit dégrader proprement plutôt que de casser tout l'arbre.
+    return { docs: EMPTY_DOCS as T[], isLoading: true, contentPath: '' };
+  }
+
+  const docs = ctx.docsByKind[kind];
+  return { docs: (docs ?? EMPTY_DOCS) as T[], isLoading: docs === undefined, contentPath: ctx.contentPath };
 }

@@ -166,6 +166,15 @@ export default function CreerPageComponent() {
             await importCharacterExport(code, character)
           }
         }
+        if (importedBundle?.content) {
+          // Le système importé (s'il y en a un dans ce même fichier) vit dans le catalogue partagé
+          // gameSystems/{finalGameSystemId} (cf batch ci-dessus) — le contenu doit suivre ce même chemin.
+          // Sans système importé dans ce fichier (contenu seul), on cible le système déjà choisi pour la
+          // salle (finalGameSystemId, builtin ou custom existant).
+          for (const contentDoc of importedBundle.content) {
+            await addDoc(collection(db, `gameSystems/${finalGameSystemId}/content`), contentDoc)
+          }
+        }
       } catch (importError) {
         console.error("Error restoring imported bundle:", importError)
         toast.error("La salle est créée, mais certaines entités/personnages importés n'ont pas pu être restaurés.")
