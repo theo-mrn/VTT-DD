@@ -43,6 +43,13 @@ service cloud.firestore {
       match /gameSystemOverrides/{systemId} {
         allow read: if isRoomMember(roomId);
         allow write: if isRoomMJ(roomId);
+
+        // Contenu de jeu du système (voies, bestiaire, équipement...) — JSON pur, mêmes droits
+        // que le système parent.
+        match /content/{contentId} {
+          allow read: if isRoomMember(roomId);
+          allow write: if isRoomMJ(roomId);
+        }
       }
 
       // Instances de l'entité de groupe (schéma GameSystemDefinition.groupEntityStats, nom libre défini
@@ -60,11 +67,23 @@ service cloud.firestore {
     // Lecture ouverte à tout utilisateur authentifié (ce ne sont que des règles de jeu,
     // pas des données sensibles) ; écriture réservée au créateur.
     match /gameSystems/{systemId} {
-      allow read: if request.auth != null;
+      // Lecture publique pour les systèmes marqués visibility 'public' (ex contenu dnd-classic seedé,
+      // affiché sur les pages accessibles sans connexion comme /ressources) — sinon authentifié.
+      allow read: if request.auth != null || resource.data.visibility == 'public';
       allow create: if request.auth != null
         && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if request.auth != null
         && resource.data.ownerId == request.auth.uid;
+
+      // Contenu de jeu du système (voies, bestiaire, équipement...) — lecture ouverte comme le
+      // système parent, écriture réservée à son créateur. Le contenu seedé (ex dnd-classic,
+      // ownerId 'system' écrit par scripts/seed-game-content.mjs avec firebase-admin) est donc
+      // en lecture seule côté client : un MJ duplique le système pour l'éditer.
+      match /content/{contentId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && get(/databases/$(database)/documents/gameSystems/$(systemId)).data.ownerId == request.auth.uid;
+      }
     }
 
     // ── Personnages ────────────────────────────────────────────────────────────

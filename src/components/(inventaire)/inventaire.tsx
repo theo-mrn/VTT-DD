@@ -14,6 +14,7 @@ import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple
 import { db, doc, collection, updateDoc, setDoc, deleteDoc, addDoc, getDoc, getDocs, query, where } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useCharacterInventory, useCharacterBonuses, useSingleItemBonus } from '@/hooks/useCharacterData';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 
 interface InventoryItem {
   id: string;
@@ -106,9 +107,12 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [bonusActiveMap, setBonusActiveMap] = useState<Record<string, boolean>>({});
   const [itemsWithBonus, setItemsWithBonus] = useState<Set<string>>(new Set());
 
-  // inventoryRef removed, handled by hooks
-  // Charger les descriptions des objets depuis Items.json
+  // Descriptions d'objets legacy (Items.json = contenu D&D Classique) : chargées uniquement si la
+  // salle utilise ce système — une salle en système custom n'affiche pas les descriptions D&D.
+  const { gameSystem } = useGameSystem(roomId ?? null);
+  const isDndClassic = gameSystem.systemId === 'dnd-classic';
   useEffect(() => {
+    if (!isDndClassic) { setItemDescriptions({}); return; }
     const loadItemDescriptions = async () => {
       try {
         const response = await fetch('/tabs/Items.json');
@@ -132,7 +136,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     };
 
     loadItemDescriptions();
-  }, []);
+  }, [isDndClassic]);
 
   // Utilisation des nouveaux hooks centralisés
   const inventory = useCharacterInventory<InventoryItem>(roomId, playerName);

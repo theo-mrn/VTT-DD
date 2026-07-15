@@ -269,7 +269,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
               onMouseEnter={() => setIsRessourcesOpen(true)}
               onMouseLeave={() => setIsRessourcesOpen(false)}
-              onClick={() => window.open('/ressources', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources?roomId=${gameUser.roomId}` : '/ressources', '_blank')}
             >
               <div className="flex items-center gap-3">
                 <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
@@ -288,14 +288,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
             onMouseLeave={() => setIsRessourcesOpen(false)}
           >
             <DropdownMenuItem 
-              onClick={() => window.open('/ressources/bestiaire', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/bestiaire?roomId=${gameUser.roomId}` : '/ressources/bestiaire', '_blank')}
               className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
             >
               <Skull className="w-4 h-4 text-[var(--accent-brown)]" />
               <span className="text-sm font-medium">Bestiaire</span>
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => window.open('/ressources/capacites', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/capacites?roomId=${gameUser.roomId}` : '/ressources/capacites', '_blank')}
               className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
             >
               <Zap className="w-4 h-4 text-[var(--accent-brown)]" />

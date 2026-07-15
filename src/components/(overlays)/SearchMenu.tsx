@@ -3,6 +3,10 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCompetences, Competence } from "@/contexts/CompetencesContext";
+import { useParams } from "next/navigation";
+import { useGameSystem } from "@/modules/game-system/useGameSystem";
+import { useGameContent } from "@/modules/game-content/useGameContent";
+import type { BestiaryChunkDoc } from "@/modules/game-content/types";
 import debounce from "lodash/debounce";
 import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,17 +65,59 @@ export default function SearchMenu() {
     const [open, setOpen] = useState(false);
     const { searchCompetences, isLoading, allCompetences } = useCompetences();
     const { isShortcutPressed, onActionTriggered } = useShortcuts();
+
+    // Races/classes/règles du SYSTÈME ACTIF de la salle (Firestore, cf useGameSystem) — remplace les
+    // entrées statiques race.json/profile.json/Rules.json que fournissait CompetencesContext : une
+    // salle Star Wars voit SES espèces/carrières/règles, une salle D&D voit le contenu seedé.
+    const params = useParams();
+    const roomId = (params?.roomid as string) ?? null;
+    const { gameSystem } = useGameSystem(roomId);
+    // Le contenu STATIQUE legacy (voies de compétences, objets data.json, bestiaire) est du contenu
+    // D&D Classique : il n'apparaît que si la salle utilise ce système. Une salle en système custom
+    // ne voit QUE son propre contenu (races/classes/règles du système, et à terme son équipement/
+    // bestiaire une fois les phases de migration suivantes faites).
+    const isDndClassic = gameSystem.systemId === 'dnd-classic';
+    const systemEntries = useMemo(() => {
+        const entries: Competence[] = [];
+        for (const race of gameSystem.races ?? []) {
+            entries.push({
+                titre: race.label || race.id,
+                description: race.description ?? '',
+                type: 'Race',
+                source: 'Règles',
+                ...(race.image ? { image: race.image } : {}),
+                ...(race.modifiers && Object.keys(race.modifiers).length > 0 ? { modificateurs: race.modifiers } : {}),
+                ...(race.avgHeight != null ? { tailleMoyenne: race.avgHeight } : {}),
+                ...(race.avgWeight != null ? { poidsMoyen: race.avgWeight } : {}),
+            });
+        }
+        for (const profile of gameSystem.profiles ?? []) {
+            entries.push({
+                titre: profile.label || profile.id,
+                description: profile.description ?? '',
+                type: 'Classe',
+                source: 'Règles',
+                ...(profile.image ? { image: profile.image } : {}),
+                ...(profile.hitDie ? { hitDie: profile.hitDie } : {}),
+            });
+        }
+        for (const rule of gameSystem.rules ?? []) {
+            entries.push({ titre: rule.title, description: rule.description, type: 'Règle', source: 'Règles' });
+        }
+        return entries;
+    }, [gameSystem]);
     const [searchResults, setSearchResults] = useState<Competence[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("all");
     const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
     const [items, setItems] = useState<Competence[]>([]);
-    const [monsters, setMonsters] = useState<Competence[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Charge la liste des objets (/tabs/data.json) et la transforme en Competence[]
+    // Charge la liste des objets (/tabs/data.json) et la transforme en Competence[] — contenu D&D
+    // legacy, uniquement pour une salle dnd-classic.
     useEffect(() => {
+        if (!isDndClassic) { setItems([]); return; }
         fetch('/tabs/data.json')
             .then(res => res.json())
             .then((data: EquipmentData) => {
@@ -101,42 +147,43 @@ export default function SearchMenu() {
                 setItems(mapped);
             })
             .catch(err => console.error('Error loading data.json:', err));
-    }, []);
+    }, [isDndClassic]);
 
-    // Charge le bestiaire (/tabs/bestiairy.json) et le transforme en Competence[]
-    useEffect(() => {
-        fetch('/tabs/bestiairy.json')
-            .then(res => res.json())
-            .then((data: BestiaryData) => {
-                const mapped: Competence[] = Object.values(data).map((m) => {
-                    const stats = [
-                        m.Defense != null && `DEF : ${m.Defense}`,
-                        m.PV_Max != null && `PV : ${m.PV_Max}`,
-                        m.FOR != null && `FOR ${m.FOR} · DEX ${m.DEX} · CON ${m.CON} · INT ${m.INT} · SAG ${m.SAG} · CHA ${m.CHA}`,
-                    ].filter(Boolean).join('\n');
+    // Bestiaire du SYSTÈME ACTIF (Firestore, kind 'bestiary' — seedé pour dnd-classic, propre à chaque
+    // système custom) transformé en Competence[] — plus de bestiairy.json statique.
+    const { docs: bestiaryChunks } = useGameContent<BestiaryChunkDoc & { id: string }>('bestiary');
+    const monsters = useMemo(() => {
+        const mapped: Competence[] = [];
+        for (const chunk of bestiaryChunks) {
+            for (const m of Object.values(chunk.entries ?? {}) as BestiaryMonster[]) {
+                const stats = [
+                    m.Defense != null && `DEF : ${m.Defense}`,
+                    m.PV_Max != null && `PV : ${m.PV_Max}`,
+                    m.FOR != null && `FOR ${m.FOR} · DEX ${m.DEX} · CON ${m.CON} · INT ${m.INT} · SAG ${m.SAG} · CHA ${m.CHA}`,
+                ].filter(Boolean).join('\n');
 
-                    const actions = (m.Actions || [])
-                        .map(a => `• ${a.Nom} : ${a.Description}`)
-                        .join('\n\n');
+                const actions = (m.Actions || [])
+                    .map(a => `• ${a.Nom} : ${a.Description}`)
+                    .join('\n\n');
 
-                    const description = [
-                        m.description,
-                        stats && `\n${stats}`,
-                        actions && `\nActions :\n${actions}`,
-                    ].filter(Boolean).join('\n');
+                const description = [
+                    m.description,
+                    stats && `\n${stats}`,
+                    actions && `\nActions :\n${actions}`,
+                ].filter(Boolean).join('\n');
 
-                    return {
-                        titre: m.Nom,
-                        description,
-                        type: m.Type || m.Category || 'Créature',
-                        source: m.Challenge ? `${MONSTER_SOURCE_PREFIX} FP ${m.Challenge}` : MONSTER_SOURCE_PREFIX,
-                        image: m.image && m.image.trim() !== '' ? m.image : undefined,
-                    };
+                mapped.push({
+                    titre: m.Nom,
+                    description,
+                    type: m.Type || m.Category || 'Créature',
+                    source: m.Challenge ? `${MONSTER_SOURCE_PREFIX} FP ${m.Challenge}` : MONSTER_SOURCE_PREFIX,
+                    image: m.image && m.image.trim() !== '' ? m.image : undefined,
                 });
-                setMonsters(mapped);
-            })
-            .catch(err => console.error('Error loading bestiairy.json:', err));
-    }, []);
+            }
+        }
+        mapped.sort((a, b) => a.titre.localeCompare(b.titre));
+        return mapped;
+    }, [bestiaryChunks]);
 
     // Use ref to ensure we always have the latest state setters
     // Note: In this full rewrite, we might simplify this if we just filter locally,
@@ -212,8 +259,8 @@ export default function SearchMenu() {
         debounce((term: string) => {
             isSearchingRef.current(true);
             try {
-                // We search everything first
-                let results = searchCompetences(term);
+                // We search everything first (les voies legacy du contexte = contenu D&D uniquement)
+                let results = isDndClassic ? searchCompetences(term) : [];
 
                 // Then set results -- filtering by tab happens in render or effect?
                 // Actually, let's store ALL matches and filter in render for tab switching speed.
@@ -230,7 +277,7 @@ export default function SearchMenu() {
                 isSearchingRef.current(false);
             }
         }, 300),
-        [searchCompetences]
+        [searchCompetences, isDndClassic]
     );
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -246,15 +293,15 @@ export default function SearchMenu() {
         }
     };
 
-    // Recherche locale dans les données non gérées par le contexte (objets + bestiaire)
+    // Recherche locale dans les données non gérées par le contexte (système actif + objets + bestiaire)
     const searchLocal = useCallback((term: string) => {
         const q = term.toLowerCase();
         const match = (c: Competence) =>
             c.titre.toLowerCase().includes(q) ||
             c.description.toLowerCase().includes(q) ||
             (c.type || "").toLowerCase().includes(q);
-        return [...items.filter(match), ...monsters.filter(match)];
-    }, [items, monsters]);
+        return [...systemEntries.filter(match), ...items.filter(match), ...monsters.filter(match)];
+    }, [systemEntries, items, monsters]);
 
     // Derived state for display
     const visibleResults = useMemo(() => {
@@ -263,12 +310,12 @@ export default function SearchMenu() {
             if (activeTab === "all") return [];
             if (activeTab === "objets") return items;
             if (activeTab === "bestiaire") return monsters;
-            return filterByTab(allCompetences, activeTab);
+            return filterByTab([...systemEntries, ...(isDndClassic ? allCompetences : [])], activeTab);
         }
-        // Fusionne résultats de compétences (contexte) + objets + bestiaire (local)
+        // Fusionne résultats de compétences (contexte) + système actif + objets + bestiaire (local)
         const merged = [...searchResults, ...searchLocal(searchTerm)];
         return filterByTab(merged, activeTab);
-    }, [searchResults, allCompetences, activeTab, searchTerm, filterByTab, items, monsters, searchLocal]);
+    }, [searchResults, allCompetences, systemEntries, isDndClassic, activeTab, searchTerm, filterByTab, items, monsters, searchLocal]);
 
     const closeAll = () => {
         setOpen(false);

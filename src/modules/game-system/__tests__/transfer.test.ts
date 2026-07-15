@@ -1,5 +1,5 @@
-import { buildGameSystemExport, parseGameSystemExport, stripUndefinedDeep, type GameSystemExportSource } from '../transfer';
-import type { StatDefinition, RaceDefinition, ProfileDefinition } from '../types';
+import { buildGameSystemExport, parseGameSystemExport, isRacePackExport, parseRacePackExport, stripUndefinedDeep, type GameSystemExportSource } from '../transfer';
+import type { StatDefinition, RaceDefinition, ProfileDefinition, SymbolDieDefinition } from '../types';
 
 function statDef(key: string, extra: Partial<StatDefinition> = {}): StatDefinition {
   return { key, label: key, category: 'ability', dataType: 'number', origin: 'module', ...extra };
@@ -16,6 +16,11 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     avgWeight: 60,
   };
   const profile: ProfileDefinition = { id: 'prof-guerrier', label: 'Guerrier', hitDie: 'd10' };
+  const boostDie: SymbolDieDefinition = {
+    key: 'boost',
+    label: 'Boost',
+    faces: [{ values: {} }, { values: {} }, { values: { succesBrut: 1 } }, { values: { succesBrut: 1, avantageBrut: 1 } }, { values: { avantageBrut: 2 } }, { values: { avantageBrut: 1 } }],
+  };
 
   const source: GameSystemExportSource = {
     name: 'Mon système',
@@ -40,6 +45,8 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     groupEntityLabel: 'Vaisseau',
     groupEntityStats: [statDef('Vitesse'), statDef('Blindage', { category: 'derived', valueFormula: { type: 'const', value: 5 } })],
     groupEntityCreation: { method: 'roll', rollFormula: { type: 'const', value: 5 } },
+    symbolDice: [boostDie],
+    rules: [{ title: 'Jet de sauvegarde', description: '1d20 + modificateur contre un effet néfaste.' }],
   };
 
   test('build() produit un export complet avec version/date, sans systemId', () => {
@@ -73,15 +80,19 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect(parsed.groupEntityLabel).toBe('Vaisseau');
     expect(parsed.groupEntityStats).toEqual(source.groupEntityStats);
     expect(parsed.groupEntityCreation).toEqual(source.groupEntityCreation);
+    expect(parsed.symbolDice).toEqual(source.symbolDice);
+    expect(parsed.rules).toEqual(source.rules);
   });
 
-  test('rétrocompat : races/profiles/statGroups/groupEntityStats absents du JSON par défaut à []', () => {
+  test('rétrocompat : races/profiles/statGroups/groupEntityStats/symbolDice absents du JSON par défaut à []', () => {
     const minimal = { stats: [statDef('FOR')] };
     const parsed = parseGameSystemExport(JSON.stringify(minimal));
     expect(parsed.races).toEqual([]);
     expect(parsed.profiles).toEqual([]);
     expect(parsed.statGroups).toEqual([]);
     expect(parsed.groupEntityStats).toEqual([]);
+    expect(parsed.symbolDice).toEqual([]);
+    expect(parsed.rules).toEqual([]);
     expect('raceLabel' in parsed).toBe(false);
     expect('profileLabel' in parsed).toBe(false);
     expect('groupEntityLabel' in parsed).toBe(false);
@@ -135,6 +146,44 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect('creation' in built).toBe(false);
     expect('combatDefenseKey' in built).toBe(false);
     expect('combatAttackKeys' in built).toBe(false);
+  });
+});
+
+describe('isRacePackExport / parseRacePackExport — pack de races seul (ex race_star_wars.json)', () => {
+  const packRaces: RaceDefinition[] = [
+    { id: 'bothan', label: 'Bothan', modifiers: { ruse: 2 }, abilities: [{ id: 'a1', label: 'Streetwise', description: '1 rang gratuit.' }] },
+    { id: 'humain', label: 'Humain', modifiers: { vigueur: 1 }, abilities: [] },
+  ];
+  const racePack = { exportVersion: 1, raceLabel: 'Espèce', races: packRaces };
+
+  test('détecte un pack de races (races sans stats)', () => {
+    expect(isRacePackExport(racePack)).toBe(true);
+  });
+
+  test('un export de système complet (avec stats) n\'est JAMAIS confondu avec un pack de races', () => {
+    const fullSystem = buildGameSystemExport({ name: 'x', description: '', stats: [statDef('FOR')], races: racePack.races });
+    expect(isRacePackExport(fullSystem)).toBe(false);
+  });
+
+  test('round-trip stringify → parse redonne les races et le raceLabel', () => {
+    const parsed = parseRacePackExport(JSON.stringify(racePack));
+    expect(parsed.races).toEqual(racePack.races);
+    expect(parsed.raceLabel).toBe('Espèce');
+  });
+
+  test('raceLabel absent => clé absente (jamais undefined explicite)', () => {
+    const parsed = parseRacePackExport(JSON.stringify({ races: racePack.races }));
+    expect('raceLabel' in parsed).toBe(false);
+  });
+
+  test('filtre les races malformées et rejette si aucune valide', () => {
+    const mixed = { races: [racePack.races[0], { label: 'sans id' }] };
+    expect(parseRacePackExport(JSON.stringify(mixed)).races).toHaveLength(1);
+    expect(() => parseRacePackExport(JSON.stringify({ races: [{ label: 'sans id' }] }))).toThrow(/race/);
+  });
+
+  test('rejette un JSON sans races', () => {
+    expect(() => parseRacePackExport(JSON.stringify({ name: 'x' }))).toThrow(/race/);
   });
 });
 

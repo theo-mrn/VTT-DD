@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/select"
 import HTMLFlipBook from "react-pageflip";
 import { cn } from "@/lib/utils";
-import { mapImagePath } from "@/utils/imagePathMapper";
+import { useParams } from "next/navigation";
+import { useGameSystem } from "@/modules/game-system/useGameSystem";
+import { useGameContent } from "@/modules/game-content/useGameContent";
+import type { BestiaryChunkDoc } from "@/modules/game-content/types";
 
 // CSS embedded directly in component for specific flipbook needs
 const flipbookStyles = `
@@ -170,85 +173,138 @@ interface Race {
 type TabType = 'bestiaire' | 'classes' | 'races';
 
 export default function Glossary() {
+    return <GlossaryContent />;
+}
+
+/** Lit ?roomId=... directement via window.location plutôt que useSearchParams() — ce dernier exige un
+ *  <Suspense> englobant en Next.js App Router, qui restait bloqué en fallback indéfiniment ici. Recalculé
+ *  au montage uniquement : cette page est toujours ouverte via window.open (jamais de navigation interne
+ *  qui changerait la query string après le premier rendu). */
+function useRoomIdFromQuery(): string | null {
+    const [roomId, setRoomId] = useState<string | null>(null);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        setRoomId(new URLSearchParams(window.location.search).get('roomId'));
+    }, []);
+    return roomId;
+}
+
+function GlossaryContent() {
     const [activeTab, setActiveTab] = useState<TabType>('bestiaire');
 
     const [monsters, setMonsters] = useState<Monster[]>([]);
-    const [profiles, setProfiles] = useState<Profile[]>([]);
-    const [races, setRaces] = useState<Race[]>([]);
-    const [capabilities, setCapabilities] = useState<Record<string, Capability>>({});
+
+    // Races/classes du SYSTÈME ACTIF (Firestore via useGameSystem) au lieu des race.json/profile.json/
+    // capacites.json statiques — dans une salle ([roomid] présent dans l'URL), c'est le système de la
+    // salle. La page /ressources n'a pas de [roomid] dans son URL (elle vit hors contexte de salle,
+    // ouverte via window.open depuis le panneau MJ) : on lit alors le roomId passé en query param
+    // (?roomId=..., ajouté par panel.tsx) pour afficher quand même le système de la salle d'origine —
+    // sans ce param, on retombe sur le système par défaut (dnd-classic seedé).
+    const params = useParams();
+    const roomIdFromQuery = useRoomIdFromQuery();
+    const roomId = (params?.roomid as string) ?? roomIdFromQuery;
+    const { gameSystem } = useGameSystem(roomId);
+
+    // asset-mappings.json = résolution des chemins d'images locaux vers le CDN (hors périmètre de la
+    // migration de contenu : c'est un index d'assets média, pas du contenu de jeu). Déclaré AVANT les
+    // memos races/profils qui résolvent leurs images avec.
+    const [assetMap, setAssetMap] = useState<Map<string, string>>(new Map());
+    const profiles: Profile[] = useMemo(() =>
+        (gameSystem.profiles ?? []).map((p) => ({
+            id: p.label || p.id,
+            description: p.description ?? '',
+            hitDie: p.hitDie ?? '',
+            image: !p.image ? '' : p.image.startsWith('http') ? p.image : (assetMap.get(p.image) || p.image),
+        })), [gameSystem.profiles, assetMap]);
+
+    const races: Race[] = useMemo(() =>
+        (gameSystem.races ?? []).map((r) => ({
+            id: r.label || r.id,
+            description: r.description ?? '',
+            image: !r.image ? '' : r.image.startsWith('http') ? r.image : (assetMap.get(r.image) || r.image),
+            modificateurs: r.modifiers ?? {},
+        })), [gameSystem.races, assetMap]);
+
+    // Capacités raciales : désormais embarquées dans RaceDefinition.abilities (converties par le seed
+    // depuis capacites.json) — reconstruites au format {capacite1: 'Label : texte'} attendu par le rendu.
+    const capabilities: Record<string, Capability> = useMemo(() => {
+        const caps: Record<string, Capability> = {};
+        for (const r of gameSystem.races ?? []) {
+            if (!r.abilities || r.abilities.length === 0) continue;
+            const entry: Capability = {};
+            r.abilities.forEach((a, i) => {
+                entry[`capacite${i + 1}`] = a.description ? `${a.label} : ${a.description}` : a.label;
+            });
+            caps[r.label || r.id] = entry;
+        }
+        return caps;
+    }, [gameSystem.races]);
 
     const [search, setSearch] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState<number>(0);
     const bookRef = useRef<any>(null);
 
     // Mobile: selected item shown in a detail modal
     const [mobileDetail, setMobileDetail] = useState<{ type: TabType; data: any } | null>(null);
 
-    useEffect(() => {
-        const fetchAllData = async () => {
-            try {
-                const [bestiaryData, profileData, raceData, capsData, mappingsResponse] = await Promise.all([
-                    fetch('/tabs/bestiairy.json').then(res => res.json()),
-                    fetch('/tabs/profile.json').then(res => res.json()),
-                    fetch('/tabs/race.json').then(res => res.json()),
-                    fetch('/tabs/capacites.json').then(res => res.json()),
-                    fetch('/asset-mappings.json').then(res => res.json()).catch(() => [])
-                ]);
+    // Bestiaire du SYSTÈME ACTIF (Firestore, kind 'bestiary' — seedé pour dnd-classic, propre à
+    // chaque système custom) — plus de bestiairy.json statique.
+    const { docs: bestiaryChunks, isLoading: bestiaryLoading } = useGameContent<BestiaryChunkDoc & { id: string }>('bestiary');
 
-                // Create a fast lookup map for assets
-                const assetMap = new Map<string, string>();
+    useEffect(() => {
+        const fetchMappings = async () => {
+            try {
+                const mappingsResponse = await fetch('/asset-mappings.json').then(res => res.json()).catch(() => []);
+                const map = new Map<string, string>();
                 if (Array.isArray(mappingsResponse)) {
                     mappingsResponse.forEach((m: any) => {
                         if (m.localPath && m.path) {
-                            assetMap.set(m.localPath, m.path);
+                            map.set(m.localPath, m.path);
                         }
                     });
                 }
-
-                const resolveAsset = (path: string) => {
-                    if (!path) return "/placeholder.png";
-                    if (path.startsWith('http')) {
-                        return path;
-                    }
-                    return assetMap.get(path) || path;
-                };
-
-                // Map monster images
-                const resolvedMonsters = Object.entries(bestiaryData as Record<string, Omit<Monster, 'id'>>).map(([id, val]) => ({
-                    id,
-                    ...val,
-                    image: resolveAsset(val.image)
-                }));
-                setMonsters(resolvedMonsters);
-
-                // Map profile images
-                const resolvedProfiles = Object.entries(profileData as Record<string, Omit<Profile, 'id'>>).map(([id, val]) => ({
-                    id,
-                    ...val,
-                    image: resolveAsset(val.image)
-                }));
-                setProfiles(resolvedProfiles);
-
-                // Map race images
-                const resolvedRaces = Object.entries(raceData as Record<string, Omit<Race, 'id'>>).map(([id, val]) => ({
-                    id,
-                    ...val,
-                    image: resolveAsset(val.image)
-                }));
-                setRaces(resolvedRaces);
-
-                setCapabilities(capsData);
-                setLoading(false);
+                setAssetMap(map);
             } catch (err) {
-                console.error("Failed to load glossary data", err);
-                setLoading(false);
+                console.error("Failed to load asset mappings", err);
             }
         };
-
-        fetchAllData();
+        fetchMappings();
     }, []);
+
+    useEffect(() => {
+        const resolved: Monster[] = [];
+        for (const chunk of bestiaryChunks) {
+            for (const [id, val] of Object.entries(chunk.entries ?? {})) {
+                const m = val as unknown as Omit<Monster, 'id'>;
+                resolved.push({
+                    id,
+                    ...m,
+                    image: !m.image ? "/placeholder.png" : m.image.startsWith('http') ? m.image : (assetMap.get(m.image) || m.image),
+                });
+            }
+        }
+        resolved.sort((a, b) => (a.Nom ?? '').localeCompare(b.Nom ?? ''));
+        setMonsters(resolved);
+    }, [bestiaryChunks, assetMap]);
+
+    const loading = bestiaryLoading;
+
+    // N'affiche un onglet que si le système actif a du contenu pour lui — une salle Star Wars sans
+    // bestiaire ni voies configurées ne doit montrer QUE l'onglet Races (le seul renseigné), jamais un
+    // onglet Bestiaire/Classes vide hérité d'un autre système.
+    const availableTabs = useMemo(() => {
+        const tabs: TabType[] = [];
+        if (monsters.length > 0) tabs.push('bestiaire');
+        if (profiles.length > 0) tabs.push('classes');
+        if (races.length > 0) tabs.push('races');
+        return tabs;
+    }, [monsters.length, profiles.length, races.length]);
+
+    useEffect(() => {
+        if (availableTabs.length === 0) return;
+        if (!availableTabs.includes(activeTab)) setActiveTab(availableTabs[0]);
+    }, [availableTabs, activeTab]);
 
     const categoryTranslation: Record<string, string> = {
         "aberration": "Aberration",
@@ -478,6 +534,15 @@ export default function Glossary() {
         );
     }
 
+    if (availableTabs.length === 0) {
+        return (
+            <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-amber-900/50 gap-3">
+                <Sparkles className="w-12 h-12" />
+                <p className="text-lg font-serif text-center px-6">Aucun contenu (bestiaire, classes, races) n&apos;est encore configuré pour ce système de règles.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full w-full flex flex-col overflow-hidden relative p-4 md:p-8">
             <style dangerouslySetInnerHTML={{ __html: flipbookStyles }} />
@@ -485,42 +550,48 @@ export default function Glossary() {
             {/* Top Minimal Controls */}
             <div className="relative z-20 pb-4 md:pb-8 shrink-0 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-6">
                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 shrink-0 overflow-x-auto no-scrollbar">
-                    <button
-                        onClick={() => setActiveTab('bestiaire')}
-                        className={cn(
-                            "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
-                            activeTab === 'bestiaire'
-                                ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
-                                : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
-                        )}
-                    >
-                        <Skull className="w-4 h-4" />
-                        Bestiaire
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('classes')}
-                        className={cn(
-                            "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
-                            activeTab === 'classes'
-                                ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
-                                : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
-                        )}
-                    >
-                        <BookOpen className="w-4 h-4" />
-                        Classes
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('races')}
-                        className={cn(
-                            "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
-                            activeTab === 'races'
-                                ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
-                                : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
-                        )}
-                    >
-                        <Scroll className="w-4 h-4" />
-                        Races
-                    </button>
+                    {availableTabs.includes('bestiaire') && (
+                        <button
+                            onClick={() => setActiveTab('bestiaire')}
+                            className={cn(
+                                "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
+                                activeTab === 'bestiaire'
+                                    ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
+                                    : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
+                            )}
+                        >
+                            <Skull className="w-4 h-4" />
+                            Bestiaire
+                        </button>
+                    )}
+                    {availableTabs.includes('classes') && (
+                        <button
+                            onClick={() => setActiveTab('classes')}
+                            className={cn(
+                                "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
+                                activeTab === 'classes'
+                                    ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
+                                    : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
+                            )}
+                        >
+                            <BookOpen className="w-4 h-4" />
+                            Classes
+                        </button>
+                    )}
+                    {availableTabs.includes('races') && (
+                        <button
+                            onClick={() => setActiveTab('races')}
+                            className={cn(
+                                "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
+                                activeTab === 'races'
+                                    ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
+                                    : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
+                            )}
+                        >
+                            <Scroll className="w-4 h-4" />
+                            Races
+                        </button>
+                    )}
                 </div>
 
                 {/* Search Bar & Filters Layout */}

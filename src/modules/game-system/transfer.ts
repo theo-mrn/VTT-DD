@@ -1,9 +1,11 @@
 import type {
   CharacterCreationRule,
   FormulaNode,
+  GameRuleEntry,
   ProfileDefinition,
   RaceDefinition,
   StatDefinition,
+  SymbolDieDefinition,
 } from './types';
 
 type GroupEntityCreationRule = { method: 'roll' | 'manual'; rollFormula?: FormulaNode };
@@ -32,6 +34,8 @@ export interface GameSystemExportData {
   groupEntityLabel?: string;
   groupEntityStats: StatDefinition[];
   groupEntityCreation?: GroupEntityCreationRule;
+  symbolDice: SymbolDieDefinition[];
+  rules: GameRuleEntry[];
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -52,6 +56,8 @@ export interface GameSystemExportSource {
   groupEntityLabel?: string;
   groupEntityStats?: StatDefinition[];
   groupEntityCreation?: GroupEntityCreationRule;
+  symbolDice?: SymbolDieDefinition[];
+  rules?: GameRuleEntry[];
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -68,6 +74,8 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
     races: source.races ?? [],
     profiles: source.profiles ?? [],
     groupEntityStats: source.groupEntityStats ?? [],
+    symbolDice: source.symbolDice ?? [],
+    rules: source.rules ?? [],
   };
   if (source.creation != null) result.creation = source.creation;
   if (source.combatDefenseKey != null) result.combatDefenseKey = source.combatDefenseKey;
@@ -118,6 +126,43 @@ function isStatDefinition(v: unknown): v is StatDefinition {
   return typeof s.key === 'string' && typeof s.label === 'string' && typeof s.category === 'string' && typeof s.dataType === 'string';
 }
 
+function isRaceDefinition(v: unknown): v is RaceDefinition {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  return typeof r.id === 'string' && typeof r.label === 'string'
+    && !!r.modifiers && typeof r.modifiers === 'object' && !Array.isArray(r.modifiers)
+    && Array.isArray(r.abilities);
+}
+
+export interface RacePackExportData {
+  raceLabel?: string;
+  races: RaceDefinition[];
+}
+
+/** Vrai si le JSON est un "pack de races" SEUL (races sans stats) — un export de système complet
+ *  contient toujours `stats`, donc jamais confondu avec un pack. */
+export function isRacePackExport(json: unknown): boolean {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return false;
+  const j = json as Record<string, unknown>;
+  return Array.isArray(j.races) && !Array.isArray(j.stats);
+}
+
+/** Parse un fichier "pack de races" seul (ex race_star_wars.json) — permet d'importer/partager des
+ *  espèces indépendamment du système de règles, dans la même logique modulaire que le reste. */
+export function parseRacePackExport(raw: string): RacePackExportData {
+  const json = JSON.parse(raw);
+  if (!isRacePackExport(json)) {
+    throw new Error('Fichier invalide : aucune liste de races trouvée.');
+  }
+  const races = (json.races as unknown[]).filter(isRaceDefinition) as RaceDefinition[];
+  if (races.length === 0) {
+    throw new Error('Fichier invalide : aucune race valide trouvée.');
+  }
+  const result: RacePackExportData = { races };
+  if (typeof json.raceLabel === 'string') result.raceLabel = json.raceLabel;
+  return result;
+}
+
 export function parseGameSystemExport(raw: string): GameSystemExportData {
   const parsed = JSON.parse(raw);
   if (!parsed || typeof parsed !== 'object') {
@@ -143,6 +188,8 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
     races: Array.isArray(json.races) ? json.races : [],
     profiles: Array.isArray(json.profiles) ? json.profiles : [],
     groupEntityStats: Array.isArray(json.groupEntityStats) ? json.groupEntityStats : [],
+    symbolDice: Array.isArray(json.symbolDice) ? json.symbolDice : [],
+    rules: Array.isArray(json.rules) ? json.rules : [],
   };
   // Champs optionnels : ajoutés seulement s'ils sont réellement présents dans le fichier — jamais
   // écrits comme `undefined` explicite (Firestore rejette toute clé dont la valeur est undefined).

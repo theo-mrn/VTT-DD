@@ -13,6 +13,13 @@ export {
 } from './resolver';
 export { parseFormulaText, formulaToText, type FormulaParseResult } from './formula-parser';
 export { rollDice, parseDiceNotation, type DiceRollResult } from './dice';
+export {
+  rollSymbolDie,
+  resolveSymbolDiceRoll,
+  formatSymbolDiceResult,
+  type SymbolDieRoll,
+  type SymbolDiceResolution,
+} from './symbol-dice';
 export { resolveGameSystemById, resolveRoomGameSystem, type RoomGameSystemDoc } from './room-game-system';
 export {
   rollAbilities,

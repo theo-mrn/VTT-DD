@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
+import { GameContentProvider } from "@/modules/game-content/useGameContent"
 import { GameProvider } from '@/contexts/GameContext';
 import { CharacterProvider } from '@/contexts/CharacterContext';
 import { UndoRedoProvider } from '@/contexts/UndoRedoContext';
@@ -94,6 +95,7 @@ export default function RootLayout({
             <ModuleProvider>
             <CharacterProvider>
               <CompetencesProvider>
+                <GameContentProvider>
                 <UndoRedoProvider>
                   <QuotaGuard />
                   <Toaster position="top-center" />
@@ -106,6 +108,7 @@ export default function RootLayout({
 
                   </div>
                 </UndoRedoProvider>
+                </GameContentProvider>
               </CompetencesProvider>
             </CharacterProvider>
             </ModuleProvider>

@@ -23,6 +23,7 @@ import 'react-resizable/css/styles.css';
 import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
 import { ThemeConfig } from './theme-portal/types';
 import { buildCharacterExport, downloadCharacterExport, parseCharacterExport, importCharacterExport } from '@/utils/characterTransfer';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 
 import {
   Drawer,
@@ -151,6 +152,7 @@ export default function Component() {
   } = useCharacter();
 
   const { persoId: userPersoId, isMJ } = useGame();
+  const { gameSystem } = useGameSystem(roomId ?? null);
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isCustomizing, setIsCustomizing] = useState<boolean>(false);
@@ -758,32 +760,26 @@ export default function Component() {
     </div>
   );
 
-  const handleRaceClick = async (race: string) => {
+  // Capacités raciales lues depuis le SYSTÈME ACTIF (gameSystem.races, Firestore) — plus de
+  // capacites.json statique : fonctionne pour D&D (contenu seedé) comme pour un système custom
+  // (ex espèces Star Wars définies par le MJ dans l'éditeur de règles).
+  const handleRaceClick = (race: string) => {
     if (!race) {
       setSelectedRaceAbilities(["Race non spécifiée."]);
       setIsRaceModalOpen(true);
       return;
     }
 
-    try {
-      const response = await fetch('/tabs/capacites.json');
-      if (!response.ok) {
-        throw new Error("Erreur lors du chargement des capacités.");
-      }
+    const lower = race.toLowerCase();
+    const raceDef = (gameSystem.races ?? []).find(
+      (r) => r.id.toLowerCase() === lower || r.label.toLowerCase() === lower,
+    );
+    const abilities = raceDef && raceDef.abilities.length > 0
+      ? raceDef.abilities.map((a) => (a.description ? `${a.label} : ${a.description}` : a.label))
+      : ["Aucune capacité raciale trouvée."];
 
-      const abilitiesData: Record<string, string[]> = await response.json();
-      const abilities = abilitiesData[race.toLowerCase()]
-        ? Object.values(abilitiesData[race.toLowerCase()])
-        : ["Aucune capacité raciale trouvée."];
-
-      setSelectedRaceAbilities(abilities);
-
-      setIsRaceModalOpen(true);
-    } catch (error) {
-      console.error("Erreur lors du chargement des capacités:", error);
-      setSelectedRaceAbilities(["Erreur lors du chargement des capacités."]);
-      setIsRaceModalOpen(true);
-    }
+    setSelectedRaceAbilities(abilities);
+    setIsRaceModalOpen(true);
   };
 
   const handleSave = async () => {

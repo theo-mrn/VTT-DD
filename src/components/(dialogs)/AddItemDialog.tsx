@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 
 interface AddItemDialogProps {
     isOpen: boolean;
@@ -46,6 +48,13 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
     const [customQuantity, setCustomQuantity] = useState<number>(1);
     const [itemDescriptions, setItemDescriptions] = useState<Record<string, ItemDescription>>({});
 
+    // Descriptions d'objets legacy (Items.json = contenu D&D Classique) : uniquement si la salle
+    // utilise ce système — une salle en système custom n'affiche pas les descriptions D&D.
+    const params = useParams();
+    const roomId = (params?.roomid as string) ?? null;
+    const { gameSystem } = useGameSystem(roomId);
+    const isDndClassic = gameSystem.systemId === 'dnd-classic';
+
     useEffect(() => {
         const loadItemDescriptions = async () => {
             try {
@@ -67,10 +76,11 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
         };
 
         if (isOpen) {
-            loadItemDescriptions();
+            if (isDndClassic) loadItemDescriptions();
+            else setItemDescriptions({});
             setCustomQuantity(1); // Reset quantity when dialog opens
         }
-    }, [isOpen]);
+    }, [isOpen, isDndClassic]);
 
     const handleAddItem = (name: string, category: string, quantity: number = 1) => {
         onAdd({

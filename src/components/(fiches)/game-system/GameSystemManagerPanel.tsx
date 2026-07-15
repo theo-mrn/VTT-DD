@@ -5,10 +5,10 @@ import { db, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, w
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility } from '@/modules/game-system/types';
+import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry } from '@/modules/game-system/types';
 import { FormulaEditor } from './FormulaEditor';
 import { findRollFormulaCycle, rollCharacterStats, groupStats } from '@/lib/rules-engine';
-import { buildGameSystemExport, downloadGameSystemExport, parseGameSystemExport, stripUndefinedDeep } from '@/modules/game-system/transfer';
+import { buildGameSystemExport, downloadGameSystemExport, parseGameSystemExport, isRacePackExport, parseRacePackExport, stripUndefinedDeep } from '@/modules/game-system/transfer';
 import { toast } from 'sonner';
 import { Check, Plus, Trash2, Copy, AlertTriangle, ChevronLeft, Dice6, GripVertical, Pencil, Download, Upload } from 'lucide-react';
 import {
@@ -344,7 +344,10 @@ type SelectionId =
   | { kind: 'race'; id: string }
   | { kind: 'profile'; id: string }
   | { kind: 'groupEntity' }
-  | { kind: 'groupEntityStat'; key: string };
+  | { kind: 'groupEntityStat'; key: string }
+  | { kind: 'symbolDice' }
+  | { kind: 'symbolDie'; key: string }
+  | { kind: 'rules' };
 
 export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   const [local, setLocal] = useState<Draft>(draft);
@@ -445,6 +448,26 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
   };
   const selectedGroupEntityStat = selection.kind === 'groupEntityStat' ? groupEntityStats.find((s) => s.key === selection.key) : undefined;
 
+  // ── Dés à SYMBOLES (ex système narratif façon Star Wars) — 100% configuré par le MJ, aucun dé codé
+  //    en dur : chaque dé a un nombre de faces libre, chaque face porte une combinaison de symboles
+  //    libre (voir SymbolDieDefinition). Résolu par src/lib/rules-engine/symbol-dice.ts. ──
+  const symbolDice = local.symbolDice ?? [];
+  const addSymbolDie = () => {
+    const existingKeys = new Set(symbolDice.map((d) => d.key));
+    let i = symbolDice.length + 1;
+    while (existingKeys.has(`de${i}`)) i++;
+    const die: SymbolDieDefinition = { key: `de${i}`, label: '', faces: [{ values: {} }, { values: {} }] };
+    save({ ...local, symbolDice: [...symbolDice, die] });
+    setSelection({ kind: 'symbolDie', key: die.key });
+  };
+  const updateSymbolDie = (key: string, patch: Partial<SymbolDieDefinition>) =>
+    save({ ...local, symbolDice: symbolDice.map((d) => (d.key === key ? { ...d, ...patch } : d)) });
+  const removeSymbolDie = (key: string) => {
+    save({ ...local, symbolDice: symbolDice.filter((d) => d.key !== key) });
+    if (selection.kind === 'symbolDie' && selection.key === key) setSelection({ kind: 'symbolDice' });
+  };
+  const selectedSymbolDie = selection.kind === 'symbolDie' ? symbolDice.find((d) => d.key === selection.key) : undefined;
+
   const handleExport = () => {
     const exportData = buildGameSystemExport(local);
     downloadGameSystemExport(exportData, `${local.name || local.systemId}.json`);
@@ -457,7 +480,22 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const imported = parseGameSystemExport(event.target?.result as string);
+        const raw = event.target?.result as string;
+
+        // Fichier "pack de races" seul (races sans stats, ex race_star_wars.json) : ne remplace QUE
+        // les races du système en cours d'édition, tout le reste (stats, dés, formules...) est conservé.
+        if (isRacePackExport(JSON.parse(raw))) {
+          const pack = parseRacePackExport(raw);
+          if (races.length > 0 && !window.confirm(`Remplacer les ${races.length} ${(local.raceLabel || 'race').toLowerCase()}(s) actuelles par les ${pack.races.length} du fichier ? Le reste du système n'est pas modifié.`)) {
+            return;
+          }
+          save({ ...local, races: pack.races, ...(pack.raceLabel != null ? { raceLabel: pack.raceLabel } : {}) });
+          setSelection({ kind: 'characters' });
+          toast.success(`${pack.races.length} ${(pack.raceLabel || local.raceLabel || 'race').toLowerCase()}(s) importée(s).`);
+          return;
+        }
+
+        const imported = parseGameSystemExport(raw);
         const isNotEmpty = local.stats.length > defaultVitalStats().length || races.length > 0 || profiles.length > 0;
         if (isNotEmpty && !window.confirm('Importer remplacera les caractéristiques, contraintes de tirage, races et profils actuels. Continuer ?')) {
           return;
@@ -479,6 +517,8 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           groupEntityLabel: imported.groupEntityLabel,
           groupEntityStats: imported.groupEntityStats,
           groupEntityCreation: imported.groupEntityCreation,
+          symbolDice: imported.symbolDice,
+          rules: imported.rules,
         });
         setSelection({ kind: 'general' });
         toast.success('Système importé.');
@@ -523,6 +563,8 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           <NavRow label="Tirage" active={selection.kind === 'roll'} onClick={() => setSelection({ kind: 'roll' })} />
           <NavRow label="Personnages" active={selection.kind === 'characters'} onClick={() => setSelection({ kind: 'characters' })} />
           <NavRow label={groupEntityLabel} active={selection.kind === 'groupEntity'} onClick={() => setSelection({ kind: 'groupEntity' })} />
+          <NavRow label="Dés à symboles" active={selection.kind === 'symbolDice'} onClick={() => setSelection({ kind: 'symbolDice' })} />
+          <NavRow label="Glossaire" active={selection.kind === 'rules'} onClick={() => setSelection({ kind: 'rules' })} />
           <NavRow label="Tester" active={selection.kind === 'test'} onClick={() => setSelection({ kind: 'test' })} />
 
           {selection.kind === 'characters' || selectedRace || selectedProfile ? (
@@ -563,6 +605,18 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
               ))}
               <button onClick={addGroupEntityStat} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
                 <Plus size={12} /> Ajouter une stat
+              </button>
+            </div>
+          ) : null}
+
+          {selection.kind === 'symbolDice' || selectedSymbolDie ? (
+            <div className="pl-2.5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>Dés</p>
+              {symbolDice.map((d) => (
+                <NavRow key={d.key} label={d.label || '(sans nom)'} active={selection.kind === 'symbolDie' && selection.key === d.key} onClick={() => setSelection({ kind: 'symbolDie', key: d.key })} />
+              ))}
+              <button onClick={addSymbolDie} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                <Plus size={12} /> Ajouter un dé
               </button>
             </div>
           ) : null}
@@ -665,6 +719,18 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           {selectedGroupEntityStat && (
             <StatDetail stat={selectedGroupEntityStat} allStats={groupEntityStats} onChange={(patch) => updateGroupEntityStat(selectedGroupEntityStat.key, patch)} onRemove={() => removeGroupEntityStat(selectedGroupEntityStat.key)} />
           )}
+          {selection.kind === 'symbolDice' && (
+            <div>
+              <DetailHeader title="Dés à symboles" hint="Dés dont chaque face assigne une valeur à une ou plusieurs caractéristiques du système (ex système narratif façon Star Wars) au lieu de produire une valeur numérique classique. Les 'symboles' (Succès, Échec, Avantage...) sont des caractéristiques ordinaires que vous définissez dans l'onglet Caractéristiques — une caractéristique dérivée avec une formule (ex max(sub(SuccèsBrut, ÉchecBrut), 0)) calcule le résultat net affiché." />
+              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{symbolDice.length} dé{symbolDice.length > 1 ? 's' : ''} défini{symbolDice.length > 1 ? 's' : ''}.</p>
+            </div>
+          )}
+          {selectedSymbolDie && (
+            <SymbolDieDetail die={selectedSymbolDie} availableStats={local.stats.filter((s) => s.category === 'ability')} onChange={(patch) => updateSymbolDie(selectedSymbolDie.key, patch)} onRemove={() => removeSymbolDie(selectedSymbolDie.key)} />
+          )}
+          {selection.kind === 'rules' && (
+            <RulesPanel local={local} onSave={save} />
+          )}
         </div>
       </div>
     </div>
@@ -683,6 +749,215 @@ function NavRow({ label, active, onClick }: { label: string; active: boolean; on
     >
       {label}
     </button>
+  );
+}
+
+/** Les "symboles" ne sont PAS un type connu du moteur — ce sont des StatDefinition ordinaires que le MJ
+ *  définit lui-même dans son système (onglet Caractéristiques), exactement comme une race référence des
+ *  stats par leur clé. Une face de dé assigne juste des valeurs à ces stats (pattern identique à
+ *  RaceDefinition.modifiers : Record<string, number>, cf RaceDetail plus bas).
+ *  UI en tableau : une colonne par symbole utilisé par ce dé, une ligne par face — bien plus rapide à
+ *  saisir qu'un formulaire par face quand un dé a 8-12 faces. */
+function SymbolDieDetail({ die, availableStats, onChange, onRemove }: {
+  die: SymbolDieDefinition;
+  availableStats: StatDefinition[];
+  onChange: (patch: Partial<SymbolDieDefinition>) => void;
+  onRemove: () => void;
+}) {
+  // faceValues() : tolère un dé stocké avant configuration de ses faces (ou par une version
+  // antérieure de l'éditeur) — une face sans `values` est une face vide, jamais un crash.
+  const faceValues = (face: SymbolDieFace): Record<string, number> => face.values ?? {};
+
+  // Colonnes du tableau = symboles utilisés par au moins une face, ordonnés comme dans le système
+  // + colonnes ajoutées à la main pas encore remplies (état local, tant qu'aucune valeur n'est saisie).
+  const usedKeys = new Set(die.faces.flatMap((f) => Object.keys(faceValues(f))));
+  const [extraColumns, setExtraColumns] = useState<string[]>([]);
+  const columns = availableStats.filter((s) => usedKeys.has(s.key) || extraColumns.includes(s.key));
+
+  const toggleColumn = (key: string, included: boolean) => {
+    if (included) {
+      setExtraColumns((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    } else {
+      setExtraColumns((prev) => prev.filter((k) => k !== key));
+      // Retirer la colonne supprime aussi ses valeurs sur toutes les faces.
+      onChange({
+        faces: die.faces.map((f) => {
+          const values = { ...faceValues(f) };
+          delete values[key];
+          return { values };
+        }),
+      });
+    }
+  };
+
+  const updateFaceValue = (index: number, key: string, amount: number) => {
+    const values = { ...faceValues(die.faces[index]) };
+    if (amount !== 0) values[key] = amount;
+    else delete values[key]; // 0 = la face ne produit pas ce symbole, pas besoin de le stocker.
+    onChange({ faces: die.faces.map((f, i) => (i === index ? { values } : { values: faceValues(f) })) });
+  };
+
+  const addFace = () => onChange({ faces: [...die.faces.map((f) => ({ values: faceValues(f) })), { values: {} }] });
+  const removeFace = (index: number) => {
+    if (die.faces.length <= 2) return; // Un dé a toujours au moins 2 faces.
+    onChange({ faces: die.faces.filter((_, i) => i !== index).map((f) => ({ values: faceValues(f) })) });
+  };
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+        <div className="space-y-1.5 flex-1 min-w-0">
+          <label className="space-y-1 block">
+            <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Nom du dé</span>
+            <input
+              type="text"
+              value={die.label}
+              onChange={(e) => onChange({ label: e.target.value })}
+              placeholder="ex Boost, Setback, Ability..."
+              className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+              style={{ color: 'var(--text-primary)' }}
+            />
+          </label>
+        </div>
+        <button onClick={onRemove} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1.5 shrink-0"><Trash2 size={16} /></button>
+      </div>
+
+      <p className="text-[11px] mb-3" style={{ color: 'var(--text-secondary)' }}>
+        Un jet tire un nombre entre 1 et {die.faces.length} — la ligne correspondante du tableau indique combien de chaque symbole cette face produit.
+        Les symboles sont des caractéristiques ordinaires du système (onglet Caractéristiques) : créez-y vos compteurs (ex &quot;Succès brut&quot;),
+        puis une caractéristique calculée pour le résultat net (ex max(Succès brut − Échec brut, 0)).
+      </p>
+
+      {availableStats.length === 0 ? (
+        <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Aucune caractéristique définie dans ce système — créez-en d&apos;abord dans l&apos;onglet Caractéristiques.</p>
+      ) : (
+        <div className="space-y-4 max-w-3xl">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Symboles produits par ce dé</label>
+            <div className="flex flex-wrap gap-2">
+              {availableStats.map((stat) => {
+                const included = columns.some((c) => c.key === stat.key);
+                return (
+                  <button
+                    key={stat.key}
+                    type="button"
+                    onClick={() => toggleColumn(stat.key, !included)}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                    style={{
+                      borderColor: included ? 'var(--accent-brown)' : 'var(--border-color)',
+                      background: included ? 'color-mix(in srgb, var(--accent-brown) 15%, transparent)' : 'var(--bg-dark)',
+                      color: included ? 'var(--accent-brown)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    {included && <Check size={12} />}
+                    {stat.label || stat.key}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {columns.length === 0 ? (
+            <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Sélectionnez ci-dessus les symboles que ce dé peut produire, puis remplissez le tableau des faces.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border-color)' }}>
+              <table className="w-full text-sm" style={{ background: 'var(--bg-dark)' }}>
+                <thead>
+                  <tr className="border-b" style={{ borderColor: 'var(--border-color)' }}>
+                    <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Face</th>
+                    {columns.map((stat) => (
+                      <th key={stat.key} className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>{stat.label || stat.key}</th>
+                    ))}
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {die.faces.map((face, index) => {
+                    const values = faceValues(face);
+                    const isEmpty = Object.keys(values).length === 0;
+                    return (
+                      <tr key={index} className="border-b last:border-b-0" style={{ borderColor: 'var(--border-color)' }}>
+                        <td className="px-3 py-1.5 font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
+                          {index + 1}
+                          {isEmpty && <span className="ml-2 text-[10px] font-normal italic" style={{ color: 'var(--text-secondary)' }}>vide</span>}
+                        </td>
+                        {columns.map((stat) => (
+                          <td key={stat.key} className="px-2 py-1.5 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              value={values[stat.key] ?? 0}
+                              onChange={(e) => updateFaceValue(index, stat.key, Math.max(0, Number(e.target.value)))}
+                              className="w-14 bg-[var(--bg-card)] border rounded px-1 py-1 text-sm text-center"
+                              style={{
+                                borderColor: (values[stat.key] ?? 0) > 0 ? 'var(--accent-brown)' : 'var(--border-color)',
+                                color: (values[stat.key] ?? 0) > 0 ? 'var(--accent-brown)' : 'var(--text-secondary)',
+                              }}
+                            />
+                          </td>
+                        ))}
+                        <td className="px-2 text-center">
+                          {die.faces.length > 2 && (
+                            <button onClick={() => removeFace(index)} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1" title="Supprimer cette face"><Trash2 size={13} /></button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <button onClick={addFace} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+            <Plus size={12} /> Ajouter une face ({die.faces.length} → {die.faces.length + 1})
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Glossaire du système : règles textuelles (titre + description) affichées dans la recherche (onglet
+ *  Règles) et le wiki — remplace le Rules.json statique, chaque système porte les siennes. */
+function RulesPanel({ local, onSave }: { local: Draft; onSave: (next: Draft) => void | Promise<void> }) {
+  const rules = local.rules ?? [];
+  const addRule = () => onSave({ ...local, rules: [...rules, { title: '', description: '' }] });
+  const updateRule = (index: number, patch: Partial<GameRuleEntry>) =>
+    onSave({ ...local, rules: rules.map((r, i) => (i === index ? { ...r, ...patch } : r)) });
+  const removeRule = (index: number) => onSave({ ...local, rules: rules.filter((_, i) => i !== index) });
+
+  return (
+    <div>
+      <DetailHeader title="Glossaire" hint="Règles textuelles du système (ex Jet de sauvegarde, Repos long...) — affichées aux joueurs dans la recherche (onglet Règles) et le wiki. Chaque système porte son propre glossaire." />
+      <div className="space-y-3 max-w-2xl">
+        {rules.map((rule, index) => (
+          <div key={index} className="p-3 rounded-lg border space-y-1.5" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-dark)' }}>
+            <div className="flex items-center gap-2">
+              <input
+                value={rule.title}
+                onChange={(e) => updateRule(index, { title: e.target.value })}
+                placeholder="Titre (ex Jet de sauvegarde)"
+                className="flex-1 bg-transparent border-none outline-none text-sm font-bold placeholder:opacity-40"
+                style={{ color: 'var(--text-primary)' }}
+              />
+              <button onClick={() => removeRule(index)} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors shrink-0"><Trash2 size={14} /></button>
+            </div>
+            <textarea
+              value={rule.description}
+              onChange={(e) => updateRule(index, { description: e.target.value })}
+              placeholder="Description de la règle..."
+              rows={3}
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-2 py-1.5 text-xs resize-y"
+              style={{ color: 'var(--text-primary)' }}
+            />
+          </div>
+        ))}
+        <button onClick={addRule} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+          <Plus size={12} /> Ajouter une règle
+        </button>
+      </div>
+    </div>
   );
 }
 

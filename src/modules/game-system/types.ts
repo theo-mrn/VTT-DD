@@ -153,6 +153,41 @@ export interface GameSystemDefinition {
    *  distincte de `creation` (personnages) : pas de rollConstraints/applyRacialModifiers, une entité de
    *  groupe n'a pas de race. */
   groupEntityCreation?: { method: 'roll' | 'manual'; rollFormula?: FormulaNode };
+  /** Dés à symboles configurables par le MJ (ex système narratif façon Star Wars : Boost/Setback/
+   *  Ability/Difficulty/Proficiency/Challenge/Force) — généricité totale, aucun dé n'est codé en dur.
+   *  Absent/vide = système purement numérique, comportement inchangé (D&D, Nooblies...). */
+  symbolDice?: SymbolDieDefinition[];
+  /** Règles textuelles du système (glossaire affiché dans le wiki/la recherche, ex "Jet de sauvegarde")
+   *  — remplace le Rules.json statique : chaque système porte ses propres règles, éditées par le MJ. */
+  rules?: GameRuleEntry[];
+}
+
+export interface GameRuleEntry {
+  title: string;
+  description: string;
+}
+
+// ─── Symbol dice (dés narratifs à symboles) ──────────────────────────
+// 100% générique : un "symbole" (Succès, Échec, Avantage...) N'EST PAS un type fermé côté moteur —
+// c'est simplement une StatDefinition ordinaire que le MJ définit dans son système (ex category='ability'
+// pour un compteur brut rempli par les faces, category='derived' avec valueFormula pour un résultat net
+// calculé, ex max(sub(succesBrut, echecBrut), const 0) via le même FormulaEditor que le reste du moteur).
+// Aucune liste de noms de symboles n'existe dans le code.
+
+export interface SymbolDieFace {
+  /** Valeurs brutes assignées à des stats du système par cette face — clé = StatDefinition.key d'une
+   *  stat "compteur" quelconque définie par le MJ (ex "succesBrut", ou n'importe quel nom pour un
+   *  futur système différent). Face "vide" (aucun effet) = objet vide {}. */
+  values: Record<string, number>;
+}
+
+export interface SymbolDieDefinition {
+  /** Identifiant stable, utilisé tel quel dans la notation texte du lanceur de dés (ex "1boost + 2ability") —
+   *  jamais un nombre de faces (dN) pour ne pas entrer en collision avec les dés numériques classiques. */
+  key: string;
+  label: string;
+  /** Une entrée par face, dans l'ordre (index 0 = résultat du jet "1", etc.) — longueur = nombre de faces. */
+  faces: SymbolDieFace[];
 }
 
 export interface RacialAbility {

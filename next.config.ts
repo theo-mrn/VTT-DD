@@ -25,12 +25,6 @@ const nextConfig: NextConfig = {
             },
             {
                 protocol: 'https',
-                hostname: 'assets.yner.fr',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
                 hostname: 'www.dnd5eapi.co',
                 port: '',
                 pathname: '/**',
@@ -38,6 +32,12 @@ const nextConfig: NextConfig = {
             {
                 protocol: 'https',
                 hostname: 'firebasestorage.googleapis.com',
+                port: '',
+                pathname: '/**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'media.anakinworld.com',
                 port: '',
                 pathname: '/**',
             },
