@@ -92,28 +92,17 @@ export default function ExportImportPanel() {
         if (bundle.gameSystem) {
           const id = `custom_${Date.now()}`;
           targetContentPath = `Salle/${roomId}/gameSystemOverrides/${id}/content`;
-          // stripUndefinedDeep : un champ optionnel absent du bundle importé (ex combatDefenseKey) reste
-          // une clé `undefined` explicite tant qu'on ne l'omet pas — Firestore rejette setDoc() dans ce
-          // cas (Unsupported field value: undefined), même niché.
+          // Spread intégral (moins exportVersion/exportedAt, propres au format d'échange, jamais au doc
+          // système) plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a déjà
+          // grandi plusieurs fois (symbolDice, rules, locationLabel/locationFields...) et cette liste
+          // manuelle oubliait systématiquement les nouveaux champs à chaque ajout, silencieusement.
+          // stripUndefinedDeep reste nécessaire : un champ optionnel absent du bundle importé (ex
+          // combatDefenseKey) reste une clé `undefined` explicite tant qu'on ne l'omet pas — Firestore
+          // rejette setDoc() dans ce cas (Unsupported field value: undefined), même niché.
+          const { exportVersion: _exportVersion, exportedAt: _exportedAt, ...systemFields } = bundle.gameSystem;
           await setDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, id), stripUndefinedDeep({
+            ...systemFields,
             systemId: id,
-            name: bundle.gameSystem.name,
-            description: bundle.gameSystem.description,
-            stats: bundle.gameSystem.stats,
-            creation: bundle.gameSystem.creation,
-            combatDefenseKey: bundle.gameSystem.combatDefenseKey,
-            combatAttackKeys: bundle.gameSystem.combatAttackKeys,
-            modifierFormula: bundle.gameSystem.modifierFormula,
-            statGroups: bundle.gameSystem.statGroups,
-            races: bundle.gameSystem.races,
-            profiles: bundle.gameSystem.profiles,
-            raceLabel: bundle.gameSystem.raceLabel,
-            profileLabel: bundle.gameSystem.profileLabel,
-            groupEntityLabel: bundle.gameSystem.groupEntityLabel,
-            groupEntityStats: bundle.gameSystem.groupEntityStats,
-            groupEntityCreation: bundle.gameSystem.groupEntityCreation,
-            symbolDice: bundle.gameSystem.symbolDice,
-            rules: bundle.gameSystem.rules,
           }));
           await setDoc(doc(db, 'Salle', roomId), { gameSystemId: id }, { merge: true });
           importedCount += 1;

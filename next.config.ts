@@ -41,6 +41,18 @@ const nextConfig: NextConfig = {
                 port: '',
                 pathname: '/**',
             },
+            {
+                protocol: 'https',
+                hostname: 'cdn-www.swtor.com',
+                port: '',
+                pathname: '/**',
+            },
+            {
+                protocol: 'https',
+                hostname: 'lumiere-a.akamaihd.net',
+                port: '',
+                pathname: '/**',
+            },
         ],
     },
     experimental: {

@@ -160,11 +160,26 @@ export interface GameSystemDefinition {
   /** Règles textuelles du système (glossaire affiché dans le wiki/la recherche, ex "Jet de sauvegarde")
    *  — remplace le Rules.json statique : chaque système porte ses propres règles, éditées par le MJ. */
   rules?: GameRuleEntry[];
+  /** Nom d'affichage libre pour la catégorie "lieux" (ex "Planète", "Ville", "Plan") — absent = feature
+   *  désactivée (aucun onglet Lieux dans la recherche/le wiki, quel que soit le contenu déjà créé). */
+  locationLabel?: string;
+  /** Schéma des champs additionnels d'un lieu, en plus de nom/description/image (toujours présents) —
+   *  ex "Climat", "Population", "Faction dominante" pour un système façon Star Wars. Texte libre
+   *  uniquement (comme GameRuleEntry) : pas de formule/calcul, purement narratif. Les instances de lieux
+   *  elles-mêmes vivent en contenu Firestore (kind 'location', cf game-content/types.ts), pas ici — même
+   *  logique que "gros contenu → sous-collection" pour l'équipement/le bestiaire. */
+  locationFields?: LocationFieldDefinition[];
 }
 
 export interface GameRuleEntry {
   title: string;
   description: string;
+}
+
+export interface LocationFieldDefinition {
+  /** Identifiant stable, clé de stockage dans LocationDoc.values (généré côté UI, ex crypto.randomUUID()). */
+  key: string;
+  label: string;
 }
 
 // ─── Symbol dice (dés narratifs à symboles) ──────────────────────────

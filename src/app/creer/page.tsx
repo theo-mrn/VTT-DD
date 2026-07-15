@@ -241,23 +241,13 @@ export default function CreerPageComponent() {
       try {
         const bundle = parseRoomExportBundle(event.target?.result as string)
         if (bundle.gameSystem) {
+          // Spread intégral plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a
+          // déjà grandi plusieurs fois (symbolDice, rules, locationLabel/locationFields...) et cette
+          // liste manuelle oubliait systématiquement les nouveaux champs à chaque ajout — le spread
+          // élimine la classe de bug entière au lieu de la corriger une fois de plus au cas par cas.
           setCustomSystemDraft({
+            ...bundle.gameSystem,
             systemId: CUSTOM_SYSTEM_ID,
-            name: bundle.gameSystem.name,
-            description: bundle.gameSystem.description,
-            stats: bundle.gameSystem.stats,
-            creation: bundle.gameSystem.creation,
-            combatDefenseKey: bundle.gameSystem.combatDefenseKey,
-            combatAttackKeys: bundle.gameSystem.combatAttackKeys,
-            modifierFormula: bundle.gameSystem.modifierFormula,
-            statGroups: bundle.gameSystem.statGroups,
-            races: bundle.gameSystem.races,
-            profiles: bundle.gameSystem.profiles,
-            raceLabel: bundle.gameSystem.raceLabel,
-            profileLabel: bundle.gameSystem.profileLabel,
-            groupEntityLabel: bundle.gameSystem.groupEntityLabel,
-            groupEntityStats: bundle.gameSystem.groupEntityStats,
-            groupEntityCreation: bundle.gameSystem.groupEntityCreation,
           })
           setNewRoom((prev) => ({ ...prev, gameSystemId: CUSTOM_SYSTEM_ID }))
         }

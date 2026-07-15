@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { db, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where } from '@/lib/firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, query, where } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry } from '@/modules/game-system/types';
+import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition } from '@/modules/game-system/types';
+import type { LocationDoc } from '@/modules/game-content/types';
 import { FormulaEditor } from './FormulaEditor';
 import { findRollFormulaCycle, rollCharacterStats, groupStats } from '@/lib/rules-engine';
 import { buildGameSystemExport, downloadGameSystemExport, parseGameSystemExport, isRacePackExport, parseRacePackExport, stripUndefinedDeep } from '@/modules/game-system/transfer';
@@ -220,9 +221,15 @@ export default function GameSystemManagerPanel() {
     const ref = draft.sourceKind === 'catalog'
       ? doc(db, 'gameSystems', editingSystemId)
       : doc(db, `Salle/${roomId}/gameSystemOverrides`, editingSystemId);
+    // Chemin de la sous-collection 'content' de CE système (pas forcément celui actif de la table) —
+    // mêmes deux cas que useGameSystem.contentPath, mais pour le système en cours d'édition ici.
+    const contentPath = draft.sourceKind === 'catalog'
+      ? `gameSystems/${editingSystemId}/content`
+      : `Salle/${roomId}/gameSystemOverrides/${editingSystemId}/content`;
     return (
       <GameSystemEditor
         draft={draft}
+        contentPath={contentPath}
         onBack={() => setEditingSystemId(null)}
         onSave={(next) => updateDoc(ref, stripUndefinedDeep(next) as unknown as Record<string, unknown>)}
       />
@@ -347,9 +354,11 @@ type SelectionId =
   | { kind: 'groupEntityStat'; key: string }
   | { kind: 'symbolDice' }
   | { kind: 'symbolDie'; key: string }
-  | { kind: 'rules' };
+  | { kind: 'rules' }
+  | { kind: 'locations' }
+  | { kind: 'location'; id: string };
 
-export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
+export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft: Draft; contentPath?: string; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   const [local, setLocal] = useState<Draft>(draft);
   const [isSaving, setIsSaving] = useState(false);
   const [selection, setSelection] = useState<SelectionId>({ kind: 'general' });
@@ -468,6 +477,45 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
   };
   const selectedSymbolDie = selection.kind === 'symbolDie' ? symbolDice.find((d) => d.key === selection.key) : undefined;
 
+  // ── Lieux (ex Planète, Ville — nom libre défini par le MJ, façon narrative façon Star Wars) ──
+  // Le SCHÉMA (locationLabel + champs additionnels) vit dans le Draft comme races/rules. Les INSTANCES
+  // (chaque lieu) vivent en contenu Firestore (kind 'location', cf game-content/types.ts) — même
+  // logique "gros contenu → sous-collection" que l'équipement/le bestiaire, pas dans ce Draft.
+  const locationFields = local.locationFields ?? [];
+  const addLocationField = () => save({ ...local, locationFields: [...locationFields, { key: makeId('field'), label: '' }] });
+  const updateLocationField = (key: string, patch: Partial<LocationFieldDefinition>) =>
+    save({ ...local, locationFields: locationFields.map((f) => (f.key === key ? { ...f, ...patch } : f)) });
+  const removeLocationField = (key: string) => save({ ...local, locationFields: locationFields.filter((f) => f.key !== key) });
+
+  // Instances : non disponibles tant que ce système n'a pas de contentPath valide (ex brouillon en
+  // cours de création de salle, pas encore persisté en Firestore — cf app/creer/page.tsx).
+  const [locations, setLocations] = useState<(LocationDoc & { id: string })[]>([]);
+  useEffect(() => {
+    if (!contentPath) { setLocations([]); return; }
+    const unsubscribe = onSnapshot(
+      query(collection(db, contentPath), where('kind', '==', 'location')),
+      (snap) => setLocations(snap.docs.map((d) => ({ id: d.id, ...(d.data() as LocationDoc) }))),
+      (error) => { console.error('[GameSystemManagerPanel] erreur lecture lieux:', error.code, error.message); setLocations([]); },
+    );
+    return () => unsubscribe();
+  }, [contentPath]);
+
+  const addLocation = async () => {
+    if (!contentPath) return;
+    const docRef = await addDoc(collection(db, contentPath), stripUndefinedDeep({ kind: 'location', name: '', values: {} }));
+    setSelection({ kind: 'location', id: docRef.id });
+  };
+  const updateLocation = (id: string, patch: Partial<LocationDoc>) => {
+    if (!contentPath) return;
+    updateDoc(doc(db, contentPath, id), stripUndefinedDeep(patch) as unknown as Record<string, unknown>);
+  };
+  const removeLocation = (id: string) => {
+    if (!contentPath) return;
+    deleteDoc(doc(db, contentPath, id));
+    if (selection.kind === 'location' && selection.id === id) setSelection({ kind: 'locations' });
+  };
+  const selectedLocation = selection.kind === 'location' ? locations.find((l) => l.id === selection.id) : undefined;
+
   const handleExport = () => {
     const exportData = buildGameSystemExport(local);
     downloadGameSystemExport(exportData, `${local.name || local.systemId}.json`);
@@ -565,6 +613,7 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           <NavRow label={groupEntityLabel} active={selection.kind === 'groupEntity'} onClick={() => setSelection({ kind: 'groupEntity' })} />
           <NavRow label="Dés à symboles" active={selection.kind === 'symbolDice'} onClick={() => setSelection({ kind: 'symbolDice' })} />
           <NavRow label="Glossaire" active={selection.kind === 'rules'} onClick={() => setSelection({ kind: 'rules' })} />
+          <NavRow label={local.locationLabel ? `${local.locationLabel}s` : 'Lieux'} active={selection.kind === 'locations'} onClick={() => setSelection({ kind: 'locations' })} />
           <NavRow label="Tester" active={selection.kind === 'test'} onClick={() => setSelection({ kind: 'test' })} />
 
           {selection.kind === 'characters' || selectedRace || selectedProfile ? (
@@ -618,6 +667,20 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
               <button onClick={addSymbolDie} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
                 <Plus size={12} /> Ajouter un dé
               </button>
+            </div>
+          ) : null}
+
+          {selection.kind === 'locations' || selectedLocation ? (
+            <div className="pl-2.5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>{local.locationLabel ? `${local.locationLabel}s` : 'Lieux'}</p>
+              {locations.map((l) => (
+                <NavRow key={l.id} label={l.name || '(sans nom)'} active={selection.kind === 'location' && selection.id === l.id} onClick={() => setSelection({ kind: 'location', id: l.id })} />
+              ))}
+              {contentPath ? (
+                <button onClick={addLocation} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <Plus size={12} /> Ajouter : {local.locationLabel || 'Lieu'}
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -730,6 +793,24 @@ export function GameSystemEditor({ draft, onBack, onSave }: { draft: Draft; onBa
           )}
           {selection.kind === 'rules' && (
             <RulesPanel local={local} onSave={save} />
+          )}
+          {selection.kind === 'locations' && (
+            <LocationsPanel
+              local={local}
+              onSave={save}
+              locationCount={locations.length}
+              contentPath={contentPath}
+              onAddLocation={addLocation}
+            />
+          )}
+          {selectedLocation && (
+            <LocationDetail
+              location={selectedLocation}
+              fields={locationFields}
+              locationLabel={local.locationLabel || 'Lieu'}
+              onChange={(patch) => updateLocation(selectedLocation.id, patch)}
+              onRemove={() => removeLocation(selectedLocation.id)}
+            />
           )}
         </div>
       </div>
@@ -956,6 +1037,141 @@ function RulesPanel({ local, onSave }: { local: Draft; onSave: (next: Draft) => 
         <button onClick={addRule} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
           <Plus size={12} /> Ajouter une règle
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** Schéma des lieux : nom d'affichage libre (ex "Planète", "Ville") + champs additionnels en plus de
+ *  nom/description/image (toujours présents sur une instance, cf LocationDetail). Les instances
+ *  elles-mêmes ne s'éditent pas ici (cf locations/selectedLocation dans GameSystemEditor). */
+function LocationsPanel({ local, onSave, locationCount, contentPath, onAddLocation }: {
+  local: Draft;
+  onSave: (next: Draft) => void | Promise<void>;
+  locationCount: number;
+  contentPath?: string;
+  onAddLocation: () => void;
+}) {
+  const fields = local.locationFields ?? [];
+  const addField = () => onSave({ ...local, locationFields: [...fields, { key: makeId('field'), label: '' }] });
+  const updateField = (key: string, patch: Partial<LocationFieldDefinition>) =>
+    onSave({ ...local, locationFields: fields.map((f) => (f.key === key ? { ...f, ...patch } : f)) });
+  const removeField = (key: string) => onSave({ ...local, locationFields: fields.filter((f) => f.key !== key) });
+
+  return (
+    <div>
+      <DetailHeader title="Lieux" hint="Lieux du monde (ex Planète, Ville, Plan) — nom, description et image sont toujours disponibles ; ajoutez ici des champs additionnels propres à votre système (ex Climat, Population, Faction dominante). Les lieux eux-mêmes se créent dans la liste à gauche." />
+      <div className="space-y-4 max-w-md">
+        <label className="space-y-1 block">
+          <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Nom affiché</span>
+          <input
+            type="text"
+            value={local.locationLabel ?? ''}
+            onChange={(e) => onSave({ ...local, locationLabel: e.target.value || undefined })}
+            placeholder="ex Planète, Ville, Plan"
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+        <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          Laisser vide désactive l&apos;onglet correspondant dans la recherche/le wiki, même si des lieux existent déjà.
+        </p>
+
+        <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Champs additionnels</label>
+          <div className="space-y-2">
+            {fields.map((field) => (
+              <div key={field.key} className="flex items-center gap-2">
+                <input
+                  value={field.label}
+                  onChange={(e) => updateField(field.key, { label: e.target.value })}
+                  placeholder="Nom du champ (ex Climat)"
+                  className="flex-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                />
+                <button onClick={() => removeField(field.key)} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors shrink-0"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+          <button onClick={addField} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+            <Plus size={12} /> Ajouter un champ
+          </button>
+        </div>
+
+        {contentPath ? (
+          <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{locationCount} {(local.locationLabel || 'lieu').toLowerCase()}{locationCount > 1 ? 's' : ''} défini{locationCount > 1 ? 's' : ''}.</p>
+        ) : (
+          <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Les lieux eux-mêmes pourront être créés une fois ce système enregistré (après la création de la table).</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Détail d'une instance de lieu — nom/description/image toujours présents, plus les champs
+ *  additionnels définis dans LocationsPanel (fields), stockés dans location.values par clé. */
+function LocationDetail({ location, fields, locationLabel, onChange, onRemove }: {
+  location: LocationDoc & { id: string };
+  fields: LocationFieldDefinition[];
+  locationLabel: string;
+  onChange: (patch: Partial<LocationDoc>) => void;
+  onRemove: () => void;
+}) {
+  const updateValue = (key: string, value: string) => onChange({ values: { ...location.values, [key]: value } });
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+        <input
+          value={location.name}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder={`Nom (ex ${locationLabel})`}
+          className="text-lg font-bold bg-transparent border-none outline-none flex-1 min-w-0 placeholder:opacity-40"
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-title)' }}
+        />
+        <button onClick={onRemove} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1.5 shrink-0"><Trash2 size={16} /></button>
+      </div>
+
+      <div className="space-y-4 max-w-md">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Description</label>
+          <textarea
+            value={location.description ?? ''}
+            onChange={(e) => onChange({ description: e.target.value })}
+            rows={4}
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm resize-y"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </div>
+
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Image (URL)
+          <input
+            type="text"
+            value={location.image ?? ''}
+            onChange={(e) => onChange({ image: e.target.value })}
+            placeholder="https://..."
+            className="flex-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-2 py-1.5 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+
+        {fields.length > 0 && (
+          <div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+            {fields.map((field) => (
+              <label key={field.key} className="space-y-1 block">
+                <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>{field.label || '(sans nom)'}</span>
+                <input
+                  type="text"
+                  value={location.values?.[field.key] ?? ''}
+                  onChange={(e) => updateValue(field.key, e.target.value)}
+                  className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                />
+              </label>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

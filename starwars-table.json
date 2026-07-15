@@ -3582,6 +3582,25 @@
         "title": "Encaissement et Défense",
         "description": "Valeur d'encaissement (Soak) = Vigueur (augmente avec la Vigueur, l'armure et certains talents) : dégâts ignorés avant de perdre des points de blessure. Défense (distance et corps-à-corps) : 0 par défaut, s'améliore par l'armure, le couvert ou des talents."
       }
+    ],
+    "locationLabel": "Planète",
+    "locationFields": [
+      {
+        "key": "systeme",
+        "label": "Système stellaire"
+      },
+      {
+        "key": "climat",
+        "label": "Climat"
+      },
+      {
+        "key": "population",
+        "label": "Population"
+      },
+      {
+        "key": "faction",
+        "label": "Faction dominante"
+      }
     ]
   },
   "groupEntities": {
@@ -4256,6 +4275,378 @@
           "commentaires": "Rend la qualité Sunder inefficace contre le porteur."
         }
       ]
+    },
+    {
+      "kind": "location",
+      "name": "Balmorra",
+      "description": "Monde industriel dévasté par des décennies de guerre entre République et Empire Sith. Ses usines d'armement en font un enjeu stratégique majeur malgré ses ruines.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_balmorra.png",
+      "values": {
+        "systeme": "Système Balmorra",
+        "climat": "Tempéré, industriel",
+        "population": "150 millions",
+        "faction": "Contestée (République / Empire Sith)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Belsavis",
+      "description": "Prison de haute sécurité de la République, dissimulée sous une calotte glaciaire. Y sont enfermées les menaces les plus dangereuses de la galaxie, dont d'anciennes créatures rakata.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_belsavis.png",
+      "values": {
+        "systeme": "Système Belsavis",
+        "climat": "Polaire, volcanique par endroits",
+        "population": "Colonie carcérale (population variable)",
+        "faction": "République Galactique"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Corellia",
+      "description": "Monde industriel majeur, berceau de nombreux chantiers navals. Ses habitants ont la réputation d'être d'excellents pilotes et ingénieurs.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_corellia.png",
+      "values": {
+        "systeme": "Système Corellien",
+        "climat": "Tempéré",
+        "population": "3 milliards",
+        "faction": "République Galactique"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Dromund Kaas",
+      "description": "Monde capitale de l'Empire Sith, dissimulé derrière le Voile de Force dans l'espace inconnu. Jungle sombre et orageuse abritant Kaas City, siège du pouvoir impérial sith.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_dromundkaas.png",
+      "values": {
+        "systeme": "Système Dromund Kaas",
+        "climat": "Tropical, orageux",
+        "population": "Population sith et esclaves",
+        "faction": "Empire Sith (monde capitale)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Hutta",
+      "description": "Monde-marais souillé par des siècles d'exploitation, capitale non-officielle de l'Espace Hutt. Le crime organisé y fait office de seule autorité réelle.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_hutta.png",
+      "values": {
+        "systeme": "Système Hutt",
+        "climat": "Marécageux, pollué",
+        "population": "Colonies hutt et esclaves",
+        "faction": "Cartel Hutt"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Ilum",
+      "description": "Monde de glace sacré, source de cristaux kyber utilisés dans la fabrication des sabres laser. Site de pèlerinage pour les Jedi comme pour les Sith.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_ilum.png",
+      "values": {
+        "systeme": "Système Ilum",
+        "climat": "Glacial",
+        "population": "Aucune population permanente",
+        "faction": "Contestée (République / Empire Sith)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Korriban",
+      "description": "Monde désertique couvert de tombeaux sith millénaires, berceau historique de l'Empire Sith et site de l'Académie Sith. Lieu chargé du côté obscur de la Force.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_korriban.png",
+      "values": {
+        "systeme": "Système Horuset",
+        "climat": "Désertique",
+        "population": "Quasiment inhabitée (tombeaux)",
+        "faction": "Empire Sith (monde sacré)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Makeb",
+      "description": "Monde montagneux riche en isotope-5, ressource énergétique rarissime. Sa population de colons vit sous la menace constante de séismes destructeurs liés à l'exploitation de la ressource.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_makeb.png",
+      "values": {
+        "systeme": "Système Makeb",
+        "climat": "Tempéré, montagneux",
+        "population": "Colons isotopiques (réfugiés)",
+        "faction": "Cartel Hutt (puis République/Empire)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Nar Shaddaa",
+      "description": "Lune-ville tentaculaire surnommée « la Lune de contrebande », plaque tournante du crime organisé hutt. Ses niveaux inférieurs sont un labyrinthe de marché noir et de dangers.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_narshaddaa.png",
+      "values": {
+        "systeme": "Système Y'Toub",
+        "climat": "Urbain, pollué",
+        "population": "50 millions",
+        "faction": "Cartel Hutt"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Ord Mantell",
+      "description": "Ancien avant-poste militaire de la République, déchiré par une guerre civile entre séparatistes et loyalistes. Ses champs de bataille rouillés attirent pillards et mercenaires.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_ordmantell.png",
+      "values": {
+        "systeme": "Système Bright Jewel",
+        "climat": "Tempéré, ravagé par la guerre civile",
+        "population": "Plusieurs millions",
+        "faction": "République Galactique (guerre civile locale)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Quesh",
+      "description": "Monde à l'atmosphère toxique disputé pour ses gaz chimiques rares utilisés en armement. Seuls des équipements spécialisés permettent d'y survivre durablement.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_quesh.png",
+      "values": {
+        "systeme": "Système Quesh",
+        "climat": "Toxique, volcanique",
+        "population": "Aucune population civile stable",
+        "faction": "Contestée (République / Empire Sith)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Taris",
+      "description": "Ancienne planète-ville dévastée durant la Grande Guerre Sith puis rasée par bombardement orbital. La nature y a repris possession des ruines, laissant un monde sauvage et dangereux.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_taris.png",
+      "values": {
+        "systeme": "Système Taris",
+        "climat": "Tempéré, en ruines",
+        "population": "Faune sauvage ayant repris ses droits",
+        "faction": "Aucune (monde abandonné)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Tython",
+      "description": "Monde sacré considéré comme le berceau de l'Ordre Jedi, riche en Force mais à la faune indigène hostile. Site de reconstruction du Temple Jedi après des siècles d'abandon.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_tython.png",
+      "values": {
+        "systeme": "Système Tython",
+        "climat": "Tempéré, sauvage",
+        "population": "Ordre Jedi (population restreinte)",
+        "faction": "République Galactique (Ordre Jedi)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Voss",
+      "description": "Monde montagneux brumeux peuplé des Voss, un peuple mystique doué de précognition, en conflit latent avec les Gormaks des hautes montagnes.",
+      "image": "https://cdn-www.swtor.com/sites/all/files/en/planets/landing/planet_voss.png",
+      "values": {
+        "systeme": "Système Voss",
+        "climat": "Montagneux, brumeux",
+        "population": "Population voss indigène",
+        "faction": "Neutre (Voss et Gormaks indigènes)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Coruscant",
+      "description": "Planète-ville recouverte d'une seule mégalopole sur toute sa surface, capitale de la République puis de l'Empire. Cœur politique et militaire de la galaxie, chaque niveau plus profond de la ville est plus dangereux et plus pauvre.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/coruscant-main_d2fad5f2.jpeg?region=245%2C0%2C1430%2C804",
+      "values": {
+        "systeme": "Système Coruscant",
+        "climat": "Tempéré, urbanisé à 100%",
+        "population": "1 000 milliards",
+        "faction": "Empire Galactique (capitale)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Tatooine",
+      "description": "Planète désertique à deux soleils, en marge des routes commerciales majeures. Repaire de contrebandiers, de chasseurs de primes et de fermiers de l'humidité. Le crime organisé (Hutts) y fait office de loi réelle.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/tatooine-main_9542b896.jpeg?region=165%2C0%2C949%2C534",
+      "values": {
+        "systeme": "Système Tatoo",
+        "climat": "Désertique, aride",
+        "population": "200 000 (Jawas, Tuskens, colons humains)",
+        "faction": "Aucune (Bordure Extérieure, contrôlée par les Hutts)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Hoth",
+      "description": "Monde glacé et hostile aux confins de la galaxie, choisi par l'Alliance Rebelle pour sa base Echo en raison de son isolement. Abrite des wampas et des tauntauns ; les tempêtes rendent les communications et la navigation extrêmement difficiles.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/Hoth_d074d307.jpeg?region=0%2C0%2C1200%2C675",
+      "values": {
+        "systeme": "Système Hoth",
+        "climat": "Glacial, tempêtes de neige constantes",
+        "population": "Aucune population permanente notable",
+        "faction": "Aucune (base rebelle secrète, Echo Base)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Alderaan",
+      "description": "Monde pacifiste réputé pour sa beauté et sa culture raffinée, siège de la famille royale d'Organa. Détruite par l'Étoile Noire en démonstration de la puissance de l'Empire — son destin reste un symbole de la brutalité impériale.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/alderaan-main_f5b676cf.jpeg?region=0%2C0%2C1280%2C720",
+      "values": {
+        "systeme": "Système Alderaan",
+        "climat": "Tempéré",
+        "population": "2 milliards (détruite)",
+        "faction": "Alliance Rebelle (soutien clandestin)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Kashyyyk",
+      "description": "Monde-forêt couvert d'arbres wroshyr géants où vivent les Wookiees, dans des cités construites à même les branches. Riche en ressources mais dangereuse : la faune des niveaux inférieurs de la canopée est redoutable.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/kashyyyk-main_37a2e497.jpeg?region=237%2C0%2C1445%2C813",
+      "values": {
+        "systeme": "Système Kashyyyk",
+        "climat": "Tropical, forêts géantes",
+        "population": "45 millions (Wookiees)",
+        "faction": "République Galactique (puis occupation impériale)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Mustafar",
+      "description": "Monde volcanique aux rivières de lave, exploité pour ses minerais rares. Tristement célèbre comme le lieu du duel entre Obi-Wan Kenobi et Anakin Skywalker, et futur site du château personnel de Dark Vador.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/databank_mustafar_01_169_5b470758.jpeg?region=0%2C0%2C1560%2C878",
+      "values": {
+        "systeme": "Système Mustafar",
+        "climat": "Volcanique",
+        "population": "20 000 (mineurs, stations automatisées)",
+        "faction": "Corporation minière (puis avant-poste personnel de Dark Vador)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Naboo",
+      "description": "Monde paisible aux paysages verdoyants et lacs souterrains, habité en surface par les Naboo et dans les profondeurs par les Gungans. Producteur de plasma précieux, elle fut le déclencheur du blocus qui mena à la Guerre des Clones.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/databank_naboo_01_169_6cd7e1e0.jpeg?region=0%2C0%2C1560%2C878",
+      "values": {
+        "systeme": "Système Naboo",
+        "climat": "Tempéré",
+        "population": "4,5 milliards (Naboo de surface, Gungans des profondeurs)",
+        "faction": "République Galactique"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Dagobah",
+      "description": "Planète marécageuse isolée, riche en Force mais pauvre en ressources exploitables. Lieu de retraite de Maître Yoda après l'Ordre 66, elle est ignorée de la plupart des cartes stellaires.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/Dagobah_890df592.jpeg?region=0%2C80%2C1260%2C711",
+      "values": {
+        "systeme": "Système Dagobah",
+        "climat": "Marécageux, tropical humide",
+        "population": "Quasiment inhabitée",
+        "faction": "Aucune"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Endor",
+      "description": "Lune-forêt peuplée par les Ewoks, petits primitifs vivant dans des villages perchés dans la canopée. Site du bouclier de la seconde Étoile Noire et de la bataille décisive qui mit fin à l'Empire.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/databank_endor_01_169_68ba9bdc.jpeg?region=0%2C0%2C1560%2C878",
+      "values": {
+        "systeme": "Système Endor",
+        "climat": "Tempéré, forestier",
+        "population": "30 millions (Ewoks)",
+        "faction": "Empire Galactique (bouclier orbital de la seconde Étoile Noire)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Nevarro",
+      "description": "Monde volcanique de la Bordure Extérieure, ancien avant-poste impérial reconverti en base de la Guilde des chasseurs de primes. Sa capitale a été reconstruite après le renversement des restes impériaux locaux.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/nevarro-main_70612f4d.jpeg?region=0%2C105%2C1545%2C870",
+      "values": {
+        "systeme": "Système Nevarro",
+        "climat": "Volcanique, montagneux",
+        "population": "Quelques millions",
+        "faction": "Restes de l'Empire (puis Nouvelle République)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Yavin 4",
+      "description": "Lune-jungle abritant d'anciens temples massassi, transformée en base secrète de l'Alliance Rebelle. Site de lancement de l'attaque décisive contre la première Étoile Noire.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/yavin-4-main_bd23f447.jpeg?region=331%2C0%2C949%2C534",
+      "values": {
+        "systeme": "Système Yavin",
+        "climat": "Tropical, jungle dense",
+        "population": "Faible (temples anciens, base rebelle)",
+        "faction": "Alliance Rebelle (base secrète)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Ghorman",
+      "description": "Monde agricole prospère réputé pour ses tissus de luxe, dont la population civile s'est opposée à l'occupation impériale au prix d'une répression brutale.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/ghorman_106b7186.jpeg?region=252%2C0%2C1416%2C796",
+      "values": {
+        "systeme": "Système Ghorman",
+        "climat": "Tempéré, prairies",
+        "population": "Plusieurs millions",
+        "faction": "Empire Galactique (occupation, mouvement de résistance civile)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Scarif",
+      "description": "Monde tropical abritant les archives impériales sécurisées, dont les plans de la première Étoile Noire. Théâtre de la bataille menée par l'Alliance Rebelle pour dérober ces plans.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/scarif-main-b_f5298baa.jpeg?region=0%2C0%2C1560%2C878",
+      "values": {
+        "systeme": "Système Scarif",
+        "climat": "Tropical, îles et récifs",
+        "population": "Personnel impérial uniquement",
+        "faction": "Empire Galactique (archives militaires)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Seatos",
+      "description": "Monde aride de la Bordure Extérieure, connu pour ses formations rocheuses spectaculaires et des vestiges anciens liés à des cultes obscurs.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/seatos-main_3d95b7c5.jpeg?region=245%2C0%2C1429%2C804",
+      "values": {
+        "systeme": "Système Seatos",
+        "climat": "Aride, canyons",
+        "population": "Faible",
+        "faction": "Inconnue"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Lothal",
+      "description": "Monde agricole des confins de la Bordure Médiane, occupé par l'Empire pour ses usines d'armement et de TIE Fighters. Foyer d'une cellule précoce de la rébellion contre l'Empire.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/lothal-main_4b6d48c0.jpeg?region=245%2C0%2C1429%2C804",
+      "values": {
+        "systeme": "Système Lothal",
+        "climat": "Tempéré, plaines et prairies",
+        "population": "Plusieurs millions",
+        "faction": "Empire Galactique (puis Nouvelle République)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "At Attin",
+      "description": "Monde coupé du reste de la galaxie par un champ de force dissimulant une fortune en crédits impériaux, ignorant pour ses habitants tout ce qui se passe au-delà de son atmosphère.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/at-attin-main_d5ff3153.jpeg?region=252%2C0%2C1416%2C796",
+      "values": {
+        "systeme": "Secteur inconnu",
+        "climat": "Tempéré",
+        "population": "Plusieurs milliers",
+        "faction": "Ancien avant-poste de la Compagnie (isolé de la galaxie)"
+      }
+    },
+    {
+      "kind": "location",
+      "name": "Jabiim",
+      "description": "Monde pluvieux et boueux, théâtre d'une bataille sanglante et d'une trahison retentissante durant la Guerre des Clones, marquant durablement l'Ordre Jedi.",
+      "image": "https://lumiere-a.akamaihd.net/v1/images/jabiim-main_bc7b64f5.jpeg?region=329%2C0%2C951%2C536",
+      "values": {
+        "systeme": "Système Jabiim",
+        "climat": "Pluvieux, marécageux",
+        "population": "Plusieurs millions",
+        "faction": "Contestée (République / Confédération des Systèmes Indépendants)"
+      }
     }
   ]
 }

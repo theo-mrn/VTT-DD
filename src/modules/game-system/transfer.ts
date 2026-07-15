@@ -2,6 +2,7 @@ import type {
   CharacterCreationRule,
   FormulaNode,
   GameRuleEntry,
+  LocationFieldDefinition,
   ProfileDefinition,
   RaceDefinition,
   StatDefinition,
@@ -36,6 +37,8 @@ export interface GameSystemExportData {
   groupEntityCreation?: GroupEntityCreationRule;
   symbolDice: SymbolDieDefinition[];
   rules: GameRuleEntry[];
+  locationLabel?: string;
+  locationFields?: LocationFieldDefinition[];
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -58,6 +61,8 @@ export interface GameSystemExportSource {
   groupEntityCreation?: GroupEntityCreationRule;
   symbolDice?: SymbolDieDefinition[];
   rules?: GameRuleEntry[];
+  locationLabel?: string;
+  locationFields?: LocationFieldDefinition[];
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -85,6 +90,8 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.profileLabel != null) result.profileLabel = source.profileLabel;
   if (source.groupEntityLabel != null) result.groupEntityLabel = source.groupEntityLabel;
   if (source.groupEntityCreation != null) result.groupEntityCreation = source.groupEntityCreation;
+  if (source.locationLabel != null) result.locationLabel = source.locationLabel;
+  if (source.locationFields != null) result.locationFields = source.locationFields;
   return result;
 }
 
@@ -201,5 +208,7 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (typeof json.profileLabel === 'string') result.profileLabel = json.profileLabel;
   if (typeof json.groupEntityLabel === 'string') result.groupEntityLabel = json.groupEntityLabel;
   if (json.groupEntityCreation != null) result.groupEntityCreation = json.groupEntityCreation;
+  if (typeof json.locationLabel === 'string') result.locationLabel = json.locationLabel;
+  if (Array.isArray(json.locationFields)) result.locationFields = json.locationFields;
   return result;
 }

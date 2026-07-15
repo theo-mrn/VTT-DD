@@ -7,7 +7,7 @@
 // Chaque doc porte un champ `kind` discriminant, requêtable par where('kind','==',...).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ContentKind = 'path' | 'bestiary' | 'bestiaryIndex' | 'equipment' | 'itemDescriptions';
+export type ContentKind = 'path' | 'bestiary' | 'bestiaryIndex' | 'equipment' | 'itemDescriptions' | 'location';
 
 interface ContentDocBase {
   kind: ContentKind;
@@ -74,4 +74,14 @@ export interface ItemDescriptionsDoc extends ContentDocBase {
   entries: Record<string, string>;
 }
 
-export type ContentDoc = PathDoc | BestiaryChunkDoc | BestiaryIndexDoc | EquipmentDoc | ItemDescriptionsDoc;
+/** Un lieu (planète, ville, plan...) — nom/description/image toujours présents, `values` porte les
+ *  champs additionnels définis par le MJ (GameSystemDefinition.locationFields), clé = LocationFieldDefinition.key.
+ *  id du doc = 'location-{slug}'. */
+export interface LocationDoc extends ContentDocBase {
+  kind: 'location';
+  description?: string;
+  image?: string;
+  values: Record<string, string>;
+}
+
+export type ContentDoc = PathDoc | BestiaryChunkDoc | BestiaryIndexDoc | EquipmentDoc | ItemDescriptionsDoc | LocationDoc;

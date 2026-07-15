@@ -6,18 +6,18 @@ import { useCompetences, Competence } from "@/contexts/CompetencesContext";
 import { useParams } from "next/navigation";
 import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import { useGameContent } from "@/modules/game-content/useGameContent";
-import type { BestiaryChunkDoc, EquipmentDoc } from "@/modules/game-content/types";
+import type { BestiaryChunkDoc, EquipmentDoc, LocationDoc } from "@/modules/game-content/types";
 import debounce from "lodash/debounce";
-import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull } from "lucide-react";
+import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 
 const ACCENT = "#c0a080";
 
-type TabId = "all" | "races" | "classes" | "prestiges" | "regles" | "objets" | "bestiaire";
+type TabId = "all" | "races" | "classes" | "prestiges" | "regles" | "objets" | "bestiaire" | "lieux";
 
-const TABS = [
+const BASE_TABS = [
     { id: "all", label: "Tout", icon: Layers },
     { id: "races", label: "Races", icon: Users },
     { id: "classes", label: "Classes", icon: Sword },
@@ -46,6 +46,7 @@ type BestiaryData = Record<string, BestiaryMonster>;
 // Marqueurs de source pour reconnaître objets et monstres dans la liste fusionnée
 const ITEM_SOURCE_PREFIX = "Objet:";
 const MONSTER_SOURCE_PREFIX = "Créature:";
+const LOCATION_SOURCE_PREFIX = "Lieu:";
 
 export default function SearchMenu() {
     const [open, setOpen] = useState(false);
@@ -173,6 +174,69 @@ export default function SearchMenu() {
         return mapped;
     }, [bestiaryChunks]);
 
+    // Lieux du SYSTÈME ACTIF (Firestore, kind 'location' — ex Planète/Ville, cf GameSystemManagerPanel)
+    // transformé en Competence[] — feature désactivée (locationLabel absent) tant que le MJ n'a pas
+    // nommé cette catégorie dans l'éditeur de règles, même si du contenu existe déjà.
+    const { docs: locationDocs } = useGameContent<LocationDoc & { id: string }>('location');
+    const locationLabel = gameSystem.locationLabel;
+    const locations = useMemo(() => {
+        if (!locationLabel) return [];
+        const fields = gameSystem.locationFields ?? [];
+        const mapped: Competence[] = [];
+        for (const loc of locationDocs) {
+            const extra = fields
+                .map((f) => loc.values?.[f.key] && `${f.label} : ${loc.values[f.key]}`)
+                .filter(Boolean)
+                .join('\n');
+            const description = [loc.description, extra].filter(Boolean).join('\n\n');
+            mapped.push({
+                titre: loc.name,
+                description,
+                type: locationLabel,
+                source: LOCATION_SOURCE_PREFIX,
+                image: loc.image && loc.image.trim() !== '' ? loc.image : undefined,
+            });
+        }
+        mapped.sort((a, b) => a.titre.localeCompare(b.titre));
+        return mapped;
+    }, [locationDocs, locationLabel, gameSystem.locationFields]);
+
+    // N'affiche un onglet que s'il a réellement du contenu pour le système actif — une salle en système
+    // custom (Star Wars...) ne doit pas montrer "Prestiges"/"Bestiaire" hérités du contenu D&D legacy
+    // si elle n'en a aucun, même si l'onglet existe dans BASE_TABS.
+    const TABS = useMemo(() => {
+        const hasRace = systemEntries.some((e) => e.type === 'Race');
+        const hasClasse = systemEntries.some((e) => e.type === 'Classe') || (isDndClassic && allCompetences.some((c) => !(c.source || '').startsWith('Prestige:') && c.type !== 'Règle'));
+        const hasPrestige = isDndClassic && allCompetences.some((c) => (c.source || '').startsWith('Prestige:'));
+        const hasRegle = systemEntries.some((e) => e.type === 'Règle');
+        const hasObjet = items.length > 0;
+        const hasBestiaire = monsters.length > 0;
+
+        const available: Record<Exclude<TabId, 'all' | 'lieux'>, boolean> = {
+            races: hasRace,
+            classes: hasClasse,
+            prestiges: hasPrestige,
+            regles: hasRegle,
+            objets: hasObjet,
+            bestiaire: hasBestiaire,
+        };
+
+        const tabs: Array<{ id: TabId; label: string; icon: typeof Layers }> = [BASE_TABS[0]];
+        for (const tab of BASE_TABS.slice(1)) {
+            if (available[tab.id as Exclude<TabId, 'all' | 'lieux'>]) tabs.push(tab);
+        }
+        if (locationLabel) tabs.push({ id: "lieux", label: `${locationLabel}s`, icon: Globe2 });
+        return tabs;
+    }, [systemEntries, isDndClassic, allCompetences, items, monsters, locationLabel]);
+
+    // Si l'onglet actif disparaît (plus de contenu pour ce système), retombe sur "Tout" plutôt que de
+    // rester bloqué sur un onglet qui ne s'affiche plus dans la barre de filtres.
+    useEffect(() => {
+        if (activeTab !== 'all' && !TABS.some((t) => t.id === activeTab)) {
+            setActiveTab('all');
+        }
+    }, [TABS, activeTab]);
+
     // Use ref to ensure we always have the latest state setters
     // Note: In this full rewrite, we might simplify this if we just filter locally,
     // but preserving the async/debounced structure is safer for performance if the list is huge.
@@ -228,13 +292,15 @@ export default function SearchMenu() {
             const source = item.source || "";
             const isItem = source.startsWith(ITEM_SOURCE_PREFIX);
             const isMonster = source.startsWith(MONSTER_SOURCE_PREFIX);
+            const isLocation = source.startsWith(LOCATION_SOURCE_PREFIX);
             const isRuleType = item.type === "Règle";
             const isRaceType = item.type === "Race" || source.startsWith("Race:");
             const isPrestigeType = source.startsWith("Prestige:");
 
             if (tab === "objets") return isItem;
             if (tab === "bestiaire") return isMonster;
-            if (isItem || isMonster) return false; // objets/créatures : seulement dans leur onglet dédié
+            if (tab === "lieux") return isLocation;
+            if (isItem || isMonster || isLocation) return false; // seulement dans leur onglet dédié
             if (tab === "regles") return isRuleType;
             if (tab === "races") return isRaceType;
             if (tab === "prestiges") return isPrestigeType;
@@ -281,15 +347,15 @@ export default function SearchMenu() {
         }
     };
 
-    // Recherche locale dans les données non gérées par le contexte (système actif + objets + bestiaire)
+    // Recherche locale dans les données non gérées par le contexte (système actif + objets + bestiaire + lieux)
     const searchLocal = useCallback((term: string) => {
         const q = term.toLowerCase();
         const match = (c: Competence) =>
             c.titre.toLowerCase().includes(q) ||
             c.description.toLowerCase().includes(q) ||
             (c.type || "").toLowerCase().includes(q);
-        return [...systemEntries.filter(match), ...items.filter(match), ...monsters.filter(match)];
-    }, [systemEntries, items, monsters]);
+        return [...systemEntries.filter(match), ...items.filter(match), ...monsters.filter(match), ...locations.filter(match)];
+    }, [systemEntries, items, monsters, locations]);
 
     // Derived state for display
     const visibleResults = useMemo(() => {
@@ -298,12 +364,13 @@ export default function SearchMenu() {
             if (activeTab === "all") return [];
             if (activeTab === "objets") return items;
             if (activeTab === "bestiaire") return monsters;
+            if (activeTab === "lieux") return locations;
             return filterByTab([...systemEntries, ...(isDndClassic ? allCompetences : [])], activeTab);
         }
-        // Fusionne résultats de compétences (contexte) + système actif + objets + bestiaire (local)
+        // Fusionne résultats de compétences (contexte) + système actif + objets + bestiaire + lieux (local)
         const merged = [...searchResults, ...searchLocal(searchTerm)];
         return filterByTab(merged, activeTab);
-    }, [searchResults, allCompetences, systemEntries, isDndClassic, activeTab, searchTerm, filterByTab, items, monsters, searchLocal]);
+    }, [searchResults, allCompetences, systemEntries, isDndClassic, activeTab, searchTerm, filterByTab, items, monsters, locations, searchLocal]);
 
     const closeAll = () => {
         setOpen(false);
