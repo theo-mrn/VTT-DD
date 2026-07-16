@@ -1,0 +1,3725 @@
+{
+  "exportVersion": 1,
+  "exportedAt": "2026-07-14T00:00:00.000Z",
+  "name": "Star Wars — Edge of the Empire",
+  "description": "Système narratif à dés à symboles : les jets combinent des dés de Fortune/Infortune/Aptitude/Difficulté/Maîtrise/Défi/Force, dont les faces produisent des symboles (Succès, Échec, Avantage, Menace, Triomphe, Désespoir, Force). Succès et Échecs s'annulent, Avantages et Menaces s'annulent ; un Triomphe compte aussi comme un Succès et un Désespoir comme un Échec, sans jamais s'annuler entre eux.",
+  "stats": [
+    {
+      "key": "PV_Max",
+      "label": "Seuil de Blessure",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "protected": true,
+      "order": 0,
+      "valueFormula": {
+        "type": "stat",
+        "key": "SeuilBlessure"
+      },
+      "group": "Seuils"
+    },
+    {
+      "key": "PV",
+      "label": "Blessures",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "protected": true,
+      "order": 1,
+      "minFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "maxFormula": {
+        "type": "stat",
+        "key": "PV_Max"
+      },
+      "rollFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "recoversToZero": true
+    },
+    {
+      "key": "vigueur",
+      "label": "Vigueur",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "group": "Caractéristiques",
+      "order": 2
+    },
+    {
+      "key": "agilite",
+      "label": "Agilité",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "group": "Caractéristiques",
+      "order": 3
+    },
+    {
+      "key": "intellect",
+      "label": "Intellect",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "group": "Caractéristiques",
+      "order": 4
+    },
+    {
+      "key": "ruse",
+      "label": "Ruse",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "group": "Caractéristiques",
+      "order": 5
+    },
+    {
+      "key": "volonte",
+      "label": "Volonté",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "group": "Caractéristiques",
+      "order": 6
+    },
+    {
+      "key": "presence",
+      "label": "Présence",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "group": "Caractéristiques",
+      "order": 7
+    },
+    {
+      "key": "baseSeuilBlessure",
+      "label": "Base Seuil de Blessure (espèce)",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 10,
+      "visibleToPlayers": false,
+      "group": "Seuils",
+      "order": 8
+    },
+    {
+      "key": "baseSeuilStress",
+      "label": "Base Seuil de Stress (espèce)",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 10,
+      "visibleToPlayers": false,
+      "group": "Seuils",
+      "order": 9
+    },
+    {
+      "key": "SeuilBlessure",
+      "label": "Seuil de Blessure",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "group": "Seuils",
+      "order": 10,
+      "valueFormula": {
+        "type": "add",
+        "args": [
+          {
+            "type": "stat",
+            "key": "baseSeuilBlessure"
+          },
+          {
+            "type": "stat",
+            "key": "vigueur"
+          }
+        ]
+      },
+      "visibleToPlayers": false
+    },
+    {
+      "key": "SeuilStress",
+      "label": "Seuil de Stress",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "group": "Seuils",
+      "order": 11,
+      "valueFormula": {
+        "type": "add",
+        "args": [
+          {
+            "type": "stat",
+            "key": "baseSeuilStress"
+          },
+          {
+            "type": "stat",
+            "key": "volonte"
+          }
+        ]
+      },
+      "visibleToPlayers": false
+    },
+    {
+      "key": "ValeurEncaissement",
+      "label": "Valeur d'Encaissement (Soak)",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "group": "Seuils",
+      "order": 12,
+      "valueFormula": {
+        "type": "stat",
+        "key": "vigueur"
+      }
+    },
+    {
+      "key": "Stress_Max",
+      "label": "Seuil de Stress",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "order": 13,
+      "valueFormula": {
+        "type": "stat",
+        "key": "SeuilStress"
+      },
+      "group": "Seuils"
+    },
+    {
+      "key": "Stress",
+      "label": "Stress",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "order": 14,
+      "minFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "maxFormula": {
+        "type": "stat",
+        "key": "Stress_Max"
+      },
+      "rollFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "recoversToZero": true
+    },
+    {
+      "key": "BlessuresCritiques",
+      "label": "Blessures Critiques",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "order": 15
+    }
+  ],
+  "creation": {
+    "method": "manual",
+    "maxRolls": 0
+  },
+  "statGroups": [
+    "Caractéristiques",
+    "Seuils"
+  ],
+  "races": [
+    {
+      "id": "bothan",
+      "label": "Bothan",
+      "description": "Courtiers en information de la galaxie, réputés pour leur vaste réseau d'espionnage (spynet). Sens très aiguisés, fourrure qui ondule pour communiquer et exprimer leurs émotions.",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "avgHeight": 160,
+      "abilities": [
+        {
+          "id": "bothan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "bothan-streetwise",
+          "label": "Fréquentation des bas-fonds",
+          "description": "1 rang gratuit dans la compétence Streetwise (maximum rang 2 à la création)."
+        },
+        {
+          "id": "bothan-demeanor",
+          "label": "Convincing Demeanor",
+          "description": "1 rang gratuit dans le talent Convincing Demeanor."
+        }
+      ],
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-bothan.jpg?ts=1775074865"
+    },
+    {
+      "id": "droide",
+      "label": "Droïde",
+      "description": "Construits pour obéir (sécurité, médecine, réparations, pilotage), certains droïdes ont développé une conscience et une personnalité uniques. Classés en 5 catégories, de la science pure au travail manuel lourd.",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 1,
+        "ruse": 1,
+        "volonte": 1,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "droide-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 175 XP."
+        },
+        {
+          "id": "droide-biologie",
+          "label": "Besoins biologiques & Implants",
+          "description": "N'a pas besoin de manger, dormir ou respirer ; immunisé contre les toxines et poisons. Limite d'implants cybernétiques de 6 (au lieu du score de Vigueur)."
+        },
+        {
+          "id": "droide-competences",
+          "label": "Compétences de départ accrues",
+          "description": "Après le choix de carrière : 1 rang dans 6 des 8 compétences de carrière (au lieu de 4). Après la première spécialisation : 1 rang dans 3 compétences de spécialisation (au lieu de 2)."
+        },
+        {
+          "id": "droide-inorganique",
+          "label": "Inorganique",
+          "description": "Ne bénéficie pas des cuves de bacta, stimpacks ou jets de Médecine — se répare au repos ou via des tests de Mécanique (mêmes difficultés que les soins organiques). Les Emergency repair patches remplacent les stimpacks. 1 rang gratuit dans le talent Enduring."
+        },
+        {
+          "id": "droide-mecanique",
+          "label": "Être mécanique",
+          "description": "Ne peut pas être sensible à la Force, ni acquérir une valeur de Force ou utiliser des pouvoirs de la Force. En contrepartie, immunisé contre tous les pouvoirs de la Force altérant l'esprit."
+        }
+      ]
+    },
+    {
+      "id": "gand",
+      "label": "Gand",
+      "description": "Espèce insectoïde mystérieuse à la culture fermée et religieuse, connue pour ses « trouveurs » (findsmen), pisteurs d'élite aux méthodes rituelles. Exosquelette de chitine dense, trois doigts par main.",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "avgHeight": 160,
+      "abilities": [
+        {
+          "id": "gand-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "gand-discipline",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        },
+        {
+          "id": "gand-ammoniac",
+          "label": "Respirateurs d'ammoniac",
+          "description": "Choisir une sous-espèce à la création : Gand sans poumons (n'a pas besoin de respirer, immunisé contre l'asphyxie mais subit les blessures du vide spatial) OU Gand avec poumons (respire de l'ammoniac, commence avec un respirateur, l'oxygène est une atmosphère dangereuse de niveau 8 — en contrepartie +10 XP de départ)."
+        }
+      ],
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-gand.jpg?ts=1775074838"
+    },
+    {
+      "id": "humain",
+      "label": "Humain",
+      "description": "L'espèce la plus populeuse, polyvalente et répandue de la galaxie, présente dans tous les rôles et sur presque tous les mondes habitables. Sous l'Empire, elle détient la quasi-totalité des leviers de pouvoir.",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "humain-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 110 XP."
+        },
+        {
+          "id": "humain-competences",
+          "label": "Polyvalence",
+          "description": "1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création)."
+        }
+      ],
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/humain-16636.jpg"
+    },
+    {
+      "id": "rodien",
+      "label": "Rodien",
+      "description": "Chasseurs nés issus du monde tropical hostile de Rodia. Grands yeux et ventouses fonctionnelles sur les doigts et orteils, héritage de leurs ancêtres lézards grimpeurs. Culture de chasse rituelle et art théâtral réputé.",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 3,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 1,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "rodien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "rodien-survie",
+          "label": "Survie",
+          "description": "1 rang gratuit dans la compétence Survival (maximum rang 2 à la création)."
+        },
+        {
+          "id": "rodien-pisteur",
+          "label": "Expert Tracker",
+          "description": "1 rang gratuit dans le talent Expert Tracker (Pisteur expert)."
+        }
+      ]
+    },
+    {
+      "id": "trandoshan",
+      "label": "Trandoshan",
+      "description": "Humanoïdes reptiliens belliqueux au sang froid, réputés pour leur haine féroce envers les Wookiees. Immenses griffes, vision infrarouge, écailles qui changent de couleur à la mue. Société articulée autour de la traque et de la divinité Scorekeeper.",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "trandoshan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "trandoshan-perception",
+          "label": "Perception",
+          "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
+        },
+        {
+          "id": "trandoshan-regeneration",
+          "label": "Régénération",
+          "description": "Lors d'une récupération d'au moins une blessure par repos naturel ou cuve de bacta, soigne 1 blessure additionnelle (ne s'applique pas aux stimpacks ou premiers soins). Peut faire repousser un membre perdu (au moins un mois pour qu'il soit fonctionnel)."
+        },
+        {
+          "id": "trandoshan-griffes",
+          "label": "Griffes",
+          "description": "Lors d'un test de corps à corps (Brawl) infligeant des dégâts : +1 dégât et profil de coup critique de 3 (Critical Rating 3)."
+        }
+      ],
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/trandoshan-19221.jpg"
+    },
+    {
+      "id": "twilek",
+      "label": "Twi'lek",
+      "description": "Négociateurs hors pair, habiles à cerner les autres et à user de ruse. Deux tentacules préhensiles à l'arrière de la tête (lekku) servant de second langage non-verbal. Société de Ryloth structurée en clans et castes.",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "twilek-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "twilek-charme",
+          "label": "Charme ou Tromperie",
+          "description": "1 rang gratuit dans la compétence Charm OU Deception, au choix (maximum rang 2 à la création)."
+        },
+        {
+          "id": "twilek-aride",
+          "label": "Adaptation aride",
+          "description": "Lors des tests de compétence, ignore un dé d'Infortune (dé noir) imposé par des conditions environnementales arides ou chaudes."
+        }
+      ],
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-twi-lek.jpg?ts=1775074817"
+    },
+    {
+      "id": "wookiee",
+      "label": "Wookiee",
+      "description": "Colosses de plus de deux mètres réputés pour leur force, leur intelligence et leur fureur au combat. Originaires de Kashyyyk, sens inné de la mécanique, code d'honneur strict (dette de vie). Comprennent le Basic mais ne peuvent parler que le Shyriiwook.",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 1,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "avgHeight": 220,
+      "abilities": [
+        {
+          "id": "wookiee-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "wookiee-brawl",
+          "label": "Corps à corps",
+          "description": "1 rang gratuit dans la compétence Brawl (maximum rang 2 à la création)."
+        },
+        {
+          "id": "wookiee-rage",
+          "label": "Rage wookiee",
+          "description": "Avec au moins une blessure subie : +1 dégât à toutes les attaques Brawl et Melee. Gravement blessé (Critically Injured) : +2 dégâts à la place."
+        }
+      ],
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-wookiees.jpg?ts=1775074862"
+    },
+    {
+      "id": "miraluka",
+      "label": "Miraluka",
+      "description": "Les Miralukas sont aveugles de naissance et ne peuvent \"voir\" que grâce à un lien très étroit avec la Force. Là où les humains ont des yeux, ils ne présentent qu'une zone vide s'étendant sur le front, qu'ils dissimulent généralement sous des voiles, bandeaux ou masques. Ayant dû abandonner leur planète natale en raison de catastrophes géologiques récurrentes, ils se sont installés sur Alpheridies. Leur sensibilité exceptionnelle à la Force les a naturellement attirés vers les ordres Jedi et Sith.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-miraluka.jpg?ts=1775074892",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "miraluka-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "miraluka-skill",
+          "label": "Perception",
+          "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "lannik",
+      "label": "Lannik",
+      "description": "Petite espèce humanoïde à la longue histoire guerrière, les Lannik sont de féroces guerriers aux compétences aiguisées, malgré leur taille réduite. Leur peau varie du rouge foncé à l'orange, en passant par le violet et le bleu foncé, et leurs oreilles larges et pointues captent les sons lointains. Leur culture valorise fortement le service militaire obligatoire et une intrépidité naturelle leur permettant de garder les idées claires dans les situations les plus dangereuses.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-lannik.jpg?ts=1775074874",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "lannik-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "lannik-skill",
+          "label": "Resilience",
+          "description": "1 rang gratuit dans la compétence Resilience (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "mirialan",
+      "label": "Mirialan",
+      "description": "Les Mirialans présentent une peau brune ou verdâtre marquée de tatouages distinctifs racontant leur histoire personnelle. Espèce particulièrement croyante, dotée d'une connexion profonde à la Force, ils estiment que chaque individu traverse une période fondatrice agissant comme un voyage initiatique. Leurs tatouages, portés sur les mains et le crâne, symbolisent les épreuves surmontées. Luminara Unduli et Barriss Offee, toutes deux Jedi, comptent parmi leurs figures notables.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-mirialan.jpg?ts=1775074683",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "mirialan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "mirialan-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "zeltron",
+      "label": "Zeltron",
+      "description": "Espèce presque-humaine à la carnation rose foncée due à une réaction épidermique aux radiations de leur soleil, les Zeltrons produisent de puissantes phéromones qu'ils peuvent projeter comme défense, et possèdent un don d'empathie développé les rendant extrêmement sensibles aux émotions d'autrui. Peuple pacifique et sociable, connu pour son hospitalité et sa propension aux célébrations, il ne se montre combatif que contre ceux qui menacent sa joie de vivre.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-zeltron.jpg?ts=1775074941",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "zeltron-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "zeltron-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "sith_sang_pur",
+      "label": "Sith au sang pur",
+      "description": "Race ancienne d'humanoïdes à la peau rouge à marron, ornée d'appendices sur les joues et/ou le menton. Leur société de castes rigide comprenait esclaves, ingénieurs, guerriers Massassi et magiciens Kissai, et pratiquait des rites sacrificiels avant l'arrivée des Jedi Renégats. Naturellement gauchers, un trait qui inspira la création du Lanvarok. L'espèce s'éteignit lors du conflit contre Exar Kun, qui draina l'énergie vitale des Massassi pour préserver son propre esprit.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/peuple-sith-19571.jpg?ts=1775075890",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "sith_sang_pur-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "sith_sang_pur-skill",
+          "label": "Coercion",
+          "description": "1 rang gratuit dans la compétence Coercion (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "kaleesh",
+      "label": "Kaleesh",
+      "description": "Espèce reptilienne humanoïde à la peau rouge orangé, dotée de protubérances osseuses de chaque côté du menton et de quatre doigts par main. Leurs yeux à iris elliptique et glande thermo-réceptive permettent une vision infrarouge. Peuple nomade et polygame, ils revêtent des masques traditionnels faits du crâne et des dents de grands prédateurs locaux. Asservis par les Huks puis sanctionnés par la République, ils ont développé un tempérament agressif. Le Général Grievous, leur chef militaire le plus illustre, devint une figure divine de leur panthéon après sa mort.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-kaleesh-7785.jpg?ts=1775075074",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "kaleesh-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "kaleesh-skill",
+          "label": "Survival",
+          "description": "1 rang gratuit dans la compétence Survival (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "espece_de_yoda",
+      "label": "Espèce de Yoda",
+      "description": "Race rare et sans désignation officielle, de petite stature, au teint verdâtre et aux longues oreilles mobiles qui s'animent au gré des émotions. Leurs mains à trois doigts se terminent en griffes acérées, leurs grands yeux ont des reflets dorés ou bruns, et leur chevelure évolue de l'auburn au blanc au fil des décennies. Cette espèce jouit d'une extraordinaire longévité, plus de 900 ans documentés, et d'une sensibilité universelle à la Force.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-de-yoda-6de674ef82873ed46ac649ac666c67796e4e17a2.webp?ts=1779818340",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "espece_de_yoda-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "espece_de_yoda-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "presque_humain",
+      "label": "Presque-Humain",
+      "description": "Catégorie générique regroupant des espèces à la morphologie et à la biologie comparables aux Humains, de taille similaire mais aux types de peau variables. Cette qualification fourre-tout sert à classifier des espèces insuffisamment étudiées, parlant le Basic galactique mais aux structures sociales et tempéraments très variés selon leurs mondes d'origine respectifs.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-presque-humain-12098.jpg?ts=1781806782",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "presque_humain-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 110 XP."
+        },
+        {
+          "id": "presque_humain-skill",
+          "label": "Polyvalence",
+          "description": "1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "aleena",
+      "label": "Aleena",
+      "description": "Espèce humanoïde reptilienne, petits bipèdes patauds à la tête allongée, aux membres courts couverts d'écailles bleutées sauf sur le ventre, avec une large bouche pleine de crocs. Société tribale au fort esprit communautaire et familial, les Aleena possèdent des réflexes hors du commun et une appétence marquée pour l'aventure malgré une apparence jugée inoffensive. Souvent perçus comme plus joviaux qu'intelligents, ils comptent d'excellents podracers parmi eux.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-aleena-14020.jpg?ts=1775075447",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 3,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "aleena-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "aleena-skill",
+          "label": "Piloting - Planetary",
+          "description": "1 rang gratuit dans la compétence Piloting - Planetary (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "nautolan",
+      "label": "Nautolan",
+      "description": "Espèce amphibie à la peau verte et aux yeux semblables à ceux des requins, dotée d'une couronne de longs tentacules verts remplaçant les cheveux. Ces tentacules crâniens servent d'organe sensoriel principal, détectant phéromones et émotions d'autrui dans l'eau, une capacité qui diminue sur terre. Leur squelette cartilagineux les rend exceptionnellement élastiques pour la vie sous-marine. Ils coexistent depuis des millénaires avec les Anselmi, autre espèce de leur planète.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-nautolan.jpg?ts=1775074878",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "nautolan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "nautolan-skill",
+          "label": "Nage",
+          "description": "1 rang gratuit dans la compétence Athletics utilisée pour nager (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "neti",
+      "label": "Neti",
+      "description": "Rare espèce métamorphe de plantes intelligentes, à la peau grisâtre rappelant l'écorce des arbres, dotée d'arborescences fines et d'un feuillage virant du brun au gris sombre. Sans nez ni besoin de respirer, les Netis se nourrissent par photosynthèse et peuvent vivre quasiment indéfiniment en mode végétatif avec accès à l'eau et à la lumière. Très réceptifs à la Force, ils préfèrent généralement se transformer en apparence humanoïde et vivent plusieurs centaines d'années, leur reproduction étant extrêmement rare.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-neti.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "neti-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "neti-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "tusken",
+      "label": "Tusken",
+      "description": "Également appelés Hommes des Sables ou Pillards Tusken, ils se couvrent de bandelettes sous des robes poussiéreuses attachées par du cuir de Dewback, avec lentilles protectrices et masques filtrants. Perdre son masque entraîne l'exil du clan. Nomades vivant en tribus souvent ennemies dans le désert du Jundland, leur culture valorise l'oralité à travers le Conteur Tusken. Considérés comme agressifs et primitifs technologiquement, ils manient le Bâton Gaffi comme arme traditionnelle.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-tusken--8802.jpg?ts=1775075132",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "tusken-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "tusken-skill",
+          "label": "Survival",
+          "description": "1 rang gratuit dans la compétence Survival (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "chiss",
+      "label": "Chiss",
+      "description": "Humanoïdes à la peau bleue, aux cheveux longs, fins et noirs, et aux yeux rouges leur conférant une acuité visuelle accrue. Plus résistants que la moyenne des humains, ils forment une société très hiérarchisée organisée autour de familles aristocratiques, intelligente mais réservée, maintenant son isolement depuis des millénaires. Extrêmement pacifiques malgré leur nature guerrière, ils prônent une attitude défensive et ont historiquement interdit l'usage de la Force, la jugeant menaçante pour la stabilité sociale.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-chiss.jpg?ts=1775074871",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "chiss-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "chiss-skill",
+          "label": "Vigilance",
+          "description": "1 rang gratuit dans la compétence Vigilance (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "yuuzhan_vong",
+      "label": "Yuuzhan Vong",
+      "description": "Espèce extra-galactique vénérant la douleur et la souffrance, organisée selon des castes reflétées par mutilations volontaires, scarifications et implants biologiques. Théocratie dirigée par un Seigneur Suprême, ils maîtrisent une technologie organique avancée et pratiquent un culte religieux intense. Ils envahirent la Galaxie en 25 ap. BY avant de capituler et d'être accueillis sur Zonama Sekot, où ils entreprirent la restauration écologique des mondes dévastés.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/yuuzhan-vong-19247.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "yuuzhan_vong-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "yuuzhan_vong-skill",
+          "label": "Coercion",
+          "description": "1 rang gratuit dans la compétence Coercion (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "neimoidien",
+      "label": "Neimoidien",
+      "description": "Descendants lointains des Duros, à la peau vert-grise, aux grands yeux à facettes rouges et sans nez. Société oligarchique très hiérarchisée où habits longs et chapeaux symbolisent l'ascension sociale. Dominés par la peur et la couardise, ils préfèrent négocier plutôt que combattre. Nés dans des œufs, ils subissent dès l'enfance une compétition pour les ressources éliminant les plus faibles. Fondateurs de la Fédération du Commerce, ils sont réputés aussi puissants que corrompus.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-neimoidien.jpg?ts=1775074878",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 3,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "neimoidien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "neimoidien-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "killik",
+      "label": "Killik",
+      "description": "Insectes sophistiqués dotés d'une paire d'antennes permettant la communication télépathique, de pinces et de mâchoires acérées, à la morphologie variant selon le nid d'origine. Structure en ruche organisée par nids spécialisés (guerriers, constructeurs, artisans), réunis autour d'une entité spirituelle commune appelée la Volonté ou Colonie. Ayant dominé partiellement la galaxie il y a environ 35 000 ans, ils réémergèrent plus tard, déclenchant la Guerre de l'Essaim contre l'Alliance Galactique.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-killik-1.jpg?ts=1775074835",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "killik-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "killik-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "falleen",
+      "label": "Falleen",
+      "description": "Espèce reptilienne à la peau verte ou rouge, écailleuse le long de la colonne vertébrale, réputée pour sa beauté exotique rivalisant avec celle des Twi'leks. Capables de survivre plusieurs heures sous l'eau, héritage de leurs ancêtres amphibiens, ils vivent au moins 250 ans, certains atteignant 400 ans. Société féodale dirigée par des maisons nobles comme celle de Xizor, ils émettent des phéromones à effet hypnotisant utilisables comme arme, tout en restant distants et stoïques avec les étrangers.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-falleen.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "falleen-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "falleen-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "shiido",
+      "label": "Shi'ido",
+      "description": "Espèce rare de créatures changeantes, à la peau pâle, au crâne allongé et aux membres fins, dont la physiologie remarquablement flexible et les os denses permettent diverses configurations corporelles. Leur capacité de métamorphose combine manipulation psychologique et télépathique, créant une image peinte au-dessus de leur forme naturelle. Curieux et individualistes, souvent réputés criminels ou espions, ils vivent jusqu'à 500 ans, ce qui leur permet de maîtriser des formes de plus en plus complexes.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/shi-ido-14085.png?ts=1775075530",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "shiido-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "shiido-skill",
+          "label": "Deception",
+          "description": "1 rang gratuit dans la compétence Deception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "poletec",
+      "label": "Poletec",
+      "description": "Humanoïdes de grande taille élancée, à la peau violette et aux membres longs et fins. Ils pratiquent un mode de vie tribal basé sur la vénération et l'apprivoisement de créatures ailées, utilisées pour se déplacer dans la brume planétaire. Méfiants envers les étrangers, ils ont dû adapter leur société lors de l'invasion de la Techno Union pendant la Guerre des Clones, s'alliant finalement avec la République Galactique.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/poletec-19898.jpg?ts=1775075915",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "poletec-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "poletec-skill",
+          "label": "Survival",
+          "description": "1 rang gratuit dans la compétence Survival (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "hutt",
+      "label": "Hutt",
+      "description": "Longs gastéropodes à la moyenne d'âge très élevée, ressemblant à d'immenses limaces au corps épais, à la queue musclée et aux deux petits bras ; un adulte pèse environ 1500 kg pour 4 mètres de long. Hermaphrodites, puissants et impitoyables, ils s'organisent en clans appelés kajidics dirigés par un conseil d'anciens. Souvent impliqués dans des entreprises criminelles, ils vivent en moyenne 925 ans et considèrent leur langue, le Huttese, comme supérieure au Basic.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-hutt.jpg?ts=1775074829",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 3,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "hutt-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "hutt-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "rakata",
+      "label": "Rakata",
+      "description": "Espèce légendaire sensible à la Force, à la coloration jaune délavé, aux écailles jaunes et à la physiologie amphibienne rappelant les Mon Calamari. Société de castes organisée en empire, ils fondèrent l'Infinite Empire des milliers d'années avant la République Galactique, l'une des espèces dominantes de la galaxie avec les Celestials et les Killiks. Leur taux naturellement élevé de midichloriens et leur maîtrise combinée de la Force et de la technologie leur permirent de créer les Holocrons et la Forge Stellaire, avant qu'une pandémie ne les coupe de la Force et ne provoque le déclin de leur empire.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-rakata.jpg?ts=1775074845",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "rakata-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "rakata-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "zabrak",
+      "label": "Zabrak",
+      "description": "Humanoïdes dotés de cornes sur le haut du crâne, différentes en nombre, taille, couleur et forme selon chaque individu, servant de marque identitaire distincte. Ayant développé un instinct de survie remarquable face aux mers acides, tempêtes et prédateurs gigantesques de leur monde natal, ils sont réputés déterminés mais parfois obstinés. Ayant colonisé cinq systèmes stellaires, ils formèrent un mouvement de résistance contre l'Empire Galactique avant de se présenter comme peuple unifié à la Nouvelle République.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-zabrak.jpg?ts=1775074857",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "zabrak-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "zabrak-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "mon_calamari",
+      "label": "Mon Calamari",
+      "description": "Espèce pacifique et amicale à la peau marron marbrée, dotée de grosses têtes bombées, de gros yeux et de membres palmés. Excellente vue sous-marine et en faible lumière, se déplaçant très rapidement en milieu aquatique mais faibles en environnements secs. Utopistes et explorateurs, les Mon Calamari furent parmi les premières espèces aliens à rejoindre l'Alliance Rebelle après avoir souffert sous l'Empire, se distinguant par leurs talents de constructeurs de vaisseaux.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-mon-calamari.jpg?ts=1775074829",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "mon_calamari-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "mon_calamari-skill",
+          "label": "Mechanics",
+          "description": "1 rang gratuit dans la compétence Mechanics (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "kel_dor",
+      "label": "Kel Dor",
+      "description": "Espèce à la peau variant du couleur pêche au rouge écarlate, ne pouvant survivre que dans l'atmosphère unique de Dorin composée d'hélium et d'un gaz spécifique. Hors de leur monde, ils portent masques à gaz et protections oculaires. Chaleureux et de caractère calme, dotés d'un fort sens de la justice, beaucoup deviennent diplomates, marchands, chasseurs de primes ou Jedi. Ceux sensibles à la Force restent souvent sur Dorin pour rejoindre l'ordre Baran Do. Le maître Jedi Plo Koon en est l'exemple le plus célèbre.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-kel-dor-1.jpg?ts=1775074868",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "kel_dor-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "kel_dor-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "ewok",
+      "label": "Ewok",
+      "description": "Petits êtres intelligents d'environ un mètre, couverts d'une épaisse fourrure de couleur variable, vivant dans des maisons arbres organisées en tribus dirigées par un chef. Ils portent des tuniques en peau de bête, plumes et ossements à valeur religieuse, reçues lors d'une cérémonie initiatique. Leur société repose sur une répartition genrée des tâches et une croyance animiste vénérant les grands arbres forestiers. Curieux, courageux mais superstitieux, ils démontrent une grande ingéniosité malgré une technologie primitive.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-ewok.jpg?ts=1775074829",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 3,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "ewok-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "ewok-skill",
+          "label": "Stealth",
+          "description": "1 rang gratuit dans la compétence Stealth (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "gungan",
+      "label": "Gungan",
+      "description": "Espèce amphibienne humanoïde aux écailles vertes ou oranges, aux longues oreilles souples, deux yeux globuleux et une longue langue rétractable lors de la nage. Civilisation technologiquement avancée basée sur la biotechnologie, très fière de coexister avec la nature. Pacifiques après leurs guerres de clans, ils conservent une réputation de force et d'astuce, se montrant néanmoins inquisiteurs, suspicieux et très prudents envers les étrangers.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-gungan.jpg?ts=1775074835",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "gungan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "gungan-skill",
+          "label": "Athletics",
+          "description": "1 rang gratuit dans la compétence Athletics (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "gotal",
+      "label": "Gotal",
+      "description": "Humanoïdes pacifiques à la peau gris-vert couverte de fourrure, dotés de deux cornes crâniennes abritant un système de détection électromagnétique compensant une vue et une ouïe faibles. Ce sens leur permet de percevoir les émotions d'autrui et de détecter proies ou sources d'énergie à distance. Société non hiérarchique fondée sur l'empathie naturelle ; plusieurs Gotals ont servi dans l'Ordre Jedi ou comme Rangers Antariens.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-gotal.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "gotal-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "gotal-skill",
+          "label": "Perception",
+          "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "qiraash",
+      "label": "Qiraash",
+      "description": "Espèce presque-humaine à la peau rose pâle et au crâne surdéveloppé, surmonté d'une masse de cheveux noirs à la nuque. Leesub Sirln en est l'unique représentante connue de la galaxie, sensible à la Force par des dons de prémonition, traquée par l'Empire avant de se réfugier sur Tatooine.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/qiraash-16726.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "qiraash-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "qiraash-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "bivall",
+      "label": "Bivall",
+      "description": "Humanoïdes au cou allongé et à la crête distinctive, minces, aux yeux proéminents et à la peau rouge à vert d'eau. Espèce peu représentée dans l'histoire galactique connue, hormis quelques figures notables comme le Dr Sionver Boll, spécialiste de l'étude de la Bête Zillo, et le conseiller Okalin sur Onderon.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/bivall-18405.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "bivall-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "bivall-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "dug",
+      "label": "Dug",
+      "description": "Natifs de Malastare au tempérament agressif, à la peau rose pâle et aux oreilles pointues, qui se déplacent en marchant sur les mains, une adaptation à la forte gravité de leur planète. Société organisée en clans dirigés par des rois ou reines élus par combat ; les Dugs sont célèbres pour leur maîtrise des courses de Pod.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-dug.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 3,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "dug-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "dug-skill",
+          "label": "Piloting - Planetary",
+          "description": "1 rang gratuit dans la compétence Piloting - Planetary (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "kari",
+      "label": "Kari",
+      "description": "Insectoïdes d'environ un mètre à l'exosquelette noir, dotés d'une intelligence collective : peu développés lorsqu'ils sont isolés, ils forment une société avancée en groupe, organisée en « couvées » dirigées par des « chanteurs ». L'Empire a bloqué leur essor spatial, créant une tension idéologique persistante au sein de l'espèce.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-kari-12029.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "kari-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "kari-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "belugan",
+      "label": "Belugan",
+      "description": "Humanoïdes à la peau grise ou marron, à la tête triangulaire et au bec mobile en quatre parties. De tempérament carnassier, les Beluganns ont dominé les autochtones Kage de leur planète par un régime despotique.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/belugan-14009.png",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "belugan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "belugan-skill",
+          "label": "Deception",
+          "description": "1 rang gratuit dans la compétence Deception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "ayrou",
+      "label": "Ayrou",
+      "description": "Humanoïdes descendants d'aviaires non-volants, mesurant environ deux mètres et couverts de plumes multicolores reflétant leur santé et leur statut social. Culture valorisant l'intelligence et la négociation ; les Ayrous sont réputés comme des marchands avisés.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-ayrou-13652.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "ayrou-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "ayrou-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "rakaan",
+      "label": "Rakaan",
+      "description": "Prédateurs imposants au corps segmenté vert à marron, dotés de huit jambes et capables de tisser des toiles. Leur cerveau abdominal et leurs cinq phases de vie et de sexe distinctes accompagnent une hibernation hivernale ; ils peuvent vivre jusqu'à 160 ans.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-rakaan-12381.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "rakaan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "rakaan-skill",
+          "label": "Resilience",
+          "description": "1 rang gratuit dans la compétence Resilience (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "bith",
+      "label": "Bith",
+      "description": "Espèce très avancée au crâne massif et à la peau rose pâle, dotée de grands yeux noirs. Pacifistes tournés vers les arts et les sciences, les Bith vivent en démocratie technologique et comptent parmi eux de célèbres groupes musicaux galactiques.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-bith.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "bith-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "bith-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "sarkhai",
+      "label": "Sarkhai",
+      "description": "Presque-humains à la peau et aux cheveux blancs, marqués de tatouages faciaux impressionnants. Peuple vivant sous une monarchie membre de la République ; Nadia Grell, fille de sénateur sarkhai, devint une Jedi notable.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/sarkhai-19858.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "sarkhai-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "sarkhai-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "givin",
+      "label": "Givin",
+      "description": "Humanoïdes squelettiques dotés d'un exosquelette adapté au vide spatial et d'yeux triangulaires à facettes. Les mathématiques occupent une place quasi religieuse dans leur théocratie ; leur grande flotte marchande contraste avec une réputation de xénophobie.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-givin.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "givin-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "givin-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "cathar",
+      "label": "Cathar",
+      "description": "Félins bipèdes humanoïdes, les mâles arborant crinières et défenses tandis que les femelles possèdent des crocs proéminents. Ils vivent dans des cités-arbres sculptées et pratiquent une culture clanique attachée à la famille, à la tradition et à la loyauté, avec une férocité légendaire au combat.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-cathar.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "cathar-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "cathar-skill",
+          "label": "Brawl",
+          "description": "1 rang gratuit dans la compétence Brawl (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "gesarils",
+      "label": "Gesarils",
+      "description": "Petits êtres à fourrure dotés de six membres, naturellement doués pour la Force. Société nomade sans écriture, amicale mais franchement hostile au Côté Obscur, pratiquant un art psychique particulier.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-gesarils-11921.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "gesarils-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "gesarils-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "ishi_tib",
+      "label": "Ishi Tib",
+      "description": "Amphibiens humanoïdes à la tête en forme d'étoile, à la peau verte et aux mains à quatre doigts. Organisés en sociétés appelées « écoles » de 100 à 10 000 individus, ils sont réputés comme administrateurs et biologistes soucieux de préserver l'écologie de leur monde.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-ishi-tib-14226.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "ishi_tib-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "ishi_tib-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "dantari",
+      "label": "Dantari",
+      "description": "Nomades primitifs à la carrure imposante et à la peau épaisse et basanée, vivant traditionnellement de la chasse côtière. Après l'intervention impériale sur leur monde, certains symboles militaires impériaux ont été intégrés à leur culture.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-dantari-7241.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "dantari-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "dantari-skill",
+          "label": "Survival",
+          "description": "1 rang gratuit dans la compétence Survival (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "balnab",
+      "label": "Balnab",
+      "description": "Humanoïdes frêles à quatre tentacules faciaux et à la peau bleue, descendants d'un équipage dont le vaisseau s'est écrasé sur Balnab. Société organisée en clans parlant le Basic ; certains deviennent chasseurs de primes ou patrons de cantina.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/balnab-15772.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "balnab-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "balnab-skill",
+          "label": "Streetwise",
+          "description": "1 rang gratuit dans la compétence Streetwise (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "nu_cosian",
+      "label": "Nu-Cosian",
+      "description": "Cousins primitifs des Cosians, humanoïdes ratatinés au long cou, connus pour leurs voyages discrets à travers la galaxie. Bobbajo, marchand d'animaux rencontré sur Jakku, en est le représentant le plus notable.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/nu-cosian-20230.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "nu_cosian-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "nu_cosian-skill",
+          "label": "Streetwise",
+          "description": "1 rang gratuit dans la compétence Streetwise (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "advozse",
+      "label": "Advozse",
+      "description": "Petits humanoïdes d'environ 1,50 m, à la peau jaune-marron et aux grands yeux noirs offrant une bonne vision nocturne. Peuple pessimiste et méfiant, mais réputé pour ses talents d'ingénieurs en matériaux et en construction.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-advozsec.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "advozse-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "advozse-skill",
+          "label": "Mechanics",
+          "description": "1 rang gratuit dans la compétence Mechanics (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "dresselien",
+      "label": "Dresselien",
+      "description": "Peau beige sans cheveux, crânes allongés et yeux jaunes caractérisent cette espèce vivant en démocratie de cités-états. Combattants réputés et riches d'une culture littéraire tournée vers la poésie champêtre, les Dresseliens sont des alliés traditionnels des Bothans.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-dresselien.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "dresselien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "dresselien-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "yuzzum",
+      "label": "Yuzzum",
+      "description": "Créatures au corps arrondi couvert d'une fourrure bleu-gris, aux longues jambes et aux dents proéminentes. Peuple primitif chassant principalement les rongeurs ; Joh Yowza, musicien du Max Rebo Band, en est le représentant le plus célèbre.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-yuzzum-7834.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "yuzzum-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "yuzzum-skill",
+          "label": "Perception",
+          "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "kentra",
+      "label": "Kentra",
+      "description": "Humanoïdes ailés à la longue queue et aux ailes veloutées, dont l'apparence varie selon l'habitat. Société organisée en « nids », clans et volées gouvernés par un roi et un conseil, où l'honneur constitue la valeur cardinale.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-kentra-12037.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 3,
+        "intellect": 1,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "kentra-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "kentra-skill",
+          "label": "Vol",
+          "description": "1 rang gratuit dans la compétence Piloting - Planetary utilisée pour le vol (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "vaathkree",
+      "label": "Vaathkree",
+      "description": "Humanoïdes dotés d'une armure naturelle métallique, réputés comme marchands et négociants. Leur code de conduite commerciale, appelé l'Accord, est au cœur de leur religion ; ils jouissent d'une longévité dépassant 300 ans.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-vaathkree-12800.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "vaathkree-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "vaathkree-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "bartokk",
+      "label": "Bartokk",
+      "description": "Insectoïdes bipèdes d'environ 1,90 m, à la carapace noire et aux quatre bras griffus, capables d'une régénération rapide. Organisés en ruches reliées par une conscience télépathique collective, ce sont d'excellents assassins et soldats.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-bartokk.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "bartokk-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "bartokk-skill",
+          "label": "Brawl",
+          "description": "1 rang gratuit dans la compétence Brawl (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "omwati",
+      "label": "Omwati",
+      "description": "Humanoïdes élancés à la peau bleutée, dont la civilisation harmonise technologie avancée et gestion raisonnée des ressources. Gracieux et sages, ils parlent l'Omwatese, une langue tonale.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-omwati.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "omwati-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "omwati-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "shatras",
+      "label": "Shatras",
+      "description": "Reptiliens bipèdes au cou long et flexible, dotés de quatre yeux offrant une vision infrarouge. L'espèce se divise en cinq races distinctes, les Y'tras étant majoritaires ; une grande loyauté envers les non-Shatras coexiste avec des tensions internes marquées.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-shatras-12418.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "shatras-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "shatras-skill",
+          "label": "Perception",
+          "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "evocii",
+      "label": "Evocii",
+      "description": "Humanoïdes bipèdes au visage allongé et aux bosses épineuses crâniennes, formant une civilisation pacifique organisée en clans. Déportés sur Nar Shaddaa après une invasion Hutt, ils furent finalement éradiqués par les Yuuzhan Vong.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-evocii-11885.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "evocii-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "evocii-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "shard",
+      "label": "Shard",
+      "description": "Créatures cristallines conscientes, communiquant par voie électromagnétique, sensibles à la Force et dotées d'une longévité millénaire. Certains d'entre eux ont été implantés dans des droïdes, comme les Iron Knights ou le Maître Aqinos.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-shard-11757.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "shard-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "shard-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "pho_pheahian",
+      "label": "Pho Ph'eahian",
+      "description": "Humanoïdes à quatre bras et à la fourrure bleu ciel, grimpeurs de montagne réputés pour leur jovialité. Attirés par la technologie, ils excellent comme mécaniciens et ingénieurs, et pratiquent un culte de la propreté spirituelle.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-pho-ph-eahian-12233.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 3,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "pho_pheahian-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "pho_pheahian-skill",
+          "label": "Mechanics",
+          "description": "1 rang gratuit dans la compétence Mechanics (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "vratix",
+      "label": "Vratix",
+      "description": "Insectoïdes à la peau gris-vert, dotés d'antennes soniques et de membres à trois doigts. Découvreurs du bacta, ils vivent sous une hiérarchie où les « Verachen », producteurs de bacta, dominent une société qui valorise l'esprit collectif.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-vratix-7924.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 1,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "vratix-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "vratix-skill",
+          "label": "Medicine",
+          "description": "1 rang gratuit dans la compétence Medicine (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "colicoid",
+      "label": "Colicoid",
+      "description": "Insectoïdes à six pattes, à la peau chitineuse et à la queue venimeuse, mesurant environ 1,80 m. Société individualiste et dénuée d'émotions, créatrice du droïde Droïdeka, alliée de la Confédération des Systèmes Indépendants.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-colicoid-13796.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "colicoid-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "colicoid-skill",
+          "label": "Mechanics",
+          "description": "1 rang gratuit dans la compétence Mechanics (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "epicanthix",
+      "label": "Epicanthix",
+      "description": "Presque-Humains élancés au visage allongé et à la chevelure noire souvent attachée. Nature guerrière alliée à une véritable passion artistique ; unifiés sous le chef Canthar, ils furent ensuite soumis par l'Empire.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-epicanthix-12169.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "epicanthix-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "epicanthix-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "felucien",
+      "label": "Felucien de la Jungle",
+      "description": "Amphibiens d'au moins 1,90 m, dotés de quatre mains à ventouses et de filaments phosphorescents. Organisés en tribus dirigées par des chamans sensibles à la Force, certains ayant basculé vers le Côté Obscur, à l'image de Shaak Ti.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-felucien-8231.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "felucien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "felucien-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "bovorian",
+      "label": "Bovorian",
+      "description": "Humanoïdes ailés à la chevelure blanche et aux yeux rouges offrant une vision infrarouge. Ils vivent en clans de cinq à dix individus dans des « aeries » arboricoles, et communiquent par sifflements et ultrasons.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-bovorian-9291.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 3,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "bovorian-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "bovorian-skill",
+          "label": "Perception",
+          "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "saurin",
+      "label": "Saurin",
+      "description": "Humanoïdes reptiliens à la peau noueuse verte ou marron, ornés de crêtes faciales et aux yeux entièrement noirs. Bien représentés dans la galaxie, notamment sur Tatooine, leur tempérament est généralement neutre.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/saurin-20561.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "saurin-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 110 XP."
+        },
+        {
+          "id": "saurin-skill",
+          "label": "Polyvalence",
+          "description": "1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "khramboan",
+      "label": "Khramboan",
+      "description": "Humanoïdes discrets dotés de deux tentacules faciaux, d'yeux montés sur antennes et d'une peau violet pâle. Peu de figures notables, hormis quelques marchands comme Droogan sur Coruscant.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/khramboan-15783.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "khramboan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "khramboan-skill",
+          "label": "Streetwise",
+          "description": "1 rang gratuit dans la compétence Streetwise (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "galidyn",
+      "label": "Galidyn",
+      "description": "Énormes lézards ailés atteignant 5 mètres de long pour 10 mètres d'envergure, dotés d'une intelligence remarquable et d'une longévité millénaire. Société démocratique répartie en huit cités souterraines rassemblant environ 40 000 individus.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-galidyn.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "galidyn-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "galidyn-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "gorothite",
+      "label": "Gorothite",
+      "description": "Reptiliens aux bras longs disproportionnés et aux caroncules tatouées sous le menton. Devenus herbivores après une catastrophe appelée la Purgation, ils vivent sous des clans matriarcaux, dont celui des J'ber.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-gorothite-11936.jpg",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "gorothite-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "gorothite-skill",
+          "label": "Survival",
+          "description": "1 rang gratuit dans la compétence Survival (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "lorrdien",
+      "label": "Lorrdien",
+      "description": "Presque-Humains ayant développé la « communication kinétique », faite de gestes et d'expressions, durant leur esclavage sous les Argazdans. Grands imitateurs, ils mènent souvent des carrières politiques, militaires ou au sein de l'Ordre Jedi.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-lorrdien-12175.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "lorrdien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "lorrdien-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "rakririan",
+      "label": "Rakririan",
+      "description": "Corps tubulaires dotés de cinq paires de membres et d'yeux tubulaires proéminents. Espèce réputée pour son goût raffiné et sa méticulosité ; ceux qui quittent leur monde natal deviennent souvent riches ou serviteurs de fortunés.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-rakririan--10354.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "rakririan-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "rakririan-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "paigun",
+      "label": "Paigun",
+      "description": "Peau verte et crâne allongé caractérisent ces natifs de l'Amas de Vorzyd. Experts en mathématiques et en logique, réputés arrogants, ils construisent de gigantesques tours pour se protéger de tempêtes violentes, ce qui ne les rend guère appréciés de leurs voisins.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-paigun.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 3,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "paigun-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "paigun-skill",
+          "label": "Éducation",
+          "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "teltior",
+      "label": "Teltior",
+      "description": "Humanoïdes à la peau bleu pâle à noir, dotés d'une queue proéminente et de mains à trois doigts très dextres. Souvent marchands prospères ou escrocs, ils entretiennent une paix durable avec les Meris, autre peuple de leur monde.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-teltior-9999.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 3,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "teltior-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "teltior-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "fosh",
+      "label": "Fosh",
+      "description": "Espèce aviaire mystérieuse au plumage multicolore changeant selon l'humeur ; Vergere en est la seule représentante connue de la galaxie. Peuple isolé et manipulateur, féru d'intrigues politiques menées en coulisses.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-fosh.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "fosh-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "fosh-skill",
+          "label": "Deception",
+          "description": "1 rang gratuit dans la compétence Deception (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "frenk",
+      "label": "Frenk",
+      "description": "Grands humanoïdes minces proches des Muuns, à la peau rouge, dotés de quatre doigts et de deux paires de narines. Rumi Paramita, tireuse d'élite mercenaire, en est une représentante notable.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-frenk-12497.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "frenk-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "frenk-skill",
+          "label": "Ranged - Light",
+          "description": "1 rang gratuit dans la compétence Ranged - Light (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "borneck",
+      "label": "Borneck",
+      "description": "Humanoïdes d'environ 1,90 m, à la peau jaune pâle à marron orangé. Peuple pacifique valorisant le travail acharné, la famille et l'agriculture, réputé pour ses excellents fermiers recherchés hors de leur monde natal.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-borneck-12104.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "borneck-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "borneck-skill",
+          "label": "Resilience",
+          "description": "1 rang gratuit dans la compétence Resilience (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "kindalo",
+      "label": "Kindalo",
+      "description": "Créatures arborescentes souterraines aux membres semblables à des branches et au corps noir strié de lignes phosphorescentes blanches. Société recluse guidée spirituellement par Orphne, restée à l'écart de la République Galactique.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-kindalo-13942.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "kindalo-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "kindalo-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "emliy",
+      "label": "Em'liy",
+      "description": "Humanoïdes musclés à la peau jaune, bleue ou orange, aux coiffures en houppes signalant le statut social et aux visages presque sans traits. Nomades martiaux, appelés les Nomades, ils furent opprimés sous l'Empire.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-em-liy-14055.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "emliy-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "emliy-skill",
+          "label": "Brawl",
+          "description": "1 rang gratuit dans la compétence Brawl (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "talpini",
+      "label": "Talpini",
+      "description": "Humanoïdes de petite taille, à la peau pâle et lisse, au corps velu à l'exception du visage. Weeteef Cyu-Bee, membre de la milice de Saw Gerrera à Jedha, en est le représentant le plus notable.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/talpini-2320b87d76346468a99802d710999d495586d325.png",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "talpini-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "talpini-skill",
+          "label": "Stealth",
+          "description": "1 rang gratuit dans la compétence Stealth (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "tarc",
+      "label": "Tarc",
+      "description": "Crustacés à l'exosquelette chitineux, dotés de quatre bras et de pinces puissantes. Peuple isolationniste gouverné par un « Keddek » et des chefs continentaux, aux frontières fermées et fermement défendues.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-tarc-12705.jpg",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "tarc-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "tarc-skill",
+          "label": "Resilience",
+          "description": "1 rang gratuit dans la compétence Resilience (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "akwin",
+      "label": "Akwin",
+      "description": "Mammifères aquatiques à six membres, au corps bleu-vert et dotés de branchies. Peuple pacifique valorisant la musique et les arts, organisé en cités-états monarchiques fièrement isolationnistes.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-akwin-9241.jpg",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "akwin-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "akwin-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "klatooinien",
+      "label": "Klatooinien",
+      "description": "Peau dure verte à marron foncé et canines apparentes caractérisent ces guerriers musclés. Organisés en clans respectant les anciens, réunis à la Fontaine des Anciens pour les questions religieuses et politiques, les jeunes reçoivent une éducation martiale rigoureuse. Longtemps asservis par les Hutts, certains ont rejoint la Rébellion comme contrebandiers, et quelques-uns sont même devenus Maîtres Jedi.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-klatooinien.jpg?ts=1775074826",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "klatooinien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "klatooinien-skill",
+          "label": "Brawl",
+          "description": "1 rang gratuit dans la compétence Brawl (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "vurk",
+      "label": "Vurk",
+      "description": "Humanoïdes reptiliens de plus de deux mètres, à la peau bleue grise et aux yeux bulbeux noirs, dotés d'une crête crânienne caractéristique et de mains à trois doigts. Issus d'une planète volcanique aux océans chauds, ils ont conservé leur nature amphibie et valorisent l'honnêteté, l'intégrité et la remise en question ; nombreux sont ceux ayant mené des carrières en diplomatie ou dans l'Ordre Jedi.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-vurk-7923.jpg?ts=1775075084",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "vurk-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "vurk-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "arcona",
+      "label": "Arcona",
+      "description": "Humanoïdes à sang froid, à la peau variant de l'acajou à l'ébène, dotés d'une tête triangulaire et de grands yeux à facettes. Société organisée autour de la famille étendue où les mâles élèvent les jeunes et maintiennent l'ordre. Ils développent facilement une addiction au sel, provoquant hallucinations et dommages neurologiques ; l'eau représente leur ressource la plus précieuse.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-arcona.jpg?ts=1775074838",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "arcona-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 110 XP."
+        },
+        {
+          "id": "arcona-skill",
+          "label": "Polyvalence",
+          "description": "1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "balosar",
+      "label": "Balosar",
+      "description": "Humanoïdes proches des humains, dotés de deux antennes crâniennes rétractables offrant une audition subsonique améliorée et une intuition proche de celle des Jedi, ainsi qu'une extrême résistance aux toxines. Société minée par une démocratie corrompue et le crime organisé, ils dominent le marché galactique des Bâtons de la Mort, une drogue tirée d'un champignon local.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-balosar.jpg?ts=1775074865",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "balosar-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "balosar-skill",
+          "label": "Streetwise",
+          "description": "1 rang gratuit dans la compétence Streetwise (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "defel",
+      "label": "Defel",
+      "description": "Mammifères humanoïdes à la fourrure variant du jaune brillant à l'azur sous lumière ultraviolette, absorbant la lumière visible et les rendant presque invisibles dans l'obscurité normale. Adaptés à une planète à forte gravité, ils sont indépendants et fiers mais loyaux envers leurs employeurs ; excellents métallurgistes, beaucoup deviennent mercenaires ou gardes du corps.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-defel-13896.jpg?ts=1775075441",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 3,
+        "intellect": 1,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "defel-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "defel-skill",
+          "label": "Stealth",
+          "description": "1 rang gratuit dans la compétence Stealth (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "herglic",
+      "label": "Herglic",
+      "description": "Énormes bipèdes à la peau lisse et imberbe, du bleu clair au noir, respirant par un orifice au sommet du crâne révélant des ancêtres marins. Pragmatiques et neutres, ils furent parmi les premiers explorateurs galactiques aux côtés des Corelliens, et se distinguent par une passion compulsive pour le jeu.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-herglic-10838.jpg?ts=1775075254",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "herglic-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "herglic-skill",
+          "label": "Resilience",
+          "description": "1 rang gratuit dans la compétence Resilience (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "houk",
+      "label": "Houk",
+      "description": "Humanoïdes imposants d'environ 2,20 m, à la peau très épaisse violette ou bleue, au crâne anguleux sans cheveux et sans oreilles ni nez visibles. Réputés brutaux et dénués d'humour, ils exploitent leur force surhumaine et se répandent dans la galaxie comme mercenaires, gladiateurs ou criminels.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-houk-14184.jpg?ts=1775075458",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 1,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "houk-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "houk-skill",
+          "label": "Coercion",
+          "description": "1 rang gratuit dans la compétence Coercion (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "anx",
+      "label": "Anx",
+      "description": "Géants placides et sociables d'environ quatre mètres de haut, à la peau verte changeant de couleur selon les émotions et dotés d'une large queue musclée servant de contrepoids. Leur crête contient d'énormes sinus leur permettant de communiquer à des kilomètres ; ils préfèrent la diplomatie à la violence malgré un savoir redoutable en anatomie des autres espèces.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-anx.jpg?ts=1775074838",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 1,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "anx-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "anx-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "kyuzo",
+      "label": "Kyuzo",
+      "description": "Humanoïdes guerriers à la peau verte et aux mains à quatre doigts longs et agiles, ressemblant aux Arkaniens. Ils accordent une importance sacrée à la parole donnée et sont réputés incapables de parler le Basic Standard Galactique ; leur couvre-chef circulaire sert à la fois de bouclier et d'arme.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-kyuzo-12167.jpg?ts=1775075340",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "kyuzo-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "kyuzo-skill",
+          "label": "Discipline",
+          "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "lasat",
+      "label": "Lasat",
+      "description": "Grands humanoïdes à la peau violette, aux membres larges et agiles, aux grands yeux et grandes oreilles pointues. Guerriers réputés maniant le Fusil-Bo, ils furent presque exterminés par l'Empire Galactique ; une ancienne prophétie évoque leur origine sur le monde légendaire de Lirasan, que certains survivants comme Garazeb Orrelios ont cherché à retrouver.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-lasat-12076.jpg?ts=1775075332",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "lasat-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "lasat-skill",
+          "label": "Melee",
+          "description": "1 rang gratuit dans la compétence Melee (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "massassi",
+      "label": "Massassi",
+      "description": "Caste guerrière du Peuple Sith, mesurant environ 1,90 m, loyale et disciplinée bien que jugée peu intelligente. Ils maniaient le Lanvarok et portaient des armures traitées par l'Alchimie Sith ; transformés en créatures monstrueuses par des expériences alchimiques, ils obéissaient aveuglément à leurs maîtres même face à la mort.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/culture-massassi-9260.jpg?ts=1775075160",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 1,
+        "volonte": 3,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "massassi-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "massassi-skill",
+          "label": "Melee",
+          "description": "1 rang gratuit dans la compétence Melee (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "mustafarien",
+      "label": "Mustafarien",
+      "description": "Arthropodes aux yeux d'insectes et aux longues trompes nasales, divisés en deux sous-espèces : celle du Nord, sentinelles cybernétiquement renforcées, et celle du Sud, plus compacte, exploitant les ressources minérales de la lave en fusion. Neutres mais psycho-rigides envers les étrangers, ils ont travaillé pour la Techno Union avant de retrouver leur indépendance grâce à l'intervention de Darth Vader.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-mustafarien-6423.jpg?ts=1775074999",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "mustafarien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 110 XP."
+        },
+        {
+          "id": "mustafarien-skill",
+          "label": "Polyvalence",
+          "description": "1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "ongree",
+      "label": "Ongree",
+      "description": "Humanoïdes à la peau jaunâtre tirant sur le marron, dotés d'yeux rouges et noirs disproportionnés pouvant effectuer une rotation complète, offrant une vision panoramique, ainsi que quatre narines permettant de traquer à des centaines de kilomètres. Amicaux et pacifistes, ils excellent dans les rôles diplomatiques et commerciaux au sein de la République Galactique.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-ongree-6445.jpg?ts=1775075002",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "ongree-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "ongree-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "pantoran",
+      "label": "Pantoran",
+      "description": "Humanoïdes à la peau bleue, dotés d'une excellente résistance au froid extrême. Société démocratique gouvernée par une Assemblée qui élit un Président révocable, représentée au Sénat Galactique ; leur expansion militaire sur Orto Plutonia révéla l'existence d'une population Talz indigène qu'ils durent reconnaître comme souveraine.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-pantoran-8753.jpg?ts=1775075128",
+      "modifiers": {
+        "vigueur": 1,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "pantoran-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "pantoran-skill",
+          "label": "Charm",
+          "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "wroonien",
+      "label": "Wroonien",
+      "description": "Peau et chevelure bleu foncé, plus grands et agiles que les humains et dotés d'une longévité supérieure. Culture valorisant fortement l'accumulation de richesses tout en restant insouciante et optimiste ; nature indépendante défiant toute autorité gouvernementale, économie organisée autour des Guildes Wrooniennes.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-wroonien-12191.jpg?ts=1775075340",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 2,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 1,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "wroonien-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "wroonien-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "karkarodon",
+      "label": "Karkarodon",
+      "description": "Créatures aquatiques redoutables à la silhouette fuselée et aux mains palmées, capables néanmoins de survivre hors de l'eau. Leurs dents acérées peuvent transpercer une armure ; Riff Tamson, commandant séparatiste durant la Guerre des Clones, en est le seul représentant notable connu.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-karkarodon-13627.jpg?ts=1775075426",
+      "modifiers": {
+        "vigueur": 3,
+        "agilite": 2,
+        "intellect": 1,
+        "ruse": 2,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "karkarodon-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+        },
+        {
+          "id": "karkarodon-skill",
+          "label": "Nage",
+          "description": "1 rang gratuit dans la compétence Athletics utilisée pour nager (maximum rang 2 à la création)."
+        }
+      ]
+    },
+    {
+      "id": "chevin",
+      "label": "Chevin",
+      "description": "Aspect pachydermique, longues jambes puissantes, long nez respiratoire et deux bras à trois doigts, à la peau marron foncée et dure. Espèce migratoire ayant évolué de clans guerriers vers des dictatures, ayant réduit en esclavage les Chev de leur planète et prospéré par le commerce d'esclaves, la contrebande et le crime organisé.",
+      "image": "https://media.anakinworld.com/uploads/entries/page_full/espece-chevin.jpg?ts=1775074832",
+      "modifiers": {
+        "vigueur": 2,
+        "agilite": 1,
+        "intellect": 2,
+        "ruse": 3,
+        "volonte": 2,
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
+      },
+      "abilities": [
+        {
+          "id": "chevin-seuils",
+          "label": "Seuils & Expérience",
+          "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+        },
+        {
+          "id": "chevin-skill",
+          "label": "Negotiation",
+          "description": "1 rang gratuit dans la compétence Negotiation (maximum rang 2 à la création)."
+        }
+      ]
+    }
+  ],
+  "profiles": [],
+  "raceLabel": "Espèce",
+  "profileLabel": "Carrière",
+  "groupEntityLabel": "Vaisseau",
+  "groupEntityStats": [
+    {
+      "key": "vitesse",
+      "label": "Vitesse",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 3,
+      "order": 0
+    },
+    {
+      "key": "maniabilite",
+      "label": "Maniabilité",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "order": 1
+    },
+    {
+      "key": "blindage",
+      "label": "Blindage",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 3,
+      "order": 2
+    },
+    {
+      "key": "coqueMax",
+      "label": "Coque max",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 20,
+      "order": 3
+    },
+    {
+      "key": "coque",
+      "label": "Coque",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "order": 4,
+      "minFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "maxFormula": {
+        "type": "stat",
+        "key": "coqueMax"
+      },
+      "rollFormula": {
+        "type": "stat",
+        "key": "coqueMax"
+      }
+    },
+    {
+      "key": "tensionMax",
+      "label": "Tension max",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 15,
+      "order": 5
+    },
+    {
+      "key": "tension",
+      "label": "Tension",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "order": 6,
+      "minFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "maxFormula": {
+        "type": "stat",
+        "key": "tensionMax"
+      },
+      "rollFormula": {
+        "type": "stat",
+        "key": "tensionMax"
+      }
+    },
+    {
+      "key": "equipage",
+      "label": "Équipage",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 1,
+      "order": 7
+    },
+    {
+      "key": "passagers",
+      "label": "Passagers",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "order": 8
+    },
+    {
+      "key": "cargaison",
+      "label": "Cargaison (t)",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "order": 9
+    },
+    {
+      "key": "prix",
+      "label": "Prix (crédits)",
+      "category": "ability",
+      "dataType": "number",
+      "origin": "module",
+      "defaultValue": 0,
+      "order": 10
+    }
+  ],
+  "groupEntityCreation": {
+    "method": "manual"
+  },
+  "symbolDice": [
+    {
+      "key": "fortune",
+      "label": "Fortune (Boost)",
+      "faces": [
+        {
+          "values": {}
+        },
+        {
+          "values": {}
+        },
+        {
+          "values": {
+            "succesBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1,
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 2
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "infortune",
+      "label": "Infortune (Setback)",
+      "faces": [
+        {
+          "values": {}
+        },
+        {
+          "values": {}
+        },
+        {
+          "values": {
+            "echecBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 1
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "aptitude",
+      "label": "Aptitude (Ability)",
+      "faces": [
+        {
+          "values": {}
+        },
+        {
+          "values": {
+            "succesBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 2
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1,
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "difficulte",
+      "label": "Difficulté (Difficulty)",
+      "faces": [
+        {
+          "values": {}
+        },
+        {
+          "values": {
+            "echecBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 2
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 2
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 1,
+            "menaceBrut": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "maitrise",
+      "label": "Maîtrise (Proficiency)",
+      "faces": [
+        {
+          "values": {}
+        },
+        {
+          "values": {
+            "succesBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 2
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 2
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1,
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1,
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "succesBrut": 1,
+            "avantageBrut": 1
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 2
+          }
+        },
+        {
+          "values": {
+            "avantageBrut": 2
+          }
+        },
+        {
+          "values": {
+            "triompheBrut": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "defi",
+      "label": "Défi (Challenge)",
+      "faces": [
+        {
+          "values": {}
+        },
+        {
+          "values": {
+            "echecBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 2
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 2
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 1,
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "echecBrut": 1,
+            "menaceBrut": 1
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 2
+          }
+        },
+        {
+          "values": {
+            "menaceBrut": 2
+          }
+        },
+        {
+          "values": {
+            "desespoirBrut": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "force",
+      "label": "Force",
+      "faces": [
+        {
+          "values": {
+            "obscurBrut": 1
+          }
+        },
+        {
+          "values": {
+            "obscurBrut": 1
+          }
+        },
+        {
+          "values": {
+            "obscurBrut": 1
+          }
+        },
+        {
+          "values": {
+            "obscurBrut": 1
+          }
+        },
+        {
+          "values": {
+            "obscurBrut": 1
+          }
+        },
+        {
+          "values": {
+            "obscurBrut": 1
+          }
+        },
+        {
+          "values": {
+            "lumiereBrut": 1
+          }
+        },
+        {
+          "values": {
+            "lumiereBrut": 1
+          }
+        },
+        {
+          "values": {
+            "lumiereBrut": 2
+          }
+        },
+        {
+          "values": {
+            "lumiereBrut": 2
+          }
+        },
+        {
+          "values": {
+            "lumiereBrut": 2
+          }
+        },
+        {
+          "values": {
+            "lumiereBrut": 2
+          }
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "title": "Système de dés",
+      "description": "Chaque test se joue avec un pool de dés à symboles : Fortune (d6, bleu), Infortune (d6, noir), Aptitude (d8, vert), Difficulté (d8, violet), Maîtrise (d12, jaune), Défi (d12, rouge) et Force (d12, blanc). Les Succès et les Échecs s'annulent 1 pour 1, les Avantages et les Menaces aussi. Un test réussit s'il reste au moins 1 Succès net."
+    },
+    {
+      "title": "Triomphe et Désespoir",
+      "description": "Le Triomphe (face 12 du dé de Maîtrise) compte toujours comme un Succès ET déclenche un effet bénéfique majeur (ex coup critique redoutable). Le Désespoir (face 12 du dé de Défi) compte toujours comme un Échec ET déclenche une conséquence dramatique (arme enrayée, munitions épuisées...). Leurs effets spéciaux ne s'annulent JAMAIS entre eux : si les deux sortent, les deux conséquences se produisent."
+    },
+    {
+      "title": "Obligation",
+      "description": "Dette matérielle ou immatérielle qui ancre le personnage dans l'univers (titre + valeur numérique). Avant chaque séance, le MJ lance 1d100 et compare au total d'Obligation du groupe : si le résultat est inférieur ou égal, une Obligation s'active — seuil de tension de tous les personnages réduit de 1 (2 pour le personnage concerné) pour la séance ; sur un double (11, 44...), les effets sont doublés. L'Obligation peut augmenter volontairement en échange d'XP ou de crédits de départ."
+    },
+    {
+      "title": "Blessures et Seuil de Blessure",
+      "description": "Le Seuil de Blessure représente la quantité de dégâts physiques (tirs de blaster, chutes, coups) qu'un personnage peut encaisser avant de perdre connaissance ou d'être neutralisé. Il est calculé UNE FOIS à la création (base d'espèce + Vigueur) : augmenter sa Vigueur plus tard ne le fait PAS remonter, seuls des talents dédiés (ex Toughened/Endurci) peuvent l'augmenter. Lorsqu'une attaque touche, on soustrait la Valeur d'Encaissement du personnage aux dégâts totaux de l'attaque : le reste est ajouté à son compteur de Blessures (qui MONTE depuis 0, contrairement à une barre de vie classique). Si les Blessures accumulées dépassent le Seuil de Blessure, le personnage est immédiatement incapacité (évanoui/neutralisé) et subit automatiquement une Blessure Critique."
+    },
+    {
+      "title": "Stress et Seuil de Stress",
+      "description": "Le Seuil de Stress représente les dommages psychologiques/la fatigue tolérables avant d'être neutralisé — dérivé de la même mécanique que le Seuil de Blessure, mais avec la Volonté (base d'espèce + Volonté, fixée à la création, non affectée par une hausse ultérieure de Volonté)."
+    },
+    {
+      "title": "Blessures Critiques",
+      "description": "Contrairement aux Blessures normales (simple compteur), une Blessure Critique inflige un vrai traumatisme avec des effets narratifs ou mécaniques persistants — de l'entaille mineure (perte de stress) jusqu'à la mutilation d'un membre, l'aveuglement, voire la mort instantanée. Elle est infligée dans deux cas : (1) quand les Blessures accumulées dépassent le Seuil de Blessure ; (2) lors d'un combat, si l'attaque réussie inflige au moins 1 point de Blessure (dégâts > Encaissement) ET que l'attaquant dépense des symboles d'Avantage pour déclencher l'Indice Critique de son arme, ou utilise un symbole de Triomphe. Une fois confirmée, on lance 1d100 et on lit le résultat sur la table des Blessures Critiques (1 à 151+) : plus le chiffre est élevé, plus la blessure est grave."
+    },
+    {
+      "title": "Dépense d'expérience (XP)",
+      "description": "Augmenter une caractéristique coûte 10 × la valeur ciblée (achat séquentiel, max 5 à la création, uniquement à la création). Compétence de carrière : 5 × le rang ciblé. Compétence hors-carrière : 5 × le rang ciblé + 5. Aucune compétence au-delà du rang 2 à la création. Talents : 5 XP par ligne de l'arbre (ligne 1) jusqu'à 25 XP (ligne 5)."
+    },
+    {
+      "title": "Encaissement et Défense",
+      "description": "Valeur d'Encaissement (Soak) = Vigueur par défaut (stat ValeurEncaissement, augmente avec la Vigueur, l'armure et certains talents) : dégâts ignorés avant de subir des Blessures. Défense (distance et corps-à-corps) : 0 par défaut, s'améliore par l'armure, le couvert ou des talents."
+    }
+  ],
+  "defaultCharacterLayout": [
+    {
+      "w": 20,
+      "h": 4,
+      "x": 0,
+      "y": 0,
+      "i": "avatar",
+      "minW": 20,
+      "minH": 3
+    },
+    {
+      "w": 20,
+      "h": 4,
+      "x": 20,
+      "y": 0,
+      "i": "details",
+      "minW": 20,
+      "minH": 3
+    },
+    {
+      "w": 60,
+      "h": 4,
+      "x": 0,
+      "y": 4,
+      "i": "stats:Caractéristiques:vigueur,agilite,intellect,ruse,volonte,presence:grid:separated:stretch",
+      "minW": 20,
+      "minH": 3
+    },
+    {
+      "w": 60,
+      "h": 3,
+      "x": 0,
+      "y": 8,
+      "i": "vitals:Vitalité:Stress,PV,BlessuresCritiques,ValeurEncaissement:horizontal:separated:stretch",
+      "minW": 20,
+      "minH": 2
+    },
+    {
+      "w": 60,
+      "h": 5,
+      "x": 0,
+      "y": 11,
+      "i": "inventory",
+      "minW": 20,
+      "minH": 4
+    },
+    {
+      "w": 60,
+      "h": 6,
+      "x": 0,
+      "y": 16,
+      "i": "skills",
+      "minW": 20,
+      "minH": 6
+    },
+    {
+      "w": 20,
+      "h": 4,
+      "x": 40,
+      "y": 0,
+      "i": "effects",
+      "minW": 20,
+      "minH": 3
+    }
+  ],
+  "content": [
+    {
+      "kind": "equipment",
+      "name": "monnaie",
+      "category": "monnaie",
+      "items": [
+        {
+          "nom": "Crédit galactique",
+          "prix": "1",
+          "encombrement": "0",
+          "rareté": "0",
+          "commentaires": "Monnaie standard de la galaxie, émise par la Banque Galactique. Référence universelle utilisée pour tous les prix de l'équipement — acceptée presque partout, sous forme de crédits-puces ou de virements électroniques."
+        },
+        {
+          "nom": "Wupiupi",
+          "prix": "0.1",
+          "encombrement": "0",
+          "rareté": "2",
+          "commentaires": "Petite monnaie métallique de Tatooine, utilisée par les Jawas et dans les échanges informels de la Bordure Extérieure. 20 Wupiupi valent environ 1 Peggat."
+        },
+        {
+          "nom": "Peggat",
+          "prix": "2",
+          "encombrement": "0",
+          "rareté": "2",
+          "commentaires": "Monnaie intermédiaire de Tatooine, entre le Wupiupi et le Trugut. Souvent utilisée dans les marchés de Mos Eisley et Mos Espa."
+        },
+        {
+          "nom": "Trugut",
+          "prix": "20",
+          "encombrement": "0",
+          "rareté": "3",
+          "commentaires": "Plus grosse dénomination de la monnaie tatooïne, équivalente à environ 20 Peggat. Rarement acceptée en dehors de la planète."
+        },
+        {
+          "nom": "Dataria (Republic Datari)",
+          "prix": "1",
+          "encombrement": "0",
+          "rareté": "4",
+          "commentaires": "Ancienne monnaie de la République galactique, progressivement remplacée par le Crédit impérial standard après la formation de l'Empire — encore acceptée dans certains systèmes reculés ou par nostalgie."
+        },
+        {
+          "nom": "Jeton Hutt",
+          "prix": "5",
+          "encombrement": "0",
+          "rareté": "4",
+          "commentaires": "Jeton de crédit émis par les clans Hutts pour leurs transactions internes (jeu, contrebande, dettes) — accepté principalement sur Nal Hutta et dans les territoires sous influence hutte."
+        }
+      ]
+    }
+  ]
+}

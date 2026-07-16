@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { auth, db, doc, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useGame } from "@/contexts/GameContext";
+import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import ProfileOverlay from "@/components/profile/ProfileOverlay";
 import GlobalSettingsDialog from "@/components/(map)/GlobalSettingsDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +32,10 @@ import { RoomUsersManager } from "@/app/home/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/home/components/RoomSettingsManager";
 import { ChallengesButton } from '@/components/(challenges)/challenges-button';
 import FileLibrary from '@/components/(infos)/FileLibrary';
+import GameSystemManagerPanel from '@/components/(fiches)/game-system/GameSystemManagerPanel';
+import GroupEntityPanel from '@/components/(fiches)/group-entity/GroupEntityPanel';
+import ExportImportPanel from '@/components/(fiches)/export-import/ExportImportPanel';
+import { Dices, Rocket, FileJson } from "lucide-react";
 
 type SidebarProps = {
   onClose: () => void;
@@ -58,6 +63,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [currentTokenSrc, setCurrentTokenSrc] = useState<string>("Token1");
   const [isRessourcesOpen, setIsRessourcesOpen] = useState(false);
   const { isMJ, isOwner, user: gameUser } = useGame();
+  const { gameSystem } = useGameSystem(gameUser?.roomId ?? null);
+  const groupEntityLabel = gameSystem.groupEntityLabel || 'Entité de groupe';
 
   // Theme state for custom switcher in sidebar
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -262,7 +269,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
               onMouseEnter={() => setIsRessourcesOpen(true)}
               onMouseLeave={() => setIsRessourcesOpen(false)}
-              onClick={() => window.open('/ressources', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources?roomId=${gameUser.roomId}` : '/ressources', '_blank')}
             >
               <div className="flex items-center gap-3">
                 <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
@@ -281,14 +288,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
             onMouseLeave={() => setIsRessourcesOpen(false)}
           >
             <DropdownMenuItem 
-              onClick={() => window.open('/ressources/bestiaire', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/bestiaire?roomId=${gameUser.roomId}` : '/ressources/bestiaire', '_blank')}
               className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
             >
               <Skull className="w-4 h-4 text-[var(--accent-brown)]" />
               <span className="text-sm font-medium">Bestiaire</span>
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => window.open('/ressources/capacites', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/capacites?roomId=${gameUser.roomId}` : '/ressources/capacites', '_blank')}
               className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
             >
               <Zap className="w-4 h-4 text-[var(--accent-brown)]" />
@@ -302,7 +309,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <span className="text-sm font-medium">Images</span>
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => window.open('/ressources/marche', '_blank')}
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/marche?roomId=${gameUser.roomId}` : '/ressources/marche', '_blank')}
               className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
             >
               <Store className="w-4 h-4 text-[var(--accent-brown)]" />
@@ -320,6 +327,30 @@ export default function Sidebar({ onClose }: SidebarProps) {
             >
               <Library className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
               <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
+            </button>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("regles")}
+            >
+              <Dices className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Règles du jeu</span>
+            </button>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("groupEntity")}
+            >
+              <Rocket className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">{groupEntityLabel}</span>
+            </button>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("exportImport")}
+            >
+              <FileJson className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Export/Import</span>
             </button>
           </>
         )}
@@ -506,6 +537,40 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <FileLibrary />
         </div>
       )}
+
+      {openDialog === 'regles' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <div className="flex-1 min-h-0">
+            <GameSystemManagerPanel />
+          </div>
+        </div>
+      )}
+
+      {openDialog === 'groupEntity' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <div className="flex-1 min-h-0">
+            <GroupEntityPanel />
+          </div>
+        </div>
+      )}
+
+      {openDialog === 'exportImport' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <div className="flex-1 min-h-0">
+            <ExportImportPanel />
+          </div>
+        </div>
+      )}
+
 
       <Dialog open={openDialog === 'joueurs'} onOpenChange={(open) => !open && setOpenDialog(null)}>
         <DialogContent className="sm:max-w-md bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] shadow-2xl p-0 overflow-hidden">

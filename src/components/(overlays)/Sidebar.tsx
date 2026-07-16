@@ -268,6 +268,17 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore les keydown répétés auto par le navigateur/OS quand la touche reste enfoncée
+      // (event.repeat) — sans ce filtre, maintenir "D" un instant de trop rejoue handleIconClick en
+      // rafale (toggle ouvre/ferme/rouvre le panneau), perçu comme "ça se referme puis se réouvre
+      // tout seul" alors qu'un seul appui volontaire a été fait.
+      if (e.repeat) return;
+
+      // Jamais de raccourci pendant la saisie dans un champ (recherche de compétences, notes, chat...) :
+      // taper une lettre mappée (d, c, f...) ouvrirait/fermerait des panneaux à chaque frappe.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
       // GM Shortcuts
       if (isMJ) {
         if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_COMBAT)) {

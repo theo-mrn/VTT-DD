@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2 } from 'lucide-react'
-import { auth, db, doc, getDoc, setDoc, storage } from '@/lib/firebase'
+import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check, Upload } from 'lucide-react'
+import { auth, db, doc, getDoc, setDoc, addDoc, collection, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -16,6 +16,11 @@ import { StoreModal } from '@/components/store/store-modal'
 import { AppBackground } from '@/components/ui/background-components'
 import { toast } from 'sonner'
 import { Aclonica } from "next/font/google"
+import { moduleRegistry } from '@/modules/registry'
+import { GameSystemEditor, emptyGameSystem, type Draft } from '@/components/(fiches)/game-system/GameSystemManagerPanel'
+import { stripUndefinedDeep } from '@/modules/game-system/transfer'
+import { parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer'
+import { importCharacterExport } from '@/utils/characterTransfer'
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
 
@@ -30,6 +35,7 @@ interface Room {
   allowCharacterCreation?: boolean;
   bannedUsers?: string[];
   occupantsCount?: number;
+  gameSystemId?: string;
 }
 
 export default function CreerPageComponent() {
@@ -39,18 +45,30 @@ export default function CreerPageComponent() {
     maxPlayers: 4,
     isPublic: false,
     allowCharacterCreation: true,
+    gameSystemId: 'dnd-classic',
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [userData, setUserData] = useState<any>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
+  const [customSystemDraft, setCustomSystemDraft] = useState<Draft | null>(null)
+  const [showSystemEditor, setShowSystemEditor] = useState(false)
+  const [importedBundle, setImportedBundle] = useState<RoomExportBundle | null>(null)
   const router = useRouter()
+
+  const CUSTOM_SYSTEM_ID = '__draft__'
 
   const imagePreview = useMemo(() => {
     if (!imageFile) return null
     return URL.createObjectURL(imageFile)
   }, [imageFile])
+
+  const gameSystems = useMemo(() => moduleRegistry.getAllGameSystemModules().map((m) => ({
+    id: m.gameSystem.systemId,
+    name: m.manifest.name,
+    description: m.manifest.description,
+  })), [])
 
   useEffect(() => {
     return () => {
@@ -110,15 +128,62 @@ export default function CreerPageComponent() {
         imageUrl = await getDownloadURL(imageRef)
       }
 
-      const roomData = { ...newRoom, imageUrl, creatorId: userId }
-      await setDoc(doc(db, 'Salle', code), roomData)
+      const usesCustomSystem = newRoom.gameSystemId === CUSTOM_SYSTEM_ID && customSystemDraft
+      const finalGameSystemId = usesCustomSystem ? `custom_${code}` : newRoom.gameSystemId
+
+      const roomData = { ...newRoom, gameSystemId: finalGameSystemId, imageUrl, creatorId: userId }
+
+      const batch = writeBatch(db)
+      batch.set(doc(db, 'Salle', code), roomData)
+      if (usesCustomSystem) {
+        const cleanedDraft = stripUndefinedDeep(customSystemDraft)
+        batch.set(doc(db, 'gameSystems', finalGameSystemId!), {
+          ...cleanedDraft,
+          systemId: finalGameSystemId,
+          ownerId: userId,
+          visibility: 'private',
+          createdAt: serverTimestamp(),
+        })
+      }
+      await batch.commit()
 
       const userRoomRef = doc(db, `users/${userId}`)
       await setDoc(userRoomRef, { room_id: code }, { merge: true })
       await setDoc(doc(db, `users/${userId}/rooms`, code), { id: code })
 
-      setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: false, allowCharacterCreation: true })
+      // Sauvegarde importée (bouton "Importer une sauvegarde" ci-dessus) : le système de règles est
+      // déjà écrit via customSystemDraft/usesCustomSystem ci-dessus — il ne reste que les entités de
+      // groupe et les personnages à recréer, la salle venant tout juste d'obtenir son code. La salle
+      // existe déjà à ce stade : une erreur ici ne doit jamais être confondue avec un échec de création.
+      try {
+        if (importedBundle?.groupEntities) {
+          for (const entity of importedBundle.groupEntities.entities) {
+            await addDoc(collection(db, `Salle/${code}/groupEntities`), entity)
+          }
+        }
+        if (importedBundle?.characters) {
+          for (const character of importedBundle.characters) {
+            await importCharacterExport(code, character)
+          }
+        }
+        if (importedBundle?.content) {
+          // Le système importé (s'il y en a un dans ce même fichier) vit dans le catalogue partagé
+          // gameSystems/{finalGameSystemId} (cf batch ci-dessus) — le contenu doit suivre ce même chemin.
+          // Sans système importé dans ce fichier (contenu seul), on cible le système déjà choisi pour la
+          // salle (finalGameSystemId, builtin ou custom existant).
+          for (const contentDoc of importedBundle.content) {
+            await addDoc(collection(db, `gameSystems/${finalGameSystemId}/content`), contentDoc)
+          }
+        }
+      } catch (importError) {
+        console.error("Error restoring imported bundle:", importError)
+        toast.error("La salle est créée, mais certaines entités/personnages importés n'ont pas pu être restaurés.")
+      }
+
+      setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: false, allowCharacterCreation: true, gameSystemId: 'dnd-classic' })
       setImageFile(null)
+      setCustomSystemDraft(null)
+      setImportedBundle(null)
 
       toast.success("Salle créée avec succès !")
       router.push(`/personnages`)
@@ -141,10 +206,64 @@ export default function CreerPageComponent() {
     setNewRoom((prev) => ({ ...prev, allowCharacterCreation: !prev.allowCharacterCreation }))
   }
 
+  const handleSelectGameSystem = (gameSystemId: string) => {
+    setNewRoom((prev) => ({ ...prev, gameSystemId }))
+  }
+
+  const handleOpenCustomSystemEditor = () => {
+    if (!customSystemDraft) {
+      setCustomSystemDraft(emptyGameSystem(CUSTOM_SYSTEM_ID, ''))
+    }
+    setShowSystemEditor(true)
+  }
+
+  const handleFinishCustomSystemEditor = () => {
+    setShowSystemEditor(false)
+    setNewRoom((prev) => ({ ...prev, gameSystemId: CUSTOM_SYSTEM_ID }))
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0])
     }
+  }
+
+  // Import d'une sauvegarde (fichier produit par le panneau MJ "Export/Import") directement à la
+  // création de la salle : la salle n'existe pas encore, donc le système/entités/personnages ne
+  // peuvent pas être écrits en Firestore tout de suite — le système custom pré-remplit l'éditeur
+  // (comme un système "fait main"), le reste (entités de groupe, personnages) est appliqué juste après
+  // la création de la salle dans handleCreateRoom, une fois le code de salle connu.
+  const handleImportBundleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const bundle = parseRoomExportBundle(event.target?.result as string)
+        if (bundle.gameSystem) {
+          // Spread intégral plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a
+          // déjà grandi plusieurs fois (symbolDice, rules, locationLabel/locationFields...) et cette
+          // liste manuelle oubliait systématiquement les nouveaux champs à chaque ajout — le spread
+          // élimine la classe de bug entière au lieu de la corriger une fois de plus au cas par cas.
+          setCustomSystemDraft({
+            ...bundle.gameSystem,
+            systemId: CUSTOM_SYSTEM_ID,
+          })
+          setNewRoom((prev) => ({ ...prev, gameSystemId: CUSTOM_SYSTEM_ID }))
+        }
+        setImportedBundle(bundle)
+        const parts = [
+          bundle.gameSystem && 'le système de règles',
+          bundle.groupEntities && `${bundle.groupEntities.entities.length} entité(s) de groupe`,
+          bundle.characters && `${bundle.characters.length} personnage(s)`,
+        ].filter(Boolean)
+        toast.success(parts.length ? `Sauvegarde chargée : ${parts.join(', ')}.` : 'Sauvegarde chargée.')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Fichier invalide.')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   return (
@@ -230,6 +349,13 @@ export default function CreerPageComponent() {
               </div>
 
               <form onSubmit={handleCreateRoom} className="space-y-6">
+                {/* Import d'une sauvegarde (fichier du panneau MJ Export/Import) */}
+                <label className="flex items-center justify-center gap-2 w-full py-3 px-3 rounded-xl border border-dashed text-xs font-bold cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <Upload className="h-3.5 w-3.5 shrink-0" />
+                  {importedBundle ? 'Remplacer la sauvegarde importée' : 'Importer une sauvegarde (système, entités, personnages)'}
+                  <input type="file" accept="application/json" onChange={handleImportBundleFile} className="hidden" />
+                </label>
+
                 {/* Title + Players */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -274,6 +400,67 @@ export default function CreerPageComponent() {
                     required
                     className="bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all resize-none p-4 rounded-xl"
                   />
+                </div>
+
+                {/* Game system */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Système de règles *</label>
+                  <p className="text-xs text-[var(--text-secondary)] ml-1">
+                    Ce choix est définitif : il ne sera plus possible d&apos;en changer une fois la campagne créée.
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {gameSystems.map((system) => {
+                      const isSelected = (newRoom.gameSystemId || 'dnd-classic') === system.id
+                      return (
+                        <button
+                          key={system.id}
+                          type="button"
+                          onClick={() => handleSelectGameSystem(system.id)}
+                          className="text-left p-4 rounded-xl border transition-all backdrop-blur-sm"
+                          style={{
+                            borderColor: isSelected ? 'var(--accent-brown)' : 'var(--border-color)',
+                            background: isSelected ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'color-mix(in srgb, var(--bg-card) 40%, transparent)',
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-sm text-[var(--text-primary)]">{system.name}</span>
+                            {isSelected && <Check className="h-4 w-4 shrink-0 text-[var(--accent-brown)]" />}
+                          </div>
+                          <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{system.description}</p>
+                        </button>
+                      )
+                    })}
+
+                    {customSystemDraft && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectGameSystem(CUSTOM_SYSTEM_ID)}
+                        className="text-left p-4 rounded-xl border transition-all backdrop-blur-sm"
+                        style={{
+                          borderColor: newRoom.gameSystemId === CUSTOM_SYSTEM_ID ? 'var(--accent-brown)' : 'var(--border-color)',
+                          background: newRoom.gameSystemId === CUSTOM_SYSTEM_ID ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'color-mix(in srgb, var(--bg-card) 40%, transparent)',
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-sm text-[var(--text-primary)]">{customSystemDraft.name || 'Mon système personnalisé'}</span>
+                          {newRoom.gameSystemId === CUSTOM_SYSTEM_ID && <Check className="h-4 w-4 shrink-0 text-[var(--accent-brown)]" />}
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">
+                          {customSystemDraft.description || `${customSystemDraft.stats.length} caractéristique${customSystemDraft.stats.length > 1 ? 's' : ''}`}
+                        </p>
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenCustomSystemEditor}
+                    className="w-full py-2.5 px-3 rounded-xl border border-dashed text-xs font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]"
+                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                  >
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    {customSystemDraft ? 'Modifier mon système personnalisé' : 'Créer un système personnalisé'}
+                  </button>
                 </div>
 
                 {/* Image upload */}
@@ -343,6 +530,18 @@ export default function CreerPageComponent() {
           </div>
         </div>
       </div>
+
+      {showSystemEditor && customSystemDraft && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex flex-col p-4 sm:p-8">
+          <div className="flex-1 min-h-0 max-w-5xl w-full mx-auto rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-color)' }}>
+            <GameSystemEditor
+              draft={customSystemDraft}
+              onBack={handleFinishCustomSystemEditor}
+              onSave={(next) => setCustomSystemDraft(next)}
+            />
+          </div>
+        </div>
+      )}
     </AppBackground>
   )
 }

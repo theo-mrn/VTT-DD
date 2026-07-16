@@ -15,6 +15,7 @@ import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
 
 // --- Interfaces ---
 
@@ -211,6 +212,17 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
   const { user: gameUser } = useGame()
   const roomId = gameUser?.roomId ?? null
+  const { gameSystem } = useGameSystem(roomId)
+
+  // Clés de stat + labels affichés dérivés du système de jeu actif (fallback sur les clés dnd-classic
+  // si le système custom en définit moins de 3, pour ne jamais casser les 3 boutons/icônes fixes).
+  const [contactKey, distanceKey, magieKey] = [
+    gameSystem.combatAttackKeys?.[0] ?? 'Contact',
+    gameSystem.combatAttackKeys?.[1] ?? 'Distance',
+    gameSystem.combatAttackKeys?.[2] ?? 'Magie',
+  ]
+  const defenseKey = gameSystem.combatDefenseKey ?? 'Defense'
+  const statLabel = (key: string) => gameSystem.stats.find(s => s.key === key)?.label ?? key
   const [attackerName, setAttackerName] = useState<string>("")
   const [attackerImage, setAttackerImage] = useState<string>("")
   const [attackerType, setAttackerType] = useState<'joueurs' | 'pnj' | 'monster'>('joueurs')
@@ -219,11 +231,11 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const { totalBonuses } = useCalculatedBonuses(roomId, attackerName)
   const [baseAttacks, setBaseAttacks] = useState<{ contact: number, distance: number, magie: number }>({ contact: 0, distance: 0, magie: 0 })
 
-  // Calculate dynamic attacks based on base stats + live bonuses
+  // Calculate dynamic attacks based on base stats + live bonuses (clés dérivées du système de jeu actif)
   const attacks: Attacks = {
-    contact: baseAttacks.contact + (totalBonuses?.Contact || 0),
-    distance: baseAttacks.distance + (totalBonuses?.Distance || 0),
-    magie: baseAttacks.magie + (totalBonuses?.Magie || 0)
+    contact: baseAttacks.contact + (totalBonuses?.[contactKey as keyof typeof totalBonuses] || 0),
+    distance: baseAttacks.distance + (totalBonuses?.[distanceKey as keyof typeof totalBonuses] || 0),
+    magie: baseAttacks.magie + (totalBonuses?.[magieKey as keyof typeof totalBonuses] || 0)
   }
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
@@ -258,9 +270,9 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
         setAttackerImage(data.imageURLFinal || data.imageURL2 || data.imageURL || "")
         setAttackerType(data.type || 'joueurs')
         setBaseAttacks({
-          contact: parseInt(data.Contact || 0),
-          distance: parseInt(data.Distance || 0),
-          magie: parseInt(data.Magie || 0)
+          contact: parseInt(data[contactKey] || 0),
+          distance: parseInt(data[distanceKey] || 0),
+          magie: parseInt(data[magieKey] || 0)
         })
         setActions(data.Actions || [])
         await loadWeapons(roomId, data.Nomperso)
@@ -280,7 +292,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
           fetchedTargets.push({
             id: tId,
             name: tData.Nomperso || tData.name || "Unknown",
-            defense: tData.Defense || 10,
+            defense: tData[defenseKey] || 10,
             image: tData.type === 'joueurs' ? (tData.imageURLFinal || tData.imageURL2 || tData.imageURL) : (tData.imageURL2 || tData.imageURL)
           });
         }
@@ -556,17 +568,17 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2">
-                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title="Contact">
+                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(contactKey)}>
                   <Sword className="w-3 h-3 text-orange-400" />
                   <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.contact || 0}</span>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title="Distance">
+                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(distanceKey)}>
                   <Target className="w-3 h-3 text-emerald-400" />
                   <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.distance || 0}</span>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title="Magie">
+                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(magieKey)}>
                   <Wand2 className="w-3 h-3 text-purple-400" />
                   <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.magie || 0}</span>
                 </div>
@@ -688,7 +700,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                   /* No Actions: Show standard attack buttons */
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                     <ActionCard
-                      title="Contact"
+                      title={statLabel(contactKey)}
                       icon={Sword}
                       value={attacks.contact}
                       color="from-[var(--accent-brown)] to-orange-900/40"
@@ -696,7 +708,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       onClick={() => handleAttack('contact')}
                     />
                     <ActionCard
-                      title="Distance"
+                      title={statLabel(distanceKey)}
                       icon={Target}
                       value={attacks.distance}
                       color="from-green-500 to-emerald-900/40"
@@ -704,7 +716,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       onClick={() => handleAttack('distance')}
                     />
                     <ActionCard
-                      title="Magie"
+                      title={statLabel(magieKey)}
                       icon={Wand2}
                       value={attacks.magie}
                       color="from-purple-500 to-indigo-900/40"

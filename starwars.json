@@ -1,0 +1,317 @@
+{
+  "exportVersion": 1,
+  "exportedAt": "2026-07-14T00:00:00.000Z",
+  "name": "Star Wars — Edge of the Empire",
+  "description": "Système narratif à dés à symboles : les jets combinent des dés de Fortune/Infortune/Aptitude/Difficulté/Maîtrise/Défi/Force, dont les faces produisent des symboles (Succès, Échec, Avantage, Menace, Triomphe, Désespoir, Force). Succès et Échecs s'annulent, Avantages et Menaces s'annulent ; un Triomphe compte aussi comme un Succès et un Désespoir comme un Échec, sans jamais s'annuler entre eux.",
+  "stats": [
+    {
+      "key": "PV_Max",
+      "label": "PV Max",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "protected": true,
+      "order": 0,
+      "valueFormula": { "type": "const", "value": 10 }
+    },
+    {
+      "key": "PV",
+      "label": "PV",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "protected": true,
+      "order": 1,
+      "minFormula": { "type": "const", "value": 0 },
+      "maxFormula": { "type": "stat", "key": "PV_Max" },
+      "rollFormula": { "type": "stat", "key": "PV_Max" }
+    },
+    { "key": "vigueur", "label": "Vigueur", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "group": "Caractéristiques", "order": 2 },
+    { "key": "agilite", "label": "Agilité", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "group": "Caractéristiques", "order": 3 },
+    { "key": "intellect", "label": "Intellect", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "group": "Caractéristiques", "order": 4 },
+    { "key": "ruse", "label": "Ruse", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "group": "Caractéristiques", "order": 5 },
+    { "key": "volonte", "label": "Volonté", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "group": "Caractéristiques", "order": 6 },
+    { "key": "presence", "label": "Présence", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "group": "Caractéristiques", "order": 7 },
+    { "key": "succesBrut", "label": "Succès brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 8 },
+    { "key": "echecBrut", "label": "Échec brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 9 },
+    { "key": "avantageBrut", "label": "Avantage brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 10 },
+    { "key": "menaceBrut", "label": "Menace brute", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 11 },
+    { "key": "triompheBrut", "label": "Triomphe brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 12 },
+    { "key": "desespoirBrut", "label": "Désespoir brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 13 },
+    { "key": "obscurBrut", "label": "Côté Obscur brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 14 },
+    { "key": "lumiereBrut", "label": "Côté Lumineux brut", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "visibleToPlayers": false, "group": "Symboles de dés (bruts)", "order": 15 },
+    {
+      "key": "succesNet",
+      "label": "Succès",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 16,
+      "valueFormula": {
+        "type": "max",
+        "args": [
+          {
+            "type": "sub",
+            "args": [
+              { "type": "add", "args": [{ "type": "stat", "key": "succesBrut" }, { "type": "stat", "key": "triompheBrut" }] },
+              { "type": "add", "args": [{ "type": "stat", "key": "echecBrut" }, { "type": "stat", "key": "desespoirBrut" }] }
+            ]
+          },
+          { "type": "const", "value": 0 }
+        ]
+      }
+    },
+    {
+      "key": "echecNet",
+      "label": "Échec",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 17,
+      "valueFormula": {
+        "type": "max",
+        "args": [
+          {
+            "type": "sub",
+            "args": [
+              { "type": "add", "args": [{ "type": "stat", "key": "echecBrut" }, { "type": "stat", "key": "desespoirBrut" }] },
+              { "type": "add", "args": [{ "type": "stat", "key": "succesBrut" }, { "type": "stat", "key": "triompheBrut" }] }
+            ]
+          },
+          { "type": "const", "value": 0 }
+        ]
+      }
+    },
+    {
+      "key": "avantageNet",
+      "label": "Avantage",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 18,
+      "valueFormula": {
+        "type": "max",
+        "args": [
+          { "type": "sub", "args": [{ "type": "stat", "key": "avantageBrut" }, { "type": "stat", "key": "menaceBrut" }] },
+          { "type": "const", "value": 0 }
+        ]
+      }
+    },
+    {
+      "key": "menaceNet",
+      "label": "Menace",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 19,
+      "valueFormula": {
+        "type": "max",
+        "args": [
+          { "type": "sub", "args": [{ "type": "stat", "key": "menaceBrut" }, { "type": "stat", "key": "avantageBrut" }] },
+          { "type": "const", "value": 0 }
+        ]
+      }
+    },
+    {
+      "key": "triompheNet",
+      "label": "Triomphe",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 20,
+      "valueFormula": { "type": "stat", "key": "triompheBrut" }
+    },
+    {
+      "key": "desespoirNet",
+      "label": "Désespoir",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 21,
+      "valueFormula": { "type": "stat", "key": "desespoirBrut" }
+    },
+    {
+      "key": "obscurNet",
+      "label": "Côté Obscur",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 22,
+      "valueFormula": { "type": "stat", "key": "obscurBrut" }
+    },
+    {
+      "key": "lumiereNet",
+      "label": "Côté Lumineux",
+      "category": "derived",
+      "dataType": "number",
+      "origin": "module",
+      "visibleToPlayers": false,
+      "group": "Résultats de jet",
+      "order": 23,
+      "valueFormula": { "type": "stat", "key": "lumiereBrut" }
+    }
+  ],
+  "creation": { "method": "manual" },
+  "statGroups": ["Caractéristiques", "Symboles de dés (bruts)", "Résultats de jet"],
+  "races": [],
+  "profiles": [],
+  "raceLabel": "Espèce",
+  "profileLabel": "Carrière",
+  "groupEntityLabel": "Vaisseau",
+  "groupEntityStats": [
+    { "key": "vitesse", "label": "Vitesse", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 3, "order": 0 },
+    { "key": "maniabilite", "label": "Maniabilité", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "order": 1 },
+    { "key": "blindage", "label": "Blindage", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 3, "order": 2 },
+    { "key": "coqueMax", "label": "Coque max", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 20, "order": 3 },
+    {
+      "key": "coque",
+      "label": "Coque",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "order": 4,
+      "minFormula": { "type": "const", "value": 0 },
+      "maxFormula": { "type": "stat", "key": "coqueMax" },
+      "rollFormula": { "type": "stat", "key": "coqueMax" }
+    },
+    { "key": "tensionMax", "label": "Tension max", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 15, "order": 5 },
+    {
+      "key": "tension",
+      "label": "Tension",
+      "category": "vital",
+      "dataType": "number",
+      "origin": "module",
+      "order": 6,
+      "minFormula": { "type": "const", "value": 0 },
+      "maxFormula": { "type": "stat", "key": "tensionMax" },
+      "rollFormula": { "type": "stat", "key": "tensionMax" }
+    },
+    { "key": "equipage", "label": "Équipage", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 1, "order": 7 },
+    { "key": "passagers", "label": "Passagers", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "order": 8 },
+    { "key": "cargaison", "label": "Cargaison (t)", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "order": 9 },
+    { "key": "prix", "label": "Prix (crédits)", "category": "ability", "dataType": "number", "origin": "module", "defaultValue": 0, "order": 10 }
+  ],
+  "groupEntityCreation": { "method": "manual" },
+  "symbolDice": [
+    {
+      "key": "fortune",
+      "label": "Fortune (Boost)",
+      "faces": [
+        { "values": {} },
+        { "values": {} },
+        { "values": { "succesBrut": 1 } },
+        { "values": { "succesBrut": 1, "avantageBrut": 1 } },
+        { "values": { "avantageBrut": 2 } },
+        { "values": { "avantageBrut": 1 } }
+      ]
+    },
+    {
+      "key": "infortune",
+      "label": "Infortune (Setback)",
+      "faces": [
+        { "values": {} },
+        { "values": {} },
+        { "values": { "echecBrut": 1 } },
+        { "values": { "echecBrut": 1 } },
+        { "values": { "menaceBrut": 1 } },
+        { "values": { "menaceBrut": 1 } }
+      ]
+    },
+    {
+      "key": "aptitude",
+      "label": "Aptitude (Ability)",
+      "faces": [
+        { "values": {} },
+        { "values": { "succesBrut": 1 } },
+        { "values": { "succesBrut": 1 } },
+        { "values": { "succesBrut": 2 } },
+        { "values": { "avantageBrut": 1 } },
+        { "values": { "avantageBrut": 1 } },
+        { "values": { "succesBrut": 1, "avantageBrut": 1 } },
+        { "values": { "avantageBrut": 2 } }
+      ]
+    },
+    {
+      "key": "difficulte",
+      "label": "Difficulté (Difficulty)",
+      "faces": [
+        { "values": {} },
+        { "values": { "echecBrut": 1 } },
+        { "values": { "echecBrut": 1 } },
+        { "values": { "echecBrut": 2 } },
+        { "values": { "menaceBrut": 1 } },
+        { "values": { "menaceBrut": 1 } },
+        { "values": { "menaceBrut": 2 } },
+        { "values": { "echecBrut": 1, "menaceBrut": 1 } }
+      ]
+    },
+    {
+      "key": "maitrise",
+      "label": "Maîtrise (Proficiency)",
+      "faces": [
+        { "values": {} },
+        { "values": { "succesBrut": 1 } },
+        { "values": { "succesBrut": 1 } },
+        { "values": { "succesBrut": 2 } },
+        { "values": { "succesBrut": 2 } },
+        { "values": { "avantageBrut": 1 } },
+        { "values": { "succesBrut": 1, "avantageBrut": 1 } },
+        { "values": { "succesBrut": 1, "avantageBrut": 1 } },
+        { "values": { "succesBrut": 1, "avantageBrut": 1 } },
+        { "values": { "avantageBrut": 2 } },
+        { "values": { "avantageBrut": 2 } },
+        { "values": { "triompheBrut": 1 } }
+      ]
+    },
+    {
+      "key": "defi",
+      "label": "Défi (Challenge)",
+      "faces": [
+        { "values": {} },
+        { "values": { "echecBrut": 1 } },
+        { "values": { "echecBrut": 1 } },
+        { "values": { "echecBrut": 2 } },
+        { "values": { "echecBrut": 2 } },
+        { "values": { "menaceBrut": 1 } },
+        { "values": { "menaceBrut": 1 } },
+        { "values": { "echecBrut": 1, "menaceBrut": 1 } },
+        { "values": { "echecBrut": 1, "menaceBrut": 1 } },
+        { "values": { "menaceBrut": 2 } },
+        { "values": { "menaceBrut": 2 } },
+        { "values": { "desespoirBrut": 1 } }
+      ]
+    },
+    {
+      "key": "force",
+      "label": "Force",
+      "faces": [
+        { "values": { "obscurBrut": 1 } },
+        { "values": { "obscurBrut": 1 } },
+        { "values": { "obscurBrut": 1 } },
+        { "values": { "obscurBrut": 1 } },
+        { "values": { "obscurBrut": 1 } },
+        { "values": { "obscurBrut": 1 } },
+        { "values": { "lumiereBrut": 1 } },
+        { "values": { "lumiereBrut": 1 } },
+        { "values": { "lumiereBrut": 2 } },
+        { "values": { "lumiereBrut": 2 } },
+        { "values": { "lumiereBrut": 2 } },
+        { "values": { "lumiereBrut": 2 } }
+      ]
+    }
+  ]
+}

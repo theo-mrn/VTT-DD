@@ -41,6 +41,8 @@ import { useCharacter, CustomField } from '@/contexts/CharacterContext';
 import { WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
 import { useCharacterInventory } from '@/hooks/useCharacterData';
 import { db, doc, updateDoc } from '@/lib/firebase';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { useGame } from '@/contexts/GameContext';
 
 interface InventoryItem {
     id: string;
@@ -119,7 +121,13 @@ export function FloatingEditTabs({
     const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
     // ── Character Sheet Hooks ─────────────────────────────
-    const { selectedCharacter, updateCharacter } = useCharacter();
+    const { selectedCharacter, updateCharacter, roomId } = useCharacter();
+    const { gameSystem } = useGameSystem(roomId);
+    // Dérivé du système de jeu actif de la room (au lieu d'une liste FOR/DEX/... codée en dur) — même
+    // logique que BUILTIN_STATS dans AttributsDialog plus bas dans ce fichier.
+    const baseStats = gameSystem.stats
+        .filter((s) => s.category !== 'meta')
+        .map((s) => ({ key: s.key, label: s.shortLabel || s.label || s.key }));
 
     return (
         <div className="fixed right-0 top-0 bottom-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-l border-[#3a3a3a] shadow-[-20px_0_50px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ease-in-out w-full sm:w-[260px]">
@@ -366,12 +374,12 @@ export function FloatingEditTabs({
                         <section className="space-y-3">
                             <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Attributs de base</span>
                             <div className="grid grid-cols-1 gap-2">
-                                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(stat => (
+                                {baseStats.map(({ key, label }) => (
                                     <div
-                                        key={stat}
+                                        key={key}
                                         draggable
                                         onDragStart={(e) => {
-                                            const data = { i: `custom_group:${stat}:${stat}`, w: 3, h: 2 };
+                                            const data = { i: `custom_group:${label}:${key}`, w: 3, h: 2 };
                                             e.dataTransfer.setData("text/plain", JSON.stringify(data));
                                         }}
                                         className="flex items-center gap-3 p-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-xl cursor-grab active:cursor-grabbing hover:border-[#d4b48f]/40 hover:bg-[#2a2a2a] transition-all group"
@@ -380,7 +388,7 @@ export function FloatingEditTabs({
                                             <Box size={14} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{stat}</span>
+                                            <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{label}</span>
                                             <span className="text-[9px] text-[#666] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
                                         </div>
                                     </div>
@@ -481,6 +489,8 @@ export function FloatingEditTabs({
 // ─────────────────────────────────────────────────────────────────────────────
 export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
     const { selectedCharacter, updateCharacter, roomId } = useCharacter();
+    const { isMJ } = useGame();
+    const { gameSystem } = useGameSystem(roomId);
     const customFields: CustomField[] = selectedCharacter?.customFields ?? [];
     const statRollable: Record<string, boolean> = selectedCharacter?.statRollable ?? {};
     const privateFields: string[] = selectedCharacter?.privateFields ?? [];
@@ -494,20 +504,11 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         await updateDoc(itemRef, { visibility: newVisibility });
     };
 
-    const BUILTIN_STATS = [
-        { key: 'FOR', label: 'FOR', hasModifier: true },
-        { key: 'DEX', label: 'DEX', hasModifier: true },
-        { key: 'CON', label: 'CON', hasModifier: true },
-        { key: 'SAG', label: 'SAG', hasModifier: true },
-        { key: 'INT', label: 'INT', hasModifier: true },
-        { key: 'CHA', label: 'CHA', hasModifier: true },
-        { key: 'PV', label: 'PV', hasModifier: false },
-        { key: 'Defense', label: 'Défense', hasModifier: false },
-        { key: 'Contact', label: 'Contact', hasModifier: false },
-        { key: 'Magie', label: 'Magie', hasModifier: false },
-        { key: 'Distance', label: 'Distance', hasModifier: false },
-        { key: 'INIT', label: 'INIT', hasModifier: false },
-    ];
+    // Dérivé du système de jeu actif de la room (au lieu d'une liste FOR/DEX/... codée en dur) —
+    // fonctionne pour dnd-classic ET pour tout système custom que le MJ définit (étape 8).
+    const BUILTIN_STATS = gameSystem.stats
+        .filter(s => s.category !== 'meta')
+        .map(s => ({ key: s.key, label: s.key === 'INIT' ? (s.shortLabel ?? s.label) : s.label, hasModifier: s.category === 'ability' }));
     const INFO_FIELDS = [
         { key: 'niveau', label: 'Niveau' },
         { key: 'Profile', label: 'Profil' },
@@ -518,7 +519,7 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         { key: 'Background', label: 'Background' },
         { key: 'Description', label: 'Description' },
     ];
-    const defaultRollable: Record<string, boolean> = { FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true, Defense: false, Contact: false, Magie: false, Distance: false, INIT: false };
+    const defaultRollable: Record<string, boolean> = Object.fromEntries(gameSystem.stats.map(s => [s.key, s.isRollable ?? false]));
     const isStatRollable = (key: string) => key in statRollable ? statRollable[key] : defaultRollable[key] ?? false;
     const handleToggleStatRollable = async (key: string) => {
         if (!selectedCharacter) return;
@@ -538,14 +539,17 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
     const [fieldDraft, setFieldDraft] = useState<Omit<CustomField, 'id'>>(emptyDraft());
     const [isSavingField, setIsSavingField] = useState(false);
 
-    const openNewFieldDialog = () => { setEditingFieldId(null); setFieldDraft(emptyDraft()); setIsFieldDialogOpen(true); };
+    // Champs personnalisés : MJ uniquement — une stat custom est désormais visible/référençable par
+    // toute la table (préparation étape 8), donc sa création ne peut plus être un choix par joueur.
+    const openNewFieldDialog = () => { if (!isMJ) return; setEditingFieldId(null); setFieldDraft(emptyDraft()); setIsFieldDialogOpen(true); };
     const openEditFieldDialog = (field: CustomField) => {
+        if (!isMJ) return;
         setEditingFieldId(field.id);
         setFieldDraft({ label: field.label, type: field.type, value: field.value, isRollable: field.isRollable ?? false, hasModifier: field.hasModifier ?? false });
         setIsFieldDialogOpen(true);
     };
     const handleSaveField = async () => {
-        if (!fieldDraft.label.trim() || !selectedCharacter) return;
+        if (!isMJ || !fieldDraft.label.trim() || !selectedCharacter) return;
         setIsSavingField(true);
         setIsFieldDialogOpen(false);
         try {
@@ -558,7 +562,7 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         } finally { setIsSavingField(false); }
     };
     const handleDeleteField = async (id: string) => {
-        if (!selectedCharacter) return;
+        if (!isMJ || !selectedCharacter) return;
         await updateCharacter(selectedCharacter.id, { customFields: customFields.filter(f => f.id !== id) });
     };
 
@@ -624,7 +628,9 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                             })}
                             <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-darker)] border-t border-[var(--border-color)]">
                                 <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Attributs personnalisés</span>
-                                <button onClick={openNewFieldDialog} className="button-primary !px-2.5 !py-1 !text-xs flex items-center gap-1"><Plus size={11} /> Ajouter</button>
+                                {isMJ && (
+                                    <button onClick={openNewFieldDialog} className="button-primary !px-2.5 !py-1 !text-xs flex items-center gap-1"><Plus size={11} /> Ajouter</button>
+                                )}
                             </div>
                             {customFields.length === 0 ? (
                                 <div className="px-4 py-5 text-sm text-[var(--text-secondary)] italic text-center">Aucun attribut personnalisé.</div>
@@ -633,17 +639,23 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                                     const rollable = !!field.isRollable;
                                     const isPrivate = isFieldPrivate(field.id);
                                     return (
-                                        <div key={field.id} className={`flex items-center gap-3 px-4 py-2.5 ${i < customFields.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors cursor-pointer group`} onClick={() => openEditFieldDialog(field)}>
+                                        <div key={field.id} className={`flex items-center gap-3 px-4 py-2.5 ${i < customFields.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors ${isMJ ? 'cursor-pointer group' : ''}`} onClick={() => { if (isMJ) openEditFieldDialog(field); }}>
                                             <span className="w-20 text-sm font-bold truncate text-[var(--text-primary)]">{field.label}</span>
                                             <span className="w-10 text-sm font-mono text-[var(--text-primary)] text-center">{field.type === 'boolean' ? (field.value ? 'Oui' : 'Non') : field.type === 'percent' ? `${field.value}%` : String(field.value)}</span>
                                             {field.hasModifier && field.type === 'number' ? <span className="w-10 text-xs font-mono text-[var(--accent-brown)] text-center">{(() => { const m = Math.floor((Number(field.value) - 10) / 2); return m >= 0 ? `+${m}` : m; })()}</span> : <span className="w-10" />}
                                             <div className="flex-1" />
                                             <div className="flex items-center gap-2">
-                                                <button onClick={(e) => { e.stopPropagation(); if (selectedCharacter) { updateCharacter(selectedCharacter.id, { customFields: customFields.map(f => f.id === field.id ? { ...f, isRollable: !f.isRollable } : f) }); } }} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleTogglePrivate(field.id); }} title={isPrivate ? 'Visible par vous et le MJ uniquement' : 'Visible par tous'} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all flex items-center gap-1 ${isPrivate ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>
-                                                    {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
-                                                </button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteField(field.id); }} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-red-400 transition-all w-4 flex justify-center"><Trash2 size={13} /></button>
+                                                {isMJ ? (
+                                                    <>
+                                                        <button onClick={(e) => { e.stopPropagation(); if (selectedCharacter) { updateCharacter(selectedCharacter.id, { customFields: customFields.map(f => f.id === field.id ? { ...f, isRollable: !f.isRollable } : f) }); } }} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleTogglePrivate(field.id); }} title={isPrivate ? 'Visible par vous et le MJ uniquement' : 'Visible par tous'} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all flex items-center gap-1 ${isPrivate ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>
+                                                            {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
+                                                        </button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteField(field.id); }} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-red-400 transition-all w-4 flex justify-center"><Trash2 size={13} /></button>
+                                                    </>
+                                                ) : (
+                                                    rollable && <span className="text-[10px] font-bold px-2.5 py-1 rounded border bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]">Dés</span>
+                                                )}
                                             </div>
                                         </div>
                                     );

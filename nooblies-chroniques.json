@@ -1,0 +1,451 @@
+{
+  "exportVersion": 1,
+  "exportedAt": "2026-07-14T00:00:00.000Z",
+  "name": "Nooblies Chroniques",
+  "description": "Système classique : 6 caractéristiques tirées au dé (3 pairs / 3 impairs, somme des modificateurs = 6), stats de combat dérivées, PV, races et profils avec capacités raciales.",
+  "stats": [
+    {
+      "key": "FOR",
+      "label": "FOR",
+      "category": "ability",
+      "dataType": "number",
+      "modifierFormula": {
+        "type": "floor",
+        "arg": {
+          "type": "div",
+          "args": [
+            { "type": "sub", "args": [{ "type": "stat", "key": "FOR" }, { "type": "const", "value": 10 }] },
+            { "type": "const", "value": 2 }
+          ]
+        }
+      },
+      "rollFormula": {
+        "type": "add",
+        "args": [{ "type": "dice", "notation": "1d15" }, { "type": "const", "value": 5 }]
+      },
+      "minFormula": { "type": "const", "value": 1 },
+      "defaultValue": 10,
+      "isRollable": true,
+      "rollUsesModifier": true,
+      "origin": "module",
+      "group": "Caractéristiques",
+      "order": 0
+    },
+    {
+      "key": "DEX",
+      "label": "DEX",
+      "category": "ability",
+      "dataType": "number",
+      "modifierFormula": {
+        "type": "floor",
+        "arg": {
+          "type": "div",
+          "args": [
+            { "type": "sub", "args": [{ "type": "stat", "key": "DEX" }, { "type": "const", "value": 10 }] },
+            { "type": "const", "value": 2 }
+          ]
+        }
+      },
+      "rollFormula": {
+        "type": "add",
+        "args": [{ "type": "dice", "notation": "1d15" }, { "type": "const", "value": 5 }]
+      },
+      "minFormula": { "type": "const", "value": 1 },
+      "defaultValue": 10,
+      "isRollable": true,
+      "rollUsesModifier": true,
+      "origin": "module",
+      "group": "Caractéristiques",
+      "order": 1
+    },
+    {
+      "key": "CON",
+      "label": "CON",
+      "category": "ability",
+      "dataType": "number",
+      "modifierFormula": {
+        "type": "floor",
+        "arg": {
+          "type": "div",
+          "args": [
+            { "type": "sub", "args": [{ "type": "stat", "key": "CON" }, { "type": "const", "value": 10 }] },
+            { "type": "const", "value": 2 }
+          ]
+        }
+      },
+      "rollFormula": {
+        "type": "add",
+        "args": [{ "type": "dice", "notation": "1d15" }, { "type": "const", "value": 5 }]
+      },
+      "minFormula": { "type": "const", "value": 1 },
+      "defaultValue": 10,
+      "isRollable": true,
+      "rollUsesModifier": true,
+      "origin": "module",
+      "group": "Caractéristiques",
+      "order": 2
+    },
+    {
+      "key": "SAG",
+      "label": "SAG",
+      "category": "ability",
+      "dataType": "number",
+      "modifierFormula": {
+        "type": "floor",
+        "arg": {
+          "type": "div",
+          "args": [
+            { "type": "sub", "args": [{ "type": "stat", "key": "SAG" }, { "type": "const", "value": 10 }] },
+            { "type": "const", "value": 2 }
+          ]
+        }
+      },
+      "rollFormula": {
+        "type": "add",
+        "args": [{ "type": "dice", "notation": "1d15" }, { "type": "const", "value": 5 }]
+      },
+      "minFormula": { "type": "const", "value": 1 },
+      "defaultValue": 10,
+      "isRollable": true,
+      "rollUsesModifier": true,
+      "origin": "module",
+      "group": "Caractéristiques",
+      "order": 3
+    },
+    {
+      "key": "INT",
+      "label": "INT",
+      "category": "ability",
+      "dataType": "number",
+      "modifierFormula": {
+        "type": "floor",
+        "arg": {
+          "type": "div",
+          "args": [
+            { "type": "sub", "args": [{ "type": "stat", "key": "INT" }, { "type": "const", "value": 10 }] },
+            { "type": "const", "value": 2 }
+          ]
+        }
+      },
+      "rollFormula": {
+        "type": "add",
+        "args": [{ "type": "dice", "notation": "1d15" }, { "type": "const", "value": 5 }]
+      },
+      "minFormula": { "type": "const", "value": 1 },
+      "defaultValue": 10,
+      "isRollable": true,
+      "rollUsesModifier": true,
+      "origin": "module",
+      "group": "Caractéristiques",
+      "order": 4
+    },
+    {
+      "key": "CHA",
+      "label": "CHA",
+      "category": "ability",
+      "dataType": "number",
+      "modifierFormula": {
+        "type": "floor",
+        "arg": {
+          "type": "div",
+          "args": [
+            { "type": "sub", "args": [{ "type": "stat", "key": "CHA" }, { "type": "const", "value": 10 }] },
+            { "type": "const", "value": 2 }
+          ]
+        }
+      },
+      "rollFormula": {
+        "type": "add",
+        "args": [{ "type": "dice", "notation": "1d15" }, { "type": "const", "value": 5 }]
+      },
+      "minFormula": { "type": "const", "value": 1 },
+      "defaultValue": 10,
+      "isRollable": true,
+      "rollUsesModifier": true,
+      "origin": "module",
+      "group": "Caractéristiques",
+      "order": 5
+    },
+    {
+      "key": "Defense",
+      "label": "Défense",
+      "shortLabel": "Déf",
+      "category": "derived",
+      "dataType": "number",
+      "valueFormula": {
+        "type": "add",
+        "args": [{ "type": "const", "value": 18 }, { "type": "modifier", "key": "DEX" }]
+      },
+      "isRollable": false,
+      "origin": "module",
+      "group": "Combat",
+      "order": 10
+    },
+    {
+      "key": "Contact",
+      "label": "Contact",
+      "shortLabel": "Ctt",
+      "category": "derived",
+      "dataType": "number",
+      "valueFormula": {
+        "type": "add",
+        "args": [{ "type": "const", "value": 1 }, { "type": "modifier", "key": "FOR" }]
+      },
+      "isRollable": false,
+      "origin": "module",
+      "group": "Combat",
+      "order": 11
+    },
+    {
+      "key": "Distance",
+      "label": "Distance",
+      "shortLabel": "Dst",
+      "category": "derived",
+      "dataType": "number",
+      "valueFormula": {
+        "type": "add",
+        "args": [{ "type": "const", "value": 1 }, { "type": "modifier", "key": "DEX" }]
+      },
+      "isRollable": false,
+      "origin": "module",
+      "group": "Combat",
+      "order": 12
+    },
+    {
+      "key": "Magie",
+      "label": "Magie",
+      "shortLabel": "Mag",
+      "category": "derived",
+      "dataType": "number",
+      "valueFormula": {
+        "type": "add",
+        "args": [{ "type": "const", "value": 1 }, { "type": "modifier", "key": "CHA" }]
+      },
+      "isRollable": false,
+      "origin": "module",
+      "group": "Combat",
+      "order": 13
+    },
+    {
+      "key": "INIT",
+      "label": "Initiative",
+      "shortLabel": "INIT",
+      "category": "derived",
+      "dataType": "number",
+      "valueFormula": { "type": "stat", "key": "DEX" },
+      "isRollable": false,
+      "origin": "module",
+      "group": "Combat",
+      "order": 14
+    },
+    {
+      "key": "PV_Max",
+      "label": "PV Max",
+      "category": "derived",
+      "dataType": "number",
+      "valueFormula": {
+        "type": "add",
+        "args": [
+          { "type": "const", "value": 1 },
+          { "type": "modifier", "key": "CON" },
+          { "type": "diceField", "key": "deVie" }
+        ]
+      },
+      "origin": "module",
+      "group": "Vitals",
+      "order": 20,
+      "protected": true
+    },
+    {
+      "key": "PV",
+      "label": "PV",
+      "category": "vital",
+      "dataType": "number",
+      "minFormula": { "type": "const", "value": 0 },
+      "maxFormula": { "type": "stat", "key": "PV_Max" },
+      "rollFormula": { "type": "stat", "key": "PV_Max" },
+      "origin": "module",
+      "group": "Vitals",
+      "order": 21,
+      "protected": true
+    }
+  ],
+  "creation": {
+    "method": "manual",
+    "applyRacialModifiers": true,
+    "rollConstraints": [
+      {
+        "id": "nooblies-parite",
+        "label": "Parité (3 pairs / 3 impairs)",
+        "statKeys": ["FOR", "DEX", "CON", "SAG", "INT", "CHA"],
+        "aggregate": "evenCount",
+        "operator": "=",
+        "target": 3
+      },
+      {
+        "id": "nooblies-somme-mods",
+        "label": "Somme des modificateurs = 6",
+        "statKeys": ["FOR", "DEX", "CON", "SAG", "INT", "CHA"],
+        "aggregate": "sumModifiers",
+        "operator": "=",
+        "target": 6
+      }
+    ]
+  },
+  "combatDefenseKey": "Defense",
+  "combatAttackKeys": ["Contact", "Distance", "Magie"],
+  "statGroups": ["Caractéristiques", "Combat", "Vitals"],
+  "races": [
+    {
+      "id": "humain",
+      "label": "Humain",
+      "description": "Les humains sont des êtres polyvalents et adaptables, présents dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter en font des individus remarquables.",
+      "image": "/images/races/Humain.webp",
+      "modifiers": {},
+      "avgHeight": 175,
+      "avgWeight": 75,
+      "abilities": [
+        {
+          "id": "humain-instinct",
+          "label": "Instinct de survie",
+          "description": "Lorsqu'une attaque devrait amener le personnage à 0 PV, les DM qu'elle inflige sont divisés par 2 (minimum 1)."
+        }
+      ]
+    },
+    {
+      "id": "elfe",
+      "label": "Elfe",
+      "description": "Les elfes sont des créatures élégantes et gracieuses, vivant en harmonie avec la nature. Ils sont connus pour leur agilité et leur maîtrise de la magie, ainsi que pour leur longévité et leur sagesse.",
+      "image": "/images/races/Elfe.webp",
+      "modifiers": { "FOR": -2, "CHA": 2 },
+      "avgHeight": 175,
+      "avgWeight": 60,
+      "abilities": [
+        {
+          "id": "elfe-lumiere",
+          "label": "Lumière des étoiles",
+          "description": "Pour un haut elfe, l'obscurité de la nuit sous la lumière des étoiles n'est que de la pénombre, où seuls les petits détails lui échappent."
+        }
+      ]
+    },
+    {
+      "id": "elfe_noir",
+      "label": "Elfe noir",
+      "description": "Les elfes noirs, ou drows, vivent dans les profondeurs souterraines et sont souvent associés à la magie noire et à la cruauté.",
+      "image": "/images/races/Elfenoir.jpg",
+      "modifiers": { "FOR": -2, "DEX": 2 },
+      "avgHeight": 170,
+      "avgWeight": 55,
+      "abilities": [
+        {
+          "id": "elfenoir-vision",
+          "label": "Vision dans le noir",
+          "description": "Dans le noir total, l'elfe noir voit comme dans la pénombre jusqu'à 30 m."
+        }
+      ]
+    },
+    {
+      "id": "nain",
+      "label": "Nain",
+      "description": "Les nains sont des mineurs et forgerons habiles, vivant dans des citadelles souterraines. Ils sont robustes et endurants.",
+      "image": "/images/races/Nain.webp",
+      "modifiers": { "DEX": -2, "CON": 2 },
+      "avgHeight": 135,
+      "avgWeight": 70,
+      "abilities": [
+        {
+          "id": "nain-vision",
+          "label": "Vision dans le noir",
+          "description": "Dans le noir total, le nain voit comme dans la pénombre jusqu'à 30 m."
+        }
+      ]
+    },
+    {
+      "id": "orque",
+      "label": "Orque",
+      "description": "Les orques sont des guerriers puissants et belliqueux, vivant en tribus ou en sociétés militaires organisées.",
+      "image": "/images/races/Orc.webp",
+      "modifiers": { "FOR": 2, "INT": -2, "CHA": -2 },
+      "avgHeight": 190,
+      "avgWeight": 100,
+      "abilities": [
+        {
+          "id": "orque-vision",
+          "label": "Vision dans le noir",
+          "description": "Dans le noir total, le demi-orque voit comme dans la pénombre jusqu'à 30 m."
+        }
+      ]
+    },
+    {
+      "id": "halfelin",
+      "label": "Halfelin",
+      "description": "Les halfelins sont une race de petite taille, souvent joyeux et farceurs. Ce sont des individus curieux et sociables.",
+      "image": "/images/races/Halfelin.webp",
+      "modifiers": { "FOR": -2, "DEX": 2 },
+      "avgHeight": 90,
+      "avgWeight": 15,
+      "abilities": [
+        {
+          "id": "halfelin-petite-taille",
+          "label": "Petite taille",
+          "description": "Le halfelin obtient un bonus de +1 en DEF et de +2 à tous les tests de discrétion. En revanche, il ne peut utiliser à une main qu'une arme dont les DM sont au maximum de 1d6, et doit utiliser 2 mains pour une arme à 1d8-1d10. Il lui est interdit d'utiliser une arme infligeant plus de 1d10 DM."
+        }
+      ]
+    },
+    {
+      "id": "minotaure",
+      "label": "Minotaure",
+      "description": "Le minotaure est une créature mi-homme mi-taureau. Il est connu pour son sens de l'orientation et ses explosions de rage. Les minotaures, les mâles en particulier, sont des solitaires.",
+      "image": "/images/races/Minotaure.webp",
+      "modifiers": { "FOR": 4, "INT": -4, "CHA": -2 },
+      "avgHeight": 210,
+      "avgWeight": 150,
+      "abilities": [
+        {
+          "id": "minotaure-corne",
+          "label": "Coup de corne",
+          "description": "Un minotaure peut réaliser une attaque de corne qui inflige [1d6 + Mod. de FOR] DM à la place d'une attaque normale. Au prix d'une action limitée, il peut faire une attaque normale avec une arme de contact plus une attaque de corne."
+        },
+        {
+          "id": "minotaure-orientation",
+          "label": "Sens de l'orientation",
+          "description": "Le minotaure reçoit un test de +5 à tous les tests d'orientation."
+        },
+        {
+          "id": "minotaure-vision",
+          "label": "Vision dans le noir",
+          "description": "Dans le noir total, le minotaure voit comme dans la pénombre jusqu'à 30 m."
+        }
+      ]
+    },
+    {
+      "id": "drakonide",
+      "label": "Drakonide",
+      "description": "Les drakonides possèdent des traits reptiliens et des ailes puissantes. Ils sont souvent vus comme des gardiens des anciennes connaissances des dragons.",
+      "image": "/images/races/Drakonide.webp",
+      "modifiers": { "FOR": 2, "SAG": -2 },
+      "avgHeight": 195,
+      "avgWeight": 110,
+      "abilities": [
+        {
+          "id": "drakonide-voie",
+          "label": "Voie raciale de base",
+          "description": "Le personnage remplace une Voie de son profil par sa Voie raciale dès le premier niveau."
+        }
+      ]
+    }
+  ],
+  "profiles": [
+    { "id": "barbare", "label": "Barbare", "description": "Un guerrier sauvage et puissant, le barbare puise sa force dans sa rage et son instinct de survie. Il excelle dans les affrontements au corps à corps.", "image": "/images/profiles/barbare.jpg", "hitDie": "d12" },
+    { "id": "barde", "label": "Barde", "description": "Un artiste polyvalent et charismatique, le barde utilise la magie de la musique et des mots pour inspirer ses alliés et confondre ses ennemis.", "image": "/images/profiles/Barde.jpg", "hitDie": "d8" },
+    { "id": "chevalier", "label": "Chevalier", "description": "Le Chevalier est un noble guerrier errant, monté sur un puissant destrier et protégé par une armure lourde.", "image": "/images/profiles/knight.webp", "hitDie": "d10" },
+    { "id": "druide", "label": "Druide", "description": "Un prêtre de la nature qui tire ses pouvoirs des éléments et protège la pureté de la nature.", "image": "/images/profiles/druide.webp", "hitDie": "d8" },
+    { "id": "ensorceleur", "label": "Ensorceleur", "description": "L'Ensorceleur tire son pouvoir d'un talent inné pour la magie. Il pratique une magie subtile à base de tromperie et de contrôle.", "image": "/images/profiles/ensorceleur.jpg", "hitDie": "d4" },
+    { "id": "guerrier", "label": "Guerrier", "description": "Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.", "image": "/images/profiles/guerrier.webp", "hitDie": "d10" },
+    { "id": "magicien", "label": "Magicien", "description": "Un érudit des arcanes qui maîtrise les secrets de la magie pour lancer des sorts puissants.", "image": "/images/profiles/magicien.jpg", "hitDie": "d6" },
+    { "id": "moine", "label": "Moine", "description": "Le Moine combat à mains nues et utilise le contrôle qu'il a sur son esprit et son corps pour transformer ce dernier en arme de chair.", "image": "/images/profiles/moine.jpg", "hitDie": "d8" },
+    { "id": "pretre", "label": "Prêtre", "description": "Le prêtre utilise la force de sa foi pour protéger et soigner ses alliés, tout en combattant au nom de sa divinité.", "image": "/images/profiles/pretre.jpg", "hitDie": "d8" },
+    { "id": "rodeur", "label": "Rôdeur", "description": "Un expert de la nature, le rôdeur combine ses talents de pisteur et de chasseur avec une connexion profonde avec le monde naturel.", "image": "/images/profiles/rodeur.webp", "hitDie": "d10" },
+    { "id": "voleur", "label": "Voleur", "description": "Le Voleur crochète les portes, détecte les pièges et préfère piller les cadavres des ennemis que de se salir les mains pendant le combat.", "image": "/images/profiles/voleur.webp", "hitDie": "d6" }
+  ]
+}

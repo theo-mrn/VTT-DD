@@ -3,6 +3,10 @@
 import React, { useState } from 'react';
 import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { getFormulaDependencies } from '@/lib/rules-engine';
+import { useGameContent } from '@/modules/game-content/useGameContent';
+import type { SpecializationDoc } from '@/modules/game-content/types';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Heart, Shield, Info, Lock } from 'lucide-react';
@@ -84,13 +88,46 @@ export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
 };
 
 export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => {
-    const { selectedCharacter, getDisplayValue } = useCharacter();
+    const { selectedCharacter, roomId, getDisplayValue } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
+    const { gameSystem } = useGameSystem(roomId);
+    const { docs: specializationDocs } = useGameContent<SpecializationDoc & { id: string }>('specialization');
     const [ref, bounds] = useMeasure();
+    const [isSpecializationModalOpen, setIsSpecializationModalOpen] = useState(false);
 
     if (!selectedCharacter) return null;
 
     const fontSize = bounds.height ? Math.min(Math.max(bounds.height / 15, 10), 100) : 12;
+
+    const isDndClassic = gameSystem.systemId === 'dnd-classic';
+    const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0;
+    // Initiative/Dé de Vie sont des mécaniques 100% dnd-classic — Initiative n'a de sens que si le
+    // système définit vraiment une stat 'INIT' (référencée par combatAttackKeys/stats), Dé de Vie
+    // (hitDie) n'existe que pour ce système précis (progression de niveau par jet de dé).
+    const hasInitStat = gameSystem.stats.some((s) => s.key === 'INIT');
+
+    const raceLabel = gameSystem.raceLabel || 'Race';
+    const raceDef = (gameSystem.races ?? []).find((r) => r.id === selectedCharacter.Race);
+    const raceDisplay = raceDef?.label || selectedCharacter.Race;
+
+    // Carrière/Profil : même champ technique (character.Profile), résolu en vrai label plutôt
+    // qu'affiché comme une clé brute — "Carrière" pour un système à compétences façon EotE
+    // (hasSkillSystem), "Profil"/profileLabel sinon.
+    const careerLabel = hasSkillSystem ? 'Carrière' : (gameSystem.profileLabel || 'Profil');
+    const profileDef = (gameSystem.profiles ?? []).find((p) => p.id === selectedCharacter.Profile);
+    const profileDisplay = profileDef?.label || selectedCharacter.Profile;
+
+    // Spécialisation(s) EotE : character.specializations est un tableau d'ids de SpecializationDoc
+    // (potentiellement plusieurs — un personnage peut en acheter d'autres avec de l'XP en cours de
+    // partie) — résolues en vrais docs. Un id introuvable (ex résidu d'un ancien système de règles)
+    // est silencieusement ignoré plutôt que d'afficher l'id technique brut.
+    const specializationIds: string[] = Array.isArray((selectedCharacter as unknown as Record<string, unknown>).specializations)
+        ? (selectedCharacter as unknown as Record<string, string[]>).specializations
+        : [];
+    const ownedSpecializations = specializationIds
+        .map((id) => specializationDocs.find((d) => d.id === id))
+        .filter((s): s is SpecializationDoc & { id: string } => !!s);
+    const specializationLabel = ownedSpecializations.length > 1 ? 'Spécialisations' : 'Spécialisation';
 
     const renderInfo = (fieldId: string, label: string, value: React.ReactNode) => (
         <div>
@@ -109,11 +146,11 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                 </h2>
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-x-2 gap-y-1 flex-1 content-evenly items-center text-[color:var(--text-primary,#d4d4d4)]">
                     {renderInfo('niveau', 'Niveau', selectedCharacter.niveau)}
-                    {renderInfo('INIT', 'Initiative', getDisplayValue("INIT"))}
-                    {renderInfo('Profile', 'Profil', selectedCharacter.Profile)}
+                    {hasInitStat && renderInfo('INIT', 'Initiative', getDisplayValue("INIT"))}
+                    {renderInfo('Profile', careerLabel, profileDisplay)}
                     {renderInfo('Taille', 'Taille', `${selectedCharacter.Taille} cm`)}
                     <div>
-                        Race:
+                        {raceLabel}:
                         {isFieldHidden('Race') ? (
                             <span className="text-[color:var(--text-secondary,#a0a0a0)] ml-1">{PRIVATE_PLACEHOLDER}</span>
                         ) : (
@@ -121,12 +158,28 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                                 className="text-[color:var(--text-secondary,#a0a0a0)] underline cursor-pointer ml-1"
                                 onClick={() => onRaceClick && onRaceClick(selectedCharacter.Race || "")}
                             >
-                                {selectedCharacter.Race}
+                                {raceDisplay}
                             </span>
                         )}
                     </div>
                     {renderInfo('Poids', 'Poids', `${selectedCharacter.Poids} Kg`)}
-                    {renderInfo('deVie', 'Dé de Vie', selectedCharacter.deVie)}
+                    {isDndClassic && renderInfo('deVie', 'Dé de Vie', selectedCharacter.deVie)}
+                    {ownedSpecializations.length === 1 && renderInfo('specializations', specializationLabel, ownedSpecializations[0].name)}
+                    {ownedSpecializations.length > 1 && (
+                        <div>
+                            {specializationLabel}:{' '}
+                            {isFieldHidden('specializations') ? (
+                                <span className="text-[color:var(--text-secondary,#a0a0a0)]">{PRIVATE_PLACEHOLDER}</span>
+                            ) : (
+                                <span
+                                    className="text-[color:var(--text-secondary,#a0a0a0)] underline cursor-pointer"
+                                    onClick={() => setIsSpecializationModalOpen(true)}
+                                >
+                                    {ownedSpecializations.length} spécialisations
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     <Dialog>
                         <DialogTrigger asChild>
@@ -169,13 +222,47 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                     </Dialog>
                 </div>
             </div>
+
+            {/* Modal listant les spécialisations quand il y en a plusieurs — évite d'empiler les noms
+                sur autant de lignes que de spécialisations directement dans ce petit widget. */}
+            <Dialog open={isSpecializationModalOpen} onOpenChange={setIsSpecializationModalOpen}>
+                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-lg p-6 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-[var(--accent-brown)] font-bold text-xl">
+                            {specializationLabel}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {ownedSpecializations.map((spec) => (
+                            <div key={spec.id} className="flex gap-3 bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)]">
+                                {spec.image && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={spec.image} alt={spec.name} className="w-12 h-12 rounded-md object-cover shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)]">{spec.name}</h3>
+                                    {spec.description && (
+                                        <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap mt-0.5">{spec.description}</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
 
 export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'], layout = 'grid', styleOption = 'separated', justify = 'center' }) => {
-    const { selectedCharacter, getDisplayModifier, getModifier, categorizedBonuses } = useCharacter();
+    const { selectedCharacter, roomId, getDisplayModifier, getDisplayValue, getModifier, categorizedBonuses } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
+    const { gameSystem } = useGameSystem(roomId);
+    // getModifier() = floor((v-10)/2), formule de modificateur D&D — ne doit s'appliquer QUE si le MJ a
+    // explicitement activé rollUsesModifier sur cette stat (ex FOR/DEX en dnd-classic). Un système sans
+    // modificateur (ex Vigueur/Agilité façon EotE, valeurs 1-5 affichées telles quelles) doit voir sa
+    // valeur brute, pas un modificateur D&D imposé de force à toute stat 'ability'.
+    const statByKey = React.useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats]);
 
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : (layout === 'grid' ? 'gap-1 md:gap-2' : 'gap-1');
@@ -195,7 +282,9 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
             {fieldIds.map((name) => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
-                const label = isCustom ? customField.label : name;
+                const statDef = statByKey.get(name);
+                const label = isCustom ? customField.label : (statDef?.shortLabel || statDef?.label || name);
+                const usesModifier = !isCustom && !!statDef?.rollUsesModifier;
 
                 let modifierVal: number;
                 let baseVal: number;
@@ -220,10 +309,16 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
                         else if (customField.type === 'percent') displayValueStr = `${customField.value}%`;
                         else displayValueStr = customField.value !== '' && customField.value !== undefined ? String(customField.value) : '—';
                     }
-                } else {
+                } else if (usesModifier) {
                     const modifier = getDisplayModifier(name as any);
                     modifierVal = isNaN(modifier) ? 0 : modifier;
                     baseVal = selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0;
+                } else {
+                    // Pas de modificateur pour cette stat (ex Vigueur/Agilité façon EotE) : affiche la
+                    // valeur brute + bonus (getDisplayValue), jamais floor((v-10)/2) imposé de force.
+                    modifierVal = 0;
+                    baseVal = 0;
+                    displayValueStr = String(selectedCharacter ? getDisplayValue(name as any) : 0);
                 }
 
                 const childClasses = isUnified
@@ -264,9 +359,15 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
                                 <p>Information privée.</p>
                             ) : isCustom ? (
                                 <p>Valeur personnalisée: {String(customField.value)}</p>
-                            ) : (
+                            ) : usesModifier ? (
                                 <>
                                     <p>Mod de base: {getModifier(selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0)}</p>
+                                    <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                                    <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p>Valeur de base: {selectedCharacter ? (selectedCharacter[name as keyof Character] as number) || 0 : 0}</p>
                                     <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
                                     <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
                                 </>
@@ -279,9 +380,27 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
     );
 };
 
-export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['PV', 'Defense'], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
-    const { selectedCharacter, getDisplayValue, categorizedBonuses } = useCharacter();
+export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch', onFieldClick?: (fieldKey: string) => void }> = ({ style, fieldIds = ['PV', 'Defense'], layout = 'horizontal', styleOption = 'separated', justify = 'center', onFieldClick }) => {
+    const { selectedCharacter, roomId, getDisplayValue, categorizedBonuses } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
+    const { gameSystem } = useGameSystem(roomId);
+
+    // Pour toute stat 'vital' (ex PV) dont la borne maximale référence une autre stat du système (ex
+    // PV_Max, via maxFormula plutôt qu'un nom en dur), affiche "valeur / max" en une seule carte —
+    // générique pour n'importe quelle clé vitale, pas seulement si elle s'appelle exactement "PV".
+    const vitalMaxKeyByKey = React.useMemo(() => {
+        const map = new Map<string, string>();
+        for (const stat of gameSystem.stats) {
+            if (stat.category !== 'vital' || !stat.maxFormula) continue;
+            const [maxKey] = getFormulaDependencies(stat.maxFormula);
+            if (maxKey) map.set(stat.key, maxKey);
+        }
+        return map;
+    }, [gameSystem.stats]);
+    // Les clés qui sont la borne max d'une autre stat vitale ne doivent jamais s'afficher comme carte
+    // séparée (ex PV_Max) : elles sont déjà montrées combinées dans la carte de leur stat vitale.
+    const maxKeysToSkip = React.useMemo(() => new Set(vitalMaxKeyByKey.values()), [vitalMaxKeyByKey]);
+    const visibleFieldIds = fieldIds.filter((name) => !maxKeysToSkip.has(name) || !!selectedCharacter?.customFields?.find(f => f.id === name));
 
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
@@ -293,17 +412,19 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
     });
 
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
-        ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
+        ? { gridTemplateColumns: `repeat(${visibleFieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
     return (
         <div className={containerClassName} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
-            {fieldIds.map(name => {
+            {visibleFieldIds.map(name => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
-                const label = isCustom ? customField.label : name;
+                const statDef = gameSystem.stats.find((s) => s.key === name);
+                const label = isCustom ? customField.label : (statDef?.shortLabel || statDef?.label || name);
 
-                const isPV = name === 'PV';
+                const maxKey = vitalMaxKeyByKey.get(name);
+                const isVitalWithMax = !isCustom && !!maxKey;
 
                 const widthClass = (layout === 'horizontal' && justify !== 'stretch') ? '' : 'w-full';
 
@@ -311,27 +432,42 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                     ? `px-4 py-1 flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`
                     : `bg-[color:var(--bg-secondary,#2a2a2a)] px-4 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`;
 
-                const hidden = isFieldHidden(name) || (isPV && isFieldHidden('PV_Max'));
-                const isPrivate = isFieldPrivate(name) || (isPV && isFieldPrivate('PV_Max'));
+                const hidden = isFieldHidden(name) || (isVitalWithMax && !!maxKey && isFieldHidden(maxKey));
+                const isPrivate = isFieldPrivate(name) || (isVitalWithMax && !!maxKey && isFieldPrivate(maxKey));
 
                 let displayVal: string | number;
                 if (isCustom) {
                     if (customField.type === 'boolean') displayVal = customField.value ? '✓' : '✗';
                     else if (customField.type === 'percent') displayVal = `${customField.value}%`;
                     else displayVal = customField.value !== '' && customField.value !== undefined ? String(customField.value) : '—';
+                } else if (isVitalWithMax && maxKey) {
+                    displayVal = `${getDisplayValue(name as any)} / ${getDisplayValue(maxKey as any)}`;
                 } else {
-                    displayVal = isPV ? `${getDisplayValue("PV")} / ${getDisplayValue("PV_Max")}` : getDisplayValue(name as any);
+                    displayVal = getDisplayValue(name as any);
                 }
 
+                const canClick = !isCustom && !!onFieldClick;
+
                 return (
-                    <div key={name} className={childClasses} style={isUnified ? {} : style}>
+                    <div
+                        key={name}
+                        className={`${childClasses} ${canClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
+                        style={isUnified ? {} : style}
+                        onClick={canClick ? () => onFieldClick!(name) : undefined}
+                        role={canClick ? 'button' : undefined}
+                    >
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex items-center space-x-1 cursor-help">
-                                    {isPV ? <Heart className="text-red-500" size={16} /> : <Shield className={isCustom ? "text-[color:var(--accent-brown)]" : "text-blue-500"} size={16} />}
-                                    <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] truncate max-w-[120px] sm:max-w-[200px]" title={isCustom ? label : undefined}>
-                                        {hidden ? (isCustom ? `${label}: ${PRIVATE_PLACEHOLDER}` : PRIVATE_PLACEHOLDER) : (isCustom ? `${label}: ${displayVal}` : displayVal)}
-                                    </span>
+                                <div className="flex items-center gap-2 cursor-help min-w-0">
+                                    {isVitalWithMax ? <Heart className="text-red-500 shrink-0" size={16} /> : <Shield className={`shrink-0 ${isCustom ? "text-[color:var(--accent-brown)]" : "text-blue-500"}`} size={16} />}
+                                    <div className="flex flex-col leading-tight min-w-0">
+                                        <span className="text-[10px] sm:text-xs uppercase tracking-wide text-[color:var(--text-secondary,#a0a0a0)] truncate max-w-[120px] sm:max-w-[200px]" title={label}>
+                                            {label}
+                                        </span>
+                                        <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] truncate max-w-[120px] sm:max-w-[200px]">
+                                            {hidden ? PRIVATE_PLACEHOLDER : displayVal}
+                                        </span>
+                                    </div>
                                     {isPrivate && <Lock size={10} className="text-[var(--accent-brown)] shrink-0" />}
                                 </div>
                             </TooltipTrigger>
@@ -436,24 +572,30 @@ interface WidgetCustomGroupProps extends WidgetProps {
 }
 
 export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, label, fieldIds = [], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
-    const { selectedCharacter, getDisplayValue, getDisplayModifier } = useCharacter();
+    const { selectedCharacter, roomId, getDisplayValue, getDisplayModifier } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
+    const { gameSystem } = useGameSystem(roomId);
 
     if (!selectedCharacter) return null;
 
-    const baseStatsKeys = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'];
+    const statByKey = new Map(gameSystem.stats.map(s => [s.key, s]));
+    const baseStatsKeys = gameSystem.stats.filter(s => s.category !== 'meta').map(s => s.key);
+    // floor((v-10)/2) ne s'applique QUE si le MJ a activé rollUsesModifier sur la stat (ex FOR/DEX en
+    // dnd-classic) — jamais imposé de force à toute stat 'ability' (ex Vigueur/Agilité façon EotE
+    // affichent leur valeur brute, pas un modificateur D&D).
+    const usesModifierKeys = gameSystem.stats.filter(s => s.rollUsesModifier).map(s => s.key);
 
     const resolvedFields = fieldIds.map((id: string) => {
         // Check if it's a base stat
         if (baseStatsKeys.includes(id)) {
-            const isAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(id);
+            const hasModifier = usesModifierKeys.includes(id);
             return {
                 id,
-                label: id,
-                value: isAbility ? getDisplayModifier(id as any) : getDisplayValue(id as any),
+                label: statByKey.get(id)?.shortLabel || statByKey.get(id)?.label || id,
+                value: hasModifier ? getDisplayModifier(id as any) : getDisplayValue(id as any),
                 secondaryValue: (selectedCharacter as any)[id],
                 type: 'number' as const,
-                hasModifier: isAbility
+                hasModifier,
             };
         }
         // Otherwise look in custom fields
@@ -499,15 +641,23 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
             <div className={`flex-1 flex flex-col h-full overflow-hidden ${unifiedContainerClasses}`} style={isUnified ? style : undefined}>
                 <div className={containerClassName} style={containerStyle}>
                     {resolvedFields.map((field) => {
-                        const isBaseAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(field.id);
+                        // field.hasModifier (calculé plus haut via rollUsesModifier) remplace l'ancien
+                        // "isBaseAbility = category==='ability'" — une stat 'ability' sans modificateur
+                        // (ex Vigueur/Agilité façon EotE) doit afficher sa valeur brute, pas un modificateur.
+                        const isBaseAbilityWithModifier = baseStatsKeys.includes(field.id) && field.hasModifier;
                         const hidden = isFieldHidden(field.id) || (field.id === 'PV' && isFieldHidden('PV_Max'));
 
                         let displayValue: string;
                         let mod: number | null = null;
 
-                        if (isBaseAbility) {
+                        if (isBaseAbilityWithModifier) {
                             mod = field.value as number;
                             displayValue = String(field.secondaryValue || 0);
+                        } else if (baseStatsKeys.includes(field.id)) {
+                            // Stat de base sans modificateur : affiche la valeur (déjà résolue via
+                            // getDisplayValue dans resolvedFields), jamais floor((v-10)/2).
+                            mod = null;
+                            displayValue = String(field.value ?? 0);
                         } else {
                             const numVal = typeof field.value === 'number' ? field.value : parseFloat(field.value as string) || 0;
                             mod = field.hasModifier && field.type === 'number' ? getFieldModifier(numVal) : null;
@@ -575,6 +725,10 @@ export function GroupCreationSection({
     justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch',
     mode?: 'create' | 'edit'
 }) {
+    const { roomId } = useCharacter();
+    const { gameSystem } = useGameSystem(roomId);
+    const baseStatIds = gameSystem.stats.filter(s => s.category !== 'meta').map(s => s.key);
+
     const [label, setLabel] = useState(initialLabel);
     const [selectedIds, setSelectedIds] = useState<string[]>(initialFieldIds);
     const [layout, setLayout] = useState<'horizontal' | 'vertical' | 'grid'>(initialLayout || 'horizontal');
@@ -683,7 +837,7 @@ export function GroupCreationSection({
 
             <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
                 <div className="text-[9px] font-bold text-gray-500 uppercase px-2 mb-1">Attributs de base</div>
-                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(id => (
+                {baseStatIds.map(id => (
                     <label key={id} className="flex items-center gap-2 px-2 py-1 hover:bg-[color:var(--bg-secondary,#2a2a2a)] rounded cursor-pointer group">
                         <input
                             type="checkbox"

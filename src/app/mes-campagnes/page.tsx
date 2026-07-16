@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Play, Plus, Shield, Gamepad2, ArrowLeft, Settings, ArrowRight } from 'lucide-react'
-import { auth, db, collection, doc, getDocs, getDoc } from '@/lib/firebase'
+import { auth, db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
@@ -90,7 +90,9 @@ export default function MesCampagnesPage() {
         const data = roomDoc.data()
         const nomsSnapshot = await getDocs(collection(db, `salles/${roomId}/Noms`))
         const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
-        return { id: roomId, ...data, occupantsCount: playersOnly } as Room
+        // id: roomId APRÈS ...data (pas avant) : si le document Firestore contenait un champ `id`
+        // legacy, il ne doit jamais pouvoir écraser le vrai identifiant du document.
+        return { ...data, id: roomId, occupantsCount: playersOnly } as Room
       }))
       setUserRooms(userRoomResults.filter((r): r is Room => r !== null))
     }
@@ -112,6 +114,22 @@ export default function MesCampagnesPage() {
 
   const myCreatedRooms = userRooms.filter(r => r.creatorId === userId)
   const myJoinedRooms = userRooms.filter(r => r.creatorId !== userId)
+
+  // Synchronise users/{uid}.room_id AVANT de naviguer vers la salle — sans ça, CharacterContext/
+  // GameContext (qui lisent user.roomId, pas l'URL) continuent de charger les personnages de
+  // l'ANCIENNE salle visitée : l'URL affiche la bonne salle mais la fiche/liste de persos affiche
+  // celle d'avant. C'est le mécanisme déjà en place dans home/page.tsx pour "Rejoindre" ; il manquait
+  // ici pour le bouton "Jouer".
+  const handlePlayRoom = async (roomId: string) => {
+    if (userId) {
+      try {
+        await setDoc(doc(db, 'users', userId), { room_id: roomId }, { merge: true })
+      } catch (e) {
+        console.error('Error syncing room_id', e)
+      }
+    }
+    router.push(`/${roomId}/map`)
+  }
 
   const isOwner = selectedRoom?.creatorId === userId
 
@@ -223,7 +241,7 @@ export default function MesCampagnesPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <Button
-                        onClick={() => router.push(`/${selectedRoom.id}/map`)}
+                        onClick={() => handlePlayRoom(selectedRoom.id)}
                         className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold"
                         size="lg"
                       >

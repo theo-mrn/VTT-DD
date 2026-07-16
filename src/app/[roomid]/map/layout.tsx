@@ -148,9 +148,14 @@ export default function Layout({ children }: LayoutProps) {
               className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex"
               style={{ '--dock-h': 'calc(56px + env(safe-area-inset-bottom))' } as React.CSSProperties}
             >
-              {!isPanelOpen && (
+              {/* Toujours monté (masqué en CSS, pas démonté) — Sidebar contient SearchMenu, dont
+                  l'AnimatePresence de fermeture a besoin de rester monté le temps de son animation
+                  exit. Un démontage conditionnel ({!isPanelOpen && <Sidebar/>}) coupe cette animation
+                  en plein vol si isPanelOpen passe à true pendant que SearchMenu se referme, laissant
+                  son backdrop fixed inset-0 orphelin et bloquant tous les clics du site. */}
+              <div className={isPanelOpen ? 'hidden' : ''}>
                 <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
-              )}
+              </div>
 
               <div className="absolute left-5 z-10">
                 <OverlayComponent onPanelToggle={setIsPanelOpen} />

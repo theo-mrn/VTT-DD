@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { ChevronLeft, ChevronRight, Dice6, Check, Images, Upload, Dna, Swords, User, BookOpen, Search, Ghost, Shield, Heart, Zap, Crosshair, Sparkles, Brain } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Dice6, Check, Images, Upload, Dna, Swords, User, BookOpen, Search, Ghost, Heart, Zap, Crosshair, Sparkles, Brain } from 'lucide-react'
 import Image from 'next/image'
 import { db, auth, storage, realtimeDb } from '@/lib/firebase'
 import { doc, addDoc, collection, getDoc, setDoc } from 'firebase/firestore'
@@ -17,7 +17,12 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import InventoryManagement from '@/components/(inventaire)/inventaire'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
+import CareerSkillPicker, { type CareerSkillSelection } from '@/components/(competences)/CareerSkillPicker'
 import { toast } from 'sonner'
+import { rollCharacterStats, statsToDefaults, groupStats, resolveCharacterStats, evaluateFormula } from '@/lib/rules-engine'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
+import { stripUndefinedDeep } from '@/modules/game-system/transfer'
 
 
 
@@ -34,6 +39,22 @@ type ProfileData = {
   hitDie: string;
 }
 
+// Champs méta fixes (indépendants du système de règles actif) + index signature pour les stats
+// dynamiques du système de règles (abilities/derived/vital), dont les clés varient selon le système.
+type CharacterState = {
+  Nomperso: string;
+  Description: string;
+  Background: string;
+  Race: string;
+  Profile: string;
+  deVie: string;
+  imageURL: string;
+  level: number;
+  Taille: number;
+  Poids: number;
+  [statKey: string]: unknown;
+}
+
 // Load JSON data from public directory
 async function fetchJson(path: string) {
   const response = await fetch(path)
@@ -43,6 +64,19 @@ async function fetchJson(path: string) {
   return response.json()
 }
 
+const BASE_CHARACTER: CharacterState = {
+  Nomperso: '',
+  Description: '',
+  Background: '',
+  Race: '',
+  Profile: '',
+  deVie: 'd12',
+  imageURL: '',
+  level: 1,
+  Taille: 175,
+  Poids: 75,
+}
+
 export default function CharacterCreationPage() {
   const router = useRouter()
   const [currentTab, setCurrentTab] = useState<'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image'>('info')
@@ -50,112 +84,123 @@ export default function CharacterCreationPage() {
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
   const [userId, setUserId] = useState<string | null>(null)
   const [roomId, setRoomId] = useState<string | null>(null)
-  const [baseStats, setBaseStats] = useState({
-    FOR: 10,
-    DEX: 10,
-    CON: 10,
-    INT: 10,
-    SAG: 10,
-    CHA: 10,
-  })
+  const { gameSystem, tableCustomStats, isLoading: isGameSystemLoading } = useGameSystem(roomId)
+  const isDndClassic = gameSystem.systemId === 'dnd-classic'
+  // Toutes les stats 'ability', y compris les techniques (visibleToPlayers=false, ex bases de seuils
+  // utilisées uniquement par une formule dérivée) — utilisé pour peupler `character`/`baseStats`, car
+  // ces stats techniques doivent exister sur le personnage (defaultValue, ex base=10) même si jamais
+  // montrées : les en exclure ferait résoudre leur formule dérivée avec une valeur brute à 0 au lieu de
+  // leur vraie base.
+  const allAbilityStats = gameSystem.stats.filter((s) => s.category === 'ability')
+  // Sous-ensemble affiché à l'écran de création (exclut les techniques) — sans quoi elles apparaîtraient
+  // comme de vraies caractéristiques à choisir/valider, avec leur propre carte Base+Race=Score.
+  const abilityStats = allAbilityStats.filter((s) => s.visibleToPlayers !== false)
 
-  const [character, setCharacter] = useState({
-    Nomperso: '',
-    Description: '',
-    Background: '',
-    Race: '',
-    Profile: '',
-    deVie: 'd12',
-    FOR: 10,
-    DEX: 10,
-    CON: 10,
-    INT: 10,
-    SAG: 10,
-    CHA: 10,
-    Defense: 10,
-    PV: 0,
-    Contact: 0,
-    Distance: 0,
-    Magie: 0,
-    INIT: 10,
-    imageURL: '',
-    level: 1,
-    Taille: 175,
-    Poids: 75,
-  })
+  // Races/profils : dnd-classic lit toujours race.json/profile.json (legacy, converti à la volée dans
+  // le même format que RaceDefinition/ProfileDefinition) ; tout autre système lit gameSystem.races/profiles,
+  // défini par le MJ dans l'éditeur de règles — générique, aucune clé D&D en dur.
+  const races: RaceDefinition[] = isDndClassic
+    ? Object.entries(raceData).map(([id, r]) => ({ id, label: id.replace('_', ' '), description: r.description, image: r.image, modifiers: r.modificateurs || {}, abilities: [], avgHeight: (r as any).tailleMoyenne, avgWeight: (r as any).poidsMoyen }))
+    : (gameSystem.races ?? [])
+  const profiles: ProfileDefinition[] = isDndClassic
+    ? Object.entries(profileData).map(([id, p]) => ({ id, label: id, description: p.description, image: p.image, hitDie: p.hitDie }))
+    : (gameSystem.profiles ?? [])
+  const hasRaceProfileContent = isDndClassic || races.length > 0 || profiles.length > 0
+  const raceLabel = isDndClassic ? 'Race' : (gameSystem.raceLabel || 'Race')
+  const profileLabel = isDndClassic ? 'Profil' : (gameSystem.profileLabel || 'Profil')
+
+  const [baseStats, setBaseStats] = useState<Record<string, number>>({})
+  const [character, setCharacter] = useState<CharacterState>(BASE_CHARACTER)
+  const [statsInitialized, setStatsInitialized] = useState(false)
+
+  // Initialise les stats du personnage dès que le système actif de la room est connu — une seule fois,
+  // pour ne pas écraser les valeurs déjà tirées/saisies par le joueur si le système recharge (onSnapshot).
+  useEffect(() => {
+    if (isGameSystemLoading || statsInitialized) return
+    setBaseStats(statsToDefaults(allAbilityStats) as Record<string, number>)
+    // Exclut 'derived' de cette initialisation : poser ne serait-ce qu'un 0 sur PV_Max/SeuilBlessure/...
+    // les FIGE prématurément (resolveCharacterStats ne recalcule plus jamais une stat 'derived' dès
+    // qu'une valeur — même 0 — existe déjà dessus, mécanisme pensé pour ne pas re-tirer un dé aléatoire
+    // à chaque re-render). Elles doivent rester undefined pendant toute la création (recalculées à la
+    // volée via displayStatValues) et ne sont écrites qu'une fois, à la sauvegarde finale.
+    setCharacter((prev) => ({
+      ...prev,
+      ...statsToDefaults(gameSystem.stats.filter((s) => s.category !== 'derived')),
+    }))
+    setStatsInitialized(true)
+  }, [isGameSystemLoading, statsInitialized, gameSystem, allAbilityStats])
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [customImage, setCustomImage] = useState<string>('')
   const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'custom'>('custom')
 
-  // Competencies State
+  // Competencies State (dnd-classic — Voies/CompetenceCreator)
   const [characterVoies, setCharacterVoies] = useState<Voie[]>([])
   const [characterCustomCompetences, setCharacterCustomCompetences] = useState<CustomCompetence[]>([])
-
-  const rollDie = (sides: number) => Math.floor(Math.random() * sides) + 1
+  // Compétences façon système narratif type EotE (gameSystem.skills non vide) — coexiste avec le
+  // système ci-dessus, jamais les deux actifs en même temps pour un même système.
+  const [careerSkillSelection, setCareerSkillSelection] = useState<CareerSkillSelection | null>(null)
+  const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0
 
   const calculateModifier = (value: number) => Math.floor((value - 10) / 2)
 
+  // Nombre de fois où le joueur a cliqué "Lancer les dés" — le MJ peut limiter ce nombre via
+  // gameSystem.creation.maxRolls (absent = illimité, comportement historique inchangé).
+  const [rollCount, setRollCount] = useState(0)
+  const maxRolls = gameSystem.creation?.maxRolls
+  const rollsExhausted = maxRolls != null && rollCount >= maxRolls
+
+  // Délègue au moteur de règles partagé (src/lib/rules-engine), branché sur le système de règles
+  // actif de la room (dnd-classic ou un système custom défini par le MJ) — remplace la génération
+  // 3d6 + contrainte + formules dérivées codées en dur en dnd-classic uniquement.
   const rollStats = () => {
-    // Helper to generate one stat (3d6)
-    const rollOne = () => Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 3
+    if (rollsExhausted) return
+    const raceMods = races.find((r) => r.id === character.Race)?.modifiers ?? {}
+    const result = rollCharacterStats(gameSystem, raceMods, tableCustomStats, { deVie: character.deVie })
 
-    let stats: number[] = []
-    let attempts = 0
-    const MAX_ATTEMPTS = 5000
-
-    // Loop until we find a valid set
-    while (attempts < MAX_ATTEMPTS) {
-      stats = [rollOne(), rollOne(), rollOne(), rollOne(), rollOne(), rollOne()]
-
-      const evenCount = stats.filter(n => n % 2 === 0).length
-      // Calculate modifier sum: (val - 10) / 2 rounded down
-      const totalMod = stats.reduce((sum, val) => sum + Math.floor((val - 10) / 2), 0)
-
-      // Criteria: 3 even (implies 3 odd) and Total Modifiers == 6
-      if (evenCount === 3 && totalMod === 6) {
-        break
-      }
-      attempts++
-    }
-
-    // Safety fallback only if really unlucky (should basically never happen with 5000 attempts)
-    if (attempts >= MAX_ATTEMPTS) {
-      // A known valid set: 14 (+2), 14 (+2), 14 (+2), 11 (0), 11 (0), 11 (0) -> Sum +6, 3 even, 3 odd
-      stats = [14, 14, 14, 11, 11, 11]
-    }
-
-    const [FOR, DEX, CON, INT, SAG, CHA] = stats
-
-    // Save base stats
-    setBaseStats({ FOR, DEX, CON, INT, SAG, CHA })
-
-    // Apply racial modifiers
-    const raceMods = raceData[character.Race]?.modificateurs || {}
-    const finalFOR = FOR + (raceMods.FOR || 0)
-    const finalDEX = DEX + (raceMods.DEX || 0)
-    const finalCON = CON + (raceMods.CON || 0)
-    const finalINT = INT + (raceMods.INT || 0)
-    const finalSAG = SAG + (raceMods.SAG || 0)
-    const finalCHA = CHA + (raceMods.CHA || 0)
+    setBaseStats(result.rolledAbilities)
 
     setCharacter(prev => ({
       ...prev,
-      FOR: finalFOR,
-      DEX: finalDEX,
-      CON: finalCON,
-      INT: finalINT,
-      SAG: finalSAG,
-      CHA: finalCHA,
-      Defense: 18 + calculateModifier(finalDEX), // Maintained user prefered base 18
-      PV: 1 + calculateModifier(finalCON) + rollDie(parseInt((character as any).deVie.replace('d', ''))),
-      Contact: 1 + calculateModifier(finalFOR),
-      Distance: 1 + calculateModifier(finalDEX),
-      Magie: 1 + calculateModifier(finalCHA),
-      INIT: finalDEX,
+      ...result.abilities,
+      ...result.derived,
     }))
+    setRollCount((c) => c + 1)
   }
+
+  // Réapplique automatiquement le modificateur racial aux abilities dès que la race change (ou dès
+  // l'initialisation) — sans ce recalcul, un système en method='manual' avec maxRolls=0 (bouton "Lancer
+  // les dés" désactivé, ex EotE : aucun aléa réel à tirer, juste base + modificateur racial) ne verrait
+  // JAMAIS ses abilities mises à jour après un choix de race. Ne touche PAS aux stats 'derived' : leur
+  // valeur calculée est dérivée à la volée pour l'affichage (cf resolveDisplayStats plus bas), jamais
+  // stockée sur `character` pendant la création — resolveCharacterStats FIGE définitivement toute stat
+  // 'derived' dès qu'une valeur existe déjà dessus (mécanisme pensé pour ne pas re-tirer un dé aléatoire
+  // à chaque re-render), ce qui gèlerait Seuil de Blessure/Encaissement à leur toute première valeur
+  // (souvent 0, avant le premier choix de race) au lieu de suivre les changements de race/caractéristiques.
+  // gameSystem/tableCustomStats/allAbilityStats/races sont recréés à CHAQUE render (nouvelles références)
+  // — lus via une ref tenue à jour plutôt que mis en dépendance, pour ne réagir qu'à un changement réel de
+  // race (sinon Maximum update depth exceeded : l'effet se redéclencherait à chaque render). Utilise
+  // TOUTES les abilities (allAbilityStats), pas seulement celles affichées : une stat technique (ex
+  // baseSeuilBlessure) doit exister sur `character` avec sa vraie valeur/defaultValue même si jamais
+  // montrée, sans quoi la formule dérivée qui la référence résoudrait 0 au lieu de sa vraie base.
+  const resolveStatsRef = useRef({ allAbilityStats, races, baseStats })
+  resolveStatsRef.current = { allAbilityStats, races, baseStats }
+
+  useEffect(() => {
+    if (!statsInitialized || Object.keys(resolveStatsRef.current.baseStats).length === 0) return
+    const { allAbilityStats: as, races: rc, baseStats: bs } = resolveStatsRef.current
+    const raceMods = rc.find((r) => r.id === character.Race)?.modifiers ?? {}
+    const abilities: Record<string, number> = {}
+    for (const stat of as) {
+      abilities[stat.key] = (bs[stat.key] ?? 0) + (raceMods[stat.key] || 0)
+    }
+    setCharacter(prev => ({ ...prev, ...abilities }))
+  }, [character.Race, statsInitialized])
+
+  // Valeurs 'derived'/'vital' recalculées À LA VOLÉE pour l'affichage de l'écran de création (jamais
+  // stockées sur `character`, cf commentaire ci-dessus) — reflète toujours les abilities courantes.
+  const displayStatValues = resolveCharacterStats(gameSystem, tableCustomStats, character).values
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -248,28 +293,70 @@ export default function CharacterCreationPage() {
       // (Height/Weight now managed in state)
 
 
-      // Prepare Voies data
+      // Prepare Voies data (dnd-classic uniquement — Voies/CompetenceCreator)
       const voiesData: Record<string, any> = {};
-      characterVoies.forEach((voie, index) => {
-        voiesData[`Voie${index + 1}`] = voie.fichier;
-        voiesData[`v${index + 1}`] = 0; // Initialize ranks to 0
-      });
+      if (!hasSkillSystem) {
+        characterVoies.forEach((voie, index) => {
+          voiesData[`Voie${index + 1}`] = voie.fichier;
+          voiesData[`v${index + 1}`] = 0; // Initialize ranks to 0
+        });
+      }
+
+      // Compétences façon système narratif type EotE (gameSystem.skills non vide) — career/skillRanks
+      // issus des 6 rangs gratuits (4 carrière + 2 spécialisation), xp = XP de départ configuré par le MJ.
+      const skillSystemData: Record<string, any> = {};
+      if (hasSkillSystem && careerSkillSelection) {
+        skillSystemData.career = careerSkillSelection.career;
+        skillSystemData.careerSkillChoices = careerSkillSelection.careerSkillChoices;
+        skillSystemData.specializations = careerSkillSelection.specializations;
+        skillSystemData.specializationSkillChoices = careerSkillSelection.specializationSkillChoices;
+        skillSystemData.skillRanks = careerSkillSelection.skillRanks;
+        skillSystemData.xp = gameSystem.startingXp ?? 0;
+        skillSystemData.xpSpent = 0;
+      }
+
+      // Stats 'vital' SANS valeur brute encore posée sur `character` (ex Blessures/Stress si l'effet
+      // d'initialisation n'a pas eu l'occasion de tourner avant ce clic) : sans ce garde-fou explicite,
+      // resolveCharacterStats les résoudrait à leur borne MAXIMALE (comportement "aucune valeur stockée
+      // => personnage frais démarre au max", pensé pour PV façon D&D) au lieu de leur rollFormula réelle
+      // (ex const 0 pour un compteur EotE qui doit démarrer vide). On pose explicitement rollFormula
+      // (ou 0) pour chaque 'vital' encore undefined, AVANT de résoudre les dérivées ci-dessous.
+      const vitalsNeedingDefault: Record<string, number> = {};
+      for (const stat of gameSystem.stats) {
+        if (stat.category !== 'vital') continue;
+        const current = character[stat.key];
+        if (current !== undefined && current !== null && current !== '') continue;
+        vitalsNeedingDefault[stat.key] = stat.rollFormula
+          ? evaluateFormula(stat.rollFormula, { rawStats: character as Record<string, number | string | boolean | undefined>, statDefs: Object.fromEntries(gameSystem.stats.map((s) => [s.key, s])) })
+          : 0;
+      }
+      const characterForResolution = { ...character, ...vitalsNeedingDefault };
+
+      // Stats 'derived'/'vital' (ex Seuil de Blessure, Encaissement) jamais stockées sur `character`
+      // pendant la création (cf displayStatValues plus haut) — calculées une dernière fois ici et
+      // figées dans le document final, seul moment où elles doivent vraiment être persistées.
+      const finalDerivedStats = Object.fromEntries(
+        Object.entries(resolveCharacterStats(gameSystem, tableCustomStats, characterForResolution).values).filter(([key]) =>
+          gameSystem.stats.some((s) => s.key === key && (s.category === 'derived' || s.category === 'vital')),
+        ),
+      )
 
       // Save character data to Firestore with additional fields
-      const characterData = {
+      const characterData = stripUndefinedDeep({
         ...character,
+        ...finalDerivedStats,
         ...voiesData, // Add voies
+        ...skillSystemData,
         imageURL,
         type: 'joueurs',
         visibilityRadius: 150,
         x: 500,
         y: 500,
-        PV_Max: character.PV,
         niveau: 1,
         // Taille & Poids already in character object, but ensuring they are numbers
         Taille: Number(character.Taille),
         Poids: Number(character.Poids)
-      }
+      })
 
       await addDoc(collection(db, `users/${userId}/characters`), characterData)
 
@@ -299,21 +386,26 @@ export default function CharacterCreationPage() {
   }
 
 
-  const tabsOrder = ['info', 'race', 'profile', 'competences', 'stats', 'inventory', 'image'] as const;
+  // Espèce/Profil : visibles si dnd-classic (race.json/profile.json legacy) OU si le MJ a défini des
+  // races/profils custom pour le système actif — masqués si le système n'en propose aucun.
+  type TabId = 'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image';
+  const tabsOrder: TabId[] = hasRaceProfileContent
+    ? ['info', 'race', 'profile', 'competences', 'stats', 'inventory', 'image']
+    : ['info', 'competences', 'stats', 'inventory', 'image'];
   const nextStep = useCallback(() => {
     setCurrentTab(prev => {
       const idx = tabsOrder.indexOf(prev);
       if (idx < tabsOrder.length - 1) return tabsOrder[idx + 1];
       return prev;
     })
-  }, [])
+  }, [tabsOrder])
   const prevStep = useCallback(() => {
     setCurrentTab(prev => {
       const idx = tabsOrder.indexOf(prev);
       if (idx > 0) return tabsOrder[idx - 1];
       return prev;
     })
-  }, [])
+  }, [tabsOrder])
 
   const renderBasicInfo = useCallback(() => (
     <div className="space-y-6">
@@ -351,6 +443,9 @@ export default function CharacterCreationPage() {
 
   // Helper to get preview image based on active source
   const getPreviewImage = useCallback(() => {
+    const selectedRace = races.find((r) => r.id === character.Race)
+    const selectedProfile = profiles.find((p) => p.id === character.Profile)
+
     // Custom image always takes priority when explicitly selected
     if (activeImageSource === 'custom' && customImage) return customImage
 
@@ -359,21 +454,20 @@ export default function CharacterCreationPage() {
       // If an image was selected from gallery, it's stored in character.imageURL
       if (character.imageURL) return character.imageURL
       // Otherwise fall back to default race image
-      if (character.Race && raceData[character.Race]?.image) return raceData[character.Race].image
+      if (selectedRace?.image) return selectedRace.image
     }
 
     // For profile source: use profile's default image
-    if (activeImageSource === 'profile' && character.Profile && profileData[character.Profile]?.image)
-      return profileData[character.Profile].image
+    if (activeImageSource === 'profile' && selectedProfile?.image) return selectedProfile.image
 
     // Fallback hierarchy
     if (customImage) return customImage
     if (character.imageURL) return character.imageURL
-    if (character.Race && raceData[character.Race]?.image) return raceData[character.Race].image
-    if (character.Profile && profileData[character.Profile]?.image) return profileData[character.Profile].image
+    if (selectedRace?.image) return selectedRace.image
+    if (selectedProfile?.image) return selectedProfile.image
 
     return ''
-  }, [activeImageSource, customImage, character.Race, character.Profile, character.imageURL, raceData, profileData])
+  }, [activeImageSource, customImage, character.Race, character.Profile, character.imageURL, races, profiles])
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -388,35 +482,33 @@ export default function CharacterCreationPage() {
   }
 
   const renderSelectionPanel = useCallback(() => {
-    const selectRace = (raceName: string) => {
-      const currentRace = raceData[raceName]
-      const mods = currentRace.modificateurs || {}
+    const selectRace = (raceId: string) => {
+      const currentRace = races.find((r) => r.id === raceId)
+      if (!currentRace) return
+      const mods = currentRace.modifiers
 
-      // Calculate default height/weight based on race average
-      const avgHeight = (currentRace as any).tailleMoyenne || 175;
-      const avgWeight = (currentRace as any).poidsMoyen || 75;
+      const patch: Record<string, number> = {}
+      for (const stat of allAbilityStats) {
+        patch[stat.key] = (baseStats[stat.key] ?? 0) + (mods[stat.key] || 0)
+      }
 
       setCharacter(prev => ({
         ...prev,
-        Race: raceName,
-        FOR: baseStats.FOR + (mods.FOR || 0),
-        DEX: baseStats.DEX + (mods.DEX || 0),
-        CON: baseStats.CON + (mods.CON || 0),
-        INT: baseStats.INT + (mods.INT || 0),
-        SAG: baseStats.SAG + (mods.SAG || 0),
-        CHA: baseStats.CHA + (mods.CHA || 0),
-        Taille: avgHeight,
-        Poids: avgWeight,
+        Race: raceId,
+        ...patch,
+        Taille: currentRace.avgHeight ?? 175,
+        Poids: currentRace.avgWeight ?? 75,
       }))
       setActiveImageSource('race')
     }
 
-    const selectProfile = (profileName: string) => {
-      const currentProfile = profileData[profileName]
+    const selectProfile = (profileId: string) => {
+      const currentProfile = profiles.find((p) => p.id === profileId)
+      if (!currentProfile) return
       setCharacter(prev => ({
         ...prev,
-        Profile: profileName,
-        deVie: currentProfile.hitDie,
+        Profile: profileId,
+        deVie: currentProfile.hitDie ?? prev.deVie,
       }))
       if (activeImageSource !== 'custom') {
         setActiveImageSource('profile')
@@ -431,18 +523,18 @@ export default function CharacterCreationPage() {
           <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
             {character.Race ? (
               <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                Race: {character.Race.replace('_', ' ')}
+                {raceLabel}: {character.Race.replace('_', ' ')}
               </span>
             ) : null}
 
             {character.Profile ? (
               <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                Classe: {character.Profile}
+                {profileLabel}: {character.Profile}
               </span>
             ) : null}
 
             {!character.Race && !character.Profile && (
-              <span>Sélectionnez une race et une classe pour votre personnage</span>
+              <span>Sélectionnez {raceLabel.toLowerCase() === profileLabel.toLowerCase() ? `un(e) ${raceLabel.toLowerCase()}` : `un(e) ${raceLabel.toLowerCase()} et un(e) ${profileLabel.toLowerCase()}`} pour votre personnage</span>
             )}
           </div>
 
@@ -450,12 +542,12 @@ export default function CharacterCreationPage() {
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
               {currentTab === 'race'
-                ? Object.entries(raceData).map(([raceName, race]) => {
-                  const isSelected = character.Race === raceName
+                ? races.map((race) => {
+                  const isSelected = character.Race === race.id
                   return (
                     <div
-                      key={raceName}
-                      onClick={() => selectRace(raceName)}
+                      key={race.id}
+                      onClick={() => selectRace(race.id)}
                       className={`
                           group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                           border
@@ -470,7 +562,7 @@ export default function CharacterCreationPage() {
                         {race.image && (
                           <img
                             src={race.image}
-                            alt={raceName}
+                            alt={race.label}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         )}
@@ -480,13 +572,13 @@ export default function CharacterCreationPage() {
                       {/* Content Layer */}
                       <div className="relative flex-1 flex flex-col justify-end p-4">
                         <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
-                          {raceName.replace('_', ' ')}
+                          {race.label.replace('_', ' ')}
                         </h3>
 
                         {/* Footer with mods */}
                         <div className="flex gap-1">
-                          {Object.entries(race.modificateurs || {}).slice(0, 2).map(([k, v]) => (
-                            <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {(v as number) > 0 ? '+' : ''}{v as number}</span>
+                          {Object.entries(race.modifiers).slice(0, 2).map(([k, v]) => (
+                            <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
                           ))}
                         </div>
                       </div>
@@ -500,12 +592,12 @@ export default function CharacterCreationPage() {
                     </div>
                   )
                 })
-                : Object.entries(profileData).map(([profileName, profile]) => {
-                  const isSelected = character.Profile === profileName
+                : profiles.map((profile) => {
+                  const isSelected = character.Profile === profile.id
                   return (
                     <div
-                      key={profileName}
-                      onClick={() => selectProfile(profileName)}
+                      key={profile.id}
+                      onClick={() => selectProfile(profile.id)}
                       className={`
                           group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                           border
@@ -520,7 +612,7 @@ export default function CharacterCreationPage() {
                         {profile.image && (
                           <img
                             src={profile.image}
-                            alt={profileName}
+                            alt={profile.label}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         )}
@@ -530,11 +622,11 @@ export default function CharacterCreationPage() {
                       {/* Content Layer */}
                       <div className="relative flex-1 flex flex-col justify-end p-4">
                         <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
-                          {profileName}
+                          {profile.label}
                         </h3>
 
                         {/* Footer */}
-                        <span className="text-xs text-red-300">DV: {profile.hitDie}</span>
+                        {profile.hitDie && <span className="text-xs text-red-300">DV: {profile.hitDie}</span>}
                       </div>
 
                       {/* Selection Indicator */}
@@ -571,30 +663,43 @@ export default function CharacterCreationPage() {
             {/* Stats & Info */}
             <div className="px-6 pb-24 space-y-6">
               {/* Description */}
-              {(character.Race || character.Profile) && (
-                <div className="prose prose-invert prose-sm">
-                  {character.Race && raceData[character.Race] && (
-                    <div className="mb-4">
-                      <h4 className="text-[#c0a080] text-sm font-bold mb-1">{character.Race.replace('_', ' ')}</h4>
-                      <p className="text-zinc-400 text-xs leading-relaxed">{raceData[character.Race].description}</p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {Object.entries(raceData[character.Race].modificateurs || {}).map(([stat, mod]) => (
-                          <span key={stat} className="text-[10px] bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30 text-[#c0a080]">
-                            {stat} {(mod as number) > 0 ? '+' : ''}{mod as number}
-                          </span>
-                        ))}
+              {(character.Race || character.Profile) && (() => {
+                const selectedRace = races.find((r) => r.id === character.Race)
+                const selectedProfile = profiles.find((p) => p.id === character.Profile)
+                return (
+                  <div className="prose prose-invert prose-sm">
+                    {selectedRace && (
+                      <div className="mb-4">
+                        <h4 className="text-[#c0a080] text-sm font-bold mb-1">{selectedRace.label.replace('_', ' ')}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{selectedRace.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {Object.entries(selectedRace.modifiers).map(([stat, mod]) => (
+                            <span key={stat} className="text-[10px] bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30 text-[#c0a080]">
+                              {stat} {mod > 0 ? '+' : ''}{mod}
+                            </span>
+                          ))}
+                        </div>
+                        {selectedRace.abilities.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {selectedRace.abilities.map((ability) => (
+                              <p key={ability.id} className="text-zinc-400 text-xs leading-relaxed">
+                                <span className="text-[#c0a080] font-bold">{ability.label}</span>{ability.description ? ` : ${ability.description}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  {character.Profile && profileData[character.Profile] && (
-                    <div>
-                      <h4 className="text-[#c0a080] text-sm font-bold mb-1">{character.Profile}</h4>
-                      <p className="text-zinc-400 text-xs leading-relaxed">{profileData[character.Profile].description}</p>
-                      <p className="text-red-300 text-xs mt-2">Dé de vie: {profileData[character.Profile].hitDie}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                    {selectedProfile && (
+                      <div>
+                        <h4 className="text-[#c0a080] text-sm font-bold mb-1">{selectedProfile.label}</h4>
+                        <p className="text-zinc-400 text-xs leading-relaxed">{selectedProfile.description}</p>
+                        {selectedProfile.hitDie && <p className="text-red-300 text-xs mt-2">Dé de vie: {selectedProfile.hitDie}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
@@ -614,20 +719,36 @@ export default function CharacterCreationPage() {
         </div>
       </div>
     )
-  }, [currentTab, character.Race, character.Profile, raceData, profileData, getPreviewImage, activeImageSource, customImage, baseStats])
+  }, [currentTab, character.Race, character.Profile, races, profiles, getPreviewImage, activeImageSource, customImage, baseStats, allAbilityStats])
 
 
   const renderStatsSelection = useCallback(() => {
-    // Calculate global stats for verification
-    const totalBaseMods = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].reduce((sum, stat) => {
-      const baseVal = baseStats[stat as keyof typeof baseStats]
+    // Calculate global stats for verification (uniquement les abilities affichées comme modificateur)
+    const totalBaseMods = abilityStats.reduce((sum, stat) => {
+      if (!stat.rollUsesModifier) return sum
+      const baseVal = baseStats[stat.key] ?? 0
       return sum + calculateModifier(baseVal)
     }, 0)
 
-    const StatCard = ({ label, statKey, icon: Icon }: { label: string, statKey: string, icon: any }) => {
-      const baseVal = baseStats[statKey as keyof typeof baseStats]
-      const raceMod = (raceData[character.Race]?.modificateurs as any)?.[statKey] || 0
-      const finalVal = character[statKey as keyof typeof character] as number
+    // Regroupées selon l'organisation définie par le MJ dans l'éditeur de règles (StatDefinition.group),
+    // même regroupement que l'onglet "Tester" de l'éditeur — abilities + derived confondues, hors stats
+    // techniques (visibleToPlayers=false, ex bases de seuils cachées derrière une formule dérivée) et
+    // hors stats 'vital' (ex Blessures/Stress) : ce sont des compteurs de PARTIE, toujours à leur valeur
+    // de départ fixe à la création (0 ou une constante), jamais pertinents dans ce récapitulatif de
+    // caractéristiques — ils s'affichent normalement sur la fiche finale (widget Vitalité), pas ici.
+    const statGroupsData = groupStats(
+      gameSystem.stats.filter((s) => (s.category === 'ability' || s.category === 'derived') && s.visibleToPlayers !== false),
+      gameSystem.statGroups,
+    )
+
+    const ABILITY_ICONS: Record<string, any> = {
+      FOR: Swords, DEX: Ghost, CON: Heart, INT: Brain, SAG: BookOpen, CHA: Sparkles,
+    }
+
+    const StatCard = ({ label, statKey, icon: Icon, hasModifier }: { label: string, statKey: string, icon: any, hasModifier: boolean }) => {
+      const baseVal = baseStats[statKey] ?? 0
+      const raceMod = races.find((r) => r.id === character.Race)?.modifiers[statKey] || 0
+      const finalVal = Number(character[statKey] ?? baseVal)
       const finalMod = calculateModifier(finalVal)
 
       return (
@@ -642,12 +763,12 @@ export default function CharacterCreationPage() {
             <span className="font-serif font-bold text-zinc-200 tracking-wide">{label}</span>
           </div>
 
-          {/* Main Number (Modifier) */}
+          {/* Main Number (Modifier, si le système en définit un) */}
           <div className="relative z-10 flex flex-col items-center mb-4">
             <span className="text-4xl font-bold text-white tracking-tight flex items-center gap-1 shadow-black drop-shadow-lg">
-              {finalMod > 0 ? '+' : ''}{finalMod}
+              {hasModifier ? `${finalMod > 0 ? '+' : ''}${finalMod}` : finalVal}
             </span>
-            <span className="text-[10px] uppercase tracking-widest text-[#c0a080]">Modificateur</span>
+            <span className="text-[10px] uppercase tracking-widest text-[#c0a080]">{hasModifier ? 'Modificateur' : 'Valeur'}</span>
           </div>
 
           {/* Footer (Calculation) */}
@@ -684,109 +805,61 @@ export default function CharacterCreationPage() {
           <div className="flex flex-col items-end gap-2">
             <Button
               onClick={rollStats}
-              className="bg-[#c0a080] text-[#09090b] hover:bg-[#d0b090] border-none font-bold shadow-lg shadow-[#c0a080]/20 transition-all transform hover:scale-105 active:scale-95"
+              disabled={rollsExhausted}
+              className="bg-[#c0a080] text-[#09090b] hover:bg-[#d0b090] border-none font-bold shadow-lg shadow-[#c0a080]/20 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Dice6 className="mr-2 h-4 w-4" />
               Lancer les dés
             </Button>
+            {maxRolls != null && (
+              <span className="text-xs text-zinc-500">{rollCount}/{maxRolls} tirage{maxRolls > 1 ? 's' : ''} utilisé{rollCount > 1 ? 's' : ''}</span>
+            )}
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <StatCard label="FORCE" statKey="FOR" icon={Swords} />
-          <StatCard label="DEXTÉRITÉ" statKey="DEX" icon={Ghost} />
-          <StatCard label="CONST." statKey="CON" icon={Heart} />
-          <StatCard label="INTELL." statKey="INT" icon={Brain} />
-          <StatCard label="SAGESSE" statKey="SAG" icon={BookOpen} />
-          <StatCard label="CHARISME" statKey="CHA" icon={Sparkles} />
-        </div>
-
-        {/* Derived Stats Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Defense & Vitality */}
-          <div className="bg-[#121212] rounded-2xl border border-[#27272a] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#27272a] bg-[#18181b] flex items-center gap-2">
-              <Shield className="w-5 h-5 text-[#c0a080]" />
-              <h3 className="font-serif font-bold text-zinc-200">Défense & Vitalité</h3>
-            </div>
-            <div className="p-6 grid grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-[#18181b] rounded-xl border border-[#27272a]">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Défense</div>
-                <div className="text-2xl font-bold text-white">{character.Defense}</div>
-              </div>
-              <div className="text-center p-3 bg-[#18181b] rounded-xl border border-[#27272a]">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">PV Max</div>
-                <div className="text-2xl font-bold text-emerald-400">{character.PV}</div>
-              </div>
-              <div className="text-center p-3 bg-[#18181b] rounded-xl border border-[#27272a]">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Init</div>
-                <div className="text-2xl font-bold text-amber-400">{character.INIT}</div>
-              </div>
+        {/* Stats groupées selon l'organisation définie par le MJ dans l'éditeur de règles (StatDefinition.group) */}
+        {statGroupsData.map((group) => (
+          <div key={group.name ?? '__ungrouped__'} className="space-y-3">
+            <h3 className="text-sm font-serif font-bold text-zinc-300 uppercase tracking-wider">{group.name ?? 'Autres stats'}</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {group.stats.map((stat) => (
+                stat.category === 'ability' ? (
+                  <StatCard key={stat.key} label={(stat.shortLabel ?? stat.label).toUpperCase()} statKey={stat.key} icon={ABILITY_ICONS[stat.key] ?? Sparkles} hasModifier={!!stat.rollUsesModifier} />
+                ) : (
+                  <div key={stat.key} className="text-center p-3 bg-[#18181b] rounded-xl border border-[#27272a] flex flex-col justify-center">
+                    <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1 truncate">{stat.label}</div>
+                    <div className="text-2xl font-bold text-white">{String(displayStatValues[stat.key] ?? 0)}</div>
+                  </div>
+                )
+              ))}
             </div>
           </div>
+        ))}
 
-          {/* Combat Stats */}
-          <div className="lg:col-span-2 bg-[#121212] rounded-2xl border border-[#27272a] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#27272a] bg-[#18181b] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Crosshair className="w-5 h-5 text-[#c0a080]" />
-                <h3 className="font-serif font-bold text-zinc-200">Bonus d'Attaque & Physionomie</h3>
-              </div>
+        {/* Physionomie — méta, indépendante du système de règles */}
+        <div className="bg-[#121212] rounded-2xl border border-[#27272a] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#27272a] bg-[#18181b] flex items-center gap-2">
+            <Crosshair className="w-5 h-5 text-[#c0a080]" />
+            <h3 className="font-serif font-bold text-zinc-200">Physionomie</h3>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
+              <Label className="text-zinc-400 text-xs uppercase tracking-wider">Taille (cm)</Label>
+              <Input
+                type="number"
+                value={character.Taille}
+                onChange={(e) => setCharacter(prev => ({ ...prev, Taille: Number(e.target.value) }))}
+                className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+              />
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Attack Column */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
-                  <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                    <Swords className="w-5 h-5 text-red-400" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-zinc-500 uppercase">Contact</div>
-                    <div className="text-xl font-bold text-white">{character.Contact >= 0 ? '+' : ''}{character.Contact}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                    <Crosshair className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-zinc-500 uppercase">Distance</div>
-                    <div className="text-xl font-bold text-white">{character.Distance >= 0 ? '+' : ''}{character.Distance}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                    <Sparkles className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-zinc-500 uppercase">Magie</div>
-                    <div className="text-xl font-bold text-white">{character.Magie >= 0 ? '+' : ''}{character.Magie}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Physionomie Column */}
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
-                  <Label className="text-zinc-400 text-xs uppercase tracking-wider">Taille (cm)</Label>
-                  <Input
-                    type="number"
-                    value={character.Taille}
-                    onChange={(e) => setCharacter(prev => ({ ...prev, Taille: Number(e.target.value) }))}
-                    className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
-                  />
-                </div>
-                <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
-                  <Label className="text-zinc-400 text-xs uppercase tracking-wider">Poids (kg)</Label>
-                  <Input
-                    type="number"
-                    value={character.Poids}
-                    onChange={(e) => setCharacter(prev => ({ ...prev, Poids: Number(e.target.value) }))}
-                    className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
-                  />
-                </div>
-              </div>
+            <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
+              <Label className="text-zinc-400 text-xs uppercase tracking-wider">Poids (kg)</Label>
+              <Input
+                type="number"
+                value={character.Poids}
+                onChange={(e) => setCharacter(prev => ({ ...prev, Poids: Number(e.target.value) }))}
+                className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+              />
             </div>
           </div>
         </div>
@@ -803,8 +876,8 @@ export default function CharacterCreationPage() {
           </Button>
           <Button
             onClick={nextStep}
-            disabled={!character.Race || !character.Profile}
-            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-[#c0a080]/20' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+            disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-[#c0a080]/20' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
           >
             Suivant
             <ChevronRight className="w-4 h-4 ml-2" />
@@ -812,20 +885,22 @@ export default function CharacterCreationPage() {
         </div>
       </div>
     )
-  }, [character, baseStats, raceData])
+  }, [character, baseStats, races, abilityStats, gameSystem, hasRaceProfileContent])
 
 
   if (!userId) return <p>Loading...</p>
 
-  const tabsList = [
+  const tabsList: { id: TabId; label: string; icon: typeof User }[] = [
     { id: 'info', label: 'INFORMATIONS', icon: User },
-    { id: 'race', label: 'ESPÈCE', icon: Dna },
-    { id: 'profile', label: 'PROFIL', icon: Swords },
+    ...(hasRaceProfileContent ? [
+      { id: 'race' as TabId, label: raceLabel.toUpperCase(), icon: Dna },
+      { id: 'profile' as TabId, label: profileLabel.toUpperCase(), icon: Swords },
+    ] : []),
     { id: 'competences', label: 'COMPÉTENCES', icon: Zap },
     { id: 'stats', label: 'CARACTÉRISTIQUES', icon: Dice6 },
     { id: 'inventory', label: 'INVENTAIRE', icon: BookOpen },
     { id: 'image', label: 'PORTRAIT', icon: Images }
-  ] as const;
+  ];
 
   return (
     <div className="flex flex-col items-center min-h-screen py-8 bg-background">
@@ -877,8 +952,8 @@ export default function CharacterCreationPage() {
                     <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                     <Button
                       onClick={nextStep}
-                      disabled={!character.Race || !character.Profile}
-                      className={`font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                      disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                     >
                       Suivant <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>
@@ -889,20 +964,28 @@ export default function CharacterCreationPage() {
             {(currentTab === 'race' || currentTab === 'profile') && renderSelectionPanel()}
             {currentTab === 'competences' && (
               <div className="bg-[#09090b] border border-[#2a2a2a] rounded-2xl p-6 shadow-2xl mt-2">
-                <CompetenceCreator
-                  initialProfile={character.Profile}
-                  initialRace={character.Race}
-                  onVoiesChange={(voies, customComps) => {
-                    setCharacterVoies(voies);
-                    setCharacterCustomCompetences(customComps);
-                  }}
-                />
+                {hasSkillSystem ? (
+                  <CareerSkillPicker
+                    gameSystem={gameSystem}
+                    initialCareer={character.Profile}
+                    onSelectionChange={setCareerSkillSelection}
+                  />
+                ) : (
+                  <CompetenceCreator
+                    initialProfile={character.Profile}
+                    initialRace={character.Race}
+                    onVoiesChange={(voies, customComps) => {
+                      setCharacterVoies(voies);
+                      setCharacterCustomCompetences(customComps);
+                    }}
+                  />
+                )}
                 <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a]">
                   <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                   <Button
                     onClick={nextStep}
-                    disabled={!character.Race || !character.Profile}
-                    className={`font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                   >
                     Suivant <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>
@@ -932,8 +1015,8 @@ export default function CharacterCreationPage() {
                   <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                   <Button
                     onClick={nextStep}
-                    disabled={!character.Race || !character.Profile}
-                    className={`font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                   >
                     Suivant <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>

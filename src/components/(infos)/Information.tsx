@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
+import { useParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useGameContent } from "@/modules/game-content/useGameContent"
+import type { EquipmentDoc } from "@/modules/game-content/types"
 
-// Define types for data structure
+// Champs génériques — chaque catégorie/système peut ne renseigner qu'un sous-ensemble (ex un système
+// narratif façon Star Wars ajoute encombrement/rareté/qualités, absents des objets D&D).
 interface Item {
   nom: string;
   type?: string;
@@ -15,33 +19,48 @@ interface Item {
   DEF?: string;
   commentaires?: string;
   effet?: string;
+  [key: string]: unknown;
 }
 
 type Data = {
   [key: string]: Item[];
 }
 
+// Catégories jamais affichées dans ce marché (redondantes avec l'inventaire ou hors périmètre).
+const HIDDEN_CATEGORIES = ['potions', 'vetements', 'immobilier', 'artisanat_materiaux', 'animaux_familiers'];
+
 export default function Marketplace() {
-  const [data, setData] = useState<Data>({});
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [activeCategory, setActiveCategory] = useState<string>('armes');
 
-  // Load JSON data on component mount
-  useEffect(() => {
-    fetch('/tabs/data.json')
-      .then(response => response.json())
-      .then((data: Data) => setData(data))
-  }, [])
+  // Équipement du SYSTÈME ACTIF (Firestore, kind 'equipment' — un doc par catégorie, cf
+  // scripts/seed-game-content.mjs pour dnd-classic, ou tout système custom type Star Wars) — plus de
+  // data.json statique. roomId : [roomid] si dans une salle, sinon ?roomId=... (page /ressources
+  // ouverte hors salle via window.open depuis le panneau MJ, cf panel.tsx).
+  const params = useParams();
+  const roomIdFromRoute = (params?.roomid as string) ?? null;
+  const roomIdFromQuery = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('roomId') : null;
+  const roomId = roomIdFromRoute ?? roomIdFromQuery;
 
-  // Filter categories to exclude certain ones
-  const categories = Object.keys(data).filter(category =>
-    !['potions', 'vetements', 'immobilier', 'artisanat_materiaux', 'animaux_familiers'].includes(category)
-  );
+  const { docs: equipmentDocs, isLoading } = useGameContent<EquipmentDoc & { id: string }>('equipment');
+
+  const data: Data = useMemo(() => {
+    const result: Data = {};
+    for (const doc of equipmentDocs) {
+      result[doc.category] = (doc.items ?? []) as Item[];
+    }
+    return result;
+  }, [equipmentDocs]);
+
+  // N'affiche que les catégories qui ont réellement du contenu pour ce système — une salle sans
+  // équipement configuré ne doit montrer aucun onglet vide hérité d'un autre système.
+  const categories = useMemo(() =>
+    Object.keys(data).filter((category) => !HIDDEN_CATEGORIES.includes(category) && data[category].length > 0),
+    [data]);
 
   const filterItems = (items: Item[]): Item[] => {
     return items.filter(item =>
       Object.values(item).some(value =>
-        value?.toLowerCase().includes(searchTerm.toLowerCase())
+        typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
       )
     );
   };
@@ -119,9 +138,25 @@ export default function Marketplace() {
     ));
   };
 
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[var(--accent-brown)]" />
+      </div>
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-center px-6">
+        <p className="text-sm text-[var(--text-secondary)]">Aucun équipement n&apos;est encore configuré pour ce système de règles.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <Tabs defaultValue={categories[0]} className="w-full flex-1 min-h-0 flex flex-col" onValueChange={setActiveCategory}>
+      <Tabs defaultValue={categories[0]} className="w-full flex-1 min-h-0 flex flex-col">
         {/* ── Toolbar: Tabs + Search on one line ── */}
         <div className="shrink-0 px-4 md:px-8 pt-4 pb-4">
           <div className="flex items-center gap-3">

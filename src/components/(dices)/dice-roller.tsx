@@ -15,17 +15,9 @@ import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 import { useCharacter } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
-
-interface RollableStat {
-  key: string;
-  label: string;
-  rawValue: number;
-  hasModifier: boolean;
-}
-
-interface CharacterModifiers {
-  [key: string]: number;
-}
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { getRollableStats, applyVariablesToNotation, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, type RollableStat } from '@/lib/rules-engine';
+import type { SymbolDieDefinition } from '@/modules/game-system/types';
 
 interface FirebaseRoll {
   id: string;
@@ -44,6 +36,7 @@ interface FirebaseRoll {
   output?: string;
   persoId?: string;
   uid?: string;
+  symbolResult?: string;
 }
 
 interface DiceRollerProps {
@@ -73,62 +66,21 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const userName = isMJ ? "MJ" : (selectedCharacter?.Nomperso || "Utilisateur");
   const userAvatar = isMJ ? undefined : (selectedCharacter?.imageURLFinal || selectedCharacter?.imageURL || undefined);
 
+  const { gameSystem, tableCustomStats } = useGameSystem(roomId);
+  // Dés à symboles (ex système narratif façon Star Wars) — configurés par le MJ dans l'éditeur de
+  // règles, absents/vide = système purement numérique (comportement inchangé pour D&D/Nooblies).
+  const symbolDice = gameSystem.symbolDice ?? [];
+  const symbolDiceByKey = useMemo(() => new Map(symbolDice.map((d) => [d.key, d])), [symbolDice]);
+  const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
+
+  // rawValue inclut déjà le modificateur/valeur ET les bonus (inventaire+compétences) —
+  // délégué au moteur de règles partagé, remplace le calcul dupliqué avec application du bonus
+  // séparée dans replaceCharacteristics().
   const rollableStats = useMemo(() => {
     if (!selectedCharacter) return [];
+    return getRollableStats(gameSystem, tableCustomStats, selectedCharacter, selectedCharacter.statRollable, totalBonuses);
+  }, [selectedCharacter, gameSystem, tableCustomStats, totalBonuses]);
 
-    const defaultRollable: Record<string, boolean> = {
-      FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true,
-      Defense: false, Contact: false, Magie: false, Distance: false, INIT: false,
-    };
-    const statRollableOverrides: Record<string, boolean> = selectedCharacter.statRollable ?? {};
-
-    const builtinDefs = [
-      { key: 'FOR', label: 'FOR', hasModifier: true },
-      { key: 'DEX', label: 'DEX', hasModifier: true },
-      { key: 'CON', label: 'CON', hasModifier: true },
-      { key: 'SAG', label: 'SAG', hasModifier: true },
-      { key: 'INT', label: 'INT', hasModifier: true },
-      { key: 'CHA', label: 'CHA', hasModifier: true },
-      { key: 'Defense', label: 'Déf', hasModifier: false },
-      { key: 'Contact', label: 'Ctt', hasModifier: false },
-      { key: 'Magie', label: 'Mag', hasModifier: false },
-      { key: 'Distance', label: 'Dst', hasModifier: false },
-      { key: 'INIT', label: 'INIT', hasModifier: false },
-    ];
-
-    const rollables: RollableStat[] = builtinDefs
-      .filter((s) => (s.key in statRollableOverrides ? statRollableOverrides[s.key] : defaultRollable[s.key] ?? false))
-      .map((s) => ({
-        key: s.key,
-        label: s.label,
-        rawValue: Number(selectedCharacter[s.key as keyof typeof selectedCharacter] ?? (s.hasModifier ? 10 : 0)),
-        hasModifier: s.hasModifier,
-      }));
-
-    const customFields = (selectedCharacter.customFields as any[]) ?? [];
-    customFields
-      .filter((f) => f.isRollable && (f.type === 'number' || f.type === 'percent'))
-      .forEach((f) => {
-        rollables.push({
-          key: f.label,
-          label: f.label.length > 5 ? f.label.substring(0, 5) : f.label,
-          rawValue: Number(f.value) || 0,
-          hasModifier: !!(f.hasModifier && f.type === 'number'),
-        });
-      });
-
-    return rollables;
-  }, [selectedCharacter]);
-
-  const characterModifiers = useMemo(() => {
-    const modifiersMap: CharacterModifiers = {};
-    rollableStats.forEach((s: RollableStat) => {
-      modifiersMap[s.key] = s.rawValue;
-    });
-    return modifiersMap;
-  }, [rollableStats]);
-
-  const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -156,6 +108,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     notation: string;
     output: string;
     isBlind?: boolean;
+    symbolResult?: string;
   } | null>(null);
 
   // Scramble effect for the result display when it's "..."
@@ -192,7 +145,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         );
       }, 50);
     } else if (latestResult) {
-      setScrambledValue(latestResult.total.toString());
+      setScrambledValue(latestResult.symbolResult ?? latestResult.total.toString());
     }
     return () => clearInterval(interval);
   }, [isLoading, latestResult]);
@@ -304,6 +257,12 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         !selectedCharacterName && // ← don't close while user profile dialog is open
         !(event.target as Element).closest('#vtt-sidebar-dice') &&
         !(event.target as Element).closest('#vtt-dock-dice') &&
+        // L'icône Dés du dock (Sidebar.tsx) génère son id dynamiquement (vtt-icon-${item.id}) depuis
+        // la refonte en système Item/SortableIconButton — les deux sélecteurs ci-dessus sont un
+        // nommage residuel d'avant cette refonte et ne matchent plus rien. Sans cette exclusion, un
+        // clic sur l'icône Dés déclenche ce handler AU MOUSEDOWN (avant le onClick React qui rouvre le
+        // panneau), fermant puis rouvrant immédiatement le panneau à chaque clic sur l'icône.
+        !(event.target as Element).closest(`#vtt-icon-${SHORTCUT_ACTIONS.TAB_DICE}`) &&
         !(event.target as Element).closest('[data-dice-store-portal]') &&
         !(event.target as Element).closest('[data-custom-button]')
       ) {
@@ -317,41 +276,11 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
 
   const replaceCharacteristics = (notation: string): string => {
-    if (!rollableStats.length && !characterModifiers || Object.keys(characterModifiers).length === 0) {
-      return notation;
-    }
-
-    let processedNotation = notation;
-
-    // Build a sorted list of keys (longest first to avoid partial matches)
-    const allKeys = rollableStats.length > 0
-      ? rollableStats.map(s => s.key)
-      : Object.keys(characterModifiers);
-
-    const sortedKeys = [...allKeys].sort((a, b) => b.length - a.length);
-    const escapedKeys = sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const regex = new RegExp(`\\b(${escapedKeys.join('|')})\\b`, 'gi');
-
-    processedNotation = processedNotation.replace(regex, (match) => {
-      // Find matching stat (case-insensitive)
-      const stat = rollableStats.find(s => s.key.toLowerCase() === match.toLowerCase());
-      if (stat) {
-        let baseValue = stat.rawValue;
-        if (totalBonuses && stat.key in totalBonuses) {
-          baseValue += totalBonuses[stat.key as keyof typeof totalBonuses] || 0;
-        }
-
-        const val = stat.hasModifier
-          ? Math.floor((baseValue - 10) / 2)
-          : baseValue;
-        return val.toString();
-      }
-      // Fallback to old map
-      const raw = characterModifiers[match] ?? characterModifiers[match.toUpperCase()] ?? 0;
-      return raw.toString();
-    });
-
-    return processedNotation;
+    // rollableStats.rawValue inclut déjà le modificateur (si applicable) ET les bonus —
+    // délégué au moteur de règles partagé (même implémentation que character-variables.ts/Discord).
+    const variables: Record<string, number> = {};
+    for (const stat of rollableStats) variables[stat.key] = stat.rawValue;
+    return applyVariablesToNotation(notation, variables);
   };
 
   const parseDiceRequests = (notation: string) => {
@@ -362,6 +291,27 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
       const count = parseInt(match[1]);
       const faces = parseInt(match[2]);
       requests.push({ type: `d${faces}`, count });
+    }
+    return requests;
+  };
+
+  // Dés à symboles : notation "N<key>" (ex "2ability", "1boost") — jamais "NdM", pour ne jamais entrer
+  // en collision avec un dé numérique classique (un d6 "Setback" n'est pas un d6 D&D). Regex construite
+  // dynamiquement à partir des dés réellement configurés par le MJ (aucun nom en dur).
+  const buildSymbolDiceRegex = (): RegExp | null => {
+    if (symbolDice.length === 0) return null;
+    const escapedKeys = symbolDice.map((d) => d.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp(`(\\d+)(${escapedKeys.join('|')})\\b`, 'gi');
+  };
+
+  const parseSymbolDiceRequests = (notation: string): { die: SymbolDieDefinition, count: number }[] => {
+    const regex = buildSymbolDiceRegex();
+    if (!regex) return [];
+    const requests: { die: SymbolDieDefinition, count: number }[] = [];
+    let match;
+    while ((match = regex.exec(notation)) !== null) {
+      const die = symbolDiceByKey.get(match[2].toLowerCase());
+      if (die) requests.push({ die, count: parseInt(match[1]) });
     }
     return requests;
   };
@@ -512,6 +462,36 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     };
   };
 
+  // Jet de dés à SYMBOLES (chemin totalement séparé du calcul numérique existant, jamais de eval()) —
+  // tire chaque groupe "N<key>" présent dans la notation, agrège TOUS les dés narratifs de la notation
+  // ensemble (ex "1boost + 2ability" = un seul résultat agrégé, pas un par groupe), puis délègue tout
+  // le calcul (annulations, nets...) au moteur de formules du MJ via resolveSymbolDiceRoll — aucun nom
+  // de symbole connu ici, "succes"/"echec" n'existent que comme StatDefinition définies par le MJ.
+  const rollSymbolDiceNotation = (symbolRequests: { die: SymbolDieDefinition, count: number }[]) => {
+    const allFaces: { type: string, value: number, faceValues: Record<string, number> }[] = [];
+    for (const { die, count } of symbolRequests) {
+      for (let i = 0; i < count; i++) {
+        const roll = rollSymbolDie(die);
+        allFaces.push({ type: die.key, value: roll.value, faceValues: roll.face?.values ?? {} });
+      }
+    }
+    const resolution = resolveSymbolDiceRoll(gameSystem, allFaces.map((f) => ({ values: f.faceValues })));
+    const symbolResult = formatSymbolDiceResult(gameSystem, resolution);
+    const detailsByDie = new Map<string, number[]>();
+    allFaces.forEach((f) => {
+      if (!detailsByDie.has(f.type)) detailsByDie.set(f.type, []);
+      detailsByDie.get(f.type)!.push(f.value);
+    });
+    const detailString = symbolRequests
+      .map(({ die }) => `${die.label || die.key} [${(detailsByDie.get(die.key) ?? []).join(', ')}]`)
+      .join(', ');
+    return {
+      symbolResult,
+      physicalResults: allFaces.map((f) => ({ type: f.type, value: f.value })),
+      output: `${detailString} = ${symbolResult}`,
+    };
+  };
+
   const handleRoll = async (notationOverride?: string) => {
     const notation = (notationOverride ?? input).trim();
     if (!notation) return;
@@ -524,17 +504,27 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     setIsLoading(true);
     try {
       const processedNotation = replaceCharacteristics(notation);
-      const requests = parseDiceRequests(processedNotation);
+      const symbolRequests = parseSymbolDiceRequests(processedNotation);
+      const requests = symbolRequests.length === 0 ? parseDiceRequests(processedNotation) : [];
 
       let physicalResults: { type: string, value: number }[] = [];
       let total = 0;
       let output = "";
+      let symbolResult: string | undefined;
 
-      // Calculate
-      physicalResults = await perform3DRoll(requests);
-      const calculated = calculateFinalResult(processedNotation, physicalResults);
-      total = calculated.total;
-      output = calculated.output;
+      if (symbolRequests.length > 0) {
+        // Dés à symboles : jamais mélangés au calcul arithmétique numérique existant (pas de eval()).
+        const rolled = rollSymbolDiceNotation(symbolRequests);
+        physicalResults = rolled.physicalResults;
+        output = rolled.output;
+        symbolResult = rolled.symbolResult;
+      } else {
+        // Calculate
+        physicalResults = await perform3DRoll(requests);
+        const calculated = calculateFinalResult(processedNotation, physicalResults);
+        total = calculated.total;
+        output = calculated.output;
+      }
 
       // Notifications
       if (isBlind) {
@@ -563,6 +553,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
           total: total,
           userName,
           ...(userAvatar ? { userAvatar } : {}),
+          ...(symbolResult ? { symbolResult } : {}),
           type: show3DAnimations ? "Dice Roller" : "Dice Roller/API",
           timestamp: Date.now(),
           notation: notation,
@@ -644,7 +635,8 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         total: total,
         notation: notation,
         output: output,
-        isBlind: isBlind
+        isBlind: isBlind,
+        symbolResult,
       });
 
       setInput('');
@@ -794,11 +786,15 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     setInput(prev => {
       // 1. Check if we are adding a dice notated as "1dX"
       const diceMatch = str.match(/^1d(\d+)$/);
+      // 1bis. Ou un dé à symboles, notation "1<key>" (ex "1boost") — même logique d'incrément,
+      // mais sur le nom de dé texte plutôt que sur un nombre de faces.
+      const symbolDiceMatch = !diceMatch ? str.match(/^1([a-z_]+)$/i) : null;
+
       if (diceMatch) {
         const faces = diceMatch[1];
         const diceType = `d${faces}`;
 
-        // Regex to find the LAST occurrence of this die type at the end of the string, 
+        // Regex to find the LAST occurrence of this die type at the end of the string,
         // possibly followed by whitespace.
         // We look for patterns like "1d6", "2d6", "10d6"
         // The regex captures (count)d(faces)
@@ -811,6 +807,14 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
           const newCount = currentCount + 1;
           // Replace the last occurrence with the new count
           return prev.replace(lastDiceRegex, `${newCount}d${faces}`);
+        }
+      } else if (symbolDiceMatch) {
+        const dieKey = symbolDiceMatch[1];
+        const lastDiceRegex = new RegExp(`(\\d+)${dieKey}\\s*$`, 'i');
+        const match = prev.match(lastDiceRegex);
+        if (match) {
+          const newCount = parseInt(match[1]) + 1;
+          return prev.replace(lastDiceRegex, `${newCount}${dieKey}`);
         }
       }
 
@@ -914,7 +918,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                         {!latestResult?.isBlind && (
                           <span className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{userName} a lancé</span>
                         )}
-                        <div className={`text-7xl font-bold font-serif leading-none ${latestResult?.isBlind ? 'blur-md opacity-40' : ''}`} style={{ color: 'var(--accent-brown)' }}>
+                        <div className={`font-bold font-serif leading-tight ${latestResult?.symbolResult ? 'text-3xl px-4' : 'text-7xl'} ${latestResult?.isBlind ? 'blur-md opacity-40' : ''}`} style={{ color: 'var(--accent-brown)' }}>
                           {scrambledValue}
                         </div>
                         {!isLoading && latestResult && !latestResult.isBlind && (
@@ -1042,8 +1046,8 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
               <div className="w-full flex items-stretch">
 
                 {/* Left Sidebar - Dice (Always visible) */}
-                <div className="w-[120px] flex-shrink-0 p-2" style={{ borderRight: '1px solid var(--border-color)' }}>
-                  <div className="grid grid-cols-2 gap-2 h-full content-center">
+                <div className="w-[120px] flex-shrink-0 p-2 space-y-2" style={{ borderRight: '1px solid var(--border-color)' }}>
+                  <div className="grid grid-cols-2 gap-2">
                     {[4, 6, 8, 10, 12, 20].map((d) => (
                       <button
                         key={`d${d}`}
@@ -1058,6 +1062,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                       </button>
                     ))}
                   </div>
+
                 </div>
 
                 {/* Right Content */}
@@ -1203,7 +1208,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
                           {/* Blur effect container for Blind Rolls */}
                           <div className={`flex items-baseline gap-2 w-full overflow-hidden transition-all duration-500 ${latestResult?.isBlind ? 'blur-md opacity-40 select-none' : ''}`}>
-                            <span className="text-3xl font-bold font-mono tabular-nums tracking-tight flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
+                            <span className={`font-bold font-mono tracking-tight ${latestResult?.symbolResult ? 'text-lg shrink' : 'text-3xl tabular-nums flex-shrink-0'}`} style={{ color: 'var(--text-primary)' }}>
                               {scrambledValue}
                             </span>
 
@@ -1264,9 +1269,9 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                         {!isMJ && rollableStats.length > 0 && (
                           <div id="vtt-dice-modifiers" className="flex flex-wrap gap-1.5">
                             {rollableStats.map(stat => {
-                              const effectiveValue = stat.hasModifier
-                                ? Math.floor((stat.rawValue - 10) / 2)
-                                : stat.rawValue;
+                              // stat.rawValue est déjà la valeur finale (modificateur+bonus, ou valeur+bonus) —
+                              // calculée par le moteur de règles partagé (getRollableStats), à ne pas retraiter ici.
+                              const effectiveValue = stat.rawValue;
                               const sign = effectiveValue >= 0 ? '+' : '';
                               return (
                                 <button
@@ -1276,7 +1281,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                                   style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
                                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
                                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
-                                  title={`${stat.label}: ${sign}${effectiveValue}${stat.hasModifier ? ` (base ${stat.rawValue})` : ''}`}
+                                  title={`${stat.label}: ${sign}${effectiveValue}`}
                                 >
                                   <span className="uppercase tracking-wider">{stat.label}</span>
                                   <span className="opacity-60 text-[9px]">{sign}{effectiveValue}</span>

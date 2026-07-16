@@ -425,7 +425,7 @@ export default function CharacterSelection() {
                 className="flex flex-col items-center gap-3 group"
               >
                 <a
-                  href="/creation"
+                  href={user?.roomId ? `/creation?roomId=${user.roomId}` : '/creation'}
                   aria-label="Créer un nouveau personnage"
                   className={cn(
                     "relative w-[140px] md:w-[160px] [aspect-ratio:17/21] rounded-[24px]",
