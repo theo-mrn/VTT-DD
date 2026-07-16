@@ -7,7 +7,11 @@
 // Chaque doc porte un champ `kind` discriminant, requêtable par where('kind','==',...).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ContentKind = 'path' | 'bestiary' | 'bestiaryIndex' | 'equipment' | 'itemDescriptions' | 'location';
+import type { TalentNode } from '@/lib/rules-engine/talent-tree';
+
+export type ContentKind = 'path' | 'bestiary' | 'bestiaryIndex' | 'equipment' | 'itemDescriptions' | 'location' | 'specialization';
+
+export type { TalentNode };
 
 interface ContentDocBase {
   kind: ContentKind;
@@ -84,4 +88,18 @@ export interface LocationDoc extends ContentDocBase {
   values: Record<string, string>;
 }
 
-export type ContentDoc = PathDoc | BestiaryChunkDoc | BestiaryIndexDoc | EquipmentDoc | ItemDescriptionsDoc | LocationDoc;
+/** Une Spécialisation (ex système narratif type EotE) — domaine d'expertise donnant accès à un arbre de
+ *  talents exclusif + 4 compétences ciblées. id du doc = slug libre (généré côté UI). */
+export interface SpecializationDoc extends ContentDocBase {
+  kind: 'specialization';
+  description?: string;
+  image?: string;
+  /** IDs des ProfileDefinition (Carrières) donnant accès à cette spécialisation SANS le surcoût XP
+   *  hors-carrière (cf specializationPurchaseCost). Vide = accessible à toutes les carrières au même coût. */
+  careerIds: string[];
+  /** Les 4 compétences de carrière ciblées par cette spécialisation (clés SkillDefinition.key). */
+  grantedSkillKeys: string[];
+  talents: TalentNode[];
+}
+
+export type ContentDoc = PathDoc | BestiaryChunkDoc | BestiaryIndexDoc | EquipmentDoc | ItemDescriptionsDoc | LocationDoc | SpecializationDoc;

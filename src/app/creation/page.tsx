@@ -17,10 +17,12 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import InventoryManagement from '@/components/(inventaire)/inventaire'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
+import CareerSkillPicker, { type CareerSkillSelection } from '@/components/(competences)/CareerSkillPicker'
 import { toast } from 'sonner'
 import { rollCharacterStats, statsToDefaults, groupStats } from '@/lib/rules-engine'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
+import { stripUndefinedDeep } from '@/modules/game-system/transfer'
 
 
 
@@ -117,9 +119,13 @@ export default function CharacterCreationPage() {
   const [customImage, setCustomImage] = useState<string>('')
   const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'custom'>('custom')
 
-  // Competencies State
+  // Competencies State (dnd-classic — Voies/CompetenceCreator)
   const [characterVoies, setCharacterVoies] = useState<Voie[]>([])
   const [characterCustomCompetences, setCharacterCustomCompetences] = useState<CustomCompetence[]>([])
+  // Compétences façon système narratif type EotE (gameSystem.skills non vide) — coexiste avec le
+  // système ci-dessus, jamais les deux actifs en même temps pour un même système.
+  const [careerSkillSelection, setCareerSkillSelection] = useState<CareerSkillSelection | null>(null)
+  const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0
 
   const calculateModifier = (value: number) => Math.floor((value - 10) / 2)
 
@@ -238,17 +244,33 @@ export default function CharacterCreationPage() {
       // (Height/Weight now managed in state)
 
 
-      // Prepare Voies data
+      // Prepare Voies data (dnd-classic uniquement — Voies/CompetenceCreator)
       const voiesData: Record<string, any> = {};
-      characterVoies.forEach((voie, index) => {
-        voiesData[`Voie${index + 1}`] = voie.fichier;
-        voiesData[`v${index + 1}`] = 0; // Initialize ranks to 0
-      });
+      if (!hasSkillSystem) {
+        characterVoies.forEach((voie, index) => {
+          voiesData[`Voie${index + 1}`] = voie.fichier;
+          voiesData[`v${index + 1}`] = 0; // Initialize ranks to 0
+        });
+      }
+
+      // Compétences façon système narratif type EotE (gameSystem.skills non vide) — career/skillRanks
+      // issus des 6 rangs gratuits (4 carrière + 2 spécialisation), xp = XP de départ configuré par le MJ.
+      const skillSystemData: Record<string, any> = {};
+      if (hasSkillSystem && careerSkillSelection) {
+        skillSystemData.career = careerSkillSelection.career;
+        skillSystemData.careerSkillChoices = careerSkillSelection.careerSkillChoices;
+        skillSystemData.specializations = careerSkillSelection.specializations;
+        skillSystemData.specializationSkillChoices = careerSkillSelection.specializationSkillChoices;
+        skillSystemData.skillRanks = careerSkillSelection.skillRanks;
+        skillSystemData.xp = gameSystem.startingXp ?? 0;
+        skillSystemData.xpSpent = 0;
+      }
 
       // Save character data to Firestore with additional fields
-      const characterData = {
+      const characterData = stripUndefinedDeep({
         ...character,
         ...voiesData, // Add voies
+        ...skillSystemData,
         imageURL,
         type: 'joueurs',
         visibilityRadius: 150,
@@ -258,7 +280,7 @@ export default function CharacterCreationPage() {
         // Taille & Poids already in character object, but ensuring they are numbers
         Taille: Number(character.Taille),
         Poids: Number(character.Poids)
-      }
+      })
 
       await addDoc(collection(db, `users/${userId}/characters`), characterData)
 
@@ -862,14 +884,22 @@ export default function CharacterCreationPage() {
             {(currentTab === 'race' || currentTab === 'profile') && renderSelectionPanel()}
             {currentTab === 'competences' && (
               <div className="bg-[#09090b] border border-[#2a2a2a] rounded-2xl p-6 shadow-2xl mt-2">
-                <CompetenceCreator
-                  initialProfile={character.Profile}
-                  initialRace={character.Race}
-                  onVoiesChange={(voies, customComps) => {
-                    setCharacterVoies(voies);
-                    setCharacterCustomCompetences(customComps);
-                  }}
-                />
+                {hasSkillSystem ? (
+                  <CareerSkillPicker
+                    gameSystem={gameSystem}
+                    initialCareer={character.Profile}
+                    onSelectionChange={setCareerSkillSelection}
+                  />
+                ) : (
+                  <CompetenceCreator
+                    initialProfile={character.Profile}
+                    initialRace={character.Race}
+                    onVoiesChange={(voies, customComps) => {
+                      setCharacterVoies(voies);
+                      setCharacterCustomCompetences(customComps);
+                    }}
+                  />
+                )}
                 <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a]">
                   <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                   <Button

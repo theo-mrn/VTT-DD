@@ -1,10 +1,12 @@
 import type {
   CharacterCreationRule,
+  DicePoolUpgradeRule,
   FormulaNode,
   GameRuleEntry,
   LocationFieldDefinition,
   ProfileDefinition,
   RaceDefinition,
+  SkillDefinition,
   StatDefinition,
   SymbolDieDefinition,
 } from './types';
@@ -39,6 +41,10 @@ export interface GameSystemExportData {
   rules: GameRuleEntry[];
   locationLabel?: string;
   locationFields?: LocationFieldDefinition[];
+  skills: SkillDefinition[];
+  skillLabel?: string;
+  startingXp?: number;
+  diceUpgradeRule?: DicePoolUpgradeRule;
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -63,6 +69,10 @@ export interface GameSystemExportSource {
   rules?: GameRuleEntry[];
   locationLabel?: string;
   locationFields?: LocationFieldDefinition[];
+  skills?: SkillDefinition[];
+  skillLabel?: string;
+  startingXp?: number;
+  diceUpgradeRule?: DicePoolUpgradeRule;
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -81,6 +91,7 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
     groupEntityStats: source.groupEntityStats ?? [],
     symbolDice: source.symbolDice ?? [],
     rules: source.rules ?? [],
+    skills: source.skills ?? [],
   };
   if (source.creation != null) result.creation = source.creation;
   if (source.combatDefenseKey != null) result.combatDefenseKey = source.combatDefenseKey;
@@ -92,6 +103,9 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.groupEntityCreation != null) result.groupEntityCreation = source.groupEntityCreation;
   if (source.locationLabel != null) result.locationLabel = source.locationLabel;
   if (source.locationFields != null) result.locationFields = source.locationFields;
+  if (source.skillLabel != null) result.skillLabel = source.skillLabel;
+  if (source.startingXp != null) result.startingXp = source.startingXp;
+  if (source.diceUpgradeRule != null) result.diceUpgradeRule = source.diceUpgradeRule;
   return result;
 }
 
@@ -139,6 +153,12 @@ function isRaceDefinition(v: unknown): v is RaceDefinition {
   return typeof r.id === 'string' && typeof r.label === 'string'
     && !!r.modifiers && typeof r.modifiers === 'object' && !Array.isArray(r.modifiers)
     && Array.isArray(r.abilities);
+}
+
+function isSkillDefinition(v: unknown): v is SkillDefinition {
+  if (!v || typeof v !== 'object') return false;
+  const s = v as Record<string, unknown>;
+  return typeof s.key === 'string' && typeof s.label === 'string' && typeof s.linkedStatKey === 'string';
 }
 
 export interface RacePackExportData {
@@ -197,6 +217,7 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
     groupEntityStats: Array.isArray(json.groupEntityStats) ? json.groupEntityStats : [],
     symbolDice: Array.isArray(json.symbolDice) ? json.symbolDice : [],
     rules: Array.isArray(json.rules) ? json.rules : [],
+    skills: Array.isArray(json.skills) ? json.skills.filter(isSkillDefinition) : [],
   };
   // Champs optionnels : ajoutés seulement s'ils sont réellement présents dans le fichier — jamais
   // écrits comme `undefined` explicite (Firestore rejette toute clé dont la valeur est undefined).
@@ -210,5 +231,8 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (json.groupEntityCreation != null) result.groupEntityCreation = json.groupEntityCreation;
   if (typeof json.locationLabel === 'string') result.locationLabel = json.locationLabel;
   if (Array.isArray(json.locationFields)) result.locationFields = json.locationFields;
+  if (typeof json.skillLabel === 'string') result.skillLabel = json.skillLabel;
+  if (typeof json.startingXp === 'number') result.startingXp = json.startingXp;
+  if (json.diceUpgradeRule != null) result.diceUpgradeRule = json.diceUpgradeRule;
   return result;
 }

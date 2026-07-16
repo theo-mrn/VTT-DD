@@ -169,6 +169,27 @@ export interface GameSystemDefinition {
    *  elles-mêmes vivent en contenu Firestore (kind 'location', cf game-content/types.ts), pas ici — même
    *  logique que "gros contenu → sous-collection" pour l'équipement/le bestiaire. */
   locationFields?: LocationFieldDefinition[];
+  /** Compétences configurées par le MJ (ex Athlétisme, Discrétion, Astrogation) — chacune liée à une
+   *  Caractéristique de `stats`. Donnée de RÈGLES (comme `stats`), pas narrative : jamais superposée par
+   *  narrativeOverlay() pour un système builtin. Absent/vide = pas de système de compétences à rangs pour
+   *  cette table (comportement inchangé, ex dnd-classic qui garde son propre système de Voies). */
+  skills?: SkillDefinition[];
+  /** Nom d'affichage libre pour la catégorie "compétences" (ex "Compétences", "Talents actifs").
+   *  Absent = "Compétences" (défaut). */
+  skillLabel?: string;
+  /** Points d'expérience donnés à un personnage fraîchement créé, à dépenser ensuite via la fiche
+   *  (achat de rangs de compétence, de talents, de nouvelles spécialisations) — constante simple éditée
+   *  par le MJ, pas une formule (contrairement à la plupart des autres valeurs du moteur, une valeur de
+   *  départ fixe suffit ici). Absent = 0. */
+  startingXp?: number;
+  /** Règle générique de composition d'un pool de dés à partir de DEUX valeurs numériques quelconques
+   *  (ex Caractéristique liée vs rang de Compétence) : max(a,b) = nombre total de dés de base, min(a,b) =
+   *  combien de ces dés de base sont upgradés vers le dé "supérieur". Ne connaît ni Caractéristique ni
+   *  Compétence — réutilisable par tout futur système ayant une règle de composition de pool similaire.
+   *  Référence deux SymbolDieDefinition.key déjà définis par le MJ (ex baseDiceKey='ability',
+   *  upgradedDiceKey='proficiency') — aucun nom de dé codé en dur. Absent = pas de mécanisme de pool
+   *  dérivé activé (comportement inchangé : jets numériques classiques ou dés à symboles à nombre fixe). */
+  diceUpgradeRule?: DicePoolUpgradeRule;
 }
 
 export interface GameRuleEntry {
@@ -180,6 +201,26 @@ export interface LocationFieldDefinition {
   /** Identifiant stable, clé de stockage dans LocationDoc.values (généré côté UI, ex crypto.randomUUID()). */
   key: string;
   label: string;
+}
+
+export interface DicePoolUpgradeRule {
+  baseDiceKey: string;
+  upgradedDiceKey: string;
+}
+
+export interface SkillDefinition {
+  /** Identifiant stable, clé de stockage (character.skillRanks[key], ProfileDefinition.careerSkillKeys,
+   *  SpecializationDoc.grantedSkillKeys). Ne doit pas changer après publication. */
+  key: string;
+  label: string;
+  /** Clé de la StatDefinition (en pratique category='ability') à laquelle cette compétence est liée —
+   *  ex Athlétisme -> clé de la stat Vigueur. Référence libre, non validée à la structure (comme
+   *  combatDefenseKey) : une clé orpheline dégrade proprement plutôt que de bloquer. */
+  linkedStatKey: string;
+  /** Regroupement visuel optionnel dans l'éditeur MJ et la fiche perso (ex "Combat", "Social",
+   *  "Connaissance") — indépendant de linkedStatKey, même logique que StatDefinition.group. */
+  group?: string;
+  order?: number;
 }
 
 // ─── Symbol dice (dés narratifs à symboles) ──────────────────────────
@@ -236,6 +277,11 @@ export interface ProfileDefinition {
   /** Notation de dé texte (ex "d8", "d12") — réutilisée telle quelle par le mécanisme diceField déjà
    *  existant (ex PV_Max = 1 + mod(CON) + diceField:deVie), pas de nouveau mécanisme de dé. */
   hitDie?: string;
+  /** Les compétences "de carrière" de ce Profil (ex 8 en système façon EotE, clés SkillDefinition.key) —
+   *  coûtent moins cher à améliorer avec l'XP qu'une compétence hors-carrière (cf skillUpgradeCost dans
+   *  rules-engine/skills.ts). Absent/vide = pas de notion de carrière pour ce profil (comportement
+   *  dnd-classic inchangé, hitDie reste la seule donnée mécanique utile dans ce cas). */
+  careerSkillKeys?: string[];
 }
 
 /** Un module de type 'game-system' fournit gameSystem en plus des champs ModuleDefinition standards. */

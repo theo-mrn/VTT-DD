@@ -1,7 +1,7 @@
 import { buildRoomExportBundle, parseRoomExportBundle, downloadRoomExportBundle, type RoomExportBundleSource } from '../transfer';
 import type { StatDefinition } from '@/modules/game-system/types';
 import type { CharacterExportData } from '@/utils/characterTransfer';
-import type { ContentDoc } from '@/modules/game-content/types';
+import type { ContentDoc, SpecializationDoc } from '@/modules/game-content/types';
 
 function statDef(key: string): StatDefinition {
   return { key, label: key, category: 'ability', dataType: 'number', origin: 'module' };
@@ -21,6 +21,51 @@ const characters: CharacterExportData[] = [
 ];
 const content: ContentDoc[] = [
   { kind: 'equipment', name: 'armes', category: 'armes', items: [{ nom: 'Pistolet blaster', prix: '400' }] },
+];
+
+// Vérification bout-en-bout Phase 8 : un système EotE-like complet (skills + diceUpgradeRule +
+// spécialisation avec grille de talents) + un personnage ayant progressé (career/skillRanks/xp/
+// unlockedTalents) survit à l'aller-retour export -> JSON -> import.
+const eoteGameSystemSource = {
+  name: 'Système narratif',
+  description: 'desc',
+  stats: [statDef('Agilite')],
+  skills: [{ key: 'discretion', label: 'Discrétion', linkedStatKey: 'Agilite' }],
+  skillLabel: 'Compétences',
+  startingXp: 110,
+  diceUpgradeRule: { baseDiceKey: 'ability', upgradedDiceKey: 'proficiency' },
+  profiles: [{ id: 'contrebandier', label: 'Contrebandier', careerSkillKeys: ['discretion'] }],
+};
+const specializationDoc: SpecializationDoc = {
+  kind: 'specialization',
+  name: 'Pilote',
+  careerIds: ['contrebandier'],
+  grantedSkillKeys: ['discretion'],
+  talents: [
+    { id: 't1', x: 0, y: 0, title: 'Sang-froid', xpCost: 5, prerequisiteIds: [] },
+    { id: 't2', x: 1, y: 0, title: 'Réflexes', xpCost: 10, prerequisiteIds: ['t1'], maxRank: 3 },
+  ],
+};
+const eoteCharacters: CharacterExportData[] = [
+  {
+    exportVersion: 1,
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    character: {
+      Nomperso: 'Han',
+      Profile: 'contrebandier',
+      career: 'contrebandier',
+      careerSkillChoices: ['discretion'],
+      specializations: ['spec-pilote'],
+      specializationSkillChoices: { 'spec-pilote': ['discretion'] },
+      skillRanks: { discretion: 2 },
+      xp: 85,
+      xpSpent: 25,
+      unlockedTalents: { 'spec-pilote': { t1: 1 } },
+    } as unknown as CharacterExportData['character'],
+    customCompetences: [],
+    inventory: [],
+    bonuses: [],
+  },
 ];
 
 describe('buildRoomExportBundle / parseRoomExportBundle — round-trip', () => {
@@ -51,6 +96,35 @@ describe('buildRoomExportBundle / parseRoomExportBundle — round-trip', () => {
     expect(parsed.groupEntities).toEqual(groupEntities);
     expect(parsed.characters).toEqual(characters);
     expect(parsed.content).toEqual(content);
+  });
+
+  test('Phase 8 bout-en-bout : système EotE-like (skills/diceUpgradeRule/careerSkillKeys) + '
+    + 'spécialisation avec grille de talents + personnage ayant progressé (career/skillRanks/xp/'
+    + 'unlockedTalents) survivent tous à l\'aller-retour export -> JSON -> import', () => {
+    const source: RoomExportBundleSource = {
+      gameSystem: eoteGameSystemSource,
+      characters: eoteCharacters,
+      content: [specializationDoc],
+    };
+    const bundle = buildRoomExportBundle(source);
+    const raw = JSON.stringify(bundle);
+    const parsed = parseRoomExportBundle(raw);
+
+    expect(parsed.gameSystem?.skills).toEqual(eoteGameSystemSource.skills);
+    expect(parsed.gameSystem?.skillLabel).toBe('Compétences');
+    expect(parsed.gameSystem?.startingXp).toBe(110);
+    expect(parsed.gameSystem?.diceUpgradeRule).toEqual(eoteGameSystemSource.diceUpgradeRule);
+    expect(parsed.gameSystem?.profiles[0].careerSkillKeys).toEqual(['discretion']);
+
+    expect(parsed.content).toEqual([specializationDoc]);
+    const parsedSpec = parsed.content?.[0] as SpecializationDoc;
+    expect(parsedSpec.talents).toEqual(specializationDoc.talents);
+
+    const parsedCharacter = parsed.characters?.[0].character as unknown as Record<string, unknown>;
+    expect(parsedCharacter.career).toBe('contrebandier');
+    expect(parsedCharacter.skillRanks).toEqual({ discretion: 2 });
+    expect(parsedCharacter.xp).toBe(85);
+    expect(parsedCharacter.unlockedTalents).toEqual({ 'spec-pilote': { t1: 1 } });
   });
 
   test('ignore un doc de content malformé (kind inconnu ou name manquant) plutôt que de planter', () => {

@@ -5,8 +5,9 @@ import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, 
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition } from '@/modules/game-system/types';
+import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition, SkillDefinition } from '@/modules/game-system/types';
 import type { LocationDoc } from '@/modules/game-content/types';
+import { useSpecializations, SpecializationsOverviewPanel, SpecializationDetail } from './SpecializationsPanel';
 import { FormulaEditor } from './FormulaEditor';
 import { findRollFormulaCycle, rollCharacterStats, groupStats } from '@/lib/rules-engine';
 import { buildGameSystemExport, downloadGameSystemExport, parseGameSystemExport, isRacePackExport, parseRacePackExport, stripUndefinedDeep } from '@/modules/game-system/transfer';
@@ -83,6 +84,7 @@ export function emptyGameSystem(systemId: string, name: string): Draft {
     statGroups: [],
     races: [],
     profiles: [],
+    skills: [],
   };
 }
 
@@ -356,7 +358,11 @@ type SelectionId =
   | { kind: 'symbolDie'; key: string }
   | { kind: 'rules' }
   | { kind: 'locations' }
-  | { kind: 'location'; id: string };
+  | { kind: 'location'; id: string }
+  | { kind: 'skills' }
+  | { kind: 'skill'; key: string }
+  | { kind: 'specializations' }
+  | { kind: 'specialization'; id: string };
 
 export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft: Draft; contentPath?: string; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   const [local, setLocal] = useState<Draft>(draft);
@@ -477,6 +483,24 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
   };
   const selectedSymbolDie = selection.kind === 'symbolDie' ? symbolDice.find((d) => d.key === selection.key) : undefined;
 
+  // ── Compétences (ex Discrétion, Mécanique, Astrogation — façon système narratif type EotE) ──
+  // Chacune liée à une Caractéristique de `stats` (SkillDefinition.linkedStatKey). Donnée de RÈGLES,
+  // vit dans le Draft comme stats/races — pas de sous-collection Firestore séparée (contrairement aux
+  // Spécialisations, plus volumineuses avec leur grille de talents).
+  const skills = local.skills ?? [];
+  const addSkill = () => {
+    const skill: SkillDefinition = { key: newStatKey(skills.map((s) => s.key)), label: '', linkedStatKey: '' };
+    save({ ...local, skills: [...skills, skill] });
+    setSelection({ kind: 'skill', key: skill.key });
+  };
+  const updateSkill = (key: string, patch: Partial<SkillDefinition>) =>
+    save({ ...local, skills: skills.map((s) => (s.key === key ? { ...s, ...patch } : s)) });
+  const removeSkill = (key: string) => {
+    save({ ...local, skills: skills.filter((s) => s.key !== key) });
+    if (selection.kind === 'skill' && selection.key === key) setSelection({ kind: 'skills' });
+  };
+  const selectedSkill = selection.kind === 'skill' ? skills.find((s) => s.key === selection.key) : undefined;
+
   // ── Lieux (ex Planète, Ville — nom libre défini par le MJ, façon narrative façon Star Wars) ──
   // Le SCHÉMA (locationLabel + champs additionnels) vit dans le Draft comme races/rules. Les INSTANCES
   // (chaque lieu) vivent en contenu Firestore (kind 'location', cf game-content/types.ts) — même
@@ -515,6 +539,19 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
     if (selection.kind === 'location' && selection.id === id) setSelection({ kind: 'locations' });
   };
   const selectedLocation = selection.kind === 'location' ? locations.find((l) => l.id === selection.id) : undefined;
+
+  // ── Spécialisations (ex système narratif type EotE) — schéma ET instances vivent en contenu
+  //    Firestore (kind 'specialization', gros contenu = grille de talents), aucune donnée dans ce Draft. ──
+  const { specializations, addSpecialization, updateSpecialization, removeSpecialization } = useSpecializations(contentPath);
+  const addSpecializationAndSelect = async () => {
+    const id = await addSpecialization();
+    if (id) setSelection({ kind: 'specialization', id });
+  };
+  const removeSpecializationAndDeselect = (id: string) => {
+    removeSpecialization(id);
+    if (selection.kind === 'specialization' && selection.id === id) setSelection({ kind: 'specializations' });
+  };
+  const selectedSpecialization = selection.kind === 'specialization' ? specializations.find((s) => s.id === selection.id) : undefined;
 
   const handleExport = () => {
     const exportData = buildGameSystemExport(local);
@@ -567,6 +604,12 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
           groupEntityCreation: imported.groupEntityCreation,
           symbolDice: imported.symbolDice,
           rules: imported.rules,
+          locationLabel: imported.locationLabel,
+          locationFields: imported.locationFields,
+          skills: imported.skills,
+          skillLabel: imported.skillLabel,
+          startingXp: imported.startingXp,
+          diceUpgradeRule: imported.diceUpgradeRule,
         });
         setSelection({ kind: 'general' });
         toast.success('Système importé.');
@@ -612,6 +655,8 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
           <NavRow label="Personnages" active={selection.kind === 'characters'} onClick={() => setSelection({ kind: 'characters' })} />
           <NavRow label={groupEntityLabel} active={selection.kind === 'groupEntity'} onClick={() => setSelection({ kind: 'groupEntity' })} />
           <NavRow label="Dés à symboles" active={selection.kind === 'symbolDice'} onClick={() => setSelection({ kind: 'symbolDice' })} />
+          <NavRow label={local.skillLabel || 'Compétences'} active={selection.kind === 'skills'} onClick={() => setSelection({ kind: 'skills' })} />
+          <NavRow label="Spécialisations" active={selection.kind === 'specializations'} onClick={() => setSelection({ kind: 'specializations' })} />
           <NavRow label="Glossaire" active={selection.kind === 'rules'} onClick={() => setSelection({ kind: 'rules' })} />
           <NavRow label={local.locationLabel ? `${local.locationLabel}s` : 'Lieux'} active={selection.kind === 'locations'} onClick={() => setSelection({ kind: 'locations' })} />
           <NavRow label="Tester" active={selection.kind === 'test'} onClick={() => setSelection({ kind: 'test' })} />
@@ -667,6 +712,32 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
               <button onClick={addSymbolDie} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
                 <Plus size={12} /> Ajouter un dé
               </button>
+            </div>
+          ) : null}
+
+          {selection.kind === 'skills' || selectedSkill ? (
+            <div className="pl-2.5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>{local.skillLabel || 'Compétences'}</p>
+              {skills.map((s) => (
+                <NavRow key={s.key} label={s.label || '(sans nom)'} active={selection.kind === 'skill' && selection.key === s.key} onClick={() => setSelection({ kind: 'skill', key: s.key })} />
+              ))}
+              <button onClick={addSkill} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                <Plus size={12} /> Ajouter une compétence
+              </button>
+            </div>
+          ) : null}
+
+          {selection.kind === 'specializations' || selectedSpecialization ? (
+            <div className="pl-2.5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>Spécialisations</p>
+              {specializations.map((s) => (
+                <NavRow key={s.id} label={s.name || '(sans nom)'} active={selection.kind === 'specialization' && selection.id === s.id} onClick={() => setSelection({ kind: 'specialization', id: s.id })} />
+              ))}
+              {contentPath ? (
+                <button onClick={addSpecializationAndSelect} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <Plus size={12} /> Ajouter une spécialisation
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -757,7 +828,7 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
             <RaceDetail race={selectedRace} availableStats={local.stats.filter((s) => s.category === 'ability')} onChange={(patch) => updateRace(selectedRace.id, patch)} onRemove={() => removeRace(selectedRace.id)} />
           )}
           {selectedProfile && (
-            <ProfileDetail profile={selectedProfile} onChange={(patch) => updateProfile(selectedProfile.id, patch)} onRemove={() => removeProfile(selectedProfile.id)} />
+            <ProfileDetail profile={selectedProfile} availableSkills={skills} onChange={(patch) => updateProfile(selectedProfile.id, patch)} onRemove={() => removeProfile(selectedProfile.id)} />
           )}
           {selection.kind === 'groupEntity' && (
             <div>
@@ -790,6 +861,29 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
           )}
           {selectedSymbolDie && (
             <SymbolDieDetail die={selectedSymbolDie} availableStats={local.stats.filter((s) => s.category === 'ability')} onChange={(patch) => updateSymbolDie(selectedSymbolDie.key, patch)} onRemove={() => removeSymbolDie(selectedSymbolDie.key)} />
+          )}
+          {selection.kind === 'skills' && (
+            <SkillsPanel local={local} onSave={save} skillCount={skills.length} />
+          )}
+          {selectedSkill && (
+            <SkillDetail
+              skill={selectedSkill}
+              availableStats={local.stats.filter((s) => s.category === 'ability')}
+              onChange={(patch) => updateSkill(selectedSkill.key, patch)}
+              onRemove={() => removeSkill(selectedSkill.key)}
+            />
+          )}
+          {selection.kind === 'specializations' && (
+            <SpecializationsOverviewPanel count={specializations.length} contentPath={contentPath} specializationLabel="Spécialisation" />
+          )}
+          {selectedSpecialization && (
+            <SpecializationDetail
+              specialization={selectedSpecialization}
+              profiles={profiles}
+              skills={skills}
+              onChange={(patch) => updateSpecialization(selectedSpecialization.id, patch)}
+              onRemove={() => removeSpecializationAndDeselect(selectedSpecialization.id)}
+            />
           )}
           {selection.kind === 'rules' && (
             <RulesPanel local={local} onSave={save} />
@@ -1037,6 +1131,99 @@ function RulesPanel({ local, onSave }: { local: Draft; onSave: (next: Draft) => 
         <button onClick={addRule} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
           <Plus size={12} /> Ajouter une règle
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** Vue d'ensemble des Compétences : nom d'affichage libre + compte total. Les compétences elles-mêmes
+ *  se créent/éditent depuis la liste à gauche (cf skills/selectedSkill dans GameSystemEditor), même
+ *  pattern que la vue d'ensemble des Dés à symboles (SymbolDice) juste au-dessus. */
+function SkillsPanel({ local, onSave, skillCount }: { local: Draft; onSave: (next: Draft) => void | Promise<void>; skillCount: number }) {
+  return (
+    <div>
+      <DetailHeader title="Compétences" hint="Compétences proposées aux joueurs (ex Discrétion, Mécanique, Astrogation — façon système narratif type EotE), chacune liée à une Caractéristique. Chaque Profil peut désigner certaines de ces compétences comme 'de carrière' (moins coûteuses à améliorer avec l'XP), depuis l'onglet Personnages." />
+      <div className="space-y-4 max-w-md">
+        <label className="space-y-1 block">
+          <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Nom affiché</span>
+          <input
+            type="text"
+            value={local.skillLabel ?? ''}
+            onChange={(e) => onSave({ ...local, skillLabel: e.target.value || undefined })}
+            placeholder="Compétences"
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+        <label className="space-y-1 block">
+          <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>XP de départ</span>
+          <input
+            type="number"
+            value={local.startingXp ?? ''}
+            onChange={(e) => onSave({ ...local, startingXp: e.target.value ? Number(e.target.value) : undefined })}
+            placeholder="ex 110"
+            className="w-32 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
+        <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          Points d&apos;expérience donnés à un personnage fraîchement créé — dépensés ensuite via sa fiche (rangs de compétences, talents, nouvelles spécialisations).
+        </p>
+        <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{skillCount} compétence{skillCount > 1 ? 's' : ''} définie{skillCount > 1 ? 's' : ''}.</p>
+      </div>
+    </div>
+  );
+}
+
+function SkillDetail({ skill, availableStats, onChange, onRemove }: {
+  skill: SkillDefinition;
+  availableStats: StatDefinition[];
+  onChange: (patch: Partial<SkillDefinition>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+        <input
+          value={skill.label}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder="Nom de la compétence (ex Discrétion)"
+          className="text-lg font-bold bg-transparent border-none outline-none flex-1 min-w-0 placeholder:opacity-40"
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-title)' }}
+        />
+        <button onClick={onRemove} className="text-[var(--text-secondary)] hover:text-red-400 transition-colors p-1.5 shrink-0"><Trash2 size={16} /></button>
+      </div>
+
+      <div className="space-y-4 max-w-md">
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Caractéristique liée</label>
+          <select
+            value={skill.linkedStatKey}
+            onChange={(e) => onChange({ linkedStatKey: e.target.value })}
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            <option value="">— Choisir —</option>
+            {availableStats.map((stat) => (
+              <option key={stat.key} value={stat.key}>{stat.label || stat.key}</option>
+            ))}
+          </select>
+          <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            Utilisée pour composer le pool de dés d&apos;un jet de cette compétence (le plus grand des deux nombres entre la Caractéristique et le rang de la compétence donne le nombre de dés, le plus petit indique combien sont upgradés).
+          </p>
+        </div>
+
+        <label className="space-y-1 block">
+          <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Groupe (optionnel)</span>
+          <input
+            type="text"
+            value={skill.group ?? ''}
+            onChange={(e) => onChange({ group: e.target.value || undefined })}
+            placeholder="ex Combat, Social, Connaissance"
+            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </label>
       </div>
     </div>
   );
@@ -2051,11 +2238,17 @@ function RaceDetail({ race, availableStats, onChange, onRemove }: {
   );
 }
 
-function ProfileDetail({ profile, onChange, onRemove }: {
+function ProfileDetail({ profile, availableSkills, onChange, onRemove }: {
   profile: ProfileDefinition;
+  availableSkills: SkillDefinition[];
   onChange: (patch: Partial<ProfileDefinition>) => void;
   onRemove: () => void;
 }) {
+  const careerSkillKeys = profile.careerSkillKeys ?? [];
+  const toggleCareerSkill = (key: string, included: boolean) => {
+    const next = included ? [...careerSkillKeys, key] : careerSkillKeys.filter((k) => k !== key);
+    onChange({ careerSkillKeys: next });
+  };
   return (
     <div>
       <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
@@ -2107,6 +2300,39 @@ function ProfileDetail({ profile, onChange, onRemove }: {
         <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           Utilisé par une stat vitale ayant une formule référençant le dé de vie (ex PV Max = 1 + mod(CON) + dé de vie).
         </p>
+
+        {availableSkills.length > 0 && (
+          <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+            <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Compétences de carrière</label>
+            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              Les compétences cochées coûtent moins cher à améliorer avec l&apos;XP pour un personnage ayant ce profil comme carrière (façon système narratif type EotE — typiquement 8 compétences).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {availableSkills.map((skill) => {
+                const included = careerSkillKeys.includes(skill.key);
+                return (
+                  <button
+                    key={skill.key}
+                    type="button"
+                    onClick={() => toggleCareerSkill(skill.key, !included)}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                    style={{
+                      borderColor: included ? 'var(--accent-brown)' : 'var(--border-color)',
+                      background: included ? 'color-mix(in srgb, var(--accent-brown) 15%, transparent)' : 'var(--bg-dark)',
+                      color: included ? 'var(--accent-brown)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    {included && <Check size={12} />}
+                    {skill.label || skill.key}
+                  </button>
+                );
+              })}
+            </div>
+            {careerSkillKeys.length > 8 && (
+              <p className="text-[11px] text-yellow-500">{careerSkillKeys.length} compétences cochées — typiquement 8 dans un système narratif type EotE.</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

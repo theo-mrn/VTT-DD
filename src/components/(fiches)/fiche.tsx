@@ -8,6 +8,7 @@ import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
+import SkillsSheet from "@/components/(competences)/SkillsSheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
@@ -153,6 +154,9 @@ export default function Component() {
 
   const { persoId: userPersoId, isMJ } = useGame();
   const { gameSystem } = useGameSystem(roomId ?? null);
+  // Système de compétences façon EotE (gameSystem.skills non vide) — remplace CompetencesDisplay/
+  // Competences UNIQUEMENT dans ce cas, jamais pour dnd-classic (coexistence, pas remplacement).
+  const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0;
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isCustomizing, setIsCustomizing] = useState<boolean>(false);
@@ -1307,14 +1311,23 @@ export default function Component() {
                 <div id="vtt-widget-skills" key="skills" className="relative group hover:z-[100]">
                   <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
-                    <CompetencesDisplay
-                      roomId={roomId!}
-                      characterId={selectedCharacter.id}
-                      canEdit={selectedCharacter.id === userPersoId || isMJ}
-                      onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
-                      onHeightChange={(h) => handleWidgetResize('skills', h)}
-                      style={boxStyle}
-                    />
+                    {hasSkillSystem ? (
+                      <SkillsSheet
+                        roomId={roomId!}
+                        characterId={selectedCharacter.id}
+                        canEdit={selectedCharacter.id === userPersoId || isMJ}
+                        style={boxStyle}
+                      />
+                    ) : (
+                      <CompetencesDisplay
+                        roomId={roomId!}
+                        characterId={selectedCharacter.id}
+                        canEdit={selectedCharacter.id === userPersoId || isMJ}
+                        onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
+                        onHeightChange={(h) => handleWidgetResize('skills', h)}
+                        style={boxStyle}
+                      />
+                    )}
                   </div>
                 </div>
                 {layout.find(l => l.i === 'bourse') && (
@@ -1513,14 +1526,23 @@ export default function Component() {
                   />
                 </div>
                 <div id="vtt-widget-skills-view" key="skills" className="overflow-hidden h-full">
-                  <CompetencesDisplay
-                    roomId={roomId!}
-                    characterId={selectedCharacter.id}
-                    canEdit={selectedCharacter.id === userPersoId || isMJ}
-                    onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
-                    onHeightChange={(h) => handleWidgetResize('skills', h)}
-                    style={boxStyle}
-                  />
+                  {hasSkillSystem ? (
+                    <SkillsSheet
+                      roomId={roomId!}
+                      characterId={selectedCharacter.id}
+                      canEdit={selectedCharacter.id === userPersoId || isMJ}
+                      style={boxStyle}
+                    />
+                  ) : (
+                    <CompetencesDisplay
+                      roomId={roomId!}
+                      characterId={selectedCharacter.id}
+                      canEdit={selectedCharacter.id === userPersoId || isMJ}
+                      onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
+                      onHeightChange={(h) => handleWidgetResize('skills', h)}
+                      style={boxStyle}
+                    />
+                  )}
                 </div>
               </ResponsiveGridLayout>
             )

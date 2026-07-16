@@ -32,3 +32,13 @@ export {
   type RolledCharacterStats,
   type RolledGroupEntityStats,
 } from './creation';
+export { skillUpgradeCost, totalSkillUpgradeCost, isCareerSkillForCharacter } from './skills';
+export { composeDicePool, rollComposedDicePool, type ComposedDicePool } from './dice-pool';
+export {
+  nextTalentRankCost,
+  isTalentPurchasable,
+  findTalentTreeCycle,
+  type TalentNode,
+  type TalentPurchaseState,
+} from './talent-tree';
+export { specializationPurchaseCost } from './specializations';

@@ -1,5 +1,5 @@
 import { buildGameSystemExport, parseGameSystemExport, isRacePackExport, parseRacePackExport, stripUndefinedDeep, type GameSystemExportSource } from '../transfer';
-import type { StatDefinition, RaceDefinition, ProfileDefinition, SymbolDieDefinition } from '../types';
+import type { StatDefinition, RaceDefinition, ProfileDefinition, SymbolDieDefinition, SkillDefinition } from '../types';
 
 function statDef(key: string, extra: Partial<StatDefinition> = {}): StatDefinition {
   return { key, label: key, category: 'ability', dataType: 'number', origin: 'module', ...extra };
@@ -15,7 +15,8 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     avgHeight: 175,
     avgWeight: 60,
   };
-  const profile: ProfileDefinition = { id: 'prof-guerrier', label: 'Guerrier', hitDie: 'd10' };
+  const profile: ProfileDefinition = { id: 'prof-guerrier', label: 'Guerrier', hitDie: 'd10', careerSkillKeys: ['skill-discretion'] };
+  const skill: SkillDefinition = { key: 'skill-discretion', label: 'Discrétion', linkedStatKey: 'AGI', group: 'Combat' };
   const boostDie: SymbolDieDefinition = {
     key: 'boost',
     label: 'Boost',
@@ -47,6 +48,10 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     groupEntityCreation: { method: 'roll', rollFormula: { type: 'const', value: 5 } },
     symbolDice: [boostDie],
     rules: [{ title: 'Jet de sauvegarde', description: '1d20 + modificateur contre un effet néfaste.' }],
+    skills: [skill],
+    skillLabel: 'Compétences',
+    startingXp: 110,
+    diceUpgradeRule: { baseDiceKey: 'ability', upgradedDiceKey: 'proficiency' },
   };
 
   test('build() produit un export complet avec version/date, sans systemId', () => {
@@ -82,6 +87,11 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect(parsed.groupEntityCreation).toEqual(source.groupEntityCreation);
     expect(parsed.symbolDice).toEqual(source.symbolDice);
     expect(parsed.rules).toEqual(source.rules);
+    expect(parsed.skills).toEqual(source.skills);
+    expect(parsed.skillLabel).toBe('Compétences');
+    expect(parsed.startingXp).toBe(110);
+    expect(parsed.diceUpgradeRule).toEqual(source.diceUpgradeRule);
+    expect(parsed.profiles[0].careerSkillKeys).toEqual(['skill-discretion']);
   });
 
   test('rétrocompat : races/profiles/statGroups/groupEntityStats/symbolDice absents du JSON par défaut à []', () => {
@@ -93,10 +103,21 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect(parsed.groupEntityStats).toEqual([]);
     expect(parsed.symbolDice).toEqual([]);
     expect(parsed.rules).toEqual([]);
+    expect(parsed.skills).toEqual([]);
     expect('raceLabel' in parsed).toBe(false);
     expect('profileLabel' in parsed).toBe(false);
     expect('groupEntityLabel' in parsed).toBe(false);
     expect('groupEntityCreation' in parsed).toBe(false);
+    expect('skillLabel' in parsed).toBe(false);
+    expect('startingXp' in parsed).toBe(false);
+    expect('diceUpgradeRule' in parsed).toBe(false);
+  });
+
+  test('filtre une compétence malformée (linkedStatKey manquant) plutôt que de planter', () => {
+    const raw = { stats: [statDef('FOR')], skills: [{ key: 'a', label: 'A', linkedStatKey: 'FOR' }, { key: 'b', label: 'sans stat liée' }] };
+    const parsed = parseGameSystemExport(JSON.stringify(raw));
+    expect(parsed.skills).toHaveLength(1);
+    expect(parsed.skills[0].key).toBe('a');
   });
 
   test('rejette un JSON sans stats', () => {
