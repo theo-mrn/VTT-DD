@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Grille de talents d'une Spécialisation — nœuds positionnés (x,y), coût XP variable, prérequis
-// multiples (ET logique), répétabilité (maxRank). Générique : ne connaît aucun nom de talent, juste des
-// nœuds identifiés par id. Réutilisé par l'éditeur MJ (SpecializationsPanel) et la fiche personnage
+// Grille de talents d'une Spécialisation — nœuds positionnés (x,y), coût XP variable, connexions entre
+// cases (traits verticaux/horizontaux, traversables dans les DEUX sens comme sur les grilles EotE
+// officielles), répétabilité (maxRank). Générique : ne connaît aucun nom de talent, juste des nœuds
+// identifiés par id. Réutilisé par l'éditeur MJ (SpecializationsPanel) et la fiche personnage
 // (achat de talents) — même moteur des deux côtés, aucune logique dupliquée.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -13,8 +14,10 @@ export interface TalentNode {
   title: string;
   description?: string;
   xpCost: number;
-  /** IDs d'autres TalentNode de LA MÊME grille — tous doivent être achetés (rang >= 1) avant que ce
-   *  nœud devienne achetable. Tableau vide = aucun prérequis (accessible dès le départ). */
+  /** IDs d'autres TalentNode de LA MÊME grille auxquels ce nœud est RELIÉ (un trait est tracé entre les
+   *  deux cases). La connexion se traverse dans les deux sens pour l'achat : posséder l'une des cases
+   *  reliées (rang >= 1) rend l'autre achetable — peu importe laquelle des deux porte l'id de l'autre.
+   *  Une case de la première ligne (y = 0) est toujours achetable, connectée ou non. */
   prerequisiteIds: string[];
   /** Absent/1 = achetable une seule fois. >1 = répétable jusqu'à ce rang, coût croissant (cf nextTalentRankCost). */
   maxRank?: number;
@@ -31,13 +34,18 @@ export function nextTalentRankCost(node: TalentNode, currentRank: number): numbe
   return node.xpCost * (currentRank + 1);
 }
 
-/** Vrai si tous les prérequis sont satisfaits (rang >= 1 dans purchasedRanks) ET que le rang actuel n'a
- *  pas atteint maxRank (défaut 1, non répétable). */
-export function isTalentPurchasable(node: TalentNode, state: TalentPurchaseState): boolean {
+/** Vrai si le rang actuel n'a pas atteint maxRank (défaut 1, non répétable) ET que la case est
+ *  atteignable : première ligne (y = 0) toujours achetable, sinon il faut posséder (rang >= 1) AU MOINS
+ *  UNE case reliée — la connexion se lit dans les deux sens (node.prerequisiteIds ET les nœuds de
+ *  allNodes qui référencent node), comme sur les grilles EotE officielles. */
+export function isTalentPurchasable(node: TalentNode, state: TalentPurchaseState, allNodes: TalentNode[]): boolean {
   const currentRank = state.purchasedRanks[node.id] ?? 0;
   const maxRank = node.maxRank ?? 1;
   if (currentRank >= maxRank) return false;
-  return node.prerequisiteIds.every((id) => (state.purchasedRanks[id] ?? 0) >= 1);
+  if (node.y === 0) return true;
+  const owned = (id: string) => (state.purchasedRanks[id] ?? 0) >= 1;
+  if (node.prerequisiteIds.some(owned)) return true;
+  return allNodes.some((other) => other.id !== node.id && other.prerequisiteIds.includes(node.id) && owned(other.id));
 }
 
 /** Détecte un cycle de prérequis dans une grille (garde-fou éditeur MJ, DFS classique à 3 couleurs) —

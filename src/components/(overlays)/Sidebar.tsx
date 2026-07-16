@@ -274,6 +274,11 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       // tout seul" alors qu'un seul appui volontaire a été fait.
       if (e.repeat) return;
 
+      // Jamais de raccourci pendant la saisie dans un champ (recherche de compétences, notes, chat...) :
+      // taper une lettre mappée (d, c, f...) ouvrirait/fermerait des panneaux à chaque frappe.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
       // GM Shortcuts
       if (isMJ) {
         if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_COMBAT)) {

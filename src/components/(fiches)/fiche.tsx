@@ -9,6 +9,7 @@ import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
 import SkillsSheet from "@/components/(competences)/SkillsSheet";
+import TalentsSheet from "@/components/(competences)/TalentsSheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
@@ -284,6 +285,48 @@ export default function Component() {
   // stat cliquée.
   const [selectedVitalKey, setSelectedVitalKey] = useState<string | null>(null);
 
+  // ── Diagnostic layout ────────────────────────────────────────────────────────────────────────────
+  // Trace chaque écriture/lecture du layout pour identifier qui écrase la disposition. Format compact :
+  // uniquement les entrées skills/talents (les autres ne posent pas problème) + le nombre total.
+  const layoutLog = React.useCallback((source: string, layoutArray?: Layout[] | null, extra?: unknown) => {
+    const pick = (arr?: Layout[] | null) =>
+      arr
+        ? arr
+            .filter((l) => l.i === 'skills' || l.i === 'talents')
+            .map((l) => `${l.i}[x${l.x} y${l.y} w${l.w} h${l.h}]`)
+            .join(' ') + ` (total ${arr.length})`
+        : '(null)';
+    // eslint-disable-next-line no-console
+    console.log(`[FICHE-LAYOUT] ${source}`, pick(layoutArray), extra ?? '');
+  }, []);
+
+  // Garantit une entrée 'talents' dans le layout pour les systèmes à compétences EotE-like : les
+  // layouts déjà sauvegardés (ou les défauts MJ pas encore ré-importés) datent d'avant la séparation
+  // SkillsSheet/TalentsSheet et n'ont pas ce widget. Injection CÔTE À CÔTE : le widget skills est
+  // réduit à 40 colonnes et talents prend les 20 restantes sur la même ligne — même transformation que
+  // le nouveau défaut MJ, pour que les vieux layouts donnent directement la disposition cible (et pas
+  // un empilement pleine largeur). Jamais injecté pour dnd-classic (hasSkillSystem false).
+  const ensureTalentsWidget = React.useCallback((layoutArray: Layout[]): Layout[] => {
+    if (!hasSkillSystem || layoutArray.some(l => l.i === 'talents')) return layoutArray;
+    const skillsEntry = layoutArray.find(l => l.i === 'skills');
+    if (skillsEntry) {
+      const skillsW = Math.min(skillsEntry.w ?? 60, 40);
+      return [
+        ...layoutArray.map(l => (l.i === 'skills' ? { ...l, w: skillsW } : l)),
+        { i: 'talents', x: (skillsEntry.x ?? 0) + skillsW, y: skillsEntry.y ?? 0, w: 20, h: skillsEntry.h ?? 6, minW: 20, minH: 4 },
+      ];
+    }
+    const maxY = layoutArray.reduce((m, l) => Math.max(m, (l.y ?? 0) + (l.h ?? 0)), 0);
+    return [...layoutArray, { i: 'talents', x: 0, y: maxY, w: 60, h: 5, minW: 20, minH: 4 }];
+  }, [hasSkillSystem]);
+
+  // Garde d'hydratation : selectedCharacter change d'IDENTITÉ à chaque mise à jour Firestore du
+  // personnage (achat XP, PV...), et réhydrater le layout à chaque fois écrasait toute modification de
+  // disposition en cours avant qu'elle ait pu être sauvegardée ("je déplace un widget, j'achète un rang,
+  // tout revient comme avant"). On ne réhydrate que si la SOURCE réelle change : autre personnage,
+  // contenu du layout sauvegardé, défaut MJ, ou arrivée du système de compétences (injection 'talents').
+  const layoutHydrationKeyRef = React.useRef<string>('');
+
   useEffect(() => {
     const sanitizeLayout = (layoutArray: Layout[]) => {
       // Check if this layout comes from the 12-column scale era
@@ -303,16 +346,76 @@ export default function Component() {
         return { ...l, x: newX, w: newW, minW: newMinW };
       });
     };
-    if (selectedCharacter?.layout && selectedCharacter.layout.length > 0) {
-      setLayout(sanitizeLayout(selectedCharacter.layout));
-    } else {
-      setLayout(sanitizeLayout(resolvedDefaultLayout));
+    const hasOwnLayout = !!(selectedCharacter?.layout && selectedCharacter.layout.length > 0);
+    const hydrationKey = [
+      selectedCharacter?.id ?? 'none',
+      hasOwnLayout ? JSON.stringify(selectedCharacter!.layout) : `default:${JSON.stringify(resolvedDefaultLayout)}`,
+      String(hasSkillSystem),
+    ].join('|');
+    if (layoutHydrationKeyRef.current === hydrationKey) {
+      layoutLog('hydration SKIP (clé identique)', null, { hasOwnLayout, hasSkillSystem });
+      return;
     }
-  }, [selectedCharacter, resolvedDefaultLayout]);
+    layoutHydrationKeyRef.current = hydrationKey;
+
+    if (hasOwnLayout) {
+      const next = ensureTalentsWidget(sanitizeLayout(selectedCharacter!.layout!));
+      layoutLog('hydration depuis LAYOUT SAUVEGARDÉ ->', next, { charId: selectedCharacter?.id, hasSkillSystem });
+      setLayout(next);
+    } else {
+      const next = ensureTalentsWidget(sanitizeLayout(resolvedDefaultLayout));
+      layoutLog('hydration depuis DÉFAUT MJ ->', next, { charId: selectedCharacter?.id, hasSkillSystem });
+      setLayout(next);
+    }
+  }, [selectedCharacter, resolvedDefaultLayout, ensureTalentsWidget, hasSkillSystem, layoutLog]);
+
+  // Breakpoint actif de la grille, en ref pour être lisible de façon synchrone dans onLayoutChange
+  // (currentCols est un state, potentiellement en retard d'un rendu au moment où RGL émet).
+  const currentColsRef = React.useRef(120);
+
+  // WidthProvider (react-grid-layout) n'écoute QUE le resize de la fenêtre : si la fiche est montée
+  // pendant que son panneau s'ouvre (largeur transitoire quasi nulle), la grille reste mesurée en
+  // largeur minuscule -> breakpoint 20 colonnes -> tous les widgets clampés pleine largeur et EMPILÉS,
+  // définitivement. Invisible tant que tous les widgets étaient pleine largeur (D&D) ; révélé par les
+  // widgets côte à côte (skills/talents). Cet observer relance la mesure dès que le CONTENEUR change
+  // de taille, en émettant l'événement window resize qu'attend WidthProvider. Callback-ref (pas
+  // useRef+useEffect) : le conteneur est monté conditionnellement (selectedCharacter), un effet au
+  // mount du composant raterait son apparition.
+  const gridResizeObserverRef = React.useRef<ResizeObserver | null>(null);
+  const gridContainerRef = React.useCallback((el: HTMLDivElement | null) => {
+    gridResizeObserverRef.current?.disconnect();
+    gridResizeObserverRef.current = null;
+    if (!el) return;
+    let lastWidth = el.offsetWidth;
+    // eslint-disable-next-line no-console
+    console.log('[FICHE-LAYOUT] conteneur monté, largeur =', lastWidth);
+    const observer = new ResizeObserver(() => {
+      const width = el.offsetWidth;
+      if (width !== lastWidth) {
+        // eslint-disable-next-line no-console
+        console.log('[FICHE-LAYOUT] conteneur redimensionné', lastWidth, '->', width, '(re-mesure RGL forcée)');
+        lastWidth = width;
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
+    observer.observe(el);
+    gridResizeObserverRef.current = observer;
+  }, []);
 
   const onLayoutChange = (currentLayout: Layout[]) => {
     // Prevent the grid from immediately saving the previewed layout as the actual "layout" state
     if (previewLayout) return;
+    // Refuser les émissions des breakpoints DESTRUCTEURS (xs/xxs, < 60 colonnes) : pendant l'ouverture
+    // du panneau, RGL passe par des largeurs transitoires quasi nulles où il CLAMPE et EMPILE tous les
+    // widgets (correctBounds + compaction) — persister cette version détruirait la vraie disposition.
+    // Les breakpoints >= 60 colonnes sont acceptés : les layouts du projet tiennent tous dans 60
+    // colonnes (aucun x+w > 60), donc sm/md/lg n'altèrent rien — et la fiche vit souvent dans un
+    // panneau ~950px (sm) où bloquer reviendrait à ignorer toutes les éditions de l'utilisateur.
+    if (currentColsRef.current < 60) {
+      layoutLog(`onLayoutChange BLOQUÉ (cols=${currentColsRef.current})`, currentLayout);
+      return;
+    }
+    layoutLog(`onLayoutChange ACCEPTÉ (cols=${currentColsRef.current}) ->`, currentLayout);
     setLayout(currentLayout);
   };
 
@@ -333,10 +436,11 @@ export default function Component() {
         static: l.static ?? false
       }));
 
-      // Remove nulls if necessary, but null is valid in Firestore. 
+      // Remove nulls if necessary, but null is valid in Firestore.
       // safer to just keep essential fields
       const cleanLayout = JSON.parse(JSON.stringify(sanitizedLayout));
 
+      layoutLog('handleSaveLayout PERSISTE ->', cleanLayout);
       await updateCharacter(selectedCharacter.id, {
         layout: cleanLayout,
         ...customizationForm
@@ -349,7 +453,32 @@ export default function Component() {
   };
 
   const handleResetPositions = async () => {
-    setLayout(resolvedDefaultLayout);
+    const next = ensureTalentsWidget(resolvedDefaultLayout);
+    layoutLog('handleResetPositions -> défaut MJ', resolvedDefaultLayout, { defautVientDuSysteme: resolvedDefaultLayout !== DEFAULT_LAYOUT });
+    layoutLog('handleResetPositions -> après injection', next);
+    setLayout(next);
+    // Persiste immédiatement le reset : sans ça il n'existait qu'en local, et toute réouverture de la
+    // fiche rechargeait l'ancienne disposition sauvegardée — perçu comme "le reset ne tient pas".
+    if (selectedCharacter) {
+      try {
+        const cleanLayout = JSON.parse(JSON.stringify(next.map(l => ({
+          i: l.i,
+          x: l.x,
+          y: l.y,
+          w: l.w,
+          h: l.h,
+          minW: l.minW ?? null,
+          maxW: l.maxW ?? null,
+          minH: l.minH ?? null,
+          maxH: l.maxH ?? null,
+          static: l.static ?? false,
+        }))));
+        layoutLog('handleResetPositions PERSISTE ->', cleanLayout);
+        await updateCharacter(selectedCharacter.id, { layout: cleanLayout });
+      } catch (error) {
+        console.error('Error persisting layout reset:', error);
+      }
+    }
   };
 
   const handleApplyTheme = (config: ThemeConfig) => {
@@ -1277,10 +1406,15 @@ export default function Component() {
               </div>
           </div>
 
-          <div className="relative z-20 space-y-4 md:space-y-6 w-full h-full">
+          <div ref={gridContainerRef} className="relative z-20 space-y-4 md:space-y-6 w-full h-full">
           {selectedCharacter && !isEditing && (
             isLayoutEditing ? (
               <ResponsiveGridLayout
+                // Remonte la grille quand le système de compétences arrive : le widget Talents apparaît
+                // APRÈS le premier montage (gameSystem chargé en async), et react-grid-layout insérait cet
+                // enfant tardif en 1x1 au bas de sa copie interne sans jamais relire notre layout. Un
+                // remontage complet resynchronise enfants et layout proprement.
+                key={`fiche-grid-${hasSkillSystem}`}
                 className="layout"
                 layouts={{ lg: previewLayout ?? layout, md: previewLayout ?? layout, sm: previewLayout ?? layout, xs: previewLayout ?? layout, xxs: previewLayout ?? layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
@@ -1289,7 +1423,7 @@ export default function Component() {
                 margin={[20, 20]}
                 containerPadding={[0, 0]}
                 onLayoutChange={onLayoutChange}
-                onBreakpointChange={(bp, cols) => setCurrentCols(cols)}
+                onBreakpointChange={(bp, cols) => { console.log('[FICHE-LAYOUT] breakpoint ->', bp, cols, 'colonnes'); currentColsRef.current = cols; setCurrentCols(cols); }}
                 isDraggable={true}
                 isResizable={false}
                 draggableHandle=".drag-handle"
@@ -1417,6 +1551,19 @@ export default function Component() {
                     )}
                   </div>
                 </div>
+                {hasSkillSystem && layout.find(l => l.i === 'talents') && (
+                  <div id="vtt-widget-talents" key="talents" className="relative group hover:z-[100]">
+                    <WidgetControls id="talents" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
+                    <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
+                      <TalentsSheet
+                        roomId={roomId!}
+                        characterId={selectedCharacter.id}
+                        canEdit={selectedCharacter.id === userPersoId || isMJ}
+                        style={boxStyle}
+                      />
+                    </div>
+                  </div>
+                )}
                 {layout.find(l => l.i === 'bourse') && (
                   <div key="bourse" className="relative group hover:z-[100]">
                     <WidgetControls id="bourse" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
@@ -1473,6 +1620,11 @@ export default function Component() {
               </ResponsiveGridLayout>
             ) : (
               <ResponsiveGridLayout
+                // Remonte la grille quand le système de compétences arrive : le widget Talents apparaît
+                // APRÈS le premier montage (gameSystem chargé en async), et react-grid-layout insérait cet
+                // enfant tardif en 1x1 au bas de sa copie interne sans jamais relire notre layout. Un
+                // remontage complet resynchronise enfants et layout proprement.
+                key={`fiche-grid-${hasSkillSystem}`}
                 className="layout"
                 layouts={{ lg: layout, md: layout, sm: layout, xs: layout, xxs: layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
@@ -1482,7 +1634,7 @@ export default function Component() {
                 containerPadding={[0, 0]}
                 isDraggable={false}
                 isResizable={false}
-                onBreakpointChange={(bp, cols) => setCurrentCols(cols)}
+                onBreakpointChange={(bp, cols) => { console.log('[FICHE-LAYOUT] breakpoint ->', bp, cols, 'colonnes'); currentColsRef.current = cols; setCurrentCols(cols); }}
               >
                 <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div id="vtt-widget-details-view" key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
@@ -1552,6 +1704,16 @@ export default function Component() {
                     />
                   )}
                 </div>
+                {hasSkillSystem && layout.find(l => l.i === 'talents') && (
+                  <div id="vtt-widget-talents-view" key="talents" className="overflow-hidden h-full">
+                    <TalentsSheet
+                      roomId={roomId!}
+                      characterId={selectedCharacter.id}
+                      canEdit={selectedCharacter.id === userPersoId || isMJ}
+                      style={boxStyle}
+                    />
+                  </div>
+                )}
               </ResponsiveGridLayout>
             )
           )}

@@ -40,14 +40,11 @@ function narrativeOverlay(data: Partial<GameSystemDefinition>): Partial<GameSyst
 function useAuthReady(): boolean {
   const [ready, setReady] = useState(() => {
     const initial = auth.currentUser !== null;
-    console.log(`${LOG_PREFIX} useAuthReady init — auth.currentUser=${auth.currentUser?.uid ?? 'null'}, ready=${initial}`);
     return initial;
   });
   useEffect(() => {
     if (ready) return;
-    console.log(`${LOG_PREFIX} useAuthReady: en attente de onAuthStateChanged...`);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log(`${LOG_PREFIX} onAuthStateChanged déclenché — user=${user?.uid ?? 'null'}`);
       setReady(true);
     });
     return () => unsubscribe();
@@ -75,25 +72,21 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
   // Étape 1 : résoudre gameSystemId depuis Salle/{roomId}.
   useEffect(() => {
     if (!roomId) {
-      console.log(`${LOG_PREFIX} [étape 1] roomId=null → système par défaut '${DEFAULT_GAME_SYSTEM_ID}', pas de lecture Firestore.`);
       setGameSystemId(DEFAULT_GAME_SYSTEM_ID);
       setTableCustomStats([]);
       setRoomLoaded(true);
       return;
     }
     if (!authReady) {
-      console.log(`${LOG_PREFIX} [étape 1] roomId='${roomId}' mais authReady=false → on attend avant de lire Salle/${roomId}.`);
       return;
     }
 
-    console.log(`${LOG_PREFIX} [étape 1] abonnement à Salle/${roomId}...`);
     setRoomLoaded(false);
     const unsubscribe = onSnapshot(
       doc(db, 'Salle', roomId),
       (snap) => {
         const data = snap.data();
         const resolvedId = (data?.gameSystemId as string) || DEFAULT_GAME_SYSTEM_ID;
-        console.log(`${LOG_PREFIX} [étape 1] Salle/${roomId} résolu — gameSystemId='${resolvedId}', exists=${snap.exists()}`);
         setGameSystemId(resolvedId);
         setTableCustomStats((data?.customStats as StatDefinition[]) || []);
         setRoomLoaded(true);
@@ -111,12 +104,10 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
   // ou catalogue custom, ou legacy).
   useEffect(() => {
     if (!authReady || !roomLoaded) {
-      console.log(`${LOG_PREFIX} [étape 2] en attente — authReady=${authReady}, roomLoaded=${roomLoaded}`);
       return;
     }
 
     const registered = moduleRegistry.getGameSystemModule(gameSystemId);
-    console.log(`${LOG_PREFIX} [étape 2] gameSystemId='${gameSystemId}', module builtin trouvé=${!!registered}`);
     setSystemLoaded(false);
 
     if (registered) {
@@ -125,7 +116,6 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
       const unsubscribe = onSnapshot(
         doc(db, 'gameSystems', gameSystemId),
         (snap) => {
-          console.log(`${LOG_PREFIX} [étape 2] overlay narratif de '${gameSystemId}' — exists=${snap.exists()}`);
           setBuiltinOverlay(snap.exists() ? narrativeOverlay(snap.data() as Partial<GameSystemDefinition>) : null);
           setSystemLoaded(true);
         },
@@ -152,7 +142,6 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
     const subscribeLegacy = () => onSnapshot(
       doc(db, `Salle/${roomId}/gameSystemOverrides`, gameSystemId),
       (legacySnap) => {
-        console.log(`${LOG_PREFIX} [étape 2] legacy Salle/${roomId}/gameSystemOverrides/${gameSystemId} — exists=${legacySnap.exists()}`);
         setOverrideDefinition(legacySnap.exists() ? (legacySnap.data() as GameSystemDefinition) : null);
         setOverrideSource(legacySnap.exists() ? 'legacy' : null);
         setSystemLoaded(true);
@@ -168,7 +157,6 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
     const unsubscribeCatalog = onSnapshot(
       doc(db, 'gameSystems', gameSystemId),
       (catalogSnap) => {
-        console.log(`${LOG_PREFIX} [étape 2] catalogue gameSystems/${gameSystemId} — exists=${catalogSnap.exists()}`);
         if (catalogSnap.exists()) {
           unsubscribeLegacy?.();
           unsubscribeLegacy = null;

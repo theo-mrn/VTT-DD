@@ -17,9 +17,6 @@ import {
   skillUpgradeCost,
   totalSkillUpgradeCost,
   isCareerSkillForCharacter,
-  specializationPurchaseCost,
-  isTalentPurchasable,
-  nextTalentRankCost,
 } from '@/lib/rules-engine';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,6 +25,8 @@ import {
 // dnd-classic. Reprend le langage visuel de competencesD.tsx (header recherche/onglets, grille de
 // cartes, dialog de détail avec dégradé) plutôt que d'inventer un style à part. Sert aussi de point
 // d'achat de l'XP de départ (pas d'étape séparée à la création, cf plan Phase 5).
+// Les spécialisations et leurs arbres de talents vivent dans le widget frère TalentsSheet — même pool
+// d'XP (character.xp), mais les outils MJ (ajustement d'XP, réinitialisation globale) restent ici.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SkillsSheetProps {
@@ -56,7 +55,6 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [selectedSkill, setSelectedSkill] = useState<SkillCardData | null>(null);
-  const [selectedTalentSpec, setSelectedTalentSpec] = useState<SpecializationDoc & { id: string } | null>(null);
   const [xpAdjustAmount, setXpAdjustAmount] = useState<number>(10);
   const [isResetAllDialogOpen, setIsResetAllDialogOpen] = useState(false);
   const [skillToReset, setSkillToReset] = useState<SkillCardData | null>(null);
@@ -85,7 +83,6 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
   const career = (gameSystem.profiles ?? []).find((p) => p.id === character.Profile);
   const careerSkillKeys = career?.careerSkillKeys ?? [];
   const xp: number = character.xp ?? 0;
-  const unlockedTalents: Record<string, Record<string, number>> = character.unlockedTalents ?? {};
 
   const spend = (amount: number, updates: Record<string, unknown>) => {
     updateCharacter(characterId, { xp: xp - amount, xpSpent: (character.xpSpent ?? 0) + amount, ...updates });
@@ -154,26 +151,6 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
     setSelectedSkill(null);
   };
 
-  const buySpecialization = (spec: SpecializationDoc & { id: string }) => {
-    const isOutsideCareer = spec.careerIds.length > 0 && character.Profile != null && !spec.careerIds.includes(character.Profile);
-    const cost = specializationPurchaseCost(ownedSpecializationIds.length + 1, isOutsideCareer);
-    if (cost > xp) return;
-    spend(cost, { specializations: [...ownedSpecializationIds, spec.id] });
-  };
-
-  const buyTalent = (spec: SpecializationDoc & { id: string }, talentId: string) => {
-    const talent = spec.talents.find((t) => t.id === talentId);
-    if (!talent) return;
-    const purchasedRanks = unlockedTalents[spec.id] ?? {};
-    const currentRank = purchasedRanks[talentId] ?? 0;
-    if (!isTalentPurchasable(talent, { purchasedRanks })) return;
-    const cost = nextTalentRankCost(talent, currentRank);
-    if (cost > xp) return;
-    spend(cost, {
-      unlockedTalents: { ...unlockedTalents, [spec.id]: { ...purchasedRanks, [talentId]: currentRank + 1 } },
-    });
-  };
-
   const skillCards: SkillCardData[] = skills.map((skill) => {
     const rank = skillRanks[skill.key] ?? 0;
     const isCareer = isCareerSkillForCharacter(skill.key, careerSkillKeys, ownedSpecializations);
@@ -197,10 +174,10 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
       <div className="h-full w-full bg-[var(--bg-dark)] rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] flex flex-col items-stretch overflow-hidden" style={style}>
         {/* Header compact — recherche + onglets par groupe, même langage que competencesD. shrink-0 : ne
             doit jamais être compressé par le corps scrollable ci-dessous. */}
-        <div className="shrink-0 p-3 border-b border-[var(--border-color)] flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="shrink-0 p-3 border-b border-[var(--border-color)] flex flex-wrap gap-3 items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0 flex-1 basis-[240px]">
             <h2 className="text-lg font-bold text-[var(--accent-brown)] shrink-0">{skillLabel}</h2>
-            <div className="relative flex-grow sm:w-64">
+            <div className="relative flex-grow min-w-0 max-w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <Input
                 type="text"
@@ -217,10 +194,10 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
             </div>
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto items-center">
+          <div className="flex flex-wrap gap-2 items-center min-w-0">
             {groups.length > 0 && (
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
-                <TabsList className="h-9 bg-[var(--bg-dark)] border border-[var(--border-color)] p-0.5 w-full sm:w-auto">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0">
+                <TabsList className="h-9 bg-[var(--bg-dark)] border border-[var(--border-color)] p-0.5 max-w-full overflow-x-auto">
                   <TabsTrigger value="all" className="text-xs px-3 data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-black h-full">Toutes</TabsTrigger>
                   {groups.map((g) => (
                     <TabsTrigger key={g} value={g} className="text-xs px-3 data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-black h-full">{g}</TabsTrigger>
@@ -267,14 +244,16 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
             forcer à grandir (bug de scroll déjà rencontré sur inventaire.tsx : sans min-h-0, le contenu
             déborde silencieusement et se fait couper par l'overflow-hidden du widget parent). */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-        {/* Grille de compétences */}
+        {/* Grille de compétences — colonnes dérivées de la largeur du WIDGET (auto-fill), pas du
+            viewport : un widget en 1/3 de fiche affiche 1 colonne confortable au lieu de 3-4 cartes
+            écrasées. */}
         <div className="bg-transparent p-3">
           {filteredSkills.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)]">
               <p className="text-sm">Aucune compétence trouvée</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
               {filteredSkills.map((card) => (
                 <div
                   key={card.skill.key}
@@ -300,41 +279,6 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
           )}
         </div>
 
-        {/* Spécialisations */}
-        <div className="p-3 border-t border-[var(--border-color)] space-y-3">
-          <h3 className="text-sm font-bold text-[var(--accent-brown)]">Spécialisations</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {ownedSpecializations.map((spec) => (
-              <div
-                key={spec.id}
-                onClick={() => setSelectedTalentSpec(spec)}
-                className="bg-[var(--bg-card)] border border-[var(--accent-brown)] rounded-lg p-3 cursor-pointer hover:shadow-[0_0_0_1px_rgba(192,160,128,0.2)] transition-all"
-              >
-                <h4 className="font-semibold text-sm text-[var(--accent-brown)]">{spec.name}</h4>
-                <span className="text-[11px] text-[var(--text-secondary)]">
-                  {Object.values(unlockedTalents[spec.id] ?? {}).reduce((a, b) => a + b, 0)} talent(s) débloqué(s)
-                </span>
-              </div>
-            ))}
-            {canEdit && specializationDocs.filter((s) => !ownedSpecializationIds.includes(s.id)).map((spec) => {
-              const isOutsideCareer = spec.careerIds.length > 0 && character.Profile != null && !spec.careerIds.includes(character.Profile);
-              const cost = specializationPurchaseCost(ownedSpecializationIds.length + 1, isOutsideCareer);
-              return (
-                <div key={spec.id} className="bg-[var(--bg-card)] border border-dashed rounded-lg p-3 flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
-                  <span className="text-sm truncate text-[var(--text-secondary)]">{spec.name}</span>
-                  <Button
-                    size="sm"
-                    disabled={cost > xp}
-                    onClick={() => buySpecialization(spec)}
-                    className="text-[11px] h-7 px-2 bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border border-[var(--accent-brown)]/50 hover:bg-[var(--accent-brown)]/20 disabled:opacity-30"
-                  >
-                    Acheter ({cost} XP)
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
         </div>
       </div>
 
@@ -422,61 +366,6 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog grille de talents d'une spécialisation possédée */}
-      <Dialog open={!!selectedTalentSpec} onOpenChange={(open) => !open && setSelectedTalentSpec(null)}>
-        <DialogContent borderTrail className="bg-transparent border-none shadow-none p-0 max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogTitle className="sr-only">{selectedTalentSpec?.name}</DialogTitle>
-          {selectedTalentSpec && (() => {
-            const spec = selectedTalentSpec;
-            const purchasedRanks = unlockedTalents[spec.id] ?? {};
-            return (
-              <div className="p-6">
-                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] mb-4">
-                  {spec.name}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {spec.talents.map((talent) => {
-                    const rank = purchasedRanks[talent.id] ?? 0;
-                    const maxRank = talent.maxRank ?? 1;
-                    const purchasable = isTalentPurchasable(talent, { purchasedRanks });
-                    const cost = nextTalentRankCost(talent, rank);
-                    const isMaxed = rank >= maxRank;
-                    return (
-                      <div
-                        key={talent.id}
-                        className={`p-3 rounded-lg border text-sm ${rank > 0 ? 'border-[var(--accent-brown)] bg-[var(--accent-brown)]/5' : 'border-[var(--border-color)] bg-[var(--bg-card)]'}`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-semibold text-[var(--text-primary)] truncate">
-                            {talent.title || '(sans nom)'} {maxRank > 1 && <span className="font-mono text-xs text-[var(--text-secondary)]">({rank}/{maxRank})</span>}
-                          </span>
-                        </div>
-                        {talent.description && <p className="text-[11px] text-[var(--text-secondary)] mb-2">{talent.description}</p>}
-                        {canEdit && !isMaxed && (
-                          <Button
-                            size="sm"
-                            disabled={!purchasable || cost > xp}
-                            onClick={() => buyTalent(spec, talent.id)}
-                            className="h-7 text-[11px] px-2 bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border border-[var(--accent-brown)]/50 hover:bg-[var(--accent-brown)]/20 disabled:opacity-30"
-                          >
-                            {!purchasable ? <><Lock className="h-3 w-3 mr-1" /> Prérequis manquant</> : `Acheter (${cost} XP)`}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-end mt-4 pt-4 border-t border-black/5 dark:border-white/5">
-                  <Button variant="ghost" onClick={() => setSelectedTalentSpec(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                    Fermer
-                  </Button>
-                </div>
-              </div>
-            );
-          })()}
         </DialogContent>
       </Dialog>
 

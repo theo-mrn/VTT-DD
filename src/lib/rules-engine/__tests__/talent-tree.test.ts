@@ -16,39 +16,46 @@ describe('nextTalentRankCost', () => {
 });
 
 describe('isTalentPurchasable', () => {
-  test('nœud sans prérequis, jamais acheté => achetable', () => {
+  test('nœud de première ligne (y=0), jamais acheté => achetable même sans connexion', () => {
     const a = node({ id: 'a' });
-    expect(isTalentPurchasable(a, { purchasedRanks: {} })).toBe(true);
+    expect(isTalentPurchasable(a, { purchasedRanks: {} }, [a])).toBe(true);
   });
 
-  test('nœud avec prérequis non satisfait => non achetable', () => {
-    const b = node({ id: 'b', prerequisiteIds: ['a'] });
-    expect(isTalentPurchasable(b, { purchasedRanks: {} })).toBe(false);
+  test('nœud hors première ligne, aucune case reliée possédée => non achetable', () => {
+    const a = node({ id: 'a' });
+    const b = node({ id: 'b', y: 1, prerequisiteIds: ['a'] });
+    expect(isTalentPurchasable(b, { purchasedRanks: {} }, [a, b])).toBe(false);
   });
 
-  test('nœud avec TOUS les prérequis satisfaits (ET logique) => achetable', () => {
-    const c = node({ id: 'c', prerequisiteIds: ['a', 'b'] });
-    expect(isTalentPurchasable(c, { purchasedRanks: { a: 1, b: 1 } })).toBe(true);
+  test('UNE seule case reliée possédée sur deux suffit (OU logique)', () => {
+    const a = node({ id: 'a' });
+    const b = node({ id: 'b' });
+    const c = node({ id: 'c', y: 1, prerequisiteIds: ['a', 'b'] });
+    expect(isTalentPurchasable(c, { purchasedRanks: { a: 1 } }, [a, b, c])).toBe(true);
   });
 
-  test('nœud avec un seul prérequis sur deux satisfaits => non achetable', () => {
-    const c = node({ id: 'c', prerequisiteIds: ['a', 'b'] });
-    expect(isTalentPurchasable(c, { purchasedRanks: { a: 1 } })).toBe(false);
+  test('connexion traversée dans le sens INVERSE : posséder la case qui me référence me débloque', () => {
+    // d (y=1) n'a aucun prerequisiteIds, mais e (y=2) le référence — posséder e débloque d,
+    // comme sur les grilles EotE officielles où un trait se remonte.
+    const d = node({ id: 'd', y: 1 });
+    const e = node({ id: 'e', y: 2, prerequisiteIds: ['d'] });
+    expect(isTalentPurchasable(d, { purchasedRanks: {} }, [d, e])).toBe(false);
+    expect(isTalentPurchasable(d, { purchasedRanks: { e: 1 } }, [d, e])).toBe(true);
   });
 
   test('nœud non répétable (maxRank absent) déjà acheté => non achetable', () => {
     const a = node({ id: 'a' });
-    expect(isTalentPurchasable(a, { purchasedRanks: { a: 1 } })).toBe(false);
+    expect(isTalentPurchasable(a, { purchasedRanks: { a: 1 } }, [a])).toBe(false);
   });
 
   test('nœud répétable pas encore à maxRank => achetable', () => {
     const a = node({ id: 'a', maxRank: 3 });
-    expect(isTalentPurchasable(a, { purchasedRanks: { a: 2 } })).toBe(true);
+    expect(isTalentPurchasable(a, { purchasedRanks: { a: 2 } }, [a])).toBe(true);
   });
 
   test('nœud répétable à maxRank => non achetable', () => {
     const a = node({ id: 'a', maxRank: 3 });
-    expect(isTalentPurchasable(a, { purchasedRanks: { a: 3 } })).toBe(false);
+    expect(isTalentPurchasable(a, { purchasedRanks: { a: 3 } }, [a])).toBe(false);
   });
 });
 
