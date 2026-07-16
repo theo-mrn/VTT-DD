@@ -1,5 +1,6 @@
 import type {
   CharacterCreationRule,
+  CharacterLayoutEntry,
   DicePoolUpgradeRule,
   FormulaNode,
   GameRuleEntry,
@@ -45,6 +46,7 @@ export interface GameSystemExportData {
   skillLabel?: string;
   startingXp?: number;
   diceUpgradeRule?: DicePoolUpgradeRule;
+  defaultCharacterLayout?: CharacterLayoutEntry[];
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -73,6 +75,7 @@ export interface GameSystemExportSource {
   skillLabel?: string;
   startingXp?: number;
   diceUpgradeRule?: DicePoolUpgradeRule;
+  defaultCharacterLayout?: CharacterLayoutEntry[];
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -106,6 +109,7 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.skillLabel != null) result.skillLabel = source.skillLabel;
   if (source.startingXp != null) result.startingXp = source.startingXp;
   if (source.diceUpgradeRule != null) result.diceUpgradeRule = source.diceUpgradeRule;
+  if (source.defaultCharacterLayout != null) result.defaultCharacterLayout = source.defaultCharacterLayout;
   return result;
 }
 
@@ -234,5 +238,6 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (typeof json.skillLabel === 'string') result.skillLabel = json.skillLabel;
   if (typeof json.startingXp === 'number') result.startingXp = json.startingXp;
   if (json.diceUpgradeRule != null) result.diceUpgradeRule = json.diceUpgradeRule;
+  if (Array.isArray(json.defaultCharacterLayout)) result.defaultCharacterLayout = json.defaultCharacterLayout;
   return result;
 }

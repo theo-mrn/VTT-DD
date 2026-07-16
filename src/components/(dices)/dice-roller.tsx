@@ -16,8 +16,8 @@ import { useCharacter } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
-import { getRollableStats, applyVariablesToNotation, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, composeDicePool, type RollableStat } from '@/lib/rules-engine';
-import type { SymbolDieDefinition, SkillDefinition } from '@/modules/game-system/types';
+import { getRollableStats, applyVariablesToNotation, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, type RollableStat } from '@/lib/rules-engine';
+import type { SymbolDieDefinition } from '@/modules/game-system/types';
 
 interface FirebaseRoll {
   id: string;
@@ -80,31 +80,6 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     if (!selectedCharacter) return [];
     return getRollableStats(gameSystem, tableCustomStats, selectedCharacter, selectedCharacter.statRollable, totalBonuses);
   }, [selectedCharacter, gameSystem, tableCustomStats, totalBonuses]);
-
-  // Compétences façon système narratif type EotE — actif seulement si le MJ a défini à la fois des
-  // compétences (gameSystem.skills) ET la règle de pool dérivé (gameSystem.diceUpgradeRule). Le pool
-  // (dés de base + dés upgradés) est calculé par composeDicePool, générique, réutilisé tel quel —
-  // aucune logique de composition dupliquée ici.
-  const rollableStatByKey = useMemo(() => new Map(rollableStats.map((s) => [s.key, s])), [rollableStats]);
-  const skillOptions = useMemo(() => {
-    if (!selectedCharacter || !gameSystem.diceUpgradeRule) return [];
-    const skillRanks: Record<string, number> = selectedCharacter.skillRanks ?? {};
-    return (gameSystem.skills ?? []).map((skill) => ({
-      skill,
-      statValue: rollableStatByKey.get(skill.linkedStatKey)?.rawValue ?? 0,
-      rank: skillRanks[skill.key] ?? 0,
-    }));
-  }, [selectedCharacter, gameSystem.skills, gameSystem.diceUpgradeRule, rollableStatByKey]);
-
-  const rollSkill = (skill: SkillDefinition, statValue: number, rank: number) => {
-    if (!gameSystem.diceUpgradeRule) return;
-    const { baseCount, upgradedCount } = composeDicePool(statValue, rank);
-    const parts: string[] = [];
-    if (baseCount > 0) parts.push(`${baseCount}${gameSystem.diceUpgradeRule.baseDiceKey}`);
-    if (upgradedCount > 0) parts.push(`${upgradedCount}${gameSystem.diceUpgradeRule.upgradedDiceKey}`);
-    if (parts.length === 0) parts.push(`0${gameSystem.diceUpgradeRule.baseDiceKey}`);
-    setInput(parts.join(' + '));
-  };
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
@@ -282,6 +257,12 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         !selectedCharacterName && // ← don't close while user profile dialog is open
         !(event.target as Element).closest('#vtt-sidebar-dice') &&
         !(event.target as Element).closest('#vtt-dock-dice') &&
+        // L'icône Dés du dock (Sidebar.tsx) génère son id dynamiquement (vtt-icon-${item.id}) depuis
+        // la refonte en système Item/SortableIconButton — les deux sélecteurs ci-dessus sont un
+        // nommage residuel d'avant cette refonte et ne matchent plus rien. Sans cette exclusion, un
+        // clic sur l'icône Dés déclenche ce handler AU MOUSEDOWN (avant le onClick React qui rouvre le
+        // panneau), fermant puis rouvrant immédiatement le panneau à chaque clic sur l'icône.
+        !(event.target as Element).closest(`#vtt-icon-${SHORTCUT_ACTIONS.TAB_DICE}`) &&
         !(event.target as Element).closest('[data-dice-store-portal]') &&
         !(event.target as Element).closest('[data-custom-button]')
       ) {
@@ -998,39 +979,6 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                   ))}
                 </div>
 
-                {/* Dés à symboles (configurés par le MJ, ex système narratif) */}
-                {symbolDice.length > 0 && (
-                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                    {symbolDice.map((die) => (
-                      <button
-                        key={`m-sd-${die.key}`}
-                        onClick={() => addToInput(`1${die.key}`)}
-                        className="shrink-0 px-4 py-1.5 rounded-full border text-xs font-mono font-bold"
-                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-                      >
-                        {die.label || die.key}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Compétences (système narratif type EotE : pool vert/jaune dérivé de Caractéristique + rang) */}
-                {!isMJ && skillOptions.length > 0 && (
-                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                    {skillOptions.map(({ skill, statValue, rank }) => (
-                      <button
-                        key={`m-skill-${skill.key}`}
-                        onClick={() => rollSkill(skill, statValue, rank)}
-                        className="shrink-0 px-4 py-1.5 rounded-full border text-xs font-mono font-bold"
-                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-                        title={`${skill.label} (${statValue}/${rank})`}
-                      >
-                        {skill.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 {/* Stats row */}
                 {!isMJ && rollableStats.length > 0 && (
                   <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
@@ -1115,39 +1063,6 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                     ))}
                   </div>
 
-                  {/* Dés à symboles (configurés par le MJ, ex système narratif) */}
-                  {symbolDice.length > 0 && (
-                    <div className="space-y-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
-                      {symbolDice.map((die) => (
-                        <button
-                          key={`sd-${die.key}`}
-                          onClick={() => addToInput(`1${die.key}`)}
-                          className="w-full py-1.5 rounded-lg text-[10px] font-mono font-bold truncate px-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]"
-                          style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-                          title={die.label || die.key}
-                        >
-                          {die.label || die.key}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Compétences (système narratif type EotE : pool vert/jaune dérivé de Caractéristique + rang) */}
-                  {skillOptions.length > 0 && (
-                    <div className="space-y-1 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
-                      {skillOptions.map(({ skill, statValue, rank }) => (
-                        <button
-                          key={`skill-${skill.key}`}
-                          onClick={() => rollSkill(skill, statValue, rank)}
-                          className="w-full py-1.5 rounded-lg text-[10px] font-mono font-bold truncate px-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]"
-                          style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-                          title={`${skill.label} (${statValue}/${rank})`}
-                        >
-                          {skill.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Right Content */}

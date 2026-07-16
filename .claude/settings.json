@@ -6,7 +6,8 @@
       "Bash(tee /tmp/tsc_out.txt)",
       "WebFetch(domain:www.starwars-holonet.com)",
       "WebFetch(domain:www.starwars.com)",
-      "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.starwars.com/databank/tatooine\")"
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://www.starwars.com/databank/tatooine\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

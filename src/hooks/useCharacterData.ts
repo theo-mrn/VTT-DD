@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, onSnapshot, doc, Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { BonusData } from '@/contexts/CharacterContext';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 
 export interface RawBonus extends Partial<BonusData> {
     id: string;
@@ -139,31 +140,29 @@ export function useSingleItemBonus(roomId: string | null, playerName: string | u
 /**
  * Hook qui récupère les bonus bruts et calcule automatiquement les totaux globaux et par catégorie.
  * Remplace la duplication de cette logique dans les composants et contextes.
+ *
+ * Les clés de stats agrégées sont dérivées de gameSystem.stats (category != 'meta') plutôt que d'une
+ * liste D&D fixe (CHA/CON/Contact/DEX/Defense/...) — sans quoi un bonus posé sur une stat d'un système
+ * custom (ex "vigueur" pour Star Wars) n'apparaîtrait jamais dans totalBonuses/categorizedBonuses,
+ * quel que soit ce qui est réellement stocké dans les documents Bonus/{roomId}/{name}/{itemId}.
  */
 export function useCalculatedBonuses(roomId: string | null, playerName: string | undefined) {
     const rawBonuses = useCharacterBonuses(roomId, playerName);
+    const { gameSystem } = useGameSystem(roomId);
+
+    const statKeys = useMemo(
+        () => gameSystem.stats.filter((s) => s.category !== 'meta').map((s) => s.key),
+        [gameSystem.stats],
+    );
 
     return useMemo(() => {
-        const totalBonuses: Bonuses = {
-            CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0,
-            FOR: 0, INIT: 0, INT: 0, Magie: 0, PV_Max: 0, PV: 0, SAG: 0,
-        };
+        const totalBonuses: Bonuses = { CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0, FOR: 0, INIT: 0, INT: 0, Magie: 0, PV_Max: 0, PV: 0, SAG: 0 };
+        const categorizedBonuses: CategorizedBonuses = {};
 
-        const categorizedBonuses: CategorizedBonuses = {
-            CHA: { Inventaire: 0, Competence: 0 },
-            CON: { Inventaire: 0, Competence: 0 },
-            Contact: { Inventaire: 0, Competence: 0 },
-            DEX: { Inventaire: 0, Competence: 0 },
-            Defense: { Inventaire: 0, Competence: 0 },
-            Distance: { Inventaire: 0, Competence: 0 },
-            FOR: { Inventaire: 0, Competence: 0 },
-            INIT: { Inventaire: 0, Competence: 0 },
-            INT: { Inventaire: 0, Competence: 0 },
-            Magie: { Inventaire: 0, Competence: 0 },
-            PV_Max: { Inventaire: 0, Competence: 0 },
-            PV: { Inventaire: 0, Competence: 0 },
-            SAG: { Inventaire: 0, Competence: 0 },
-        };
+        for (const key of statKeys) {
+            if (totalBonuses[key] === undefined) totalBonuses[key] = 0;
+            categorizedBonuses[key] = { Inventaire: 0, Competence: 0 };
+        }
 
         if (!rawBonuses || rawBonuses.length === 0) {
             return { rawBonuses, totalBonuses, categorizedBonuses };
@@ -176,22 +175,25 @@ export function useCalculatedBonuses(roomId: string | null, playerName: string |
                     bonusData.category === "competence" ? "competence" :
                         (bonusData.category || 'Inconnu');
 
-                Object.keys(totalBonuses).forEach((stat) => {
-                    if (bonusData[stat as keyof typeof bonusData] !== undefined) {
-                        const val = parseInt(String(bonusData[stat as keyof typeof bonusData]) || "0");
-                        totalBonuses[stat] += val;
+                // Toute clé numérique présente dans le document de bonus est agrégée, pas seulement
+                // celles déjà connues de statKeys — un bonus déjà posé sur une stat retirée du système
+                // depuis (ou un champ custom hors schéma) continue de s'additionner plutôt que de
+                // disparaître silencieusement.
+                Object.keys(bonusData).forEach((stat) => {
+                    if (stat === 'active' || stat === 'category' || stat === 'name' || stat === 'diceSelection') return;
+                    const raw = bonusData[stat as keyof typeof bonusData];
+                    if (raw === undefined) return;
+                    const val = parseInt(String(raw) || "0");
+                    if (!Number.isFinite(val) || val === 0) return;
 
-                        if (categorizedBonuses[stat]) {
-                            if (categorizedBonuses[stat][category] === undefined) {
-                                categorizedBonuses[stat][category] = 0;
-                            }
-                            categorizedBonuses[stat][category] += val;
-                        }
-                    }
+                    totalBonuses[stat] = (totalBonuses[stat] ?? 0) + val;
+
+                    if (!categorizedBonuses[stat]) categorizedBonuses[stat] = { Inventaire: 0, Competence: 0 };
+                    categorizedBonuses[stat][category] = (categorizedBonuses[stat][category] ?? 0) + val;
                 });
             }
         });
 
         return { rawBonuses, totalBonuses, categorizedBonuses };
-    }, [rawBonuses]);
+    }, [rawBonuses, statKeys]);
 }

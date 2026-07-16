@@ -1,4 +1,4 @@
-export { evaluateFormula, resolveStatValue, resolveStatModifier, FormulaCycleError, type FormulaContext } from './formula';
+export { evaluateFormula, resolveStatValue, resolveStatModifier, getFormulaDependencies, FormulaCycleError, type FormulaContext } from './formula';
 export {
   resolveCharacterStats,
   buildDiceVariables,

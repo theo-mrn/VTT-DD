@@ -65,7 +65,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   const { gameSystem } = useGameSystem(roomId);
   const [activeTab, setActiveTab] = useState<TabType>('character');
 
-  const abilityStats = gameSystem.stats.filter((s) => s.category === 'ability');
+  const abilityStats = gameSystem.stats.filter((s) => s.category === 'ability' && s.visibleToPlayers !== false);
   const combatAttackKeys = gameSystem.combatAttackKeys ?? ['Contact', 'Distance', 'Magie'];
   const defenseKey = gameSystem.combatDefenseKey ?? 'Defense';
   const combatColors = ['text-orange-400', 'text-green-400', 'text-purple-400'];

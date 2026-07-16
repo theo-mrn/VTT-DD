@@ -65,7 +65,6 @@ const predefinedItems: Record<string, string[]> = {
   'autre': []
 };
 
-const statAttributes = ["CON", "SAG", "DEX", "FOR", "CHA", "INT", "PV", "Defense", "INIT", "Contact", "Distance", "Magie"];
 const categoryIcons: Record<string, React.ReactNode> = {
   'armes-contact': <Sword className="w-6 h-6 text-[var(--accent-brown)]" />,
   'armes-distance': <Target className="w-6 h-6 text-[var(--accent-brown)]" />,
@@ -122,6 +121,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   // salle utilise ce système — une salle en système custom n'affiche pas les descriptions D&D.
   const { gameSystem } = useGameSystem(roomId ?? null);
   const isDndClassic = gameSystem.systemId === 'dnd-classic';
+  // Clés de stats sur lesquelles un objet peut porter un bonus (menu déroulant "Ajouter un bonus",
+  // récapitulatif des bonus actifs) — dérivées du SYSTÈME ACTIF plutôt que la liste D&D fixe
+  // (CON/SAG/DEX/FOR/CHA/INT/PV/Defense/INIT/Contact/Distance/Magie), qui n'existe que pour dnd-classic.
+  const statAttributes = useMemo(
+    () => gameSystem.stats.filter((s) => s.category !== 'meta').map((s) => s.key),
+    [gameSystem.stats],
+  );
+  const statByKey = useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats]);
+  const getStatLabel = (key: string) => statByKey.get(key)?.shortLabel || statByKey.get(key)?.label || key;
   useEffect(() => {
     if (!isDndClassic) { setItemDescriptions({}); return; }
     const loadItemDescriptions = async () => {
@@ -194,7 +202,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     } else {
       setBonuses([]);
     }
-  }, [currentItemBonusData]);
+  }, [currentItemBonusData, statAttributes]);
 
   // Recalcul des bonus globaux de l'inventaire en temps réel !
   useEffect(() => {
@@ -231,7 +239,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     setBonusesMap(bonusesData);
     setBonusActiveMap(activeData);
     setItemsWithBonus(itemsWithBonusSet);
-  }, [inventory, allBonuses]);
+  }, [inventory, allBonuses, statAttributes]);
 
 
   const handleAddItem = async (item: string) => {
@@ -640,7 +648,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
       {statAttributes.map((stat) => (
         bonuses.some((bonus) => bonus.type === stat && bonus.value !== 0) && (
           <div key={stat} className="flex justify-between items-center bg-[var(--bg-dark)] p-3 rounded border border-[var(--border-color)]">
-            <span className="font-bold text-[var(--text-primary)]">{stat}: <span className="text-[var(--accent-brown)]">{bonuses.find(b => b.type === stat)?.value}</span></span>
+            <span className="font-bold text-[var(--text-primary)]">{getStatLabel(stat)}: <span className="text-[var(--accent-brown)]">{bonuses.find(b => b.type === stat)?.value}</span></span>
             <Button
               variant="ghost"
               size="sm"
@@ -1225,7 +1233,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                       </SelectTrigger>
                       <SelectContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">
                         {statAttributes.map(attr => (
-                          <SelectItem key={attr} value={attr}>{attr}</SelectItem>
+                          <SelectItem key={attr} value={attr}>{getStatLabel(attr)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

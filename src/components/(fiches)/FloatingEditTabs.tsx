@@ -121,7 +121,13 @@ export function FloatingEditTabs({
     const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
     // ── Character Sheet Hooks ─────────────────────────────
-    const { selectedCharacter, updateCharacter } = useCharacter();
+    const { selectedCharacter, updateCharacter, roomId } = useCharacter();
+    const { gameSystem } = useGameSystem(roomId);
+    // Dérivé du système de jeu actif de la room (au lieu d'une liste FOR/DEX/... codée en dur) — même
+    // logique que BUILTIN_STATS dans AttributsDialog plus bas dans ce fichier.
+    const baseStats = gameSystem.stats
+        .filter((s) => s.category !== 'meta')
+        .map((s) => ({ key: s.key, label: s.shortLabel || s.label || s.key }));
 
     return (
         <div className="fixed right-0 top-0 bottom-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-l border-[#3a3a3a] shadow-[-20px_0_50px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ease-in-out w-full sm:w-[260px]">
@@ -368,12 +374,12 @@ export function FloatingEditTabs({
                         <section className="space-y-3">
                             <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Attributs de base</span>
                             <div className="grid grid-cols-1 gap-2">
-                                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(stat => (
+                                {baseStats.map(({ key, label }) => (
                                     <div
-                                        key={stat}
+                                        key={key}
                                         draggable
                                         onDragStart={(e) => {
-                                            const data = { i: `custom_group:${stat}:${stat}`, w: 3, h: 2 };
+                                            const data = { i: `custom_group:${label}:${key}`, w: 3, h: 2 };
                                             e.dataTransfer.setData("text/plain", JSON.stringify(data));
                                         }}
                                         className="flex items-center gap-3 p-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-xl cursor-grab active:cursor-grabbing hover:border-[#d4b48f]/40 hover:bg-[#2a2a2a] transition-all group"
@@ -382,7 +388,7 @@ export function FloatingEditTabs({
                                             <Box size={14} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{stat}</span>
+                                            <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{label}</span>
                                             <span className="text-[9px] text-[#666] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
                                         </div>
                                     </div>

@@ -103,6 +103,10 @@ export interface Competence {
 }
 
 export interface BonusData {
+  // Index signature : un document de bonus peut porter n'importe quelle clé de stat du système actif
+  // (ex "vigueur" pour un système custom façon Star Wars), pas seulement les 13 clés D&D ci-dessous
+  // conservées pour rétrocompatibilité stricte du typage existant.
+  [key: string]: number | boolean | string | undefined;
   CHA: number;
   CON: number;
   DEX: number;

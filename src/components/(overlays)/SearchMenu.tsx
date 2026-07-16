@@ -444,15 +444,8 @@ export default function SearchMenu() {
                                             "relative z-10 flex items-center gap-1.5 h-7 px-2.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors duration-150",
                                             isActive ? "text-black" : "text-white/50 hover:text-white/80"
                                         )}
+                                        style={isActive ? { background: ACCENT } : undefined}
                                     >
-                                        {isActive && (
-                                            <motion.span
-                                                layoutId="search-menu-chip-highlight"
-                                                transition={{ type: 'spring', damping: 30, stiffness: 380 }}
-                                                className="absolute inset-0 -z-10 rounded-full"
-                                                style={{ background: ACCENT }}
-                                            />
-                                        )}
                                         <Icon className="w-3 h-3" />
                                         {tab.label}
                                     </motion.button>
@@ -584,23 +577,35 @@ export default function SearchMenu() {
                                                 <button
                                                     key={`${competence.titre}-${index}`}
                                                     onClick={() => setSelectedCompetence(competence)}
-                                                    className="group w-full flex flex-col gap-0.5 p-2.5 rounded-lg text-left transition-colors duration-150 hover:bg-white/5"
+                                                    className="group w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors duration-150 hover:bg-white/5"
                                                 >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="font-medium text-sm text-white/85 group-hover:text-white truncate">
-                                                            {competence.titre}
-                                                        </span>
-                                                        {competence.type && (
-                                                            <span className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-white/40 shrink-0">
-                                                                {competence.type}
+                                                    {competence.image && (
+                                                        <div className="relative w-10 h-10 shrink-0 rounded-md overflow-hidden bg-black border border-white/10">
+                                                            <Image
+                                                                src={competence.image}
+                                                                alt={competence.titre}
+                                                                fill
+                                                                className="object-cover"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="font-medium text-sm text-white/85 group-hover:text-white truncate">
+                                                                {competence.titre}
+                                                            </span>
+                                                            {competence.type && (
+                                                                <span className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-white/40 shrink-0">
+                                                                    {competence.type}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {competence.source && (
+                                                            <span className="text-[11px] text-white/35 line-clamp-1">
+                                                                {competence.source}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    {competence.source && (
-                                                        <span className="text-[11px] text-white/35 line-clamp-1">
-                                                            {competence.source}
-                                                        </span>
-                                                    )}
                                                 </button>
                                             ))}
                                         </div>

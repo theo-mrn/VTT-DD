@@ -6,20 +6,21 @@
   "stats": [
     {
       "key": "PV_Max",
-      "label": "PV Max",
+      "label": "Seuil de Blessure",
       "category": "derived",
       "dataType": "number",
       "origin": "module",
       "protected": true,
       "order": 0,
       "valueFormula": {
-        "type": "const",
-        "value": 10
-      }
+        "type": "stat",
+        "key": "SeuilBlessure"
+      },
+      "group": "Seuils"
     },
     {
       "key": "PV",
-      "label": "PV",
+      "label": "Blessures",
       "category": "vital",
       "dataType": "number",
       "origin": "module",
@@ -34,9 +35,10 @@
         "key": "PV_Max"
       },
       "rollFormula": {
-        "type": "stat",
-        "key": "PV_Max"
-      }
+        "type": "const",
+        "value": 0
+      },
+      "recoversToZero": true
     },
     {
       "key": "vigueur",
@@ -44,7 +46,7 @@
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 1,
+      "defaultValue": 0,
       "group": "Caractéristiques",
       "order": 2
     },
@@ -54,7 +56,7 @@
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 1,
+      "defaultValue": 0,
       "group": "Caractéristiques",
       "order": 3
     },
@@ -64,7 +66,7 @@
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 1,
+      "defaultValue": 0,
       "group": "Caractéristiques",
       "order": 4
     },
@@ -74,7 +76,7 @@
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 1,
+      "defaultValue": 0,
       "group": "Caractéristiques",
       "order": 5
     },
@@ -84,7 +86,7 @@
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 1,
+      "defaultValue": 0,
       "group": "Caractéristiques",
       "order": 6
     },
@@ -94,326 +96,142 @@
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 1,
+      "defaultValue": 0,
       "group": "Caractéristiques",
       "order": 7
     },
     {
-      "key": "succesBrut",
-      "label": "Succès brut",
+      "key": "baseSeuilBlessure",
+      "label": "Base Seuil de Blessure (espèce)",
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
+      "defaultValue": 10,
       "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
+      "group": "Seuils",
       "order": 8
     },
     {
-      "key": "echecBrut",
-      "label": "Échec brut",
+      "key": "baseSeuilStress",
+      "label": "Base Seuil de Stress (espèce)",
       "category": "ability",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
+      "defaultValue": 10,
       "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
+      "group": "Seuils",
       "order": 9
     },
     {
-      "key": "avantageBrut",
-      "label": "Avantage brut",
-      "category": "ability",
+      "key": "SeuilBlessure",
+      "label": "Seuil de Blessure",
+      "category": "derived",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
-      "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
-      "order": 10
+      "group": "Seuils",
+      "order": 10,
+      "valueFormula": {
+        "type": "add",
+        "args": [
+          {
+            "type": "stat",
+            "key": "baseSeuilBlessure"
+          },
+          {
+            "type": "stat",
+            "key": "vigueur"
+          }
+        ]
+      },
+      "visibleToPlayers": false
     },
     {
-      "key": "menaceBrut",
-      "label": "Menace brute",
-      "category": "ability",
+      "key": "SeuilStress",
+      "label": "Seuil de Stress",
+      "category": "derived",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
-      "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
-      "order": 11
+      "group": "Seuils",
+      "order": 11,
+      "valueFormula": {
+        "type": "add",
+        "args": [
+          {
+            "type": "stat",
+            "key": "baseSeuilStress"
+          },
+          {
+            "type": "stat",
+            "key": "volonte"
+          }
+        ]
+      },
+      "visibleToPlayers": false
     },
     {
-      "key": "triompheBrut",
-      "label": "Triomphe brut",
-      "category": "ability",
+      "key": "ValeurEncaissement",
+      "label": "Valeur d'Encaissement (Soak)",
+      "category": "derived",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
-      "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
-      "order": 12
+      "group": "Seuils",
+      "order": 12,
+      "valueFormula": {
+        "type": "stat",
+        "key": "vigueur"
+      }
     },
     {
-      "key": "desespoirBrut",
-      "label": "Désespoir brut",
-      "category": "ability",
+      "key": "Stress_Max",
+      "label": "Seuil de Stress",
+      "category": "derived",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
-      "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
-      "order": 13
+      "order": 13,
+      "valueFormula": {
+        "type": "stat",
+        "key": "SeuilStress"
+      },
+      "group": "Seuils"
     },
     {
-      "key": "obscurBrut",
-      "label": "Côté Obscur brut",
-      "category": "ability",
+      "key": "Stress",
+      "label": "Stress",
+      "category": "vital",
       "dataType": "number",
       "origin": "module",
-      "defaultValue": 0,
-      "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
-      "order": 14
+      "order": 14,
+      "minFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "maxFormula": {
+        "type": "stat",
+        "key": "Stress_Max"
+      },
+      "rollFormula": {
+        "type": "const",
+        "value": 0
+      },
+      "recoversToZero": true
     },
     {
-      "key": "lumiereBrut",
-      "label": "Côté Lumineux brut",
+      "key": "BlessuresCritiques",
+      "label": "Blessures Critiques",
       "category": "ability",
       "dataType": "number",
       "origin": "module",
       "defaultValue": 0,
-      "visibleToPlayers": false,
-      "group": "Symboles de dés (bruts)",
       "order": 15
-    },
-    {
-      "key": "succesNet",
-      "label": "Succès",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 16,
-      "valueFormula": {
-        "type": "max",
-        "args": [
-          {
-            "type": "sub",
-            "args": [
-              {
-                "type": "add",
-                "args": [
-                  {
-                    "type": "stat",
-                    "key": "succesBrut"
-                  },
-                  {
-                    "type": "stat",
-                    "key": "triompheBrut"
-                  }
-                ]
-              },
-              {
-                "type": "add",
-                "args": [
-                  {
-                    "type": "stat",
-                    "key": "echecBrut"
-                  },
-                  {
-                    "type": "stat",
-                    "key": "desespoirBrut"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "const",
-            "value": 0
-          }
-        ]
-      }
-    },
-    {
-      "key": "echecNet",
-      "label": "Échec",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 17,
-      "valueFormula": {
-        "type": "max",
-        "args": [
-          {
-            "type": "sub",
-            "args": [
-              {
-                "type": "add",
-                "args": [
-                  {
-                    "type": "stat",
-                    "key": "echecBrut"
-                  },
-                  {
-                    "type": "stat",
-                    "key": "desespoirBrut"
-                  }
-                ]
-              },
-              {
-                "type": "add",
-                "args": [
-                  {
-                    "type": "stat",
-                    "key": "succesBrut"
-                  },
-                  {
-                    "type": "stat",
-                    "key": "triompheBrut"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "const",
-            "value": 0
-          }
-        ]
-      }
-    },
-    {
-      "key": "avantageNet",
-      "label": "Avantage",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 18,
-      "valueFormula": {
-        "type": "max",
-        "args": [
-          {
-            "type": "sub",
-            "args": [
-              {
-                "type": "stat",
-                "key": "avantageBrut"
-              },
-              {
-                "type": "stat",
-                "key": "menaceBrut"
-              }
-            ]
-          },
-          {
-            "type": "const",
-            "value": 0
-          }
-        ]
-      }
-    },
-    {
-      "key": "menaceNet",
-      "label": "Menace",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 19,
-      "valueFormula": {
-        "type": "max",
-        "args": [
-          {
-            "type": "sub",
-            "args": [
-              {
-                "type": "stat",
-                "key": "menaceBrut"
-              },
-              {
-                "type": "stat",
-                "key": "avantageBrut"
-              }
-            ]
-          },
-          {
-            "type": "const",
-            "value": 0
-          }
-        ]
-      }
-    },
-    {
-      "key": "triompheNet",
-      "label": "Triomphe",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 20,
-      "valueFormula": {
-        "type": "stat",
-        "key": "triompheBrut"
-      }
-    },
-    {
-      "key": "desespoirNet",
-      "label": "Désespoir",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 21,
-      "valueFormula": {
-        "type": "stat",
-        "key": "desespoirBrut"
-      }
-    },
-    {
-      "key": "obscurNet",
-      "label": "Côté Obscur",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 22,
-      "valueFormula": {
-        "type": "stat",
-        "key": "obscurBrut"
-      }
-    },
-    {
-      "key": "lumiereNet",
-      "label": "Côté Lumineux",
-      "category": "derived",
-      "dataType": "number",
-      "origin": "module",
-      "visibleToPlayers": false,
-      "group": "Résultats de jet",
-      "order": 23,
-      "valueFormula": {
-        "type": "stat",
-        "key": "lumiereBrut"
-      }
     }
   ],
   "creation": {
-    "method": "manual"
+    "method": "manual",
+    "maxRolls": 0
   },
   "statGroups": [
     "Caractéristiques",
-    "Symboles de dés (bruts)",
-    "Résultats de jet"
+    "Seuils"
   ],
   "races": [
     {
@@ -426,7 +244,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "avgHeight": 160,
       "abilities": [
@@ -458,7 +278,9 @@
         "intellect": 1,
         "ruse": 1,
         "volonte": 1,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -498,7 +320,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "avgHeight": 160,
       "abilities": [
@@ -530,7 +354,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -556,7 +382,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 1,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -586,7 +414,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -622,7 +452,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -653,7 +485,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 1,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "avgHeight": 220,
       "abilities": [
@@ -686,7 +520,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -712,7 +548,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -738,7 +576,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -764,7 +604,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -790,7 +632,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -816,7 +660,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -842,7 +688,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -868,7 +716,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -894,7 +744,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -920,7 +772,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -946,7 +800,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -972,7 +828,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -998,7 +856,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1024,7 +884,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1050,7 +912,9 @@
         "intellect": 3,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1076,7 +940,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1102,7 +968,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1128,7 +996,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1154,7 +1024,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1180,7 +1052,9 @@
         "intellect": 3,
         "ruse": 3,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1206,7 +1080,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1232,7 +1108,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1258,7 +1136,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1284,7 +1164,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1310,7 +1192,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1336,7 +1220,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1362,7 +1248,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1388,7 +1276,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1414,7 +1304,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1440,7 +1332,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1466,7 +1360,9 @@
         "intellect": 1,
         "ruse": 1,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1492,7 +1388,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1518,7 +1416,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1544,7 +1444,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1570,7 +1472,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1596,7 +1500,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1622,7 +1528,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1648,7 +1556,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1674,7 +1584,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1700,7 +1612,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1726,7 +1640,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1752,7 +1668,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1778,7 +1696,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1804,7 +1724,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1830,7 +1752,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1856,7 +1780,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1882,7 +1808,9 @@
         "intellect": 1,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1908,7 +1836,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1934,7 +1864,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1960,7 +1892,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -1986,7 +1920,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2012,7 +1948,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2038,7 +1976,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2064,7 +2004,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2090,7 +2032,9 @@
         "intellect": 3,
         "ruse": 1,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2116,7 +2060,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2142,7 +2088,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2168,7 +2116,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2194,7 +2144,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2220,7 +2172,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2246,7 +2200,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2272,7 +2228,9 @@
         "intellect": 3,
         "ruse": 1,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2298,7 +2256,9 @@
         "intellect": 1,
         "ruse": 1,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2324,7 +2284,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2350,7 +2312,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2376,7 +2340,9 @@
         "intellect": 3,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2402,7 +2368,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2428,7 +2396,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2454,7 +2424,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2480,7 +2452,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2506,7 +2480,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2532,7 +2508,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2558,7 +2536,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2584,7 +2564,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2610,7 +2592,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2636,7 +2620,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2662,7 +2648,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 3,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2688,7 +2676,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2714,7 +2704,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2740,7 +2732,9 @@
         "intellect": 1,
         "ruse": 3,
         "volonte": 2,
-        "presence": 1
+        "presence": 1,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2766,7 +2760,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2792,7 +2788,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2818,7 +2816,9 @@
         "intellect": 2,
         "ruse": 1,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2844,7 +2844,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2870,7 +2872,9 @@
         "intellect": 1,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2896,7 +2900,9 @@
         "intellect": 1,
         "ruse": 1,
         "volonte": 3,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2922,7 +2928,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2948,7 +2956,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -2974,7 +2984,9 @@
         "intellect": 2,
         "ruse": 2,
         "volonte": 2,
-        "presence": 3
+        "presence": 3,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -3000,7 +3012,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 1,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -3026,7 +3040,9 @@
         "intellect": 1,
         "ruse": 2,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -3052,7 +3068,9 @@
         "intellect": 2,
         "ruse": 3,
         "volonte": 2,
-        "presence": 2
+        "presence": 2,
+        "baseSeuilBlessure": 10,
+        "baseSeuilStress": 10
       },
       "abilities": [
         {
@@ -3568,8 +3586,16 @@
       "description": "Dette matérielle ou immatérielle qui ancre le personnage dans l'univers (titre + valeur numérique). Avant chaque séance, le MJ lance 1d100 et compare au total d'Obligation du groupe : si le résultat est inférieur ou égal, une Obligation s'active — seuil de tension de tous les personnages réduit de 1 (2 pour le personnage concerné) pour la séance ; sur un double (11, 44...), les effets sont doublés. L'Obligation peut augmenter volontairement en échange d'XP ou de crédits de départ."
     },
     {
-      "title": "Seuil de Blessure et Seuil de Stress",
-      "description": "Seuil de Blessure = dégâts physiques encaissables avant de tomber inconscient (base d'espèce + Vigueur). Seuil de Stress = dommages psychologiques/fatigue tolérables avant d'être neutralisé (base d'espèce + Volonté). Les augmentations ultérieures de Vigueur/Volonté ne modifient pas ces seuils : passer par des talents dédiés."
+      "title": "Blessures et Seuil de Blessure",
+      "description": "Le Seuil de Blessure représente la quantité de dégâts physiques (tirs de blaster, chutes, coups) qu'un personnage peut encaisser avant de perdre connaissance ou d'être neutralisé. Il est calculé UNE FOIS à la création (base d'espèce + Vigueur) : augmenter sa Vigueur plus tard ne le fait PAS remonter, seuls des talents dédiés (ex Toughened/Endurci) peuvent l'augmenter. Lorsqu'une attaque touche, on soustrait la Valeur d'Encaissement du personnage aux dégâts totaux de l'attaque : le reste est ajouté à son compteur de Blessures (qui MONTE depuis 0, contrairement à une barre de vie classique). Si les Blessures accumulées dépassent le Seuil de Blessure, le personnage est immédiatement incapacité (évanoui/neutralisé) et subit automatiquement une Blessure Critique."
+    },
+    {
+      "title": "Stress et Seuil de Stress",
+      "description": "Le Seuil de Stress représente les dommages psychologiques/la fatigue tolérables avant d'être neutralisé — dérivé de la même mécanique que le Seuil de Blessure, mais avec la Volonté (base d'espèce + Volonté, fixée à la création, non affectée par une hausse ultérieure de Volonté)."
+    },
+    {
+      "title": "Blessures Critiques",
+      "description": "Contrairement aux Blessures normales (simple compteur), une Blessure Critique inflige un vrai traumatisme avec des effets narratifs ou mécaniques persistants — de l'entaille mineure (perte de stress) jusqu'à la mutilation d'un membre, l'aveuglement, voire la mort instantanée. Elle est infligée dans deux cas : (1) quand les Blessures accumulées dépassent le Seuil de Blessure ; (2) lors d'un combat, si l'attaque réussie inflige au moins 1 point de Blessure (dégâts > Encaissement) ET que l'attaquant dépense des symboles d'Avantage pour déclencher l'Indice Critique de son arme, ou utilise un symbole de Triomphe. Une fois confirmée, on lance 1d100 et on lit le résultat sur la table des Blessures Critiques (1 à 151+) : plus le chiffre est élevé, plus la blessure est grave."
     },
     {
       "title": "Dépense d'expérience (XP)",
@@ -3577,7 +3603,123 @@
     },
     {
       "title": "Encaissement et Défense",
-      "description": "Valeur d'encaissement (Soak) = Vigueur (augmente avec la Vigueur, l'armure et certains talents) : dégâts ignorés avant de perdre des points de blessure. Défense (distance et corps-à-corps) : 0 par défaut, s'améliore par l'armure, le couvert ou des talents."
+      "description": "Valeur d'Encaissement (Soak) = Vigueur par défaut (stat ValeurEncaissement, augmente avec la Vigueur, l'armure et certains talents) : dégâts ignorés avant de subir des Blessures. Défense (distance et corps-à-corps) : 0 par défaut, s'améliore par l'armure, le couvert ou des talents."
+    }
+  ],
+  "defaultCharacterLayout": [
+    {
+      "w": 20,
+      "h": 4,
+      "x": 0,
+      "y": 0,
+      "i": "avatar",
+      "minW": 20,
+      "minH": 3
+    },
+    {
+      "w": 20,
+      "h": 4,
+      "x": 20,
+      "y": 0,
+      "i": "details",
+      "minW": 20,
+      "minH": 3
+    },
+    {
+      "w": 60,
+      "h": 4,
+      "x": 0,
+      "y": 4,
+      "i": "stats:Caractéristiques:vigueur,agilite,intellect,ruse,volonte,presence:grid:separated:stretch",
+      "minW": 20,
+      "minH": 3
+    },
+    {
+      "w": 60,
+      "h": 3,
+      "x": 0,
+      "y": 8,
+      "i": "vitals:Vitalité:Stress,PV,BlessuresCritiques,ValeurEncaissement:horizontal:separated:stretch",
+      "minW": 20,
+      "minH": 2
+    },
+    {
+      "w": 60,
+      "h": 5,
+      "x": 0,
+      "y": 11,
+      "i": "inventory",
+      "minW": 20,
+      "minH": 4
+    },
+    {
+      "w": 60,
+      "h": 6,
+      "x": 0,
+      "y": 16,
+      "i": "skills",
+      "minW": 20,
+      "minH": 6
+    },
+    {
+      "w": 20,
+      "h": 4,
+      "x": 40,
+      "y": 0,
+      "i": "effects",
+      "minW": 20,
+      "minH": 3
+    }
+  ],
+  "content": [
+    {
+      "kind": "equipment",
+      "name": "monnaie",
+      "category": "monnaie",
+      "items": [
+        {
+          "nom": "Crédit galactique",
+          "prix": "1",
+          "encombrement": "0",
+          "rareté": "0",
+          "commentaires": "Monnaie standard de la galaxie, émise par la Banque Galactique. Référence universelle utilisée pour tous les prix de l'équipement — acceptée presque partout, sous forme de crédits-puces ou de virements électroniques."
+        },
+        {
+          "nom": "Wupiupi",
+          "prix": "0.1",
+          "encombrement": "0",
+          "rareté": "2",
+          "commentaires": "Petite monnaie métallique de Tatooine, utilisée par les Jawas et dans les échanges informels de la Bordure Extérieure. 20 Wupiupi valent environ 1 Peggat."
+        },
+        {
+          "nom": "Peggat",
+          "prix": "2",
+          "encombrement": "0",
+          "rareté": "2",
+          "commentaires": "Monnaie intermédiaire de Tatooine, entre le Wupiupi et le Trugut. Souvent utilisée dans les marchés de Mos Eisley et Mos Espa."
+        },
+        {
+          "nom": "Trugut",
+          "prix": "20",
+          "encombrement": "0",
+          "rareté": "3",
+          "commentaires": "Plus grosse dénomination de la monnaie tatooïne, équivalente à environ 20 Peggat. Rarement acceptée en dehors de la planète."
+        },
+        {
+          "nom": "Dataria (Republic Datari)",
+          "prix": "1",
+          "encombrement": "0",
+          "rareté": "4",
+          "commentaires": "Ancienne monnaie de la République galactique, progressivement remplacée par le Crédit impérial standard après la formation de l'Empire — encore acceptée dans certains systèmes reculés ou par nostalgie."
+        },
+        {
+          "nom": "Jeton Hutt",
+          "prix": "5",
+          "encombrement": "0",
+          "rareté": "4",
+          "commentaires": "Jeton de crédit émis par les clans Hutts pour leurs transactions internes (jeu, contrebande, dettes) — accepté principalement sur Nal Hutta et dans les territoires sous influence hutte."
+        }
+      ]
     }
   ]
 }

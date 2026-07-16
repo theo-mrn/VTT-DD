@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,7 @@ import InventoryManagement from '@/components/(inventaire)/inventaire'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
 import CareerSkillPicker, { type CareerSkillSelection } from '@/components/(competences)/CareerSkillPicker'
 import { toast } from 'sonner'
-import { rollCharacterStats, statsToDefaults, groupStats } from '@/lib/rules-engine'
+import { rollCharacterStats, statsToDefaults, groupStats, resolveCharacterStats, evaluateFormula } from '@/lib/rules-engine'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
 import { stripUndefinedDeep } from '@/modules/game-system/transfer'
@@ -86,7 +86,15 @@ export default function CharacterCreationPage() {
   const [roomId, setRoomId] = useState<string | null>(null)
   const { gameSystem, tableCustomStats, isLoading: isGameSystemLoading } = useGameSystem(roomId)
   const isDndClassic = gameSystem.systemId === 'dnd-classic'
-  const abilityStats = gameSystem.stats.filter((s) => s.category === 'ability')
+  // Toutes les stats 'ability', y compris les techniques (visibleToPlayers=false, ex bases de seuils
+  // utilisées uniquement par une formule dérivée) — utilisé pour peupler `character`/`baseStats`, car
+  // ces stats techniques doivent exister sur le personnage (defaultValue, ex base=10) même si jamais
+  // montrées : les en exclure ferait résoudre leur formule dérivée avec une valeur brute à 0 au lieu de
+  // leur vraie base.
+  const allAbilityStats = gameSystem.stats.filter((s) => s.category === 'ability')
+  // Sous-ensemble affiché à l'écran de création (exclut les techniques) — sans quoi elles apparaîtraient
+  // comme de vraies caractéristiques à choisir/valider, avec leur propre carte Base+Race=Score.
+  const abilityStats = allAbilityStats.filter((s) => s.visibleToPlayers !== false)
 
   // Races/profils : dnd-classic lit toujours race.json/profile.json (legacy, converti à la volée dans
   // le même format que RaceDefinition/ProfileDefinition) ; tout autre système lit gameSystem.races/profiles,
@@ -109,10 +117,18 @@ export default function CharacterCreationPage() {
   // pour ne pas écraser les valeurs déjà tirées/saisies par le joueur si le système recharge (onSnapshot).
   useEffect(() => {
     if (isGameSystemLoading || statsInitialized) return
-    setBaseStats(statsToDefaults(abilityStats) as Record<string, number>)
-    setCharacter((prev) => ({ ...prev, ...statsToDefaults(gameSystem.stats) }))
+    setBaseStats(statsToDefaults(allAbilityStats) as Record<string, number>)
+    // Exclut 'derived' de cette initialisation : poser ne serait-ce qu'un 0 sur PV_Max/SeuilBlessure/...
+    // les FIGE prématurément (resolveCharacterStats ne recalcule plus jamais une stat 'derived' dès
+    // qu'une valeur — même 0 — existe déjà dessus, mécanisme pensé pour ne pas re-tirer un dé aléatoire
+    // à chaque re-render). Elles doivent rester undefined pendant toute la création (recalculées à la
+    // volée via displayStatValues) et ne sont écrites qu'une fois, à la sauvegarde finale.
+    setCharacter((prev) => ({
+      ...prev,
+      ...statsToDefaults(gameSystem.stats.filter((s) => s.category !== 'derived')),
+    }))
     setStatsInitialized(true)
-  }, [isGameSystemLoading, statsInitialized, gameSystem, abilityStats])
+  }, [isGameSystemLoading, statsInitialized, gameSystem, allAbilityStats])
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -152,6 +168,39 @@ export default function CharacterCreationPage() {
     }))
     setRollCount((c) => c + 1)
   }
+
+  // Réapplique automatiquement le modificateur racial aux abilities dès que la race change (ou dès
+  // l'initialisation) — sans ce recalcul, un système en method='manual' avec maxRolls=0 (bouton "Lancer
+  // les dés" désactivé, ex EotE : aucun aléa réel à tirer, juste base + modificateur racial) ne verrait
+  // JAMAIS ses abilities mises à jour après un choix de race. Ne touche PAS aux stats 'derived' : leur
+  // valeur calculée est dérivée à la volée pour l'affichage (cf resolveDisplayStats plus bas), jamais
+  // stockée sur `character` pendant la création — resolveCharacterStats FIGE définitivement toute stat
+  // 'derived' dès qu'une valeur existe déjà dessus (mécanisme pensé pour ne pas re-tirer un dé aléatoire
+  // à chaque re-render), ce qui gèlerait Seuil de Blessure/Encaissement à leur toute première valeur
+  // (souvent 0, avant le premier choix de race) au lieu de suivre les changements de race/caractéristiques.
+  // gameSystem/tableCustomStats/allAbilityStats/races sont recréés à CHAQUE render (nouvelles références)
+  // — lus via une ref tenue à jour plutôt que mis en dépendance, pour ne réagir qu'à un changement réel de
+  // race (sinon Maximum update depth exceeded : l'effet se redéclencherait à chaque render). Utilise
+  // TOUTES les abilities (allAbilityStats), pas seulement celles affichées : une stat technique (ex
+  // baseSeuilBlessure) doit exister sur `character` avec sa vraie valeur/defaultValue même si jamais
+  // montrée, sans quoi la formule dérivée qui la référence résoudrait 0 au lieu de sa vraie base.
+  const resolveStatsRef = useRef({ allAbilityStats, races, baseStats })
+  resolveStatsRef.current = { allAbilityStats, races, baseStats }
+
+  useEffect(() => {
+    if (!statsInitialized || Object.keys(resolveStatsRef.current.baseStats).length === 0) return
+    const { allAbilityStats: as, races: rc, baseStats: bs } = resolveStatsRef.current
+    const raceMods = rc.find((r) => r.id === character.Race)?.modifiers ?? {}
+    const abilities: Record<string, number> = {}
+    for (const stat of as) {
+      abilities[stat.key] = (bs[stat.key] ?? 0) + (raceMods[stat.key] || 0)
+    }
+    setCharacter(prev => ({ ...prev, ...abilities }))
+  }, [character.Race, statsInitialized])
+
+  // Valeurs 'derived'/'vital' recalculées À LA VOLÉE pour l'affichage de l'écran de création (jamais
+  // stockées sur `character`, cf commentaire ci-dessus) — reflète toujours les abilities courantes.
+  const displayStatValues = resolveCharacterStats(gameSystem, tableCustomStats, character).values
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -266,9 +315,36 @@ export default function CharacterCreationPage() {
         skillSystemData.xpSpent = 0;
       }
 
+      // Stats 'vital' SANS valeur brute encore posée sur `character` (ex Blessures/Stress si l'effet
+      // d'initialisation n'a pas eu l'occasion de tourner avant ce clic) : sans ce garde-fou explicite,
+      // resolveCharacterStats les résoudrait à leur borne MAXIMALE (comportement "aucune valeur stockée
+      // => personnage frais démarre au max", pensé pour PV façon D&D) au lieu de leur rollFormula réelle
+      // (ex const 0 pour un compteur EotE qui doit démarrer vide). On pose explicitement rollFormula
+      // (ou 0) pour chaque 'vital' encore undefined, AVANT de résoudre les dérivées ci-dessous.
+      const vitalsNeedingDefault: Record<string, number> = {};
+      for (const stat of gameSystem.stats) {
+        if (stat.category !== 'vital') continue;
+        const current = character[stat.key];
+        if (current !== undefined && current !== null && current !== '') continue;
+        vitalsNeedingDefault[stat.key] = stat.rollFormula
+          ? evaluateFormula(stat.rollFormula, { rawStats: character as Record<string, number | string | boolean | undefined>, statDefs: Object.fromEntries(gameSystem.stats.map((s) => [s.key, s])) })
+          : 0;
+      }
+      const characterForResolution = { ...character, ...vitalsNeedingDefault };
+
+      // Stats 'derived'/'vital' (ex Seuil de Blessure, Encaissement) jamais stockées sur `character`
+      // pendant la création (cf displayStatValues plus haut) — calculées une dernière fois ici et
+      // figées dans le document final, seul moment où elles doivent vraiment être persistées.
+      const finalDerivedStats = Object.fromEntries(
+        Object.entries(resolveCharacterStats(gameSystem, tableCustomStats, characterForResolution).values).filter(([key]) =>
+          gameSystem.stats.some((s) => s.key === key && (s.category === 'derived' || s.category === 'vital')),
+        ),
+      )
+
       // Save character data to Firestore with additional fields
       const characterData = stripUndefinedDeep({
         ...character,
+        ...finalDerivedStats,
         ...voiesData, // Add voies
         ...skillSystemData,
         imageURL,
@@ -412,7 +488,7 @@ export default function CharacterCreationPage() {
       const mods = currentRace.modifiers
 
       const patch: Record<string, number> = {}
-      for (const stat of abilityStats) {
+      for (const stat of allAbilityStats) {
         patch[stat.key] = (baseStats[stat.key] ?? 0) + (mods[stat.key] || 0)
       }
 
@@ -643,7 +719,7 @@ export default function CharacterCreationPage() {
         </div>
       </div>
     )
-  }, [currentTab, character.Race, character.Profile, races, profiles, getPreviewImage, activeImageSource, customImage, baseStats, abilityStats])
+  }, [currentTab, character.Race, character.Profile, races, profiles, getPreviewImage, activeImageSource, customImage, baseStats, allAbilityStats])
 
 
   const renderStatsSelection = useCallback(() => {
@@ -655,9 +731,13 @@ export default function CharacterCreationPage() {
     }, 0)
 
     // Regroupées selon l'organisation définie par le MJ dans l'éditeur de règles (StatDefinition.group),
-    // même regroupement que l'onglet "Tester" de l'éditeur — abilities + derived/vital confondues.
+    // même regroupement que l'onglet "Tester" de l'éditeur — abilities + derived confondues, hors stats
+    // techniques (visibleToPlayers=false, ex bases de seuils cachées derrière une formule dérivée) et
+    // hors stats 'vital' (ex Blessures/Stress) : ce sont des compteurs de PARTIE, toujours à leur valeur
+    // de départ fixe à la création (0 ou une constante), jamais pertinents dans ce récapitulatif de
+    // caractéristiques — ils s'affichent normalement sur la fiche finale (widget Vitalité), pas ici.
     const statGroupsData = groupStats(
-      gameSystem.stats.filter((s) => s.category === 'ability' || s.category === 'derived' || s.category === 'vital'),
+      gameSystem.stats.filter((s) => (s.category === 'ability' || s.category === 'derived') && s.visibleToPlayers !== false),
       gameSystem.statGroups,
     )
 
@@ -748,7 +828,7 @@ export default function CharacterCreationPage() {
                 ) : (
                   <div key={stat.key} className="text-center p-3 bg-[#18181b] rounded-xl border border-[#27272a] flex flex-col justify-center">
                     <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1 truncate">{stat.label}</div>
-                    <div className="text-2xl font-bold text-white">{String(character[stat.key] ?? 0)}</div>
+                    <div className="text-2xl font-bold text-white">{String(displayStatValues[stat.key] ?? 0)}</div>
                   </div>
                 )
               ))}

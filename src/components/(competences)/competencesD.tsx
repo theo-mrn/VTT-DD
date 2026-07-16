@@ -42,7 +42,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     return pointsFromLevel - totalPointsLost;
   })();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
-  const [newBonus, setNewBonus] = useState<{ stat: keyof BonusData | undefined; value: number }>({
+  const [newBonus, setNewBonus] = useState<{ stat: string | undefined; value: number }>({
     stat: undefined,
     value: 0,
   });
@@ -517,7 +517,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5 dark:border-white/5">
                 <div className="space-y-2">
                   <Label className="text-[var(--text-secondary)]">Statistique</Label>
-                  <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
+                  <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value })} value={newBonus.stat}>
                     <SelectTrigger className="bg-black/20 border-white/10 text-[var(--text-primary)] focus:ring-[var(--accent-brown)]">
                       <SelectValue placeholder="Choisir..." />
                     </SelectTrigger>

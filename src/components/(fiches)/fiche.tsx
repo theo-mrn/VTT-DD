@@ -25,6 +25,9 @@ import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
 import { ThemeConfig } from './theme-portal/types';
 import { buildCharacterExport, downloadCharacterExport, parseCharacterExport, importCharacterExport } from '@/utils/characterTransfer';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { getFormulaDependencies } from '@/lib/rules-engine';
+import { useGameContent } from '@/modules/game-content/useGameContent';
+import type { SpecializationDoc } from '@/modules/game-content/types';
 
 import {
   Drawer,
@@ -157,6 +160,79 @@ export default function Component() {
   // Système de compétences façon EotE (gameSystem.skills non vide) — remplace CompetencesDisplay/
   // Competences UNIQUEMENT dans ce cas, jamais pour dnd-classic (coexistence, pas remplacement).
   const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0;
+  // Le "level-up" (jet de dé de vie + modificateur de Constitution) est un mécanisme 100% dnd-classic —
+  // masqué pour tout système custom, qui gère sa propre progression (ex XP/SkillsSheet pour EotE).
+  const isDndClassic = gameSystem.systemId === 'dnd-classic';
+  // Spécialisations du système actif — nécessaires pour résoudre les noms sur l'export PDF (Infos +
+  // liste des compétences acquises via specializationSkillChoices).
+  const { docs: specializationDocs } = useGameContent<SpecializationDoc & { id: string }>('specialization');
+
+  // Champs par défaut des widgets Caractéristiques/Vitalité/Combat — dérivés du SYSTÈME ACTIF plutôt
+  // que codés en dur (FOR/DEX/CON/SAG/INT/CHA, PV/Defense, Contact/Distance/Magie n'existent que pour
+  // dnd-classic). Un widget SANS config custom encodée dans son id (ex simplement "stats", posé par
+  // DEFAULT_LAYOUT) retombe sur ces défauts — doivent donc refléter le système actif, pas D&D.
+  // Une stat 'ability' référencée dans au moins une face d'un dé à symboles (ex succesBrut, echecBrut —
+  // compteurs bruts des dés narratifs façon EotE, cf symbol-dice.ts) N'EST PAS une vraie caractéristique
+  // de personnage : elle est exclue des widgets "Caractéristiques" par défaut, sans quoi un système avec
+  // des dés à symboles verrait ses compteurs de dés mélangés à ses vraies caractéristiques (FOR/DEX-like).
+  const symbolDiceStatKeys = React.useMemo(() => {
+    const keys = new Set<string>();
+    for (const die of gameSystem.symbolDice ?? []) {
+      for (const face of die.faces) {
+        for (const key of Object.keys(face.values ?? {})) keys.add(key);
+      }
+    }
+    return keys;
+  }, [gameSystem.symbolDice]);
+  const abilityStats = React.useMemo(
+    () => gameSystem.stats.filter((s) => s.category === 'ability' && !symbolDiceStatKeys.has(s.key) && s.visibleToPlayers !== false),
+    [gameSystem.stats, symbolDiceStatKeys],
+  );
+  const defaultAbilityKeys = React.useMemo(() => abilityStats.map((s) => s.key), [abilityStats]);
+  const defaultVitalKeys = React.useMemo(() => {
+    // Chaque stat 'vital' (ex PV) + la clé de défense générique du système (combatDefenseKey, ex
+    // Defense) si elle n'est pas déjà incluse. La borne maximale d'une stat vitale (ex PV_Max, trouvée
+    // via getFormulaDependencies(maxFormula)) n'est PAS listée séparément : WidgetVitals la déduit et
+    // l'affiche combinée ("valeur / max") dans la carte de sa stat principale.
+    const maxKeys = new Set<string>();
+    for (const stat of gameSystem.stats) {
+      if (stat.category === 'vital' && stat.maxFormula) {
+        for (const key of getFormulaDependencies(stat.maxFormula)) maxKeys.add(key);
+      }
+    }
+    const keys: string[] = [];
+    for (const stat of gameSystem.stats) {
+      if (stat.category !== 'vital' || maxKeys.has(stat.key)) continue;
+      keys.push(stat.key);
+    }
+    if (gameSystem.combatDefenseKey && !keys.includes(gameSystem.combatDefenseKey) && !maxKeys.has(gameSystem.combatDefenseKey)) {
+      keys.push(gameSystem.combatDefenseKey);
+    }
+    return Array.from(new Set(keys));
+  }, [gameSystem.stats, gameSystem.combatDefenseKey]);
+  const defaultCombatKeys = React.useMemo(
+    () => gameSystem.combatAttackKeys ?? [],
+    [gameSystem.combatAttackKeys],
+  );
+  // Même calcul que dans WidgetVitals (stat 'vital' -> clé de sa borne maximale) — dupliqué ici pour
+  // que le drawer d'ajustement générique sache si la stat cliquée a un plafond à respecter.
+  const vitalMaxKeyByKey = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const stat of gameSystem.stats) {
+      if (stat.category !== 'vital' || !stat.maxFormula) continue;
+      const [maxKey] = getFormulaDependencies(stat.maxFormula);
+      if (maxKey) map.set(stat.key, maxKey);
+    }
+    return map;
+  }, [gameSystem.stats]);
+  // Disposition par défaut configurée par le MJ pour ce système (règles -> Général) — repli sur
+  // DEFAULT_LAYOUT (générique dnd-classic) si absente/vide, comme avant.
+  const resolvedDefaultLayout = React.useMemo<Layout[]>(
+    () => (gameSystem.defaultCharacterLayout && gameSystem.defaultCharacterLayout.length > 0
+      ? gameSystem.defaultCharacterLayout
+      : DEFAULT_LAYOUT),
+    [gameSystem.defaultCharacterLayout],
+  );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isCustomizing, setIsCustomizing] = useState<boolean>(false);
@@ -202,6 +278,11 @@ export default function Component() {
   const [editingGroup, setEditingGroup] = useState<{ id: string, baseType: string, label: string, fieldIds: string[], layout: 'horizontal' | 'vertical' | 'grid', styleOption: 'separated' | 'unified', justify: 'start' | 'center' | 'end' | 'between' | 'around' } | null>(null);
   const [dragOverWidgetId, setDragOverWidgetId] = useState<string | null>(null);
   const [currentCols, setCurrentCols] = useState(120);
+  // Clé de la stat vitale (ex Blessures, Stress, Blessures Critiques...) dont le drawer d'ajustement est
+  // ouvert — null tant qu'aucune carte du widget Vitalité n'a été cliquée. Remplace l'ancien Drawer
+  // unique câblé en dur sur PV : un clic sur n'importe quelle carte ouvre désormais le drawer de LA
+  // stat cliquée.
+  const [selectedVitalKey, setSelectedVitalKey] = useState<string | null>(null);
 
   useEffect(() => {
     const sanitizeLayout = (layoutArray: Layout[]) => {
@@ -225,9 +306,9 @@ export default function Component() {
     if (selectedCharacter?.layout && selectedCharacter.layout.length > 0) {
       setLayout(sanitizeLayout(selectedCharacter.layout));
     } else {
-      setLayout(sanitizeLayout(DEFAULT_LAYOUT));
+      setLayout(sanitizeLayout(resolvedDefaultLayout));
     }
-  }, [selectedCharacter]);
+  }, [selectedCharacter, resolvedDefaultLayout]);
 
   const onLayoutChange = (currentLayout: Layout[]) => {
     // Prevent the grid from immediately saving the previewed layout as the actual "layout" state
@@ -268,7 +349,7 @@ export default function Component() {
   };
 
   const handleResetPositions = async () => {
-    setLayout(DEFAULT_LAYOUT);
+    setLayout(resolvedDefaultLayout);
   };
 
   const handleApplyTheme = (config: ThemeConfig) => {
@@ -396,7 +477,7 @@ export default function Component() {
   const handleExportPdf = async () => {
     if (!selectedCharacter) return;
     const { exportCharacterToPdf } = await import('@/utils/characterPdfExport');
-    await exportCharacterToPdf(selectedCharacter, { getDisplayValue, getDisplayModifier });
+    await exportCharacterToPdf(selectedCharacter, { getDisplayValue, getDisplayModifier, gameSystem, specializationDocs });
   };
 
   const handleImportCharacter = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -562,9 +643,9 @@ export default function Component() {
     let defaultFields: string[] = [];
     let defaultLayout: 'horizontal' | 'vertical' | 'grid' = 'horizontal';
 
-    if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA']; defaultLayout = 'grid'; }
-    else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = ['PV', 'Defense']; defaultLayout = 'horizontal'; }
-    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie']; defaultLayout = 'grid'; }
+    if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = defaultAbilityKeys; defaultLayout = 'grid'; }
+    else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = defaultVitalKeys; defaultLayout = 'horizontal'; }
+    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = defaultCombatKeys; defaultLayout = 'grid'; }
     else if (baseType === 'custom_group') { defaultLabel = ''; defaultFields = []; }
 
     const label = parts[1] !== undefined ? parts[1] : defaultLabel;
@@ -592,9 +673,9 @@ export default function Component() {
     let defaultFields: string[] = [];
     let defaultLayout: 'horizontal' | 'vertical' | 'grid' = 'horizontal';
 
-    if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA']; defaultLayout = 'grid'; }
-    else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = ['PV', 'Defense']; defaultLayout = 'horizontal'; }
-    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie']; defaultLayout = 'grid'; }
+    if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = defaultAbilityKeys; defaultLayout = 'grid'; }
+    else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = defaultVitalKeys; defaultLayout = 'horizontal'; }
+    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = defaultCombatKeys; defaultLayout = 'grid'; }
 
     const targetLabel = parts[1] !== undefined ? parts[1] : defaultLabel;
     const currentFields = parts[2] ? parts[2].split(',') : defaultFields;
@@ -664,20 +745,18 @@ export default function Component() {
 
   const handleEdit = () => {
     if (!selectedCharacter) return;
+    // Initialise editForm depuis les stats du SYSTÈME ACTIF (ability/derived/vital) plutôt qu'une
+    // liste de clés D&D en dur — sans quoi un système custom (ex Star Wars) verrait ses champs vides
+    // à l'ouverture du formulaire tant que l'utilisateur n'a pas retapé une valeur.
+    const statsForm: Record<string, number> = {};
+    for (const stat of gameSystem.stats) {
+      const isAbility = stat.category === 'ability' && abilityStats.some((a) => a.key === stat.key);
+      if (isAbility || stat.category === 'derived' || stat.category === 'vital') {
+        statsForm[stat.key] = Number(selectedCharacter[stat.key as keyof Character] ?? 0);
+      }
+    }
     setEditForm({
-      PV: selectedCharacter.PV || 0,
-      PV_Max: selectedCharacter.PV_Max || 0,
-      Defense: selectedCharacter.Defense || 0,
-      Contact: selectedCharacter.Contact || 0,
-      Magie: selectedCharacter.Magie || 0,
-      Distance: selectedCharacter.Distance || 0,
-      INIT: selectedCharacter.INIT || 0,
-      FOR: selectedCharacter.FOR || 0,
-      DEX: selectedCharacter.DEX || 0,
-      CON: selectedCharacter.CON || 0,
-      SAG: selectedCharacter.SAG || 0,
-      INT: selectedCharacter.INT || 0,
-      CHA: selectedCharacter.CHA || 0,
+      ...statsForm,
       Background: selectedCharacter.Background || '',
       Description: selectedCharacter.Description || '',
     });
@@ -818,18 +897,24 @@ export default function Component() {
     setRollResult(roll + conModifier);
   };
 
-  const handleUpdatePV = async (amount: number) => {
+  // Ajustement générique d'une stat vitale (ex Blessures, Stress) ou d'un compteur ability sans borne
+  // (ex Blessures Critiques) — remplace handleUpdatePV câblé en dur sur PV/PV_Max : la même logique
+  // s'applique à n'importe quelle stat que le MJ configure pour ce système, bornée par maxKey si fournie.
+  const handleUpdateVital = async (statKey: string, amount: number, maxKey?: string) => {
     if (!selectedCharacter) return;
-    const currentPV = selectedCharacter.PV || 0;
-    const maxPV = selectedCharacter.PV_Max || 0;
-    let newPV = currentPV + amount;
+    const current = Number(selectedCharacter[statKey as keyof Character] ?? 0);
+    let next = current + amount;
 
-    if (newPV > maxPV) newPV = maxPV;
+    if (maxKey) {
+      const max = Number(selectedCharacter[maxKey as keyof Character] ?? 0);
+      if (next > max) next = max;
+    }
+    if (next < 0) next = 0;
 
     try {
-      await updateCharacter(selectedCharacter.id, { PV: newPV });
+      await updateCharacter(selectedCharacter.id, { [statKey]: next });
     } catch (e) {
-      console.error("Error updating PV", e);
+      console.error(`Error updating ${statKey}`, e);
     }
   };
 
@@ -1018,10 +1103,12 @@ export default function Component() {
                 >
                   {(selectedCharacter.id === userPersoId || isMJ) && (
                     <>
-                      <DropdownMenuItem onSelect={openLevelUpModal}>
-                        <TrendingUp size={16} className="mr-2" />
-                        Niveau +
-                      </DropdownMenuItem>
+                      {isDndClassic && (
+                        <DropdownMenuItem onSelect={openLevelUpModal}>
+                          <TrendingUp size={16} className="mr-2" />
+                          Niveau +
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onSelect={() => setIsAttributsOpen(true)}>
                         <Sliders size={16} className="mr-2" />
                         Champs & Attributs
@@ -1247,7 +1334,7 @@ export default function Component() {
                   </div>
                 </div>
                 {layout.filter(l => l.i === 'stats' || l.i.startsWith('stats:')).map(l => {
-                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'], layout: 'grid' });
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultAbilityKeys, layout: 'grid' });
                   const isDragOver = dragOverWidgetId === l.i;
                   return (
                     <div
@@ -1264,7 +1351,7 @@ export default function Component() {
                   );
                 })}
                 {layout.filter(l => l.i === 'vitals' || l.i.startsWith('vitals:')).map(l => {
-                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['PV', 'Defense'], layout: 'horizontal' });
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultVitalKeys, layout: 'horizontal' });
                   const isDragOver = dragOverWidgetId === l.i;
                   return (
                     <div
@@ -1281,7 +1368,7 @@ export default function Component() {
                   );
                 })}
                 {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
-                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['Contact', 'Distance', 'Magie'], layout: 'grid' });
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultCombatKeys, layout: 'grid' });
                   const isDragOver = dragOverWidgetId === l.i;
                   return (
                     <div
@@ -1400,98 +1487,19 @@ export default function Component() {
                 <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div id="vtt-widget-details-view" key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
                 {layout.filter(l => l.i === 'stats' || l.i.startsWith('stats:')).map(l => {
-                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'], layout: 'grid' });
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultAbilityKeys, layout: 'grid' });
                   return <div id={`vtt-widget-stats-view-${l.i}`} key={l.i} className="overflow-hidden h-full"><WidgetStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} /></div>;
                 })}
                 {layout.filter(l => l.i === 'vitals' || l.i.startsWith('vitals:')).map(l => {
-                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['PV', 'Defense'], layout: 'horizontal' });
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultVitalKeys, layout: 'horizontal' });
                   return (
                     <div id={`vtt-widget-vitals-view-${l.i}`} key={l.i} className="overflow-hidden h-full">
-                      <Drawer>
-                        <DrawerTrigger asChild>
-                          <button className="w-full h-full text-left p-0 bg-transparent border-0 cursor-pointer block hover:brightness-110 transition-all">
-                            <WidgetVitals style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
-                          </button>
-                        </DrawerTrigger>
-                        <DrawerContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
-                          <div className="mx-auto w-full max-w-sm">
-                            <DrawerHeader>
-                              <DrawerTitle className="text-[var(--accent-brown)]">Gestion des Points de Vie</DrawerTitle>
-                              <DrawerDescription className="text-[var(--text-secondary)]">Ajustez les points de vie de votre personnage.</DrawerDescription>
-                            </DrawerHeader>
-                            <div className="p-4 pb-0">
-                              <div className="flex items-center justify-center space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
-                                  onClick={() => handleUpdatePV(-5)}
-                                  disabled={!selectedCharacter}
-                                >
-                                  <span className="font-bold">-5</span>
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
-                                  onClick={() => handleUpdatePV(-1)}
-                                  disabled={!selectedCharacter}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-
-                                <div className="flex-1 text-center">
-                                  <div className="text-5xl font-bold tracking-tighter text-[#d4d4d4]">
-                                    {selectedCharacter?.PV}
-                                  </div>
-                                  <div className="text-[0.70rem] uppercase text-muted-foreground text-[#a0a0a0]">
-                                    PV ACTUELS / {selectedCharacter?.PV_Max} MAX
-                                  </div>
-                                </div>
-
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
-                                  onClick={() => handleUpdatePV(1)}
-                                  disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
-                                  onClick={() => handleUpdatePV(5)}
-                                  disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
-                                >
-                                  <span className="font-bold">+5</span>
-                                </Button>
-                              </div>
-                              <div className="mt-8 flex justify-center">
-                                <Button
-                                  variant="ghost"
-                                  className="text-[var(--accent-brown)] hover:text-[var(--accent-brown)] hover:bg-[var(--bg-card)]"
-                                  onClick={() => handleUpdatePV((selectedCharacter?.PV_Max || 0) - (selectedCharacter?.PV || 0))}
-                                  disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
-                                >
-                                  Repos complet (Full PV)
-                                </Button>
-                              </div>
-                            </div>
-                            <DrawerFooter>
-                              <DrawerClose asChild>
-                                <Button variant="outline" className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-darker)]">Fermer</Button>
-                              </DrawerClose>
-                            </DrawerFooter>
-                          </div>
-                        </DrawerContent>
-                      </Drawer>
+                      <WidgetVitals style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} onFieldClick={setSelectedVitalKey} />
                     </div>
                   );
                 })}
                 {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
-                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['Contact', 'Distance', 'Magie'], layout: 'grid' });
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultCombatKeys, layout: 'grid' });
                   return <div id={`vtt-widget-combat-stats-view-${l.i}`} key={l.i} className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} /></div>;
                 })}
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
@@ -1548,6 +1556,107 @@ export default function Component() {
             )
           )}
 
+          {/* Drawer d'ajustement générique — remplace l'ancien Drawer câblé en dur sur PV : s'ouvre pour
+              LA STAT CLIQUÉE dans le widget Vitalité (Blessures, Stress, Blessures Critiques...), avec
+              le bon label/borne max, quel que soit le système de règles actif. */}
+          {selectedVitalKey && selectedCharacter && (() => {
+            const statDef = gameSystem.stats.find((s) => s.key === selectedVitalKey);
+            const label = statDef?.label || selectedVitalKey;
+            const maxKey = vitalMaxKeyByKey.get(selectedVitalKey);
+            const current = Number(selectedCharacter[selectedVitalKey as keyof Character] ?? 0);
+            const max = maxKey ? Number(selectedCharacter[maxKey as keyof Character] ?? 0) : undefined;
+            const atMax = max !== undefined && current >= max;
+            // Sens du "bon état" pour cette jauge (cf StatDefinition.recoversToZero) : pour Blessures/
+            // Stress façon EotE, 0 = indemne/calme (le "Repos complet" doit y ramener), contrairement à
+            // PV façon D&D où le MAX = pleine santé. Sans ce champ (absent/faux), comportement inchangé.
+            const recoversToZero = !!statDef?.recoversToZero;
+            const recoveryTarget = recoversToZero ? 0 : max;
+            const isFullyRecovered = recoversToZero ? current === 0 : atMax;
+
+            return (
+              <Drawer open onOpenChange={(open) => { if (!open) setSelectedVitalKey(null); }}>
+                <DrawerContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                  <div className="mx-auto w-full max-w-sm">
+                    <DrawerHeader>
+                      <DrawerTitle className="text-[var(--accent-brown)]">Ajuster {label}</DrawerTitle>
+                      <DrawerDescription className="text-[var(--text-secondary)]">
+                        {maxKey ? `Modifiez ${label.toLowerCase()} de votre personnage.` : `Modifiez le compteur ${label.toLowerCase()}.`}
+                      </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-4 pb-0">
+                      <div className="flex items-center justify-center space-x-2">
+                        {maxKey && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
+                            onClick={() => handleUpdateVital(selectedVitalKey, -5, maxKey)}
+                          >
+                            <span className="font-bold">-5</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                          onClick={() => handleUpdateVital(selectedVitalKey, -1, maxKey)}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+
+                        <div className="flex-1 text-center">
+                          <div className="text-5xl font-bold tracking-tighter text-[#d4d4d4]">
+                            {current}
+                          </div>
+                          <div className="text-[0.70rem] uppercase text-muted-foreground text-[#a0a0a0]">
+                            {maxKey ? `${label.toUpperCase()} ACTUEL${max !== undefined ? ` / ${max} MAX` : ''}` : `${label.toUpperCase()} ACTUEL`}
+                          </div>
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                          onClick={() => handleUpdateVital(selectedVitalKey, 1, maxKey)}
+                          disabled={atMax}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        {maxKey && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
+                            onClick={() => handleUpdateVital(selectedVitalKey, 5, maxKey)}
+                            disabled={atMax}
+                          >
+                            <span className="font-bold">+5</span>
+                          </Button>
+                        )}
+                      </div>
+                      {maxKey && recoveryTarget !== undefined && (
+                        <div className="mt-8 flex justify-center">
+                          <Button
+                            variant="ghost"
+                            className="text-[var(--accent-brown)] hover:text-[var(--accent-brown)] hover:bg-[var(--bg-card)]"
+                            onClick={() => handleUpdateVital(selectedVitalKey, recoveryTarget - current, maxKey)}
+                            disabled={isFullyRecovered}
+                          >
+                            {recoversToZero ? `Récupération complète (${label})` : `Repos complet (${label})`}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <DrawerFooter>
+                      <DrawerClose asChild>
+                        <Button variant="outline" className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-darker)]">Fermer</Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            );
+          })()}
 
           {showLevelUpConfirmationModal && selectedCharacter && (
             <LevelUpConfirmationModal
@@ -1562,80 +1671,32 @@ export default function Component() {
                 Modifier {selectedCharacter?.Nomperso || "Personnage"}
               </h2>
 
+              {/* Stats dérivées/vitales (ex PV, Défense, Initiative) — dérivées du SYSTÈME ACTIF plutôt
+                  que des champs D&D en dur (PV/PV_Max/Defense/Contact/Magie/Distance/INIT n'existent
+                  que pour dnd-classic) ; un système custom (ex Star Wars) affiche ses propres stats. */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">PV</label>
-                  <input
-                    type="number"
-                    value={editForm.PV || ''}
-                    onChange={(e) => setEditForm({ ...editForm, PV: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">PV Maximum</label>
-                  <input
-                    type="number"
-                    value={editForm.PV_Max || ''}
-                    onChange={(e) => setEditForm({ ...editForm, PV_Max: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Défense</label>
-                  <input
-                    type="number"
-                    value={editForm.Defense || ''}
-                    onChange={(e) => setEditForm({ ...editForm, Defense: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Contact</label>
-                  <input
-                    type="number"
-                    value={editForm.Contact || ''}
-                    onChange={(e) => setEditForm({ ...editForm, Contact: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Magie</label>
-                  <input
-                    type="number"
-                    value={editForm.Magie || ''}
-                    onChange={(e) => setEditForm({ ...editForm, Magie: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Distance</label>
-                  <input
-                    type="number"
-                    value={editForm.Distance || ''}
-                    onChange={(e) => setEditForm({ ...editForm, Distance: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Initiative</label>
-                  <input
-                    type="number"
-                    value={editForm.INIT || ''}
-                    onChange={(e) => setEditForm({ ...editForm, INIT: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((stat) => (
-                  <div key={stat} className="space-y-2">
-                    <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">{stat}</label>
+                {gameSystem.stats.filter((s) => s.category === 'derived' || s.category === 'vital').map((stat) => (
+                  <div key={stat.key} className="space-y-2">
+                    <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">{stat.label}</label>
                     <input
                       type="number"
-                      value={(editForm[stat as keyof Character] as number) || ''}
-                      onChange={(e) => setEditForm({ ...editForm, [stat]: parseInt(e.target.value) })}
+                      value={(editForm[stat.key as keyof Character] as number) || ''}
+                      onChange={(e) => setEditForm({ ...editForm, [stat.key]: parseInt(e.target.value) })}
+                      className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Caractéristiques (ability, hors compteurs de dés à symboles) du système actif */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                {abilityStats.map((stat) => (
+                  <div key={stat.key} className="space-y-2">
+                    <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">{stat.shortLabel || stat.label}</label>
+                    <input
+                      type="number"
+                      value={(editForm[stat.key as keyof Character] as number) || ''}
+                      onChange={(e) => setEditForm({ ...editForm, [stat.key]: parseInt(e.target.value) })}
                       className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                     />
                   </div>

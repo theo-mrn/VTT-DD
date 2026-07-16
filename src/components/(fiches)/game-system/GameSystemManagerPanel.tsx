@@ -5,7 +5,7 @@ import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, 
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition, SkillDefinition } from '@/modules/game-system/types';
+import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition, SkillDefinition, CharacterLayoutEntry } from '@/modules/game-system/types';
 import type { LocationDoc } from '@/modules/game-content/types';
 import { useSpecializations, SpecializationsOverviewPanel, SpecializationDetail } from './SpecializationsPanel';
 import { FormulaEditor } from './FormulaEditor';
@@ -610,6 +610,7 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
           skillLabel: imported.skillLabel,
           startingXp: imported.startingXp,
           diceUpgradeRule: imported.diceUpgradeRule,
+          defaultCharacterLayout: imported.defaultCharacterLayout,
         });
         setSelection({ kind: 'general' });
         toast.success('Système importé.');
@@ -773,7 +774,7 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
         {/* ── Colonne détail de la sélection ── */}
         <div className="flex-1 min-w-0 min-h-0 overflow-y-auto p-4">
           {selection.kind === 'general' && (
-            <GeneralPanel local={local} onChangeDescription={(description) => setLocal({ ...local, description })} onBlurSave={() => save(local)} />
+            <GeneralPanel local={local} onChangeDescription={(description) => setLocal({ ...local, description })} onBlurSave={() => save(local)} onSave={save} />
           )}
           {selection.kind === 'modifier' && (
             <ModifierPanel local={local} onSave={save} />
@@ -1629,7 +1630,7 @@ function DetailHeader({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-function GeneralPanel({ local, onChangeDescription, onBlurSave }: { local: Draft; onChangeDescription: (v: string) => void; onBlurSave: () => void }) {
+function GeneralPanel({ local, onChangeDescription, onBlurSave, onSave }: { local: Draft; onChangeDescription: (v: string) => void; onBlurSave: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   return (
     <div>
       <DetailHeader title="Informations générales" hint="Le nom et la description de ce système de règles." />
@@ -1645,6 +1646,74 @@ function GeneralPanel({ local, onChangeDescription, onBlurSave }: { local: Draft
           style={{ color: 'var(--text-primary)' }}
         />
       </div>
+      <div className="mt-6">
+        <DefaultLayoutPanel local={local} onSave={onSave} />
+      </div>
+    </div>
+  );
+}
+
+function isCharacterLayoutEntry(v: unknown): v is CharacterLayoutEntry {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return typeof o.i === 'string' && typeof o.x === 'number' && typeof o.y === 'number' && typeof o.w === 'number' && typeof o.h === 'number';
+}
+
+/** Disposition par défaut des widgets de la fiche personnage pour ce système — appliquée à tout
+ *  personnage sans layout sauvegardé (remplace DEFAULT_LAYOUT codé en dur dans fiche.tsx). Édition en
+ *  JSON brut : structure technique (positions/tailles react-grid-layout), pas un formulaire dédié —
+ *  le MJ récupère ce JSON en ouvrant une fiche en mode édition puis en l'exportant/copiant (mécanisme
+ *  d'aperçu déjà existant côté fiche), pas de saisie manuelle attendue champ par champ. */
+function DefaultLayoutPanel({ local, onSave }: { local: Draft; onSave: (next: Draft) => void | Promise<void> }) {
+  const [text, setText] = useState(() => JSON.stringify(local.defaultCharacterLayout ?? [], null, 2));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText(JSON.stringify(local.defaultCharacterLayout ?? [], null, 2));
+    setError(null);
+  }, [local.defaultCharacterLayout]);
+
+  const handleBlur = () => {
+    if (text.trim() === '') {
+      setError(null);
+      onSave({ ...local, defaultCharacterLayout: undefined });
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      setError('JSON invalide.');
+      return;
+    }
+    if (!Array.isArray(parsed) || !parsed.every(isCharacterLayoutEntry)) {
+      setError('Chaque entrée doit avoir au moins { i, x, y, w, h } (nombres pour x/y/w/h).');
+      return;
+    }
+    setError(null);
+    onSave({ ...local, defaultCharacterLayout: parsed.length > 0 ? parsed : undefined });
+  };
+
+  return (
+    <div className="space-y-1.5 max-w-md">
+      <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+        Disposition par défaut de la fiche personnage (JSON)
+      </label>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={handleBlur}
+        rows={8}
+        placeholder="[]"
+        spellCheck={false}
+        className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-xs font-mono placeholder:opacity-40"
+        style={{ color: 'var(--text-primary)' }}
+      />
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+        Appliquée à tout personnage sans disposition déjà sauvegardée. Vide = disposition générique par
+        défaut. Format : tableau d&apos;objets {'{'}i, x, y, w, h, minW?, minH?{'}'} (react-grid-layout).
+      </p>
     </div>
   );
 }
@@ -2365,6 +2434,16 @@ function BoundsSection({ stat, referenceableStats, onChange }: {
       <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
         La valeur courante reste toujours dans ces bornes si définies (ex Maximum = Variable → PV Max).
       </p>
+      {stat.maxFormula && (
+        <label className="flex items-center gap-2 text-xs pt-1 border-t" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+          <input
+            type="checkbox"
+            checked={!!stat.recoversToZero}
+            onChange={(e) => onChange({ recoversToZero: e.target.checked || undefined })}
+          />
+          Le bon état est à 0 (ex Blessures/Stress) plutôt qu'au maximum (ex PV) — inverse la cible du bouton &quot;Repos complet&quot; sur la fiche.
+        </label>
+      )}
     </div>
   );
 }

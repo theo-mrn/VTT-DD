@@ -34,6 +34,13 @@ export interface StatDefinition {
   minFormula?: FormulaNode;
   maxFormula?: FormulaNode;
 
+  /** Pour category='vital' uniquement : sens du "bon état" pour cette jauge — vrai si 0 représente le
+   *  meilleur état (ex Blessures/Stress façon EotE : 0 = indemne/calme, le max = très blessé/très
+   *  stressé), faux/absent si le MAX représente le meilleur état (ex PV façon D&D : le max = pleine
+   *  santé, 0 = mort). Utilisé uniquement par le bouton "Repos complet" de la fiche pour savoir vers
+   *  quelle borne ramener la jauge — n'affecte aucun calcul de formule. */
+  recoversToZero?: boolean;
+
   defaultValue?: number | string | boolean;
 
   isRollable?: boolean;
@@ -190,6 +197,23 @@ export interface GameSystemDefinition {
    *  upgradedDiceKey='proficiency') — aucun nom de dé codé en dur. Absent = pas de mécanisme de pool
    *  dérivé activé (comportement inchangé : jets numériques classiques ou dés à symboles à nombre fixe). */
   diceUpgradeRule?: DicePoolUpgradeRule;
+  /** Disposition par défaut des widgets de la fiche personnage (react-grid-layout), appliquée à tout
+   *  personnage qui n'a pas encore sa propre disposition sauvegardée (Character.layout) — remplace
+   *  DEFAULT_LAYOUT codé en dur dans fiche.tsx pour ce système. Structure volontairement non typée
+   *  précisément (pas de dépendance à react-grid-layout dans ce module) : chaque entrée est un objet
+   *  {i, x, y, w, h, minW?, minH?} recopié tel quel dans le layout runtime. Absent = repli sur
+   *  DEFAULT_LAYOUT. */
+  defaultCharacterLayout?: CharacterLayoutEntry[];
+}
+
+export interface CharacterLayoutEntry {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
 }
 
 export interface GameRuleEntry {
