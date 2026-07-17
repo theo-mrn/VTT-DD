@@ -106,6 +106,12 @@ export const drawCharacterBorders = (
       // Copy visibility logic from drawForegroundLayers
       let effectiveVisibility = char.visibility;
 
+      // Les joueurs sont toujours visibles des autres joueurs (même règle que le renderer
+      // principal / isCharacterVisibleToUser) — cf foreground-renderer.ts.
+      if (char.type === 'joueurs' && (char.visibility as string) !== 'invisible') {
+        effectiveVisibility = 'visible';
+      }
+
       if (!isCharacterVisibleToUser(char)) {
         effectiveVisibility = 'hidden';
       }

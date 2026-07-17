@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { db, doc, onSnapshot, auth, onAuthStateChanged } from '@/lib/firebase';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { db, doc, onSnapshot, setDoc, auth, onAuthStateChanged } from '@/lib/firebase';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition } from './types';
+import { stripUndefinedDeep } from './transfer';
+import type { GameSystemDefinition, MapConfig, StatDefinition } from './types';
 
 const DEFAULT_GAME_SYSTEM_ID = 'dnd-classic';
 const LOG_PREFIX = '[useGameSystem]';
@@ -18,6 +19,11 @@ export interface UseGameSystemResult {
    *  catalogue (y compris le contenu seedé d'un builtin comme dnd-classic), ou
    *  Salle/{roomId}/gameSystemOverrides/{id}/content pour un système legacy scopé à la salle. */
   contentPath: string;
+  /** Écrit gameSystem.maps directement dans le doc système résolu (catalogue, legacy scopé à la
+   *  salle, ou overlay narratif d'un builtin) — permet de gérer les cartes (ajout/suppression/upload
+   *  d'image) DEPUIS l'onglet Carte lui-même (MapExplorer.tsx), sans repasser par l'éditeur de règles
+   *  complet. no-op si roomId est absent (rien à écrire hors contexte de salle). */
+  updateMaps: (next: MapConfig[]) => Promise<void>;
 }
 
 /** Champs NARRATIFS d'un système — seuls champs qu'un doc Firestore peut superposer à un module
@@ -30,6 +36,7 @@ function narrativeOverlay(data: Partial<GameSystemDefinition>): Partial<GameSyst
   if (Array.isArray(data.rules)) overlay.rules = data.rules;
   if (typeof data.raceLabel === 'string') overlay.raceLabel = data.raceLabel;
   if (typeof data.profileLabel === 'string') overlay.profileLabel = data.profileLabel;
+  if (Array.isArray(data.maps)) overlay.maps = data.maps;
   return overlay;
 }
 
@@ -180,9 +187,13 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
   }, [roomId, gameSystemId, authReady, roomLoaded]);
 
   const registered = moduleRegistry.getGameSystemModule(gameSystemId);
-  const gameSystem = registered
-    ? { ...registered.gameSystem, ...(builtinOverlay ?? {}) }
-    : overrideDefinition ?? dndClassicModule.gameSystem;
+  // Mémoïsé : sinon un nouvel objet littéral est recréé à CHAQUE render, ce qui invalide en cascade
+  // tout useCallback/useMemo consommateur dépendant de `gameSystem` (ex fetchBonusData dans
+  // CharacterContext) et redéclenche leurs useEffect à l'infini ("Maximum update depth exceeded").
+  const gameSystem = useMemo(
+    () => (registered ? { ...registered.gameSystem, ...(builtinOverlay ?? {}) } : overrideDefinition ?? dndClassicModule.gameSystem),
+    [registered, builtinOverlay, overrideDefinition],
+  );
 
   const contentPath = !registered && overrideSource === 'legacy' && roomId
     ? `Salle/${roomId}/gameSystemOverrides/${gameSystemId}/content`
@@ -190,5 +201,17 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
 
   const isLoading = !roomLoaded || !systemLoaded;
 
-  return { gameSystem, tableCustomStats, isLoading, contentPath };
+  // Même résolution de "où écrire" que GameSystemManagerPanel.tsx (registered => overlay narratif
+  // gameSystems/{id} ; sinon catalogue partagé gameSystems/{id} ou legacy Salle/{roomId}/
+  // gameSystemOverrides/{id}) — mais utilisable depuis N'IMPORTE QUEL composant lisant ce hook, pas
+  // seulement l'éditeur MJ complet. setDoc({merge:true}) : ne touche jamais aux autres champs du doc.
+  const updateMaps = useCallback(async (next: MapConfig[]) => {
+    if (!roomId) return;
+    const ref = registered || overrideSource === 'catalog'
+      ? doc(db, 'gameSystems', gameSystemId)
+      : doc(db, `Salle/${roomId}/gameSystemOverrides`, gameSystemId);
+    await setDoc(ref, stripUndefinedDeep({ maps: next }), { merge: true });
+  }, [roomId, registered, overrideSource, gameSystemId]);
+
+  return { gameSystem, tableCustomStats, isLoading, contentPath, updateMaps };
 }

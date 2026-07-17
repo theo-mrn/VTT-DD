@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Sparkles } from 'lucide-react';
+import { BookOpen, Eye, Sparkles } from 'lucide-react';
 import { useCharacter } from '@/contexts/CharacterContext';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { useGameContent } from '@/modules/game-content/useGameContent';
 import type { SpecializationDoc } from '@/modules/game-content/types';
 import { specializationPurchaseCost, isTalentPurchasable, nextTalentRankCost } from '@/lib/rules-engine';
 import TalentTreeView from './TalentTreeView';
+import SpecializationBrowser from './SpecializationBrowser';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Widget "Talents & Spécialisations" de la fiche — pendant de SkillsSheet (compétences), séparé pour
@@ -25,11 +27,13 @@ interface TalentsSheetProps {
   style?: React.CSSProperties;
 }
 
-export default function TalentsSheet({ characterId, canEdit = false, style }: TalentsSheetProps) {
+export default function TalentsSheet({ roomId, characterId, canEdit = false, style }: TalentsSheetProps) {
   const { characters, selectedCharacter, updateCharacter } = useCharacter();
+  const { gameSystem } = useGameSystem(roomId);
   const { docs: specializationDocs } = useGameContent<SpecializationDoc & { id: string }>('specialization');
 
   const [selectedTalentSpec, setSelectedTalentSpec] = useState<SpecializationDoc & { id: string } | null>(null);
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
 
   const character = characters.find((c) => c.id === characterId) ?? (selectedCharacter?.id === characterId ? selectedCharacter : null);
 
@@ -75,9 +79,19 @@ export default function TalentsSheet({ characterId, canEdit = false, style }: Ta
       <div className="h-full w-full bg-[var(--bg-dark)] rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] flex flex-col items-stretch overflow-hidden" style={style}>
         <div className="shrink-0 p-3 border-b border-[var(--border-color)] flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-[var(--accent-brown)]">Talents & Spécialisations</h2>
-          <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 h-9 rounded-lg border shrink-0" style={{ borderColor: 'var(--border-color)', background: 'color-mix(in srgb, var(--accent-brown) 12%, transparent)', color: 'var(--accent-brown)' }}>
-            <Sparkles size={13} /> {xp} XP
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setIsBrowserOpen(true)}
+              className="flex items-center justify-center h-9 w-9 rounded-lg border text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors"
+              style={{ borderColor: 'var(--border-color)' }}
+              title="Codex : parcourir toutes les spécialisations et leurs arbres de talents"
+            >
+              <BookOpen size={15} />
+            </button>
+            <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 h-9 rounded-lg border" style={{ borderColor: 'var(--border-color)', background: 'color-mix(in srgb, var(--accent-brown) 12%, transparent)', color: 'var(--accent-brown)' }}>
+              <Sparkles size={13} /> {xp} XP
+            </span>
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
@@ -107,7 +121,16 @@ export default function TalentsSheet({ characterId, canEdit = false, style }: Ta
               const cost = specializationPurchaseCost(ownedSpecializationIds.length + 1, isOutsideCareer);
               return (
                 <div key={spec.id} className="bg-[var(--bg-card)] border border-dashed rounded-lg p-3 flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-color)' }}>
-                  <span className="text-sm truncate text-[var(--text-secondary)]">{spec.name}</span>
+                  {/* Le nom ouvre l'arbre en APERÇU (lecture seule) — on ne devrait jamais acheter à
+                      l'aveugle une spécialisation sans avoir pu parcourir ses talents. */}
+                  <button
+                    onClick={() => setSelectedTalentSpec(spec)}
+                    className="flex items-center gap-1.5 min-w-0 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors"
+                    title="Voir l'arbre de talents"
+                  >
+                    <Eye className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{spec.name}</span>
+                  </button>
                   <Button
                     size="sm"
                     disabled={cost > xp}
@@ -131,16 +154,22 @@ export default function TalentsSheet({ characterId, canEdit = false, style }: Ta
           {selectedTalentSpec && (() => {
             const spec = selectedTalentSpec;
             const purchasedRanks = unlockedTalents[spec.id] ?? {};
+            const isOwned = ownedSpecializationIds.includes(spec.id);
             return (
               <div className="p-6">
-                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] mb-4">
+                <h2 className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] ${isOwned ? 'mb-4' : 'mb-1'}`}>
                   {spec.name}
                 </h2>
+                {!isOwned && (
+                  <p className="text-xs text-[var(--text-secondary)] mb-4">
+                    Aperçu — achetez cette spécialisation pour débloquer ses talents.
+                  </p>
+                )}
                 <TalentTreeView
                   talents={spec.talents}
                   purchasedRanks={purchasedRanks}
                   xp={xp}
-                  canBuy={canEdit}
+                  canBuy={canEdit && isOwned}
                   onBuy={(talentId) => buyTalent(spec, talentId)}
                 />
                 <div className="flex justify-end mt-4 pt-4 border-t border-black/5 dark:border-white/5">
@@ -153,6 +182,14 @@ export default function TalentsSheet({ characterId, canEdit = false, style }: Ta
           })()}
         </DialogContent>
       </Dialog>
+
+      <SpecializationBrowser
+        open={isBrowserOpen}
+        onClose={() => setIsBrowserOpen(false)}
+        specializations={specializationDocs}
+        profiles={gameSystem.profiles ?? []}
+        skills={gameSystem.skills ?? []}
+      />
     </>
   );
 }

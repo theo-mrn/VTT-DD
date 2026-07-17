@@ -20,6 +20,8 @@ import stunIcon from '../../app/[roomid]/map/icons/stun.svg';
 import blindIcon from '../../app/[roomid]/map/icons/blind.svg';
 import otherIcon from '../../app/[roomid]/map/icons/other.svg';
 import { LightRays } from "@/components/ui/light-rays"
+import { useParams } from 'next/navigation'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
 
 
 type Character = {
@@ -33,15 +35,11 @@ type Character = {
   initDetails?: string
   type: string
   currentInit?: number
-  Defense: number
-  stats?: {
-    FOR: number
-    DEX: number
-    CON: number
-    INT: number
-    SAG: number
-    CHA: number
-  }
+  // Défense et caractéristiques : dérivées dynamiquement du système actif (defenseKey/abilityStats
+  // de useNpcStatFields), jamais nommées en dur ici — un système custom (ex Star Wars) n'a ni
+  // "Defense" ni FOR/DEX/CON/INT/SAG/CHA.
+  defense?: number
+  stats?: Record<string, number>
   conditions?: string[]
 }
 
@@ -181,6 +179,9 @@ function CompactCharacterCard({
   onToggleCondition: (charId: string, condId: string) => void
   onAdjustHP: (character: Character) => void
 }) {
+  const params = useParams()
+  const roomId = (params?.roomid as string) ?? null
+  const { abilityStats } = useNpcStatFields(roomId)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const accentClasses = {
@@ -212,7 +213,7 @@ function CompactCharacterCard({
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <div className="flex flex-col items-center">
               <span className="text-[8px] text-[var(--text-secondary)] font-bold uppercase">DEF</span>
-              <span className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">{character.Defense}</span>
+              <span className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">{character.defense ?? '-'}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="text-[8px] text-[var(--text-secondary)] font-bold uppercase">PV</span>
@@ -258,7 +259,7 @@ function CompactCharacterCard({
               <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-3">
                 <Shield className="h-5 w-5 text-[var(--text-secondary)]" />
                 <span className="text-xs text-[var(--text-secondary)] uppercase font-bold">DEF</span>
-                <span className="text-2xl font-bold text-[var(--text-primary)]">{character.Defense}</span>
+                <span className="text-2xl font-bold text-[var(--text-primary)]">{character.defense ?? '-'}</span>
               </div>
               <button
                 onClick={() => onAdjustHP(character)}
@@ -274,14 +275,15 @@ function CompactCharacterCard({
               <ConditionManager character={character} onToggle={onToggleCondition} />
             </div>
 
-            {character.stats && (
+            {abilityStats.length > 0 && character.stats && (
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
-                {Object.entries(character.stats).map(([stat, value]) => {
-                  const mod = Math.floor(((value as number) - 10) / 2)
+                {abilityStats.map((statDef) => {
+                  const value = character.stats?.[statDef.key] ?? 0
+                  const mod = Math.floor((value - 10) / 2)
                   const modString = mod >= 0 ? `+${mod}` : `${mod}`
                   return (
-                    <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
+                    <div key={statDef.key} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{statDef.shortLabel || statDef.key}</div>
                       <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
                         {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
                       </div>
@@ -312,6 +314,9 @@ function TargetsButton({
   onToggleCondition: (charId: string, condId: string) => void
   onAdjustHP: (character: Character) => void
 }) {
+  const params = useParams()
+  const roomId = (params?.roomid as string) ?? null
+  const { abilityStats } = useNpcStatFields(roomId)
   const [isOpen, setIsOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -386,7 +391,7 @@ function TargetsButton({
                   <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-3">
                     <Shield className="h-5 w-5 text-[var(--text-secondary)]" />
                     <span className="text-xs text-[var(--text-secondary)] uppercase font-bold">DEF</span>
-                    <span className="text-2xl font-bold text-[var(--text-primary)]">{selectedCharacter.Defense}</span>
+                    <span className="text-2xl font-bold text-[var(--text-primary)]">{selectedCharacter.defense ?? '-'}</span>
                   </div>
                   <button
                     onClick={() => onAdjustHP(selectedCharacter)}
@@ -402,14 +407,15 @@ function TargetsButton({
                   <ConditionManager character={selectedCharacter} onToggle={onToggleCondition} />
                 </div>
 
-                {selectedCharacter.stats && (
+                {abilityStats.length > 0 && selectedCharacter.stats && (
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
-                    {Object.entries(selectedCharacter.stats).map(([stat, value]) => {
-                      const mod = Math.floor(((value as number) - 10) / 2)
+                    {abilityStats.map((statDef) => {
+                      const value = selectedCharacter.stats?.[statDef.key] ?? 0
+                      const mod = Math.floor((value - 10) / 2)
                       const modString = mod >= 0 ? `+${mod}` : `${mod}`
                       return (
-                        <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
-                          <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
+                        <div key={statDef.key} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
+                          <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{statDef.shortLabel || statDef.key}</div>
                           <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
                             {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
                           </div>
@@ -445,7 +451,7 @@ function TargetsButton({
                         <div className="font-medium truncate text-[var(--text-primary)]">{c.name}</div>
                         <div className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
                           <span className="flex items-center gap-1"><Heart className="h-3 w-3" /> {c.pv}</span>
-                          <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {c.Defense}</span>
+                          <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {c.defense ?? '-'}</span>
                         </div>
                       </div>
                       <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
@@ -475,6 +481,10 @@ export function GMDashboard() {
   const [damageChange, setDamageChange] = useState(0)
   const { user } = useGame()
   const roomId = user?.roomId ?? null
+  const { abilityStats, primaryVitalStat, defenseKey, extraCombatStats } = useNpcStatFields(roomId)
+  // Stat "initiative"-like : la première stat 'derived' du système (ex INIT pour dnd-classic),
+  // absente pour un système sans cette notion — jamais une clé "INIT" supposée exister.
+  const initiativeStat = extraCombatStats[0] ?? null
   const [attackReports, setAttackReports] = useState<AttackReport[]>([])
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
@@ -527,26 +537,21 @@ export function GMDashboard() {
     const unsubscribe = onSnapshot(charactersRef, (snapshot) => {
       const charactersData = snapshot.docs.map((doc) => {
         const data = doc.data()
+        const stats: Record<string, number> = {}
+        for (const stat of abilityStats) stats[stat.key] = data[stat.key] ?? 10
         return {
           id: doc.id,
           cityId: data.cityId, // Capture cityId (legacy)
           currentSceneId: data.currentSceneId, // Capture current scene location
           name: data.Nomperso || "absente",
           avatar: data.imageURLFinal || data.imageURL || data.imageURL2 || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
-          pv: data.PV ?? 0,
-          init: data.INIT ?? 0,
+          pv: primaryVitalStat ? (data[primaryVitalStat.key] ?? 0) : 0,
+          init: initiativeStat ? (data[initiativeStat.key] ?? 0) : 0,
           initDetails: data.initDetails || "0",
           type: data.type || "pnj",
           currentInit: data.currentInit || 0,
-          Defense: data.Defense || 10,
-          stats: {
-            FOR: data.FOR || 10,
-            DEX: data.DEX || 10,
-            CON: data.CON || 10,
-            INT: data.INT || 10,
-            SAG: data.SAG || 10,
-            CHA: data.CHA || 10,
-          },
+          defense: defenseKey ? (data[defenseKey] ?? 10) : undefined,
+          stats,
           conditions: data.conditions || []
         }
       })
@@ -554,7 +559,7 @@ export function GMDashboard() {
     })
 
     return () => unsubscribe()
-  }, [roomId])
+  }, [roomId, abilityStats, primaryVitalStat, defenseKey, initiativeStat])
 
   // 3. Compute Display Characters (Filter & Sort)
   useEffect(() => {
@@ -657,10 +662,12 @@ export function GMDashboard() {
     const targetCharacter = characters.find(char => char.id === targetId)
     if (!targetCharacter || !roomId) return
 
+    if (!primaryVitalStat) return
+
     try {
       const newPv = Math.max(0, targetCharacter.pv - damage)
       const characterRef = doc(db, `cartes/${roomId}/characters/${targetId}`)
-      await updateDoc(characterRef, { PV: newPv })
+      await updateDoc(characterRef, { [primaryVitalStat.key]: newPv })
 
       setCharacters(prevChars =>
         prevChars.map(char => char.id === targetId ? { ...char, pv: newPv } : char)
@@ -962,11 +969,11 @@ export function GMDashboard() {
   }
 
   const updateCharacterHP = async () => {
-    if (selectedCharacter && roomId) {
+    if (selectedCharacter && roomId && primaryVitalStat) {
       try {
         const newPv = Math.max(0, selectedCharacter.pv + hpChange)
         const characterRef = doc(db, `cartes/${roomId}/characters/${selectedCharacter.id}`)
-        await updateDoc(characterRef, { PV: newPv })
+        await updateDoc(characterRef, { [primaryVitalStat.key]: newPv })
         setCharacters(prevChars =>
           prevChars.map(char => char.id === selectedCharacter.id ? { ...char, pv: newPv } : char)
         )
@@ -1129,7 +1136,7 @@ export function GMDashboard() {
                 <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-2">
                   <Shield className="h-4 w-4 text-[var(--text-secondary)]" />
                   <span className="text-xs text-[var(--text-secondary)] uppercase font-bold">DEF</span>
-                  <span className="text-lg font-bold">{activeCharacter.Defense}</span>
+                  <span className="text-lg font-bold">{activeCharacter.defense ?? '-'}</span>
                 </div>
                 <button onClick={() => openDrawer(activeCharacter)} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-2 active:scale-95 transition-transform">
                   <Heart className="h-4 w-4 text-red-500 fill-red-500" />
@@ -1147,12 +1154,13 @@ export function GMDashboard() {
             {/* Stats */}
             <div className="px-3 py-3 border-t border-[var(--border-color)]">
               <div className="grid grid-cols-6 gap-1.5">
-                {activeCharacter.stats && Object.entries(activeCharacter.stats).map(([stat, value]) => {
-                  const mod = Math.floor(((value as number) - 10) / 2)
+                {activeCharacter.stats && abilityStats.map((statDef) => {
+                  const value = activeCharacter.stats?.[statDef.key] ?? 0
+                  const mod = Math.floor((value - 10) / 2)
                   return (
-                    <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-1 text-center">
-                      <div className="text-[8px] uppercase text-[var(--text-secondary)] font-bold">{stat}</div>
-                      <div className="font-mono font-bold text-xs">{value as number}</div>
+                    <div key={statDef.key} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-1 text-center">
+                      <div className="text-[8px] uppercase text-[var(--text-secondary)] font-bold">{statDef.shortLabel || statDef.key}</div>
+                      <div className="font-mono font-bold text-xs">{value}</div>
                       <div className="text-[8px] text-[var(--text-secondary)]">{mod >= 0 ? `+${mod}` : mod}</div>
                     </div>
                   )

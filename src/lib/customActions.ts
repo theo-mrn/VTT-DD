@@ -4,7 +4,7 @@ import {
   Search, Undo2, Redo2, Smile, Dice1, Dice2, Dice3, Dice4, Dice6,
   Grid3x3, Sparkles, UserSquare2, UsersRound, Layers, SlidersHorizontal, Image as ImageIcon, Eye, Globe,
   Move, Target, Pencil, ZoomIn, ZoomOut, Baseline, UserPlus, PackagePlus,
-  Volume2, Hexagon, MapPin, SquareDashedMousePointer, CirclePlus,
+  Volume2, Hexagon, MapPin, SquareDashedMousePointer, CirclePlus, Compass,
   History, Flame, CloudFog, Eraser, PlayCircle, Sun, Moon, RotateCcw, Trash2,
   type LucideIcon,
 } from "lucide-react"
@@ -42,6 +42,7 @@ export const AVAILABLE_ACTIONS: CustomActionDef[] = [
   { id: SHORTCUT_ACTIONS.TAB_NOTES, label: "Notes", icon: Edit3, category: "Onglets", tab: "NewComponent" },
   { id: SHORTCUT_ACTIONS.TAB_DICE, label: "Dés", icon: Dice5, category: "Onglets", tab: "DiceRoller" },
   { id: SHORTCUT_ACTIONS.TAB_CHAT, label: "Chat", icon: MessageSquare, category: "Onglets", tab: "Chat" },
+  { id: SHORTCUT_ACTIONS.TAB_MAP, label: "Carte", icon: Compass, category: "Onglets", tab: "MapExplorer" },
 
   // --- Dés ---
   { id: SHORTCUT_ACTIONS.QUICK_ROLL, label: "Saisie Rapide (dé)", icon: Dice1, category: "Dés" },

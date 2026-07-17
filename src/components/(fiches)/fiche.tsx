@@ -285,21 +285,6 @@ export default function Component() {
   // stat cliquée.
   const [selectedVitalKey, setSelectedVitalKey] = useState<string | null>(null);
 
-  // ── Diagnostic layout ────────────────────────────────────────────────────────────────────────────
-  // Trace chaque écriture/lecture du layout pour identifier qui écrase la disposition. Format compact :
-  // uniquement les entrées skills/talents (les autres ne posent pas problème) + le nombre total.
-  const layoutLog = React.useCallback((source: string, layoutArray?: Layout[] | null, extra?: unknown) => {
-    const pick = (arr?: Layout[] | null) =>
-      arr
-        ? arr
-            .filter((l) => l.i === 'skills' || l.i === 'talents')
-            .map((l) => `${l.i}[x${l.x} y${l.y} w${l.w} h${l.h}]`)
-            .join(' ') + ` (total ${arr.length})`
-        : '(null)';
-    // eslint-disable-next-line no-console
-    console.log(`[FICHE-LAYOUT] ${source}`, pick(layoutArray), extra ?? '');
-  }, []);
-
   // Garantit une entrée 'talents' dans le layout pour les systèmes à compétences EotE-like : les
   // layouts déjà sauvegardés (ou les défauts MJ pas encore ré-importés) datent d'avant la séparation
   // SkillsSheet/TalentsSheet et n'ont pas ce widget. Injection CÔTE À CÔTE : le widget skills est
@@ -353,21 +338,16 @@ export default function Component() {
       String(hasSkillSystem),
     ].join('|');
     if (layoutHydrationKeyRef.current === hydrationKey) {
-      layoutLog('hydration SKIP (clé identique)', null, { hasOwnLayout, hasSkillSystem });
       return;
     }
     layoutHydrationKeyRef.current = hydrationKey;
 
     if (hasOwnLayout) {
-      const next = ensureTalentsWidget(sanitizeLayout(selectedCharacter!.layout!));
-      layoutLog('hydration depuis LAYOUT SAUVEGARDÉ ->', next, { charId: selectedCharacter?.id, hasSkillSystem });
-      setLayout(next);
+      setLayout(ensureTalentsWidget(sanitizeLayout(selectedCharacter!.layout!)));
     } else {
-      const next = ensureTalentsWidget(sanitizeLayout(resolvedDefaultLayout));
-      layoutLog('hydration depuis DÉFAUT MJ ->', next, { charId: selectedCharacter?.id, hasSkillSystem });
-      setLayout(next);
+      setLayout(ensureTalentsWidget(sanitizeLayout(resolvedDefaultLayout)));
     }
-  }, [selectedCharacter, resolvedDefaultLayout, ensureTalentsWidget, hasSkillSystem, layoutLog]);
+  }, [selectedCharacter, resolvedDefaultLayout, ensureTalentsWidget, hasSkillSystem]);
 
   // Breakpoint actif de la grille, en ref pour être lisible de façon synchrone dans onLayoutChange
   // (currentCols est un state, potentiellement en retard d'un rendu au moment où RGL émet).
@@ -387,13 +367,9 @@ export default function Component() {
     gridResizeObserverRef.current = null;
     if (!el) return;
     let lastWidth = el.offsetWidth;
-    // eslint-disable-next-line no-console
-    console.log('[FICHE-LAYOUT] conteneur monté, largeur =', lastWidth);
     const observer = new ResizeObserver(() => {
       const width = el.offsetWidth;
       if (width !== lastWidth) {
-        // eslint-disable-next-line no-console
-        console.log('[FICHE-LAYOUT] conteneur redimensionné', lastWidth, '->', width, '(re-mesure RGL forcée)');
         lastWidth = width;
         window.dispatchEvent(new Event('resize'));
       }
@@ -412,10 +388,8 @@ export default function Component() {
     // colonnes (aucun x+w > 60), donc sm/md/lg n'altèrent rien — et la fiche vit souvent dans un
     // panneau ~950px (sm) où bloquer reviendrait à ignorer toutes les éditions de l'utilisateur.
     if (currentColsRef.current < 60) {
-      layoutLog(`onLayoutChange BLOQUÉ (cols=${currentColsRef.current})`, currentLayout);
       return;
     }
-    layoutLog(`onLayoutChange ACCEPTÉ (cols=${currentColsRef.current}) ->`, currentLayout);
     setLayout(currentLayout);
   };
 
@@ -440,7 +414,6 @@ export default function Component() {
       // safer to just keep essential fields
       const cleanLayout = JSON.parse(JSON.stringify(sanitizedLayout));
 
-      layoutLog('handleSaveLayout PERSISTE ->', cleanLayout);
       await updateCharacter(selectedCharacter.id, {
         layout: cleanLayout,
         ...customizationForm
@@ -454,8 +427,6 @@ export default function Component() {
 
   const handleResetPositions = async () => {
     const next = ensureTalentsWidget(resolvedDefaultLayout);
-    layoutLog('handleResetPositions -> défaut MJ', resolvedDefaultLayout, { defautVientDuSysteme: resolvedDefaultLayout !== DEFAULT_LAYOUT });
-    layoutLog('handleResetPositions -> après injection', next);
     setLayout(next);
     // Persiste immédiatement le reset : sans ça il n'existait qu'en local, et toute réouverture de la
     // fiche rechargeait l'ancienne disposition sauvegardée — perçu comme "le reset ne tient pas".
@@ -473,7 +444,6 @@ export default function Component() {
           maxH: l.maxH ?? null,
           static: l.static ?? false,
         }))));
-        layoutLog('handleResetPositions PERSISTE ->', cleanLayout);
         await updateCharacter(selectedCharacter.id, { layout: cleanLayout });
       } catch (error) {
         console.error('Error persisting layout reset:', error);
@@ -1423,7 +1393,7 @@ export default function Component() {
                 margin={[20, 20]}
                 containerPadding={[0, 0]}
                 onLayoutChange={onLayoutChange}
-                onBreakpointChange={(bp, cols) => { console.log('[FICHE-LAYOUT] breakpoint ->', bp, cols, 'colonnes'); currentColsRef.current = cols; setCurrentCols(cols); }}
+                onBreakpointChange={(bp, cols) => { currentColsRef.current = cols; setCurrentCols(cols); }}
                 isDraggable={true}
                 isResizable={false}
                 draggableHandle=".drag-handle"
@@ -1634,7 +1604,7 @@ export default function Component() {
                 containerPadding={[0, 0]}
                 isDraggable={false}
                 isResizable={false}
-                onBreakpointChange={(bp, cols) => { console.log('[FICHE-LAYOUT] breakpoint ->', bp, cols, 'colonnes'); currentColsRef.current = cols; setCurrentCols(cols); }}
+                onBreakpointChange={(bp, cols) => { currentColsRef.current = cols; setCurrentCols(cols); }}
               >
                 <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div id="vtt-widget-details-view" key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>

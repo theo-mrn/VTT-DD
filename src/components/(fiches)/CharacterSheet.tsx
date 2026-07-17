@@ -9,6 +9,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { useGameContent } from '@/modules/game-content/useGameContent';
+import type { SpecializationDoc } from '@/modules/game-content/types';
+import { getFormulaDependencies } from '@/lib/rules-engine';
 
 interface Character {
   id: string;
@@ -28,6 +31,7 @@ interface Character {
   type?: string;
   deVie?: string;
   privateFields?: string[];
+  specializations?: string[];
   [key: string]: unknown;
 }
 
@@ -39,23 +43,6 @@ interface CharacterSheetProps {
   onClose: () => void;
 }
 
-interface Bonuses {
-  [key: string]: number;
-  CHA: number;
-  CON: number;
-  Contact: number;
-  DEX: number;
-  Defense: number;
-  Distance: number;
-  FOR: number;
-  INIT: number;
-  INT: number;
-  Magie: number;
-  PV: number;
-  SAG: number;
-  PV_Max: number;
-}
-
 type TabType = 'character' | 'inventory';
 
 export default function CharacterSheet({ characterId, roomId, onClose }: CharacterSheetProps) {
@@ -63,12 +50,37 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   const { totalBonuses: bonuses } = useCalculatedBonuses(roomId, character?.Nomperso);
   const { persoId: userPersoId, isMJ } = useGame();
   const { gameSystem } = useGameSystem(roomId);
+  const { docs: specializationDocs } = useGameContent<SpecializationDoc & { id: string }>('specialization');
   const [activeTab, setActiveTab] = useState<TabType>('character');
+
+  const isDndClassic = gameSystem.systemId === 'dnd-classic';
+  const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0;
+  const hasInitStat = gameSystem.stats.some((s) => s.key === 'INIT');
+
+  const raceLabel = gameSystem.raceLabel || 'Race';
+  const careerLabel = hasSkillSystem ? 'Carrière' : (gameSystem.profileLabel || 'Profil');
 
   const abilityStats = gameSystem.stats.filter((s) => s.category === 'ability' && s.visibleToPlayers !== false);
   const combatAttackKeys = gameSystem.combatAttackKeys ?? ['Contact', 'Distance', 'Magie'];
   const defenseKey = gameSystem.combatDefenseKey ?? 'Defense';
   const combatColors = ['text-orange-400', 'text-green-400', 'text-purple-400'];
+
+  // Stats "vital" bornées par une autre stat (ex PV/PV_Max, ou Blessures/BlessuresMax pour un système
+  // EotE) — même mécanisme générique que WidgetVitals (FicheWidgets.tsx) : jamais "PV" en dur.
+  const vitalMaxKeyByKey = new Map<string, string>();
+  for (const stat of gameSystem.stats) {
+    if (stat.category !== 'vital' || !stat.maxFormula) continue;
+    const [maxKey] = getFormulaDependencies(stat.maxFormula);
+    if (maxKey) vitalMaxKeyByKey.set(stat.key, maxKey);
+  }
+  const maxKeysToSkip = new Set(vitalMaxKeyByKey.values());
+  const vitalStatsWithMax = gameSystem.stats.filter(
+    (s) => s.category === 'vital' && s.visibleToPlayers !== false && vitalMaxKeyByKey.has(s.key) && !maxKeysToSkip.has(s.key),
+  );
+  // La première stat vitale à borne (ex PV) sert de jauge principale mise en avant, comme "Points de
+  // Vie" l'était en dur — pour EotE ce sera Blessures (ou la première déclarée par le MJ).
+  const primaryVitalStat = vitalStatsWithMax[0];
+  const primaryVitalMaxKey = primaryVitalStat ? vitalMaxKeyByKey.get(primaryVitalStat.key) : undefined;
 
   useEffect(() => {
     const loadCharacter = async () => {
@@ -85,8 +97,9 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
     return Math.floor((value - 10) / 2);
   };
 
-  const getDisplayValue = (stat: keyof Character): number => {
-    const baseValue = character ? parseInt(String(character[stat]) || "0") : 0;
+  const getDisplayValue = (stat: string): number => {
+    const raw = character?.[stat];
+    const baseValue = raw === undefined || raw === null || raw === '' ? 0 : (parseInt(String(raw), 10) || 0);
     const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
     return baseValue + bonusValue;
   };
@@ -96,6 +109,12 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   const canSeePrivate = isMJ || userPersoId === character.id;
   const isFieldPrivate = (key: string) => !!character.privateFields?.includes(key);
   const isFieldHidden = (key: string) => isFieldPrivate(key) && !canSeePrivate;
+
+  const raceDisplay = (gameSystem.races ?? []).find((r) => r.id === character.Race)?.label || character.Race;
+  const careerDisplay = (gameSystem.profiles ?? []).find((p) => p.id === character.Profile)?.label || character.Profile;
+  const ownedSpecializations = (character.specializations ?? [])
+    .map((id) => specializationDocs.find((s) => s.id === id))
+    .filter((s): s is SpecializationDoc & { id: string } => !!s);
 
   return (
     <TooltipProvider>
@@ -160,6 +179,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                         isGifProp={character.isGif}
                         altText={character.Nomperso}
                         characterId={character.id}
+                        imageBorderRadius={(character as Record<string, unknown>).imageBorderRadius as number | undefined}
                       />
                     </div>
 
@@ -171,17 +191,19 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                             <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[#c0a080]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('niveau') ? PRIVATE_PLACEHOLDER : character.niveau}</span>
                           </div>
+                          {hasInitStat && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                              <span className="text-white font-medium">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
-                            <span className="text-white font-medium">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
+                            <span className="text-gray-400 flex items-center gap-1">{careerLabel} {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : careerDisplay}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">Profil {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
-                            <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : character.Profile}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">Race {isFieldPrivate('Race') && <Lock size={10} className="text-[#c0a080]" />}</span>
-                            <span className="text-white font-medium">{isFieldHidden('Race') ? PRIVATE_PLACEHOLDER : character.Race}</span>
+                            <span className="text-gray-400 flex items-center gap-1">{raceLabel} {isFieldPrivate('Race') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Race') ? PRIVATE_PLACEHOLDER : raceDisplay}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400 flex items-center gap-1">Taille {isFieldPrivate('Taille') && <Lock size={10} className="text-[#c0a080]" />}</span>
@@ -191,10 +213,18 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                             <span className="text-gray-400 flex items-center gap-1">Poids {isFieldPrivate('Poids') && <Lock size={10} className="text-[#c0a080]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('Poids') ? PRIVATE_PLACEHOLDER : `${character.Poids} kg`}</span>
                           </div>
-                          <div className="flex justify-between col-span-2">
-                            <span className="text-gray-400 flex items-center gap-1">Dé de Vie {isFieldPrivate('deVie') && <Lock size={10} className="text-[#c0a080]" />}</span>
-                            <span className="text-white font-medium">{isFieldHidden('deVie') ? PRIVATE_PLACEHOLDER : character.deVie}</span>
-                          </div>
+                          {isDndClassic && (
+                            <div className="flex justify-between col-span-2">
+                              <span className="text-gray-400 flex items-center gap-1">Dé de Vie {isFieldPrivate('deVie') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                              <span className="text-white font-medium">{isFieldHidden('deVie') ? PRIVATE_PLACEHOLDER : character.deVie}</span>
+                            </div>
+                          )}
+                          {hasSkillSystem && ownedSpecializations.length > 0 && (
+                            <div className="flex justify-between col-span-2">
+                              <span className="text-gray-400">{ownedSpecializations.length > 1 ? 'Spécialisations' : 'Spécialisation'}</span>
+                              <span className="text-white font-medium truncate">{ownedSpecializations.map((s) => s.name).join(', ')}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -218,46 +248,52 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       <div className="flex flex-wrap justify-between gap-4 text-sm">
                         {character.Profile && (
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-400 flex items-center gap-1">Profil {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
-                            <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : character.Profile}</span>
+                            <span className="text-gray-400 flex items-center gap-1">{careerLabel} {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : careerDisplay}</span>
                           </div>
                         )}
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[#c0a080]" />}</span>
                           <span className="text-white font-bold text-lg">{isFieldHidden('niveau') ? PRIVATE_PLACEHOLDER : character.niveau}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
-                          <span className="text-white font-bold text-lg">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
-                        </div>
+                        {hasInitStat && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-bold text-lg">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* HP and Defense - Full width */}
+                {/* Stat vitale principale et Défense — full width */}
                 <div className="grid grid-cols-2 gap-4">
-                  <Tooltip>
-                    <TooltipTrigger className="w-full">
-                      <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
-                        <Heart className="text-red-500" size={28} />
-                        <div className="text-left">
-                          <div className="text-xs text-gray-400 flex items-center gap-1">Points de Vie {isFieldPrivate('PV') && <Lock size={10} className="text-[#c0a080]" />}</div>
-                          <div className="text-2xl font-bold text-white">
-                            {(isFieldHidden('PV') || isFieldHidden('PV_Max')) ? PRIVATE_PLACEHOLDER : `${getDisplayValue("PV")} / ${getDisplayValue("PV_Max")}`}
+                  {primaryVitalStat && (
+                    <Tooltip>
+                      <TooltipTrigger className="w-full">
+                        <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
+                          <Heart className="text-red-500" size={28} />
+                          <div className="text-left">
+                            <div className="text-xs text-gray-400 flex items-center gap-1">{primaryVitalStat.label} {isFieldPrivate(primaryVitalStat.key) && <Lock size={10} className="text-[#c0a080]" />}</div>
+                            <div className="text-2xl font-bold text-white">
+                              {(isFieldHidden(primaryVitalStat.key) || (primaryVitalMaxKey && isFieldHidden(primaryVitalMaxKey)))
+                                ? PRIVATE_PLACEHOLDER
+                                : `${getDisplayValue(primaryVitalStat.key)} / ${primaryVitalMaxKey ? getDisplayValue(primaryVitalMaxKey) : '-'}`}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {(isFieldHidden('PV') || isFieldHidden('PV_Max')) ? <p>Information privée.</p> : (
-                        <>
-                          <p>Base: {character.PV} / {character.PV_Max}</p>
-                          <p>Bonus: {bonuses ? bonuses.PV || 0 : 0} / {bonuses ? bonuses.PV_Max || 0 : 0}</p>
-                        </>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {(isFieldHidden(primaryVitalStat.key) || (primaryVitalMaxKey && isFieldHidden(primaryVitalMaxKey))) ? <p>Information privée.</p> : (
+                          <>
+                            <p>Base: {String(character[primaryVitalStat.key] ?? 0)} / {primaryVitalMaxKey ? String(character[primaryVitalMaxKey] ?? 0) : '-'}</p>
+                            <p>Bonus: {bonuses?.[primaryVitalStat.key] || 0} / {primaryVitalMaxKey ? (bonuses?.[primaryVitalMaxKey] || 0) : 0}</p>
+                          </>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
                   <Tooltip>
                     <TooltipTrigger className="w-full">
@@ -286,25 +322,28 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                     {abilityStats.map((statDef) => {
                       const base = Number(character[statDef.key] ?? 0);
-                      const value = getModifier(base);
+                      const hasModifier = !!statDef.rollUsesModifier;
+                      const value = hasModifier ? getModifier(base) : base;
                       const hidden = isFieldHidden(statDef.key);
                       return (
                         <Tooltip key={statDef.key}>
                           <TooltipTrigger className="w-full">
                             <div className="bg-[#252525] p-3 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
                               <div className="text-xs font-semibold text-[#c0a080] mb-1 flex items-center justify-center gap-1">
-                                {statDef.key}
+                                {statDef.shortLabel || statDef.key}
                                 {isFieldPrivate(statDef.key) && <Lock size={9} />}
                               </div>
                               {hidden ? (
                                 <div className="text-2xl font-bold text-gray-400">{PRIVATE_PLACEHOLDER}</div>
-                              ) : (
+                              ) : hasModifier ? (
                                 <>
                                   <div className={`text-2xl font-bold ${value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                     {value >= 0 ? '+' : ''}{value}
                                   </div>
                                   <div className="text-xs text-gray-500 mt-1">{base}</div>
                                 </>
+                              ) : (
+                                <div className="text-2xl font-bold text-white">{base}</div>
                               )}
                             </div>
                           </TooltipTrigger>

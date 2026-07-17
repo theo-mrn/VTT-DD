@@ -12,7 +12,8 @@ import {
   determineOneWayDirection,
 } from '@/lib/obstacle-utils';
 import { getMediaDimensions } from '@/app/[roomid]/map/utils/coordinates';
-import type { Point, ObjectTemplate, MusicZone } from '@/app/[roomid]/map/types';
+import type { Point, ObjectTemplate, MusicZone, LootItem } from '@/app/[roomid]/map/types';
+import { useNpcStatFields } from '@/hooks/useNpcStatFields';
 
 // ---- Types ----
 
@@ -100,6 +101,7 @@ export interface UseDragAndDropReturn {
     nombre: number;
     visibility: 'visible' | 'hidden' | 'custom';
     visibleToPlayerIds: string[];
+    pickupItem?: LootItem;
   }) => Promise<void>;
 }
 
@@ -132,6 +134,11 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
     deleteFromRtdbWithHistory,
     saveObstacle,
   } = params;
+
+  // Champs de stats dérivés du système de règles actif de la salle — remplace la copie en dur des 13
+  // clés D&D (FOR/DEX/.../Defense/Contact/Distance/Magie) qui produisait `undefined` explicite pour un
+  // système custom sans ces clés (ex Star Wars sans combatDefenseKey), rejeté par Firestore addDoc.
+  const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId ?? null);
 
   // Throttle ref for dragover updates (~30fps)
   const dragOverThrottleRef = useRef<number>(0);
@@ -368,24 +375,11 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
         const finalX = dropPosition.x + offsetX
         const finalY = dropPosition.y + offsetY
 
-        const characterData = {
+        const characterData: Record<string, unknown> = {
           Nomperso: config.nombre > 1 ? `${draggedTemplate.Nomperso} ${i + 1}` : draggedTemplate.Nomperso,
           type: 'pnj',
           imageURL2: draggedTemplate.imageURL2 || '',
           niveau: draggedTemplate.niveau,
-          PV: draggedTemplate.PV,
-          PV_Max: draggedTemplate.PV_Max,
-          Defense: draggedTemplate.Defense,
-          FOR: draggedTemplate.FOR ?? 10,
-          DEX: draggedTemplate.DEX ?? 10,
-          CON: draggedTemplate.CON ?? 10,
-          INT: draggedTemplate.INT ?? 10,
-          SAG: draggedTemplate.SAG ?? 10,
-          CHA: draggedTemplate.CHA ?? 10,
-          Contact: draggedTemplate.Contact ?? 0,
-          Distance: draggedTemplate.Distance ?? 0,
-          Magie: draggedTemplate.Magie ?? 0,
-          INIT: draggedTemplate.INIT ?? 0,
           Actions: draggedTemplate.Actions || [],
           visibility: config.visibility,
           visibilityRadius: 100, // Default visibility radius
@@ -394,6 +388,17 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
           y: finalY,
           createdAt: new Date()
         };
+        // Stats dérivées du système actif — jamais copiées si absentes du template (évite un
+        // `undefined` explicite que Firestore rejette), avec repli à 10/0 uniquement quand la clé existe
+        // réellement sur ce système mais pas encore renseignée sur ce template précis.
+        for (const stat of extraCombatStats) characterData[stat.key] = (draggedTemplate as any)[stat.key] ?? 0;
+        for (const stat of abilityStats) characterData[stat.key] = (draggedTemplate as any)[stat.key] ?? 10;
+        for (const { stat, maxKey } of vitalStats) {
+          characterData[stat.key] = (draggedTemplate as any)[stat.key] ?? 0;
+          if (maxKey) characterData[maxKey] = (draggedTemplate as any)[maxKey] ?? (draggedTemplate as any)[stat.key] ?? 0;
+        }
+        if (defenseKey) characterData[defenseKey] = (draggedTemplate as any)[defenseKey] ?? 0;
+        for (const key of combatAttackKeys) characterData[key] = (draggedTemplate as any)[key] ?? 0;
 
         await addWithHistory(
           'characters',
@@ -420,6 +425,7 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
   }, [
     draggedTemplate, dropPosition, selectedCityId,
     addWithHistory, setShowPlaceModal, setDraggedTemplate, setDropPosition,
+    abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats,
   ]);
 
   // ---------------------------------------------------------
@@ -429,6 +435,7 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
     nombre: number;
     visibility: 'visible' | 'hidden' | 'custom';
     visibleToPlayerIds: string[];
+    pickupItem?: LootItem;
   }) => {
     if (!draggedObjectTemplateForPlace || !dropObjectPosition || !selectedCityId) return
 
@@ -478,10 +485,17 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
           createdAt: new Date(),
           visibility: config.visibility,
           visibleToPlayerIds: config.visibility === 'custom' ? config.visibleToPlayerIds : [],
-          type: 'decors',
+          // type 'item' = objet ramassable (portant items), supprimé de la carte une fois vidé
+          // (cf InteractionLayer) — 'decors' sinon, comportement historique inchangé.
+          type: config.pickupItem ? 'item' : 'decors',
           visible: config.visibility === 'visible' || (config.visibility === 'custom' && config.visibleToPlayerIds.length > 0), // Basic visibility fallback
           isLocked: false
         };
+        if (config.pickupItem) {
+          // Copie avec id propre par instance (nombre > 1) : ramasser l'un ne doit pas partager
+          // d'identifiant avec les autres copies posées.
+          objectData.items = [{ ...config.pickupItem, id: i === 0 ? config.pickupItem.id : `${config.pickupItem.id}-${i}` }];
+        }
 
         await addWithHistory(
           'objects',

@@ -52,6 +52,12 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     skillLabel: 'Compétences',
     startingXp: 110,
     diceUpgradeRule: { baseDiceKey: 'ability', upgradedDiceKey: 'proficiency' },
+    maps: [{
+      id: 'map-galaxie',
+      label: 'Carte Galactique',
+      image: 'https://example.com/galaxy.jpg',
+      markers: [{ id: 'm1', name: 'Coruscant', description: 'Capitale galactique', x: 0.5, y: 0.5 }],
+    }],
   };
 
   test('build() produit un export complet avec version/date, sans systemId', () => {
@@ -92,6 +98,13 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect(parsed.startingXp).toBe(110);
     expect(parsed.diceUpgradeRule).toEqual(source.diceUpgradeRule);
     expect(parsed.profiles[0].careerSkillKeys).toEqual(['skill-discretion']);
+    expect(parsed.maps).toEqual(source.maps);
+  });
+
+  test('carte malformée (id manquant) dans le JSON brut est filtrée du tableau', () => {
+    const raw = JSON.stringify({ ...buildGameSystemExport(source), maps: [{ image: 'https://x', markers: [] }, source.maps![0]] });
+    const parsed = parseGameSystemExport(raw);
+    expect(parsed.maps).toEqual([source.maps![0]]);
   });
 
   test('rétrocompat : races/profiles/statGroups/groupEntityStats/symbolDice absents du JSON par défaut à []', () => {

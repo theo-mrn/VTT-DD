@@ -1,12 +1,14 @@
 "use client"
 
 import React, { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, Users, Check, UserCheck, Ghost } from 'lucide-react'
 import { type NPC } from '@/components/(personnages)/personnages'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
 
 interface PlaceNPCModalProps {
     isOpen: boolean
@@ -16,6 +18,9 @@ interface PlaceNPCModalProps {
 }
 
 export function PlaceNPCModal({ isOpen, template, onClose, onConfirm }: PlaceNPCModalProps) {
+    const params = useParams()
+    const roomId = (params?.roomid as string) ?? null
+    const { primaryVitalStat, primaryVitalMaxKey, defenseKey } = useNpcStatFields(roomId)
     const [nombre, setNombre] = useState(1)
     const [visibility, setVisibility] = useState<'visible' | 'hidden' | 'ally' | 'invisible'>('visible')
 
@@ -68,9 +73,11 @@ export function PlaceNPCModal({ isOpen, template, onClose, onConfirm }: PlaceNPC
                             <h3 className="font-bold text-white">{template.Nomperso}</h3>
                             <p className="text-xs text-[#c0a080]">Niveau {template.niveau}</p>
                             <div className="flex gap-2 mt-1 text-xs text-gray-400">
-                                <span>PV: {template.PV_Max}</span>
-                                <span>•</span>
-                                <span>Def: {template.Defense}</span>
+                                {primaryVitalStat && (
+                                    <span>{primaryVitalStat.shortLabel || primaryVitalStat.label}: {String(template[primaryVitalMaxKey || primaryVitalStat.key] ?? '-')}</span>
+                                )}
+                                {primaryVitalStat && defenseKey && <span>•</span>}
+                                {defenseKey && <span>Def: {String(template[defenseKey] ?? '-')}</span>}
                             </div>
                         </div>
                     </div>

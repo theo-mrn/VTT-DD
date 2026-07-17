@@ -7,8 +7,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { ObjectTemplate } from '@/app/[roomid]/map/types'
 import { SUGGESTED_OBJECTS, SuggestedItem } from '@/lib/suggested-objects'
+import { SUGGESTED_OBJECTS_STARWARS } from '@/lib/suggested-objects-starwars'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useGMTemplates } from '@/contexts/GMTemplatesContext'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { advancedSearch } from '@/lib/advanced-search'
 
@@ -24,10 +26,15 @@ interface ObjectDrawerProps {
 export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, isEmbedded }: ObjectDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
     const { objectTemplates, addObjectTemplate } = useGMTemplates();
+    const { gameSystem } = useGameSystem(roomId);
+    // Bibliothèque d'objets suggérés dépendante du système actif — jamais un switch en dur sur un nom
+    // de système, cf gameSystem.objectLibraryId (défini par le MJ dans son JSON de règles).
+    const baseSuggestedObjects = gameSystem.objectLibraryId === 'starwars' ? SUGGESTED_OBJECTS_STARWARS : SUGGESTED_OBJECTS;
 
     // Search and Nav States
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
     // Form States
     const [showCreateForm, setShowCreateForm] = useState(false)
@@ -49,16 +56,34 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
         return () => clearTimeout(timer)
     }, [searchQuery])
 
-    // Filter items based on search
-    const filteredItems = React.useMemo(() => {
-        // Map custom templates to the SuggestedItem structure so they render the same
+    // Tous les items disponibles (bibliothèque active + templates personnalisés de la salle)
+    const allItems = React.useMemo(() => {
         const customItemsMapped: SuggestedItem[] = objectTemplates.map(t => ({
             name: t.name,
             path: t.imageUrl,
             category: t.category || 'other'
         }));
+        return [...baseSuggestedObjects, ...customItemsMapped];
+    }, [objectTemplates, baseSuggestedObjects]);
 
-        const items = [...SUGGESTED_OBJECTS, ...customItemsMapped];
+    // Catégories dérivées dynamiquement de la bibliothèque active — jamais une liste en dur, sinon
+    // les catégories Star Wars (armes, vehicules...) ou D&D n'apparaîtraient jamais pour l'autre système.
+    const categories = React.useMemo(() => {
+        const set = new Set(allItems.map(i => i.category));
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [allItems]);
+
+    // Reset le filtre catégorie si la bibliothèque change (changement de système) et que la
+    // catégorie sélectionnée n'existe plus dans la nouvelle liste.
+    useEffect(() => {
+        if (selectedCategory && !categories.includes(selectedCategory)) {
+            setSelectedCategory(null);
+        }
+    }, [categories, selectedCategory]);
+
+    // Filter items based on category + search
+    const filteredItems = React.useMemo(() => {
+        const items = selectedCategory ? allItems.filter(i => i.category === selectedCategory) : allItems;
 
         if (!debouncedQuery.trim()) {
             return items;
@@ -73,7 +98,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
 
         // Search returns array of { item, score }, we just need the item
         return searchResults.map(result => result.item as SuggestedItem);
-    }, [debouncedQuery, objectTemplates]);
+    }, [debouncedQuery, allItems, selectedCategory]);
 
     // Handle Image Upload for Custom Object
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,6 +285,35 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                         <Plus className="w-5 h-5" />
                     </Button>
                 </div>
+
+                {/* Category filter chips — dérivées dynamiquement de la bibliothèque active */}
+                {categories.length > 1 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        <button
+                            onClick={() => setSelectedCategory(null)}
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors border ${
+                                selectedCategory === null
+                                    ? 'bg-[#80c0a0] text-black border-[#80c0a0]'
+                                    : 'bg-[#252525] text-gray-400 border-[#404040] hover:text-white hover:border-[#80c0a0]/50'
+                            }`}
+                        >
+                            Tout
+                        </button>
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors border ${
+                                    selectedCategory === cat
+                                        ? 'bg-[#80c0a0] text-black border-[#80c0a0]'
+                                        : 'bg-[#252525] text-gray-400 border-[#404040] hover:text-white hover:border-[#80c0a0]/50'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Content Area */}

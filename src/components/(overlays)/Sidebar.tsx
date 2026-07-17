@@ -3,6 +3,7 @@
 import { Map, PanelLeft, Plus, X, Settings2, GripVertical, Search } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useGame } from "@/contexts/GameContext";
+import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
@@ -45,20 +46,29 @@ const DEFAULT_ITEM_IDS = [
   SHORTCUT_ACTIONS.TAB_NOTES,
   SHORTCUT_ACTIONS.TAB_DICE,
   SHORTCUT_ACTIONS.TAB_CHAT,
+  SHORTCUT_ACTIONS.TAB_MAP,
 ];
 
 const STORAGE_KEY_PREFIX = "vtt_sidebar_items_";
 
-function loadItemIds(uid: string | undefined): string[] {
-  if (!uid || typeof window === "undefined") return DEFAULT_ITEM_IDS;
+/** Ordre par défaut effectif : celui défini par le MJ dans les règles du système actif
+ *  (gameSystem.defaultSidebarLayout.mj/player, un id AVAILABLE_ACTIONS par entrée), sinon repli sur
+ *  l'ordre historique DEFAULT_ITEM_IDS — jamais un ordre différent codé en dur par rôle ici. */
+function resolveDefaultItemIds(isMJ: boolean, roleDefaults?: { mj?: string[]; player?: string[] }): string[] {
+  const configured = isMJ ? roleDefaults?.mj : roleDefaults?.player;
+  return configured && configured.length > 0 ? configured : DEFAULT_ITEM_IDS;
+}
+
+function loadItemIds(uid: string | undefined, defaultItemIds: string[]): string[] {
+  if (!uid || typeof window === "undefined") return defaultItemIds;
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PREFIX + uid);
-    const parsed: string[] = raw ? JSON.parse(raw) : DEFAULT_ITEM_IDS;
+    const parsed: string[] = raw ? JSON.parse(raw) : defaultItemIds;
     // Déduplique un state persisté avant le fix anti-doublon de handlePick — un id en
     // double casse @dnd-kit (SortableContext exige des id uniques).
     return Array.from(new Set(parsed));
   } catch {
-    return DEFAULT_ITEM_IDS;
+    return defaultItemIds;
   }
 }
 
@@ -239,6 +249,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const { isDialogOpen } = useDialogVisibility();
   const { isShortcutPressed, onActionTriggered, triggerAction, activeMapTools } = useShortcuts();
   const { unreadCount, clearUnread } = useChatNotification();
+  const { gameSystem } = useGameSystem(user?.roomId ?? null);
 
   const moduleTabs = useMemo(() =>
     moduleRegistry.getSidebarTabs()
@@ -254,8 +265,8 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const [pickerTargetId, setPickerTargetId] = useState<string | null>(null); // null => ajout
 
   useEffect(() => {
-    setItemIds(loadItemIds(user?.uid));
-  }, [user?.uid]);
+    setItemIds(loadItemIds(user?.uid, resolveDefaultItemIds(isMJ, gameSystem.defaultSidebarLayout)));
+  }, [user?.uid, isMJ, gameSystem.defaultSidebarLayout]);
 
   const persistItemIds = useCallback((next: string[]) => {
     setItemIds(next);

@@ -81,6 +81,7 @@ export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
                     isGifProp={selectedCharacter.isGif}
                     altText={selectedCharacter.Nomperso}
                     characterId={selectedCharacter.id}
+                    imageBorderRadius={(selectedCharacter as Record<string, unknown>).imageBorderRadius as number | undefined}
                 />
             </div>
         </div>

@@ -16,8 +16,6 @@ export interface Character {
     shape?: 'circle' | 'square';
     imageUrl?: string | { src: string };
     image?: string | { src: string };
-    PV?: number;
-    PV_Max?: number;
     visible?: boolean;
     niveau?: number;
     conditions?: string[];
@@ -29,29 +27,10 @@ export interface Character {
     size?: number;
     currentSceneId?: string | null;
     cityId?: string;
-    stats?: {
-        str: number;
-        dex: number;
-        con: number;
-        int: number;
-        wis: number;
-        cha: number;
-    };
     initiative?: number;
     Actions?: any[];
     Contactable?: boolean;
-    Contact?: number;
-    Defense?: number;
-    Distance: number;
-    Magie: number;
-    INIT: number;
-    nombre: number;
-    FOR: number;
-    DEX: number;
-    CON: number;
-    SAG: number;
-    INT: number;
-    CHA: number;
+    nombre?: number;
     audio?: {
         url: string;
         radius: number;
@@ -62,6 +41,11 @@ export interface Character {
     interactions?: Interaction[];
     positions?: Record<string, { x: number; y: number }>;
     notes?: string;
+    // Index signature additive : toutes les stats viennent du système actif (gameSystem.stats) — ex
+    // PV/PV_Max/Defense/FOR/DEX/... pour dnd-classic, vigueur/Stress/... pour un système custom (Star
+    // Wars). Jamais de clé nommée en dur ici — cf NewCharacter/NPC/BonusData/Character
+    // (CharacterContext.tsx, sans lien avec celui-ci malgré le nom identique).
+    [key: string]: unknown;
 }
 
 export type Interaction = VendorInteraction | GameInteraction | LootInteraction;
@@ -148,23 +132,16 @@ export interface NewCharacter {
     niveau: number;
     visibility: 'hidden' | 'visible' | 'public' | 'gm_only' | 'custom' | 'ally' | 'invisible';
     visibilityRadius?: number;
-    PV: number;
-    PV_Max?: number;
-    Defense: number;
-    Contact: number;
-    Distance: number;
-    Magie: number;
-    INIT: number;
     nombre: number;
-    FOR: number;
-    DEX: number;
-    CON: number;
-    SAG: number;
-    INT: number;
-    CHA: number;
     Actions?: any[];
     type?: 'joueurs' | 'pnj' | 'monster';
     imageURL?: string; // Standardized casing
+    // Index signature additive : toutes les stats (PV/Defense/FOR/... pour dnd-classic, ou tout autre
+    // jeu de clés pour un système custom) viennent de gameSystem.stats, jamais nommées en dur ici — même
+    // pattern que BonusData/Character (CharacterContext.tsx). Les templates PNJ (personnages.tsx,
+    // NPCCreationForm, NPCTemplateDrawer, CreatureLibraryModal) écrivent/lisent leurs stats dynamiquement
+    // via cette signature.
+    [key: string]: unknown;
 }
 
 export interface Note {

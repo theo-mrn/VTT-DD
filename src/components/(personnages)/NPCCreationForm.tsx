@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { ImageSelectorDialog } from './ImageSelectorDialog'
 import { type Category } from './personnages'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import { useParams } from 'next/navigation'
 
 interface NPCCreationFormProps {
     char: NewCharacter
@@ -27,7 +29,7 @@ interface NPCCreationFormProps {
     onCancel: () => void
     onSubmit: () => void
     onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
-    onNumChange: (field: keyof NewCharacter, value: string) => void
+    onNumChange: (field: string, value: string) => void
     onGenerateStats: (diff: number) => void
 }
 
@@ -49,13 +51,16 @@ export const NPCCreationForm = React.memo(({
     onGenerateStats
 }: NPCCreationFormProps) => {
     const [isImageDialogOpen, setIsImageDialogOpen] = useState(false)
+    const params = useParams()
+    const roomId = (params?.roomid as string) ?? null
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId)
 
     const handleImageSelect = (imageUrl: string) => {
         const img = new Image()
         img.src = imageUrl
         onCharChange({ ...char, image: img })
     }
-    const renderStatBar = (label: string, value: number, field: keyof NewCharacter, color: string) => (
+    const renderStatBar = (label: string, value: number, field: string, color: string) => (
         <div className="space-y-1.5">
             <div className="flex justify-between items-center text-xs">
                 <span className="font-bold text-[#c0a080] uppercase tracking-wider">{label}</span>
@@ -190,81 +195,92 @@ export const NPCCreationForm = React.memo(({
                         </div>
                     </div>
 
-                    {/* 2. Combat Stats */}
+                    {/* 2. Combat Stats — dérivé du système de règles actif plutôt que
+                        PV/Defense/Contact/Distance/Magie en dur. */}
                     <div className="space-y-4">
                         <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
                             Combat
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
-                            {/* PV */}
-                            <div className="bg-[#222] border border-[#333] rounded p-3 flex flex-col items-center">
-                                <span className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Heart className="w-3 h-3 text-red-500" /> PV MAX</span>
-                                <Input
-                                    type="number"
-                                    value={char.PV_Max ?? 20}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value) || 0;
-                                        onCharChange({ ...char, PV_Max: val, PV: val });
-                                    }}
-                                    className="bg-transparent border-none text-center font-bold text-red-400 h-8 text-lg p-0 focus-visible:ring-0"
-                                />
-                            </div>
-                            {/* DEF */}
-                            <div className="bg-[#222] border border-[#333] rounded p-3 flex flex-col items-center">
-                                <span className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Shield className="w-3 h-3 text-blue-500" /> DÉFENSE</span>
-                                <Input
-                                    type="number"
-                                    value={char.Defense}
-                                    onChange={(e) => onNumChange('Defense', e.target.value)}
-                                    className="bg-transparent border-none text-center font-bold text-blue-400 h-8 text-lg p-0 focus-visible:ring-0"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2">
-                            {['Contact', 'Distance', 'Magie'].map((stat) => (
-                                <div key={stat} className="bg-[#252525] p-2 rounded border border-[#333] flex flex-col items-center">
-                                    <span className="text-[9px] uppercase text-gray-500 font-bold mb-1">{stat}</span>
-                                    <input
+                            {vitalStats.map(({ stat, maxKey }) => (
+                                <div key={stat.key} className="bg-[#222] border border-[#333] rounded p-3 flex flex-col items-center">
+                                    <span className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Heart className="w-3 h-3 text-red-500" /> {(stat.shortLabel || stat.label).toUpperCase()} MAX</span>
+                                    <Input
                                         type="number"
-                                        value={char[stat as keyof NewCharacter] as number}
-                                        onChange={(e) => onNumChange(stat as keyof NewCharacter, e.target.value)}
-                                        className="w-full bg-transparent border-none text-center p-0 text-sm font-mono text-[#e0e0e0] focus:outline-none focus:ring-0"
+                                        value={(char[maxKey || stat.key] as number) ?? 20}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 0;
+                                            const next = { ...char, [stat.key]: val }
+                                            if (maxKey) next[maxKey] = val
+                                            onCharChange(next);
+                                        }}
+                                        className="bg-transparent border-none text-center font-bold text-red-400 h-8 text-lg p-0 focus-visible:ring-0"
                                     />
                                 </div>
                             ))}
+                            {defenseKey && (
+                                <div className="bg-[#222] border border-[#333] rounded p-3 flex flex-col items-center">
+                                    <span className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Shield className="w-3 h-3 text-blue-500" /> DÉFENSE</span>
+                                    <Input
+                                        type="number"
+                                        value={char[defenseKey] as number}
+                                        onChange={(e) => onNumChange(defenseKey, e.target.value)}
+                                        className="bg-transparent border-none text-center font-bold text-blue-400 h-8 text-lg p-0 focus-visible:ring-0"
+                                    />
+                                </div>
+                            )}
                         </div>
 
-                        <div className="bg-[#222] p-3 rounded border border-[#333] flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-yellow-500" />
-                                <span className="text-xs font-bold text-gray-300 uppercase">Initiative</span>
+                        {combatAttackKeys.length > 0 && (
+                            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${combatAttackKeys.length}, minmax(0, 1fr))` }}>
+                                {combatAttackKeys.map((stat) => (
+                                    <div key={stat} className="bg-[#252525] p-2 rounded border border-[#333] flex flex-col items-center">
+                                        <span className="text-[9px] uppercase text-gray-500 font-bold mb-1">{stat}</span>
+                                        <input
+                                            type="number"
+                                            value={char[stat] as number}
+                                            onChange={(e) => onNumChange(stat, e.target.value)}
+                                            className="w-full bg-transparent border-none text-center p-0 text-sm font-mono text-[#e0e0e0] focus:outline-none focus:ring-0"
+                                        />
+                                    </div>
+                                ))}
                             </div>
-                            <Input
-                                type="number"
-                                value={char.INIT}
-                                onChange={(e) => onNumChange('INIT', e.target.value)}
-                                className="w-16 bg-[#1a1a1a] border-[#444] text-center font-bold text-yellow-500 h-8"
-                            />
-                        </div>
+                        )}
+
+                        {extraCombatStats.map((stat) => (
+                            <div key={stat.key} className="bg-[#222] p-3 rounded border border-[#333] flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Zap className="w-4 h-4 text-yellow-500" />
+                                    <span className="text-xs font-bold text-gray-300 uppercase">{stat.label}</span>
+                                </div>
+                                <Input
+                                    type="number"
+                                    value={char[stat.key] as number}
+                                    onChange={(e) => onNumChange(stat.key, e.target.value)}
+                                    className="w-16 bg-[#1a1a1a] border-[#444] text-center font-bold text-yellow-500 h-8"
+                                />
+                            </div>
+                        ))}
                     </div>
 
-                    {/* 3. Attributes */}
-                    <div className="space-y-4">
-                        <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
-                            Caractéristiques
-                        </h3>
-                        <div className="grid grid-cols-1 gap-y-4 bg-[#202022] p-4 rounded-lg border border-[#2a2a2a]">
-                            {renderStatBar("Force", char.FOR ?? 10, 'FOR', 'red')}
-                            {renderStatBar("Dextérité", char.DEX ?? 10, 'DEX', 'green')}
-                            {renderStatBar("Constitution", char.CON ?? 10, 'CON', 'orange')}
-                            {renderStatBar("Intelligence", char.INT ?? 10, 'INT', 'blue')}
-                            {renderStatBar("Sagesse", char.SAG ?? 10, 'SAG', 'purple')}
-                            {renderStatBar("Charisme", char.CHA ?? 10, 'CHA', 'yellow')}
+                    {/* 3. Attributes — dérivé des caractéristiques (ability) du système actif */}
+                    {abilityStats.length > 0 && (
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                                Caractéristiques
+                            </h3>
+                            <div className="grid grid-cols-1 gap-y-4 bg-[#202022] p-4 rounded-lg border border-[#2a2a2a]">
+                                {abilityStats.map((stat, i) => renderStatBar(
+                                    stat.label,
+                                    (char[stat.key] as number) ?? 10,
+                                    stat.key,
+                                    ['red', 'green', 'orange', 'blue', 'purple', 'yellow'][i % 6],
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                 </div>
             </ScrollArea>

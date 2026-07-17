@@ -328,21 +328,24 @@ export default function MapContextMenus(props: MapContextMenusProps) {
       await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
         audio: value
       });
-    } else if (action === 'updatePV') {
+    } else if (action === 'updateVitalStat') {
+      // Ajustement rapide de la stat vitale principale du système actif (PV pour dnd-classic,
+      // n'importe quelle autre clé pour un système custom) — remplace l'ancien 'updatePV' câblé en dur
+      // sur la clé "PV", tout en gardant le message d'historique "a succombé" à 0.
       if (roomId) {
-        const newPV = Number(value);
-        const prevPV = Number(char.PV) || 0;
-        await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { PV: newPV });
-        setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, PV: newPV } : c));
+        const { key: vitalKey, value: newValue } = value as { key: string; value: number };
+        const prevValue = Number(char[vitalKey]) || 0;
+        await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { [vitalKey]: newValue });
+        setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, [vitalKey]: newValue } : c));
 
-        if (newPV !== prevPV) {
-          const diff = newPV - prevPV;
+        if (newValue !== prevValue) {
+          const diff = newValue - prevValue;
           logHistoryEvent({
             roomId,
-            type: newPV <= 0 ? 'mort' : 'combat',
-            message: newPV <= 0
+            type: newValue <= 0 ? 'mort' : 'combat',
+            message: newValue <= 0
               ? `**${char.name}** a succombé à ses blessures !`
-              : `**MJ** ajuste les PV de **${char.name}** (carte) : ${diff > 0 ? '+' : ''}${diff} (${newPV} PV).`,
+              : `**MJ** ajuste les ${vitalKey} de **${char.name}** (carte) : ${diff > 0 ? '+' : ''}${diff} (${newValue}).`,
             characterId,
             characterName: char.name,
             characterType: char.type,
@@ -405,23 +408,15 @@ export default function MapContextMenus(props: MapContextMenusProps) {
       if (isMJ && roomId) {
         const editedChar = value as Character;
         try {
+          // Copie TOUTES les clés de editedChar (déjà peuplées dynamiquement par ContextMenuPanel avec
+          // les stats réelles du système actif — caractéristiques, stats vitales, défense, combat —
+          // plutôt qu'une liste fixe de clés D&D qui manquerait les clés d'un système custom comme
+          // vigueur/agilite/Stress pour Star Wars). Seuls les champs méta non-stats sont exclus : id
+          // (jamais réécrit), et image (géré séparément ci-dessous via upload).
+          const { id: _id, image: _image, ...rest } = editedChar as unknown as Record<string, unknown>;
           const updatedData: Record<string, any> = {
+            ...rest,
             Nomperso: editedChar.name,
-            niveau: editedChar.niveau,
-            PV: editedChar.PV,
-            Defense: editedChar.Defense,
-            Contact: editedChar.Contact,
-            Distance: editedChar.Distance,
-            Magie: editedChar.Magie,
-            INIT: editedChar.INIT,
-            FOR: editedChar.FOR,
-            DEX: editedChar.DEX,
-            CON: editedChar.CON,
-            SAG: editedChar.SAG,
-            INT: editedChar.INT,
-            CHA: editedChar.CHA,
-            visibility: editedChar.visibility,
-            visibilityRadius: editedChar.visibilityRadius,
           };
 
           const editingCharImageSrc = editedChar?.image ? (typeof editedChar.image === 'string' ? editedChar.image : editedChar.image.src) : null;
@@ -436,6 +431,13 @@ export default function MapContextMenus(props: MapContextMenusProps) {
             const imageURL = await getDownloadURL(imageRef);
             updatedData.imageURL2 = imageURL;
           }
+
+          // Retire les clés D&D fixes (Defense/Contact/.../CHA) absentes du personnage édité —
+          // un système custom sans ces stats (ex Star Wars) laisserait sinon `undefined` explicite
+          // dans updatedData, rejeté par Firestore updateDoc.
+          Object.keys(updatedData).forEach((key) => {
+            if (updatedData[key] === undefined) delete updatedData[key];
+          });
 
           await updateDoc(doc(db, 'cartes', String(roomId), 'characters', characterId), updatedData);
           toast.success(`${char.name} a été mis à jour`);

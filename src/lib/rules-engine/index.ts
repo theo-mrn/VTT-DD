@@ -42,3 +42,4 @@ export {
   type TalentPurchaseState,
 } from './talent-tree';
 export { specializationPurchaseCost } from './specializations';
+export { statUpgradeCost, totalStatUpgradeCost, CREATION_STAT_MAX } from './characteristics';

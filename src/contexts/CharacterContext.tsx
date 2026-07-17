@@ -15,6 +15,7 @@ import { useGame } from './GameContext';
 import { Layout } from 'react-grid-layout';
 import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { useNpcStatFields } from '@/hooks/useNpcStatFields';
 import { resolveCharacterStats } from '@/lib/rules-engine';
 
 // ==================== TYPES ====================
@@ -37,19 +38,6 @@ export interface Character {
   Taille?: number;
   Poids?: number;
   imageURL?: string;
-  PV?: number;
-  PV_Max?: number;
-  Defense?: number;
-  Contact?: number;
-  Magie?: number;
-  Distance?: number;
-  INIT?: number;
-  FOR?: number;
-  DEX?: number;
-  CON?: number;
-  SAG?: number;
-  INT?: number;
-  CHA?: number;
   type?: string;
   deVie?: string;
   theme_background?: string;
@@ -69,20 +57,9 @@ export interface Character {
 }
 
 export interface Bonuses {
+  // Index signature uniquement : les clés réelles viennent de gameSystem.stats (ex FOR/DEX/... pour
+  // dnd-classic, vigueur/agilite/... pour un système custom) — jamais une liste fixe nommée ici.
   [key: string]: number;
-  CHA: number;
-  CON: number;
-  Contact: number;
-  DEX: number;
-  Defense: number;
-  Distance: number;
-  FOR: number;
-  INIT: number;
-  INT: number;
-  Magie: number;
-  PV: number;
-  SAG: number;
-  PV_Max: number;
 }
 
 export interface CategorizedBonuses {
@@ -104,22 +81,8 @@ export interface Competence {
 
 export interface BonusData {
   // Index signature : un document de bonus peut porter n'importe quelle clé de stat du système actif
-  // (ex "vigueur" pour un système custom façon Star Wars), pas seulement les 13 clés D&D ci-dessous
-  // conservées pour rétrocompatibilité stricte du typage existant.
+  // (ex "vigueur" pour un système custom façon Star Wars), jamais une liste fixe de 13 clés D&D.
   [key: string]: number | boolean | string | undefined;
-  CHA: number;
-  CON: number;
-  DEX: number;
-  Defense: number;
-  FOR: number;
-  INIT: number;
-  INT: number;
-  Contact: number;
-  Distance: number;
-  Magie: number;
-  PV: number;
-  PV_Max: number;
-  SAG: number;
   active: boolean;
   category: string;
   name?: string;
@@ -176,6 +139,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const [roomId, setRoomId] = useState<string | null>(null);
   const { totalBonuses: bonuses, categorizedBonuses } = useCalculatedBonuses(roomId, selectedCharacter?.Nomperso);
   const { gameSystem, tableCustomStats } = useGameSystem(roomId);
+  const { primaryVitalStat } = useNpcStatFields(roomId);
   const [competences, setCompetences] = useState<Competence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -345,28 +309,24 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
     if (bonusDoc.exists()) {
       const bonusData = bonusDoc.data() as BonusData;
-      return {
-        CHA: bonusData.CHA || 0,
-        CON: bonusData.CON || 0,
-        Contact: bonusData.Contact || 0,
-        DEX: bonusData.DEX || 0,
-        Defense: bonusData.Defense || 0,
-        Distance: bonusData.Distance || 0,
-        FOR: bonusData.FOR || 0,
-        INIT: bonusData.INIT || 0,
-        INT: bonusData.INT || 0,
-        Magie: bonusData.Magie || 0,
-        PV: bonusData.PV || 0,
-        PV_Max: bonusData.PV_Max || 0,
-        SAG: bonusData.SAG || 0,
+      // Copie chaque clé de stat RÉELLEMENT définie par le système actif (gameSystem.stats +
+      // tableCustomStats), au lieu d'une liste fixe de 13 clés D&D qui aurait silencieusement
+      // jeté les bonus d'un système custom (ex "vigueur" pour Star Wars) — même bug que
+      // parseCharacterDoc corrigé dans map/page.tsx.
+      const result: Partial<BonusData> = {
         active: bonusData.active || false,
         name: bonusData.name,
         diceSelection: bonusData.diceSelection,
       };
+      const allDefs = [...gameSystem.stats, ...tableCustomStats].filter(d => d.category !== 'meta');
+      for (const def of allDefs) {
+        if (bonusData[def.key] !== undefined) result[def.key] = bonusData[def.key] || 0;
+      }
+      return result;
     } else {
       return {};
     }
-  }, []);
+  }, [gameSystem, tableCustomStats]);
 
   // Charger les compétences quand le personnage sélectionné change
   useEffect(() => {
@@ -595,10 +555,12 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
 
         import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
-          // 1. Dégâts ou soins (PV)
-          if (updates.PV !== undefined && updates.PV !== char.PV) {
-            const prevPV = Number(char.PV) || 0;
-            const currPV = Number(updates.PV) || 0;
+          // 1. Dégâts ou soins (stat vitale principale du système actif — ex PV pour dnd-classic,
+          // Stress pour un système custom — jamais la clé "PV" supposée exister).
+          const vitalKey = primaryVitalStat?.key;
+          if (vitalKey && updates[vitalKey] !== undefined && updates[vitalKey] !== char[vitalKey]) {
+            const prevPV = Number(char[vitalKey]) || 0;
+            const currPV = Number(updates[vitalKey]) || 0;
 
             if (prevPV > 0 && currPV <= 0) {
               logHistoryEvent({ roomId, type: 'mort', message: `**${name}** a succombé à ses blessures !`, characterId, characterName: name, characterAvatar: avatar, characterType: char.type });
@@ -626,7 +588,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       console.error("Error updating character:", error);
       throw error;
     }
-  }, [roomId, characters]);
+  }, [roomId, characters, primaryVitalStat]);
 
   // ==================== SÉLECTION DU PERSONNAGE ====================
 
