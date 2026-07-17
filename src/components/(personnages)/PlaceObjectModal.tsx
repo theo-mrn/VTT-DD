@@ -5,36 +5,65 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Eye, EyeOff, Package, Check, Ghost } from 'lucide-react'
-import { type ObjectTemplate, type Character } from '@/app/[roomid]/map/types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Eye, EyeOff, Package, Check, Ghost, Hand } from 'lucide-react'
+import { v4 as uuidv4 } from 'uuid'
+import { type ObjectTemplate, type Character, type LootItem } from '@/app/[roomid]/map/types'
+
+// Mêmes catégories que AddItemDialog / l'inventaire — la valeur voyage telle quelle jusqu'à
+// Inventaire/{roomId}/{perso} au ramassage (LootComponent), donc doit rester compatible.
+const ITEM_CATEGORIES = ['armes-contact', 'armes-distance', 'armures', 'potions', 'bourse', 'nourriture', 'autre']
 
 interface PlaceObjectModalProps {
     isOpen: boolean
     template: ObjectTemplate | null
     players: Character[]
     onClose: () => void
-    onConfirm: (config: { nombre: number; visibility: 'visible' | 'hidden' | 'custom'; visibleToPlayerIds: string[] }) => void
+    onConfirm: (config: { nombre: number; visibility: 'visible' | 'hidden' | 'custom'; visibleToPlayerIds: string[]; pickupItem?: LootItem }) => void
 }
 
 export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm }: PlaceObjectModalProps) {
     const [nombre, setNombre] = useState(1)
     const [visibility, setVisibility] = useState<'visible' | 'hidden' | 'custom'>('visible')
     const [visibleToPlayerIds, setVisibleToPlayerIds] = useState<string[]>([])
+    // Section "objet ramassable" — désactivée par défaut : l'objet reste un simple décor.
+    const [isPickup, setIsPickup] = useState(false)
+    const [itemName, setItemName] = useState('')
+    const [itemCategory, setItemCategory] = useState('autre')
+    const [itemQuantity, setItemQuantity] = useState(1)
+    const [itemDescription, setItemDescription] = useState('')
 
-    const handleConfirm = () => {
-        onConfirm({ nombre, visibility, visibleToPlayerIds })
-        // Reset for next time
+    const resetForm = () => {
         setNombre(1)
         setVisibility('visible')
         setVisibleToPlayerIds([])
+        setIsPickup(false)
+        setItemName('')
+        setItemCategory('autre')
+        setItemQuantity(1)
+        setItemDescription('')
+    }
+
+    const handleConfirm = () => {
+        let pickupItem: LootItem | undefined
+        if (isPickup && template) {
+            pickupItem = {
+                id: uuidv4(),
+                name: itemName.trim() || template.name,
+                quantity: Math.max(1, itemQuantity),
+                category: itemCategory,
+                image: template.imageUrl || undefined,
+                ...(itemDescription.trim() && { description: itemDescription.trim() }),
+            }
+        }
+        onConfirm({ nombre, visibility, visibleToPlayerIds, pickupItem })
+        resetForm()
     }
 
     const handleClose = () => {
         onClose()
-        // Reset
-        setNombre(1)
-        setVisibility('visible')
-        setVisibleToPlayerIds([])
+        resetForm()
     }
 
     if (!template) return null
@@ -196,6 +225,64 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                         );
                                     })
                                 )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Objet ramassable — l'objet posé portera items:[item] + type:'item' et pourra être
+                        pris dans l'inventaire d'un joueur (LootComponent), puis disparaîtra une fois vidé. */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-gray-400 text-sm uppercase flex items-center gap-2">
+                                <Hand className="w-4 h-4" />
+                                Objet ramassable
+                            </Label>
+                            <Switch checked={isPickup} onCheckedChange={setIsPickup} />
+                        </div>
+                        {isPickup && (
+                            <div className="bg-[#1a1a1a] p-3 rounded border border-[#444] space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-gray-500 uppercase">Nom de l&apos;objet</Label>
+                                        <Input
+                                            value={itemName}
+                                            onChange={(e) => setItemName(e.target.value)}
+                                            placeholder={template.name}
+                                            className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-gray-500 uppercase">Catégorie</Label>
+                                        <Select value={itemCategory} onValueChange={setItemCategory}>
+                                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-[#252525] border-[#444] text-[#e0e0e0]">
+                                                {ITEM_CATEGORIES.map((cat) => (
+                                                    <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] text-gray-500 uppercase">Description (optionnel)</Label>
+                                    <Input
+                                        value={itemDescription}
+                                        onChange={(e) => setItemDescription(e.target.value)}
+                                        placeholder="ex: Un blaster en parfait état"
+                                        className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9"
+                                    />
+                                </div>
+                                <div className="space-y-1 w-24">
+                                    <Label className="text-[10px] text-gray-500 uppercase">Quantité</Label>
+                                    <Input
+                                        type="number" min="1"
+                                        value={itemQuantity}
+                                        onChange={(e) => setItemQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                        className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9 text-center"
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>

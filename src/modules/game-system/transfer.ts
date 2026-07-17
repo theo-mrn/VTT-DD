@@ -5,6 +5,7 @@ import type {
   FormulaNode,
   GameRuleEntry,
   LocationFieldDefinition,
+  MapConfig,
   ProfileDefinition,
   RaceDefinition,
   SkillDefinition,
@@ -47,6 +48,9 @@ export interface GameSystemExportData {
   startingXp?: number;
   diceUpgradeRule?: DicePoolUpgradeRule;
   defaultCharacterLayout?: CharacterLayoutEntry[];
+  defaultSidebarLayout?: { mj?: string[]; player?: string[] };
+  maps?: MapConfig[];
+  objectLibraryId?: string;
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -76,6 +80,9 @@ export interface GameSystemExportSource {
   startingXp?: number;
   diceUpgradeRule?: DicePoolUpgradeRule;
   defaultCharacterLayout?: CharacterLayoutEntry[];
+  defaultSidebarLayout?: { mj?: string[]; player?: string[] };
+  maps?: MapConfig[];
+  objectLibraryId?: string;
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -110,6 +117,9 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.startingXp != null) result.startingXp = source.startingXp;
   if (source.diceUpgradeRule != null) result.diceUpgradeRule = source.diceUpgradeRule;
   if (source.defaultCharacterLayout != null) result.defaultCharacterLayout = source.defaultCharacterLayout;
+  if (source.defaultSidebarLayout != null) result.defaultSidebarLayout = source.defaultSidebarLayout;
+  if (source.maps != null) result.maps = source.maps;
+  if (source.objectLibraryId != null) result.objectLibraryId = source.objectLibraryId;
   return result;
 }
 
@@ -239,5 +249,16 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (typeof json.startingXp === 'number') result.startingXp = json.startingXp;
   if (json.diceUpgradeRule != null) result.diceUpgradeRule = json.diceUpgradeRule;
   if (Array.isArray(json.defaultCharacterLayout)) result.defaultCharacterLayout = json.defaultCharacterLayout;
+  if (json.defaultSidebarLayout != null && typeof json.defaultSidebarLayout === 'object') {
+    result.defaultSidebarLayout = json.defaultSidebarLayout;
+  }
+  if (Array.isArray(json.maps)) {
+    result.maps = (json.maps as unknown[]).filter((m): m is MapConfig => {
+      if (!m || typeof m !== 'object') return false;
+      const raw = m as Record<string, unknown>;
+      return typeof raw.id === 'string' && typeof raw.label === 'string' && typeof raw.image === 'string' && Array.isArray(raw.markers);
+    });
+  }
+  if (typeof json.objectLibraryId === 'string') result.objectLibraryId = json.objectLibraryId;
   return result;
 }

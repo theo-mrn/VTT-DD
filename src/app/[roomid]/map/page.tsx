@@ -54,6 +54,7 @@ import { useUndoRedo } from '@/contexts/UndoRedoContext';
 import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
 import { useCharacterPositions } from '@/hooks/map/useCharacterPositions';
 import { useActiveAttackTargets } from '@/hooks/map/useActiveAttackTargets';
+import { useNpcStatFields } from '@/hooks/useNpcStatFields';
 import type { PositionsMap } from '@/hooks/map/useCharacterPositions';
 import { useCharacterBubbles } from '@/hooks/map/useCharacterBubbles';
 import CharacterBubblesLayer from '@/components/(map)/layers/CharacterBubblesLayer';
@@ -1056,6 +1057,10 @@ export default function Component() {
   // 
   // TRICK: Use a ref for `selectedCityId`.
   const selectedCityIdRef = useRef(selectedCityId);
+  // Champs de stats dérivés du système de règles actif — remplace la liste fixe de 13 clés D&D
+  // (PV/Defense/Contact/.../INIT/FOR/DEX/...) qui jetait silencieusement toute clé custom (ex Star
+  // Wars : vigueur/Stress/ValeurEncaissement/...) lors du parsing d'un document Firestore.
+  const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId ?? null);
   // 1. DEFINE FUNCTIONS FIRST
   const parseCharacterDoc = useCallback((doc: any, cityId: string | null): Character => {
     const data = doc.data();
@@ -1086,7 +1091,9 @@ export default function Component() {
       y: charY,
       image: img,
       imageUrl: imageUrl,
-      visibility: data.visibility || 'hidden',
+      // Un joueur sans champ visibility (docs créés avant que la création ne l'écrive) doit rester
+      // visible des autres joueurs — le repli 'hidden' ne vaut que pour les PNJ.
+      visibility: data.visibility || (data.type === 'joueurs' ? 'visible' : 'hidden'),
       visibilityRadius: (() => {
         const val = parseFloat(data.visibilityRadius);
         if (val > 2000) return 2000; // Safety cap
@@ -1094,19 +1101,6 @@ export default function Component() {
       })(),
       visibleToPlayerIds: data.visibleToPlayerIds || undefined, // 🆕 Charger la liste des joueurs autorisés
       type: data.type || 'pnj',
-      PV: data.PV || 0,
-      PV_Max: data.PV_Max || data.PV || 10,
-      Defense: data.Defense || 5,
-      Contact: data.Contact || 5,
-      Distance: data.Distance || 5,
-      Magie: data.Magie || 5,
-      INIT: data.INIT || 5,
-      FOR: data.FOR || 0,
-      DEX: data.DEX || 0,
-      CON: data.CON || 0,
-      SAG: data.SAG || 0,
-      INT: data.INT || 0,
-      CHA: data.CHA || 0,
       conditions: data.conditions || [],
       scale: data.scale || 1,
       Actions: data.Actions || [],
@@ -1115,8 +1109,19 @@ export default function Component() {
       shape: data.shape || 'circle', // 🆕 Shape property
       notes: data.notes || undefined // 🆕 Notes du personnage
     };
+    // Stats dérivées du système de règles actif (caractéristiques, vitaux, défense, attaques,
+    // stats dérivées additionnelles) — copiées dynamiquement plutôt qu'une liste fixe D&D, sinon tout
+    // système custom (ex Star Wars) perdait silencieusement ses propres clés à ce niveau du pipeline.
+    for (const stat of abilityStats) if (data[stat.key] !== undefined) charObj[stat.key] = data[stat.key];
+    for (const { stat, maxKey } of vitalStats) {
+      if (data[stat.key] !== undefined) charObj[stat.key] = data[stat.key];
+      if (maxKey && data[maxKey] !== undefined) charObj[maxKey] = data[maxKey];
+    }
+    if (defenseKey && data[defenseKey] !== undefined) charObj[defenseKey] = data[defenseKey];
+    for (const key of combatAttackKeys) if (data[key] !== undefined) charObj[key] = data[key];
+    for (const stat of extraCombatStats) if (data[stat.key] !== undefined) charObj[stat.key] = data[stat.key];
     return charObj;
-  }, []);
+  }, [abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats]);
 
   const mergeAndSetCharacters = useCallback(() => {
     // Deduplicate by ID

@@ -25,7 +25,7 @@ import {
   Store
 } from 'lucide-react';
 
-export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId }) {
+export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId, imageBorderRadius }) {
   // --- State Management ---
   const [currentUser, setCurrentUser] = useState(null);
   const { user: gameUser } = useGame();
@@ -38,9 +38,10 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   // Image Data
   const [finalImageUrl, setFinalImageUrl] = useState(null);
 
-  // Decoration / Tokens
-  const [overlayUrl, setOverlayUrl] = useState("https://assets.yner.fr/Token/Token1.png");
-  const [previewTokenUrl, setPreviewTokenUrl] = useState("https://assets.yner.fr/Token/Token1.png");
+  // Decoration / Tokens — AUCUN cadre par défaut (null) : l'avatar reste l'image nue tant que
+  // l'utilisateur n'en choisit pas un dans la liste (option "Aucun" pour revenir en arrière).
+  const [overlayUrl, setOverlayUrl] = useState(null);
+  const [previewTokenUrl, setPreviewTokenUrl] = useState(null);
   const [tokenList, setTokenList] = useState([]);
 
   // Previews
@@ -57,6 +58,22 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   const [uploading, setUploading] = useState(false);
   const [sourceImageUrl, setSourceImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Arrondi de l'image brute (perso pas encore passé par le studio) : 50 = cercle, 0 = carré.
+  // Réglable via le curseur du studio, persisté sur le doc personnage (imageBorderRadius).
+  const [borderRadiusPct, setBorderRadiusPct] = useState(
+    typeof imageBorderRadius === 'number' ? imageBorderRadius : 50
+  );
+  useEffect(() => {
+    if (typeof imageBorderRadius === 'number') setBorderRadiusPct(imageBorderRadius);
+  }, [imageBorderRadius]);
+
+  const persistBorderRadius = async (value) => {
+    if (!roomId || !characterId) return;
+    try {
+      await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), { imageBorderRadius: value });
+    } catch (e) { console.error(e); }
+  };
 
   // --- Effects ---
 
@@ -119,18 +136,16 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
     });
 
     setTokenList(availableTokens);
-
-    // Only set initial overlay if we don't have one and we found tokens
-    if (availableTokens.length > 0 && !overlayUrl) {
-      setOverlayUrl(availableTokens[0].src);
-      setPreviewTokenUrl(availableTokens[0].src);
-    }
+    // Pas de sélection automatique d'un cadre : sans choix explicite, l'avatar reste sans cadre.
   }, [rawApiTokens, userTokenInventory, isPremium]);
 
   // --- Logic ---
 
   const onCropComplete = useCallback(async (_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
+    // Pas d'aperçu sans vraie image source : le repli /api/placeholder/... n'est pas une route
+    // existante (anciens personnages sauvegardés avec imageURL vide) — getCroppedImg échouerait.
+    if (!sourceImageUrl || sourceImageUrl.startsWith('/api/placeholder')) return;
     try {
       const preview = await getCroppedImg(sourceImageUrl, croppedAreaPixels);
       setPreviewImage(preview);
@@ -156,9 +171,10 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
     setIsProcessing(true);
 
     try {
-      // 1. Process Image
+      // 1. Process Image — le composite (cadre) n'est généré que si un cadre est choisi ;
+      // sans cadre, l'image finale EST l'image croppée.
       const cropped = await getCroppedImg(sourceImageUrl, croppedAreaPixels);
-      const composite = await createCompositeImage(cropped, previewTokenUrl);
+      const composite = previewTokenUrl ? await createCompositeImage(cropped, previewTokenUrl) : cropped;
 
       // 2. Upload to Storage
       const [cBlob, fBlob] = await Promise.all([
@@ -175,8 +191,8 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
       await Promise.all([uploadBytes(cRef, cBlob), uploadBytes(fRef, fBlob)]);
       const [croppedUrl, finalUrl] = await Promise.all([getDownloadURL(cRef), getDownloadURL(fRef)]);
 
-      // 3. Identify Token
-      const tokenName = tokenList.find(t => t.src === previewTokenUrl)?.name || 'Token1';
+      // 3. Identify Token ('' = aucun cadre)
+      const tokenName = previewTokenUrl ? (tokenList.find(t => t.src === previewTokenUrl)?.name || 'Token1') : '';
 
       // 4. Update DB
       await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), {
@@ -240,10 +256,33 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
         {/* Subtle Glow */}
         <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/5 transition-colors duration-500" />
 
-        {/* Main Image Container */}
+        {/* Main Image Container — repli : image tokenisée (générée au Save du studio), sinon la
+            version croppée, sinon l'image brute de création (un perso fraîchement créé n'a que
+            imageURL : sans ce repli, cercle vide tant qu'on n'a pas sauvegardé une fois le studio). */}
         <div className="relative w-full h-full z-10 drop-shadow-md transition-all duration-300">
           {finalImageUrl ? (
-            <img src={finalImageUrl} alt={altText} className="w-full h-full object-contain" />
+            // Image finale (croppée, avec ou sans cadre) : carrée par construction — l'arrondi
+            // réglable s'applique aussi ici, sinon le curseur n'aurait aucun effet après sauvegarde.
+            <div className="w-full h-full flex items-center justify-center">
+              <img
+                src={finalImageUrl}
+                alt={altText}
+                className="aspect-square max-w-full max-h-full object-contain"
+                style={{ borderRadius: `${borderRadiusPct}%` }}
+              />
+            </div>
+          ) : (imageURL2 || imageUrl) ? (
+            // Image brute (pas encore passée par le studio) : contrainte au plus grand carré inscrit
+            // (jamais d'ellipse quel que soit le ratio du conteneur), arrondi réglable via le curseur
+            // du studio (50% = cercle, 0% = carré).
+            <div className="w-full h-full flex items-center justify-center">
+              <img
+                src={imageURL2 || imageUrl}
+                alt={altText}
+                className="aspect-square max-w-full max-h-full object-cover"
+                style={{ borderRadius: `${borderRadiusPct}%` }}
+              />
+            </div>
           ) : (
             <div className="w-full h-full rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
               <ImageIcon className="text-neutral-400" />
@@ -313,15 +352,20 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
                   }}
                 />
 
-                {/* Live Token Overlay (The "Real" Result) */}
-                <div
-                  className="pointer-events-none absolute inset-0 z-10 bg-contain bg-center bg-no-repeat"
-                  style={{ backgroundImage: `url(${previewTokenUrl})` }}
-                />
+                {/* Live Token Overlay (The "Real" Result) — seulement si un cadre est choisi */}
+                {previewTokenUrl && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-10 bg-contain bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${previewTokenUrl})` }}
+                  />
+                )}
 
-                {/* Minimal Guide (Optional: fade out when interacting if needed, but the token is the guide now) */}
+                {/* Guide de forme — suit le curseur d'arrondi en direct (50% = cercle, 0% = carré) */}
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center select-none opacity-50">
-                  <div className="w-[100%] h-[100%] rounded-full border border-white/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.85)]" />
+                  <div
+                    className="w-[100%] h-[100%] border border-white/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.85)]"
+                    style={{ borderRadius: `${borderRadiusPct}%` }}
+                  />
                 </div>
               </div>
 
@@ -337,6 +381,21 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
                       max={3}
                       step={0.1}
                       onValueChange={(v) => setZoom(v[0])}
+                      className="flex-1"
+                    />
+                  </div>
+
+                  {/* Arrondi de l'avatar affiché sur la fiche (50% = cercle, 0% = carré) —
+                      persisté sur le personnage au relâchement du curseur. */}
+                  <div className="flex items-center gap-3 w-36 border-r border-white/5 pr-4" title="Arrondi de l'avatar">
+                    <Minimize2 size={14} className="text-neutral-500" />
+                    <Slider
+                      value={[borderRadiusPct]}
+                      min={0}
+                      max={50}
+                      step={1}
+                      onValueChange={(v) => setBorderRadiusPct(v[0])}
+                      onValueCommit={(v) => persistBorderRadius(v[0])}
                       className="flex-1"
                     />
                   </div>
@@ -380,6 +439,21 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
 
               <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 <div className="grid grid-cols-2 gap-3">
+                  {/* Aucun cadre (défaut) */}
+                  <button
+                    onClick={() => setPreviewTokenUrl(null)}
+                    className={`group relative aspect-square rounded-xl transition-all duration-200 overflow-hidden flex flex-col items-center justify-center gap-1 p-2 ${!previewTokenUrl
+                      ? 'bg-neutral-800 ring-2 ring-white/20'
+                      : 'bg-neutral-900/40 hover:bg-neutral-800 border border-transparent hover:border-white/5'
+                      }`}
+                    title="Aucun cadre"
+                  >
+                    <X className={`w-6 h-6 ${!previewTokenUrl ? 'text-white' : 'text-neutral-500 group-hover:text-neutral-300'}`} />
+                    <span className={`text-[10px] font-medium ${!previewTokenUrl ? 'text-white' : 'text-neutral-500'}`}>Aucun</span>
+                    {!previewTokenUrl && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_white]" />
+                    )}
+                  </button>
                   {tokenList.map((token) => (
                     <button
                       key={token.id}

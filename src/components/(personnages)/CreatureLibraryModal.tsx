@@ -1,58 +1,27 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
-import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost, Images, Wand2, Plus } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useParams } from 'next/navigation'
+import { Search, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Pencil, Crop as CropIcon, ZoomIn, Loader2, Ghost, Plus } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
-import { mapImagePath } from '@/utils/imagePathMapper'
 import Cropper from 'react-easy-crop'
 import { getCroppedImg } from '@/lib/cropImageHelper'
 import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RaceImageSelector } from './RaceImageSelector'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import { rollCharacterStats } from '@/lib/rules-engine'
+import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
 
-// Types based on the JSON files
-interface RaceData {
-    description: string;
-    metrics: string;
-    image: string;
-    tailleMoyenne: number;
-    poidsMoyen: number;
-    modificateurs: Record<string, number>;
-}
-
-interface ProfileData {
-    description: string;
-    hitDie: string;
-    image: string;
-}
-
-interface BestiaryData {
-    Nom: string;
-    Category?: string;
-    Type: string;
-    description: string;
-    image?: string;
-    niveau: number;
-    Challenge?: string;
-    PV: number;
-    PV_Max: number;
-    Defense: number;
-    Contact: number;
-    Distance: number;
-    Magie: number;
-    INIT: number;
-    FOR: number;
-    DEX: number;
-    CON: number;
-    INT: number;
-    SAG: number;
-    CHA: number;
-    Actions?: Array<{
-        Nom: string;
-        Description: string;
-        Toucher: number;
-    }>;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// "Bibliothèque" de PNJ : jusqu'ici deux onglets, Race+Profil (générateur) et Bestiaire (fetch
+// /tabs/bestiairy.json, legacy dnd-classic). Le vrai bestiaire par monstre n'a pas d'équivalent
+// générique dans le moteur de règles — à la place, l'onglet "Bestiaire" réutilise gameSystem.races
+// comme pseudo-bestiaire (chaque race sert de "modèle de créature" avec ses stats de base), même si
+// imparfait : c'est la seule liste de gabarits déjà définie par le MJ pour n'importe quel système.
+// races.json/profile.json/bestiairy.json sont entièrement remplacés par gameSystem.races/profiles.
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface CreatureLibraryModalProps {
     isOpen: boolean
@@ -61,10 +30,15 @@ interface CreatureLibraryModalProps {
 }
 
 export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibraryModalProps) {
-    const [races, setRaces] = useState<Record<string, RaceData>>({})
-    const [profiles, setProfiles] = useState<Record<string, ProfileData>>({})
-    const [bestiary, setBestiary] = useState<Record<string, BestiaryData>>({})
-    const [loading, setLoading] = useState(true)
+    const params = useParams()
+    const roomId = (params?.roomid as string) ?? null
+    const { gameSystem } = useGameSystem(roomId)
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId)
+    const races: RaceDefinition[] = gameSystem.races ?? []
+    const profiles: ProfileDefinition[] = gameSystem.profiles ?? []
+    // Pseudo-bestiaire : les races servent de gabarits de créature (cf commentaire plus haut).
+    const bestiary: RaceDefinition[] = races
+    const loading = false
 
     // Cropping State
     const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -74,21 +48,9 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [editingImageSrc, setEditingImageSrc] = useState<string | null>(null)
     const [isCreating, setIsCreating] = useState(false)
 
-    // Stats State
-    const [stats, setStats] = useState({
-        PV_Max: 10,
-        Defense: 10,
-        INIT: 10,
-        Contact: 0,
-        Distance: 0,
-        Magie: 0,
-        FOR: 10,
-        DEX: 10,
-        CON: 10,
-        INT: 10,
-        SAG: 10,
-        CHA: 10
-    })
+    // Stats State — clés dérivées du système actif (caractéristiques/stat vitale/défense/attaques),
+    // pas les 6+7 clés D&D fixes.
+    const [stats, setStats] = useState<Record<string, number>>({})
 
     // Selection State
     const [activeTab, setActiveTab] = useState<'bestiary' | 'npc'>('npc')
@@ -96,7 +58,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [selectedRace, setSelectedRace] = useState<string | null>(null)
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
     const [selectedCreature, setSelectedCreature] = useState<string | null>(null)
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
     const [targetLevel, setTargetLevel] = useState<number>(1)
     const [customImage, setCustomImage] = useState<string>('')
@@ -107,135 +68,30 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     // Image Selector Dialog State
     const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false)
 
-    // Fetch Data
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [racesRes, profilesRes, bestiaryRes] = await Promise.all([
-                    fetch('/tabs/race.json'),
-                    fetch('/tabs/profile.json'),
-                    fetch('/tabs/bestiairy.json')
-                ])
-                const racesData: Record<string, RaceData> = await racesRes.json()
-                const profilesData: Record<string, ProfileData> = await profilesRes.json()
-                const bestiaryData: Record<string, BestiaryData> = await bestiaryRes.json()
-
-                // Map local image paths to R2 URLs for races and profiles
-                const racesWithMappedImages: Record<string, RaceData> = {}
-                for (const [key, race] of Object.entries(racesData)) {
-                    racesWithMappedImages[key] = {
-                        ...race,
-                        image: await mapImagePath(race.image)
-                    }
-                }
-
-                const profilesWithMappedImages: Record<string, ProfileData> = {}
-                for (const [key, profile] of Object.entries(profilesData)) {
-                    profilesWithMappedImages[key] = {
-                        ...profile,
-                        image: await mapImagePath(profile.image)
-                    }
-                }
-
-                setRaces(racesWithMappedImages)
-                setProfiles(profilesWithMappedImages)
-                setBestiary(bestiaryData)
-            } catch (error) {
-                console.error("Error loading library data:", error)
-            } finally {
-                setLoading(false)
-            }
-        }
-        if (isOpen) loadData()
-    }, [isOpen])
-
-    // Calculate Defaults when selection changes
+    // Calculate Defaults when selection changes — délègue au VRAI moteur de règles (rollCharacterStats,
+    // le même que la création de personnage classique) au lieu d'une formule de "scaling par niveau"
+    // maison qui supposait un modèle D&D (hit die + modificateur CON augmentant avec le niveau). Un
+    // système custom (ex Star Wars) a des stats vitales qui démarrent à une VRAIE constante (rollFormula
+    // = const 0 pour Blessures/Stress), pas une valeur qui grandit avec un niveau choisi ici — le moteur
+    // respecte ça nativement, et n'invente aucune clé (ex INIT) que le système ne définit pas.
+    // PRIORITÉ 1 : créature du pseudo-bestiaire sélectionnée (une race utilisée comme gabarit, ses
+    // "modifiers" servant de modificateurs raciaux). PRIORITÉ 2 : race + profil choisis pour un PNJ générique.
     useEffect(() => {
         if (!isOpen) return
 
-        let newStats = { ...stats }
+        const creatureRace = selectedCreature ? bestiary.find((r) => r.id === selectedCreature) : null
+        const raceData = selectedRace ? races.find((r) => r.id === selectedRace) : null
+        const profileData = selectedProfile ? profiles.find((p) => p.id === selectedProfile) : null
+        const mods = (creatureRace ?? raceData)?.modifiers || {}
 
-        // PRIORITY 1: BESTIARY (if a creature is selected)
-        if (selectedCreature && bestiary[selectedCreature]) {
-            const creature = bestiary[selectedCreature]
-            const safeRefLevel = Math.max(1, creature.niveau)
-
-            const scaleHP = (val: number) => {
-                const basePerLevel = val / safeRefLevel
-                const levelDiff = targetLevel - safeRefLevel
-                return Math.floor(val + (basePerLevel * levelDiff * 0.5))
-            }
-            const scaleStat = (val: number) => val + Math.floor((targetLevel - safeRefLevel) / 2)
-            const scaleCombat = (val: number) => val + (targetLevel - safeRefLevel)
-            const scaleDef = (val: number) => val + Math.floor((targetLevel - safeRefLevel) / 2)
-
-            newStats = {
-                PV_Max: scaleHP(creature.PV_Max),
-                Defense: scaleDef(creature.Defense),
-                INIT: creature.INIT,
-                Contact: scaleCombat(creature.Contact),
-                Distance: scaleCombat(creature.Distance),
-                Magie: scaleCombat(creature.Magie),
-                FOR: scaleStat(creature.FOR),
-                DEX: scaleStat(creature.DEX),
-                CON: scaleStat(creature.CON),
-                INT: scaleStat(creature.INT),
-                SAG: scaleStat(creature.SAG),
-                CHA: scaleStat(creature.CHA),
-            }
-        }
-        // PRIORITY 2: CUSTOM (Race + Profile)
-        else {
-            const raceData = selectedRace ? races[selectedRace] : null
-            const profileData = selectedProfile ? profiles[selectedProfile] : null
-            const mods = raceData?.modificateurs || {}
-
-            // 1. Calculate Base (Level 1) Stats
-            const baseStats = { FOR: 10, DEX: 10, CON: 10, INT: 10, SAG: 10, CHA: 10 }
-            const lvl1Attr = {
-                FOR: baseStats.FOR + (mods.FOR || 0),
-                DEX: baseStats.DEX + (mods.DEX || 0),
-                CON: baseStats.CON + (mods.CON || 0),
-                INT: baseStats.INT + (mods.INT || 0),
-                SAG: baseStats.SAG + (mods.SAG || 0),
-                CHA: baseStats.CHA + (mods.CHA || 0),
-            }
-            const calcMod = (val: number) => Math.floor((val - 10) / 2)
-
-            const hitDieVal = profileData
-                ? parseInt((profileData.hitDie || '1d8').replace('d', '')) || 8
-                : 8
-
-            const lvl1HP = Math.max(1, hitDieVal + calcMod(lvl1Attr.CON))
-            const lvl1Def = 10 + calcMod(lvl1Attr.DEX)
-
-            // 2. Define Scaling Helpers (same as Bestiary, but refLevel = 1)
-            const levelDiff = Math.max(0, targetLevel - 1)
-
-            const scaleHP = (val: number) => Math.floor(val + (val * levelDiff * 0.5)) // 50% growth per level
-            const scaleStat = (val: number) => val + Math.floor(levelDiff / 2)
-            const scaleCombat = (val: number) => val + levelDiff
-            const scaleDef = (val: number) => val + Math.floor(levelDiff / 2)
-
-            // 3. Apply Scaling
-            newStats = {
-                PV_Max: scaleHP(lvl1HP),
-                Defense: scaleDef(lvl1Def),
-                INIT: scaleStat(lvl1Attr.DEX), // Init scales like Dex
-                Contact: scaleCombat(1 + calcMod(lvl1Attr.FOR)),
-                Distance: scaleCombat(1 + calcMod(lvl1Attr.DEX)),
-                Magie: scaleCombat(1 + calcMod(lvl1Attr.CHA)),
-                FOR: scaleStat(lvl1Attr.FOR),
-                DEX: scaleStat(lvl1Attr.DEX),
-                CON: scaleStat(lvl1Attr.CON),
-                INT: scaleStat(lvl1Attr.INT),
-                SAG: scaleStat(lvl1Attr.SAG),
-                CHA: scaleStat(lvl1Attr.CHA),
-            }
+        const rolled = rollCharacterStats(gameSystem, mods, [], { deVie: profileData?.hitDie });
+        const newStats: Record<string, number> = {};
+        for (const [key, value] of Object.entries({ ...rolled.abilities, ...rolled.derived })) {
+            if (typeof value === 'number') newStats[key] = value;
         }
 
         setStats(newStats)
-    }, [selectedRace, selectedProfile, selectedCreature, targetLevel, activeTab, races, profiles, bestiary])
+    }, [selectedRace, selectedProfile, selectedCreature, activeTab, races, profiles, bestiary, gameSystem])
 
     // Reset crop when selection changes
     useEffect(() => {
@@ -287,28 +143,20 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 return
             }
 
+            // Stats dérivées du système actif (cf effet "Calculate Defaults" plus haut) — seules les
+            // clés RÉELLEMENT résolues par rollCharacterStats sont copiées, jamais de préremplissage
+            // D&D fixe (PV/Defense/FOR/.../INIT) qui polluerait un système sans ces clés (ex un INIT
+            // fantôme pour Star Wars, qui n'a pas cette stat).
             const newChar: NewCharacter = {
                 name: charName,
                 niveau: targetLevel,
                 image: { src: finalImage },
                 imageURL: '',
                 visibility: 'visible',
-                PV: stats.PV_Max,
-                PV_Max: stats.PV_Max,
-                Defense: stats.Defense,
-                Contact: stats.Contact,
-                Distance: stats.Distance,
-                Magie: stats.Magie,
-                INIT: stats.INIT,
-                FOR: stats.FOR,
-                DEX: stats.DEX,
-                CON: stats.CON,
-                SAG: stats.SAG,
-                INT: stats.INT,
-                CHA: stats.CHA,
                 nombre: 1,
-                Actions: (activeTab === 'bestiary' && selectedCreature) ? (bestiary[selectedCreature]?.Actions || []) : []
-            }
+                Actions: []
+            } as NewCharacter
+            for (const [key, value] of Object.entries(stats)) newChar[key] = value
 
             await onImport(newChar)
             onClose()
@@ -322,74 +170,45 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
 
 
-    // Filtering
-    const filteredRaces = Object.entries(races).filter(([key, val]) =>
-        key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        val.description.toLowerCase().includes(searchQuery.toLowerCase())
+    // Filtering — races/profiles/bestiary sont maintenant des tableaux (gameSystem.races/profiles),
+    // plus de Record<string, X> ni de recherche de "catégorie" (notion propre au bestiaire dnd-classic,
+    // absente du pseudo-bestiaire par race).
+    const filteredRaces = races.filter((r) =>
+        r.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    const filteredProfiles = Object.entries(profiles).filter(([key, val]) =>
-        key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        val.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredProfiles = profiles.filter((p) =>
+        p.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    const filteredBestiary = Object.entries(bestiary)
-        .filter(([key, val]) => {
-            const matchesSearch = key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                val.Nom.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesCategory = !selectedCategory || val.Category === selectedCategory
-            return matchesSearch && matchesCategory
-        })
-        .sort((a, b) => a[1].Nom.localeCompare(b[1].Nom))
-
-    // Get unique categories from bestiary
-    const categories = Array.from(new Set(
-        Object.values(bestiary)
-            .map(creature => creature.Category)
-            .filter((cat): cat is string => Boolean(cat))
-    )).sort()
-
-    const categoryTranslations: Record<string, string> = {
-        'aberration': 'Aberration',
-        'beast': 'Bête',
-        'celestial': 'Céleste',
-        'construct': 'Créature artificielle',
-        'dragon': 'Dragon',
-        'elemental': 'Élémentaire',
-        'fey': 'Fée',
-        'fiend': 'Fiélon',
-        'giant': 'Géant',
-        'humanoid': 'Humanoïde',
-        'monstrosity': 'Monstruosité',
-        'ooze': 'Vase',
-        'plant': 'Plante',
-        'undead': 'Mort-vivant',
-        'swarm of tiny beasts': 'Nuée de bêtes',
-    }
-
-    const formatCategory = (cat: string) => {
-        return categoryTranslations[cat.toLowerCase()] || cat.charAt(0).toUpperCase() + cat.slice(1)
-    }
+    const filteredBestiary = bestiary
+        .filter((r) =>
+            r.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (r.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .sort((a, b) => a.label.localeCompare(b.label))
 
     if (!isOpen) return null
 
-    // Render bestiary grid items (only used in bestiary tab)
+    // Render bestiary grid items (only used in bestiary tab) — pseudo-bestiaire : chaque race sert de
+    // gabarit de créature, pas de catégorie/niveau propre à afficher.
     const renderGridItems = () => {
         if (activeTab === 'bestiary') {
-            return filteredBestiary.map(([key, data]) => {
-                const isSelected = selectedCreature === key
+            return filteredBestiary.map((race) => {
+                const isSelected = selectedCreature === race.id
                 const hasProfile = !!selectedProfile
                 return (
                     <Card
-                        key={key}
-                        title={data.Nom}
-                        subtitle={data.Type}
-                        image={data.image}
+                        key={race.id}
+                        title={race.label}
+                        subtitle="Race"
+                        image={race.image}
                         isSelected={isSelected}
                         onClick={() => {
-                            const isSelected = selectedCreature === key
                             if (!isSelected) {
-                                setSelectedCreature(key)
+                                setSelectedCreature(race.id)
                                 setSelectedRace(null)
                                 setActiveImageSource('creature')
                             } else {
@@ -397,14 +216,13 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             }
                         }}
                         footer={
-                            <div className="flex items-center justify-between w-full">
-                                <span className="text-[10px] text-zinc-500 font-mono">Niv. {data.niveau}</span>
-                                {hasProfile && !isSelected && (
+                            hasProfile && !isSelected ? (
+                                <div className="flex items-center justify-end w-full">
                                     <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
                                         <Plus className="w-3 h-3" strokeWidth={4} />
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            ) : undefined
                         }
                     />
                 )
@@ -414,40 +232,43 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
     // --- RENDER HELPERS ---
 
+    const selectedRaceData = selectedRace ? races.find((r) => r.id === selectedRace) : null
+    const selectedProfileData = selectedProfile ? profiles.find((p) => p.id === selectedProfile) : null
+    const selectedCreatureData = selectedCreature ? bestiary.find((r) => r.id === selectedCreature) : null
+
     const getPreviewImage = () => {
         // Priority: Custom > Active Source Selection > Hierarchy(Creature > Race > Profile > Custom)
 
         // If user explicitly chose a source in the preview UI controls, try to honor it if available
         if (activeImageSource === 'custom' && customImage) return customImage
-        if (activeImageSource === 'creature' && selectedCreature && bestiary[selectedCreature]?.image) return bestiary[selectedCreature].image
-        if (activeImageSource === 'profile' && selectedProfile && profiles[selectedProfile]?.image) return profiles[selectedProfile].image
+        if (activeImageSource === 'creature' && selectedCreatureData?.image) return selectedCreatureData.image
+        if (activeImageSource === 'profile' && selectedProfileData?.image) return selectedProfileData.image
         // For race source: prioritize customImage (gallery selection) over default race image
         if (activeImageSource === 'race') {
             if (customImage) return customImage
-            if (selectedRace && races[selectedRace]?.image) return races[selectedRace].image
+            if (selectedRaceData?.image) return selectedRaceData.image
         }
-
 
         // Fallback Hierarchy
         if (customImage) return customImage
-        if (selectedCreature && bestiary[selectedCreature]?.image) return bestiary[selectedCreature].image
-        if (selectedProfile && profiles[selectedProfile]?.image) return profiles[selectedProfile].image
-        if (selectedRace && races[selectedRace]?.image) return races[selectedRace].image
+        if (selectedCreatureData?.image) return selectedCreatureData.image
+        if (selectedProfileData?.image) return selectedProfileData.image
+        if (selectedRaceData?.image) return selectedRaceData.image
 
         return ''
     }
 
     const getPreviewName = () => {
         // CASE 1: BESTIARY + optionally Profile
-        if (selectedCreature && bestiary[selectedCreature]) {
-            const creatureName = bestiary[selectedCreature].Nom
-            const profileName = selectedProfile ? selectedProfile.charAt(0).toUpperCase() + selectedProfile.slice(1) : ''
+        if (selectedCreatureData) {
+            const creatureName = selectedCreatureData.label
+            const profileName = selectedProfileData?.label ?? ''
             return [creatureName, profileName].filter(Boolean).join(' ')
         }
 
         // CASE 2: CUSTOM (Race + Profile)
-        const pName = selectedProfile ? selectedProfile.charAt(0).toUpperCase() + selectedProfile.slice(1) : ''
-        const rName = selectedRace ? selectedRace.charAt(0).toUpperCase() + selectedRace.slice(1).replace('_', ' ') : ''
+        const pName = selectedProfileData?.label ?? ''
+        const rName = selectedRaceData?.label ?? ''
         return [pName, rName].filter(Boolean).join(' ') || 'Nouveau Personnage'
     }
 
@@ -518,34 +339,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         </div>
                     </div>
 
-                    {/* Filter Bar (Bestiary Only) */}
-                    {activeTab === 'bestiary' && (
-                        <div className="px-6 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs h-12">
-                            <div className="flex items-center gap-2 pr-4 border-r border-[#2a2a2a]">
-                                <Select
-                                    value={selectedCategory || "all"}
-                                    onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
-                                >
-                                    <SelectTrigger className="h-8 min-w-[180px] bg-[#0c0c0e] border-[#2a2a2a] text-[10px] font-bold text-zinc-400 focus:ring-1 focus:ring-[#c0a080] focus:border-[#c0a080] px-3 shadow-sm hover:border-[#c0a080]/30 transition-all uppercase tracking-wider">
-                                        <div className="flex items-center gap-2.5">
-                                            <Filter className="w-3 h-3 text-[#c0a080]" />
-                                            <SelectValue placeholder="Catégories" />
-                                        </div>
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-[#0c0c0e] border-[#2a2a2a] text-zinc-300 max-h-[300px]">
-                                        <SelectItem value="all" className="focus:bg-[#c0a080]/10 focus:text-[#c0a080] text-xs py-2 font-medium">
-                                            Toutes les catégories
-                                        </SelectItem>
-                                        {categories.map(cat => (
-                                            <SelectItem key={cat} value={cat} className="focus:bg-[#c0a080]/10 focus:text-[#c0a080] text-xs py-2">
-                                                {formatCategory(cat)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    )}
                     {/* Content Grid */}
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">
@@ -559,27 +352,27 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 <div className="px-4 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-2 shrink-0">
                                     <Dna className="w-3.5 h-3.5 text-blue-400" />
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Races</span>
-                                    {selectedRace && (
+                                    {selectedRaceData && (
                                         <span className="ml-auto flex items-center gap-1 text-[10px] text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                                            {selectedRace.replace('_', ' ')}
+                                            {selectedRaceData.label}
                                             <button onClick={() => setSelectedRace(null)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
                                         </span>
                                     )}
                                 </div>
                                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat p-3">
                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
-                                        {filteredRaces.map(([key, data]) => {
-                                            const isSelected = selectedRace === key
+                                        {filteredRaces.map((race) => {
+                                            const isSelected = selectedRace === race.id
                                             return (
                                                 <Card
-                                                    key={key}
-                                                    title={key.replace('_', ' ')}
+                                                    key={race.id}
+                                                    title={race.label}
                                                     subtitle="Race"
-                                                    image={data.image}
+                                                    image={race.image}
                                                     isSelected={isSelected}
                                                     onClick={() => {
                                                         if (!isSelected) {
-                                                            setSelectedRace(key)
+                                                            setSelectedRace(race.id)
                                                             setSelectedCreature(null)
                                                             setActiveImageSource('race')
                                                             setIsImageSelectorOpen(true)
@@ -589,7 +382,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                                     }}
                                                     footer={
                                                         <div className="flex gap-1 flex-wrap">
-                                                            {Object.entries(data.modificateurs || {}).slice(0, 2).map(([k, v]) => (
+                                                            {Object.entries(race.modifiers || {}).slice(0, 2).map(([k, v]) => (
                                                                 <span key={k} className="text-[9px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
                                                             ))}
                                                         </div>
@@ -606,30 +399,30 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 <div className="px-4 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-2 shrink-0">
                                     <Swords className="w-3.5 h-3.5 text-purple-400" />
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Classes</span>
-                                    {selectedProfile && (
+                                    {selectedProfileData && (
                                         <span className="ml-auto flex items-center gap-1 text-[10px] text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
-                                            {selectedProfile}
+                                            {selectedProfileData.label}
                                             <button onClick={() => setSelectedProfile(null)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
                                         </span>
                                     )}
                                 </div>
                                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat p-3">
                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
-                                        {filteredProfiles.map(([key, data]) => {
-                                            const isSelected = selectedProfile === key
+                                        {filteredProfiles.map((profile) => {
+                                            const isSelected = selectedProfile === profile.id
                                             return (
                                                 <Card
-                                                    key={key}
-                                                    title={key}
+                                                    key={profile.id}
+                                                    title={profile.label}
                                                     subtitle="Classe"
-                                                    image={data.image}
+                                                    image={profile.image}
                                                     isSelected={isSelected}
                                                     onClick={() => {
-                                                        setSelectedProfile(isSelected ? null : key)
+                                                        setSelectedProfile(isSelected ? null : profile.id)
                                                         if (!isSelected) setActiveImageSource('profile')
                                                     }}
                                                     footer={
-                                                        <span className="text-[9px] text-red-300">DV: {data.hitDie}</span>
+                                                        profile.hitDie ? <span className="text-[9px] text-red-300">DV: {profile.hitDie}</span> : undefined
                                                     }
                                                 />
                                             )
@@ -790,7 +583,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         <Pencil className="absolute right-0 w-5 h-5 text-white/30 group-hover:text-white/80 pointer-events-none transition-colors" />
                                     </div>
                                     <div className="flex items-center gap-2 text-[#c0a080] text-sm font-medium uppercase tracking-wider">
-                                        {selectedCreature ? bestiary[selectedCreature]?.Type : 'Nouvelle Créature'}
+                                        {selectedCreatureData ? 'Créature' : 'Nouvelle Créature'}
                                     </div>
                                 </div>
                             )}
@@ -824,38 +617,41 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         <div className="px-6 pb-24 space-y-8">
 
                             {/* Description Text */}
-                            {(selectedCreature || selectedRace || selectedProfile) && (
+                            {(selectedCreatureData || selectedRaceData || selectedProfileData) && (
                                 <div className="prose prose-invert prose-sm">
                                     <p className="text-zinc-400 leading-relaxed text-sm">
-                                        {selectedRace && races[selectedRace]?.description}
-                                        {selectedProfile && !selectedCreature && (
+                                        {(selectedCreatureData ?? selectedRaceData)?.description}
+                                        {selectedProfileData && !selectedCreatureData && (
                                             <span className="block mt-2 text-zinc-500 italic border-l-2 border-[#333] pl-3">
-                                                {profiles[selectedProfile]?.description}
+                                                {selectedProfileData.description}
                                             </span>
                                         )}
                                     </p>
                                 </div>
                             )}
 
-                            {/* Stat Grid - Always Available */}
+                            {/* Stat Grid - Always Available — dérivé du système actif (stat vitale
+                                principale, défense, attaques de combat, caractéristiques) plutôt que
+                                PV/Defense/Contact/Distance/Magie/FOR/DEX/... en dur. */}
                             <div className="space-y-6">
                                 <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
                                     Statistiques
                                 </h3>
 
-                                {/* Main Vitals */}
+                                {/* Main Vitals — dérivé dynamiquement de gameSystem.stats, jamais de clé en dur.
+                                    Toutes les stats vitales (Blessures, Stress, ...) sont affichées, pas seulement la première. */}
                                 <div className="grid grid-cols-3 gap-3">
                                     {[
-                                        { label: 'PV', key: 'PV_Max', color: 'text-green-400' },
-                                        { label: 'DEF', key: 'Defense', color: 'text-blue-400' },
-                                        { label: 'INIT', key: 'INIT', color: 'text-yellow-400' },
+                                        ...vitalStats.map(({ stat, maxKey }) => ({ label: stat.shortLabel || stat.label, key: maxKey || stat.key, color: 'text-green-400' })),
+                                        ...(defenseKey ? [{ label: 'DEF', key: defenseKey, color: 'text-blue-400' }] : []),
+                                        ...extraCombatStats.map((stat) => ({ label: stat.shortLabel || stat.label, key: stat.key, color: 'text-yellow-400' })),
                                     ].map(stat => (
                                         <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
                                             <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
                                             <input
                                                 type="number"
-                                                value={(stats as any)[stat.key]}
+                                                value={stats[stat.key] ?? 0}
                                                 onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
                                                 className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${stat.color}`}
                                             />
@@ -864,64 +660,39 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 </div>
 
                                 {/* Combat Stats */}
-                                <div className="grid grid-cols-3 gap-3">
-                                    {[
-                                        { label: 'Contact', key: 'Contact', color: 'text-red-400' },
-                                        { label: 'Distance', key: 'Distance', color: 'text-emerald-400' },
-                                        { label: 'Magie', key: 'Magie', color: 'text-purple-400' },
-                                    ].map(stat => (
-                                        <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
-                                            <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
-                                            <input
-                                                type="number"
-                                                value={(stats as any)[stat.key]}
-                                                onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
-                                                className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${stat.color}`}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Attributes */}
-                                <div className="grid grid-cols-3 gap-2">
-                                    {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((attr) => (
-                                        <div key={attr} className="flex items-center justify-between bg-[#1a1a1a] px-2 py-1.5 rounded border border-[#2a2a2a]">
-                                            <span className="text-[10px] font-bold text-zinc-400">{attr}</span>
-                                            <input
-                                                type="number"
-                                                value={(stats as any)[attr]}
-                                                onChange={(e) => setStats(prev => ({ ...prev, [attr]: parseInt(e.target.value) || 0 }))}
-                                                className="w-12 bg-transparent text-right font-mono text-sm text-[#e0e0e0] focus:outline-none focus:text-[#c0a080]"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Actions / Attacks Section */}
-                            {selectedCreature && bestiary[selectedCreature]?.Actions && bestiary[selectedCreature].Actions.length > 0 && (
-                                <div className="space-y-4 mt-6">
-                                    <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
-                                        Actions & Attaques
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {bestiary[selectedCreature].Actions.map((action, idx) => (
-                                            <div key={idx} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-3 space-y-2">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <h4 className="text-white font-bold text-sm">{action.Nom}</h4>
-                                                    {action.Toucher > 0 && (
-                                                        <span className="text-xs bg-[#c0a080]/20 text-[#c0a080] px-2 py-0.5 rounded border border-[#c0a080]/30 font-mono shrink-0">
-                                                            +{action.Toucher}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-zinc-400 text-xs leading-relaxed">{action.Description}</p>
+                                {combatAttackKeys.length > 0 && (
+                                    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${combatAttackKeys.length}, minmax(0, 1fr))` }}>
+                                        {combatAttackKeys.map((key, i) => (
+                                            <div key={key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
+                                                <span className="text-zinc-500 text-[10px] uppercase font-bold">{key}</span>
+                                                <input
+                                                    type="number"
+                                                    value={stats[key] ?? 0}
+                                                    onChange={(e) => setStats(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+                                                    className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${['text-red-400', 'text-emerald-400', 'text-purple-400'][i % 3]}`}
+                                                />
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            )}
+                                )}
+
+                                {/* Attributes */}
+                                {abilityStats.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {abilityStats.map((stat) => (
+                                            <div key={stat.key} className="flex items-center justify-between bg-[#1a1a1a] px-2 py-1.5 rounded border border-[#2a2a2a]">
+                                                <span className="text-[10px] font-bold text-zinc-400">{stat.shortLabel || stat.key}</span>
+                                                <input
+                                                    type="number"
+                                                    value={stats[stat.key] ?? 10}
+                                                    onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
+                                                    className="w-12 bg-transparent text-right font-mono text-sm text-[#e0e0e0] focus:outline-none focus:text-[#c0a080]"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                         </div>
                     </div>
@@ -956,7 +727,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
             </div>
 
             {/* Race Image Selector */}
-            {selectedRace && (
+            {selectedRaceData && (
                 <RaceImageSelector
                     isOpen={isImageSelectorOpen}
                     onClose={() => setIsImageSelectorOpen(false)}
@@ -965,9 +736,9 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         setCustomImage(imageUrl)
                         setActiveImageSource('race')
                     }}
-                    raceName={selectedRace}
+                    raceName={selectedRaceData.label}
                     currentImage={customImage}
-                    raceDefaultImage={selectedRace ? races[selectedRace]?.image : undefined}
+                    raceDefaultImage={selectedRaceData.image}
                 />
             )}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Character, Interaction, VendorInteraction, GameInteraction, LootInteraction, MapObject, LootItem } from '@/app/[roomid]/map/types';
 import ShopComponent from '@/components/(interactions)/ShopComponent';
@@ -51,19 +51,28 @@ export default function InteractionLayer({
             // For MapObjects, the "interaction" IS the object itself in a way, or we are updating its 'items' field.
             // But MapObject doesn't have 'interactions' array. It has direct 'items' and 'linkedId'.
             if (updatedInteraction.type === 'loot') {
-                console.log('🔍 [MAPOBJECT DEBUG] Updating MapObject:', {
-                    hostId,
-                    itemsCount: (updatedInteraction as LootInteraction).items.length,
-                    linkedId: (updatedInteraction as LootInteraction).linkedId,
-                    items: (updatedInteraction as LootInteraction).items
-                });
-
                 const objectRef = doc(db, 'cartes', roomId, 'objects', hostId);
+                const items = (updatedInteraction as LootInteraction).items;
+
+                // Objet ramassable (type 'item', posé via PlaceObjectModal "Objet ramassable")
+                // entièrement vidé => il disparaît de la carte et le panneau de loot se ferme.
+                // Un conteneur classique ('decors', ex coffre) vidé reste sur la carte (comportement
+                // historique inchangé).
+                const host = activeInteraction?.host;
+                const isPickupObject = !!host && host.id === hostId && (host as MapObject).type === 'item';
+                if (isPickupObject && items.length === 0) {
+                    try {
+                        await deleteDoc(objectRef);
+                    } catch (error) {
+                        console.error('[InteractionLayer] Échec suppression objet ramassé:', error);
+                    }
+                    setActiveInteraction(null);
+                    return;
+                }
+
                 // We only update the specific loot fields
                 // Filter out undefined values to avoid Firebase errors
-                const updateData: any = {
-                    items: (updatedInteraction as LootInteraction).items
-                };
+                const updateData: any = { items };
                 const linkedId = (updatedInteraction as LootInteraction).linkedId;
                 if (linkedId !== undefined) {
                     updateData.linkedId = linkedId;
@@ -71,10 +80,8 @@ export default function InteractionLayer({
 
                 try {
                     await updateDoc(objectRef, updateData);
-                    console.log('✅ [MAPOBJECT DEBUG] Successfully updated MapObject with data:', updateData);
                 } catch (error) {
-                    console.error('❌ [MAPOBJECT DEBUG] Failed to update MapObject:', error);
-                    console.error('Update data was:', updateData);
+                    console.error('[InteractionLayer] Échec mise à jour du loot de l\'objet:', error, updateData);
                 }
             }
         }

@@ -32,6 +32,8 @@ import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { CategoryManager } from './CategoryManager'
 import { cn } from '@/lib/utils'
 import { uploadWithQuota } from '@/lib/storageHelper'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import type { StatDefinition } from '@/modules/game-system/types'
 
 interface NPCManagerProps {
     isOpen?: boolean
@@ -55,19 +57,6 @@ export interface NPC {
     imageURL?: string // Base image
     imageURL2?: string // Token/Composite
     niveau: number
-    PV: number
-    PV_Max: number
-    Defense: number
-    FOR: number
-    DEX: number
-    CON: number
-    INT: number
-    SAG: number
-    CHA: number
-    Contact: number
-    Distance: number
-    Magie: number
-    INIT: number
 
     // Actions are sometimes flexible in Firestore, defining type
     Actions?: Array<{
@@ -75,11 +64,16 @@ export interface NPC {
         Description: string;
         Toucher: number;
     }>;
+
+    // Index signature additive : stats du système actif (ex FOR/DEX/CON/INT/SAG/CHA, PV/PV_Max/Defense
+    // pour dnd-classic, ou tout autre jeu de clés pour un système custom) — cf NewCharacter (map/types.ts).
+    [key: string]: unknown;
 }
 
 export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCManagerProps) {
     const params = useParams()
     const roomId = params?.roomid as string
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue } = useNpcStatFields(roomId ?? null)
 
     // Data State
     const [npcs, setNpcs] = useState<NPC[]>([])
@@ -98,27 +92,27 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
     const [showLibraryModal, setShowLibraryModal] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Form State (for creation/edit)
-    const defaultCharacter: NewCharacter = {
-        name: '',
-        niveau: 1,
-        image: null,
-        visibility: 'visible',
-        PV: 20,
-        PV_Max: 20,
-        Defense: 10,
-        Contact: 0,
-        Distance: 0,
-        Magie: 0,
-        INIT: 10,
-        INT: 10,
-        CHA: 10,
-        nombre: 1,
-        FOR: 10,
-        DEX: 10,
-        CON: 10,
-        SAG: 10
-    }
+    // Form State (for creation/edit) — dérivé du système de règles actif (caractéristiques, stat
+    // vitale principale, défense, attaques de combat). Jamais de préremplissage D&D fixe (INIT, etc.) :
+    // seules les clés RÉELLEMENT définies par gameSystem.stats sont posées, sinon un système sans INIT
+    // (ex Star Wars) affichait quand même "INIT" avec une valeur inventée.
+    const defaultCharacter: NewCharacter = useMemo(() => {
+        const base: NewCharacter = {
+            name: '',
+            niveau: 1,
+            image: null,
+            visibility: 'visible',
+            nombre: 1,
+        }
+        for (const stat of abilityStats) base[stat.key] = getDefaultValue(stat)
+        for (const { stat, maxKey } of vitalStats) {
+            base[stat.key] = 0
+            if (maxKey) base[maxKey] = 0
+        }
+        if (defenseKey) base[defenseKey] = 10
+        for (const key of combatAttackKeys) base[key] = 0
+        return base
+    }, [abilityStats, vitalStats, defenseKey, combatAttackKeys, getDefaultValue])
     const [char, setChar] = useState<NewCharacter>(defaultCharacter)
 
     // Fetch Data
@@ -156,27 +150,23 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
     }
 
     const handleEdit = (npc: NPC) => {
-        setChar({
+        const next: NewCharacter = {
+            ...defaultCharacter,
             name: npc.Nomperso,
             niveau: npc.niveau,
             image: npc.imageURL2 ? { src: npc.imageURL2 } : null,
             visibility: 'visible',
-            PV: npc.PV,
-            PV_Max: npc.PV_Max || npc.PV,
-            Defense: npc.Defense,
-            Contact: npc.Contact,
-            Distance: npc.Distance,
-            Magie: npc.Magie,
-            INIT: npc.INIT,
-            INT: npc.INT || 10,
-            CHA: npc.CHA || 10,
             nombre: 1,
-            FOR: npc.FOR || 10,
-            DEX: npc.DEX || 10,
-            CON: npc.CON || 10,
-            SAG: npc.SAG || 10,
-            // Preserve other fields if needed
-        })
+        }
+        for (const stat of abilityStats) next[stat.key] = npc[stat.key] ?? getDefaultValue(stat)
+        for (const { stat, maxKey } of vitalStats) {
+            const maxVal = maxKey ? (npc[maxKey] ?? npc[stat.key] ?? 20) : (npc[stat.key] ?? 20)
+            next[stat.key] = npc[stat.key] ?? maxVal
+            if (maxKey) next[maxKey] = maxVal
+        }
+        if (defenseKey) next[defenseKey] = npc[defenseKey] ?? 10
+        for (const key of combatAttackKeys) next[key] = npc[key] ?? 0
+        setChar(next)
         setSelectedCategoryId(npc.categoryId || null) // Set category to form context if needed
         setSelectedNpcId(npc.id)
         setViewMode('edit')
@@ -190,21 +180,25 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
         setViewMode('view')
     }
 
+    // Génère des stats aléatoires en fonction d'une difficulté — générique : itère sur les
+    // caractéristiques/stat vitale/défense/attaques réelles du système au lieu des 6 clés D&D fixes.
     const generateStats = (diff: number) => {
         const base = diff * 3 + 5
         const rand = () => Math.floor(Math.random() * 6) + base
-        setChar(prev => ({
-            ...prev,
-            niveau: diff,
-            FOR: rand(), DEX: rand(), CON: rand(), INT: rand(), SAG: rand(), CHA: rand(),
-            PV: base + diff * 3,
-            PV_Max: base + diff * 3,
-            Defense: 10 + Math.floor(base / 2),
-            INIT: rand(),
-            Contact: Math.floor(diff * 2),
-            Distance: Math.floor(diff * 1.5),
-            Magie: Math.floor(diff * 1.5),
-        }))
+        setChar(prev => {
+            const next: NewCharacter = { ...prev, niveau: diff }
+            for (const stat of abilityStats) next[stat.key] = rand()
+            for (const { stat, maxKey } of vitalStats) {
+                const hp = base + diff * 3
+                next[stat.key] = hp
+                if (maxKey) next[maxKey] = hp
+            }
+            if (defenseKey) next[defenseKey] = 10 + Math.floor(base / 2)
+            const combatMultipliers = [2, 1.5, 1.5]
+            combatAttackKeys.forEach((key, i) => { next[key] = Math.floor(diff * (combatMultipliers[i] ?? 1.5)) })
+            for (const stat of extraCombatStats) next[stat.key] = rand()
+            return next
+        })
     }
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,17 +241,24 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                 }
             }
 
+            // Stats dérivées du système de règles actif — plutôt que les 13 clés D&D fixes. Les
+            // champs "_F" ne sont pas écrits ici : CharacterContext les recalcule automatiquement dès
+            // qu'un personnage existe réellement sur cartes/{roomId}/characters (jamais lus tant qu'il
+            // s'agit d'un simple template npc_templates, jamais placé sur la carte).
             const npcData: any = {
                 Nomperso: char.name,
                 ...(imageURL && { imageURL2: imageURL }),
                 ...(selectedCategoryId && selectedCategoryId !== 'none' && { categoryId: selectedCategoryId }),
                 niveau: char.niveau,
-                PV: char.PV, PV_F: char.PV, PV_Max: char.PV_Max || char.PV,
-                Defense: char.Defense, Defense_F: char.Defense,
-                Contact: char.Contact, Distance: char.Distance, Magie: char.Magie,
-                INIT: char.INIT,
-                FOR: char.FOR, DEX: char.DEX, CON: char.CON, SAG: char.SAG, INT: char.INT, CHA: char.CHA,
             }
+            for (const stat of extraCombatStats) npcData[stat.key] = char[stat.key]
+            for (const stat of abilityStats) npcData[stat.key] = char[stat.key]
+            for (const { stat, maxKey } of vitalStats) {
+                npcData[stat.key] = char[stat.key]
+                if (maxKey) npcData[maxKey] = char[maxKey] ?? char[stat.key]
+            }
+            if (defenseKey) npcData[defenseKey] = char[defenseKey]
+            for (const key of combatAttackKeys) npcData[key] = char[key]
 
             if (viewMode === 'edit' && selectedNpcId) {
                 await updateDoc(doc(db, 'npc_templates', roomId, 'templates', selectedNpcId), npcData)
@@ -307,28 +308,21 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                 baseURL = await uploadWithQuota(imageRef, blob, roomId)
             }
 
-            const npcData = {
+            const npcData: any = {
                 Nomperso: importedChar.name,
                 imageURL: baseURL,
                 imageURL2: tokenURL,
                 niveau: importedChar.niveau,
-                PV: importedChar.PV,
-                PV_F: importedChar.PV,
-                PV_Max: importedChar.PV_Max,
-                Defense: importedChar.Defense,
-                Defense_F: importedChar.Defense,
-                Contact: importedChar.Contact,
-                Distance: importedChar.Distance,
-                Magie: importedChar.Magie,
-                INIT: importedChar.INIT,
-                FOR: importedChar.FOR,
-                DEX: importedChar.DEX,
-                CON: importedChar.CON,
-                SAG: importedChar.SAG,
-                INT: importedChar.INT,
-                CHA: importedChar.CHA,
                 Actions: importedChar.Actions || []
             }
+            for (const stat of extraCombatStats) npcData[stat.key] = importedChar[stat.key]
+            for (const stat of abilityStats) npcData[stat.key] = importedChar[stat.key]
+            for (const { stat, maxKey } of vitalStats) {
+                npcData[stat.key] = importedChar[stat.key]
+                if (maxKey) npcData[maxKey] = importedChar[maxKey] ?? importedChar[stat.key]
+            }
+            if (defenseKey) npcData[defenseKey] = importedChar[defenseKey]
+            for (const key of combatAttackKeys) npcData[key] = importedChar[key]
 
             await addDoc(templatesRef, npcData)
             setShowLibraryModal(false)
@@ -511,6 +505,11 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                             char={char}
                             category={categories.find(c => c.id === (viewMode === 'view' ? selectedNPC?.categoryId : selectedCategoryId))}
                             categories={categories}
+                            abilityStats={abilityStats}
+                            vitalStats={vitalStats}
+                            defenseKey={defenseKey}
+                            combatAttackKeys={combatAttackKeys}
+                            extraCombatStats={extraCombatStats}
                             onEditTrigger={() => selectedNPC && handleEdit(selectedNPC)}
                             onDeleteTrigger={() => selectedNPC && setDeleteConfirmId(selectedNPC.id)}
                             onSave={handleSubmit}
@@ -519,7 +518,15 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                                 if (viewMode === 'create') setSelectedNpcId(null)
                             }}
                             onChange={(field, value) => {
-                                if (['PV', 'PV_Max', 'Defense', 'INIT', 'Contact', 'Distance', 'Magie', 'FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA', 'niveau'].includes(field)) {
+                                const numericFields = new Set<string>([
+                                    'niveau', ...combatAttackKeys,
+                                    ...extraCombatStats.map(s => s.key),
+                                    ...(defenseKey ? [defenseKey] : []),
+                                    ...abilityStats.map(s => s.key),
+                                    ...vitalStats.map(v => v.stat.key),
+                                    ...vitalStats.filter(v => v.maxKey).map(v => v.maxKey as string),
+                                ])
+                                if (numericFields.has(field)) {
                                     handleNumChange(field, String(value))
                                 } else {
                                     setChar(prev => ({ ...prev, [field]: value }))
@@ -609,17 +616,23 @@ interface InspectorViewProps {
     char?: NewCharacter
     category?: Category
     categories: Category[]
+    abilityStats: StatDefinition[]
+    vitalStats: { stat: StatDefinition; maxKey: string | null }[]
+    defenseKey: string | null
+    combatAttackKeys: string[]
+    extraCombatStats: StatDefinition[]
     onEditTrigger: () => void
     onDeleteTrigger: () => void
     onSave: () => void
     onCancel: () => void
-    onChange: (field: keyof NewCharacter, value: any) => void
+    onChange: (field: string, value: any) => void
     onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
     onCategoryChange: (id: string | null) => void
 }
 
 function InspectorView({
     mode, npc, char, category, categories,
+    abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats,
     onEditTrigger, onDeleteTrigger, onSave, onCancel,
     onChange, onImageUpload, onCategoryChange
 }: InspectorViewProps) {
@@ -628,12 +641,10 @@ function InspectorView({
     const displayData = isEditing ? char : npc
 
     // Helper to get value safe
-    const getVal = (field: keyof NewCharacter, fallback?: any) => {
+    const getVal = (field: string, fallback?: any) => {
         if (isEditing && char) return (char as any)[field]
         if (!isEditing && npc) {
-            // Map NPC fields to NewCharacter fields if names differ
-            if (field === 'name') return (npc as any).Nomperso
-            if (field === 'PV_Max') return (npc as any).PV_Max
+            if (field === 'name') return npc.Nomperso
             return (npc as any)[field]
         }
         return fallback
@@ -783,50 +794,84 @@ function InspectorView({
             {/* 2. Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
 
-                {/* Stats Grid */}
+                {/* Stats Grid — dérivé du système de règles actif (stat vitale principale, défense,
+                    attaques de combat) plutôt que PV/Defense/Contact/Distance/Magie en dur. */}
                 <div className="space-y-3">
                     <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
                         Statistiques de Combat
                     </h3>
                     <div className="grid grid-cols-3 gap-3">
-                        <StatBlock label="PV" value={getVal('PV_Max')} onChange={isEditing ? (v) => { onChange('PV', v); onChange('PV_Max', v) } : undefined} color="text-green-400" icon={<Heart className="w-3 h-3" />} />
-                        <StatBlock label="DEF" value={getVal('Defense')} onChange={isEditing ? (v) => onChange('Defense', v) : undefined} color="text-blue-400" icon={<Shield className="w-3 h-3" />} />
-                        <StatBlock label="INIT" value={getVal('INIT')} onChange={isEditing ? (v) => onChange('INIT', v) : undefined} color="text-yellow-400" icon={<Zap className="w-3 h-3" />} />
+                        {vitalStats.map(({ stat, maxKey }) => (
+                            <StatBlock
+                                key={stat.key}
+                                label={stat.shortLabel || stat.label}
+                                value={getVal(maxKey || stat.key)}
+                                onChange={isEditing ? (v) => {
+                                    onChange(stat.key, v)
+                                    if (maxKey) onChange(maxKey, v)
+                                } : undefined}
+                                color="text-green-400"
+                                icon={<Heart className="w-3 h-3" />}
+                            />
+                        ))}
+                        {defenseKey && (
+                            <StatBlock label="DEF" value={getVal(defenseKey)} onChange={isEditing ? (v) => onChange(defenseKey, v) : undefined} color="text-blue-400" icon={<Shield className="w-3 h-3" />} />
+                        )}
+                        {extraCombatStats.map((stat) => (
+                            <StatBlock
+                                key={stat.key}
+                                label={stat.shortLabel || stat.label}
+                                value={getVal(stat.key)}
+                                onChange={isEditing ? (v) => onChange(stat.key, v) : undefined}
+                                color="text-yellow-400"
+                                icon={<Zap className="w-3 h-3" />}
+                            />
+                        ))}
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                        <StatBlock label="Contact" value={getVal('Contact')} onChange={isEditing ? (v) => onChange('Contact', v) : undefined} color="text-red-400" />
-                        <StatBlock label="Distance" value={getVal('Distance')} onChange={isEditing ? (v) => onChange('Distance', v) : undefined} color="text-emerald-400" />
-                        <StatBlock label="Magie" value={getVal('Magie')} onChange={isEditing ? (v) => onChange('Magie', v) : undefined} color="text-purple-400" />
-                    </div>
+                    {combatAttackKeys.length > 0 && (
+                        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${combatAttackKeys.length}, minmax(0, 1fr))` }}>
+                            {combatAttackKeys.map((key, i) => (
+                                <StatBlock
+                                    key={key}
+                                    label={key}
+                                    value={getVal(key)}
+                                    onChange={isEditing ? (v) => onChange(key, v) : undefined}
+                                    color={['text-red-400', 'text-emerald-400', 'text-purple-400'][i % 3]}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Attributes */}
-                <div className="space-y-3">
-                    <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
-                        Caractéristiques
-                    </h3>
-                    <div className="grid grid-cols-6 gap-2 bg-[#1a1a1a] p-3 rounded-lg border border-[#2a2a2a]">
-                        {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((attr) => (
-                            <div key={attr} className="flex flex-col items-center gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase">{attr}</span>
-                                {isEditing ? (
-                                    <input
-                                        type="number"
-                                        value={(char as any)?.[attr] || 10}
-                                        onChange={(e) => onChange(attr as keyof NewCharacter, e.target.value)}
-                                        className="w-full bg-[#121212] border border-[#333] rounded text-center text-sm font-mono font-bold text-[#e0e0e0] focus:border-[#c0a080] outline-none py-1"
-                                    />
-                                ) : (
-                                    <span className="text-sm font-mono font-bold text-[#e0e0e0]">
-                                        {(npc as any)?.[attr]}
-                                    </span>
-                                )}
-                            </div>
-                        ))}
+                {abilityStats.length > 0 && (
+                    <div className="space-y-3">
+                        <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                            Caractéristiques
+                        </h3>
+                        <div className="grid gap-2 bg-[#1a1a1a] p-3 rounded-lg border border-[#2a2a2a]" style={{ gridTemplateColumns: `repeat(${Math.min(6, abilityStats.length)}, minmax(0, 1fr))` }}>
+                            {abilityStats.map((stat) => (
+                                <div key={stat.key} className="flex flex-col items-center gap-1">
+                                    <span className="text-[9px] font-bold text-zinc-500 uppercase">{stat.shortLabel || stat.key}</span>
+                                    {isEditing ? (
+                                        <input
+                                            type="number"
+                                            value={(char as any)?.[stat.key] ?? 10}
+                                            onChange={(e) => onChange(stat.key, e.target.value)}
+                                            className="w-full bg-[#121212] border border-[#333] rounded text-center text-sm font-mono font-bold text-[#e0e0e0] focus:border-[#c0a080] outline-none py-1"
+                                        />
+                                    ) : (
+                                        <span className="text-sm font-mono font-bold text-[#e0e0e0]">
+                                            {(npc as any)?.[stat.key]}
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* 3. Footer Actions */}

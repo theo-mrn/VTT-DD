@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
     Shield,
@@ -40,6 +41,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
 import { Label } from "@/components/ui/label";
 import { EntityNotes } from './EntityNotes';
+import { useNpcStatFields } from '@/hooks/useNpcStatFields';
 
 interface ContextMenuPanelProps {
     character: Character | null;
@@ -64,6 +66,9 @@ export default function ContextMenuPanel({
     pixelsPerUnit,
     unitName
 }: ContextMenuPanelProps) {
+    const params = useParams();
+    const roomId = (params?.roomid as string) ?? null;
+    const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId);
     const dragControls = useDragControls();
     const [customCondition, setCustomCondition] = useState("");
     // 🆕 State local pour feedback visuel immédiat de la sélection de joueurs
@@ -138,25 +143,29 @@ export default function ContextMenuPanel({
                                 <span className="font-semibold text-white text-sm truncate max-w-[110px]">{character.name}</span>
                             </div>
 
-                            {/* Stats chips */}
+                            {/* Stats chips — stat vitale principale + défense du système actif */}
                             {canViewDetails && (
                                 <>
-                                    <motion.button
-                                        whileTap={{ scale: 0.94 }}
-                                        onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
-                                        className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                                    >
-                                        <Heart size={12} className="text-red-400" fill="currentColor" />
-                                        <span className="text-xs font-bold font-mono text-white/90">{character.PV}</span>
-                                    </motion.button>
-                                    <motion.button
-                                        whileTap={{ scale: 0.94 }}
-                                        onClick={() => { setStatDelta(0); setEditingStat({ key: 'Defense', label: 'Défense', value: character.Defense ?? 0 }); }}
-                                        className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                                    >
-                                        <Shield size={12} className="text-blue-400" fill="currentColor" />
-                                        <span className="text-xs font-bold font-mono text-white/90">{character.Defense}</span>
-                                    </motion.button>
+                                    {primaryVitalStat && (
+                                        <motion.button
+                                            whileTap={{ scale: 0.94 }}
+                                            onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
+                                            className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                                        >
+                                            <Heart size={12} className="text-red-400" fill="currentColor" />
+                                            <span className="text-xs font-bold font-mono text-white/90">{String(character[primaryVitalStat.key] ?? 0)}</span>
+                                        </motion.button>
+                                    )}
+                                    {defenseKey && (
+                                        <motion.button
+                                            whileTap={{ scale: 0.94 }}
+                                            onClick={() => { setStatDelta(0); setEditingStat({ key: defenseKey, label: 'Défense', value: Number(character[defenseKey] ?? 0) }); }}
+                                            className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                                        >
+                                            <Shield size={12} className="text-blue-400" fill="currentColor" />
+                                            <span className="text-xs font-bold font-mono text-white/90">{String(character[defenseKey] ?? 0)}</span>
+                                        </motion.button>
+                                    )}
                                 </>
                             )}
 
@@ -312,33 +321,37 @@ export default function ContextMenuPanel({
                             </div>
                         </div>
 
-                        {/* Stats Rapides Bar */}
+                        {/* Stats Rapides Bar — stat vitale principale + défense du système actif */}
                         {canViewDetails && (
                             <div className="grid grid-cols-2 gap-1 px-4 pb-4 shrink-0">
-                                <div
-                                    className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
-                                    onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
-                                >
-                                    <div className="flex items-center gap-2.5 text-gray-400">
-                                        <div className="p-1.5 bg-red-900/20 rounded-md text-red-500 group-hover:bg-red-900/30 transition-colors">
-                                            <Heart size={14} fill="currentColor" className="opacity-90" />
+                                {primaryVitalStat && (
+                                    <div
+                                        className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
+                                    >
+                                        <div className="flex items-center gap-2.5 text-gray-400">
+                                            <div className="p-1.5 bg-red-900/20 rounded-md text-red-500 group-hover:bg-red-900/30 transition-colors">
+                                                <Heart size={14} fill="currentColor" className="opacity-90" />
+                                            </div>
+                                            <span className="text-xs font-semibold uppercase tracking-wider">{(primaryVitalStat.shortLabel || primaryVitalStat.label).toUpperCase()}</span>
                                         </div>
-                                        <span className="text-xs font-semibold uppercase tracking-wider">PV</span>
+                                        <span className="text-lg font-bold text-gray-100 font-mono">{String(character[primaryVitalStat.key] ?? 0)}</span>
                                     </div>
-                                    <span className="text-lg font-bold text-gray-100 font-mono">{character.PV}</span>
-                                </div>
-                                <div
-                                    className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
-                                    onClick={() => { setStatDelta(0); setEditingStat({ key: 'Defense', label: 'Défense', value: character.Defense ?? 0 }); }}
-                                >
-                                    <div className="flex items-center gap-2.5 text-gray-400">
-                                        <div className="p-1.5 bg-blue-900/20 rounded-md text-blue-500 group-hover:bg-blue-900/30 transition-colors">
-                                            <Shield size={14} fill="currentColor" className="opacity-90" />
+                                )}
+                                {defenseKey && (
+                                    <div
+                                        className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        onClick={() => { setStatDelta(0); setEditingStat({ key: defenseKey, label: 'Défense', value: Number(character[defenseKey] ?? 0) }); }}
+                                    >
+                                        <div className="flex items-center gap-2.5 text-gray-400">
+                                            <div className="p-1.5 bg-blue-900/20 rounded-md text-blue-500 group-hover:bg-blue-900/30 transition-colors">
+                                                <Shield size={14} fill="currentColor" className="opacity-90" />
+                                            </div>
+                                            <span className="text-xs font-semibold uppercase tracking-wider">DEF</span>
                                         </div>
-                                        <span className="text-xs font-semibold uppercase tracking-wider">DEF</span>
+                                        <span className="text-lg font-bold text-gray-100 font-mono">{String(character[defenseKey] ?? 0)}</span>
                                     </div>
-                                    <span className="text-lg font-bold text-gray-100 font-mono">{character.Defense}</span>
-                                </div>
+                                )}
                             </div>
                         )}
 
@@ -496,32 +509,35 @@ export default function ContextMenuPanel({
                                     </TabsContent>
 
                                     <TabsContent value="stats" className="mt-0 space-y-4 focus-visible:ring-0">
-                                        {/* Caractéristiques */}
-                                        <div className="space-y-2">
-                                            <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Caractéristiques</h4>
-                                            <div className="grid grid-cols-3 gap-1.5">
-                                                {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((stat) => (
-                                                    <div
-                                                        key={stat}
-                                                        className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
-                                                        onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat, label: stat, value: (character as any)[stat] ?? 0 }); })()}
-                                                    >
-                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat}</span>
-                                                        <span className="text-sm font-bold font-mono text-gray-100">{(character as any)[stat] ?? '—'}</span>
-                                                    </div>
-                                                ))}
+                                        {/* Caractéristiques — dérivées du système de règles actif */}
+                                        {abilityStats.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Caractéristiques</h4>
+                                                <div className="grid grid-cols-3 gap-1.5">
+                                                    {abilityStats.map((stat) => (
+                                                        <div
+                                                            key={stat.key}
+                                                            className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                            onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat.key, label: stat.shortLabel || stat.key, value: Number(character[stat.key] ?? 0) }); })()}
+                                                        >
+                                                            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat.shortLabel || stat.key}</span>
+                                                            <span className="text-sm font-bold font-mono text-gray-100">{String(character[stat.key] ?? '—')}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
 
-                                        {/* Combat */}
+                                        {/* Combat — TOUTES les stats vitales du système (ex Blessures + Stress
+                                            pour EotE, pas seulement la première), défense, initiative, niveau */}
                                         <div className="space-y-2">
                                             <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Combat</h4>
                                             <div className="grid grid-cols-2 gap-1.5">
                                                 {[
-                                                    { key: 'PV', label: 'PV', value: character.PV, max: character.PV_Max, color: 'text-red-400' },
-                                                    { key: 'Defense', label: 'Défense', value: character.Defense, color: 'text-blue-400' },
-                                                    { key: 'INIT', label: 'Initiative', value: character.INIT, color: 'text-yellow-400' },
-                                                    { key: 'niveau', label: 'Niveau', value: character.niveau, color: 'text-purple-400' },
+                                                    ...vitalStats.map(({ stat, maxKey }) => ({ key: stat.key, label: stat.shortLabel || stat.label, value: character[stat.key] as number | undefined, max: maxKey ? character[maxKey] as number | undefined : undefined, color: 'text-red-400' })),
+                                                    ...(defenseKey ? [{ key: defenseKey, label: 'Défense', value: character[defenseKey] as number | undefined, max: undefined as number | undefined, color: 'text-blue-400' }] : []),
+                                                    ...extraCombatStats.map((stat) => ({ key: stat.key, label: stat.shortLabel || stat.label, value: character[stat.key] as number | undefined, max: undefined as number | undefined, color: 'text-yellow-400' })),
+                                                    { key: 'niveau', label: 'Niveau', value: character.niveau, max: undefined as number | undefined, color: 'text-purple-400' },
                                                 ].map((s) => (
                                                     <div
                                                         key={s.key}
@@ -537,22 +553,24 @@ export default function ContextMenuPanel({
                                             </div>
                                         </div>
 
-                                        {/* Bonus d'attaque */}
-                                        <div className="space-y-2">
-                                            <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Bonus d'attaque</h4>
-                                            <div className="grid grid-cols-3 gap-1.5">
-                                                {['Contact', 'Distance', 'Magie'].map((stat) => (
+                                        {/* Bonus d'attaque — clés de combat du système actif */}
+                                        {combatAttackKeys.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Bonus d'attaque</h4>
+                                                <div className="grid grid-cols-3 gap-1.5">
+                                                    {combatAttackKeys.map((stat) => (
                                                     <div
                                                         key={stat}
                                                         className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
-                                                        onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat, label: stat, value: (character as any)[stat] ?? 0 }); })()}
+                                                        onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat, label: stat, value: Number(character[stat] ?? 0) }); })()}
                                                     >
                                                         <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat.slice(0, 4)}</span>
-                                                        <span className="text-sm font-bold font-mono text-orange-300">{(character as any)[stat] ?? '—'}</span>
+                                                        <span className="text-sm font-bold font-mono text-orange-300">{String(character[stat] ?? '—')}</span>
                                                     </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </TabsContent>
 
                                     <TabsContent value="effects" className="mt-0 focus-visible:ring-0">
@@ -791,13 +809,13 @@ export default function ContextMenuPanel({
                 )}
             </AnimatePresence >
 
-            {/* PV Quick-Edit Drawer */}
+            {/* PV Quick-Edit Drawer — libellé et clé dérivés de la stat vitale principale du système actif */}
             <Drawer open={isPVDrawerOpen} onClose={() => setIsPVDrawerOpen(false)}>
                 <DrawerContent className="bg-[#1a1a1a] border-t border-[#333] max-w-2xl mx-auto">
                     <DrawerHeader>
-                        <DrawerTitle className="text-white text-center text-2xl">Ajuster les PV</DrawerTitle>
+                        <DrawerTitle className="text-white text-center text-2xl">Ajuster {primaryVitalStat ? `les ${primaryVitalStat.label}` : 'les PV'}</DrawerTitle>
                         <DrawerDescription className="text-gray-400 text-center">
-                            {character.name} (Actuel: {character.PV})
+                            {character.name} (Actuel: {primaryVitalStat ? String(character[primaryVitalStat.key] ?? 0) : String(character.PV ?? 0)})
                         </DrawerDescription>
                     </DrawerHeader>
                     <div className="p-8 flex items-center justify-center gap-8">
@@ -826,7 +844,9 @@ export default function ContextMenuPanel({
                         <Button
                             className="w-32 bg-[#c0a080] text-[#1a1a1a] font-bold hover:bg-[#d4b896]"
                             onClick={() => {
-                                onAction('updatePV', character.id, (character.PV ?? 0) + pvDelta);
+                                const vitalKey = primaryVitalStat?.key ?? 'PV';
+                                const current = Number(character[vitalKey] ?? 0);
+                                onAction('updateVitalStat', character.id, { key: vitalKey, value: current + pvDelta });
                                 setIsPVDrawerOpen(false);
                                 setPvDelta(0);
                             }}
@@ -911,50 +931,60 @@ export default function ContextMenuPanel({
                                 </div>
                             </div>
 
-                            {/* --- SECTION 2: COMBAT & VITALITÉ --- */}
+                            {/* --- SECTION 2: COMBAT & VITALITÉ --- dérivé du système de règles actif */}
                             <div className="space-y-3">
                                 <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Combat & Vitalité</h3>
                                 <div className="grid grid-cols-4 gap-3">
-                                    <div className="space-y-1">
-                                        <Label htmlFor="PV" className="text-[10px] uppercase text-gray-400">PV Actuels</Label>
-                                        <Input
-                                            id="PV"
-                                            type="number"
-                                            value={localEditingCharacter?.PV || 0}
-                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, PV: parseInt(e.target.value) || 0 })}
-                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="PV_Max" className="text-[10px] uppercase text-gray-400">PV Max</Label>
-                                        <Input
-                                            id="PV_Max"
-                                            type="number"
-                                            value={localEditingCharacter?.PV_Max || localEditingCharacter?.PV || 0}
-                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, PV_Max: parseInt(e.target.value) || 0 })}
-                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="Defense" className="text-[10px] uppercase text-gray-400">Défense</Label>
-                                        <Input
-                                            id="Defense"
-                                            type="number"
-                                            value={localEditingCharacter?.Defense || 0}
-                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, Defense: parseInt(e.target.value) || 0 })}
-                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="INIT" className="text-[10px] uppercase text-gray-400">Initiative</Label>
-                                        <Input
-                                            id="INIT"
-                                            type="number"
-                                            value={localEditingCharacter?.INIT || 0}
-                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, INIT: parseInt(e.target.value) || 0 })}
-                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                                        />
-                                    </div>
+                                    {vitalStats.map(({ stat, maxKey }) => (
+                                        <React.Fragment key={stat.key}>
+                                            <div className="space-y-1">
+                                                <Label htmlFor={stat.key} className="text-[10px] uppercase text-gray-400">{stat.shortLabel || stat.label} Actuels</Label>
+                                                <Input
+                                                    id={stat.key}
+                                                    type="number"
+                                                    value={Number(localEditingCharacter?.[stat.key] ?? 0)}
+                                                    onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat.key]: parseInt(e.target.value) || 0 })}
+                                                    className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                />
+                                            </div>
+                                            {maxKey && (
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={maxKey} className="text-[10px] uppercase text-gray-400">{stat.shortLabel || stat.label} Max</Label>
+                                                    <Input
+                                                        id={maxKey}
+                                                        type="number"
+                                                        value={Number(localEditingCharacter?.[maxKey] ?? localEditingCharacter?.[stat.key] ?? 0)}
+                                                        onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [maxKey]: parseInt(e.target.value) || 0 })}
+                                                        className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                    />
+                                                </div>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                    {defenseKey && (
+                                        <div className="space-y-1">
+                                            <Label htmlFor={defenseKey} className="text-[10px] uppercase text-gray-400">Défense</Label>
+                                            <Input
+                                                id={defenseKey}
+                                                type="number"
+                                                value={Number(localEditingCharacter?.[defenseKey] ?? 0)}
+                                                onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [defenseKey]: parseInt(e.target.value) || 0 })}
+                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                            />
+                                        </div>
+                                    )}
+                                    {extraCombatStats.map((stat) => (
+                                        <div key={stat.key} className="space-y-1">
+                                            <Label htmlFor={stat.key} className="text-[10px] uppercase text-gray-400">{stat.label}</Label>
+                                            <Input
+                                                id={stat.key}
+                                                type="number"
+                                                value={Number(localEditingCharacter?.[stat.key] ?? 0)}
+                                                onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat.key]: parseInt(e.target.value) || 0 })}
+                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                            />
+                                        </div>
+                                    ))}
                                     <div className="space-y-1">
                                         <Label htmlFor="niveau" className="text-[10px] uppercase text-gray-400">Niveau</Label>
                                         <Input
@@ -968,44 +998,47 @@ export default function ContextMenuPanel({
                                 </div>
                             </div>
 
-                            {/* --- SECTION 3: BONUS D'ATTAQUE --- */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Bonus d'Attaque</h3>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {['Contact', 'Distance', 'Magie'].map((stat) => (
-                                        <div key={stat} className="space-y-1">
-                                            <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400">{stat}</Label>
-                                            <Input
-                                                id={stat}
-                                                type="number"
-                                                value={localEditingCharacter?.[stat as keyof Character] as number || 0}
-                                                onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat]: parseInt(e.target.value) || 0 })}
-                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                                            />
-                                        </div>
-                                    ))}
+                            {/* --- SECTION 3: BONUS D'ATTAQUE --- clés de combat du système actif */}
+                            {combatAttackKeys.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Bonus d'Attaque</h3>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {combatAttackKeys.map((stat) => (
+                                            <div key={stat} className="space-y-1">
+                                                <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400">{stat}</Label>
+                                                <Input
+                                                    id={stat}
+                                                    type="number"
+                                                    value={Number(localEditingCharacter?.[stat] ?? 0)}
+                                                    onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat]: parseInt(e.target.value) || 0 })}
+                                                    className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* --- SECTION 4: CARACTÉRISTIQUES --- */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Caractéristiques</h3>
-                                <div className="grid grid-cols-6 gap-2">
-                                    {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((stat) => (
-                                        <div key={stat} className="space-y-1 text-center">
-                                            <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400 block">{stat}</Label>
-                                            <Input
-                                                id={stat}
-                                                type="number"
-                                                value={localEditingCharacter?.[stat as keyof Character] as number || 0}
-                                                onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat]: parseInt(e.target.value) || 0 })}
-                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono px-1"
-                                            />
-                                        </div>
-                                    ))}
+                            {/* --- SECTION 4: CARACTÉRISTIQUES --- dérivées du système actif */}
+                            {abilityStats.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Caractéristiques</h3>
+                                    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(6, abilityStats.length)}, minmax(0, 1fr))` }}>
+                                        {abilityStats.map((statDef) => (
+                                            <div key={statDef.key} className="space-y-1 text-center">
+                                                <Label htmlFor={statDef.key} className="text-[10px] uppercase text-gray-400 block">{statDef.shortLabel || statDef.key}</Label>
+                                                <Input
+                                                    id={statDef.key}
+                                                    type="number"
+                                                    value={Number(localEditingCharacter?.[statDef.key] ?? 0)}
+                                                    onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [statDef.key]: parseInt(e.target.value) || 0 })}
+                                                    className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono px-1"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-
+                            )}
 
                         </div>
                     </ScrollArea>

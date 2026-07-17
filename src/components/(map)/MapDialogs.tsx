@@ -26,7 +26,7 @@ import { VisibilityDrawer } from '@/components/(personnages)/VisibilityDrawer'
 import { GMTemplatesProvider } from '@/contexts/GMTemplatesContext'
 import { AudioMixerPanel } from '@/components/(audio)/AudioMixerPanel'
 
-import type { Portal, Character, ObjectTemplate, MapText } from '@/app/[roomid]/map/types'
+import type { Portal, Character, ObjectTemplate, MapText, LootItem } from '@/app/[roomid]/map/types'
 import type { NPC } from '@/components/(personnages)/personnages'
 import type { Obstacle } from '@/lib/visibility'
 import type { VisibilityState } from '@/hooks/map/useVisibilityState'
@@ -133,7 +133,7 @@ export interface MapDialogsProps {
   draggedObjectTemplateForPlace: ObjectTemplate | null
   setDraggedObjectTemplateForPlace: (v: ObjectTemplate | null) => void
   setDropObjectPosition: (v: { x: number; y: number } | null) => void
-  handlePlaceObjectConfirm: (config: { nombre: number; visibility: 'visible' | 'hidden' | 'custom'; visibleToPlayerIds: string[] }) => void
+  handlePlaceObjectConfirm: (config: { nombre: number; visibility: 'visible' | 'hidden' | 'custom'; visibleToPlayerIds: string[]; pickupItem?: LootItem }) => void
   characters: Character[]
 
   // ── Delete Confirmation Modal ──

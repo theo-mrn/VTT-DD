@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { BookOpen, Check, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { useGameContent } from '@/modules/game-content/useGameContent';
 import type { SpecializationDoc } from '@/modules/game-content/types';
 import type { GameSystemDefinition, ProfileDefinition, SkillDefinition } from '@/modules/game-system/types';
+import TalentTreeView from './TalentTreeView';
+import SpecializationBrowser from './SpecializationBrowser';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Choix Carrière → 4 compétences de carrière (rang gratuit) → Spécialisation gratuite (doit faire partie
@@ -40,11 +43,22 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
 
   const { docs: specializationDocs } = useGameContent<SpecializationDoc & { id: string }>('specialization');
 
-  const [step, setStep] = useState<'career' | 'careerSkills' | 'specialization' | 'specializationSkills'>('career');
+  // Carrière déjà choisie dans l'onglet Carrière de la création (character.Profile) : on ne la
+  // redemande JAMAIS ici — l'étape 'career' du picker n'existe que pour les systèmes sans onglet
+  // Carrière (hasRaceProfileContent false), sinon le joueur choisissait deux fois la même chose.
+  const externalCareer = initialCareer && careers.some((c) => c.id === initialCareer) ? initialCareer : '';
+
+  const [step, setStep] = useState<'career' | 'careerSkills' | 'specialization' | 'specializationSkills'>(
+    () => (externalCareer ? 'careerSkills' : 'career'),
+  );
   const [career, setCareer] = useState<string>(initialCareer ?? '');
   const [careerSkillChoices, setCareerSkillChoices] = useState<string[]>([]);
   const [specializationId, setSpecializationId] = useState<string>('');
   const [specializationSkillChoices, setSpecializationSkillChoices] = useState<string[]>([]);
+  // Aperçu de l'arbre de talents d'une spécialisation (lecture seule) — pour ne pas choisir à l'aveugle.
+  const [previewSpec, setPreviewSpec] = useState<(SpecializationDoc & { id: string }) | null>(null);
+  // Codex : parcourir TOUTES les spécialisations, toutes carrières confondues.
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
 
   const selectedCareer = careers.find((c) => c.id === career);
   const careerSkillKeys = selectedCareer?.careerSkillKeys ?? [];
@@ -102,9 +116,11 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
     emitSelection({ specializationSkillChoices: next });
   };
 
-  const stepsOrder: typeof step[] = availableSpecializations.length > 0
-    ? ['career', 'careerSkills', 'specialization', 'specializationSkills']
-    : ['career', 'careerSkills'];
+  const stepsOrder: typeof step[] = [
+    ...(externalCareer ? [] : (['career'] as const)),
+    'careerSkills' as const,
+    ...(availableSpecializations.length > 0 ? (['specialization', 'specializationSkills'] as const) : []),
+  ];
   const stepIndex = stepsOrder.indexOf(step);
   const goNext = () => { if (stepIndex < stepsOrder.length - 1) setStep(stepsOrder[stepIndex + 1]); };
   const goPrev = () => { if (stepIndex > 0) setStep(stepsOrder[stepIndex - 1]); };
@@ -126,13 +142,29 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-xs text-zinc-500">
-        {stepsOrder.map((s, i) => (
-          <span key={s} className={i === stepIndex ? 'text-[#c0a080] font-bold' : ''}>
-            {i > 0 && '→ '}
-            {{ career: 'Carrière', careerSkills: skillLabel, specialization: 'Spécialisation', specializationSkills: skillLabel }[s]}
-          </span>
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-zinc-500">
+          {externalCareer && selectedCareer && (
+            <span className="px-2 py-0.5 rounded border border-[#c0a080]/40 text-[#c0a080] font-bold uppercase tracking-wide text-[10px] mr-1">
+              {selectedCareer.label}
+            </span>
+          )}
+          {stepsOrder.map((s, i) => (
+            <span key={s} className={i === stepIndex ? 'text-[#c0a080] font-bold' : ''}>
+              {i > 0 && '→ '}
+              {{ career: 'Carrière', careerSkills: skillLabel, specialization: 'Spécialisation', specializationSkills: skillLabel }[s]}
+            </span>
+          ))}
+        </div>
+        {/* Codex : parcourir TOUTES les spécialisations (toutes carrières confondues) avec leur arbre
+            de talents — aide au choix de carrière autant que de spécialisation. */}
+        <button
+          onClick={() => setIsBrowserOpen(true)}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[#333] text-zinc-400 hover:text-[#c0a080] hover:border-[#c0a080]/50 transition-colors shrink-0"
+          title="Parcourir toutes les spécialisations et leurs arbres de talents"
+        >
+          <BookOpen className="w-3.5 h-3.5" /> Codex des spécialisations
+        </button>
       </div>
 
       {step === 'career' && (
@@ -175,14 +207,22 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
       {step === 'specialization' && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {availableSpecializations.map((spec) => (
-            <button
+            <div
               key={spec.id}
               onClick={() => selectSpecialization(spec.id)}
-              className={`p-4 rounded-xl border text-left transition-all ${specializationId === spec.id ? 'border-[#c0a080] ring-1 ring-[#c0a080] bg-[#c0a080]/10' : 'border-[#27272a] hover:border-[#52525b]'}`}
+              className={`relative p-4 rounded-xl border text-left transition-all cursor-pointer ${specializationId === spec.id ? 'border-[#c0a080] ring-1 ring-[#c0a080] bg-[#c0a080]/10' : 'border-[#27272a] hover:border-[#52525b]'}`}
             >
-              <div className="font-serif font-bold text-zinc-200">{spec.name || '(sans nom)'}</div>
+              <div className="font-serif font-bold text-zinc-200 pr-8">{spec.name || '(sans nom)'}</div>
               {spec.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{spec.description}</p>}
-            </button>
+              {/* Aperçu de l'arbre de talents sans sélectionner (stopPropagation) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setPreviewSpec(spec); }}
+                className="absolute top-3 right-3 p-1.5 rounded-lg text-zinc-500 hover:text-[#c0a080] hover:bg-white/5 transition-colors"
+                title="Voir l'arbre de talents"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -217,6 +257,42 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
           Suivant <ChevronRight className="ml-2 w-4 h-4" />
         </Button>
       </div>
+
+      {/* Aperçu (lecture seule) de l'arbre de talents d'une spécialisation — la grille officielle
+          complète avec ses connexions, pour choisir en connaissance de cause. */}
+      <Dialog open={!!previewSpec} onOpenChange={(open) => !open && setPreviewSpec(null)}>
+        <DialogContent borderTrail className="bg-transparent border-none shadow-none p-0 max-w-[95vw] xl:max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">{previewSpec?.name}</DialogTitle>
+          {previewSpec && (
+            <div className="p-6">
+              <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] mb-1">
+                {previewSpec.name}
+              </h2>
+              {previewSpec.description && <p className="text-xs text-[var(--text-secondary)] mb-4">{previewSpec.description}</p>}
+              <TalentTreeView
+                talents={previewSpec.talents}
+                purchasedRanks={{}}
+                xp={0}
+                canBuy={false}
+                onBuy={() => {}}
+              />
+              <div className="flex justify-end mt-4 pt-4 border-t border-black/5 dark:border-white/5">
+                <Button variant="ghost" onClick={() => setPreviewSpec(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <SpecializationBrowser
+        open={isBrowserOpen}
+        onClose={() => setIsBrowserOpen(false)}
+        specializations={specializationDocs}
+        profiles={gameSystem.profiles ?? []}
+        skills={skills}
+      />
     </div>
   );
 }

@@ -950,6 +950,14 @@ export function drawForegroundLayers(
       //  Determiner la visibilite effective du personnage
       let effectiveVisibility = char.visibility;
 
+      // Les joueurs sont TOUJOURS visibles des autres joueurs (même règle que
+      // isCharacterVisibleToUser), quel que soit leur champ visibility — sans ceci, un doc joueur
+      // avec visibility 'hidden' (ou absent, replié sur 'hidden' au parse) est traité comme un PNJ
+      // caché et disparaît hors du rayon de vision. Seul 'invisible' (MJ uniquement) prime.
+      if (char.type === 'joueurs' && (char.visibility as string) !== 'invisible') {
+        effectiveVisibility = 'visible';
+      }
+
       // Utiliser la fonction centralisee qui gere les lumieres, le brouillard, etc.
       if (!isCharacterVisibleToUser(char)) {
         effectiveVisibility = 'hidden';
@@ -1114,11 +1122,14 @@ export function drawForegroundLayers(
           // Pre-calcul des tailles de texte
           ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
 
-          // Partie PV
+          // Partie PV — ce renderer canvas n'a pas accès à gameSystem (pas un composant React), donc
+          // pas de résolution dynamique de la stat vitale principale ici ; se rabat sur "PV" en lecture
+          // seule via un cast générique plutôt que de nommer PV comme un champ typé de Character.
+          const charAny = char as unknown as Record<string, unknown>;
           let pvText = "";
           let pvWidth = 0;
-          if (canSeeHP && char.PV !== undefined) {
-            const current = char.PV || 0;
+          if (canSeeHP && charAny.PV !== undefined) {
+            const current = Number(charAny.PV) || 0;
             pvText = `${current}`;
             pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
           }
@@ -1175,8 +1186,8 @@ export function drawForegroundLayers(
 
           // 1. PV SECTION (Si visible)
           if (canSeeHP) {
-            const current = char.PV || 0;
-            const max = char.PV_Max || char.PV || 100;
+            const current = Number(charAny.PV) || 0;
+            const max = Number(charAny.PV_Max) || Number(charAny.PV) || 100;
             const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
 
             let healthColor = '#ffffff';

@@ -5,9 +5,10 @@ import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, 
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
-import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition, SkillDefinition, CharacterLayoutEntry } from '@/modules/game-system/types';
+import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition, SkillDefinition, CharacterLayoutEntry, MapConfig } from '@/modules/game-system/types';
 import type { LocationDoc } from '@/modules/game-content/types';
 import { useSpecializations, SpecializationsOverviewPanel, SpecializationDetail } from './SpecializationsPanel';
+import { MapsOverviewPanel, MapDetail, MapMarkerDetail } from './MapPanel';
 import { FormulaEditor } from './FormulaEditor';
 import { findRollFormulaCycle, rollCharacterStats, groupStats } from '@/lib/rules-engine';
 import { buildGameSystemExport, downloadGameSystemExport, parseGameSystemExport, isRacePackExport, parseRacePackExport, stripUndefinedDeep } from '@/modules/game-system/transfer';
@@ -232,6 +233,7 @@ export default function GameSystemManagerPanel() {
       <GameSystemEditor
         draft={draft}
         contentPath={contentPath}
+        roomId={roomId}
         onBack={() => setEditingSystemId(null)}
         onSave={(next) => updateDoc(ref, stripUndefinedDeep(next) as unknown as Record<string, unknown>)}
       />
@@ -362,9 +364,12 @@ type SelectionId =
   | { kind: 'skills' }
   | { kind: 'skill'; key: string }
   | { kind: 'specializations' }
-  | { kind: 'specialization'; id: string };
+  | { kind: 'specialization'; id: string }
+  | { kind: 'maps' }
+  | { kind: 'map'; id: string }
+  | { kind: 'mapMarker'; mapId: string; markerId: string };
 
-export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft: Draft; contentPath?: string; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
+export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }: { draft: Draft; contentPath?: string; roomId?: string | null; onBack: () => void; onSave: (next: Draft) => void | Promise<void> }) {
   const [local, setLocal] = useState<Draft>(draft);
   const [isSaving, setIsSaving] = useState(false);
   const [selection, setSelection] = useState<SelectionId>({ kind: 'general' });
@@ -553,6 +558,29 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
   };
   const selectedSpecialization = selection.kind === 'specialization' ? specializations.find((s) => s.id === selection.id) : undefined;
 
+  // ── Cartes génériques — contrairement aux Lieux/Spécialisations, cartes et marqueurs vivent INLINE
+  //    sur local.maps (pas un ContentDoc Firestore séparé) pour voyager dans le même export JSON
+  //    que le reste des règles ; toute mutation passe par setLocal/onSave, jamais Firestore direct ici. ──
+  const maps = local.maps ?? [];
+  const selectedMap = selection.kind === 'map' ? maps.find((m) => m.id === selection.id) : undefined;
+  const selectedMarker = selection.kind === 'mapMarker'
+    ? maps.find((m) => m.id === selection.mapId)?.markers.find((mk) => mk.id === selection.markerId)
+    : undefined;
+  const selectedMarkerMapId = selection.kind === 'mapMarker' ? selection.mapId : undefined;
+
+  const addMap = () => {
+    const id = makeId('map');
+    const next: MapConfig = { id, label: '', image: '', markers: [] };
+    setLocal((prev) => ({ ...prev, maps: [...(prev.maps ?? []), next] }));
+    setSelection({ kind: 'map', id });
+  };
+  const removeMap = (id: string) => {
+    setLocal((prev) => ({ ...prev, maps: (prev.maps ?? []).filter((m) => m.id !== id) }));
+    if ((selection.kind === 'map' && selection.id === id) || (selection.kind === 'mapMarker' && selection.mapId === id)) {
+      setSelection({ kind: 'maps' });
+    }
+  };
+
   const handleExport = () => {
     const exportData = buildGameSystemExport(local);
     downloadGameSystemExport(exportData, `${local.name || local.systemId}.json`);
@@ -611,6 +639,9 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
           startingXp: imported.startingXp,
           diceUpgradeRule: imported.diceUpgradeRule,
           defaultCharacterLayout: imported.defaultCharacterLayout,
+          defaultSidebarLayout: imported.defaultSidebarLayout,
+          maps: imported.maps,
+          objectLibraryId: imported.objectLibraryId,
         });
         setSelection({ kind: 'general' });
         toast.success('Système importé.');
@@ -660,6 +691,7 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
           <NavRow label="Spécialisations" active={selection.kind === 'specializations'} onClick={() => setSelection({ kind: 'specializations' })} />
           <NavRow label="Glossaire" active={selection.kind === 'rules'} onClick={() => setSelection({ kind: 'rules' })} />
           <NavRow label={local.locationLabel ? `${local.locationLabel}s` : 'Lieux'} active={selection.kind === 'locations'} onClick={() => setSelection({ kind: 'locations' })} />
+          <NavRow label="Cartes" active={selection.kind === 'maps'} onClick={() => setSelection({ kind: 'maps' })} />
           <NavRow label="Tester" active={selection.kind === 'test'} onClick={() => setSelection({ kind: 'test' })} />
 
           {selection.kind === 'characters' || selectedRace || selectedProfile ? (
@@ -753,6 +785,33 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
                   <Plus size={12} /> Ajouter : {local.locationLabel || 'Lieu'}
                 </button>
               ) : null}
+            </div>
+          ) : null}
+
+          {selection.kind === 'maps' || selectedMap || selectedMarker ? (
+            <div className="pl-2.5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>Cartes</p>
+              {maps.map((m) => (
+                <NavRow key={m.id} label={m.label || '(sans nom)'} active={(selection.kind === 'map' || selection.kind === 'mapMarker') && (selection.kind === 'map' ? selection.id : selection.mapId) === m.id} onClick={() => setSelection({ kind: 'map', id: m.id })} />
+              ))}
+              <button onClick={addMap} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+                <Plus size={12} /> Ajouter une carte
+              </button>
+            </div>
+          ) : null}
+
+          {(selectedMap || selectedMarker) ? (
+            <div className="pl-5 space-y-1 pt-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-secondary)' }}>Marqueurs</p>
+              {(selectedMap?.markers ?? maps.find((m) => m.id === selectedMarkerMapId)?.markers ?? []).map((mk) => {
+                const mapId = selectedMap?.id ?? selectedMarkerMapId!;
+                return (
+                  <NavRow key={mk.id} label={mk.name || '(sans nom)'} active={selection.kind === 'mapMarker' && selection.markerId === mk.id} onClick={() => setSelection({ kind: 'mapMarker', mapId, markerId: mk.id })} />
+                );
+              })}
+              {(selectedMap?.markers ?? maps.find((m) => m.id === selectedMarkerMapId)?.markers ?? []).length === 0 && (
+                <p className="text-[11px] italic px-1" style={{ color: 'var(--text-secondary)' }}>Cliquez sur l&apos;aperçu de la carte pour ajouter un marqueur.</p>
+              )}
             </div>
           ) : null}
 
@@ -906,6 +965,15 @@ export function GameSystemEditor({ draft, contentPath, onBack, onSave }: { draft
               onChange={(patch) => updateLocation(selectedLocation.id, patch)}
               onRemove={() => removeLocation(selectedLocation.id)}
             />
+          )}
+          {selection.kind === 'maps' && (
+            <MapsOverviewPanel count={maps.length} />
+          )}
+          {selectedMap && (
+            <MapDetail maps={maps} onChange={(next) => save({ ...local, maps: next })} roomId={roomId} mapId={selectedMap.id} onRemove={() => removeMap(selectedMap.id)} />
+          )}
+          {selectedMarker && selectedMarkerMapId && (
+            <MapMarkerDetail maps={maps} onChange={(next) => save({ ...local, maps: next })} mapId={selectedMarkerMapId} markerId={selectedMarker.id} />
           )}
         </div>
       </div>
@@ -1649,6 +1717,9 @@ function GeneralPanel({ local, onChangeDescription, onBlurSave, onSave }: { loca
       <div className="mt-6">
         <DefaultLayoutPanel local={local} onSave={onSave} />
       </div>
+      <div className="mt-6">
+        <DefaultSidebarLayoutPanel local={local} onSave={onSave} />
+      </div>
     </div>
   );
 }
@@ -1713,6 +1784,72 @@ function DefaultLayoutPanel({ local, onSave }: { local: Draft; onSave: (next: Dr
       <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
         Appliquée à tout personnage sans disposition déjà sauvegardée. Vide = disposition générique par
         défaut. Format : tableau d&apos;objets {'{'}i, x, y, w, h, minW?, minH?{'}'} (react-grid-layout).
+      </p>
+    </div>
+  );
+}
+
+function isSidebarLayout(v: unknown): v is { mj?: string[]; player?: string[] } {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  const validList = (list: unknown) => list === undefined || (Array.isArray(list) && list.every((id) => typeof id === 'string'));
+  return validList(o.mj) && validList(o.player);
+}
+
+/** Ordre par défaut des icônes de la sidebar (Sidebar.tsx) pour ce système, un par rôle — appliqué à
+ *  tout utilisateur qui n'a pas encore personnalisé sa barre (aucun state persisté en localStorage).
+ *  Édition en JSON brut comme DefaultLayoutPanel ci-dessus : les id valides sont ceux de
+ *  AVAILABLE_ACTIONS (src/lib/customActions.ts, ex "tab-combat", "tab-fiche", "tab-dice"...). */
+function DefaultSidebarLayoutPanel({ local, onSave }: { local: Draft; onSave: (next: Draft) => void | Promise<void> }) {
+  const [text, setText] = useState(() => JSON.stringify(local.defaultSidebarLayout ?? {}, null, 2));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText(JSON.stringify(local.defaultSidebarLayout ?? {}, null, 2));
+    setError(null);
+  }, [local.defaultSidebarLayout]);
+
+  const handleBlur = () => {
+    if (text.trim() === '' || text.trim() === '{}') {
+      setError(null);
+      onSave({ ...local, defaultSidebarLayout: undefined });
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      setError('JSON invalide.');
+      return;
+    }
+    if (!isSidebarLayout(parsed)) {
+      setError('Attendu : { "mj"?: string[], "player"?: string[] } (listes d\'id AVAILABLE_ACTIONS).');
+      return;
+    }
+    setError(null);
+    onSave({ ...local, defaultSidebarLayout: parsed });
+  };
+
+  return (
+    <div className="space-y-1.5 max-w-md">
+      <label className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+        Ordre par défaut de la sidebar (JSON)
+      </label>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={handleBlur}
+        rows={6}
+        placeholder='{"mj": [...], "player": [...]}'
+        spellCheck={false}
+        className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-xs font-mono placeholder:opacity-40"
+        style={{ color: 'var(--text-primary)' }}
+      />
+      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+        Appliqué à tout utilisateur sans barre déjà personnalisée. Vide = ordre historique. Format :
+        {' '}{'{'}mj?: string[], player?: string[]{'}'}, chaque valeur un id de AVAILABLE_ACTIONS
+        (src/lib/customActions.ts).
       </p>
     </div>
   );

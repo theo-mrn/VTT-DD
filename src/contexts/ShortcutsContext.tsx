@@ -31,6 +31,7 @@ export const SHORTCUT_ACTIONS = {
     TAB_FICHE: 'tab_fiche', // Fiche de personnage
     TAB_ENCOUNTER: 'tab_encounter', // Générateur de rencontre (MJ)
     TAB_HISTORIQUE: 'tab_historique', // Historique des événements (MJ)
+    TAB_MAP: 'tab_map', // Carte(s) générique(s) (fond image + marqueurs), configurées par gameSystem.maps — MJ + joueurs
     TOGGLE_CUSTOM_BUTTONS_EDIT: 'toggle_custom_buttons_edit', // Active/désactive le mode édition des boutons personnalisables (CustomButtons)
 
     // Map Tools
@@ -134,6 +135,7 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TAB_FICHE]: '',       // Fiche de personnage (pas de raccourci par défaut)
     [SHORTCUT_ACTIONS.TAB_ENCOUNTER]: '',   // Générateur de rencontre (pas de raccourci par défaut)
     [SHORTCUT_ACTIONS.TAB_HISTORIQUE]: '',  // Historique (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TAB_MAP]: '',          // Carte (pas de raccourci par défaut)
     [SHORTCUT_ACTIONS.TOGGLE_CUSTOM_BUTTONS_EDIT]: '', // Édition boutons personnalisables (pas de raccourci par défaut)
 
     // ========== OUTILS DE CARTE PRINCIPAUX ==========

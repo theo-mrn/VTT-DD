@@ -18,6 +18,7 @@ import Chat from "@/components/(chat)/Chat";
 import Historique from "@/components/(historique)/Historique";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
 import { DiceRoller } from "@/components/(dices)/dice-roller";
+import MapExplorer from "@/components/(maps)/MapExplorer";
 import { toast } from "sonner";
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
@@ -43,7 +44,7 @@ const PANEL_WIDTHS: Record<string, string> = {
 };
 
 // Panels handled by their own persistent <aside> — excluded from the "fresh" aside
-const PERSISTENT_PANELS = new Set(['Music', 'DiceRoller', 'NewComponent', 'Chat', 'GMDashboard', 'NPCManager', 'Historique']);
+const PERSISTENT_PANELS = new Set(['Music', 'DiceRoller', 'NewComponent', 'Chat', 'GMDashboard', 'NPCManager', 'Historique', 'MapExplorer']);
 
 export default function Layout({ children }: LayoutProps) {
   const [mapReloadKey, setMapReloadKey] = useState(0);
@@ -66,6 +67,7 @@ export default function Layout({ children }: LayoutProps) {
     gmDashboard: false,
     npcManager: false,
     historique: false,
+    map: false,
   });
 
   // Lazy-mount flags for module panels
@@ -91,6 +93,7 @@ export default function Layout({ children }: LayoutProps) {
           ...(tabName === 'GMDashboard' && { gmDashboard: true }),
           ...(tabName === 'NPCManager' && { npcManager: true }),
           ...(tabName === 'Historique' && { historique: true }),
+          ...(tabName === 'MapExplorer' && { map: true }),
         }));
       }
     }
@@ -195,6 +198,13 @@ export default function Layout({ children }: LayoutProps) {
               {mounted.chat && (
                 <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Chat', "overflow-hidden")}>
                   <div className="h-full"><Chat /></div>
+                </aside>
+              )}
+
+              {/* ── CARTE (lazy-persistent, tous utilisateurs, toujours visible — configurée via gameSystem.maps) ── */}
+              {mounted.map && (
+                <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]", activeTab === 'MapExplorer', "overflow-hidden")}>
+                  <div className="h-full"><MapExplorer roomId={roomId} isMJ={isMJ} /></div>
                 </aside>
               )}
 

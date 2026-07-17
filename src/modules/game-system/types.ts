@@ -204,6 +204,48 @@ export interface GameSystemDefinition {
    *  {i, x, y, w, h, minW?, minH?} recopié tel quel dans le layout runtime. Absent = repli sur
    *  DEFAULT_LAYOUT. */
   defaultCharacterLayout?: CharacterLayoutEntry[];
+  /** Ordre par défaut des icônes de la sidebar (Sidebar.tsx), appliqué à tout utilisateur qui n'a pas
+   *  encore personnalisé sa barre (aucun state persisté en localStorage) — un par rôle, remplace
+   *  DEFAULT_ITEM_IDS codé en dur pour ce système. Chaque valeur est un id de CustomActionDef
+   *  (src/lib/customActions.ts, ex SHORTCUT_ACTIONS.TAB_FICHE) — pas de nom d'onglet en dur ici, un
+   *  système custom choisit librement quelles actions il expose et dans quel ordre. Absent (ou id
+   *  inconnu/filtré par rôle) = repli sur l'ordre historique. */
+  defaultSidebarLayout?: { mj?: string[]; player?: string[] };
+  /** Cartes génériques du système (fond image + marqueurs cliquables) — un onglet natif de sidebar
+   *  dédié ("Carte"), toujours visible, ouvert au MJ ET aux joueurs. Plusieurs cartes distinctes
+   *  possibles (ex Carte Galactique + Carte de Ville), chacune avec son propre fond et ses propres
+   *  marqueurs — le joueur choisit la carte à consulter si plusieurs existent. `image` est une URL
+   *  Firebase Storage (uploadée par le MJ via uploadWithQuota, même mécanisme que les images de
+   *  personnage/PNJ) — jamais d'image fournie par le moteur lui-même (risque de licence). Les cartes
+   *  vivent ICI (inline sur GameSystemDefinition, pas un ContentDoc Firestore séparé) pour voyager
+   *  dans le MÊME export JSON que le reste des règles. Absent ou vide = aucune carte encore créée
+   *  (l'onglet reste visible mais affiche un message d'invite, jamais masqué). */
+  maps?: MapConfig[];
+  /** Identifiant d'une bibliothèque d'objets suggérés (glisser-déposer sur la carte, cf ObjectDrawer.tsx)
+   *  alternative à celle par défaut (D&D-classic) — ex 'starwars' pour piocher dans
+   *  SUGGESTED_OBJECTS_STARWARS (src/lib/suggested-objects-starwars.ts) au lieu de SUGGESTED_OBJECTS.
+   *  Absent = bibliothèque par défaut. Chaque bibliothèque reste un fichier statique généré une fois
+   *  (pas un ContentKind Firestore) — même principe que defaultSidebarLayout référençant des id de
+   *  CustomActionDef : le moteur ne connaît que l'id, jamais le contenu réel d'un système précis. */
+  objectLibraryId?: string;
+}
+
+export interface MapConfig {
+  id: string;
+  label: string;
+  image: string;
+  markers: MapMarker[];
+}
+
+export interface MapMarker {
+  id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  /** Position normalisée (fraction 0-1 de la largeur/hauteur NATURELLE de l'image de fond),
+   *  indépendante de la résolution ou du zoom courant. */
+  x: number;
+  y: number;
 }
 
 export interface CharacterLayoutEntry {

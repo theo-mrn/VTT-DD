@@ -43,7 +43,6 @@ function useRoomIdFromUrl(): string | null {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const fromQuery = new URLSearchParams(window.location.search).get('roomId');
-    console.log(`${LOG_PREFIX} useRoomIdFromUrl — routeParam=${roomIdFromRouteParam ?? 'null'}, query=${fromQuery ?? 'null'}`);
     setRoomIdFromQuery(fromQuery);
   }, [roomIdFromRouteParam]);
 
@@ -58,8 +57,6 @@ function GameContentProviderInner({ roomId, children }: { roomId: string | null;
   const [requestedKinds, setRequestedKinds] = useState<ContentKind[]>([]);
   const subscriptionsRef = useRef<Map<ContentKind, () => void>>(new Map());
 
-  console.log(`${LOG_PREFIX} GameContentProviderInner render — roomId=${roomId ?? 'null'}, contentPath='${contentPath}', kinds=[${requestedKinds.join(', ')}]`);
-
   const requestKind = useCallback((kind: ContentKind) => {
     setRequestedKinds((prev) => (prev.includes(kind) ? prev : [...prev, kind]));
   }, []);
@@ -68,7 +65,6 @@ function GameContentProviderInner({ roomId, children }: { roomId: string | null;
   // requestedKinds (nouveau consommateur) — reset complet + resouscription de TOUS les kinds demandés
   // à chaque fois, jamais de logique partielle qui dépendrait de l'état d'un abonnement précédent.
   useEffect(() => {
-    console.log(`${LOG_PREFIX} (re)abonnement — contentPath='${contentPath}', kinds=[${requestedKinds.join(', ')}]`);
     setDocsByKind({});
     subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
     subscriptionsRef.current.clear();
@@ -78,7 +74,6 @@ function GameContentProviderInner({ roomId, children }: { roomId: string | null;
         query(collection(db, contentPath), where('kind', '==', kind)),
         (snap) => {
           const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as ContentDoc) })) as ContentDocWithId[];
-          console.log(`${LOG_PREFIX} snapshot('${kind}') sur '${contentPath}' — ${docs.length} doc(s).`);
           setDocsByKind((prev) => ({ ...prev, [kind]: docs }));
         },
         (error) => {

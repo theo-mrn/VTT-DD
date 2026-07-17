@@ -19,7 +19,7 @@ import InventoryManagement from '@/components/(inventaire)/inventaire'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
 import CareerSkillPicker, { type CareerSkillSelection } from '@/components/(competences)/CareerSkillPicker'
 import { toast } from 'sonner'
-import { rollCharacterStats, statsToDefaults, groupStats, resolveCharacterStats, evaluateFormula } from '@/lib/rules-engine'
+import { rollCharacterStats, statsToDefaults, groupStats, resolveCharacterStats, evaluateFormula, statUpgradeCost, totalStatUpgradeCost, CREATION_STAT_MAX } from '@/lib/rules-engine'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
 import { stripUndefinedDeep } from '@/modules/game-system/transfer'
@@ -143,6 +143,31 @@ export default function CharacterCreationPage() {
   const [careerSkillSelection, setCareerSkillSelection] = useState<CareerSkillSelection | null>(null)
   const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0
 
+  // Achats de caractéristiques à la création (façon EotE, systèmes à compétences uniquement) : nombre
+  // de +1 achetés par stat avec l'XP de départ. Coût séquentiel = 10 × la valeur visée (3→5 = 40 + 50),
+  // plafond CREATION_STAT_MAX (5). La valeur affichée/sauvegardée = base + modificateur racial + achats.
+  const [statPurchases, setStatPurchases] = useState<Record<string, number>>({})
+
+  // Valeur de départ d'une stat (avant achats) : base de l'espèce + modificateur racial.
+  const statStartValue = (key: string) =>
+    (baseStats[key] ?? 0) + (races.find((r) => r.id === character.Race)?.modifiers[key] || 0)
+
+  // XP de départ déjà investi dans les caractéristiques — les coûts se recalculent depuis la valeur de
+  // départ (pas d'historique à stocker : les achats sont séquentiels par définition).
+  const statXpSpent = hasSkillSystem
+    ? Object.entries(statPurchases).reduce((sum, [key, count]) => {
+        const start = statStartValue(key)
+        return sum + totalStatUpgradeCost(start, start + count)
+      }, 0)
+    : 0
+  const creationXpRemaining = (gameSystem.startingXp ?? 0) - statXpSpent
+
+  // Changer d'espèce change les valeurs de départ (donc tous les coûts séquentiels) : on rembourse
+  // intégralement les achats plutôt que de les réappliquer sur des bases différentes.
+  useEffect(() => {
+    setStatPurchases({})
+  }, [character.Race])
+
   const calculateModifier = (value: number) => Math.floor((value - 10) / 2)
 
   // Nombre de fois où le joueur a cliqué "Lancer les dés" — le MJ peut limiter ce nombre via
@@ -193,10 +218,10 @@ export default function CharacterCreationPage() {
     const raceMods = rc.find((r) => r.id === character.Race)?.modifiers ?? {}
     const abilities: Record<string, number> = {}
     for (const stat of as) {
-      abilities[stat.key] = (bs[stat.key] ?? 0) + (raceMods[stat.key] || 0)
+      abilities[stat.key] = (bs[stat.key] ?? 0) + (raceMods[stat.key] || 0) + (statPurchases[stat.key] ?? 0)
     }
     setCharacter(prev => ({ ...prev, ...abilities }))
-  }, [character.Race, statsInitialized])
+  }, [character.Race, statsInitialized, statPurchases])
 
   // Valeurs 'derived'/'vital' recalculées À LA VOLÉE pour l'affichage de l'écran de création (jamais
   // stockées sur `character`, cf commentaire ci-dessus) — reflète toujours les abilities courantes.
@@ -289,6 +314,15 @@ export default function CharacterCreationPage() {
         await uploadBytes(imageRef, selectedImage)
         imageURL = await getDownloadURL(imageRef)
       }
+      // Aucune image explicitement uploadée/choisie : reprendre celle affichée en aperçu (image par
+      // défaut de l'espèce, sinon du profil). Sans ce repli, un joueur qui garde l'image proposée sans
+      // y toucher était sauvegardé avec imageURL '' — token invisible sur la carte, et la fiche
+      // repliait sur /api/placeholder/192/192 (route inexistante, erreur getCroppedImg).
+      else if (!imageURL) {
+        const selectedRace = races.find((r) => r.id === character.Race)
+        const selectedProfile = profiles.find((p) => p.id === character.Profile)
+        imageURL = selectedRace?.image || selectedProfile?.image || ''
+      }
 
       // (Height/Weight now managed in state)
 
@@ -311,8 +345,10 @@ export default function CharacterCreationPage() {
         skillSystemData.specializations = careerSkillSelection.specializations;
         skillSystemData.specializationSkillChoices = careerSkillSelection.specializationSkillChoices;
         skillSystemData.skillRanks = careerSkillSelection.skillRanks;
-        skillSystemData.xp = gameSystem.startingXp ?? 0;
-        skillSystemData.xpSpent = 0;
+        // L'XP investi dans les caractéristiques à la création est définitivement dépensé : les
+        // caractéristiques ne s'améliorent plus après la création (règle EotE), donc pas de re-crédit.
+        skillSystemData.xp = (gameSystem.startingXp ?? 0) - statXpSpent;
+        skillSystemData.xpSpent = statXpSpent;
       }
 
       // Stats 'vital' SANS valeur brute encore posée sur `character` (ex Blessures/Stress si l'effet
@@ -349,6 +385,9 @@ export default function CharacterCreationPage() {
         ...skillSystemData,
         imageURL,
         type: 'joueurs',
+        // Sans ce champ, parseCharacterDoc (map/page.tsx) replie sur 'hidden' et le joueur
+        // n'apparaît aux autres joueurs que dans leur rayon de vision.
+        visibility: 'visible',
         visibilityRadius: 150,
         x: 500,
         y: 500,
@@ -750,6 +789,12 @@ export default function CharacterCreationPage() {
       const raceMod = races.find((r) => r.id === character.Race)?.modifiers[statKey] || 0
       const finalVal = Number(character[statKey] ?? baseVal)
       const finalMod = calculateModifier(finalVal)
+      // Achat de caractéristique à la création (systèmes à compétences EotE-like) : coût séquentiel
+      // 10 × la valeur visée, plafonné à CREATION_STAT_MAX, budget = XP de départ.
+      const purchases = statPurchases[statKey] ?? 0
+      const nextCost = statUpgradeCost(finalVal + 1)
+      const canBuy = finalVal < CREATION_STAT_MAX && nextCost <= creationXpRemaining
+      const canRefund = purchases > 0
 
       return (
         <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 flex flex-col items-center relative overflow-hidden group hover:border-[#c0a080]/50 transition-all duration-300">
@@ -790,6 +835,33 @@ export default function CharacterCreationPage() {
               <span className="font-mono font-bold text-white">{finalVal}</span>
             </div>
           </div>
+
+          {/* Achat avec l'XP de départ (systèmes à compétences EotE-like uniquement) */}
+          {hasSkillSystem && (
+            <div className="w-full mt-3 pt-3 border-t border-[#27272a] flex items-center justify-between gap-2 z-10">
+              <button
+                type="button"
+                disabled={!canRefund}
+                onClick={() => setStatPurchases((prev) => ({ ...prev, [statKey]: Math.max(0, (prev[statKey] ?? 0) - 1) }))}
+                className="h-7 w-7 rounded-lg border border-[#333] text-zinc-400 hover:text-white hover:border-[#c0a080]/50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title={canRefund ? `Rendre +1 (récupère ${statUpgradeCost(finalVal)} XP)` : 'Aucun achat à rembourser'}
+              >
+                −
+              </button>
+              <span className={`text-[10px] uppercase tracking-wide font-mono ${finalVal >= CREATION_STAT_MAX ? 'text-zinc-600' : canBuy ? 'text-[#c0a080]' : 'text-zinc-600'}`}>
+                {finalVal >= CREATION_STAT_MAX ? 'Max (5)' : `+1 → ${nextCost} XP`}
+              </span>
+              <button
+                type="button"
+                disabled={!canBuy}
+                onClick={() => setStatPurchases((prev) => ({ ...prev, [statKey]: (prev[statKey] ?? 0) + 1 }))}
+                className="h-7 w-7 rounded-lg border border-[#333] text-zinc-400 hover:text-white hover:border-[#c0a080]/50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title={finalVal >= CREATION_STAT_MAX ? 'Plafond de création atteint (5)' : canBuy ? `Passer à ${finalVal + 1} pour ${nextCost} XP` : 'XP de départ insuffisant'}
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
       )
     }
@@ -800,9 +872,19 @@ export default function CharacterCreationPage() {
         <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-[#121212] p-6 rounded-2xl border border-[#27272a] shrink-0">
           <div>
             <h2 className="text-2xl font-serif font-bold text-[#e4e4e7] mb-2">Caractéristiques</h2>
+            {hasSkillSystem && (
+              <p className="text-xs text-zinc-500">
+                Améliorez vos caractéristiques avec votre XP de départ — coût : 10 × la valeur visée, palier par palier, max {CREATION_STAT_MAX}.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col items-end gap-2">
+            {hasSkillSystem && (
+              <span className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg border border-[#c0a080]/40 bg-[#c0a080]/10 text-[#c0a080]">
+                <Sparkles className="w-4 h-4" /> {creationXpRemaining} / {gameSystem.startingXp ?? 0} XP
+              </span>
+            )}
             <Button
               onClick={rollStats}
               disabled={rollsExhausted}
@@ -885,7 +967,7 @@ export default function CharacterCreationPage() {
         </div>
       </div>
     )
-  }, [character, baseStats, races, abilityStats, gameSystem, hasRaceProfileContent])
+  }, [character, baseStats, races, abilityStats, gameSystem, hasRaceProfileContent, hasSkillSystem, statPurchases, creationXpRemaining])
 
 
   if (!userId) return <p>Loading...</p>

@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { type NPC, type Category } from '@/components/(personnages)/personnages'
 import { type ObjectTemplate } from '@/app/[roomid]/map/types'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
 
 // --- Types ---
 
@@ -31,22 +32,12 @@ export interface ExistingNPC {
     Nomperso: string
     imageURL2?: string
     niveau: number
-    PV: number
-    PV_Max: number
-    Defense: number
-    FOR: number
-    DEX: number
-    CON: number
-    INT: number
-    SAG: number
-    CHA: number
-    Contact: number
-    Distance: number
-    Magie: number
-    INIT: number
     visibility: 'visible' | 'hidden' | 'ally' | 'invisible'
     cityName?: string
     cityId?: string | null
+    // Index signature additive : stats du système actif (ex PV/Defense/FOR pour dnd-classic,
+    // vigueur/Stress/... pour un système custom) — cf NPC (personnages.tsx) / NewCharacter (map/types.ts).
+    [key: string]: unknown
 }
 
 interface GMTemplatesContextType {
@@ -91,6 +82,7 @@ export function useGMTemplates() {
 
 export function GMTemplatesProvider({ roomId, children }: { roomId: string; children: React.ReactNode }) {
     const { isMJ } = useGame()
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue } = useNpcStatFields(roomId)
     const [npcTemplates, setNpcTemplates] = useState<NPC[]>([])
     const [npcCategories, setNpcCategories] = useState<Category[]>([])
     const [soundTemplates, setSoundTemplates] = useState<SoundTemplate[]>([])
@@ -100,6 +92,32 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
     const [cities, setCities] = useState<{ id: string; name: string }[]>([])
     const [loading, setLoading] = useState(true)
     const loadedRef = useRef(false)
+
+    // Construit un ExistingNPC depuis un document Firestore de personnage, en copiant dynamiquement
+    // chaque clé de stat du système actif (caractéristiques, stats vitales, défense, attaques de combat,
+    // stats de combat additionnelles) — jamais une liste fixe de 13 clés D&D (ex "INIT" affiché avec une
+    // valeur inventée sur un système qui n'a pas cette notion). Même pattern que parseCharacterDoc
+    // (map/page.tsx).
+    const buildExistingNPC = useCallback((id: string, data: Record<string, any>, cityNamesMap: Map<string, string>): ExistingNPC => {
+        const npc: ExistingNPC = {
+            id,
+            Nomperso: data.Nomperso || 'Sans nom',
+            imageURL2: data.imageURL2 || data.imageURL,
+            niveau: data.niveau || 1,
+            visibility: data.visibility || 'hidden',
+            cityName: data.cityId ? cityNamesMap.get(data.cityId) : 'Aucune ville',
+            cityId: data.cityId || null,
+        }
+        for (const stat of abilityStats) npc[stat.key] = data[stat.key] ?? getDefaultValue(stat)
+        for (const { stat, maxKey } of vitalStats) {
+            npc[stat.key] = data[stat.key] ?? 0
+            if (maxKey) npc[maxKey] = data[maxKey] ?? 0
+        }
+        if (defenseKey) npc[defenseKey] = data[defenseKey] ?? 5
+        for (const key of combatAttackKeys) npc[key] = data[key] ?? 0
+        for (const stat of extraCombatStats) npc[stat.key] = data[stat.key] ?? 0
+        return npc
+    }, [abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue])
 
     // --- Fetch all data once ---
     const fetchAll = useCallback(async () => {
@@ -155,28 +173,7 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
             charsSnap.docs.forEach(d => {
                 const data = d.data()
                 if (data.type !== 'joueurs') {
-                    npcs.push({
-                        id: d.id,
-                        Nomperso: data.Nomperso || 'Sans nom',
-                        imageURL2: data.imageURL2 || data.imageURL,
-                        niveau: data.niveau || 1,
-                        PV: data.PV || 10,
-                        PV_Max: data.PV_Max || 10,
-                        Defense: data.Defense || 5,
-                        FOR: data.FOR || 10,
-                        DEX: data.DEX || 10,
-                        CON: data.CON || 10,
-                        INT: data.INT || 10,
-                        SAG: data.SAG || 10,
-                        CHA: data.CHA || 10,
-                        Contact: data.Contact || 0,
-                        Distance: data.Distance || 0,
-                        Magie: data.Magie || 0,
-                        INIT: data.INIT || 0,
-                        visibility: data.visibility || 'hidden',
-                        cityName: data.cityId ? cityNamesMap.get(data.cityId) : 'Aucune ville',
-                        cityId: data.cityId || null
-                    })
+                    npcs.push(buildExistingNPC(d.id, data, cityNamesMap))
                 }
             })
             setExistingNPCs(npcs)
@@ -185,7 +182,7 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
         } finally {
             setLoading(false)
         }
-    }, [roomId])
+    }, [roomId, buildExistingNPC])
 
     // Load on mount — MJ only, joueurs n'ont jamais besoin de ces données
     useEffect(() => {
@@ -302,32 +299,11 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
         charsSnap.docs.forEach(d => {
             const data = d.data()
             if (data.type !== 'joueurs') {
-                npcs.push({
-                    id: d.id,
-                    Nomperso: data.Nomperso || 'Sans nom',
-                    imageURL2: data.imageURL2 || data.imageURL,
-                    niveau: data.niveau || 1,
-                    PV: data.PV || 10,
-                    PV_Max: data.PV_Max || 10,
-                    Defense: data.Defense || 5,
-                    FOR: data.FOR || 10,
-                    DEX: data.DEX || 10,
-                    CON: data.CON || 10,
-                    INT: data.INT || 10,
-                    SAG: data.SAG || 10,
-                    CHA: data.CHA || 10,
-                    Contact: data.Contact || 0,
-                    Distance: data.Distance || 0,
-                    Magie: data.Magie || 0,
-                    INIT: data.INIT || 0,
-                    visibility: data.visibility || 'hidden',
-                    cityName: data.cityId ? cityNamesMap.get(data.cityId) : 'Aucune ville',
-                    cityId: data.cityId || null
-                })
+                npcs.push(buildExistingNPC(d.id, data, cityNamesMap))
             }
         })
         setExistingNPCs(npcs)
-    }, [roomId])
+    }, [roomId, buildExistingNPC])
 
     return (
         <GMTemplatesContext.Provider value={{

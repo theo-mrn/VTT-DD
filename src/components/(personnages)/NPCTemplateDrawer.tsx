@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Users, GripVertical, Search, X, BookTemplate, Map as MapIcon, Plus, Book } from 'lucide-react'
 import { useGMTemplates, type ExistingNPC } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { advancedSearch } from '@/lib/advanced-search'
+import { useNpcStatFields } from '@/hooks/useNpcStatFields'
 
 interface NPCTemplateDrawerProps {
     roomId: string
@@ -26,6 +27,7 @@ interface NPCTemplateDrawerProps {
 
 export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, isEmbedded }: NPCTemplateDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
+    const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue } = useNpcStatFields(roomId ?? null)
     const {
         npcTemplates: templates,
         npcCategories: categories,
@@ -65,54 +67,48 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
         setSelectedCityFilter(currentCityId || 'all')
     }, [currentCityId])
 
-    // Default character for creation
-    const defaultCharacter: NewCharacter = {
-        name: '',
-        niveau: 1,
-        image: null,
-        visibility: 'visible',
-        PV: 20,
-        PV_Max: 20,
-        Defense: 10,
-        Contact: 0,
-        Distance: 0,
-        Magie: 0,
-        INIT: 10,
-        INT: 10,
-        CHA: 10,
-        nombre: 1,
-        FOR: 10,
-        DEX: 10,
-        CON: 10,
-        SAG: 10
-    }
+    // Default character for creation — dérivé du système de règles actif. Jamais de préremplissage D&D
+    // fixe (INIT, etc.) : seules les clés réellement définies par gameSystem.stats sont posées.
+    const defaultCharacter: NewCharacter = useMemo(() => {
+        const base: NewCharacter = {
+            name: '',
+            niveau: 1,
+            image: null,
+            visibility: 'visible',
+            nombre: 1,
+        }
+        for (const stat of abilityStats) base[stat.key] = getDefaultValue(stat)
+        for (const { stat, maxKey } of vitalStats) {
+            base[stat.key] = 0
+            if (maxKey) base[maxKey] = 0
+        }
+        if (defenseKey) base[defenseKey] = 10
+        for (const key of combatAttackKeys) base[key] = 0
+        return base
+    }, [abilityStats, vitalStats, defenseKey, combatAttackKeys, getDefaultValue])
 
     const [char, setChar] = useState<NewCharacter>(defaultCharacter)
 
-    // Generate random stats
+    // Generate random stats — générique, itère sur les caractéristiques/stat vitale/défense/attaques
+    // réelles du système au lieu des 6 clés D&D fixes.
     const generateStats = (diff: number) => {
         const base = diff * 3 + 5
         const rand = () => Math.floor(Math.random() * 6) + base
 
-        setChar(prev => ({
-            ...prev,
-            niveau: diff,
-            FOR: rand(),
-            DEX: rand(),
-            CON: rand(),
-            INT: rand(),
-            SAG: rand(),
-            CHA: rand(),
-            PV: base + diff * 3, // Formule réduite : ~5-35 PV
-            PV_Max: base + diff * 3,
-            Defense: 10 + Math.floor(base / 2),
-            INIT: rand(),
-            Contact: Math.floor(diff * 2),
-            Distance: Math.floor(diff * 1.5),
-            Magie: Math.floor(diff * 1.5),
-            nombre: 1,
-            visibility: 'visible'
-        }))
+        setChar(prev => {
+            const next: NewCharacter = { ...prev, niveau: diff, nombre: 1, visibility: 'visible' }
+            for (const stat of abilityStats) next[stat.key] = rand()
+            for (const { stat, maxKey } of vitalStats) {
+                const hp = base + diff * 3
+                next[stat.key] = hp
+                if (maxKey) next[maxKey] = hp
+            }
+            if (defenseKey) next[defenseKey] = 10 + Math.floor(base / 2)
+            const combatMultipliers = [2, 1.5, 1.5]
+            combatAttackKeys.forEach((key, i) => { next[key] = Math.floor(diff * (combatMultipliers[i] ?? 1.5)) })
+            for (const stat of extraCombatStats) next[stat.key] = rand()
+            return next
+        })
     }
 
     // Handle Image Upload
@@ -128,7 +124,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     }
 
     // Handle number inputs
-    const handleNumChange = (field: keyof NewCharacter, value: string) => {
+    const handleNumChange = (field: string, value: string) => {
         const num = parseInt(value) || 0
         setChar(prev => ({ ...prev, [field]: num }))
     }
@@ -157,27 +153,23 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                 }
             }
 
-            const npcData = {
+            // Stats dérivées du système de règles actif — les champs "_F" ne sont pas écrits ici :
+            // CharacterContext les recalcule automatiquement une fois le personnage réellement placé
+            // sur cartes/{roomId}/characters (jamais lus tant qu'il s'agit d'un simple template).
+            const npcData: any = {
                 Nomperso: char.name,
                 ...(imageURL && { imageURL2: imageURL }),
                 niveau: char.niveau,
-                PV: char.PV,
-                PV_F: char.PV,
-                PV_Max: char.PV_Max || char.PV,
-                Defense: char.Defense,
-                Defense_F: char.Defense,
-                Contact: char.Contact,
-                Distance: char.Distance,
-                Magie: char.Magie,
-                INIT: char.INIT,
-                FOR: char.FOR,
-                DEX: char.DEX,
-                CON: char.CON,
-                SAG: char.SAG,
-                INT: char.INT,
-                CHA: char.CHA,
                 Actions: char.Actions || []
             }
+            for (const stat of extraCombatStats) npcData[stat.key] = char[stat.key]
+            for (const stat of abilityStats) npcData[stat.key] = char[stat.key]
+            for (const { stat, maxKey } of vitalStats) {
+                npcData[stat.key] = char[stat.key]
+                if (maxKey) npcData[maxKey] = char[maxKey] ?? char[stat.key]
+            }
+            if (defenseKey) npcData[defenseKey] = char[defenseKey]
+            for (const key of combatAttackKeys) npcData[key] = char[key]
 
             if (editingNpcId) {
                 // Update existing template
@@ -214,27 +206,20 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                 imageURL = await getDownloadURL(imageRef)
             }
 
-            const npcData = {
+            const npcData: any = {
                 Nomperso: importedChar.name,
                 imageURL2: imageURL,
                 niveau: importedChar.niveau,
-                PV: importedChar.PV,
-                PV_F: importedChar.PV,
-                PV_Max: importedChar.PV_Max,
-                Defense: importedChar.Defense,
-                Defense_F: importedChar.Defense,
-                Contact: importedChar.Contact,
-                Distance: importedChar.Distance,
-                Magie: importedChar.Magie,
-                INIT: importedChar.INIT,
-                FOR: importedChar.FOR,
-                DEX: importedChar.DEX,
-                CON: importedChar.CON,
-                SAG: importedChar.SAG,
-                INT: importedChar.INT,
-                CHA: importedChar.CHA,
                 Actions: importedChar.Actions || []
             }
+            for (const stat of extraCombatStats) npcData[stat.key] = importedChar[stat.key]
+            for (const stat of abilityStats) npcData[stat.key] = importedChar[stat.key]
+            for (const { stat, maxKey } of vitalStats) {
+                npcData[stat.key] = importedChar[stat.key]
+                if (maxKey) npcData[maxKey] = importedChar[maxKey] ?? importedChar[stat.key]
+            }
+            if (defenseKey) npcData[defenseKey] = importedChar[defenseKey]
+            for (const key of combatAttackKeys) npcData[key] = importedChar[key]
 
             await addNPCTemplate(npcData)
             setShowLibraryModal(false)
@@ -515,9 +500,11 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                                             </p>
                                         )}
                                         <div className="flex gap-2 mt-1 text-xs text-gray-400">
-                                            <span>PV: {item.PV_Max}</span>
-                                            <span>•</span>
-                                            <span>Def: {item.Defense}</span>
+                                            {primaryVitalStat && (
+                                                <span>{primaryVitalStat.shortLabel || primaryVitalStat.label}: {String((item as any)[primaryVitalMaxKey || primaryVitalStat.key] ?? '-')}</span>
+                                            )}
+                                            {primaryVitalStat && defenseKey && <span>•</span>}
+                                            {defenseKey && <span>Def: {String((item as any)[defenseKey] ?? '-')}</span>}
                                         </div>
                                     </div>
                                 </div>

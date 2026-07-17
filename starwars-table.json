@@ -3992,7 +3992,34 @@
         "minW": 20,
         "minH": 3
       }
-    ]
+    ],
+    "defaultSidebarLayout": {
+      "mj": [
+        "tab_npc",
+        "tab_historique",
+        "tab_fiche",
+        "tab_notes",
+        "tab_dice",
+        "tool_music",
+        "tab_map"
+      ],
+      "player": [
+        "tab_fiche",
+        "tab_notes",
+        "tab_dice",
+        "tool_mixer",
+        "tab_map"
+      ]
+    },
+    "maps": [
+      {
+        "id": "map-galaxie",
+        "label": "Carte Galactique",
+        "image": "",
+        "markers": []
+      }
+    ],
+    "objectLibraryId": "starwars"
   },
   "groupEntities": {
     "entityLabel": "Vaisseau",

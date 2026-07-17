@@ -9,20 +9,9 @@ export interface RawBonus extends Partial<BonusData> {
 }
 
 export interface Bonuses {
+    // Index signature uniquement : les clés réelles viennent de gameSystem.stats (ex FOR/DEX/... pour
+    // dnd-classic, vigueur/agilite/... pour un système custom) — jamais une liste fixe nommée ici.
     [key: string]: number;
-    CHA: number;
-    CON: number;
-    Contact: number;
-    DEX: number;
-    Defense: number;
-    Distance: number;
-    FOR: number;
-    INIT: number;
-    INT: number;
-    Magie: number;
-    PV: number;
-    SAG: number;
-    PV_Max: number;
 }
 
 export interface CategorizedBonuses {
@@ -156,7 +145,10 @@ export function useCalculatedBonuses(roomId: string | null, playerName: string |
     );
 
     return useMemo(() => {
-        const totalBonuses: Bonuses = { CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0, FOR: 0, INIT: 0, INT: 0, Magie: 0, PV_Max: 0, PV: 0, SAG: 0 };
+        // Initialisé vide : chaque clé RÉELLE du système actif (statKeys, dérivé de gameSystem.stats)
+        // est posée à 0 juste après, plutôt qu'une liste fixe de 13 clés D&D qui n'existeraient pas
+        // forcément sur un système custom (ex Star Wars).
+        const totalBonuses: Bonuses = {};
         const categorizedBonuses: CategorizedBonuses = {};
 
         for (const key of statKeys) {

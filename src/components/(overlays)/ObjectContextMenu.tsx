@@ -174,7 +174,7 @@ export default function ObjectContextMenu({
                                             onClick={() => onAction('openLoot', object.id)}
                                         >
                                             <Package size={16} />
-                                            Fouiller
+                                            {object.type === 'item' ? 'Ramasser' : 'Fouiller'}
                                         </Button>
 
                                         {isMJ && (

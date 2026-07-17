@@ -32965,5 +32965,1805 @@
     "type": "image",
     "size": 508485,
     "uploadedAt": "2026-03-02T17:52:11.565Z"
+  },
+  {
+    "name": "bridge",
+    "path": "https://assets.yner.fr/items/starwars-environnement/bridge.png",
+    "localPath": "/items/starwars-environnement/bridge.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 1383609,
+    "uploadedAt": "2026-07-17T17:39:24.284Z"
+  },
+  {
+    "name": "bunker-v1-mossy",
+    "path": "https://assets.yner.fr/items/starwars-environnement/bunker-v1-mossy.png",
+    "localPath": "/items/starwars-environnement/bunker-v1-mossy.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 4673574,
+    "uploadedAt": "2026-07-17T17:39:24.752Z"
+  },
+  {
+    "name": "bunker-v1",
+    "path": "https://assets.yner.fr/items/starwars-environnement/bunker-v1.png",
+    "localPath": "/items/starwars-environnement/bunker-v1.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 4544018,
+    "uploadedAt": "2026-07-17T17:39:25.233Z"
+  },
+  {
+    "name": "bunker-v2-desert",
+    "path": "https://assets.yner.fr/items/starwars-environnement/bunker-v2-desert.png",
+    "localPath": "/items/starwars-environnement/bunker-v2-desert.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 3720700,
+    "uploadedAt": "2026-07-17T17:39:25.712Z"
+  },
+  {
+    "name": "bunker-v2-metal",
+    "path": "https://assets.yner.fr/items/starwars-environnement/bunker-v2-metal.png",
+    "localPath": "/items/starwars-environnement/bunker-v2-metal.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 5091407,
+    "uploadedAt": "2026-07-17T17:39:26.151Z"
+  },
+  {
+    "name": "bunker-v2-tundra",
+    "path": "https://assets.yner.fr/items/starwars-environnement/bunker-v2-tundra.png",
+    "localPath": "/items/starwars-environnement/bunker-v2-tundra.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 5953065,
+    "uploadedAt": "2026-07-17T17:39:26.642Z"
+  },
+  {
+    "name": "double-raised-platform-stairs",
+    "path": "https://assets.yner.fr/items/starwars-environnement/double-raised-platform-stairs.png",
+    "localPath": "/items/starwars-environnement/double-raised-platform-stairs.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 3594736,
+    "uploadedAt": "2026-07-17T17:39:27.062Z"
+  },
+  {
+    "name": "elevator-tube-shaft",
+    "path": "https://assets.yner.fr/items/starwars-environnement/elevator-tube-shaft.png",
+    "localPath": "/items/starwars-environnement/elevator-tube-shaft.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 1463742,
+    "uploadedAt": "2026-07-17T17:39:27.360Z"
+  },
+  {
+    "name": "elevator-tube",
+    "path": "https://assets.yner.fr/items/starwars-environnement/elevator-tube.png",
+    "localPath": "/items/starwars-environnement/elevator-tube.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 2033759,
+    "uploadedAt": "2026-07-17T17:39:27.808Z"
+  },
+  {
+    "name": "fighter-platform-raised",
+    "path": "https://assets.yner.fr/items/starwars-environnement/fighter-platform-raised.png",
+    "localPath": "/items/starwars-environnement/fighter-platform-raised.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 1605640,
+    "uploadedAt": "2026-07-17T17:39:28.043Z"
+  },
+  {
+    "name": "fighter-platform",
+    "path": "https://assets.yner.fr/items/starwars-environnement/fighter-platform.png",
+    "localPath": "/items/starwars-environnement/fighter-platform.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 1472251,
+    "uploadedAt": "2026-07-17T17:39:28.260Z"
+  },
+  {
+    "name": "floor-tile-1",
+    "path": "https://assets.yner.fr/items/starwars-environnement/floor-tile-1.png",
+    "localPath": "/items/starwars-environnement/floor-tile-1.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 478549,
+    "uploadedAt": "2026-07-17T17:39:28.447Z"
+  },
+  {
+    "name": "floor-tile-2",
+    "path": "https://assets.yner.fr/items/starwars-environnement/floor-tile-2.png",
+    "localPath": "/items/starwars-environnement/floor-tile-2.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 439159,
+    "uploadedAt": "2026-07-17T17:39:28.662Z"
+  },
+  {
+    "name": "imperial-reactor-offline",
+    "path": "https://assets.yner.fr/items/starwars-environnement/imperial-reactor-offline.png",
+    "localPath": "/items/starwars-environnement/imperial-reactor-offline.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 3011665,
+    "uploadedAt": "2026-07-17T17:39:29.051Z"
+  },
+  {
+    "name": "imperial-reactor-on",
+    "path": "https://assets.yner.fr/items/starwars-environnement/imperial-reactor-on.png",
+    "localPath": "/items/starwars-environnement/imperial-reactor-on.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 3529552,
+    "uploadedAt": "2026-07-17T17:39:29.425Z"
+  },
+  {
+    "name": "imperial-reactor",
+    "path": "https://assets.yner.fr/items/starwars-environnement/imperial-reactor.png",
+    "localPath": "/items/starwars-environnement/imperial-reactor.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 3053057,
+    "uploadedAt": "2026-07-17T17:39:29.798Z"
+  },
+  {
+    "name": "landing-pad-double",
+    "path": "https://assets.yner.fr/items/starwars-environnement/landing-pad-double.png",
+    "localPath": "/items/starwars-environnement/landing-pad-double.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 4866303,
+    "uploadedAt": "2026-07-17T17:39:30.284Z"
+  },
+  {
+    "name": "landing-pad-single",
+    "path": "https://assets.yner.fr/items/starwars-environnement/landing-pad-single.png",
+    "localPath": "/items/starwars-environnement/landing-pad-single.png",
+    "category": "items/starwars-environnement",
+    "type": "image",
+    "size": 2311264,
+    "uploadedAt": "2026-07-17T17:39:30.661Z"
+  },
+  {
+    "name": "chair-v1",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/chair-v1.png",
+    "localPath": "/items/starwars-fournitures/chair-v1.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 906877,
+    "uploadedAt": "2026-07-17T17:39:30.869Z"
+  },
+  {
+    "name": "chair-v2",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/chair-v2.png",
+    "localPath": "/items/starwars-fournitures/chair-v2.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 1114191,
+    "uploadedAt": "2026-07-17T17:39:31.065Z"
+  },
+  {
+    "name": "chair-v3",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/chair-v3.png",
+    "localPath": "/items/starwars-fournitures/chair-v3.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 1111009,
+    "uploadedAt": "2026-07-17T17:39:31.296Z"
+  },
+  {
+    "name": "elegant-chair-v1",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/elegant-chair-v1.png",
+    "localPath": "/items/starwars-fournitures/elegant-chair-v1.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 1709520,
+    "uploadedAt": "2026-07-17T17:39:31.594Z"
+  },
+  {
+    "name": "elegant-chair-v2",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/elegant-chair-v2.png",
+    "localPath": "/items/starwars-fournitures/elegant-chair-v2.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 1692372,
+    "uploadedAt": "2026-07-17T17:39:31.811Z"
+  },
+  {
+    "name": "leader-office-table",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/leader-office-table.png",
+    "localPath": "/items/starwars-fournitures/leader-office-table.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 755976,
+    "uploadedAt": "2026-07-17T17:39:32.006Z"
+  },
+  {
+    "name": "meeting-chair",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/meeting-chair.png",
+    "localPath": "/items/starwars-fournitures/meeting-chair.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 921490,
+    "uploadedAt": "2026-07-17T17:39:32.265Z"
+  },
+  {
+    "name": "meeting-table",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/meeting-table.png",
+    "localPath": "/items/starwars-fournitures/meeting-table.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 806044,
+    "uploadedAt": "2026-07-17T17:39:32.498Z"
+  },
+  {
+    "name": "office-table",
+    "path": "https://assets.yner.fr/items/starwars-fournitures/office-table.png",
+    "localPath": "/items/starwars-fournitures/office-table.png",
+    "category": "items/starwars-fournitures",
+    "type": "image",
+    "size": 3216283,
+    "uploadedAt": "2026-07-17T17:39:32.985Z"
+  },
+  {
+    "name": "conglomerate-datapad-2",
+    "path": "https://assets.yner.fr/items/starwars-general/conglomerate-datapad-2.png",
+    "localPath": "/items/starwars-general/conglomerate-datapad-2.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 691988,
+    "uploadedAt": "2026-07-17T17:39:33.188Z"
+  },
+  {
+    "name": "conglomerate-datapad",
+    "path": "https://assets.yner.fr/items/starwars-general/conglomerate-datapad.png",
+    "localPath": "/items/starwars-general/conglomerate-datapad.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 409219,
+    "uploadedAt": "2026-07-17T17:39:33.420Z"
+  },
+  {
+    "name": "credit-bronze",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-bronze.png",
+    "localPath": "/items/starwars-general/credit-bronze.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 60188,
+    "uploadedAt": "2026-07-17T17:39:33.702Z"
+  },
+  {
+    "name": "credit-gold",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-gold.png",
+    "localPath": "/items/starwars-general/credit-gold.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 69401,
+    "uploadedAt": "2026-07-17T17:39:33.903Z"
+  },
+  {
+    "name": "credit-pile-1",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-pile-1.png",
+    "localPath": "/items/starwars-general/credit-pile-1.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 2726861,
+    "uploadedAt": "2026-07-17T17:39:34.387Z"
+  },
+  {
+    "name": "credit-pile-2",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-pile-2.png",
+    "localPath": "/items/starwars-general/credit-pile-2.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 2001687,
+    "uploadedAt": "2026-07-17T17:39:34.760Z"
+  },
+  {
+    "name": "credit-pile-bronze",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-pile-bronze.png",
+    "localPath": "/items/starwars-general/credit-pile-bronze.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 2828865,
+    "uploadedAt": "2026-07-17T17:39:35.107Z"
+  },
+  {
+    "name": "credit-pile-gold",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-pile-gold.png",
+    "localPath": "/items/starwars-general/credit-pile-gold.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 3305236,
+    "uploadedAt": "2026-07-17T17:39:35.475Z"
+  },
+  {
+    "name": "credit-pile-silver",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-pile-silver.png",
+    "localPath": "/items/starwars-general/credit-pile-silver.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 2861205,
+    "uploadedAt": "2026-07-17T17:39:35.852Z"
+  },
+  {
+    "name": "credit-silver",
+    "path": "https://assets.yner.fr/items/starwars-general/credit-silver.png",
+    "localPath": "/items/starwars-general/credit-silver.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 52989,
+    "uploadedAt": "2026-07-17T17:39:36.050Z"
+  },
+  {
+    "name": "crystal-black",
+    "path": "https://assets.yner.fr/items/starwars-general/crystal-black.png",
+    "localPath": "/items/starwars-general/crystal-black.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 525501,
+    "uploadedAt": "2026-07-17T17:39:36.237Z"
+  },
+  {
+    "name": "crystal-blue",
+    "path": "https://assets.yner.fr/items/starwars-general/crystal-blue.png",
+    "localPath": "/items/starwars-general/crystal-blue.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 691655,
+    "uploadedAt": "2026-07-17T17:39:36.436Z"
+  },
+  {
+    "name": "crystal-green",
+    "path": "https://assets.yner.fr/items/starwars-general/crystal-green.png",
+    "localPath": "/items/starwars-general/crystal-green.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 1012544,
+    "uploadedAt": "2026-07-17T17:39:36.822Z"
+  },
+  {
+    "name": "crystal-purple",
+    "path": "https://assets.yner.fr/items/starwars-general/crystal-purple.png",
+    "localPath": "/items/starwars-general/crystal-purple.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 797402,
+    "uploadedAt": "2026-07-17T17:39:37.011Z"
+  },
+  {
+    "name": "crystal-red",
+    "path": "https://assets.yner.fr/items/starwars-general/crystal-red.png",
+    "localPath": "/items/starwars-general/crystal-red.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 471806,
+    "uploadedAt": "2026-07-17T17:39:37.179Z"
+  },
+  {
+    "name": "crystal-white",
+    "path": "https://assets.yner.fr/items/starwars-general/crystal-white.png",
+    "localPath": "/items/starwars-general/crystal-white.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 647943,
+    "uploadedAt": "2026-07-17T17:39:37.354Z"
+  },
+  {
+    "name": "fallen-trooper-1",
+    "path": "https://assets.yner.fr/items/starwars-general/fallen-trooper-1.png",
+    "localPath": "/items/starwars-general/fallen-trooper-1.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 573127,
+    "uploadedAt": "2026-07-17T17:39:37.580Z"
+  },
+  {
+    "name": "fallen-trooper-2",
+    "path": "https://assets.yner.fr/items/starwars-general/fallen-trooper-2.png",
+    "localPath": "/items/starwars-general/fallen-trooper-2.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 668125,
+    "uploadedAt": "2026-07-17T17:39:37.820Z"
+  },
+  {
+    "name": "fallen-trooper-3",
+    "path": "https://assets.yner.fr/items/starwars-general/fallen-trooper-3.png",
+    "localPath": "/items/starwars-general/fallen-trooper-3.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 553788,
+    "uploadedAt": "2026-07-17T17:39:37.994Z"
+  },
+  {
+    "name": "fallen-trooper-4",
+    "path": "https://assets.yner.fr/items/starwars-general/fallen-trooper-4.png",
+    "localPath": "/items/starwars-general/fallen-trooper-4.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 503049,
+    "uploadedAt": "2026-07-17T17:39:38.204Z"
+  },
+  {
+    "name": "station-support-beam-1",
+    "path": "https://assets.yner.fr/items/starwars-general/station-support-beam-1.png",
+    "localPath": "/items/starwars-general/station-support-beam-1.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 312843,
+    "uploadedAt": "2026-07-17T17:39:38.358Z"
+  },
+  {
+    "name": "station-support-beam-2",
+    "path": "https://assets.yner.fr/items/starwars-general/station-support-beam-2.png",
+    "localPath": "/items/starwars-general/station-support-beam-2.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 298767,
+    "uploadedAt": "2026-07-17T17:39:38.557Z"
+  },
+  {
+    "name": "station-support-beam-3",
+    "path": "https://assets.yner.fr/items/starwars-general/station-support-beam-3.png",
+    "localPath": "/items/starwars-general/station-support-beam-3.png",
+    "category": "items/starwars-general",
+    "type": "image",
+    "size": 287454,
+    "uploadedAt": "2026-07-17T17:39:38.752Z"
+  },
+  {
+    "name": "antenna-black",
+    "path": "https://assets.yner.fr/items/starwars-stations/antenna-black.png",
+    "localPath": "/items/starwars-stations/antenna-black.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1521963,
+    "uploadedAt": "2026-07-17T17:39:38.988Z"
+  },
+  {
+    "name": "antenna-metal",
+    "path": "https://assets.yner.fr/items/starwars-stations/antenna-metal.png",
+    "localPath": "/items/starwars-stations/antenna-metal.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1942851,
+    "uploadedAt": "2026-07-17T17:39:39.246Z"
+  },
+  {
+    "name": "button-pad-green",
+    "path": "https://assets.yner.fr/items/starwars-stations/button-pad-green.png",
+    "localPath": "/items/starwars-stations/button-pad-green.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1948814,
+    "uploadedAt": "2026-07-17T17:39:39.727Z"
+  },
+  {
+    "name": "button-pad-off",
+    "path": "https://assets.yner.fr/items/starwars-stations/button-pad-off.png",
+    "localPath": "/items/starwars-stations/button-pad-off.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1899143,
+    "uploadedAt": "2026-07-17T17:39:40.020Z"
+  },
+  {
+    "name": "button-pad-red",
+    "path": "https://assets.yner.fr/items/starwars-stations/button-pad-red.png",
+    "localPath": "/items/starwars-stations/button-pad-red.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1949367,
+    "uploadedAt": "2026-07-17T17:39:40.229Z"
+  },
+  {
+    "name": "button-pad-yellow",
+    "path": "https://assets.yner.fr/items/starwars-stations/button-pad-yellow.png",
+    "localPath": "/items/starwars-stations/button-pad-yellow.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1953646,
+    "uploadedAt": "2026-07-17T17:39:40.694Z"
+  },
+  {
+    "name": "computer-1-broken",
+    "path": "https://assets.yner.fr/items/starwars-stations/computer-1-broken.png",
+    "localPath": "/items/starwars-stations/computer-1-broken.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1416284,
+    "uploadedAt": "2026-07-17T17:39:40.922Z"
+  },
+  {
+    "name": "computer-1-off",
+    "path": "https://assets.yner.fr/items/starwars-stations/computer-1-off.png",
+    "localPath": "/items/starwars-stations/computer-1-off.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1400171,
+    "uploadedAt": "2026-07-17T17:39:41.143Z"
+  },
+  {
+    "name": "computer-1",
+    "path": "https://assets.yner.fr/items/starwars-stations/computer-1.png",
+    "localPath": "/items/starwars-stations/computer-1.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1417292,
+    "uploadedAt": "2026-07-17T17:39:41.355Z"
+  },
+  {
+    "name": "computer-2-broken",
+    "path": "https://assets.yner.fr/items/starwars-stations/computer-2-broken.png",
+    "localPath": "/items/starwars-stations/computer-2-broken.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1372219,
+    "uploadedAt": "2026-07-17T17:39:41.759Z"
+  },
+  {
+    "name": "computer-2-off",
+    "path": "https://assets.yner.fr/items/starwars-stations/computer-2-off.png",
+    "localPath": "/items/starwars-stations/computer-2-off.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1332392,
+    "uploadedAt": "2026-07-17T17:39:42.002Z"
+  },
+  {
+    "name": "computer-2",
+    "path": "https://assets.yner.fr/items/starwars-stations/computer-2.png",
+    "localPath": "/items/starwars-stations/computer-2.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1148270,
+    "uploadedAt": "2026-07-17T17:39:42.214Z"
+  },
+  {
+    "name": "conglomerate-datapad-2",
+    "path": "https://assets.yner.fr/items/starwars-stations/conglomerate-datapad-2.png",
+    "localPath": "/items/starwars-stations/conglomerate-datapad-2.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 691988,
+    "uploadedAt": "2026-07-17T17:39:42.448Z"
+  },
+  {
+    "name": "conglomerate-datapad",
+    "path": "https://assets.yner.fr/items/starwars-stations/conglomerate-datapad.png",
+    "localPath": "/items/starwars-stations/conglomerate-datapad.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 409219,
+    "uploadedAt": "2026-07-17T17:39:42.657Z"
+  },
+  {
+    "name": "duty-station-1",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-1.png",
+    "localPath": "/items/starwars-stations/duty-station-1.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 2544016,
+    "uploadedAt": "2026-07-17T17:39:43.020Z"
+  },
+  {
+    "name": "duty-station-mirrored",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-mirrored.png",
+    "localPath": "/items/starwars-stations/duty-station-mirrored.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 2554573,
+    "uploadedAt": "2026-07-17T17:39:43.473Z"
+  },
+  {
+    "name": "duty-station-quad",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-quad.png",
+    "localPath": "/items/starwars-stations/duty-station-quad.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1953935,
+    "uploadedAt": "2026-07-17T17:39:43.717Z"
+  },
+  {
+    "name": "duty-station-small-1",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-small-1.png",
+    "localPath": "/items/starwars-stations/duty-station-small-1.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 266095,
+    "uploadedAt": "2026-07-17T17:39:43.894Z"
+  },
+  {
+    "name": "duty-station-small-2",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-small-2.png",
+    "localPath": "/items/starwars-stations/duty-station-small-2.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 256600,
+    "uploadedAt": "2026-07-17T17:39:44.072Z"
+  },
+  {
+    "name": "duty-station-small-3",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-small-3.png",
+    "localPath": "/items/starwars-stations/duty-station-small-3.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 278110,
+    "uploadedAt": "2026-07-17T17:39:44.365Z"
+  },
+  {
+    "name": "duty-station-triple",
+    "path": "https://assets.yner.fr/items/starwars-stations/duty-station-triple.png",
+    "localPath": "/items/starwars-stations/duty-station-triple.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1188948,
+    "uploadedAt": "2026-07-17T17:39:44.557Z"
+  },
+  {
+    "name": "energy-field-active",
+    "path": "https://assets.yner.fr/items/starwars-stations/energy-field-active.png",
+    "localPath": "/items/starwars-stations/energy-field-active.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 208744,
+    "uploadedAt": "2026-07-17T17:39:44.758Z"
+  },
+  {
+    "name": "energy-field-off",
+    "path": "https://assets.yner.fr/items/starwars-stations/energy-field-off.png",
+    "localPath": "/items/starwars-stations/energy-field-off.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 124211,
+    "uploadedAt": "2026-07-17T17:39:44.970Z"
+  },
+  {
+    "name": "generator-brown-metal",
+    "path": "https://assets.yner.fr/items/starwars-stations/generator-brown-metal.png",
+    "localPath": "/items/starwars-stations/generator-brown-metal.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 3283364,
+    "uploadedAt": "2026-07-17T17:39:45.365Z"
+  },
+  {
+    "name": "generator-brown",
+    "path": "https://assets.yner.fr/items/starwars-stations/generator-brown.png",
+    "localPath": "/items/starwars-stations/generator-brown.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 3443161,
+    "uploadedAt": "2026-07-17T17:39:45.881Z"
+  },
+  {
+    "name": "generator-gray",
+    "path": "https://assets.yner.fr/items/starwars-stations/generator-gray.png",
+    "localPath": "/items/starwars-stations/generator-gray.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 3225154,
+    "uploadedAt": "2026-07-17T17:39:46.293Z"
+  },
+  {
+    "name": "grav-wagon-2",
+    "path": "https://assets.yner.fr/items/starwars-stations/grav-wagon-2.png",
+    "localPath": "/items/starwars-stations/grav-wagon-2.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1476939,
+    "uploadedAt": "2026-07-17T17:39:46.690Z"
+  },
+  {
+    "name": "grav-wagon",
+    "path": "https://assets.yner.fr/items/starwars-stations/grav-wagon.png",
+    "localPath": "/items/starwars-stations/grav-wagon.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 1533316,
+    "uploadedAt": "2026-07-17T17:39:46.897Z"
+  },
+  {
+    "name": "hangar-hose-1",
+    "path": "https://assets.yner.fr/items/starwars-stations/hangar-hose-1.png",
+    "localPath": "/items/starwars-stations/hangar-hose-1.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 445532,
+    "uploadedAt": "2026-07-17T17:39:47.206Z"
+  },
+  {
+    "name": "hangar-hose-2",
+    "path": "https://assets.yner.fr/items/starwars-stations/hangar-hose-2.png",
+    "localPath": "/items/starwars-stations/hangar-hose-2.png",
+    "category": "items/starwars-stations",
+    "type": "image",
+    "size": 239102,
+    "uploadedAt": "2026-07-17T17:39:47.453Z"
+  },
+  {
+    "name": "cage-gray",
+    "path": "https://assets.yner.fr/items/starwars-stockage/cage-gray.png",
+    "localPath": "/items/starwars-stockage/cage-gray.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1200199,
+    "uploadedAt": "2026-07-17T17:39:47.729Z"
+  },
+  {
+    "name": "cage-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/cage-orange.png",
+    "localPath": "/items/starwars-stockage/cage-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1118123,
+    "uploadedAt": "2026-07-17T17:39:47.921Z"
+  },
+  {
+    "name": "colony-crate-black",
+    "path": "https://assets.yner.fr/items/starwars-stockage/colony-crate-black.png",
+    "localPath": "/items/starwars-stockage/colony-crate-black.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 821658,
+    "uploadedAt": "2026-07-17T17:39:48.131Z"
+  },
+  {
+    "name": "colony-crate-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/colony-crate-orange.png",
+    "localPath": "/items/starwars-stockage/colony-crate-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1538055,
+    "uploadedAt": "2026-07-17T17:39:48.501Z"
+  },
+  {
+    "name": "crate-stack-1",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crate-stack-1.png",
+    "localPath": "/items/starwars-stockage/crate-stack-1.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 4773447,
+    "uploadedAt": "2026-07-17T17:39:49.105Z"
+  },
+  {
+    "name": "crate-stack-2",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crate-stack-2.png",
+    "localPath": "/items/starwars-stockage/crate-stack-2.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 4438552,
+    "uploadedAt": "2026-07-17T17:39:49.521Z"
+  },
+  {
+    "name": "crate-stack-3",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crate-stack-3.png",
+    "localPath": "/items/starwars-stockage/crate-stack-3.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 3161013,
+    "uploadedAt": "2026-07-17T17:39:50.013Z"
+  },
+  {
+    "name": "crate-stack-4",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crate-stack-4.png",
+    "localPath": "/items/starwars-stockage/crate-stack-4.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 3942962,
+    "uploadedAt": "2026-07-17T17:39:50.409Z"
+  },
+  {
+    "name": "crate-stack-5",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crate-stack-5.png",
+    "localPath": "/items/starwars-stockage/crate-stack-5.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 5498727,
+    "uploadedAt": "2026-07-17T17:39:50.911Z"
+  },
+  {
+    "name": "crystal-crate-gray",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crystal-crate-gray.png",
+    "localPath": "/items/starwars-stockage/crystal-crate-gray.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 965692,
+    "uploadedAt": "2026-07-17T17:39:51.146Z"
+  },
+  {
+    "name": "crystal-crate-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/crystal-crate-orange.png",
+    "localPath": "/items/starwars-stockage/crystal-crate-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 2209443,
+    "uploadedAt": "2026-07-17T17:39:51.491Z"
+  },
+  {
+    "name": "garrison-crate-black",
+    "path": "https://assets.yner.fr/items/starwars-stockage/garrison-crate-black.png",
+    "localPath": "/items/starwars-stockage/garrison-crate-black.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 2777066,
+    "uploadedAt": "2026-07-17T17:39:51.891Z"
+  },
+  {
+    "name": "garrison-crate-blue",
+    "path": "https://assets.yner.fr/items/starwars-stockage/garrison-crate-blue.png",
+    "localPath": "/items/starwars-stockage/garrison-crate-blue.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 3344568,
+    "uploadedAt": "2026-07-17T17:39:52.249Z"
+  },
+  {
+    "name": "garrison-crate-gray",
+    "path": "https://assets.yner.fr/items/starwars-stockage/garrison-crate-gray.png",
+    "localPath": "/items/starwars-stockage/garrison-crate-gray.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 3430399,
+    "uploadedAt": "2026-07-17T17:39:52.727Z"
+  },
+  {
+    "name": "garrison-crate-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/garrison-crate-orange.png",
+    "localPath": "/items/starwars-stockage/garrison-crate-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 3188473,
+    "uploadedAt": "2026-07-17T17:39:53.072Z"
+  },
+  {
+    "name": "garrison-crate-red",
+    "path": "https://assets.yner.fr/items/starwars-stockage/garrison-crate-red.png",
+    "localPath": "/items/starwars-stockage/garrison-crate-red.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 2797633,
+    "uploadedAt": "2026-07-17T17:39:53.426Z"
+  },
+  {
+    "name": "garrison-crate-white",
+    "path": "https://assets.yner.fr/items/starwars-stockage/garrison-crate-white.png",
+    "localPath": "/items/starwars-stockage/garrison-crate-white.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 3725874,
+    "uploadedAt": "2026-07-17T17:39:53.800Z"
+  },
+  {
+    "name": "small-crate-black",
+    "path": "https://assets.yner.fr/items/starwars-stockage/small-crate-black.png",
+    "localPath": "/items/starwars-stockage/small-crate-black.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 490661,
+    "uploadedAt": "2026-07-17T17:39:53.995Z"
+  },
+  {
+    "name": "small-crate-blue",
+    "path": "https://assets.yner.fr/items/starwars-stockage/small-crate-blue.png",
+    "localPath": "/items/starwars-stockage/small-crate-blue.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 803760,
+    "uploadedAt": "2026-07-17T17:39:54.195Z"
+  },
+  {
+    "name": "small-crate-metal",
+    "path": "https://assets.yner.fr/items/starwars-stockage/small-crate-metal.png",
+    "localPath": "/items/starwars-stockage/small-crate-metal.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 835244,
+    "uploadedAt": "2026-07-17T17:39:54.396Z"
+  },
+  {
+    "name": "small-crate-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/small-crate-orange.png",
+    "localPath": "/items/starwars-stockage/small-crate-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 803022,
+    "uploadedAt": "2026-07-17T17:39:54.600Z"
+  },
+  {
+    "name": "small-crate-red",
+    "path": "https://assets.yner.fr/items/starwars-stockage/small-crate-red.png",
+    "localPath": "/items/starwars-stockage/small-crate-red.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 706277,
+    "uploadedAt": "2026-07-17T17:39:54.832Z"
+  },
+  {
+    "name": "standard-crate-black",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-black.png",
+    "localPath": "/items/starwars-stockage/standard-crate-black.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 970571,
+    "uploadedAt": "2026-07-17T17:39:55.023Z"
+  },
+  {
+    "name": "standard-crate-gray",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-gray.png",
+    "localPath": "/items/starwars-stockage/standard-crate-gray.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1888279,
+    "uploadedAt": "2026-07-17T17:39:55.292Z"
+  },
+  {
+    "name": "standard-crate-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-orange.png",
+    "localPath": "/items/starwars-stockage/standard-crate-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1850058,
+    "uploadedAt": "2026-07-17T17:39:55.527Z"
+  },
+  {
+    "name": "standard-crate-v2-black",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-v2-black.png",
+    "localPath": "/items/starwars-stockage/standard-crate-v2-black.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1002724,
+    "uploadedAt": "2026-07-17T17:39:56.173Z"
+  },
+  {
+    "name": "standard-crate-v2-blue",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-v2-blue.png",
+    "localPath": "/items/starwars-stockage/standard-crate-v2-blue.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1135448,
+    "uploadedAt": "2026-07-17T17:39:56.352Z"
+  },
+  {
+    "name": "standard-crate-v2-gray",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-v2-gray.png",
+    "localPath": "/items/starwars-stockage/standard-crate-v2-gray.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1202503,
+    "uploadedAt": "2026-07-17T17:39:56.612Z"
+  },
+  {
+    "name": "standard-crate-v2-red",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-v2-red.png",
+    "localPath": "/items/starwars-stockage/standard-crate-v2-red.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1093967,
+    "uploadedAt": "2026-07-17T17:39:56.847Z"
+  },
+  {
+    "name": "standard-crate-v2-white",
+    "path": "https://assets.yner.fr/items/starwars-stockage/standard-crate-v2-white.png",
+    "localPath": "/items/starwars-stockage/standard-crate-v2-white.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1300527,
+    "uploadedAt": "2026-07-17T17:39:57.048Z"
+  },
+  {
+    "name": "weapons-crate-black",
+    "path": "https://assets.yner.fr/items/starwars-stockage/weapons-crate-black.png",
+    "localPath": "/items/starwars-stockage/weapons-crate-black.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 707843,
+    "uploadedAt": "2026-07-17T17:39:57.250Z"
+  },
+  {
+    "name": "weapons-crate-blue",
+    "path": "https://assets.yner.fr/items/starwars-stockage/weapons-crate-blue.png",
+    "localPath": "/items/starwars-stockage/weapons-crate-blue.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1155110,
+    "uploadedAt": "2026-07-17T17:39:57.653Z"
+  },
+  {
+    "name": "weapons-crate-orange",
+    "path": "https://assets.yner.fr/items/starwars-stockage/weapons-crate-orange.png",
+    "localPath": "/items/starwars-stockage/weapons-crate-orange.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1384898,
+    "uploadedAt": "2026-07-17T17:39:57.896Z"
+  },
+  {
+    "name": "weapons-crate-red",
+    "path": "https://assets.yner.fr/items/starwars-stockage/weapons-crate-red.png",
+    "localPath": "/items/starwars-stockage/weapons-crate-red.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1043935,
+    "uploadedAt": "2026-07-17T17:39:58.083Z"
+  },
+  {
+    "name": "weapons-crate",
+    "path": "https://assets.yner.fr/items/starwars-stockage/weapons-crate.png",
+    "localPath": "/items/starwars-stockage/weapons-crate.png",
+    "category": "items/starwars-stockage",
+    "type": "image",
+    "size": 1024475,
+    "uploadedAt": "2026-07-17T17:39:58.345Z"
+  },
+  {
+    "name": "hangar-hose-3",
+    "path": "https://assets.yner.fr/items/starwars-tables/hangar-hose-3.png",
+    "localPath": "/items/starwars-tables/hangar-hose-3.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 329545,
+    "uploadedAt": "2026-07-17T17:39:58.514Z"
+  },
+  {
+    "name": "hangar-hose-4",
+    "path": "https://assets.yner.fr/items/starwars-tables/hangar-hose-4.png",
+    "localPath": "/items/starwars-tables/hangar-hose-4.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 132775,
+    "uploadedAt": "2026-07-17T17:39:58.710Z"
+  },
+  {
+    "name": "hologram-station-combat",
+    "path": "https://assets.yner.fr/items/starwars-tables/hologram-station-combat.png",
+    "localPath": "/items/starwars-tables/hologram-station-combat.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2787513,
+    "uploadedAt": "2026-07-17T17:39:59.075Z"
+  },
+  {
+    "name": "hologram-station-off",
+    "path": "https://assets.yner.fr/items/starwars-tables/hologram-station-off.png",
+    "localPath": "/items/starwars-tables/hologram-station-off.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2366350,
+    "uploadedAt": "2026-07-17T17:39:59.403Z"
+  },
+  {
+    "name": "hologram-station-planet-attack",
+    "path": "https://assets.yner.fr/items/starwars-tables/hologram-station-planet-attack.png",
+    "localPath": "/items/starwars-tables/hologram-station-planet-attack.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3590205,
+    "uploadedAt": "2026-07-17T17:39:59.771Z"
+  },
+  {
+    "name": "hologram-station-planet",
+    "path": "https://assets.yner.fr/items/starwars-tables/hologram-station-planet.png",
+    "localPath": "/items/starwars-tables/hologram-station-planet.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3564106,
+    "uploadedAt": "2026-07-17T17:40:00.203Z"
+  },
+  {
+    "name": "hologram-station-sd",
+    "path": "https://assets.yner.fr/items/starwars-tables/hologram-station-sd.png",
+    "localPath": "/items/starwars-tables/hologram-station-sd.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2774173,
+    "uploadedAt": "2026-07-17T17:40:00.563Z"
+  },
+  {
+    "name": "lamppost-effect",
+    "path": "https://assets.yner.fr/items/starwars-tables/lamppost-effect.png",
+    "localPath": "/items/starwars-tables/lamppost-effect.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2259121,
+    "uploadedAt": "2026-07-17T17:40:00.935Z"
+  },
+  {
+    "name": "lamppost",
+    "path": "https://assets.yner.fr/items/starwars-tables/lamppost.png",
+    "localPath": "/items/starwars-tables/lamppost.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2148117,
+    "uploadedAt": "2026-07-17T17:40:01.335Z"
+  },
+  {
+    "name": "pylon-v1-black",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v1-black.png",
+    "localPath": "/items/starwars-tables/pylon-v1-black.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2467104,
+    "uploadedAt": "2026-07-17T17:40:01.703Z"
+  },
+  {
+    "name": "pylon-v1-brown",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v1-brown.png",
+    "localPath": "/items/starwars-tables/pylon-v1-brown.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3075067,
+    "uploadedAt": "2026-07-17T17:40:02.130Z"
+  },
+  {
+    "name": "pylon-v1-metal",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v1-metal.png",
+    "localPath": "/items/starwars-tables/pylon-v1-metal.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3384162,
+    "uploadedAt": "2026-07-17T17:40:02.570Z"
+  },
+  {
+    "name": "pylon-v2-black",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v2-black.png",
+    "localPath": "/items/starwars-tables/pylon-v2-black.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2490747,
+    "uploadedAt": "2026-07-17T17:40:02.974Z"
+  },
+  {
+    "name": "pylon-v2-brown",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v2-brown.png",
+    "localPath": "/items/starwars-tables/pylon-v2-brown.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3097236,
+    "uploadedAt": "2026-07-17T17:40:03.358Z"
+  },
+  {
+    "name": "pylon-v2-metal",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v2-metal.png",
+    "localPath": "/items/starwars-tables/pylon-v2-metal.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3419926,
+    "uploadedAt": "2026-07-17T17:40:03.850Z"
+  },
+  {
+    "name": "pylon-v3-black",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v3-black.png",
+    "localPath": "/items/starwars-tables/pylon-v3-black.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 2580549,
+    "uploadedAt": "2026-07-17T17:40:04.287Z"
+  },
+  {
+    "name": "pylon-v3-brown",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v3-brown.png",
+    "localPath": "/items/starwars-tables/pylon-v3-brown.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3118655,
+    "uploadedAt": "2026-07-17T17:40:04.743Z"
+  },
+  {
+    "name": "pylon-v3-metal",
+    "path": "https://assets.yner.fr/items/starwars-tables/pylon-v3-metal.png",
+    "localPath": "/items/starwars-tables/pylon-v3-metal.png",
+    "category": "items/starwars-tables",
+    "type": "image",
+    "size": 3476711,
+    "uploadedAt": "2026-07-17T17:40:05.161Z"
+  },
+  {
+    "name": "fighter-chassi",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/fighter-chassi.png",
+    "localPath": "/items/starwars-vehicules/fighter-chassi.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 230213,
+    "uploadedAt": "2026-07-17T17:40:05.346Z"
+  },
+  {
+    "name": "walker-chassi",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/walker-chassi.png",
+    "localPath": "/items/starwars-vehicules/walker-chassi.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1636050,
+    "uploadedAt": "2026-07-17T17:40:05.656Z"
+  },
+  {
+    "name": "advanced-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/advanced-bluish.png",
+    "localPath": "/items/starwars-vehicules/advanced-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 2278175,
+    "uploadedAt": "2026-07-17T17:40:06.141Z"
+  },
+  {
+    "name": "advanced-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/advanced-gray.png",
+    "localPath": "/items/starwars-vehicules/advanced-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3169230,
+    "uploadedAt": "2026-07-17T17:40:06.664Z"
+  },
+  {
+    "name": "big-walker-clean",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/big-walker-clean.png",
+    "localPath": "/items/starwars-vehicules/big-walker-clean.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1931992,
+    "uploadedAt": "2026-07-17T17:40:06.996Z"
+  },
+  {
+    "name": "big-walker-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/big-walker-dirty.png",
+    "localPath": "/items/starwars-vehicules/big-walker-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 2762744,
+    "uploadedAt": "2026-07-17T17:40:07.522Z"
+  },
+  {
+    "name": "bike-black",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bike-black.png",
+    "localPath": "/items/starwars-vehicules/bike-black.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 596749,
+    "uploadedAt": "2026-07-17T17:40:07.750Z"
+  },
+  {
+    "name": "bike-blue",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bike-blue.png",
+    "localPath": "/items/starwars-vehicules/bike-blue.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 737282,
+    "uploadedAt": "2026-07-17T17:40:07.936Z"
+  },
+  {
+    "name": "bike-brown",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bike-brown.png",
+    "localPath": "/items/starwars-vehicules/bike-brown.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 728485,
+    "uploadedAt": "2026-07-17T17:40:08.152Z"
+  },
+  {
+    "name": "bike-green",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bike-green.png",
+    "localPath": "/items/starwars-vehicules/bike-green.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 689286,
+    "uploadedAt": "2026-07-17T17:40:08.377Z"
+  },
+  {
+    "name": "bike-metal",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bike-metal.png",
+    "localPath": "/items/starwars-vehicules/bike-metal.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 764444,
+    "uploadedAt": "2026-07-17T17:40:08.562Z"
+  },
+  {
+    "name": "bike-white",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bike-white.png",
+    "localPath": "/items/starwars-vehicules/bike-white.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 781287,
+    "uploadedAt": "2026-07-17T17:40:08.817Z"
+  },
+  {
+    "name": "bomber-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bomber-bluish.png",
+    "localPath": "/items/starwars-vehicules/bomber-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 4264025,
+    "uploadedAt": "2026-07-17T17:40:09.332Z"
+  },
+  {
+    "name": "bomber-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/bomber-gray.png",
+    "localPath": "/items/starwars-vehicules/bomber-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 4254168,
+    "uploadedAt": "2026-07-17T17:40:09.808Z"
+  },
+  {
+    "name": "cargo-shuttle-flying",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/cargo-shuttle-flying.png",
+    "localPath": "/items/starwars-vehicules/cargo-shuttle-flying.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 24701654,
+    "uploadedAt": "2026-07-17T17:40:11.061Z"
+  },
+  {
+    "name": "cargo-shuttle-landed",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/cargo-shuttle-landed.png",
+    "localPath": "/items/starwars-vehicules/cargo-shuttle-landed.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 11888578,
+    "uploadedAt": "2026-07-17T17:40:11.800Z"
+  },
+  {
+    "name": "corvette",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/corvette.png",
+    "localPath": "/items/starwars-vehicules/corvette.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 18241556,
+    "uploadedAt": "2026-07-17T17:40:12.899Z"
+  },
+  {
+    "name": "cruiser-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/cruiser-dirty.png",
+    "localPath": "/items/starwars-vehicules/cruiser-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 24841489,
+    "uploadedAt": "2026-07-17T17:40:14.015Z"
+  },
+  {
+    "name": "cruiser",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/cruiser.png",
+    "localPath": "/items/starwars-vehicules/cruiser.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 21174554,
+    "uploadedAt": "2026-07-17T17:40:15.249Z"
+  },
+  {
+    "name": "defender-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/defender-bluish.png",
+    "localPath": "/items/starwars-vehicules/defender-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 4057758,
+    "uploadedAt": "2026-07-17T17:40:15.712Z"
+  },
+  {
+    "name": "defender-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/defender-gray.png",
+    "localPath": "/items/starwars-vehicules/defender-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 4117042,
+    "uploadedAt": "2026-07-17T17:40:16.182Z"
+  },
+  {
+    "name": "fighter-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/fighter-bluish.png",
+    "localPath": "/items/starwars-vehicules/fighter-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1362422,
+    "uploadedAt": "2026-07-17T17:40:16.429Z"
+  },
+  {
+    "name": "fighter-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/fighter-gray.png",
+    "localPath": "/items/starwars-vehicules/fighter-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1360711,
+    "uploadedAt": "2026-07-17T17:40:16.681Z"
+  },
+  {
+    "name": "interceptor-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/interceptor-bluish.png",
+    "localPath": "/items/starwars-vehicules/interceptor-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1847705,
+    "uploadedAt": "2026-07-17T17:40:16.946Z"
+  },
+  {
+    "name": "interceptor-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/interceptor-gray.png",
+    "localPath": "/items/starwars-vehicules/interceptor-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1841752,
+    "uploadedAt": "2026-07-17T17:40:17.190Z"
+  },
+  {
+    "name": "juggernaut-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/juggernaut-dirty.png",
+    "localPath": "/items/starwars-vehicules/juggernaut-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 7416414,
+    "uploadedAt": "2026-07-17T17:40:17.718Z"
+  },
+  {
+    "name": "juggernaut-tank",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/juggernaut-tank.png",
+    "localPath": "/items/starwars-vehicules/juggernaut-tank.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 5015647,
+    "uploadedAt": "2026-07-17T17:40:18.203Z"
+  },
+  {
+    "name": "juggernaut-weathered",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/juggernaut-weathered.png",
+    "localPath": "/items/starwars-vehicules/juggernaut-weathered.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 6962725,
+    "uploadedAt": "2026-07-17T17:40:18.750Z"
+  },
+  {
+    "name": "old-gunship-metal",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/old-gunship-metal.png",
+    "localPath": "/items/starwars-vehicules/old-gunship-metal.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 6072451,
+    "uploadedAt": "2026-07-17T17:40:19.428Z"
+  },
+  {
+    "name": "old-gunship-worn-paint",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/old-gunship-worn-paint.png",
+    "localPath": "/items/starwars-vehicules/old-gunship-worn-paint.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 5855716,
+    "uploadedAt": "2026-07-17T17:40:19.896Z"
+  },
+  {
+    "name": "patrol-bike",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/patrol-bike.png",
+    "localPath": "/items/starwars-vehicules/patrol-bike.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 512439,
+    "uploadedAt": "2026-07-17T17:40:20.106Z"
+  },
+  {
+    "name": "patrol-transport",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/patrol-transport.png",
+    "localPath": "/items/starwars-vehicules/patrol-transport.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1680340,
+    "uploadedAt": "2026-07-17T17:40:20.325Z"
+  },
+  {
+    "name": "prototype-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/prototype-bluish.png",
+    "localPath": "/items/starwars-vehicules/prototype-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1954607,
+    "uploadedAt": "2026-07-17T17:40:20.551Z"
+  },
+  {
+    "name": "prototype-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/prototype-gray.png",
+    "localPath": "/items/starwars-vehicules/prototype-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1887982,
+    "uploadedAt": "2026-07-17T17:40:20.767Z"
+  },
+  {
+    "name": "reaper-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/reaper-bluish.png",
+    "localPath": "/items/starwars-vehicules/reaper-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 9537179,
+    "uploadedAt": "2026-07-17T17:40:21.736Z"
+  },
+  {
+    "name": "reaper-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/reaper-gray.png",
+    "localPath": "/items/starwars-vehicules/reaper-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 8539112,
+    "uploadedAt": "2026-07-17T17:40:22.528Z"
+  },
+  {
+    "name": "shuttle-flying",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/shuttle-flying.png",
+    "localPath": "/items/starwars-vehicules/shuttle-flying.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 8959161,
+    "uploadedAt": "2026-07-17T17:40:23.567Z"
+  },
+  {
+    "name": "shuttle-parked",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/shuttle-parked.png",
+    "localPath": "/items/starwars-vehicules/shuttle-parked.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 5618452,
+    "uploadedAt": "2026-07-17T17:40:24.070Z"
+  },
+  {
+    "name": "small-proto-walker-clean",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/small-proto-walker-clean.png",
+    "localPath": "/items/starwars-vehicules/small-proto-walker-clean.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1760570,
+    "uploadedAt": "2026-07-17T17:40:24.355Z"
+  },
+  {
+    "name": "small-proto-walker-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/small-proto-walker-dirty.png",
+    "localPath": "/items/starwars-vehicules/small-proto-walker-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 2454919,
+    "uploadedAt": "2026-07-17T17:40:24.806Z"
+  },
+  {
+    "name": "small-proto-walker-weathered",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/small-proto-walker-weathered.png",
+    "localPath": "/items/starwars-vehicules/small-proto-walker-weathered.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 2096729,
+    "uploadedAt": "2026-07-17T17:40:25.118Z"
+  },
+  {
+    "name": "small-walker-clean",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/small-walker-clean.png",
+    "localPath": "/items/starwars-vehicules/small-walker-clean.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 2683507,
+    "uploadedAt": "2026-07-17T17:40:25.456Z"
+  },
+  {
+    "name": "small-walker-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/small-walker-dirty.png",
+    "localPath": "/items/starwars-vehicules/small-walker-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3702072,
+    "uploadedAt": "2026-07-17T17:40:25.813Z"
+  },
+  {
+    "name": "small-walker-weathered",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/small-walker-weathered.png",
+    "localPath": "/items/starwars-vehicules/small-walker-weathered.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3165066,
+    "uploadedAt": "2026-07-17T17:40:26.194Z"
+  },
+  {
+    "name": "striker-bluish",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/striker-bluish.png",
+    "localPath": "/items/starwars-vehicules/striker-bluish.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 7336227,
+    "uploadedAt": "2026-07-17T17:40:26.700Z"
+  },
+  {
+    "name": "striker-gray",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/striker-gray.png",
+    "localPath": "/items/starwars-vehicules/striker-gray.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 7436486,
+    "uploadedAt": "2026-07-17T17:40:27.293Z"
+  },
+  {
+    "name": "tank-clean",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/tank-clean.png",
+    "localPath": "/items/starwars-vehicules/tank-clean.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3393599,
+    "uploadedAt": "2026-07-17T17:40:27.678Z"
+  },
+  {
+    "name": "tank-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/tank-dirty.png",
+    "localPath": "/items/starwars-vehicules/tank-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 4321954,
+    "uploadedAt": "2026-07-17T17:40:28.164Z"
+  },
+  {
+    "name": "tank-weathered",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/tank-weathered.png",
+    "localPath": "/items/starwars-vehicules/tank-weathered.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3936089,
+    "uploadedAt": "2026-07-17T17:40:28.523Z"
+  },
+  {
+    "name": "transport-clean",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/transport-clean.png",
+    "localPath": "/items/starwars-vehicules/transport-clean.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 2358115,
+    "uploadedAt": "2026-07-17T17:40:28.906Z"
+  },
+  {
+    "name": "transport-dirty",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/transport-dirty.png",
+    "localPath": "/items/starwars-vehicules/transport-dirty.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3030344,
+    "uploadedAt": "2026-07-17T17:40:29.252Z"
+  },
+  {
+    "name": "transport-weathered-blastermarks",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/transport-weathered-blastermarks.png",
+    "localPath": "/items/starwars-vehicules/transport-weathered-blastermarks.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3036321,
+    "uploadedAt": "2026-07-17T17:40:29.650Z"
+  },
+  {
+    "name": "transport-weathered",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/transport-weathered.png",
+    "localPath": "/items/starwars-vehicules/transport-weathered.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 3023840,
+    "uploadedAt": "2026-07-17T17:40:30.022Z"
+  },
+  {
+    "name": "troop-shuttle-flying",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/troop-shuttle-flying.png",
+    "localPath": "/items/starwars-vehicules/troop-shuttle-flying.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 9641449,
+    "uploadedAt": "2026-07-17T17:40:30.629Z"
+  },
+  {
+    "name": "troop-shuttle-landed",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/troop-shuttle-landed.png",
+    "localPath": "/items/starwars-vehicules/troop-shuttle-landed.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 7547519,
+    "uploadedAt": "2026-07-17T17:40:31.170Z"
+  },
+  {
+    "name": "troop-transport",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/troop-transport.png",
+    "localPath": "/items/starwars-vehicules/troop-transport.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 1847950,
+    "uploadedAt": "2026-07-17T17:40:31.435Z"
+  },
+  {
+    "name": "crashed-cargo-shuttle",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/crashed-cargo-shuttle.png",
+    "localPath": "/items/starwars-vehicules/crashed-cargo-shuttle.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 51345421,
+    "uploadedAt": "2026-07-17T17:40:33.220Z"
+  },
+  {
+    "name": "crashed-cruiser",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/crashed-cruiser.png",
+    "localPath": "/items/starwars-vehicules/crashed-cruiser.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 29004206,
+    "uploadedAt": "2026-07-17T17:40:34.472Z"
+  },
+  {
+    "name": "crashed-dropship",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/crashed-dropship.png",
+    "localPath": "/items/starwars-vehicules/crashed-dropship.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 5585466,
+    "uploadedAt": "2026-07-17T17:40:34.890Z"
+  },
+  {
+    "name": "crashed-shuttle",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/crashed-shuttle.png",
+    "localPath": "/items/starwars-vehicules/crashed-shuttle.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 9406254,
+    "uploadedAt": "2026-07-17T17:40:35.439Z"
+  },
+  {
+    "name": "crashed-transport",
+    "path": "https://assets.yner.fr/items/starwars-vehicules/crashed-transport.png",
+    "localPath": "/items/starwars-vehicules/crashed-transport.png",
+    "category": "items/starwars-vehicules",
+    "type": "image",
+    "size": 5519586,
+    "uploadedAt": "2026-07-17T17:40:35.875Z"
+  },
+  {
+    "name": "cannon-no-battery",
+    "path": "https://assets.yner.fr/items/starwars-armes/cannon-no-battery.png",
+    "localPath": "/items/starwars-armes/cannon-no-battery.png",
+    "category": "items/starwars-armes",
+    "type": "image",
+    "size": 441169,
+    "uploadedAt": "2026-07-17T17:40:36.114Z"
+  },
+  {
+    "name": "cannon-2",
+    "path": "https://assets.yner.fr/items/starwars-armes/cannon-2.png",
+    "localPath": "/items/starwars-armes/cannon-2.png",
+    "category": "items/starwars-armes",
+    "type": "image",
+    "size": 865455,
+    "uploadedAt": "2026-07-17T17:40:36.336Z"
+  },
+  {
+    "name": "cannon-generator",
+    "path": "https://assets.yner.fr/items/starwars-armes/cannon-generator.png",
+    "localPath": "/items/starwars-armes/cannon-generator.png",
+    "category": "items/starwars-armes",
+    "type": "image",
+    "size": 48190,
+    "uploadedAt": "2026-07-17T17:40:36.507Z"
+  },
+  {
+    "name": "cannon",
+    "path": "https://assets.yner.fr/items/starwars-armes/cannon.png",
+    "localPath": "/items/starwars-armes/cannon.png",
+    "category": "items/starwars-armes",
+    "type": "image",
+    "size": 1001921,
+    "uploadedAt": "2026-07-17T17:40:36.742Z"
+  },
+  {
+    "name": "laser-cannon",
+    "path": "https://assets.yner.fr/items/starwars-armes/laser-cannon.png",
+    "localPath": "/items/starwars-armes/laser-cannon.png",
+    "category": "items/starwars-armes",
+    "type": "image",
+    "size": 2691138,
+    "uploadedAt": "2026-07-17T17:40:37.115Z"
+  },
+  {
+    "name": "unmanned-turret",
+    "path": "https://assets.yner.fr/items/starwars-armes/unmanned-turret.png",
+    "localPath": "/items/starwars-armes/unmanned-turret.png",
+    "category": "items/starwars-armes",
+    "type": "image",
+    "size": 863723,
+    "uploadedAt": "2026-07-17T17:40:37.299Z"
   }
 ]
