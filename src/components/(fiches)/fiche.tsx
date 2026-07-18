@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useSyncExternalStore, Component as ReactComponent, type ComponentType, type ReactNode } from 'react';
 import {
   updateDoc
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download, History } from 'lucide-react';
+import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download, History, Sparkles } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -29,6 +29,7 @@ import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { getFormulaDependencies } from '@/lib/rules-engine';
 import { useGameContent } from '@/modules/game-content/useGameContent';
 import type { SpecializationDoc } from '@/modules/game-content/types';
+import { getSheetBackgroundOptions, subscribeSheetBackgrounds, getServerSheetBackgroundOptions } from '@/app/[roomid]/map/sheet-background-store';
 
 import {
   Drawer,
@@ -59,6 +60,19 @@ import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+// Rend le composant de fond de fiche (fourni par un script de bundle via le store) en couche absolue,
+// entouré d'un ErrorBoundary : un shader qui plante disparaît sans casser la fiche.
+class SheetBackgroundBoundary extends ReactComponent<{ Component: ComponentType }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { /* silencieux : le fond est décoratif */ }
+  render(): ReactNode {
+    if (this.state.failed) return null;
+    const C = this.props.Component;
+    return <C />;
+  }
+}
 
 const DEFAULT_LAYOUT: Layout[] = [
   { i: 'avatar', x: 0, y: 0, w: 20, h: 4, minW: 20, minH: 3 },
@@ -158,6 +172,28 @@ export default function Component() {
 
   const { persoId: userPersoId, isMJ } = useGame();
   const { gameSystem } = useGameSystem(roomId ?? null);
+
+  // Fonds de fiche fournis par un script de bundle (sheet-background-store) : la fiche pilote tout
+  // (rendu du fond + sélecteur + persistance par personnage sur le champ sheetBackgroundId).
+  const bundleBackgrounds = useSyncExternalStore(subscribeSheetBackgrounds, getSheetBackgroundOptions, getServerSheetBackgroundOptions);
+  const sheetBgOptions = React.useMemo(
+    () => [{ id: 'aucun', label: 'Aucun', Component: null as ComponentType | null }, ...bundleBackgrounds],
+    [bundleBackgrounds]
+  );
+  const selectedBgId = (selectedCharacter as { sheetBackgroundId?: string } | null)?.sheetBackgroundId ?? 'aucun';
+  // useMemo (PAS une ref figée par id) : les fonds du bundle arrivent en ASYNCHRONE après le premier
+  // render — un cache par id seul résolvait l'id persisté contre une liste encore vide (Component
+  // null) et ne se rafraîchissait jamais. Ici : recalcul quand la liste arrive, identité stable
+  // ensuite (sheetBgOptions est mémoïsé, le store dédoublonne, les composants du bundle sont créés
+  // une fois au niveau module) — pas de remontage du canvas WebGL sur simple re-render.
+  const SelectedBackground = React.useMemo(
+    () => sheetBgOptions.find(o => o.id === selectedBgId)?.Component ?? null,
+    [sheetBgOptions, selectedBgId]
+  );
+  const canEditSheetBg = !!selectedCharacter && (selectedCharacter.id === userPersoId || isMJ);
+  const setSheetBackground = (id: string) => {
+    if (selectedCharacter) updateCharacter(selectedCharacter.id, { sheetBackgroundId: id } as Partial<Character>);
+  };
   // Système de compétences façon EotE (gameSystem.skills non vide) — remplace CompetencesDisplay/
   // Competences UNIQUEMENT dans ce cas, jamais pour dnd-classic (coexistence, pas remplacement).
   const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0;
@@ -1135,9 +1171,22 @@ export default function Component() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-2 sm:p-4">
+      <div className="relative min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-2 sm:p-4">
+        {/* Fond animé de fiche (fourni par un script de bundle, choisi par le joueur) : couche
+            absolue derrière tout le contenu de la fiche, non interactive. */}
+        {SelectedBackground && (
+          // sticky + h-0 : le fond suit le défilement de l'aside sans occuper de place dans le flux.
+          // Le conteneur interne a une taille EXPLICITE (h-screen w-full) que le canvas remplit — un
+          // canvas sans dimensions CSS retombe sur sa taille intrinsèque 300×150 et s'affiche en petit
+          // carré dans le coin (l'icône "image cassée" observée). key = id : monté une fois par choix.
+          <div aria-hidden className="pointer-events-none sticky top-0 left-0 z-0 h-0 overflow-visible">
+            <div className="absolute top-0 left-0 h-screen w-full overflow-hidden bg-[#05070d]">
+              <SheetBackgroundBoundary key={selectedBgId} Component={SelectedBackground} />
+            </div>
+          </div>
+        )}
         {/* Barre de personnages séparée */}
-        <div className="max-w-5xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
+        <div className="relative z-10 max-w-5xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
           <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--border-color)] scrollbar-track-transparent">
             {!isLayoutEditing && characters.map((character) => (
               <button
@@ -1229,6 +1278,28 @@ export default function Component() {
                     <History size={16} className="mr-2" />
                     Historique
                   </DropdownMenuItem>
+
+                  {/* Fond de fiche — visible uniquement si le système de règles en fournit
+                      (bundleBackgrounds), modifiable par le propriétaire du personnage ou le MJ. */}
+                  {canEditSheetBg && bundleBackgrounds.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                        <Sparkles size={13} /> Fond de fiche
+                      </div>
+                      {sheetBgOptions.map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.id}
+                          onSelect={(e) => { e.preventDefault(); setSheetBackground(opt.id); }}
+                          className={selectedBgId === opt.id ? 'text-[var(--accent-brown)]' : ''}
+                        >
+                          <span className="mr-2 w-3 inline-flex justify-center">{selectedBgId === opt.id ? '•' : ''}</span>
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
 
                   {(selectedCharacter.id === userPersoId || isMJ) && (
                     <DropdownMenuItem disabled={isExportingCharacter} onSelect={handleExportCharacter}>
@@ -1348,7 +1419,7 @@ export default function Component() {
           </DialogContent>
         </Dialog>
 
-        <div className="relative max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-6 sm:p-8 md:p-10 space-y-4 md:space-y-6" style={mainStyle}>
+        <div className="relative z-10 max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-6 sm:p-8 md:p-10 space-y-4 md:space-y-6" style={mainStyle}>
           {/* Gold Border with Corner Ornaments */}
           <div className="absolute inset-2 sm:inset-4 md:inset-5 border-[3px] pointer-events-none z-10" style={{ borderColor: frameColorValue }}>
               {/* Top Left Corner */}

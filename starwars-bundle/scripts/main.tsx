@@ -1,11 +1,11 @@
-// Vision infrarouge — réservée aux Chiss (les Chiss voient dans l'infrarouge).
-// Le bouton n'apparaît dans la sidebar QUE si le personnage du joueur est un Chiss ; sinon aucun
-// bouton. On s'abonne au personnage : changer de perso (ou en incarner un) fait apparaître/disparaître
-// le bouton en conséquence. Un MJ sans personnage incarné ne voit rien.
+// Point d'entrée du bundle. Deux contributions :
+//  1. Bouton "Vision" (infrarouge) réservé aux Chiss.
+//  2. Fonds de fiche : on FOURNIT la liste des fonds animés à l'app ; la FICHE elle-même les rend
+//     derrière son contenu, propose le sélecteur (menu Actions) et persiste le choix par personnage.
 import { Eye, EyeOff } from 'lucide-react';
+import { BACKGROUNDS } from './backgrounds';
 
-// Espèce autorisée : Race sur le doc personnage porte l'id de l'espèce (cf races[].id des règles).
-const RACE_AUTORISEE = 'chiss';
+const RACE_VISION = 'chiss'; // espèce autorisant la vision infrarouge (races[].id des règles)
 
 const visionAction = (api) => ({
   id: 'vision-infrarouge',
@@ -28,17 +28,15 @@ const visionAction = (api) => ({
 export default (ctx) => {
   const { api } = ctx;
 
-  // register() peut être rappelé à tout moment : on ré-enregistre selon l'espèce courante. Un appel
-  // sans sidebarActions retire le bouton (personnage non-Chiss, ou plus aucun personnage).
+  // Fonds de fiche disponibles pour tous : la fiche s'occupe du rendu, du sélecteur et de la
+  // persistance par personnage. Rien à afficher côté script.
+  api.sheet.setBackgrounds(BACKGROUNDS);
+
+  // Le bouton vision n'apparaît QUE pour un Chiss ; on ré-enregistre selon l'espèce courante.
   const apply = (character) => {
-    const estChiss = character?.Race === RACE_AUTORISEE;
-    if (!estChiss) {
-      // Sécurité : couper la vision si un non-Chiss l'avait laissée active avant de changer de perso.
-      api.map.resetViewFlags();
-    }
+    const estChiss = character?.Race === RACE_VISION;
+    if (!estChiss) api.map.resetViewFlags();
     ctx.register({ sidebarActions: estChiss ? [visionAction(api)] : [] });
   };
-
-  // Abonnement : réagit à l'incarnation / au changement de personnage du joueur.
   api.character.subscribe(apply);
 };

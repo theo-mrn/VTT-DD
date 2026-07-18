@@ -298,11 +298,15 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
     [isMJ, registryVersion]
   );
 
-  const moduleActions = useMemo(() =>
-    moduleRegistry.getSidebarActions().filter(a => !a.mjOnly || isMJ),
+  const moduleActions = useMemo(() => {
+    // Dédoublonnage par id (défense en profondeur) : deux contributions de même id produiraient des
+    // clés React identiques dans le rail, ce qui casse le rendu.
+    const seen = new Set<string>();
+    return moduleRegistry.getSidebarActions()
+      .filter(a => !a.mjOnly || isMJ)
+      .filter(a => (seen.has(a.id) ? false : (seen.add(a.id), true)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isMJ, registryVersion]
-  );
+  }, [isMJ, registryVersion]);
 
   // État courant des boutons cycliques (index dans contribution.states), local à la session.
   const [actionStates, setActionStates] = useState<Record<string, number>>({});

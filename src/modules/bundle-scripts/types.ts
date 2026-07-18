@@ -3,6 +3,7 @@ import type { GameSystemDefinition } from '@/modules/game-system/types';
 import type { ModuleAPI, SidebarTabContribution, SidebarActionContribution } from '@/modules/types';
 import type { VTTModuleSDK } from '@/modules/sdk';
 import type { rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll } from '@/lib/rules-engine';
+import type { ComponentType } from 'react';
 import type { MapViewFlags } from '@/app/[roomid]/map/view-flags-store';
 
 // Types du runtime des scripts de bundle (scripts/main.tsx d'un zip de règles). Le point d'entrée
@@ -48,6 +49,19 @@ export interface BundleScriptAPI extends ModuleAPI {
     resetViewFlags: () => void;
     getViewFlags: () => MapViewFlags;
   };
+  /** Fonds de fiche : un script FOURNIT une liste de fonds animés (composants React, ex shaders
+   *  WebGL). La FICHE elle-même les rend derrière son contenu, propose un sélecteur au joueur et
+   *  persiste le choix par personnage — le script n'affiche rien. Chaque option = {id, label,
+   *  Component|null}. La fiche préfixe toujours une option "Aucun". */
+  sheet: {
+    setBackgrounds: (options: SheetBackgroundOption[]) => void;
+  };
+}
+
+export interface SheetBackgroundOption {
+  id: string;
+  label: string;
+  Component: ComponentType | null;
 }
 
 /** Contexte passé à la fonction register du point d'entrée (export default de scripts/main.*). */

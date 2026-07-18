@@ -95,6 +95,16 @@ export const deleteR2Asset = async (url: string) => {
     }
 };
 
+// ── Couleurs de thème avec alpha ─────────────────────────────────────────────
+// Stockées en hex 8 chiffres (#RRGGBBAA), rendues telles quelles par CSS (backgroundColor) — permet
+// de rendre le fond de la fiche/des blocs translucide pour laisser voir le fond animé derrière.
+// L'<input type="color"> natif ne gère que 6 chiffres : on décompose/recompose autour de lui.
+const hexBase = (v?: string) => (v && v.startsWith('#') ? v.slice(0, 7) : null);
+const hexAlphaPct = (v?: string) =>
+    v && v.startsWith('#') && v.length === 9 ? Math.round((parseInt(v.slice(7, 9), 16) / 255) * 100) : 100;
+const withHexAlpha = (hex6: string, alphaPct: number) =>
+    alphaPct >= 100 ? hex6 : hex6 + Math.round((Math.max(0, alphaPct) / 100) * 255).toString(16).padStart(2, '0');
+
 export function FloatingEditTabs({
     customizationForm,
     setCustomizationForm,
@@ -201,13 +211,26 @@ export function FloatingEditTabs({
                                 <div className="flex items-center gap-3">
                                     <input
                                         type="color"
-                                        value={customizationForm.theme_background && !customizationForm.theme_background.startsWith('http') ? customizationForm.theme_background : '#000000'}
-                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: e.target.value })}
+                                        value={hexBase(customizationForm.theme_background?.startsWith('http') ? undefined : customizationForm.theme_background) ?? '#000000'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: withHexAlpha(e.target.value, hexAlphaPct(customizationForm.theme_background)) })}
                                         className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
                                         title="Couleur de fond"
                                     />
                                     <div className="flex-1 text-[10px] text-[#888] font-medium leading-tight">Couleur principale du fond de la fiche.</div>
                                 </div>
+                                {!customizationForm.theme_background?.startsWith('http') && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-[#888] font-bold uppercase tracking-wider w-14 shrink-0">Opacité</span>
+                                        <input
+                                            type="range" min={0} max={100}
+                                            value={hexAlphaPct(customizationForm.theme_background)}
+                                            onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: withHexAlpha(hexBase(customizationForm.theme_background) ?? '#1c1c1c', Number(e.target.value)) })}
+                                            className="flex-1 accent-[#d4b48f] cursor-pointer"
+                                            title="Opacité du fond — baissez pour voir le fond animé derrière la fiche"
+                                        />
+                                        <span className="text-[10px] text-[#d4d4d4] font-mono w-10 text-right tabular-nums shrink-0">{hexAlphaPct(customizationForm.theme_background)}%</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <label className="cursor-pointer hover:bg-[#2a2a2a] text-[#d4d4d4] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
@@ -237,13 +260,26 @@ export function FloatingEditTabs({
                                 <div className="flex items-center gap-3">
                                     <input
                                         type="color"
-                                        value={customizationForm.theme_secondary_color && !customizationForm.theme_secondary_color.startsWith('http') ? customizationForm.theme_secondary_color : '#242424'}
-                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: e.target.value })}
+                                        value={hexBase(customizationForm.theme_secondary_color?.startsWith('http') ? undefined : customizationForm.theme_secondary_color) ?? '#242424'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: withHexAlpha(e.target.value, hexAlphaPct(customizationForm.theme_secondary_color)) })}
                                         className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
                                         title="Couleur des blocs"
                                     />
                                     <div className="flex-1 text-[10px] text-[#888] font-medium leading-tight">Style des widgets et sections de la fiche.</div>
                                 </div>
+                                {!customizationForm.theme_secondary_color?.startsWith('http') && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-[#888] font-bold uppercase tracking-wider w-14 shrink-0">Opacité</span>
+                                        <input
+                                            type="range" min={0} max={100}
+                                            value={hexAlphaPct(customizationForm.theme_secondary_color)}
+                                            onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: withHexAlpha(hexBase(customizationForm.theme_secondary_color) ?? '#242424', Number(e.target.value)) })}
+                                            className="flex-1 accent-[#d4b48f] cursor-pointer"
+                                            title="Opacité des blocs — baissez pour voir le fond animé à travers les widgets"
+                                        />
+                                        <span className="text-[10px] text-[#d4d4d4] font-mono w-10 text-right tabular-nums shrink-0">{hexAlphaPct(customizationForm.theme_secondary_color)}%</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <label className="cursor-pointer hover:bg-[#2a2a2a] text-[#d4d4d4] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />

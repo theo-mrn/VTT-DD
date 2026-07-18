@@ -8,6 +8,7 @@ import { moduleRegistry } from '@/modules/registry';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll } from '@/lib/rules-engine';
 import { setMapViewFlags, resetMapViewFlags, getMapViewFlags } from '@/app/[roomid]/map/view-flags-store';
+import { setSheetBackgroundOptions } from '@/app/[roomid]/map/sheet-background-store';
 import { executeBundleEntry } from './linker';
 import type { BundleContributions, BundleScriptAPI } from './types';
 import type { ScriptDoc } from '@/modules/game-content/types';
@@ -40,6 +41,10 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
     const moduleId = `gamesystem:${systemId}`;
     let cancelled = false;
     let registered = false;
+    // Les scripts appellent api.character.subscribe sans jamais se désabonner (ils n'ont pas de
+    // cycle de vie propre) : l'hôte collecte chaque unsubscribe et les libère au cleanup — sinon
+    // les listeners Firestore s'empilent à chaque montage (StrictMode, switch de système).
+    const scriptSubscriptions = new Set<() => void>();
 
     const load = async () => {
       let scriptDocs: ScriptDoc[];
@@ -72,7 +77,11 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           subscribe: (cb) => {
             const ref = characterDocRef();
             if (!ref) { cb(null); return () => {}; }
-            return onSnapshot(ref, (snap) => cb(snap.exists() ? (snap.data() as Record<string, unknown>) : null));
+            const unsubscribe = onSnapshot(ref, (snap) => {
+              if (!cancelled) cb(snap.exists() ? (snap.data() as Record<string, unknown>) : null);
+            });
+            scriptSubscriptions.add(unsubscribe);
+            return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
           },
         },
         map: {
@@ -80,9 +89,15 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           resetViewFlags: resetMapViewFlags,
           getViewFlags: getMapViewFlags,
         },
+        sheet: {
+          setBackgrounds: setSheetBackgroundOptions,
+        },
       };
 
-      // Les appels register() du script se cumulent dans un seul jeu de contributions.
+      // État courant des contributions. register() REMPLACE la catégorie qu'il fournit et laisse
+      // intactes celles qu'il omet — register() est ré-appelable (ex depuis api.character.subscribe
+      // pour n'exposer un bouton qu'à certaines espèces) : un remplacement, jamais un cumul (sinon
+      // le même bouton s'empile à chaque snapshot du personnage).
       const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [] };
 
       // (Ré)enregistre le module synthétique avec les contributions cumulées. register() peut être
@@ -121,8 +136,8 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           icons: sdk.icons,
           gameSystem: gameSystemRef.current,
           register: (c) => {
-            if (c.sidebarTabs) collected.sidebarTabs.push(...c.sidebarTabs);
-            if (c.sidebarActions) collected.sidebarActions.push(...c.sidebarActions);
+            if (c.sidebarTabs) collected.sidebarTabs = [...c.sidebarTabs];
+            if (c.sidebarActions) collected.sidebarActions = [...c.sidebarActions];
             syncRegistration();
           },
         });
@@ -137,12 +152,15 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
 
     return () => {
       cancelled = true;
+      scriptSubscriptions.forEach((unsubscribe) => unsubscribe());
+      scriptSubscriptions.clear();
       // Invariant unregister-first : gère le switch de système, la sortie de salle et le double
       // montage StrictMode/HMR (register warn-and-skip sur doublon côté registry).
       if (registered) moduleRegistry.unregister(moduleId);
-      // Un flag de vue laissé actif (ex vision verte) ne doit pas survivre au changement de système
-      // ni à la sortie de salle — remise à zéro systématique.
+      // Un flag de vue laissé actif (ex vision verte) ni la liste des fonds de fiche ne doivent
+      // survivre au changement de système ou à la sortie de salle — remise à zéro systématique.
       resetMapViewFlags();
+      setSheetBackgroundOptions([]);
     };
   }, [roomId, contentPath, systemId, isLoading]);
 
