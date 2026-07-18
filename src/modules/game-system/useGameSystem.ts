@@ -37,6 +37,7 @@ function narrativeOverlay(data: Partial<GameSystemDefinition>): Partial<GameSyst
   if (typeof data.raceLabel === 'string') overlay.raceLabel = data.raceLabel;
   if (typeof data.profileLabel === 'string') overlay.profileLabel = data.profileLabel;
   if (Array.isArray(data.maps)) overlay.maps = data.maps;
+  if (data.typography != null && typeof data.typography === 'object') overlay.typography = data.typography;
   return overlay;
 }
 

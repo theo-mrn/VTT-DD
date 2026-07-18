@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, collection, query, where } from '@/lib/firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, getDocs, onSnapshot, collection, query, where, auth } from '@/lib/firebase';
+import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip';
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
 import type { GameSystemDefinition, StatDefinition, CharacterCreationRule, FormulaNode, RollConstraintRule, RollConstraintAggregate, RollComparisonOperator, RaceDefinition, ProfileDefinition, RacialAbility, SymbolDieDefinition, SymbolDieFace, GameRuleEntry, LocationFieldDefinition, SkillDefinition, CharacterLayoutEntry, MapConfig } from '@/modules/game-system/types';
-import type { LocationDoc } from '@/modules/game-content/types';
+import type { LocationDoc, ScriptDoc, StyleDoc } from '@/modules/game-content/types';
 import { useSpecializations, SpecializationsOverviewPanel, SpecializationDetail } from './SpecializationsPanel';
 import { MapsOverviewPanel, MapDetail, MapMarkerDetail } from './MapPanel';
 import { FormulaEditor } from './FormulaEditor';
@@ -588,12 +589,36 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    void (async () => {
       try {
-        const raw = event.target?.result as string;
+        // Bundle ZIP : assets uploadés sur R2 + références réécrites, puis le JSON qui en sort suit
+        // le flux d'import existant (parseGameSystemExport déroule déjà un RoomExportBundle).
+        let raw: string;
+        if (await isZipFile(file)) {
+          const uid = auth.currentUser?.uid ?? 'anonyme';
+          const { bundle } = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }));
+          toast.dismiss('bundle-import');
+          // Ce panneau importe dans un système EXISTANT (contrairement à Export/Import et /creer qui
+          // en créent un neuf) : le zip est la source de vérité pour les scripts/styles — les anciens
+          // docs de ces kinds sont TOUJOURS purgés, même quand le zip n'en contient plus (retirer les
+          // scripts d'un bundle doit les retirer du système au ré-import).
+          const codeDocs = (bundle.content ?? []).filter((c): c is ScriptDoc | StyleDoc => c.kind === 'script' || c.kind === 'style');
+          if (contentPath) {
+            const existing = await getDocs(query(collection(db, contentPath), where('kind', 'in', ['script', 'style'])));
+            for (const d of existing.docs) await deleteDoc(d.ref);
+            for (const s of codeDocs) await addDoc(collection(db, contentPath), stripUndefinedDeep(s));
+            if (codeDocs.length > 0 || existing.size > 0) {
+              toast.success(`${codeDocs.length} script(s)/style(s) du bundle installé(s).`);
+            }
+          } else if (codeDocs.length > 0) {
+            toast.error('Scripts/styles du bundle ignorés : le système doit d\'abord être enregistré.');
+          }
+          raw = JSON.stringify(bundle);
+        } else {
+          raw = await file.text();
+        }
 
         // Fichier "pack de races" seul (races sans stats, ex race_star_wars.json) : ne remplace QUE
         // les races du système en cours d'édition, tout le reste (stats, dés, formules...) est conservé.
@@ -641,16 +666,17 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
           defaultCharacterLayout: imported.defaultCharacterLayout,
           defaultSidebarLayout: imported.defaultSidebarLayout,
           maps: imported.maps,
+          initiative: imported.initiative,
+          combat: imported.combat,
           objectLibraryId: imported.objectLibraryId,
+          typography: imported.typography,
         });
         setSelection({ kind: 'general' });
         toast.success('Système importé.');
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Fichier invalide.');
+        toast.error(error instanceof Error ? error.message : 'Fichier invalide.', { id: 'bundle-import' });
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    })();
   };
 
   return (
@@ -672,7 +698,7 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
         </button>
         <label className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0 cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }} title="Importer un système depuis un fichier JSON">
           <Upload size={13} /> Importer
-          <input type="file" accept="application/json" onChange={handleImportFile} className="hidden" />
+          <input type="file" accept="application/json,.zip" onChange={handleImportFile} className="hidden" />
         </label>
         {isSaving && <span className="text-[10px] shrink-0" style={{ color: 'var(--text-secondary)' }}>Enregistré…</span>}
         <div className="w-10 shrink-0" />

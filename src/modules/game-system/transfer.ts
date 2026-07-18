@@ -5,12 +5,15 @@ import type {
   FormulaNode,
   GameRuleEntry,
   LocationFieldDefinition,
+  CombatRule,
+  InitiativeRule,
   MapConfig,
   ProfileDefinition,
   RaceDefinition,
   SkillDefinition,
   StatDefinition,
   SymbolDieDefinition,
+  TypographyConfig,
 } from './types';
 
 type GroupEntityCreationRule = { method: 'roll' | 'manual'; rollFormula?: FormulaNode };
@@ -50,7 +53,10 @@ export interface GameSystemExportData {
   defaultCharacterLayout?: CharacterLayoutEntry[];
   defaultSidebarLayout?: { mj?: string[]; player?: string[] };
   maps?: MapConfig[];
+  initiative?: InitiativeRule;
+  combat?: CombatRule;
   objectLibraryId?: string;
+  typography?: TypographyConfig;
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -82,7 +88,10 @@ export interface GameSystemExportSource {
   defaultCharacterLayout?: CharacterLayoutEntry[];
   defaultSidebarLayout?: { mj?: string[]; player?: string[] };
   maps?: MapConfig[];
+  initiative?: InitiativeRule;
+  combat?: CombatRule;
   objectLibraryId?: string;
+  typography?: TypographyConfig;
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -119,7 +128,10 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.defaultCharacterLayout != null) result.defaultCharacterLayout = source.defaultCharacterLayout;
   if (source.defaultSidebarLayout != null) result.defaultSidebarLayout = source.defaultSidebarLayout;
   if (source.maps != null) result.maps = source.maps;
+  if (source.initiative != null) result.initiative = source.initiative;
+  if (source.combat != null) result.combat = source.combat;
   if (source.objectLibraryId != null) result.objectLibraryId = source.objectLibraryId;
+  if (source.typography != null) result.typography = source.typography;
   return result;
 }
 
@@ -259,6 +271,11 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
       return typeof raw.id === 'string' && typeof raw.label === 'string' && typeof raw.image === 'string' && Array.isArray(raw.markers);
     });
   }
+  if (json.initiative != null && typeof json.initiative === 'object') result.initiative = json.initiative;
+  if (json.combat != null && typeof json.combat === 'object' && Array.isArray((json.combat as Record<string, unknown>).skillKeys)) result.combat = json.combat;
   if (typeof json.objectLibraryId === 'string') result.objectLibraryId = json.objectLibraryId;
+  if (json.typography != null && typeof json.typography === 'object' && !Array.isArray(json.typography)) {
+    result.typography = json.typography;
+  }
   return result;
 }

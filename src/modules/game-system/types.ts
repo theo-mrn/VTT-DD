@@ -221,6 +221,20 @@ export interface GameSystemDefinition {
    *  dans le MÊME export JSON que le reste des règles. Absent ou vide = aucune carte encore créée
    *  (l'onglet reste visible mais affiche un message d'invite, jamais masqué). */
   maps?: MapConfig[];
+  /** Règle d'initiative du tracker de combat (MJcombat) — remplace le "1d20 + INIT" historique codé en
+   *  dur. Deux modes exclusifs : `formula` (numérique, évaluée par personnage, peut contenir des dés —
+   *  ex add(dice '1d20', stat 'INIT') pour un système D&D-like) OU `skillKeys` (pool de compétence à
+   *  dés à symboles, ex EotE : le MJ choisit AU MOMENT du jet laquelle s'applique — Sang-froid si
+   *  préparé, Vigilance si surpris — chaque personnage lance son pool carac liée + rang via
+   *  diceUpgradeRule, classé par `rankStatKey` (ex succesNets) puis départagé par `tieStatKey` (ex
+   *  avantagesNets)). Absent = repli historique (1d20 + première stat derived du système). */
+  initiative?: InitiativeRule;
+  /** Règle d'attaque du flux de combat (combat.tsx/MJcombat.tsx) pour un système à dés à symboles
+   *  (ex EotE) : compétences d'attaque proposées, dés négatifs/situationnels du pool, stat de succès
+   *  nets (toucher si >= 1, chaque net s'ajoute aux dégâts de base de l'arme) et stat d'encaissement
+   *  de la cible (soustraite des dégâts à l'application par le MJ). Absent = flux d'attaque numérique
+   *  historique (1d20 + bonus vs Défense, dégâts aux dés d'arme) strictement inchangé. */
+  combat?: CombatRule;
   /** Identifiant d'une bibliothèque d'objets suggérés (glisser-déposer sur la carte, cf ObjectDrawer.tsx)
    *  alternative à celle par défaut (D&D-classic) — ex 'starwars' pour piocher dans
    *  SUGGESTED_OBJECTS_STARWARS (src/lib/suggested-objects-starwars.ts) au lieu de SUGGESTED_OBJECTS.
@@ -228,6 +242,35 @@ export interface GameSystemDefinition {
    *  (pas un ContentKind Firestore) — même principe que defaultSidebarLayout référençant des id de
    *  CustomActionDef : le moteur ne connaît que l'id, jamais le contenu réel d'un système précis. */
   objectLibraryId?: string;
+  /** Typographie de l'app imposée par le système de règles : polices chargées à l'exécution
+   *  (FontFace) puis surcharge des variables CSS --font-body/--font-title pour TOUTE la salle tant
+   *  que ce système est actif (GameSystemTypography.tsx, monté dans le layout de salle). Les src de
+   *  polices peuvent être des chemins relatifs d'un bundle zip (assets/fonts/x.woff2), réécrits en
+   *  URL R2 à l'import. Absent = polices historiques (IM Fell English / Cinzel) inchangées. */
+  typography?: TypographyConfig;
+}
+
+/** Une police embarquée par le bundle du système, chargée à l'exécution via l'API FontFace. */
+export interface FontFaceDefinition {
+  /** Nom de famille CSS déclaré (ex 'Aurebesh') — référencé par bodyFamily/titleFamily. */
+  family: string;
+  /** URL du fichier (.woff2/.woff/.ttf/.otf) : chemin relatif au bundle (assets/fonts/x.woff2),
+   *  réécrit en URL R2 à l'import — ou URL https directe si le MJ héberge lui-même. */
+  src: string;
+  /** Graisse CSS (ex '400', '700', '100 900' pour une police variable). Absent = 'normal'. */
+  weight?: string;
+  /** Style CSS ('normal' | 'italic'). Absent = 'normal'. */
+  style?: string;
+}
+
+/** Typographie de l'app configurée par le système de règles — cf GameSystemDefinition.typography. */
+export interface TypographyConfig {
+  /** Famille appliquée à --font-body (texte courant). Doit exister dans `fonts` ou être installée. */
+  bodyFamily?: string;
+  /** Famille appliquée à --font-title (titres). */
+  titleFamily?: string;
+  /** Polices à charger avant application (une entrée par fichier/graisse). */
+  fonts?: FontFaceDefinition[];
 }
 
 export interface MapConfig {
@@ -235,6 +278,42 @@ export interface MapConfig {
   label: string;
   image: string;
   markers: MapMarker[];
+}
+
+export interface CombatRule {
+  /** Compétences d'attaque proposées au joueur (clés SkillDefinition, ex melee/ranged_light...). */
+  skillKeys: string[];
+  /** Nombre de dés de difficulté par défaut du pool (ex 2 = difficulté "Moyenne" EotE) — ajustable
+   *  par le joueur/MJ au moment du jet selon la portée/situation. */
+  defaultDifficulty?: number;
+  /** Clés SymbolDieDefinition des dés négatifs/situationnels ajoutés au pool. */
+  difficultyDieKey?: string;
+  bonusDieKey?: string;
+  penaltyDieKey?: string;
+  /** Stat dérivée du jet donnant les succès nets — toucher si >= 1, chaque net s'ajoute aux dégâts. */
+  successStatKey?: string;
+  /** Stat d'encaissement de la CIBLE, soustraite des dégâts à l'application (MJcombat). */
+  soakStatKey?: string;
+  /** Stat dérivée des Avantages nets du jet — l'Indice Critique de l'arme (item.critique) se
+   *  déclenche quand cette stat atteint l'indice (activations multiples : +10 au d100 chacune). */
+  advantageStatKey?: string;
+  /** Stat dérivée des Triomphes du jet — un Triomphe déclenche une Blessure Critique quel que
+   *  soit l'Indice Critique de l'arme. */
+  triumphStatKey?: string;
+  /** Pool par défaut d'une attaque à mains nues SANS compétence choisie : N dés de base (ex 2 dés
+   *  verts d'Aptitude). Une compétence explicitement sélectionnée reprend le pool carac+rang normal. */
+  unarmedBaseDice?: number;
+}
+
+export interface InitiativeRule {
+  /** Mode numérique : formule évaluée pour chaque personnage (peut contenir des noeuds dice). */
+  formula?: FormulaNode;
+  /** Mode pool de compétence : clés SkillDefinition éligibles, choisies par le MJ au moment du jet. */
+  skillKeys?: string[];
+  /** Stat (dérivée du jet de dés à symboles) de classement principal, ex 'succesNets'. */
+  rankStatKey?: string;
+  /** Stat de départage des égalités, ex 'avantagesNets'. */
+  tieStatKey?: string;
 }
 
 export interface MapMarker {
@@ -310,6 +389,10 @@ export interface SymbolDieDefinition {
   label: string;
   /** Une entrée par face, dans l'ordre (index 0 = résultat du jet "1", etc.) — longueur = nombre de faces. */
   faces: SymbolDieFace[];
+  /** Skin 3D à utiliser pour CE dé lors de l'animation (id de DICE_SKINS, ex 'jade', 'ruby') — permet
+   *  de distinguer visuellement deux dés de même forme physique (ex Aptitude vert vs Difficulté violet,
+   *  tous deux d8). Absent = skin global choisi par l'utilisateur. */
+  skinId?: string;
 }
 
 export interface RacialAbility {

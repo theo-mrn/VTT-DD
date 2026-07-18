@@ -58,6 +58,11 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
       image: 'https://example.com/galaxy.jpg',
       markers: [{ id: 'm1', name: 'Coruscant', description: 'Capitale galactique', x: 0.5, y: 0.5 }],
     }],
+    typography: {
+      bodyFamily: 'Aurebesh',
+      titleFamily: 'Aurebesh',
+      fonts: [{ family: 'Aurebesh', src: 'https://example.com/aurebesh.woff2', weight: '400' }],
+    },
   };
 
   test('build() produit un export complet avec version/date, sans systemId', () => {
@@ -99,6 +104,12 @@ describe('buildGameSystemExport / parseGameSystemExport — round-trip', () => {
     expect(parsed.diceUpgradeRule).toEqual(source.diceUpgradeRule);
     expect(parsed.profiles[0].careerSkillKeys).toEqual(['skill-discretion']);
     expect(parsed.maps).toEqual(source.maps);
+    expect(parsed.typography).toEqual(source.typography);
+  });
+
+  test('typography absent du JSON => clé absente du résultat (jamais undefined explicite)', () => {
+    const parsed = parseGameSystemExport(JSON.stringify({ stats: [statDef('FOR')] }));
+    expect('typography' in parsed).toBe(false);
   });
 
   test('carte malformée (id manquant) dans le JSON brut est filtrée du tableau', () => {

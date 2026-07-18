@@ -2,6 +2,7 @@ import type {
   ModuleDefinition,
   ModuleContributions,
   SidebarTabContribution,
+  SidebarActionContribution,
   ToolbarItemContribution,
   ContextMenuContribution,
   CharacterWidgetContribution,
@@ -74,6 +75,10 @@ class ModuleRegistry {
 
   getSidebarTabs(): SidebarTabContribution[] {
     return this.collectContributions('sidebarTabs');
+  }
+
+  getSidebarActions(): SidebarActionContribution[] {
+    return this.collectContributions('sidebarActions');
   }
 
   getToolbarItems(): ToolbarItemContribution[] {

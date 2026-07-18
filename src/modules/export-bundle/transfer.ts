@@ -70,7 +70,7 @@ function isCharacterExportData(v: unknown): v is CharacterExportData {
   return !!c.character && typeof (c.character as Record<string, unknown>).Nomperso === 'string';
 }
 
-const VALID_CONTENT_KINDS: ContentKind[] = ['path', 'bestiary', 'bestiaryIndex', 'equipment', 'itemDescriptions', 'location', 'specialization'];
+const VALID_CONTENT_KINDS: ContentKind[] = ['path', 'bestiary', 'bestiaryIndex', 'equipment', 'itemDescriptions', 'location', 'specialization', 'script', 'style'];
 
 function isContentDoc(v: unknown): v is ContentDoc {
   if (!v || typeof v !== 'object') return false;

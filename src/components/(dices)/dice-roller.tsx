@@ -16,8 +16,9 @@ import { useCharacter } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
-import { getRollableStats, applyVariablesToNotation, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, type RollableStat } from '@/lib/rules-engine';
-import type { SymbolDieDefinition } from '@/modules/game-system/types';
+import { getRollableStats, applyVariablesToNotation, resolveSymbolDiceRoll, formatSymbolDiceResult, composeDicePool, type RollableStat } from '@/lib/rules-engine';
+import type { SymbolDieDefinition, SkillDefinition } from '@/modules/game-system/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface FirebaseRoll {
   id: string;
@@ -81,11 +82,56 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     return getRollableStats(gameSystem, tableCustomStats, selectedCharacter, selectedCharacter.statRollable, totalBonuses);
   }, [selectedCharacter, gameSystem, tableCustomStats, totalBonuses]);
 
+  // ── Jet de compétence (ex système narratif type EotE) : pool composé Caractéristique + Compétence.
+  // max(carac, rang) = nombre total de dés de base, min = combien sont upgradés (composeDicePool, moteur
+  // partagé). Le choix d'une compétence insère la notation "N<upgradé> + M<base>" dans le champ — le
+  // joueur peut alors AJOUTER les dés de difficulté/fortune à la main avant de lancer (même mécanisme
+  // de notation que le reste, aucun chemin de lancer dupliqué). Actif seulement si le MJ a configuré
+  // skills + diceUpgradeRule (référençant deux dés à symboles existants) — invisible sinon (D&D intact).
+  const diceUpgradeRule = gameSystem.diceUpgradeRule;
+  const skills = gameSystem.skills ?? [];
+  const canSkillRoll = !isMJ && !!selectedCharacter && skills.length > 0 && !!diceUpgradeRule
+    && symbolDiceByKey.has(diceUpgradeRule.baseDiceKey) && symbolDiceByKey.has(diceUpgradeRule.upgradedDiceKey);
+  const [selectedSkillKey, setSelectedSkillKey] = useState<string>('');
+  // Menu du Select rendu en portail HORS de containerRef (position "item-aligned" : pas de wrapper
+  // popper identifiable dans le DOM) — on suit son état d'ouverture pour suspendre la fermeture
+  // "clic à l'extérieur" du panneau pendant qu'il est ouvert.
+  const [isSkillSelectOpen, setIsSkillSelectOpen] = useState(false);
+
+  // Libellé court d'un dé à symboles pour les boutons rapides (ex "Fortune (Boost)" → "Fortune").
+  const symbolDieShortLabel = (die: SymbolDieDefinition) => (die.label || die.key).split(' (')[0];
+
+  const buildSkillPool = (skill: SkillDefinition) => {
+    const statValue = Number(
+      rollableStats.find((s) => s.key === skill.linkedStatKey)?.rawValue
+      ?? (selectedCharacter as Record<string, unknown> | null)?.[skill.linkedStatKey]
+      ?? 0,
+    );
+    const rank = Number(((selectedCharacter as Record<string, unknown> | null)?.skillRanks as Record<string, number> | undefined)?.[skill.key] ?? 0);
+    const { baseCount, upgradedCount } = composeDicePool(statValue, rank);
+    const parts: string[] = [];
+    if (upgradedCount > 0 && diceUpgradeRule) parts.push(`${upgradedCount}${diceUpgradeRule.upgradedDiceKey}`);
+    if (baseCount > 0 && diceUpgradeRule) parts.push(`${baseCount}${diceUpgradeRule.baseDiceKey}`);
+    return { statValue, rank, upgradedCount, baseCount, notation: parts.join(' + ') };
+  };
+
+  const handleSkillSelect = (skillKey: string) => {
+    setSelectedSkillKey(skillKey);
+    const skill = skills.find((s) => s.key === skillKey);
+    if (!skill) return;
+    const pool = buildSkillPool(skill);
+    if (!pool.notation) {
+      toast.info(`${skill.label} : aucune caractéristique ni rang — pas de dés à lancer.`);
+      return;
+    }
+    setInput(pool.notation);
+  };
+
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const pendingRollsRef = useRef<Map<string, (results: { type: string, value: number }[]) => void>>(new Map());
+  const pendingRollsRef = useRef<Map<string, (results: { type: string, value: number, tag?: string }[]) => void>>(new Map());
 
   // History State
   const [showHistory, setShowHistory] = useState(false);
@@ -211,6 +257,12 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     return firebaseRolls.filter(canDisplayRoll);
   };
 
+  // Détail d'un jet pour l'historique : pour un jet à symboles, l'output stocké se termine par
+  // " = <résultat symbolique>" — redondant puisque le résultat est affiché en ligne principale
+  // (à la place du "Total: 0", dénué de sens pour ces jets) ; on ne garde que le détail des dés.
+  const formatRollDetail = (roll: FirebaseRoll) =>
+    roll.symbolResult && roll.output ? roll.output.replace(` = ${roll.symbolResult}`, '') : roll.output;
+
   const rerollFromFirebase = (roll: FirebaseRoll) => {
     if (roll.notation) {
       setInput(roll.notation);
@@ -264,14 +316,18 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         // panneau), fermant puis rouvrant immédiatement le panneau à chaque clic sur l'icône.
         !(event.target as Element).closest(`#vtt-icon-${SHORTCUT_ACTIONS.TAB_DICE}`) &&
         !(event.target as Element).closest('[data-dice-store-portal]') &&
-        !(event.target as Element).closest('[data-custom-button]')
+        !(event.target as Element).closest('[data-custom-button]') &&
+        // Menu du Select "Jet de compétence" ouvert : son contenu est rendu en portail HORS de
+        // containerRef (et sans attribut popper identifiable en position "item-aligned") — un clic
+        // sur un item fermait tout le panneau sans cette suspension.
+        !isSkillSelectOpen
       ) {
         onClose?.();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, onClose, isSkinDialogOpen, selectedUserId, selectedCharacterName]);
+  }, [isOpen, onClose, isSkinDialogOpen, selectedUserId, selectedCharacterName, isSkillSelectOpen]);
 
 
 
@@ -316,20 +372,24 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     return requests;
   };
 
-  const perform3DRoll = async (requests: { type: string, count: number }[], targets?: { type: string, value: number }[]): Promise<{ type: string, value: number }[]> => {
+  // skinId/tag optionnels par requête : skin 3D spécifique (ex couleur d'un dé à symboles) et
+  // identifiant echoé dans chaque résultat pour réassocier les dés quand deux types partagent la
+  // même forme physique (ex Aptitude et Difficulté, tous deux d8) — cf DiceThrower (throw.tsx).
+  const perform3DRoll = async (requests: { type: string, count: number, skinId?: string, tag?: string }[], targets?: { type: string, value: number }[]): Promise<{ type: string, value: number, tag?: string }[]> => {
     if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
 
     const SUPPORTED_3D_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
     const requests3D = requests.filter(req => SUPPORTED_3D_DICE.includes(req.type));
     const requestsInstant = requests.filter(req => !SUPPORTED_3D_DICE.includes(req.type));
 
-    const instantResults: { type: string, value: number }[] = [];
+    const instantResults: { type: string, value: number, tag?: string }[] = [];
     requestsInstant.forEach(req => {
       const faces = parseInt(req.type.substring(1));
       for (let i = 0; i < req.count; i++) {
         instantResults.push({
           type: req.type,
-          value: Math.floor(Math.random() * faces) + 1
+          value: Math.floor(Math.random() * faces) + 1,
+          ...(req.tag ? { tag: req.tag } : {})
         });
       }
     });
@@ -337,12 +397,13 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     const total3DDice = requests3D.reduce((sum, r) => sum + r.count, 0);
 
     if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 15) {
-      const simulatedResults: { type: string, value: number }[] = [];
+      const simulatedResults: { type: string, value: number, tag?: string }[] = [];
       requests3D.forEach(req => {
         for (let i = 0; i < req.count; i++) {
           simulatedResults.push({
             type: req.type,
-            value: Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1
+            value: Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1,
+            ...(req.tag ? { tag: req.tag } : {})
           });
         }
       });
@@ -353,14 +414,15 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
       const timeoutId = setTimeout(() => {
         if (pendingRollsRef.current.has(rollId)) {
           console.warn("Roll timed out, generating fallback values");
-          const fallbackResults: { type: string, value: number }[] = [];
+          const fallbackResults: { type: string, value: number, tag?: string }[] = [];
 
           requests3D.forEach(req => {
             const faces = parseInt(req.type.substring(1));
             for (let i = 0; i < req.count; i++) {
               fallbackResults.push({
                 type: req.type,
-                value: Math.floor(Math.random() * faces) + 1
+                value: Math.floor(Math.random() * faces) + 1,
+                ...(req.tag ? { tag: req.tag } : {})
               });
             }
           });
@@ -467,14 +529,43 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   // ensemble (ex "1boost + 2ability" = un seul résultat agrégé, pas un par groupe), puis délègue tout
   // le calcul (annulations, nets...) au moteur de formules du MJ via resolveSymbolDiceRoll — aucun nom
   // de symbole connu ici, "succes"/"echec" n'existent que comme StatDefinition définies par le MJ.
-  const rollSymbolDiceNotation = (symbolRequests: { die: SymbolDieDefinition, count: number }[]) => {
-    const allFaces: { type: string, value: number, faceValues: Record<string, number> }[] = [];
+  const rollSymbolDiceNotation = async (symbolRequests: { die: SymbolDieDefinition, count: number }[]) => {
+    // Une entrée par dé à lancer, avec sa forme physique numérique (d<nb de faces> : Aptitude → d8,
+    // Maîtrise → d12, Fortune → d6...).
+    const entries: { die: SymbolDieDefinition, shape: string }[] = [];
     for (const { die, count } of symbolRequests) {
-      for (let i = 0; i < count; i++) {
-        const roll = rollSymbolDie(die);
-        allFaces.push({ type: die.key, value: roll.value, faceValues: roll.face?.values ?? {} });
-      }
+      for (let i = 0; i < count; i++) entries.push({ die, shape: `d${die.faces.length}` });
     }
+
+    // La physique 3D fait AUTORITÉ : le numéro sur lequel le dé atterrit EST le numéro de face du dé
+    // à symboles (jamais de résultat pré-tiré "corrigé" à l'atterrissage — le mécanisme targets du
+    // lanceur relabelle la face posée, visuellement faux). 3D désactivée/blind/trop de dés :
+    // perform3DRoll renvoie des valeurs instantanées équivalentes, même distribution uniforme.
+    // Une requête PAR TYPE de dé à symboles (pas par forme) : chaque type porte son skin 3D (ex
+    // Aptitude vert, Difficulté violet — SymbolDieDefinition.skinId, configuré par le MJ) et un tag
+    // echoé dans chaque résultat pour réassocier les valeurs au bon type même quand deux types
+    // partagent la même forme physique (ex Aptitude et Difficulté, tous deux d8).
+    const requestsByKind = new Map<string, { type: string, count: number, skinId?: string, tag: string }>();
+    entries.forEach((e) => {
+      const existing = requestsByKind.get(e.die.key);
+      if (existing) existing.count += 1;
+      else requestsByKind.set(e.die.key, { type: e.shape, count: 1, skinId: e.die.skinId, tag: e.die.key });
+    });
+    const physical = await perform3DRoll([...requestsByKind.values()]);
+
+    const byTag = new Map<string, number[]>();
+    physical.forEach((r) => {
+      const key = r.tag ?? r.type;
+      if (!byTag.has(key)) byTag.set(key, []);
+      byTag.get(key)!.push(r.value);
+    });
+    const allFaces = entries.map((e) => {
+      const value = byTag.get(e.die.key)?.shift()
+        ?? byTag.get(e.shape)?.shift()
+        ?? (Math.floor(Math.random() * e.die.faces.length) + 1);
+      return { type: e.die.key, value, faceValues: e.die.faces[value - 1]?.values ?? {} };
+    });
+
     const resolution = resolveSymbolDiceRoll(gameSystem, allFaces.map((f) => ({ values: f.faceValues })));
     const symbolResult = formatSymbolDiceResult(gameSystem, resolution);
     const detailsByDie = new Map<string, number[]>();
@@ -496,8 +587,8 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     const notation = (notationOverride ?? input).trim();
     if (!notation) return;
 
-    if (notation.length > 50) {
-      toast.error("La notation est trop longue (max 50 caractères)");
+    if (notation.length > 100) {
+      toast.error("La notation est trop longue (max 100 caractères)");
       return;
     }
 
@@ -514,7 +605,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
       if (symbolRequests.length > 0) {
         // Dés à symboles : jamais mélangés au calcul arithmétique numérique existant (pas de eval()).
-        const rolled = rollSymbolDiceNotation(symbolRequests);
+        const rolled = await rollSymbolDiceNotation(symbolRequests);
         physicalResults = rolled.physicalResults;
         output = rolled.output;
         symbolResult = rolled.symbolResult;
@@ -880,7 +971,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   rows={1}
-                  maxLength={50}
+                  maxLength={100}
                   placeholder="1d20 + 5..."
                   className="flex-1 bg-transparent border-none outline-none resize-none text-2xl font-light font-mono leading-relaxed pt-1"
                   style={{ color: 'var(--text-primary)', fontSize: '20px' }}
@@ -948,7 +1039,14 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                           <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className="text-[11px] font-mono text-zinc-500 truncate">{roll.notation}</div>
-                        <div className={`text-sm font-bold text-zinc-200 ${roll.isBlind && userName !== 'MJ' ? 'blur-sm opacity-50' : ''}`}>Total: {roll.total}</div>
+                        {roll.symbolResult && (
+                          <div className={`text-[10px] font-mono text-zinc-400/70 ${roll.isBlind && userName !== 'MJ' ? 'blur-sm opacity-30 select-none' : ''}`}>{formatRollDetail(roll)}</div>
+                        )}
+                        <div className={`text-sm font-bold ${roll.isBlind && userName !== 'MJ' ? 'blur-sm opacity-50' : ''}`}>
+                          {roll.symbolResult
+                            ? <span style={{ color: 'var(--accent-brown)' }}>{roll.symbolResult}</span>
+                            : <span className="text-zinc-200">Total: {roll.total}</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -965,19 +1063,57 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
             {/* Keypad (only on roll view) */}
             {mobileView === 'roll' && (
               <div className="shrink-0 space-y-2">
-                {/* Dice grid */}
-                <div className="grid grid-cols-3 gap-2">
-                  {[4, 6, 8, 10, 12, 20].map((d) => (
-                    <button
-                      key={`m-d${d}`}
-                      onClick={() => addToInput(`1d${d}`)}
-                      className="h-12 flex items-center justify-center rounded-xl border font-mono font-bold text-base active:scale-95 transition-transform"
-                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-                    >
-                      d{d}
-                    </button>
-                  ))}
-                </div>
+                {/* Dice grid : dés à symboles du système s'il en définit, sinon numériques classiques */}
+                {symbolDice.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {symbolDice.map((die) => (
+                      <button
+                        key={`m-${die.key}`}
+                        onClick={() => addToInput(`1${die.key}`)}
+                        className="h-12 flex items-center justify-center rounded-xl border font-bold text-xs active:scale-95 transition-transform px-1"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                        title={die.label || die.key}
+                      >
+                        <span className="truncate">{symbolDieShortLabel(die)}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[4, 6, 8, 10, 12, 20].map((d) => (
+                      <button
+                        key={`m-d${d}`}
+                        onClick={() => addToInput(`1d${d}`)}
+                        className="h-12 flex items-center justify-center rounded-xl border font-mono font-bold text-base active:scale-95 transition-transform"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                      >
+                        d{d}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Jet de compétence (pool composé carac+rang, ex EotE) */}
+                {canSkillRoll && (
+                  <Select value={selectedSkillKey} onValueChange={handleSkillSelect} onOpenChange={setIsSkillSelectOpen}>
+                    <SelectTrigger className="w-full h-10 rounded-xl border text-sm" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}>
+                      <SelectValue placeholder="Jet de compétence…" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {skills.map((skill) => {
+                        const pool = buildSkillPool(skill);
+                        return (
+                          <SelectItem key={skill.key} value={skill.key}>
+                            <span className="flex items-center gap-2">
+                              <span>{skill.label}</span>
+                              <span className="text-[10px] opacity-60 font-mono">{pool.upgradedCount}▲ {pool.baseCount}●</span>
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 {/* Stats row */}
                 {!isMJ && rollableStats.length > 0 && (
@@ -1045,23 +1181,42 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
               {/* TOP ROW: dice sidebar + right controls */}
               <div className="w-full flex items-stretch">
 
-                {/* Left Sidebar - Dice (Always visible) */}
+                {/* Left Sidebar - Dice : dés à symboles du système s'il en définit (ex Star Wars :
+                    Fortune/Aptitude/Maîtrise... positifs ET négatifs), sinon dés numériques classiques. */}
                 <div className="w-[120px] flex-shrink-0 p-2 space-y-2" style={{ borderRight: '1px solid var(--border-color)' }}>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[4, 6, 8, 10, 12, 20].map((d) => (
-                      <button
-                        key={`d${d}`}
-                        id={`vtt-dice-btn-d${d}`}
-                        onClick={() => addToInput(`1d${d}`)}
-                        className="group relative w-full aspect-square flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
-                        style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
-                      >
-                        <span className="text-xs font-mono font-bold">d{d}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {symbolDice.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {symbolDice.map((die) => (
+                        <button
+                          key={die.key}
+                          onClick={() => addToInput(`1${die.key}`)}
+                          className="group relative w-full h-8 flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 px-1"
+                          style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                          title={die.label || die.key}
+                        >
+                          <span className="text-[10px] font-bold truncate">{symbolDieShortLabel(die)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {[4, 6, 8, 10, 12, 20].map((d) => (
+                        <button
+                          key={`d${d}`}
+                          id={`vtt-dice-btn-d${d}`}
+                          onClick={() => addToInput(`1d${d}`)}
+                          className="group relative w-full aspect-square flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
+                          style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                        >
+                          <span className="text-xs font-mono font-bold">d{d}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                 </div>
 
@@ -1252,7 +1407,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         rows={1}
-                        maxLength={50}
+                        maxLength={100}
                         className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] scrollbar-none font-mono"
                         placeholder="1d20 + 5..."
                         style={{ color: 'var(--text-primary)', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
@@ -1265,6 +1420,29 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                     {/* Controls Section */}
                     <div className="px-4 pb-4 space-y-3">
                       <div className="space-y-3">
+                        {/* Jet de compétence (pool composé carac+rang, ex EotE) : insère la notation
+                            du pool dans le champ, la difficulté s'ajoute ensuite à la main. */}
+                        {canSkillRoll && (
+                          <Select value={selectedSkillKey} onValueChange={handleSkillSelect} onOpenChange={setIsSkillSelectOpen}>
+                            <SelectTrigger className="w-full h-9 rounded-lg border text-xs" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'transparent' }}>
+                              <SelectValue placeholder="Jet de compétence…" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-72">
+                              {skills.map((skill) => {
+                                const pool = buildSkillPool(skill);
+                                return (
+                                  <SelectItem key={skill.key} value={skill.key}>
+                                    <span className="flex items-center gap-2">
+                                      <span>{skill.label}</span>
+                                      <span className="text-[10px] opacity-60 font-mono">{pool.upgradedCount}▲ {pool.baseCount}●</span>
+                                    </span>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        )}
+
                         {/* Modifiers Grid - Hidden for MJ */}
                         {!isMJ && rollableStats.length > 0 && (
                           <div id="vtt-dice-modifiers" className="flex flex-wrap gap-1.5">
@@ -1464,11 +1642,13 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                                 </div>
                                 <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
                                 <div className={`text-[10px] font-mono text-zinc-400/70 mb-1 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-30 select-none' : ''}`}>
-                                  {roll.output}
+                                  {formatRollDetail(roll)}
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  <div className={`text-sm font-bold text-zinc-200 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
-                                    Total: {roll.total}
+                                  <div className={`text-sm font-bold transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
+                                    {roll.symbolResult
+                                      ? <span style={{ color: 'var(--accent-brown)' }}>{roll.symbolResult}</span>
+                                      : <span className="text-zinc-200">Total: {roll.total}</span>}
                                   </div>
                                   <button
                                     onClick={() => rerollFromFirebase(roll)}
@@ -1558,7 +1738,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
             value={quickRollInput}
             onChange={(e) => setQuickRollInput(e.target.value)}
             onKeyDown={handleQuickRollKeyDown}
-            maxLength={50}
+            maxLength={100}
             placeholder="1d20 + 5..."
             className="flex-1 bg-transparent border-none outline-none text-lg font-mono"
             style={{ color: 'var(--text-primary)' }}

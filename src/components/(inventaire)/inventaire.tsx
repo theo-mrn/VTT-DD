@@ -27,6 +27,12 @@ interface InventoryItem {
   visibility?: string;
   weight?: number;
   bonusTypes?: any;
+  /** Arme d'un système à dés à symboles (ex EotE) : dégâts de base FIXES (remplace diceSelection),
+   *  Indice Critique (Avantages requis pour une Blessure Critique) et Points de Fixation
+   *  (emplacements d'accessoires). Absents pour un système numérique (D&D : diceSelection). */
+  damage?: string;
+  critical?: number;
+  hardPoints?: number;
 }
 
 interface Bonus {
@@ -110,6 +116,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [bonusValue, setBonusValue] = useState<string>('');
   const [diceCount, setDiceCount] = useState<number>(1);
   const [diceFaces, setDiceFaces] = useState<number>(6);
+  // Caractéristiques d'arme (système à dés à symboles) — édition dégâts/critique/points de fixation.
+  const [isWeaponStatsDialogOpen, setIsWeaponStatsDialogOpen] = useState<boolean>(false);
+  const [weaponDamage, setWeaponDamage] = useState<string>('');
+  const [weaponCritical, setWeaponCritical] = useState<string>('');
+  const [weaponHardPoints, setWeaponHardPoints] = useState<string>('');
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
   const [bonusesMap, setBonusesMap] = useState<Record<string, Bonus[]>>({});
   const [itemDescriptions, setItemDescriptions] = useState<Record<string, ItemDescription>>({});
@@ -183,6 +194,30 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   // custom (ou dnd-classic une fois seedé) n'affiche QUE son contenu Firestore, jamais les deux mélangés.
   const displayedCategories = Object.keys(catalogCategories).length > 0 ? catalogCategories : (isDndClassic ? predefinedItems : {});
   const displayedDescriptions = Object.keys(catalogDescriptions).length > 0 ? catalogDescriptions : itemDescriptions;
+
+  // ── Armes d'un système à dés à symboles (ex EotE, gameSystem.combat configuré) : dégâts de base
+  // FIXES + Indice Critique + Points de Fixation, repris du catalogue d'équipement du système
+  // (champs dégâts/critique/pointsFixation) au moment de l'ajout — plus jamais de "1d6" par défaut.
+  const isSymbolCombat = !!gameSystem.combat?.skillKeys?.length;
+  const catalogItemByName = useMemo(() => {
+    const map = new Map<string, Record<string, unknown>>();
+    for (const eqDoc of equipmentDocs) {
+      for (const item of eqDoc.items ?? []) map.set(String(item.nom).toLowerCase(), item as Record<string, unknown>);
+    }
+    return map;
+  }, [equipmentDocs]);
+
+  const weaponFieldsFor = (itemName: string, category: string): Record<string, unknown> => {
+    if (!category.includes('armes')) return { diceSelection: null };
+    if (!isSymbolCombat) return { diceSelection: '1d6' };
+    const catalogItem = catalogItemByName.get(itemName.toLowerCase());
+    return {
+      diceSelection: null,
+      ...(catalogItem?.['dégâts'] != null ? { damage: String(catalogItem['dégâts']) } : {}),
+      ...(catalogItem?.critique != null && !isNaN(Number(catalogItem.critique)) ? { critical: Number(catalogItem.critique) } : {}),
+      ...(catalogItem?.pointsFixation != null && !isNaN(Number(catalogItem.pointsFixation)) ? { hardPoints: Number(catalogItem.pointsFixation) } : {}),
+    };
+  };
 
   // Utilisation des nouveaux hooks centralisés
   const inventory = useCharacterInventory<InventoryItem>(roomId, playerName);
@@ -267,9 +302,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           category: currentCategory,
           quantity: 1,
           bonusTypes: {},
-          diceSelection: currentCategory.includes('armes') ? `1d6` : null,
           visibility: 'public',
-          weight: 1
+          weight: 1,
+          ...weaponFieldsFor(item, currentCategory)
         });
         toast.success(`${item} créé`, {
           duration: 2000,
@@ -319,9 +354,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           category: category,
           quantity: 1,
           bonusTypes: {},
-          diceSelection: category.includes('armes') ? `1d6` : null,
           visibility: 'public',
-          weight: 1
+          weight: 1,
+          ...weaponFieldsFor(item, category)
         });
         toast.success(`${item} ajouté`, {
           duration: 2000,
@@ -496,7 +531,10 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             bonusTypes: currentItem.bonusTypes || {},
             diceSelection: currentItem.diceSelection || null,
             visibility: currentItem.visibility || 'public',
-            weight: currentItem.weight || 1
+            weight: currentItem.weight || 1,
+            ...(currentItem.damage != null ? { damage: currentItem.damage } : {}),
+            ...(currentItem.critical != null ? { critical: currentItem.critical } : {}),
+            ...(currentItem.hardPoints != null ? { hardPoints: currentItem.hardPoints } : {})
           });
         }
 
@@ -720,6 +758,23 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         description: "Impossible de modifier la visibilité.",
         duration: 3000,
       });
+    }
+  };
+
+  const handleUpdateWeaponStats = async () => {
+    if (!currentItem) return;
+    try {
+      const itemRef = doc(inventoryRef, currentItem.id);
+      await updateDoc(itemRef, {
+        damage: weaponDamage.trim() !== '' ? weaponDamage.trim() : null,
+        critical: weaponCritical.trim() !== '' && !isNaN(Number(weaponCritical)) ? Number(weaponCritical) : null,
+        hardPoints: weaponHardPoints.trim() !== '' && !isNaN(Number(weaponHardPoints)) ? Number(weaponHardPoints) : null,
+      });
+      toast.success("Caractéristiques d'arme modifiées", { description: currentItem.message, duration: 2000 });
+      setIsWeaponStatsDialogOpen(false);
+    } catch (error) {
+      console.error("Erreur lors de la modification de l'arme:", error);
+      toast.error('Erreur', { description: "Impossible de modifier l'arme.", duration: 3000 });
     }
   };
 
@@ -1063,6 +1118,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                               {item.diceSelection && (
                                 <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
                               )}
+                              {item.damage != null && (
+                                <p className="text-xs font-bold text-green-700 font-mono">
+                                  Dégâts {item.damage}{item.critical != null ? ` · Crit ${item.critical}` : ''}{item.hardPoints != null ? ` · Fixation ${item.hardPoints}` : ''}
+                                </p>
+                              )}
                               {itemsWithBonus.has(item.id) && (
                                 <div className="text-xs">
                                   {bonusActiveMap[item.id] === false ? (
@@ -1119,17 +1179,29 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                               {bonusActiveMap[item.id] === false ? 'Activer le bonus' : 'Désactiver le bonus'}
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onSelect={() => {
-                            setCurrentItem(item);
-                            if (item.diceSelection) {
-                              const [count, faces] = item.diceSelection.split('d').map(Number);
-                              setDiceCount(count || 1);
-                              setDiceFaces(faces || 6);
-                            }
-                            setIsDiceDialogOpen(true);
-                          }}>
-                            Modifier les dés
-                          </DropdownMenuItem>
+                          {isSymbolCombat && item.category.includes('armes') ? (
+                            <DropdownMenuItem onSelect={() => {
+                              setCurrentItem(item);
+                              setWeaponDamage(item.damage ?? '');
+                              setWeaponCritical(item.critical != null ? String(item.critical) : '');
+                              setWeaponHardPoints(item.hardPoints != null ? String(item.hardPoints) : '');
+                              setIsWeaponStatsDialogOpen(true);
+                            }}>
+                              Caractéristiques d&apos;arme
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onSelect={() => {
+                              setCurrentItem(item);
+                              if (item.diceSelection) {
+                                const [count, faces] = item.diceSelection.split('d').map(Number);
+                                setDiceCount(count || 1);
+                                setDiceFaces(faces || 6);
+                              }
+                              setIsDiceDialogOpen(true);
+                            }}>
+                              Modifier les dés
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onSelect={() => handleDeleteItem(item.id)} className="text-red-500">
                             Supprimer
                           </DropdownMenuItem>
@@ -1157,6 +1229,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                             <p className="font-semibold">{item.message}</p>
                             {item.diceSelection && (
                               <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
+                            )}
+                            {item.damage != null && (
+                              <p className="text-xs font-bold text-green-700 font-mono">
+                                Dégâts {item.damage}{item.critical != null ? ` · Crit ${item.critical}` : ''}{item.hardPoints != null ? ` · Fixation ${item.hardPoints}` : ''}
+                              </p>
                             )}
                             {itemsWithBonus.has(item.id) && (
                               <div className="text-xs">
@@ -1297,6 +1374,62 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                   </div>
                 </div>
                 <Button onClick={handleUpdateDice} className="button-primary">Mettre à jour les dés</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Caractéristiques d'arme (système à dés à symboles) : dégâts fixes / critique / fixation */}
+          <Dialog open={isWeaponStatsDialogOpen} onOpenChange={(open) => {
+            setIsWeaponStatsDialogOpen(open);
+            if (!open) {
+              setCurrentItem(null);
+              setWeaponDamage(''); setWeaponCritical(''); setWeaponHardPoints('');
+            }
+          }}>
+            <DialogContent className="modal-content max-w-md">
+              <DialogHeader>
+                <DialogTitle className="modal-title">Caractéristiques de {currentItem?.message}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="weaponDamage" className="text-[var(--text-primary)]">Dégâts</Label>
+                    <Input
+                      id="weaponDamage"
+                      value={weaponDamage}
+                      onChange={(e) => setWeaponDamage(e.target.value)}
+                      placeholder="ex: 7 ou +1"
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="weaponCritical" className="text-[var(--text-primary)]">Critique</Label>
+                    <Input
+                      id="weaponCritical"
+                      type="number" min={1}
+                      value={weaponCritical}
+                      onChange={(e) => setWeaponCritical(e.target.value)}
+                      placeholder="ex: 3"
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="weaponHardPoints" className="text-[var(--text-primary)]">Fixation</Label>
+                    <Input
+                      id="weaponHardPoints"
+                      type="number" min={0}
+                      value={weaponHardPoints}
+                      onChange={(e) => setWeaponHardPoints(e.target.value)}
+                      placeholder="ex: 2"
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Critique = nombre d&apos;Avantages requis pour infliger une Blessure Critique.
+                  Fixation = emplacements disponibles pour les accessoires d&apos;arme.
+                </p>
+                <Button onClick={handleUpdateWeaponStats} className="button-primary">Enregistrer</Button>
               </div>
             </DialogContent>
           </Dialog>
