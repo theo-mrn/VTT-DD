@@ -230,12 +230,12 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
 Die.displayName = 'Die';
 
 export const DiceThrower = () => {
-    const [dice, setDice] = useState<{ id: string, rollId: string, type: string, pos: [number, number, number], imp: [number, number, number], skinId: string, targetValue?: number }[]>([]);
-    const activeRollsRef = useRef<Map<string, { expected: number, results: { type: string, value: number }[] }>>(new Map());
+    const [dice, setDice] = useState<{ id: string, rollId: string, type: string, pos: [number, number, number], imp: [number, number, number], skinId: string, targetValue?: number, tag?: string }[]>([]);
+    const activeRollsRef = useRef<Map<string, { expected: number, results: { type: string, value: number, tag?: string }[] }>>(new Map());
     const diceRefs = useRef<any[]>([]);
     const confettiRef = useRef<ConfettiRef>(null);
 
-    const handleResult = (rollId: string, type: string, val: string) => {
+    const handleResult = (rollId: string, type: string, val: string, tag?: string) => {
         if (type === 'd20' && val === '20') {
             const defaults = { origin: { y: 0.7 }, colors: ['#FFD700', '#FDB931', '#FFFFFF'] };
 
@@ -269,7 +269,10 @@ export const DiceThrower = () => {
 
         const rollData = activeRollsRef.current.get(rollId);
         if (rollData) {
-            rollData.results.push({ type, value: parseInt(val) });
+            // tag : identifiant optionnel echoé tel quel (ex clé d'un dé à symboles) — permet à
+            // l'appelant de réassocier chaque résultat à SON type de dé quand deux types partagent
+            // la même forme physique (ex Aptitude et Difficulté, tous deux d8).
+            rollData.results.push({ type, value: parseInt(val), ...(tag ? { tag } : {}) });
             if (rollData.results.length === rollData.expected) {
                 window.dispatchEvent(new CustomEvent('vtt-3d-roll-complete', {
                     detail: {
@@ -283,7 +286,7 @@ export const DiceThrower = () => {
         }
     };
 
-    const throwDice = (rollId: string, requests: { type: string, count: number }[], event: any) => {
+    const throwDice = (rollId: string, requests: { type: string, count: number, skinId?: string, tag?: string }[], event: any) => {
         const newDice: typeof dice = [];
         let totalDiceCount = 0;
 
@@ -341,9 +344,11 @@ export const DiceThrower = () => {
                     type: req.type,
                     pos: [startX, startY, startZ],
                     imp: [forceX, forceY, forceZ],
-                    // Use skin from event or default to gold
-                    skinId: event.detail.skinId || event.detail.skin || 'gold',
-                    targetValue: targetValue // Pass the target value
+                    // Skin par requête (ex couleur d'un dé à symboles : Aptitude vert, Défi rouge...),
+                    // sinon skin global de l'utilisateur, sinon or.
+                    skinId: req.skinId || event.detail.skinId || event.detail.skin || 'gold',
+                    targetValue: targetValue, // Pass the target value
+                    tag: req.tag
                 });
             }
         });
@@ -427,7 +432,7 @@ export const DiceThrower = () => {
                             position={d.pos}
                             impulse={d.imp}
                             skin={getSkinById(d.skinId)}
-                            onResult={(val) => handleResult(d.rollId, d.type, val)}
+                            onResult={(val) => handleResult(d.rollId, d.type, val, d.tag)}
                             targetValue={d.targetValue}
                         />
                     ))}

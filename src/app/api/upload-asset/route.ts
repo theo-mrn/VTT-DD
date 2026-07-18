@@ -24,6 +24,10 @@ const CONTENT_TYPES: Record<string, string> = {
     '.webm': 'video/webm',
     '.mp4': 'video/mp4',
     '.json': 'application/json',
+    '.woff2': 'font/woff2',
+    '.woff': 'font/woff',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
 };
 
 /**
@@ -61,9 +65,9 @@ export async function POST(request: Request) {
         }
 
         // Validate type
-        if (!['image', 'video', 'json'].includes(type)) {
+        if (!['image', 'video', 'json', 'font'].includes(type)) {
             return NextResponse.json(
-                { error: 'Invalid type. Must be image, video, or json' },
+                { error: 'Invalid type. Must be image, video, json, or font' },
                 { status: 400 }
             );
         }

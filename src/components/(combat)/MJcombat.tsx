@@ -22,6 +22,8 @@ import otherIcon from '../../app/[roomid]/map/icons/other.svg';
 import { LightRays } from "@/components/ui/light-rays"
 import { useParams } from 'next/navigation'
 import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import { evaluateFormula, rollComposedDicePool, resolveSymbolDiceRoll, formatSymbolDiceResult } from '@/lib/rules-engine'
 
 
 type Character = {
@@ -35,12 +37,17 @@ type Character = {
   initDetails?: string
   type: string
   currentInit?: number
+  /** Départage des égalités d'initiative (ex Avantages nets en mode pool de compétence EotE). */
+  currentInitTie?: number
   // Défense et caractéristiques : dérivées dynamiquement du système actif (defenseKey/abilityStats
   // de useNpcStatFields), jamais nommées en dur ici — un système custom (ex Star Wars) n'a ni
   // "Defense" ni FOR/DEX/CON/INT/SAG/CHA.
   defense?: number
   stats?: Record<string, number>
   conditions?: string[]
+  /** Doc Firestore brut — nécessaire au jet d'initiative générique (formule référençant n'importe
+   *  quelle stat du système, rangs de compétence skillRanks...), jamais une liste de clés figée. */
+  raw?: Record<string, unknown>
 }
 
 export const CONDITIONS = [
@@ -159,6 +166,9 @@ type AttackReport = {
   cible: string
   reportId: string
   applied: boolean
+  /** Résumé du jet à dés à symboles (ex "2 Succès + 1 Avantage(s)") — le MJ y lit les
+   *  Avantages/Menaces restants à dépenser (étapes 4-5 EotE). Absent pour un jet numérique. */
+  symbol_summary?: string
 }
 
 // Carte compacte réutilisable (Personnage actif / Cible) : avatar + PV + DEF seulement,
@@ -171,6 +181,9 @@ function CompactCharacterCard({
   icon: Icon,
   onToggleCondition,
   onAdjustHP,
+  initiativeSkills,
+  initSkillOverride,
+  onSetInitSkillOverride,
 }: {
   character: Character
   accent: 'brown' | 'red' | 'blue'
@@ -178,6 +191,11 @@ function CompactCharacterCard({
   icon: LucideIcon
   onToggleCondition: (charId: string, condId: string) => void
   onAdjustHP: (character: Character) => void
+  /** Compétences d'initiative éligibles (mode pool, ex EotE) — vide = mode numérique, pas d'override. */
+  initiativeSkills?: { key: string; label: string }[]
+  /** Override individuel de la compétence d'initiative de CE personnage (absent = choix du camp). */
+  initSkillOverride?: string
+  onSetInitSkillOverride?: (charId: string, skillKey: string | null) => void
 }) {
   const params = useParams()
   const roomId = (params?.roomid as string) ?? null
@@ -243,12 +261,30 @@ function CompactCharacterCard({
                     <span className={`text-xs font-bold uppercase tracking-wider ${accentClasses.text}`}>{label}</span>
                   </div>
                   <DialogTitle className="text-2xl truncate">{character.name}</DialogTitle>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)]">
                       {character.type.toUpperCase()}
                     </Badge>
                     {character.currentInit !== undefined && (
-                      <Badge className="bg-[var(--accent-brown)]">INIT: {character.currentInit}</Badge>
+                      <Badge className="bg-[var(--accent-brown)]" title={character.initDetails}>INIT: {character.currentInit}</Badge>
+                    )}
+                    {/* Override individuel de la compétence d'initiative (ex : CE personnage est surpris
+                        alors que son camp est préparé) — "Camp" = suit le choix par camp du header. */}
+                    {initiativeSkills && initiativeSkills.length > 1 && onSetInitSkillOverride && (
+                      <Select
+                        value={initSkillOverride ?? '__camp__'}
+                        onValueChange={(v) => onSetInitSkillOverride(character.id, v === '__camp__' ? null : v)}
+                      >
+                        <SelectTrigger className="h-7 w-32 border-[var(--border-color)] text-[11px]" title="Compétence d'initiative de ce personnage">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__camp__">Camp (défaut)</SelectItem>
+                          {initiativeSkills.map((skill) => (
+                            <SelectItem key={skill.key} value={skill.key}>{skill.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
                 </div>
@@ -482,9 +518,50 @@ export function GMDashboard() {
   const { user } = useGame()
   const roomId = user?.roomId ?? null
   const { abilityStats, primaryVitalStat, defenseKey, extraCombatStats } = useNpcStatFields(roomId)
+  const { gameSystem } = useGameSystem(roomId)
   // Stat "initiative"-like : la première stat 'derived' du système (ex INIT pour dnd-classic),
   // absente pour un système sans cette notion — jamais une clé "INIT" supposée exister.
   const initiativeStat = extraCombatStats[0] ?? null
+  // Règle d'initiative configurée par le MJ (gameSystem.initiative) : formule numérique OU pool de
+  // compétence (ex EotE Sang-froid/Vigilance) — absente = repli historique 1d20 + initiativeStat.
+  const initiativeRule = gameSystem.initiative
+  const initiativeSkills = (initiativeRule?.skillKeys ?? [])
+    .map((key) => gameSystem.skills?.find((s) => s.key === key))
+    .filter((s): s is NonNullable<typeof s> => !!s)
+  const isSkillInitiative = initiativeSkills.length > 0 && !!gameSystem.diceUpgradeRule && !!initiativeRule?.rankStatKey
+  // Choix PAR CAMP (règle EotE) : chaque camp lance la compétence correspondant à SA situation —
+  // joueurs surpris => Vigilance pendant que les ennemis embusqués => Sang-froid, et inversement.
+  // Défauts : joueurs = 1re compétence configurée (ex Cool), ennemis = 2e (ex Vigilance).
+  const [playerInitSkillKey, setPlayerInitSkillKey] = useState<string | null>(null)
+  const [enemyInitSkillKey, setEnemyInitSkillKey] = useState<string | null>(null)
+  const activePlayerInitSkill = initiativeSkills.find((s) => s.key === playerInitSkillKey) ?? initiativeSkills[0] ?? null
+  const activeEnemyInitSkill = initiativeSkills.find((s) => s.key === enemyInitSkillKey) ?? initiativeSkills[1] ?? initiativeSkills[0] ?? null
+  // Overrides individuels (charId -> skillKey) : un personnage précis peut lancer une compétence
+  // différente de celle de son camp (ex isolé et surpris pendant que le groupe est préparé).
+  // État local au tracker : configuration ponctuelle d'un début de combat, pas persistée.
+  const [initSkillOverrides, setInitSkillOverrides] = useState<Record<string, string>>({})
+  const setInitSkillOverride = (charId: string, skillKey: string | null) => {
+    setInitSkillOverrides((prev) => {
+      if (skillKey === null) {
+        const { [charId]: _removed, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [charId]: skillKey }
+    })
+  }
+  // Mode "créneaux" (EotE) : l'initiative génère un créneau PAR CAMP par participant (pas une place
+  // figée par personnage). À chaque créneau Joueur, les joueurs décident ensemble qui agit (parmi ceux
+  // qui n'ont pas encore agi ce round) ; à chaque créneau Ennemi, le MJ choisit son PNJ. Null = mode
+  // classique (ordre de personnages figé, ex D&D).
+  const [slotState, setSlotState] = useState<{ slots: ('joueurs' | 'ennemis')[]; slotIndex: number; round: number; actedIds: string[] } | null>(null)
+
+  // Classement d'initiative : rang décroissant, égalités au départage, et à égalité PARFAITE un
+  // Joueur passe toujours devant un PNJ (règle EotE ; sans effet notable pour un tri numérique
+  // classique où le départage vaut 0 des deux côtés).
+  const initiativeComparator = (a: Character, b: Character) =>
+    ((b.currentInit ?? 0) - (a.currentInit ?? 0))
+    || ((b.currentInitTie ?? 0) - (a.currentInitTie ?? 0))
+    || ((a.type === 'joueurs' ? 0 : 1) - (b.type === 'joueurs' ? 0 : 1))
   const [attackReports, setAttackReports] = useState<AttackReport[]>([])
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
@@ -521,8 +598,17 @@ export function GMDashboard() {
       if (doc.exists()) {
         const data = doc.data()
         setActivePlayerId(data.activePlayer || null)
+        // Mode "créneaux" (EotE) : l'initiative génère des créneaux par camp, pas un ordre de
+        // personnages figé — cf rerollInitiative. slotMode absent/false = tour par tour classique.
+        setSlotState(data.slotMode ? {
+          slots: (data.slots ?? []) as ('joueurs' | 'ennemis')[],
+          slotIndex: data.slotIndex ?? 0,
+          round: data.round ?? 1,
+          actedIds: (data.actedIds ?? []) as string[],
+        } : null)
       } else {
         setActivePlayerId(null)
+        setSlotState(null)
       }
     })
 
@@ -550,9 +636,11 @@ export function GMDashboard() {
           initDetails: data.initDetails || "0",
           type: data.type || "pnj",
           currentInit: data.currentInit || 0,
+          currentInitTie: data.currentInitTie || 0,
           defense: defenseKey ? (data[defenseKey] ?? 10) : undefined,
           stats,
-          conditions: data.conditions || []
+          conditions: data.conditions || [],
+          raw: data as Record<string, unknown>
         }
       })
       setRawCharacters(charactersData)
@@ -597,7 +685,7 @@ export function GMDashboard() {
       return false;
     });
 
-    const sortedCharacters = filteredChars.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
+    const sortedCharacters = filteredChars.sort(initiativeComparator)
     let finalCharacters = [...sortedCharacters]
 
     if (activePlayerId) {
@@ -646,6 +734,7 @@ export function GMDashboard() {
             cible: data.cible || "",
             reportId: doc.id,
             applied: data.applied === true,
+            ...(data.symbol_summary ? { symbol_summary: data.symbol_summary as string } : {}),
           }
         })
 
@@ -755,7 +844,8 @@ export function GMDashboard() {
     const pendingReports = attackReports.filter(r => !r.applied)
     if (pendingReports.length === 0) return
 
-    setBulkReviewDamages(Object.fromEntries(pendingReports.map(r => [r.reportId, r.degat_result])))
+    // Pré-rempli avec les dégâts APRÈS Encaissement de chaque cible (0 si non configuré).
+    setBulkReviewDamages(Object.fromEntries(pendingReports.map(r => [r.reportId, Math.max(0, r.degat_result - targetSoak(r.cible))])))
     setBulkReviewSelectedIds(new Set(pendingReports.map(r => r.reportId)))
     setIsBulkReviewOpen(true)
   }
@@ -829,20 +919,51 @@ export function GMDashboard() {
     setBulkDeathSelectedIds(new Set())
   }
 
+  // Jet d'initiative d'UN personnage selon la règle du système (gameSystem.initiative) :
+  // - mode pool de compétence (ex EotE) : pool composé carac liée + rang de la compétence choisie par
+  //   le MJ (Sang-froid si préparé / Vigilance si surpris), classement par rankStatKey (ex Succès nets),
+  //   égalités départagées par tieStatKey (ex Avantages nets) ;
+  // - mode formule numérique : évaluée sur les stats brutes du personnage (peut contenir des dés) ;
+  // - aucune règle configurée : repli historique 1d20 + première stat derived du système.
+  const rollCharacterInitiative = (char: Character): { currentInit: number; currentInitTie: number; initDetails: string } => {
+    // Compétence du CAMP du personnage (joueurs vs ennemis/PNJ) — règle EotE : chaque camp lance
+    // selon SA situation (surpris => Vigilance, préparé => Sang-froid) — sauf override individuel
+    // posé sur ce personnage précis (Select de sa fiche de combat).
+    const overrideSkill = initiativeSkills.find((s) => s.key === initSkillOverrides[char.id]) ?? null
+    const campSkill = overrideSkill ?? (char.type === 'joueurs' ? activePlayerInitSkill : activeEnemyInitSkill)
+    if (isSkillInitiative && campSkill && gameSystem.diceUpgradeRule && initiativeRule) {
+      const statValue = Number(char.raw?.[campSkill.linkedStatKey] ?? char.stats?.[campSkill.linkedStatKey] ?? 0)
+      const rank = Number((char.raw?.skillRanks as Record<string, number> | undefined)?.[campSkill.key] ?? 0)
+      const rolls = rollComposedDicePool(gameSystem, gameSystem.diceUpgradeRule, statValue, rank)
+      const resolution = resolveSymbolDiceRoll(gameSystem, rolls.map((r) => r.face ?? { values: {} }))
+      const rankValue = Number(resolution.values[initiativeRule.rankStatKey ?? ''] ?? 0)
+      const tieValue = initiativeRule.tieStatKey ? Number(resolution.values[initiativeRule.tieStatKey] ?? 0) : 0
+      return {
+        currentInit: rankValue,
+        currentInitTie: tieValue,
+        initDetails: `${campSkill.label} : ${formatSymbolDiceResult(gameSystem, resolution)}`,
+      }
+    }
+    if (initiativeRule?.formula) {
+      const statDefs = Object.fromEntries(gameSystem.stats.map((s) => [s.key, s]))
+      const total = Math.floor(evaluateFormula(initiativeRule.formula, {
+        rawStats: (char.raw ?? {}) as Record<string, number | string | boolean | undefined>,
+        statDefs,
+      }))
+      return { currentInit: total, currentInitTie: 0, initDetails: `${total}` }
+    }
+    // Repli historique : 1d20 + valeur de la stat "initiative"-like.
+    const diceRoll = Math.floor(Math.random() * 20) + 1
+    const initValue = parseInt(char.init as unknown as string, 10) || 0
+    const totalInit = initValue + diceRoll
+    return { currentInit: totalInit, currentInitTie: 0, initDetails: `${initValue}+${diceRoll}=${totalInit}` }
+  }
+
   const rerollInitiative = async () => {
     if (isRollingInitiative) return
     setIsRollingInitiative(true)
-    const updatedCharacters = characters.map(char => {
-      const diceRoll = Math.floor(Math.random() * 20) + 1
-      const initValue = parseInt(char.init as unknown as string, 10) || 0
-      const totalInit = initValue + diceRoll
-      return {
-        ...char,
-        currentInit: totalInit,
-        initDetails: `${initValue}+${diceRoll}=${totalInit}`
-      }
-    })
-    const sortedCharacters = updatedCharacters.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
+    const updatedCharacters = characters.map(char => ({ ...char, ...rollCharacterInitiative(char) }))
+    const sortedCharacters = updatedCharacters.sort(initiativeComparator)
     setCharacters(sortedCharacters)
 
     if (roomId) {
@@ -850,14 +971,20 @@ export function GMDashboard() {
         const batch = writeBatch(db)
         sortedCharacters.forEach(char => {
           const characterRef = doc(db, `cartes/${roomId}/characters/${char.id}`)
-          batch.update(characterRef, { currentInit: char.currentInit, initDetails: char.initDetails })
+          batch.update(characterRef, { currentInit: char.currentInit, currentInitTie: char.currentInitTie ?? 0, initDetails: char.initDetails })
         })
         await batch.commit()
 
-        const newActiveCharacterId = sortedCharacters[0].id
         if (currentCityId) {
           const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
-          await setDoc(combatRef, { activePlayer: newActiveCharacterId }, { merge: true })
+          if (isSkillInitiative) {
+            // Mode créneaux (EotE) : chaque jet génère un créneau pour SON CAMP, dans l'ordre du
+            // classement — personne n'est encore désigné, le camp du créneau actif choisit qui agit.
+            const slots = sortedCharacters.map((c) => (c.type === 'joueurs' ? 'joueurs' : 'ennemis'))
+            await setDoc(combatRef, { slotMode: true, slots, slotIndex: 0, round: 1, actedIds: [], activePlayer: null }, { merge: true })
+          } else {
+            await setDoc(combatRef, { slotMode: false, activePlayer: sortedCharacters[0].id }, { merge: true })
+          }
         }
 
         toast.success('Initiatives relancées', {
@@ -911,7 +1038,38 @@ export function GMDashboard() {
     setCharacterToDelete(null)
   }
 
+  // Avance/recule d'un créneau (mode EotE) : en fin de round, on repart au premier créneau et tous
+  // les personnages redeviennent éligibles (actedIds remis à zéro).
+  const advanceSlot = async (dir: 1 | -1) => {
+    if (!slotState || !roomId || !currentCityId || slotState.slots.length === 0) return
+    let slotIndex = slotState.slotIndex + dir
+    let round = slotState.round
+    let actedIds = slotState.actedIds
+    if (slotIndex >= slotState.slots.length) {
+      slotIndex = 0
+      round += 1
+      actedIds = []
+    } else if (slotIndex < 0) {
+      slotIndex = slotState.slots.length - 1
+      round = Math.max(1, round - 1)
+    }
+    const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+    await setDoc(combatRef, { slotIndex, round, actedIds, activePlayer: null }, { merge: true })
+  }
+
+  // Désigne le personnage qui agit sur le créneau actif (choisi par les joueurs ensemble sur un
+  // créneau Joueur, par le MJ sur un créneau Ennemi) — il devient inéligible jusqu'au round suivant.
+  const chooseSlotActor = async (char: Character) => {
+    if (!slotState || !roomId || !currentCityId) return
+    const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+    await setDoc(combatRef, {
+      activePlayer: char.id,
+      actedIds: [...slotState.actedIds.filter((id) => id !== char.id), char.id],
+    }, { merge: true })
+  }
+
   const nextCharacter = async () => {
+    if (slotState) { await advanceSlot(1); return }
     if (!roomId || characters.length === 0) return
 
     const firstCharacter = characters[0]
@@ -938,6 +1096,7 @@ export function GMDashboard() {
   }
 
   const previousCharacter = async () => {
+    if (slotState) { await advanceSlot(-1); return }
     if (!roomId || characters.length === 0) return
 
     const lastCharacter = characters[characters.length - 1]
@@ -961,10 +1120,21 @@ export function GMDashboard() {
     setHpChange(0)
   }
 
+  // Encaissement de la cible (étape 6 EotE) : dégâts effectifs = max(0, dégâts − soak), où soak est
+  // la stat configurée par le MJ (gameSystem.combat.soakStatKey, ex Valeur d'Encaissement). 0 si non
+  // configuré (systèmes numériques : soustraction directe, comportement historique).
+  const targetSoak = (targetId: string): number => {
+    const soakKey = gameSystem.combat?.soakStatKey
+    if (!soakKey) return 0
+    const target = rawCharacters.find((c) => c.id === targetId)
+    return Number(target?.raw?.[soakKey] ?? 0)
+  }
+
   const openOtherDrawer = (attack: AttackReport) => {
     setSelectedAttack(attack)
     setIsOtherDrawerOpen(true)
-    setDamageChange(attack.degat_result)
+    // Pré-rempli avec les dégâts APRÈS Encaissement — le MJ garde la main sur le champ.
+    setDamageChange(Math.max(0, attack.degat_result - targetSoak(attack.cible)))
     setSelectedTarget(attack.cible)
   }
 
@@ -1075,6 +1245,55 @@ export function GMDashboard() {
 
   const activeCharacter = characters[0]
 
+  // Barre de créneaux (mode EotE) : round courant, suite des créneaux J/E (actif surligné), et
+  // choix du personnage qui agit sur le créneau actif parmi les éligibles de son camp.
+  const renderSlotBar = () => {
+    if (!slotState || slotState.slots.length === 0) return null
+    const activeSide = slotState.slots[slotState.slotIndex]
+    const eligible = characters.filter((c) =>
+      (activeSide === 'joueurs' ? c.type === 'joueurs' : c.type !== 'joueurs')
+      && !slotState.actedIds.includes(c.id))
+    return (
+      <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2 bg-[var(--bg-dark)]/40">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Badge variant="outline" className="border-[var(--border-color)] text-[var(--text-secondary)] shrink-0">Round {slotState.round}</Badge>
+          {slotState.slots.map((side, i) => (
+            <span
+              key={i}
+              title={side === 'joueurs' ? 'Créneau Joueur' : 'Créneau Ennemi'}
+              className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold border ${
+                side === 'joueurs' ? 'text-blue-400 border-blue-500/40' : 'text-red-400 border-red-500/40'
+              } ${i === slotState.slotIndex ? 'ring-2 ring-[var(--accent-brown)] bg-[var(--accent-brown)]/15' : 'opacity-60'}`}
+            >
+              {side === 'joueurs' ? 'J' : 'E'}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-[var(--text-secondary)] shrink-0">
+            Créneau {activeSide === 'joueurs' ? 'Joueur' : 'Ennemi'} — qui agit ?
+          </span>
+          {eligible.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => chooseSlotActor(c)}
+              title={c.name}
+              className={`rounded-full transition-all ${activePlayerId === c.id ? 'ring-2 ring-[var(--accent-brown)] scale-105' : 'opacity-80 hover:opacity-100 hover:scale-105'}`}
+            >
+              <Avatar className="h-8 w-8 border border-[var(--border-color)]">
+                <AvatarImage src={c.avatar} alt={c.name} className="object-cover" />
+                <AvatarFallback className="text-[10px]">{c.name[0]}</AvatarFallback>
+              </Avatar>
+            </button>
+          ))}
+          {eligible.length === 0 && (
+            <span className="text-xs italic text-[var(--text-secondary)]">Tous les personnages de ce camp ont agi ce round — passez au créneau suivant.</span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col gap-4 sm:gap-6 p-3 sm:p-6 bg-[var(--bg-dark)] text-[var(--text-primary)] overflow-hidden">
       {/* Header */}
@@ -1084,6 +1303,39 @@ export function GMDashboard() {
           <h1 className="text-lg sm:text-2xl font-bold tracking-tight">Combat</h1>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Compétence d'initiative PAR CAMP (mode pool, ex EotE) : joueurs surpris => Vigilance
+              pendant que les ennemis embusqués => Sang-froid, et inversement — le MJ règle chaque
+              camp selon la situation avant de relancer. */}
+          {isSkillInitiative && initiativeSkills.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex flex-col items-start">
+                <span className="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] leading-none mb-0.5">Joueurs</span>
+                <Select value={activePlayerInitSkill?.key ?? ''} onValueChange={setPlayerInitSkillKey}>
+                  <SelectTrigger className="h-8 w-24 sm:w-32 border-[var(--border-color)] text-xs" title="Compétence d'initiative des joueurs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {initiativeSkills.map((skill) => (
+                      <SelectItem key={skill.key} value={skill.key}>{skill.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] leading-none mb-0.5">Ennemis</span>
+                <Select value={activeEnemyInitSkill?.key ?? ''} onValueChange={setEnemyInitSkillKey}>
+                  <SelectTrigger className="h-8 w-24 sm:w-32 border-[var(--border-color)] text-xs" title="Compétence d'initiative des ennemis/PNJ">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {initiativeSkills.map((skill) => (
+                      <SelectItem key={skill.key} value={skill.key}>{skill.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
           {/* Mobile: icon-only buttons */}
           <Button variant="outline" size="icon" onClick={rerollInitiative} disabled={isRollingInitiative} className="lg:hidden h-9 w-9 border-[var(--border-color)]" title="Relancer l'initiative">
             <Dice1 className="h-4 w-4" />
@@ -1184,6 +1436,9 @@ export function GMDashboard() {
                         <span className="text-[var(--text-secondary)]">Jet <b className="text-[var(--text-primary)] font-mono">{report.attaque_result}</b></span>
                         <span className="text-[var(--text-secondary)]">Dégâts <b className="text-red-400 font-mono">{report.degat_result}</b></span>
                       </div>
+                      {report.symbol_summary && (
+                        <div className="text-[11px] font-bold text-[var(--accent-brown)] mb-2">{report.symbol_summary}</div>
+                      )}
                       <Button size="sm" className="w-full h-8 text-xs button-secondary" onClick={() => openOtherDrawer(report)}>Appliquer</Button>
                     </div>
                   ))}
@@ -1203,6 +1458,7 @@ export function GMDashboard() {
             <Dice1 className="h-4 w-4 text-[var(--text-secondary)]" />
             <span className="font-bold text-sm">Ordre du tour</span>
           </div>
+          {renderSlotBar()}
           <div className="p-3 space-y-2">
             {characters.slice(1).map((char, index) => (
               <div key={char.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)]" onClick={() => setViewedCharacter(char)}>
@@ -1242,6 +1498,7 @@ export function GMDashboard() {
                 Ordre du Tour
               </CardTitle>
             </CardHeader>
+            {renderSlotBar()}
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-3">
                 {characters.slice(1).map((char, index) => (
@@ -1306,6 +1563,9 @@ export function GMDashboard() {
                   icon={Ghost}
                   onToggleCondition={toggleCondition}
                   onAdjustHP={openDrawer}
+                  initiativeSkills={isSkillInitiative ? initiativeSkills : undefined}
+                  initSkillOverride={initSkillOverrides[viewedCharacter.id]}
+                  onSetInitSkillOverride={setInitSkillOverride}
                 />
                 <Button
                   variant="ghost"
@@ -1333,6 +1593,9 @@ export function GMDashboard() {
                 icon={Sword}
                 onToggleCondition={toggleCondition}
                 onAdjustHP={openDrawer}
+                initiativeSkills={isSkillInitiative ? initiativeSkills : undefined}
+                initSkillOverride={initSkillOverrides[activeCharacter.id]}
+                onSetInitSkillOverride={setInitSkillOverride}
               />
             )}
           </div>
@@ -1422,6 +1685,10 @@ export function GMDashboard() {
                         </div>
                       </div>
 
+                      {report.symbol_summary && (
+                        <div className="mx-4 ml-5 -mt-1 mb-2 text-[11px] font-bold text-[var(--accent-brown)]">{report.symbol_summary}</div>
+                      )}
+
                       {report.applied ? (
                         <div className="mx-4 mb-3 ml-5 flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-color)] py-2 text-xs font-bold text-[var(--text-secondary)]">
                           <Check className="h-3.5 w-3.5" />
@@ -1499,6 +1766,19 @@ export function GMDashboard() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Détail de l'Encaissement (étape 6 EotE) — visible seulement si le système configure
+                une stat d'encaissement et que la cible en a une. */}
+            {selectedAttack && gameSystem.combat?.soakStatKey && selectedTarget && targetSoak(selectedTarget) > 0 && (
+              <div className="text-center text-sm text-[var(--text-secondary)]">
+                Dégâts <b className="text-[var(--text-primary)]">{selectedAttack.degat_result}</b>
+                {' − '}Encaissement <b className="text-[var(--text-primary)]">{targetSoak(selectedTarget)}</b>
+                {' = '}<b className="text-red-400">{Math.max(0, selectedAttack.degat_result - targetSoak(selectedTarget))}</b>
+              </div>
+            )}
+            {selectedAttack?.symbol_summary && (
+              <div className="text-center text-xs font-bold text-[var(--accent-brown)]">{selectedAttack.symbol_summary}</div>
+            )}
 
             <div className="flex items-center justify-center gap-8 py-4">
               <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => setDamageChange(prev => Math.max(0, prev - 1))}>

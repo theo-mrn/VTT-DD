@@ -4247,7 +4247,7 @@
       {
         "id": "map-galaxie",
         "label": "Carte Galactique",
-        "image": "",
+        "image": "assets/images/galaxy-map.jpeg",
         "markers": []
       }
     ],
@@ -4277,6 +4277,17 @@
       "advantageStatKey": "avantagesNets",
       "triumphStatKey": "triomphes",
       "unarmedBaseDice": 2
+    },
+    "typography": {
+      "bodyFamily": "Orbitron",
+      "titleFamily": "Orbitron",
+      "fonts": [
+        {
+          "family": "Orbitron",
+          "src": "assets/fonts/Orbitron.woff2",
+          "weight": "400 900"
+        }
+      ]
     }
   },
   "groupEntities": {

@@ -9,7 +9,7 @@
 
 import type { TalentNode } from '@/lib/rules-engine/talent-tree';
 
-export type ContentKind = 'path' | 'bestiary' | 'bestiaryIndex' | 'equipment' | 'itemDescriptions' | 'location' | 'specialization';
+export type ContentKind = 'path' | 'bestiary' | 'bestiaryIndex' | 'equipment' | 'itemDescriptions' | 'location' | 'specialization' | 'script' | 'style';
 
 export type { TalentNode };
 
@@ -102,4 +102,32 @@ export interface SpecializationDoc extends ContentDocBase {
   talents: TalentNode[];
 }
 
-export type ContentDoc = PathDoc | BestiaryChunkDoc | BestiaryIndexDoc | EquipmentDoc | ItemDescriptionsDoc | LocationDoc | SpecializationDoc;
+/** Un fichier de script embarqué par un bundle de règles zip (scripts/**.tsx) — transpilé par
+ *  sucrase à l'IMPORT (jamais à l'exécution), évalué au chargement de la salle par l'ExtensionHost
+ *  (src/modules/bundle-scripts/). Confiance totale, même modèle que les modules externes chargés
+ *  par URL : avertissement explicite à l'import, le MJ est l'auteur de confiance. */
+export interface ScriptDoc extends ContentDocBase {
+  kind: 'script';
+  /** Chemin du fichier dans le bundle (ex 'scripts/main.tsx') — identifiant de module du require()
+   *  relatif du linker. */
+  path: string;
+  /** Source original — conservé pour ré-export JSON et debug. */
+  source: string;
+  /** Code transpilé (CJS : transforms typescript+jsx+imports, JSX classic → React.createElement). */
+  compiled: string;
+}
+
+/** Une feuille de style embarquée par un bundle de règles zip (styles/**.css) — injectée telle
+ *  quelle dans <head> au chargement de la salle (GameSystemStyles.tsx), retirée à la sortie. Les
+ *  chemins d'assets du bundle (url(assets/...)) sont réécrits en URLs R2 à l'import. Surcharger les
+ *  variables du thème (--bg-card, --accent-brown...) se fait via `:root, :root[class] { ... }` —
+ *  la variante [class] bat les classes de thème (.dark, .tavern...) de globals.css. */
+export interface StyleDoc extends ContentDocBase {
+  kind: 'style';
+  /** Chemin du fichier dans le bundle (ex 'styles/theme.css'). */
+  path: string;
+  /** Contenu CSS, chemins d'assets déjà réécrits en URLs R2. */
+  css: string;
+}
+
+export type ContentDoc = PathDoc | BestiaryChunkDoc | BestiaryIndexDoc | EquipmentDoc | ItemDescriptionsDoc | LocationDoc | SpecializationDoc | ScriptDoc | StyleDoc;

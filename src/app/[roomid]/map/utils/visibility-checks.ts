@@ -22,6 +22,12 @@ export interface VisibilityContext {
   persoId: string | null;
   /** When in playerViewMode, the character id the GM is impersonating. */
   viewAsPersoId: string | null;
+  /**
+   * Flag "révéler tout" du store de flags de vue (view-flags-store) — activé par un script de bundle
+   * via api.map.setViewFlags({ revealAll: true }), ex une vision alternative. Traité comme le MJ en
+   * mode normal : voit tous les personnages, y compris cachés / dans le brouillard / hors rayon.
+   */
+  revealAll?: boolean;
 }
 
 // ─── Extra context needed only for character visibility ─────────────────────
@@ -85,6 +91,7 @@ export function isCharacterVisibleToUser(
     playerViewMode,
     persoId,
     viewAsPersoId,
+    revealAll,
     obstacles,
     obstaclesLayerVisible,
     bgImage,
@@ -99,6 +106,9 @@ export function isCharacterVisibleToUser(
     containerSize,
     canvasRect,
   } = ctx;
+
+  // "Révéler tout" (script de bundle) : voit tout, exactement comme le MJ en mode normal.
+  if (revealAll) return true;
 
   // The GM in normal mode always sees everything.
   const effectiveIsMJ = isMJ && !playerViewMode;
@@ -208,7 +218,10 @@ export function isObjectVisibleToUser(
   obj: MapObject,
   ctx: VisibilityContext,
 ): boolean {
-  const { isMJ, playerViewMode, persoId, viewAsPersoId } = ctx;
+  const { isMJ, playerViewMode, persoId, viewAsPersoId, revealAll } = ctx;
+
+  // "Révéler tout" (script de bundle) : voit tout, comme le MJ en mode normal.
+  if (revealAll) return true;
 
   // The GM in normal mode always sees everything.
   const effectiveIsMJ = isMJ && !playerViewMode;

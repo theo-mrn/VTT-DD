@@ -2,7 +2,7 @@
 
 
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion } from 'framer-motion'
 import YouTube from 'react-youtube';
 import poisonIcon from './icons/poison.svg';
@@ -68,6 +68,7 @@ import { drawCharacterBorders } from './renderers/character-borders-renderer';
 import { drawMeasurements } from './renderers/measurement-renderer';
 import { drawForegroundLayers } from './renderers/foreground-renderer';
 import { isCharacterVisibleToUser as checkCharacterVisibility, isObjectVisibleToUser as checkObjectVisibility, type CharacterVisibilityContext, type VisibilityContext } from './utils/visibility-checks';
+import { getMapViewFlags, subscribeMapViewFlags } from './view-flags-store';
 import { useBackgroundLoader } from '@/hooks/map/useBackgroundLoader';
 import { useKeyboardShortcuts } from '@/hooks/map/useKeyboardShortcuts';
 import { useMusicZoneActions } from '@/hooks/map/useMusicZoneActions';
@@ -140,6 +141,9 @@ export default function Component() {
     }
   }, []);
   const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
+  // Flags de vue de la carte (view-flags-store) : pont générique écrit par les scripts de bundle via
+  // api.map.setViewFlags — revealAll/noShadows/noFog/tint. Un re-render suit chaque écriture.
+  const mapViewFlags = useSyncExternalStore(subscribeMapViewFlags, getMapViewFlags, getMapViewFlags);
   const { focusTarget, selectedCityId, setSelectedCityId, clearFocus } = useMapControl();
   const { volumes: audioVolumes } = useAudioMixer();
   const [combatOpen, setCombatOpen] = useState(false);
@@ -909,8 +913,17 @@ export default function Component() {
     await setDoc(settingsRef, { globalTokenScale: newScale }, { merge: true });
   };
 
-  const isLayerVisible = (layerId: LayerType) => {
+  const rawIsLayerVisible = (layerId: LayerType) => {
     return layers.find(l => l.id === layerId)?.isVisible ?? true;
+  };
+
+  // isLayerVisible enveloppé des flags de vue (view-flags-store, écrits par les scripts de bundle) :
+  // noFog masque la couche 'fog', noShadows masque 'obstacles' (dont l'occlusion des ombres dépend).
+  // Passé aux 3 renderers et à useAudioZones — un seul point d'entrée couvre tout le rendu.
+  const isLayerVisible = (layerId: LayerType) => {
+    if (mapViewFlags.noFog && layerId === 'fog') return false;
+    if (mapViewFlags.noShadows && layerId === 'obstacles') return false;
+    return rawIsLayerVisible(layerId);
   };
 
   // 🔊 AUDIO MANAGER - Call useAudioZones after isLayerVisible is defined
@@ -1629,7 +1642,9 @@ export default function Component() {
     currentScene, spawnPointMode, isDraggingSpawnPoint,
     // Drag & drop preview
     dragFeaturePreview,
-    isFullyLoading
+    isFullyLoading,
+    // Flags de vue (scripts de bundle) — un changement doit repeindre la carte
+    mapViewFlags,
   ]);
 
   // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
@@ -2000,10 +2015,10 @@ export default function Component() {
     // rendu (dessin de la carte, drag...), alors que checkCharacterVisibility jette cette
     // donnée immédiatement pour un MJ en mode normal (voir isCharacterVisibleToUser dans
     // visibility-checks.ts : `if (isMJ && !playerViewMode) return true`).
-    if (isMJ && !playerViewMode) return true;
+    if ((isMJ && !playerViewMode) || mapViewFlags.revealAll) return true;
 
     const ctx: CharacterVisibilityContext = {
-      isMJ, playerViewMode, persoId, viewAsPersoId,
+      isMJ, playerViewMode, persoId, viewAsPersoId, revealAll: mapViewFlags.revealAll,
       obstacles, obstaclesLayerVisible: isLayerVisible('obstacles'),
       bgImage: bgImageObject, characters, lights, pixelsPerUnit,
       fullMapFog, fogGrid, fogCellSize, zoom, offset,
@@ -2018,7 +2033,7 @@ export default function Component() {
   };
 
   const isObjectVisibleToUser = (obj: MapObject): boolean => {
-    const ctx: VisibilityContext = { isMJ, playerViewMode, persoId, viewAsPersoId };
+    const ctx: VisibilityContext = { isMJ, playerViewMode, persoId, viewAsPersoId, revealAll: mapViewFlags.revealAll };
     return checkObjectVisibility(obj, ctx);
   };
 
@@ -3710,6 +3725,16 @@ export default function Component() {
             ref={fgCanvasRef}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
           />
+          {/* Teinte de vision alternative (view-flags-store.tint) — ex vision verte. Overlay purement
+              cosmétique au-dessus des canvas, non bloquant. */}
+          {mapViewFlags.tint && (
+            <div
+              style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 11,
+                background: mapViewFlags.tint, opacity: 0.28, mixBlendMode: 'color',
+              }}
+            />
+          )}
         </div>
         {combatOpen && (
           <Combat

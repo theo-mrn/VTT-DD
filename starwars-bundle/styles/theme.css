@@ -1,0 +1,24 @@
+/* Thème Star Wars — injecté dans la salle au chargement, retiré à la sortie.
+   Noirs profonds et neutres + jaune Star Wars franc (celui du logo) en accent principal : tous les
+   boutons/liens/actifs qui lisent --accent-brown le suivent. Le sélecteur `:root, :root[class]` est
+   important : la variante [class] bat les classes de thème de l'app (.dark, .tavern...) qui posent
+   les mêmes variables. */
+
+:root,
+:root[class] {
+  /* Noirs profonds, neutres (pas de teinte bleue) */
+  --bg-dark: #0b0b0c;
+  --bg-darker: #030304;
+  --bg-card: #0a0a0b;
+  --bg-canvas: #060607;
+  --border-color: #232326;
+
+  /* Jaune Star Wars pétant (#ffe81f = jaune du logo) */
+  --accent-brown: #ffe81f;
+  --accent-brown-hover: #fff566;
+}
+
+/* Titres légèrement espacés, façon générique */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: 0.04em;
+}

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { db, collection, getDocs, doc, setDoc, addDoc } from '@/lib/firebase';
+import { db, collection, getDocs, doc, setDoc, addDoc, auth } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
-import { buildRoomExportBundle, downloadRoomExportBundle, parseRoomExportBundle } from '@/modules/export-bundle/transfer';
+import { buildRoomExportBundle, downloadRoomExportBundle, parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer';
+import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip';
 import { stripUndefinedDeep } from '@/modules/game-system/transfer';
 import type { ContentDoc } from '@/modules/game-content/types';
 import { buildCharacterExport, importCharacterExport, type CharacterExportData } from '@/utils/characterTransfer';
@@ -77,67 +78,77 @@ export default function ExportImportPanel() {
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      if (!roomId) return;
-      setIsImporting(true);
-      try {
-        const bundle = parseRoomExportBundle(event.target?.result as string);
-        let importedCount = 0;
-        // Si un nouveau système est importé dans ce même fichier, le contenu (équipement, bestiaire,
-        // voies) doit suivre CE système fraîchement créé, pas l'ancien système actif de la salle.
-        let targetContentPath = contentPath;
-
-        if (bundle.gameSystem) {
-          const id = `custom_${Date.now()}`;
-          targetContentPath = `Salle/${roomId}/gameSystemOverrides/${id}/content`;
-          // Spread intégral (moins exportVersion/exportedAt, propres au format d'échange, jamais au doc
-          // système) plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a déjà
-          // grandi plusieurs fois (symbolDice, rules, locationLabel/locationFields...) et cette liste
-          // manuelle oubliait systématiquement les nouveaux champs à chaque ajout, silencieusement.
-          // stripUndefinedDeep reste nécessaire : un champ optionnel absent du bundle importé (ex
-          // combatDefenseKey) reste une clé `undefined` explicite tant qu'on ne l'omet pas — Firestore
-          // rejette setDoc() dans ce cas (Unsupported field value: undefined), même niché.
-          const { exportVersion: _exportVersion, exportedAt: _exportedAt, ...systemFields } = bundle.gameSystem;
-          await setDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, id), stripUndefinedDeep({
-            ...systemFields,
-            systemId: id,
-          }));
-          await setDoc(doc(db, 'Salle', roomId), { gameSystemId: id }, { merge: true });
-          importedCount += 1;
-        }
-
-        if (bundle.groupEntities) {
-          for (const entity of bundle.groupEntities.entities) {
-            await addDoc(collection(db, `Salle/${roomId}/groupEntities`), entity);
-          }
-          importedCount += bundle.groupEntities.entities.length;
-        }
-
-        if (bundle.characters) {
-          for (const character of bundle.characters) {
-            await importCharacterExport(roomId, character);
-          }
-          importedCount += bundle.characters.length;
-        }
-
-        if (bundle.content) {
-          for (const contentDoc of bundle.content) {
-            await addDoc(collection(db, targetContentPath), contentDoc);
-          }
-          importedCount += bundle.content.length;
-        }
-
-        toast.success(`Import terminé (${importedCount} élément(s)).`);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Fichier invalide.');
-      } finally {
-        setIsImporting(false);
-      }
-    };
-    reader.readAsText(file);
     e.target.value = '';
+    if (!file || !roomId) return;
+    void runImport(file);
+  };
+
+  const runImport = async (file: File) => {
+    if (!roomId) return;
+    setIsImporting(true);
+    try {
+      // Bundle ZIP (table.json + assets/) : les fichiers embarqués sont uploadés sur R2 et leurs
+      // références réécrites en URLs — le bundle qui en sort suit ensuite le pipeline JSON existant
+      // à l'identique. Un fichier .json passe directement par parseRoomExportBundle comme avant.
+      let bundle: RoomExportBundle;
+      if (await isZipFile(file)) {
+        const uid = auth.currentUser?.uid ?? 'anonyme';
+        const result = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }));
+        bundle = result.bundle;
+      } else {
+        bundle = parseRoomExportBundle(await file.text());
+      }
+      let importedCount = 0;
+      // Si un nouveau système est importé dans ce même fichier, le contenu (équipement, bestiaire,
+      // voies) doit suivre CE système fraîchement créé, pas l'ancien système actif de la salle.
+      let targetContentPath = contentPath;
+
+      if (bundle.gameSystem) {
+        const id = `custom_${Date.now()}`;
+        targetContentPath = `Salle/${roomId}/gameSystemOverrides/${id}/content`;
+        // Spread intégral (moins exportVersion/exportedAt, propres au format d'échange, jamais au doc
+        // système) plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a déjà
+        // grandi plusieurs fois (symbolDice, rules, locationLabel/locationFields...) et cette liste
+        // manuelle oubliait systématiquement les nouveaux champs à chaque ajout, silencieusement.
+        // stripUndefinedDeep reste nécessaire : un champ optionnel absent du bundle importé (ex
+        // combatDefenseKey) reste une clé `undefined` explicite tant qu'on ne l'omet pas — Firestore
+        // rejette setDoc() dans ce cas (Unsupported field value: undefined), même niché.
+        const { exportVersion: _exportVersion, exportedAt: _exportedAt, ...systemFields } = bundle.gameSystem;
+        await setDoc(doc(db, `Salle/${roomId}/gameSystemOverrides`, id), stripUndefinedDeep({
+          ...systemFields,
+          systemId: id,
+        }));
+        await setDoc(doc(db, 'Salle', roomId), { gameSystemId: id }, { merge: true });
+        importedCount += 1;
+      }
+
+      if (bundle.groupEntities) {
+        for (const entity of bundle.groupEntities.entities) {
+          await addDoc(collection(db, `Salle/${roomId}/groupEntities`), entity);
+        }
+        importedCount += bundle.groupEntities.entities.length;
+      }
+
+      if (bundle.characters) {
+        for (const character of bundle.characters) {
+          await importCharacterExport(roomId, character);
+        }
+        importedCount += bundle.characters.length;
+      }
+
+      if (bundle.content) {
+        for (const contentDoc of bundle.content) {
+          await addDoc(collection(db, targetContentPath), contentDoc);
+        }
+        importedCount += bundle.content.length;
+      }
+
+      toast.success(`Import terminé (${importedCount} élément(s)).`, { id: 'bundle-import' });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Fichier invalide.', { id: 'bundle-import' });
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   if (!isMJ) {
@@ -200,7 +211,7 @@ export default function ExportImportPanel() {
           </p>
           <label className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
             <Upload size={13} /> {isImporting ? 'Import en cours…' : 'Importer un fichier'}
-            <input type="file" accept="application/json" onChange={handleImportFile} disabled={isImporting} className="hidden" />
+            <input type="file" accept="application/json,.zip" onChange={handleImportFile} disabled={isImporting} className="hidden" />
           </label>
         </div>
       </div>

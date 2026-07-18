@@ -37,6 +37,7 @@ export interface ModuleDefinition {
 
 export interface ModuleContributions {
   sidebarTabs?: SidebarTabContribution[];
+  sidebarActions?: SidebarActionContribution[];
   toolbarItems?: ToolbarItemContribution[];
   contextMenuItems?: ContextMenuContribution[];
   characterWidgets?: CharacterWidgetContribution[];
@@ -55,6 +56,32 @@ export interface SidebarTabContribution {
   mjOnly?: boolean;
   width?: string;
   persistent?: boolean;
+}
+
+/** Un état d'un bouton d'action cyclique (ex vision normale ↔ vision verte) — le clic avance à
+ *  l'état suivant, dont l'icône/label habillent le bouton. */
+export interface SidebarActionState {
+  id: string;
+  label: string;
+  icon?: ComponentType<{ size?: number; className?: string }>;
+  /** URL d'image (ex asset d'un bundle réécrit en URL R2) affichée à la place d'une icône lucide. */
+  iconUrl?: string;
+}
+
+/** Un bouton sidebar à comportement libre, contribué par un module ou un bundle de règles —
+ *  contrairement à CustomActionDef (liste fermée d'actions natives), le comportement vit dans la
+ *  closure onClick du contributeur, sans passer par ShortcutsContext.triggerAction. */
+export interface SidebarActionContribution {
+  id: string;
+  label: string;
+  icon?: ComponentType<{ size?: number; className?: string }>;
+  iconUrl?: string;
+  mjOnly?: boolean;
+  /** Bouton cyclique : le clic avance à l'état suivant (bouclé), passé à onClick. Absent = bouton
+   *  simple (onClick sans état). */
+  states?: SidebarActionState[];
+  /** state = état ATTEINT après le clic (undefined pour un bouton simple). */
+  onClick: (state?: SidebarActionState) => void;
 }
 
 export interface ToolbarItemContribution {

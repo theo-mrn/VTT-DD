@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult } from '@/lib/rules-engine'
 
 // --- Interfaces ---
 
@@ -27,6 +28,13 @@ interface Weapon {
   soundId?: string;
   category?: string;
   source?: 'inventory' | 'competence';
+  /** Dégâts de base numériques (mode combat à dés à symboles, ex EotE) — LootItem.damage de
+   *  l'inventaire ; chaque Succès net s'y ajoute au toucher. */
+  baseDamage?: number;
+  /** Indice Critique : Avantages requis pour infliger une Blessure Critique. */
+  critical?: number;
+  /** Points de Fixation : emplacements d'accessoires de l'arme. */
+  hardPoints?: number;
 }
 
 interface CustomRoll {
@@ -56,7 +64,7 @@ interface CombatPageProps {
   onClose: () => void;
 }
 
-type CombatStep = 'ATTACK_CHOICE' | 'ATTACK_ROLLING' | 'ATTACK_RESULT' | 'WEAPON_SELECT' | 'DAMAGE_ROLLING' | 'DAMAGE_RESULT' | 'ACTION_CONFIG'
+type CombatStep = 'ATTACK_CHOICE' | 'ATTACK_ROLLING' | 'ATTACK_RESULT' | 'WEAPON_SELECT' | 'DAMAGE_ROLLING' | 'DAMAGE_RESULT' | 'ACTION_CONFIG' | 'EOTE_DECLARE' | 'EOTE_RESULT'
 type AttackType = 'contact' | 'distance' | 'magic' | 'custom'
 
 // --- Components ---
@@ -223,6 +231,41 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   ]
   const defenseKey = gameSystem.combatDefenseKey ?? 'Defense'
   const statLabel = (key: string) => gameSystem.stats.find(s => s.key === key)?.label ?? key
+
+  // ── Mode combat à dés à symboles (ex EotE), piloté par gameSystem.combat (configuré par le MJ) —
+  // remplace le flux 1d20 vs Défense par : pool composé carac+rang de la compétence d'attaque choisie,
+  // + dés de difficulté (défaut defaultDifficulty, ajustable selon portée/situation) + fortune/infortune,
+  // toucher si succès nets >= 1, dégâts = base de l'arme + succès nets. Absent = flux D&D inchangé.
+  const combatRule = gameSystem.combat
+  const isSymbolCombat = !!combatRule?.skillKeys?.length && !!gameSystem.diceUpgradeRule && (gameSystem.symbolDice?.length ?? 0) > 0
+  const combatSkills = (combatRule?.skillKeys ?? [])
+    .map((key) => gameSystem.skills?.find((s) => s.key === key))
+    .filter((s): s is NonNullable<typeof s> => !!s)
+  const symbolDieByKey = (key?: string) => key ? gameSystem.symbolDice?.find((d) => d.key === key) ?? null : null
+
+  const [attackerRaw, setAttackerRaw] = useState<Record<string, unknown> | null>(null)
+  const [eoteWeapon, setEoteWeapon] = useState<Weapon | null>(null)
+  const [eoteSkillKey, setEoteSkillKey] = useState<string | null>(null)
+  const [eoteDifficulty, setEoteDifficulty] = useState<number>(2)
+  const [eoteFortune, setEoteFortune] = useState<number>(0)
+  const [eoteInfortune, setEoteInfortune] = useState<number>(0)
+  const [eoteResult, setEoteResult] = useState<{ hit: boolean; netSuccess: number; damage: number; summary: string; detail: string; netAdvantages: number; triumphs: number; critActivations: number } | null>(null)
+  const eoteSkill = combatSkills.find((s) => s.key === eoteSkillKey) ?? null
+  // Pseudo-arme toujours proposée : mains nues. Sans compétence sélectionnée, le pool est
+  // combatRule.unarmedBaseDice dés de base (verts) ; avec compétence, pool carac+rang normal.
+  const UNARMED_WEAPON: Weapon = { id: 'unarmed', name: 'Mains nues', numDice: 0, numFaces: 0, baseDamage: 0, source: 'inventory' }
+  const isUnarmed = eoteWeapon?.id === UNARMED_WEAPON.id
+  const unarmedBaseDice = combatRule?.unarmedBaseDice ?? 2
+
+  // gameSystem charge en asynchrone : bascule vers le flux EotE dès qu'il est identifié (le step
+  // initial ATTACK_CHOICE n'existe pas dans ce mode).
+  useEffect(() => {
+    if (isSymbolCombat && step === 'ATTACK_CHOICE') {
+      setStep('EOTE_DECLARE')
+      setEoteDifficulty(combatRule?.defaultDifficulty ?? 2)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSymbolCombat])
   const [attackerName, setAttackerName] = useState<string>("")
   const [attackerImage, setAttackerImage] = useState<string>("")
   const [attackerType, setAttackerType] = useState<'joueurs' | 'pnj' | 'monster'>('joueurs')
@@ -269,6 +312,8 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
         setAttackerName(data.Nomperso || "")
         setAttackerImage(data.imageURLFinal || data.imageURL2 || data.imageURL || "")
         setAttackerType(data.type || 'joueurs')
+        // Doc brut : le mode dés à symboles lit la carac liée et les rangs (skillRanks) dynamiquement.
+        setAttackerRaw(data as Record<string, unknown>)
         setBaseAttacks({
           contact: parseInt(data[contactKey] || 0),
           distance: parseInt(data[distanceKey] || 0),
@@ -308,7 +353,9 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
       const snapshot = await getDocs(inventoryRef)
       snapshot.forEach(d => {
         const item = d.data()
-        if (item.category === 'armes-contact' || item.category === 'armes-distance') {
+        // Couvre les deux conventions de catégories : 'armes-contact'/'armes-distance' (dnd-classic)
+        // ET 'armes_melee'/'armes_distance_standard'/... (systèmes custom, ex Star Wars).
+        if (typeof item.category === 'string' && item.category.includes('armes')) {
           const diceParse = item.diceSelection?.match(/^(\d+)d(\d+)$/)
           feats.push({
             id: d.id,
@@ -317,7 +364,11 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
             numFaces: diceParse ? parseInt(diceParse[2]) : 6,
             soundId: item.soundId,
             category: item.category,
-            source: 'inventory'
+            source: 'inventory',
+            // Caractéristiques d'arme du mode dés à symboles (dégâts de base fixes, critique, fixation).
+            ...(item.damage != null && !isNaN(Number(item.damage)) ? { baseDamage: Number(item.damage) } : {}),
+            ...(item.critical != null && !isNaN(Number(item.critical)) ? { critical: Number(item.critical) } : {}),
+            ...(item.hardPoints != null && !isNaN(Number(item.hardPoints)) ? { hardPoints: Number(item.hardPoints) } : {})
           })
         }
       })
@@ -458,6 +509,91 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
           cible: t.id,
           cible_nom: t.name,
           resultat: atk >= t.defense ? "Success" : "Failure",
+          timestamp: new Date().toLocaleString()
+        })
+      } catch (e) { console.error(e) }
+    }
+  }
+
+  // ── Jet d'attaque à dés à symboles (étapes 2-3 EotE) : pool composé carac+rang + difficulté +
+  // fortune/infortune, résolution par le moteur partagé, toucher si succès nets >= 1, dégâts = base
+  // de l'arme + succès nets. Le résumé complet (Avantages/Triomphes/Menaces/Désespoirs — étapes 4-5,
+  // dépense narrative) part dans le rapport pour être visible du MJ. ──
+  const handleEoteAttack = () => {
+    if (!combatRule || !gameSystem.diceUpgradeRule || !eoteWeapon || !attackerRaw) return
+    // Mains nues sans compétence : pool par défaut de unarmedBaseDice dés de base.
+    if (!eoteSkill && !isUnarmed) return
+    markTargetsEngaged()
+
+    const statValue = eoteSkill ? Number(attackerRaw[eoteSkill.linkedStatKey] ?? 0) : unarmedBaseDice
+    const rank = eoteSkill ? Number((attackerRaw.skillRanks as Record<string, number> | undefined)?.[eoteSkill.key] ?? 0) : 0
+    const { baseCount, upgradedCount } = composeDicePool(statValue, rank)
+    const positives = rollComposedDicePool(gameSystem, gameSystem.diceUpgradeRule, statValue, rank)
+
+    const baseDie = symbolDieByKey(gameSystem.diceUpgradeRule.baseDiceKey)
+    const upgradedDie = symbolDieByKey(gameSystem.diceUpgradeRule.upgradedDiceKey)
+    const difficultyDie = symbolDieByKey(combatRule.difficultyDieKey)
+    const bonusDie = symbolDieByKey(combatRule.bonusDieKey)
+    const penaltyDie = symbolDieByKey(combatRule.penaltyDieKey)
+
+    // rollComposedDicePool tire d'abord les dés de base, puis les upgradés — reconstitution du détail.
+    const detailParts: string[] = []
+    const allFaces = positives.map((r) => r.face ?? { values: {} })
+    if (baseCount > 0 && baseDie) detailParts.push(`${baseDie.label || baseDie.key} [${positives.slice(0, baseCount).map((r) => r.value).join(', ')}]`)
+    if (upgradedCount > 0 && upgradedDie) detailParts.push(`${upgradedDie.label || upgradedDie.key} [${positives.slice(baseCount).map((r) => r.value).join(', ')}]`)
+
+    const rollExtra = (die: typeof difficultyDie, count: number) => {
+      if (!die || count <= 0) return
+      const values: number[] = []
+      for (let i = 0; i < count; i++) {
+        const roll = rollSymbolDie(die)
+        allFaces.push(roll.face ?? { values: {} })
+        values.push(roll.value)
+      }
+      detailParts.push(`${die.label || die.key} [${values.join(', ')}]`)
+    }
+    rollExtra(difficultyDie, eoteDifficulty)
+    rollExtra(bonusDie, eoteFortune)
+    rollExtra(penaltyDie, eoteInfortune)
+
+    const resolution = resolveSymbolDiceRoll(gameSystem, allFaces)
+    const summary = formatSymbolDiceResult(gameSystem, resolution)
+    const netSuccess = Number(resolution.values[combatRule.successStatKey ?? ''] ?? 0)
+    const hit = netSuccess >= 1
+    const damage = hit ? (eoteWeapon.baseDamage ?? 0) + netSuccess : 0
+
+    // Indice Critique : déclenchable par un Triomphe (quel que soit l'indice) ou en dépensant
+    // `critical` Avantages ; chaque activation au-delà de la première ajoute +10 au d100.
+    // Condition finale (>= 1 dégât après Encaissement) tranchée côté MJ à l'application.
+    const netAdvantages = Number(resolution.values[combatRule.advantageStatKey ?? ''] ?? 0)
+    const triumphs = Number(resolution.values[combatRule.triumphStatKey ?? ''] ?? 0)
+    const crit = eoteWeapon.critical
+    const critActivations = hit && crit != null
+      ? triumphs + (crit > 0 ? Math.floor(netAdvantages / crit) : 0)
+      : 0
+
+    if (hit) playWeaponSound(eoteWeapon)
+    setEoteResult({ hit, netSuccess, damage, summary, detail: detailParts.join(', '), netAdvantages, triumphs, critActivations })
+    setStep('EOTE_RESULT')
+    sendEoteReport(hit, netSuccess, damage, eoteSkill ? `${eoteWeapon.name} (${eoteSkill.label})` : eoteWeapon.name, summary)
+  }
+
+  const sendEoteReport = async (hit: boolean, netSuccess: number, dmg: number, weaponName: string, summary: string) => {
+    if (!roomId) return
+    const targetsToReport = targets.length > 0 ? targets : [{ id: targetId || 'unknown', name: "Unknown", defense: 0 }]
+    for (const t of targetsToReport) {
+      try {
+        await setDoc(doc(collection(db, `cartes/${roomId}/combat/${attackerId}/rapport`)), {
+          type: "Attack",
+          attaque_result: netSuccess,
+          degat_result: dmg,
+          arme_utilisée: weaponName,
+          attaquant: attackerId,
+          attaquant_nom: attackerName,
+          cible: t.id,
+          cible_nom: t.name,
+          resultat: hit ? "Success" : "Failure",
+          symbol_summary: summary,
           timestamp: new Date().toLocaleString()
         })
       } catch (e) { console.error(e) }
@@ -621,6 +757,143 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
         <div className="flex-1 p-4 sm:p-12 relative flex flex-col justify-center overflow-y-auto custom-scrollbar">
 
           <AnimatePresence mode="wait">
+
+            {/* ── MODE DÉS À SYMBOLES (ex EotE) : Déclarer l'attaque (étapes 1-2) ── */}
+            {step === 'EOTE_DECLARE' && (
+              <motion.div
+                key="eote-declare"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-4xl mx-auto space-y-5"
+              >
+                {/* Arme */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2"><Sword className="w-4 h-4" /> Arme</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto pr-1">
+                    {[UNARMED_WEAPON, ...weapons.filter(w => w.source === 'inventory')].map((weapon, idx) => (
+                      <button
+                        key={weapon.id ?? `w-${idx}`}
+                        onClick={() => setEoteWeapon(weapon)}
+                        className={`p-3 rounded-xl border text-left transition-all ${eoteWeapon?.name === weapon.name
+                          ? 'border-[var(--accent-brown)] bg-[var(--accent-brown)]/10'
+                          : 'border-white/10 bg-white/5 hover:border-white/30'}`}
+                      >
+                        <div className="text-sm font-bold text-white truncate">{weapon.name}</div>
+                        <div className="text-[10px] text-gray-400">
+                          Dégâts {weapon.baseDamage ?? 0}
+                          {weapon.critical != null ? ` · Crit ${weapon.critical}` : ''}
+                          {weapon.hardPoints != null ? ` · Fixation ${weapon.hardPoints}` : ''}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Compétence d'attaque */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2"><Target className="w-4 h-4" /> Compétence</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {combatSkills.map((skill) => {
+                      const statValue = Number(attackerRaw?.[skill.linkedStatKey] ?? 0)
+                      const rank = Number((attackerRaw?.skillRanks as Record<string, number> | undefined)?.[skill.key] ?? 0)
+                      const pool = composeDicePool(statValue, rank)
+                      return (
+                        <button
+                          key={skill.key}
+                          onClick={() => setEoteSkillKey((k) => k === skill.key ? null : skill.key)}
+                          className={`px-3 py-2 rounded-xl border text-sm transition-all flex items-center gap-2 ${eoteSkillKey === skill.key
+                            ? 'border-[var(--accent-brown)] bg-[var(--accent-brown)]/10 text-white'
+                            : 'border-white/10 bg-white/5 text-gray-300 hover:border-white/30'}`}
+                          title={`${statLabel(skill.linkedStatKey)} ${statValue} / rang ${rank}`}
+                        >
+                          <span>{skill.label}</span>
+                          <span className="text-[10px] font-mono opacity-60">{pool.upgradedCount}▲ {pool.baseCount}●</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {isUnarmed && !eoteSkill && (
+                    <p className="text-[10px] text-gray-500 mt-1.5">
+                      Mains nues sans compétence : pool par défaut de {unarmedBaseDice} dés de base ({unarmedBaseDice}●).
+                      Sélectionner une compétence remplace ce pool.
+                    </p>
+                  )}
+                </div>
+
+                {/* Dés situationnels : difficulté (portée/situation), fortune, infortune */}
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { label: 'Difficulté', value: eoteDifficulty, set: setEoteDifficulty, hint: '2 = mêlée / portée moyenne', color: 'text-purple-400' },
+                    { label: 'Fortune', value: eoteFortune, set: setEoteFortune, hint: 'ex à couvert, avantage situationnel', color: 'text-blue-400' },
+                    { label: 'Infortune', value: eoteInfortune, set: setEoteInfortune, hint: 'ex obscurité, gêne', color: 'text-gray-400' },
+                  ] as const).map(({ label, value, set, hint, color }) => (
+                    <div key={label} className="p-3 rounded-xl border border-white/10 bg-white/5 text-center">
+                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${color}`} title={hint}>{label}</div>
+                      <div className="flex items-center justify-center gap-3">
+                        <button onClick={() => set(Math.max(0, value - 1))} className="w-7 h-7 rounded-lg border border-white/10 text-white hover:bg-white/10">−</button>
+                        <span className="font-mono font-bold text-white text-lg w-6">{value}</span>
+                        <button onClick={() => set(Math.min(9, value + 1))} className="w-7 h-7 rounded-lg border border-white/10 text-white hover:bg-white/10">+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={handleEoteAttack}
+                  disabled={!eoteWeapon || (!eoteSkill && !isUnarmed)}
+                  className="w-full h-12 bg-[var(--accent-brown)] text-black font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-40"
+                >
+                  <Sword className="w-4 h-4 mr-2" /> Lancer l'attaque
+                </Button>
+              </motion.div>
+            )}
+
+            {/* ── MODE DÉS À SYMBOLES : Résultat (étapes 3-5) ── */}
+            {step === 'EOTE_RESULT' && eoteResult && (
+              <motion.div
+                key="eote-result"
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                className="w-full max-w-2xl mx-auto text-center space-y-4"
+              >
+                <div className={`text-4xl sm:text-6xl font-black uppercase ${eoteResult.hit ? 'text-emerald-400' : 'text-red-500'}`}>
+                  {eoteResult.hit ? 'Touché !' : 'Raté'}
+                </div>
+                {eoteResult.hit && (
+                  <div className="text-2xl font-bold text-white">
+                    {eoteResult.damage} <span className="text-sm text-gray-400 uppercase">dégâts (base {eoteWeapon?.baseDamage ?? 0} + {eoteResult.netSuccess} succès)</span>
+                  </div>
+                )}
+                {eoteResult.hit && eoteWeapon?.critical != null && (
+                  eoteResult.critActivations >= 1 ? (
+                    <div className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                      Blessure Critique déclenchable
+                      {eoteResult.critActivations > 1 ? ` ×${eoteResult.critActivations} (+10 au d100 par activation en plus)` : ''}
+                      {' — '}
+                      {eoteResult.triumphs > 0 ? 'Triomphe' : `${eoteWeapon.critical} Avantages dépensés (Crit ${eoteWeapon.critical})`}
+                      {' · si ≥ 1 dégât passe l’Encaissement'}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-gray-500">
+                      Crit {eoteWeapon.critical} : non déclenché ({eoteResult.netAdvantages} Avantage{eoteResult.netAdvantages > 1 ? 's' : ''} / {eoteWeapon.critical} requis, pas de Triomphe)
+                    </div>
+                  )
+                )}
+                <div className="text-lg font-bold text-[var(--accent-brown)]">{eoteResult.summary}</div>
+                <div className="text-xs font-mono text-gray-500">{eoteResult.detail}</div>
+                <p className="text-[11px] text-gray-500 max-w-md mx-auto">
+                  Avantages/Triomphes : à dépenser par le joueur (capacités d'arme, critique, action d'éclat).
+                  Menaces/Désespoirs : exploités par le MJ. Le rapport a été envoyé — le MJ applique les dégâts
+                  après Encaissement de la cible.
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => { setEoteResult(null); setStep('EOTE_DECLARE') }} variant="outline" className="border-white/20 text-white">
+                    Nouvelle attaque
+                  </Button>
+                  <Button onClick={onClose} className="bg-[var(--accent-brown)] text-black font-bold">
+                    Fermer
+                  </Button>
+                </div>
+              </motion.div>
+            )}
 
             {/* PHASE 1: SELECTION */}
             {step === 'ATTACK_CHOICE' && (

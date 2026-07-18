@@ -8,8 +8,10 @@ import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 import { useChatNotification } from "@/contexts/ChatNotificationContext";
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, useSyncExternalStore } from "react";
 import { moduleRegistry } from "@/modules/registry";
+import type { SidebarActionContribution, SidebarActionState } from "@/modules/types";
+import { toast } from "sonner";
 import { AVAILABLE_ACTIONS, getAvailableActions, ACTION_CATEGORIES, type CustomActionDef } from "@/lib/customActions";
 import { cn } from "@/lib/utils";
 import {
@@ -51,6 +53,25 @@ const DEFAULT_ITEM_IDS = [
 
 const STORAGE_KEY_PREFIX = "vtt_sidebar_items_";
 
+/** Préfixe des ids d'items issus des contributions sidebarActions (modules/bundles de règles) —
+ *  les distingue des ids AVAILABLE_ACTIONS dans itemIds persistés. */
+const MODACTION_PREFIX = "modaction-";
+
+// Icônes-image (SidebarActionContribution.iconUrl) : identité stable par URL pour ne pas remonter
+// le composant à chaque render de la Sidebar. Objet simple : `Map` désigne ici l'icône lucide
+// importée plus haut, pas le Map global.
+const imgIconCache: Record<string, CustomActionDef["icon"]> = {};
+function iconForUrl(url: string): CustomActionDef["icon"] {
+  if (!imgIconCache[url]) {
+    const ImgIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt="" className={className} style={{ ...style, objectFit: "contain" }} />
+    );
+    imgIconCache[url] = ImgIcon as unknown as CustomActionDef["icon"];
+  }
+  return imgIconCache[url];
+}
+
 /** Ordre par défaut effectif : celui défini par le MJ dans les règles du système actif
  *  (gameSystem.defaultSidebarLayout.mj/player, un id AVAILABLE_ACTIONS par entrée), sinon repli sur
  *  l'ordre historique DEFAULT_ITEM_IDS — jamais un ordre différent codé en dur par rôle ici. */
@@ -83,10 +104,13 @@ function saveItemIds(uid: string | undefined, ids: string[]) {
 
 function ActionPickerMenu({
   isMJ,
+  moduleActions,
   onPick,
   onClose,
 }: {
   isMJ: boolean;
+  /** Contributions sidebarActions des modules/bundles — proposées sous la catégorie « Système ». */
+  moduleActions: SidebarActionContribution[];
   onPick: (actionId: string) => void;
   onClose: () => void;
 }) {
@@ -101,9 +125,17 @@ function ActionPickerMenu({
   const filteredActions = getAvailableActions(isMJ).filter(a =>
     a.label.toLowerCase().includes(query.trim().toLowerCase())
   );
-  const groups = ACTION_CATEGORIES
-    .map(category => ({ category, actions: filteredActions.filter(a => a.category === category) }))
-    .filter(g => g.actions.length > 0);
+  // Les boutons contribués par le système de règles rejoignent le picker sous « Système », avec des
+  // ids préfixés modaction- (résolus contre le registry, pas AVAILABLE_ACTIONS).
+  const systemActions = moduleActions
+    .filter(a => a.label.toLowerCase().includes(query.trim().toLowerCase()))
+    .map(a => ({ id: `${MODACTION_PREFIX}${a.id}`, label: a.label, icon: a.icon ?? (a.iconUrl ? iconForUrl(a.iconUrl) : Settings2) }));
+  const groups = [
+    ...ACTION_CATEGORIES
+      .map(category => ({ category, actions: filteredActions.filter(a => a.category === category) }))
+      .filter(g => g.actions.length > 0),
+    ...(systemActions.length > 0 ? [{ category: 'Système', actions: systemActions }] : []),
+  ];
 
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
@@ -251,12 +283,33 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const { unreadCount, clearUnread } = useChatNotification();
   const { gameSystem } = useGameSystem(user?.roomId ?? null);
 
+  // Abonnement au registry : les contributions arrivent APRÈS le montage (modules externes chargés
+  // par URL, scripts de bundle évalués par l'ExtensionHost) — sans cette subscription les memos
+  // ci-dessous ne verraient jamais les onglets/boutons enregistrés en cours de session.
+  const subscribeRegistry = useCallback((cb: () => void) => moduleRegistry.subscribe(cb), []);
+  const getRegistrySnapshot = useCallback(() => moduleRegistry.getSnapshot(), []);
+  const registryVersion = useSyncExternalStore(subscribeRegistry, getRegistrySnapshot, getRegistrySnapshot);
+
   const moduleTabs = useMemo(() =>
     moduleRegistry.getSidebarTabs()
       .filter(tab => !tab.mjOnly || isMJ)
       .sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
-    [isMJ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isMJ, registryVersion]
   );
+
+  const moduleActions = useMemo(() => {
+    // Dédoublonnage par id (défense en profondeur) : deux contributions de même id produiraient des
+    // clés React identiques dans le rail, ce qui casse le rendu.
+    const seen = new Set<string>();
+    return moduleRegistry.getSidebarActions()
+      .filter(a => !a.mjOnly || isMJ)
+      .filter(a => (seen.has(a.id) ? false : (seen.add(a.id), true)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMJ, registryVersion]);
+
+  // État courant des boutons cycliques (index dans contribution.states), local à la session.
+  const [actionStates, setActionStates] = useState<Record<string, number>>({});
 
   // ── Personnalisation : ordre + contenu configurable, persisté par utilisateur ──
   const [itemIds, setItemIds] = useState<string[]>(DEFAULT_ITEM_IDS);
@@ -351,24 +404,45 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
     return () => unsubs.forEach(u => u());
   }, [isMJ, handleIconClick, onActionTriggered]);
 
+  // Item d'un bouton contribué : icône/label habillés par l'état cyclique courant (states) —
+  // isNative=true quand l'id vient d'itemIds (réordonnable/remplaçable via le picker).
+  const buildModuleActionItem = useCallback((c: SidebarActionContribution, isNative: boolean): Item => {
+    const states = c.states && c.states.length > 0 ? c.states : null;
+    const current = states ? states[(actionStates[c.id] ?? 0) % states.length] : undefined;
+    const icon = current?.icon ?? c.icon;
+    const iconUrl = current?.iconUrl ?? c.iconUrl;
+    return {
+      id: `${MODACTION_PREFIX}${c.id}`,
+      actionId: `${MODACTION_PREFIX}${c.id}`,
+      Icon: (icon ?? (iconUrl ? iconForUrl(iconUrl) : Settings2)) as CustomActionDef['icon'],
+      label: current?.label ?? c.label,
+      isNative,
+    };
+  }, [actionStates]);
+
   // ── Résolution des items configurés (natifs) + modules (non réordonnables) ──
   const nativeItems: Item[] = useMemo(() => {
     return itemIds
-      .map(id => AVAILABLE_ACTIONS.find(a => a.id === id))
-      .filter((a): a is CustomActionDef => !!a)
-      .filter(a => !a.mjOnly || isMJ)
-      .filter(a => !a.hiddenForMJ || !isMJ)
-      .map(a => ({
-        id: a.id,
-        actionId: a.id,
-        tab: a.tab,
-        mapToolId: a.mapToolId,
-        Icon: a.icon,
-        label: a.label,
-        badge: a.id === SHORTCUT_ACTIONS.TAB_CHAT ? unreadCount : undefined,
-        isNative: true,
-      }));
-  }, [itemIds, isMJ, unreadCount]);
+      .map((id): Item | null => {
+        if (id.startsWith(MODACTION_PREFIX)) {
+          const c = moduleActions.find(m => `${MODACTION_PREFIX}${m.id}` === id);
+          return c ? buildModuleActionItem(c, true) : null;
+        }
+        const a = AVAILABLE_ACTIONS.find(x => x.id === id);
+        if (!a || (a.mjOnly && !isMJ) || (a.hiddenForMJ && isMJ)) return null;
+        return {
+          id: a.id,
+          actionId: a.id,
+          tab: a.tab,
+          mapToolId: a.mapToolId,
+          Icon: a.icon,
+          label: a.label,
+          badge: a.id === SHORTCUT_ACTIONS.TAB_CHAT ? unreadCount : undefined,
+          isNative: true,
+        };
+      })
+      .filter((it): it is Item => it !== null);
+  }, [itemIds, isMJ, unreadCount, moduleActions, buildModuleActionItem]);
 
   const items: Item[] = useMemo(() => [
     ...nativeItems,
@@ -380,9 +454,32 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       label: t.label,
       isNative: false,
     } as Item)),
-  ], [nativeItems, moduleTabs]);
+    // Boutons contribués pas encore épinglés dans itemIds : visibles par défaut en fin de rail,
+    // comme les onglets de modules (un bundle doit fonctionner sans configuration utilisateur).
+    ...moduleActions
+      .filter(c => !itemIds.includes(`${MODACTION_PREFIX}${c.id}`))
+      .map(c => buildModuleActionItem(c, false)),
+  ], [nativeItems, moduleTabs, moduleActions, itemIds, buildModuleActionItem]);
 
   const handleItemActivate = (it: Item) => {
+    if (it.actionId.startsWith(MODACTION_PREFIX)) {
+      const c = moduleActions.find(m => `${MODACTION_PREFIX}${m.id}` === it.actionId);
+      if (!c) return;
+      // Bouton cyclique : avance à l'état suivant, passé à onClick (l'état ATTEINT par ce clic).
+      let reached: SidebarActionState | undefined;
+      if (c.states && c.states.length > 0) {
+        const next = ((actionStates[c.id] ?? 0) + 1) % c.states.length;
+        setActionStates(prev => ({ ...prev, [c.id]: next }));
+        reached = c.states[next];
+      }
+      try {
+        c.onClick(reached);
+      } catch (error) {
+        console.error('[sidebarActions]', error);
+        toast.error(`Action "${c.label}" en échec.`);
+      }
+      return;
+    }
     if (it.tab !== undefined) handleIconClick(it.tab);
     else triggerAction(it.actionId);
   };
@@ -561,6 +658,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       {isPickerOpen && (
         <ActionPickerMenu
           isMJ={isMJ}
+          moduleActions={moduleActions}
           onPick={handlePick}
           onClose={() => { setIsPickerOpen(false); setPickerTargetId(null); }}
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState, useEffect, useCallback } from "react";
+import { ReactNode, useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { MapReloadContext } from '@/contexts/MapReloadContext';
 import { useParams, useRouter } from "next/navigation";
 import { useGame } from "@/contexts/GameContext";
@@ -49,6 +49,13 @@ const PERSISTENT_PANELS = new Set(['Music', 'DiceRoller', 'NewComponent', 'Chat'
 export default function Layout({ children }: LayoutProps) {
   const [mapReloadKey, setMapReloadKey] = useState(0);
   const reloadMap = useCallback(() => setMapReloadKey(k => k + 1), []);
+
+  // Abonnement au registry des modules : les onglets contribués en cours de session (modules
+  // externes, scripts de bundle via l'ExtensionHost) doivent faire re-rendre ce layout pour que
+  // leurs <aside> existent — sans ça, le panneau n'apparaît qu'au prochain setState fortuit.
+  const subscribeRegistry = useCallback((cb: () => void) => moduleRegistry.subscribe(cb), []);
+  const getRegistrySnapshot = useCallback(() => moduleRegistry.getSnapshot(), []);
+  useSyncExternalStore(subscribeRegistry, getRegistrySnapshot, getRegistrySnapshot);
 
   const params = useParams();
   const roomId = params.roomid as string;

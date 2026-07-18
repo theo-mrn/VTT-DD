@@ -1,6 +1,9 @@
 "use client"
 
 import { SettingsProvider } from '@/contexts/SettingsContext';
+import { GameSystemTypography } from '@/modules/game-system/GameSystemTypography';
+import { GameSystemStyles } from '@/modules/game-system/GameSystemStyles';
+import { ExtensionHost } from '@/modules/bundle-scripts/ExtensionHost';
 import { db, doc, getDoc } from '@/lib/firebase';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect } from 'react';
@@ -43,6 +46,9 @@ export default function RoomLayout({
 
   return (
     <SettingsProvider>
+      <GameSystemTypography roomId={roomid ?? null} />
+      <GameSystemStyles roomId={roomid ?? null} />
+      <ExtensionHost roomId={roomid ?? null} />
       {children}
     </SettingsProvider>
   )

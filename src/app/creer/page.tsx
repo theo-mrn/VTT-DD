@@ -20,6 +20,7 @@ import { moduleRegistry } from '@/modules/registry'
 import { GameSystemEditor, emptyGameSystem, type Draft } from '@/components/(fiches)/game-system/GameSystemManagerPanel'
 import { stripUndefinedDeep } from '@/modules/game-system/transfer'
 import { parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer'
+import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip'
 import { importCharacterExport } from '@/utils/characterTransfer'
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
@@ -55,6 +56,9 @@ export default function CreerPageComponent() {
   const [customSystemDraft, setCustomSystemDraft] = useState<Draft | null>(null)
   const [showSystemEditor, setShowSystemEditor] = useState(false)
   const [importedBundle, setImportedBundle] = useState<RoomExportBundle | null>(null)
+  // Vrai pendant la lecture/upload d'un bundle zip (les assets partent sur R2 dès la sélection) —
+  // bloque la soumission du formulaire tant que les URLs ne sont pas réécrites dans le bundle.
+  const [isImportingBundle, setIsImportingBundle] = useState(false)
   const router = useRouter()
 
   const CUSTOM_SYSTEM_ID = '__draft__'
@@ -235,11 +239,22 @@ export default function CreerPageComponent() {
   // la création de la salle dans handleCreateRoom, une fois le code de salle connu.
   const handleImportBundleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (event) => {
+    void (async () => {
+      setIsImportingBundle(true)
       try {
-        const bundle = parseRoomExportBundle(event.target?.result as string)
+        // Bundle ZIP : les assets sont uploadés sur R2 dès la sélection du fichier (les clés R2 sont
+        // scopées uid/slug, pas salle — le code de salle n'existe pas encore) et les références
+        // réécrites ; le bundle qui en sort suit le flux JSON existant inchangé.
+        let bundle: RoomExportBundle
+        if (await isZipFile(file)) {
+          const { bundle: zipBundle } = await importZipToBundle(file, userId ?? 'anonyme', (msg) => toast.loading(msg, { id: 'bundle-import' }))
+          toast.dismiss('bundle-import')
+          bundle = zipBundle
+        } else {
+          bundle = parseRoomExportBundle(await file.text())
+        }
         if (bundle.gameSystem) {
           // Spread intégral plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a
           // déjà grandi plusieurs fois (symbolDice, rules, locationLabel/locationFields...) et cette
@@ -259,11 +274,11 @@ export default function CreerPageComponent() {
         ].filter(Boolean)
         toast.success(parts.length ? `Sauvegarde chargée : ${parts.join(', ')}.` : 'Sauvegarde chargée.')
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Fichier invalide.')
+        toast.error(error instanceof Error ? error.message : 'Fichier invalide.', { id: 'bundle-import' })
+      } finally {
+        setIsImportingBundle(false)
       }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
+    })()
   }
 
   return (
@@ -352,8 +367,8 @@ export default function CreerPageComponent() {
                 {/* Import d'une sauvegarde (fichier du panneau MJ Export/Import) */}
                 <label className="flex items-center justify-center gap-2 w-full py-3 px-3 rounded-xl border border-dashed text-xs font-bold cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
                   <Upload className="h-3.5 w-3.5 shrink-0" />
-                  {importedBundle ? 'Remplacer la sauvegarde importée' : 'Importer une sauvegarde (système, entités, personnages)'}
-                  <input type="file" accept="application/json" onChange={handleImportBundleFile} className="hidden" />
+                  {isImportingBundle ? 'Import du bundle en cours…' : importedBundle ? 'Remplacer la sauvegarde importée' : 'Importer une sauvegarde (système, entités, personnages)'}
+                  <input type="file" accept="application/json,.zip" onChange={handleImportBundleFile} disabled={isImportingBundle} className="hidden" />
                 </label>
 
                 {/* Title + Players */}
@@ -521,7 +536,8 @@ export default function CreerPageComponent() {
                 {/* Submit */}
                 <Button
                   type="submit"
-                  className="w-full h-14 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-lg font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl"
+                  disabled={isImportingBundle}
+                  className="w-full h-14 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-lg font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl disabled:opacity-40"
                 >
                   Créer la campagne <ArrowRight className="h-5 w-5" />
                 </Button>
