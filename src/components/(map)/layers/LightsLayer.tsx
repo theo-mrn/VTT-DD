@@ -54,7 +54,7 @@ export default function LightsLayer({
   setShowElementSelectionMenu,
 }: LightsLayerProps) {
   return (
-    <div className="lights-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 45 }}>
+    <div className="lights-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
       {/* Only visible for MJ to edit. Players see the light effect, not the icon. */}
       {isMJ && lights.map((light) => {
         if (!bgImageObject) return null;

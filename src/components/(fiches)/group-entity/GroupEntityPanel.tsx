@@ -20,6 +20,9 @@ interface GroupEntityDoc {
   id: string;
   label: string;
   image?: string;
+  /** Acquis par le groupe : mis en avant comme "flotte" dans le panneau joueurs (les entités non
+   *  acquises restent visibles en catalogue). Basculé par le MJ uniquement. */
+  acquis?: boolean;
   values: Record<string, number | string | boolean>;
 }
 
@@ -44,6 +47,31 @@ export default function GroupEntityPanel() {
     }, () => setIsLoading(false));
     return () => unsub();
   }, [roomId]);
+
+  // Commande dev de nettoyage (même pattern que window.give_dice) : les ré-imports de bundle
+  // d'avant le correctif d'ExportImportPanel dupliquaient chaque entité. Panneau ouvert, en MJ :
+  //   cleanup_group_entities()                      → supprime les doublons de label (garde la 1re)
+  //   cleanup_group_entities(['Ancien label', …])   → supprime AUSSI toutes les occurrences de ces
+  //                                                   labels (ex modèles obsolètes remplacés).
+  // Les entités SANS label (créées à la main, pas encore nommées) ne sont jamais touchées.
+  useEffect(() => {
+    if (!roomId || !isMJ) return;
+    (window as any).cleanup_group_entities = async (purgeLabels: string[] = []) => {
+      const purge = new Set(purgeLabels);
+      const seen = new Set<string>();
+      const doomed: { id: string; label: string }[] = [];
+      for (const e of entities) {
+        const label = e.label ?? '';
+        if (!label) continue;
+        if (purge.has(label) || seen.has(label)) doomed.push({ id: e.id, label });
+        else seen.add(label);
+      }
+      for (const d of doomed) await deleteDoc(doc(db, `Salle/${roomId}/groupEntities`, d.id));
+      console.log(`${doomed.length} entité(s) supprimée(s), ${entities.length - doomed.length} conservée(s)`);
+      return doomed.length;
+    };
+    return () => { delete (window as any).cleanup_group_entities; };
+  }, [roomId, isMJ, entities]);
 
   const handleAdd = async () => {
     if (!roomId) return;
@@ -71,6 +99,11 @@ export default function GroupEntityPanel() {
     const entity = entities.find((e) => e.id === id);
     if (!entity) return;
     updateDoc(doc(db, `Salle/${roomId}/groupEntities`, id), { values: { ...entity.values, [key]: value } });
+  };
+
+  const handleToggleAcquis = (id: string, acquis: boolean) => {
+    if (!roomId) return;
+    updateDoc(doc(db, `Salle/${roomId}/groupEntities`, id), { acquis });
   };
 
   const handleRemove = (id: string) => {
@@ -149,6 +182,9 @@ export default function GroupEntityPanel() {
                 <div className="w-6 h-6 rounded shrink-0" style={{ background: 'var(--bg-darker)' }} />
               )}
               <span className="truncate">{e.label || '(sans nom)'}</span>
+              {e.acquis && (
+                <span className="ml-auto shrink-0 w-2 h-2 rounded-full" title="Acquis par le groupe" style={{ background: 'var(--accent-brown)' }} />
+              )}
             </button>
           ))}
           <button onClick={handleAdd} className="w-full py-1.5 rounded-lg border border-dashed text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)]" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -165,6 +201,7 @@ export default function GroupEntityPanel() {
               onRename={(label) => handleRename(selected.id, label)}
               onUploadImage={(file) => handleUploadImage(selected.id, file)}
               onUpdateValue={(key, value) => handleUpdateValue(selected.id, key, value)}
+              onToggleAcquis={(acquis) => handleToggleAcquis(selected.id, acquis)}
               onRemove={() => handleRemove(selected.id)}
             />
           ) : (
@@ -186,12 +223,13 @@ export default function GroupEntityPanel() {
   );
 }
 
-function GroupEntityDetail({ entity, entityStats, onRename, onUploadImage, onUpdateValue, onRemove }: {
+function GroupEntityDetail({ entity, entityStats, onRename, onUploadImage, onUpdateValue, onToggleAcquis, onRemove }: {
   entity: GroupEntityDoc;
   entityStats: StatDefinition[];
   onRename: (label: string) => void;
   onUploadImage: (file: File) => void | Promise<void>;
   onUpdateValue: (key: string, value: number) => void;
+  onToggleAcquis: (acquis: boolean) => void;
   onRemove: () => void;
 }) {
   const resolved = resolveCharacterStats({ systemId: '', stats: entityStats }, [], entity.values);
@@ -235,6 +273,17 @@ function GroupEntityDetail({ entity, entityStats, onRename, onUploadImage, onUpd
           {isUploading ? 'Envoi…' : entity.image ? 'Changer l\'image' : 'Ajouter une image'}
           <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploading} className="hidden" />
         </label>
+        <button
+          onClick={() => onToggleAcquis(!entity.acquis)}
+          className="flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border transition-colors"
+          title="Acquis = mis en avant comme flotte du groupe dans le panneau joueurs ; sinon reste au catalogue."
+          style={entity.acquis
+            ? { borderColor: 'var(--accent-brown)', background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)', color: 'var(--accent-brown)' }
+            : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+        >
+          <span className="w-2 h-2 rounded-full" style={{ background: entity.acquis ? 'var(--accent-brown)' : 'var(--border-color)' }} />
+          {entity.acquis ? 'Acquis par le groupe' : 'Au catalogue'}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl">

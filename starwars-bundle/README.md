@@ -57,7 +57,7 @@ Le `:root[class]` est nécessaire pour battre les classes de thème de l'app (`.
 
 `scripts/main.tsx` est le point d'entrée : il **exporte par défaut une fonction `register(ctx)`**, appelée au chargement de la salle. Écrivez du TSX directement — l'app le compile à l'import, aucun outil de build nécessaire. Voir le `scripts/main.tsx` de démonstration.
 
-- `ctx.register({ sidebarTabs, sidebarActions })` : onglets sidebar (panneaux React complets) et boutons d'action, éventuellement cycliques (`states`, ex vision normale ↔ verte).
+- `ctx.register({ sidebarTabs, sidebarActions, characterWidgets, creationTabs })` : onglets sidebar (panneaux React complets, `floating: true` pour un panneau compact non bloquant), boutons d'action éventuellement cycliques (`states`, ex vision normale ↔ verte), widgets de fiche personnage (proposés dans le sélecteur "ajouter un widget" de la fiche, ex Obligation), et onglets du flux de création de personnage (le composant reçoit `{draft, setDraft}` et ses champs sont fusionnés dans le doc personnage à la sauvegarde).
 - `ctx.api` : `showToast`, `dice.*` (moteur de dés du système), `character.get/subscribe` (son personnage), `getData/setData` (données de salle partagées), événements.
 - `ctx.ui` (composants shadcn), `ctx.icons` (lucide), `ctx.gameSystem` (règles actives, lecture seule).
 - Imports : chemins relatifs entre fichiers du bundle + `react`/`lucide-react` fournis par l'app. Aucun autre paquet npm.

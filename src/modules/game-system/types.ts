@@ -189,6 +189,11 @@ export interface GameSystemDefinition {
    *  par le MJ, pas une formule (contrairement à la plupart des autres valeurs du moteur, une valeur de
    *  départ fixe suffit ici). Absent = 0. */
   startingXp?: number;
+  /** Mécanique d'Obligation (ex Star Wars EotE) : dettes/contraintes narratives chiffrées,
+   *  OPTIONNELLES et multiples — liste {value, text} posée à la création sur le doc personnage
+   *  (champ Obligations, tableau possiblement vide) et affichée/éditée ensuite par un widget de
+   *  fiche fourni par le bundle. Absent = pas d'étape Obligation à la création (ex dnd-classic). */
+  obligation?: ObligationConfig;
   /** Règle générique de composition d'un pool de dés à partir de DEUX valeurs numériques quelconques
    *  (ex Caractéristique liée vs rang de Compétence) : max(a,b) = nombre total de dés de base, min(a,b) =
    *  combien de ces dés de base sont upgradés vers le dé "supérieur". Ne connaît ni Caractéristique ni
@@ -346,6 +351,14 @@ export interface LocationFieldDefinition {
   /** Identifiant stable, clé de stockage dans LocationDoc.values (généré côté UI, ex crypto.randomUUID()). */
   key: string;
   label: string;
+}
+
+/** Config de la mécanique d'Obligation (cf GameSystemDefinition.obligation). */
+export interface ObligationConfig {
+  /** Valeur pré-remplie pour chaque nouvelle entrée d'Obligation (le joueur peut l'ajuster). */
+  startingValue: number;
+  /** Plancher en jeu — une Obligation ne descend jamais en dessous (5 dans EotE). Absent = 0. */
+  minValue?: number;
 }
 
 export interface DicePoolUpgradeRule {

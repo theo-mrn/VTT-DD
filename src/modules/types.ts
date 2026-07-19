@@ -43,6 +43,7 @@ export interface ModuleContributions {
   characterWidgets?: CharacterWidgetContribution[];
   conditions?: ConditionContribution[];
   settings?: ModuleSettingDefinition[];
+  creationTabs?: CreationTabContribution[];
 }
 
 // ─── UI Contributions ───────────────────────────────────────────────
@@ -54,8 +55,12 @@ export interface SidebarTabContribution {
   component: ComponentType;
   order?: number;
   mjOnly?: boolean;
+  /** Classes Tailwind de largeur du panneau (ex 'w-full sm:w-[700px]') — PAS une valeur CSS brute. */
   width?: string;
   persistent?: boolean;
+  /** Panneau flottant compact : dimensionné par son contenu au lieu d'occuper toute la colonne —
+   *  la carte reste interactive autour (ex un radar posé par-dessus la carte). */
+  floating?: boolean;
 }
 
 /** Un état d'un bouton d'action cyclique (ex vision normale ↔ vision verte) — le clic avance à
@@ -112,6 +117,22 @@ export interface CharacterWidgetContribution {
   label: string;
   component: ComponentType<{ characterId: string; roomId: string }>;
   defaultLayout: { w: number; h: number; minW: number; minH: number };
+}
+
+/** Onglet supplémentaire du flux de création de personnage (/creation), contribué par un module ou
+ *  un bundle de règles — n'existe que pour les salles dont le système enregistre la contribution.
+ *  Le composant reçoit un BROUILLON générique de champs additionnels du futur doc personnage :
+ *  setDraft merge un partiel ({ MonChamp: valeur }), et la page fusionne tout le brouillon dans le
+ *  document au moment de la sauvegarde — la page ne connaît aucun champ par son nom.
+ *  Clés réservées (préfixe '__', signaux pour la page, jamais persistées) :
+ *  - __creationXpBonus (number) : XP de création SUPPLÉMENTAIRE accordé par cet onglet (ex chaque
+ *    point d'Obligation EotE rapporte 1 XP), ajouté au startingXp du système. Les onglets de bundle
+ *    sont insérés juste après "Informations", avant les étapes qui dépensent cet XP. */
+export interface CreationTabContribution {
+  id: string;
+  label: string;
+  icon?: ComponentType<{ className?: string }>;
+  component: ComponentType<{ draft: Record<string, unknown>; setDraft: (partial: Record<string, unknown>) => void }>;
 }
 
 export interface ConditionContribution {

@@ -543,6 +543,7 @@ function MapDialogs(props: MapDialogsProps) {
         {/* Unified Search Drawer */}
         <UnifiedSearchDrawer
           roomId={roomId}
+          isMJ={isMJ}
           isOpen={isUnifiedSearchOpen}
           onClose={() => setIsUnifiedSearchOpen(false)}
           onDragStart={(item) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull, ChevronRight } from "lucide-react";
+import { User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -22,9 +22,8 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings2 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { ThemeName } from "@/lib/saveSettings";
-import { cn } from "@/lib/utils";
+import { collection } from 'firebase/firestore';
+// utils helpers
 
 // Resource components are now on the /ressources page
 import { StoreModal } from "@/components/store/store-modal";
@@ -66,10 +65,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const { gameSystem } = useGameSystem(gameUser?.roomId ?? null);
   const groupEntityLabel = gameSystem.groupEntityLabel || 'Entité de groupe';
 
-  // Theme state for custom switcher in sidebar
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [hasGroupEntities, setHasGroupEntities] = useState(false);
 
   // On mobile the panel takes most of the width, so submenus must open downward,
   // not to the right (where there's no room and they'd overflow off-screen).
@@ -83,30 +79,15 @@ export default function Sidebar({ onClose }: SidebarProps) {
   }, []);
   const submenuSide = isMobile ? 'bottom' : 'right';
 
-  const currentTheme = (mounted ? (resolvedTheme ?? theme) : 'dark') as ThemeName;
-
-  const THEMES: { key: ThemeName; label: string; accent: string; bg: string; text: string }[] = [
-    { key: 'dark', label: 'Défaut', accent: '#c0a080', bg: '#18181b', text: '#d4d4d4' },
-    { key: 'tavern', label: 'Taverne', accent: '#96613d', bg: '#281d15', text: '#e6dac3' },
-    { key: 'dungeon', label: 'Donjon', accent: '#3b5f70', bg: '#15181e', text: '#b4bcc8' },
-    { key: 'royal', label: 'Cour Royale', accent: '#c7a442', bg: '#281017', text: '#e6d3a8' },
-    { key: 'druid', label: 'Bosquet', accent: '#547d41', bg: '#141c15', text: '#dce6cc' },
-  ];
-
-  const handleThemeChange = async (newTheme: ThemeName) => {
-    setTheme(newTheme);
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      try {
-        await updateDoc(userDocRef, { "settings.theme": newTheme });
-      } catch (error) {
-        console.error("Erreur lors de la sauvegarde du thème:", error);
-      }
-    }
-  };
-
-  const activeThemeObj = THEMES.find(t => t.key === currentTheme) || THEMES[0];
+  // Watch if there are any groupEntities in Firestore for this room — used to hide the panel/button when empty
+  useEffect(() => {
+    if (!roomId) { setHasGroupEntities(false); return; }
+    const colRef = collection(db, `Salle/${roomId}/groupEntities`);
+    const unsub = onSnapshot(colRef, (snap) => {
+      setHasGroupEntities(snap.size > 0);
+    }, () => setHasGroupEntities(false));
+    return () => unsub();
+  }, [roomId]);
 
   useEffect(() => {
     const uid = gameUser?.uid;
@@ -337,13 +318,15 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Règles du jeu</span>
             </button>
 
-            <button
-              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-              onClick={() => setOpenDialog("groupEntity")}
-            >
-              <Rocket className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">{groupEntityLabel}</span>
-            </button>
+            {hasGroupEntities && (
+              <button
+                className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+                onClick={() => setOpenDialog("groupEntity")}
+              >
+                <Rocket className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+                <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">{groupEntityLabel}</span>
+              </button>
+            )}
 
             <button
               className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
@@ -372,92 +355,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </button>
 
         <div className="my-2 border-t border-white/10 mx-2" />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group">
-              <div className="flex items-center gap-3">
-                <Palette className="w-5 h-5 text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors" />
-                <div className="flex flex-col items-start leading-none">
-                  <span className="text-sm md:text-base font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors">Thème</span>
-                  <span className="text-xs font-semibold mt-1 text-[var(--accent-brown)]">{activeThemeObj.label}</span>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[380px] max-w-[90vw] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-4 shadow-xl" side={submenuSide} align="start" sideOffset={10} collisionPadding={12}>
-            <div className="flex items-center gap-1.5 mb-4 opacity-70">
-              <Palette className="h-4 w-4" />
-              <span className="text-xs font-semibold uppercase tracking-wider">Thème de l'interface</span>
-            </div>
-
-            <div className="grid grid-cols-3 sm:flex sm:flex-row sm:overflow-x-auto gap-1 p-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {THEMES.map((t) => {
-                const isActive = currentTheme === t.key;
-                return (
-                  <DropdownMenuItem
-                    key={t.key}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleThemeChange(t.key);
-                    }}
-                    className={cn(
-                      "group relative flex flex-col items-center gap-2 rounded-xl p-2.5 transition-all cursor-pointer w-full sm:shrink-0 sm:w-[96px]",
-                      "hover:bg-[var(--border-color)] focus:bg-[var(--border-color)] focus:text-current focus-visible:outline-none",
-                      isActive && "bg-[var(--border-color)]"
-                    )}
-                    style={isActive ? { boxShadow: `0 0 0 2px ${t.accent}` } : {}}
-                  >
-                    <div
-                      className="relative flex h-12 w-16 items-center justify-center overflow-hidden rounded-lg border border-white/10 shadow-sm transition-transform group-hover:scale-105"
-                      style={{ backgroundColor: t.bg }}
-                    >
-                      {/* Mini preview layout perfectly matching standard */}
-                      <div className="flex w-full flex-col gap-1 px-2 py-1.5">
-                        <div
-                          className="h-1.5 w-8 rounded-full"
-                          style={{ backgroundColor: t.text }}
-                        />
-                        <div
-                          className="h-1.5 w-6 rounded-full"
-                          style={{ backgroundColor: t.text, opacity: 0.6 }}
-                        />
-                        <div className="mt-1 flex gap-1">
-                          <div
-                            className="h-2 flex-1 rounded-sm"
-                            style={{ backgroundColor: t.accent }}
-                          />
-                          <div
-                            className="h-2 flex-1 rounded-sm border border-black/10"
-                            style={{ backgroundColor: t.bg, borderColor: t.text }}
-                          />
-                        </div>
-                      </div>
-
-                      {isActive && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full shadow-lg" style={{ backgroundColor: t.accent }}>
-                            <Check className="h-3.5 w-3.5" style={{ color: t.bg }} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold leading-none mt-1 transition-colors",
-                        isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"
-                      )}
-                      style={{ color: isActive ? t.accent : undefined }}
-                    >
-                      {t.label}
-                    </span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
@@ -530,8 +427,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
       />
 
       {openDialog === 'bibliotheque' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-hidden w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] overflow-hidden w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
           <FileLibrary />
@@ -539,8 +436,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
       )}
 
       {openDialog === 'regles' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
           <div className="flex-1 min-h-0">
@@ -549,9 +446,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       )}
 
-      {openDialog === 'groupEntity' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+      {openDialog === 'groupEntity' && hasGroupEntities && (
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
           <div className="flex-1 min-h-0">
@@ -561,8 +458,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
       )}
 
       {openDialog === 'exportImport' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
           <div className="flex-1 min-h-0">

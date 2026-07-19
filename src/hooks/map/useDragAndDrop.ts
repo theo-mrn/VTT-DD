@@ -269,6 +269,44 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
         return
       }
 
+      // Handle group_entity_template drop (ex vaisseau : token référençant Salle/{roomId}/groupEntities)
+      if (templateData.includes('"type":"group_entity_template"')) {
+        const data = JSON.parse(templateData) as { entityId: string; label?: string; image?: string }
+
+        const rect = canvas.getBoundingClientRect()
+        const containerWidth = containerRef.current?.clientWidth || rect.width
+        const containerHeight = containerRef.current?.clientHeight || rect.height
+        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
+        const scaledWidth = imgWidth * scale * zoom
+        const scaledHeight = imgHeight * scale * zoom
+        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
+        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
+
+        if (!selectedCityId) {
+          toast.error('Sélectionnez une scène avant de placer un élément')
+          return
+        }
+
+        await addWithHistory(
+          'objects',
+          {
+            x, y, width: 100, height: 100, rotation: 0,
+            imageUrl: data.image || '',
+            name: data.label || 'Entité',
+            type: 'decors',
+            cityId: selectedCityId,
+            groupEntityId: data.entityId,
+            visibility: 'visible',
+            isLocked: false,
+            createdAt: new Date(),
+          },
+          `Ajout de "${data.label || 'entité'}" sur la carte`
+        )
+
+        toast.success(`"${data.label || 'Entité'}" ajouté(e) sur la carte`, { duration: 1500 })
+        return
+      }
+
       const template = JSON.parse(templateData) as NPC
       const rect = canvas.getBoundingClientRect()
       const containerWidth = containerRef.current?.clientWidth || rect.width

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { BookOpen, Eye, Sparkles } from 'lucide-react';
+import { BookOpen, Eye } from 'lucide-react';
 import { useCharacter } from '@/contexts/CharacterContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { useGameContent } from '@/modules/game-content/useGameContent';
@@ -89,7 +89,7 @@ export default function TalentsSheet({ roomId, characterId, canEdit = false, sty
               <BookOpen size={15} />
             </button>
             <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 h-9 rounded-lg border" style={{ borderColor: 'var(--border-color)', background: 'color-mix(in srgb, var(--accent-brown) 12%, transparent)', color: 'var(--accent-brown)' }}>
-              <Sparkles size={13} /> {xp} XP
+              {xp} XP
             </span>
           </div>
         </div>

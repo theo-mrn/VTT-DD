@@ -8,6 +8,7 @@ import type {
   CombatRule,
   InitiativeRule,
   MapConfig,
+  ObligationConfig,
   ProfileDefinition,
   RaceDefinition,
   SkillDefinition,
@@ -49,6 +50,7 @@ export interface GameSystemExportData {
   skills: SkillDefinition[];
   skillLabel?: string;
   startingXp?: number;
+  obligation?: ObligationConfig;
   diceUpgradeRule?: DicePoolUpgradeRule;
   defaultCharacterLayout?: CharacterLayoutEntry[];
   defaultSidebarLayout?: { mj?: string[]; player?: string[] };
@@ -84,6 +86,7 @@ export interface GameSystemExportSource {
   skills?: SkillDefinition[];
   skillLabel?: string;
   startingXp?: number;
+  obligation?: ObligationConfig;
   diceUpgradeRule?: DicePoolUpgradeRule;
   defaultCharacterLayout?: CharacterLayoutEntry[];
   defaultSidebarLayout?: { mj?: string[]; player?: string[] };
@@ -124,6 +127,7 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.locationFields != null) result.locationFields = source.locationFields;
   if (source.skillLabel != null) result.skillLabel = source.skillLabel;
   if (source.startingXp != null) result.startingXp = source.startingXp;
+  if (source.obligation != null) result.obligation = source.obligation;
   if (source.diceUpgradeRule != null) result.diceUpgradeRule = source.diceUpgradeRule;
   if (source.defaultCharacterLayout != null) result.defaultCharacterLayout = source.defaultCharacterLayout;
   if (source.defaultSidebarLayout != null) result.defaultSidebarLayout = source.defaultSidebarLayout;
@@ -259,6 +263,9 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (Array.isArray(json.locationFields)) result.locationFields = json.locationFields;
   if (typeof json.skillLabel === 'string') result.skillLabel = json.skillLabel;
   if (typeof json.startingXp === 'number') result.startingXp = json.startingXp;
+  if (json.obligation != null && typeof json.obligation === 'object' && typeof (json.obligation as Record<string, unknown>).startingValue === 'number') {
+    result.obligation = json.obligation;
+  }
   if (json.diceUpgradeRule != null) result.diceUpgradeRule = json.diceUpgradeRule;
   if (Array.isArray(json.defaultCharacterLayout)) result.defaultCharacterLayout = json.defaultCharacterLayout;
   if (json.defaultSidebarLayout != null && typeof json.defaultSidebarLayout === 'object') {

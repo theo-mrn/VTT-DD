@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Pause, Eye } from 'lucide-react'
+import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Pause, Eye, Boxes } from 'lucide-react'
 import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { type NPC } from '@/components/(personnages)/personnages'
 import { type ObjectTemplate } from '@/app/[roomid]/map/types'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { SUGGESTED_SOUNDS } from '@/lib/suggested-sounds'
 import { SUGGESTED_OBJECTS } from '@/lib/suggested-objects'
 import { advancedSearch } from '@/lib/advanced-search'
@@ -17,6 +18,7 @@ import { NPCTemplateDrawer } from './NPCTemplateDrawer'
 import { ObjectDrawer } from './ObjectDrawer'
 import { SoundDrawer } from './SoundDrawer'
 import { VisibilityDrawer } from './VisibilityDrawer'
+import { ShipDrawer } from './ShipDrawer'
 import type { VisibilityState } from '@/hooks/map/useVisibilityState'
 
 interface BestiaryData {
@@ -56,6 +58,7 @@ type UnifiedItem = {
 
 interface UnifiedSearchDrawerProps {
     roomId: string
+    isMJ?: boolean
     isOpen: boolean
     onClose: () => void
     onDragStart: (item: UnifiedItem) => void
@@ -64,14 +67,34 @@ interface UnifiedSearchDrawerProps {
     onClearAllObstacles?: () => void
 }
 
-export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, vs, onClearAllObstacles }: UnifiedSearchDrawerProps) {
+export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onDragStart, currentCityId, vs, onClearAllObstacles }: UnifiedSearchDrawerProps) {
     const { setDialogOpen } = useDialogVisibility()
+    const { gameSystem } = useGameSystem(roomId)
     const {
         soundTemplates: sounds,
         objectTemplates: objects,
         npcTemplates: npcs,
         loading,
     } = useGMTemplates()
+
+    // Onglet "Entités de groupe" (ex vaisseaux) — MJ uniquement, seulement si le système actif
+    // définit ce concept (gameSystem.groupEntityStats configurées dans l'éditeur de règles).
+    const showShipTab = isMJ && (gameSystem.groupEntityStats?.length ?? 0) > 0
+    const shipTabLabel = gameSystem.groupEntityLabel || 'Entités'
+
+    // Source unique des onglets — dérive à la fois les tabs affichés et l'ordre des filtres, pour
+    // ne plus avoir deux tableaux littéraux à garder synchronisés manuellement.
+    const availableFilters = useMemo(() => {
+        const list: Array<{ key: 'all' | 'npc' | 'object' | 'sound' | 'ship' | 'visibility'; title: string; icon: typeof Search }> = [
+            { key: 'all', title: 'Toutes', icon: Search },
+            { key: 'npc', title: 'PNJs', icon: Users },
+            { key: 'object', title: 'Objets', icon: Package },
+            { key: 'sound', title: 'Sons', icon: Volume2 },
+        ]
+        if (showShipTab) list.push({ key: 'ship', title: shipTabLabel, icon: Boxes })
+        list.push({ key: 'visibility', title: 'Vision', icon: Eye })
+        return list
+    }, [showShipTab, shipTabLabel])
 
     // Register dialog state
     useEffect(() => {
@@ -83,7 +106,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
     // UI states
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
-    const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc' | 'visibility'>('all')
+    const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc' | 'visibility' | 'ship'>('all')
 
     // Cleanup visibility tools when switching away from 'visibility' tab or closing the drawer
     const vsRef = useRef(vs)
@@ -331,7 +354,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
     if (!isOpen) return null
 
     return (
-        <div className="fixed right-0 top-0 h-full w-96 bg-[#1a1a1a] border-l border-[#333] z-[99999900] flex flex-col shadow-2xl">
+        <div className="fixed right-0 top-0 h-full w-96 bg-[#1a1a1a] border-l border-[#333] z-[99999909] flex flex-col shadow-2xl">
             {/* HEADER */}
             <div className="relative px-6 py-5 border-b border-[#333] bg-gradient-to-br from-[#1a1a1a] via-[#1a1a1a] to-[#252525] shrink-0">
                 <div className="flex items-center justify-between">
@@ -358,17 +381,11 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
             {/* FILTER TABS */}
             <div className="py-4 border-b border-[#333] bg-[#1a1a1a] shrink-0 flex justify-center w-full">
                 <ExpandableTabs
-                    tabs={[
-                        { title: 'Toutes', icon: Search },
-                        { title: 'PNJs', icon: Users },
-                        { title: 'Objets', icon: Package },
-                        { title: 'Sons', icon: Volume2 },
-                        { title: 'Vision', icon: Eye },
-                    ]}
-                    activeTab={['all', 'npc', 'object', 'sound', 'visibility'].indexOf(selectedFilter)}
+                    tabs={availableFilters.map((f) => ({ title: f.title, icon: f.icon }))}
+                    activeTab={availableFilters.findIndex((f) => f.key === selectedFilter)}
                     onChange={(index) => {
                         if (index !== null) {
-                            setSelectedFilter((['all', 'npc', 'object', 'sound', 'visibility'] as const)[index])
+                            setSelectedFilter(availableFilters[index].key)
                         }
                     }}
                     className="bg-transparent border-none shadow-none gap-2 !p-0 min-w-[300px] justify-center"
@@ -464,6 +481,18 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                         onClose={onClose}
                         onDragStart={onDragStart as any}
                         currentCityId={currentCityId}
+                        isEmbedded={true}
+                    />
+                </div>
+            )}
+
+            {selectedFilter === 'ship' && showShipTab && (
+                <div className="flex-1 min-h-0 relative">
+                    <ShipDrawer
+                        roomId={roomId}
+                        isOpen={true}
+                        onClose={onClose}
+                        onDragStart={() => {}}
                         isEmbedded={true}
                     />
                 </div>

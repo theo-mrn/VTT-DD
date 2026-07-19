@@ -26,10 +26,12 @@ import {
   type VendorInteraction,
   type GameInteraction,
   type LootInteraction,
+  type GroupEntity,
 } from '@/app/[roomid]/map/types';
 import type { Obstacle } from '@/lib/visibility';
 import type { SharedMeasurement } from '@/app/[roomid]/map/measurements';
 import type { MeasurementShape } from '@/components/(map)/MeasurementPanel';
+import type { StatDefinition } from '@/modules/game-system/types';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -76,6 +78,9 @@ export interface MapContextMenusProps {
   contextMenuObjectId: string | null;
   handleObjectAction: (action: string, objectId: string, value?: any) => void;
   isBackgroundEditMode: boolean;
+  groupEntities: GroupEntity[];
+  groupEntityStats: StatDefinition[];
+  groupEntityLabel?: string;
 
   // Music zone context menu
   musicZones: MusicZone[];
@@ -200,6 +205,9 @@ export default function MapContextMenus(props: MapContextMenusProps) {
     contextMenuObjectId,
     handleObjectAction,
     isBackgroundEditMode,
+    groupEntities,
+    groupEntityStats,
+    groupEntityLabel,
 
     // Music zones
     musicZones,
@@ -586,6 +594,9 @@ export default function MapContextMenus(props: MapContextMenusProps) {
         isMJ={isMJ}
         isBackgroundEditMode={isBackgroundEditMode}
         players={characters.filter(c => c.type === 'joueurs')}
+        groupEntities={groupEntities}
+        groupEntityStats={groupEntityStats}
+        groupEntityLabel={groupEntityLabel}
       />
 
       {/* Music Zone Context Menu */}

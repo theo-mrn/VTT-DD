@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { moduleRegistry } from '@/modules/registry'
+import { ExtensionHost } from '@/modules/bundle-scripts/ExtensionHost'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,7 +81,8 @@ const BASE_CHARACTER: CharacterState = {
 
 export default function CharacterCreationPage() {
   const router = useRouter()
-  const [currentTab, setCurrentTab] = useState<'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image'>('info')
+  // string : inclut les onglets dynamiques `bundle:{id}` contribués par le bundle de règles.
+  const [currentTab, setCurrentTab] = useState<string>('info')
   const [raceData, setRaceData] = useState<Record<string, RaceData>>({})
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
   const [userId, setUserId] = useState<string | null>(null)
@@ -142,6 +145,18 @@ export default function CharacterCreationPage() {
   // système ci-dessus, jamais les deux actifs en même temps pour un même système.
   const [careerSkillSelection, setCareerSkillSelection] = useState<CareerSkillSelection | null>(null)
   const hasSkillSystem = (gameSystem.skills?.length ?? 0) > 0
+  // Brouillon GÉNÉRIQUE des onglets de création contribués par le bundle de règles de la salle
+  // (moduleRegistry.getCreationTabs, ex l'étape Obligation du bundle Star Wars) : chaque composant
+  // d'onglet y merge ses propres champs ({ MonChamp: valeur }), et le tout est fusionné tel quel
+  // dans le document personnage à la sauvegarde — la page ne connaît aucun de ces champs.
+  const [bundleDraft, setBundleDraft] = useState<Record<string, unknown>>({})
+  const mergeBundleDraft = useCallback((partial: Record<string, unknown>) => {
+    setBundleDraft(prev => ({ ...prev, ...partial }))
+  }, [])
+  const subscribeRegistry = useCallback((cb: () => void) => moduleRegistry.subscribe(cb), [])
+  const getRegistrySnapshot = useCallback(() => moduleRegistry.getSnapshot(), [])
+  useSyncExternalStore(subscribeRegistry, getRegistrySnapshot, getRegistrySnapshot)
+  const creationTabs = moduleRegistry.getCreationTabs()
 
   // Achats de caractéristiques à la création (façon EotE, systèmes à compétences uniquement) : nombre
   // de +1 achetés par stat avec l'XP de départ. Coût séquentiel = 10 × la valeur visée (3→5 = 40 + 50),
@@ -160,7 +175,12 @@ export default function CharacterCreationPage() {
         return sum + totalStatUpgradeCost(start, start + count)
       }, 0)
     : 0
-  const creationXpRemaining = (gameSystem.startingXp ?? 0) - statXpSpent
+  // Bonus d'XP de création déclaré par un onglet de bundle via la clé RÉSERVÉE __creationXpBonus du
+  // brouillon (ex Obligation EotE : chaque point d'Obligation pris rapporte autant d'XP de départ).
+  // Les clés '__*' sont des signaux pour la page, jamais persistées sur le doc personnage.
+  const bundleXpBonus = typeof bundleDraft.__creationXpBonus === 'number' ? bundleDraft.__creationXpBonus : 0
+  const creationStartingXp = (gameSystem.startingXp ?? 0) + bundleXpBonus
+  const creationXpRemaining = creationStartingXp - statXpSpent
 
   // Changer d'espèce change les valeurs de départ (donc tous les coûts séquentiels) : on rembourse
   // intégralement les achats plutôt que de les réappliquer sur des bases différentes.
@@ -347,7 +367,8 @@ export default function CharacterCreationPage() {
         skillSystemData.skillRanks = careerSkillSelection.skillRanks;
         // L'XP investi dans les caractéristiques à la création est définitivement dépensé : les
         // caractéristiques ne s'améliorent plus après la création (règle EotE), donc pas de re-crédit.
-        skillSystemData.xp = (gameSystem.startingXp ?? 0) - statXpSpent;
+        // creationStartingXp inclut le bonus déclaré par les onglets de bundle (ex Obligations).
+        skillSystemData.xp = creationStartingXp - statXpSpent;
         skillSystemData.xpSpent = statXpSpent;
       }
 
@@ -383,6 +404,10 @@ export default function CharacterCreationPage() {
         ...finalDerivedStats,
         ...voiesData, // Add voies
         ...skillSystemData,
+        // Champs des onglets de création contribués par le bundle (ex Obligations) — fusion
+        // générique, la page ne connaît aucun de ces champs par son nom. Les clés '__*' sont des
+        // signaux page-only (ex __creationXpBonus), jamais persistées.
+        ...Object.fromEntries(Object.entries(bundleDraft).filter(([k]) => !k.startsWith('__'))),
         imageURL,
         type: 'joueurs',
         // Sans ce champ, parseCharacterDoc (map/page.tsx) replie sur 'hidden' et le joueur
@@ -427,10 +452,14 @@ export default function CharacterCreationPage() {
 
   // Espèce/Profil : visibles si dnd-classic (race.json/profile.json legacy) OU si le MJ a défini des
   // races/profils custom pour le système actif — masqués si le système n'en propose aucun.
-  type TabId = 'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image';
+  // Les onglets contribués par le bundle (`bundle:{id}`) s'insèrent juste après Informations : un
+  // onglet comme Obligation peut accorder un bonus d'XP de création (__creationXpBonus), il doit
+  // donc passer AVANT les étapes qui dépensent cet XP (carrière, compétences, caractéristiques).
+  type TabId = 'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image' | (string & {});
+  const bundleTabIds = creationTabs.map((t) => `bundle:${t.id}`);
   const tabsOrder: TabId[] = hasRaceProfileContent
-    ? ['info', 'race', 'profile', 'competences', 'stats', 'inventory', 'image']
-    : ['info', 'competences', 'stats', 'inventory', 'image'];
+    ? ['info', ...bundleTabIds, 'race', 'profile', 'competences', 'stats', 'inventory', 'image']
+    : ['info', ...bundleTabIds, 'competences', 'stats', 'inventory', 'image'];
   const nextStep = useCallback(() => {
     setCurrentTab(prev => {
       const idx = tabsOrder.indexOf(prev);
@@ -477,6 +506,7 @@ export default function CharacterCreationPage() {
           className="w-full min-h-[180px] p-3 rounded-md bg-[#121212] border border-[#333] text-white focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080] outline-none transition-all custom-scrollbar resize-y text-sm"
         />
       </div>
+
     </div>
   ), [character.Nomperso, (character as any).Description, (character as any).Background])
 
@@ -882,7 +912,7 @@ export default function CharacterCreationPage() {
           <div className="flex flex-col items-end gap-2">
             {hasSkillSystem && (
               <span className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg border border-[#c0a080]/40 bg-[#c0a080]/10 text-[#c0a080]">
-                <Sparkles className="w-4 h-4" /> {creationXpRemaining} / {gameSystem.startingXp ?? 0} XP
+                {creationXpRemaining} / {creationStartingXp} XP
               </span>
             )}
             <Button
@@ -974,6 +1004,9 @@ export default function CharacterCreationPage() {
 
   const tabsList: { id: TabId; label: string; icon: typeof User }[] = [
     { id: 'info', label: 'INFORMATIONS', icon: User },
+    // Onglets contribués par le bundle de règles (ex Obligation en Star Wars) — tôt dans le flux,
+    // avant les étapes qui dépensent l'XP de création (cf tabsOrder).
+    ...creationTabs.map((t) => ({ id: `bundle:${t.id}` as TabId, label: t.label.toUpperCase(), icon: (t.icon ?? BookOpen) as typeof User })),
     ...(hasRaceProfileContent ? [
       { id: 'race' as TabId, label: raceLabel.toUpperCase(), icon: Dna },
       { id: 'profile' as TabId, label: profileLabel.toUpperCase(), icon: Swords },
@@ -986,9 +1019,14 @@ export default function CharacterCreationPage() {
 
   return (
     <div className="flex flex-col items-center min-h-screen py-8 bg-background">
+      {/* Scripts du bundle de règles de la salle — fournit les onglets de création contribués
+          (moduleRegistry.getCreationTabs) ; ne rend rien lui-même. */}
+      <ExtensionHost roomId={roomId} />
       {/* Top Navigation Tabs */}
       <div className="w-full max-w-[95vw] px-6 mb-8 mt-4">
-        <div className="flex items-center justify-evenly relative pb-2 mx-auto max-w-4xl">
+        {/* max-w large + padding réduit + scroll horizontal de secours : le nombre d'onglets varie
+            (onglets contribués par le bundle), la barre ne doit jamais déborder de l'écran. */}
+        <div className="flex items-center justify-evenly relative pb-2 mx-auto max-w-6xl overflow-x-auto">
           <div className="absolute left-0 right-0 h-px bg-[#2a2a2a] bottom-0 z-0" />
           {tabsList.map((tab) => {
             const isActive = currentTab === tab.id;
@@ -997,11 +1035,11 @@ export default function CharacterCreationPage() {
               <button
                 key={tab.id}
                 onClick={() => setCurrentTab(tab.id as any)}
-                className={`relative z-10 flex flex-col items-center gap-2 pb-3 px-8 transition-colors ${isActive ? 'text-[#c0a080]' : 'text-zinc-500 hover:text-zinc-300'
+                className={`relative z-10 flex flex-col items-center gap-2 pb-3 px-4 shrink-0 transition-colors ${isActive ? 'text-[#c0a080]' : 'text-zinc-500 hover:text-zinc-300'
                   }`}
               >
                 <Icon className={`w-6 h-6 ${isActive ? 'text-white' : ''}`} />
-                <span className={`text-xs font-bold tracking-widest ${isActive ? 'text-white' : ''}`}>{tab.label}</span>
+                <span className={`text-xs font-bold tracking-widest whitespace-nowrap ${isActive ? 'text-white' : ''}`}>{tab.label}</span>
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
@@ -1105,6 +1143,26 @@ export default function CharacterCreationPage() {
                 </div>
               </div>
             )}
+            {/* Onglets contribués par le bundle de règles — le composant remplit bundleDraft,
+                fusionné dans le doc personnage à la sauvegarde. */}
+            {currentTab.startsWith('bundle:') && (() => {
+              const bundleTab = creationTabs.find((t) => `bundle:${t.id}` === currentTab);
+              if (!bundleTab) return null;
+              return (
+                <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-4xl mx-auto">
+                  <CardHeader>
+                    <CardTitle className="text-2xl font-serif text-[#e4e4e7] text-center">{bundleTab.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <bundleTab.component draft={bundleDraft} setDraft={mergeBundleDraft} />
+                    <div className="flex w-full justify-between pt-6 border-t border-[#2a2a2a]">
+                      <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                      <Button onClick={nextStep} className="bg-[#c0a080] text-black hover:bg-[#d0b090] font-bold">Suivant <ChevronRight className="ml-2 w-4 h-4" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
             {currentTab === 'image' && (
               <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-lg mx-auto">
                 <CardHeader>

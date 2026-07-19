@@ -3405,13 +3405,22 @@
     "groupEntityLabel": "Vaisseau",
     "groupEntityStats": [
       {
+        "key": "silhouette",
+        "label": "Silhouette",
+        "category": "ability",
+        "dataType": "number",
+        "origin": "module",
+        "defaultValue": 3,
+        "order": 0
+      },
+      {
         "key": "vitesse",
         "label": "Vitesse",
         "category": "ability",
         "dataType": "number",
         "origin": "module",
         "defaultValue": 3,
-        "order": 0
+        "order": 1
       },
       {
         "key": "maniabilite",
@@ -3420,7 +3429,16 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 0,
-        "order": 1
+        "order": 2
+      },
+      {
+        "key": "defense",
+        "label": "Défense (Av/Bâ/Tr/Ar)",
+        "category": "ability",
+        "dataType": "text",
+        "origin": "module",
+        "defaultValue": "0/0",
+        "order": 3
       },
       {
         "key": "blindage",
@@ -3429,7 +3447,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 3,
-        "order": 2
+        "order": 4
       },
       {
         "key": "coqueMax",
@@ -3438,7 +3456,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 20,
-        "order": 3
+        "order": 5
       },
       {
         "key": "coque",
@@ -3446,7 +3464,7 @@
         "category": "vital",
         "dataType": "number",
         "origin": "module",
-        "order": 4,
+        "order": 6,
         "minFormula": {
           "type": "const",
           "value": 0
@@ -3467,7 +3485,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 15,
-        "order": 5
+        "order": 7
       },
       {
         "key": "tension",
@@ -3475,7 +3493,7 @@
         "category": "vital",
         "dataType": "number",
         "origin": "module",
-        "order": 6,
+        "order": 8,
         "minFormula": {
           "type": "const",
           "value": 0
@@ -3496,7 +3514,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 1,
-        "order": 7
+        "order": 9
       },
       {
         "key": "passagers",
@@ -3505,7 +3523,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 0,
-        "order": 8
+        "order": 10
       },
       {
         "key": "cargaison",
@@ -3514,7 +3532,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 0,
-        "order": 9
+        "order": 11
       },
       {
         "key": "prix",
@@ -3523,7 +3541,7 @@
         "dataType": "number",
         "origin": "module",
         "defaultValue": 0,
-        "order": 10
+        "order": 12
       }
     ],
     "groupEntityCreation": {
@@ -4288,58 +4306,524 @@
           "weight": "400 900"
         }
       ]
+    },
+    "obligation": {
+      "startingValue": 10,
+      "minValue": 5
     }
   },
   "groupEntities": {
     "entityLabel": "Vaisseau",
     "entities": [
       {
-        "label": "Wayfarer (Transport moyen)",
+        "label": "Chasseur CloakShape (Kuat Systems Eng.)",
         "values": {
-          "vitesse": 2,
-          "maniabilite": -2,
-          "blindage": 4,
-          "coqueMax": 24,
-          "tensionMax": 18,
-          "equipage": 8,
-          "passagers": 6,
-          "cargaison": 200,
-          "prix": 105000,
-          "coque": 24,
-          "tension": 18
-        }
-      },
-      {
-        "label": "YT-1300 (Cargo léger)",
-        "values": {
-          "vitesse": 3,
-          "maniabilite": -1,
+          "silhouette": 3,
+          "vitesse": 4,
+          "maniabilite": 0,
+          "defense": "0/0",
           "blindage": 3,
-          "coqueMax": 22,
-          "tensionMax": 15,
-          "equipage": 4,
-          "passagers": 6,
-          "cargaison": 100,
-          "prix": 100000,
-          "coque": 22,
-          "tension": 15
-        }
+          "coqueMax": 10,
+          "coque": 10,
+          "tensionMax": 8,
+          "tension": 8
+        },
+        "image": "assets/images/CloakShapeFighter-SWTCG.webp"
       },
       {
-        "label": "Firespray (Patrouilleur)",
+        "label": "Patrouilleur Firespray (Kuat Systems Eng.)",
         "values": {
+          "silhouette": 4,
+          "vitesse": 4,
+          "maniabilite": 0,
+          "defense": "1/1",
+          "blindage": 4,
+          "coqueMax": 15,
+          "coque": 15,
+          "tensionMax": 12,
+          "tension": 12
+        },
+        "image": "assets/images/Firespray.jpg"
+      },
+      {
+        "label": "Éclaireur JM-5000 JumpMaster (Corellian Eng. Corp.)",
+        "values": {
+          "silhouette": 4,
           "vitesse": 4,
           "maniabilite": 1,
+          "defense": "1/0",
+          "blindage": 2,
+          "coqueMax": 14,
+          "coque": 14,
+          "tensionMax": 8,
+          "tension": 8
+        },
+        "image": "assets/images/JM-5K.webp"
+      },
+      {
+        "label": "Navette de classe Lambda T-4A (Sienar Fleet Systems)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 3,
+          "maniabilite": 0,
+          "defense": "2/1",
+          "blindage": 4,
+          "coqueMax": 25,
+          "coque": 25,
+          "tensionMax": 15,
+          "tension": 15
+        },
+        "image": "assets/images/t-4A.webp"
+      },
+      {
+        "label": "Chasseur TIE/LN (Sienar Fleet Systems)",
+        "values": {
+          "silhouette": 3,
+          "vitesse": 5,
+          "maniabilite": 3,
+          "defense": "0/0",
+          "blindage": 2,
+          "coqueMax": 6,
+          "coque": 6,
+          "tensionMax": 8,
+          "tension": 8
+        },
+        "image": "assets/images/tie.webp"
+      },
+      {
+        "label": "Chasseur d'attaque Y-Wing BTL-A4/S3 (Koensayr)",
+        "values": {
+          "silhouette": 3,
+          "vitesse": 4,
+          "maniabilite": 0,
+          "defense": "1/1",
+          "blindage": 3,
+          "coqueMax": 12,
+          "coque": 12,
+          "tensionMax": 10,
+          "tension": 10
+        },
+        "image": "assets/images/ywing.png"
+      },
+      {
+        "label": "Z-95-AF4 Headhunter (Incom/Subpro)",
+        "values": {
+          "silhouette": 3,
+          "vitesse": 4,
+          "maniabilite": 1,
+          "defense": "1/0",
+          "blindage": 3,
+          "coqueMax": 9,
+          "coque": 9,
+          "tensionMax": 8,
+          "tension": 8
+        },
+        "image": "assets/images/Z-95-AF4_Headhunter.webp"
+      },
+      {
+        "label": "Skipray Blastboat GAT-12H (Sienar Fleet Systems)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 4,
+          "maniabilite": -1,
+          "defense": "2/1",
+          "blindage": 4,
+          "coqueMax": 20,
+          "coque": 20,
+          "tensionMax": 15,
+          "tension": 15
+        },
+        "image": "assets/images/gat12H.webp"
+      },
+      {
+        "label": "Transport lourd Action VI (Corellian Eng. Corp.)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 2,
+          "maniabilite": -3,
+          "defense": "2/1/1/1",
+          "blindage": 2,
+          "coqueMax": 40,
+          "coque": 40,
+          "tensionMax": 20,
+          "tension": 20
+        },
+        "image": "assets/images/ACTION_VI.webp"
+      },
+      {
+        "label": "Cargo léger Citadel ILH-KK (Koensayr)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 3,
+          "maniabilite": -1,
+          "defense": "2/1",
+          "blindage": 4,
+          "coqueMax": 30,
+          "coque": 30,
+          "tensionMax": 16,
+          "tension": 16
+        },
+        "image": "assets/images/ILH-KK.jpeg"
+      },
+      {
+        "label": "Transport moyen GR-75 (Gallofree Yards)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 3,
+          "maniabilite": -3,
+          "defense": "1/1/1/1",
+          "blindage": 3,
+          "coqueMax": 20,
+          "coque": 20,
+          "tensionMax": 18,
+          "tension": 18
+        },
+        "image": "assets/images/GR-75.jpg"
+      },
+      {
+        "label": "Yacht spatial de luxe 3000 (SoroSuub)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 3,
+          "maniabilite": 0,
+          "defense": "1/1",
+          "blindage": 1,
+          "coqueMax": 30,
+          "coque": 30,
+          "tensionMax": 12,
+          "tension": 12
+        },
+        "image": "assets/images/sorosuub-personal-luxury-yacht-3000.png"
+      },
+      {
+        "label": "Transport moyen Space Master (Kuat Drive Yards)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 2,
+          "maniabilite": -4,
+          "defense": "1/1/1/1",
+          "blindage": 2,
+          "coqueMax": 25,
+          "coque": 25,
+          "tensionMax": 25,
+          "tension": 25
+        },
+        "image": "assets/images/Transport_moyen_Space_Master.jpeg"
+      },
+      {
+        "label": "Yacht de plaisance Starwind (Kuat Drive Yards)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 3,
+          "maniabilite": -2,
+          "defense": "2/1/1/1",
+          "blindage": 3,
+          "coqueMax": 25,
+          "coque": 25,
+          "tensionMax": 20,
+          "tension": 20
+        },
+        "image": "assets/images/Starwindyacht.webp"
+      },
+      {
+        "label": "Cargo moyen de classe Wayfarer (Kuat Systems Eng.)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 3,
+          "maniabilite": -2,
+          "defense": "1/1/1/2",
+          "blindage": 4,
+          "coqueMax": 32,
+          "coque": 32,
+          "tensionMax": 20,
+          "tension": 20
+        },
+        "image": "assets/images/cargowayfarer.webp"
+      },
+      {
+        "label": "Cargo léger YT-1300 (Corellian Eng. Corp.)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 3,
+          "maniabilite": -1,
+          "defense": "1/1",
+          "blindage": 3,
+          "coqueMax": 22,
+          "coque": 22,
+          "tensionMax": 15,
+          "tension": 15
+        },
+        "image": "assets/images/yt1300.jpeg"
+      },
+      {
+        "label": "Cargo léger YT-2400 (Corellian Eng. Corp.)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 3,
+          "maniabilite": 0,
+          "defense": "1/1",
+          "blindage": 4,
+          "coqueMax": 25,
+          "coque": 25,
+          "tensionMax": 18,
+          "tension": 18
+        },
+        "image": "assets/images/yt-2400.webp"
+      },
+      {
+        "label": "Transport armé Star Galleon (Kuat Drive Yards)",
+        "values": {
+          "silhouette": 6,
+          "vitesse": 1,
+          "maniabilite": -2,
+          "defense": "2/2/2/2",
           "blindage": 5,
-          "coqueMax": 18,
-          "tensionMax": 14,
-          "equipage": 2,
-          "passagers": 4,
-          "cargaison": 20,
-          "prix": 120000,
-          "coque": 18,
-          "tension": 14
-        }
+          "coqueMax": 85,
+          "coque": 85,
+          "tensionMax": 18,
+          "tension": 18
+        },
+        "image": "assets/images/StarGalleon.webp"
+      },
+      {
+        "label": "Corvette CR90 (Corellian Eng. Corp.)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 3,
+          "maniabilite": -1,
+          "defense": "2/1/1/2",
+          "blindage": 5,
+          "coqueMax": 50,
+          "coque": 50,
+          "tensionMax": 25,
+          "tension": 25
+        },
+        "image": "assets/images/CR90.webp"
+      },
+      {
+        "label": "Canonnière DP20 (Corellian Eng. Corp.)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 4,
+          "maniabilite": -1,
+          "defense": "2/2/2/1",
+          "blindage": 5,
+          "coqueMax": 55,
+          "coque": 55,
+          "tensionMax": 30,
+          "tension": 30
+        },
+        "image": "assets/images/DP20.webp"
+      },
+      {
+        "label": "Corvette d'assaut Marauder (Republic Sienar Systems)",
+        "values": {
+          "silhouette": 5,
+          "vitesse": 3,
+          "maniabilite": 0,
+          "defense": "2/1/1/1",
+          "blindage": 5,
+          "coqueMax": 65,
+          "coque": 65,
+          "tensionMax": 35,
+          "tension": 35
+        },
+        "image": "assets/images/R_MARAUDER_CRUISER.webp"
+      },
+      {
+        "label": "Frégate d'escorte EF76 Nebulon-B (Kuat Drive Yards)",
+        "values": {
+          "silhouette": 6,
+          "vitesse": 3,
+          "maniabilite": -1,
+          "defense": "2/2/2/2",
+          "blindage": 6,
+          "coqueMax": 71,
+          "coque": 71,
+          "tensionMax": 40,
+          "tension": 40
+        },
+        "image": "assets/images/NebulonB-SWS.webp"
+      },
+      {
+        "label": "Airspeeder civil générique",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 3,
+          "maniabilite": 0,
+          "defense": "0/0",
+          "blindage": 0,
+          "coqueMax": 5,
+          "coque": 5,
+          "tensionMax": 5,
+          "tension": 5
+        },
+        "image": "assets/images/airspeeder.jpg"
+      },
+      {
+        "label": "Cloud Car Storm IV (Bespin Motors)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 4,
+          "maniabilite": 1,
+          "defense": "0/0",
+          "blindage": 1,
+          "coqueMax": 5,
+          "coque": 5,
+          "tensionMax": 7,
+          "tension": 7
+        },
+        "image": "assets/images/cloudcarstromIV.jpg"
+      },
+      {
+        "label": "Skyhopper T-16 (Incom)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 4,
+          "maniabilite": 3,
+          "defense": "0/0",
+          "blindage": 1,
+          "coqueMax": 4,
+          "coque": 4,
+          "tensionMax": 6,
+          "tension": 6
+        },
+        "image": "assets/images/t16.jpg"
+      },
+      {
+        "label": "Airspeeder T-47 (Incom)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 4,
+          "maniabilite": 0,
+          "defense": "0/0",
+          "blindage": 1,
+          "coqueMax": 4,
+          "coque": 4,
+          "tensionMax": 6,
+          "tension": 6
+        },
+        "image": "assets/images/T-47_Airspeeder.webp"
+      },
+      {
+        "label": "Speeder bike militaire 74-Z (Aratech)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 3,
+          "maniabilite": 1,
+          "defense": "0/0",
+          "blindage": 0,
+          "coqueMax": 2,
+          "coque": 2,
+          "tensionMax": 4,
+          "tension": 4
+        },
+        "image": "assets/images/74-Z.webp"
+      },
+      {
+        "label": "Swoop Flare-S (Mobquet)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 3,
+          "maniabilite": 2,
+          "defense": "0/0",
+          "blindage": 0,
+          "coqueMax": 2,
+          "coque": 2,
+          "tensionMax": 3,
+          "tension": 3
+        },
+        "image": "assets/images/Flare-S_Swoop.webp"
+      },
+      {
+        "label": "Speeder lourd A-A5 (Trast Heavy Transports)",
+        "values": {
+          "silhouette": 3,
+          "vitesse": 1,
+          "maniabilite": -2,
+          "defense": "0/0",
+          "blindage": 0,
+          "coqueMax": 10,
+          "coque": 10,
+          "tensionMax": 8,
+          "tension": 8
+        },
+        "image": "assets/images/A-A5_Speeder_Truck.webp"
+      },
+      {
+        "label": "Landspeeder X-34 (SoroSuub)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 2,
+          "maniabilite": 0,
+          "defense": "0/0",
+          "blindage": 0,
+          "coqueMax": 4,
+          "coque": 4,
+          "tensionMax": 5,
+          "tension": 5
+        },
+        "image": "assets/images/landspeeder_X34.webp"
+      },
+      {
+        "label": "Char des sables Digger Crawler (Corellian Mining Corp.)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 1,
+          "maniabilite": -3,
+          "defense": "0/0",
+          "blindage": 4,
+          "coqueMax": 40,
+          "coque": 40,
+          "tensionMax": 30,
+          "tension": 30
+        },
+        "image": "assets/images/Sandcrawler.jpg"
+      },
+      {
+        "label": "Transporteur de personnel terrestre",
+        "values": {
+          "silhouette": 3,
+          "vitesse": 2,
+          "maniabilite": -2,
+          "defense": "0/0",
+          "blindage": 0,
+          "coqueMax": 8,
+          "coque": 8,
+          "tensionMax": 4,
+          "tension": 4
+        },
+        "image": "assets/images/transporter_personnel_terrestre.jpg"
+      },
+      {
+        "label": "Marcheur d'infanterie AT-PT (Rothana)",
+        "values": {
+          "silhouette": 2,
+          "vitesse": 2,
+          "maniabilite": 0,
+          "defense": "0/0",
+          "blindage": 3,
+          "coqueMax": 6,
+          "coque": 6,
+          "tensionMax": 5,
+          "tension": 5
+        },
+        "image": "assets/images/ATPT.webp"
+      },
+      {
+        "label": "Marcheur d'exploration AT-EST (Rothana)",
+        "values": {
+          "silhouette": 4,
+          "vitesse": 1,
+          "maniabilite": -2,
+          "defense": "0/0",
+          "blindage": 2,
+          "coqueMax": 20,
+          "coque": 20,
+          "tensionMax": 12,
+          "tension": 12
+        },
+        "image": "assets/images/atst.webp"
       }
     ]
   },

@@ -7,7 +7,7 @@ import { Environment } from '@react-three/drei';
 import { DiceSkin, getSkinById, CriticalType } from './dice-definitions';
 import * as THREE from 'three';
 import { getCachedGeometry, getDieValue } from './geometry';
-import { playRoll, startAmbience, ambienceForSkin, Ambience } from './audio';
+import { playRoll, startAmbience, ambienceForSkin, playOneShotForSkin, Ambience } from './audio';
 import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
 
@@ -81,6 +81,12 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
         if (!id) return;
         const amb: Ambience | null = startAmbience(id);
         return () => { amb?.stop(); };
+    }, [skin]);
+
+    // One-shot themed sound (e.g. butterfly wings) — plays once when this die
+    // is thrown, no loop.
+    useEffect(() => {
+        playOneShotForSkin(skin);
     }, [skin]);
 
     useEffect(() => {

@@ -1,15 +1,31 @@
 "use client"
 
 import React from 'react';
-import { type MapObject, type LayerType } from '@/app/[roomid]/map/types';
+import { type MapObject, type LayerType, type GroupEntity } from '@/app/[roomid]/map/types';
 import { getMediaDimensions } from '@/app/[roomid]/map/utils/coordinates';
 import { type ShadowResult, isPointInPolygon } from '@/lib/visibility';
 import { type Obstacle } from '@/lib/visibility';
 import { type DetectedElement } from '@/components/(map)/ElementSelectionMenu';
 import StaticToken from '@/components/(map)/StaticToken';
+import { type StatDefinition } from '@/modules/game-system/types';
+import { resolveCharacterStats, getFormulaDependencies } from '@/lib/rules-engine';
+
+/** Stat 'vital' principale (première ayant un maxFormula référençant une autre stat, ex Coque/CoqueMax)
+ *  d'un schéma d'entité de groupe — même logique que useNpcStatFields, réduite au seul besoin d'ici :
+ *  une jauge à afficher sur le token, pas la liste complète des champs NPC. */
+function primaryVitalStat(stats: StatDefinition[]): { stat: StatDefinition; maxKey: string } | null {
+  for (const stat of stats) {
+    if (stat.category !== 'vital' || !stat.maxFormula) continue;
+    const [maxKey] = getFormulaDependencies(stat.maxFormula);
+    if (maxKey) return { stat, maxKey };
+  }
+  return null;
+}
 
 export interface ObjectsLayerProps {
   objects: MapObject[];
+  groupEntities?: GroupEntity[];
+  groupEntityStats?: StatDefinition[];
   isLayerVisible: (layerId: LayerType) => boolean;
   isObjectVisibleToUser: (obj: MapObject) => boolean;
   bgImageObject: HTMLImageElement | HTMLVideoElement | CanvasImageSource | null;
@@ -52,6 +68,8 @@ export interface ObjectsLayerProps {
 
 const ObjectsLayer = React.memo(function ObjectsLayer({
   objects,
+  groupEntities = [],
+  groupEntityStats = [],
   isLayerVisible,
   isObjectVisibleToUser,
   bgImageObject,
@@ -91,6 +109,8 @@ const ObjectsLayer = React.memo(function ObjectsLayer({
   setSelectionMenuPosition,
   setShowElementSelectionMenu,
 }: ObjectsLayerProps) {
+  const vital = React.useMemo(() => primaryVitalStat(groupEntityStats), [groupEntityStats]);
+
   return (
     <div className="objects-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
       {isLayerVisible('objects') && objects.map((obj, index) => {
@@ -334,6 +354,28 @@ const ObjectsLayer = React.memo(function ObjectsLayer({
                 display: 'block'
               }}
             />
+
+            {/* Jauge live d'entité de groupe (ex Coque d'un vaisseau posé) */}
+            {obj.groupEntityId && vital && (() => {
+              const entity = groupEntities.find((ge) => ge.id === obj.groupEntityId);
+              if (!entity) return null;
+              const resolved = resolveCharacterStats({ systemId: '', stats: groupEntityStats }, [], entity.values);
+              const value = Number(resolved.values[vital.stat.key]) || 0;
+              const max = Number(resolved.values[vital.maxKey]) || 0;
+              const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+              return (
+                <div
+                  style={{
+                    position: 'absolute', bottom: -10, left: '10%', width: '80%',
+                    height: 5, borderRadius: 3, background: 'rgba(0,0,0,0.6)',
+                    border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden', pointerEvents: 'none',
+                  }}
+                  title={`${vital.stat.label || vital.stat.key} : ${value} / ${max}`}
+                >
+                  <div style={{ height: '100%', width: `${pct}%`, background: pct > 33 ? '#4ade80' : '#ef4444', transition: 'width 0.3s' }} />
+                </div>
+              );
+            })()}
 
             {/* Resize Handle (Bottom Right) */}
             {isSelected && isMJ && (

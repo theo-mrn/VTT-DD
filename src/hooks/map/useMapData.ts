@@ -28,6 +28,7 @@ import type {
     Scene,
     Portal,
     MapObject,
+    GroupEntity,
 } from '@/app/[roomid]/map/types';
 import type { Obstacle } from '@/lib/visibility';
 import type { SharedMeasurement } from '@/app/[roomid]/map/measurements';
@@ -39,6 +40,7 @@ interface MapDataCallbacks {
     setLoading?: (v: boolean) => void;
     setLights?: (lights: LightSource[]) => void;
     setObjects?: (objects: MapObject[]) => void;
+    setGroupEntities?: (entities: GroupEntity[]) => void;
     setNotes?: (notes: MapText[]) => void;
     setDrawings?: (drawings: SavedDrawing[]) => void;
     setFogGrid?: (grid: Map<string, boolean>) => void;
@@ -198,6 +200,17 @@ export function useMapData(
                 collection(db, 'cartes', roomId, 'cities'),
                 (snapshot) => {
                     cb.current.setCities?.(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                }
+            ));
+        }
+
+        // ─── 5b. GROUP ENTITIES (vaisseaux, base...) ────────────────────────────
+        // Pas scopées par ville/scène — vivent sous Salle/{roomId}, pas cartes/{roomId}.
+        if (cb.current.setGroupEntities) {
+            unsubs.push(onSnapshot(
+                collection(db, 'Salle', roomId, 'groupEntities'),
+                (snapshot) => {
+                    cb.current.setGroupEntities?.(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<GroupEntity, 'id'>) })));
                 }
             ));
         }
