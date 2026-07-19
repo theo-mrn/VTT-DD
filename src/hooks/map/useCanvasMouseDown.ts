@@ -1036,8 +1036,8 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
           return;
         }
 
-        //  NOUVEAU Mode brouillard - priorité élevée (placement continu)
-        if (fogMode && isLayerVisible('fog')) {
+        //  NOUVEAU Mode brouillard - priorité élevée (placement continu) — MJ uniquement
+        if (fogMode && isMJ && isLayerVisible('fog')) {
           setIsFogDragging(true);
           const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
           const isCurrentlyFogged = fogGrid.has(firstCellKey);
@@ -1150,9 +1150,9 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
         //  NOUVEAU : Vérifier si on clique sur une cellule de brouillard
         const clickedFogIndex = isCellInFog(clickX, clickY, fogGrid, fogCellSize) ? 0 : -1;
 
-        // 🆕 Détecter si on clique sur une case de brouillard (pour sélection multiple)
+        // 🆕 Détecter si on clique sur une case de brouillard (pour sélection multiple) — MJ uniquement
         const clickedFogCellKey = (() => {
-          if (!isLayerVisible('fog')) return null;
+          if (!isMJ || !isLayerVisible('fog')) return null;
           const cellKey = getCellKey(clickX, clickY, fogCellSize);
 
           // Vérifier si cette cellule contient du brouillard

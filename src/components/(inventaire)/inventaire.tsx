@@ -33,6 +33,9 @@ interface InventoryItem {
   damage?: string;
   critical?: number;
   hardPoints?: number;
+  /** Arme d'un système numérique (D&D) : clés de caractéristiques (ex FOR, DEX) dont le modificateur
+   *  s'ajoute au jet de dégâts de cette arme, en plus du diceSelection fixe. */
+  damageStatKeys?: string[];
 }
 
 interface Bonus {
@@ -116,6 +119,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [bonusValue, setBonusValue] = useState<string>('');
   const [diceCount, setDiceCount] = useState<number>(1);
   const [diceFaces, setDiceFaces] = useState<number>(6);
+  const [diceDamageStatKeys, setDiceDamageStatKeys] = useState<string[]>([]);
   // Caractéristiques d'arme (système à dés à symboles) — édition dégâts/critique/points de fixation.
   const [isWeaponStatsDialogOpen, setIsWeaponStatsDialogOpen] = useState<boolean>(false);
   const [weaponDamage, setWeaponDamage] = useState<string>('');
@@ -141,6 +145,12 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   );
   const statByKey = useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats]);
   const getStatLabel = (key: string) => statByKey.get(key)?.shortLabel || statByKey.get(key)?.label || key;
+  // Caractéristiques (FOR/DEX/...) dont le modificateur peut s'ajouter au jet de dégâts d'une arme
+  // (mode numérique uniquement) — seule category='ability' a un modificateur au sens D&D.
+  const abilityKeys = useMemo(
+    () => gameSystem.stats.filter((s) => s.category === 'ability').map((s) => s.key),
+    [gameSystem.stats],
+  );
   useEffect(() => {
     if (!isDndClassic) { setItemDescriptions({}); return; }
     const loadItemDescriptions = async () => {
@@ -534,7 +544,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             weight: currentItem.weight || 1,
             ...(currentItem.damage != null ? { damage: currentItem.damage } : {}),
             ...(currentItem.critical != null ? { critical: currentItem.critical } : {}),
-            ...(currentItem.hardPoints != null ? { hardPoints: currentItem.hardPoints } : {})
+            ...(currentItem.hardPoints != null ? { hardPoints: currentItem.hardPoints } : {}),
+            ...(currentItem.damageStatKeys != null ? { damageStatKeys: currentItem.damageStatKeys } : {})
           });
         }
 
@@ -782,9 +793,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     if (currentItem) {
       try {
         const itemRef = doc(inventoryRef, currentItem.id);
-        await updateDoc(itemRef, { diceSelection: `${diceCount}d${diceFaces}` });
+        await updateDoc(itemRef, { diceSelection: `${diceCount}d${diceFaces}`, damageStatKeys: diceDamageStatKeys });
         toast.success('Dés modifiés', {
-          description: `${currentItem.message} : ${diceCount}d${diceFaces}`,
+          description: `${currentItem.message} : ${diceCount}d${diceFaces}${diceDamageStatKeys.length ? ` + ${diceDamageStatKeys.map(getStatLabel).join(' + ')}` : ''}`,
           duration: 2000,
         });
         setIsDiceDialogOpen(false);
@@ -1116,7 +1127,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                 {item.visibility === 'private' && <Lock size={10} className="text-[var(--accent-brown)]" />}
                               </p>
                               {item.diceSelection && (
-                                <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
+                                <p className="text-xs font-bold text-green-700 font-mono">
+                                  {item.diceSelection}{item.damageStatKeys && item.damageStatKeys.length > 0 ? ` + ${item.damageStatKeys.map(getStatLabel).join(' + ')}` : ''}
+                                </p>
                               )}
                               {item.damage != null && (
                                 <p className="text-xs font-bold text-green-700 font-mono">
@@ -1197,6 +1210,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                 setDiceCount(count || 1);
                                 setDiceFaces(faces || 6);
                               }
+                              setDiceDamageStatKeys(item.damageStatKeys ?? []);
                               setIsDiceDialogOpen(true);
                             }}>
                               Modifier les dés
@@ -1342,6 +1356,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
               setCurrentItem(null);
               setDiceCount(1);
               setDiceFaces(6);
+              setDiceDamageStatKeys([]);
             }
           }}>
             <DialogContent className="modal-content max-w-md">
@@ -1373,6 +1388,34 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                     />
                   </div>
                 </div>
+                {abilityKeys.length > 0 && (
+                  <div>
+                    <Label className="text-[var(--text-primary)]">Modificateurs ajoutés aux dégâts</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {abilityKeys.map((key) => {
+                        const active = diceDamageStatKeys.includes(key);
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setDiceDamageStatKeys((prev) =>
+                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+                            )}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${active
+                              ? 'bg-[var(--accent-brown)] text-white border-[var(--accent-brown)]'
+                              : 'bg-[var(--bg-dark)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'
+                              }`}
+                          >
+                            {getStatLabel(key)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-1.5">
+                      Le modificateur de chaque caractéristique cochée s&apos;ajoutera automatiquement au jet de dégâts de cette arme.
+                    </p>
+                  </div>
+                )}
                 <Button onClick={handleUpdateDice} className="button-primary">Mettre à jour les dés</Button>
               </div>
             </DialogContent>

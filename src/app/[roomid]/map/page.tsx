@@ -750,6 +750,7 @@ export default function Component() {
     viewAsPersoId,
     charactersRef: charactersRenderRef.current,
     lights,
+    pixelsPerUnit,
     recordAction,
     setSelectedCharacterIndex,
     setSelectedObjectIndices,

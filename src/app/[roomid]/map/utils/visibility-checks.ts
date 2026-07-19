@@ -187,12 +187,16 @@ export function isCharacterVisibleToUser(
     const charScreenX = (char.x / imgWidth) * scaledWidth - offset.x;
     const charScreenY = (char.y / imgHeight) * scaledHeight - offset.y;
 
+    // En mode "voir comme un joueur" (MJ incarnant un perso), le rayon de vision de
+    // référence doit être celui du perso incarné (viewAsPersoId), pas l'identité MJ.
+    const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+
     // Check if within vision radius of the player's own character or an ally.
     return characters.some((player) => {
       const playerScreenX = (player.x / imgWidth) * scaledWidth - offset.x;
       const playerScreenY = (player.y / imgHeight) * scaledHeight - offset.y;
       return (
-        (player.id === persoId || player.visibility === 'ally') &&
+        (player.id === effectivePersoId || player.visibility === 'ally') &&
         calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <=
           ((player.visibilityRadius ?? 100) / imgWidth) * scaledWidth
       );
