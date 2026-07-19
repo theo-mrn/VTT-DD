@@ -536,14 +536,14 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   return (
     <>
       {/* ── Desktop: vertical rail on the left edge ── */}
-      <aside className="hidden lg:block fixed top-1/2 left-0 transform -translate-y-1/2 z-30">
+      <aside className="hidden lg:block fixed top-1/2 left-0 transform -translate-y-1/2 z-30 max-h-[70vh]">
         <div
-          className="rounded-r-2xl relative isolate overflow-hidden backdrop-blur-xl shadow-lg border-t border-r border-b"
+          className="rounded-r-2xl relative isolate overflow-hidden backdrop-blur-xl shadow-lg border-t border-r border-b max-h-[70vh] flex flex-col"
           style={surfaceStyle}
         >
           <div className="absolute inset-0 pointer-events-none rounded-r-2xl"
             style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)' }} />
-          <div className="relative p-4 rounded-r-xl flex flex-col items-center space-y-6">
+          <div className="relative p-4 rounded-r-xl flex flex-col items-center space-y-6 overflow-y-auto no-scrollbar">
             {isHydrated && (
               <DndContext id="vtt-sidebar-rail-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
