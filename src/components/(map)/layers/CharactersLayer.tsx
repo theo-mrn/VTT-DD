@@ -75,46 +75,15 @@ const CharactersLayer: React.FC<CharactersLayerProps> = ({
           return null;
         }
 
-        let isVisible = true;
-        let effectiveVisibility = char.visibility;
-
-        // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
+        // isCharacterVisibleToUser calcule déjà tout (obstacles/ombres, lumières, brouillard,
+        // rayon de vision) — on fait confiance à son verdict tel quel, sans le recalculer ici.
+        // Un second calcul local (uniquement par distance, sans les obstacles ni le brouillard)
+        // écrasait auparavant sa décision : un PNJ caché par le brouillard mais proche du joueur
+        // redevenait visible car ce recalcul ignorait le brouillard.
         if (!isCharacterVisibleToUser(char)) {
-          if (char.visibility === 'invisible') return null;
-          effectiveVisibility = 'hidden';
+          return null;
         }
-
-        if (char.visibility === 'ally') {
-          isVisible = true;
-        } else if (effectiveVisibility === 'hidden') {
-          const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-          const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-          if (isInPlayerViewMode) {
-            const viewer = characters.find(c => c.id === effectivePersoId);
-            if (viewer) {
-              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              const radiusScreen = ((viewer?.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-              isVisible = dist <= radiusScreen;
-            } else {
-              isVisible = false;
-            }
-          } else {
-            isVisible = isMJ || (() => {
-              const viewer = characters.find(c => c.id === effectivePersoId);
-              if (!viewer) return false;
-              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-              return dist <= radiusScreen;
-            })();
-          }
-        }
-
-        if (!isVisible) return null;
+        const effectiveVisibility = char.visibility;
 
         const isPlayerCharacter = char.type === 'joueurs';
         // Base radius is a fraction of the image width (calibrated on a 3148px-wide reference image)

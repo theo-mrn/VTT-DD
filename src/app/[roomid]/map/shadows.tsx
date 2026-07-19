@@ -34,6 +34,9 @@ interface FogManagerProps {
     characters: Character[];
     lights?: LightSource[];
     fogCellSize: number;
+    /** Échelle réelle de la salle (pixels par unité de monde, calibrable par le MJ) — utilisée pour
+     *  convertir light.radius (mètres) en pixels, comme dans visibility-checks.ts. */
+    pixelsPerUnit: number;
 }
 
 export const useFogManager = ({
@@ -51,6 +54,7 @@ export const useFogManager = ({
     characters,
     lights,
     fogCellSize,
+    pixelsPerUnit,
 }: FogManagerProps) => {
 
     const saveFogGrid = async (newGrid: Map<string, boolean>) => {
@@ -185,77 +189,12 @@ export const useFogManager = ({
                 const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
                 const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
 
-                // Calculer la distance de cette lumière
-                const distToLight = calculateDistance(cellCenterX, cellCenterY, light.x, light.y);
-                const lightRadius = light.radius; // En unités du monde (mètres)
-                const pixelsPerUnit = 30; // ⚠️ Fallback constant
-                const lightRadiusPixels = lightRadius * pixelsPerUnit; // Convertir en pixels
-
-                // ATTENTION: light.radius est probablement en METRES (ex: 10m).
-                // Il faut vérifier l'unité utilisée pour 'distance' et 'visibleRadiusWithMargin'.
-                // 'distance' ligne 188 n'est pas définie dans ce scope (c'était celle du forEach précédent ?).
-                // Ah, 'distance' venait de la boucle characters ! Elle n'est PAS accessible ici.
-                // Il faut recalculer la distance pour la lumière.
-
-                // Supposons que light.radius est en metres.
-                // Si calculateDistance retourne des pixels ? 
-                // Dans le code précédent, `distance` était `calculateDistance(...)`.
-
-                // IMPORTANT: characters loop used `visibilityRadius = (character.visibilityRadius || 100)`. This is likely in pixels already? 
-                // Or converted? Let's check character loop again.
-                // Line 140: `const visibilityRadius = (character.visibilityRadius || 100);` 
-                // If light.radius is e.g. 10 (meters), we need to convert to pixels: `light.radius * pixelsPerUnit`.
-                // However, let's assume `light.radius` matches the unit system. 
-                // Wait, in `types.ts`, light.radius is usually meters for display but pixels for logic? 
-                // Let's stick to what we know: `light.radius` is the radius.
-
-                // Let's assume pixels for now to match the code style (distance vs radius comparison).
-                // Actually, `light.radius` from the UI is `10` or `20`, so likely meters.
-
-                // Let's try to infer from common usage. If `visibilityRadius` defaults to 100, that's pixels. (100px ~ 3m or 5ft?).
-                // If `light.radius` is from input `type="number"`, it might be small (5, 10, 15...).
-                // We should probably multiply by `pixelsPerUnit`.
-                // But `pixelsPerUnit` is NOT available in `useFogManager` scope props currently! (See line 49).
-
-                // BUT wait, `visibleRadiusWithMargin` used for characters is `visibleRadius - 20` (pixels margin).
-                // So everything is in PIXELS.
-
-                // If `light.radius` is "10" (meters), and we compare to pixels distance (e.g. 300), it will be tiny.
-                // We need `pixelsPerUnit`. 
-                // Check if `pixelsPerUnit` is available in the file. No, correct?
-                // Actually, `useFogManager` is a hook. Maybe we can pass `pixelsPerUnit`?
-                // Or maybe `light.radius` IS stored in pixels? 
-                // In `page.tsx`:
-                // `updateDoc(... 'lights' ... { radius: ... })`.
-                // In the UI for light: `<div className="...">{light.radius}m</div>`. Display in meters.
-                // So it is stored in meters.
-
-                // We likely need `pixelsPerUnit` passed to `useFogManager`.
-                // HOWEVER, to fix the IMMEDIATE crash, let's just make it compilable.
-                // But the logic was: `if (distance <= visibleRadiusWithMargin) return 0;`
-                // This `distance` variable was Undefined in this scope anyway! It was leaked from previous scope mentally?
-                // No, `distance` was declared in line 136 inside the character loop.
-                // Thus the `lights.forEach` block was using an undefined variable `distance` if it was outside?
-                // No, look at the snippet in Step 308. `distance` is NOT declared in the `lights` block.
-                // It was a complete hallucination/copy-paste error in the previous code I viewed?
-                // Or `distance` was declared at top level of `calculateFogOpacity`?
-                // Let's look at `calculateFogOpacity` start. Step 351 doesn't show it.
-                // But typically it's specific to the entity.
-
-                // I will recalculate distance and assume radius needs conversion or is raw.
-                // Given the urgency, I'll assume radius * 30 (approx pixels/unit) or just raw if it's large.
-                // Wait, let's just use `light.radius` directly if it's comparable to `visibilityRadius`.
-                // If not, it will be small/invisible.
-                // Better approach: Use a safe default multiplier if unknown, OR check if I can see `pixelsPerUnit` usage elsewhere.
-                // Line 250: `cellScreenWidth = (fogCellSize / imageWidth) * scaledWidth`. 
-                // This suggests scaling relative to image.
-
-                // Let's fix the Syntax first and logic "best guess" to simple distance check.
-                // Variable `isMJ` is captured.
-
+                // light.radius est en unités du monde (mètres) : conversion via le pixelsPerUnit
+                // RÉEL de la salle (calibrable), la même que le check de visibilité des personnages
+                // (visibility-checks.ts). Les deux zones doivent coïncider, sinon un PNJ encore
+                // sous brouillard visible serait considéré "éclairé" et donc révélé aux joueurs.
                 const d = calculateDistance(cellCenterX, cellCenterY, light.x, light.y);
-                const r = light.radius * 30; // ⚠️ Rough Estimate: 1m = 30px (standard grid). BETTER than 0. 
-                // TODO: Pass pixelsPerUnit to proper calculation later.
+                const r = light.radius * pixelsPerUnit;
 
                 if (d <= r) {
                     minOpacity = 0;

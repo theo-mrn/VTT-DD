@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
-import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult } from '@/lib/rules-engine'
+import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, resolveCharacterStats } from '@/lib/rules-engine'
 
 // --- Interfaces ---
 
@@ -35,6 +35,9 @@ interface Weapon {
   critical?: number;
   /** Points de Fixation : emplacements d'accessoires de l'arme. */
   hardPoints?: number;
+  /** Mode numérique (D&D) : clés de caractéristiques (ex FOR, DEX) dont le modificateur s'ajoute
+   *  au jet de dégâts de cette arme, en plus de numDice/numFaces. */
+  damageStatKeys?: string[];
 }
 
 interface CustomRoll {
@@ -110,7 +113,7 @@ const ActionCard = ({ title, icon: Icon, value, color, onClick }: any) => (
   </button>
 )
 
-const WeaponCard = ({ weapon, onClick, onSoundClick }: { weapon: Weapon, onClick: () => void, onSoundClick: (e: any) => void }) => (
+const WeaponCard = ({ weapon, onClick, onSoundClick, damageModifier = 0 }: { weapon: Weapon, onClick: () => void, onSoundClick: (e: any) => void, damageModifier?: number }) => (
   <button
     type="button"
     onPointerUp={(e) => { if (e.pointerType !== 'mouse') onClick() }}
@@ -136,7 +139,7 @@ const WeaponCard = ({ weapon, onClick, onSoundClick }: { weapon: Weapon, onClick
             ? 'text-purple-400 bg-purple-500/10'
             : 'text-[var(--accent-brown)] bg-[var(--accent-brown)]/10'
         }`}>
-          {weapon.numDice}d{weapon.numFaces}
+          {weapon.numDice}d{weapon.numFaces}{damageModifier !== 0 ? ` ${damageModifier > 0 ? '+' : ''}${damageModifier}` : ''}
         </span>
         {weapon.source !== 'competence' && (
           <div
@@ -212,6 +215,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   // Logic State
   const [attackResult, setAttackResult] = useState<number>(0)
   const [damageResult, setDamageResult] = useState<number>(0)
+  const [damageWeapon, setDamageWeapon] = useState<Weapon | null>(null)
   const [selectedAttackType, setSelectedAttackType] = useState<AttackType>('contact')
 
   // Custom
@@ -220,7 +224,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
   const { user: gameUser } = useGame()
   const roomId = gameUser?.roomId ?? null
-  const { gameSystem } = useGameSystem(roomId)
+  const { gameSystem, tableCustomStats } = useGameSystem(roomId)
 
   // Clés de stat + labels affichés dérivés du système de jeu actif (fallback sur les clés dnd-classic
   // si le système custom en définit moins de 3, pour ne jamais casser les 3 boutons/icônes fixes).
@@ -283,6 +287,16 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
   const [actions, setActions] = useState<Array<{ Nom: string; Description: string; Toucher: number }>>([])
+
+  // Modificateurs de caractéristique (FOR/DEX/...) de l'attaquant, pour les ajouter au jet de dégâts
+  // d'une arme portant damageStatKeys (mode numérique D&D uniquement, pas le mode dés à symboles).
+  const damageStatModifiers = useMemo(() => {
+    if (!attackerRaw) return {} as Record<string, number>
+    return resolveCharacterStats(gameSystem, tableCustomStats, attackerRaw, totalBonuses).modifiers
+  }, [gameSystem, tableCustomStats, attackerRaw, totalBonuses])
+
+  const weaponDamageModifier = (weapon: Weapon | null) =>
+    (weapon?.damageStatKeys ?? []).reduce((sum, key) => sum + (damageStatModifiers[key] ?? 0), 0)
 
   // Sounds
   const [sounds, setSounds] = useState<SoundTemplate[]>([])
@@ -368,7 +382,9 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
             // Caractéristiques d'arme du mode dés à symboles (dégâts de base fixes, critique, fixation).
             ...(item.damage != null && !isNaN(Number(item.damage)) ? { baseDamage: Number(item.damage) } : {}),
             ...(item.critical != null && !isNaN(Number(item.critical)) ? { critical: Number(item.critical) } : {}),
-            ...(item.hardPoints != null && !isNaN(Number(item.hardPoints)) ? { hardPoints: Number(item.hardPoints) } : {})
+            ...(item.hardPoints != null && !isNaN(Number(item.hardPoints)) ? { hardPoints: Number(item.hardPoints) } : {}),
+            // Mode numérique : modificateurs de caractéristique (FOR/DEX/...) ajoutés aux dégâts.
+            ...(Array.isArray(item.damageStatKeys) && item.damageStatKeys.length > 0 ? { damageStatKeys: item.damageStatKeys } : {})
           })
         }
       })
@@ -474,13 +490,14 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     // selector closed over a weapon card.
     if (Date.now() - soundJustClosedRef.current < 600) return
     setStep('DAMAGE_ROLLING')
+    setDamageWeapon(weapon)
 
     setTimeout(() => {
       let dmg = 0
       const isCustomWait = (selectedAttackType === 'custom' && !weapon) // ? logic for custom step
 
       if (weapon && weapon.name !== "Autre") {
-        dmg = rollDice(weapon.numDice, weapon.numFaces, 0)
+        dmg = rollDice(weapon.numDice, weapon.numFaces, weaponDamageModifier(weapon))
         playWeaponSound(weapon)
       } else {
         // Fallback or Generic
@@ -616,6 +633,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     setStep('ATTACK_CHOICE')
     setAttackResult(0)
     setDamageResult(0)
+    setDamageWeapon(null)
     setSelectedAction(null)
     setAttackDetails(null)
   }
@@ -1379,7 +1397,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                         {weapons.map(w => (
-                          <WeaponCard key={w.id || w.name} weapon={w} onClick={() => handleDamage(w)} onSoundClick={(e) => openSoundSelector(e, w)} />
+                          <WeaponCard key={w.id || w.name} weapon={w} onClick={() => handleDamage(w)} onSoundClick={(e) => openSoundSelector(e, w)} damageModifier={weaponDamageModifier(w)} />
                         ))}
                       </div>
 
@@ -1455,6 +1473,12 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     <div className="text-2xl text-red-400 font-bold uppercase tracking-[0.5em] mt-4">
                       Dégâts
                     </div>
+                    {damageWeapon && damageWeapon.damageStatKeys && damageWeapon.damageStatKeys.length > 0 && (
+                      <div className="text-xs font-mono text-gray-500 mt-2">
+                        {damageWeapon.numDice}d{damageWeapon.numFaces} {weaponDamageModifier(damageWeapon) >= 0 ? '+' : ''}{weaponDamageModifier(damageWeapon)}
+                        {' '}({damageWeapon.damageStatKeys.map(statLabel).join(' + ')})
+                      </div>
+                    )}
 
                     <div className="mt-12 flex items-center gap-6 justify-center">
                       <Button {...tap(reset)} variant="outline" className="h-12 border-white/10 text-gray-400 hover:text-white">

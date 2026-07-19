@@ -22,6 +22,8 @@ export interface UseVisibilityStateProps {
   viewAsPersoId: string | null;
   charactersRef: Character[];
   lights: LightSource[];
+  /** Échelle réelle de la salle (px par unité de monde) — transmise à useFogManager pour le rayon des lumières. */
+  pixelsPerUnit: number;
   recordAction: (action: Omit<UndoableAction, 'timestamp'>) => void;
   // Callbacks for cross-deselection
   setSelectedCharacterIndex: (idx: number | null) => void;
@@ -45,6 +47,7 @@ export function useVisibilityState(props: UseVisibilityStateProps) {
     viewAsPersoId,
     charactersRef,
     lights,
+    pixelsPerUnit,
     recordAction,
     setSelectedCharacterIndex,
     setSelectedObjectIndices,
@@ -133,6 +136,7 @@ export function useVisibilityState(props: UseVisibilityStateProps) {
     characters: charactersRef,
     lights,
     fogCellSize,
+    pixelsPerUnit,
   });
 
   // ===================== BUSINESS LOGIC =====================
