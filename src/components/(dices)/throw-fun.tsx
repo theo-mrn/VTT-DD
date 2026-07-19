@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
 import { createBeveledGeometry, getCachedGeometry } from './geometry';
-import { getAudioContext } from './audio';
+import { getAudioContext, playOneShotForSkin } from './audio';
 
 // Skins eligible for the random "for fun" roll. Orb skins use a heavier
 // transmission + GLTF-core path, so we keep the random pool to the procedural
@@ -126,6 +126,12 @@ const FunDie = React.forwardRef(({ type, position, impulse, angularVelocity, ski
             api.velocity.set(...impulse);
         }
     }, [api, impulse, angularVelocity]);
+
+    // One-shot themed sound (e.g. butterfly wings) — plays once when this die
+    // is thrown, no loop.
+    useEffect(() => {
+        playOneShotForSkin(skin);
+    }, [skin]);
 
     return (
         <group ref={ref as any}>

@@ -12,6 +12,7 @@ import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Rule
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
+import { getAssetUrl } from "@/lib/asset-loader";
 
 const ACCENT = "#c0a080";
 
@@ -48,6 +49,11 @@ const ITEM_SOURCE_PREFIX = "Objet:";
 const MONSTER_SOURCE_PREFIX = "Créature:";
 const LOCATION_SOURCE_PREFIX = "Lieu:";
 
+// Résout un chemin d'image local (ex: "/images/races/Elfe.webp") vers son URL R2, en laissant
+// les URLs déjà absolues (ex: Star Wars → media.anakinworld.com) inchangées.
+const resolveImagePath = (path: string) =>
+    /^https?:\/\//.test(path) ? path : getAssetUrl(path);
+
 export default function SearchMenu() {
     const [open, setOpen] = useState(false);
     const { searchCompetences, isLoading, allCompetences } = useCompetences();
@@ -72,7 +78,7 @@ export default function SearchMenu() {
                 description: race.description ?? '',
                 type: 'Race',
                 source: 'Règles',
-                ...(race.image ? { image: race.image } : {}),
+                ...(race.image ? { image: resolveImagePath(race.image) } : {}),
                 ...(race.modifiers && Object.keys(race.modifiers).length > 0 ? { modificateurs: race.modifiers } : {}),
                 ...(race.avgHeight != null ? { tailleMoyenne: race.avgHeight } : {}),
                 ...(race.avgWeight != null ? { poidsMoyen: race.avgWeight } : {}),
@@ -84,7 +90,7 @@ export default function SearchMenu() {
                 description: profile.description ?? '',
                 type: 'Classe',
                 source: 'Règles',
-                ...(profile.image ? { image: profile.image } : {}),
+                ...(profile.image ? { image: resolveImagePath(profile.image) } : {}),
                 ...(profile.hitDie ? { hitDie: profile.hitDie } : {}),
             });
         }

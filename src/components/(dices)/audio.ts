@@ -144,6 +144,39 @@ const AMBIENCE_DELAY: Record<AmbienceId, number> = {
     ocean: 0.5,
 };
 
+// ============================================================================
+// ONE-SHOT SKIN SOUNDS — plays a themed sound file exactly once when a die of
+// that skin is thrown (no loop, unlike the ambiences above). One skin
+// implemented so far: 'butterfly_orb'.
+// ============================================================================
+
+const ONE_SHOT_URL: Record<string, string> = {
+    butterfly_orb: '/sons/butterfly.mp3',
+};
+const ONE_SHOT_VOLUME: Record<string, number> = {
+    butterfly_orb: 0.6,
+};
+
+export const playOneShotForSkin = (skin: { id?: string }) => {
+    const url = skin.id ? ONE_SHOT_URL[skin.id] : undefined;
+    if (!url) return;
+    try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') ctx.resume().catch(() => { });
+        loadBuffer(ctx, url).then((buf) => {
+            if (!buf) return;
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            const gain = ctx.createGain();
+            gain.gain.value = ONE_SHOT_VOLUME[skin.id!] ?? 0.6;
+            src.connect(gain);
+            gain.connect(getMasterGain(ctx));
+            src.start();
+        });
+    } catch { /* audio must never break the roll */ }
+};
+
 // Decoded audio buffers, fetched once and reused.
 const bufferCache = new Map<string, AudioBuffer>();
 const loadBuffer = async (ctx: AudioContext, url: string): Promise<AudioBuffer | null> => {

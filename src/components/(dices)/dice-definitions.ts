@@ -387,6 +387,44 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         description: "Un beholder miniature scellé dans une sphère de verre.",
         rarity: 'legendary'
     },
+    butterfly_orb: {
+        id: 'butterfly_orb',
+        name: 'Papillon Éphémère',
+        bodyColor: '#4a1f5a',
+        edgeColor: '#ff8ad4',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#180524',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ff8ad4',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#ff8ad4',
+        particleColor2: '#ffffff',
+        // A real 3D butterfly model floating inside clear violet-pink glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/butterfly.glb'),
+        coreColor: '#ffb2ea',   // inner light tint
+        coreScale: 0.8,
+        coreRotation: [1.5708, 0, 0], // tilt so we see the wings from above, not edge-on
+        coreSpin: 0.8,          // slow idle spin like the ring
+        shellColor: '#d48fe0',  // very light violet-pink glass
+        shellOpacity: 0.03,
+        shellTintDistance: 1000, // essentially clear glass
+        shellThickness: 0.05,
+        price: 1500,
+        description: "Une âme légère, figée en plein envol dans le verre.",
+        rarity: 'legendary'
+    },
     // ── SIGNATURE DICE (dedicated shaders) ──────────────────────
     singularite: {
         id: 'singularite',

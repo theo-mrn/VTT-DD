@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { db, collection, getDocs, doc, setDoc, addDoc, auth } from '@/lib/firebase';
+import { db, collection, getDocs, doc, setDoc, addDoc, updateDoc, auth } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { buildRoomExportBundle, downloadRoomExportBundle, parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer';
@@ -123,10 +123,31 @@ export default function ExportImportPanel() {
       }
 
       if (bundle.groupEntities) {
-        for (const entity of bundle.groupEntities.entities) {
-          await addDoc(collection(db, `Salle/${roomId}/groupEntities`), entity);
+        // Ré-importer le même bundle ne doit PAS dupliquer les entités (vaisseaux...) : on saute
+        // celles dont le label existe déjà dans la salle. On ne remplace pas non plus : une entité
+        // existante peut être l'instance VIVE du groupe (coque entamée, tension...), l'écraser
+        // remettrait son état à neuf à chaque ré-import de règles. SEULE exception : compléter les
+        // champs statiques manquants (image ajoutée au bundle après un premier import) — jamais
+        // d'écrasement d'une image déjà posée à la main par le MJ.
+        const existingSnap = await getDocs(collection(db, `Salle/${roomId}/groupEntities`));
+        const existingByLabel = new Map<string | undefined, { id: string; image?: string }>();
+        for (const d of existingSnap.docs) {
+          const data = d.data() as { label?: string; image?: string };
+          if (!existingByLabel.has(data.label)) existingByLabel.set(data.label, { id: d.id, image: data.image });
         }
-        importedCount += bundle.groupEntities.entities.length;
+        for (const entity of bundle.groupEntities.entities) {
+          const e = entity as { label?: string; image?: string };
+          const existing = existingByLabel.get(e.label);
+          if (existing) {
+            if (e.image && !existing.image) {
+              await updateDoc(doc(db, `Salle/${roomId}/groupEntities`, existing.id), { image: e.image });
+              importedCount += 1;
+            }
+            continue;
+          }
+          await addDoc(collection(db, `Salle/${roomId}/groupEntities`), entity);
+          importedCount += 1;
+        }
       }
 
       if (bundle.characters) {

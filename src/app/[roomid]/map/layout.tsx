@@ -19,6 +19,7 @@ import Historique from "@/components/(historique)/Historique";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
 import { DiceRoller } from "@/components/(dices)/dice-roller";
 import MapExplorer from "@/components/(maps)/MapExplorer";
+import { subscribeMapOverlays, getMapOverlays, getServerMapOverlays } from './map-overlay-store';
 import { toast } from "sonner";
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
@@ -56,6 +57,9 @@ export default function Layout({ children }: LayoutProps) {
   const subscribeRegistry = useCallback((cb: () => void) => moduleRegistry.subscribe(cb), []);
   const getRegistrySnapshot = useCallback(() => moduleRegistry.getSnapshot(), []);
   useSyncExternalStore(subscribeRegistry, getRegistrySnapshot, getRegistrySnapshot);
+  // Overlays de carte fournis par les scripts de bundle (api.map.setOverlays) — rendus plus bas
+  // dans une pile fixe en haut à droite.
+  const mapOverlays = useSyncExternalStore(subscribeMapOverlays, getMapOverlays, getServerMapOverlays);
 
   const params = useParams();
   const roomId = params.roomid as string;
@@ -63,6 +67,17 @@ export default function Layout({ children }: LayoutProps) {
   const { isMJ, user: gameUser } = useGame();
   const [activeTab, setActiveTab] = useState<string>("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  // Emit a global DOM event so bundles can react to panels opening/closing
+  useEffect(() => {
+    try {
+      const open = Boolean(activeTab || isPanelOpen);
+      const ev = new CustomEvent('vtt-panel-open', { detail: { open } });
+      window.dispatchEvent(ev);
+    } catch (e) {
+      // ignore (server render or restricted env)
+    }
+  }, [activeTab, isPanelOpen]);
 
   // Audio mixer volumes
   const { volumes: audioVolumes } = useAudioMixer();
@@ -140,14 +155,17 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const freshPanelWidth = PANEL_WIDTHS[activeTab] ?? "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
-  const showFreshPanel = activeTab && !PERSISTENT_PANELS.has(activeTab);
+  // Les onglets de modules ('module:*') ont leur propre rail de rendu plus bas — sans cette
+  // exclusion, l'aside fresh (700px pleine hauteur) se monte VIDE par-dessus la carte quand un
+  // onglet module est actif et capte tous les clics de la moitié gauche.
+  const showFreshPanel = activeTab && !PERSISTENT_PANELS.has(activeTab) && !activeTab.startsWith('module:');
 
   // Shared aside class builder.
   // Mobile/tablet (<lg): full-screen page (opaque bg) that stops above the dock,
   // which sits in the reserved --dock-h band at the bottom.
   // Desktop (lg): offset by the vertical rail on the left, full height.
   const asideClass = (width: string, isVisible: boolean, extra = "") =>
-    `fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${width} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-20 ${isVisible ? "" : "hidden"} ${extra}`.trim();
+    `fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${width} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-40 ${isVisible ? "" : "hidden"} ${extra}`.trim();
 
   return (
     <ShortcutsProvider>
@@ -172,7 +190,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
 
               {/* ── MUSIC (persistent, always in DOM) ── */}
-              <aside className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[80vh] lg:max-h-[85vh] rounded-xl border border-[#333] w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto ${activeTab === 'Music' ? 'block' : 'hidden'}`}>
+              <aside className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[80vh] lg:max-h-[85vh] rounded-xl border border-[#333] w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-40 overflow-y-auto ${activeTab === 'Music' ? 'block' : 'hidden'}`}>
                 <div>
                   {isMJ
                     ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} />
@@ -183,7 +201,7 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* ── FRESH panels (Fiche, EncounterGenerator, Compétences) ── */}
               {showFreshPanel && (
-                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-20 overflow-y-auto`}>
+                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-40 overflow-y-auto`}>
                   {renderFreshPanel()}
                 </aside>
               )}
@@ -253,8 +271,19 @@ export default function Layout({ children }: LayoutProps) {
                   );
                 } else {
                   if (activeTab !== tabKey) return null;
+                  // Panneau flottant : hauteur au contenu, pas de bande pleine hauteur qui capte
+                  // les clics — la carte reste interactive tout autour.
+                    if (tab.floating) {
+                    return (
+                      <aside key={tabKey} className={`fixed left-0 lg:left-20 top-0 z-40 pointer-events-none ${tab.width || ''}`}>
+                        <div className="pointer-events-auto m-2 max-h-[85vh] overflow-y-auto rounded-xl border border-white/10 bg-[#141416]/95 shadow-lg backdrop-blur-sm">
+                          <tab.component />
+                        </div>
+                      </aside>
+                    );
+                  }
                   return (
-                    <aside key={tabKey} className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${tab.width || freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-20 overflow-y-auto`}>
+                    <aside key={tabKey} className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${tab.width || freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-40 overflow-y-auto`}>
                       <tab.component />
                     </aside>
                   );
@@ -269,11 +298,19 @@ export default function Layout({ children }: LayoutProps) {
                 onClose={() => setActiveTab("")}
               />
 
-              <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] relative z-0">
+              <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] relative">
                 <MapReloadContext.Provider value={reloadMap}>
                   <div key={mapReloadKey} className="w-full h-full">{children}</div>
                 </MapReloadContext.Provider>
               </main>
+
+              {/* ── Overlays de bundle (api.map.setOverlays) : pile fixe haut-droit, jamais
+                   bloquante — chaque overlay réactive ses pointer-events au besoin. ── */}
+              {mapOverlays.length > 0 && (
+                <div className="pointer-events-none fixed top-3 right-3 z-10 flex flex-col items-end gap-2">
+                  {mapOverlays.map((o) => <o.Component key={o.id} />)}
+                </div>
+              )}
 
               {/* 3D Dice Overlay */}
               <DiceThrower />

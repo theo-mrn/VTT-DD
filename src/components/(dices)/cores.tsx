@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { SkeletonUtils } from 'three-stdlib';
 import { DiceSkin } from './dice-definitions';
 
 // ============================================================================
@@ -260,7 +261,7 @@ const ModelCore = ({ skin, url }: { skin: DiceSkin, url: string }) => {
 
     // Clone, recenter on origin, and normalize to a target diameter (~1.3 units).
     const normalized = useMemo(() => {
-        const obj = scene.clone(true);
+        const obj = SkeletonUtils.clone(scene) as THREE.Group;
         const box = new THREE.Box3().setFromObject(obj);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());

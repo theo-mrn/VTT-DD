@@ -4,7 +4,7 @@ import React, { useState, useEffect, useSyncExternalStore, Component as ReactCom
 import {
   updateDoc
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download, History, Sparkles } from 'lucide-react';
+import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download, History } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -1285,7 +1285,7 @@ export default function Component() {
                     <>
                       <DropdownMenuSeparator />
                       <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                        <Sparkles size={13} /> Fond de fiche
+                        Fond de fiche
                       </div>
                       {sheetBgOptions.map((opt) => (
                         <DropdownMenuItem

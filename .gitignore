@@ -20,8 +20,8 @@
 /blob-report/
 playwright/.cache/
 src/__tests__/playwright/helpers/.session.json
-
 # next.js
+/starwars-bundle
 /.next/
 /out/
 

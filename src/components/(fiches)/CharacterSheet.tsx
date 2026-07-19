@@ -65,6 +65,17 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   const defenseKey = gameSystem.combatDefenseKey ?? 'Defense';
   const combatColors = ['text-orange-400', 'text-green-400', 'text-purple-400'];
 
+  // Mode combat à dés à symboles (ex EotE/Star Wars) — même détection que combat.tsx : quand le
+  // système définit gameSystem.combat, on n'a ni combatAttackKeys ni combatDefenseKey en pratique,
+  // donc on bascule l'affichage sur soakStatKey (ex "Valeur d'Encaissement") et les compétences de
+  // combat (skillKeys) plutôt que sur les clés fallback D&D.
+  const combatRule = gameSystem.combat;
+  const isSymbolCombat = !!combatRule?.skillKeys?.length && !!gameSystem.diceUpgradeRule && (gameSystem.symbolDice?.length ?? 0) > 0;
+  const symbolCombatSkills = (combatRule?.skillKeys ?? [])
+    .map((key) => gameSystem.skills?.find((s) => s.key === key))
+    .filter((s): s is NonNullable<typeof s> => !!s);
+  const soakKey = combatRule?.soakStatKey;
+
   // Stats "vital" bornées par une autre stat (ex PV/PV_Max, ou Blessures/BlessuresMax pour un système
   // EotE) — même mécanisme générique que WidgetVitals (FicheWidgets.tsx) : jamais "PV" en dur.
   const vitalMaxKeyByKey = new Map<string, string>();
@@ -295,25 +306,33 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                     </Tooltip>
                   )}
 
-                  <Tooltip>
-                    <TooltipTrigger className="w-full">
-                      <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
-                        <Shield className="text-blue-500" size={28} />
-                        <div className="text-left">
-                          <div className="text-xs text-gray-400 flex items-center gap-1">Défense {isFieldPrivate(defenseKey) && <Lock size={10} className="text-[#c0a080]" />}</div>
-                          <div className="text-2xl font-bold text-white">{isFieldHidden(defenseKey) ? PRIVATE_PLACEHOLDER : getDisplayValue(defenseKey)}</div>
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {isFieldHidden(defenseKey) ? <p>Information privée.</p> : (
-                        <>
-                          <p>Base: {String(character[defenseKey] ?? '')}</p>
-                          <p>Bonus: {bonuses ? bonuses[defenseKey] || 0 : 0}</p>
-                        </>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
+                  {(() => {
+                    const activeDefenseKey = isSymbolCombat && soakKey ? soakKey : defenseKey;
+                    const defenseLabel = isSymbolCombat && soakKey
+                      ? (gameSystem.stats.find((s) => s.key === soakKey)?.label ?? soakKey)
+                      : 'Défense';
+                    return (
+                      <Tooltip>
+                        <TooltipTrigger className="w-full">
+                          <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
+                            <Shield className="text-blue-500" size={28} />
+                            <div className="text-left">
+                              <div className="text-xs text-gray-400 flex items-center gap-1">{defenseLabel} {isFieldPrivate(activeDefenseKey) && <Lock size={10} className="text-[#c0a080]" />}</div>
+                              <div className="text-2xl font-bold text-white">{isFieldHidden(activeDefenseKey) ? PRIVATE_PLACEHOLDER : getDisplayValue(activeDefenseKey)}</div>
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {isFieldHidden(activeDefenseKey) ? <p>Information privée.</p> : (
+                            <>
+                              <p>Base: {String(character[activeDefenseKey] ?? '')}</p>
+                              <p>Bonus: {bonuses ? bonuses[activeDefenseKey] || 0 : 0}</p>
+                            </>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })()}
                 </div>
 
                 {/* Ability Scores — dérivé du système de jeu actif */}
@@ -362,38 +381,68 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                   </div>
                 </div>
 
-                {/* Combat Stats — clés dérivées du système de jeu actif (jusqu'à 3, mêmes couleurs fixes) */}
+                {/* Combat Stats — dérivées du système de jeu actif : soit les clés d'attaque D&D-like
+                    (Contact/Distance/Magie), soit, pour un système à dés à symboles (ex EotE/Star Wars),
+                    les compétences de combat déclarées par gameSystem.combat.skillKeys avec leur rang. */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Combat</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {combatAttackKeys.slice(0, 3).map((key, i) => {
-                      const hidden = isFieldHidden(key);
-                      const label = gameSystem.stats.find((s) => s.key === key)?.label ?? key;
-                      const value = getDisplayValue(key);
-                      const color = combatColors[i] ?? 'text-gray-300';
-                      return (
-                        <Tooltip key={key}>
-                          <TooltipTrigger className="w-full">
-                            <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
-                              <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
-                                {label}
-                                {isFieldPrivate(key) && <Lock size={9} />}
-                              </h4>
-                              <span className={`text-2xl font-bold ${hidden ? 'text-gray-400' : color}`}>{hidden ? PRIVATE_PLACEHOLDER : value}</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {hidden ? <p>Information privée.</p> : (
-                              <>
-                                <p>Base: {String(character[key] ?? '')}</p>
-                                <p>Bonus: {bonuses ? bonuses[key] || 0 : 0}</p>
-                              </>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
+                  {isSymbolCombat ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {symbolCombatSkills.map((skill, i) => {
+                        const hidden = isFieldHidden(skill.key);
+                        const rank = character.skillRanks && typeof character.skillRanks === 'object'
+                          ? Number((character.skillRanks as Record<string, unknown>)[skill.key] ?? 0)
+                          : 0;
+                        const color = combatColors[i % combatColors.length] ?? 'text-gray-300';
+                        return (
+                          <Tooltip key={skill.key}>
+                            <TooltipTrigger className="w-full">
+                              <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                                <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
+                                  {skill.label}
+                                  {isFieldPrivate(skill.key) && <Lock size={9} />}
+                                </h4>
+                                <span className={`text-2xl font-bold ${hidden ? 'text-gray-400' : color}`}>{hidden ? PRIVATE_PLACEHOLDER : rank}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {hidden ? <p>Information privée.</p> : <p>Rang: {rank}</p>}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {combatAttackKeys.slice(0, 3).map((key, i) => {
+                        const hidden = isFieldHidden(key);
+                        const label = gameSystem.stats.find((s) => s.key === key)?.label ?? key;
+                        const value = getDisplayValue(key);
+                        const color = combatColors[i] ?? 'text-gray-300';
+                        return (
+                          <Tooltip key={key}>
+                            <TooltipTrigger className="w-full">
+                              <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                                <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
+                                  {label}
+                                  {isFieldPrivate(key) && <Lock size={9} />}
+                                </h4>
+                                <span className={`text-2xl font-bold ${hidden ? 'text-gray-400' : color}`}>{hidden ? PRIVATE_PLACEHOLDER : value}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {hidden ? <p>Information privée.</p> : (
+                                <>
+                                  <p>Base: {String(character[key] ?? '')}</p>
+                                  <p>Bonus: {bonuses ? bonuses[key] || 0 : 0}</p>
+                                </>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

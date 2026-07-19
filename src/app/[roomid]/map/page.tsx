@@ -22,7 +22,8 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import InteractionLayer from '@/components/(interactions)/InteractionLayer';
-import { VendorInteraction, GameInteraction, LootInteraction, Interaction, MapObject } from '@/app/[roomid]/map/types';
+import { VendorInteraction, GameInteraction, LootInteraction, Interaction, MapObject, GroupEntity } from '@/app/[roomid]/map/types';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { useVisibilityState } from '@/hooks/map/useVisibilityState';
 import { getDominantColor, getContrastColor } from '@/utils/imageUtils';
 import { type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
@@ -69,6 +70,7 @@ import { drawMeasurements } from './renderers/measurement-renderer';
 import { drawForegroundLayers } from './renderers/foreground-renderer';
 import { isCharacterVisibleToUser as checkCharacterVisibility, isObjectVisibleToUser as checkObjectVisibility, type CharacterVisibilityContext, type VisibilityContext } from './utils/visibility-checks';
 import { getMapViewFlags, subscribeMapViewFlags } from './view-flags-store';
+import { setMapCharacterPositions, setMapName } from './character-positions-store';
 import { useBackgroundLoader } from '@/hooks/map/useBackgroundLoader';
 import { useKeyboardShortcuts } from '@/hooks/map/useKeyboardShortcuts';
 import { useMusicZoneActions } from '@/hooks/map/useMusicZoneActions';
@@ -206,8 +208,23 @@ export default function Component() {
   const [isBackgroundEditMode, setIsBackgroundEditMode] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
+  // Positions résolues publiées vers character-positions-store — pont lu par les scripts de bundle
+  // via api.map.getCharacters/subscribeCharacters (ex radar de proximité). Vidé à la sortie.
+  useEffect(() => {
+    setMapCharacterPositions(characters.map((c) => ({
+      id: c.id,
+      name: c.name || '',
+      type: c.type,
+      x: c.x,
+      y: c.y,
+      visibility: c.visibility,
+    })));
+  }, [characters]);
+  useEffect(() => () => { setMapCharacterPositions([]); setMapName(''); }, []);
   const [lights, setLights] = useState<LightSource[]>([]);
   const [objects, setObjects] = useState<MapObject[]>([]);
+  const [groupEntities, setGroupEntities] = useState<GroupEntity[]>([]);
+  const { gameSystem } = useGameSystem(roomId);
   const [notes, setNotes] = useState<MapText[]>([]);
 
   const [activeInfoSection, setActiveInfoSection] = useState<InfoSection>(null); // 🆕 State for Info Sections
@@ -590,6 +607,11 @@ export default function Component() {
   const [globalCityId, setGlobalCityId] = useState<string | null>(null); // Global party location
   const [settingsResolved, setSettingsResolved] = useState(false); // 🆕 True once settings/general has answered at least once (avoids flashing CitiesManager before we know globalCityId)
   const [cities, setCities] = useState<Scene[]>([]); // Villes disponibles
+  // Nom de la carte courante publié vers character-positions-store (lu par les scripts de bundle,
+  // ex l'overlay de localisation qui en tire son code secteur). '' = carte principale sans scène.
+  useEffect(() => {
+    setMapName(cities.find((c) => c.id === selectedCityId)?.name ?? '');
+  }, [cities, selectedCityId]);
 
   // 🆕 CHARGEMENT UNIFIÉ : un seul état combiné piloté par TOUTES les conditions de chargement.
   // Le reveal CSS (showRevealAnim) ne se déclenche que sur SA transition true→false, jamais sur
@@ -1209,6 +1231,7 @@ export default function Component() {
     setLoading,
     setLights,
     setObjects,
+    setGroupEntities,
     setNotes,
     setDrawings,
     setFogGrid,
@@ -3260,6 +3283,9 @@ export default function Component() {
       <MapContextMenus
         roomId={roomId}
         isMJ={isMJ}
+        groupEntities={groupEntities}
+        groupEntityStats={gameSystem.groupEntityStats ?? []}
+        groupEntityLabel={gameSystem.groupEntityLabel}
         persoId={persoId}
         activePlayerId={activePlayerId}
         characters={characters}
@@ -3587,14 +3613,20 @@ export default function Component() {
 
           <canvas
             ref={bgCanvasRef}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
             onDrop={handleCanvasDrop}
             onDragOver={handleCanvasDragOver}
             onDragLeave={() => { setDragFeaturePreview(null); }}
             onDoubleClick={handleCanvasDoubleClick}
           />
+          <canvas
+            ref={fgCanvasRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}
+          />
           <ObjectsLayer
             objects={objects}
+            groupEntities={groupEntities}
+            groupEntityStats={gameSystem.groupEntityStats}
             isLayerVisible={isLayerVisible}
             isObjectVisibleToUser={isObjectVisibleToUser}
             bgImageObject={bgImageObject}
@@ -3720,10 +3752,6 @@ export default function Component() {
             zoom={zoom}
             offset={offset}
             globalTokenScale={globalTokenScale}
-          />
-          <canvas
-            ref={fgCanvasRef}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
           />
           {/* Teinte de vision alternative (view-flags-store.tint) — ex vision verte. Overlay purement
               cosmétique au-dessus des canvas, non bloquant. */}

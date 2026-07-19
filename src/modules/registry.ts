@@ -7,6 +7,7 @@ import type {
   ContextMenuContribution,
   CharacterWidgetContribution,
   ConditionContribution,
+  CreationTabContribution,
 } from './types';
 import { isGameSystemModule, type GameSystemModule } from './game-system/types';
 
@@ -92,6 +93,10 @@ class ModuleRegistry {
 
   getCharacterWidgets(): CharacterWidgetContribution[] {
     return this.collectContributions('characterWidgets');
+  }
+
+  getCreationTabs(): CreationTabContribution[] {
+    return this.collectContributions('creationTabs');
   }
 
   getConditions(): ConditionContribution[] {

@@ -20,9 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from '@/components/ui/input';
-import { MapObject, Character } from '@/app/[roomid]/map/types';
+import { MapObject, Character, GroupEntity } from '@/app/[roomid]/map/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EntityNotes } from './EntityNotes';
+import type { StatDefinition } from '@/modules/game-system/types';
+import { resolveCharacterStats } from '@/lib/rules-engine';
 
 interface ObjectContextMenuProps {
     object: MapObject | null;
@@ -32,6 +34,9 @@ interface ObjectContextMenuProps {
     isMJ: boolean;
     isBackgroundEditMode: boolean;
     players: Character[]; // 🆕 Liste des joueurs pour la sélection custom
+    groupEntities?: GroupEntity[]; // 🆕 Entités de groupe (ex vaisseaux) — pour l'onglet Stats
+    groupEntityStats?: StatDefinition[];
+    groupEntityLabel?: string;
 }
 
 export default function ObjectContextMenu({
@@ -41,7 +46,10 @@ export default function ObjectContextMenu({
     onAction,
     isMJ,
     isBackgroundEditMode,
-    players
+    players,
+    groupEntities = [],
+    groupEntityStats = [],
+    groupEntityLabel = 'Entité',
 }: ObjectContextMenuProps) {
     const dragControls = useDragControls();
 
@@ -60,6 +68,11 @@ export default function ObjectContextMenu({
     }, [isOpen, object]);
 
     if (!object) return null;
+
+    // Token d'entité de groupe (ex vaisseau) : les stats sont toujours résolues en direct depuis
+    // groupEntities, jamais copiées sur l'objet — entity.values reste l'unique source de vérité.
+    const entity = object.groupEntityId ? groupEntities.find((e) => e.id === object.groupEntityId) ?? null : null;
+    const resolvedEntityStats = entity ? resolveCharacterStats({ systemId: '', stats: groupEntityStats }, [], entity.values) : null;
 
     const handleRotationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newRotation = parseInt(e.target.value);
@@ -136,7 +149,7 @@ export default function ObjectContextMenu({
                             </div>
                         ) : (
                             <div className="group relative flex justify-center items-center gap-2">
-                                <h2 className="text-xl font-bold text-[#e0e0e0] font-serif tracking-wide text-center">{object.name || 'Objet'}</h2>
+                                <h2 className="text-xl font-bold text-[#e0e0e0] font-serif tracking-wide text-center">{entity?.label || object.name || 'Objet'}</h2>
                                 {isMJ && (
                                     <Button
                                         variant="ghost"
@@ -156,8 +169,9 @@ export default function ObjectContextMenu({
 
                     <Tabs defaultValue="actions" className="flex-1 flex flex-col min-h-0 w-full">
                         <div className="px-4 pb-2">
-                            <TabsList className="w-full bg-[#252525]/80 p-1 border border-white/5 grid grid-cols-2">
+                            <TabsList className={`w-full bg-[#252525]/80 p-1 border border-white/5 grid ${entity ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                 <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Général</TabsTrigger>
+                                {entity && <TabsTrigger value="stats" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Stats</TabsTrigger>}
                                 <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Notes</TabsTrigger>
                             </TabsList>
                         </div>
@@ -168,14 +182,16 @@ export default function ObjectContextMenu({
                                     {isMJ && <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Actions Objet</h3>}
 
                                     <div className="grid grid-cols-1 gap-2">
-                                        <Button
-                                            variant="outline"
-                                            className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-amber-400 text-gray-300"
-                                            onClick={() => onAction('openLoot', object.id)}
-                                        >
-                                            <Package size={16} />
-                                            {object.type === 'item' ? 'Ramasser' : 'Fouiller'}
-                                        </Button>
+                                        {!entity && (
+                                            <Button
+                                                variant="outline"
+                                                className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-amber-400 text-gray-300"
+                                                onClick={() => onAction('openLoot', object.id)}
+                                            >
+                                                <Package size={16} />
+                                                {object.type === 'item' ? 'Ramasser' : 'Fouiller'}
+                                            </Button>
+                                        )}
 
                                         {isMJ && (
                                             <>
@@ -218,7 +234,7 @@ export default function ObjectContextMenu({
                                                     onClick={() => onAction('delete', object.id)}
                                                 >
                                                     <Trash2 size={16} />
-                                                    Supprimer
+                                                    {entity ? `Retirer ${groupEntityLabel.toLowerCase()} de la carte` : 'Supprimer'}
                                                 </Button>
                                             </>
                                         )}
@@ -322,6 +338,19 @@ export default function ObjectContextMenu({
                                         </div>
                                     )}
                                 </TabsContent>
+
+                                {entity && (
+                                    <TabsContent value="stats" className="mt-0 space-y-2 focus-visible:ring-0">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {groupEntityStats.filter((s) => s.category !== 'meta').map((stat) => (
+                                                <div key={stat.key} className="p-2 rounded-lg border border-[#333] bg-[#252525]">
+                                                    <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 truncate mb-0.5">{stat.label || stat.key}</p>
+                                                    <p className="text-sm font-bold text-gray-200">{String(resolvedEntityStats?.values[stat.key] ?? 0)}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+                                )}
 
                                 <TabsContent value="notes" className="mt-0 pt-2 focus-visible:ring-0">
                                     <EntityNotes

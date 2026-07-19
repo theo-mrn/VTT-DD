@@ -1,13 +1,15 @@
 "use client"
 
 import React, { useEffect, useRef } from 'react';
-import { db, collection, getDocs, query, where, doc, getDoc, onSnapshot } from '@/lib/firebase';
+import { db, collection, getDocs, query, where, doc, getDoc, onSnapshot, updateDoc, realtimeDb, dbRef, onValue, update as rtdbUpdate } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useModules } from '@/modules/context';
 import { moduleRegistry } from '@/modules/registry';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll } from '@/lib/rules-engine';
 import { setMapViewFlags, resetMapViewFlags, getMapViewFlags } from '@/app/[roomid]/map/view-flags-store';
+import { getMapCharacterPositions, subscribeMapCharacterPositions, getMapName } from '@/app/[roomid]/map/character-positions-store';
+import { setMapOverlays } from '@/app/[roomid]/map/map-overlay-store';
 import { setSheetBackgroundOptions } from '@/app/[roomid]/map/sheet-background-store';
 import { executeBundleEntry } from './linker';
 import type { BundleContributions, BundleScriptAPI } from './types';
@@ -84,10 +86,74 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
           },
         },
+        roomCharacters: {
+          subscribe: (cb) => {
+            const unsubscribe = onSnapshot(collection(db, `cartes/${roomId}/characters`), (snap) => {
+              if (!cancelled) cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })));
+            });
+            scriptSubscriptions.add(unsubscribe);
+            return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
+          update: (characterId, values) => updateDoc(doc(db, `cartes/${roomId}/characters/${characterId}`), values),
+        },
+        sharedState: {
+          set: (key, value) => rtdbUpdate(dbRef(realtimeDb, `rooms/${roomId}/bundleState`), { [key]: value }),
+          subscribe: (key, cb) => {
+            const unsubscribe = onValue(dbRef(realtimeDb, `rooms/${roomId}/bundleState/${key}`), (snap) => {
+              if (!cancelled) cb(snap.val() ?? undefined);
+            });
+            scriptSubscriptions.add(unsubscribe);
+            return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
+        },
+        scenes: {
+          subscribe: (cb) => {
+            let scenes: Array<{ id: string; name: string }> = [];
+            let globalSceneId: string | null = null;
+            const emit = () => { if (!cancelled) cb({ scenes, globalSceneId }); };
+            const u1 = onSnapshot(collection(db, `cartes/${roomId}/cities`), (snap) => {
+              scenes = snap.docs.map((d) => ({ id: d.id, name: (d.data() as { name?: string }).name ?? '' }));
+              emit();
+            });
+            const u2 = onSnapshot(doc(db, `cartes/${roomId}/settings/general`), (snap) => {
+              globalSceneId = (snap.data() as { currentCityId?: string } | undefined)?.currentCityId ?? null;
+              emit();
+            });
+            const unsubscribe = () => { u1(); u2(); };
+            scriptSubscriptions.add(unsubscribe);
+            return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
+        },
+        groupEntities: {
+          subscribe: (cb) => {
+            const unsubscribe = onSnapshot(collection(db, `Salle/${roomId}/groupEntities`), (snap) => {
+              if (!cancelled) cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })));
+            });
+            scriptSubscriptions.add(unsubscribe);
+            return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
+          update: (entityId, values) => updateDoc(doc(db, `Salle/${roomId}/groupEntities/${entityId}`), values),
+        },
         map: {
           setViewFlags: setMapViewFlags,
           resetViewFlags: resetMapViewFlags,
           getViewFlags: getMapViewFlags,
+          getCharacters: getMapCharacterPositions,
+          subscribeCharacters: (cb) => {
+            // Même hygiène que character.subscribe : les scripts ne se désabonnent jamais
+            // d'eux-mêmes, l'hôte libère tout au cleanup.
+            const listener = () => cb(getMapCharacterPositions());
+            const unsubscribe = subscribeMapCharacterPositions(listener);
+            scriptSubscriptions.add(unsubscribe);
+            let disposed = false;
+            // Livraison initiale en microtâche, comme les SDK Firebase : un abonnement pris pendant
+            // un flush d'effets React ne doit pas déclencher un setState SYNCHRONE dans ce même
+            // flush (ça alimente le compteur de mises à jour imbriquées de React).
+            queueMicrotask(() => { if (!disposed && !cancelled) cb(getMapCharacterPositions()); });
+            return () => { disposed = true; scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
+          getMapName,
+          setOverlays: setMapOverlays,
         },
         sheet: {
           setBackgrounds: setSheetBackgroundOptions,
@@ -98,17 +164,33 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       // intactes celles qu'il omet — register() est ré-appelable (ex depuis api.character.subscribe
       // pour n'exposer un bouton qu'à certaines espèces) : un remplacement, jamais un cumul (sinon
       // le même bouton s'empile à chaque snapshot du personnage).
-      const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [] };
+      const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [], characterWidgets: [], creationTabs: [] };
 
       // (Ré)enregistre le module synthétique avec les contributions cumulées. register() peut être
       // appelé APRÈS l'exécution synchrone (ex depuis api.character.get().then(...) pour n'exposer un
       // bouton qu'à certaines espèces) : chaque appel remplace l'enregistrement, la sidebar se met à
       // jour via le registry. Un module sans contribution n'est pas enregistré (pas de bouton).
+      // Ré-enregistrement STRICTEMENT identique (mêmes références, même ordre) : no-op — un script
+      // qui rappelle register() avec le même contenu (ex à chaque snapshot du personnage) ne doit
+      // pas provoquer un unregister+register, qui démonte/remonte tous ses panneaux en cascade
+      // synchrone (useSyncExternalStore) jusqu'au « Maximum update depth exceeded » de React.
+      const sameList = (a: readonly unknown[], b: readonly unknown[]) =>
+        a.length === b.length && a.every((x, i) => x === b[i]);
+      let lastRegistered: Required<BundleContributions> | null = null;
       const syncRegistration = () => {
         if (cancelled) return;
-        const hasContent = collected.sidebarTabs.length > 0 || collected.sidebarActions.length > 0;
+        const hasContent = collected.sidebarTabs.length > 0 || collected.sidebarActions.length > 0
+          || collected.characterWidgets.length > 0 || collected.creationTabs.length > 0;
+        if (registered && lastRegistered
+          && sameList(lastRegistered.sidebarTabs, collected.sidebarTabs)
+          && sameList(lastRegistered.sidebarActions, collected.sidebarActions)
+          && sameList(lastRegistered.characterWidgets, collected.characterWidgets)
+          && sameList(lastRegistered.creationTabs, collected.creationTabs)) {
+          return;
+        }
         if (registered) moduleRegistry.unregister(moduleId);
         registered = false;
+        lastRegistered = null;
         if (!hasContent) return;
         moduleRegistry.register({
           manifest: {
@@ -123,9 +205,17 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           contributions: {
             sidebarTabs: [...collected.sidebarTabs],
             sidebarActions: [...collected.sidebarActions],
+            characterWidgets: [...collected.characterWidgets],
+            creationTabs: [...collected.creationTabs],
           },
         });
         registered = true;
+        lastRegistered = {
+          sidebarTabs: [...collected.sidebarTabs],
+          sidebarActions: [...collected.sidebarActions],
+          characterWidgets: [...collected.characterWidgets],
+          creationTabs: [...collected.creationTabs],
+        };
       };
 
       try {
@@ -138,6 +228,8 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           register: (c) => {
             if (c.sidebarTabs) collected.sidebarTabs = [...c.sidebarTabs];
             if (c.sidebarActions) collected.sidebarActions = [...c.sidebarActions];
+            if (c.characterWidgets) collected.characterWidgets = [...c.characterWidgets];
+            if (c.creationTabs) collected.creationTabs = [...c.creationTabs];
             syncRegistration();
           },
         });
@@ -157,10 +249,12 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       // Invariant unregister-first : gère le switch de système, la sortie de salle et le double
       // montage StrictMode/HMR (register warn-and-skip sur doublon côté registry).
       if (registered) moduleRegistry.unregister(moduleId);
-      // Un flag de vue laissé actif (ex vision verte) ni la liste des fonds de fiche ne doivent
-      // survivre au changement de système ou à la sortie de salle — remise à zéro systématique.
+      // Un flag de vue laissé actif (ex vision verte), la liste des fonds de fiche ou les overlays
+      // de carte ne doivent pas survivre au changement de système ou à la sortie de salle — remise
+      // à zéro systématique.
       resetMapViewFlags();
       setSheetBackgroundOptions([]);
+      setMapOverlays([]);
     };
   }, [roomId, contentPath, systemId, isLoading]);
 

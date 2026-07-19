@@ -176,6 +176,20 @@ export interface MapObject {
     notes?: string;
     items?: LootItem[]; // 🆕 For chest/container objects
     linkedId?: string; // 🆕 For shared inventories
+    /** Référence vers Salle/{roomId}/groupEntities/{id} — token d'entité de groupe (ex vaisseau)
+     *  posé sur la carte. Les stats ne sont jamais copiées ici : toujours résolues en direct depuis
+     *  l'entité référencée. */
+    groupEntityId?: string;
+}
+
+/** Salle/{roomId}/groupEntities/{id} — entité de groupe générique (label/stats définis par
+ *  gameSystem.groupEntityLabel/groupEntityStats), pas liée à un personnage individuel. */
+export interface GroupEntity {
+    id: string;
+    label: string;
+    image?: string;
+    acquis?: boolean;
+    values: Record<string, number | string | boolean>;
 }
 
 export interface ObjectTemplate {

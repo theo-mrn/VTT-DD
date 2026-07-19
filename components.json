@@ -20,6 +20,7 @@
   },
   "registries": {
     "@magicui": "https://magicui.design/r/{name}",
-    "@aceternity": "https://ui.aceternity.com/registry/{name}.json"
+    "@aceternity": "https://ui.aceternity.com/registry/{name}.json",
+    "@thegridcn": "https://thegridcn.com/r/{name}.json"
   }
 }
