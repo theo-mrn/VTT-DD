@@ -191,14 +191,22 @@ export function isCharacterVisibleToUser(
     // référence doit être celui du perso incarné (viewAsPersoId), pas l'identité MJ.
     const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
 
-    // Check if within vision radius of the player's own character or an ally.
+    // Rayon de DÉTECTION aligné sur la zone visuellement révélée par calculateFogOpacity
+    // (shadows.tsx) : le brouillard y est totalement dégagé jusqu'à R + demi-diagonale de case,
+    // puis s'estompe sur R supplémentaire — le sol reste donc partiellement visible jusqu'à
+    // 2R + demi-diagonale. Détecter strictement à R laissait des PNJ cachés invisibles alors
+    // qu'ils se tenaient sur un sol parfaitement visible à l'écran.
+    const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
+
+    // Check if within detection radius of the player's own character or an ally.
     return characters.some((player) => {
       const playerScreenX = (player.x / imgWidth) * scaledWidth - offset.x;
       const playerScreenY = (player.y / imgHeight) * scaledHeight - offset.y;
+      const detectionRadius = (player.visibilityRadius ?? 100) * 2 + cellDiagonalHalf;
       return (
         (player.id === effectivePersoId || player.visibility === 'ally') &&
         calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <=
-          ((player.visibilityRadius ?? 100) / imgWidth) * scaledWidth
+          (detectionRadius / imgWidth) * scaledWidth
       );
     });
   }

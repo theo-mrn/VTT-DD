@@ -275,8 +275,10 @@ export default function Layout({ children }: LayoutProps) {
                   // les clics — la carte reste interactive tout autour.
                     if (tab.floating) {
                     return (
-                      <aside key={tabKey} className={`fixed left-0 lg:left-20 top-0 z-40 pointer-events-none ${tab.width || ''}`}>
-                        <div className="pointer-events-auto m-2 max-h-[85vh] overflow-y-auto rounded-xl border border-white/10 bg-[#141416]/95 shadow-lg backdrop-blur-sm">
+                      // Centré verticalement (évite de deviner une hauteur de topbar qui varie
+                      // selon l'écran/le zoom), mais ancré à gauche horizontalement comme avant.
+                      <aside key={tabKey} className={`fixed left-0 lg:left-20 top-0 bottom-0 z-40 flex items-center pointer-events-none ${tab.width || ''}`}>
+                        <div className="pointer-events-auto m-2 max-h-[80vh] overflow-y-auto rounded-xl border border-white/10 bg-[#141416]/95 shadow-lg backdrop-blur-sm">
                           <tab.component />
                         </div>
                       </aside>

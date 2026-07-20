@@ -264,7 +264,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
       case TOOLS.PAN: deactivateIncompatible(TOOLS.PAN); p.togglePanMode(); break;
       case TOOLS.GRID: p.setShowGrid(!p.showGrid); break;
       case TOOLS.TOGGLE_CHAR_BORDERS: p.setShowCharBorders(!p.showCharBorders); break;
-      case TOOLS.LAYERS: p.setShowLayerControl(!p.showLayerControl); break;
+      case TOOLS.LAYERS: if (p.isMJ) p.setShowLayerControl(!p.showLayerControl); break;
       case TOOLS.BACKGROUND: if (p.isMJ) p.setShowBackgroundSelector(true); break;
       case TOOLS.VIEW_MODE:
         if (p.isMJ) {

@@ -121,7 +121,11 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
     return (
         <div
             ref={rootRef}
-            style={{ position: 'fixed', zIndex: 50, bottom: '6rem', left: '50%', translate: '-50% 0' }}
+            // pointerEvents none dès que le menu est fermé : le conteneur reste monté en permanence
+            // (nécessaire aux animations de sortie AnimatePresence), mais un enfant en cours de sortie
+            // — ou resté bloqué à opacité 0 — est encore interactif dans le DOM ; sans ce verrou, un
+            // clic à l'emplacement de l'ancien picker emoji continuait de changer la bulle.
+            style={{ position: 'fixed', zIndex: 50, bottom: '6rem', left: '50%', translate: '-50% 0', pointerEvents: isOpen ? undefined : 'none' }}
         >
             {/* Popovers flottants — positionnés au-dessus de la barre, un seul actif à la fois */}
             <AnimatePresence>

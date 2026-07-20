@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useRef } from 'react';
-import { db, collection, getDocs, query, where, doc, getDoc, onSnapshot, updateDoc, realtimeDb, dbRef, onValue, update as rtdbUpdate } from '@/lib/firebase';
+import { db, collection, getDocs, query, where, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, realtimeDb, dbRef, onValue, update as rtdbUpdate } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useModules } from '@/modules/context';
 import { moduleRegistry } from '@/modules/registry';
@@ -96,6 +96,21 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           },
           update: (characterId, values) => updateDoc(doc(db, `cartes/${roomId}/characters/${characterId}`), values),
         },
+        characterBonuses: {
+          // Même format que les bonus d'objets/compétences (cf inventaire, useCalculatedBonuses) :
+          // { [statKey]: number, active, category, name }. La collection est indexée par NOM de
+          // personnage (Nomperso), pas par id de doc. setDoc sans merge = la source remplace tout son
+          // contenu (un buff n'accumule pas avec sa version précédente).
+          set: (characterName, sourceId, stats, label) =>
+            setDoc(doc(db, `Bonus/${roomId}/${characterName}/${sourceId}`), {
+              ...stats,
+              active: true,
+              category: 'Inventaire',
+              name: label ?? sourceId,
+            }),
+          clear: (characterName, sourceId) =>
+            deleteDoc(doc(db, `Bonus/${roomId}/${characterName}/${sourceId}`)),
+        },
         sharedState: {
           set: (key, value) => rtdbUpdate(dbRef(realtimeDb, `rooms/${roomId}/bundleState`), { [key]: value }),
           subscribe: (key, cb) => {
@@ -164,7 +179,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       // intactes celles qu'il omet — register() est ré-appelable (ex depuis api.character.subscribe
       // pour n'exposer un bouton qu'à certaines espèces) : un remplacement, jamais un cumul (sinon
       // le même bouton s'empile à chaque snapshot du personnage).
-      const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [], characterWidgets: [], creationTabs: [] };
+      const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [], characterWidgets: [], creationTabs: [], searchDrawerTabs: [] };
 
       // (Ré)enregistre le module synthétique avec les contributions cumulées. register() peut être
       // appelé APRÈS l'exécution synchrone (ex depuis api.character.get().then(...) pour n'exposer un
@@ -180,12 +195,14 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       const syncRegistration = () => {
         if (cancelled) return;
         const hasContent = collected.sidebarTabs.length > 0 || collected.sidebarActions.length > 0
-          || collected.characterWidgets.length > 0 || collected.creationTabs.length > 0;
+          || collected.characterWidgets.length > 0 || collected.creationTabs.length > 0
+          || collected.searchDrawerTabs.length > 0;
         if (registered && lastRegistered
           && sameList(lastRegistered.sidebarTabs, collected.sidebarTabs)
           && sameList(lastRegistered.sidebarActions, collected.sidebarActions)
           && sameList(lastRegistered.characterWidgets, collected.characterWidgets)
-          && sameList(lastRegistered.creationTabs, collected.creationTabs)) {
+          && sameList(lastRegistered.creationTabs, collected.creationTabs)
+          && sameList(lastRegistered.searchDrawerTabs, collected.searchDrawerTabs)) {
           return;
         }
         if (registered) moduleRegistry.unregister(moduleId);
@@ -207,6 +224,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             sidebarActions: [...collected.sidebarActions],
             characterWidgets: [...collected.characterWidgets],
             creationTabs: [...collected.creationTabs],
+            searchDrawerTabs: [...collected.searchDrawerTabs],
           },
         });
         registered = true;
@@ -215,6 +233,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           sidebarActions: [...collected.sidebarActions],
           characterWidgets: [...collected.characterWidgets],
           creationTabs: [...collected.creationTabs],
+          searchDrawerTabs: [...collected.searchDrawerTabs],
         };
       };
 
@@ -230,6 +249,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             if (c.sidebarActions) collected.sidebarActions = [...c.sidebarActions];
             if (c.characterWidgets) collected.characterWidgets = [...c.characterWidgets];
             if (c.creationTabs) collected.creationTabs = [...c.creationTabs];
+            if (c.searchDrawerTabs) collected.searchDrawerTabs = [...c.searchDrawerTabs];
             syncRegistration();
           },
         });

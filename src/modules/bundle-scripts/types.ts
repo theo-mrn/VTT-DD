@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { GameSystemDefinition } from '@/modules/game-system/types';
-import type { ModuleAPI, SidebarTabContribution, SidebarActionContribution, CharacterWidgetContribution, CreationTabContribution } from '@/modules/types';
+import type { ModuleAPI, SidebarTabContribution, SidebarActionContribution, CharacterWidgetContribution, CreationTabContribution, SearchDrawerTabContribution } from '@/modules/types';
 import type { VTTModuleSDK } from '@/modules/sdk';
 import type { rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll } from '@/lib/rules-engine';
 import type { ComponentType } from 'react';
@@ -28,6 +28,10 @@ export interface BundleContributions {
    *  un brouillon générique de champs fusionné dans le doc personnage à la sauvegarde (ex l'étape
    *  Obligation d'un bundle Star Wars). */
   creationTabs?: CreationTabContribution[];
+  /** Onglets supplémentaires du drawer "Recherche unifiée" de la carte (MJ, ajout de PNJ/objets/sons
+   *  par drag-and-drop) — pour les propres éléments déposables sur la carte d'un bundle (ex les
+   *  vaisseaux d'un système Star Wars, référençant Salle/{roomId}/groupEntities). */
+  searchDrawerTabs?: SearchDrawerTabContribution[];
 }
 
 /** API fournie aux scripts de bundle — ModuleAPI existant (events, données de salle RTDB, toasts)
@@ -110,6 +114,20 @@ export interface BundleScriptAPI extends ModuleAPI {
     subscribe: (cb: (docs: Array<{ id: string } & Record<string, unknown>>) => void) => () => void;
     /** Merge partiel sur un doc personnage (updateDoc Firestore). */
     update: (characterId: string, values: Record<string, unknown>) => Promise<void>;
+  };
+  /** Bonus de stats d'un personnage (collection Bonus/{roomId}/{characterName}/{sourceId}) — le
+   *  MÊME mécanisme que les bonus d'objets/compétences du jeu : chaque doc porte des paires
+   *  {statKey: number} agrégées dans les stats finales par useCalculatedBonuses (donc pris en compte
+   *  par le combat, la fiche...). Permet à un bundle d'appliquer un buff RÉELLEMENT intégré (ex un
+   *  droïde tactique +1 aux dégâts). IMPORTANT : la clé est le NOM du personnage (character.Nomperso),
+   *  pas son id de doc — c'est ainsi qu'est indexée la collection Bonus. `sourceId` identifie la
+   *  source du bonus (ex 'droid-tactique') : réécrire la même source remplace, clear la retire. */
+  characterBonuses: {
+    /** Pose/remplace le bonus de cette source. `stats` = paires {statKey: number} (clés du système
+     *  actif, ex 'Distance', 'vigueur'). `label` habille le bonus dans les récapitulatifs. */
+    set: (characterName: string, sourceId: string, stats: Record<string, number>, label?: string) => Promise<void>;
+    /** Retire le bonus de cette source (supprime le doc). */
+    clear: (characterName: string, sourceId: string) => Promise<void>;
   };
   /** Fonds de fiche : un script FOURNIT une liste de fonds animés (composants React, ex shaders
    *  WebGL). La FICHE elle-même les rend derrière son contenu, propose un sélecteur au joueur et

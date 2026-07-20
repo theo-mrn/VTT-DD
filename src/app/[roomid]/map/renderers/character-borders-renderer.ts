@@ -1,5 +1,4 @@
 import { Point, Character, type LayerType } from '../types';
-import { calculateDistance } from '../shadows';
 import { getMediaDimensions } from '../utils/coordinates';
 
 export interface CharacterBorderRenderState {
@@ -63,8 +62,6 @@ export const drawCharacterBorders = (
   const scaledWidth = imgWidth * scale * zoom;
   const scaledHeight = imgHeight * scale * zoom;
 
-  const effectiveIsMJ = isMJ && !playerViewMode;
-
   // Surlignage MJ des cibles attaquées : reste TOUJOURS visible pour le MJ, comme le
   // rayon de visibilité, indépendamment du toggle "Bordures" (raccourci J / showCharBorders).
   if (isMJ && attackedTargetIds && attackedTargetIds.size > 0 && isLayerVisible('characters')) {
@@ -103,47 +100,13 @@ export const drawCharacterBorders = (
 
       let isVisible = true;
 
-      // Copy visibility logic from drawForegroundLayers
-      let effectiveVisibility = char.visibility;
-
-      // Les joueurs sont toujours visibles des autres joueurs (même règle que le renderer
-      // principal / isCharacterVisibleToUser) — cf foreground-renderer.ts.
-      if (char.type === 'joueurs' && (char.visibility as string) !== 'invisible') {
-        effectiveVisibility = 'visible';
-      }
-
+      // isCharacterVisibleToUser calcule déjà tout : joueurs toujours visibles, alliés,
+      // obstacles, lumières, brouillard, rayon de détection des cachés et simulation vue
+      // joueur. On fait confiance à son verdict, sans re-check local par distance — l'ancien
+      // re-calcul utilisait un rayon strict divergent du rayon de détection central
+      // (cf visibility-checks.ts), donc un pion affiché pouvait perdre sa bordure/son badge.
       if (!isCharacterVisibleToUser(char)) {
-        effectiveVisibility = 'hidden';
-      }
-
-      if (char.visibility === 'ally') {
-        isVisible = true;
-      } else if (effectiveVisibility === 'hidden') {
-        const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-        const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-        if (isInPlayerViewMode) {
-          const viewer = characters.find(c => c.id === effectivePersoId);
-          if (viewer) {
-            const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-            const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-            const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-            const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-            isVisible = dist <= radiusScreen;
-          } else {
-            isVisible = false;
-          }
-        } else {
-          isVisible = effectiveIsMJ || (() => {
-            const viewer = characters.find(c => c.id === effectivePersoId);
-            if (!viewer) return false;
-            const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-            const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-            const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-            const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-            return dist <= radiusScreen;
-          })();
-        }
+        isVisible = false;
       }
 
       if (isVisible) {
