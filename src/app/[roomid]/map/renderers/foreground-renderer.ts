@@ -958,49 +958,21 @@ export function drawForegroundLayers(
         effectiveVisibility = 'visible';
       }
 
-      // Utiliser la fonction centralisee qui gere les lumieres, le brouillard, etc.
-      if (!isCharacterVisibleToUser(char)) {
+      // Utiliser la fonction centralisee qui gere tout : obstacles, lumieres, brouillard,
+      // rayon de detection des personnages caches et simulation vue joueur. On fait confiance
+      // a son verdict, sans re-check local par distance — l'ancien re-calcul utilisait un rayon
+      // strict divergent du rayon de detection central (cf visibility-checks.ts), donc un pion
+      // affiche pouvait se retrouver sans bordure/badge.
+      const visibleToUser = isCharacterVisibleToUser(char);
+      if (!visibleToUser) {
         effectiveVisibility = 'hidden';
       }
 
       // Les allies sont toujours visibles (meme dans le brouillard complet)
       if (char.visibility === 'ally') {
         isVisible = true;
-      }
-      // Les personnages caches (ou caches par le brouillard) ne sont visibles que pour le MJ (en mode normal) ou s'ils sont dans le rayon de vision d'un joueur ou allie
-      else if (effectiveVisibility === 'hidden') {
-        // [NEW] Use simulated view ID if active
-        const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-
-        // In player view simulation mode, GM should NOT see all hidden characters
-        // They should only see those within the simulated character's visibility radius
-        const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-        if (isInPlayerViewMode) {
-          // GM simulating player view - use visibility radius check only
-          const viewer = characters.find(c => c.id === effectivePersoId);
-          if (viewer) {
-            // Use screen coordinates for distance calculation (like line 1276)
-            const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-            const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-            const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-            const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-            isVisible = dist <= radiusScreen;
-          } else {
-            isVisible = false;
-          }
-        } else {
-          // Normal mode - MJ sees all, players check visibility radius
-          isVisible = effectiveIsMJ || (() => {
-            const viewer = characters.find(c => c.id === effectivePersoId);
-            if (!viewer) return false;
-            const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-            const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-            const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-            const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-            return dist <= radiusScreen;
-          })();
-        }
+      } else if (!visibleToUser) {
+        isVisible = false;
       }
 
 

@@ -8,6 +8,7 @@ import type {
   CharacterWidgetContribution,
   ConditionContribution,
   CreationTabContribution,
+  SearchDrawerTabContribution,
 } from './types';
 import { isGameSystemModule, type GameSystemModule } from './game-system/types';
 
@@ -97,6 +98,10 @@ class ModuleRegistry {
 
   getCreationTabs(): CreationTabContribution[] {
     return this.collectContributions('creationTabs');
+  }
+
+  getSearchDrawerTabs(): SearchDrawerTabContribution[] {
+    return this.collectContributions('searchDrawerTabs');
   }
 
   getConditions(): ConditionContribution[] {

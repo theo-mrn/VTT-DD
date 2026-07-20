@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Pause, Eye, Boxes } from 'lucide-react'
+import React, { useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react'
+import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Pause, Eye, type LucideIcon } from 'lucide-react'
 import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { type NPC } from '@/components/(personnages)/personnages'
 import { type ObjectTemplate } from '@/app/[roomid]/map/types'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
-import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { SUGGESTED_SOUNDS } from '@/lib/suggested-sounds'
 import { SUGGESTED_OBJECTS } from '@/lib/suggested-objects'
 import { advancedSearch } from '@/lib/advanced-search'
@@ -18,7 +17,7 @@ import { NPCTemplateDrawer } from './NPCTemplateDrawer'
 import { ObjectDrawer } from './ObjectDrawer'
 import { SoundDrawer } from './SoundDrawer'
 import { VisibilityDrawer } from './VisibilityDrawer'
-import { ShipDrawer } from './ShipDrawer'
+import { moduleRegistry } from '@/modules/registry'
 import type { VisibilityState } from '@/hooks/map/useVisibilityState'
 
 interface BestiaryData {
@@ -69,7 +68,6 @@ interface UnifiedSearchDrawerProps {
 
 export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onDragStart, currentCityId, vs, onClearAllObstacles }: UnifiedSearchDrawerProps) {
     const { setDialogOpen } = useDialogVisibility()
-    const { gameSystem } = useGameSystem(roomId)
     const {
         soundTemplates: sounds,
         objectTemplates: objects,
@@ -77,24 +75,35 @@ export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onD
         loading,
     } = useGMTemplates()
 
-    // Onglet "Entités de groupe" (ex vaisseaux) — MJ uniquement, seulement si le système actif
-    // définit ce concept (gameSystem.groupEntityStats configurées dans l'éditeur de règles).
-    const showShipTab = isMJ && (gameSystem.groupEntityStats?.length ?? 0) > 0
-    const shipTabLabel = gameSystem.groupEntityLabel || 'Entités'
+    // Onglets supplémentaires contribués par un bundle de règles (ex "Vaisseaux" d'un système Star
+    // Wars) — chaque contribution gère elle-même son drag-and-drop vers la carte (dataTransfer),
+    // ce composant se contente de l'afficher dans un onglet au même titre que PNJ/Objets/Sons.
+    // Abonnement au registry : les contributions arrivent APRÈS le montage (scripts de bundle
+    // évalués par l'ExtensionHost) — sans cette subscription ce drawer ne verrait jamais un onglet
+    // enregistré en cours de session (même pattern que Sidebar.tsx).
+    const subscribeRegistry = useCallback((cb: () => void) => moduleRegistry.subscribe(cb), [])
+    const getRegistrySnapshot = useCallback(() => moduleRegistry.getSnapshot(), [])
+    const registryVersion = useSyncExternalStore(subscribeRegistry, getRegistrySnapshot, getRegistrySnapshot)
+    const bundleTabs = useMemo(
+        () => isMJ ? moduleRegistry.getSearchDrawerTabs() : [],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isMJ, registryVersion]
+    )
 
     // Source unique des onglets — dérive à la fois les tabs affichés et l'ordre des filtres, pour
-    // ne plus avoir deux tableaux littéraux à garder synchronisés manuellement.
+    // ne plus avoir deux tableaux littéraux à garder synchronisés manuellement. Les onglets de
+    // bundle utilisent la clé 'bundle:{id}' pour ne jamais entrer en collision avec les clés natives.
     const availableFilters = useMemo(() => {
-        const list: Array<{ key: 'all' | 'npc' | 'object' | 'sound' | 'ship' | 'visibility'; title: string; icon: typeof Search }> = [
+        const list: Array<{ key: string; title: string; icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }> }> = [
             { key: 'all', title: 'Toutes', icon: Search },
             { key: 'npc', title: 'PNJs', icon: Users },
             { key: 'object', title: 'Objets', icon: Package },
             { key: 'sound', title: 'Sons', icon: Volume2 },
         ]
-        if (showShipTab) list.push({ key: 'ship', title: shipTabLabel, icon: Boxes })
+        for (const tab of bundleTabs) list.push({ key: `bundle:${tab.id}`, title: tab.label, icon: tab.icon })
         list.push({ key: 'visibility', title: 'Vision', icon: Eye })
         return list
-    }, [showShipTab, shipTabLabel])
+    }, [bundleTabs])
 
     // Register dialog state
     useEffect(() => {
@@ -106,7 +115,7 @@ export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onD
     // UI states
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
-    const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc' | 'visibility' | 'ship'>('all')
+    const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc' | 'visibility' | (string & {})>('all')
 
     // Cleanup visibility tools when switching away from 'visibility' tab or closing the drawer
     const vsRef = useRef(vs)
@@ -381,7 +390,10 @@ export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onD
             {/* FILTER TABS */}
             <div className="py-4 border-b border-[#333] bg-[#1a1a1a] shrink-0 flex justify-center w-full">
                 <ExpandableTabs
-                    tabs={availableFilters.map((f) => ({ title: f.title, icon: f.icon }))}
+                    // Un onglet contribué par un bundle fournit un ComponentType compatible (props
+                    // size/className) mais pas forcément un vrai export lucide-react — assertion
+                    // ciblée, sans rapport avec les icônes natives ci-dessus qui restent typées strict.
+                    tabs={availableFilters.map((f) => ({ title: f.title, icon: f.icon as LucideIcon }))}
                     activeTab={availableFilters.findIndex((f) => f.key === selectedFilter)}
                     onChange={(index) => {
                         if (index !== null) {
@@ -486,18 +498,6 @@ export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onD
                 </div>
             )}
 
-            {selectedFilter === 'ship' && showShipTab && (
-                <div className="flex-1 min-h-0 relative">
-                    <ShipDrawer
-                        roomId={roomId}
-                        isOpen={true}
-                        onClose={onClose}
-                        onDragStart={() => {}}
-                        isEmbedded={true}
-                    />
-                </div>
-            )}
-
             {selectedFilter === 'visibility' && vs && (
                 <div className="flex-1 min-h-0 relative bg-[#1a1a1a]">
                     <VisibilityDrawer
@@ -509,6 +509,12 @@ export function UnifiedSearchDrawer({ roomId, isMJ = false, isOpen, onClose, onD
                     />
                 </div>
             )}
+
+            {bundleTabs.map((tab) => selectedFilter === `bundle:${tab.id}` && (
+                <div key={tab.id} className="flex-1 min-h-0 relative">
+                    <tab.component />
+                </div>
+            ))}
         </div>
     )
 }

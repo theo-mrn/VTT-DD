@@ -411,6 +411,7 @@ export function useMapData(
                             notes: data.notes || undefined,
                             items: data.items || [],
                             linkedId: data.linkedId || undefined,
+                            groupEntityId: data.groupEntityId || undefined,
                         };
                     });
                     cb.current.setObjects?.(objs);

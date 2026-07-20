@@ -44,6 +44,7 @@ export interface ModuleContributions {
   conditions?: ConditionContribution[];
   settings?: ModuleSettingDefinition[];
   creationTabs?: CreationTabContribution[];
+  searchDrawerTabs?: SearchDrawerTabContribution[];
 }
 
 // ─── UI Contributions ───────────────────────────────────────────────
@@ -133,6 +134,20 @@ export interface CreationTabContribution {
   label: string;
   icon?: ComponentType<{ className?: string }>;
   component: ComponentType<{ draft: Record<string, unknown>; setDraft: (partial: Record<string, unknown>) => void }>;
+}
+
+/** Onglet supplémentaire du drawer "Recherche unifiée" de la carte (ajout de PNJ/objets/sons par
+ *  drag-and-drop) — contribué par un module ou un bundle de règles pour ses propres éléments
+ *  déposables sur la carte (ex vaisseaux d'un système Star Wars). MJ uniquement : ce drawer entier
+ *  n'est proposé qu'au MJ (cf UnifiedSearchDrawer, prop isMJ côté page). Le composant gère lui-même
+ *  son drag-and-drop (draggable + e.dataTransfer.setData('application/json', ...)) — le format
+ *  attendu par handleCanvasDrop (useDragAndDrop.ts) dépend du `type` posé dans ce JSON, ex
+ *  'group_entity_template' pour référencer un doc Salle/{roomId}/groupEntities existant. */
+export interface SearchDrawerTabContribution {
+  id: string;
+  label: string;
+  icon: ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
+  component: ComponentType;
 }
 
 export interface ConditionContribution {

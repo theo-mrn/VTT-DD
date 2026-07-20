@@ -1922,10 +1922,6 @@ export default function Component() {
           setMeasureEnd(null);
           setIsCalibrating(false);
           break;
-        case 7:
-          // Toggle Layer Control for Player
-          setShowLayerControl(!showLayerControl);
-          break;
       }
     }
   };
