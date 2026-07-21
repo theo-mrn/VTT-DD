@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
+import React from 'react';
 import { DiceSkin } from './dice-definitions';
 import { DicePreviewCard } from './dice-preview';
 import { cn } from '@/lib/utils';
-import { Check, ShoppingCart, Lock, Dices } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Check, ShoppingCart, Eye } from 'lucide-react';
 
 interface DiceCardProps {
     skin: DiceSkin;
@@ -14,66 +13,46 @@ interface DiceCardProps {
     canAfford: boolean;
     onBuy: () => void;
     onEquip: () => void;
-    onTry?: () => void;
-    /** Extra delay (ms) before this card's 3D preview is allowed to mount —
-     * staggers the grid so a full page of cards doesn't all spin up WebGL
-     * work in the same frame (that burst was crashing Chrome on some Windows
-     * GPU drivers). */
-    revealDelay?: number;
+    /** Ouvre la page de détail du dé — le SEUL endroit où un canvas 3D est monté. */
+    onOpen: () => void;
 }
 
-export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip, onTry, revealDelay = 0 }: DiceCardProps) {
-    const cardRef = useRef<HTMLDivElement>(null);
-    const [inView, setInView] = useState(false);
-    const [delayElapsed, setDelayElapsed] = useState(revealDelay === 0);
-    const [hovered, setHovered] = useState(false);
-    const isVisible = inView && delayElapsed;
-
-    useEffect(() => {
-        const el = cardRef.current;
-        if (!el) return;
-        const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.1 });
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, []);
-
-    useEffect(() => {
-        if (revealDelay === 0) return;
-        const t = window.setTimeout(() => setDelayElapsed(true), revealDelay);
-        return () => window.clearTimeout(t);
-    }, [revealDelay]);
-
+// Carte 100% statique : vignette PNG pré-bakée, zéro WebGL, zéro animation de
+// montage. La 3D vit exclusivement dans la page de détail (voir
+// store/dice-detail.tsx), montée au clic et détruite au retour.
+export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip, onOpen }: DiceCardProps) {
     const getRarityColor = (rarity: string) => {
         switch (rarity) {
             case 'legendary': return 'text-[var(--accent-brown)]';
             case 'epic': return 'text-[var(--accent-blue)]';
-            case 'rare': return 'text-blue-500'; // Keep some standard colors for rarity if they don't have theme equivalents, or map them
+            case 'rare': return 'text-blue-500';
             case 'uncommon': return 'text-green-500';
             default: return 'text-[var(--text-secondary)]';
         }
     };
 
     return (
-        <motion.div
-            ref={cardRef}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onPointerEnter={() => setHovered(true)}
-            onPointerLeave={() => setHovered(false)}
+        <div
+            onClick={onOpen}
             className={cn(
-                "group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-500",
-                "bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--text-primary)]/20 hover:shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.03)]",
+                "group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer transition-colors duration-300",
+                "bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--accent-brown)]/40",
                 isEquipped && "border-[var(--accent-brown)]/40 bg-gradient-to-b from-[var(--bg-darker)] to-[var(--bg-card)]"
             )}
         >
-            {/* --- PREVIEW --- */}
+            {/* --- PREVIEW (image pré-bakée uniquement) --- */}
             <div className="relative aspect-square w-full bg-[var(--bg-darker)] overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--text-primary-rgb),0.05)_0%,transparent_100%)]" />
-                {isVisible && (
-                    <div className="w-full h-full scale-95 group-hover:scale-110 transition-transform duration-700">
-                        <DicePreviewCard skinId={skin.id} type="d20" active={hovered} />
+                <div className="w-full h-full scale-95 group-hover:scale-105 transition-transform duration-300">
+                    <DicePreviewCard skinId={skin.id} type="d20" active={false} />
+                </div>
+
+                {/* Affordance "voir le dé" */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-dark)]/90 border border-[var(--border-color)] text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                        <Eye className="w-3.5 h-3.5" /> Voir en 3D
                     </div>
-                )}
+                </div>
 
                 {/* Badges */}
                 <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
@@ -81,7 +60,7 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip,
                         {skin.rarity || 'common'}
                     </span>
                     {isEquipped && (
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-md text-[9px] font-black uppercase shadow-lg shadow-[var(--accent-brown)]/10 animate-in zoom-in-50 duration-300">
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-md text-[9px] font-black uppercase shadow-lg shadow-[var(--accent-brown)]/10">
                             <Check className="w-3 h-3" strokeWidth={4} />
                             Équipé
                         </div>
@@ -96,26 +75,26 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip,
                     {skin.description}
                 </p>
 
-                <div className="mt-4 pt-4 border-t border-[var(--border-color)] flex items-stretch gap-2">
+                <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
                     {isOwned ? (
                         <button
-                            onClick={onEquip}
+                            onClick={(e) => { e.stopPropagation(); onEquip(); }}
                             disabled={isEquipped}
                             className={cn(
-                                "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors duration-300",
                                 isEquipped
                                     ? "bg-[var(--text-primary)]/5 text-[var(--text-secondary)] cursor-not-allowed border border-transparent"
-                                    : "bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:scale-[1.02] active:scale-95 shadow-lg shadow-[var(--accent-brown)]/5"
+                                    : "bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] active:scale-95 shadow-lg shadow-[var(--accent-brown)]/5"
                             )}
                         >
                             {isEquipped ? 'Sélectionné' : 'Équiper'}
                         </button>
                     ) : (
                         <button
-                            onClick={onBuy}
+                            onClick={(e) => { e.stopPropagation(); onBuy(); }}
                             disabled={!canAfford}
                             className={cn(
-                                "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors duration-300",
                                 "flex items-center justify-center gap-2",
                                 "border border-[var(--border-color)] bg-[var(--bg-darker)] text-[var(--text-primary)] hover:bg-[var(--bg-dark)] hover:border-[var(--text-primary)]/20 active:scale-95 disabled:opacity-50"
                             )}
@@ -124,19 +103,8 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip,
                             {skin.price === 0 ? 'Gratuit' : `${(skin.price / 100).toFixed(2)} €`}
                         </button>
                     )}
-
-                    {/* Try it — icon button next to the price/equip button */}
-                    {onTry && (
-                        <button
-                            onClick={onTry}
-                            title="Essayer ce dé"
-                            className="shrink-0 px-3 rounded-xl flex items-center justify-center border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] hover:border-[var(--accent-brown)]/40 hover:bg-[var(--bg-darker)] active:scale-95 transition-all duration-300"
-                        >
-                            <Dices className="w-4 h-4" />
-                        </button>
-                    )}
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }

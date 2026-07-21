@@ -11,7 +11,16 @@
 //     direct depuis les positions/mouvements des tokens ennemis. Voir activity-monitor.tsx.
 //  7. Onglet "Droïde compagnon" (joueur) : soins (cooldown) + buffs de stat intégrés au moteur, sur
 //     son propre personnage. Voir droid.tsx.
-import { Eye, EyeOff, Radar, Scale, Rocket, Target, RadioTower, Activity, Bot } from 'lucide-react';
+//  8. Onglet "Bombardement" (joueur, flottant bas-droit) : pad + rayon définissant une zone en % de
+//     la carte, pose un VRAI gabarit circulaire sur la carte (visible par tous) et transmet les
+//     cibles touchées au MJ. Générique, sans dépendance aux vaisseaux/groupEntities. Le MJ voit un
+//     panneau listant les cibles avec un champ de dégâts à appliquer directement sur leur PV. Voir
+//     bombardement.tsx / bombardement-shared.tsx.
+//  9. Mixeur audio : REMPLACE visuellement le AudioMixerPanel natif (api.audio.setMixerPanel) par
+//     4 bandes de fader verticales (LED meter + poignée à inertie) — même raccourci/bouton/toggle
+//     que le natif, mêmes canaux localStorage/CustomEvent, les volumes s'appliquent donc partout.
+//     Voir mixer.tsx.
+import { Eye, EyeOff, Radar, Scale, Rocket, Target, RadioTower, Activity, Bot, Bomb } from 'lucide-react';
 import { BACKGROUNDS } from './backgrounds';
 import { makeRadarPanel } from './radar';
 import { makeLocationOverlay } from './location';
@@ -24,6 +33,8 @@ import { makeScannerPanel } from './scanner';
 import { makeScannerControl } from './scanner-mj';
 import { makeActivityMonitorPanel } from './activity-monitor';
 import { makeDroidPanel } from './droid';
+import { makeBombardementPanel, makeBombardementMjPanel } from './bombardement';
+import { makeMixerPanel } from './mixer';
 
 const RACE_VISION = 'chiss'; // espèce autorisant la vision infrarouge (races[].id des règles)
 
@@ -97,13 +108,15 @@ export default (ctx) => {
     floating: true,
   };
 
-  // Onglet Scanner — MJ : programmation du canal secret (fréquence-cible + message). Onglet sidebar
-  // classique, pas flottant (formulaire de config, pas un instrument posé sur la carte).
+  // Onglet Scanner — MJ : programmation du canal secret (interrupteur d'émission + fréquence/
+  // décalage/gain + message). Panneau flottant compact depuis la v2 (plus de colonne pleine
+  // hauteur — le formulaire tient dans une carte de 320px).
   const scannerControlTab = {
     id: 'sw-scanner-mj',
     label: 'Scanner',
     icon: RadioTower,
     component: makeScannerControl(api),
+    floating: true,
   };
 
   // Onglet Moniteur d'activité — JOUEUR, autonome (aucune config MJ) : secteurs d'activité hostile
@@ -127,13 +140,31 @@ export default (ctx) => {
     floating: true,
   };
 
+  // Onglet Bombardement — JOUEUR : pad + rayon (coin bas-droit, ne masque pas le centre de la carte
+  // comme les panneaux ancrés à gauche). Générique : pas de dépendance aux vaisseaux/groupEntities.
+  const bombardementTab = {
+    id: 'sw-bombardement',
+    label: 'Bombardement',
+    icon: Bomb,
+    component: makeBombardementPanel(api),
+    floating: true,
+    dock: 'bottom-right',
+  };
+
+  // Mixeur SW : REMPLACE le panneau natif via l'override dédié — le raccourci clavier (Q), le
+  // bouton tool_mixer de la sidebar/toolbar et le toggle existants ouvrent directement cette
+  // version, aucun onglet séparé ni doublon.
+  api.audio.setMixerPanel(makeMixerPanel(api));
+
   const isMJ = api.getGameState().isMJ;
 
   // ENREGISTREMENT UNIQUE par catégorie — register() REMPLACE chaque catégorie fournie, donc les
   // sidebarTabs doivent partir en une seule liste (un second register({sidebarTabs}) écraserait la
   // première). Seules les sidebarActions (vision Chiss) sont ré-enregistrées plus bas.
   ctx.register({
-    sidebarTabs: isMJ ? [shipsTab, scannerControlTab] : [shipsTab, radarTab, scannerTab, activityTab, droidTab],
+    sidebarTabs: isMJ
+      ? [shipsTab, scannerControlTab]
+      : [shipsTab, radarTab, scannerTab, activityTab, droidTab, bombardementTab],
     searchDrawerTabs: isMJ ? [deployShipsTab] : [],
     characterWidgets: [{
       id: 'sw-obligation',
@@ -150,12 +181,17 @@ export default (ctx) => {
   });
 
   // Overlays haut-droit de la carte : localisation (coordonnées + secteur + signal) pour les
-  // joueurs ; contrôle du réseau comlink (une ligne par joueur, clic pour éditer individuellement
-  // ou en lot) pour le MJ.
+  // joueurs ; contrôle du réseau comlink + panneau de bombardement (cibles touchées + application
+  // des dégâts) pour le MJ.
   if (!isMJ) {
-    api.map.setOverlays([{ id: 'sw-location', Component: makeLocationOverlay(api) }]);
+    api.map.setOverlays([
+      { id: 'sw-location', Component: makeLocationOverlay(api) },
+    ]);
   } else {
-    api.map.setOverlays([{ id: 'sw-comms-control', Component: makeCommsControl(api) }]);
+    api.map.setOverlays([
+      { id: 'sw-comms-control', Component: makeCommsControl(api) },
+      { id: 'sw-bombardement-mj', Component: makeBombardementMjPanel(api) },
+    ]);
   }
 
   // Le bouton vision n'apparaît QUE pour un Chiss ; on ré-enregistre selon l'espèce courante.

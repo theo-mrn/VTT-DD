@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useConfirmAsync } from '@/hooks/useConfirmAsync';
 import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, getDocs, onSnapshot, collection, query, where, auth } from '@/lib/firebase';
 import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useGame } from '@/contexts/GameContext';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
@@ -105,6 +107,7 @@ export default function GameSystemManagerPanel() {
   const [overrides, setOverrides] = useState<Record<string, Draft & { sourceKind: 'catalog' | 'legacy' }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [confirmSwitchTo, setConfirmSwitchTo] = useState<string | null>(null);
+  const [confirmDeleteSystemId, setConfirmDeleteSystemId] = useState<string | null>(null);
   const [editingSystemId, setEditingSystemId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -190,13 +193,18 @@ export default function GameSystemManagerPanel() {
   const handleDeleteCustom = (systemId: string) => {
     if (!roomId) return;
     if (activeSystemId === systemId) {
-      alert('Ce système est actuellement utilisé par la table. Activez-en un autre avant de le supprimer.');
+      toast.error('Ce système est actuellement utilisé par la table. Activez-en un autre avant de le supprimer.');
       return;
     }
-    if (!confirm('Supprimer ce système ? Cette action est définitive.')) return;
-    const sourceKind = overrides[systemId]?.sourceKind ?? 'legacy';
-    const ref = sourceKind === 'catalog' ? doc(db, 'gameSystems', systemId) : doc(db, `Salle/${roomId}/gameSystemOverrides`, systemId);
+    setConfirmDeleteSystemId(systemId);
+  };
+
+  const confirmDeleteCustom = () => {
+    if (!roomId || !confirmDeleteSystemId) return;
+    const sourceKind = overrides[confirmDeleteSystemId]?.sourceKind ?? 'legacy';
+    const ref = sourceKind === 'catalog' ? doc(db, 'gameSystems', confirmDeleteSystemId) : doc(db, `Salle/${roomId}/gameSystemOverrides`, confirmDeleteSystemId);
     deleteDoc(ref);
+    setConfirmDeleteSystemId(null);
   };
 
   if (!isMJ) {
@@ -316,6 +324,16 @@ export default function GameSystemManagerPanel() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteSystemId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteSystemId(null) }}
+        title="Supprimer ce système ?"
+        description="Cette action est définitive."
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={confirmDeleteCustom}
+      />
     </div>
   );
 }
@@ -374,6 +392,7 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
   const [local, setLocal] = useState<Draft>(draft);
   const [isSaving, setIsSaving] = useState(false);
   const [selection, setSelection] = useState<SelectionId>({ kind: 'general' });
+  const { confirm: confirmAsync, dialog: importConfirmDialog } = useConfirmAsync();
 
   const save = async (next: Draft) => {
     setLocal(next);
@@ -598,7 +617,12 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
         let raw: string;
         if (await isZipFile(file)) {
           const uid = auth.currentUser?.uid ?? 'anonyme';
-          const { bundle } = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }));
+          const { bundle } = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }), (count) => confirmAsync({
+            title: 'Bundle avec scripts exécutables',
+            description: `Ce bundle contient ${count} script(s) exécutable(s) avec les pleins droits de la page (accès à votre session). N'importez que des bundles de confiance. Continuer ?`,
+            confirmLabel: 'Continuer',
+            destructive: true,
+          }));
           toast.dismiss('bundle-import');
           // Ce panneau importe dans un système EXISTANT (contrairement à Export/Import et /creer qui
           // en créent un neuf) : le zip est la source de vérité pour les scripts/styles — les anciens
@@ -624,7 +648,11 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
         // les races du système en cours d'édition, tout le reste (stats, dés, formules...) est conservé.
         if (isRacePackExport(JSON.parse(raw))) {
           const pack = parseRacePackExport(raw);
-          if (races.length > 0 && !window.confirm(`Remplacer les ${races.length} ${(local.raceLabel || 'race').toLowerCase()}(s) actuelles par les ${pack.races.length} du fichier ? Le reste du système n'est pas modifié.`)) {
+          if (races.length > 0 && !(await confirmAsync({
+            title: 'Remplacer les races',
+            description: `Remplacer les ${races.length} ${(local.raceLabel || 'race').toLowerCase()}(s) actuelles par les ${pack.races.length} du fichier ? Le reste du système n'est pas modifié.`,
+            confirmLabel: 'Remplacer',
+          }))) {
             return;
           }
           save({ ...local, races: pack.races, ...(pack.raceLabel != null ? { raceLabel: pack.raceLabel } : {}) });
@@ -635,7 +663,11 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
 
         const imported = parseGameSystemExport(raw);
         const isNotEmpty = local.stats.length > defaultVitalStats().length || races.length > 0 || profiles.length > 0;
-        if (isNotEmpty && !window.confirm('Importer remplacera les caractéristiques, contraintes de tirage, races et profils actuels. Continuer ?')) {
+        if (isNotEmpty && !(await confirmAsync({
+          title: 'Importer un système',
+          description: 'Importer remplacera les caractéristiques, contraintes de tirage, races et profils actuels. Continuer ?',
+          confirmLabel: 'Importer',
+        }))) {
           return;
         }
         save({
@@ -1003,6 +1035,8 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
           )}
         </div>
       </div>
+
+      {importConfirmDialog}
     </div>
   );
 }

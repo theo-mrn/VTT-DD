@@ -2,6 +2,7 @@
 
 import { Map, PanelLeft, Plus, X, Settings2, GripVertical, Search } from "lucide-react";
 import { createPortal } from "react-dom";
+import { useParams } from "next/navigation";
 import { useGame } from "@/contexts/GameContext";
 import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import SearchMenu from "./SearchMenu";
@@ -53,6 +54,13 @@ const DEFAULT_ITEM_IDS = [
 
 const STORAGE_KEY_PREFIX = "vtt_sidebar_items_";
 
+// Clé par utilisateur ET par salle : chaque salle a son propre système/bundle
+// (defaultSidebarLayout, boutons modaction-*). L'ancienne clé globale par
+// utilisateur faisait fuiter la personnalisation d'une salle dans toutes les
+// autres et masquait définitivement le layout configuré par le bundle de la
+// salle courante (les modaction-* d'un autre bundle disparaissant en silence).
+const sidebarRoomKey = (uid: string, roomId: string) => `${STORAGE_KEY_PREFIX}${uid}_${roomId}`;
+
 /** Préfixe des ids d'items issus des contributions sidebarActions (modules/bundles de règles) —
  *  les distingue des ids AVAILABLE_ACTIONS dans itemIds persistés. */
 const MODACTION_PREFIX = "modaction-";
@@ -80,23 +88,38 @@ function resolveDefaultItemIds(isMJ: boolean, roleDefaults?: { mj?: string[]; pl
   return configured && configured.length > 0 ? configured : DEFAULT_ITEM_IDS;
 }
 
-function loadItemIds(uid: string | undefined, defaultItemIds: string[]): string[] {
-  if (!uid || typeof window === "undefined") return defaultItemIds;
+function loadItemIds(
+  uid: string | undefined,
+  roomId: string | null,
+  defaultItemIds: string[],
+  hasConfiguredDefault: boolean,
+): string[] {
+  if (!uid || !roomId || typeof window === "undefined") return defaultItemIds;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + uid);
-    const parsed: string[] = raw ? JSON.parse(raw) : defaultItemIds;
+    // 1) Personnalisation propre à CETTE salle — priorité absolue.
+    const roomRaw = localStorage.getItem(sidebarRoomKey(uid, roomId));
     // Déduplique un state persisté avant le fix anti-doublon de handlePick — un id en
     // double casse @dnd-kit (SortableContext exige des id uniques).
-    return Array.from(new Set(parsed));
+    if (roomRaw) return Array.from(new Set(JSON.parse(roomRaw) as string[]));
+
+    // 2) Première visite de la salle : le layout configuré par son système/bundle
+    //    gagne. À défaut seulement, on reprend l'ancienne personnalisation globale
+    //    (clé legacy pré-par-salle) pour ne pas perdre les réglages existants des
+    //    salles "vanilla".
+    if (!hasConfiguredDefault) {
+      const legacy = localStorage.getItem(STORAGE_KEY_PREFIX + uid);
+      if (legacy) return Array.from(new Set(JSON.parse(legacy) as string[]));
+    }
+    return defaultItemIds;
   } catch {
     return defaultItemIds;
   }
 }
 
-function saveItemIds(uid: string | undefined, ids: string[]) {
-  if (!uid || typeof window === "undefined") return;
+function saveItemIds(uid: string | undefined, roomId: string | null, ids: string[]) {
+  if (!uid || !roomId || typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY_PREFIX + uid, JSON.stringify(ids));
+    localStorage.setItem(sidebarRoomKey(uid, roomId), JSON.stringify(ids));
   } catch (e) {
     console.error("Failed to save sidebar items", e);
   }
@@ -104,11 +127,14 @@ function saveItemIds(uid: string | undefined, ids: string[]) {
 
 function ActionPickerMenu({
   isMJ,
+  race,
   moduleActions,
   onPick,
   onClose,
 }: {
   isMJ: boolean;
+  /** Character.Race du personnage incarné — filtre les actions réservées à certaines espèces. */
+  race: string | undefined;
   /** Contributions sidebarActions des modules/bundles — proposées sous la catégorie « Système ». */
   moduleActions: SidebarActionContribution[];
   onPick: (actionId: string) => void;
@@ -122,9 +148,9 @@ function ActionPickerMenu({
     return () => clearTimeout(t);
   }, []);
 
-  const filteredActions = getAvailableActions(isMJ).filter(a =>
-    a.label.toLowerCase().includes(query.trim().toLowerCase())
-  );
+  const filteredActions = getAvailableActions(isMJ)
+    .filter(a => isActionAllowedForRace(a.id, race))
+    .filter(a => a.label.toLowerCase().includes(query.trim().toLowerCase()));
   // Les boutons contribués par le système de règles rejoignent le picker sous « Système », avec des
   // ids préfixés modaction- (résolus contre le registry, pas AVAILABLE_ACTIONS).
   const systemActions = moduleActions
@@ -276,12 +302,36 @@ function SortableIconButton({
   );
 }
 
+// Espèces ayant une particularité de perception à longue portée justifiant l'accès au bouton
+// "Vision Augmentée" (ids gameSystem.races[].id) — voir starwars-table.json pour les descriptions.
+// Les races D&D listées ci-dessous ont toutes déjà "Vision dans le noir" (public/tabs/capacites.json) :
+// le bouton s'ajoute à cette infravision existante, il ne la remplace pas.
+const VISION_BOOST_RACES = [
+  'advozse', 'ongree', 'gotal', 'lannik', 'balosar',
+  'elfe_noir', 'elfe_sylvain', 'elfe', 'frouin', 'minotaure', 'nain', 'ogre', 'orque', 'wolfer',
+];
+
+/** Actions réservées à certaines espèces (Character.Race, id en minuscules) — filtrées en plus
+ *  de mjOnly/hiddenForMJ dans nativeItems et le picker. Étendre ici si d'autres boutons deviennent
+ *  liés à une particularité raciale. */
+function isActionAllowedForRace(actionId: string, race: string | undefined): boolean {
+  if (actionId !== SHORTCUT_ACTIONS.TOOL_VISION_BOOST) return true;
+  const allowed = !!race && VISION_BOOST_RACES.includes(race.toLowerCase());
+  console.log('[Sidebar][visionBoost] check', { actionId, race, allowed });
+  return allowed;
+}
+
 export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarProps) {
-  const { isHydrated, user } = useGame();
+  const { isHydrated, user, playerData } = useGame();
   const { isDialogOpen } = useDialogVisibility();
   const { isShortcutPressed, onActionTriggered, triggerAction, activeMapTools } = useShortcuts();
   const { unreadCount, clearUnread } = useChatNotification();
-  const { gameSystem } = useGameSystem(user?.roomId ?? null);
+  const { gameSystem, isLoading: gameSystemLoading } = useGameSystem(user?.roomId ?? null);
+  // roomId depuis l'URL (la Sidebar vit sous /[roomid]/map) : plus fiable que
+  // user.roomId, qui arrive par Firestore et peut pointer l'ancienne salle
+  // pendant une transition — la clé de persistance doit suivre la salle affichée.
+  const params = useParams();
+  const roomId = (params?.roomid as string) ?? null;
 
   // Abonnement au registry : les contributions arrivent APRÈS le montage (modules externes chargés
   // par URL, scripts de bundle évalués par l'ExtensionHost) — sans cette subscription les memos
@@ -318,13 +368,38 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const [pickerTargetId, setPickerTargetId] = useState<string | null>(null); // null => ajout
 
   useEffect(() => {
-    setItemIds(loadItemIds(user?.uid, resolveDefaultItemIds(isMJ, gameSystem.defaultSidebarLayout)));
-  }, [user?.uid, isMJ, gameSystem.defaultSidebarLayout]);
+    // Attendre que le système/bundle de la salle ait répondu : résoudre le layout
+    // avant, c'était décider avec le système par défaut puis re-décider après la
+    // réponse Firestore — d'où une sidebar qui "charge différemment" selon le réseau.
+    if (gameSystemLoading) return;
+    const configured = isMJ ? gameSystem.defaultSidebarLayout?.mj : gameSystem.defaultSidebarLayout?.player;
+    const resolved = loadItemIds(
+      user?.uid,
+      roomId,
+      resolveDefaultItemIds(isMJ, gameSystem.defaultSidebarLayout),
+      !!(configured && configured.length > 0),
+    );
+    // Auto-ajout (une seule fois, persisté ensuite) du bouton Vision Augmentée pour les joueurs
+    // dont l'espèce le permet — sans ça, le layout par défaut du système ne le référence pas et
+    // le joueur ne verrait jamais le bouton sans passer par le picker manuellement.
+    if (
+      !isMJ
+      && !!playerData?.Race
+      && VISION_BOOST_RACES.includes(playerData.Race.toLowerCase())
+      && !resolved.includes(SHORTCUT_ACTIONS.TOOL_VISION_BOOST)
+    ) {
+      const withVisionBoost = [...resolved, SHORTCUT_ACTIONS.TOOL_VISION_BOOST];
+      setItemIds(withVisionBoost);
+      saveItemIds(user?.uid, roomId, withVisionBoost);
+    } else {
+      setItemIds(resolved);
+    }
+  }, [user?.uid, roomId, isMJ, gameSystem.defaultSidebarLayout, gameSystemLoading, playerData?.Race]);
 
   const persistItemIds = useCallback((next: string[]) => {
     setItemIds(next);
-    saveItemIds(user?.uid, next);
-  }, [user?.uid]);
+    saveItemIds(user?.uid, roomId, next);
+  }, [user?.uid, roomId]);
 
   useEffect(() => {
     if (activeTab === "Chat") clearUnread();
@@ -430,6 +505,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         }
         const a = AVAILABLE_ACTIONS.find(x => x.id === id);
         if (!a || (a.mjOnly && !isMJ) || (a.hiddenForMJ && isMJ)) return null;
+        if (!isActionAllowedForRace(a.id, playerData?.Race)) return null;
         return {
           id: a.id,
           actionId: a.id,
@@ -442,7 +518,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         };
       })
       .filter((it): it is Item => it !== null);
-  }, [itemIds, isMJ, unreadCount, moduleActions, buildModuleActionItem]);
+  }, [itemIds, isMJ, unreadCount, moduleActions, buildModuleActionItem, playerData?.Race]);
 
   const items: Item[] = useMemo(() => [
     ...nativeItems,
@@ -658,6 +734,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       {isPickerOpen && (
         <ActionPickerMenu
           isMJ={isMJ}
+          race={playerData?.Race}
           moduleActions={moduleActions}
           onPick={handlePick}
           onClose={() => { setIsPickerOpen(false); setPickerTargetId(null); }}

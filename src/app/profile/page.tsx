@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, UserPlus, XCircle, Edit, Loader2, Check, X } from "lucide-react";
 import EditProfileModal from "@/components/profile/EditProfileModal";
+import { useConfirmAsync } from "@/hooks/useConfirmAsync";
 
 interface UserData {
   name: string;
@@ -46,6 +47,7 @@ export default function ProfilePage() {
   const [sentRequests, setSentRequests] = useState<FriendData[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { confirm: confirmAsync, dialog: confirmDialog } = useConfirmAsync();
 
   // Fetch all user data when user is available
   useEffect(() => {
@@ -253,7 +255,7 @@ export default function ProfilePage() {
 
   const handleRemoveFriend = async (friendId: string) => {
     if (!uid) return;
-    if (!confirm("Êtes-vous sûr de vouloir retirer cet ami ?")) return;
+    if (!(await confirmAsync({ title: "Retirer cet ami ?", confirmLabel: "Retirer", destructive: true }))) return;
 
     setActionLoading(friendId);
     try {
@@ -671,6 +673,8 @@ export default function ProfilePage() {
           }}
         />
       )}
+
+      {confirmDialog}
     </div>
   );
 }

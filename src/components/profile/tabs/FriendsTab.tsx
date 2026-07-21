@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, XCircle, Users, ArrowUpDown } from "lucide-react";
 import FriendCard from "../FriendCard";
 import EmptyState from "../EmptyState";
+import { useConfirmAsync } from "@/hooks/useConfirmAsync";
 
 interface FriendData {
     id: string;
@@ -31,6 +32,7 @@ export default function FriendsTab({
 }: FriendsTabProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortBy, setSortBy] = useState<SortOption>("name");
+    const { confirm: confirmAsync, dialog: confirmDialog } = useConfirmAsync();
 
     const filteredAndSortedFriends = useMemo(() => {
         let filtered = friends;
@@ -55,7 +57,7 @@ export default function FriendsTab({
     }, [friends, searchQuery, sortBy]);
 
     const handleRemove = async (friendId: string) => {
-        if (confirm("Êtes-vous sûr de vouloir retirer cet ami ?")) {
+        if (await confirmAsync({ title: "Retirer cet ami ?", confirmLabel: "Retirer", destructive: true })) {
             await onRemoveFriend(friendId);
         }
     };
@@ -145,6 +147,8 @@ export default function FriendsTab({
                     Aucun ami trouvé avec "{searchQuery}"
                 </div>
             )}
+
+            {confirmDialog}
         </div>
     );
 }

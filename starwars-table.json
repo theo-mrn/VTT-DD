@@ -754,6 +754,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "miraluka-vision",
+            "label": "Vision par la Force",
+            "description": "Aveugle de naissance, le Miraluka « voit » grâce à un lien étroit avec la Force plutôt qu'avec ses yeux. Retire automatiquement 1 Setback die de pénalité lié à l'obscurité ou au manque de luminosité."
+          },
+          {
             "id": "miraluka-skill",
             "label": "Perception",
             "description": "1 rang gratuit dans la compétence Perception (maximum rang 2 à la création)."
@@ -838,6 +843,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "zeltron-empathie",
+            "label": "Empathie phéromonale",
+            "description": "Les Zeltrons perçoivent les émotions d'autrui grâce à un don d'empathie développé. Ajoute 1 Boost die aux vérifications de Charm, Coercion ou Négociation visant à évaluer ou influencer l'état émotionnel d'un interlocuteur."
+          },
+          {
             "id": "zeltron-skill",
             "label": "Charm",
             "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
@@ -892,6 +902,11 @@
             "id": "kaleesh-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+          },
+          {
+            "id": "kaleesh-vision",
+            "label": "Vision infrarouge",
+            "description": "Grâce à leur glande thermo-réceptive, les Kaleesh voient la chaleur corporelle. Retire automatiquement 1 Setback die de pénalité lié à l'obscurité ou au manque de luminosité."
           },
           {
             "id": "kaleesh-skill",
@@ -978,6 +993,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "aleena-reflexes",
+            "label": "Réflexes hors norme",
+            "description": "Les Aleenas possèdent des réflexes hors du commun. Ajoute 1 Boost die aux vérifications de Coordination ou d'initiative."
+          },
+          {
             "id": "aleena-skill",
             "label": "Piloting - Planetary",
             "description": "1 rang gratuit dans la compétence Piloting - Planetary (maximum rang 2 à la création)."
@@ -1006,6 +1026,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "nautolan-sens_aquatique",
+            "label": "Tentacules sensoriels",
+            "description": "Les tentacules crâniens des Nautolans détectent phéromones et émotions dans l'eau. Ajoute 1 Boost die aux vérifications de Perception en milieu aquatique. Leur squelette cartilagineux leur retire 1 Setback die sur les vérifications d'Athlétisme liées à la souplesse (contorsion, évasion d'une entrave)."
+          },
+          {
             "id": "nautolan-skill",
             "label": "Nage",
             "description": "1 rang gratuit dans la compétence Athletics utilisée pour nager (maximum rang 2 à la création)."
@@ -1032,6 +1057,11 @@
             "id": "neti-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+          },
+          {
+            "id": "neti-photosynthese",
+            "label": "Photosynthèse",
+            "description": "Les Netis se nourrissent par photosynthèse et n'ont pas besoin de respirer. Ils n'ont besoin ni de nourriture ni d'air pour survivre, seulement d'eau et de lumière, et peuvent rester en mode végétatif indéfiniment."
           },
           {
             "id": "neti-skill",
@@ -1207,6 +1237,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "falleen-apnee",
+            "label": "Apnée prolongée",
+            "description": "Héritage de leurs ancêtres amphibiens, les Falleen peuvent survivre plusieurs heures sous l'eau sans respirer."
+          },
+          {
             "id": "falleen-skill",
             "label": "Charm",
             "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
@@ -1233,6 +1268,11 @@
             "id": "shiido-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+          },
+          {
+            "id": "shiido-metamorphose",
+            "label": "Métamorphose",
+            "description": "Grâce à sa physiologie flexible et à ses talents de manipulation psychologique, le Shi'ido peut modifier son apparence pour ressembler à une autre créature humanoïde. Effectuer un jet de Discipline (Difficulté selon la ressemblance visée) pour maintenir l'illusion sous observation attentive."
           },
           {
             "id": "shiido-skill",
@@ -1375,6 +1415,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "mon_calamari-nage",
+            "label": "Nageur né",
+            "description": "Excellente vue sous-marine et en faible lumière. Retire automatiquement 1 Setback die de pénalité lié à l'obscurité ou au manque de luminosité, et 1 Setback die sur les vérifications de Natation. Subit 1 Setback die supplémentaire sur les vérifications physiques en environnement très sec."
+          },
+          {
             "id": "mon_calamari-skill",
             "label": "Mechanics",
             "description": "1 rang gratuit dans la compétence Mechanics (maximum rang 2 à la création)."
@@ -1457,6 +1502,11 @@
             "id": "gungan-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+          },
+          {
+            "id": "gungan-nage",
+            "label": "Amphibien",
+            "description": "Retire automatiquement 1 Setback die de pénalité sur les vérifications de Natation."
           },
           {
             "id": "gungan-skill",
@@ -1767,6 +1817,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "givin-vide_spatial",
+            "label": "Adaptation au vide",
+            "description": "L'exosquelette des Givins est naturellement adapté au vide spatial : ils peuvent survivre sans scaphandre dans le vide ou une atmosphère hostile pendant plusieurs minutes sans subir de dégâts."
+          },
+          {
             "id": "givin-skill",
             "label": "Éducation",
             "description": "1 rang gratuit dans la compétence Education (maximum rang 2 à la création)."
@@ -1849,6 +1904,11 @@
             "id": "ishi_tib-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+          },
+          {
+            "id": "ishi_tib-nage",
+            "label": "Amphibien",
+            "description": "Retire automatiquement 1 Setback die de pénalité sur les vérifications de Natation."
           },
           {
             "id": "ishi_tib-skill",
@@ -2047,6 +2107,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
           },
           {
+            "id": "kentra-vol",
+            "label": "Vol",
+            "description": "Les ailes veloutées des Kentras leur permettent de voler sur de courtes distances, évitant les Setback dies liés au terrain au sol (obstacles, terrain accidenté)."
+          },
+          {
             "id": "kentra-skill",
             "label": "Vol",
             "description": "1 rang gratuit dans la compétence Piloting - Planetary utilisée pour le vol (maximum rang 2 à la création)."
@@ -2103,6 +2168,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
           },
           {
+            "id": "bartokk-regeneration",
+            "label": "Régénération rapide",
+            "description": "Les Bartokks récupèrent naturellement plus vite de leurs blessures : retire 1 Setback die de pénalité lié aux blessures critiques lors des vérifications de récupération."
+          },
+          {
             "id": "bartokk-skill",
             "label": "Brawl",
             "description": "1 rang gratuit dans la compétence Brawl (maximum rang 2 à la création)."
@@ -2157,6 +2227,11 @@
             "id": "shatras-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+          },
+          {
+            "id": "shatras-vision",
+            "label": "Vision infrarouge",
+            "description": "Les quatre yeux des Shatras perçoivent l'infrarouge. Retire automatiquement 1 Setback die de pénalité lié à l'obscurité ou au manque de luminosité."
           },
           {
             "id": "shatras-skill",
@@ -2355,6 +2430,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "felucien-nage",
+            "label": "Amphibien",
+            "description": "Retire automatiquement 1 Setback die de pénalité sur les vérifications de Natation."
+          },
+          {
             "id": "felucien-skill",
             "label": "Discipline",
             "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
@@ -2381,6 +2461,11 @@
             "id": "bovorian-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
+          },
+          {
+            "id": "bovorian-vision",
+            "label": "Vision infrarouge",
+            "description": "Les yeux rouges des Bovorians perçoivent l'infrarouge. Retire automatiquement 1 Setback die de pénalité lié à l'obscurité ou au manque de luminosité."
           },
           {
             "id": "bovorian-skill",
@@ -2887,6 +2972,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "vurk-nage",
+            "label": "Amphibien",
+            "description": "Retire automatiquement 1 Setback die de pénalité sur les vérifications de Natation."
+          },
+          {
             "id": "vurk-skill",
             "label": "Discipline",
             "description": "1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création)."
@@ -2971,6 +3061,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
           },
           {
+            "id": "defel-camouflage",
+            "label": "Fourrure photo-absorbante",
+            "description": "La fourrure des Defels absorbe la lumière visible, les rendant presque invisibles dans l'obscurité. Ajoute 1 Boost die aux vérifications de Discrétion dans un environnement faiblement éclairé ou non éclairé."
+          },
+          {
             "id": "defel-skill",
             "label": "Stealth",
             "description": "1 rang gratuit dans la compétence Stealth (maximum rang 2 à la création)."
@@ -2997,6 +3092,11 @@
             "id": "herglic-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+          },
+          {
+            "id": "herglic-apnee",
+            "label": "Physiologie marine",
+            "description": "L'évent crânien des Herglics trahit des ancêtres marins : ils peuvent retenir leur respiration bien plus longtemps qu'un humanoïde standard et retirent 1 Setback die sur les vérifications de Natation."
           },
           {
             "id": "herglic-skill",
@@ -3223,6 +3323,11 @@
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 100 XP."
           },
           {
+            "id": "pantoran-resistance_froid",
+            "label": "Résistance au froid",
+            "description": "Les Pantorans supportent naturellement le froid extrême. Retire automatiquement 1 Setback die de pénalité lié aux environnements froids."
+          },
+          {
             "id": "pantoran-skill",
             "label": "Charm",
             "description": "1 rang gratuit dans la compétence Charm (maximum rang 2 à la création)."
@@ -3277,6 +3382,11 @@
             "id": "karkarodon-seuils",
             "label": "Seuils & Expérience",
             "description": "Seuil de Blessure : 10 + Vigueur. Seuil de Stress : 10 + Volonté. Expérience de départ : 90 XP."
+          },
+          {
+            "id": "karkarodon-nage",
+            "label": "Prédateur aquatique",
+            "description": "Silhouette fuselée et mains palmées : retire automatiquement 1 Setback die de pénalité sur les vérifications de Natation. Leurs dents acérées peuvent transpercer une armure : ajoute 1 Boost die aux vérifications de Brawl lors d'une attaque à morsure."
           },
           {
             "id": "karkarodon-skill",
@@ -4258,6 +4368,7 @@
         "tab_notes",
         "tab_dice",
         "tool_mixer",
+        "tool_vision_boost",
         "tab_map"
       ]
     },

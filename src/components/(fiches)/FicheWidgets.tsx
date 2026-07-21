@@ -18,6 +18,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import useMeasure from 'react-use-measure';
+import { toast } from 'sonner';
 
 interface WidgetProps {
     style?: React.CSSProperties;
@@ -742,7 +743,7 @@ export function GroupCreationSection({
 
     const handleAction = () => {
         if (selectedIds.length === 0) {
-            alert("Veuillez sélectionner au moins un attribut.");
+            toast.error("Veuillez sélectionner au moins un attribut.");
             return;
         }
         const finalLabel = label.trim() || 'Attributs';

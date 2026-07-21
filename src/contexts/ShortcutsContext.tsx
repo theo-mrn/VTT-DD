@@ -32,7 +32,6 @@ export const SHORTCUT_ACTIONS = {
     TAB_ENCOUNTER: 'tab_encounter', // Générateur de rencontre (MJ)
     TAB_HISTORIQUE: 'tab_historique', // Historique des événements (MJ)
     TAB_MAP: 'tab_map', // Carte(s) générique(s) (fond image + marqueurs), configurées par gameSystem.maps — MJ + joueurs
-    TOGGLE_CUSTOM_BUTTONS_EDIT: 'toggle_custom_buttons_edit', // Active/désactive le mode édition des boutons personnalisables (CustomButtons)
 
     // Map Tools
     TOOL_PAN: 'tool_pan',
@@ -81,6 +80,7 @@ export const SHORTCUT_ACTIONS = {
 
     // Interactions
     OPEN_BUBBLE_MENU: 'open_bubble_menu', // Bulle d'interaction (emoji/texte) au-dessus de son perso
+    TOOL_VISION_BOOST: 'tool_vision_boost', // Vision augmentée : multiplie le rayon de vision de son perso (persisté sur Character.visionBoostActive)
 
     // General
     CLOSE_DIALOG: 'close_dialog',
@@ -109,11 +109,6 @@ interface ShortcutsContextType {
     // sans dupliquer sa logique ni simuler un faux KeyboardEvent.
     triggerAction: (actionId: string) => void;
     onActionTriggered: (actionId: string, callback: () => void) => () => void;
-    // État partagé (pas juste un événement ponctuel) : CustomButtons.tsx (monté dans
-    // layout.tsx) l'écrit quand son mode édition change, MapToolbar/page.tsx (composant
-    // frère) le lit pour afficher son bouton "Personnaliser mes boutons" en actif.
-    isCustomButtonsEditModeActive: boolean;
-    setIsCustomButtonsEditModeActive: (v: boolean) => void;
     // Miroir de activeTools (getActiveToolbarTools, calculé dans page.tsx) : permet aux
     // boutons personnalisables (CustomButtons/Sidebar, montés hors de la page carte) de
     // savoir si l'action qu'ils représentent est actuellement active sur la carte
@@ -136,7 +131,6 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TAB_ENCOUNTER]: '',   // Générateur de rencontre (pas de raccourci par défaut)
     [SHORTCUT_ACTIONS.TAB_HISTORIQUE]: '',  // Historique (pas de raccourci par défaut)
     [SHORTCUT_ACTIONS.TAB_MAP]: '',          // Carte (pas de raccourci par défaut)
-    [SHORTCUT_ACTIONS.TOGGLE_CUSTOM_BUTTONS_EDIT]: '', // Édition boutons personnalisables (pas de raccourci par défaut)
 
     // ========== OUTILS DE CARTE PRINCIPAUX ==========
     [SHORTCUT_ACTIONS.TOOL_PAN]: 'H',       // Hand (Main pour déplacer)
@@ -181,6 +175,7 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
 
     // ========== INTERACTIONS ==========
     [SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU]: 'K', // bulle emoji/texte au-dessus de son perso
+    [SHORTCUT_ACTIONS.TOOL_VISION_BOOST]: '', // Vision augmentée (pas de raccourci par défaut)
 
     // ========== LANCÉS DE DÉS ==========
     // Basés sur la POSITION physique de la touche (Code:DigitN), pas le caractère
@@ -246,7 +241,6 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
     const [shortcuts, setShortcuts] = useState<Record<string, string>>(DEFAULT_SHORTCUTS);
     const [customShortcuts, setCustomShortcuts] = useState<CustomShortcut[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
-    const [isCustomButtonsEditModeActive, setIsCustomButtonsEditModeActive] = useState(false);
     const [activeMapTools, setActiveMapTools] = useState<string[]>([]);
 
     // History handling
@@ -470,8 +464,6 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
             removeCustomShortcut,
             triggerAction,
             onActionTriggered,
-            isCustomButtonsEditModeActive,
-            setIsCustomButtonsEditModeActive,
             activeMapTools,
             setActiveMapTools,
         }}>

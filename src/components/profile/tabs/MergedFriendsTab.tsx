@@ -18,6 +18,7 @@ import { ProfileCard } from "@/components/ui/profile-card";
 import FriendCard from "../FriendCard";
 import EmptyState from "../EmptyState";
 import { useUserSearch } from "@/hooks/useUserSearch";
+import { useConfirmAsync } from "@/hooks/useConfirmAsync";
 
 interface FriendData {
     id: string;
@@ -66,6 +67,7 @@ export default function MergedFriendsTab({
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [selectedProfile, setSelectedProfile] = useState<FriendData | null>(null);
+    const { confirm: confirmAsync, dialog: confirmDialog } = useConfirmAsync();
 
     const { results, loading: searchLoading, search } = useUserSearch();
 
@@ -303,8 +305,8 @@ export default function MergedFriendsTab({
                                         <Button
                                             size="sm"
                                             variant="ghost"
-                                            onClick={() => {
-                                                if (confirm("Êtes-vous sûr de vouloir retirer cet ami ?")) {
+                                            onClick={async () => {
+                                                if (await confirmAsync({ title: "Retirer cet ami ?", confirmLabel: "Retirer", destructive: true })) {
                                                     onRemoveFriend(friend.id);
                                                 }
                                             }}
@@ -354,6 +356,8 @@ export default function MergedFriendsTab({
                     )}
                 </DialogContent>
             </Dialog>
+
+            {confirmDialog}
         </div>
     );
 }

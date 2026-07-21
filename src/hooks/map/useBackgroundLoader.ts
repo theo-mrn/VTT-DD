@@ -56,7 +56,11 @@ export function useBackgroundLoader({
       video.onloadedmetadata = () => {
         setBgImageObject(video);
         setIsBackgroundLoading(false);
-        video.play().catch((e) => console.error('Video play error:', e));
+        // AbortError ignoré : en mode static (ou au changement de carte), un
+        // pause() peut interrompre ce play() avant démarrage — voulu, pas une erreur.
+        video.play().catch((e) => {
+          if (e?.name !== 'AbortError') console.error('Video play error:', e);
+        });
       };
       videoRef.current = video;
     } else {
@@ -143,7 +147,11 @@ export function useBackgroundLoader({
           video.onloadedmetadata = () => {
             setBgImageObject(video);
             setIsBackgroundLoading(false);
-            video.play().catch((e) => console.error('Video play error:', e));
+            // AbortError ignoré : en mode static (ou au changement de carte), un
+        // pause() peut interrompre ce play() avant démarrage — voulu, pas une erreur.
+        video.play().catch((e) => {
+          if (e?.name !== 'AbortError') console.error('Video play error:', e);
+        });
           };
           video.onerror = () => {
             setIsBackgroundLoading(false);

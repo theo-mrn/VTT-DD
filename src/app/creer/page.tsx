@@ -21,6 +21,7 @@ import { GameSystemEditor, emptyGameSystem, type Draft } from '@/components/(fic
 import { stripUndefinedDeep } from '@/modules/game-system/transfer'
 import { parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer'
 import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip'
+import { useConfirmAsync } from '@/hooks/useConfirmAsync'
 import { importCharacterExport } from '@/utils/characterTransfer'
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
@@ -59,6 +60,7 @@ export default function CreerPageComponent() {
   // Vrai pendant la lecture/upload d'un bundle zip (les assets partent sur R2 dès la sélection) —
   // bloque la soumission du formulaire tant que les URLs ne sont pas réécrites dans le bundle.
   const [isImportingBundle, setIsImportingBundle] = useState(false)
+  const { confirm: confirmAsync, dialog: confirmDialog } = useConfirmAsync()
   const router = useRouter()
 
   const CUSTOM_SYSTEM_ID = '__draft__'
@@ -249,7 +251,12 @@ export default function CreerPageComponent() {
         // réécrites ; le bundle qui en sort suit le flux JSON existant inchangé.
         let bundle: RoomExportBundle
         if (await isZipFile(file)) {
-          const { bundle: zipBundle } = await importZipToBundle(file, userId ?? 'anonyme', (msg) => toast.loading(msg, { id: 'bundle-import' }))
+          const { bundle: zipBundle } = await importZipToBundle(file, userId ?? 'anonyme', (msg) => toast.loading(msg, { id: 'bundle-import' }), (count) => confirmAsync({
+            title: 'Bundle avec scripts exécutables',
+            description: `Ce bundle contient ${count} script(s) exécutable(s) avec les pleins droits de la page (accès à votre session). N'importez que des bundles de confiance. Continuer ?`,
+            confirmLabel: 'Continuer',
+            destructive: true,
+          }))
           toast.dismiss('bundle-import')
           bundle = zipBundle
         } else {
@@ -558,6 +565,8 @@ export default function CreerPageComponent() {
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </AppBackground>
   )
 }

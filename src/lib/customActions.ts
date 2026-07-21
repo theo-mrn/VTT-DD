@@ -6,6 +6,7 @@ import {
   Move, Target, Pencil, ZoomIn, ZoomOut, Baseline, UserPlus, PackagePlus,
   Volume2, Hexagon, MapPin, SquareDashedMousePointer, CirclePlus, Compass,
   History, Flame, CloudFog, Eraser, PlayCircle, Sun, Moon, RotateCcw, Trash2,
+  Binoculars,
   type LucideIcon,
 } from "lucide-react"
 import { SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext"
@@ -28,8 +29,8 @@ export type CustomActionDef = {
   mapToolId?: string
 }
 
-// Catalogue partagé entre CustomButtons.tsx (boutons flottants) et Sidebar.tsx (rail/dock
-// personnalisables) — chaque action est branchée sur le mécanisme triggerAction/
+// Catalogue partagé entre MapToolbar.tsx (groupe de boutons personnalisés de la barre)
+// et Sidebar.tsx (rail/dock personnalisables) — chaque action est branchée sur le mécanisme triggerAction/
 // onActionTriggered (voir ShortcutsContext.tsx), sauf les onglets natifs (champ `tab`)
 // qui basculent directement activeTab dans le layout.
 export const AVAILABLE_ACTIONS: CustomActionDef[] = [
@@ -60,6 +61,9 @@ export const AVAILABLE_ACTIONS: CustomActionDef[] = [
   { id: SHORTCUT_ACTIONS.TOOL_SETTINGS, label: "Paramètres", icon: Settings2, category: "Interface & Vue" },
   // N'a de sens que pour un joueur incarnant un personnage sur la carte (persoId requis) : le MJ n'en a pas.
   { id: SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU, label: "Bulle (emoji/texte)", icon: Smile, category: "Interface & Vue", hiddenForMJ: true },
+  // Bascule Character.visionBoostActive sur son propre personnage (multiplie son rayon de vision) — le MJ n'a pas de perso incarné par défaut.
+  // mapToolId sert uniquement au highlight actif/inactif de l'icône (voir page.tsx, fusionné dans activeMapTools à part de getActiveToolbarTools).
+  { id: SHORTCUT_ACTIONS.TOOL_VISION_BOOST, label: "Vision Augmentée", icon: Binoculars, category: "Interface & Vue", hiddenForMJ: true, mapToolId: 'vision_boost' },
   { id: SHORTCUT_ACTIONS.UNDO, label: "Annuler", icon: Undo2, category: "Interface & Vue" },
   { id: SHORTCUT_ACTIONS.REDO, label: "Refaire", icon: Redo2, category: "Interface & Vue" },
   { id: SHORTCUT_ACTIONS.TOOL_GRID, label: "Afficher/Masquer Grille", icon: Grid3x3, category: "Interface & Vue" },

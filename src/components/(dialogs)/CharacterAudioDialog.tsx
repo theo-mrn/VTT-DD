@@ -3,6 +3,7 @@ import { Upload, X, Play, Pause, RefreshCw, Volume2, Music, Check, Disc, Trash2,
 import { Character } from '@/app/[roomid]/map/types';
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface CharacterAudioDialogProps {
     isOpen: boolean;
@@ -40,6 +41,7 @@ export const CharacterAudioDialog: React.FC<CharacterAudioDialogProps> = ({
     // Preview Player State (Main Dialog)
     const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [confirmDeleteAudio, setConfirmDeleteAudio] = useState(false);
 
     // Initialise inputs when character changes or dialog opens
     useEffect(() => {
@@ -135,6 +137,7 @@ export const CharacterAudioDialog: React.FC<CharacterAudioDialogProps> = ({
     };
 
     return (
+        <>
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -324,14 +327,7 @@ export const CharacterAudioDialog: React.FC<CharacterAudioDialogProps> = ({
                                     {character?.audio?.url && (
                                         <div className="border-t border-white/5 p-2 bg-black/20 text-center shrink-0">
                                             <button
-                                                onClick={async () => {
-                                                    if (confirm("Supprimer l'audio ?")) {
-                                                        setLoading(true);
-                                                        await onDelete();
-                                                        setLoading(false);
-                                                        onClose();
-                                                    }
-                                                }}
+                                                onClick={() => setConfirmDeleteAudio(true)}
                                                 className="text-[10px] text-red-500/50 hover:text-red-400 uppercase tracking-widest font-semibold transition-colors"
                                             >
                                                 Supprimer l'audio
@@ -444,5 +440,20 @@ export const CharacterAudioDialog: React.FC<CharacterAudioDialogProps> = ({
                 </>
             )}
         </AnimatePresence>
+
+        <ConfirmDialog
+            open={confirmDeleteAudio}
+            onOpenChange={setConfirmDeleteAudio}
+            title="Supprimer l'audio ?"
+            confirmLabel="Supprimer"
+            destructive
+            onConfirm={async () => {
+                setLoading(true);
+                await onDelete();
+                setLoading(false);
+                onClose();
+            }}
+        />
+        </>
     );
 };

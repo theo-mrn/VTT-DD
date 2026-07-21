@@ -322,7 +322,7 @@ export default function MapContextMenus(props: MapContextMenusProps) {
           setTargetIds([]);
           setCombatOpen(true);
         } else {
-          alert("Aucun personnage actif sélectionné pour attaquer (Tour du joueur)");
+          toast.error("Aucun personnage actif sélectionné pour attaquer (Tour du joueur)");
         }
       } else {
         if (persoId) {

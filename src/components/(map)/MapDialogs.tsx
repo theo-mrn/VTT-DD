@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
+import { subscribeAudioMixerPanelOverride, getAudioMixerPanelOverride, getServerAudioMixerPanelOverride } from '@/app/[roomid]/map/audio-mixer-store'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -151,6 +152,13 @@ export interface MapDialogsProps {
 // ── Component ───────────────────────────────────────────────────────────────
 
 function MapDialogs(props: MapDialogsProps) {
+  // Composant de mixeur fourni par le bundle actif (api.audio.setMixerPanel) — quand présent, il
+  // remplace le AudioMixerPanel natif avec les mêmes props : raccourci/bouton/toggle inchangés.
+  const MixerOverride = useSyncExternalStore(
+    subscribeAudioMixerPanelOverride,
+    getAudioMixerPanelOverride,
+    getServerAudioMixerPanelOverride,
+  );
   const {
     roomId,
     isMJ,
@@ -492,7 +500,7 @@ function MapDialogs(props: MapDialogsProps) {
                           setTempZoneData(prev => ({ ...prev, url: downloadURL }))
                         } catch (error) {
                           console.error("Upload failed", error)
-                          alert("Upload failed!")
+                          toast.error("Upload failed!")
                         }
                       }
                     }}
@@ -570,11 +578,18 @@ function MapDialogs(props: MapDialogsProps) {
         onClearAllObstacles={handleClearAllObstacles}
       />
 
-      {/* ── 10. Audio Mixer Panel ── */}
-      <AudioMixerPanel
-        isOpen={isAudioMixerOpen}
-        onClose={() => setIsAudioMixerOpen(false)}
-      />
+      {/* ── 10. Audio Mixer Panel (natif, ou remplacé par le bundle actif) ── */}
+      {MixerOverride ? (
+        <MixerOverride
+          isOpen={isAudioMixerOpen}
+          onClose={() => setIsAudioMixerOpen(false)}
+        />
+      ) : (
+        <AudioMixerPanel
+          isOpen={isAudioMixerOpen}
+          onClose={() => setIsAudioMixerOpen(false)}
+        />
+      )}
 
       {/* ── 11. Place NPC Modal ── */}
       <PlaceNPCModal

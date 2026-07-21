@@ -66,8 +66,12 @@ export function drawBackgroundLayers(
     y: (p.y / imgHeight) * scaledHeight - offset.y,
   });
 
-  // Draw background image
-  if (isLayerVisible('background') && (image instanceof HTMLImageElement || image instanceof HTMLVideoElement || image instanceof HTMLCanvasElement)) {
+  // Draw background image — les VIDÉOS ne sont pas dessinées ici : elles sont
+  // composées par le navigateur dans un <video> DOM placé sous ce canvas
+  // (décodage matériel, même géométrie), voir le host vidéo dans page.tsx.
+  // Ce canvas reste transparent à leur emplacement et ne porte que les
+  // décorations (grille, notes, dessins, portails).
+  if (isLayerVisible('background') && (image instanceof HTMLImageElement || image instanceof HTMLCanvasElement)) {
     ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
   }
 

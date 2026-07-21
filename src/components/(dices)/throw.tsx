@@ -313,6 +313,15 @@ export const DiceThrower = () => {
         const maxZ = Math.max(halfZ - dieMargin, 2);
         // Aim right-of-center, but always inside the visible area.
         const targetX = Math.min(maxX * 0.55, maxX);
+        // Reference arena (the size the base throw force below was tuned for).
+        // On shorter/narrower viewports maxZ shrinks a lot — throwing with the
+        // full fixed force then slams the die into the far wall almost
+        // immediately, killing its speed+spin together right where it lands
+        // and making it settle-detect as "stuck" near the spawn wall instead
+        // of tumbling. Scale the force down with how cramped the arena
+        // actually is so small arenas get a proportionally gentler throw.
+        const REFERENCE_MAX_Z = 12;
+        const forceScale = Math.min(maxZ / REFERENCE_MAX_Z, 1);
 
         requests.forEach(req => {
             totalDiceCount += req.count;
@@ -339,9 +348,9 @@ export const DiceThrower = () => {
                 // tiny) — otherwise the die barely crosses the table and
                 // reads as "dropped" instead of "thrown". More horizontal
                 // punch, less vertical loft, for a flatter/faster throw.
-                const forceX = -(startX - targetX) * (2.2 + Math.random() * 1.0) - (5 + Math.random() * 5);
+                const forceX = (-(startX - targetX) * (2.2 + Math.random() * 1.0) - (5 + Math.random() * 5)) * forceScale;
                 const forceY = 2.5 + Math.random() * 3;
-                const forceZ = -(30 + Math.random() * 12);
+                const forceZ = -(30 + Math.random() * 12) * forceScale;
 
                 const id = crypto.randomUUID();
                 newDice.push({

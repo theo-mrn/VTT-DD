@@ -292,21 +292,6 @@ export default function Component() {
   const [isNooblesImportOpen, setIsNooblesImportOpen] = useState<boolean>(false);
   const [nooblesUrl, setNooblesUrl] = useState<string>('');
   const [isImportingNoobles, setIsImportingNoobles] = useState<boolean>(false);
-  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState<boolean>(false);
-  const actionsMenuCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const cancelActionsMenuClose = () => {
-    if (actionsMenuCloseTimer.current) {
-      clearTimeout(actionsMenuCloseTimer.current);
-      actionsMenuCloseTimer.current = null;
-    }
-  };
-
-  const scheduleActionsMenuClose = () => {
-    cancelActionsMenuClose();
-    actionsMenuCloseTimer.current = setTimeout(() => setIsActionsMenuOpen(false), 150);
-  };
-
   // Layout State
   const [layout, setLayout] = useState<Layout[]>(DEFAULT_LAYOUT);
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
@@ -457,7 +442,7 @@ export default function Component() {
       setIsLayoutEditing(false);
     } catch (error) {
       console.error("Error saving layout and customization:", error);
-      alert("Erreur lors de la sauvegarde: " + (error as Error).message);
+      toast.error("Erreur lors de la sauvegarde: " + (error as Error).message);
     }
   };
 
@@ -948,7 +933,7 @@ export default function Component() {
       }
     } catch (error) {
       console.error("Error uploading image: ", error);
-      alert("Erreur lors de l'upload de l'image");
+      toast.error("Erreur lors de l'upload de l'image");
     } finally {
       setUploading(false);
     }
@@ -1230,12 +1215,10 @@ export default function Component() {
                 className="hidden"
               />
 
-              <DropdownMenu open={isActionsMenuOpen} onOpenChange={setIsActionsMenuOpen}>
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     id="vtt-fiche-btn-actions"
-                    onMouseEnter={() => { cancelActionsMenuClose(); setIsActionsMenuOpen(true); }}
-                    onMouseLeave={scheduleActionsMenuClose}
                     className="bg-[var(--bg-darker)] text-[var(--text-secondary)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
                     title="Plus d'actions"
                   >
@@ -1245,9 +1228,7 @@ export default function Component() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  onMouseEnter={cancelActionsMenuClose}
-                  onMouseLeave={scheduleActionsMenuClose}
-                  className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]"
+                  className="z-[100] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]"
                 >
                   {(selectedCharacter.id === userPersoId || isMJ) && (
                     <>

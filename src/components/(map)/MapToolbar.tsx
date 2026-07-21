@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { createPortal } from 'react-dom';
 import {
     Move,
     Grid,
@@ -36,8 +37,28 @@ import {
     Hexagon,
     MapPin,
     CirclePlus,
-    SquarePlus
+    SquarePlus,
+    X,
+    GripVertical
 } from 'lucide-react';
+import { useGame } from "@/contexts/GameContext";
+import { useShortcuts } from "@/contexts/ShortcutsContext";
+import { AVAILABLE_ACTIONS, getAvailableActions, ACTION_CATEGORIES, type CustomActionDef } from "@/lib/customActions";
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    SortableContext,
+    horizontalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -97,7 +118,6 @@ export const TOOLS = {
     AUDIO_MIXER: 'audio_mixer',
     TOGGLE_CHAR_BORDERS: 'toggle_char_borders',
     TOGGLE_ALL_BADGES: 'toggle_all_badges',
-    CUSTOMIZE_BUTTONS: 'customize_buttons',
     ERASER: 'eraser',
     FOG_REVEAL_ALL: 'fog_reveal_all',
     FOG_HIDE_ALL: 'fog_hide_all',
@@ -237,6 +257,188 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
     );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BOUTONS PERSONNALISÉS DE LA TOOLBAR
+// Remplace les anciens boutons flottants posés librement sur la carte
+// (CustomButtons) : les actions choisies vivent dans la barre elle-même et se
+// gèrent comme la Sidebar — mode édition, ajout via picker, retrait, drag pour
+// réordonner, persistance localStorage par utilisateur.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TOOLBAR_BUTTONS_KEY_PREFIX = "vtt_toolbar_buttons_";
+// Ancienne clé des boutons flottants sur la carte — migrée une fois (ids
+// d'actions repris, positions abandonnées), l'ancienne donnée est laissée en place.
+const LEGACY_FLOATING_KEY_PREFIX = "vtt_custom_buttons_";
+
+function loadToolbarButtonIds(uid: string | undefined): string[] {
+    if (!uid || typeof window === "undefined") return [];
+    try {
+        const raw = localStorage.getItem(TOOLBAR_BUTTONS_KEY_PREFIX + uid);
+        if (raw) return Array.from(new Set(JSON.parse(raw) as string[]));
+        const legacy = localStorage.getItem(LEGACY_FLOATING_KEY_PREFIX + uid);
+        if (legacy) {
+            const ids = Array.from(new Set(
+                (JSON.parse(legacy) as { actionId: string }[]).map(b => b.actionId)
+            ));
+            localStorage.setItem(TOOLBAR_BUTTONS_KEY_PREFIX + uid, JSON.stringify(ids));
+            return ids;
+        }
+        return [];
+    } catch {
+        return [];
+    }
+}
+
+function saveToolbarButtonIds(uid: string | undefined, ids: string[]) {
+    if (!uid || typeof window === "undefined") return;
+    try {
+        localStorage.setItem(TOOLBAR_BUTTONS_KEY_PREFIX + uid, JSON.stringify(ids));
+    } catch (e) {
+        console.error("Failed to save toolbar buttons", e);
+    }
+}
+
+function SortableCustomAction({
+    action,
+    isActive,
+    editMode,
+    onTrigger,
+    onRemove,
+}: {
+    action: CustomActionDef;
+    isActive: boolean;
+    editMode: boolean;
+    onTrigger: (actionId: string) => void;
+    onRemove: (actionId: string) => void;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+        useSortable({ id: action.id, disabled: !editMode });
+    const Icon = action.icon;
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+            className="relative shrink-0"
+            {...attributes}
+            {...(editMode ? listeners : {})}
+        >
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        variant={isActive ? "secondary" : "ghost"}
+                        size="icon"
+                        className={cn(
+                            "h-8 w-8 sm:h-9 sm:w-9 shrink-0 transition-all duration-200 rounded-lg",
+                            isActive
+                                ? "bg-[#c0a080] text-black hover:bg-[#d4b494] shadow-[0_0_10px_rgba(192,160,128,0.3)]"
+                                : "text-gray-400 hover:text-white hover:bg-white/10",
+                            editMode && "ring-1 ring-[#c0a080]/60 cursor-grab active:cursor-grabbing touch-none"
+                        )}
+                        onClick={() => { if (!editMode) onTrigger(action.id); }}
+                    >
+                        <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-black/90 border-[#333] text-white text-xs font-medium">
+                    <p>{action.label}</p>
+                </TooltipContent>
+            </Tooltip>
+            {editMode && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onRemove(action.id); }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-500 z-10"
+                >
+                    <X className="w-2.5 h-2.5" />
+                </button>
+            )}
+        </div>
+    );
+}
+
+function ToolbarActionPicker({
+    isMJ,
+    excludeIds,
+    onPick,
+    onClose,
+}: {
+    isMJ: boolean;
+    excludeIds: string[];
+    onPick: (actionId: string) => void;
+    onClose: () => void;
+}) {
+    const [query, setQuery] = useState("");
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const t = setTimeout(() => inputRef.current?.focus(), 50);
+        return () => clearTimeout(t);
+    }, []);
+
+    const filteredActions = getAvailableActions(isMJ)
+        .filter(a => !excludeIds.includes(a.id))
+        .filter(a => a.label.toLowerCase().includes(query.trim().toLowerCase()));
+    const groups = ACTION_CATEGORIES
+        .map(category => ({ category, actions: filteredActions.filter(a => a.category === category) }))
+        .filter(g => g.actions.length > 0);
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+            <div
+                className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-2xl w-full max-w-3xl h-[85vh] max-h-[720px] shadow-2xl flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
+                    <span className="text-base font-bold text-[var(--text-primary)]">Ajouter un bouton</span>
+                    <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+                <div className="px-5 pt-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <input
+                            ref={inputRef}
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Rechercher une action..."
+                            className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg pl-9 pr-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-zinc-600 outline-none focus:border-[var(--accent-brown)] transition-colors"
+                        />
+                    </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                    {groups.map(group => (
+                        <div key={group.category}>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-brown)] mb-2.5">
+                                {group.category}
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {group.actions.map(a => (
+                                    <button
+                                        key={a.id}
+                                        onClick={() => onPick(a.id)}
+                                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--accent-brown)] text-[var(--text-primary)] text-sm transition-colors"
+                                    >
+                                        <a.icon className="w-4 h-4 text-[var(--accent-brown)] shrink-0" />
+                                        <span className="truncate">{a.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    {groups.length === 0 && (
+                        <div className="text-center py-10 text-zinc-600 text-sm italic">
+                            Aucune action trouvée.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
 function MapToolbar({
     isMJ,
     activeTools,
@@ -249,6 +451,43 @@ function MapToolbar({
     extraMJTools,
 }: MapToolbarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // ── Boutons personnalisés (dans la barre, gérés comme la Sidebar) ──
+    const { user } = useGame();
+    const { triggerAction, activeMapTools } = useShortcuts();
+    const [customIds, setCustomIds] = useState<string[]>([]);
+    const [customEditMode, setCustomEditMode] = useState(false);
+    const [customPickerOpen, setCustomPickerOpen] = useState(false);
+
+    useEffect(() => {
+        setCustomIds(loadToolbarButtonIds(user?.uid));
+    }, [user?.uid]);
+
+    const persistCustomIds = useCallback((next: string[]) => {
+        setCustomIds(next);
+        saveToolbarButtonIds(user?.uid, next);
+    }, [user?.uid]);
+
+    // Filtrage par rôle à l'affichage (les ids persistés peuvent contenir des
+    // actions MJ si l'utilisateur a changé de rôle) — même logique que la Sidebar.
+    const customActions = customIds
+        .map(id => AVAILABLE_ACTIONS.find(a => a.id === id))
+        .filter((a): a is CustomActionDef => !!a && (!a.mjOnly || isMJ) && (!a.hiddenForMJ || !isMJ));
+
+    const customSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+    const handleCustomDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const oldIndex = customIds.indexOf(String(active.id));
+        const newIndex = customIds.indexOf(String(over.id));
+        if (oldIndex === -1 || newIndex === -1) return;
+        persistCustomIds(arrayMove(customIds, oldIndex, newIndex));
+    };
+
+    const handleCustomPick = (actionId: string) => {
+        if (!customIds.includes(actionId)) persistCustomIds([...customIds, actionId]);
+        setCustomPickerOpen(false);
+    };
 
     // ⚡ PERFORMANCE: Memoized ToolButton to prevent re-creation on every render
     const ToolButton = React.memo(({
@@ -510,13 +749,45 @@ function MapToolbar({
                                 isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
                             />
 
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.CUSTOMIZE_BUTTONS}
-                                icon={SquarePlus}
-                                label="Personnaliser mes boutons"
-                                isActive={activeTools.includes(TOOLS.CUSTOMIZE_BUTTONS)}
-                            />
+                        </div>
 
+                        {/* --- GROUP 6: BOUTONS PERSONNALISÉS (dans la barre, gérés comme la Sidebar) --- */}
+                        <GroupSeparator />
+                        <div id="vtt-toolbar-group-custom" className="flex items-center gap-0.5 px-0.5 sm:px-1 shrink-0">
+                            <DndContext
+                                id="vtt-toolbar-custom-dnd"
+                                sensors={customSensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleCustomDragEnd}
+                            >
+                                <SortableContext items={customActions.map(a => a.id)} strategy={horizontalListSortingStrategy}>
+                                    {customActions.map(action => (
+                                        <SortableCustomAction
+                                            key={action.id}
+                                            action={action}
+                                            isActive={!!action.mapToolId && activeMapTools.includes(action.mapToolId)}
+                                            editMode={customEditMode}
+                                            onTrigger={triggerAction}
+                                            onRemove={(id) => persistCustomIds(customIds.filter(x => x !== id))}
+                                        />
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
+                            {customEditMode && (
+                                <ToolButton onAction={() => setCustomPickerOpen(true)}
+                                    id="custom_add"
+                                    icon={Plus}
+                                    label="Ajouter un bouton"
+                                    onClick={() => setCustomPickerOpen(true)}
+                                />
+                            )}
+                            <ToolButton onAction={() => setCustomEditMode(e => !e)}
+                                id="customize_buttons"
+                                icon={customEditMode ? GripVertical : SquarePlus}
+                                label={customEditMode ? "Terminer l'édition" : "Personnaliser mes boutons"}
+                                isActive={customEditMode}
+                                onClick={() => setCustomEditMode(e => !e)}
+                            />
                         </div>
 
                         {/* Extra MJ Tools */}
@@ -541,6 +812,15 @@ function MapToolbar({
                     </div>
                 </div>
             </div>
+
+            {customPickerOpen && (
+                <ToolbarActionPicker
+                    isMJ={isMJ}
+                    excludeIds={customIds}
+                    onPick={handleCustomPick}
+                    onClose={() => setCustomPickerOpen(false)}
+                />
+            )}
         </TooltipProvider>
     );
 }

@@ -27,6 +27,9 @@ export interface PlayerData {
   y?: number;
   visibility?: 'visible' | 'hidden';
   visibilityRadius?: number;
+  // Id de l'espèce (ex "advozse") — utilisé pour restreindre certains boutons de sidebar
+  // (ex Vision Augmentée) aux espèces ayant la particularité correspondante.
+  Race?: string;
 }
 
 export interface UserData {
@@ -171,6 +174,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           y: charData.y,
           visibility: charData.visibility,
           visibilityRadius: charData.visibilityRadius,
+          Race: charData.Race,
         };
 
         setPlayerData(playerDataObj);
@@ -224,6 +228,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     y: characterData.y,
     visibility: characterData.visibility,
     visibilityRadius: characterData.visibilityRadius,
+    Race: characterData.Race,
   });
 
   // Fonction pour restaurer les données du joueur — reçoit directement les données du snapshot

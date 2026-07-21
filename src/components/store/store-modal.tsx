@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { DICE_SKINS, DiceSkin } from '../(dices)/dice-definitions';
 import { DiceCard } from '../(dices)/dice-card';
+import { DiceDetail } from './dice-detail';
 import { FunDiceThrower, FunDiceHandle } from '../(dices)/throw-fun';
 import { DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
 import { TokenCard } from '../(fiches)/token-card';
@@ -78,19 +79,36 @@ export function StoreModal({
     const [rarityOpen, setRarityOpen] = useState(false);
     const rarityRef = useRef<HTMLDivElement>(null);
 
-    // "Try it" dice thrower
-    const funDiceRef = useRef<FunDiceHandle>(null);
-    const tryDice = (skinId: string) => funDiceRef.current?.roll(skinId, 'd20');
+    // Page de détail d'un dé (le seul endroit avec de la 3D dans la boutique)
+    const [detailSkin, setDetailSkin] = useState<DiceSkin | null>(null);
 
-    // Mount the (heavy) WebGL thrower canvas + its shader warmer only once the
-    // modal itself has settled — avoids stacking its context/shader-compile
-    // burst on top of the grid's own mount, which is what was crashing on some
-    // Windows GPU drivers when opening the store.
-    const [funDiceReady, setFunDiceReady] = useState(false);
+    // "Try it" dice thrower — monté UNIQUEMENT au premier clic "Essayer".
+    // (Avant : monté 800ms après chaque ouverture → warm-up shaders plein
+    // écran en frameloop 'always' pendant ~4s à CHAQUE ouverture, même pour
+    // juste feuilleter le catalogue.) La file pendingRolls de FunDiceThrower
+    // absorbe l'attente du warm-up déclenché par ce premier clic.
+    const funDiceRef = useRef<FunDiceHandle>(null);
+    const [throwerMounted, setThrowerMounted] = useState(false);
+    const pendingTryRef = useRef<string | null>(null);
+    const tryDice = (skinId: string) => {
+        if (funDiceRef.current) { funDiceRef.current.roll(skinId, 'd20'); return; }
+        pendingTryRef.current = skinId;
+        setThrowerMounted(true);
+    };
     useEffect(() => {
-        if (!isOpen) { setFunDiceReady(false); return; }
-        const t = window.setTimeout(() => setFunDiceReady(true), 800);
-        return () => window.clearTimeout(t);
+        if (throwerMounted && pendingTryRef.current) {
+            funDiceRef.current?.roll(pendingTryRef.current, 'd20');
+            pendingTryRef.current = null;
+        }
+    }, [throwerMounted]);
+
+    // Fermeture du modal = on tue tout (canvas 3D du détail ET lanceur)
+    useEffect(() => {
+        if (!isOpen) {
+            setDetailSkin(null);
+            setThrowerMounted(false);
+            pendingTryRef.current = null;
+        }
     }, [isOpen]);
 
     // Sync initial category to the filter on open
@@ -112,8 +130,17 @@ export function StoreModal({
 
     useEffect(() => { setMounted(true); }, []);
 
-    // Load inventory + API tokens
+    // Load inventory + API tokens — uniquement à la première ouverture (la
+    // boutique est montée fermée à plusieurs endroits, notamment en room via
+    // panel + dice-roller : sans ce garde, chaque instance fetchait /api/assets
+    // et lisait Firestore dès le chargement de la page, boutique jamais ouverte).
+    const loadedForUidRef = useRef<string | null>(null);
     useEffect(() => {
+        if (!isOpen) return;
+        const uidKey = gameUser?.uid ?? 'anon';
+        if (loadedForUidRef.current === uidKey) return;
+        loadedForUidRef.current = uidKey;
+
         const loadTokens = async () => {
             try {
                 const res = await fetch('/api/assets?category=Token&type=image');
@@ -166,7 +193,7 @@ export function StoreModal({
             }
         };
         loadInventory();
-    }, [gameUser?.uid]);
+    }, [isOpen, gameUser?.uid]);
 
     // Dev give commands
     useEffect(() => {
@@ -185,12 +212,16 @@ export function StoreModal({
         return () => { delete (window as any).give_dice; delete (window as any).give_token; };
     }, [uid]);
 
-    // Esc to close
+    // Esc : quitte d'abord la page de détail, puis ferme le modal
     useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            if (detailSkin) { setDetailSkin(null); return; }
+            onClose();
+        };
         if (isOpen) window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, detailSkin]);
 
     // Close rarity dropdown on outside click
     useEffect(() => {
@@ -329,7 +360,12 @@ export function StoreModal({
             (RARITY_ORDER[b.data.rarity || 'common'] ?? 0) - (RARITY_ORDER[a.data.rarity || 'common'] ?? 0));
     };
 
-    const displayItems = activeTab === 'premium' ? [] : buildItems(activeTab === 'inventory');
+    const displayItems = useMemo(
+        () => (activeTab === 'premium' ? [] : buildItems(activeTab === 'inventory')),
+        // buildItems est une closure recréée à chaque render ; ses entrées réelles sont listées ici.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [activeTab, filter, rarityFilter, searchQuery, allDiceSkins, enrichedTokens, diceInventory, tokenInventory, isPremium]
+    );
     const totalPages = Math.ceil(displayItems.length / itemsPerPage);
     const paginatedItems = displayItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -347,7 +383,7 @@ export function StoreModal({
 
     const activeRarity = RARITY_OPTIONS.find(o => o.id === rarityFilter)!;
 
-    const renderCard = (item: StoreItem, index: number) => (
+    const renderCard = (item: StoreItem) => (
         item.type === 'dice' ? (
             <DiceCard
                 skin={item.data}
@@ -356,8 +392,7 @@ export function StoreModal({
                 canAfford={!isCheckingOut}
                 onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
                 onEquip={() => handleEquipDice(item.data.id)}
-                onTry={() => tryDice(item.data.id)}
-                revealDelay={index * 60}
+                onOpen={() => setDetailSkin(item.data)}
             />
         ) : (
             <TokenCard
@@ -378,7 +413,9 @@ export function StoreModal({
             className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4"
             style={{ pointerEvents: isVisible ? 'auto' : 'none', opacity: isVisible ? 1 : 0, transition: 'opacity 0.25s ease' }}
         >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            {/* Assombrissement simple : pas de backdrop-blur plein écran — en room,
+                la carte continue de tourner derrière et le blur se repayait à chaque frame. */}
+            <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
             <div
                 className="relative z-10 w-full max-w-6xl h-[92vh] max-h-[900px] flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-dark)] text-[var(--text-primary)]"
@@ -416,7 +453,7 @@ export function StoreModal({
                         ] as const).map(({ id, label, Icon }) => (
                             <button
                                 key={id}
-                                onClick={() => setActiveTab(id)}
+                                onClick={() => { setDetailSkin(null); setActiveTab(id); }}
                                 className={cn(
                                     'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-colors',
                                     activeTab === id
@@ -435,8 +472,8 @@ export function StoreModal({
                     </button>
                 </div>
 
-                {/* ===== TOOLBAR (search + filters) — hidden on Premium tab ===== */}
-                {activeTab !== 'premium' && (
+                {/* ===== TOOLBAR (search + filters) — hidden on Premium tab & detail page ===== */}
+                {activeTab !== 'premium' && !detailSkin && (
                     <div className="shrink-0 flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
                         {/* Search */}
                         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] focus-within:border-[var(--accent-brown)]/50 transition-colors sm:w-64">
@@ -528,6 +565,17 @@ export function StoreModal({
                                         onSubscribe={handleSubscribe}
                                         onManage={handleManagePortal}
                                     />
+                                ) : detailSkin ? (
+                                    <DiceDetail
+                                        skin={detailSkin}
+                                        isOwned={ownsDice(detailSkin.id)}
+                                        isEquipped={currentDiceSkinId === detailSkin.id}
+                                        canAfford={!isCheckingOut}
+                                        onBack={() => setDetailSkin(null)}
+                                        onBuy={() => handleBuyItem(detailSkin.id, 'dice', detailSkin.price, detailSkin.name)}
+                                        onEquip={() => handleEquipDice(detailSkin.id)}
+                                        onTry={() => tryDice(detailSkin.id)}
+                                    />
                                 ) : (
                                     <>
                                         {/* Hero (Catalogue only, not the bag) */}
@@ -542,10 +590,13 @@ export function StoreModal({
                                             <EmptyState tab={activeTab} isPremium={isPremium} />
                                         ) : (
                                             <>
+                                                {/* Pas d'animation de montage sur les cartes : la double couche
+                                                    animate-in + framer-motion re-rasterisait 8 sous-arbres à
+                                                    chaque changement de page. */}
                                                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
-                                                    {paginatedItems.map((item, index) => (
-                                                        <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                            {renderCard(item, index)}
+                                                    {paginatedItems.map((item) => (
+                                                        <div key={`${item.type}-${item.data.id}`}>
+                                                            {renderCard(item)}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -563,7 +614,7 @@ export function StoreModal({
                 </div>
             </div>
 
-            {funDiceReady && <FunDiceThrower ref={funDiceRef} hideButton overlayZIndex={10010} />}
+            {throwerMounted && <FunDiceThrower ref={funDiceRef} hideButton overlayZIndex={10010} />}
         </div>
         , document.body);
 }

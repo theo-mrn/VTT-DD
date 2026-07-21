@@ -62,6 +62,10 @@ export interface SidebarTabContribution {
   /** Panneau flottant compact : dimensionné par son contenu au lieu d'occuper toute la colonne —
    *  la carte reste interactive autour (ex un radar posé par-dessus la carte). */
   floating?: boolean;
+  /** Point d'ancrage du panneau flottant (floating uniquement) — 'left' (défaut, ancré au rail
+   *  sidebar) ou 'bottom-right' (coin bas-droit de l'écran, ex un gabarit de ciblage qu'on veut
+   *  garder visible sans masquer le centre de la carte). Ignoré si floating n'est pas true. */
+  dock?: 'left' | 'bottom-right';
 }
 
 /** Un état d'un bouton d'action cyclique (ex vision normale ↔ vision verte) — le clic avance à

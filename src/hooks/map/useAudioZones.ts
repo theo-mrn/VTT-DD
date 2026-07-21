@@ -71,30 +71,21 @@ export const useAudioZones = (
                 // If it was previously a YouTube zone, it will be cleaned up by the component unmount/render
                 let audio = audioMap.get(zone.id);
                 if (!audio) {
-                    // New zone
+                    // New zone — PAS de play() ici : c'est l'effet volume plus
+                    // bas qui pilote la lecture (play si vol > 0, pause sinon).
+                    // Lancer la lecture à la création faisait systématiquement
+                    // courser play() par le pause() à volume 0 → AbortError
+                    // console + registerPendingPlay parasite.
                     audio = new Audio(zone.url || undefined);
                     audio.loop = true;
                     // audio.crossOrigin = 'anonymous'; // Generally good for CORS
                     audioMap.set(zone.id, audio);
-
-                    // Attempt to play (browser interaction policies may block this)
-                    if (zone.url) {
-                        audio.play().catch(e => {
-                            if (e.name !== 'NotAllowedError') console.warn(`Autoplay failed for zone ${zone.name} (${zone.id}):`, e);
-                            registerPendingPlay(audio!);
-                        });
-                    }
                 } else {
-                    // Update URL if changed
+                    // Update URL if changed — la reprise éventuelle est gérée
+                    // par l'effet volume (même commit).
                     const targetUrl = zone.url || "";
                     if (audio.src !== targetUrl && !audio.src.endsWith(targetUrl)) {
                         audio.src = targetUrl;
-                        if (targetUrl) {
-                            audio.play().catch(e => {
-                                if (e.name !== 'NotAllowedError') console.warn("Play failed after src change:", e);
-                                registerPendingPlay(audio!);
-                            });
-                        }
                     }
                 }
             }
@@ -133,6 +124,21 @@ export const useAudioZones = (
             const audio = audioRefs.current.get(zone.id);
             if (audio) {
                 audio.volume = vol;
+                // Volume 0 = pause réelle (comme les players YouTube plus bas) :
+                // un <audio> qui joue à volume 0 garde son pipeline de décodage
+                // actif en permanence — une zone = un décodeur qui chauffe pour rien.
+                if (vol === 0) {
+                    if (!audio.paused) audio.pause();
+                } else if (audio.paused && audio.src) {
+                    audio.play().catch(e => {
+                        // AbortError = un pause() est arrivé avant le démarrage
+                        // (résultat voulu, pas une erreur). registerPendingPlay
+                        // est réservé au blocage d'autoplay : le déclencher sur
+                        // AbortError relançait une zone censée rester en pause.
+                        if (e.name === 'NotAllowedError') { registerPendingPlay(audio); return; }
+                        if (e.name !== 'AbortError') console.warn(`Resume failed for zone ${zone.id}:`, e);
+                    });
+                }
             }
 
             // Apply to YouTube player
