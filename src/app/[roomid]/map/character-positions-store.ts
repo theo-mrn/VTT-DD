@@ -81,3 +81,21 @@ export function setMapName(name: string): void {
 export function getMapName(): string {
   return mapName;
 }
+
+// ── Id de la scène/ville courante ───────────────────────────────────────────
+// Publié par page.tsx (selectedCityId) — nécessaire pour qu'un script pose un gabarit de mesure
+// (api.map.setMeasurement) avec le cityId attendu par le filtre de useMapData.ts:443
+// (`m.cityId === selectedCityId`) : sans ça, un gabarit posé avec cityId=null resterait invisible
+// dès que le client courant est sur une scène plutôt que la carte principale.
+
+let selectedCityId: string | null = null;
+
+export function setSelectedCityId(id: string | null): void {
+  if (id === selectedCityId) return;
+  selectedCityId = id;
+  notify();
+}
+
+export function getSelectedCityId(): string | null {
+  return selectedCityId;
+}

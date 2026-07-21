@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { ScenarioEditor } from "./ScenarioEditor"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Book, Plus, Settings, ChevronRight, FileText, Trash2, Loader2, Save, Crown } from "lucide-react"
 import { doc, getDoc, setDoc, onSnapshot } from "@/lib/firebase"
@@ -32,6 +33,7 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [isPremium, setIsPremium] = useState(false)
+    const [sceneToDelete, setSceneToDelete] = useState<string | null>(null)
     const { user: gameUser } = useGame()
 
     // Fetch premium status
@@ -130,8 +132,12 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
             return
         }
 
-        const confirmDelete = window.confirm("Êtes-vous sûr de vouloir supprimer cette scène ?")
-        if (!confirmDelete) return
+        setSceneToDelete(id)
+    }
+
+    const confirmDeleteScene = () => {
+        if (!sceneToDelete) return
+        const id = sceneToDelete
 
         const newScenes = scenes.filter(s => s.id !== id)
         setScenes(newScenes)
@@ -400,6 +406,16 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
                     </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={sceneToDelete !== null}
+                onOpenChange={(open) => { if (!open) setSceneToDelete(null) }}
+                title="Supprimer cette scène ?"
+                description="Cette action est irréversible."
+                confirmLabel="Supprimer"
+                destructive
+                onConfirm={confirmDeleteScene}
+            />
         </div>
     )
 }

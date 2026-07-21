@@ -21,6 +21,14 @@ export interface Character {
     conditions?: string[];
     visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom' | 'invisible';
     visibilityRadius?: number;
+    // Activable par le joueur propriétaire (sidebar) : true tant que visibilityRadius a été triplé
+    // par le toggle "Vision Augmentée" (voir toggleVisionBoost dans useKeyboardShortcuts.ts) — permet
+    // de savoir par combien diviser au moment de désactiver.
+    visionBoostActive?: boolean;
+    // Id de l'espèce (gameSystem.races[].id, ex "advozse") — sert entre autres à restreindre
+    // certains boutons de sidebar (ex Vision Augmentée) aux espèces qui ont la particularité
+    // correspondante. Distinct du label affiché sur la fiche (RaceDefinition.label).
+    Race?: string;
 
     visibleToPlayerIds?: string[];
     rotation?: number;

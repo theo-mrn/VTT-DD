@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 interface UserData {
   name: string;
@@ -202,7 +203,7 @@ export default function ProfilePage() {
         imageURL: targetUserData.imageURL,
       });
 
-      alert("Friend request sent!");
+      toast.success("Friend request sent!");
     } catch (error) {
       console.error("Error sending friend request:", error);
     }

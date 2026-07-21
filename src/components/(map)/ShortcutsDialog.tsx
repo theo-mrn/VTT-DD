@@ -320,6 +320,7 @@ export function ShortcutsDialog({
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.UNDO} label="Annuler" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.REDO} label="Refaire" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU} label="Bulle (emoji/texte)" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_VISION_BOOST} label="Vision Augmentée" />
                         </div>
                     </div>
                 </div>

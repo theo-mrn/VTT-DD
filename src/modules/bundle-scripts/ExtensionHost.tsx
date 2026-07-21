@@ -1,16 +1,18 @@
 "use client"
 
 import React, { useEffect, useRef } from 'react';
-import { db, collection, getDocs, query, where, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, realtimeDb, dbRef, onValue, update as rtdbUpdate } from '@/lib/firebase';
+import { db, collection, getDocs, query, where, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, realtimeDb, dbRef, onValue, update as rtdbUpdate, set as rtdbSet, rtdbRemove } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useModules } from '@/modules/context';
 import { moduleRegistry } from '@/modules/registry';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll } from '@/lib/rules-engine';
 import { setMapViewFlags, resetMapViewFlags, getMapViewFlags } from '@/app/[roomid]/map/view-flags-store';
-import { getMapCharacterPositions, subscribeMapCharacterPositions, getMapName } from '@/app/[roomid]/map/character-positions-store';
+import { getMapCharacterPositions, subscribeMapCharacterPositions, getMapName, getSelectedCityId } from '@/app/[roomid]/map/character-positions-store';
+import { getMapBackgroundSize, subscribeMapBackgroundSize } from '@/app/[roomid]/map/map-background-size-store';
 import { setMapOverlays } from '@/app/[roomid]/map/map-overlay-store';
 import { setSheetBackgroundOptions } from '@/app/[roomid]/map/sheet-background-store';
+import { setAudioMixerPanelOverride } from '@/app/[roomid]/map/audio-mixer-store';
 import { executeBundleEntry } from './linker';
 import type { BundleContributions, BundleScriptAPI } from './types';
 import type { ScriptDoc } from '@/modules/game-content/types';
@@ -168,10 +170,41 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             return () => { disposed = true; scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
           },
           getMapName,
+          getBackgroundSize: getMapBackgroundSize,
+          subscribeBackgroundSize: (cb) => {
+            const listener = () => cb(getMapBackgroundSize());
+            const unsubscribe = subscribeMapBackgroundSize(listener);
+            scriptSubscriptions.add(unsubscribe);
+            let disposed = false;
+            queueMicrotask(() => { if (!disposed && !cancelled) cb(getMapBackgroundSize()); });
+            return () => { disposed = true; scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
           setOverlays: setMapOverlays,
+          setMeasurement: (m) => {
+            const measurement = {
+              id: m.id,
+              type: 'circle' as const,
+              start: { x: m.x, y: m.y },
+              end: { x: m.x + m.radius, y: m.y },
+              ownerId: `script:${moduleId}`,
+              // Doit correspondre à la scène AFFICHÉE côté client qui pose le gabarit — useMapData.ts
+              // filtre les mesures par `m.cityId === selectedCityId` : un cityId figé à null rendrait
+              // le gabarit invisible pour quiconque (dont son auteur) est sur une scène/ville.
+              cityId: getSelectedCityId(),
+              color: m.color ?? '#f59e0b',
+              unitName: 'm',
+              timestamp: Date.now(),
+              permanent: true,
+            };
+            return rtdbSet(dbRef(realtimeDb, `rooms/${roomId}/measurements/${m.id}`), measurement).then(() => {});
+          },
+          clearMeasurement: (id) => rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/measurements/${id}`)).then(() => {}),
         },
         sheet: {
           setBackgrounds: setSheetBackgroundOptions,
+        },
+        audio: {
+          setMixerPanel: setAudioMixerPanelOverride,
         },
       };
 
@@ -275,6 +308,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       resetMapViewFlags();
       setSheetBackgroundOptions([]);
       setMapOverlays([]);
+      setAudioMixerPanelOverride(null);
     };
   }, [roomId, contentPath, systemId, isLoading]);
 

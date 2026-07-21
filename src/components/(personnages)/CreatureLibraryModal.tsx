@@ -13,6 +13,7 @@ import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { useNpcStatFields } from '@/hooks/useNpcStatFields'
 import { rollCharacterStats } from '@/lib/rules-engine'
 import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
+import { toast } from 'sonner'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // "Bibliothèque" de PNJ : jusqu'ici deux onglets, Race+Profil (générateur) et Bestiaire (fetch
@@ -138,7 +139,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 }
             } catch (e: any) {
                 console.error("Error processing image:", e);
-                alert(`Erreur lors du traitement de l'image : ${e.message || e}`);
+                toast.error(`Erreur lors du traitement de l'image : ${e.message || e}`);
                 setIsCreating(false)
                 return
             }

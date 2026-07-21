@@ -4,7 +4,6 @@ import React from 'react';
 import { TokenSkin } from './token-definitions';
 import { Lock, Check, Zap, ShoppingCart, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 interface TokenCardProps {
     skin: TokenSkin;
@@ -31,11 +30,9 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+        <div
             className={cn(
-                "group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-500",
+                "group relative flex flex-col rounded-2xl overflow-hidden transition-colors duration-300",
                 "bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--text-primary)]/20 hover:shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.03)]",
                 isEquipped && "border-[var(--accent-brown)]/40 bg-gradient-to-b from-[var(--bg-darker)] to-[var(--bg-card)]"
             )}
@@ -44,16 +41,18 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
             <div className="relative aspect-square w-full bg-[var(--bg-darker)] overflow-hidden flex items-center justify-center p-4">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--text-primary-rgb),0.05)_0%,transparent_100%)]" />
 
+                {/* PNG source 1024² (~1,3 Mo) affichée en vignette : lazy + decode
+                    async, et pas de filter drop-shadow (il se rasterise à la
+                    résolution NATIVE de l'image, pas à la taille affichée). */}
                 <img
                     src={src}
                     alt={skin.name}
+                    loading="lazy"
+                    decoding="async"
                     className={cn(
-                        "w-full h-full object-contain transition-transform duration-700 group-hover:scale-110",
+                        "w-full h-full object-contain transition-transform duration-300 group-hover:scale-105",
                         !isOwned && "grayscale-50 opacity-40"
                     )}
-                    style={{
-                        filter: !isOwned ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' : 'drop-shadow(0 15px 35px rgba(0,0,0,0.4))'
-                    }}
                 />
 
                 {/* Badges */}
@@ -129,6 +128,6 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
                     )}
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }

@@ -9,7 +9,6 @@ import GMDashboard from "@/components/(combat)/MJcombat";
 import Component from "@/components/(fiches)/fiche";
 import MedievalNotes from "@/components/Notes";
 import QuickNotes from "@/components/QuickNotes";
-import CustomButtons from "@/components/(overlays)/CustomButtons";
 import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
 import { DiceThrower } from "@/components/(dices)/throw";
@@ -201,7 +200,7 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* ── FRESH panels (Fiche, EncounterGenerator, Compétences) ── */}
               {showFreshPanel && (
-                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-40 overflow-y-auto`}>
+                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-[90] overflow-y-auto`}>
                   {renderFreshPanel()}
                 </aside>
               )}
@@ -215,9 +214,6 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* ── QUICK NOTES (toujours monté : écoute Shift+N indépendamment du panneau Notes) ── */}
               <QuickNotes />
-
-              {/* ── BOUTONS PERSONNALISABLES (raccourcis assignables, drag libre) ── */}
-              <CustomButtons />
 
               {/* ── CHAT (lazy-persistent, all users) ── */}
               {mounted.chat && (
@@ -239,7 +235,7 @@ export default function Layout({ children }: LayoutProps) {
                   {/* GMDashboard */}
                   {mounted.gmDashboard && (
                     <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw]", activeTab === 'GMDashboard', "overflow-y-auto")}>
-                      <GMDashboard />
+                      <GMDashboard isActive={activeTab === 'GMDashboard'} />
                     </aside>
                   )}
 
@@ -274,6 +270,17 @@ export default function Layout({ children }: LayoutProps) {
                   // Panneau flottant : hauteur au contenu, pas de bande pleine hauteur qui capte
                   // les clics — la carte reste interactive tout autour.
                     if (tab.floating) {
+                    if (tab.dock === 'bottom-right') {
+                      // Coin bas-droit (ex un gabarit de ciblage) : ne masque ni le rail sidebar ni
+                      // le centre de la carte, contrairement à l'ancrage gauche par défaut.
+                      return (
+                        <aside key={tabKey} className={`fixed right-0 bottom-0 z-40 flex items-end justify-end pointer-events-none ${tab.width || ''}`}>
+                          <div className="pointer-events-auto m-3 max-h-[80vh] overflow-y-auto rounded-xl border border-white/10 bg-[#141416]/95 shadow-lg backdrop-blur-sm">
+                            <tab.component />
+                          </div>
+                        </aside>
+                      );
+                    }
                     return (
                       // Centré verticalement (évite de deviner une hauteur de topbar qui varie
                       // selon l'écran/le zoom), mais ancré à gauche horizontalement comme avant.
@@ -307,9 +314,12 @@ export default function Layout({ children }: LayoutProps) {
               </main>
 
               {/* ── Overlays de bundle (api.map.setOverlays) : pile fixe haut-droit, jamais
-                   bloquante — chaque overlay réactive ses pointer-events au besoin. ── */}
+                   bloquante — chaque overlay réactive ses pointer-events au besoin. z-40 (pas z-10)
+                   pour rester au-dessus des autres panneaux flottants du même rang (ex un panneau
+                   ancré au même coin) — un overlay interactif (ex le panneau MJ de bombardement)
+                   doit pouvoir recevoir les clics, pas être couvert silencieusement. ── */}
               {mapOverlays.length > 0 && (
-                <div className="pointer-events-none fixed top-3 right-3 z-10 flex flex-col items-end gap-2">
+                <div className="pointer-events-none fixed top-3 right-3 z-40 flex flex-col items-end gap-2">
                   {mapOverlays.map((o) => <o.Component key={o.id} />)}
                 </div>
               )}

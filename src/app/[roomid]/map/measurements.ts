@@ -21,6 +21,10 @@ export interface SharedMeasurement {
     skin?: string | null;
     timestamp: number;
     permanent?: boolean; // If true, persists. If false, auto-deletes after 6s.
+    // Id du MapObject (ex vaisseau/groupEntity) à l'origine du gabarit, quand celui-ci a été posé
+    // depuis son menu contextuel plutôt que par le joueur lui-même (ObjectContextMenu →
+    // 'startAreaAttack' dans page.tsx). Absent pour un gabarit posé normalement par un joueur.
+    sourceObjectId?: string;
 }
 
 export interface Point {

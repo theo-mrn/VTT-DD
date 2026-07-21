@@ -503,7 +503,10 @@ function TargetsButton({
   )
 }
 
-export function GMDashboard() {
+// isActive : le layout garde ce panneau monté en display:none (lazy-persistent) ;
+// sans ce flag, les LightRays (7 calques floutés animés par framer-motion)
+// continuent de tourner en JS panneau fermé.
+export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
   const [characters, setCharacters] = useState<Character[]>([])
   const [rawCharacters, setRawCharacters] = useState<Character[]>([])
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null)
@@ -1488,7 +1491,7 @@ export function GMDashboard() {
 
       {/* ───────── DESKTOP LAYOUT ───────── */}
       <div className="hidden lg:grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 h-full min-h-0 overflow-hidden">
-        <LightRays />
+        {isActive && <LightRays />}
         {/* Turn Order Panel (List - Left, slightly larger) */}
         <div className="lg:col-span-5 flex flex-col min-h-0">
           <Card className="flex-1 flex flex-col border-[var(--border-color)] shadow-md overflow-hidden">

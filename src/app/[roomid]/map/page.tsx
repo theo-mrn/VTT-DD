@@ -14,7 +14,7 @@ import { useGame } from '@/contexts/GameContext'
 import { Button } from "@/components/ui/button"
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon, MousePointer } from 'lucide-react'
 import { toast } from 'sonner';
-import { auth, db, realtimeDb, dbRef, onValue, update as rtdbUpdate, rtdbRemove, onAuthStateChanged } from '@/lib/firebase'
+import { auth, db, realtimeDb, dbRef, onValue, update as rtdbUpdate, rtdbRemove, rtdbPush, set as rtdbSet, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
@@ -70,7 +70,8 @@ import { drawMeasurements } from './renderers/measurement-renderer';
 import { drawForegroundLayers } from './renderers/foreground-renderer';
 import { isCharacterVisibleToUser as checkCharacterVisibility, isObjectVisibleToUser as checkObjectVisibility, type CharacterVisibilityContext, type VisibilityContext } from './utils/visibility-checks';
 import { getMapViewFlags, subscribeMapViewFlags } from './view-flags-store';
-import { setMapCharacterPositions, setMapName } from './character-positions-store';
+import { setMapCharacterPositions, setMapName, setSelectedCityId as publishSelectedCityId } from './character-positions-store';
+import { setMapBackgroundSize } from './map-background-size-store';
 import { useBackgroundLoader } from '@/hooks/map/useBackgroundLoader';
 import { useKeyboardShortcuts } from '@/hooks/map/useKeyboardShortcuts';
 import { useMusicZoneActions } from '@/hooks/map/useMusicZoneActions';
@@ -176,14 +177,13 @@ export default function Component() {
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
   const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null>(null);
   const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
-  const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
 
   // 📋 COPY/PASTE STATE
   const [copiedCharacterTemplate, setCopiedCharacterTemplate] = useState<Character | null>(null);
   const [copiedObjectTemplate, setCopiedObjectTemplate] = useState<MapObject | null>(null);
 
-  const { isShortcutPressed, triggerAction, isCustomButtonsEditModeActive, setActiveMapTools } = useShortcuts();
+  const { isShortcutPressed, setActiveMapTools } = useShortcuts();
   const { undo, redo, canUndo, canRedo, recordAction } = useUndoRedo();
   const { addWithHistory, deleteWithHistory, updateWithHistory, setWithHistory, updatePositionWithHistory, setCityPositionWithHistory, addToRtdbWithHistory, updateRtdbWithHistory, deleteFromRtdbWithHistory } = useFirestoreWithHistory(roomId);
 
@@ -221,6 +221,16 @@ export default function Component() {
     })));
   }, [characters]);
   useEffect(() => () => { setMapCharacterPositions([]); setMapName(''); }, []);
+  // Dimensions de l'image/vidéo de fond publiées vers map-background-size-store — pont lu par les
+  // scripts de bundle via api.map.getBackgroundSize (conversion %→px monde pour un gabarit de zone).
+  useEffect(() => {
+    if (!bgImageObject) {
+      setMapBackgroundSize(null);
+      return;
+    }
+    const { width, height } = getMediaDimensions(bgImageObject);
+    setMapBackgroundSize({ width, height });
+  }, [bgImageObject]);
   const [lights, setLights] = useState<LightSource[]>([]);
   const [objects, setObjects] = useState<MapObject[]>([]);
   const [groupEntities, setGroupEntities] = useState<GroupEntity[]>([]);
@@ -474,6 +484,8 @@ export default function Component() {
 
   //  MEASUREMENT & CALIBRATION STATE
   const [measureMode, setMeasureMode] = useState(false);
+  // For LOCAL active measurement — vidéo du skin montée seulement en mode mesure
+  const fireballVideo = useSkinVideo(selectedSkin, measureMode);
   const [isMeasurementPanelOpen, setIsMeasurementPanelOpen] = useState(false);
   const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('line');
   const [isCalibrating, setIsCalibrating] = useState(false); // Sub-mode of measureMode
@@ -611,6 +623,7 @@ export default function Component() {
   // ex l'overlay de localisation qui en tire son code secteur). '' = carte principale sans scène.
   useEffect(() => {
     setMapName(cities.find((c) => c.id === selectedCityId)?.name ?? '');
+    publishSelectedCityId(selectedCityId);
   }, [cities, selectedCityId]);
 
   // 🆕 CHARGEMENT UNIFIÉ : un seul état combiné piloté par TOUTES les conditions de chargement.
@@ -1135,6 +1148,8 @@ export default function Component() {
         if (val > 2000) return 2000; // Safety cap
         return isNaN(val) ? 100 : val;
       })(),
+      visionBoostActive: data.visionBoostActive || false,
+      Race: data.Race || undefined,
       visibleToPlayerIds: data.visibleToPlayerIds || undefined, // 🆕 Charger la liste des joueurs autorisés
       type: data.type || 'pnj',
       conditions: data.conditions || [],
@@ -1596,34 +1611,41 @@ export default function Component() {
       (selectedSkin && measureMode && (measurementShape === 'circle' || measurementShape === 'cone')) ||
       measurements.some(m => (m.type === 'circle' || m.type === 'cone') && m.skin);
 
-    const shouldAnimate = performanceMode !== 'static' && (image instanceof HTMLVideoElement || hasAnimatedMeasurement);
+    // ⚡ Les fonds VIDÉO ne forcent plus de boucle : la vidéo est composée par
+    // le navigateur dans un <video> DOM sous les canvas (décodage matériel,
+    // zéro drawImage par frame — voir le host vidéo dans le JSX et
+    // background-renderer.ts). Seuls les skins de mesure animés justifient
+    // encore une boucle continue.
+    const shouldAnimate = performanceMode !== 'static' && hasAnimatedMeasurement;
 
     let animationFrameId: number | undefined;
 
     if (shouldAnimate) {
-      // ANIMATION LOOP MODE - for videos and animated measurements
-      // OPTIMIZATION: Only redraw what changes each frame
-
-      // Draw static layers ONCE
-      drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight, bgRenderState);
-      drawCharacterBorders(borderCtx, image, containerWidth, containerHeight, borderRenderState);
-
+      // ANIMATION LOOP MODE - for animated measurement skins
+      // Les couches statiques sont dessinées dans le PREMIER tick rAF, jamais
+      // en synchrone : pendant un drag cet effet se ré-exécute à chaque état,
+      // et le cleanup annule la frame en attente — le navigateur n'exécute
+      // donc au plus qu'un redraw complet par frame d'affichage, au lieu d'un
+      // par mousemove.
+      let staticDrawn = false;
       let lastFrameTime = 0;
       const fpsInterval = 1000 / 30; // 30fps for smooth animations with good performance
 
       const renderLoop = (timestamp: number) => {
-        const elapsed = timestamp - lastFrameTime;
-        if (elapsed > fpsInterval) {
-          lastFrameTime = timestamp - (elapsed % fpsInterval);
-
-          // Only redraw background if it's a video (changes each frame)
-          if (image instanceof HTMLVideoElement) {
-            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight, bgRenderState);
-          }
-
-          // OPTIMIZATION: Only redraw foreground (where measurements are)
-          // Background and borders are static, no need to redraw every frame
+        if (!staticDrawn) {
+          staticDrawn = true;
+          lastFrameTime = timestamp;
+          drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight, bgRenderState);
+          drawCharacterBorders(borderCtx, image, containerWidth, containerHeight, borderRenderState);
           drawForegroundLayers(fgCtx, image, containerWidth, containerHeight, fgRenderState);
+        } else {
+          const elapsed = timestamp - lastFrameTime;
+          if (elapsed > fpsInterval) {
+            lastFrameTime = timestamp - (elapsed % fpsInterval);
+            // Only redraw foreground (where measurements are) — background and
+            // borders are static, no need to redraw every frame
+            drawForegroundLayers(fgCtx, image, containerWidth, containerHeight, fgRenderState);
+          }
         }
 
         animationFrameId = requestAnimationFrame(renderLoop);
@@ -2218,6 +2240,21 @@ export default function Component() {
         return isInside;
       });
 
+      // Attaque de zone d'un vaisseau (posée via ObjectContextMenu → 'startAreaAttack') : les
+      // stats de groupEntity ne sont pas compatibles avec le composant Combat (câblé sur
+      // Character). On se limite à annoncer les cibles touchées, sans jet de dés automatique.
+      if (measurement.sourceObjectId) {
+        if (targetsInZone.length > 0) {
+          toast.success('Zone d\'impact', {
+            description: `${targetsInZone.length} cible(s) touchée(s) : ${targetsInZone.map(c => c.name).join(', ')}`,
+            duration: 4000,
+          });
+        } else {
+          toast.info('Zone d\'impact', { description: 'Aucune cible dans la zone.', duration: 3000 });
+        }
+        setContextMenuMeasurementOpen(false);
+        return;
+      }
 
       if (targetsInZone.length > 0) {
         setTargetIds(targetsInZone.map(c => c.id));
@@ -2631,6 +2668,65 @@ export default function Component() {
     }
   }, [bgImageObject, handleCanvasMouseMove, setOffset, setZoom]);
 
+  // ⚡ COALESCING mousemove → rAF : les souris gaming émettent jusqu'à 500-1000
+  // événements/s ; chaque événement déclenchait setState → re-render complet de
+  // cette page → re-exécution de l'effet de rendu. On ne garde que le DERNIER
+  // événement de chaque frame d'affichage et on exécute le handler une seule
+  // fois par frame — le coût devient proportionnel au refresh de l'écran, plus
+  // au taux de polling de la souris. (Le chemin tactile appelle le handler
+  // directement : il fait du preventDefault synchrone, non différable.)
+  const latestMoveHandlerRef = useRef(handleCanvasMouseMove);
+  useEffect(() => { latestMoveHandlerRef.current = handleCanvasMouseMove; });
+  const pendingMoveEventRef = useRef<React.MouseEvent<Element> | null>(null);
+  const moveRafIdRef = useRef<number | null>(null);
+  const handleCanvasMouseMoveCoalesced = useCallback((e: React.MouseEvent<Element>) => {
+    pendingMoveEventRef.current = e;
+    if (moveRafIdRef.current !== null) return;
+    moveRafIdRef.current = requestAnimationFrame(() => {
+      moveRafIdRef.current = null;
+      const ev = pendingMoveEventRef.current;
+      pendingMoveEventRef.current = null;
+      if (ev) latestMoveHandlerRef.current(ev);
+    });
+  }, []);
+  useEffect(() => () => {
+    if (moveRafIdRef.current !== null) cancelAnimationFrame(moveRafIdRef.current);
+  }, []);
+  // 🎥 FOND VIDÉO EN DOM COMPOSITÉ — l'élément <video> créé par
+  // useBackgroundLoader est inséré dans un div hôte positionné sous les canvas
+  // (même géométrie que l'ancien drawImage : -offset, taille scaled). Le
+  // navigateur composite la vidéo décodée matériellement, on ne paie plus ni
+  // boucle rAF ni drawImage 4K à 30fps. Miroir mis à jour PENDANT le render
+  // (le callback ref du host s'exécute au commit, avant les effets) ; le host
+  // est keyé par src pour ré-attacher proprement quand la vidéo change.
+  // Garde SSR : ce miroir s'évalue au RENDER (contrairement aux autres
+  // instanceof du fichier, tous dans des effets client-only) et
+  // HTMLVideoElement n'existe pas côté Node.
+  const isBgVideo = typeof HTMLVideoElement !== 'undefined' && bgImageObject instanceof HTMLVideoElement;
+  const bgVideoElRef = useRef<HTMLVideoElement | null>(null);
+  bgVideoElRef.current = isBgVideo ? (bgImageObject as HTMLVideoElement) : null;
+  const attachBgVideoHost = useCallback((host: HTMLDivElement | null) => {
+    const v = bgVideoElRef.current;
+    if (host && v) {
+      v.style.width = '100%';
+      v.style.height = '100%';
+      v.style.objectFit = 'fill';
+      host.appendChild(v);
+    }
+  }, []);
+
+  // Le mouseup annule le mousemove différé : sinon celui-ci s'exécuterait APRÈS
+  // (avec une closure où le drag est encore actif) et ré-appliquerait un
+  // déplacement sur une position déjà finalisée/persistée.
+  const handleCanvasMouseUpCoalesced = useCallback((e: React.MouseEvent<Element>) => {
+    if (moveRafIdRef.current !== null) {
+      cancelAnimationFrame(moveRafIdRef.current);
+      moveRafIdRef.current = null;
+    }
+    pendingMoveEventRef.current = null;
+    handleCanvasMouseUp(e);
+  }, [handleCanvasMouseUp]);
+
   const handleCanvasTouchEnd = useCallback((e: React.TouchEvent<Element>) => {
     if (e.touches.length < 2) {
       pinchStateRef.current = null;
@@ -2756,7 +2852,7 @@ export default function Component() {
   };
 
   // Toolbar actions — delegates to extracted hook
-  const { handleToolbarAction, getActiveToolbarTools, getToolOptionsContent } = useToolbarActions({
+  const { handleToolbarAction, getActiveToolbarTools, getToolOptionsContent, toolbarConfirmDialog } = useToolbarActions({
     roomId, isMJ,
     drawMode, setDrawMode,
     panMode, setPanMode,
@@ -2805,17 +2901,20 @@ export default function Component() {
     handleDeleteSelectedCharacters, navigateToWorldMap,
     deleteFromRtdbWithHistory, saveFogGridWithHistory, saveFullMapFog,
     setDrawings,
-    triggerAction,
-    isCustomButtonsEditModeActive,
     isMusicPlaying: musicPlaybackState.isPlaying,
   });
 
   // Reflète activeTools dans le state partagé du contexte, pour que les boutons
-  // personnalisables (CustomButtons/Sidebar, montés hors de la page carte) puissent
+  // personnalisables (MapToolbar/Sidebar, montés hors de la page carte) puissent
   // afficher leur propre état actif/inactif en accord avec la carte.
+  // 'vision_boost' n'est pas géré par useToolbarActions (pas un state local de la page, mais un
+  // champ Firestore du personnage du joueur) : fusionné ici séparément.
   useEffect(() => {
-    setActiveMapTools(getActiveToolbarTools);
-  }, [getActiveToolbarTools, setActiveMapTools]);
+    const myVisionBoostActive = !!characters.find(c => c.id === persoId)?.visionBoostActive;
+    setActiveMapTools(
+      myVisionBoostActive ? [...getActiveToolbarTools, 'vision_boost'] : getActiveToolbarTools
+    );
+  }, [getActiveToolbarTools, setActiveMapTools, characters, persoId]);
 
   // Mémoïsé : un JSX literal recréé à chaque render casse le React.memo de MapToolbar
   // (comparaison superficielle des props), ce qui le faisait re-render à chaque mousemove
@@ -2965,6 +3064,48 @@ export default function Component() {
         await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
           notes: value
         });
+      } else if (action === 'startAreaAttack') {
+        // Attaque de zone d'un vaisseau (groupEntity) : même gabarit que l'outil de mesure des
+        // joueurs (measureMode/SharedMeasurement), mais l'origine est fixée sur la position du
+        // vaisseau au lieu d'attendre un premier clic — un seul clic suffit ensuite pour fixer la
+        // portée/direction (end). Volontairement limité à poser le gabarit + lister les cibles
+        // touchées (voir handleMeasurementAction/'attack') : pas de jet de combat, les stats de
+        // vaisseau (groupEntityStats) ne sont pas compatibles avec le composant Combat actuel.
+        setContextMenuObjectOpen(false);
+        setSelectedObjectIndices([]);
+        setMeasureMode(true);
+        setIsMeasurementPanelOpen(true);
+        setMeasureStart({ x: obj.x, y: obj.y });
+        setMeasureEnd(null);
+
+        if (roomId) {
+          measurements.forEach(m => {
+            if (m.ownerId === (userId || 'unknown')) {
+              rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/measurements/${m.id}`)).catch(console.error);
+            }
+          });
+
+          const newId = rtdbPush(dbRef(realtimeDb, `rooms/${roomId}/measurements`)).key!;
+          setCurrentMeasurementId(newId);
+
+          const newMeasurement: SharedMeasurement = {
+            id: newId,
+            type: measurementShape,
+            start: { x: obj.x, y: obj.y },
+            end: { x: obj.x, y: obj.y },
+            ownerId: userId || 'unknown',
+            cityId: selectedCityId,
+            color: '#FFD700',
+            unitName: unitName,
+            coneWidth: coneWidth ?? null,
+            ...(measurementShape === 'cone' ? { coneAngle, coneShape } : {}),
+            skin: (measurementShape === 'circle' || measurementShape === 'cone') ? selectedSkin : null,
+            timestamp: Date.now(),
+            permanent: isPermanent,
+            sourceObjectId: objectId,
+          };
+          rtdbSet(dbRef(realtimeDb, `rooms/${roomId}/measurements/${newId}`), newMeasurement).catch(console.error);
+        }
       }
     } catch (error) {
       console.error("Error handling object action:", error);
@@ -3046,12 +3187,9 @@ export default function Component() {
     const lightDoc = doc(db, 'cartes', roomId, 'lights', lightId);
 
     if (action === 'delete') {
-      if (confirm('Supprimer cette lumière ?')) {
-        await deleteDoc(lightDoc);
-        setContextMenuLightOpen(false);
-        resetActiveElementSelection();
-        toast.success("Lumiere supprimé")
-      }
+      setEntityToDelete({ type: 'light', id: lightId });
+      setDeleteModalOpen(true);
+      resetActiveElementSelection();
     } else if (action === 'updateRadius') {
       await updateDoc(lightDoc, { radius: value });
       toast.success("Rayon de la lumière mis à jour")
@@ -3470,6 +3608,7 @@ export default function Component() {
         allies={playerAllies}
         extraMJTools={extraMJTools}
       />
+      {toolbarConfirmDialog}
       {!isMJ && userId && (
         <ScreenShareViewer roomId={roomId} userId={userId} />
       )}
@@ -3491,9 +3630,9 @@ export default function Component() {
           touchAction: 'none'
         }}
         onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseUp={handleCanvasMouseUp}
-        onMouseLeave={handleCanvasMouseUp}
+        onMouseMove={handleCanvasMouseMoveCoalesced}
+        onMouseUp={handleCanvasMouseUpCoalesced}
+        onMouseLeave={handleCanvasMouseUpCoalesced}
         onTouchStart={handleCanvasTouchStart}
         onTouchMove={handleCanvasTouchMove}
         onTouchEnd={handleCanvasTouchEnd}
@@ -3607,6 +3746,33 @@ export default function Component() {
         />
         <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
 
+          {/* 🎥 Host du fond vidéo (composé par le navigateur, sous les canvas —
+              l'ordre DOM place les canvas au-dessus à zIndex égal). Géométrie
+              identique à l'ancien drawImage du background-renderer. */}
+          {isBgVideo && bgImageObject && (() => {
+            const { width: iw, height: ih } = getMediaDimensions(bgImageObject);
+            const cw = containerSize.width || containerRef.current?.clientWidth || 0;
+            const ch = containerSize.height || containerRef.current?.clientHeight || 0;
+            if (!iw || !ih || !cw || !ch) return null;
+            const s = Math.min(cw / iw, ch / ih);
+            return (
+              <div
+                key={bgImageObject.src}
+                ref={attachBgVideoHost}
+                style={{
+                  position: 'absolute',
+                  left: -offset.x,
+                  top: -offset.y,
+                  width: iw * s * zoom,
+                  height: ih * s * zoom,
+                  zIndex: 0,
+                  overflow: 'hidden',
+                  pointerEvents: 'none',
+                  display: isLayerVisible('background') ? 'block' : 'none',
+                }}
+              />
+            );
+          })()}
 
           <canvas
             ref={bgCanvasRef}

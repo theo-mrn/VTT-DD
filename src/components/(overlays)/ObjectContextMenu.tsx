@@ -14,7 +14,8 @@ import {
     RotateCw,
     Edit2,
     Package,
-    Ghost
+    Ghost,
+    Sword
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -190,6 +191,19 @@ export default function ObjectContextMenu({
                                             >
                                                 <Package size={16} />
                                                 {object.type === 'item' ? 'Ramasser' : 'Fouiller'}
+                                            </Button>
+                                        )}
+
+                                        {/* Attaque de zone : pose un gabarit de mesure (même système que les joueurs)
+                                            depuis la position du vaisseau, sans ouvrir de jet de combat. */}
+                                        {entity && (
+                                            <Button
+                                                variant="outline"
+                                                className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#ae3838] hover:text-white text-gray-300"
+                                                onClick={() => onAction('startAreaAttack', object.id)}
+                                            >
+                                                <Sword size={16} />
+                                                Attaquer une zone
                                             </Button>
                                         )}
 

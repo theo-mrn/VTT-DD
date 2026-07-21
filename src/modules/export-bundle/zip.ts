@@ -197,7 +197,12 @@ export function rewriteBundleAssetRefs<T>(value: T, urlByPath: Map<string, strin
 export async function importZipToBundle(
   file: File,
   uid: string,
-  onProgress?: (msg: string) => void
+  onProgress?: (msg: string) => void,
+  // Remplace window.confirm : ce module n'est pas un composant React et ne peut pas ouvrir de modal
+  // lui-même — l'appelant fournit un vrai dialogue de confirmation (ex ConfirmDialog) et retourne le
+  // choix de l'utilisateur. Par défaut (non fourni), refuse silencieusement pour ne jamais exécuter
+  // de script sans confirmation explicite.
+  confirmScripts: (count: number) => Promise<boolean> = async () => false
 ): Promise<{ bundle: RoomExportBundle; scripts: Map<string, string> }> {
   onProgress?.('Lecture du bundle…');
   const { bundle, assets, scripts, styles } = await readRoomExportZip(file);
@@ -205,9 +210,7 @@ export async function importZipToBundle(
   if (scripts.size > 0) {
     // Même modèle de confiance que les modules externes chargés par URL : plein accès, décision
     // explicite de l'utilisateur — refus = abandon de TOUT l'import (pas de bundle sans ses scripts).
-    const accepted = window.confirm(
-      `Ce bundle contient ${scripts.size} script(s) exécutable(s) avec les pleins droits de la page (accès à votre session). N'importez que des bundles de confiance. Continuer ?`
-    );
+    const accepted = await confirmScripts(scripts.size);
     if (!accepted) throw new Error('Import annulé (scripts refusés).');
   }
 

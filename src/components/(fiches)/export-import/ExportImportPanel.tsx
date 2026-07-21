@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { db, collection, getDocs, doc, setDoc, addDoc, updateDoc, auth } from '@/lib/firebase';
+import { db, collection, getDocs, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where, auth } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { buildRoomExportBundle, downloadRoomExportBundle, parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer';
 import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip';
+import { useConfirmAsync } from '@/hooks/useConfirmAsync';
 import { stripUndefinedDeep } from '@/modules/game-system/transfer';
 import type { ContentDoc } from '@/modules/game-content/types';
 import { buildCharacterExport, importCharacterExport, type CharacterExportData } from '@/utils/characterTransfer';
@@ -30,6 +31,7 @@ export default function ExportImportPanel() {
   const [includeContent, setIncludeContent] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const { confirm: confirmAsync, dialog: confirmDialog } = useConfirmAsync();
 
   const entityLabel = gameSystem.groupEntityLabel || 'Entité de groupe';
 
@@ -93,7 +95,12 @@ export default function ExportImportPanel() {
       let bundle: RoomExportBundle;
       if (await isZipFile(file)) {
         const uid = auth.currentUser?.uid ?? 'anonyme';
-        const result = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }));
+        const result = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }), (count) => confirmAsync({
+          title: 'Bundle avec scripts exécutables',
+          description: `Ce bundle contient ${count} script(s) exécutable(s) avec les pleins droits de la page (accès à votre session). N'importez que des bundles de confiance. Continuer ?`,
+          confirmLabel: 'Continuer',
+          destructive: true,
+        }));
         bundle = result.bundle;
       } else {
         bundle = parseRoomExportBundle(await file.text());
@@ -158,6 +165,16 @@ export default function ExportImportPanel() {
       }
 
       if (bundle.content) {
+        // Réimporter dans un système EXISTANT (bundle.gameSystem absent, donc targetContentPath =
+        // contentPath actuel, pas une sous-collection neuve) : les anciens scripts/styles doivent
+        // être purgés avant réinsertion, sinon chaque réimport ADDITIONNE une copie de plus des
+        // mêmes scripts (addDoc génère un id Firestore aléatoire à chaque appel, jamais stable par
+        // fichier) — l'ancien code compilé continue de s'exécuter à côté du nouveau indéfiniment.
+        // Même logique que GameSystemManagerPanel.handleImportFile.
+        if (!bundle.gameSystem) {
+          const existingScripts = await getDocs(query(collection(db, targetContentPath), where('kind', 'in', ['script', 'style'])));
+          for (const d of existingScripts.docs) await deleteDoc(d.ref);
+        }
         for (const contentDoc of bundle.content) {
           await addDoc(collection(db, targetContentPath), contentDoc);
         }
@@ -236,6 +253,8 @@ export default function ExportImportPanel() {
           </label>
         </div>
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

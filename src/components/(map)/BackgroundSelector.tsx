@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Search, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle, Upload } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext';
+import { toast } from 'sonner';
 
 interface MapFile {
     name: string;
@@ -159,7 +160,7 @@ export default function BackgroundSelector({
             onClose();
         } catch (error) {
             console.error('Error uploading background to R2:', error);
-            alert("Erreur lors de l'import de l'image. Veuillez réessayer.");
+            toast.error("Erreur lors de l'import de l'image. Veuillez réessayer.");
         } finally {
             setUploading(false);
         }

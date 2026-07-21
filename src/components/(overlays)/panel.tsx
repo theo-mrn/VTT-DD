@@ -30,6 +30,7 @@ import { StoreModal } from "@/components/store/store-modal";
 import { RoomUsersManager } from "@/app/home/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/home/components/RoomSettingsManager";
 import { ChallengesButton } from '@/components/(challenges)/challenges-button';
+import { toast } from "sonner";
 import FileLibrary from '@/components/(infos)/FileLibrary';
 import GameSystemManagerPanel from '@/components/(fiches)/game-system/GameSystemManagerPanel';
 import GroupEntityPanel from '@/components/(fiches)/group-entity/GroupEntityPanel';
@@ -60,7 +61,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [currentDiceSkinId, setCurrentDiceSkinId] = useState<string>("gold");
   const [currentTokenSrc, setCurrentTokenSrc] = useState<string>("Token1");
-  const [isRessourcesOpen, setIsRessourcesOpen] = useState(false);
   const { isMJ, isOwner, user: gameUser } = useGame();
   const { gameSystem } = useGameSystem(gameUser?.roomId ?? null);
   const groupEntityLabel = gameSystem.groupEntityLabel || 'Entité de groupe';
@@ -144,7 +144,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   const handleCopyRoomId = () => {
     navigator.clipboard.writeText(roomId || "").then(() => {
-      alert("Room ID copié dans le presse-papiers !");
+      toast.success("Room ID copié dans le presse-papiers !");
     });
     setShowPopover(false); // Close popover after copying
   };
@@ -244,12 +244,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <ChallengesButton variant="sidebar" />
         </div>
 
-        <DropdownMenu open={isRessourcesOpen} onOpenChange={setIsRessourcesOpen}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
-              onMouseEnter={() => setIsRessourcesOpen(true)}
-              onMouseLeave={() => setIsRessourcesOpen(false)}
               onClick={() => window.open(gameUser?.roomId ? `/ressources?roomId=${gameUser.roomId}` : '/ressources', '_blank')}
             >
               <div className="flex items-center gap-3">
@@ -265,8 +263,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
             sideOffset={10}
             collisionPadding={12}
             className="w-56 max-w-[calc(100vw-2rem)] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-1 shadow-xl"
-            onMouseEnter={() => setIsRessourcesOpen(true)}
-            onMouseLeave={() => setIsRessourcesOpen(false)}
           >
             <DropdownMenuItem 
               onClick={() => window.open(gameUser?.roomId ? `/ressources/bestiaire?roomId=${gameUser.roomId}` : '/ressources/bestiaire', '_blank')}
@@ -458,11 +454,18 @@ export default function Sidebar({ onClose }: SidebarProps) {
       )}
 
       {openDialog === 'exportImport' && (
-        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
-            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          </button>
-          <div className="flex-1 min-h-0">
+        <div
+          className="fixed inset-0 z-[10050] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setOpenDialog(null)}
+        >
+          <div
+            className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border shadow-2xl slide-in-from-bottom-2 animate-in duration-300"
+            style={{ borderColor: 'var(--border-color)', background: 'var(--bg-card)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button onClick={() => setOpenDialog(null)} className="absolute top-3 right-3 z-10 p-2 bg-black/40 hover:bg-red-500/80 text-white rounded-full transition-all group">
+              <X className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            </button>
             <ExportImportPanel />
           </div>
         </div>

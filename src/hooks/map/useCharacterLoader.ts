@@ -126,6 +126,8 @@ export function useCharacterLoader(
                     if (val > 2000) return 2000; // Safety cap
                     return isNaN(val) ? 100 : val;
                 })(),
+                visionBoostActive: data.visionBoostActive || false,
+                Race: data.Race || undefined,
                 visibleToPlayerIds: data.visibleToPlayerIds || undefined,
                 type: data.type || 'pnj',
                 PV: data.PV || 0,

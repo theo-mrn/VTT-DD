@@ -37,20 +37,37 @@ export const useMeasurementSkins = (measurements: SharedMeasurement[]) => {
           [skinFilename]: video
         }));
 
-        // Autoplay when ready
+        // Autoplay when ready — AbortError ignoré : si la mesure a expiré
+        // pendant le chargement, l'effet de pause plus bas interrompt ce play()
+        // avant démarrage, c'est le comportement voulu.
         video.onloadeddata = () => {
-          video.play().catch(e => console.error(`Autoplay failed for ${skinFilename}`, e));
+          video.play().catch(e => {
+            if (e?.name !== 'AbortError') console.error(`Autoplay failed for ${skinFilename}`, e);
+          });
         };
 
         loadedSkins.current.add(skinFilename);
       }
     });
 
-    // Cleanup unused skins? 
-    // For now, keep them cached to avoid reloading if they toggle visibility.
-    // In a long session, might want to prune.
-
   }, [measurements, effects, isLoading]);
+
+  // Pause/reprise selon le besoin réel : les vidéos restent en cache (pas de
+  // re-téléchargement) mais ne décodent plus quand plus aucune mesure ne les
+  // affiche — les mesures temporaires expirent en ~6s, sans cette pause chaque
+  // skin utilisé une fois continuait de boucler jusqu'à la fin de la session.
+  useEffect(() => {
+    const required = new Set<string>();
+    measurements.forEach(m => { if (m.skin) required.add(m.skin); });
+
+    Object.entries(skinElements).forEach(([name, video]) => {
+      if (!required.has(name)) {
+        if (!video.paused) video.pause();
+      } else if (video.paused) {
+        video.play().catch(() => { });
+      }
+    });
+  }, [measurements, skinElements]);
 
   return skinElements;
 };

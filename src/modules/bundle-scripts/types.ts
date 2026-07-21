@@ -72,10 +72,26 @@ export interface BundleScriptAPI extends ModuleAPI {
     /** Nom de la scène/ville courante ('' pour la carte principale). Les abonnés de
      *  subscribeCharacters sont aussi réveillés quand il change. */
     getMapName: () => string;
+    /** Dimensions (px) de l'image/vidéo de fond actuellement chargée — null hors de la carte ou
+     *  avant chargement. Nécessaire pour convertir un pourcentage (0-100) en coordonnées "px monde"
+     *  comparables aux x/y de getCharacters() (ex un gabarit de zone défini en % d'un pad UI). */
+    getBackgroundSize: () => { width: number; height: number } | null;
+    /** S'abonne aux changements de dimensions du fond ; cb est appelé immédiatement avec l'état
+     *  courant, puis à chaque changement (nouveau fond, redimensionnement de la vidéo...). */
+    subscribeBackgroundSize: (cb: (size: { width: number; height: number } | null) => void) => () => void;
     /** Overlays permanents rendus par le layout de la carte dans une pile fixe en haut à droite
      *  (pointer-events-none — un overlay réactive les siens au besoin). Remplacement complet,
      *  no-op si liste identique ; vidé au déchargement du bundle. */
     setOverlays: (overlays: MapOverlayOption[]) => void;
+    /** Pose un gabarit de zone circulaire RÉEL sur la carte (même canal RTDB que l'outil de mesure
+     *  natif — SharedMeasurement type 'circle', visible par tous les participants), à des
+     *  coordonnées x/y en px monde (voir getBackgroundSize pour convertir un %). `radius` en px
+     *  monde. `id` doit être stable pour pouvoir le mettre à jour/l'effacer ensuite (rappeler
+     *  setMeasurement avec le même id remplace le gabarit). Note : posé avec cityId=null, donc
+     *  visible seulement quand la carte principale (pas une scène/ville) est affichée. */
+    setMeasurement: (m: { id: string; x: number; y: number; radius: number; color?: string }) => Promise<void>;
+    /** Efface un gabarit posé par setMeasurement (no-op s'il n'existe déjà plus). */
+    clearMeasurement: (id: string) => Promise<void>;
   };
   /** Petit état PARTAGÉ de salle pour les scripts (RTDB rooms/{roomId}/bundleState/{key}) —
    *  synchronisé en temps réel entre TOUS les clients, contrairement à getData (instantané au
@@ -135,6 +151,13 @@ export interface BundleScriptAPI extends ModuleAPI {
    *  Component|null}. La fiche préfixe toujours une option "Aucun". */
   sheet: {
     setBackgrounds: (options: SheetBackgroundOption[]) => void;
+  };
+  /** Remplacement du panneau de mixeur audio natif par un composant du bundle — rendu par
+   *  MapDialogs avec les MÊMES props {isOpen, onClose} que l'AudioMixerPanel natif : le raccourci
+   *  clavier, le bouton tool_mixer et le toggle existants continuent de fonctionner tels quels,
+   *  seul le visuel change. null (ou déchargement du bundle) restaure le panneau natif. */
+  audio: {
+    setMixerPanel: (component: ComponentType<{ isOpen: boolean; onClose: () => void }> | null) => void;
   };
 }
 

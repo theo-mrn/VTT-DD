@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import { useUndoRedo } from '@/contexts/UndoRedoContext';
 import { TOOLS } from '@/components/(map)/MapToolbar';
 import { toast } from 'sonner';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { pasteCharacter } from '@/utils/pasteCharacter';
 import { pasteObject } from '@/utils/pasteObject';
 import type { Character, MapObject, Point, DrawingTool } from '@/app/[roomid]/map/types';
@@ -143,6 +145,31 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
   const { isShortcutPressed, onActionTriggered } = useShortcuts();
   const { undo, redo } = useUndoRedo();
 
+  // Bascule Character.visionBoostActive sur le personnage du joueur courant : triple directement
+  // visibilityRadius à l'activation, le redivise par 3 à la désactivation — sans effet si aucun
+  // perso incarné.
+  const toggleVisionBoost = useCallback(() => {
+    if (!persoId || !roomId) return;
+    const myChar = characters.find(c => c.id === persoId);
+    const nextActive = !myChar?.visionBoostActive;
+    const currentRadius = myChar?.visibilityRadius ?? 100;
+    const nextRadius = nextActive ? currentRadius * 3 : currentRadius / 3;
+    updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
+      visionBoostActive: nextActive,
+      visibilityRadius: nextRadius,
+    })
+      .then(() => {
+        toast.success(nextActive ? 'Vision augmentée activée' : 'Vision augmentée désactivée', {
+          description: nextActive ? 'Votre rayon de vision est temporairement triplé.' : 'Votre rayon de vision est revenu à la normale.',
+          duration: 2000,
+        });
+      })
+      .catch((error) => {
+        console.error('Erreur lors de la mise à jour de visionBoostActive:', error);
+        toast.error('Erreur', { description: 'Impossible de modifier la vision augmentée.', duration: 3000 });
+      });
+  }, [persoId, roomId, characters]);
+
   // -------------------------------------------------------
   // 1. UNDO/REDO KEYBOARD SHORTCUTS
   // -------------------------------------------------------
@@ -171,6 +198,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
       onActionTriggered(SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU, () => {
         if (persoId) setBubbleMenuOpen(prev => !prev);
       }),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_VISION_BOOST, toggleVisionBoost),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_GRID, () => handleToolbarAction(TOOLS.GRID)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_FOG, () => handleToolbarAction(TOOLS.VISIBILITY)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_BADGES, () => handleToolbarAction(TOOLS.TOGGLE_ALL_BADGES)),
@@ -215,7 +243,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
   }, [
     onActionTriggered, undo, redo, setShowGlobalSettingsDialog, persoId, setBubbleMenuOpen,
     handleToolbarAction, drawMode, setDrawMode, currentTool, setCurrentTool, toggleMusicPlayPause,
-    fullMapFog, handleFullMapFogChange, clearFog,
+    fullMapFog, handleFullMapFogChange, clearFog, toggleVisionBoost,
   ]);
 
   // -------------------------------------------------------
@@ -420,8 +448,12 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
         e.preventDefault();
         if (persoId) setBubbleMenuOpen(prev => !prev);
       }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_VISION_BOOST)) {
+        e.preventDefault();
+        toggleVisionBoost();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isShortcutPressed, handleToolbarAction, setMeasureMode, setDrawMode, setPanMode, setShowGlobalSettingsDialog, persoId, setBubbleMenuOpen]);
+  }, [isShortcutPressed, handleToolbarAction, setMeasureMode, setDrawMode, setPanMode, setShowGlobalSettingsDialog, persoId, setBubbleMenuOpen, toggleVisionBoost]);
 }

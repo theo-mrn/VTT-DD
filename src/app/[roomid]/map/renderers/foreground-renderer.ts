@@ -1293,7 +1293,8 @@ export function drawForegroundLayers(
 
       // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
       if (char.type === 'joueurs' && index === selectedCharacterIndex) {
-        ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
+        // Vision augmentée active : contour cyan pour distinguer visuellement du rayon normal (bleu)
+        ctx.strokeStyle = char.visionBoostActive ? 'rgba(0, 255, 255, 0.9)' : 'rgba(0, 0, 255, 0.9)';
         ctx.lineWidth = 2 * zoom;
         ctx.beginPath();
         const radiusScreen = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
@@ -1303,7 +1304,7 @@ export function drawForegroundLayers(
 
       // Draw visibility radius outline for allies when selected (MJ only)
       if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
+        ctx.strokeStyle = char.visionBoostActive ? 'rgba(0, 255, 255, 0.9)' : 'rgba(0, 255, 0, 0.9)'; // Bright green outline (cyan si boost actif)
         ctx.lineWidth = 2 * zoom;
         ctx.beginPath();
         const radiusScreenAlly = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;

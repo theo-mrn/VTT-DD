@@ -1,7 +1,8 @@
 "use client"
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, Edit, X, Eye, Pencil, Eraser, Square, Circle as CircleIcon, Slash, Ruler, Music, Hexagon, DoorOpen, ArrowDownUp } from 'lucide-react';
 import { TOOLS } from '@/components/(map)/MapToolbar';
@@ -145,11 +146,6 @@ export interface UseToolbarActionsParams {
   saveFullMapFog: (v: boolean) => void;
   setDrawings: React.Dispatch<React.SetStateAction<SavedDrawing[]>>;
 
-  // Boutons personnalisables (CustomButtons) : déclenche le toggle de son mode édition
-  triggerAction: (actionId: string) => void;
-  // État partagé (via ShortcutsContext) : reflète si CustomButtons est en mode édition,
-  // pour afficher le bouton MapToolbar en actif tant que ce mode est ouvert.
-  isCustomButtonsEditModeActive: boolean;
   // Musique en cours de lecture (voir page.tsx musicPlaybackState) : reflète l'état du
   // bouton Play/Pause direct.
   isMusicPlaying: boolean;
@@ -159,6 +155,7 @@ export interface UseToolbarActionsReturn {
   handleToolbarAction: (actionId: string) => void;
   getActiveToolbarTools: string[];
   getToolOptionsContent: () => React.ReactNode;
+  toolbarConfirmDialog: React.ReactNode;
 }
 
 // ---- Hook ----
@@ -213,10 +210,10 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     handleDeleteSelectedCharacters, navigateToWorldMap,
     deleteFromRtdbWithHistory, saveFogGridWithHistory, saveFullMapFog,
     setDrawings,
-    triggerAction,
-    isCustomButtonsEditModeActive,
     isMusicPlaying,
   } = params;
+
+  const [confirmDeleteFogCells, setConfirmDeleteFogCells] = useState(false);
 
   // Toujours à jour, lu par handleToolbarAction (voir juste en dessous) : évite de lister
   // ~20 dépendances dans un useCallback (risque d'oubli = stale closure sur un outil de
@@ -308,7 +305,6 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
       case TOOLS.ZOOM_OUT: p.setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
       case TOOLS.WORLD_MAP: p.navigateToWorldMap(); break;
       case TOOLS.TOGGLE_ALL_BADGES: p.setShowAllBadges(!p.showAllBadges); break;
-      case TOOLS.CUSTOMIZE_BUTTONS: p.triggerAction(SHORTCUT_ACTIONS.TOGGLE_CUSTOM_BUTTONS_EDIT); break;
     }
   }, []);
 
@@ -339,7 +335,6 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
     if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
     if (showAllBadges) active.push(TOOLS.TOGGLE_ALL_BADGES);
-    if (isCustomButtonsEditModeActive) active.push(TOOLS.CUSTOMIZE_BUTTONS);
     if (drawMode && currentTool === 'eraser') active.push(TOOLS.ERASER);
     if (fullMapFog === false) active.push(TOOLS.FOG_REVEAL_ALL);
     if (fullMapFog === true) active.push(TOOLS.FOG_HIDE_ALL);
@@ -350,7 +345,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     allyViewMode, measureMode, isMusicMode, showLayerControl, isObjectDrawerOpen,
     isNPCDrawerOpen, isSoundDrawerOpen, isUnifiedSearchOpen, portalMode, spawnPointMode,
     multiSelectMode, isBackgroundEditMode, isAudioMixerOpen, showAllBadges,
-    isCustomButtonsEditModeActive, currentTool, fullMapFog, isMusicPlaying,
+    currentTool, fullMapFog, isMusicPlaying,
   ]);
 
   const getToolOptionsContent = () => {
@@ -422,21 +417,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => {
-              if (window.confirm(`Supprimer ${selectedFogCells.length} case(s) de brouillard ?`)) {
-                const newGrid = new Map(fogGrid);
-                selectedFogCells.forEach(cellKey => {
-                  if (fullMapFog) {
-                    newGrid.set(cellKey, true);
-                  } else {
-                    newGrid.delete(cellKey);
-                  }
-                });
-                setFogGrid(newGrid);
-                saveFogGridWithHistory(newGrid, 'Suppression de cellules de brouillard');
-                setSelectedFogCells([]);
-              }
-            }}
+            onClick={() => setConfirmDeleteFogCells(true)}
           >
             <Trash2 className="w-4 h-4 mr-2" /> Supprimer
           </Button>
@@ -827,9 +808,34 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     return null;
   };
 
+  const toolbarConfirmDialog = (
+    <ConfirmDialog
+      open={confirmDeleteFogCells}
+      onOpenChange={setConfirmDeleteFogCells}
+      title="Supprimer les cases de brouillard"
+      description={`Supprimer ${selectedFogCells.length} case(s) de brouillard ?`}
+      confirmLabel="Supprimer"
+      destructive
+      onConfirm={() => {
+        const newGrid = new Map(fogGrid);
+        selectedFogCells.forEach(cellKey => {
+          if (fullMapFog) {
+            newGrid.set(cellKey, true);
+          } else {
+            newGrid.delete(cellKey);
+          }
+        });
+        setFogGrid(newGrid);
+        saveFogGridWithHistory(newGrid, 'Suppression de cellules de brouillard');
+        setSelectedFogCells([]);
+      }}
+    />
+  );
+
   return {
     handleToolbarAction,
     getActiveToolbarTools,
     getToolOptionsContent,
+    toolbarConfirmDialog,
   };
 }
