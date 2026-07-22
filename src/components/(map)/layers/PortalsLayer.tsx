@@ -62,8 +62,13 @@ export default function PortalsLayer({
   setSelectionMenuPosition,
   setShowElementSelectionMenu,
 }: PortalsLayerProps) {
+  // zIndex volontairement dans la plage INTERNE des layers de carte (objets/persos ≤ 6, curseurs 10) :
+  // 7 garde les portails au-dessus des tokens mais SOUS les panneaux du layout (Chat/Notes/aside en
+  // z-40). L'ancien 46/50 débordait dans la plage des panneaux et faisait passer les portails par-dessus
+  // le chat et de nombreux composants. Le conteneur carte parent (position:relative sans z-index)
+  // n'isole pas de contexte d'empilement, donc ces valeurs se comparaient au niveau racine.
   return (
-    <div className="portals-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 46 }}>
+    <div className="portals-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 7 }}>
       {isMJ && portals.filter(p => !p.cityId || p.cityId === selectedCityId).map((portal, index) => {
         if (!bgImageObject) return null;
         const image = bgImageObject;
@@ -101,7 +106,9 @@ export default function PortalsLayer({
               cursor: 'move',
               opacity: shouldDisableInteraction ? 0.3 : 1,
               transition: 'opacity 0.2s ease',
-              zIndex: 50
+              // Empilement LOCAL au sein du portals-layer uniquement (le sélectionné passe devant ses
+              // voisins) — surtout pas une valeur qui rivalise avec les panneaux du layout.
+              zIndex: isSelected ? 2 : 1
             }}
             onMouseDown={(e) => {
               if (panMode) return;

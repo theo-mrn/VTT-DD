@@ -212,7 +212,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       // intactes celles qu'il omet — register() est ré-appelable (ex depuis api.character.subscribe
       // pour n'exposer un bouton qu'à certaines espèces) : un remplacement, jamais un cumul (sinon
       // le même bouton s'empile à chaque snapshot du personnage).
-      const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [], characterWidgets: [], creationTabs: [], searchDrawerTabs: [] };
+      const collected: Required<BundleContributions> = { sidebarTabs: [], sidebarActions: [], characterWidgets: [], creationTabs: [], searchDrawerTabs: [], interactionGames: [] };
 
       // (Ré)enregistre le module synthétique avec les contributions cumulées. register() peut être
       // appelé APRÈS l'exécution synchrone (ex depuis api.character.get().then(...) pour n'exposer un
@@ -229,13 +229,14 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
         if (cancelled) return;
         const hasContent = collected.sidebarTabs.length > 0 || collected.sidebarActions.length > 0
           || collected.characterWidgets.length > 0 || collected.creationTabs.length > 0
-          || collected.searchDrawerTabs.length > 0;
+          || collected.searchDrawerTabs.length > 0 || collected.interactionGames.length > 0;
         if (registered && lastRegistered
           && sameList(lastRegistered.sidebarTabs, collected.sidebarTabs)
           && sameList(lastRegistered.sidebarActions, collected.sidebarActions)
           && sameList(lastRegistered.characterWidgets, collected.characterWidgets)
           && sameList(lastRegistered.creationTabs, collected.creationTabs)
-          && sameList(lastRegistered.searchDrawerTabs, collected.searchDrawerTabs)) {
+          && sameList(lastRegistered.searchDrawerTabs, collected.searchDrawerTabs)
+          && sameList(lastRegistered.interactionGames, collected.interactionGames)) {
           return;
         }
         if (registered) moduleRegistry.unregister(moduleId);
@@ -258,6 +259,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             characterWidgets: [...collected.characterWidgets],
             creationTabs: [...collected.creationTabs],
             searchDrawerTabs: [...collected.searchDrawerTabs],
+            interactionGames: [...collected.interactionGames],
           },
         });
         registered = true;
@@ -267,6 +269,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           characterWidgets: [...collected.characterWidgets],
           creationTabs: [...collected.creationTabs],
           searchDrawerTabs: [...collected.searchDrawerTabs],
+          interactionGames: [...collected.interactionGames],
         };
       };
 
@@ -283,6 +286,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             if (c.characterWidgets) collected.characterWidgets = [...c.characterWidgets];
             if (c.creationTabs) collected.creationTabs = [...c.creationTabs];
             if (c.searchDrawerTabs) collected.searchDrawerTabs = [...c.searchDrawerTabs];
+            if (c.interactionGames) collected.interactionGames = [...c.interactionGames];
             syncRegistration();
           },
         });

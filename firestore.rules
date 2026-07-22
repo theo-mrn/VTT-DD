@@ -152,6 +152,13 @@ service cloud.firestore {
       allow write: if isRoomMJ(roomId) || isRoomPlayer(roomId);
     }
 
+    // ── Mini-jeux d'interaction (échecs, sabacc...) — un doc d'état par interaction, lu/écrit par
+    // toute la table (le tour par tour du jeu limite naturellement les conflits d'écriture) ───────
+    match /cartes/{roomId}/games/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId) || isRoomPlayer(roomId);
+    }
+
     // ── Document racine de la room (currentMusic, etc.) ───────────────────────
     match /cartes/{roomId} {
       allow read: if isRoomMember(roomId);

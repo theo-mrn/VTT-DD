@@ -35,6 +35,7 @@ import { makeActivityMonitorPanel } from './activity-monitor';
 import { makeDroidPanel } from './droid';
 import { makeBombardementPanel, makeBombardementMjPanel } from './bombardement';
 import { makeMixerPanel } from './mixer';
+import { makeSabaccGame } from './sabacc';
 
 const RACE_VISION = 'chiss'; // espèce autorisant la vision infrarouge (races[].id des règles)
 
@@ -177,6 +178,14 @@ export default (ctx) => {
       label: 'Obligation',
       icon: Scale,
       component: makeObligationCreationTab(api),
+    }],
+    // Table de Sabacc — jeu d'interaction : le MJ la pose sur un PNJ via le dialogue "Ajouter une
+    // interaction", tout joueur clique le PNJ pour s'asseoir. Multijoueur, état via api.sharedState.
+    interactionGames: [{
+      id: 'sabacc',
+      label: 'Table de Sabacc',
+      description: 'Le jeu de cartes de la Bordure Extérieure — multijoueur',
+      component: makeSabaccGame(api),
     }],
   });
 

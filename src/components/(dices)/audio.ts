@@ -23,11 +23,42 @@ const readDice3dVolume = (): number => {
     return 1;
 };
 
+// Themed mp3 EFFECTS toggle (from the global "Paramètres" panel, NOT the dice3d
+// volume): when off, the per-skin ambiences (looping .mp3 beds) and one-shot
+// skin sounds are silenced, but the roll/impact sound (playRoll) still plays.
+// The SettingsContext owns the value; it mirrors it to a simple localStorage key
+// (no user id needed here) and fires a dedicated event we listen to below.
+export const DICE_THEMED_SOUNDS_KEY = 'vtt_dice_themed_sounds';
+export const DICE_THEMED_SOUNDS_EVENT = 'vtt-dice-themed-sounds-change';
+
+const readDiceThemedSoundsEnabled = (): boolean => {
+    try {
+        const saved = localStorage.getItem(DICE_THEMED_SOUNDS_KEY);
+        if (saved !== null) return saved !== 'false';
+    } catch { /* fall through to default */ }
+    return true; // enabled by default
+};
+
+// Live mirror of the toggle, kept in sync via the event so the guards in
+// startAmbience/playOneShotForSkin don't hit localStorage on every roll.
+let diceThemedSoundsEnabled = typeof window !== 'undefined' ? readDiceThemedSoundsEnabled() : true;
+
 if (typeof window !== 'undefined') {
     window.addEventListener('audioMixerVolumeChange', (e: Event) => {
         const detail = (e as CustomEvent).detail;
         if (masterGainNode && typeof detail?.dice3d === 'number') {
             masterGainNode.gain.value = detail.dice3d;
+        }
+    });
+
+    // The global settings panel toggled the themed-sounds option.
+    window.addEventListener(DICE_THEMED_SOUNDS_EVENT, (e: Event) => {
+        const enabled = (e as CustomEvent).detail;
+        if (typeof enabled === 'boolean') {
+            diceThemedSoundsEnabled = enabled;
+            // Turning effects OFF mid-roll: stop every ambience currently looping
+            // so the themed bed goes quiet immediately (not just on the next die).
+            if (!enabled) stopAllAmbiences();
         }
     });
 }
@@ -158,6 +189,7 @@ const ONE_SHOT_VOLUME: Record<string, number> = {
 };
 
 export const playOneShotForSkin = (skin: { id?: string }) => {
+    if (!diceThemedSoundsEnabled) return; // themed mp3 effects disabled in settings
     const url = skin.id ? ONE_SHOT_URL[skin.id] : undefined;
     if (!url) return;
     try {
@@ -208,6 +240,28 @@ interface SharedAmbience {
 }
 const activeAmbiences = new Map<AmbienceId, SharedAmbience>();
 
+// Immediately silence every looping ambience, regardless of refcount — used
+// when the "dice effects" toggle is switched OFF mid-roll so the themed beds
+// go quiet at once. Each die's own handle.stop() is still called later when it
+// disappears and safely no-ops (the entry is already gone).
+const stopAllAmbiences = () => {
+    const ctx = sharedAudioContext;
+    activeAmbiences.forEach((s) => {
+        try {
+            s.alive = false;
+            if (s.startTimer) clearTimeout(s.startTimer);
+            if (s.stopTimer) clearTimeout(s.stopTimer);
+            if (ctx) s.master.gain.setTargetAtTime(0, ctx.currentTime, 0.2); // quick fade
+            const src = s.src;
+            setTimeout(() => {
+                try { src?.stop(); } catch { }
+                try { s.master.disconnect(); } catch { }
+            }, 400);
+        } catch { /* never throw from an audio cleanup */ }
+    });
+    activeAmbiences.clear();
+};
+
 // Play a themed ambience by LOOPING its audio file for the whole life of the
 // die(s) using it. Returns a handle that releases this referent's share and
 // cleans up on stop().
@@ -219,6 +273,7 @@ const activeAmbiences = new Map<AmbienceId, SharedAmbience>();
 // same instance, not layer a fresh loop on top of it (which sounded like the
 // sound "restarting from the beginning").
 export const startAmbience = (id: AmbienceId): Ambience | null => {
+    if (!diceThemedSoundsEnabled) return null; // themed mp3 effects disabled in settings
     try {
         const ctx = getAudioContext();
         if (!ctx) return null;
@@ -289,6 +344,14 @@ export const startAmbience = (id: AmbienceId): Ambience | null => {
 
 // Which die skins get a themed ambience (data-driven, extend as we add themes).
 export const ambienceForSkin = (skin: { id?: string; procStyle?: string; effectType?: string }): AmbienceId | null => {
+    // Star Wars: reuse the closest existing sound bed (no dedicated SW audio
+    // files ship yet). The Sith die's Force-lightning uses the same strike
+    // scheduler as storm, so the thunder bed pairs naturally with its crackle.
+    if (skin.procStyle === 'sith') return 'storm';
+    // Kyber saber (humming energy), the serene light-side currents, the
+    // balanced Force spirit and the hyperspace jump all sit best on the
+    // ethereal cosmos pad.
+    if (skin.procStyle === 'kyber' || skin.procStyle === 'lightside' || skin.procStyle === 'forcespirit' || skin.procStyle === 'hyperspace') return 'cosmos';
     if (skin.procStyle === 'storm') return 'storm';
     if (skin.procStyle === 'poison') return 'acid';
     if (skin.procStyle === 'magma' || skin.procStyle === 'eclipse') return 'fire';

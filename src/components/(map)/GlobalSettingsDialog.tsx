@@ -228,6 +228,28 @@ export default function GlobalSettingsDialog({
                                 </Card>
                             </div>
 
+                            {/* Audio Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
+                                        Audio
+                                    </h4>
+                                    <Separator className="flex-1 bg-white/10" />
+                                </div>
+                                {/* Themed dice sound effects */}
+                                <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <Label className="text-base text-gray-200">Effets sonores des dés</Label>
+                                        <p className="text-xs text-gray-500">Ambiances thématiques de certains dés (le son de lancer reste actif)</p>
+                                    </div>
+                                    <Switch
+                                        checked={settings.diceThemedSounds}
+                                        onCheckedChange={settings.setDiceThemedSounds}
+                                        className="data-[state=checked]:bg-[#c0a080]"
+                                    />
+                                </Card>
+                            </div>
+
                             {/* Modules Section (MJ only) */}
                             {isMJ && (
                                 <div className="space-y-4">

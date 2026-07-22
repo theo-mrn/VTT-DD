@@ -71,7 +71,10 @@ export interface GameInteraction {
     type: 'game';
     name: string; // "Jeux de dés", "Cartes", etc.
     description?: string;
-    gameType?: 'dice' | 'cards' | 'custom'; // Type de jeu
+    // 'dice'|'cards'|'custom' = échiquier historique (GameComponent ignore gameType). Toute autre
+    // valeur est l'id d'un jeu FOURNI PAR UN BUNDLE (moduleRegistry.getInteractionGames, ex
+    // 'sabacc') — InteractionLayer rend alors le composant contribué. D'où le string libre.
+    gameType?: 'dice' | 'cards' | 'custom' | (string & {});
 }
 
 export interface LootInteraction {

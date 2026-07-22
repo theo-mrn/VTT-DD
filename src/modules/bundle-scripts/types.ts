@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { GameSystemDefinition } from '@/modules/game-system/types';
-import type { ModuleAPI, SidebarTabContribution, SidebarActionContribution, CharacterWidgetContribution, CreationTabContribution, SearchDrawerTabContribution } from '@/modules/types';
+import type { ModuleAPI, SidebarTabContribution, SidebarActionContribution, CharacterWidgetContribution, CreationTabContribution, SearchDrawerTabContribution, InteractionGameContribution } from '@/modules/types';
 import type { VTTModuleSDK } from '@/modules/sdk';
 import type { rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll } from '@/lib/rules-engine';
 import type { ComponentType } from 'react';
@@ -32,6 +32,10 @@ export interface BundleContributions {
    *  par drag-and-drop) — pour les propres éléments déposables sur la carte d'un bundle (ex les
    *  vaisseaux d'un système Star Wars, référençant Salle/{roomId}/groupEntities). */
   searchDrawerTabs?: SearchDrawerTabContribution[];
+  /** Mini-jeux d'interaction (ex table de sabacc) — proposés dans le dialogue "Ajouter une
+   *  interaction" du MJ, rendus par InteractionLayer quand un joueur ouvre l'interaction. L'état
+   *  partagé de la table passe par api.sharedState (clé dérivée d'interactionId). */
+  interactionGames?: InteractionGameContribution[];
 }
 
 /** API fournie aux scripts de bundle — ModuleAPI existant (events, données de salle RTDB, toasts)

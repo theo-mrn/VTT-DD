@@ -9,6 +9,7 @@ import type {
   ConditionContribution,
   CreationTabContribution,
   SearchDrawerTabContribution,
+  InteractionGameContribution,
 } from './types';
 import { isGameSystemModule, type GameSystemModule } from './game-system/types';
 
@@ -102,6 +103,10 @@ class ModuleRegistry {
 
   getSearchDrawerTabs(): SearchDrawerTabContribution[] {
     return this.collectContributions('searchDrawerTabs');
+  }
+
+  getInteractionGames(): InteractionGameContribution[] {
+    return this.collectContributions('interactionGames');
   }
 
   getConditions(): ConditionContribution[] {

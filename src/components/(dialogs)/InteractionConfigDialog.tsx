@@ -1,10 +1,11 @@
 "use client";
 
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Store, Dices, Package } from 'lucide-react';
+import { X, Store, Dices, Package, WalletCards } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Interaction } from '@/app/[roomid]/map/types';
+import { moduleRegistry } from '@/modules/registry';
 import { v4 as uuidv4 } from 'uuid';
 
 interface InteractionConfigDialogProps {
@@ -20,6 +21,17 @@ export default function InteractionConfigDialog({
     onClose,
     onSave
 }: InteractionConfigDialogProps) {
+
+    // Jeux d'interaction fournis par le système/bundle actif (ex table de sabacc du bundle Star
+    // Wars) — s'ajoutent aux 3 types natifs sans être codés en dur ici. On s'abonne au NUMÉRO DE
+    // VERSION du registry (primitive stable) : getInteractionGames() renvoie un tableau neuf à
+    // chaque appel et ferait boucler useSyncExternalStore s'il servait de snapshot.
+    useSyncExternalStore(
+        (cb) => moduleRegistry.subscribe(cb),
+        () => moduleRegistry.getSnapshot(),
+        () => moduleRegistry.getSnapshot(),
+    );
+    const contributedGames = moduleRegistry.getInteractionGames();
 
     if (!isOpen) return null;
 
@@ -54,6 +66,12 @@ export default function InteractionConfigDialog({
         }
 
         onSave(interaction);
+        onClose();
+    };
+
+    // Crée une interaction 'game' dont le gameType pointe vers un jeu contribué par un bundle.
+    const handleCreateContributedGame = (gameId: string, label: string, description?: string) => {
+        onSave({ id: uuidv4(), type: 'game', name: label, description: description || 'Une partie ?', gameType: gameId });
         onClose();
     };
 
@@ -123,6 +141,26 @@ export default function InteractionConfigDialog({
                                         <div className="text-xs text-gray-500 group-hover:text-gray-400">Lancer des dés ou jouer aux cartes</div>
                                     </div>
                                 </Button>
+
+                                {/* Jeux fournis par le système/bundle actif (ex Sabacc pour Star Wars) */}
+                                {contributedGames.map((game) => (
+                                    <Button
+                                        key={game.id}
+                                        variant="outline"
+                                        className="h-16 justify-start px-4 bg-[#252525] border-[#333] hover:bg-yellow-900/20 hover:border-yellow-500/50 hover:text-yellow-500 transition-all group"
+                                        onClick={() => handleCreateContributedGame(game.id, game.label, game.description)}
+                                    >
+                                        <div className="p-2 bg-[#1a1a1a] rounded-lg mr-4 group-hover:bg-yellow-500/20 transition-colors">
+                                            <WalletCards className="h-6 w-6 text-gray-400 group-hover:text-yellow-500" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="font-bold text-gray-200 group-hover:text-white">{game.label}</div>
+                                            {game.description && (
+                                                <div className="text-xs text-gray-500 group-hover:text-gray-400">{game.description}</div>
+                                            )}
+                                        </div>
+                                    </Button>
+                                ))}
                             </div>
                         </div>
                     </motion.div>

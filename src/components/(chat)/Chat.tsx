@@ -29,7 +29,13 @@ type Player = {
     imageUrl?: string;
 };
 
-export default function Chat() {
+type ChatProps = {
+    // Destinataire à présélectionner à l'ouverture (déclenché par "Écrire en privé" depuis l'overlay).
+    // `nonce` change à chaque demande pour re-présélectionner même si c'est la même personne.
+    prefillRecipient?: { recipientName: string; nonce: number } | null;
+};
+
+export default function Chat({ prefillRecipient }: ChatProps = {}) {
     const { user, playerData, isMJ } = useGame();
     const { characters } = useCharacter();
 
@@ -70,7 +76,10 @@ export default function Chat() {
         for (const char of characters) {
             if (char.type === "joueurs" && char.Nomperso) {
                 availableRecipients.push({
-                    uid: char.id,
+                    // On identifie le destinataire par son Nomperso (et non char.id) : c'est le SEUL
+                    // identifiant que le filtre de réception plus bas sait matcher — un recipient stocké
+                    // sous char.id n'atteignait jamais le joueur ciblé.
+                    uid: char.Nomperso,
                     name: char.Nomperso,
                     imageUrl: char.imageURL
                 });
@@ -110,6 +119,15 @@ export default function Chat() {
         });
         return () => unsubscribe();
     }, [roomId, user?.uid, playerData?.Nomperso, isMJ]);
+
+    // Présélection du destinataire quand on ouvre le chat via "Écrire en privé" depuis l'overlay.
+    // On dépend du `nonce` (pas seulement du nom) pour re-cibler la même personne plusieurs fois d'affilée.
+    useEffect(() => {
+        if (prefillRecipient?.recipientName) {
+            setTargetRecipients([prefillRecipient.recipientName]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prefillRecipient?.nonce]);
 
     // Scroll to bottom
     useEffect(() => {
@@ -449,10 +467,11 @@ export default function Chat() {
             <div className="p-3 border-t border-[#3a3a3a] bg-[#242424] flex flex-col gap-2">
                 {targetRecipients.length > 0 && (
                     <div className="flex items-center justify-between bg-[#1c1c1c] p-2 rounded border border-[#3a3a3a]">
-                        <span className="text-xs text-[#c0a080] flex items-center gap-1">
-                            <Users className="w-3 h-3" /> Message privé
+                        <span className="text-xs text-[#c0a080] flex items-center gap-1 min-w-0">
+                            <Users className="w-3 h-3 shrink-0" />
+                            <span className="truncate">Message privé à {targetRecipients.join(', ')}</span>
                         </span>
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setTargetRecipients([])}>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs shrink-0" onClick={() => setTargetRecipients([])}>
                             Annuler
                         </Button>
                     </div>

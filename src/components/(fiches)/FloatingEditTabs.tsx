@@ -605,7 +605,7 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-md p-0 overflow-hidden shadow-2xl">
+                <DialogContent className="z-[201] bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-md p-0 overflow-hidden shadow-2xl">
                     <DialogHeader className="px-5 pt-5 pb-3 border-b border-[var(--border-color)]">
                         <DialogTitle className="text-[var(--accent-brown)] font-bold flex items-center gap-2">
                             <Sliders size={16} /> Champs &amp; Attributs
@@ -733,7 +733,7 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
 
             {/* Field edit/create dialog */}
             <Dialog open={isFieldDialogOpen} onOpenChange={setIsFieldDialogOpen}>
-                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-md p-0 overflow-hidden shadow-2xl">
+                <DialogContent className="z-[202] bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-md p-0 overflow-hidden shadow-2xl">
                     <DialogHeader className="px-5 pt-5 pb-3 border-b border-[var(--border-color)]">
                         <DialogTitle className="text-[var(--accent-brown)] font-bold flex items-center gap-2">
                             <Sliders size={16} /> {editingFieldId ? "Modifier l'attribut" : 'Nouvel attribut'}

@@ -221,6 +221,18 @@ export default function Component() {
     })));
   }, [characters]);
   useEffect(() => () => { setMapCharacterPositions([]); setMapName(''); }, []);
+  // Ouverture de la fiche depuis l'overlay (barre du haut) : celui-ci n'a pas accès aux setters locaux
+  // de la fiche, il émet donc un event window que l'on écoute ici — même pont que 'vtt-open-map-panel'.
+  useEffect(() => {
+    const openSheet = (e: Event) => {
+      const characterId = (e as CustomEvent<{ characterId?: string }>).detail?.characterId;
+      if (!characterId) return;
+      setSelectedCharacterForSheet(characterId);
+      setShowCharacterSheet(true);
+    };
+    window.addEventListener('vtt-open-character-sheet', openSheet);
+    return () => window.removeEventListener('vtt-open-character-sheet', openSheet);
+  }, []);
   // Dimensions de l'image/vidéo de fond publiées vers map-background-size-store — pont lu par les
   // scripts de bundle via api.map.getBackgroundSize (conversion %→px monde pour un gabarit de zone).
   useEffect(() => {

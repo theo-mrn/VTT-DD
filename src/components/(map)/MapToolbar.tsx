@@ -543,7 +543,11 @@ function MapToolbar({
         <TooltipProvider delayDuration={300}>
             <div className={cn(
                 // Mobile: top of screen, single scrollable row. Desktop: bottom-centered.
-                "fixed z-[50] transition-all duration-300 ease-in-out font-sans flex flex-col",
+                // z-[30] : la barre reste au-dessus de la carte mais DOIT passer sous les panneaux
+                // latéraux du layout (Chat, Notes, Fiche… en z-40 / z-[90]) qui la recouvraient avant.
+                // Le picker d'actions (createPortal + z-[1100]) et le sous-menu d'outils restent gérés
+                // indépendamment, donc baisser ce conteneur ne les fait pas passer sous la carte.
+                "fixed z-[30] transition-all duration-300 ease-in-out font-sans flex flex-col",
                 "top-2 left-0 right-0 px-2 lg:top-auto lg:bottom-6 lg:left-1/2 lg:right-auto lg:px-0 lg:-translate-x-1/2",
                 isCollapsed ? "lg:translate-y-[calc(100%+24px)]" : "translate-y-0",
                 className || ""
