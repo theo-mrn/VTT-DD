@@ -3690,7 +3690,7 @@
             }
           }
         ],
-        "skinId": "sapphire"
+        "skinId": "kyber_bleu"
       },
       {
         "key": "infortune",
@@ -3723,7 +3723,7 @@
             }
           }
         ],
-        "skinId": "eclipse"
+        "skinId": "hyperespace"
       },
       {
         "key": "aptitude",
@@ -3769,7 +3769,7 @@
             }
           }
         ],
-        "skinId": "jade"
+        "skinId": "kyber_vert"
       },
       {
         "key": "difficulte",
@@ -3815,7 +3815,7 @@
             }
           }
         ],
-        "skinId": "amethyst"
+        "skinId": "kyber_violet"
       },
       {
         "key": "maitrise",
@@ -3883,7 +3883,7 @@
             }
           }
         ],
-        "skinId": "gold"
+        "skinId": "kyber_or"
       },
       {
         "key": "defi",
@@ -3950,7 +3950,7 @@
             }
           }
         ],
-        "skinId": "sang_ancien"
+        "skinId": "kyber_rouge"
       },
       {
         "key": "force",
@@ -4017,7 +4017,7 @@
             }
           }
         ],
-        "skinId": "silver"
+        "skinId": "esprit_force"
       }
     ],
     "rules": [

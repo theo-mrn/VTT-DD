@@ -13,7 +13,7 @@ interface ChatNotificationContextType {
 const ChatNotificationContext = createContext<ChatNotificationContextType | undefined>(undefined);
 
 export function ChatNotificationProvider({ children }: { children: ReactNode }) {
-    const { user } = useGame();
+    const { user, playerData, isMJ } = useGame();
     const [unreadCount, setUnreadCount] = useState(0);
     const isFirstLoad = useRef(true);
 
@@ -39,18 +39,31 @@ export function ChatNotificationProvider({ children }: { children: ReactNode }) 
                 if (change.type === "added") {
                     const data = change.doc.data();
                     const isSender = data.uid === user?.uid;
-                    if (!isSender) {
-                        setUnreadCount((prev) => prev + 1);
-                        toast(data.sender ?? "Nouveau message", {
-                            description: data.text ?? "Image partagée",
-                        });
-                    }
+                    if (isSender) return;
+
+                    // Ne notifier QUE pour les messages que ce joueur a le droit de voir — même filtre de
+                    // destinataires que Chat.tsx, sans quoi la pastille et le sonner fuitaient le contenu
+                    // des messages privés à des utilisateurs non destinataires.
+                    const recipients: string[] = data.recipients || [];
+                    const isPublic = recipients.length === 0 || recipients.includes('all');
+                    const currentCharacterName = playerData?.Nomperso;
+                    const isRecipient =
+                        recipients.includes(user?.uid ?? '') ||
+                        (!!currentCharacterName && recipients.includes(currentCharacterName)) ||
+                        (isMJ && recipients.includes('MJ'));
+
+                    if (!isPublic && !isRecipient) return;
+
+                    setUnreadCount((prev) => prev + 1);
+                    toast(data.sender ?? "Nouveau message", {
+                        description: data.text ?? "Image partagée",
+                    });
                 }
             });
         });
 
         return () => unsubscribe();
-    }, [user?.roomId, user?.uid]);
+    }, [user?.roomId, user?.uid, playerData?.Nomperso, isMJ]);
 
     const clearUnread = useCallback(() => setUnreadCount(0), []);
 

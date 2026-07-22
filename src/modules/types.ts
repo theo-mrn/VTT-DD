@@ -45,6 +45,39 @@ export interface ModuleContributions {
   settings?: ModuleSettingDefinition[];
   creationTabs?: CreationTabContribution[];
   searchDrawerTabs?: SearchDrawerTabContribution[];
+  interactionGames?: InteractionGameContribution[];
+}
+
+// ─── Interaction game contributions ─────────────────────────────────
+// Un module/bundle peut fournir un MINI-JEU d'interaction complet (ex la table de sabacc du bundle
+// Star Wars) : il apparaît dans le dialogue "Ajouter une interaction" du MJ, et l'interaction créée
+// porte gameType = contribution.id — InteractionLayer rend alors le composant fourni à l'ouverture.
+
+/** Props passées par InteractionLayer au composant de jeu contribué. Le composant gère lui-même son
+ *  état partagé (ex api.sharedState pour un script de bundle, clé dérivée d'interactionId). */
+export interface InteractionGameProps {
+  isOpen: boolean;
+  onClose: () => void;
+  /** Id de l'interaction (stable) — sert de clé d'état partagé pour la table de jeu. */
+  interactionId: string;
+  interactionName: string;
+  /** Nom du PNJ/objet hôte de l'interaction. */
+  hostName: string;
+  roomId: string;
+  /** persoId du joueur courant — undefined pour un MJ sans personnage incarné. */
+  currentPlayerId?: string;
+  currentPlayerName?: string;
+  isMJ: boolean;
+}
+
+export interface InteractionGameContribution {
+  /** Valeur de GameInteraction.gameType créée par le dialogue (ex 'sabacc') — unique par jeu. */
+  id: string;
+  /** Nom affiché dans le dialogue "Ajouter une interaction" (ex "Table de Sabacc"). */
+  label: string;
+  /** Sous-titre du bouton du dialogue. */
+  description?: string;
+  component: ComponentType<InteractionGameProps>;
 }
 
 // ─── UI Contributions ───────────────────────────────────────────────

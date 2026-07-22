@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Character, Interaction, VendorInteraction, GameInteraction, LootInteraction, MapObject, LootItem } from '@/app/[roomid]/map/types';
@@ -8,6 +8,7 @@ import ShopComponent from '@/components/(interactions)/ShopComponent';
 import LootComponent from '@/components/(interactions)/LootComponent';
 import GameComponent from '@/components/(interactions)/GameComponent';
 import InteractionConfigDialog from '@/components/(dialogs)/InteractionConfigDialog';
+import { moduleRegistry } from '@/modules/registry';
 
 interface InteractionLayerProps {
     roomId: string; // Made required as it's essential for updates
@@ -32,6 +33,16 @@ export default function InteractionLayer({
     persoId,
     viewAsPersoId
 }: InteractionLayerProps) {
+
+    // Jeux d'interaction fournis par le bundle actif (ex table de sabacc Star Wars). On s'abonne au
+    // NUMÉRO DE VERSION du registry (valeur primitive stable) — getInteractionGames() reconstruit un
+    // tableau neuf à chaque appel, l'utiliser comme snapshot ferait boucler useSyncExternalStore.
+    useSyncExternalStore(
+        (cb) => moduleRegistry.subscribe(cb),
+        () => moduleRegistry.getSnapshot(),
+        () => moduleRegistry.getSnapshot(),
+    );
+    const contributedGames = moduleRegistry.getInteractionGames();
 
     const handleUpdateInteraction = async (updatedInteraction: Interaction, hostId: string) => {
         if (!roomId) return;
@@ -122,19 +133,40 @@ export default function InteractionLayer({
                 />
             )}
 
-            {/* GAME INTERACTION */}
-            {activeInteraction && activeInteraction.interaction.type === 'game' && (
-                <GameComponent
-                    isOpen={!!activeInteraction}
-                    onClose={() => setActiveInteraction(null)}
-                    interaction={activeInteraction.interaction as GameInteraction}
-                    gameHost={activeInteraction.host as Character}
-                    roomId={roomId}
-                    currentPlayerId={persoId || undefined}
-                    isMJ={isMJ}
-                    onUpdateInteraction={(updated) => handleUpdateInteraction(updated, activeInteraction.host.id)}
-                />
-            )}
+            {/* GAME INTERACTION — un gameType fourni par un bundle (ex 'sabacc') rend le composant
+                contribué ; sinon l'échiquier historique */}
+            {activeInteraction && activeInteraction.interaction.type === 'game' && (() => {
+                const gameInteraction = activeInteraction.interaction as GameInteraction;
+                const contributed = contributedGames.find((g) => g.id === gameInteraction.gameType);
+                if (contributed) {
+                    const GameUI = contributed.component;
+                    return (
+                        <GameUI
+                            isOpen={!!activeInteraction}
+                            onClose={() => setActiveInteraction(null)}
+                            interactionId={gameInteraction.id}
+                            interactionName={gameInteraction.name}
+                            hostName={activeInteraction.host.name}
+                            roomId={roomId}
+                            currentPlayerId={persoId || undefined}
+                            currentPlayerName={characters.find(c => c.id === persoId)?.name || undefined}
+                            isMJ={isMJ}
+                        />
+                    );
+                }
+                return (
+                    <GameComponent
+                        isOpen={!!activeInteraction}
+                        onClose={() => setActiveInteraction(null)}
+                        interaction={gameInteraction}
+                        gameHost={activeInteraction.host as Character}
+                        roomId={roomId}
+                        currentPlayerId={persoId || undefined}
+                        isMJ={isMJ}
+                        onUpdateInteraction={(updated) => handleUpdateInteraction(updated, activeInteraction.host.id)}
+                    />
+                );
+            })()}
 
             {/* CONFIG DIALOG (For creating NEW interactions) */}
             <InteractionConfigDialog

@@ -32,7 +32,8 @@ export interface DiceSkin {
     textureMap?: string;
     tintTexture?: boolean;        // multiply the texture by bodyColor (e.g. tint a white marble green/amber)
     // Signature procedural look, overrides the default style from effectType.
-    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison' | 'eclipse' | 'storm' | 'magma' | 'prism' | 'astral' | 'ocean' | 'scale' | 'bismuth';
+    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison' | 'eclipse' | 'storm' | 'magma' | 'prism' | 'astral' | 'ocean' | 'scale' | 'bismuth'
+        | 'kyber' | 'deathstar' | 'sith' | 'hyperspace' | 'lightside' | 'forcespirit';
     // ── ORB SKINS ──────────────────────────────────────────────
     // Only used when effectType === 'orb'. The outer shell stays transparent/glassy
     // and rolls with the physics body, while a "core" element is rendered at the
@@ -54,6 +55,287 @@ export interface DiceSkin {
 }
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
+    // ── STAR WARS (dedicated signature shaders) ─────────────────
+    kyber_bleu: {
+        id: 'kyber_bleu',
+        name: 'Cristal Kyber — Bleu',
+        bodyColor: '#0a1c3a',   // deep cool crystal glass
+        edgeColor: '#3aa8ff',   // Jedi blade blue (drives the plasma)
+        borderColor: '#bfe4ff',
+        textColor: '#eaf5ff',   // pale blue numbers
+        shadowColor: '#02060f',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'gem',
+        procStyle: 'kyber',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#3aa8ff',   // blue light cast onto the table
+        innerGlowIntensity: 0.7,
+        rimLight: true,
+        rimLightColor: '#7ac8ff',
+        particleType: 'none',
+        particleColor: '#3aa8ff',
+        particleColor2: '#eaf5ff',
+        price: 2000,
+        description: "Le cœur d'un sabre Jedi. La lame bourdonne encore, prisonnière du cristal.",
+        rarity: 'epic'
+    },
+    kyber_vert: {
+        id: 'kyber_vert',
+        name: 'Cristal Kyber — Vert',
+        bodyColor: '#0a2a16',   // deep forest crystal glass
+        edgeColor: '#3dff8a',   // green blade (drives the plasma)
+        borderColor: '#b8ffd4',
+        textColor: '#eafff2',
+        shadowColor: '#020a05',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'gem',
+        procStyle: 'kyber',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#3dff8a',
+        innerGlowIntensity: 0.7,
+        rimLight: true,
+        rimLightColor: '#8affc0',
+        particleType: 'none',
+        particleColor: '#3dff8a',
+        particleColor2: '#eafff2',
+        price: 2000,
+        description: "Taillé sur une lune oubliée. La sérénité du gardien, forgée en lame.",
+        rarity: 'epic'
+    },
+    kyber_violet: {
+        id: 'kyber_violet',
+        name: 'Cristal Kyber — Améthyste',
+        bodyColor: '#1a0a2e',   // deep violet crystal glass
+        edgeColor: '#b45cff',   // rare purple blade
+        borderColor: '#e0c0ff',
+        textColor: '#f4eaff',
+        shadowColor: '#08030f',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'gem',
+        procStyle: 'kyber',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#b45cff',
+        innerGlowIntensity: 0.7,
+        rimLight: true,
+        rimLightColor: '#d19aff',
+        particleType: 'none',
+        particleColor: '#b45cff',
+        particleColor2: '#f4eaff',
+        price: 2500,
+        description: "Une couleur qu'un seul maître osa porter. Ni tout à fait lumière, ni tout à fait ombre.",
+        rarity: 'epic'
+    },
+    kyber_rouge: {
+        id: 'kyber_rouge',
+        name: 'Cristal Kyber — Saigné',
+        bodyColor: '#2a0606',   // dark blood-crystal glass
+        edgeColor: '#ff2a1a',   // Sith synthetic-red blade
+        borderColor: '#ff9a8a',
+        textColor: '#ffe0da',
+        shadowColor: '#0a0000',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'gem',
+        procStyle: 'kyber',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ff2a1a',
+        innerGlowIntensity: 0.75,
+        rimLight: true,
+        rimLightColor: '#ff6a55',
+        particleType: 'none',
+        particleColor: '#ff2a1a',
+        particleColor2: '#ffe0da',
+        price: 2500,
+        description: "Un cristal brisé par la haine jusqu'à saigner. Sa lumière est une plaie.",
+        rarity: 'epic'
+    },
+    kyber_or: {
+        id: 'kyber_or',
+        name: 'Cristal Kyber — Or',
+        bodyColor: '#2a1e04',   // deep amber crystal glass
+        edgeColor: '#ffcf2e',   // radiant golden-yellow blade (drives the plasma)
+        borderColor: '#fff0b0',
+        textColor: '#fff8e0',
+        shadowColor: '#0f0a00',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'gem',
+        procStyle: 'kyber',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ffcf2e',   // golden light cast onto the table
+        innerGlowIntensity: 0.75,
+        rimLight: true,
+        rimLightColor: '#ffe27a',
+        particleType: 'none',
+        particleColor: '#ffcf2e',
+        particleColor2: '#fff8e0',
+        price: 2500,
+        description: "Le cristal des maîtres. Sa lame d'or ne tremble jamais — la marque du triomphe.",
+        rarity: 'epic'
+    },
+    etoile_mort: {
+        id: 'etoile_mort',
+        name: 'Étoile de la Mort',
+        bodyColor: '#7d848c',   // cold imperial hull grey
+        edgeColor: '#5aff8f',   // superlaser green
+        borderColor: '#aeb6bf',
+        textColor: '#0a0f14',   // dark numbers on the light steel
+        shadowColor: '#e8edf2', // light outline so numbers pop on grey hull
+        metalness: 0.85,
+        roughness: 0.45,        // brushed battle-station steel
+        envMapIntensity: 1.0,
+        effectType: 'metallic',
+        procStyle: 'deathstar',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#5aff8f',   // green light flares when the superlaser charges
+        innerGlowIntensity: 0.4,
+        rimLight: true,
+        rimLightColor: '#c8d0d8',
+        particleType: 'none',
+        particleColor: '#5aff8f',
+        particleColor2: '#aeb6bf',
+        price: 2500,
+        description: "Cette station de combat est votre arme ultime. Le superlaser se charge à chaque lancer.",
+        rarity: 'rare'
+    },
+    cote_obscur: {
+        id: 'cote_obscur',
+        name: 'Côté Obscur',
+        bodyColor: '#1a0608',   // corrupted black obsidian, faint crimson base
+        edgeColor: '#ff1a2a',   // dark-side crimson (Force lightning)
+        borderColor: '#ff5a4a',
+        textColor: '#ffd0cc',
+        shadowColor: '#000000',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'dark',
+        procStyle: 'sith',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ff1a2a',   // red light crawls out onto the table on each strike
+        innerGlowIntensity: 0.7,
+        rimLight: true,
+        rimLightColor: '#ff4433',
+        particleType: 'none',
+        particleColor: '#ff1a2a',
+        particleColor2: '#3a0000',
+        price: 2500,
+        description: "La Force en colère. Les éclairs rampent sous la surface, cherchant une proie.",
+        rarity: 'legendary'
+    },
+    cote_lumineux: {
+        id: 'cote_lumineux',
+        name: 'Côté Lumineux',
+        bodyColor: '#061626',   // serene deep-blue crystal glass
+        edgeColor: '#4ac8ff',   // luminous side azure (Force energy)
+        borderColor: '#a8e6ff',
+        textColor: '#eaf6ff',
+        shadowColor: '#00060f',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'dark',       // emissive-on-black path (unlit body, glowing currents)
+        procStyle: 'lightside',   // dedicated serene shader: drifting Force currents, no lightning
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#4ac8ff',   // azure light breathes out onto the table
+        innerGlowIntensity: 0.7,
+        rimLight: true,
+        rimLightColor: '#7cd6ff',
+        particleType: 'none',
+        particleColor: '#4ac8ff',
+        particleColor2: '#04213a',
+        price: 2500,
+        description: "La Force en paix. Une énergie sereine circule sous la surface, veillant sur son porteur.",
+        rarity: 'legendary'
+    },
+    esprit_force: {
+        id: 'esprit_force',
+        name: 'Esprit de la Force',
+        bodyColor: '#0a0a14',   // near-black energy body (currents glow over it)
+        edgeColor: '#ffe9b0',   // white-gold light current (drives the luminous side)
+        borderColor: '#fff4d8',
+        textColor: '#fff8ea',   // warm white numbers on the dark energy body
+        shadowColor: '#050508', // dark outline so the white numbers pop
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'dark',       // emissive-on-black path (unlit body, glowing currents)
+        procStyle: 'forcespirit', // dedicated shader: light & dark currents braided in balance
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#fff4d8',   // warm white light breathes onto the table
+        innerGlowIntensity: 0.6,
+        rimLight: true,
+        rimLightColor: '#fff4d8',
+        particleType: 'none',
+        particleColor: '#ffe9b0',
+        particleColor2: '#1a1a22',
+        price: 2500,
+        description: "La Force elle-même : lumière et ténèbres enlacées, éternellement en équilibre.",
+        rarity: 'legendary'
+    },
+    hyperespace: {
+        id: 'hyperespace',
+        name: 'Saut Hyperespace',
+        bodyColor: '#050a1a',   // near-black space
+        edgeColor: '#78b4ff',   // blue-white lightspeed tunnel
+        borderColor: '#cfe6ff',
+        textColor: '#eaf3ff',
+        shadowColor: '#01030a',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'celestial',
+        procStyle: 'hyperspace',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#78b4ff',
+        innerGlowIntensity: 0.5,
+        rimLight: true,
+        rimLightColor: '#aed2ff',
+        particleType: 'none',
+        particleColor: '#78b4ff',
+        particleColor2: '#ffffff',
+        price: 2000,
+        description: "Accroche-toi. Les étoiles s'étirent et l'univers file — c'est parti pour la vitesse-lumière.",
+        rarity: 'epic'
+    },
     // ── ORB SKINS (transparent shell + billboarded core) ────────
     aqua_orb: {
         id: 'aqua_orb',

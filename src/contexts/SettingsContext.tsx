@@ -7,6 +7,16 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useGame } from '@/contexts/GameContext';
 import { saveUserSettings } from '@/lib/saveSettings';
 import type { ThemeName } from '@/lib/saveSettings';
+import { DICE_THEMED_SOUNDS_KEY, DICE_THEMED_SOUNDS_EVENT } from '@/components/(dices)/audio';
+
+// Mirror the themed-dice-sounds preference to the plain localStorage key + event
+// that the non-React dice audio module listens to (it has no access to this
+// context or the user id).
+const syncDiceThemedSounds = (enabled: boolean) => {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem(DICE_THEMED_SOUNDS_KEY, String(enabled)); } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent(DICE_THEMED_SOUNDS_EVENT, { detail: enabled }));
+};
 
 interface SettingsContextType {
     // Cursor Settings
@@ -33,6 +43,11 @@ interface SettingsContextType {
     performanceMode: 'high' | 'eco' | 'static';
     setPerformanceMode: (mode: 'high' | 'eco' | 'static') => void;
 
+    // Audio: themed mp3 sound effects on certain dice (ambiences + one-shots).
+    // The plain roll/impact sound is unaffected and always plays.
+    diceThemedSounds: boolean;
+    setDiceThemedSounds: (enabled: boolean) => void;
+
     // UI State
     showBackgroundSelector: boolean;
     setShowBackgroundSelector: (show: boolean) => void;
@@ -58,6 +73,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const [showCharBorders, setShowCharBordersState] = useState(true);
     const [globalTokenScale, setGlobalTokenScaleState] = useState(1);
     const [performanceMode, setPerformanceModeState] = useState<'high' | 'eco' | 'static'>('high');
+    const [diceThemedSounds, setDiceThemedSoundsState] = useState(true);
     const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
     const [isHydrated, setIsHydrated] = useState(false);
 
@@ -112,6 +128,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const setShowCharBorders = (v: boolean) => updateSetting('showCharBorders', v, setShowCharBordersState, showCharBorders);
     const setGlobalTokenScale = (v: number) => updateSetting('globalTokenScale', v, setGlobalTokenScaleState, globalTokenScale);
     const setPerformanceMode = (v: 'high' | 'eco' | 'static') => updateSetting('performanceMode', v, setPerformanceModeState, performanceMode);
+    // Themed dice sounds: persist like any setting, AND mirror to the simple key
+    // + event that the non-React dice audio module (audio.ts) reads.
+    const setDiceThemedSounds = (v: boolean) => {
+        updateSetting('diceThemedSounds', v, setDiceThemedSoundsState, diceThemedSounds);
+        syncDiceThemedSounds(v);
+    };
 
     // Initial Hydration & Fetch
     useEffect(() => {
@@ -136,6 +158,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     if (settings.showCharBorders !== undefined) setShowCharBordersState(settings.showCharBorders);
                     if (settings.globalTokenScale !== undefined) setGlobalTokenScaleState(Number(settings.globalTokenScale));
                     if (settings.performanceMode !== undefined) setPerformanceModeState(settings.performanceMode);
+                    if (settings.diceThemedSounds !== undefined) { setDiceThemedSoundsState(settings.diceThemedSounds); syncDiceThemedSounds(settings.diceThemedSounds); }
                     if (settings.theme) setTheme(settings.theme);
                     // We don't set isHydrated yet, wait for Firestore to be source of truth
                 }
@@ -159,6 +182,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     if (settings.showCharBorders !== undefined) setShowCharBordersState(settings.showCharBorders);
                     if (settings.globalTokenScale !== undefined) setGlobalTokenScaleState(Number(settings.globalTokenScale));
                     if (settings.performanceMode !== undefined) setPerformanceModeState(settings.performanceMode);
+                    if (settings.diceThemedSounds !== undefined) { setDiceThemedSoundsState(settings.diceThemedSounds); syncDiceThemedSounds(settings.diceThemedSounds); }
                     if (settings.theme) setTheme(settings.theme);
 
                     // Update local storage with fresh data from source
@@ -189,6 +213,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             showCharBorders, setShowCharBorders,
             globalTokenScale, setGlobalTokenScale,
             performanceMode, setPerformanceMode,
+            diceThemedSounds, setDiceThemedSounds,
             showBackgroundSelector, setShowBackgroundSelector,
             isHydrated
         }}>

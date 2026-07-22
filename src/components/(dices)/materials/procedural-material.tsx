@@ -16,6 +16,13 @@ export const STYLE_ID: Record<string, number> = {
     ocean: 14,   // signature: living deep sea — caustics, foam, bioluminescent flash
     scale: 15,   // signature: overlapping dragon scales with organic sheen
     bismuth: 16, // signature: stepped crystal terraces with full-spectrum iridescence
+    // ── STAR WARS signature styles ──────────────────────────────
+    kyber: 17,      // living kyber crystal: white-hot core + humming plasma blade on the edges
+    deathstar: 18,  // imperial battle-station steel: panel greebles, equatorial trench, charging superlaser
+    sith: 19,       // dark-side obsidian: crawling red Force lightning + corrupted energy veins
+    hyperspace: 20, // jump to lightspeed: streaking starlines through a blue-white tunnel
+    lightside: 21,  // light-side serenity: slow drifting Force currents + a gentle passing glow wave
+    forcespirit: 22,// the Force die: white pearl holding light & dark currents in balance
 };
 
 // Default style derived from effectType (a skin can override via procStyle).
@@ -627,6 +634,327 @@ const STYLE_GLSL: Record<number, string> = {
         float filmStrength = 0.5 + 0.5 * pow(1.0 - facing, 1.4);
         col = mix(col, col * vividRainbow * 1.4, filmStrength);
     `,
+    17: /* ── SIGNATURE: KYBER (living lightsaber crystal) ── */ `
+        // A kyber crystal fused with an ignited plasma blade. The body
+        // is a faceted crystal with a white-hot core throbbing at its
+        // centre; the SILHOUETTE burns with a humming energy blade in
+        // the saber's colour (uAccent), a razor-thin incandescent line
+        // wrapped in a soft plasma glow — exactly the look of a blade
+        // edge-on. The hum modulates brightness; every few seconds the
+        // blade surges (a "kling" ignite/clash flare). All emissive so
+        // the plasma never washes out under scene light.
+        vec3 nlp = normalize(vLocalPos);
+        // Smooth sphere silhouette (0 facing camera -> 1 on the limb):
+        // varies across flat facets so the blade wraps the whole rim.
+        float silh = 1.0 - abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+        float facing = 1.0 - silh;
+
+        // ── Crystalline body: faceted internal depth (gem-style) with
+        // fibrous kyber striations running through it. ──
+        float f = fbm(p * 3.2);
+        float facet = abs(fract(f * 4.0) - 0.5);
+        // long fibrous strands along one axis (the crystal's grain)
+        float fiber = fbm(vec3(vLocalPos.x * 2.0, vLocalPos.y * 14.0, vLocalPos.z * 2.0) + f);
+        vec3 crystal = mix(uDeep, base, 0.35 + f * 0.65);
+        crystal += uAccent * smoothstep(0.09, 0.0, facet) * 0.4;      // inner facet flashes
+        crystal += uAccent * smoothstep(0.62, 0.85, fiber) * 0.25;    // crystal fibres
+
+        // ── White-hot core: a bright pulsing heart at crystal centre. ──
+        float coreDist = length(vLocalPos);
+        float heart = 0.85 + 0.15 * sin(uTime * 4.0);
+        float core = smoothstep(0.55, 0.0, coreDist) * heart;
+
+        // ── Plasma blade on the limb: a thin white-hot line inside a
+        // wider coloured glow that hugs the silhouette. ──
+        float bladeCore = pow(smoothstep(0.72, 1.0, silh), 2.2);   // hot inner line
+        float bladeGlow = pow(smoothstep(0.30, 1.0, silh), 1.6);   // soft plasma halo
+        // Audible hum: fast shimmer riding a slow breath.
+        float hum = 0.82 + 0.10 * sin(uTime * 22.0) + 0.08 * sin(uTime * 5.0);
+
+        // ── Ignite / clash surge: CPU envelope (uSurge) fires a blade
+        // flare AND the synced saber sound. ──
+        float surge = uSurge;
+
+        vec3 bladeCol = uAccent;
+        vec3 hotCol = mix(uAccent, vec3(1.0), 0.75);   // near-white plasma spine
+
+        col = crystal;
+        emissiveAccum += mix(uAccent, vec3(1.0), 0.6) * core * 0.9;              // white-hot heart
+        emissiveAccum += bladeCol * bladeGlow * hum * (0.55 + surge * 0.9);      // coloured plasma glow
+        emissiveAccum += hotCol * bladeCore * hum * (1.6 + surge * 1.4);         // incandescent blade spine
+        emissiveAccum += uAccent * facing * 0.06;                                // faint body self-glow
+    `,
+    18: /* ── SIGNATURE: DEATH STAR (imperial battle station) ── */ `
+        // A moon-sized battle station in cold imperial grey. Each face
+        // is covered in recessed panel greebles (a rectangular tech
+        // grid with darker seams), a dark equatorial trench cuts around
+        // the middle, and the concave superlaser dish charges every few
+        // seconds — a green energy well spiralling inward, then a beam
+        // flash. Body is LIT metal (scene reflections read as "steel");
+        // only the superlaser is emissive.
+        vec3 nlp = normalize(vLocalPos);
+        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+        // ── Panel greebles: nested rectangular grid, coarse blocks
+        // subdivided into finer plating, with dark recessed seams. ──
+        vec2 gp = vLocalPos.xy * 5.0 + vLocalPos.zy * 1.3;
+        vec2 g1 = abs(fract(gp) - 0.5);
+        float seam1 = smoothstep(0.5, 0.44, max(g1.x, g1.y));        // 1 inside panel -> 0 on seam
+        vec2 g2 = abs(fract(gp * 3.0) - 0.5);
+        float seam2 = smoothstep(0.5, 0.40, max(g2.x, g2.y));        // finer plating
+        // per-panel brightness jitter so plating reads as many parts
+        float panelId = hash(vec3(floor(gp), 1.0));
+        float plating = (0.78 + 0.22 * panelId) * (0.55 + 0.45 * seam1) * (0.75 + 0.25 * seam2);
+        // scattered tiny hull spec lights
+        float lights = step(0.985, hash(vec3(floor(gp * 6.0), 2.0)));
+
+        // grey hull, modelled by the plating grid
+        col = base * plating;
+        col = mix(col, uDeep, (1.0 - seam1) * 0.5);                  // dark recessed seams
+
+        // ── Equatorial trench: a dark band around the station. ──
+        float trench = smoothstep(0.05, 0.02, abs(nlp.y));
+        col = mix(col, uDeep * 0.5, trench * 0.85);
+
+        // ── Superlaser dish: a concave well on one hemisphere. Its
+        // charge cycle (green spiral -> beam flash) is driven by the
+        // CPU envelope uSurge so the sound stays synced. ──
+        vec3 dishDir = normalize(vec3(0.55, 0.62, 0.55));
+        float d = dot(nlp, dishDir);
+        float dish = smoothstep(0.80, 0.995, d);                    // the round dish area
+        float dishRim = smoothstep(0.80, 0.86, d) * (1.0 - smoothstep(0.90, 0.995, d));
+        col = mix(col, uDeep * 0.35, dish * 0.7);                   // dark recessed dish
+        col = mix(col, base * 1.2, dishRim * 0.5);                  // bright dish rim
+
+        // charge: eight focusing emitters glow, energy spirals to centre
+        float charge = uSurge;
+        float ang = atan(dot(nlp, normalize(cross(dishDir, vec3(0.0,1.0,0.0)))),
+                         dot(nlp, normalize(cross(cross(dishDir, vec3(0.0,1.0,0.0)), dishDir))));
+        float emitters = smoothstep(0.86, 0.90, d) * (0.5 + 0.5 * cos(ang * 8.0));
+        float spiral = dish * (0.5 + 0.5 * sin(ang * 3.0 - (1.0 - d) * 40.0 - uTime * 6.0));
+        vec3 laserCol = uAccent;                                    // superlaser green
+        emissiveAccum += laserCol * emitters * charge * 1.4;        // focusing emitters
+        emissiveAccum += laserCol * spiral * dish * charge * 0.8;   // inward energy spiral
+        emissiveAccum += mix(laserCol, vec3(1.0), 0.5) * smoothstep(0.90, 0.6, 1.0 - d) * dish * pow(charge, 3.0) * 2.5; // core beam flash
+    `,
+    19: /* ── SIGNATURE: SITH (dark side of the Force) ── */ `
+        // Corrupted obsidian bleeding dark-side energy. A near-black
+        // volcanic-glass body veined with dull crimson; every couple of
+        // seconds a jagged branch of Force lightning crawls across the
+        // faces (fresh random filament per strike, CPU-scheduled +
+        // synced to the crackle sound), lighting the veins from within.
+        // A slow malevolent pulse breathes red light through the body.
+        // Emissive-only lightning so the crimson never washes out.
+        vec3 nlp = normalize(vLocalPos);
+        float silh = 1.0 - abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+        // ── Obsidian body with crawling corrupted veins ──
+        float n = fbm(p * 2.6);
+        col = mix(uDeep * 0.5, base * 0.5, n * n);                  // dark glass
+        // branching crimson veins (ridged, slowly writhing)
+        float v = abs(fbm(p * 3.0 + n * 1.5 + vec3(0.0, uTime * 0.08, 0.0)) - 0.5) * 2.0;
+        float vein = smoothstep(0.14, 0.0, v);
+        float veinGlow = smoothstep(0.34, 0.02, v);
+        // malevolent breathing pulse
+        float pulse = 0.55 + 0.45 * sin(uTime * 1.3);
+        emissiveAccum += uAccent * veinGlow * (0.18 + 0.22 * pulse);   // veins smolder + breathe
+        emissiveAccum += uAccent * vein * (0.5 + 0.5 * pulse);         // bright vein cores
+
+        // ── Force lightning: two independent CPU-scheduled channels
+        // (uFlash1/2 + uSeed1/2), same tech as the storm bolts. Each
+        // strike is a fresh jagged crimson filament that also lights up
+        // the surrounding glass. ──
+        vec3 boltHot = mix(uAccent, vec3(1.0), 0.55);   // white-hot crimson core
+        float flash = 0.0;
+        for (int ch = 0; ch < 2; ch++) {
+            float env = (ch == 0) ? uFlash1 : uFlash2;
+            float sd  = (ch == 0) ? uSeed1  : uSeed2;
+            if (env > 0.004) {
+                vec3 bp = nlp * 3.0 + vec3(sd * 23.0, sd * 17.0, sd * 9.0);
+                float f1 = fbm(bp + fbm(bp * 1.8) * 1.7);
+                float bolt = smoothstep(0.03, 0.0, abs(f1 - 0.5));   // hot arc core
+                float glow = smoothstep(0.14, 0.0, abs(f1 - 0.5));   // arc halo
+                emissiveAccum += uAccent * glow * env * 1.4;
+                emissiveAccum += boltHot * bolt * env * 2.8;
+                flash = max(flash, env);
+            }
+        }
+        // whole body flares faintly with each strike + dark rim halo
+        emissiveAccum += uAccent * veinGlow * flash * 1.2;
+        emissiveAccum += uAccent * pow(silh, 2.5) * (0.15 + 0.5 * flash + 0.15 * pulse);
+    `,
+    20: /* ── SIGNATURE: HYPERSPACE (jump to lightspeed) ── */ `
+        // The view out a cockpit at lightspeed: stars stretched into
+        // long blue-white streaks radiating outward, rushing through a
+        // dark tunnel that brightens toward its centre. Between jumps
+        // the starlines flow steadily; the CPU fires an occasional
+        // "jump" flash (uSurge) where everything blooms white and the
+        // streaks stretch. Fully emissive over near-black space.
+        vec3 nlp = normalize(vLocalPos);
+        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+        // Radial coordinate from the local pole (the tunnel axis is Y):
+        // r = distance from axis, so streaks run along it and converge
+        // toward the poles like a real lightspeed tunnel.
+        float r = length(nlp.xz);
+        float ang = atan(nlp.z, nlp.x);
+
+        // ── Starlines: many angular streaks scrolling outward. Each
+        // angular bucket is a star; its brightness is a sharp ridge in
+        // the radial direction that scrolls, so stars appear to rush. ──
+        float speed = 1.6;
+        float jump = uSurge;                       // 0 normally, ->1 on a jump
+        float stretch = 1.0 + jump * 3.0;          // streaks lengthen on jump
+        // hash per angular star lane
+        float lane = floor(ang * 24.0);
+        float laneRand = hash(vec3(lane, 3.1, 7.7));
+        float laneRand2 = hash(vec3(lane, 9.3, 1.5));
+        // scrolling position of this star along the radius
+        float phase = fract(r * (2.2 / stretch) - uTime * speed * (0.6 + laneRand) - laneRand2);
+        float streak = pow(phase, 6.0 * stretch);           // sharp comet head, long tail toward centre
+        // fade streaks near the pole cores + taper at the outer rim
+        streak *= smoothstep(0.05, 0.25, r) * smoothstep(1.0, 0.6, r);
+        // fine angular thinness so lanes read as separate lines
+        float lineW = 0.5 + 0.5 * cos(ang * 24.0 * 2.0);
+        streak *= pow(lineW, 3.0);
+
+        // ── Tunnel glow: bright core at the poles fading out. ──
+        float tunnel = smoothstep(0.6, 0.0, r);
+        float centreBloom = pow(tunnel, 2.0) * (0.6 + 0.4 * sin(uTime * 3.0));
+
+        // ── Colour: cool blue tunnel -> white-hot streaks. ──
+        vec3 blue = uAccent;                                // saber/tunnel blue
+        vec3 white = mix(uAccent, vec3(1.0), 0.85);
+
+        col = uDeep * 0.1;                                   // near-black space
+        emissiveAccum += blue * tunnel * (0.35 + jump * 0.8);              // tunnel wash
+        emissiveAccum += white * centreBloom * (0.7 + jump * 1.5);         // bright vanishing point
+        emissiveAccum += mix(blue, white, 0.6) * streak * (1.6 + jump * 2.5); // rushing starlines
+        emissiveAccum += white * jump * pow(facing, 2.0) * 1.2;            // whole-view flash on jump
+    `,
+    21: /* ── SIGNATURE: LIGHT SIDE (serene living Force) ── */ `
+        // The calm counterpart to the Sith die: NO lightning, no jolts.
+        // Luminous Force currents drift slowly and fold through a clear
+        // blue crystal, a soft aura breathes at a resting pace, and
+        // every so often a gentle wave of light glides across the die
+        // (a slow swell driven by uSurge, never a flash). Everything
+        // moves slowly and additively — pure serenity. Emissive over a
+        // dark body so the currents glow softly.
+        vec3 nlp = normalize(vLocalPos);
+        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+        // ── Drifting Force currents: a slow double domain-warp so the
+        // light visibly flows and folds, but calmly (low speeds). ──
+        float t = uTime * 0.16;                       // slow, meditative
+        vec3 lp = vLocalPos * 1.4;
+        vec3 q = vec3(
+            fbm(lp + vec3(t, t * 0.5, -t * 0.3)),
+            fbm(lp + vec3(2.1 - t * 0.3, 1.4, t * 0.25)),
+            fbm(lp + vec3(-t * 0.2, 3.7, t * 0.35))
+        );
+        vec3 r = vec3(
+            fbm(lp * 1.7 + q * 2.0 + t * 0.4),
+            fbm(lp * 1.7 + q * 2.0 + 3.1 - t * 0.3),
+            fbm(lp * 1.7 + q * 2.0 + 5.7 + t * 0.2)
+        );
+        float flow = fbm(lp * 1.6 + r * 2.2);         // soft flowing field [0..1]
+
+        // Gentle luminous filaments where the currents fold — soft and
+        // wide (not sharp arcs), so they read as ribbons of light.
+        float ribbon = smoothstep(0.30, 0.02, abs(flow - 0.55));
+        float glow = smoothstep(0.45, 0.9, flow);     // broad soft luminous mass
+
+        // ── Resting breath: the whole aura swells slowly in and out. ──
+        float breath = 0.7 + 0.3 * sin(uTime * 0.9);
+
+        // ── Passing light wave: a soft band of extra brightness that
+        // glides across the die on the uSurge swell — a slow caress,
+        // not a strike. ──
+        float wave = uSurge;
+        vec3 waveDir = normalize(vec3(0.4, 0.9, 0.3));
+        float band = smoothstep(0.75, 1.0, sin(dot(nlp, waveDir) * 2.2 - uTime * 0.8) * 0.5 + 0.5);
+        float sweep = band * wave;
+
+        // ── Colour: serene azure with a soft white heart to the light. ──
+        vec3 soft = mix(uAccent, vec3(1.0), 0.35);    // gentle near-white light
+        vec3 halo = pow(1.0 - facing, 2.0) * uAccent; // calm rim aura
+
+        col = uDeep * 0.5;                             // deep-blue crystal body, dim
+        emissiveAccum += uAccent * glow * (0.30 + 0.20 * breath);   // broad soft mass
+        emissiveAccum += soft * ribbon * (0.45 + 0.25 * breath);    // luminous ribbons
+        emissiveAccum += halo * (0.35 + 0.20 * breath);             // breathing rim aura
+        emissiveAccum += soft * sweep * 0.7;                        // gentle passing wave
+    `,
+    22: /* ── SIGNATURE: FORCE SPIRIT (balance of light & dark) ── */ `
+        // The Force die: NOT a flat white ball. A dark energy core over
+        // which two luminous currents — radiant light and living shadow
+        // — VISIBLY spiral around a slowly-turning axis, braiding past
+        // each other like a double helix of Force energy. Bright, sharp,
+        // constantly moving: thin white-gold filaments coil one way, ink
+        // shadow bands coil the other, they cross at a glowing seam, and
+        // a bright heart pulses at the centre. Emissive over a near-black
+        // body so the light CLASHES against the dark instead of washing
+        // everything to milky white.
+        vec3 nlp = normalize(vLocalPos);
+        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+        // ── Rotating helix frame. Pick a spin axis that precesses so the
+        // whole braid slowly tumbles; measure each point's angle around
+        // it and its height along it. ──
+        float t = uTime;
+        vec3 axis = normalize(vec3(sin(t * 0.25) * 0.5, 1.0, cos(t * 0.25) * 0.5));
+        vec3 up = abs(axis.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        vec3 e1 = normalize(cross(axis, up));
+        vec3 e2 = cross(axis, e1);
+        float ang = atan(dot(nlp, e2), dot(nlp, e1));   // -PI..PI around the axis
+        float h = dot(nlp, axis);                        // -1..1 along the axis
+
+        // ── The helix: phase winds with BOTH angle and height, and
+        // scrolls in time so the currents visibly travel around the die.
+        // A little fbm warp keeps it organic (energy, not a barber pole). ──
+        float warp = fbm(nlp * 3.0 + vec3(0.0, t * 0.4, 0.0)) - 0.5;
+        float helix = ang * 2.0 + h * 6.0 + t * 1.6 + warp * 3.0;
+        float sLight = sin(helix);            // light current wave
+        float sDark  = sin(helix + 3.14159);  // dark current, half-turn opposite
+
+        // Sharp thin strands: narrow bright bands at the wave crests.
+        float lightStrand = pow(max(sLight, 0.0), 6.0);
+        float darkStrand  = pow(max(sDark,  0.0), 5.0);
+
+        // Fine secondary filaments riding on the strands for detail.
+        float fil = pow(max(sin(helix * 3.0 - t * 2.0), 0.0), 12.0) * lightStrand;
+
+        // ── Balance breathing: which current is brighter slowly trades
+        // back and forth, but they never fully vanish (equilibrium). ──
+        float tide = 0.5 + 0.5 * sin(t * 0.5);
+        float lightAmt = mix(0.45, 1.0, tide);
+        float darkAmt  = mix(0.45, 1.0, 1.0 - tide);
+
+        // ── Glowing seam where the two currents cross (|sLight| small),
+        // a bright ribbon that snakes around the die. ──
+        float seam = smoothstep(0.12, 0.0, abs(sLight)) * smoothstep(0.12, 0.0, abs(sDark));
+
+        // ── Pulsing heart at the centre + a uSurge balance flare. ──
+        float coreDist = length(vLocalPos);
+        float heart = smoothstep(0.5, 0.0, coreDist) * (0.6 + 0.4 * sin(t * 2.2));
+        float pulse = uSurge;
+
+        // ── Colours: radiant white-gold vs. deep ink shadow. ──
+        vec3 lightCol = mix(uAccent, vec3(1.0), 0.6);   // white-gold
+        vec3 darkCol  = vec3(0.35, 0.30, 0.55);         // cold violet-ink (still visible, not pure black)
+        float fres = pow(1.0 - facing, 2.2);
+
+        // Near-black energy body so the currents pop.
+        col = vec3(0.015, 0.015, 0.03);
+
+        emissiveAccum += lightCol * lightStrand * lightAmt * 1.7;        // bright light helix
+        emissiveAccum += lightCol * fil * lightAmt * 2.2;               // sparkling fine filaments
+        emissiveAccum += darkCol  * darkStrand  * darkAmt  * 0.9;        // shadow helix (dim, cold)
+        emissiveAccum += vec3(1.0) * seam * (0.8 + 0.6 * sin(t * 3.0));  // glowing crossing seam
+        emissiveAccum += mix(lightCol, vec3(1.0), 0.5) * heart * 0.9;    // pulsing heart
+        emissiveAccum += lightCol * fres * (0.3 + 0.3 * tide);          // luminous rim
+        emissiveAccum += vec3(1.0) * pulse * (0.5 + 0.5 * lightStrand) * 1.6; // balance flare
+    `,
 };
 
 // Shared helpers + varyings + uniforms, identical for every style.
@@ -743,15 +1071,19 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
         const t = state.clock.elapsedTime;
         uniforms.uTime.value = t;
 
-        if (styleId === 10) {
-            // storm: two independent channels, random gaps -> unpredictable
+        // STORM (10) and SITH (19) both use the two-channel strike scheduler
+        // for their branching lightning. Sith strikes are a touch rarer so
+        // each crackle lands with weight. (The Light-side die is style 21 and
+        // deliberately has NO lightning — it uses the gentle surge below.)
+        if (styleId === 10 || styleId === 19) {
             const s = sched.current.strikes;
+            const isSith = styleId === 19;
             for (let ch = 0; ch < 2; ch++) {
                 const c = s[ch];
                 if (t >= c.next) {
                     c.t0 = t;
                     c.seed = Math.random();
-                    c.next = t + 0.9 + Math.random() * 2.6;
+                    c.next = t + (isSith ? 1.4 : 0.9) + Math.random() * (isSith ? 3.2 : 2.6);
                 }
                 // sharp attack, fast decay + weaker restrike
                 const dts = t - c.t0;
@@ -769,6 +1101,53 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
             }
             const dts = t - c.t0;
             uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 2.5);
+        } else if (styleId === 17) {
+            // kyber: quick saber ignite/clash flare — sharp rise, fast decay.
+            const c = sched.current.surge;
+            if (t >= c.next) {
+                c.t0 = t;
+                c.next = t + 2.5 + Math.random() * 3.5;
+            }
+            const dts = t - c.t0;
+            uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 6.0);
+        } else if (styleId === 18) {
+            // death star: long superlaser charge, then a fast beam
+            // discharge. Envelope swells over ~1.6s then snaps to a
+            // bright peak at fire time before collapsing.
+            const c = sched.current.surge;
+            if (t >= c.next) {
+                c.t0 = t;
+                c.next = t + 4.5 + Math.random() * 4;
+            }
+            const dts = t - c.t0;
+            // rise 0->1 over 1.6s (charge), hold the peak briefly (fire),
+            // then decay back to dark.
+            const charge = Math.min(Math.max(dts, 0) / 1.6, 1);
+            const fire = dts > 1.6 ? Math.exp(-(dts - 1.6) * 3.0) : 0;
+            uniforms.uSurge.value = Math.max(charge * charge * 0.7, fire);
+        } else if (styleId === 20) {
+            // hyperspace: mostly steady flow, with an occasional bright
+            // "jump" bloom that stretches the starlines.
+            const c = sched.current.surge;
+            if (t >= c.next) {
+                c.t0 = t;
+                c.next = t + 3.0 + Math.random() * 4;
+            }
+            const dts = t - c.t0;
+            uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-dts * 3.5);
+        } else if (styleId === 21 || styleId === 22) {
+            // Light-side serenity (21) and the Force-spirit balance pulse (22)
+            // share the same gentle rhythm: a slow symmetric swell (ease in AND
+            // out) spaced generously, so it reads as a calm breath — never a jolt.
+            const c = sched.current.surge;
+            if (t >= c.next) {
+                c.t0 = t;
+                c.next = t + 5.0 + Math.random() * 5.0;
+            }
+            const dts = t - c.t0;
+            // bell-shaped envelope centred ~1.1s after onset: rises softly,
+            // peaks, falls softly — never a spike.
+            uniforms.uSurge.value = dts < 0 ? 0 : Math.exp(-Math.pow((dts - 1.1) * 1.3, 2.0));
         }
     });
 
@@ -777,7 +1156,13 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
     // dark). Scene lights + envMap would wash the dark void to a pale colour, so
     // we make them effectively unlit: no reflections, fully matte, no base
     // emissive — only our procedural emissiveAccum lights them.
-    const isVoid = skin.procStyle === 'spectre' || skin.procStyle === 'poison' || skin.procStyle === 'storm' || skin.procStyle === 'astral';
+    // Star Wars emissive-on-black styles join the "void" family: their
+    // plasma/lightning/starlines must glow against a dark unlit body,
+    // never be washed out by scene lights or envMap reflections.
+    // (Death Star is deliberately NOT here — it's lit imperial steel.)
+    const isVoid = skin.procStyle === 'spectre' || skin.procStyle === 'poison' || skin.procStyle === 'storm' || skin.procStyle === 'astral'
+        || skin.procStyle === 'kyber' || skin.procStyle === 'sith' || skin.procStyle === 'hyperspace' || skin.procStyle === 'lightside'
+        || skin.procStyle === 'forcespirit';
     // Eclipse: hot-black polished body — keep a whisper of reflection for the
     // obsidian sheen, but low enough that the emissive corona always dominates.
     const isEclipse = skin.procStyle === 'eclipse';

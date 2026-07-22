@@ -46,6 +46,23 @@ const getRandomColor = () => {
     return colors[Math.floor(Math.random() * colors.length)];
 };
 
+// Égalité sur les seuls champs qui influencent le rendu (position + identité + scène). On ignore
+// délibérément `lastUpdate` : un heartbeat qui ne bouge pas le curseur ne doit pas provoquer de
+// re-render, sinon on réintroduit la boucle de mises à jour. Utilisé pour court-circuiter setCursors.
+const cursorsEqual = (a: Record<string, Cursor>, b: Record<string, Cursor>) => {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const key of aKeys) {
+        const ca = a[key];
+        const cb = b[key];
+        if (!cb) return false;
+        if (ca.x !== cb.x || ca.y !== cb.y || ca.cityId !== cb.cityId) return false;
+        if (ca.user.name !== cb.user.name || ca.user.color !== cb.user.color || ca.user.textColor !== cb.user.textColor) return false;
+    }
+    return true;
+};
+
 export const CursorManager = React.memo<CursorManagerProps>(({
     roomId,
     userId,
@@ -74,21 +91,23 @@ export const CursorManager = React.memo<CursorManagerProps>(({
 
         const unsubscribe = onValue(cursorsRef, (snapshot) => {
             const data = snapshot.val();
+            const activeCursors: Record<string, Cursor> = {};
             if (data) {
                 const now = Date.now();
-                const activeCursors: Record<string, Cursor> = {};
-
                 Object.entries(data).forEach(([key, value]: [string, any]) => {
                     const isSameScene = (value.cityId || null) === (cityId || null);
                     if (key !== userId && (now - value.lastUpdate < 30000) && isSameScene) {
                         activeCursors[key] = value;
                     }
                 });
-
-                setCursors(activeCursors);
-            } else {
-                setCursors({});
             }
+
+            // Ne remplacer le state QUE si le contenu pertinent a réellement changé. Sans ça, chaque
+            // écriture RTDB (y compris notre propre curseur, filtré ligne ~83) refait un snapshot →
+            // setCursors avec un objet neuf → re-render → l'effet de broadcast (déps `offset` recréé à
+            // chaque render du parent) se réattache et peut re-déclencher un set() → boucle infinie
+            // ("Maximum update depth exceeded").
+            setCursors((prev) => (cursorsEqual(prev, activeCursors) ? prev : activeCursors));
         });
 
         return () => unsubscribe();
