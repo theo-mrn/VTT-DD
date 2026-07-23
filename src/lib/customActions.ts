@@ -72,6 +72,7 @@ export const AVAILABLE_ACTIONS: CustomActionDef[] = [
   { id: SHORTCUT_ACTIONS.TOOL_LAYERS, label: "Calques", icon: Layers, category: "Interface & Vue" },
   { id: SHORTCUT_ACTIONS.TOOL_VIEW_MODE, label: "Vue Joueur", icon: Eye, category: "Interface & Vue", mjOnly: true },
   { id: SHORTCUT_ACTIONS.TOOL_WORLD_MAP, label: "Carte du Monde", icon: Globe, category: "Interface & Vue", mjOnly: true },
+  { id: SHORTCUT_ACTIONS.TOOL_WEATHER, label: "Météo", icon: CloudFog, category: "Interface & Vue", mjOnly: true },
 
   // --- Outils de Carte ---
   { id: SHORTCUT_ACTIONS.TOOL_PAN, label: "Déplacer la Carte (Pan)", icon: Move, category: "Outils de Carte" },

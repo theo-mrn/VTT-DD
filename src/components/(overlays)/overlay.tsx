@@ -167,7 +167,11 @@ export default function Component({ onPanelToggle }: OverlayProps) {
   // barre pour que le passage en mode saisie ne redimensionne pas le conteneur, puis on extrait la couleur
   // dominante de l'avatar pour teinter la barre (avec un texte contrasté garanti lisible).
   const openMessage = (p: Player) => {
-    if (topBarRef.current) setLockedBarWidth(topBarRef.current.offsetWidth);
+    // On fige la largeur courante, mais AU MOINS MIN_MESSAGE_WIDTH : avec peu de joueurs la barre est
+    // étroite et le champ de saisie n'aurait pas la place. On garde la largeur si elle est déjà plus grande.
+    const MIN_MESSAGE_WIDTH = 360;
+    const current = topBarRef.current?.offsetWidth ?? 0;
+    setLockedBarWidth(Math.max(current, MIN_MESSAGE_WIDTH));
     setMessageText("");
     setMessageTarget(p);
     setMessageTint(null); // repart du fond par défaut le temps de l'extraction (async)
@@ -266,11 +270,11 @@ export default function Component({ onPanelToggle }: OverlayProps) {
         return (
           <motion.div
             ref={topBarRef}
-            // Largeur FIGÉE pendant le mode message (mesurée à l'ouverture) → le conteneur ne se
-            // redimensionne pas ; toute l'animation se joue à l'intérieur (les avatars se stackent à gauche).
-            style={isMessaging && lockedBarWidth ? { width: lockedBarWidth } : undefined}
-            animate={{ backgroundColor: barBg }}
-            transition={{ duration: 0.4, ease: 'easeInOut' }}
+            // Largeur figée pendant le mode message (au moins MIN_MESSAGE_WIDTH pour laisser la place au
+            // champ). On l'anime en douceur : si la barre était plus étroite que le minimum, elle s'élargit
+            // de façon fluide plutôt que de sauter. Hors mode message, on laisse la largeur au contenu.
+            animate={{ backgroundColor: barBg, width: isMessaging && lockedBarWidth ? lockedBarWidth : 'auto' }}
+            transition={{ backgroundColor: { duration: 0.4, ease: 'easeInOut' }, width: { type: 'spring', stiffness: 240, damping: 28 } }}
             className="hidden lg:flex fixed top-4 gap-2 p-2 backdrop-blur-sm rounded-lg border border-white/10 items-center max-w-[90vw] overflow-hidden z-[90]"
           >
             {/* ── ☰ menu (toujours visible) ── */}

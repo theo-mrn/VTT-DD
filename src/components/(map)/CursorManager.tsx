@@ -82,7 +82,10 @@ export const CursorManager = React.memo<CursorManagerProps>(({
 
     // 1. Listen to cursors from Realtime Database
     useEffect(() => {
-        if (!roomId || !showOtherCursors) {
+        // userId vide (auth pas encore résolue, passé comme '' par le parent) : ne PAS écouter. Sinon le
+        // filtre `key !== userId` ci-dessous (key !== '') laisse passer NOTRE propre curseur, dont le x/y
+        // change à chaque mousemove → setCursors en boucle ("Maximum update depth exceeded").
+        if (!roomId || !userId || !showOtherCursors) {
             setCursors({});
             return;
         }

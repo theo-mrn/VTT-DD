@@ -32,6 +32,7 @@ import type {
 } from '@/app/[roomid]/map/types';
 import type { Obstacle } from '@/lib/visibility';
 import type { SharedMeasurement } from '@/app/[roomid]/map/measurements';
+import type { WeatherState } from '@/app/[roomid]/map/weather-store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ interface MapDataCallbacks {
     setPixelsPerUnit?: (v: number) => void;
     setUnitName?: (v: string) => void;
     setGlobalCityId?: (id: string | null) => void;
+    setWeather?: (w: WeatherState) => void;
     setSettingsResolved?: (v: boolean) => void;
     setCities?: (cities: any[]) => void;
     setPlayersVersion?: React.Dispatch<React.SetStateAction<number>>;
@@ -138,6 +140,16 @@ export function useMapData(
                     if (data.unitName) c.setUnitName?.(data.unitName);
                     if (data.currentCityId) {
                         c.setGlobalCityId?.(data.currentCityId);
+                    }
+                    // Météo d'ambiance (cosmétique, pilotée par le MJ). Champ absent ⇒ pas de météo :
+                    // on repasse explicitement à 'none' pour que couper l'effet côté MJ se propage.
+                    if (data.weather && typeof data.weather.type === 'string') {
+                        c.setWeather?.({
+                            type: data.weather.type,
+                            intensity: typeof data.weather.intensity === 'number' ? data.weather.intensity : 1,
+                        });
+                    } else {
+                        c.setWeather?.({ type: 'none', intensity: 0 });
                     }
                     c.setSettingsResolved?.(true);
                 }

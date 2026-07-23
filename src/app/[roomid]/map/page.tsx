@@ -70,6 +70,9 @@ import { drawMeasurements } from './renderers/measurement-renderer';
 import { drawForegroundLayers } from './renderers/foreground-renderer';
 import { isCharacterVisibleToUser as checkCharacterVisibility, isObjectVisibleToUser as checkObjectVisibility, type CharacterVisibilityContext, type VisibilityContext } from './utils/visibility-checks';
 import { getMapViewFlags, subscribeMapViewFlags } from './view-flags-store';
+import { setWeather } from './weather-store';
+import WeatherCanvas from '@/components/(map)/WeatherCanvas';
+import WeatherPicker from '@/components/(map)/WeatherPicker';
 import { setMapCharacterPositions, setMapName, setSelectedCityId as publishSelectedCityId } from './character-positions-store';
 import { setMapBackgroundSize } from './map-background-size-store';
 import { useBackgroundLoader } from '@/hooks/map/useBackgroundLoader';
@@ -400,6 +403,8 @@ export default function Component() {
 
   //  Character Bubble Menu State (emoji/texte au-dessus de son perso)
   const [bubbleMenuOpen, setBubbleMenuOpen] = useState(false);
+  // Picker météo (MJ) — ouvert/fermé par l'action TOOL_WEATHER de la Sidebar.
+  const [weatherPickerOpen, setWeatherPickerOpen] = useState(false);
 
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
   const [isRadialMenuCentered, setIsRadialMenuCentered] = useState(false);
@@ -1278,6 +1283,7 @@ export default function Component() {
     setPixelsPerUnit,
     setUnitName,
     setGlobalCityId,
+    setWeather,
     setSettingsResolved,
     setCities,
     setPlayersVersion,
@@ -2974,6 +2980,7 @@ export default function Component() {
     setIsUnifiedSearchOpen, setShowGlobalSettingsDialog,
     setMeasureMode, drawMode, setDrawMode, setPanMode, currentTool, setCurrentTool, fullMapFog,
     setBubbleMenuOpen,
+    setWeatherPickerOpen,
     handleDeleteKeyPress, saveObstacle, handleToolbarAction,
     toggleMusicPlayPause, handleFullMapFogChange, clearFog,
   });
@@ -3938,6 +3945,12 @@ export default function Component() {
               }}
             />
           )}
+          {/* Couche météo cosmétique (weather-store) — au-dessus des tokens (z3), sous la teinte de
+              vision (z11). Non bloquante. */}
+          <WeatherCanvas />
+          {/* Picker météo (MJ) — portalisé sur document.body, ouvert par l'action Sidebar « Météo ». */}
+          <WeatherPicker roomId={roomId} isMJ={isMJ} open={weatherPickerOpen} onClose={() => setWeatherPickerOpen(false)} />
+
         </div>
         {combatOpen && (
           <Combat
