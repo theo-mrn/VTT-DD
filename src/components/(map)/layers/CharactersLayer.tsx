@@ -52,6 +52,8 @@ const CharactersLayer: React.FC<CharactersLayerProps> = ({
         const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
         const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
         if (cWidth === 0 || cHeight === 0) return null;
+        // Fond vidéo (.webm) non chargé ⇒ imgWidth/Height à 0 ⇒ NaN. On saute tant que non valide.
+        if (!Number.isFinite(imgWidth) || imgWidth <= 0 || !Number.isFinite(imgHeight) || imgHeight <= 0) return null;
 
         // Vérifier que le personnage a des coordonnées valides
         if (typeof char.x !== 'number' || typeof char.y !== 'number' || isNaN(char.x) || isNaN(char.y)) {

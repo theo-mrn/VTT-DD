@@ -157,6 +157,15 @@ export default (ctx) => {
   // version, aucun onglet séparé ni doublon.
   api.audio.setMixerPanel(makeMixerPanel(api));
 
+  // Climats météo propres à Star Wars : ajoutés au picker météo natif (MJ) tant que ce bundle est
+  // chargé. Le moteur (WeatherCanvas) sait déjà les dessiner ; ici on les rend juste sélectionnables.
+  //  - 'alert'  : vignette rouge clignotante sur les bords (alerte / branle-bas de combat).
+  //  - 'static' : brouillage des comms / interférences électromagnétiques (neige TV + scanlines).
+  api.map.registerWeather([
+    { type: 'alert', label: 'Alerte rouge', icon: 'Siren' },
+    { type: 'static', label: 'Brouillage comms', icon: 'RadioTower' },
+  ]);
+
   const isMJ = api.getGameState().isMJ;
 
   // ENREGISTREMENT UNIQUE par catégorie — register() REMPLACE chaque catégorie fournie, donc les

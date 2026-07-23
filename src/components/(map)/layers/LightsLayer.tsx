@@ -63,6 +63,10 @@ export default function LightsLayer({
         const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
         const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
         if (cWidth === 0 || cHeight === 0) return null;
+        // Fond vidéo (.webm) : videoWidth/Height valent 0 tant que les métadonnées ne sont pas
+        // chargées → scale devient Infinity et left/width/height sortent en NaN. On saute le rendu
+        // de ce point tant que les dimensions du média ne sont pas valides.
+        if (!Number.isFinite(imgWidth) || imgWidth <= 0 || !Number.isFinite(imgHeight) || imgHeight <= 0) return null;
 
         const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
         const scaledWidth = imgWidth * scale * zoom;

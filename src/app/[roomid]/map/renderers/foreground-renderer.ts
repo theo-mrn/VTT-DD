@@ -194,6 +194,19 @@ export function drawForegroundLayers(
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Fond vidéo (.webm) : videoWidth/Height valent 0 tant que les métadonnées ne sont pas chargées ;
+  // dériver la géométrie de dimensions nulles produit des Infinity/NaN (createRadialGradient crashe,
+  // LightsLayer reçoit des width/height NaN). On saute cette frame : le prochain rendu, une fois le
+  // média prêt, dessinera correctement. Couvre aussi un conteneur pas encore mesuré.
+  if (
+    !Number.isFinite(imgWidth) || imgWidth <= 0 ||
+    !Number.isFinite(imgHeight) || imgHeight <= 0 ||
+    !Number.isFinite(containerWidth) || containerWidth <= 0 ||
+    !Number.isFinite(containerHeight) || containerHeight <= 0
+  ) {
+    return;
+  }
+
   const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
   const scaledWidth = imgWidth * scale * zoom;
   const scaledHeight = imgHeight * scale * zoom;

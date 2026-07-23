@@ -6,7 +6,7 @@
 // La météo est purement cosmétique : une couche de particules (pluie/neige) ou de nappes (brouillard)
 // posée au-dessus des canvas de carte, non bloquante. Elle ne modifie aucune règle de jeu ni la vision.
 
-export type WeatherType = 'none' | 'rain' | 'snow' | 'fog';
+export type WeatherType = 'none' | 'rain' | 'snow' | 'fog' | 'sandstorm' | 'alert' | 'static';
 
 export interface WeatherState {
   type: WeatherType;

@@ -32,6 +32,7 @@ import {
     Sparkles,
     Check,
     Cloud,
+    CloudFog,
     Lightbulb,
     Search,
     Hexagon,
@@ -98,6 +99,7 @@ export const TOOLS = {
     ZOOM_IN: 'zoom_in',
     ZOOM_OUT: 'zoom_out',
     WORLD_MAP: 'world_map',
+    WEATHER: 'weather',  // Météo d'ambiance de la scène (MJ)
 
     // Content
     ADD_CHAR: 'add_char',
@@ -705,6 +707,12 @@ function MapToolbar({
                                             isActive={activeTools.includes(TOOLS.BACKGROUND_EDIT)}
                                         />
                                     </div>
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.WEATHER}
+                                        icon={CloudFog}
+                                        label="Météo de la scène"
+                                        isActive={activeTools.includes(TOOLS.WEATHER)}
+                                    />
                                 </>
                             )}
                         </div>

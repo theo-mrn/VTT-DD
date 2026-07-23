@@ -7,6 +7,8 @@ import type { ComponentType } from 'react';
 import type { MapViewFlags } from '@/app/[roomid]/map/view-flags-store';
 import type { MapCharacterPosition } from '@/app/[roomid]/map/character-positions-store';
 import type { MapOverlayOption } from '@/app/[roomid]/map/map-overlay-store';
+import type { WeatherType } from '@/app/[roomid]/map/weather-store';
+import type { WeatherClimateOption } from '@/app/[roomid]/map/weather-climates-store';
 
 // Types du runtime des scripts de bundle (scripts/main.tsx d'un zip de règles). Le point d'entrée
 // exporte par défaut une fonction register : `export default (ctx: BundleScriptContext) => void`.
@@ -96,6 +98,14 @@ export interface BundleScriptAPI extends ModuleAPI {
     setMeasurement: (m: { id: string; x: number; y: number; radius: number; color?: string }) => Promise<void>;
     /** Efface un gabarit posé par setMeasurement (no-op s'il n'existe déjà plus). */
     clearMeasurement: (id: string) => Promise<void>;
+    /** Déclare des climats météo SUPPLÉMENTAIRES proposés dans le picker météo natif (MJ) — en plus
+     *  des climats génériques. Le moteur de rendu (WeatherCanvas) sait déjà dessiner ces types ; les
+     *  déclarer ici les rend juste sélectionnables tant que ce bundle est chargé (ex 'alert' /
+     *  'static' pour Star Wars). Remplacement complet, vidé au déchargement du bundle. */
+    registerWeather: (climates: WeatherClimateOption[]) => void;
+    /** Applique un climat météo à la scène courante (même effet que le picker : synchro par scène,
+     *  MJ→joueurs). `type` doit être un WeatherType rendu par WeatherCanvas. intensity ∈ [0..1]. */
+    setWeather: (weather: { type: WeatherType; intensity: number }) => void;
   };
   /** Petit état PARTAGÉ de salle pour les scripts (RTDB rooms/{roomId}/bundleState/{key}) —
    *  synchronisé en temps réel entre TOUS les clients, contrairement à getData (instantané au

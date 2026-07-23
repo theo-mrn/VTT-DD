@@ -59,7 +59,6 @@ export const SHORTCUT_ACTIONS = {
     TOOL_ZOOM_IN: 'tool_zoom_in',
     TOOL_ZOOM_OUT: 'tool_zoom_out',
     TOOL_WORLD_MAP: 'tool_world_map',
-    TOOL_WEATHER: 'tool_weather', // Météo d'ambiance (MJ) — ouvre le picker pluie/neige/brouillard
     TOOL_ADD_CHAR: 'tool_add_char',
     TOOL_ADD_OBJ: 'tool_add_obj',
     TOOL_ADD_NOTE: 'tool_add_note',
