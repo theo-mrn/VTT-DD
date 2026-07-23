@@ -73,9 +73,6 @@ export interface UseKeyboardShortcutsParams {
   // Setters - character bubble menu
   setBubbleMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
 
-  // Setter - picker météo (MJ) : l'action TOOL_WEATHER l'ouvre/ferme (toggle)
-  setWeatherPickerOpen: React.Dispatch<React.SetStateAction<boolean>>;
-
   // Callbacks
   handleDeleteKeyPress: () => void;
   saveObstacle: (
@@ -137,7 +134,6 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
     setCurrentTool,
     fullMapFog,
     setBubbleMenuOpen,
-    setWeatherPickerOpen,
     handleDeleteKeyPress,
     saveObstacle,
     handleToolbarAction,
@@ -212,7 +208,6 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_BACKGROUND, () => handleToolbarAction(TOOLS.BACKGROUND)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_VIEW_MODE, () => handleToolbarAction(TOOLS.VIEW_MODE)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_WORLD_MAP, () => handleToolbarAction(TOOLS.WORLD_MAP)),
-      onActionTriggered(SHORTCUT_ACTIONS.TOOL_WEATHER, () => setWeatherPickerOpen(o => !o)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_PAN, () => handleToolbarAction(TOOLS.PAN)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_MEASURE, () => handleToolbarAction(TOOLS.MEASURE)),
       onActionTriggered(SHORTCUT_ACTIONS.TOOL_DRAW, () => handleToolbarAction(TOOLS.DRAW)),
@@ -248,7 +243,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
   }, [
     onActionTriggered, undo, redo, setShowGlobalSettingsDialog, persoId, setBubbleMenuOpen,
     handleToolbarAction, drawMode, setDrawMode, currentTool, setCurrentTool, toggleMusicPlayPause,
-    fullMapFog, handleFullMapFogChange, clearFog, toggleVisionBoost, setWeatherPickerOpen,
+    fullMapFog, handleFullMapFogChange, clearFog, toggleVisionBoost,
   ]);
 
   // -------------------------------------------------------

@@ -76,6 +76,8 @@ export default function PortalsLayer({
         const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
         const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
         if (cWidth === 0 || cHeight === 0) return null;
+        // Fond vidéo (.webm) non chargé ⇒ imgWidth/Height à 0 ⇒ NaN. On saute tant que non valide.
+        if (!Number.isFinite(imgWidth) || imgWidth <= 0 || !Number.isFinite(imgHeight) || imgHeight <= 0) return null;
 
         const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
         const scaledWidth = imgWidth * scale * zoom;

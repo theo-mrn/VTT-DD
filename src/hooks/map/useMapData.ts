@@ -141,16 +141,9 @@ export function useMapData(
                     if (data.currentCityId) {
                         c.setGlobalCityId?.(data.currentCityId);
                     }
-                    // Météo d'ambiance (cosmétique, pilotée par le MJ). Champ absent ⇒ pas de météo :
-                    // on repasse explicitement à 'none' pour que couper l'effet côté MJ se propage.
-                    if (data.weather && typeof data.weather.type === 'string') {
-                        c.setWeather?.({
-                            type: data.weather.type,
-                            intensity: typeof data.weather.intensity === 'number' ? data.weather.intensity : 1,
-                        });
-                    } else {
-                        c.setWeather?.({ type: 'none', intensity: 0 });
-                    }
+                    // NB : la météo n'est PAS lue ici. Elle est portée par l'effet [roomId, selectedCityId] :
+                    // scène active ⇒ cities/{sceneId}.weather ; sans scène ⇒ un listener settings/general
+                    // dédié dans la branche « pas de scène ». Ainsi elle suit toujours la scène courante.
                     c.setSettingsResolved?.(true);
                 }
             ));
@@ -254,8 +247,19 @@ export function useMapData(
                                 c.setBackgroundImage?.(null);
                                 c.setBgImageObject?.(null);
                             }
+                            // Météo propre à la scène. Champ absent ⇒ 'none' (couper la météo côté MJ
+                            // efface le champ / le remet à none et ça se propage).
+                            if (data.weather && typeof data.weather.type === 'string') {
+                                c.setWeather?.({
+                                    type: data.weather.type,
+                                    intensity: typeof data.weather.intensity === 'number' ? data.weather.intensity : 1,
+                                });
+                            } else {
+                                c.setWeather?.({ type: 'none', intensity: 0 });
+                            }
                         } else {
                             c.setCurrentScene?.(null);
+                            c.setWeather?.({ type: 'none', intensity: 0 });
                         }
                     }
                 ));
@@ -268,6 +272,24 @@ export function useMapData(
                     (docSnap) => {
                         if (docSnap.exists() && docSnap.data().url) {
                             cb.current.setBackgroundImage?.(docSnap.data().url);
+                        }
+                    }
+                ));
+            }
+            // Météo du FOND GLOBAL (pas de scène) : listener dédié dans cet effet, keyé sur
+            // selectedCityId, donc rétabli dès qu'on revient au fond global.
+            if (cb.current.setWeather) {
+                unsubs.push(onSnapshot(
+                    doc(db, 'cartes', roomId, 'settings', 'general'),
+                    (docSnap) => {
+                        const w = docSnap.exists() ? docSnap.data().weather : null;
+                        if (w && typeof w.type === 'string') {
+                            cb.current.setWeather?.({
+                                type: w.type,
+                                intensity: typeof w.intensity === 'number' ? w.intensity : 1,
+                            });
+                        } else {
+                            cb.current.setWeather?.({ type: 'none', intensity: 0 });
                         }
                     }
                 ));

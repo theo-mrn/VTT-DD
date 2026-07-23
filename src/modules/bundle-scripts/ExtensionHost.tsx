@@ -11,6 +11,8 @@ import { setMapViewFlags, resetMapViewFlags, getMapViewFlags } from '@/app/[room
 import { getMapCharacterPositions, subscribeMapCharacterPositions, getMapName, getSelectedCityId } from '@/app/[roomid]/map/character-positions-store';
 import { getMapBackgroundSize, subscribeMapBackgroundSize } from '@/app/[roomid]/map/map-background-size-store';
 import { setMapOverlays } from '@/app/[roomid]/map/map-overlay-store';
+import { setWeather as setWeatherStore } from '@/app/[roomid]/map/weather-store';
+import { setWeatherClimates } from '@/app/[roomid]/map/weather-climates-store';
 import { setSheetBackgroundOptions } from '@/app/[roomid]/map/sheet-background-store';
 import { setAudioMixerPanelOverride } from '@/app/[roomid]/map/audio-mixer-store';
 import { executeBundleEntry } from './linker';
@@ -199,6 +201,22 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
             return rtdbSet(dbRef(realtimeDb, `rooms/${roomId}/measurements/${m.id}`), measurement).then(() => {});
           },
           clearMeasurement: (id) => rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/measurements/${id}`)).then(() => {}),
+          registerWeather: (climates) => { if (!cancelled) setWeatherClimates(climates ?? []); },
+          setWeather: (weather) => {
+            if (cancelled) return;
+            const type = weather?.type ?? 'none';
+            const intensity = typeof weather?.intensity === 'number' ? weather.intensity : 1;
+            // Optimiste (comme le picker), puis persistance par scène : scène active ⇒
+            // cities/{sceneId}.weather, sinon fond global ⇒ settings/general.weather.
+            setWeatherStore({ type, intensity });
+            const sceneId = getSelectedCityId();
+            const ref = sceneId
+              ? doc(db, 'cartes', roomId, 'cities', sceneId)
+              : doc(db, 'cartes', roomId, 'settings', 'general');
+            setDoc(ref, { weather: { type, intensity } }, { merge: true }).catch((e) =>
+              console.error('[bundle] setWeather échec', e),
+            );
+          },
         },
         sheet: {
           setBackgrounds: setSheetBackgroundOptions,
@@ -312,6 +330,7 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
       resetMapViewFlags();
       setSheetBackgroundOptions([]);
       setMapOverlays([]);
+      setWeatherClimates([]); // les climats bundle (ex 'alert'/'static') quittent le picker
       setAudioMixerPanelOverride(null);
     };
   }, [roomId, contentPath, systemId, isLoading]);

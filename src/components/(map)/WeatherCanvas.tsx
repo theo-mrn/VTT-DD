@@ -63,11 +63,36 @@ function makeFogBlobs(w: number, h: number): FogBlob[] {
   return blobs;
 }
 
+/** (Re)génère un petit buffer de bruit TV (gris) dans `canvas`, réutilisé et étiré à l'écran pour
+ *  l'effet 'static'. Taille volontairement modeste (perf) : agrandi, ça donne un grain de parasites
+ *  crédible sans coût par pixel plein écran. `alpha` (0..1) module l'opacité des grains. */
+function regenNoise(canvas: HTMLCanvasElement, alpha: number): void {
+  const NW = 160, NH = 90; // buffer basse résolution (16:9)
+  if (canvas.width !== NW) canvas.width = NW;
+  if (canvas.height !== NH) canvas.height = NH;
+  const nctx = canvas.getContext("2d");
+  if (!nctx) return;
+  const img = nctx.createImageData(NW, NH);
+  const d = img.data;
+  const a = Math.round(alpha * 255);
+  for (let i = 0; i < d.length; i += 4) {
+    const v = (Math.random() * 255) | 0; // gris aléatoire
+    d[i] = v; d[i + 1] = v; d[i + 2] = v;
+    // Grain épars : la plupart des pixels transparents, quelques-uns visibles → aspect « neige TV ».
+    d[i + 3] = Math.random() < 0.5 ? a : 0;
+  }
+  nctx.putImageData(img, 0, 0);
+}
+
 /** Nombre de particules cible pour un type/intensité/surface donnés. */
 function targetCount(type: WeatherType, intensity: number, area: number): number {
   if (type === "none" || type === "fog") return 0;
   // Densité de base par million de px², modulée par l'intensité, plafonnée.
-  const perMega = type === "rain" ? 260 : 130; // la neige est plus lente/visible → moins dense
+  // sandstorm : dense (grains fins qui filent) ; ash : clairsemé (braises qui flottent).
+  const perMega =
+    type === "rain" ? 260 :
+    type === "sandstorm" ? 320 :
+    130; // neige (plus lente/visible → moins dense)
   const raw = (area / 1_000_000) * perMega * intensity;
   return Math.min(MAX_PARTICLES, Math.round(raw));
 }
@@ -83,6 +108,20 @@ function makeParticle(type: WeatherType, w: number, h: number, intensity: number
       len: r,
       phase: Math.random() * Math.PI * 2,
       drift: 8 + Math.random() * 22,
+    };
+  }
+  if (type === "sandstorm") {
+    // Grains fins qui filent horizontalement (gauche→droite), très rapides, légère composante
+    // verticale variable pour l'aspect « rafale ».
+    const speed = 500 + Math.random() * 700 + intensity * 400; // px/s
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: speed,
+      vy: (Math.random() - 0.5) * 120, // dérive verticale douce, +/-
+      len: 6 + Math.random() * 12, // longueur du trait (traînée)
+      phase: 0,
+      drift: 0,
     };
   }
   // rain
@@ -109,6 +148,10 @@ export default function WeatherCanvas() {
   // particules neuves. Sans ça, passer de pluie à neige recycle les particules PLUIE (len 10–24) en
   // les dessinant comme des flocons → d'énormes disques blancs.
   const prevTypeRef = useRef<WeatherType>("none");
+  // Petit buffer de bruit TV pour l'effet 'static' (brouillage comms) : régénéré par lots, agrandi à
+  // l'écran. Bien moins coûteux qu'un putImageData plein écran à chaque frame.
+  const noiseCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const noiseNextAtRef = useRef<number>(0);
   const sizeRef = useRef<{ w: number; h: number; dpr: number }>({ w: 0, h: 0, dpr: 1 });
   // Dernière météo connue de la boucle : la boucle lit ce ref (pas la prop) pour ne pas se relancer
   // à chaque frame — l'effet ci-dessous le met à jour.
@@ -173,6 +216,7 @@ export default function WeatherCanvas() {
       if (type !== prevTypeRef.current) {
         particlesRef.current.length = 0;
         fogBlobsRef.current.length = 0;
+        noiseNextAtRef.current = 0; // force une régénération du grain à l'entrée de 'static'
         prevTypeRef.current = type;
       }
 
@@ -181,7 +225,7 @@ export default function WeatherCanvas() {
 
       const factor = reducedRef.current ? 0.4 : 1;
 
-      if (type === "rain" || type === "snow") {
+      if (type === "rain" || type === "snow" || type === "sandstorm") {
         // Ajuste la population de particules au type/intensité courants.
         const want = Math.round(targetCount(type, intensity, w * h) * factor);
         const arr = particlesRef.current;
@@ -204,7 +248,7 @@ export default function WeatherCanvas() {
             ctx.lineTo(p.x - p.vx * 0.02, p.y - p.len);
           }
           ctx.stroke();
-        } else {
+        } else if (type === "snow") {
           ctx.fillStyle = "rgba(255,255,255,0.85)";
           for (const p of arr) {
             p.phase += dt * 1.5;
@@ -216,6 +260,24 @@ export default function WeatherCanvas() {
             ctx.arc(p.x, p.y, p.len, 0, Math.PI * 2);
             ctx.fill();
           }
+        } else if (type === "sandstorm") {
+          // Voile ocre qui pulse : donne l'assise « air chargé de sable ».
+          const haze = (0.10 + 0.22 * intensity) * (0.7 + 0.3 * Math.sin(ts / 700)) * factor;
+          ctx.fillStyle = `rgba(196,154,86,${haze})`;
+          ctx.fillRect(0, 0, w, h);
+          // Grains fins horizontaux (traînées) couleur sable.
+          ctx.strokeStyle = "rgba(214,180,120,0.55)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (const p of arr) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            if (p.x > w + p.len) { p.x = -p.len; p.y = Math.random() * h; }
+            if (p.y > h) p.y = 0; else if (p.y < 0) p.y = h;
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x - p.len, p.y - p.vy * 0.01);
+          }
+          ctx.stroke();
         }
       } else if (type === "fog") {
         particlesRef.current.length = 0;
@@ -246,6 +308,71 @@ export default function WeatherCanvas() {
           g.addColorStop(1, "rgba(205,210,220,0)");
           ctx.fillStyle = g;
           ctx.fillRect(0, 0, w, h);
+        }
+      } else if (type === "alert") {
+        // Alerte rouge : vignette qui clignote sur les bords, dégradé propre vers l'intérieur.
+        // Pas de particules — juste un fondu radial rouge dont l'opacité pulse. Le centre reste clair
+        // (la carte doit rester lisible), seuls les bords rougeoient.
+        particlesRef.current.length = 0;
+        // Pulsation ~1 Hz (clignotement franc mais pas stroboscopique). Reste ≥ un plancher pour que
+        // l'alerte soit toujours perceptible, même au creux du clignotement.
+        const blink = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(ts / 320));
+        const peak = (0.45 + 0.45 * intensity) * blink * factor;
+        // Vignette : transparente au centre, rouge dense sur les bords. On centre le gradient et on
+        // fait démarrer le rouge assez loin (0.55) pour ne teinter que le pourtour.
+        const cx = w / 2;
+        const cy = h / 2;
+        const outer = Math.hypot(cx, cy); // atteint les coins
+        const g = ctx.createRadialGradient(cx, cy, outer * 0.45, cx, cy, outer);
+        g.addColorStop(0, "rgba(200,0,0,0)");
+        g.addColorStop(0.7, `rgba(210,15,15,${peak * 0.5})`);
+        g.addColorStop(1, `rgba(190,0,0,${peak})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      } else if (type === "static") {
+        // Brouillage comms / interférences électromagnétiques : neige TV grise + scanlines qui
+        // défilent + bandes de glitch horizontales par à-coups. Rectiligne et désaturé.
+        particlesRef.current.length = 0;
+
+        // 1) Bruit TV (buffer basse résolution régénéré ~30 fps, étiré plein écran → grain crédible).
+        //    Opacité proportionnelle à l'intensité (plancher quasi nul) pour pouvoir rester très subtil.
+        if (!noiseCanvasRef.current) noiseCanvasRef.current = document.createElement("canvas");
+        if (ts >= noiseNextAtRef.current) {
+          regenNoise(noiseCanvasRef.current, (0.02 + 0.26 * intensity) * factor);
+          noiseNextAtRef.current = ts + 33; // ~30 fps de rafraîchissement du grain
+        }
+        const prevSmoothing = ctx.imageSmoothingEnabled;
+        ctx.imageSmoothingEnabled = false; // grain net, pas flou
+        ctx.drawImage(noiseCanvasRef.current, 0, 0, w, h);
+        ctx.imageSmoothingEnabled = prevSmoothing;
+
+        // 2) Scanlines horizontales qui défilent lentement vers le bas (aspect signal rectiligne).
+        const lineGap = 3;
+        const scroll = (ts * 0.03) % lineGap;
+        ctx.strokeStyle = `rgba(150,155,160,${(0.02 + 0.12 * intensity) * factor})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let y = -scroll; y < h; y += lineGap) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+        }
+        ctx.stroke();
+
+        // 3) Bandes de glitch : quelques rectangles gris translucides qui « sautent » par à-coups,
+        //    positions dérivées du temps quantifié (changent toutes les ~120 ms, donc saccadé).
+        //    Nombre ET opacité proportionnels à l'intensité → à bas niveau, presque aucune bande.
+        const slot = Math.floor(ts / 120);
+        const bands = Math.round(intensity * 5);
+        const bandAlpha = (0.03 + 0.11 * intensity) * factor;
+        for (let i = 0; i < bands; i++) {
+          // Pseudo-aléatoire déterministe par (slot,i) : stable sur un slot, saute au suivant.
+          const r1 = ((Math.sin(slot * 12.9898 + i * 78.233) * 43758.5453) % 1 + 1) % 1;
+          const r2 = ((Math.sin(slot * 39.346 + i * 11.135) * 24634.634) % 1 + 1) % 1;
+          const by = r1 * h;
+          const bh = 2 + r2 * 14;
+          const shift = (r2 - 0.5) * 30 * intensity; // léger décalage horizontal (déchirure)
+          ctx.fillStyle = `rgba(180,185,190,${bandAlpha})`;
+          ctx.fillRect(shift, by, w, bh);
         }
       } else {
         // 'none' : on vient de clear, on stoppe la boucle.

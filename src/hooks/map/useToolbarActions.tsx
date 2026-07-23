@@ -1,11 +1,12 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, Edit, X, Eye, Pencil, Eraser, Square, Circle as CircleIcon, Slash, Ruler, Music, Hexagon, DoorOpen, ArrowDownUp } from 'lucide-react';
 import { TOOLS } from '@/components/(map)/MapToolbar';
+import { subscribeWeather, getWeather, getServerWeather } from '@/app/[roomid]/map/weather-store';
 import { SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import type { Character, SavedDrawing, MapText, DrawingTool, ViewMode, Point } from '@/app/[roomid]/map/types';
 
@@ -71,6 +72,9 @@ export interface UseToolbarActionsParams {
 
   // Background selector
   setShowBackgroundSelector: (v: boolean) => void;
+
+  // Météo (MJ) : ouvre/ferme le picker météo depuis la toolbar
+  setWeatherPickerOpen: React.Dispatch<React.SetStateAction<boolean>>;
 
   // Player view mode
   playerViewMode: boolean;
@@ -161,6 +165,9 @@ export interface UseToolbarActionsReturn {
 // ---- Hook ----
 
 export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarActionsReturn {
+  // Météo courante de la scène (weather-store) : sert à allumer le bouton Météo de la toolbar
+  // quand un effet est actif.
+  const weather = useSyncExternalStore(subscribeWeather, getWeather, getServerWeather);
   const {
     roomId, isMJ,
     drawMode, setDrawMode,
@@ -263,6 +270,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
       case TOOLS.TOGGLE_CHAR_BORDERS: p.setShowCharBorders(!p.showCharBorders); break;
       case TOOLS.LAYERS: if (p.isMJ) p.setShowLayerControl(!p.showLayerControl); break;
       case TOOLS.BACKGROUND: if (p.isMJ) p.setShowBackgroundSelector(true); break;
+      case TOOLS.WEATHER: if (p.isMJ) p.setWeatherPickerOpen(o => !o); break;
       case TOOLS.VIEW_MODE:
         if (p.isMJ) {
           if (p.playerViewMode) {
@@ -339,13 +347,14 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     if (fullMapFog === false) active.push(TOOLS.FOG_REVEAL_ALL);
     if (fullMapFog === true) active.push(TOOLS.FOG_HIDE_ALL);
     if (isMusicPlaying) active.push(TOOLS.MUSIC_PLAY_PAUSE);
+    if (weather.type !== 'none') active.push(TOOLS.WEATHER);
     return active;
   }, [
     drawMode, visibilityMode, showGrid, showCharBorders, panMode, playerViewMode,
     allyViewMode, measureMode, isMusicMode, showLayerControl, isObjectDrawerOpen,
     isNPCDrawerOpen, isSoundDrawerOpen, isUnifiedSearchOpen, portalMode, spawnPointMode,
     multiSelectMode, isBackgroundEditMode, isAudioMixerOpen, showAllBadges,
-    currentTool, fullMapFog, isMusicPlaying,
+    currentTool, fullMapFog, isMusicPlaying, weather.type,
   ]);
 
   const getToolOptionsContent = () => {

@@ -403,7 +403,7 @@ export default function Component() {
 
   //  Character Bubble Menu State (emoji/texte au-dessus de son perso)
   const [bubbleMenuOpen, setBubbleMenuOpen] = useState(false);
-  // Picker météo (MJ) — ouvert/fermé par l'action TOOL_WEATHER de la Sidebar.
+  // Picker météo (MJ) — ouvert/fermé par le bouton Météo de la MapToolbar (TOOLS.WEATHER).
   const [weatherPickerOpen, setWeatherPickerOpen] = useState(false);
 
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
@@ -2894,6 +2894,7 @@ export default function Component() {
     showLayerControl, setShowLayerControl,
     showAllBadges, setShowAllBadges,
     setShowBackgroundSelector,
+    setWeatherPickerOpen,
     playerViewMode, setPlayerViewMode,
     viewAsPersoId, setViewAsPersoId,
     allyViewMode, setAllyViewMode,
@@ -2980,7 +2981,6 @@ export default function Component() {
     setIsUnifiedSearchOpen, setShowGlobalSettingsDialog,
     setMeasureMode, drawMode, setDrawMode, setPanMode, currentTool, setCurrentTool, fullMapFog,
     setBubbleMenuOpen,
-    setWeatherPickerOpen,
     handleDeleteKeyPress, saveObstacle, handleToolbarAction,
     toggleMusicPlayPause, handleFullMapFogChange, clearFog,
   });
@@ -3948,8 +3948,9 @@ export default function Component() {
           {/* Couche météo cosmétique (weather-store) — au-dessus des tokens (z3), sous la teinte de
               vision (z11). Non bloquante. */}
           <WeatherCanvas />
-          {/* Picker météo (MJ) — portalisé sur document.body, ouvert par l'action Sidebar « Météo ». */}
-          <WeatherPicker roomId={roomId} isMJ={isMJ} open={weatherPickerOpen} onClose={() => setWeatherPickerOpen(false)} />
+          {/* Picker météo (MJ) — portalisé sur document.body, ouvert par le bouton Météo de la toolbar.
+              La météo est propre à la scène (selectedCityId) ; sans scène, elle retombe sur le fond global. */}
+          <WeatherPicker roomId={roomId} isMJ={isMJ} sceneId={selectedCityId} open={weatherPickerOpen} onClose={() => setWeatherPickerOpen(false)} />
 
         </div>
         {combatOpen && (

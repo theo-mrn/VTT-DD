@@ -1,13 +1,16 @@
 "use client";
 
 // Picker météo (MJ uniquement) — petit panneau flottant pour choisir l'ambiance de la carte
-// (Aucune / Pluie / Neige / Brouillard) et son intensité. Écrit dans cartes/{roomId}/settings/general
-// (champ weather), lu par tous via useMapData → synchro instantanée MJ→joueurs. Mise à jour optimiste
-// du weather-store local (même schéma que updateGlobalTokenScale) pour un retour immédiat côté MJ.
+// (climats NATIFS : Aucune / Pluie / Neige / Brouillard / Tempête de sable) et son intensité. Des
+// climats SUPPLÉMENTAIRES peuvent être fournis par un bundle de règles (ex 'alert'/'static' pour le
+// bundle Star Wars) via api.map.registerWeather → weather-climates-store, fusionnés ici. Écrit dans
+// cartes/{roomId}/... (champ weather), lu par tous via useMapData → synchro MJ→joueurs. Mise à jour
+// optimiste du weather-store local pour un retour immédiat côté MJ.
 
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { CloudRain, Snowflake, CloudFog, Ban, X } from "lucide-react";
+import { CloudRain, Snowflake, CloudFog, Wind, Ban, X, icons as LucideIcons } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { db, doc, setDoc } from "@/lib/firebase";
 import {
   subscribeWeather,
@@ -16,38 +19,68 @@ import {
   setWeather,
   type WeatherType,
 } from "@/app/[roomid]/map/weather-store";
+import {
+  subscribeWeatherClimates,
+  getWeatherClimates,
+  getServerWeatherClimates,
+} from "@/app/[roomid]/map/weather-climates-store";
 
-const OPTIONS: { type: WeatherType; label: string; Icon: typeof CloudRain }[] = [
+type ClimateOption = { type: WeatherType; label: string; Icon: LucideIcon };
+
+// Climats NATIFS toujours proposés (génériques, indépendants du système de règles).
+const NATIVE_OPTIONS: ClimateOption[] = [
   { type: "none", label: "Aucune", Icon: Ban },
   { type: "rain", label: "Pluie", Icon: CloudRain },
   { type: "snow", label: "Neige", Icon: Snowflake },
   { type: "fog", label: "Brouillard", Icon: CloudFog },
+  { type: "sandstorm", label: "Tempête de sable", Icon: Wind },
 ];
+
+/** Résout un nom d'icône lucide (string, fourni par le bundle) en composant, fallback CloudFog. */
+function resolveIcon(name: string | undefined): LucideIcon {
+  if (name && name in LucideIcons) return (LucideIcons as Record<string, LucideIcon>)[name];
+  return CloudFog;
+}
 
 export default function WeatherPicker({
   roomId,
   isMJ,
+  sceneId,
   open,
   onClose,
 }: {
   roomId: string;
   isMJ: boolean;
+  /** Scène active (selectedCityId) — la météo est stockée par scène. null = fond global. */
+  sceneId: string | null;
   open: boolean;
   onClose: () => void;
 }) {
   const weather = useSyncExternalStore(subscribeWeather, getWeather, getServerWeather);
+  // Climats fournis par le bundle actif (vide si aucun) → fusionnés après les natifs.
+  const bundleClimates = useSyncExternalStore(
+    subscribeWeatherClimates,
+    getWeatherClimates,
+    getServerWeatherClimates,
+  );
 
   if (!open || !isMJ) return null;
+
+  const OPTIONS: ClimateOption[] = [
+    ...NATIVE_OPTIONS,
+    ...bundleClimates.map((c) => ({ type: c.type, label: c.label, Icon: resolveIcon(c.icon) })),
+  ];
 
   const write = async (type: WeatherType, intensity: number) => {
     // Optimiste : effet immédiat côté MJ, avant l'aller-retour Firestore.
     setWeather({ type, intensity });
     try {
-      await setDoc(
-        doc(db, "cartes", roomId, "settings", "general"),
-        { weather: { type, intensity } },
-        { merge: true },
-      );
+      // Météo propre à la scène : on écrit dans le doc de la scène (cities/{sceneId}). Sans scène
+      // active, on retombe sur settings/general (fond global) — même doc que sa lecture par useMapData.
+      const ref = sceneId
+        ? doc(db, "cartes", roomId, "cities", sceneId)
+        : doc(db, "cartes", roomId, "settings", "general");
+      await setDoc(ref, { weather: { type, intensity } }, { merge: true });
     } catch (e) {
       console.error("[weather] échec d'écriture", e);
     }
@@ -113,9 +146,9 @@ export default function WeatherPicker({
               </div>
               <input
                 type="range"
-                min={0.1}
+                min={0.02}
                 max={1}
-                step={0.05}
+                step={0.02}
                 value={weather.intensity}
                 onChange={(e) => write(weather.type, parseFloat(e.target.value))}
                 className="w-full accent-[var(--accent-brown)]"
