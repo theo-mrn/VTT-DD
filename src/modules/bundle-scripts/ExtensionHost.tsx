@@ -153,6 +153,15 @@ export function ExtensionHost({ roomId }: { roomId: string | null }) {
           },
           update: (entityId, values) => updateDoc(doc(db, `Salle/${roomId}/groupEntities/${entityId}`), values),
         },
+        locations: {
+          subscribe: (cb) => {
+            const unsubscribe = onSnapshot(query(collection(db, contentPath), where('kind', '==', 'location')), (snap) => {
+              if (!cancelled) cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) })));
+            });
+            scriptSubscriptions.add(unsubscribe);
+            return () => { scriptSubscriptions.delete(unsubscribe); unsubscribe(); };
+          },
+        },
         map: {
           setViewFlags: setMapViewFlags,
           resetViewFlags: resetMapViewFlags,

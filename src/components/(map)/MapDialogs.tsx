@@ -383,6 +383,7 @@ function MapDialogs(props: MapDialogsProps) {
       {/* ── 2. Create Note Modal ── */}
       <CreateNoteModal
         isOpen={showCreateNoteModal}
+        roomId={roomId}
         onClose={() => {
           setShowCreateNoteModal(false)
           setEditingNote(null)

@@ -18,6 +18,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import RotatingEarth from '@/components/(worldmap)/RotatingEarth';
 
 // Lucide icons — expose the full set
 import * as LucideIcons from 'lucide-react';
@@ -79,6 +80,11 @@ export interface VTTModuleSDK {
     DialogTitle: typeof DialogTitle;
     DialogDescription: typeof DialogDescription;
     DialogFooter: typeof DialogFooter;
+    /** Globe 3D tournant à géographie procédurale (d3-geo + d3-contour + simplex-noise), seedée
+     *  par `seed` — même seed = même planète. Pas une primitive shadcn : exposé ici pour que les
+     *  bundles (ex système Star Wars, fiches "Planète") puissent l'utiliser sans réimplémenter de
+     *  projection/bruit dans leur sandbox limité à react/lucide-react. */
+    RotatingEarth: typeof RotatingEarth;
   };
 
   /** Lucide icons */
@@ -125,6 +131,7 @@ export function initSDK(): void {
       Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
       Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
       Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+      RotatingEarth,
     },
 
     icons: LucideIcons,

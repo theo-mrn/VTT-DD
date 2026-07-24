@@ -104,9 +104,12 @@ export function drawBackgroundLayers(
       // Utiliser la taille de police de la note ou une taille par défaut
       const fontSize = (note.fontSize || 16) * zoom * scale;
 
-      // Résoudre la police : CSS Var -> Nom réel -> Fallback
+      // Résoudre la police : CSS Var -> Nom réel -> Fallback. Les polices custom d'un système
+      // (ex Aurebesh du bundle Star Wars, cf CreateNoteModal) ne passent PAS par var(--font-xxx) —
+      // leur valeur est déjà un nom de police littéral (ex '"Aurebesh", var(--font-body)'),
+      // directement utilisable par Canvas sans passer par fontFamilyMap.
       const fontVar = note.fontFamily || 'var(--font-body)';
-      const fontFamily = fontFamilyMap[fontVar] || 'Arial';
+      const fontFamily = fontFamilyMap[fontVar] || (fontVar.startsWith('var(') ? 'Arial' : fontVar);
 
       ctx.font = `${fontSize}px ${fontFamily}`;
 
