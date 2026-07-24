@@ -4305,6 +4305,12 @@
           "family": "Orbitron",
           "src": "assets/fonts/Orbitron.woff2",
           "weight": "400 900"
+        },
+        {
+          "family": "Aurebesh",
+          "src": "assets/fonts/Aurebesh-Italic.ttf",
+          "weight": "400",
+          "style": "italic"
         }
       ]
     },

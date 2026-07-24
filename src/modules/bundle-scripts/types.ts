@@ -125,6 +125,15 @@ export interface BundleScriptAPI extends ModuleAPI {
   scenes: {
     subscribe: (cb: (data: { scenes: Array<{ id: string; name: string }>; globalSceneId: string | null }) => void) => () => void;
   };
+  /** Lieux du système actif (content docs kind:'location' — ex Planète pour Star Wars, cf
+   *  locationLabel/locationFields de GameSystemDefinition et LocationDoc). Lecture seule : ces
+   *  fiches sont éditées par le MJ via l'éditeur de règles (GameSystemManagerPanel), pas par les
+   *  scripts. Chaque doc : {id, name, description?, image?, values: Record<string,string>}. */
+  locations: {
+    /** cb reçoit tous les lieux du système actif, immédiatement puis à chaque changement. L'hôte
+     *  libère l'abonnement au déchargement du bundle. */
+    subscribe: (cb: (docs: Array<{ id: string } & Record<string, unknown>>) => void) => () => void;
+  };
   /** Entités de groupe de la salle (Salle/{roomId}/groupEntities — vaisseaux, base...). Un panneau
    *  de bundle les affiche aux joueurs (flotte acquise, catalogue) ; update sert aux actions MJ du
    *  panneau (ex basculer `acquis`) — c'est au script de gater sur getGameState().isMJ. Chaque

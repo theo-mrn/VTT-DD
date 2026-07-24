@@ -20,13 +20,14 @@
 //     4 bandes de fader verticales (LED meter + poignée à inertie) — même raccourci/bouton/toggle
 //     que le natif, mêmes canaux localStorage/CustomEvent, les volumes s'appliquent donc partout.
 //     Voir mixer.tsx.
-import { Eye, EyeOff, Radar, Scale, Rocket, Target, RadioTower, Activity, Bot, Bomb } from 'lucide-react';
+import { Eye, EyeOff, Radar, Scale, Rocket, Target, RadioTower, Activity, Bot, Bomb, Globe2 } from 'lucide-react';
 import { BACKGROUNDS } from './backgrounds';
 import { makeRadarPanel } from './radar';
 import { makeLocationOverlay } from './location';
 import { makeObligationWidget } from './obligation';
 import { makeObligationCreationTab } from './creation-obligation';
 import { makeShipsPanel } from './ships';
+import { makePlanetsPanel } from './planet';
 import { makeDeployShipsPanel } from './deploy-ships';
 import { makeCommsControl } from './comms-mj';
 import { makeScannerPanel } from './scanner';
@@ -58,7 +59,7 @@ const visionAction = (api) => ({
 });
 
 export default (ctx) => {
-  const { api } = ctx;
+  const { api, ui } = ctx;
 
   // Fonds de fiche disponibles pour tous : la fiche s'occupe du rendu, du sélecteur et de la
   // persistance par personnage. Rien à afficher côté script.
@@ -75,6 +76,16 @@ export default (ctx) => {
     label: 'Vaisseaux',
     icon: Rocket,
     component: makeShipsPanel(api),
+  };
+
+  // Onglet Planètes — pour TOUS (comme Vaisseaux) : catalogue des lieux du système (api.locations)
+  // avec globe réel (ctx.ui.RotatingEarth, fourni par l'app) pour les mondes sans illustration.
+  // Voir planet.tsx.
+  const planetsTab = {
+    id: 'sw-planets',
+    label: 'Planètes',
+    icon: Globe2,
+    component: makePlanetsPanel(api, ui),
   };
 
   // Onglet Radar — joueurs uniquement : le MJ voit déjà toute la carte, et sans personnage incarné
@@ -173,8 +184,8 @@ export default (ctx) => {
   // première). Seules les sidebarActions (vision Chiss) sont ré-enregistrées plus bas.
   ctx.register({
     sidebarTabs: isMJ
-      ? [shipsTab, scannerControlTab]
-      : [shipsTab, radarTab, scannerTab, activityTab, droidTab, bombardementTab],
+      ? [shipsTab, planetsTab, scannerControlTab]
+      : [shipsTab, planetsTab, radarTab, scannerTab, activityTab, droidTab, bombardementTab],
     searchDrawerTabs: isMJ ? [deployShipsTab] : [],
     characterWidgets: [{
       id: 'sw-obligation',

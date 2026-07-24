@@ -18,6 +18,15 @@ export const dndClassicModule: GameSystemModule = {
     creation: DND_CLASSIC_CREATION,
     combatDefenseKey: 'Defense',
     combatAttackKeys: ['Contact', 'Distance', 'Magie'],
+    // PAS de bodyFamily/titleFamily ici : ça écraserait --font-body/--font-title pour toute la
+    // salle (cf GameSystemTypography.tsx). On ne déclare que la police, pour qu'elle apparaisse
+    // comme option supplémentaire dans le sélecteur de style des notes de carte (CreateNoteModal),
+    // sans changer la typographie par défaut de dnd-classic.
+    typography: {
+      fonts: [
+        { family: 'Hobbiton Brush Hand', src: '/fonts/hobbitonbrushhand.ttf' },
+      ],
+    },
   },
 };
 
