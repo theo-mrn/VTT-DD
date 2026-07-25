@@ -79,6 +79,50 @@ const BASE_CHARACTER: CharacterState = {
   Poids: 75,
 }
 
+// Brouillon de création sauvegardé en localStorage (pas de fichier/blob : selectedImage/imagePreview
+// ne survivraient pas à une sérialisation JSON) — un refresh en cours de création ne doit pas faire
+// tout reperdre. Scopé par roomId : deux salles ne doivent jamais partager/écraser le même brouillon.
+const DRAFT_STORAGE_PREFIX = 'vtt-creation-draft:'
+
+type CreationDraft = {
+  currentTab: string
+  baseStats: Record<string, number>
+  character: CharacterState
+  customImage: string
+  activeImageSource: 'race' | 'profile' | 'custom'
+  characterVoies: Voie[]
+  characterCustomCompetences: CustomCompetence[]
+  careerSkillSelection: CareerSkillSelection | null
+  bundleDraft: Record<string, unknown>
+  statPurchases: Record<string, number>
+}
+
+function loadCreationDraft(roomId: string): CreationDraft | null {
+  try {
+    const raw = localStorage.getItem(`${DRAFT_STORAGE_PREFIX}${roomId}`)
+    return raw ? JSON.parse(raw) as CreationDraft : null
+  } catch {
+    return null
+  }
+}
+
+function saveCreationDraft(roomId: string, draft: CreationDraft) {
+  try {
+    localStorage.setItem(`${DRAFT_STORAGE_PREFIX}${roomId}`, JSON.stringify(draft))
+  } catch {
+    // Quota dépassé ou stockage indisponible (navigation privée) : le brouillon reste en mémoire,
+    // seule la persistance entre refreshs est perdue — pas bloquant pour la création en cours.
+  }
+}
+
+function clearCreationDraft(roomId: string) {
+  try {
+    localStorage.removeItem(`${DRAFT_STORAGE_PREFIX}${roomId}`)
+  } catch {
+    // ignore
+  }
+}
+
 export default function CharacterCreationPage() {
   const router = useRouter()
   // string : inclut les onglets dynamiques `bundle:{id}` contribués par le bundle de règles.
@@ -162,6 +206,43 @@ export default function CharacterCreationPage() {
   // de +1 achetés par stat avec l'XP de départ. Coût séquentiel = 10 × la valeur visée (3→5 = 40 + 50),
   // plafond CREATION_STAT_MAX (5). La valeur affichée/sauvegardée = base + modificateur racial + achats.
   const [statPurchases, setStatPurchases] = useState<Record<string, number>>({})
+
+  // Restauration du brouillon local (cf sauvegarde plus bas) — une seule fois, dès que roomId est
+  // connu. Marque statsInitialized=true quand un brouillon est trouvé : sans ça, l'effet d'init des
+  // stats par défaut (ci-dessus) écraserait aussitôt les valeurs restaurées.
+  const draftRestoredRef = useRef(false)
+  useEffect(() => {
+    if (!roomId || draftRestoredRef.current) return
+    draftRestoredRef.current = true
+    const draft = loadCreationDraft(roomId)
+    if (!draft) return
+    setCurrentTab(draft.currentTab)
+    setBaseStats(draft.baseStats)
+    setCharacter(draft.character)
+    setCustomImage(draft.customImage)
+    setActiveImageSource(draft.activeImageSource)
+    setCharacterVoies(draft.characterVoies)
+    setCharacterCustomCompetences(draft.characterCustomCompetences)
+    setCareerSkillSelection(draft.careerSkillSelection)
+    setBundleDraft(draft.bundleDraft)
+    setStatPurchases(draft.statPurchases)
+    setStatsInitialized(true)
+  }, [roomId])
+
+  // Sauvegarde automatique du brouillon à chaque changement (debounced) — tant que le personnage
+  // n'est pas encore créé (statsInitialized : pas de sauvegarde prématurée pendant le tout premier
+  // render, avant même que les stats par défaut ou un brouillon restauré aient été posés).
+  useEffect(() => {
+    if (!roomId || !statsInitialized) return
+    const timer = setTimeout(() => {
+      saveCreationDraft(roomId, {
+        currentTab, baseStats, character, customImage, activeImageSource,
+        characterVoies, characterCustomCompetences, careerSkillSelection,
+        bundleDraft, statPurchases,
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [roomId, statsInitialized, currentTab, baseStats, character, customImage, activeImageSource, characterVoies, characterCustomCompetences, careerSkillSelection, bundleDraft, statPurchases])
 
   // Valeur de départ d'une stat (avant achats) : base de l'espèce + modificateur racial.
   const statStartValue = (key: string) =>
@@ -441,6 +522,7 @@ export default function CharacterCreationPage() {
 
       // Update user's current character ID
       await setDoc(doc(db, 'users', userId), { persoId: docRef.id }, { merge: true })
+      clearCreationDraft(roomId)
       // Redirect to /map after successful creation (change page)
       toast.success("Personnage créé avec succès !")
       router.push(`/${roomId}/map`)
@@ -1088,7 +1170,10 @@ export default function CharacterCreationPage() {
                   <CareerSkillPicker
                     gameSystem={gameSystem}
                     initialCareer={character.Profile}
+                    initialSelection={careerSkillSelection}
                     onSelectionChange={setCareerSkillSelection}
+                    onFinalStepComplete={nextStep}
+                    onFirstStepBack={prevStep}
                   />
                 ) : (
                   <CompetenceCreator
@@ -1100,16 +1185,22 @@ export default function CharacterCreationPage() {
                     }}
                   />
                 )}
-                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a]">
-                  <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
-                  <Button
-                    onClick={nextStep}
-                    disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
-                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
-                  >
-                    Suivant <ChevronRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </div>
+                {/* Pour hasSkillSystem, CareerSkillPicker affiche déjà sa propre paire Précédent/Suivant
+                    qui pilote ses sous-étapes internes (Carrière→Skills→Spécialisation→Skills) et
+                    avance vers l'onglet suivant sur la dernière — une seconde paire ici dupliquait
+                    visuellement les boutons et permettait de sauter l'étape sans la valider. */}
+                {!hasSkillSystem && (
+                  <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a]">
+                    <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button
+                      onClick={nextStep}
+                      disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    >
+                      Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             {currentTab === 'stats' && renderStatsSelection()}

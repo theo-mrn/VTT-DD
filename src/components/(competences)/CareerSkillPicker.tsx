@@ -31,10 +31,22 @@ export interface CareerSkillSelection {
 const REQUIRED_CAREER_SKILLS = 4;
 const REQUIRED_SPECIALIZATION_SKILLS = 2;
 
-export default function CareerSkillPicker({ gameSystem, initialCareer, onSelectionChange }: {
+export default function CareerSkillPicker({ gameSystem, initialCareer, initialSelection, onSelectionChange, onFinalStepComplete, onFirstStepBack }: {
   gameSystem: GameSystemDefinition;
   initialCareer?: string;
+  // Sélection déjà faite précédemment dans la même session (conservée par le parent, ex restaurée
+  // depuis un brouillon local) — sans elle, revenir sur cet onglet démonte/remonte ce composant et son
+  // state interne repart de zéro alors que le parent avait toujours la vraie sélection en mémoire.
+  initialSelection?: CareerSkillSelection | null;
   onSelectionChange: (selection: CareerSkillSelection) => void;
+  // Appelé quand "Suivant" est cliqué sur la toute dernière sous-étape déjà validée — remplace la
+  // paire Précédent/Suivant dupliquée que page.tsx affichait par-dessus ce composant : une seule
+  // paire de boutons pilote maintenant à la fois les sous-étapes internes ET le passage à l'onglet
+  // de création suivant.
+  onFinalStepComplete?: () => void;
+  // Symétrique de onFinalStepComplete : "Précédent" cliqué sur la toute première sous-étape retourne
+  // à l'onglet de création précédent au lieu de rester bloqué (bouton avant désactivé à ce point).
+  onFirstStepBack?: () => void;
 }) {
   const skillLabel = gameSystem.skillLabel || 'Compétences';
   const skills = gameSystem.skills ?? [];
@@ -48,13 +60,26 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
   // Carrière (hasRaceProfileContent false), sinon le joueur choisissait deux fois la même chose.
   const externalCareer = initialCareer && careers.some((c) => c.id === initialCareer) ? initialCareer : '';
 
-  const [step, setStep] = useState<'career' | 'careerSkills' | 'specialization' | 'specializationSkills'>(
-    () => (externalCareer ? 'careerSkills' : 'career'),
-  );
-  const [career, setCareer] = useState<string>(initialCareer ?? '');
-  const [careerSkillChoices, setCareerSkillChoices] = useState<string[]>([]);
-  const [specializationId, setSpecializationId] = useState<string>('');
-  const [specializationSkillChoices, setSpecializationSkillChoices] = useState<string[]>([]);
+  const restoredCareer = initialSelection?.career || '';
+  const restoredCareerSkillChoices = initialSelection?.careerSkillChoices ?? [];
+  const restoredSpecializationId = initialSelection?.specializations?.[0] || '';
+  const restoredSpecializationSkillChoices = restoredSpecializationId
+    ? (initialSelection?.specializationSkillChoices?.[restoredSpecializationId] ?? [])
+    : [];
+
+  const [career, setCareer] = useState<string>(restoredCareer || initialCareer || '');
+  const [careerSkillChoices, setCareerSkillChoices] = useState<string[]>(restoredCareerSkillChoices);
+  const [specializationId, setSpecializationId] = useState<string>(restoredSpecializationId);
+  const [specializationSkillChoices, setSpecializationSkillChoices] = useState<string[]>(restoredSpecializationSkillChoices);
+  // Reprend à la première étape encore incomplète plutôt qu'au tout début — sans ça, revenir sur cet
+  // onglet après avoir déjà tout choisi renverrait à l'étape Carrière/Compétences alors que le parent
+  // a déjà une sélection complète en mémoire.
+  const [step, setStep] = useState<'career' | 'careerSkills' | 'specialization' | 'specializationSkills'>(() => {
+    if (!(restoredCareer || externalCareer)) return 'career';
+    if (restoredCareerSkillChoices.length < REQUIRED_CAREER_SKILLS) return 'careerSkills';
+    if (!restoredSpecializationId) return 'specialization';
+    return 'specializationSkills';
+  });
   // Aperçu de l'arbre de talents d'une spécialisation (lecture seule) — pour ne pas choisir à l'aveugle.
   const [previewSpec, setPreviewSpec] = useState<(SpecializationDoc & { id: string }) | null>(null);
   // Codex : parcourir TOUTES les spécialisations, toutes carrières confondues.
@@ -122,8 +147,14 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
     ...(availableSpecializations.length > 0 ? (['specialization', 'specializationSkills'] as const) : []),
   ];
   const stepIndex = stepsOrder.indexOf(step);
-  const goNext = () => { if (stepIndex < stepsOrder.length - 1) setStep(stepsOrder[stepIndex + 1]); };
-  const goPrev = () => { if (stepIndex > 0) setStep(stepsOrder[stepIndex - 1]); };
+  const goNext = () => {
+    if (stepIndex < stepsOrder.length - 1) setStep(stepsOrder[stepIndex + 1]);
+    else onFinalStepComplete?.();
+  };
+  const goPrev = () => {
+    if (stepIndex > 0) setStep(stepsOrder[stepIndex - 1]);
+    else onFirstStepBack?.();
+  };
 
   const canGoNext = (
     (step === 'career' && !!career) ||
@@ -250,10 +281,10 @@ export default function CareerSkillPicker({ gameSystem, initialCareer, onSelecti
       )}
 
       <div className="flex justify-between pt-4 border-t border-[#2a2a2a]">
-        <Button onClick={goPrev} variant="outline" disabled={stepIndex === 0} className="border-[#333] text-zinc-400 hover:text-white">
+        <Button onClick={goPrev} variant="outline" disabled={stepIndex === 0 && !onFirstStepBack} className="border-[#333] text-zinc-400 hover:text-white">
           <ChevronLeft className="mr-2 w-4 h-4" /> Précédent
         </Button>
-        <Button onClick={goNext} disabled={!canGoNext || stepIndex === stepsOrder.length - 1} className="bg-[#c0a080] text-black hover:bg-[#d0b090] font-bold">
+        <Button onClick={goNext} disabled={!canGoNext} className="bg-[#c0a080] text-black hover:bg-[#d0b090] font-bold">
           Suivant <ChevronRight className="ml-2 w-4 h-4" />
         </Button>
       </div>
