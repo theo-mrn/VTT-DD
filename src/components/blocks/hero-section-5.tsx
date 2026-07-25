@@ -13,15 +13,11 @@ import { signOut } from 'firebase/auth'
 import { auth, db, doc, getDoc, addDoc, collection, serverTimestamp } from '../../lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { Features1 } from '@/components/blocks/features1'
-import { Features2 } from '@/components/blocks/features2'
-import { Features3 } from '@/components/blocks/features3'
-import { Features4 } from '@/components/blocks/features4'
 import { MockupCtaSection } from '@/components/blocks/mockup-cta-section'
 import { StartCampaignSection } from '@/components/blocks/start-campaign-section'
-import { DiceSection } from '@/components/blocks/dice-section'
+import { DiceWidget } from '@/components/blocks/dice-widget'
 import { CanvaSection } from '@/components/blocks/canva'
 import { TestimonialsSection } from '@/components/ui/testimonial-v2'
-import { ShaderBackground } from '@/components/ui/hero'
 import { ImageAutoSlider } from '@/components/ui/image-auto-slider'
 import { mapImagePath } from '@/utils/imagePathMapper'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -120,29 +116,29 @@ const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, route
         <header>
             <nav
                 data-state={menuState && 'active'}
-                className="group fixed z-20 w-full pt-8">
-                <div className="mx-auto max-w-7xl px-6 lg:px-12">
+                className="group fixed z-20 w-full pt-8 pointer-events-none">
+                <div className="mx-auto max-w-7xl px-6 lg:px-12 pointer-events-none">
                     <motion.div
                         key={1}
-                        className="relative flex flex-wrap items-center justify-between gap-6 py-3 duration-200 lg:gap-0 lg:py-6">
-                        <div className="flex w-full items-center justify-between gap-12 lg:w-auto">
+                        className="relative flex flex-wrap items-center justify-between gap-6 py-3 duration-200 lg:gap-0 lg:py-6 pointer-events-none">
+                        <div className="flex w-full items-center justify-between gap-12 lg:w-auto pointer-events-none">
                             <Link
                                 href="/"
                                 aria-label="home"
-                                className="flex items-center space-x-2">
+                                className="flex items-center space-x-2 pointer-events-auto">
                                 <Logo />
                             </Link>
 
                             <button
                                 onClick={() => setMenuState(!menuState)}
                                 aria-label={menuState == true ? 'Close Menu' : 'Open Menu'}
-                                className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden">
+                                className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden pointer-events-auto">
                                 <Menu className="group-data-[state=active]:rotate-180 group-data-[state=active]:scale-0 group-data-[state=active]:opacity-0 m-auto size-6 duration-200" />
                                 <X className="group-data-[state=active]:rotate-0 group-data-[state=active]:scale-100 group-data-[state=active]:opacity-100 absolute inset-0 m-auto size-6 -rotate-180 scale-0 opacity-0 duration-200" />
                             </button>
                         </div>
 
-                        <div className="bg-[#0c0c0e] group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border border-white/10 p-6 shadow-2xl md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
+                        <div className="bg-[#0c0c0e] group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border border-white/10 p-6 shadow-2xl md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none pointer-events-auto">
                             <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
                                 {isUserLoggedIn === null ? (
                                     <div className="w-10 h-10 rounded-full bg-zinc-200/20 animate-pulse" />
@@ -207,19 +203,7 @@ export function HeroSection() {
     const router = useRouter()
     const { scrollYProgress } = useScroll()
 
-    // Pause the (WebGL) shader background once the hero is scrolled out of
-    // view: it renders behind the whole page in a fixed layer, and its two
-    // gradient passes otherwise keep burning GPU during the entire scroll —
-    // including while dice are being thrown further down the page.
     const heroRef = React.useRef<HTMLDivElement>(null)
-    const [heroInView, setHeroInView] = React.useState(true)
-    React.useEffect(() => {
-        const el = heroRef.current
-        if (!el) return
-        const observer = new IntersectionObserver(([e]) => setHeroInView(e.isIntersecting))
-        observer.observe(el)
-        return () => observer.disconnect()
-    }, [])
 
     React.useEffect(() => {
         const uid = gameUser?.uid
@@ -257,17 +241,18 @@ export function HeroSection() {
             />
             <main className="overflow-x-hidden">
 
-                <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none">
-                    <ShaderBackground paused={!heroInView} />
-                </div>
-
-                <div ref={heroRef}>
+                <div ref={heroRef} className="relative">
                     <CanvaSection onStart={handleStartAdventure} isUserLoggedIn={isUserLoggedIn} />
+                    <div
+                        className="absolute bottom-0 left-0 w-full h-[420px] pointer-events-none z-10"
+                        style={{
+                            background: 'linear-gradient(to bottom, transparent 0%, rgba(12,12,14,0.05) 15%, rgba(12,12,14,0.25) 35%, rgba(12,12,14,0.55) 55%, rgba(12,12,14,0.85) 75%, #0c0c0e 100%)'
+                        }}
+                    />
                 </div>
 
                 {/* Ancien hero (portraits flottants), conservé mais inutilisé —
-                    voir CanvaSection ci-dessus pour le hero actif. Le ShaderBackground
-                    reste utilisé plus haut comme fond de toute la page. */}
+                    voir CanvaSection ci-dessus pour le hero actif. */}
                 {false && (
                     <section className="relative min-h-screen flex items-center justify-center">
                         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -337,65 +322,17 @@ export function HeroSection() {
                     </section>
                 )}
 
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
-                <DiceSection />
-
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
                 <motion.section
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                 >
-                    <div className="lg:pt-32 lg:pb-16">
-                        <Features1 />
-                    </div>
+                    <Features1 />
                 </motion.section>
 
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
                 <motion.section
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                >
-                    <div className="lg:pb-16">
-                        <Features2 />
-                    </div>
-                </motion.section>
-
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
-                <motion.section
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                >
-                    <div className="lg:pb-16">
-                        <Features3 />
-                    </div>
-                </motion.section>
-
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
-                <motion.section
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                >
-                    <div className="lg:pb-16">
-                        <Features4 />
-                    </div>
-                </motion.section>
-
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
-                <motion.section
+                    className="bg-[#0c0c0e]"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.15 }}
@@ -404,9 +341,8 @@ export function HeroSection() {
                     <MockupCtaSection onStart={handleStartAdventure} />
                 </motion.section>
 
-                <div className="section-divider mx-auto max-w-4xl my-4" />
-
                 <motion.section
+                    className="bg-[#0c0c0e]"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.15 }}
@@ -414,7 +350,10 @@ export function HeroSection() {
                 >
                     <div className="py-16 md:py-24 space-y-10">
                         <div className="max-w-2xl mx-auto text-center px-6">
-                            <h2 className={cn("text-4xl font-semibold lg:text-5xl gold-text-gradient", aclonica.className)}>
+                            <span className={cn("inline-block text-xs md:text-sm tracking-[0.3em] uppercase text-[#c9a965]/70", aclonica.className)}>
+                                Bibliothèque
+                            </span>
+                            <h2 className={cn("mt-3 text-4xl font-semibold lg:text-5xl gold-text-gradient", aclonica.className)}>
                                 Plus de 1000 images et portraits
                             </h2>
                             <p className={cn("mt-6 text-lg text-white/60", aclonica.className)}>
@@ -425,10 +364,10 @@ export function HeroSection() {
                     </div>
                 </motion.section>
 
-                <div className="section-divider mx-auto max-w-4xl" />
-
                 <StartCampaignSection onStart={handleStartAdventure} />
             </main>
+
+            <DiceWidget />
 
             {isAuthModalOpen && (
                 <div className="fixed inset-0 z-50">

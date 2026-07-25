@@ -22,7 +22,7 @@ interface DemoCharacter {
 }
 
 const DEMO_CHARACTERS: DemoCharacter[] = [
-    { id: 'nain', name: 'Borin', path: '/Photos/Nain/Nain235.webp', x: 0.24, y: 0.46, color: '#c9a965' },
+    { id: 'nain', name: 'Borin', path: '/Photos/Nain/Nain235.webp', x: 0.44, y: 0.46, color: '#c9a965' },
     { id: 'elfe', name: 'Sylenne', path: '/Photos/Elfe/Elfe34.webp', x: 0.5, y: 0.14, color: '#8fbf9f' },
     { id: 'humain', name: 'Corvin', path: '/Photos/Humain/Humain1.webp', x: 0.72, y: 0.7, color: '#c98f65' },
     { id: 'orc', name: 'Grokk', path: '/Photos/Orc/Orc1.webp', x: 0.46, y: 0.79, color: '#8f6bc9' },
@@ -196,35 +196,37 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
                     className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 />
                 <div className="absolute inset-0 pointer-events-none bg-black/40" />
+                {/* Vignette douce sur les bords pour un rendu plus cinématique, sans assombrir le centre */}
+                <div className="absolute inset-0 pointer-events-none [box-shadow:inset_0_0_180px_60px_rgba(0,0,0,0.45)]" />
 
-                <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center pointer-events-none z-10">
+                <div className="absolute inset-0 flex flex-col items-start justify-center px-6 lg:px-16 text-left pointer-events-none z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
                     >
                         <h1 className={cn(
-                            "text-6xl md:text-7xl xl:text-9xl gold-text-gradient leading-tight",
+                            "relative text-6xl md:text-7xl xl:text-9xl leading-tight shimmer-text",
                             aclonica.className
                         )}>
                             Yner
                         </h1>
                     </motion.div>
                     <motion.p
-                        className={cn("mt-3 text-base md:text-lg text-white/70", aclonica.className)}
+                        className={cn("mt-4 max-w-md text-base md:text-lg text-white/60", aclonica.className)}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.5 }}
                     >
-                        Votre table virtuelle ultime
+                        Créez, jouez et vivez vos aventures sur une table virtuelle complète, directement dans votre navigateur.
                     </motion.p>
-
                     <motion.div
-                        className="mt-10 flex items-center justify-center pointer-events-auto"
+                        className="relative mt-10 flex items-center justify-start pointer-events-auto"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.8 }}
                     >
+                        <div className="absolute inset-0 -z-10 rounded-full bg-[#c9a965]/25 blur-2xl scale-90" />
                         <InteractiveHoverButton
                             onClick={onStart}
                             disabled={isUserLoggedIn === null}
@@ -266,7 +268,10 @@ export function CanvaSection({ onStart, isUserLoggedIn = null }: CanvaSectionPro
                             }}
                         >
                             <div
-                                className="rounded-full overflow-hidden shadow-lg"
+                                className={cn(
+                                    "rounded-full overflow-hidden shadow-lg transition-transform duration-300",
+                                    draggingId !== c.id && "token-breathe hover:scale-110"
+                                )}
                                 style={{
                                     width: TOKEN_SIZE,
                                     height: TOKEN_SIZE,

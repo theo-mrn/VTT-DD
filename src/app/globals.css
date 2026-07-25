@@ -493,9 +493,66 @@
   background-clip: text;
 }
 
+/* Reflet animé qui balaie le texte en boucle lente, façon titre "premium" */
+.shimmer-text {
+  background: linear-gradient(100deg, #c9a965 40%, #fdf6e3 50%, #c9a965 60%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer-sweep 5s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  0% { background-position: 200% center; }
+  60% { background-position: -20% center; }
+  100% { background-position: -20% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text {
+    animation: none;
+    background-position: 0% center;
+  }
+}
+
+/* Respiration douce des tokens du hero interactif — signale l'interactivité sans gêner le drag */
+.token-breathe {
+  animation: token-breathe 3.5s ease-in-out infinite;
+}
+
+@keyframes token-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-breathe {
+    animation: none;
+  }
+}
+
 .section-divider {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(201, 169, 101, 0.2), transparent);
+}
+
+/* Landing page glass surfaces */
+.glass-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-hover {
+  transition: border-color 300ms ease, box-shadow 300ms ease, transform 300ms ease;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(201, 169, 101, 0.3);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(201, 169, 101, 0.1);
+  transform: translateY(-2px);
 }
 
 /* Resize handles: remove default SVG diagonal, keep native positioning */
