@@ -96,6 +96,7 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
     const { docs: specializationDocs } = useGameContent<SpecializationDoc & { id: string }>('specialization');
     const [ref, bounds] = useMeasure();
     const [isSpecializationModalOpen, setIsSpecializationModalOpen] = useState(false);
+    const [isObligationModalOpen, setIsObligationModalOpen] = useState(false);
 
     if (!selectedCharacter) return null;
 
@@ -130,6 +131,14 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
         .map((id) => specializationDocs.find((d) => d.id === id))
         .filter((s): s is SpecializationDoc & { id: string } => !!s);
     const specializationLabel = ownedSpecializations.length > 1 ? 'Spécialisations' : 'Spécialisation';
+
+    // Obligations (EotE, cf starwars-bundle/scripts/obligation.tsx) : champ générique {value, text}[]
+    // posé par le bundle à la création — lu ici directement sur le personnage, sans dépendance au
+    // bundle, pour qu'un clic sur le total ouvre le détail texte au même endroit que Race/Spécialisation.
+    const obligations: { value: number; text: string }[] = Array.isArray(selectedCharacter.Obligations)
+        ? selectedCharacter.Obligations
+        : [];
+    const obligationTotal = obligations.reduce((s, o) => s + (Number(o?.value) || 0), 0);
 
     const renderInfo = (fieldId: string, label: string, value: React.ReactNode) => (
         <div>
@@ -178,6 +187,21 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                                     onClick={() => setIsSpecializationModalOpen(true)}
                                 >
                                     {ownedSpecializations.length} spécialisations
+                                </span>
+                            )}
+                        </div>
+                    )}
+                    {obligations.length > 0 && (
+                        <div>
+                            Obligation:{' '}
+                            {isFieldHidden('Obligations') ? (
+                                <span className="text-[color:var(--text-secondary,#a0a0a0)]">{PRIVATE_PLACEHOLDER}</span>
+                            ) : (
+                                <span
+                                    className="text-[color:var(--text-secondary,#a0a0a0)] underline cursor-pointer"
+                                    onClick={() => setIsObligationModalOpen(true)}
+                                >
+                                    {obligationTotal}
                                 </span>
                             )}
                         </div>
@@ -247,6 +271,26 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                                         <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap mt-0.5">{spec.description}</p>
                                     )}
                                 </div>
+                            </div>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal listant les Obligations (EotE) : valeur + texte de chaque entrée. */}
+            <Dialog open={isObligationModalOpen} onOpenChange={setIsObligationModalOpen}>
+                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-lg p-6 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-[var(--accent-brown)] font-bold text-xl flex items-center justify-between gap-2 pr-6">
+                            <span>Obligation</span>
+                            <span className="font-mono">{obligationTotal}</span>
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {obligations.map((ob, i) => (
+                            <div key={i} className="flex gap-3 bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <span className="font-mono font-bold text-[var(--accent-brown)] shrink-0">{ob.value}</span>
+                                <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">{ob.text || '—'}</p>
                             </div>
                         ))}
                     </div>
