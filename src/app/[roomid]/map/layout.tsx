@@ -200,7 +200,7 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* ── FRESH panels (Fiche, EncounterGenerator, Compétences) ── */}
               {showFreshPanel && (
-                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-[90] overflow-y-auto`}>
+                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-40 overflow-y-auto`}>
                   {renderFreshPanel()}
                 </aside>
               )}

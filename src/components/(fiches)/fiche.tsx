@@ -107,7 +107,7 @@ const WidgetControls: React.FC<WidgetControlsProps & { currentCols?: number }> =
   const getWidth = (fraction: number) => Math.max(1, Math.round(currentCols * fraction));
 
   return (
-    <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
+    <div className="absolute -top-9 right-0 z-40 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
       <div className="flex bg-[var(--bg-card)] border border-[var(--border-color)] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
         {onEdit && (
           <div className="flex border-r border-[var(--border-color)]">
@@ -945,7 +945,7 @@ export default function Component() {
   }
 
   const RaceAbilitiesModal: React.FC<RaceAbilitiesModalProps> = ({ abilities, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
       <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)] mb-4">Capacités Raciales</h2>
         <div className="space-y-3 sm:space-y-4">
@@ -1039,7 +1039,7 @@ export default function Component() {
   };
 
   const LevelUpConfirmationModal: React.FC<{ onClose: () => void; updatedCharacter: Character }> = ({ onClose, updatedCharacter }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
       <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center">
         <h2 className="text-xl sm:text-2xl font-bold text-[var(--accent-brown)] mb-4">Niveau Augmenté !</h2>
         <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4">
@@ -1228,7 +1228,7 @@ export default function Component() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="z-[100] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]"
+                  className="z-50 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]"
                 >
                   {(selectedCharacter.id === userPersoId || isMJ) && (
                     <>
@@ -1402,7 +1402,7 @@ export default function Component() {
 
         <div className="relative z-10 max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-6 sm:p-8 md:p-10 space-y-4 md:space-y-6" style={mainStyle}>
           {/* Gold Border with Corner Ornaments */}
-          <div className="absolute inset-2 sm:inset-4 md:inset-5 border-[3px] pointer-events-none z-10" style={{ borderColor: frameColorValue }}>
+          <div className="absolute inset-2 sm:inset-4 md:inset-5 border-[3px] pointer-events-none z-20" style={{ borderColor: frameColorValue }}>
               {/* Top Left Corner */}
               <div className="absolute -top-4 -left-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#242424]" style={mainStyle}>
                   <div className="absolute inset-0 border-[3px]" style={{ borderColor: frameColorValue }} />
@@ -1428,7 +1428,7 @@ export default function Component() {
               </div>
           </div>
 
-          <div ref={gridContainerRef} className="relative z-20 space-y-4 md:space-y-6 w-full h-full">
+          <div ref={gridContainerRef} className="relative z-30 space-y-4 md:space-y-6 w-full h-full">
           {selectedCharacter && !isEditing && (
             isLayoutEditing ? (
               <ResponsiveGridLayout
@@ -1477,13 +1477,13 @@ export default function Component() {
                   }
                 }}
               >
-                <div id="vtt-widget-avatar" key="avatar" className="relative group hover:z-[100]">
+                <div id="vtt-widget-avatar" key="avatar" className="relative group hover:z-40">
                   <WidgetControls id="avatar" updateWidgetDim={updateWidgetDim} widthMode="incremental" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetAvatar style={boxStyle} />
                   </div>
                 </div>
-                <div id="vtt-widget-details" key="details" className="relative group hover:z-[100]">
+                <div id="vtt-widget-details" key="details" className="relative group hover:z-40">
                   <WidgetControls id="details" updateWidgetDim={updateWidgetDim} widthMode="incremental" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} />
@@ -1495,7 +1495,7 @@ export default function Component() {
                   return (
                     <div
                       key={l.i}
-                      className="relative group hover:z-[100]"
+                      className="relative group hover:z-40"
                       onDragOver={(e) => { e.preventDefault(); setDragOverWidgetId(l.i); }}
                       onDragLeave={() => setDragOverWidgetId(null)}
                     >
@@ -1512,7 +1512,7 @@ export default function Component() {
                   return (
                     <div
                       key={l.i}
-                      className="relative group hover:z-[100]"
+                      className="relative group hover:z-40"
                       onDragOver={(e) => { e.preventDefault(); setDragOverWidgetId(l.i); }}
                       onDragLeave={() => setDragOverWidgetId(null)}
                     >
@@ -1529,7 +1529,7 @@ export default function Component() {
                   return (
                     <div
                       key={l.i}
-                      className="relative group hover:z-[100]"
+                      className="relative group hover:z-40"
                       onDragOver={(e) => { e.preventDefault(); setDragOverWidgetId(l.i); }}
                       onDragLeave={() => setDragOverWidgetId(null)}
                     >
@@ -1540,7 +1540,7 @@ export default function Component() {
                     </div>
                   );
                 })}
-                <div id="vtt-widget-inventory" key="inventory" className="relative group hover:z-[100]">
+                <div id="vtt-widget-inventory" key="inventory" className="relative group hover:z-40">
                   <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <InventoryManagement2
@@ -1551,7 +1551,7 @@ export default function Component() {
                     />
                   </div>
                 </div>
-                <div id="vtt-widget-skills" key="skills" className="relative group hover:z-[100]">
+                <div id="vtt-widget-skills" key="skills" className="relative group hover:z-40">
                   <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     {hasSkillSystem ? (
@@ -1574,7 +1574,7 @@ export default function Component() {
                   </div>
                 </div>
                 {hasSkillSystem && layout.find(l => l.i === 'talents') && (
-                  <div id="vtt-widget-talents" key="talents" className="relative group hover:z-[100]">
+                  <div id="vtt-widget-talents" key="talents" className="relative group hover:z-40">
                     <WidgetControls id="talents" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
                     <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <TalentsSheet
@@ -1587,7 +1587,7 @@ export default function Component() {
                   </div>
                 )}
                 {layout.find(l => l.i === 'bourse') && (
-                  <div key="bourse" className="relative group hover:z-[100]">
+                  <div key="bourse" className="relative group hover:z-40">
                     <WidgetControls id="bourse" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
                     <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <WidgetBourse style={boxStyle} />
@@ -1595,7 +1595,7 @@ export default function Component() {
                   </div>
                 )}
                 {layout.find(l => l.i === 'effects') && (
-                  <div key="effects" className="relative group hover:z-[100]">
+                  <div key="effects" className="relative group hover:z-40">
                     <WidgetControls id="effects" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
                     <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <WidgetEffects style={boxStyle} />
@@ -1611,7 +1611,7 @@ export default function Component() {
                   return (
                     <div
                       key={l.i}
-                      className="relative group hover:z-[100]"
+                      className="relative group hover:z-40"
                       onDragOver={(e) => {
                         e.preventDefault();
                         // No stopPropagation to allow RGL to track coordinates
@@ -1631,7 +1631,7 @@ export default function Component() {
                   const moduleWidget = moduleRegistry.getCharacterWidgets().find(w => `module:${w.id}` === l.i);
                   if (!moduleWidget) return null;
                   return (
-                    <div key={l.i} className="relative group hover:z-[100]">
+                    <div key={l.i} className="relative group hover:z-40">
                       <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
                       <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                         <moduleWidget.component characterId={selectedCharacter.id} roomId={roomId!} />
@@ -1990,7 +1990,7 @@ export default function Component() {
           )}
 
           {showLevelUpModal && selectedCharacter && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
               <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center">
                 <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)] mb-4">Monter de Niveau</h2>
                 <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4">Lancez un dé pour augmenter les PV Max.</p>
@@ -2024,7 +2024,7 @@ export default function Component() {
           )}
 
           {showStatistiques && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
               <div className="bg-[var(--bg-dark)] rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="sticky top-0 bg-[var(--bg-dark)] border-b border-[var(--border-color)] p-4 flex justify-between items-center z-10">
                   <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)]">Statistiques des Joueurs</h2>
@@ -2043,7 +2043,7 @@ export default function Component() {
           )}
 
           {showHistorique && selectedCharacter && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
               <div className="max-w-4xl w-full h-[85vh] flex flex-col gap-2">
                 <button
                   onClick={() => setShowHistorique(false)}
