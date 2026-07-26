@@ -426,15 +426,15 @@ export function StoreModal({
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* ===== HEADER ===== */}
-                <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]/80 backdrop-blur-md">
-                    <div className="w-10 h-10 shrink-0 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--border-color)] flex items-center justify-center">
+                <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--border-color)] backdrop-blur-md" style={{ background: 'color-mix(in srgb, var(--bg-card) 80%, transparent)' }}>
+                    <div className="w-10 h-10 shrink-0 rounded-xl border border-[var(--border-color)] flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}>
                         <Store className="w-5 h-5 text-[var(--accent-brown)]" />
                     </div>
                     <div className="min-w-0 mr-auto">
                         <div className="flex items-center gap-2">
                             <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] truncate">Boutique</h2>
                             {isPremium && (
-                                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[var(--accent-brown)]/15 border border-[var(--accent-brown)]/30 text-[10px] font-bold text-[var(--accent-brown)]">
+                                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-[var(--accent-brown)]" style={{ background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }}>
                                     <Crown className="w-3 h-3" /> Premium
                                 </span>
                             )}
@@ -445,7 +445,7 @@ export function StoreModal({
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-darker)]/60 border border-[var(--border-color)]">
+                    <div className="flex items-center gap-1 p-1 rounded-xl border border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-darker) 60%, transparent)' }}>
                         {([
                             { id: 'catalog', label: 'Catalogue', Icon: Store },
                             { id: 'inventory', label: 'Mon Sac', Icon: Backpack },
@@ -467,16 +467,16 @@ export function StoreModal({
                         ))}
                     </div>
 
-                    <button onClick={onClose} className="w-9 h-9 shrink-0 rounded-lg hover:bg-[var(--text-primary)]/10 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                    <button onClick={onClose} className="w-9 h-9 shrink-0 rounded-lg hover:bg-[color-mix(in_srgb,var(--text-primary)_10%,transparent)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* ===== TOOLBAR (search + filters) — hidden on Premium tab & detail page ===== */}
                 {activeTab !== 'premium' && !detailSkin && (
-                    <div className="shrink-0 flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
+                    <div className="shrink-0 flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-3 border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-darker) 40%, transparent)' }}>
                         {/* Search */}
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] focus-within:border-[var(--accent-brown)]/50 transition-colors sm:w-64">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] focus-within:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-colors sm:w-64">
                             <Search className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
                             <input
                                 type="text"
@@ -500,9 +500,10 @@ export function StoreModal({
                                     className={cn(
                                         'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors',
                                         filter === id
-                                            ? 'bg-[var(--text-primary)]/10 text-[var(--text-primary)]'
+                                            ? 'text-[var(--text-primary)]'
                                             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                     )}
+                                    style={filter === id ? { background: 'color-mix(in srgb, var(--text-primary) 10%, transparent)' } : undefined}
                                 >
                                     <Icon className="w-3.5 h-3.5" />
                                     {label}
@@ -514,7 +515,7 @@ export function StoreModal({
                         <div ref={rarityRef} className="relative sm:ml-auto">
                             <button
                                 onClick={() => setRarityOpen(o => !o)}
-                                className="w-full sm:w-48 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-[var(--text-primary)]/20 transition-colors"
+                                className="w-full sm:w-48 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--text-primary)_20%,transparent)] transition-colors"
                             >
                                 <span className="flex items-center gap-2 min-w-0">
                                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: activeRarity.color }} />
@@ -532,9 +533,9 @@ export function StoreModal({
                                             onClick={() => { setRarityFilter(id); setRarityOpen(false); }}
                                             className={cn(
                                                 'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-bold text-left transition-colors',
-                                                rarityFilter === id ? 'bg-[var(--text-primary)]/10' : 'hover:bg-[var(--text-primary)]/5'
+                                                rarityFilter === id ? '' : 'hover:bg-[color-mix(in_srgb,var(--text-primary)_5%,transparent)]'
                                             )}
-                                            style={{ color }}
+                                            style={{ color, ...(rarityFilter === id ? { background: 'color-mix(in srgb, var(--text-primary) 10%, transparent)' } : {}) }}
                                         >
                                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                                             {label}
@@ -625,12 +626,12 @@ export function StoreModal({
 
 function CatalogHero({ isPremium, onCta }: { isPremium: boolean; onCta: () => void }) {
     return (
-        <div className="relative mb-6 rounded-2xl overflow-hidden border border-[var(--accent-brown)]/30 bg-gradient-to-br from-[var(--accent-brown)]/20 via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-8">
+        <div className="relative mb-6 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-8">
             <div className="absolute -top-6 -right-6 opacity-[0.06] rotate-12">
                 <Crown className="w-56 h-56 text-[var(--accent-brown)]" />
             </div>
             <div className="relative z-10 flex flex-col items-start gap-4 max-w-lg">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-brown)]/15 border border-[var(--accent-brown)]/30 text-xs font-bold text-[var(--accent-brown)]">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold text-[var(--accent-brown)]" style={{ background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }}>
                     <Sparkles className="w-3.5 h-3.5" />
                     {isPremium ? 'Membre Premium' : 'Collection légendaire'}
                 </span>
@@ -669,7 +670,7 @@ function EmptyState({ tab, isPremium }: { tab: TabId; isPremium: boolean }) {
 
 function Pagination({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) {
     return (
-        <div className="flex items-center justify-center gap-2 py-8 mt-6 border-t border-[var(--border-color)]/40">
+        <div className="flex items-center justify-center gap-2 py-8 mt-6 border-t" style={{ borderColor: 'color-mix(in srgb, var(--border-color) 40%, transparent)' }}>
             <button
                 onClick={() => onChange(current - 1)}
                 disabled={current === 1}
@@ -716,12 +717,12 @@ function PremiumPanel({ isPremium, isCheckingOut, isManagingPortal, onSubscribe,
     ];
     return (
         <div className="max-w-2xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden border border-[var(--accent-brown)]/30 bg-gradient-to-br from-[var(--accent-brown)]/15 via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-10 text-center">
+            <div className="relative rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)] via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-10 text-center">
                 <div className="absolute -top-8 -right-8 opacity-[0.08] rotate-12">
                     <Crown className="w-64 h-64 text-[var(--accent-brown)]" />
                 </div>
                 <div className="relative z-10 flex flex-col items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-[var(--accent-brown)]/15 border border-[var(--accent-brown)]/25 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 25%, transparent)' }}>
                         <Crown className="w-8 h-8 text-[var(--accent-brown)]" />
                     </div>
                     <div className="space-y-2">

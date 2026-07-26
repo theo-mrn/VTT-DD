@@ -57,12 +57,12 @@ const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => v
                 e.stopPropagation();
                 onClick();
             }}
-            className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20"
+            className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all duration-200 bg-[var(--bg-canvas)] hover:scale-105 hover:shadow-2xl hover:shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]"
         >
             <div className="absolute inset-0 flex items-center justify-center">
                 {!isVisible ? (
                     <div className="flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-[#333]" />
+                        <Loader2 className="w-6 h-6 animate-spin text-[var(--border-color)]" />
                     </div>
                 ) : (
                     <>
@@ -255,9 +255,9 @@ export default function BackgroundSelector({
 
             <div className="h-full w-full flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-8 py-6 border-b border-[#333] bg-[#0a0a0a]/80">
+                <div className="flex items-center justify-between px-8 py-6 border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-canvas) 80%, transparent)' }}>
                     <div>
-                        <h1 className="text-3xl font-bold text-[#c0a080]">Sélection du Fond de Carte</h1>
+                        <h1 className="text-3xl font-bold text-[var(--accent-brown)]">Sélection du Fond de Carte</h1>
                         <p className="text-gray-400 text-sm mt-1">
                             {selectedCategory
                                 ? `Parcourez ${selectedCategory} - ${filteredMaps.length} carte(s) trouvée(s)`
@@ -266,7 +266,7 @@ export default function BackgroundSelector({
                     </div>
                     <button
                         onClick={onClose}
-                        className="h-10 w-10 rounded-full bg-[#1a1a1a] border border-[#333] flex items-center justify-center hover:bg-[#c0a080] hover:text-black transition-colors"
+                        className="h-10 w-10 rounded-full bg-[var(--bg-dark)] border border-[var(--border-color)] flex items-center justify-center hover:bg-[var(--accent-brown)] hover:text-black transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -275,16 +275,16 @@ export default function BackgroundSelector({
                 {/* Main Content */}
                 <div className="flex-1 flex overflow-hidden">
                     {/* Sidebar - Main Categories */}
-                    <div className="w-64 border-r border-[#333] bg-[#0a0a0a]/50 flex flex-col">
-                        <div className="p-4 border-b border-[#333]">
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-[#c0a080] mb-3">Catégories</h2>
+                    <div className="w-64 border-r border-[var(--border-color)] flex flex-col" style={{ background: 'color-mix(in srgb, var(--bg-canvas) 50%, transparent)' }}>
+                        <div className="p-4 border-b border-[var(--border-color)]">
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--accent-brown)] mb-3">Catégories</h2>
                             <button
                                 onClick={() => setSelectedCategory(null)}
                                 className={cn(
                                     "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors mb-1",
                                     !selectedCategory
-                                        ? "bg-[#c0a080] text-black font-medium"
-                                        : "text-gray-300 hover:bg-[#1a1a1a] hover:text-white"
+                                        ? "bg-[var(--accent-brown)] text-black font-medium"
+                                        : "text-gray-300 hover:bg-[var(--bg-dark)] hover:text-white"
                                 )}
                             >
                                 Toutes
@@ -300,8 +300,8 @@ export default function BackgroundSelector({
                                         className={cn(
                                             "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
                                             selectedCategory === name
-                                                ? "bg-[#c0a080] text-black font-medium"
-                                                : "text-gray-300 hover:bg-[#1a1a1a] hover:text-white"
+                                                ? "bg-[var(--accent-brown)] text-black font-medium"
+                                                : "text-gray-300 hover:bg-[var(--bg-dark)] hover:text-white"
                                         )}
                                     >
                                         <div className="flex items-center justify-between">
@@ -317,15 +317,15 @@ export default function BackgroundSelector({
                     {/* Main Panel */}
                     <div className="flex-1 flex flex-col">
                         {/* Media Type Tabs */}
-                        <div className="flex items-center gap-2 px-8 py-4 border-b border-[#333] bg-[#0a0a0a]/50">
+                        <div className="flex items-center gap-2 px-8 py-4 border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-canvas) 50%, transparent)' }}>
                             <button
                                 onClick={() => setActiveMediaType('static')}
                                 disabled={!selectedCategory || mediaTypeCounts.static === 0}
                                 className={cn(
                                     "flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all",
                                     activeMediaType === 'static'
-                                        ? "bg-[#c0a080] text-black shadow-lg"
-                                        : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#2a2a2a] border border-[#333]",
+                                        ? "bg-[var(--accent-brown)] text-black shadow-lg"
+                                        : "bg-[var(--bg-dark)] text-gray-400 hover:text-white hover:bg-[var(--border-color)] border border-[var(--border-color)]",
                                     (!selectedCategory || mediaTypeCounts.static === 0) ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                             >
@@ -339,8 +339,8 @@ export default function BackgroundSelector({
                                 className={cn(
                                     "flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all",
                                     activeMediaType === 'animated'
-                                        ? "bg-[#c0a080] text-black shadow-lg"
-                                        : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#2a2a2a] border border-[#333]",
+                                        ? "bg-[var(--accent-brown)] text-black shadow-lg"
+                                        : "bg-[var(--bg-dark)] text-gray-400 hover:text-white hover:bg-[var(--border-color)] border border-[var(--border-color)]",
                                     (!selectedCategory || mediaTypeCounts.animated === 0) ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                             >
@@ -354,8 +354,8 @@ export default function BackgroundSelector({
                                 className={cn(
                                     "flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all",
                                     activeMediaType === 'illustration'
-                                        ? "bg-[#c0a080] text-black shadow-lg"
-                                        : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#2a2a2a] border border-[#333]",
+                                        ? "bg-[var(--accent-brown)] text-black shadow-lg"
+                                        : "bg-[var(--bg-dark)] text-gray-400 hover:text-white hover:bg-[var(--border-color)] border border-[var(--border-color)]",
                                     (!selectedCategory || mediaTypeCounts.illustration === 0) ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                             >
@@ -364,7 +364,7 @@ export default function BackgroundSelector({
                                 {selectedCategory && <span className="text-xs opacity-70">({mediaTypeCounts.illustration})</span>}
                             </button>
 
-                            <div className="ml-2 pl-2 border-l border-[#333]">
+                            <div className="ml-2 pl-2 border-l border-[var(--border-color)]">
                                 <input
                                     type="file"
                                     ref={fileInputRef}
@@ -375,7 +375,7 @@ export default function BackgroundSelector({
                                 <Button
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploading}
-                                    className="bg-[#1a1a1a] border border-[#333] text-gray-300 hover:bg-[#c0a080] hover:text-black hover:border-[#c0a080] transition-all gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-gray-300 hover:bg-[var(--accent-brown)] hover:text-black hover:border-[var(--accent-brown)] transition-all gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                                     {uploading ? 'Upload...' : 'Importer'}
@@ -391,7 +391,7 @@ export default function BackgroundSelector({
                                     placeholder="Rechercher..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-10 bg-[#1a1a1a] border-[#333] text-white"
+                                    className="pl-10 bg-[var(--bg-dark)] border-[var(--border-color)] text-white"
                                 />
                             </div>
                         </div>
@@ -400,7 +400,7 @@ export default function BackgroundSelector({
                         <div className="flex-1 overflow-hidden p-8">
                             {loading ? (
                                 <div className="flex items-center justify-center h-full">
-                                    <Loader2 className="w-12 h-12 animate-spin text-[#c0a080]" />
+                                    <Loader2 className="w-12 h-12 animate-spin text-[var(--accent-brown)]" />
                                 </div>
                             ) : !selectedCategory ? (
                                 <div className="flex flex-col items-center justify-center h-full text-gray-400">

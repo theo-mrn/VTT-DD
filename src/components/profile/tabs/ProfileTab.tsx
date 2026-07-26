@@ -177,7 +177,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsPreviewOpen(true)}
-                    className="text-xs flex items-center gap-2 shrink-0 text-[var(--accent-brown)] hover:text-[var(--accent-brown-dark)] hover:bg-[var(--accent-brown)]/10"
+                    className="text-xs flex items-center gap-2 shrink-0 text-[var(--accent-brown)] hover:text-[var(--accent-brown-dark)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]"
                 >
                     <Eye className="w-4 h-4" />
                     <span className="hidden sm:inline">Aperçu du profil</span>
@@ -645,7 +645,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                 <Button
                     onClick={handleSave}
                     disabled={loading}
-                    className="w-full bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-dark)] text-white font-bold py-6 rounded-2xl shadow-lg shadow-[var(--accent-brown)]/10"
+                    className="w-full bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-dark)] text-white font-bold py-6 rounded-2xl shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]"
                 >
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enregistrer les modifications"}
                 </Button>

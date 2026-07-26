@@ -832,7 +832,8 @@ function RichTextEditor({ content, onChange, roomId }: { content: string, onChan
       type="button"
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
       title={title}
-      className={`p-1.5 rounded transition-colors ${active ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]' : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/5'}`}
+      className={`p-1.5 rounded transition-colors ${active ? 'text-[var(--accent-brown)]' : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/5'}`}
+      style={active ? { background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' } : undefined}
     >
       {children}
     </button>
@@ -909,7 +910,7 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
         className="relative w-full h-full sm:max-w-5xl sm:h-[90vh] bg-[var(--bg-dark)] border border-[var(--border-color)] sm:rounded-2xl shadow-2xl overflow-y-auto sm:overflow-hidden flex flex-col sm:flex-row"
       >
         {/* --- MOBILE ACTION BAR (sticky top, mobile only) --- */}
-        <div className="sm:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-[var(--bg-dark)]/95 backdrop-blur border-b border-[var(--border-color)]">
+        <div className="sm:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 backdrop-blur border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-dark) 95%, transparent)' }}>
           <button onClick={onClose} className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
             <X className="w-4 h-4 text-zinc-400" />
           </button>
@@ -953,9 +954,10 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
                   className={cn(
                     "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all",
                     note.type === t.id
-                      ? "bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]"
+                      ? "text-[var(--accent-brown)]"
                       : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
                   )}
+                  style={note.type === t.id ? { background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' } : undefined}
                 >
                   <t.icon className="w-3.5 h-3.5 shrink-0" />
                   {t.label}
@@ -1148,7 +1150,7 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
                 <div className="mt-12 pt-8 border-t border-[var(--border-color)]">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-[var(--accent-brown)] text-sm font-bold uppercase tracking-widest">Chroniques & Étapes</h3>
-                    <button onClick={() => setNote(p => ({ ...p, subQuests: [...(p.subQuests || []), { id: Date.now().toString(), title: '', description: '', status: 'not-started' }] }))} className="text-xs text-[var(--accent-brown)] border border-[var(--accent-brown)] px-3 py-1 rounded-[var(--radius-md)] hover:bg-[var(--accent-brown)]/10">
+                    <button onClick={() => setNote(p => ({ ...p, subQuests: [...(p.subQuests || []), { id: Date.now().toString(), title: '', description: '', status: 'not-started' }] }))} className="text-xs text-[var(--accent-brown)] border border-[var(--accent-brown)] px-3 py-1 rounded-[var(--radius-md)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]">
                       + Ajouter une étape
                     </button>
                   </div>

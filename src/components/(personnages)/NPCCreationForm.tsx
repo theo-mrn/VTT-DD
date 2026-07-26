@@ -63,7 +63,7 @@ export const NPCCreationForm = React.memo(({
     const renderStatBar = (label: string, value: number, field: string, color: string) => (
         <div className="space-y-1.5">
             <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-[#c0a080] uppercase tracking-wider">{label}</span>
+                <span className="font-bold text-[var(--accent-brown)] uppercase tracking-wider">{label}</span>
                 <span className="font-mono text-white bg-black/30 px-2 py-0.5 rounded border border-[#ffffff10]">
                     {value}
                 </span>
@@ -82,15 +82,15 @@ export const NPCCreationForm = React.memo(({
     )
 
     return (
-        <div className="flex flex-col h-full bg-[#1a1a1a] text-[#e0e0e0] overflow-hidden">
+        <div className="flex flex-col h-full bg-[var(--bg-dark)] text-[var(--text-primary)] overflow-hidden">
             {/* Header */}
-            <div className="p-4 bg-[#141414] border-b border-[#333] flex items-center justify-between shrink-0">
+            <div className="p-4 bg-[var(--bg-darker)] border-b border-[var(--border-color)] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20">
-                        <UserPlus className="w-5 h-5 text-[#c0a080]" />
+                    <div className="p-2 rounded-lg border" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                        <UserPlus className="w-5 h-5 text-[var(--accent-brown)]" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-[#c0a080] tracking-tight">
+                        <h2 className="text-lg font-bold text-[var(--accent-brown)] tracking-tight">
                             {editingNpcId ? 'Modifier le PNJ' : 'Nouveau PNJ'}
                         </h2>
                         <p className="text-xs text-gray-500 font-medium">{editingNpcId ? 'Mise à jour' : 'Template réutilisable'}</p>
@@ -101,7 +101,7 @@ export const NPCCreationForm = React.memo(({
                         variant="ghost"
                         size="sm"
                         onClick={onReset}
-                        className="h-8 border-[#333] hover:bg-[#222] text-gray-400"
+                        className="h-8 border-[var(--border-color)] hover:bg-[var(--bg-dark)] text-gray-400"
                     >
                         <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
                         Reset
@@ -110,14 +110,14 @@ export const NPCCreationForm = React.memo(({
             </div>
 
             {/* Main Content - Vertical Scroll */}
-            <ScrollArea className="flex-1 bg-[#1a1a1a]">
+            <ScrollArea className="flex-1 bg-[var(--bg-dark)]">
                 <div className="p-4 space-y-6">
 
                     {/* 1. Identity & Preview Block (Vertical Stack) */}
                     <div className="flex flex-col items-center space-y-4">
                         {/* Token Preview */}
                         <div className="relative z-10 group cursor-pointer" onClick={() => setIsImageDialogOpen(true)}>
-                            <div className="w-32 h-32 rounded-full border-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden bg-[#222] transition-all duration-300 group-hover:shadow-[0_0_50px_rgba(192,160,128,0.3)] border-[#c0a080]">
+                            <div className="w-32 h-32 rounded-full border-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden bg-[var(--bg-dark)] transition-all duration-300 group-hover:shadow-[0_0_50px_rgba(192,160,128,0.3)] border-[var(--accent-brown)]">
                                 {char.image && (typeof char.image === 'object' ? char.image.src : char.image) ? (
                                     <img src={typeof char.image === 'object' ? char.image.src : char.image} alt="Token" className="w-full h-full object-cover" />
                                 ) : (
@@ -132,13 +132,13 @@ export const NPCCreationForm = React.memo(({
                         </div>
 
                         {/* Basic Fields */}
-                        <div className="w-full space-y-4 bg-[#202022] p-4 rounded-lg border border-[#2a2a2a]">
+                        <div className="w-full space-y-4 bg-[var(--bg-card)] p-4 rounded-lg border border-[var(--border-color)]">
                             <div className="space-y-2">
                                 <Label className="text-gray-400 text-xs uppercase">Nom du Personnage</Label>
                                 <Input
                                     value={char.name}
                                     onChange={(e) => onCharChange({ ...char, name: e.target.value })}
-                                    className="bg-[#1a1a1a] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9"
+                                    className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] h-9"
                                     placeholder="Ex: Gobelin Éclaireur"
                                 />
                             </div>
@@ -146,13 +146,13 @@ export const NPCCreationForm = React.memo(({
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
                                     <Label className="text-gray-400 text-xs uppercase">Niveau</Label>
-                                    <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#444] rounded-md px-3 h-9">
-                                        <span className="text-[#c0a080] font-bold text-xs">LVL</span>
+                                    <div className="flex items-center gap-2 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-md px-3 h-9">
+                                        <span className="text-[var(--accent-brown)] font-bold text-xs">LVL</span>
                                         <input
                                             type="number"
                                             value={char.niveau}
                                             onChange={(e) => onNumChange('niveau', e.target.value)}
-                                            className="w-full bg-transparent border-none text-right font-mono text-[#e0e0e0] focus:ring-0 p-0 text-sm"
+                                            className="w-full bg-transparent border-none text-right font-mono text-[var(--text-primary)] focus:ring-0 p-0 text-sm"
                                         />
                                     </div>
                                 </div>
@@ -161,7 +161,7 @@ export const NPCCreationForm = React.memo(({
                                     <Slider
                                         defaultValue={[difficulty]}
                                         max={10} min={0} step={1}
-                                        className="py-2 [&_.bg-primary]:bg-[#c0a080]"
+                                        className="py-2 [&_.bg-primary]:bg-[var(--accent-brown)]"
                                         onValueChange={(val) => onGenerateStats(val[0])}
                                     />
                                 </div>
@@ -173,19 +173,19 @@ export const NPCCreationForm = React.memo(({
                                     <Label className="text-gray-400 text-xs uppercase">Catégorie</Label>
                                     <Button
                                         type="button" variant="ghost" size="sm" onClick={onOpenCategoryManager}
-                                        className="h-5 px-2 text-[#c0a080] hover:text-[#b09070] text-[10px]"
+                                        className="h-5 px-2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-hover)] text-[10px]"
                                     >
                                         + Gérer
                                     </Button>
                                 </div>
                                 <Select value={selectedCategoryId || "none"} onValueChange={(val) => onCategoryChange(val === "none" ? undefined : val)}>
-                                    <SelectTrigger className="bg-[#1a1a1a] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9">
+                                    <SelectTrigger className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] h-9">
                                         <SelectValue placeholder="Sans catégorie" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#1a1a1a] border-[#444]">
-                                        <SelectItem value="none" className="text-[#e0e0e0] hover:bg-[#333]">Sans catégorie</SelectItem>
+                                    <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)]">
+                                        <SelectItem value="none" className="text-[var(--text-primary)] hover:bg-[var(--border-color)]">Sans catégorie</SelectItem>
                                         {categories.map((category) => (
-                                            <SelectItem key={category.id} value={category.id} className="text-[#e0e0e0] hover:bg-[#333]">
+                                            <SelectItem key={category.id} value={category.id} className="text-[var(--text-primary)] hover:bg-[var(--border-color)]">
                                                 {category.name}
                                             </SelectItem>
                                         ))}
@@ -198,13 +198,13 @@ export const NPCCreationForm = React.memo(({
                     {/* 2. Combat Stats — dérivé du système de règles actif plutôt que
                         PV/Defense/Contact/Distance/Magie en dur. */}
                     <div className="space-y-4">
-                        <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                        <h3 className="text-xs font-bold text-[var(--accent-brown)] uppercase tracking-wider flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                             Combat
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
                             {vitalStats.map(({ stat, maxKey }) => (
-                                <div key={stat.key} className="bg-[#222] border border-[#333] rounded p-3 flex flex-col items-center">
+                                <div key={stat.key} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-3 flex flex-col items-center">
                                     <span className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Heart className="w-3 h-3 text-red-500" /> {(stat.shortLabel || stat.label).toUpperCase()} MAX</span>
                                     <Input
                                         type="number"
@@ -220,7 +220,7 @@ export const NPCCreationForm = React.memo(({
                                 </div>
                             ))}
                             {defenseKey && (
-                                <div className="bg-[#222] border border-[#333] rounded p-3 flex flex-col items-center">
+                                <div className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-3 flex flex-col items-center">
                                     <span className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Shield className="w-3 h-3 text-blue-500" /> DÉFENSE</span>
                                     <Input
                                         type="number"
@@ -235,13 +235,13 @@ export const NPCCreationForm = React.memo(({
                         {combatAttackKeys.length > 0 && (
                             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${combatAttackKeys.length}, minmax(0, 1fr))` }}>
                                 {combatAttackKeys.map((stat) => (
-                                    <div key={stat} className="bg-[#252525] p-2 rounded border border-[#333] flex flex-col items-center">
+                                    <div key={stat} className="bg-[var(--bg-card)] p-2 rounded border border-[var(--border-color)] flex flex-col items-center">
                                         <span className="text-[9px] uppercase text-gray-500 font-bold mb-1">{stat}</span>
                                         <input
                                             type="number"
                                             value={char[stat] as number}
                                             onChange={(e) => onNumChange(stat, e.target.value)}
-                                            className="w-full bg-transparent border-none text-center p-0 text-sm font-mono text-[#e0e0e0] focus:outline-none focus:ring-0"
+                                            className="w-full bg-transparent border-none text-center p-0 text-sm font-mono text-[var(--text-primary)] focus:outline-none focus:ring-0"
                                         />
                                     </div>
                                 ))}
@@ -249,7 +249,7 @@ export const NPCCreationForm = React.memo(({
                         )}
 
                         {extraCombatStats.map((stat) => (
-                            <div key={stat.key} className="bg-[#222] p-3 rounded border border-[#333] flex items-center justify-between">
+                            <div key={stat.key} className="bg-[var(--bg-dark)] p-3 rounded border border-[var(--border-color)] flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Zap className="w-4 h-4 text-yellow-500" />
                                     <span className="text-xs font-bold text-gray-300 uppercase">{stat.label}</span>
@@ -258,7 +258,7 @@ export const NPCCreationForm = React.memo(({
                                     type="number"
                                     value={char[stat.key] as number}
                                     onChange={(e) => onNumChange(stat.key, e.target.value)}
-                                    className="w-16 bg-[#1a1a1a] border-[#444] text-center font-bold text-yellow-500 h-8"
+                                    className="w-16 bg-[var(--bg-dark)] border-[var(--border-color)] text-center font-bold text-yellow-500 h-8"
                                 />
                             </div>
                         ))}
@@ -267,11 +267,11 @@ export const NPCCreationForm = React.memo(({
                     {/* 3. Attributes — dérivé des caractéristiques (ability) du système actif */}
                     {abilityStats.length > 0 && (
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                            <h3 className="text-xs font-bold text-[var(--accent-brown)] uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                                 Caractéristiques
                             </h3>
-                            <div className="grid grid-cols-1 gap-y-4 bg-[#202022] p-4 rounded-lg border border-[#2a2a2a]">
+                            <div className="grid grid-cols-1 gap-y-4 bg-[var(--bg-card)] p-4 rounded-lg border border-[var(--border-color)]">
                                 {abilityStats.map((stat, i) => renderStatBar(
                                     stat.label,
                                     (char[stat.key] as number) ?? 10,
@@ -286,18 +286,18 @@ export const NPCCreationForm = React.memo(({
             </ScrollArea>
 
             {/* Footer */}
-            <div className="p-4 bg-[#141414] border-t border-[#333] flex justify-end gap-3 shrink-0">
+            <div className="p-4 bg-[var(--bg-darker)] border-t border-[var(--border-color)] flex justify-end gap-3 shrink-0">
                 <Button
                     variant="ghost"
                     onClick={onCancel}
-                    className="text-gray-400 hover:text-white hover:bg-[#222]"
+                    className="text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]"
                 >
                     Annuler
                 </Button>
                 <Button
                     onClick={onSubmit}
                     disabled={isSubmitting}
-                    className="flex-1 bg-[#c0a080] text-black font-bold hover:bg-[#b09070] disabled:opacity-50"
+                    className="flex-1 bg-[var(--accent-brown)] text-black font-bold hover:bg-[var(--accent-brown-hover)] disabled:opacity-50"
                 >
                     {isSubmitting ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />

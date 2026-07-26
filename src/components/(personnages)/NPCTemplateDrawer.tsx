@@ -266,7 +266,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     // If showing create form, render it fullscreen
     if (showCreateForm) {
         return (
-            <div className="fixed inset-0 bg-[#1a1a1a] z-50">
+            <div className="fixed inset-0 bg-[var(--bg-dark)] z-50">
                 <NPCCreationForm
                     char={char}
                     editingNpcId={editingNpcId}
@@ -293,16 +293,16 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     }
 
     return (
-        <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#1a1a1a]" : "fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-50 flex flex-col shadow-2xl"}>
+        <div className={isEmbedded ? "flex flex-col h-full w-full bg-[var(--bg-dark)]" : "fixed right-0 top-0 h-full w-80 bg-[var(--bg-dark)] border-l border-[var(--border-color)] z-50 flex flex-col shadow-2xl"}>
             {/* Header */}
             {!isEmbedded && (
-                <div className="p-4 bg-[#141414] border-b border-[#333] flex items-center justify-between shrink-0">
+                <div className="p-4 bg-[var(--bg-darker)] border-b border-[var(--border-color)] flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20">
-                            <Users className="w-5 h-5 text-[#c0a080]" />
+                        <div className="p-2 rounded-lg border" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                            <Users className="w-5 h-5 text-[var(--accent-brown)]" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-[#c0a080] tracking-tight">
+                            <h2 className="text-lg font-bold text-[var(--accent-brown)] tracking-tight">
                                 Bibliothèque PNJ
                             </h2>
                             <p className="text-xs text-gray-500 font-medium">
@@ -322,12 +322,12 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             )}
 
             {/* Tabs */}
-            <div className="flex border-b border-[#333] shrink-0">
+            <div className="flex border-b border-[var(--border-color)] shrink-0">
                 <button
                     onClick={() => setActiveTab('templates')}
                     className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === 'templates'
-                        ? 'bg-[#222] text-[#c0a080] border-b-2 border-[#c0a080]'
-                        : 'text-gray-400 hover:text-white hover:bg-[#1c1c1c]'
+                        ? 'bg-[var(--bg-dark)] text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)]'
+                        : 'text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]'
                         }`}
                 >
                     <BookTemplate className="w-4 h-4" />
@@ -336,8 +336,8 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                 <button
                     onClick={() => setActiveTab('npcs')}
                     className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === 'npcs'
-                        ? 'bg-[#222] text-[#c0a080] border-b-2 border-[#c0a080]'
-                        : 'text-gray-400 hover:text-white hover:bg-[#1c1c1c]'
+                        ? 'bg-[var(--bg-dark)] text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)]'
+                        : 'text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]'
                         }`}
                 >
                     <MapIcon className="w-4 h-4" />
@@ -346,7 +346,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             </div>
 
             {/* Search Bar with Add Button */}
-            <div className="p-4 border-b border-[#333] shrink-0">
+            <div className="p-4 border-b border-[var(--border-color)] shrink-0">
                 {/* Category filter for Templates tab */}
                 {activeTab === 'templates' && categories.length > 0 && (
                     <div className="mb-3">
@@ -354,24 +354,24 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                             value={selectedCategoryFilter}
                             onValueChange={(val) => setSelectedCategoryFilter(val)}
                         >
-                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9">
+                            <SelectTrigger className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] h-9">
                                 <SelectValue placeholder="Toutes les catégories" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1a1a1a] border-[#444]">
-                                <SelectItem value="all" className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white">
+                            <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)]">
+                                <SelectItem value="all" className="text-[var(--text-primary)] focus:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] focus:text-white">
                                     Toutes les catégories
                                 </SelectItem>
-                                <SelectItem value="none" className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white">
+                                <SelectItem value="none" className="text-[var(--text-primary)] focus:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] focus:text-white">
                                     Sans catégorie
                                 </SelectItem>
                                 {categories.map((category) => (
                                     <SelectItem
                                         key={category.id}
                                         value={category.id}
-                                        className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white"
+                                        className="text-[var(--text-primary)] focus:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] focus:text-white"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color || '#c0a080' }} />
+                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color || 'var(--accent-brown)' }} />
                                             {category.name}
                                         </div>
                                     </SelectItem>
@@ -391,18 +391,18 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                                 setSelectedCityFilter(val)
                             }}
                         >
-                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9">
+                            <SelectTrigger className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] h-9">
                                 <SelectValue placeholder="Sélectionner une ville" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1a1a1a] border-[#444]">
-                                <SelectItem value="all" className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white">
+                            <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)]">
+                                <SelectItem value="all" className="text-[var(--text-primary)] focus:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] focus:text-white">
                                     Toutes les villes
                                 </SelectItem>
                                 {cities.map((city) => (
                                     <SelectItem
                                         key={city.id}
                                         value={city.id}
-                                        className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white"
+                                        className="text-[var(--text-primary)] focus:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] focus:text-white"
                                     >
                                         {city.name}
                                     </SelectItem>
@@ -420,7 +420,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                             placeholder={activeTab === 'templates' ? "Rechercher un template..." : "Rechercher un PNJ..."}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 bg-[#252525] border-[#444] text-[#e0e0e0] placeholder-gray-500 focus:border-[#c0a080] h-9"
+                            className="pl-10 bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-gray-500 focus:border-[var(--accent-brown)] h-9"
                         />
                     </div>
 
@@ -428,7 +428,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowLibraryModal(true)}
-                        className="h-9 w-9 p-0 text-[#c0a080] hover:text-white hover:bg-[#c0a080]/20 border border-[#c0a080]/30 hover:border-[#c0a080]/50 transition-all"
+                        className="h-9 w-9 p-0 text-[var(--accent-brown)] hover:text-white hover:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all"
                         title="Créer un nouveau template"
                     >
                         <Plus className="w-5 h-5" />
@@ -464,14 +464,14 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                                 key={item.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, item)}
-                                className="group bg-[#222] border border-[#333] rounded-lg p-3 cursor-move hover:border-[#c0a080]/50 hover:bg-[#252525] transition-all"
+                                className="group bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg p-3 cursor-move hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:bg-[var(--bg-card)] transition-all"
                             >
                                 <div className="flex items-center gap-3">
                                     {/* Drag Handle */}
-                                    <GripVertical className="w-4 h-4 text-gray-600 group-hover:text-[#c0a080] transition-colors" />
+                                    <GripVertical className="w-4 h-4 text-gray-600 group-hover:text-[var(--accent-brown)] transition-colors" />
 
                                     {/* Token */}
-                                    <div className="w-12 h-12 rounded-full border-2 border-[#c0a080] overflow-hidden flex-shrink-0 bg-[#1a1a1a]">
+                                    <div className="w-12 h-12 rounded-full border-2 border-[var(--accent-brown)] overflow-hidden flex-shrink-0 bg-[var(--bg-dark)]">
                                         {item.imageURL2 ? (
                                             <img
                                                 src={item.imageURL2}
@@ -491,7 +491,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                                         <h3 className="font-bold text-white text-sm truncate">
                                             {item.Nomperso}
                                         </h3>
-                                        <p className="text-xs text-[#c0a080]">
+                                        <p className="text-xs text-[var(--accent-brown)]">
                                             Niveau {item.niveau}
                                         </p>
                                         {activeTab === 'npcs' && 'cityName' in item && (

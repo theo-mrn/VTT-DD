@@ -98,7 +98,7 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
         if (confirmAction.type === 'clear-fog') return {
             title: 'Supprimer tout le brouillard',
             description: 'Cette action supprimera définitivement tout le brouillard de guerre sur la carte. Cette opération ne peut pas être annulée.',
-            icon: <Cloud className="w-5 h-5 text-[#c0a080]" />,
+            icon: <Cloud className="w-5 h-5 text-[var(--accent-brown)]" />,
             danger: true,
         };
 
@@ -112,7 +112,7 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
         if (confirmAction.type === 'clear-obstacles') return {
             title: 'Supprimer tous les obstacles',
             description: 'Cette action supprimera définitivement tous les murs et obstacles de la carte. Cette opération ne peut pas être annulée.',
-            icon: <svg className="w-5 h-5 text-[#c0a080]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+            icon: <svg className="w-5 h-5 text-[var(--accent-brown)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" /></svg>,
             danger: true,
         };
 
@@ -165,25 +165,25 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
             </Dialog>
 
             {/* ===== DRAWER ===== */}
-            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#1a1a1a]" : "fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-[99999900] flex flex-col shadow-2xl"}>
+            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[var(--bg-dark)]" : "fixed right-0 top-0 h-full w-80 bg-[var(--bg-dark)] border-l border-[var(--border-color)] z-[99999900] flex flex-col shadow-2xl"}>
                 {/* HEADER */}
                 {!isEmbedded && (
-                    <div className="relative px-6 py-5 border-b border-[#333] bg-gradient-to-br from-[#1a1a1a] via-[#1a1a1a] to-[#252525]">
+                    <div className="relative px-6 py-5 border-b border-[var(--border-color)] bg-gradient-to-br from-[var(--bg-dark)] via-[var(--bg-dark)] to-[var(--bg-card)]">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#c0a080] to-[#a08060] flex items-center justify-center shadow-lg shadow-[#c0a080]/20">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-brown)] to-[var(--accent-brown-hover)] flex items-center justify-center shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]">
                                     <Eye className="w-5 h-5 text-black" />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-bold text-white tracking-tight">Visibilité</h2>
-                                    <p className="text-xs text-gray-400">Brouillard & Obstacles</p>
+                                    <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">Visibilité</h2>
+                                    <p className="text-xs text-[var(--text-secondary)]">Brouillard & Obstacles</p>
                                 </div>
                             </div>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={onClose}
-                                className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-white hover:bg-[#333] transition-all"
+                                className="h-9 w-9 p-0 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)] transition-all"
                             >
                                 <X className="w-4 h-4" />
                             </Button>
@@ -198,8 +198,8 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                         <section className="space-y-4">
                             <div className="flex items-center justify-between border-b border-white/5 pb-2">
                                 <div className="flex items-center gap-2">
-                                    <Cloud className="w-4 h-4 text-[#c0a080]" />
-                                    <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider">Brouillard</h3>
+                                    <Cloud className="w-4 h-4 text-[var(--accent-brown)]" />
+                                    <h3 className="text-xs font-bold text-[var(--accent-brown)] uppercase tracking-wider">Brouillard</h3>
                                 </div>
                             </div>
 
@@ -209,8 +209,8 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                     variant="ghost"
                                     size="icon"
                                     className={`h-12 w-12 rounded-xl border transition-all duration-200 ${vs.currentVisibilityTool === 'fog'
-                                        ? 'bg-[#c0a080] border-[#c0a080] text-black hover:bg-[#d4b494]'
-                                        : 'bg-[#252525] border-[#333] text-gray-400 hover:text-white hover:border-[#444]'
+                                        ? 'bg-[var(--accent-brown)] border-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]'
+                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#444]'
                                         }`}
                                     onClick={() => activateTool('fog')}
                                     title="Peindre le brouillard (Clic gauche: ajouter, Clic droit: retirer)"
@@ -222,8 +222,8 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                     variant="ghost"
                                     size="icon"
                                     className={`h-12 w-12 rounded-xl border transition-all duration-200 ${vs.fullMapFog
-                                        ? 'bg-[#c0a080]/20 border-[#c0a080]/50 text-[#c0a080] hover:bg-[#c0a080]/30'
-                                        : 'bg-[#252525] border-[#333] text-gray-400 hover:text-white hover:border-[#444]'
+                                        ? 'bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] text-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)]'
+                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#444]'
                                         }`}
                                     onClick={() => vs.handleFullMapFogChange(!vs.fullMapFog)}
                                     title={vs.fullMapFog ? 'Retirer le brouillard total' : 'Appliquer le brouillard total'}
@@ -234,7 +234,7 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-12 w-12 rounded-xl border border-[#333] bg-[#252525] text-gray-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-950/20 transition-all duration-200"
+                                    className="h-12 w-12 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-red-400 hover:border-red-900/50 hover:bg-red-950/20 transition-all duration-200"
                                     onClick={() => setConfirmAction({ type: 'clear-fog' })}
                                     title="Tout supprimer"
                                 >
@@ -261,7 +261,7 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                     size="icon"
                                     className={`h-12 w-12 rounded-xl border transition-all duration-200 ${vs.isLightPlacementMode
                                         ? 'bg-yellow-500 border-yellow-500 text-black hover:bg-yellow-400'
-                                        : 'bg-[#252525] border-[#333] text-gray-400 hover:text-white hover:border-[#444]'
+                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#444]'
                                         }`}
                                     onClick={() => {
                                         const newMode = !vs.isLightPlacementMode;
@@ -283,10 +283,10 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                         <section className="space-y-4 pt-4 border-t border-white/5">
                             <div className="flex items-center justify-between border-b border-white/5 pb-2">
                                 <div className="flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-[#c0a080]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                    <svg className="w-4 h-4 text-[var(--accent-brown)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                         <polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
-                                    <h3 className="text-xs font-bold text-[#c0a080] uppercase tracking-wider">Obstacles & Murs</h3>
+                                    <h3 className="text-xs font-bold text-[var(--accent-brown)] uppercase tracking-wider">Obstacles & Murs</h3>
                                 </div>
                             </div>
 
@@ -296,8 +296,8 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                     variant="ghost"
                                     size="icon"
                                     className={`h-12 w-12 rounded-xl border transition-all duration-200 ${vs.currentVisibilityTool === 'chain'
-                                        ? 'bg-[#c0a080] border-[#c0a080] text-black hover:bg-[#d4b494]'
-                                        : 'bg-[#252525] border-[#333] text-gray-400 hover:text-white hover:border-[#444]'
+                                        ? 'bg-[var(--accent-brown)] border-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]'
+                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#444]'
                                         }`}
                                     onClick={() => activateTool('chain')}
                                     title="Dessiner des murs (Clic pour chaîner, Echap pour finir)"
@@ -311,8 +311,8 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                     variant="ghost"
                                     size="icon"
                                     className={`h-12 w-12 rounded-xl border transition-all duration-200 ${vs.currentVisibilityTool === 'edit'
-                                        ? 'bg-[#c0a080] border-[#c0a080] text-black hover:bg-[#d4b494]'
-                                        : 'bg-[#252525] border-[#333] text-gray-400 hover:text-white hover:border-[#444]'
+                                        ? 'bg-[var(--accent-brown)] border-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]'
+                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[#444]'
                                         }`}
                                     onClick={() => activateTool('edit')}
                                     title="Modifier / Déplacer (Cliquer sur un mur)"
@@ -323,7 +323,7 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-12 w-12 rounded-xl border border-[#333] bg-[#252525] text-gray-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-950/20 transition-all duration-200"
+                                    className="h-12 w-12 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-red-400 hover:border-red-900/50 hover:bg-red-950/20 transition-all duration-200"
                                     onClick={() => setConfirmAction({ type: 'clear-obstacles' })}
                                     title="Tout supprimer"
                                 >
@@ -415,11 +415,11 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllOb
                                         step="10"
                                         value={vs.shadowOpacity * 100}
                                         onChange={(e) => vs.updateShadowOpacity(parseInt(e.target.value) / 100)}
-                                        className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
+                                        className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--accent-brown)]"
                                     />
                                     <div className="flex justify-between text-[10px] text-gray-500">
                                         <span>Transparent</span>
-                                        <span className="font-mono text-[#c0a080] bg-black/30 px-1.5 py-0.5 rounded">
+                                        <span className="font-mono text-[var(--accent-brown)] bg-black/30 px-1.5 py-0.5 rounded">
                                             {Math.round(vs.shadowOpacity * 100)}%
                                         </span>
                                         <span>Opaque</span>

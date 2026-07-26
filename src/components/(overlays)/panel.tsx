@@ -189,7 +189,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
         <div className="relative flex items-center gap-3 z-10">
           <div className="relative">
-            <Avatar className="w-11 h-11 border-2 border-[var(--accent-brown)]/50 shadow-sm">
+            <Avatar className="w-11 h-11 border-2 shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 50%, transparent)' }}>
               <AvatarImage src={userProfilePicture || ""} alt="Profil" className="object-cover" />
               <AvatarFallback className="bg-[var(--accent-brown)] text-[var(--bg-dark)] font-bold">
                 {(userName || "U").charAt(0).toUpperCase()}
@@ -474,7 +474,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
       <Dialog open={openDialog === 'joueurs'} onOpenChange={(open) => !open && setOpenDialog(null)}>
         <DialogContent className="sm:max-w-md bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] shadow-2xl p-0 overflow-hidden">
-          <DialogHeader className="px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-dark)]/50">
+          <DialogHeader className="px-6 py-4 border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-dark) 50%, transparent)' }}>
             <DialogTitle className="text-xl font-serif text-[var(--accent-brown)] flex items-center gap-2">
               <Users className="h-5 w-5" />
               Gestion de la salle

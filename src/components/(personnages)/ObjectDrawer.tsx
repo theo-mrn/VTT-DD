@@ -173,8 +173,8 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
     // If showing create form, render it fullscreen within the container
     if (showCreateForm) {
         return (
-            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#1a1a1a]" : "fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-[99999900] flex flex-col shadow-2xl"}>
-                <div className="p-4 bg-[#141414] border-b border-[#333] flex items-center justify-between shrink-0">
+            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[var(--bg-dark)]" : "fixed right-0 top-0 h-full w-80 bg-[var(--bg-dark)] border-l border-[var(--border-color)] z-[99999900] flex flex-col shadow-2xl"}>
+                <div className="p-4 bg-[var(--bg-darker)] border-b border-[var(--border-color)] flex items-center justify-between shrink-0">
                     <h2 className="text-lg font-bold text-[#80c0a0] tracking-tight">Nouvel Objet</h2>
                     <Button
                         variant="ghost"
@@ -193,7 +193,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                             <Input
                                 value={newObjectName}
                                 onChange={(e) => setNewObjectName(e.target.value)}
-                                className="bg-[#2a2a2a] border-[#333] text-white focus:border-[#80c0a0]"
+                                className="bg-[var(--border-color)] border-[var(--border-color)] text-white focus:border-[#80c0a0]"
                                 placeholder="ex: Caisse en bois"
                                 disabled={isSubmitting}
                             />
@@ -201,7 +201,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
 
                         <div className="space-y-2">
                             <label className="text-xs font-medium text-gray-400">Image</label>
-                            <div className="relative aspect-square w-full rounded-xl border-2 border-dashed border-[#333] hover:border-[#80c0a0] transition-colors overflow-hidden group">
+                            <div className="relative aspect-square w-full rounded-xl border-2 border-dashed border-[var(--border-color)] hover:border-[#80c0a0] transition-colors overflow-hidden group">
                                 {newObjectImage ? (
                                     <img src={newObjectImage} alt="Preview" className="w-full h-full object-contain p-2" />
                                 ) : (
@@ -237,10 +237,10 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
     }
 
     return (
-        <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#1a1a1a]" : "fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-[99999900] flex flex-col shadow-2xl"}>
+        <div className={isEmbedded ? "flex flex-col h-full w-full bg-[var(--bg-dark)]" : "fixed right-0 top-0 h-full w-80 bg-[var(--bg-dark)] border-l border-[var(--border-color)] z-[99999900] flex flex-col shadow-2xl"}>
             {/* PREMIUM HEADER */}
             {!isEmbedded && (
-                <div className="relative px-6 py-5 border-b border-[#333] bg-gradient-to-br from-[#1a1a1a] via-[#1a1a1a] to-[#252525]">
+                <div className="relative px-6 py-5 border-b border-[var(--border-color)] bg-gradient-to-br from-[var(--bg-dark)] via-[var(--bg-dark)] to-[var(--bg-card)]">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#80c0a0] to-[#60a080] flex items-center justify-center shadow-lg shadow-[#80c0a0]/20">
@@ -255,7 +255,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                             variant="ghost"
                             size="sm"
                             onClick={onClose}
-                            className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-white hover:bg-[#333] transition-all"
+                            className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-white hover:bg-[var(--border-color)] transition-all"
                         >
                             <X className="w-4 h-4" />
                         </Button>
@@ -264,7 +264,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
             )}
 
             {/* Navigation & Search */}
-            <div className="px-6 py-4 border-b border-[#333] shrink-0 bg-[#1a1a1a] flex flex-col gap-3">
+            <div className="px-6 py-4 border-b border-[var(--border-color)] shrink-0 bg-[var(--bg-dark)] flex flex-col gap-3">
                 {/* Search */}
                 <div className="flex items-center gap-2 w-full">
                     <div className="relative flex-1">
@@ -274,7 +274,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                             placeholder="Rechercher un objet..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 pr-4 bg-[#252525] border-[#404040] text-white placeholder-gray-500 focus:border-[#80c0a0] focus:ring-1 focus:ring-[#80c0a0]/20 h-10 rounded-lg w-full"
+                            className="pl-10 pr-4 bg-[var(--bg-card)] border-[var(--border-color)] text-white placeholder-gray-500 focus:border-[#80c0a0] focus:ring-1 focus:ring-[#80c0a0]/20 h-10 rounded-lg w-full"
                         />
                     </div>
                     <Button
@@ -294,7 +294,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors border ${
                                 selectedCategory === null
                                     ? 'bg-[#80c0a0] text-black border-[#80c0a0]'
-                                    : 'bg-[#252525] text-gray-400 border-[#404040] hover:text-white hover:border-[#80c0a0]/50'
+                                    : 'bg-[var(--bg-card)] text-gray-400 border-[var(--border-color)] hover:text-white hover:border-[#80c0a0]/50'
                             }`}
                         >
                             Tout
@@ -306,7 +306,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                                 className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors border ${
                                     selectedCategory === cat
                                         ? 'bg-[#80c0a0] text-black border-[#80c0a0]'
-                                        : 'bg-[#252525] text-gray-400 border-[#404040] hover:text-white hover:border-[#80c0a0]/50'
+                                        : 'bg-[var(--bg-card)] text-gray-400 border-[var(--border-color)] hover:text-white hover:border-[#80c0a0]/50'
                                 }`}
                             >
                                 {cat}
@@ -317,7 +317,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
             </div>
 
             {/* Content Area */}
-            <ScrollArea className="flex-1 bg-[#141414]">
+            <ScrollArea className="flex-1 bg-[var(--bg-darker)]">
                 <div className="p-5">
                     {/* Items List */}
                     <div className="grid grid-cols-2 gap-4">
@@ -347,10 +347,10 @@ function DraggableItem({ item, onDragStart }: { item: SuggestedItem, onDragStart
         <div
             draggable
             onDragStart={(e) => onDragStart(e, item)}
-            className="group relative bg-[#1e1e1e] border border-[#333] rounded-xl p-3 cursor-move hover:border-[#80c0a0] hover:shadow-xl hover:shadow-[#80c0a0]/10 transition-all duration-200 flex flex-col items-center gap-2.5"
+            className="group relative bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 cursor-move hover:border-[#80c0a0] hover:shadow-xl hover:shadow-[#80c0a0]/10 transition-all duration-200 flex flex-col items-center gap-2.5"
         >
             {/* Image Container */}
-            <div className="w-full aspect-square flex items-center justify-center p-2.5 bg-[#141414] rounded-lg overflow-hidden border border-[#2a2a2a] group-hover:border-[#333] transition-colors">
+            <div className="w-full aspect-square flex items-center justify-center p-2.5 bg-[var(--bg-darker)] rounded-lg overflow-hidden border border-[var(--border-color)] group-hover:border-[var(--border-color)] transition-colors">
                 <img
                     src={item.path}
                     alt={item.name}

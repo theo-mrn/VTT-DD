@@ -70,7 +70,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="bg-[#1a1a1a] border-[#333] text-[#e0e0e0] max-w-md">
+            <DialogContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-[#80c0a0] flex items-center gap-2">
                         <Package className="w-5 h-5" />
@@ -83,8 +83,8 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
 
                 <div className="space-y-6 py-4">
                     {/* Template Preview */}
-                    <div className="flex items-center gap-3 p-3 bg-[#222] rounded-lg border border-[#333]">
-                        <div className="w-16 h-16 rounded-md border border-[#80c0a0] overflow-hidden flex-shrink-0 bg-[#1a1a1a]">
+                    <div className="flex items-center gap-3 p-3 bg-[var(--bg-dark)] rounded-lg border border-[var(--border-color)]">
+                        <div className="w-16 h-16 rounded-md border border-[#80c0a0] overflow-hidden flex-shrink-0 bg-[var(--bg-dark)]">
                             {template.imageUrl ? (
                                 <img
                                     src={template.imageUrl}
@@ -112,7 +112,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setNombre(Math.max(1, nombre - 1))}
-                                className="h-9 w-9 p-0 border-[#444] hover:bg-[#222] text-white"
+                                className="h-9 w-9 p-0 border-[var(--border-color)] hover:bg-[var(--bg-dark)] text-white"
                             >
                                 -
                             </Button>
@@ -122,14 +122,14 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                 max="20"
                                 value={nombre}
                                 onChange={(e) => setNombre(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
-                                className="text-center bg-[#252525] border-[#444] text-[#e0e0e0] h-9 font-mono"
+                                className="text-center bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] h-9 font-mono"
                             />
                             <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setNombre(Math.min(20, nombre + 1))}
-                                className="h-9 w-9 p-0 border-[#444] hover:bg-[#222] text-white"
+                                className="h-9 w-9 p-0 border-[var(--border-color)] hover:bg-[var(--bg-dark)] text-white"
                             >
                                 +
                             </Button>
@@ -149,7 +149,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                 onClick={() => setVisibility('visible')}
                                 className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'visible'
                                     ? 'bg-[#80c0a0] text-black hover:bg-[#90d0b0]'
-                                    : 'border-[#444] hover:bg-[#222] text-white'
+                                    : 'border-[var(--border-color)] hover:bg-[var(--bg-dark)] text-white'
                                     }`}
                             >
                                 <Eye className="w-5 h-5" />
@@ -163,7 +163,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                 onClick={() => setVisibility('hidden')}
                                 className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'hidden'
                                     ? 'bg-[#80c0a0] text-black hover:bg-[#90d0b0]'
-                                    : 'border-[#444] hover:bg-[#222] text-white'
+                                    : 'border-[var(--border-color)] hover:bg-[var(--bg-dark)] text-white'
                                     }`}
                             >
                                 <EyeOff className="w-5 h-5" />
@@ -177,7 +177,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                 onClick={() => setVisibility('custom')}
                                 className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'custom'
                                     ? 'bg-[#80c0a0] text-black hover:bg-[#90d0b0]'
-                                    : 'border-[#444] hover:bg-[#222] text-white'
+                                    : 'border-[var(--border-color)] hover:bg-[var(--bg-dark)] text-white'
                                     }`}
                             >
                                 <Check className="w-5 h-5" />
@@ -189,7 +189,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
 
                         {/* Player Selection for Custom Visibility */}
                         {visibility === 'custom' && (
-                            <div className="mt-2 bg-[#1a1a1a] p-2 rounded border border-[#444] space-y-1 max-h-40 overflow-y-auto">
+                            <div className="mt-2 bg-[var(--bg-dark)] p-2 rounded border border-[var(--border-color)] space-y-1 max-h-40 overflow-y-auto">
                                 <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Visible pour:</p>
                                 {players.length === 0 ? (
                                     <p className="text-xs text-gray-500 italic">Aucun joueur disponible</p>
@@ -199,7 +199,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                         return (
                                             <div
                                                 key={player.id}
-                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all duration-150 ${isSelected ? 'bg-[#80c0a0]/20 border border-[#80c0a0]/50' : 'hover:bg-[#252525] border border-transparent'
+                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all duration-150 ${isSelected ? 'bg-[#80c0a0]/20 border border-[#80c0a0]/50' : 'hover:bg-[var(--bg-card)] border border-transparent'
                                                     }`}
                                                 onClick={() => {
                                                     setVisibleToPlayerIds(prev =>
@@ -240,7 +240,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                             <Switch checked={isPickup} onCheckedChange={setIsPickup} />
                         </div>
                         {isPickup && (
-                            <div className="bg-[#1a1a1a] p-3 rounded border border-[#444] space-y-3">
+                            <div className="bg-[var(--bg-dark)] p-3 rounded border border-[var(--border-color)] space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
                                         <Label className="text-[10px] text-gray-500 uppercase">Nom de l&apos;objet</Label>
@@ -248,16 +248,16 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                             value={itemName}
                                             onChange={(e) => setItemName(e.target.value)}
                                             placeholder={template.name}
-                                            className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9"
+                                            className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] h-9"
                                         />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-[10px] text-gray-500 uppercase">Catégorie</Label>
                                         <Select value={itemCategory} onValueChange={setItemCategory}>
-                                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9">
+                                            <SelectTrigger className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] h-9">
                                                 <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-[#252525] border-[#444] text-[#e0e0e0]">
+                                            <SelectContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">
                                                 {ITEM_CATEGORIES.map((cat) => (
                                                     <SelectItem key={cat} value={cat} className="capitalize">{cat}</SelectItem>
                                                 ))}
@@ -271,7 +271,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                         value={itemDescription}
                                         onChange={(e) => setItemDescription(e.target.value)}
                                         placeholder="ex: Un blaster en parfait état"
-                                        className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9"
+                                        className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] h-9"
                                     />
                                 </div>
                                 <div className="space-y-1 w-24">
@@ -280,7 +280,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                                         type="number" min="1"
                                         value={itemQuantity}
                                         onChange={(e) => setItemQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                                        className="bg-[#252525] border-[#444] text-[#e0e0e0] h-9 text-center"
+                                        className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] h-9 text-center"
                                     />
                                 </div>
                             </div>
@@ -292,7 +292,7 @@ export function PlaceObjectModal({ isOpen, template, players, onClose, onConfirm
                     <Button
                         variant="ghost"
                         onClick={handleClose}
-                        className="text-gray-400 hover:text-white hover:bg-[#222]"
+                        className="text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]"
                     >
                         Annuler
                     </Button>

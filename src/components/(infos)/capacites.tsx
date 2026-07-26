@@ -150,7 +150,7 @@ export default function Capacites() {
   const VoieCard = ({ voie, subtitle, searchTerm }: { voie: Voie, subtitle?: string, searchTerm?: string }) => {
     return (
       <div className="w-full">
-        <div className="h-full rounded-2xl border border-[var(--border-color)] hover:border-[var(--accent-brown)]/40 transition-all duration-300 bg-[var(--bg-card)] hover:shadow-[0_0_25px_rgba(192,160,128,0.06)] flex flex-col">
+        <div className="h-full rounded-2xl border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 bg-[var(--bg-card)] hover:shadow-[0_0_25px_rgba(192,160,128,0.06)] flex flex-col">
           <div className="px-4 pt-4 pb-2 shrink-0">
             <h3 className="text-[var(--accent-brown)] text-base font-bold">
               {voie.nom}
@@ -171,8 +171,8 @@ export default function Capacites() {
                     className={cn(
                       "group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all duration-200",
                       isMatch
-                        ? "bg-[var(--accent-brown)]/15 ring-1 ring-[var(--accent-brown)]/50"
-                        : "hover:bg-[var(--bg-dark)]/50"
+                        ? "bg-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]"
+                        : "hover:bg-[color-mix(in_srgb,var(--bg-dark)_50%,transparent)]"
                     )}
                     onClick={() => handleCompetenceClick(competence)}
                   >
@@ -298,7 +298,7 @@ export default function Capacites() {
         <div className="shrink-0 px-3 sm:px-4 md:px-8 pt-3 sm:pt-4 pb-3 sm:pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             {/* Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] shrink-0 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 p-1 rounded-xl backdrop-blur-sm border border-[var(--border-color)] shrink-0 overflow-x-auto no-scrollbar" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
               <TabsList className="bg-transparent border-none gap-1 p-0">
                 <TabsTrigger value="races" className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <Scroll className="h-4 w-4" /> Races
@@ -320,7 +320,8 @@ export default function Capacites() {
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
                 placeholder="Rechercher une capacité..."
-                className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all"
+                className="w-full h-10 pl-10 pr-4 rounded-xl backdrop-blur-sm border border-[var(--border-color)] text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all"
+                style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
               />
               {globalSearch && (
                 <button
@@ -335,7 +336,7 @@ export default function Capacites() {
             {/* Select */}
             {activeTab === 'races' && (
               <Select value={selectedRace} onValueChange={setSelectedRace}>
-                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
                   <SelectValue placeholder="Toutes les races" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
@@ -353,7 +354,7 @@ export default function Capacites() {
 
             {activeTab === 'profiles' && (
               <Select value={selectedProfile} onValueChange={setSelectedProfile}>
-                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
                   <SelectValue placeholder="Tous les profils" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
@@ -371,7 +372,7 @@ export default function Capacites() {
 
             {activeTab === 'prestiges' && (
               <Select value={selectedPrestige} onValueChange={setSelectedPrestige}>
-                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
                   <SelectValue placeholder="Toutes les classes" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">

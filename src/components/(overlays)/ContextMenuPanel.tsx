@@ -133,12 +133,12 @@ export default function ContextMenuPanel({
                         transition={{ type: "spring", stiffness: 360, damping: 30 }}
                         className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-1.5rem)] sm:w-auto sm:max-w-[calc(100vw-3rem)]"
                     >
-                        <div className="flex flex-wrap items-center justify-center gap-1.5 p-1.5 rounded-2xl sm:rounded-full border border-white/[0.08] bg-[#131315]/95 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 p-1.5 rounded-2xl sm:rounded-full border border-white/[0.08] shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl" style={{ background: 'color-mix(in srgb, var(--bg-darker) 95%, transparent)' }}>
                             {/* Identity chip */}
                             <div className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-white/5">
-                                <Avatar className="h-8 w-8 border-2 shrink-0" style={{ borderColor: '#c0a08099' }}>
+                                <Avatar className="h-8 w-8 border-2 shrink-0" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 60%, transparent)' }}>
                                     <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
-                                    <AvatarFallback className="bg-[#2a2a2a] text-xs">{character.name[0]}</AvatarFallback>
+                                    <AvatarFallback className="bg-[var(--bg-darker)] text-xs">{character.name[0]}</AvatarFallback>
                                 </Avatar>
                                 <span className="font-semibold text-white text-sm truncate max-w-[110px]">{character.name}</span>
                             </div>
@@ -212,7 +212,7 @@ export default function ContextMenuPanel({
                                     onClick={() => onAction('openSheet', character.id)}
                                     title="Voir la fiche"
                                     aria-label="Voir la fiche"
-                                    className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-[#c0a080] transition-colors"
+                                    className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-[var(--accent-brown)] transition-colors"
                                 >
                                     <FileText size={14} />
                                 </motion.button>
@@ -239,9 +239,10 @@ export default function ContextMenuPanel({
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 10 }}
                         transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                        className="fixed z-50 flex flex-col overflow-hidden bg-[#1a1a1a]/90 backdrop-blur-xl border border-[#333] shadow-2xl ring-1 ring-white/5
+                        className="fixed z-50 flex flex-col overflow-hidden backdrop-blur-xl border border-[var(--border-color)] shadow-2xl ring-1 ring-white/5
                             inset-x-2 bottom-[64px] max-h-[80vh] rounded-2xl
                             lg:inset-x-auto lg:bottom-auto lg:right-20 lg:top-20 lg:w-[340px] lg:max-h-[85vh]"
+                        style={{ background: 'color-mix(in srgb, var(--bg-dark) 90%, transparent)' }}
                     >
                         {/* Header avec Image et Nom - Draggable Zone (desktop only) */}
                         <div
@@ -250,7 +251,7 @@ export default function ContextMenuPanel({
                         >
                             {/* Background Image Floutée avec Gradient */}
                             <div className="absolute inset-0 z-0 overflow-hidden h-32">
-                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#1a1a1a]" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--bg-dark)]" />
                                 <div className="absolute inset-0 bg-black/40" />
                                 {character.image && (
                                     <img
@@ -272,9 +273,9 @@ export default function ContextMenuPanel({
                                 </Button>
 
                                 <div className={`relative ${character.type !== 'joueurs' ? 'group/avatar cursor-pointer' : ''}`} onClick={() => { if (character.type !== 'joueurs') avatarInputRef.current?.click(); }}>
-                                    <Avatar className={`${!isMJ && character.type !== 'joueurs' ? 'h-24 w-24' : 'h-20 w-20'} border-[3px] border-[#c0a080] shadow-xl ring-4 ring-black/30`}>
+                                    <Avatar className={`${!isMJ && character.type !== 'joueurs' ? 'h-24 w-24' : 'h-20 w-20'} border-[3px] border-[var(--accent-brown)] shadow-xl ring-4 ring-black/30`}>
                                         <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
-                                        <AvatarFallback className="bg-[#2a2a2a] text-2xl">{character.name[0]}</AvatarFallback>
+                                        <AvatarFallback className="bg-[var(--bg-darker)] text-2xl">{character.name[0]}</AvatarFallback>
                                     </Avatar>
                                     {character.type !== 'joueurs' && (
                                         <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
@@ -282,7 +283,7 @@ export default function ContextMenuPanel({
                                         </div>
                                     )}
                                     {isMJ && hasAudio && (
-                                        <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-1 border-2 border-[#1a1a1a] shadow-sm">
+                                        <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-1 border-2 border-[var(--bg-dark)] shadow-sm">
                                             <Music size={10} className="text-white" />
                                         </div>
                                     )}
@@ -326,7 +327,8 @@ export default function ContextMenuPanel({
                             <div className="grid grid-cols-2 gap-1 px-4 pb-4 shrink-0">
                                 {primaryVitalStat && (
                                     <div
-                                        className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        className="p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[var(--bg-dark)] transition-colors cursor-pointer"
+                                        style={{ background: 'color-mix(in srgb, var(--bg-card) 50%, transparent)' }}
                                         onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
                                     >
                                         <div className="flex items-center gap-2.5 text-gray-400">
@@ -340,7 +342,8 @@ export default function ContextMenuPanel({
                                 )}
                                 {defenseKey && (
                                     <div
-                                        className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        className="p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[var(--bg-dark)] transition-colors cursor-pointer"
+                                        style={{ background: 'color-mix(in srgb, var(--bg-card) 50%, transparent)' }}
                                         onClick={() => { setStatDelta(0); setEditingStat({ key: defenseKey, label: 'Défense', value: Number(character[defenseKey] ?? 0) }); }}
                                     >
                                         <div className="flex items-center gap-2.5 text-gray-400">
@@ -357,16 +360,16 @@ export default function ContextMenuPanel({
 
                         <Tabs defaultValue="actions" className="flex-1 flex flex-col min-h-0 w-full">
                             <div className="px-4 pb-2">
-                                <TabsList className="w-full bg-[#252525]/80 p-1 border border-white/5 grid grid-cols-5">
-                                    <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Actions</TabsTrigger>
-                                    <TabsTrigger value="stats" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Stats</TabsTrigger>
-                                    <TabsTrigger value="effects" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Effets</TabsTrigger>
-                                    <TabsTrigger value="params" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white" disabled={!isMJ}>Param</TabsTrigger>
-                                    <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Notes</TabsTrigger>
+                                <TabsList className="w-full p-1 border border-white/5 grid grid-cols-5" style={{ background: 'color-mix(in srgb, var(--bg-card) 80%, transparent)' }}>
+                                    <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Actions</TabsTrigger>
+                                    <TabsTrigger value="stats" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Stats</TabsTrigger>
+                                    <TabsTrigger value="effects" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Effets</TabsTrigger>
+                                    <TabsTrigger value="params" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white" disabled={!isMJ}>Param</TabsTrigger>
+                                    <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Notes</TabsTrigger>
                                 </TabsList>
                             </div>
 
-                            <ScrollArea className="flex-1 w-full bg-[#111]/30">
+                            <ScrollArea className="flex-1 w-full" style={{ background: 'color-mix(in srgb, var(--bg-darker) 30%, transparent)' }}>
                                 <div className="p-4 space-y-4">
 
                                     <TabsContent value="actions" className="mt-0 space-y-3 focus-visible:ring-0">
@@ -374,7 +377,7 @@ export default function ContextMenuPanel({
                                         <div className="grid grid-cols-2 gap-2">
                                             <Button
                                                 variant="outline"
-                                                className="justify-start gap-2 bg-[#252525] border-white/5 hover:bg-[#333] hover:text-red-400 text-gray-300 h-10"
+                                                className="justify-start gap-2 bg-[var(--bg-card)] border-white/5 hover:bg-[var(--border-color)] hover:text-red-400 text-gray-300 h-10"
                                                 onClick={() => onAction('attack', character.id)}
                                             >
                                                 <Sword size={16} />
@@ -383,7 +386,7 @@ export default function ContextMenuPanel({
                                             {canViewDetails && (
                                                 <Button
                                                     variant="outline"
-                                                    className="justify-start gap-2 bg-[#252525] border-white/5 hover:bg-[#333] hover:text-[#c0a080] text-gray-300 h-10"
+                                                    className="justify-start gap-2 bg-[var(--bg-card)] border-white/5 hover:bg-[var(--border-color)] hover:text-[var(--accent-brown)] text-gray-300 h-10"
                                                     onClick={() => onAction('openSheet', character.id)}
                                                 >
                                                     <FileText size={16} />
@@ -440,7 +443,7 @@ export default function ContextMenuPanel({
 
                                         {/* Quick Audio Control for GM */}
                                         {isMJ && (
-                                            <div className="bg-[#202020] rounded-lg p-3 border border-dashed border-white/10 hover:border-purple-500/30 transition-colors">
+                                            <div className="bg-[var(--bg-card)] rounded-lg p-3 border border-dashed border-white/10 hover:border-purple-500/30 transition-colors">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
                                                         <Music size={14} className="text-purple-400" />
@@ -468,7 +471,7 @@ export default function ContextMenuPanel({
                                                     </div>
                                                 ) : (
                                                     <Button
-                                                        className="w-full bg-[#2a2a2a] hover:bg-[#333] text-gray-400 border border-transparent hover:border-purple-500/30 h-8 text-xs gap-2"
+                                                        className="w-full bg-[var(--bg-dark)] hover:bg-[var(--border-color)] text-gray-400 border border-transparent hover:border-purple-500/30 h-8 text-xs gap-2"
                                                         onClick={() => setIsAudioDialogOpen(true)}
                                                     >
                                                         <Plus size={12} />
@@ -485,7 +488,7 @@ export default function ContextMenuPanel({
                                                 <div className="grid grid-cols-2 gap-2 pt-2">
                                                     <Button
                                                         variant="outline"
-                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-yellow-400 text-gray-300 h-9 text-xs"
+                                                        className="justify-start gap-2 bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-yellow-400 text-gray-300 h-9 text-xs"
                                                         onClick={() => {
                                                             setLocalEditingCharacter({ ...character });
                                                             setIsEditDialogOpen(true);
@@ -496,7 +499,7 @@ export default function ContextMenuPanel({
                                                     </Button>
                                                     <Button
                                                         variant="outline"
-                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-red-900/20 hover:border-red-900/50 hover:text-red-400 text-gray-300 h-9 text-xs"
+                                                        className="justify-start gap-2 bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-red-900/20 hover:border-red-900/50 hover:text-red-400 text-gray-300 h-9 text-xs"
                                                         onClick={() => setIsDeleteConfirmOpen(true)}
                                                     >
                                                         <Trash2 size={14} />
@@ -517,7 +520,7 @@ export default function ContextMenuPanel({
                                                     {abilityStats.map((stat) => (
                                                         <div
                                                             key={stat.key}
-                                                            className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                            className={`rounded-lg border border-white/5 p-2 flex items-center justify-between bg-[color-mix(in_srgb,var(--bg-card)_50%,transparent)] ${isMJ ? 'cursor-pointer hover:bg-[var(--bg-dark)] hover:border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] transition-colors' : ''}`}
                                                             onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat.key, label: stat.shortLabel || stat.key, value: Number(character[stat.key] ?? 0) }); })()}
                                                         >
                                                             <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat.shortLabel || stat.key}</span>
@@ -541,7 +544,7 @@ export default function ContextMenuPanel({
                                                 ].map((s) => (
                                                     <div
                                                         key={s.key}
-                                                        className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                        className={`rounded-lg border border-white/5 p-2 flex items-center justify-between bg-[color-mix(in_srgb,var(--bg-card)_50%,transparent)] ${isMJ ? 'cursor-pointer hover:bg-[var(--bg-dark)] hover:border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] transition-colors' : ''}`}
                                                         onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: s.key, label: s.label, value: s.value ?? 0 }); })()}
                                                     >
                                                         <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{s.label}</span>
@@ -561,7 +564,7 @@ export default function ContextMenuPanel({
                                                     {combatAttackKeys.map((stat) => (
                                                     <div
                                                         key={stat}
-                                                        className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                        className={`rounded-lg border border-white/5 p-2 flex items-center justify-between bg-[color-mix(in_srgb,var(--bg-card)_50%,transparent)] ${isMJ ? 'cursor-pointer hover:bg-[var(--bg-dark)] hover:border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] transition-colors' : ''}`}
                                                         onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat, label: stat, value: Number(character[stat] ?? 0) }); })()}
                                                     >
                                                         <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat.slice(0, 4)}</span>
@@ -585,7 +588,7 @@ export default function ContextMenuPanel({
                                                                 key={condition.id}
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className={`justify-start gap-2 h-9 text-xs transition-all ${isActive ? 'bg-blue-900/40 border-blue-500/50 text-blue-200' : 'bg-[#252525] border-[#333] text-gray-400 hover:text-white hover:bg-[#333]'}`}
+                                                                className={`justify-start gap-2 h-9 text-xs transition-all ${isActive ? 'bg-blue-900/40 border-blue-500/50 text-blue-200' : 'bg-[var(--bg-card)] border-[var(--border-color)] text-gray-400 hover:text-white hover:bg-[var(--border-color)]'}`}
                                                                 onClick={() => onAction('toggleCondition', character.id, condition.id)}
                                                             >
                                                                 <Icon size={14} className={isActive ? condition.color : ""} />
@@ -602,7 +605,7 @@ export default function ContextMenuPanel({
                                                             value={customCondition}
                                                             onChange={(e) => setCustomCondition(e.target.value)}
                                                             placeholder="Autre effet..."
-                                                            className="h-8 text-xs bg-[#252525] border-[#333] focus:border-blue-500/50"
+                                                            className="h-8 text-xs bg-[var(--bg-card)] border-[var(--border-color)] focus:border-blue-500/50"
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter' && customCondition.trim()) {
                                                                     onAction('toggleCondition', character.id, customCondition.trim());
@@ -613,7 +616,7 @@ export default function ContextMenuPanel({
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
-                                                            className="h-8 w-8 p-0 hover:bg-[#333]"
+                                                            className="h-8 w-8 p-0 hover:bg-[var(--border-color)]"
                                                             onClick={() => {
                                                                 if (customCondition.trim()) {
                                                                     onAction('toggleCondition', character.id, customCondition.trim());
@@ -667,7 +670,7 @@ export default function ContextMenuPanel({
                                                             size="sm"
                                                             className={`text-xs h-8 capitalize ${character.visibility === mode
                                                                 ? 'bg-blue-600 border-blue-500 text-white'
-                                                                : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                                : 'bg-[var(--bg-card)] border-[var(--border-color)] text-gray-400'}`}
                                                             onClick={() => onAction('setVisibility', character.id, mode)}
                                                         >
                                                             {mode === 'invisible' ? <><Ghost size={12} className="mr-1" />{mode}</> : mode}
@@ -677,7 +680,7 @@ export default function ContextMenuPanel({
 
                                                 {/* Custom Player Selection */}
                                                 {character.visibility === 'custom' && (
-                                                    <div className="bg-[#1a1a1a] p-2 rounded-lg border border-[#444] space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                                    <div className="bg-[var(--bg-dark)] p-2 rounded-lg border border-[var(--border-color)] space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
                                                         {players.length === 0 ? (
                                                             <p className="text-xs text-gray-500 italic text-center py-2">Aucun joueur</p>
                                                         ) : (
@@ -686,7 +689,7 @@ export default function ContextMenuPanel({
                                                                 return (
                                                                     <div
                                                                         key={player.id}
-                                                                        className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all ${isSelected ? 'bg-purple-900/40 border border-purple-500/30' : 'hover:bg-[#252525] border border-transparent'}`}
+                                                                        className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all ${isSelected ? 'bg-purple-900/40 border border-purple-500/30' : 'hover:bg-[var(--bg-card)] border border-transparent'}`}
                                                                         onClick={() => {
                                                                             const currentIds = localSelectedPlayerIds;
                                                                             const newIds = isSelected
@@ -720,7 +723,7 @@ export default function ContextMenuPanel({
                                                     size="sm"
                                                     className={`text-xs h-8 ${!character.shape || character.shape === 'circle'
                                                         ? 'bg-blue-600 border-blue-500 text-white'
-                                                        : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-gray-400'}`}
                                                     onClick={() => onAction('updateShape', character.id, 'circle')}
                                                 >
                                                     <CircleIcon size={14} className="mr-2" />
@@ -731,7 +734,7 @@ export default function ContextMenuPanel({
                                                     size="sm"
                                                     className={`text-xs h-8 ${character.shape === 'square'
                                                         ? 'bg-blue-600 border-blue-500 text-white'
-                                                        : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-gray-400'}`}
                                                     onClick={() => onAction('updateShape', character.id, 'square')}
                                                 >
                                                     <Square size={14} className="mr-2" />
@@ -754,7 +757,7 @@ export default function ContextMenuPanel({
                                                 step="0.1"
                                                 value={character.scale || 1}
                                                 onChange={(e) => onAction('updateScale', character.id, parseFloat(e.target.value))}
-                                                className="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                className="w-full h-1.5 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-blue-500"
                                             />
                                         </div>
 
@@ -767,7 +770,7 @@ export default function ContextMenuPanel({
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-xs text-gray-400">Rayon de vision</span>
                                                         <div className="flex gap-2 items-center">
-                                                            <span className="text-xs font-mono text-[#c0a080]" title={`Valeur brute: ${character.visibilityRadius}`}>
+                                                            <span className="text-xs font-mono text-[var(--accent-brown)]" title={`Valeur brute: ${character.visibilityRadius}`}>
                                                                 {Math.round(1 + ((character.visibilityRadius || 100) - 10) / 490 * 29)} c.
                                                             </span>
                                                             <span className="text-[10px] text-gray-500">•</span>
@@ -783,7 +786,7 @@ export default function ContextMenuPanel({
                                                         step="10"
                                                         value={character.visibilityRadius || 100}
                                                         onChange={(e) => onAction('updateVisibilityRadius', character.id, parseInt(e.target.value))}
-                                                        className="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
+                                                        className="w-full h-1.5 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-brown)]"
                                                     />
                                                 </div>
 
@@ -811,7 +814,7 @@ export default function ContextMenuPanel({
 
             {/* PV Quick-Edit Drawer — libellé et clé dérivés de la stat vitale principale du système actif */}
             <Drawer open={isPVDrawerOpen} onClose={() => setIsPVDrawerOpen(false)}>
-                <DrawerContent className="bg-[#1a1a1a] border-t border-[#333] max-w-2xl mx-auto">
+                <DrawerContent className="bg-[var(--bg-dark)] border-t border-[var(--border-color)] max-w-2xl mx-auto">
                     <DrawerHeader>
                         <DrawerTitle className="text-white text-center text-2xl">Ajuster {primaryVitalStat ? `les ${primaryVitalStat.label}` : 'les PV'}</DrawerTitle>
                         <DrawerDescription className="text-gray-400 text-center">
@@ -822,7 +825,7 @@ export default function ContextMenuPanel({
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-red-500/10 hover:border-red-500 hover:text-red-500 transition-all"
+                            className="h-16 w-16 rounded-full border-2 border-[var(--border-color)] hover:bg-red-500/10 hover:border-red-500 hover:text-red-500 transition-all"
                             onClick={() => setPvDelta(prev => prev - 1)}
                         >
                             <Minus className="h-8 w-8" />
@@ -833,16 +836,16 @@ export default function ContextMenuPanel({
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-green-500/10 hover:border-green-500 hover:text-green-500 transition-all"
+                            className="h-16 w-16 rounded-full border-2 border-[var(--border-color)] hover:bg-green-500/10 hover:border-green-500 hover:text-green-500 transition-all"
                             onClick={() => setPvDelta(prev => prev + 1)}
                         >
                             <Plus className="h-8 w-8" />
                         </Button>
                     </div>
                     <DrawerFooter className="flex-row justify-center gap-4">
-                        <Button variant="outline" className="w-32 border-[#333] text-gray-300 hover:bg-[#252525]" onClick={() => { setIsPVDrawerOpen(false); setPvDelta(0); }}>Annuler</Button>
+                        <Button variant="outline" className="w-32 border-[var(--border-color)] text-gray-300 hover:bg-[var(--bg-card)]" onClick={() => { setIsPVDrawerOpen(false); setPvDelta(0); }}>Annuler</Button>
                         <Button
-                            className="w-32 bg-[#c0a080] text-[#1a1a1a] font-bold hover:bg-[#d4b896]"
+                            className="w-32 bg-[var(--accent-brown)] text-[var(--bg-dark)] font-bold hover:bg-[var(--accent-brown-hover)]"
                             onClick={() => {
                                 const vitalKey = primaryVitalStat?.key ?? 'PV';
                                 const current = Number(character[vitalKey] ?? 0);
@@ -859,7 +862,7 @@ export default function ContextMenuPanel({
 
             {/* Generic Stat-Edit Drawer (from Stats tab) */}
             <Drawer open={!!editingStat} onClose={() => { setEditingStat(null); setStatDelta(0); }}>
-                <DrawerContent className="bg-[#1a1a1a] border-t border-[#333] max-w-2xl mx-auto">
+                <DrawerContent className="bg-[var(--bg-dark)] border-t border-[var(--border-color)] max-w-2xl mx-auto">
                     <DrawerHeader>
                         <DrawerTitle className="text-white text-center text-2xl">Ajuster : {editingStat?.label}</DrawerTitle>
                         <DrawerDescription className="text-gray-400 text-center">
@@ -870,7 +873,7 @@ export default function ContextMenuPanel({
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-red-500/10 hover:border-red-500 hover:text-red-500 transition-all"
+                            className="h-16 w-16 rounded-full border-2 border-[var(--border-color)] hover:bg-red-500/10 hover:border-red-500 hover:text-red-500 transition-all"
                             onClick={() => setStatDelta(prev => prev - 1)}
                         >
                             <Minus className="h-8 w-8" />
@@ -881,16 +884,16 @@ export default function ContextMenuPanel({
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-green-500/10 hover:border-green-500 hover:text-green-500 transition-all"
+                            className="h-16 w-16 rounded-full border-2 border-[var(--border-color)] hover:bg-green-500/10 hover:border-green-500 hover:text-green-500 transition-all"
                             onClick={() => setStatDelta(prev => prev + 1)}
                         >
                             <Plus className="h-8 w-8" />
                         </Button>
                     </div>
                     <DrawerFooter className="flex-row justify-center gap-4">
-                        <Button variant="outline" className="w-32 border-[#333] text-gray-300 hover:bg-[#252525]" onClick={() => { setEditingStat(null); setStatDelta(0); }}>Annuler</Button>
+                        <Button variant="outline" className="w-32 border-[var(--border-color)] text-gray-300 hover:bg-[var(--bg-card)]" onClick={() => { setEditingStat(null); setStatDelta(0); }}>Annuler</Button>
                         <Button
-                            className="w-32 bg-[#c0a080] text-[#1a1a1a] font-bold hover:bg-[#d4b896]"
+                            className="w-32 bg-[var(--accent-brown)] text-[var(--bg-dark)] font-bold hover:bg-[var(--accent-brown-hover)]"
                             onClick={() => {
                                 if (editingStat) {
                                     onAction('updateStat', character.id, { key: editingStat.key, value: editingStat.value + statDelta });
@@ -910,7 +913,7 @@ export default function ContextMenuPanel({
                 setIsEditDialogOpen(open);
                 if (!open) setLocalEditingCharacter(null);
             }}>
-                <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+                <DialogContent className="bg-[var(--bg-card)] text-[var(--accent-brown)] max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>Modifier le personnage</DialogTitle>
                     </DialogHeader>
@@ -926,7 +929,7 @@ export default function ContextMenuPanel({
                                         id="characterName"
                                         value={localEditingCharacter?.name || ''}
                                         onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, name: e.target.value })}
-                                        className="bg-[#2a2a2a] border-gray-600 focus:border-[#c0a080]"
+                                        className="bg-[var(--bg-dark)] border-gray-600 focus:border-[var(--accent-brown)]"
                                     />
                                 </div>
                             </div>
@@ -944,7 +947,7 @@ export default function ContextMenuPanel({
                                                     type="number"
                                                     value={Number(localEditingCharacter?.[stat.key] ?? 0)}
                                                     onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat.key]: parseInt(e.target.value) || 0 })}
-                                                    className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                    className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono"
                                                 />
                                             </div>
                                             {maxKey && (
@@ -955,7 +958,7 @@ export default function ContextMenuPanel({
                                                         type="number"
                                                         value={Number(localEditingCharacter?.[maxKey] ?? localEditingCharacter?.[stat.key] ?? 0)}
                                                         onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [maxKey]: parseInt(e.target.value) || 0 })}
-                                                        className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                        className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono"
                                                     />
                                                 </div>
                                             )}
@@ -969,7 +972,7 @@ export default function ContextMenuPanel({
                                                 type="number"
                                                 value={Number(localEditingCharacter?.[defenseKey] ?? 0)}
                                                 onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [defenseKey]: parseInt(e.target.value) || 0 })}
-                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono"
                                             />
                                         </div>
                                     )}
@@ -981,7 +984,7 @@ export default function ContextMenuPanel({
                                                 type="number"
                                                 value={Number(localEditingCharacter?.[stat.key] ?? 0)}
                                                 onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat.key]: parseInt(e.target.value) || 0 })}
-                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono"
                                             />
                                         </div>
                                     ))}
@@ -992,7 +995,7 @@ export default function ContextMenuPanel({
                                             type="number"
                                             value={localEditingCharacter?.niveau || 1}
                                             onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, niveau: parseInt(e.target.value) || 1 })}
-                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                            className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono"
                                         />
                                     </div>
                                 </div>
@@ -1011,7 +1014,7 @@ export default function ContextMenuPanel({
                                                     type="number"
                                                     value={Number(localEditingCharacter?.[stat] ?? 0)}
                                                     onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat]: parseInt(e.target.value) || 0 })}
-                                                    className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                                    className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono"
                                                 />
                                             </div>
                                         ))}
@@ -1032,7 +1035,7 @@ export default function ContextMenuPanel({
                                                     type="number"
                                                     value={Number(localEditingCharacter?.[statDef.key] ?? 0)}
                                                     onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [statDef.key]: parseInt(e.target.value) || 0 })}
-                                                    className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono px-1"
+                                                    className="h-8 bg-[var(--bg-dark)] border-gray-600 text-center font-mono px-1"
                                                 />
                                             </div>
                                         ))}
@@ -1056,7 +1059,7 @@ export default function ContextMenuPanel({
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-                <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+                <DialogContent className="bg-[var(--bg-card)] text-[var(--accent-brown)] max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
                     </DialogHeader>

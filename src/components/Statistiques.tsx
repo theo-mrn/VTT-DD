@@ -216,7 +216,7 @@ export function Statistiques() {
                   whileTap={{ scale: 0.98 }}
                   className={`p-2 rounded-md text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1 ${selectedStat === stat.key
                     ? 'bg-[var(--accent-brown)] text-white shadow-sm'
-                    : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50 hover:text-[var(--text-primary)]'
+                    : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:text-[var(--text-primary)]'
                     }`}
                 >
                   <div className={selectedStat === stat.key ? 'text-white' : 'text-[var(--accent-brown)]'}>
@@ -264,7 +264,7 @@ export function Statistiques() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="relative bg-[var(--bg-darker)] rounded-lg p-2 border border-[var(--border-color)] overflow-hidden hover:border-[var(--accent-brown)]/40 transition-all"
+                        className="relative bg-[var(--bg-darker)] rounded-lg p-2 border border-[var(--border-color)] overflow-hidden hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all"
                       >
                         {/* Barre de progression subtile */}
                         <motion.div

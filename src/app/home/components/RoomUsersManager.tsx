@@ -196,7 +196,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                             <div key={u.uid} className="group flex items-center justify-between p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
                                 <div className="flex items-center gap-4 cursor-pointer" onClick={() => setSelectedUserId(u.uid)}>
                                     {/* Avatar User */}
-                                    <Avatar className="h-10 w-10 border border-[var(--border-color)] group-hover:border-[var(--accent-brown)]/50 transition-colors">
+                                    <Avatar className="h-10 w-10 border border-[var(--border-color)] group-hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-colors">
                                         <AvatarImage src={u.pp} alt={u.name} />
                                         <AvatarFallback className="bg-[var(--bg-darker)] text-[var(--accent-brown)]"><User className="h-4 w-4" /></AvatarFallback>
                                     </Avatar>
@@ -210,7 +210,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                                             {u.isMJ ? (
                                                 <span className="font-medium text-[#c0a080]/80">Maître du Jeu</span>
                                             ) : (
-                                                <div className="flex items-center gap-2 text-[var(--text-primary)]/70">
+                                                <div className="flex items-center gap-2" style={{ color: 'color-mix(in srgb, var(--text-primary) 70%, transparent)' }}>
                                                     {u.characterImage && (
                                                         <img src={u.characterImage} alt={u.characterName} className="h-4 w-4 rounded-full object-cover border border-white/10" />
                                                     )}

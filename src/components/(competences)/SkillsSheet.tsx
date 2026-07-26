@@ -293,7 +293,7 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
                   {selectedSkill.skill.label}
                 </h2>
                 {selectedSkill.isCareer && (
-                  <div className="px-2 py-1 rounded text-xs font-semibold border bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border-[var(--accent-brown)]/20 flex items-center gap-1">
+                  <div className="px-2 py-1 rounded text-xs font-semibold border bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)] border-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] flex items-center gap-1">
                     <Star className="h-3 w-3" /> Carrière
                   </div>
                 )}
@@ -356,7 +356,7 @@ export default function SkillsSheet({ roomId, characterId, canEdit = false, styl
                       className={`relative overflow-hidden transition-all duration-300 ${
                         selectedSkill.cost > xp
                           ? 'opacity-50 cursor-not-allowed bg-[var(--bg-darker)]'
-                          : 'bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] hover:shadow-lg hover:shadow-[var(--accent-brown)]/20 text-[var(--bg-dark)] font-bold'
+                          : 'bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] hover:shadow-lg hover:shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] text-[var(--bg-dark)] font-bold'
                       }`}
                     >
                       {selectedSkill.cost > xp ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> XP insuffisant</> : `+1 rang (${selectedSkill.cost} XP)`}

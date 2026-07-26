@@ -117,7 +117,7 @@ export default function Marketplace() {
 
   const renderTableRows = (category: string, items: Item[]) => {
     return items.map((item, index) => (
-      <TableRow key={index} className="border-[var(--border-color)] hover:bg-[var(--accent-brown)]/5 transition-colors">
+      <TableRow key={index} className="border-[var(--border-color)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)] transition-colors">
         <TableCell className="font-medium text-[var(--text-primary)]">{item.nom}</TableCell>
         {category === 'armes' && (
           <>
@@ -161,7 +161,7 @@ export default function Marketplace() {
         <div className="shrink-0 px-4 md:px-8 pt-4 pb-4">
           <div className="flex items-center gap-3">
             {/* Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] shrink-0 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 p-1 rounded-xl backdrop-blur-sm border border-[var(--border-color)] shrink-0 overflow-x-auto no-scrollbar" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
               <TabsList className="bg-transparent border-none gap-1 p-0">
                 {categories.map((category) => (
                   <TabsTrigger
@@ -183,7 +183,8 @@ export default function Marketplace() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Rechercher un objet..."
-                className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all"
+                className="w-full h-10 pl-10 pr-4 rounded-xl backdrop-blur-sm border border-[var(--border-color)] text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all"
+                style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
               />
               {searchTerm && (
                 <button
@@ -207,14 +208,14 @@ export default function Marketplace() {
                 if (filtered.length === 0) return null;
                 return (
                   <div key={category}>
-                    <div className="px-4 py-2 bg-[var(--bg-dark)]/40 border-b border-[var(--border-color)]">
+                    <div className="px-4 py-2 border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-dark) 40%, transparent)' }}>
                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--accent-brown)]">
                         {category.replace(/_/g, ' ')}
                       </span>
                       <span className="ml-2 text-xs text-[var(--text-secondary)]">({filtered.length})</span>
                     </div>
                     <Table>
-                      <TableHeader className="bg-[var(--bg-dark)]/60">
+                      <TableHeader style={{ background: 'color-mix(in srgb, var(--bg-dark) 60%, transparent)' }}>
                         <TableRow className="border-[var(--border-color)] hover:bg-transparent uppercase text-[10px] tracking-widest">
                           {renderTableHeader(category)}
                         </TableRow>
@@ -237,7 +238,7 @@ export default function Marketplace() {
             categories.map((category) => (
               <TabsContent key={category} value={category} className="mt-0 outline-none">
                 <Table>
-                  <TableHeader className="bg-[var(--bg-dark)]/60 sticky top-0 z-10">
+                  <TableHeader className="sticky top-0 z-10" style={{ background: 'color-mix(in srgb, var(--bg-dark) 60%, transparent)' }}>
                     <TableRow className="border-[var(--border-color)] hover:bg-transparent uppercase text-[10px] tracking-widest">
                       {renderTableHeader(category)}
                     </TableRow>

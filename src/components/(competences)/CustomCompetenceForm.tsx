@@ -74,8 +74,8 @@ export default function CustomCompetenceForm({ onCreate, onCancel, resetKey }: C
                         className={cn(
                             "flex items-center justify-center gap-2 p-3 rounded-lg border transition-all text-sm font-semibold",
                             type === 'active'
-                                ? "border-[var(--accent-brown)] bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]"
-                                : "border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50"
+                                ? "border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)]"
+                                : "border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]"
                         )}
                     >
                         <Sparkles className="w-4 h-4" />
@@ -87,8 +87,8 @@ export default function CustomCompetenceForm({ onCreate, onCancel, resetKey }: C
                         className={cn(
                             "flex items-center justify-center gap-2 p-3 rounded-lg border transition-all text-sm font-semibold",
                             type === 'passive'
-                                ? "border-[var(--accent-brown)] bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]"
-                                : "border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50"
+                                ? "border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)]"
+                                : "border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]"
                         )}
                     >
                         <Shield className="w-4 h-4" />

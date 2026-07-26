@@ -98,7 +98,8 @@ export default function ObjectContextMenu({
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="fixed right-24 top-24 w-72 bg-[#1e1e1e]/95 backdrop-blur-md border border-[#333] rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden"
+                    className="fixed right-24 top-24 w-72 backdrop-blur-md border border-[var(--border-color)] rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden"
+                    style={{ background: 'color-mix(in srgb, var(--bg-card) 95%, transparent)' }}
                 >
                     {/* Header avec Image */}
                     <div
@@ -106,7 +107,7 @@ export default function ObjectContextMenu({
                         onPointerDown={(e) => isMJ && dragControls.start(e)}
                     >
                         {/* Background Image Floutée */}
-                        <div className="absolute inset-0 bg-[#000] flex items-center justify-center overflow-hidden">
+                        <div className="absolute inset-0 bg-[var(--bg-darker)] flex items-center justify-center overflow-hidden">
                             {object.imageUrl ? (
                                 <img
                                     src={object.imageUrl}
@@ -128,7 +129,7 @@ export default function ObjectContextMenu({
                         </Button>
                     </div>
 
-                    <Separator className="bg-[#333]" />
+                    <Separator className="bg-[var(--border-color)]" />
 
                     {/* Object Name - visible to all, editable by MJ */}
                     <div className="p-4 pb-2">
@@ -137,7 +138,7 @@ export default function ObjectContextMenu({
                                 <Input
                                     value={renameValue}
                                     onChange={(e) => setRenameValue(e.target.value)}
-                                    className="bg-[#252525] border-[#404040] text-center font-bold text-[#e0e0e0]"
+                                    className="bg-[var(--bg-dark)] border-[var(--border-color)] text-center font-bold text-[var(--text-primary)]"
                                     autoFocus
                                     onKeyDown={(e) => e.key === 'Enter' && handleRenameSubmit()}
                                 />
@@ -150,7 +151,7 @@ export default function ObjectContextMenu({
                             </div>
                         ) : (
                             <div className="group relative flex justify-center items-center gap-2">
-                                <h2 className="text-xl font-bold text-[#e0e0e0] font-serif tracking-wide text-center">{entity?.label || object.name || 'Objet'}</h2>
+                                <h2 className="text-xl font-bold text-[var(--text-primary)] font-serif tracking-wide text-center">{entity?.label || object.name || 'Objet'}</h2>
                                 {isMJ && (
                                     <Button
                                         variant="ghost"
@@ -170,10 +171,10 @@ export default function ObjectContextMenu({
 
                     <Tabs defaultValue="actions" className="flex-1 flex flex-col min-h-0 w-full">
                         <div className="px-4 pb-2">
-                            <TabsList className={`w-full bg-[#252525]/80 p-1 border border-white/5 grid ${entity ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                                <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Général</TabsTrigger>
-                                {entity && <TabsTrigger value="stats" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Stats</TabsTrigger>}
-                                <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Notes</TabsTrigger>
+                            <TabsList className={`w-full p-1 border border-white/5 grid ${entity ? 'grid-cols-3' : 'grid-cols-2'}`} style={{ background: 'color-mix(in srgb, var(--bg-dark) 80%, transparent)' }}>
+                                <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Général</TabsTrigger>
+                                {entity && <TabsTrigger value="stats" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Stats</TabsTrigger>}
+                                <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white">Notes</TabsTrigger>
                             </TabsList>
                         </div>
 
@@ -186,7 +187,7 @@ export default function ObjectContextMenu({
                                         {!entity && (
                                             <Button
                                                 variant="outline"
-                                                className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-amber-400 text-gray-300"
+                                                className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-amber-400 text-gray-300"
                                                 onClick={() => onAction('openLoot', object.id)}
                                             >
                                                 <Package size={16} />
@@ -199,7 +200,7 @@ export default function ObjectContextMenu({
                                         {entity && (
                                             <Button
                                                 variant="outline"
-                                                className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#ae3838] hover:text-white text-gray-300"
+                                                className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[#ae3838] hover:text-white text-gray-300"
                                                 onClick={() => onAction('startAreaAttack', object.id)}
                                             >
                                                 <Sword size={16} />
@@ -212,7 +213,7 @@ export default function ObjectContextMenu({
                                                 {/* Lock / Unlock Object */}
                                                 <Button
                                                     variant="outline"
-                                                    className={`justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] text-gray-300 ${object.isLocked ? 'hover:text-green-400' : 'hover:text-orange-400'}`}
+                                                    className={`justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-gray-300 ${object.isLocked ? 'hover:text-green-400' : 'hover:text-orange-400'}`}
                                                     onClick={() => onAction('toggleLock', object.id)}
                                                 >
                                                     {object.isLocked ? <Unlock size={16} /> : <Lock size={16} />}
@@ -223,7 +224,7 @@ export default function ObjectContextMenu({
                                                 {!object.isBackground && (
                                                     <Button
                                                         variant="outline"
-                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-blue-400 text-gray-300"
+                                                        className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-blue-400 text-gray-300"
                                                         onClick={() => onAction('toggleBackground', object.id)}
                                                     >
                                                         <Lock size={16} />
@@ -234,7 +235,7 @@ export default function ObjectContextMenu({
                                                 {object.isBackground && isBackgroundEditMode && (
                                                     <Button
                                                         variant="outline"
-                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-green-400 text-gray-300"
+                                                        className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-green-400 text-gray-300"
                                                         onClick={() => onAction('toggleBackground', object.id)}
                                                     >
                                                         <Unlock size={16} />
@@ -244,7 +245,7 @@ export default function ObjectContextMenu({
 
                                                 <Button
                                                     variant="outline"
-                                                    className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-red-600 text-gray-300"
+                                                    className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-red-600 text-gray-300"
                                                     onClick={() => onAction('delete', object.id)}
                                                 >
                                                     <Trash2 size={16} />
@@ -257,7 +258,7 @@ export default function ObjectContextMenu({
                                     {/* Size Control */}
                                     {isMJ && (
                                         <div className="mt-4 space-y-2">
-                                            <div className="bg-[#252525] p-2 rounded border border-[#333]">
+                                            <div className="bg-[var(--bg-dark)] p-2 rounded border border-[var(--border-color)]">
                                                 <div className="flex justify-between text-xs text-gray-400 mb-1">
                                                     <span>Rotation</span>
                                                     <span>{Math.round(rotation || 0)}°</span>
@@ -284,7 +285,7 @@ export default function ObjectContextMenu({
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className={`text-xs ${(!object.visibility || object.visibility === 'visible') ? 'bg-green-900/50 border-green-700 text-green-200' : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                    className={`text-xs ${(!object.visibility || object.visibility === 'visible') ? 'bg-green-900/50 border-green-700 text-green-200' : 'bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-400'}`}
                                                     onClick={() => onAction('setObjectVisibility', object.id, 'visible')}
                                                 >
                                                     <Eye size={12} className="mr-1" />
@@ -293,7 +294,7 @@ export default function ObjectContextMenu({
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className={`text-xs ${object.visibility === 'hidden' ? 'bg-red-900/50 border-red-700 text-red-200' : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                    className={`text-xs ${object.visibility === 'hidden' ? 'bg-red-900/50 border-red-700 text-red-200' : 'bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-400'}`}
                                                     onClick={() => onAction('setObjectVisibility', object.id, 'hidden')}
                                                 >
                                                     <EyeOff size={12} className="mr-1" />
@@ -302,7 +303,7 @@ export default function ObjectContextMenu({
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className={`text-xs ${object.visibility === 'custom' ? 'bg-purple-900/50 border-purple-700 text-purple-200' : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                    className={`text-xs ${object.visibility === 'custom' ? 'bg-purple-900/50 border-purple-700 text-purple-200' : 'bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-400'}`}
                                                     onClick={() => onAction('setObjectVisibility', object.id, 'custom')}
                                                 >
                                                     Custom
@@ -311,7 +312,7 @@ export default function ObjectContextMenu({
 
                                             {/* 🆕 Player Selection for Custom Visibility */}
                                             {object.visibility === 'custom' && (
-                                                <div className="mt-2 bg-[#1a1a1a] p-2 rounded border border-[#444] space-y-1 max-h-40 overflow-y-auto">
+                                                <div className="mt-2 bg-[var(--bg-darker)] p-2 rounded border border-[var(--border-color)] space-y-1 max-h-40 overflow-y-auto">
                                                     <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Visible pour:</p>
                                                     {players.length === 0 ? (
                                                         <p className="text-xs text-gray-500 italic">Aucun joueur disponible</p>
@@ -321,7 +322,7 @@ export default function ObjectContextMenu({
                                                             return (
                                                                 <div
                                                                     key={player.id}
-                                                                    className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all duration-150 ${isSelected ? 'bg-purple-900/40 border border-purple-600/50' : 'hover:bg-[#252525] border border-transparent'
+                                                                    className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all duration-150 ${isSelected ? 'bg-purple-900/40 border border-purple-600/50' : 'hover:bg-[var(--bg-dark)] border border-transparent'
                                                                         }`}
                                                                     onClick={() => {
                                                                         const currentIds = object.visibleToPlayerIds || [];
@@ -357,7 +358,7 @@ export default function ObjectContextMenu({
                                     <TabsContent value="stats" className="mt-0 space-y-2 focus-visible:ring-0">
                                         <div className="grid grid-cols-2 gap-2">
                                             {groupEntityStats.filter((s) => s.category !== 'meta').map((stat) => (
-                                                <div key={stat.key} className="p-2 rounded-lg border border-[#333] bg-[#252525]">
+                                                <div key={stat.key} className="p-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-dark)]">
                                                     <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 truncate mb-0.5">{stat.label || stat.key}</p>
                                                     <p className="text-sm font-bold text-gray-200">{String(resolvedEntityStats?.values[stat.key] ?? 0)}</p>
                                                 </div>

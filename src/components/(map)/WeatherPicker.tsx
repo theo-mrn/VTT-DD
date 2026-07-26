@@ -122,8 +122,8 @@ export default function WeatherPicker({
                   className={[
                     "flex flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-xs transition-colors",
                     active
-                      ? "border-[var(--accent-brown)] bg-[var(--accent-brown)]/15 text-[var(--text-primary)]"
-                      : "border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/60",
+                      ? "border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)] text-[var(--text-primary)]"
+                      : "border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent-brown)_60%,transparent)]",
                   ].join(" ")}
                 >
                   <Icon

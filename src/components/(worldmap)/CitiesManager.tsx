@@ -589,7 +589,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.2, delay: index * 0.05 }}
                 onClick={() => onCitySelect && onCitySelect(scene.id)}
-                className="group relative h-40 bg-[#121212] border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-[#c0a080]/50 hover:shadow-xl hover:shadow-[#c0a080]/10 transition-all duration-300"
+                className="group relative h-40 bg-[var(--bg-card)] border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:shadow-xl hover:shadow-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] transition-all duration-300"
             >
                 <div className="absolute inset-0">
                     {scene.backgroundUrl ? (
@@ -610,8 +610,8 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                             />
                         )
                     ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center">
-                            <MapIcon className="w-8 h-8 text-white/5 group-hover:text-[#c0a080]/20 transition-colors" />
+                        <div className="w-full h-full bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-darker)] flex items-center justify-center">
+                            <MapIcon className="w-8 h-8 text-white/5 group-hover:text-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] transition-colors" />
                         </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80" />
@@ -625,7 +625,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                         <div className="absolute bottom-3 right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                             <Button
                                 size="sm"
-                                className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold shadow-lg text-xs"
+                                className="h-8 bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold shadow-lg text-xs"
                                 onClick={(e) => handleMoveClick(scene, e)}
                             >
                                 <Navigation className="w-3 h-3 mr-1" /> Aller
@@ -635,12 +635,12 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                 }
 
                 <div className="absolute bottom-0 left-0 right-0 p-4 pt-10 text-left">
-                    <h3 className="text-base font-bold text-white group-hover:text-[#c0a080] transition-colors leading-none mb-1 shadow-black drop-shadow-md truncate">
+                    <h3 className="text-base font-bold text-white group-hover:text-[var(--accent-brown)] transition-colors leading-none mb-1 shadow-black drop-shadow-md truncate">
                         {scene.name}
                     </h3>
                     {/* 📍 Location Status */}
                     {isGlobalLocation && (
-                        <div className="flex items-center gap-1 text-[10px] text-[#c0a080] font-medium uppercase tracking-wider mt-1">
+                        <div className="flex items-center gap-1 text-[10px] text-[var(--accent-brown)] font-medium uppercase tracking-wider mt-1">
                             <MapIcon className="w-3 h-3" /> Position Groupe
                         </div>
                     )}
@@ -681,7 +681,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                         <MoreVertical className="w-3 h-3" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-[#1a1a1a] border-white/10 text-white">
+                                <DropdownMenuContent align="end" className="bg-[var(--bg-card)] border-white/10 text-white">
                                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(scene); }}>
                                         <Edit2 className="w-4 h-4 mr-2" /> Modifier
                                     </DropdownMenuItem>
@@ -725,15 +725,15 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="fixed top-0 right-0 h-full w-full md:w-[50%] bg-[#0a0a0a] z-50 shadow-2xl border-l border-white/10 flex flex-col"
+                className="fixed top-0 right-0 h-full w-full md:w-[50%] bg-[var(--bg-darker)] z-50 shadow-2xl border-l border-white/10 flex flex-col"
             >
                 {/* Background Atmosphere */}
                 <div className="absolute inset-0 pointer-events-none opacity-20">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-[#0a0a0a] via-[#1a1510] to-[#0a0a0a]" />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-[var(--bg-darker)] via-[var(--bg-dark)] to-[var(--bg-darker)]" />
                 </div>
 
                 {/* Header Section */}
-                <div className="relative p-6 border-b border-white/10 flex-shrink-0 bg-[#0a0a0a]/80 backdrop-blur-md">
+                <div className="relative p-6 border-b border-white/10 flex-shrink-0 backdrop-blur-md" style={{ background: 'color-mix(in srgb, var(--bg-darker) 80%, transparent)' }}>
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
                             <Button size="icon" variant="ghost" className="text-gray-400 hover:text-white md:hidden" onClick={handleClose}>
@@ -741,7 +741,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                             </Button>
                             <div>
                                 <h1 className="text-3xl font-bold text-white tracking-tight">
-                                    <span className="text-[#c0a080]">Scènes</span> & Lieux
+                                    <span className="text-[var(--accent-brown)]">Scènes</span> & Lieux
                                 </h1>
                             </div>
                         </div>
@@ -757,7 +757,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Rechercher..."
-                                className="pl-9 bg-white/5 border-white/10 text-white focus:border-[#c0a080]/50 h-9"
+                                className="pl-9 bg-white/5 border-white/10 text-white focus:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] h-9"
                             />
                         </div>
 
@@ -774,7 +774,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                 <Button
                                     onClick={() => handleAddScene()}
                                     size="sm"
-                                    className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-medium shadow-lg shadow-[#c0a080]/20 h-9"
+                                    className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-medium shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] h-9"
                                 >
                                     <Plus className="w-4 h-4 mr-2" />
                                     Scène
@@ -796,7 +796,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                     animate={{ opacity: 1, x: 0 }}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <Folder className="w-5 h-5 text-[#c0a080]" />
+                                        <Folder className="w-5 h-5 text-[var(--accent-brown)]" />
                                         <h2 className="text-xl font-bold text-white tracking-tight">{group.name}</h2>
                                         <span className="text-xs text-gray-600 font-mono bg-white/5 px-2 py-0.5 rounded-full">
                                             {organizedScenes[group.id]?.length || 0}
@@ -811,7 +811,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                                 <Trash2 className="w-3 h-3" />
                                             </Button>
                                             <div className="h-3 w-px bg-white/10 mx-2" />
-                                            <Button size="sm" variant="secondary" className="h-7 bg-white/5 text-[#c0a080] hover:bg-white/10 text-[10px] px-2" onClick={() => handleAddScene(group.id)}>
+                                            <Button size="sm" variant="secondary" className="h-7 bg-white/5 text-[var(--accent-brown)] hover:bg-white/10 text-[10px] px-2" onClick={() => handleAddScene(group.id)}>
                                                 <Plus className="w-3 h-3 mr-1" /> Ajouter
                                             </Button>
                                         </div>
@@ -864,7 +864,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="relative w-full max-w-[500px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                                className="relative w-full max-w-[500px] bg-[var(--bg-card)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                             >
                                 <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                                     <h2 className="text-xl font-bold flex items-center gap-2 text-white">
@@ -882,7 +882,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                             <Input
                                                 value={formData.name}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                className="bg-white/5 border-white/10 focus:border-[#c0a080]/50 text-white"
+                                                className="bg-white/5 border-white/10 focus:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] text-white"
                                                 placeholder="Nom du lieu..."
                                             />
                                         </div>
@@ -892,10 +892,10 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                                 value={formData.groupId || "uncategorized"}
                                                 onValueChange={(val) => setFormData({ ...formData, groupId: val === "uncategorized" ? "" : val })}
                                             >
-                                                <SelectTrigger className="w-full bg-[#1a1a1a] border-white/10 text-white focus:ring-0 focus:border-[#c0a080]/50">
+                                                <SelectTrigger className="w-full bg-[var(--bg-card)] border-white/10 text-white focus:ring-0 focus:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]">
                                                     <SelectValue placeholder="Non classé" />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                                                <SelectContent className="bg-zinc-900 text-white" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }}>
                                                     <SelectGroup>
                                                         <SelectItem value="uncategorized">Non classé</SelectItem>
                                                         {groups.map(g => (
@@ -914,7 +914,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                         <Textarea
                                             value={formData.description}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                            className="bg-white/5 border-white/10 focus:border-[#c0a080]/50 min-h-[80px] resize-none text-white"
+                                            className="bg-white/5 border-white/10 focus:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] min-h-[80px] resize-none text-white"
                                             placeholder="Description rapide..."
                                         />
                                     </div>
@@ -922,7 +922,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
                                 <div className="p-6 bg-white/[0.02] border-t border-white/5 flex justify-end gap-3">
                                     <Button variant="ghost" onClick={() => setShowForm(false)} className="text-white/50 hover:text-white">Annuler</Button>
-                                    <Button onClick={handleSave} className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold px-6">
+                                    <Button onClick={handleSave} className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold px-6">
                                         {editingId ? "Enregistrer" : "Créer"}
                                     </Button>
                                 </div>
@@ -934,7 +934,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
                 {/* Group Form Dialog */}
                 <Dialog open={showGroupForm} onOpenChange={setShowGroupForm}>
-                    <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[400px] z-[60]">
+                    <DialogContent className="bg-[var(--bg-card)] border border-white/10 text-white sm:max-w-[400px] z-[60]">
                         <DialogHeader>
                             <DialogTitle>{editingGroupId ? "Renommer le groupe" : "Nouveau groupe"}</DialogTitle>
                         </DialogHeader>
@@ -952,7 +952,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                         </div>
                         <DialogFooter>
                             <Button variant="ghost" onClick={() => setShowGroupForm(false)}>Annuler</Button>
-                            <Button onClick={handleSaveGroup} className="bg-[#c0a080] text-black">Valider</Button>
+                            <Button onClick={handleSaveGroup} className="bg-[var(--accent-brown)] text-black">Valider</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -960,11 +960,11 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
                 {/* Move Selection Dialog */}
                 <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-                    <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[450px] z-[60]">
+                    <DialogContent className="bg-[var(--bg-card)] border border-white/10 text-white sm:max-w-[450px] z-[60]">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
-                                <Navigation className="w-5 h-5 text-[#c0a080]" />
-                                Déplacement vers : <span className="text-[#c0a080]">{moveTargetCity?.name}</span>
+                                <Navigation className="w-5 h-5 text-[var(--accent-brown)]" />
+                                Déplacement vers : <span className="text-[var(--accent-brown)]">{moveTargetCity?.name}</span>
                             </DialogTitle>
                             <DialogDescription>
                                 Choisissez qui doit être déplacé vers ce lieu.
@@ -977,7 +977,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                     onClick={() => setMoveMode('all')}
                                     className={cn(
                                         "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                                        moveMode === 'all' ? "bg-[#c0a080] text-black shadow" : "text-gray-400 hover:text-white"
+                                        moveMode === 'all' ? "bg-[var(--accent-brown)] text-black shadow" : "text-gray-400 hover:text-white"
                                     )}
                                 >
                                     Tout le groupe
@@ -986,7 +986,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                     onClick={() => setMoveMode('select')}
                                     className={cn(
                                         "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                                        moveMode === 'select' ? "bg-[#c0a080] text-black shadow" : "text-gray-400 hover:text-white"
+                                        moveMode === 'select' ? "bg-[var(--accent-brown)] text-black shadow" : "text-gray-400 hover:text-white"
                                     )}
                                 >
                                     Sélection
@@ -1007,13 +1007,13 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                             className={cn(
                                                 "flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all",
                                                 selectedPlayerIds.has(player.id)
-                                                    ? "bg-[#c0a080]/10 border-[#c0a080] shadow-[0_0_10px_rgba(192,160,128,0.1)]"
+                                                    ? "bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] border-[var(--accent-brown)] shadow-[0_0_10px_rgba(192,160,128,0.1)]"
                                                     : "bg-white/5 border-transparent hover:bg-white/10"
                                             )}
                                         >
                                             <div className="w-5 h-5 rounded border border-white/30 flex items-center justify-center flex-shrink-0 transition-colors">
                                                 {selectedPlayerIds.has(player.id) && (
-                                                    <div className="w-3 h-3 bg-[#c0a080] rounded-[2px]" />
+                                                    <div className="w-3 h-3 bg-[var(--accent-brown)] rounded-[2px]" />
                                                 )}
                                             </div>
 
@@ -1026,7 +1026,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                             )}
 
                                             <div className="flex-1">
-                                                <p className={cn("text-sm font-medium", selectedPlayerIds.has(player.id) ? "text-[#c0a080]" : "text-white")}>
+                                                <p className={cn("text-sm font-medium", selectedPlayerIds.has(player.id) ? "text-[var(--accent-brown)]" : "text-white")}>
                                                     {player.name}
                                                 </p>
                                                 {player.currentSceneId && (
@@ -1048,7 +1048,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                             <Button variant="ghost" onClick={() => setShowMoveDialog(false)}>Annuler</Button>
                             <Button
                                 onClick={handleExecuteMove}
-                                className="bg-[#c0a080] text-black hover:bg-[#d4b594]"
+                                className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]"
                                 disabled={moveMode === 'select' && selectedPlayerIds.size === 0}
                             >
                                 Confirmer
@@ -1061,15 +1061,15 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
             {/* Dialogues Shadcn Simples pour Alertes et Confirmations */}
             <Dialog open={alertConfig.open} onOpenChange={(open) => setAlertConfig(prev => ({ ...prev, open }))}>
-                <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[400px] z-[100]">
+                <DialogContent className="bg-[var(--bg-card)] border border-white/10 text-white sm:max-w-[400px] z-[100]">
                     <DialogHeader>
-                        <DialogTitle className="text-[#c0a080]">{alertConfig.title}</DialogTitle>
+                        <DialogTitle className="text-[var(--accent-brown)]">{alertConfig.title}</DialogTitle>
                         <DialogDescription className="text-gray-400">
                             {alertConfig.message}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button onClick={() => setAlertConfig(prev => ({ ...prev, open: false }))} className="bg-[#c0a080] text-black hover:bg-[#d4b594]">
+                        <Button onClick={() => setAlertConfig(prev => ({ ...prev, open: false }))} className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]">
                             Compris
                         </Button>
                     </DialogFooter>
@@ -1077,7 +1077,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
             </Dialog>
 
             <Dialog open={confirmConfig.open} onOpenChange={(open) => setConfirmConfig(prev => ({ ...prev, open }))}>
-                <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[400px] z-[100]">
+                <DialogContent className="bg-[var(--bg-card)] border border-white/10 text-white sm:max-w-[400px] z-[100]">
                     <DialogHeader>
                         <DialogTitle className="text-white">{confirmConfig.title}</DialogTitle>
                         <DialogDescription className="text-gray-400">

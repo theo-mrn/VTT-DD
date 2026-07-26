@@ -124,7 +124,7 @@ export function RoomSettingsManager({ roomId }: RoomSettingsManagerProps) {
                     />
                 </div>
 
-                <div className="space-y-4 py-2 border-y border-[var(--border-color)]/30">
+                <div className="space-y-4 py-2 border-y" style={{ borderColor: 'color-mix(in srgb, var(--border-color) 30%, transparent)' }}>
                     <GuestSelector
                         title="Nombre de joueurs max"
                         description={currentOccupantsCount > 0 ? `Il y a actuellement ${currentOccupantsCount} joueur${currentOccupantsCount > 1 ? 's' : ''} dans la salle` : "Définit la limite de places dans la salle"}
@@ -148,7 +148,7 @@ export function RoomSettingsManager({ roomId }: RoomSettingsManagerProps) {
                 </div>
 
                 <div className="flex flex-col gap-4 pt-2">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-card)]/50 border border-[var(--border-color)]">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 50%, transparent)' }}>
                         <div className="space-y-0.5">
                             <Label htmlFor="isPublic">Salle Publique</Label>
                             <p className="text-xs text-muted-foreground">Visible dans la liste des salles</p>
@@ -160,7 +160,7 @@ export function RoomSettingsManager({ roomId }: RoomSettingsManagerProps) {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-card)]/50 border border-[var(--border-color)]">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 50%, transparent)' }}>
                         <div className="space-y-0.5">
                             <Label htmlFor="allowChar">Création de personnages</Label>
                             <p className="text-xs text-muted-foreground">Autoriser les joueurs à créer leurs fiches</p>

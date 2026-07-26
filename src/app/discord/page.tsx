@@ -226,7 +226,7 @@ function DiscordActivityContent() {
         {discordRoom && (
           <div className="w-full max-w-sm">
             <p className="text-xs text-[var(--text-secondary)] uppercase tracking-widest mb-2">Partie Discord active</p>
-            <div className="flex items-center justify-between p-4 rounded-xl border border-[var(--accent-brown)]/40 bg-[var(--accent-brown)]/5">
+            <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)', background: 'color-mix(in srgb, var(--accent-brown) 5%, transparent)' }}>
               <span className="font-bold text-[var(--text-primary)]">{discordRoom.title}</span>
               <Button size="sm" onClick={() => handleJoinRoom(discordRoom.id)} disabled={loading} className="gap-1">
                 <ArrowRight className="h-3 w-3" /> Rejoindre
@@ -238,11 +238,11 @@ function DiscordActivityContent() {
         {userRooms.length > 0 && (
           <div className="w-full max-w-sm flex flex-col gap-2">
             {userRooms.map(room => (
-              <div key={room.id} className="flex items-center justify-between p-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]/60">
+              <div key={room.id} className="flex items-center justify-between p-4 rounded-xl border border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
                 <div className="flex items-center gap-3">
                   {room.imageUrl && !room.imageUrl.includes('firebasestorage.googleapis.com')
                     ? <img src={room.imageUrl} className="w-10 h-10 rounded-lg object-cover" alt="" />
-                    : <div className="w-10 h-10 rounded-lg bg-[var(--accent-brown)]/10 flex items-center justify-center"><Gamepad2 className="h-5 w-5 text-[var(--accent-brown)]/40" /></div>
+                    : <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}><Gamepad2 className="h-5 w-5" style={{ color: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)' }} /></div>
                   }
                   <span className="font-medium text-[var(--text-primary)] text-sm">{room.title}</span>
                 </div>

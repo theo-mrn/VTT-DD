@@ -186,7 +186,7 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                     <XIcon className="w-5 h-5" />
                                 </button>
 
-                                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-[var(--bg-card)] via-[var(--bg-card)]/80 to-transparent flex items-end gap-3 sm:gap-5 translate-y-px z-0">
+                                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-[var(--bg-card)] via-[color-mix(in_srgb,var(--bg-card)_80%,transparent)] to-transparent flex items-end gap-3 sm:gap-5 translate-y-px z-0">
                                     <Avatar className="h-20 w-20 sm:h-28 sm:w-28 border-4 border-[var(--bg-card)] shadow-lg bg-[var(--bg-card)] translate-y-4">
                                         <AvatarImage src={userData.pp} alt={userData.name} className="object-cover" />
                                         <AvatarFallback className="bg-[var(--accent-brown)] text-white text-3xl font-bold">

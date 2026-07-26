@@ -140,16 +140,16 @@ export function FloatingEditTabs({
         .map((s) => ({ key: s.key, label: s.shortLabel || s.label || s.key }));
 
     return (
-        <div className="fixed right-0 top-0 bottom-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-l border-[#3a3a3a] shadow-[-20px_0_50px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ease-in-out w-full sm:w-[260px]">
+        <div className="fixed right-0 top-0 bottom-0 z-[200] backdrop-blur-md border-l border-[var(--border-color)] shadow-[-20px_0_50px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ease-in-out w-full sm:w-[260px]" style={{ background: 'color-mix(in srgb, var(--bg-darker) 95%, transparent)' }}>
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="flex flex-col h-full w-full">
                 {/* Header & Horizontal Tabs Wrapper */}
-                <div className="shrink-0 bg-[#141414] border-b border-[#2a2a2a]">
+                <div className="shrink-0 bg-[var(--bg-dark)] border-b border-[var(--border-color)]">
                     {/* Header with Actions */}
                     <div className="p-4 pb-2 flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col min-w-0">
-                                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#666]">Éditeur</h2>
-                                <span className="text-[10px] font-bold text-[#d4b48f] truncate block">
+                                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-secondary)]">Éditeur</h2>
+                                <span className="text-[10px] font-bold text-[var(--accent-brown-hover)] truncate block">
                                     {activeTab === 'apparence' && 'Personnalisation'}
                                     {activeTab === 'bloques' && 'Blocs de données'}
                                     {activeTab === 'explorer' && 'Commu'}
@@ -158,7 +158,7 @@ export function FloatingEditTabs({
                             </div>
                             <button
                                 onClick={onClose}
-                                className="bg-[#2a2a2a] text-[#a0a0a0] hover:text-white rounded-lg p-1.5 transition-all hover:bg-[#333]"
+                                className="bg-[var(--border-color)] text-[var(--text-secondary)] hover:text-white rounded-lg p-1.5 transition-all hover:bg-[var(--bg-dark)]"
                             >
                                 <X size={16} />
                             </button>
@@ -175,25 +175,25 @@ export function FloatingEditTabs({
                     <TabsList className="bg-transparent h-auto p-0 px-4 flex justify-between gap-0 overflow-x-auto custom-scrollbar-hide rounded-none">
                         <TabsTrigger
                             value="apparence"
-                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#d4b48f] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#d4b48f] transition-all flex items-center justify-center flex-1"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[var(--accent-brown-hover)] text-[var(--text-secondary)] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown-hover)] transition-all flex items-center justify-center flex-1"
                         >
                             <Palette size={16} />
                         </TabsTrigger>
                         <TabsTrigger
                             value="bloques"
-                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#d4b48f] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#d4b48f] transition-all flex items-center justify-center flex-1"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[var(--accent-brown-hover)] text-[var(--text-secondary)] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown-hover)] transition-all flex items-center justify-center flex-1"
                         >
                             <Box size={16} />
                         </TabsTrigger>
                         <TabsTrigger
                             value="explorer"
-                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#80c0a0] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#80c0a0] transition-all flex items-center justify-center flex-1"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#80c0a0] text-[var(--text-secondary)] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#80c0a0] transition-all flex items-center justify-center flex-1"
                         >
                             <Compass size={16} />
                         </TabsTrigger>
                         <TabsTrigger
                             value="mes_themes"
-                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#c0a080] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#c0a080] transition-all flex items-center justify-center flex-1"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[var(--accent-brown)] text-[var(--text-secondary)] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown)] transition-all flex items-center justify-center flex-1"
                         >
                             <User size={16} />
                         </TabsTrigger>
@@ -206,8 +206,8 @@ export function FloatingEditTabs({
                     <TabsContent value="apparence" className="m-0 focus-visible:outline-none space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
                         {/* Fond */}
                         <section className="space-y-3">
-                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Arrière-plan</span>
-                            <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#2a2a2a] space-y-3">
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Arrière-plan</span>
+                            <div className="bg-[var(--bg-card)] p-3 rounded-xl border border-[var(--border-color)] space-y-3">
                                 <div className="flex items-center gap-3">
                                     <input
                                         type="color"
@@ -216,25 +216,25 @@ export function FloatingEditTabs({
                                         className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
                                         title="Couleur de fond"
                                     />
-                                    <div className="flex-1 text-[10px] text-[#888] font-medium leading-tight">Couleur principale du fond de la fiche.</div>
+                                    <div className="flex-1 text-[10px] text-[var(--text-secondary)] font-medium leading-tight">Couleur principale du fond de la fiche.</div>
                                 </div>
                                 {!customizationForm.theme_background?.startsWith('http') && (
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-[#888] font-bold uppercase tracking-wider w-14 shrink-0">Opacité</span>
+                                        <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wider w-14 shrink-0">Opacité</span>
                                         <input
                                             type="range" min={0} max={100}
                                             value={hexAlphaPct(customizationForm.theme_background)}
                                             onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: withHexAlpha(hexBase(customizationForm.theme_background) ?? '#1c1c1c', Number(e.target.value)) })}
-                                            className="flex-1 accent-[#d4b48f] cursor-pointer"
+                                            className="flex-1 accent-[var(--accent-brown-hover)] cursor-pointer"
                                             title="Opacité du fond — baissez pour voir le fond animé derrière la fiche"
                                         />
-                                        <span className="text-[10px] text-[#d4d4d4] font-mono w-10 text-right tabular-nums shrink-0">{hexAlphaPct(customizationForm.theme_background)}%</span>
+                                        <span className="text-[10px] text-[var(--text-primary)] font-mono w-10 text-right tabular-nums shrink-0">{hexAlphaPct(customizationForm.theme_background)}%</span>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-2">
-                                    <label className="cursor-pointer hover:bg-[#2a2a2a] text-[#d4d4d4] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
+                                    <label className="cursor-pointer hover:bg-[var(--border-color)] text-[var(--text-primary)] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
-                                        <UploadCloud size={14} className="group-hover:text-[#d4b48f]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
+                                        <UploadCloud size={14} className="group-hover:text-[var(--accent-brown-hover)]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
                                     </label>
                                     <button
                                         onClick={async () => {
@@ -244,7 +244,7 @@ export function FloatingEditTabs({
                                                 await deleteR2Asset(oldBg);
                                             }
                                         }}
-                                        className="p-2 bg-[#2a2a2a] hover:bg-red-900/40 rounded-lg text-[#888] hover:text-red-400 transition-colors"
+                                        className="p-2 bg-[var(--border-color)] hover:bg-red-900/40 rounded-lg text-[var(--text-secondary)] hover:text-red-400 transition-colors"
                                         title="Réinitialiser"
                                     >
                                         <RotateCcw size={14} />
@@ -255,8 +255,8 @@ export function FloatingEditTabs({
 
                         {/* Blocs */}
                         <section className="space-y-3">
-                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Conteneurs & Blocs</span>
-                            <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#2a2a2a] space-y-3">
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Conteneurs & Blocs</span>
+                            <div className="bg-[var(--bg-card)] p-3 rounded-xl border border-[var(--border-color)] space-y-3">
                                 <div className="flex items-center gap-3">
                                     <input
                                         type="color"
@@ -265,25 +265,25 @@ export function FloatingEditTabs({
                                         className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
                                         title="Couleur des blocs"
                                     />
-                                    <div className="flex-1 text-[10px] text-[#888] font-medium leading-tight">Style des widgets et sections de la fiche.</div>
+                                    <div className="flex-1 text-[10px] text-[var(--text-secondary)] font-medium leading-tight">Style des widgets et sections de la fiche.</div>
                                 </div>
                                 {!customizationForm.theme_secondary_color?.startsWith('http') && (
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-[#888] font-bold uppercase tracking-wider w-14 shrink-0">Opacité</span>
+                                        <span className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wider w-14 shrink-0">Opacité</span>
                                         <input
                                             type="range" min={0} max={100}
                                             value={hexAlphaPct(customizationForm.theme_secondary_color)}
                                             onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: withHexAlpha(hexBase(customizationForm.theme_secondary_color) ?? '#242424', Number(e.target.value)) })}
-                                            className="flex-1 accent-[#d4b48f] cursor-pointer"
+                                            className="flex-1 accent-[var(--accent-brown-hover)] cursor-pointer"
                                             title="Opacité des blocs — baissez pour voir le fond animé à travers les widgets"
                                         />
-                                        <span className="text-[10px] text-[#d4d4d4] font-mono w-10 text-right tabular-nums shrink-0">{hexAlphaPct(customizationForm.theme_secondary_color)}%</span>
+                                        <span className="text-[10px] text-[var(--text-primary)] font-mono w-10 text-right tabular-nums shrink-0">{hexAlphaPct(customizationForm.theme_secondary_color)}%</span>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-2">
-                                    <label className="cursor-pointer hover:bg-[#2a2a2a] text-[#d4d4d4] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
+                                    <label className="cursor-pointer hover:bg-[var(--border-color)] text-[var(--text-primary)] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />
-                                        <UploadCloud size={14} className="group-hover:text-[#d4b48f]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
+                                        <UploadCloud size={14} className="group-hover:text-[var(--accent-brown-hover)]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
                                     </label>
                                     <button
                                         onClick={async () => {
@@ -293,7 +293,7 @@ export function FloatingEditTabs({
                                                 await deleteR2Asset(oldBlockBg);
                                             }
                                         }}
-                                        className="p-2 bg-[#2a2a2a] hover:bg-red-900/40 rounded-lg text-[#888] hover:text-red-400 transition-colors"
+                                        className="p-2 bg-[var(--border-color)] hover:bg-red-900/40 rounded-lg text-[var(--text-secondary)] hover:text-red-400 transition-colors"
                                         title="Réinitialiser"
                                     >
                                         <RotateCcw size={14} />
@@ -304,13 +304,13 @@ export function FloatingEditTabs({
 
                         {/* Typographie & Bordures */}
                         <section className="space-y-3">
-                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Détails Visuels</span>
-                            <div className="bg-[#1c1c1c] p-4 rounded-xl border border-[#2a2a2a] space-y-5">
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Détails Visuels</span>
+                            <div className="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] space-y-5">
                                 {/* Texte */}
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Texte Principal</span>
-                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_text_color: '#d4d4d4' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">Texte Principal</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_text_color: '#d4d4d4' })} className="text-[var(--text-secondary)] hover:text-[var(--accent-brown-hover)] transition-colors"><RotateCcw size={12} /></button>
                                     </div>
                                     <input
                                         type="color"
@@ -321,8 +321,8 @@ export function FloatingEditTabs({
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Texte Secondaire</span>
-                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: '#a0a0a0' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">Texte Secondaire</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: '#a0a0a0' })} className="text-[var(--text-secondary)] hover:text-[var(--accent-brown-hover)] transition-colors"><RotateCcw size={12} /></button>
                                     </div>
                                     <input
                                         type="color"
@@ -334,8 +334,8 @@ export function FloatingEditTabs({
                                 {/* Couleur de Bordure des blocs */}
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Bordure des Blocs</span>
-                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_border_color: '#3a3a3a' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">Bordure des Blocs</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_border_color: '#3a3a3a' })} className="text-[var(--text-secondary)] hover:text-[var(--accent-brown-hover)] transition-colors"><RotateCcw size={12} /></button>
                                     </div>
                                     <input
                                         type="color"
@@ -347,8 +347,8 @@ export function FloatingEditTabs({
                                 {/* Couleur du Cadre */}
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Bordure Principale (Cadre)</span>
-                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_frame_color: '#cbb26a' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">Bordure Principale (Cadre)</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_frame_color: '#cbb26a' })} className="text-[var(--text-secondary)] hover:text-[var(--accent-brown-hover)] transition-colors"><RotateCcw size={12} /></button>
                                     </div>
                                     <input
                                         type="color"
@@ -360,8 +360,8 @@ export function FloatingEditTabs({
                                 {/* Border Radius */}
                                 <div className="space-y-3 pt-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Arrondi des angles</span>
-                                        <span className="text-[11px] font-mono text-[#d4b48f] font-bold">{customizationForm.theme_border_radius ?? 8}px</span>
+                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">Arrondi des angles</span>
+                                        <span className="text-[11px] font-mono text-[var(--accent-brown-hover)] font-bold">{customizationForm.theme_border_radius ?? 8}px</span>
                                     </div>
                                     <input
                                         type="range"
@@ -370,7 +370,7 @@ export function FloatingEditTabs({
                                         step="2"
                                         value={customizationForm.theme_border_radius ?? 8}
                                         onChange={(e) => setCustomizationForm({ ...customizationForm, theme_border_radius: parseInt(e.target.value, 10) })}
-                                        className="w-full cursor-pointer accent-[#d4b48f] h-1.5 bg-[#2a2a2a] rounded-lg appearance-none"
+                                        className="w-full cursor-pointer accent-[var(--accent-brown-hover)] h-1.5 bg-[var(--border-color)] rounded-lg appearance-none"
                                     />
                                 </div>
                             </div>
@@ -378,26 +378,26 @@ export function FloatingEditTabs({
 
                         {/* Fiche & Config */}
                         <section className="space-y-3 pt-2">
-                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Configuration</span>
-                            <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#2a2a2a] space-y-2">
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Configuration</span>
+                            <div className="bg-[var(--bg-card)] p-3 rounded-xl border border-[var(--border-color)] space-y-2">
                                 <button
                                     onClick={handleResetPositions}
-                                    className="w-full flex items-center gap-3 p-2.5 bg-[#2a2a2a] hover:bg-red-900/10 border border-transparent hover:border-red-900/30 rounded-lg transition-all text-[#a0a0a0] hover:text-red-200"
+                                    className="w-full flex items-center gap-3 p-2.5 bg-[var(--border-color)] hover:bg-red-900/10 border border-transparent hover:border-red-900/30 rounded-lg transition-all text-[var(--text-secondary)] hover:text-red-200"
                                 >
                                     <RotateCcw size={14} />
                                     <span className="text-[10px] font-bold uppercase tracking-wider">Reset Disposition</span>
                                 </button>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <label className="flex items-center justify-center gap-2 p-2.5 bg-[#2a2a2a] hover:bg-[#333] border border-transparent hover:border-[#80c0a0]/30 rounded-lg transition-all cursor-pointer group text-[#a0a0a0] hover:text-white">
+                                    <label className="flex items-center justify-center gap-2 p-2.5 bg-[var(--border-color)] hover:bg-[#333] border border-transparent hover:border-[#80c0a0]/30 rounded-lg transition-all cursor-pointer group text-[var(--text-secondary)] hover:text-white">
                                         <input type="file" className="hidden" accept=".json" onChange={handleImportConfig} />
                                         <Upload size={14} className="text-[#80c0a0]" />
                                         <span className="text-[10px] font-bold uppercase tracking-wider">Import</span>
                                     </label>
                                     <button
                                         onClick={handleExportConfig}
-                                        className="flex items-center justify-center gap-2 p-2.5 bg-[#2a2a2a] hover:bg-[#333] border border-transparent hover:border-[#c0a080]/30 rounded-lg transition-all text-[#a0a0a0] hover:text-white"
+                                        className="flex items-center justify-center gap-2 p-2.5 bg-[var(--border-color)] hover:bg-[#333] border border-transparent hover:border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] rounded-lg transition-all text-[var(--text-secondary)] hover:text-white"
                                     >
-                                        <FileDown size={14} className="text-[#c0a080]" />
+                                        <FileDown size={14} className="text-[var(--accent-brown)]" />
                                         <span className="text-[10px] font-bold uppercase tracking-wider">Export</span>
                                     </button>
                                 </div>
@@ -408,7 +408,7 @@ export function FloatingEditTabs({
                     {/* BLOQUES TAB */}
                     <TabsContent value="bloques" className="m-0 focus-visible:outline-none space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
                         <section className="space-y-3">
-                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Attributs de base</span>
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Attributs de base</span>
                             <div className="grid grid-cols-1 gap-2">
                                 {baseStats.map(({ key, label }) => (
                                     <div
@@ -418,14 +418,14 @@ export function FloatingEditTabs({
                                             const data = { i: `custom_group:${label}:${key}`, w: 3, h: 2 };
                                             e.dataTransfer.setData("text/plain", JSON.stringify(data));
                                         }}
-                                        className="flex items-center gap-3 p-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-xl cursor-grab active:cursor-grabbing hover:border-[#d4b48f]/40 hover:bg-[#2a2a2a] transition-all group"
+                                        className="flex items-center gap-3 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl cursor-grab active:cursor-grabbing hover:border-[color-mix(in_srgb,var(--accent-brown-hover)_40%,transparent)] hover:bg-[var(--border-color)] transition-all group"
                                     >
-                                        <div className="w-8 h-8 rounded-lg bg-[#0e0e0e] flex items-center justify-center text-[#d4b48f] group-hover:scale-110 transition-transform">
+                                        <div className="w-8 h-8 rounded-lg bg-[var(--bg-darker)] flex items-center justify-center text-[var(--accent-brown-hover)] group-hover:scale-110 transition-transform">
                                             <Box size={14} />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{label}</span>
-                                            <span className="text-[9px] text-[#666] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
+                                            <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-white">{label}</span>
+                                            <span className="text-[9px] text-[var(--text-secondary)] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
                                         </div>
                                     </div>
                                 ))}
@@ -434,7 +434,7 @@ export function FloatingEditTabs({
 
                         {(selectedCharacter?.customFields ?? []).length > 0 && (
                             <section className="space-y-3">
-                                <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Champs Personnalisés</span>
+                                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Champs Personnalisés</span>
                                 <div className="grid grid-cols-1 gap-2">
                                     {selectedCharacter?.customFields?.map(field => (
                                         <div
@@ -444,14 +444,14 @@ export function FloatingEditTabs({
                                                 const data = { i: `custom_group:${field.label}:${field.id}`, w: 3, h: 2 };
                                                 e.dataTransfer.setData("text/plain", JSON.stringify(data));
                                             }}
-                                            className="flex items-center gap-3 p-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-xl cursor-grab active:cursor-grabbing hover:border-[#d4b48f]/40 hover:bg-[#2a2a2a] transition-all group"
+                                            className="flex items-center gap-3 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl cursor-grab active:cursor-grabbing hover:border-[color-mix(in_srgb,var(--accent-brown-hover)_40%,transparent)] hover:bg-[var(--border-color)] transition-all group"
                                         >
-                                            <div className="w-8 h-8 rounded-lg bg-[#0e0e0e] flex items-center justify-center text-[#d4b48f] group-hover:scale-110 transition-transform">
+                                            <div className="w-8 h-8 rounded-lg bg-[var(--bg-darker)] flex items-center justify-center text-[var(--accent-brown-hover)] group-hover:scale-110 transition-transform">
                                                 <Box size={14} />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{field.label}</span>
-                                                <span className="text-[9px] text-[#666] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
+                                                <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-white">{field.label}</span>
+                                                <span className="text-[9px] text-[var(--text-secondary)] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
                                             </div>
                                         </div>
                                     ))}
@@ -469,7 +469,7 @@ export function FloatingEditTabs({
                                 placeholder="Rechercher..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="bg-[#1c1c1c] border border-[#2a2a2a] rounded-lg py-2 pl-9 pr-3 text-xs text-[#d4d4d4] placeholder-[#555] focus:outline-none focus:border-[#d4b48f] w-full transition-all"
+                                className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg py-2 pl-9 pr-3 text-xs text-[var(--text-primary)] placeholder-[#555] focus:outline-none focus:border-[var(--accent-brown-hover)] w-full transition-all"
                             />
                         </div>
                         <div className="flex-1 min-h-0">
@@ -480,7 +480,7 @@ export function FloatingEditTabs({
                                 onStopPreview={onStopPreview}
                             />
                         </div>
-                        <div className="pt-2 border-t border-[#2a2a2a]">
+                        <div className="pt-2 border-t border-[var(--border-color)]">
                             <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
                                 <DialogTrigger asChild>
                                     <button className="w-full button-primary !py-2.5 !text-[11px] flex items-center justify-center gap-2 font-bold uppercase tracking-wider">

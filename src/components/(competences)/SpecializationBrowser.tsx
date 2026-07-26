@@ -75,7 +75,7 @@ export default function SpecializationBrowser({ open, onClose, specializations, 
                     onClick={() => setSelectedId(spec.id)}
                     className={`w-full text-left text-sm px-2 py-1.5 rounded-md transition-colors ${
                       selected?.id === spec.id
-                        ? 'bg-[var(--accent-brown)]/15 text-[var(--accent-brown)] font-semibold'
+                        ? 'bg-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)] text-[var(--accent-brown)] font-semibold'
                         : 'text-[var(--text-primary)] hover:bg-white/5'
                     }`}
                   >
@@ -98,7 +98,7 @@ export default function SpecializationBrowser({ open, onClose, specializations, 
                     {selected.name || '(sans nom)'}
                   </h2>
                   {careerLabels(selected).map((label) => (
-                    <span key={label} className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded border border-[var(--accent-brown)]/40 text-[var(--accent-brown)]">
+                    <span key={label} className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded border text-[var(--accent-brown)]" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)' }}>
                       {label}
                     </span>
                   ))}

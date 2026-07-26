@@ -135,7 +135,7 @@ export default function TalentsSheet({ roomId, characterId, canEdit = false, sty
                     size="sm"
                     disabled={cost > xp}
                     onClick={() => buySpecialization(spec)}
-                    className="text-[11px] h-7 px-2 bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border border-[var(--accent-brown)]/50 hover:bg-[var(--accent-brown)]/20 disabled:opacity-30"
+                    className="text-[11px] h-7 px-2 bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)] border border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] disabled:opacity-30"
                   >
                     Acheter ({cost} XP)
                   </Button>

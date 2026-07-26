@@ -33,8 +33,8 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
         <div
             className={cn(
                 "group relative flex flex-col rounded-2xl overflow-hidden transition-colors duration-300",
-                "bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--text-primary)]/20 hover:shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.03)]",
-                isEquipped && "border-[var(--accent-brown)]/40 bg-gradient-to-b from-[var(--bg-darker)] to-[var(--bg-card)]"
+                "bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--text-primary)_20%,transparent)] hover:shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.03)]",
+                isEquipped && "border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] bg-gradient-to-b from-[var(--bg-darker)] to-[var(--bg-card)]"
             )}
         >
             {/* --- PREVIEW --- */}
@@ -57,23 +57,41 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
 
                 {/* Badges */}
                 <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-                    <span className={cn("text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded-md bg-[var(--bg-dark)]/80 border border-[var(--border-color)]", getRarityColor(skin.rarity || 'common'))}>
+                    <span
+                        className={cn("text-[9px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded-md border border-[var(--border-color)]", getRarityColor(skin.rarity || 'common'))}
+                        style={{ background: 'color-mix(in srgb, var(--bg-dark) 80%, transparent)' }}
+                    >
                         {skin.rarity || 'common'}
                     </span>
                     {isEquipped && (
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-md text-[9px] font-black uppercase shadow-lg shadow-[var(--accent-brown)]/10 animate-in zoom-in-50 duration-300">
+                        <div
+                            className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-md text-[9px] font-black uppercase shadow-lg animate-in zoom-in-50 duration-300"
+                            style={{ boxShadow: `0 10px 15px -3px color-mix(in srgb, var(--accent-brown) 10%, transparent), 0 4px 6px -4px color-mix(in srgb, var(--accent-brown) 10%, transparent)` }}
+                        >
                             <Check className="w-3 h-3" strokeWidth={4} />
                             Équipé
                         </div>
                     )}
                     {!isEquipped && ownedByPremium && (
-                        <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)]/20 text-[var(--accent-brown)] border border-[var(--accent-brown)]/30 rounded-md text-[9px] font-black uppercase">
+                        <div
+                            className="flex items-center gap-1.5 px-2 py-1 text-[var(--accent-brown)] border rounded-md text-[9px] font-black uppercase"
+                            style={{
+                                background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)',
+                                borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)',
+                            }}
+                        >
                             <Crown className="w-3 h-3" />
                             Possédé
                         </div>
                     )}
                     {!isOwned && (
-                        <div className="bg-[var(--bg-dark)]/40 backdrop-blur-md rounded-md p-1 border border-[var(--border-color)]/20">
+                        <div
+                            className="backdrop-blur-md rounded-md p-1 border"
+                            style={{
+                                background: 'color-mix(in srgb, var(--bg-dark) 40%, transparent)',
+                                borderColor: 'color-mix(in srgb, var(--border-color) 20%, transparent)',
+                            }}
+                        >
                             <Lock className="w-3 h-3 text-[var(--text-secondary)]" />
                         </div>
                     )}
@@ -95,8 +113,8 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
                             className={cn(
                                 "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
                                 isEquipped
-                                    ? "bg-[var(--text-primary)]/5 text-[var(--text-secondary)] cursor-not-allowed border border-transparent"
-                                    : "bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:scale-[1.02] active:scale-95 shadow-lg shadow-[var(--accent-brown)]/5"
+                                    ? "bg-[color-mix(in_srgb,var(--text-primary)_5%,transparent)] text-[var(--text-secondary)] cursor-not-allowed border border-transparent"
+                                    : "bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:scale-[1.02] active:scale-95 shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)]"
                             )}
                         >
                             {isEquipped ? 'Sélectionné' : 'Équiper'}
@@ -108,7 +126,7 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
                             className={cn(
                                 "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
                                 "flex items-center justify-center gap-2",
-                                "border border-[var(--border-color)] bg-[var(--bg-darker)] text-[var(--text-primary)] hover:bg-[var(--bg-dark)] hover:border-[var(--text-primary)]/20 active:scale-95 disabled:opacity-50"
+                                "border border-[var(--border-color)] bg-[var(--bg-darker)] text-[var(--text-primary)] hover:bg-[var(--bg-dark)] hover:border-[color-mix(in_srgb,var(--text-primary)_20%,transparent)] active:scale-95 disabled:opacity-50"
                             )}
                         >
                             {skin.price > 0 ? (

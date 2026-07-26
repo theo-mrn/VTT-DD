@@ -167,7 +167,7 @@ export default function TalentTreeView({ talents, purchasedRanks, xp, canBuy, on
                     size="sm"
                     disabled={!purchasable || cost > xp}
                     onClick={() => onBuy(selectedTalent.id)}
-                    className="bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border border-[var(--accent-brown)]/50 hover:bg-[var(--accent-brown)]/20 disabled:opacity-30"
+                    className="bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)] border border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] disabled:opacity-30"
                   >
                     {!purchasable ? <><Lock className="h-3.5 w-3.5 mr-1.5" /> Prérequis manquant</> : `Acheter (${cost} XP)`}
                   </Button>

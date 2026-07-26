@@ -313,7 +313,7 @@ export default function CreerPageComponent() {
             {/* ── Left panel: Title + Preview ── */}
             <div className="lg:sticky lg:top-28 space-y-6 lg:space-y-10">
               <div className="space-y-4 sm:space-y-6">
-                <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent-brown)]/70">
+                <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: 'color-mix(in srgb, var(--accent-brown) 70%, transparent)' }}>
                   Nouvelle campagne
                 </p>
                 <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
@@ -325,13 +325,13 @@ export default function CreerPageComponent() {
               </div>
 
               {/* Live preview card */}
-              <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm">
+              <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm" style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}>
                 <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
                   {imagePreview ? (
                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
-                      <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                      <Gamepad2 className="h-12 w-12" style={{ color: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -357,14 +357,14 @@ export default function CreerPageComponent() {
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-gradient-to-r from-[var(--accent-brown)]/30 to-transparent" />
+                <div className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] to-transparent" />
               </div>
             </div>
 
             {/* ── Right panel: Form ── */}
             <div className="space-y-8">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                <div className="p-2 rounded-xl" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                   <Plus className="h-5 w-5 text-[var(--accent-brown)]" />
                 </div>
                 <h2 className={`text-2xl font-bold text-[var(--text-primary)] ${aclonica.className}`}>Configuration</h2>
@@ -390,7 +390,8 @@ export default function CreerPageComponent() {
                       onChange={handleInputChange}
                       placeholder="Le Secret des Anciens"
                       required
-                      className="h-12 bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all rounded-xl"
+                      className="h-12 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all rounded-xl"
+                      style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -404,7 +405,8 @@ export default function CreerPageComponent() {
                       min="1"
                       max="12"
                       required
-                      className="h-12 bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all rounded-xl"
+                      className="h-12 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all rounded-xl"
+                      style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                     />
                   </div>
                 </div>
@@ -420,7 +422,8 @@ export default function CreerPageComponent() {
                     placeholder="Décrivez votre aventure, l'ambiance, les prérequis..."
                     rows={4}
                     required
-                    className="bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all resize-none p-4 rounded-xl"
+                    className="backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all resize-none p-4 rounded-xl"
+                    style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                   />
                 </div>
 
@@ -488,7 +491,7 @@ export default function CreerPageComponent() {
                 {/* Image upload */}
                 <div className="space-y-2">
                   <label className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Image de couverture *</label>
-                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-[var(--border-color)] rounded-xl cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/5 transition-all bg-[var(--bg-card)]/30 backdrop-blur-sm group">
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-[var(--border-color)] rounded-xl cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)] transition-all backdrop-blur-sm group" style={{ background: 'color-mix(in srgb, var(--bg-card) 30%, transparent)' }}>
                     <div className="flex items-center gap-3">
                       <ImagePlus className="w-6 h-6 text-[var(--text-secondary)] group-hover:text-[var(--accent-brown)] transition-colors" />
                       <p className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
@@ -501,9 +504,9 @@ export default function CreerPageComponent() {
 
                 {/* Toggles */}
                 <div className="grid gap-3">
-                  <div className="flex items-center justify-between p-4 bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)] rounded-xl hover:border-[var(--accent-brown)]/30 transition-all">
+                  <div className="flex items-center justify-between p-4 backdrop-blur-sm border border-[var(--border-color)] rounded-xl hover:border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] transition-all" style={{ background: 'color-mix(in srgb, var(--bg-card) 40%, transparent)' }}>
                     <div className="flex items-center gap-3">
-                      <div className="p-1.5 rounded-lg bg-[var(--accent-brown)]/10">
+                      <div className="p-1.5 rounded-lg" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}>
                         <Globe className="h-4 w-4 text-[var(--accent-brown)]" />
                       </div>
                       <div className="space-y-0.5">
@@ -520,9 +523,9 @@ export default function CreerPageComponent() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)] rounded-xl hover:border-[var(--accent-brown)]/30 transition-all">
+                  <div className="flex items-center justify-between p-4 backdrop-blur-sm border border-[var(--border-color)] rounded-xl hover:border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] transition-all" style={{ background: 'color-mix(in srgb, var(--bg-card) 40%, transparent)' }}>
                     <div className="flex items-center gap-3">
-                      <div className="p-1.5 rounded-lg bg-[var(--accent-brown)]/10">
+                      <div className="p-1.5 rounded-lg" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}>
                         <Sparkles className="h-4 w-4 text-[var(--accent-brown)]" />
                       </div>
                       <div className="space-y-0.5">

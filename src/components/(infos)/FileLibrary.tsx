@@ -156,7 +156,7 @@ function SortBar({ order, onChange, total }: { order: SortOrder; onChange: (o: S
                     onClick={() => onChange(o)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${order === o
                         ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]"
-                        : "bg-transparent border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50"
+                        : "bg-transparent border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]"
                         }`}
                 >
                     {o === "newest" ? "↓ Plus récent" : "↑ Plus ancien"}
@@ -320,7 +320,7 @@ function ImageGrid({
                         {groupItems.map((item) => (
                             <div
                                 key={item.id}
-                                className="group relative aspect-square rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/30 hover:border-[var(--accent-brown)]/60 transition-all shadow-sm hover:shadow-[0_0_16px_rgba(192,160,128,0.15)]"
+                                className="group relative aspect-square rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/30 hover:border-[color-mix(in_srgb,var(--accent-brown)_60%,transparent)] transition-all shadow-sm hover:shadow-[0_0_16px_rgba(192,160,128,0.15)]"
                             >
                                 {item.url?.match(/\.(webm|mp4)(\?.*)?$/i) ? (
                                     <video
@@ -357,7 +357,8 @@ function ImageGrid({
                                         </button>
                                         <button
                                             onClick={() => handleCopy(item)}
-                                            className="flex-1 flex items-center justify-center text-xs bg-[var(--accent-brown)]/80 hover:bg-[var(--accent-brown)] text-white rounded-lg px-2 py-1.5 backdrop-blur-sm transition-colors"
+                                            className="flex-1 flex items-center justify-center text-xs hover:bg-[var(--accent-brown)] text-white rounded-lg px-2 py-1.5 backdrop-blur-sm transition-colors"
+                                            style={{ background: 'color-mix(in srgb, var(--accent-brown) 80%, transparent)' }}
                                             title="Copier l'URL"
                                         >
                                             {copiedId === item.id ? (
@@ -412,7 +413,7 @@ function SoundList({ items, loading, emptyLabel }: { items: LibraryItem[]; loadi
                 return (
                     <div
                         key={item.id}
-                        className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl px-4 py-3 group hover:border-[var(--accent-brown)]/50 transition-all"
+                        className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl px-4 py-3 group hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all"
                     >
                         <Music className="w-5 h-5 text-[var(--accent-brown)] shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -435,7 +436,7 @@ function SoundList({ items, loading, emptyLabel }: { items: LibraryItem[]; loadi
                         </div>
                         <button
                             onClick={() => handleCopy(item)}
-                            className="shrink-0 p-2 rounded-lg hover:bg-[var(--accent-brown)]/10 text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors"
+                            className="shrink-0 p-2 rounded-lg hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors"
                             title="Copier l'URL"
                         >
                             {copiedId === item.id ? (
@@ -711,7 +712,7 @@ export default function FileLibrary() {
                                             onClick={() => setPnjFilter(f.key)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${isActive
                                                 ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)] shadow-sm"
-                                                : "bg-transparent border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50 hover:text-[var(--text-primary)]"}`}
+                                                : "bg-transparent border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:text-[var(--text-primary)]"}`}
                                         >
                                             {f.label}
                                             <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isActive ? "bg-black/20" : "bg-white/10"}`}>

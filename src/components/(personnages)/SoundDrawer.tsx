@@ -388,14 +388,14 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
 
     return (
         <>
-            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#141414]" : `fixed inset-y-0 right-0 w-80 bg-[#141414] border-l border-[#333] shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[var(--bg-darker)]" : `fixed inset-y-0 right-0 w-80 bg-[var(--bg-darker)] border-l border-[var(--border-color)] shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
                 {/* HEADER */}
                 {!isEmbedded && (
-                    <div className="p-4 border-b border-[#333] flex items-center justify-between bg-[#1a1a1a]">
+                    <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-dark)]">
                         <div className="flex items-center gap-2">
-                            <Volume2 className="w-5 h-5 text-[#c0a080]" />
-                            <h2 className="font-bold text-[#e0e0e0]">Sons & Musiques</h2>
+                            <Volume2 className="w-5 h-5 text-[var(--accent-brown)]" />
+                            <h2 className="font-bold text-[var(--text-primary)]">Sons & Musiques</h2>
                         </div>
                         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-gray-400 hover:text-white">
                             <X className="w-4 h-4" />
@@ -404,7 +404,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                 )}
 
                 {/* TABS */}
-                <div className="flex border-b border-[#333]">
+                <div className="flex border-b border-[var(--border-color)]">
                     {[
                         { id: 'sounds' as const, icon: Volume2, label: 'Effets Audio' },
                         { id: 'music' as const, icon: ListMusic, label: 'Musique' }
@@ -416,20 +416,20 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
 
                         return (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 px-2 py-3 text-xs font-medium transition-colors relative flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-[#c0a080] bg-[#252525]' : 'text-gray-400 hover:bg-[#1a1a1a]'}`}>
+                                className={`flex-1 px-2 py-3 text-xs font-medium transition-colors relative flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-[var(--accent-brown)] bg-[var(--bg-card)]' : 'text-gray-400 hover:bg-[var(--bg-dark)]'}`}>
                                 <div className="relative">
                                     <tab.icon className="w-4 h-4" />
                                     {/* Playback Indicator */}
                                     {hasActivePlayback && (
-                                        <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${tab.id === 'sounds' ? 'bg-green-500' : 'bg-[#c0a080]'
+                                        <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${tab.id === 'sounds' ? 'bg-green-500' : 'bg-[var(--accent-brown)]'
                                             }`}>
-                                            <div className={`absolute inset-0 rounded-full animate-ping ${tab.id === 'sounds' ? 'bg-green-500' : 'bg-[#c0a080]'
+                                            <div className={`absolute inset-0 rounded-full animate-ping ${tab.id === 'sounds' ? 'bg-green-500' : 'bg-[var(--accent-brown)]'
                                                 }`} />
                                         </div>
                                     )}
                                 </div>
                                 <span>{tab.label}</span>
-                                {activeTab === tab.id && <div className="absolute bottom-0 w-full h-0.5 bg-[#c0a080]" />}
+                                {activeTab === tab.id && <div className="absolute bottom-0 w-full h-0.5 bg-[var(--accent-brown)]" />}
                             </button>
                         )
                     })}
@@ -437,36 +437,36 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
 
                 {/* ADD GLOBAL BUTTON */}
                 {!showCreateForm && (
-                    <div className="p-3 border-b border-[#333] bg-[#1a1a1a] flex gap-2">
+                    <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-dark)] flex gap-2">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
-                            <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8 bg-[#252525] border-none text-white h-8 text-xs" />
+                            <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8 bg-[var(--bg-card)] border-none text-white h-8 text-xs" />
                         </div>
-                        <Button onClick={() => setShowCreateForm(true)} size="sm" className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b494]"><Plus className="w-4 h-4" /></Button>
-                        <Button onClick={() => setIsLibraryOpen(true)} size="icon" variant="outline" className="h-8 w-8 border-[#333] text-gray-400 hover:text-white bg-transparent"><Library className="w-4 h-4" /></Button>
+                        <Button onClick={() => setShowCreateForm(true)} size="sm" className="h-8 bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]"><Plus className="w-4 h-4" /></Button>
+                        <Button onClick={() => setIsLibraryOpen(true)} size="icon" variant="outline" className="h-8 w-8 border-[var(--border-color)] text-gray-400 hover:text-white bg-transparent"><Library className="w-4 h-4" /></Button>
                     </div>
                 )}
 
                 {/* CREATE FORM */}
                 {showCreateForm && (
-                    <div className="p-4 bg-[#1e1e1e] border-b border-[#333] space-y-3 animate-in slide-in-from-top-2 border-l-4 border-l-[#c0a080]">
+                    <div className="p-4 bg-[var(--bg-card)] border-b border-[var(--border-color)] space-y-3 animate-in slide-in-from-top-2 border-l-4 border-l-[var(--accent-brown)]">
                         <div className="flex justify-between items-center mb-2">
                             <span className="font-semibold text-white text-sm">
                                 {activeTab === 'music' ? 'Ajouter à la playlist' : 'Ajouter un effet sonore'}
                             </span>
                             <X className="w-4 h-4 cursor-pointer text-gray-400" onClick={() => setShowCreateForm(false)} />
                         </div>
-                        <div className="grid grid-cols-2 gap-2 bg-[#252525] p-1 rounded-md">
-                            <button onClick={() => setCreationType('file')} className={`text-xs py-1 rounded transition ${creationType === 'file' ? 'bg-[#333] text-white' : 'text-gray-500'}`}>Fichier</button>
+                        <div className="grid grid-cols-2 gap-2 bg-[var(--bg-card)] p-1 rounded-md">
+                            <button onClick={() => setCreationType('file')} className={`text-xs py-1 rounded transition ${creationType === 'file' ? 'bg-[var(--border-color)] text-white' : 'text-gray-500'}`}>Fichier</button>
                             <button onClick={() => setCreationType('youtube')} className={`text-xs py-1 rounded transition ${creationType === 'youtube' ? 'bg-[#991b1b] text-white' : 'text-gray-500'}`}>YouTube</button>
                         </div>
-                        <Input placeholder="Nom du son" value={newSoundName} onChange={e => setNewSoundName(e.target.value)} className="h-8 bg-[#252525]" />
+                        <Input placeholder="Nom du son" value={newSoundName} onChange={e => setNewSoundName(e.target.value)} className="h-8 bg-[var(--bg-card)]" />
                         {creationType === 'file' ? (
                             <Input
                                 key="file-input"
                                 type="file"
                                 accept="audio/*"
-                                className="text-xs text-gray-400 file:text-white file:bg-[#333] file:border-0 file:rounded-sm"
+                                className="text-xs text-gray-400 file:text-white file:bg-[var(--border-color)] file:border-0 file:rounded-sm"
                                 onChange={e => {
                                     const f = e.target.files?.[0];
                                     if (f) {
@@ -481,20 +481,26 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                 placeholder="URL YouTube"
                                 value={youtubeInput}
                                 onChange={e => setYoutubeInput(e.target.value)}
-                                className="h-8 bg-[#252525]"
+                                className="h-8 bg-[var(--bg-card)]"
                             />
                         )}
-                        <Button onClick={handleCreate} disabled={isSubmitting} size="sm" className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494]">Ajouter</Button>
+                        <Button onClick={handleCreate} disabled={isSubmitting} size="sm" className="w-full bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]">Ajouter</Button>
                     </div>
                 )}
 
                 {/* TAB DESCRIPTION + SWITCH */}
                 {!showCreateForm && (
-                    <div className="px-4 py-2 bg-[#1a1a1a]/50 border-b border-[#333]/50">
+                    <div
+                        className="px-4 py-2 border-b"
+                        style={{
+                            background: 'color-mix(in srgb, var(--bg-dark) 50%, transparent)',
+                            borderColor: 'color-mix(in srgb, var(--border-color) 50%, transparent)',
+                        }}
+                    >
                         {activeTab === 'sounds' && (
                             <div className="space-y-2">
                                 <p className="text-xs text-gray-400 flex items-center gap-2">
-                                    <Volume2 className="w-3 h-3 text-[#c0a080]" />
+                                    <Volume2 className="w-3 h-3 text-[var(--accent-brown)]" />
                                     <span>Cliquez pour jouer, glissez pour placer sur la carte</span>
                                 </p>
                                 {/* Local/Global Switch */}
@@ -503,7 +509,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                     <Switch
                                         checked={isGlobalPlayback}
                                         onCheckedChange={setIsGlobalPlayback}
-                                        className="data-[state=checked]:bg-[#c0a080]"
+                                        className="data-[state=checked]:bg-[var(--accent-brown)]"
                                     />
                                     <span className="text-xs font-medium text-gray-300">
                                         {isGlobalPlayback ? 'Global (tous les joueurs)' : 'Local (preview)'}
@@ -513,7 +519,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                         )}
                         {activeTab === 'music' && (
                             <p className="text-xs text-gray-400 flex items-center gap-2">
-                                <ListMusic className="w-3 h-3 text-[#c0a080]" />
+                                <ListMusic className="w-3 h-3 text-[var(--accent-brown)]" />
                                 <span>Mes playlists</span>
                             </p>
                         )}
@@ -521,19 +527,19 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                 )}
 
                 {/* CONTENT AREA */}
-                <ScrollArea className="flex-1 bg-[#121212]">
+                <ScrollArea className="flex-1 bg-[var(--bg-canvas)]">
                     <div className="p-2 space-y-1">
                         {/* MUSIC LIBRARY SECTION */}
                         {activeTab === 'music' && (
                             <div className="space-y-4">
                                 {/* Playlist Tabs */}
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-[#333]">
+                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-[var(--border-color)]">
                                         <button
                                             onClick={() => setActivePlaylistId(null)}
                                             className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all ${!activePlaylistId
-                                                ? 'bg-[#c0a080] text-black shadow-md shadow-[#c0a080]/20'
-                                                : 'bg-[#252525] text-gray-400 hover:bg-[#333] hover:text-gray-200 border border-[#333]'
+                                                ? 'bg-[var(--accent-brown)] text-black shadow-md shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]'
+                                                : 'bg-[var(--bg-card)] text-gray-400 hover:bg-[var(--border-color)] hover:text-gray-200 border border-[var(--border-color)]'
                                                 }`}
                                         >
                                             Tout ({musicResults.length})
@@ -546,8 +552,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                     key={p.id}
                                                     onClick={() => setActivePlaylistId(p.id)}
                                                     className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all flex items-center gap-1.5 ${isActive
-                                                        ? 'bg-[#c0a080] text-black shadow-md shadow-[#c0a080]/20'
-                                                        : 'bg-[#252525] text-gray-400 hover:bg-[#333] hover:text-gray-200 border border-[#333]'
+                                                        ? 'bg-[var(--accent-brown)] text-black shadow-md shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]'
+                                                        : 'bg-[var(--bg-card)] text-gray-400 hover:bg-[var(--border-color)] hover:text-gray-200 border border-[var(--border-color)]'
                                                         }`}
                                                 >
                                                     <ListMusic className="w-3 h-3" />
@@ -558,7 +564,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                         })}
                                         <button
                                             onClick={() => setShowCreatePlaylist(true)}
-                                            className="shrink-0 w-7 h-7 rounded-full bg-[#252525] border border-dashed border-[#555] flex items-center justify-center text-gray-500 hover:text-[#c0a080] hover:border-[#c0a080]/50 transition-all"
+                                            className="shrink-0 w-7 h-7 rounded-full bg-[var(--bg-card)] border border-dashed border-[var(--border-color)] flex items-center justify-center text-gray-500 hover:text-[var(--accent-brown)] hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all"
                                             title="Nouvelle playlist"
                                         >
                                             <Plus className="w-3 h-3" />
@@ -567,9 +573,12 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
 
                                     {/* Create Playlist Form */}
                                     {showCreatePlaylist && (
-                                        <div className="px-3 py-2.5 bg-[#1a1a1a] border border-[#c0a080]/30 rounded-lg space-y-2 animate-in slide-in-from-top-2">
+                                        <div
+                                            className="px-3 py-2.5 bg-[var(--bg-dark)] border rounded-lg space-y-2 animate-in slide-in-from-top-2"
+                                            style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }}
+                                        >
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-semibold text-[#c0a080]">Nouvelle Playlist</span>
+                                                <span className="text-[11px] font-semibold text-[var(--accent-brown)]">Nouvelle Playlist</span>
                                                 <X className="w-3.5 h-3.5 cursor-pointer text-gray-500 hover:text-gray-300" onClick={() => { setShowCreatePlaylist(false); setNewPlaylistName(''); }} />
                                             </div>
                                             <div className="flex gap-2">
@@ -577,7 +586,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                     placeholder="Nom de la playlist..."
                                                     value={newPlaylistName}
                                                     onChange={(e) => setNewPlaylistName(e.target.value)}
-                                                    className="h-7 bg-[#252525] border-none text-white text-xs flex-1"
+                                                    className="h-7 bg-[var(--bg-card)] border-none text-white text-xs flex-1"
                                                     autoFocus
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter' && newPlaylistName.trim()) {
@@ -587,7 +596,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                         }
                                                     }}
                                                 />
-                                                <Button size="sm" className="h-7 bg-[#c0a080] text-black hover:bg-[#d4b494] text-xs"
+                                                <Button size="sm" className="h-7 bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] text-xs"
                                                     disabled={!newPlaylistName.trim()}
                                                     onClick={() => {
                                                         addPlaylist({ name: newPlaylistName.trim(), trackIds: [] })
@@ -606,15 +615,15 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                         if (!playlist) return null
                                         const isRenaming = renamingPlaylistId === activePlaylistId
                                         return (
-                                            <div className="flex items-center justify-between px-3 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
+                                            <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-dark)] rounded-lg border border-[var(--border-color)]">
                                                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                    <ListMusic className="w-4 h-4 text-[#c0a080] shrink-0" />
+                                                    <ListMusic className="w-4 h-4 text-[var(--accent-brown)] shrink-0" />
                                                     <div className="min-w-0 flex-1">
                                                         {isRenaming ? (
                                                             <Input
                                                                 value={renameValue}
                                                                 onChange={(e) => setRenameValue(e.target.value)}
-                                                                className="h-6 bg-[#252525] border-none text-white text-xs"
+                                                                className="h-6 bg-[var(--bg-card)] border-none text-white text-xs"
                                                                 autoFocus
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === 'Enter' && renameValue.trim()) {
@@ -644,9 +653,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                             <MoreVertical className="w-3.5 h-3.5" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent className="bg-[#1a1a1a] border-[#444] min-w-[140px]">
+                                                    <DropdownMenuContent className="bg-[var(--bg-dark)] border-[var(--border-color)] min-w-[140px]">
                                                         <DropdownMenuItem
-                                                            className="text-xs text-gray-300 focus:bg-[#252525] focus:text-white gap-2"
+                                                            className="text-xs text-gray-300 focus:bg-[var(--bg-card)] focus:text-white gap-2"
                                                             onClick={() => { setRenamingPlaylistId(activePlaylistId); setRenameValue(playlist.name); }}
                                                         >
                                                             <Pencil className="w-3 h-3" />
@@ -695,8 +704,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                     key={sound.id}
                                                     onClick={() => playMusicTrack(sound)}
                                                     className={`flex items-center gap-2 p-2 rounded border transition-all cursor-pointer group ${isCurrentTrack
-                                                        ? 'bg-[#c0a080]/10 border-[#c0a080]/30'
-                                                        : 'bg-[#1e1e1e] border-[#333] hover:border-[#555]'
+                                                        ? 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)]'
+                                                        : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--border-color)]'
                                                         }`}
                                                 >
                                                     {/* Play/Pause Button */}
@@ -706,8 +715,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                             playMusicTrack(sound)
                                                         }}
                                                         className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${isPlaying
-                                                            ? 'bg-[#c0a080] text-black animate-pulse'
-                                                            : 'bg-[#252525] text-gray-400 hover:bg-[#c0a080] hover:text-black'
+                                                            ? 'bg-[var(--accent-brown)] text-black animate-pulse'
+                                                            : 'bg-[var(--bg-card)] text-gray-400 hover:bg-[var(--accent-brown)] hover:text-black'
                                                             }`}
                                                     >
                                                         {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -715,7 +724,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
 
                                                     <RenderIcon type={sound.type} />
                                                     <div className="flex-1 min-w-0">
-                                                        <div className={`text-xs font-medium truncate ${isCurrentTrack ? 'text-[#c0a080]' : 'text-gray-200'}`}>
+                                                        <div className={`text-xs font-medium truncate ${isCurrentTrack ? 'text-[var(--accent-brown)]' : 'text-gray-200'}`}>
                                                             {sound.name}
                                                         </div>
                                                     </div>
@@ -725,16 +734,16 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                         {!activePlaylistId && playlists.length > 0 && (
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-600 hover:text-[#c0a080]" onClick={(e) => e.stopPropagation()}>
+                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-600 hover:text-[var(--accent-brown)]" onClick={(e) => e.stopPropagation()}>
                                                                         <Plus className="w-3.5 h-3.5" />
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
-                                                                <DropdownMenuContent className="bg-[#1a1a1a] border-[#444]" onClick={(e) => e.stopPropagation()}>
+                                                                <DropdownMenuContent className="bg-[var(--bg-dark)] border-[var(--border-color)]" onClick={(e) => e.stopPropagation()}>
                                                                     {playlists.map(p => {
                                                                         const isInPlaylist = p.trackIds.includes(sound.id)
                                                                         return (
                                                                             <DropdownMenuItem key={p.id} disabled={isInPlaylist}
-                                                                                className="text-xs text-gray-300 focus:bg-[#252525] focus:text-white"
+                                                                                className="text-xs text-gray-300 focus:bg-[var(--bg-card)] focus:text-white"
                                                                                 onClick={() => {
                                                                                     if (!isInPlaylist) {
                                                                                         updatePlaylist(p.id, { trackIds: [...p.trackIds, sound.id] })
@@ -814,7 +823,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                     key={sound.id}
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, sound)}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all group cursor-grab active:cursor-grabbing ${isPlaying ? 'bg-[#c0a080]/10 border-[#c0a080]/30' : 'bg-[#1e1e1e] border-[#333] hover:border-[#444]'
+                                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all group cursor-grab active:cursor-grabbing ${isPlaying ? 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)]' : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--border-color)]'
                                         }`}
                                 >
                                     {/* Drag Handle */}
@@ -827,8 +836,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                             playSound(sound)
                                         }}
                                         className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${isPlaying
-                                            ? 'bg-[#c0a080] text-black animate-pulse'
-                                            : 'bg-[#252525] text-gray-400 hover:bg-[#c0a080] hover:text-black'
+                                            ? 'bg-[var(--accent-brown)] text-black animate-pulse'
+                                            : 'bg-[var(--bg-card)] text-gray-400 hover:bg-[var(--accent-brown)] hover:text-black'
                                             }`}
                                     >
                                         {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
@@ -838,7 +847,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <RenderIcon type={sound.type} />
-                                            <span className={`text-sm font-medium truncate ${isPlaying ? 'text-[#c0a080]' : 'text-gray-200'}`}>
+                                            <span className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--accent-brown)]' : 'text-gray-200'}`}>
                                                 {sound.name}
                                             </span>
                                         </div>
@@ -875,10 +884,10 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                     const displayName = currentTrack?.name || musicState.videoTitle || 'Aucune lecture'
 
                     return (
-                        <div className="bg-[#181818] border-t border-[#333] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] z-10 flex flex-col shrink-0">
+                        <div className="bg-[var(--bg-dark)] border-t border-[var(--border-color)] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] z-10 flex flex-col shrink-0">
                             {/* Progress Bar (Visual only for now) */}
-                            <div className="h-1 w-full bg-[#2a2a2a] cursor-pointer group relative">
-                                <div className="absolute top-0 left-0 h-full bg-[#c0a080] w-1/3 group-hover:bg-[#d4b494] transition-colors relative">
+                            <div className="h-1 w-full bg-[var(--border-color)] cursor-pointer group relative">
+                                <div className="absolute top-0 left-0 h-full bg-[var(--accent-brown)] w-1/3 group-hover:bg-[var(--accent-brown-hover)] transition-colors relative">
                                     <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity transform scale-150" />
                                 </div>
                             </div>
@@ -886,8 +895,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                             <div className="p-3 flex items-center justify-between gap-3">
                                 {/* Track Info */}
                                 <div className="flex items-center gap-3 overflow-hidden flex-1">
-                                    <div className="w-10 h-10 rounded bg-[#252525] flex items-center justify-center shrink-0 border border-[#333]">
-                                        <Music className="w-5 h-5 text-[#c0a080]" />
+                                    <div className="w-10 h-10 rounded bg-[var(--bg-card)] flex items-center justify-center shrink-0 border border-[var(--border-color)]">
+                                        <Music className="w-5 h-5 text-[var(--accent-brown)]" />
                                     </div>
                                     <div className="flex flex-col overflow-hidden">
                                         <span className="text-sm font-semibold text-white truncate max-w-[120px]">
@@ -904,7 +913,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                     <button className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Aléatoire">
                                         <Shuffle className="w-3 h-3" />
                                     </button>
-                                    <button onClick={playPrevious} className="p-1.5 text-gray-300 hover:text-white transition-colors hover:bg-[#333] rounded-full">
+                                    <button onClick={playPrevious} className="p-1.5 text-gray-300 hover:text-white transition-colors hover:bg-[var(--border-color)] rounded-full">
                                         <SkipBack className="w-4 h-4" />
                                     </button>
                                     <button
@@ -913,11 +922,11 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                 update(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicState.isPlaying, lastUpdate: Date.now() })
                                             }
                                         }}
-                                        className="w-8 h-8 rounded-full bg-[#c0a080] text-black flex items-center justify-center hover:bg-[#d4b494] transition-transform active:scale-95 shadow-lg shadow-[#c0a080]/20"
+                                        className="w-8 h-8 rounded-full bg-[var(--accent-brown)] text-black flex items-center justify-center hover:bg-[var(--accent-brown-hover)] transition-transform active:scale-95 shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]"
                                     >
                                         {musicState.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                                     </button>
-                                    <button onClick={playNext} className="p-1.5 text-gray-300 hover:text-white transition-colors hover:bg-[#333] rounded-full">
+                                    <button onClick={playNext} className="p-1.5 text-gray-300 hover:text-white transition-colors hover:bg-[var(--border-color)] rounded-full">
                                         <SkipForward className="w-4 h-4" />
                                     </button>
                                     <button className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Répéter">
@@ -957,14 +966,14 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                     <div className="absolute inset-0" onClick={() => setIsLibraryOpen(false)} />
 
                     {/* Modal Content */}
-                    <div className="relative w-full max-w-5xl h-[85vh] bg-[#0a0a0a] border border-[#333] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="relative w-full max-w-5xl h-[85vh] bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
                         {/* HEADER */}
-                        <div className="p-5 border-b border-[#222] bg-[#111] flex flex-col gap-4 shrink-0">
+                        <div className="p-5 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex flex-col gap-4 shrink-0">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-10 h-10 rounded-full bg-[#1e1e1e] flex items-center justify-center border border-[#333]">
-                                        <Library className="w-5 h-5 text-[#c0a080]" />
+                                    <div className="w-10 h-10 rounded-full bg-[var(--bg-card)] flex items-center justify-center border border-[var(--border-color)]">
+                                        <Library className="w-5 h-5 text-[var(--accent-brown)]" />
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white">
@@ -986,7 +995,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                 <Input
                                     value={librarySearch}
                                     onChange={(e) => setLibrarySearch(e.target.value)}
-                                    className="bg-[#1a1a1a] border-[#333] h-10 pl-10 text-sm focus:border-[#c0a080] placeholder:text-gray-600 text-white"
+                                    className="bg-[var(--bg-dark)] border-[var(--border-color)] h-10 pl-10 text-sm focus:border-[var(--accent-brown)] placeholder:text-gray-600 text-white"
                                     placeholder="Rechercher un son (ex: pluie, épée, taverne...)"
                                     autoFocus
                                 />
@@ -997,24 +1006,24 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                         <div className="flex-1 flex overflow-hidden">
 
                             {/* SIDEBAR: CATEGORIES */}
-                            <div className="w-64 bg-[#111] border-r border-[#222] flex flex-col shrink-0">
+                            <div className="w-64 bg-[var(--bg-darker)] border-r border-[var(--border-color)] flex flex-col shrink-0">
                                 <ScrollArea className="flex-1 py-3 px-2">
                                     <div className="space-y-1">
                                         <Button
                                             variant="ghost"
                                             onClick={() => setSelectedLibraryCategory('all')}
-                                            className={`w-full justify-start text-sm h-9 ${selectedLibraryCategory === 'all' ? 'bg-[#c0a080]/10 text-[#c0a080]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
+                                            className={`w-full justify-start text-sm h-9 ${selectedLibraryCategory === 'all' ? 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]'}`}
                                         >
                                             <ListMusic className="w-4 h-4 mr-2" /> Tout voir
                                         </Button>
-                                        <div className="h-px bg-[#222] my-2 mx-1" />
+                                        <div className="h-px bg-[var(--border-color)] my-2 mx-1" />
                                         <div className="px-2 pb-1 text-[10px] font-semibold text-gray-600 uppercase">Catégories</div>
                                         {(activeTab === 'music' ? MUSIC_CATEGORIES : SOUND_CATEGORIES).map(cat => (
                                             <Button
                                                 key={cat.id}
                                                 variant="ghost"
                                                 onClick={() => setSelectedLibraryCategory(cat.id)}
-                                                className={`w-full justify-start text-sm h-9 ${selectedLibraryCategory === cat.id ? 'bg-[#c0a080]/10 text-[#c0a080]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
+                                                className={`w-full justify-start text-sm h-9 ${selectedLibraryCategory === cat.id ? 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]'}`}
                                             >
                                                 <span className="w-1.5 h-1.5 rounded-full bg-current mr-2.5 opacity-50" />
                                                 {cat.label}
@@ -1025,7 +1034,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                             </div>
 
                             {/* MAIN: SOUND GRID */}
-                            <div className="flex-1 bg-[#0a0a0a] flex flex-col min-w-0">
+                            <div className="flex-1 bg-[var(--bg-darker)] flex flex-col min-w-0">
                                 <ScrollArea className="flex-1 p-5">
                                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                                         {(activeTab === 'music' ? SUGGESTED_MUSICS : SUGGESTED_SOUNDS)
@@ -1041,17 +1050,17 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                 return (
                                                     <div
                                                         key={i}
-                                                        className={`group relative p-3 rounded-xl border transition-all duration-200 bg-[#161616] hover:bg-[#1a1a1a] flex flex-col gap-2 ${isPlaying ? 'border-[#c0a080] shadow-[0_0_15px_-3px_rgba(192,160,128,0.2)]' : 'border-[#222] hover:border-[#444]'
+                                                        className={`group relative p-3 rounded-xl border transition-all duration-200 bg-[var(--bg-card)] hover:bg-[var(--bg-dark)] flex flex-col gap-2 ${isPlaying ? 'border-[var(--accent-brown)] shadow-[0_0_15px_-3px_rgba(192,160,128,0.2)]' : 'border-[var(--border-color)] hover:border-[var(--border-color)]'
                                                             }`}
                                                     >
                                                         {/* Top Row: Info */}
                                                         <div className="flex items-start justify-between gap-2">
                                                             <div className="min-w-0">
-                                                                <div className={`text-sm font-medium truncate ${isPlaying ? 'text-[#c0a080]' : 'text-gray-200'}`}>
+                                                                <div className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--accent-brown)]' : 'text-gray-200'}`}>
                                                                     {sound.name}
                                                                 </div>
                                                                 <div className="text-[10px] text-gray-500 truncate mt-0.5 flex items-center gap-1">
-                                                                    <Badge variant="outline" className="h-[18px] px-1.5 border-[#333] bg-[#111] text-[9px] text-gray-400 font-normal rounded">
+                                                                    <Badge variant="outline" className="h-[18px] px-1.5 border-[var(--border-color)] bg-[var(--bg-darker)] text-[9px] text-gray-400 font-normal rounded">
                                                                         {sound.category}
                                                                     </Badge>
                                                                 </div>
@@ -1066,8 +1075,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                                 variant="ghost"
                                                                 onClick={(e) => { e.stopPropagation(); toggleLibraryPreview(sound.path); }}
                                                                 className={`flex-1 h-8 rounded-lg text-xs font-medium border transition-colors ${isPlaying
-                                                                    ? 'bg-[#c0a080] text-black border-[#c0a080] hover:bg-[#d4b494]'
-                                                                    : 'bg-[#111] border-[#333] text-gray-300 hover:bg-[#222] hover:border-[#555]'
+                                                                    ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)]'
+                                                                    : 'bg-[var(--bg-darker)] border-[var(--border-color)] text-gray-300 hover:bg-[var(--border-color)] hover:border-[var(--border-color)]'
                                                                     }`}
                                                             >
                                                                 {isPlaying ? (
@@ -1088,7 +1097,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                                 disabled={isAdded}
                                                                 className={`h-8 w-8 rounded-lg shrink-0 transition-all ${isAdded
                                                                     ? 'bg-green-900/50 text-green-400 border border-green-800'
-                                                                    : 'bg-[#111] border border-[#333] text-gray-400 hover:text-white hover:border-[#c0a080] hover:bg-[#c0a080]/10'
+                                                                    : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-gray-400 hover:text-white hover:border-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]'
                                                                     }`}
                                                             >
                                                                 {isAdded ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}

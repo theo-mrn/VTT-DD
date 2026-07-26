@@ -134,15 +134,15 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
         onClick={onClose}
       >
         <div
-          className="bg-gradient-to-b from-[#2a2a2a] to-[#1f1f1f] rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden relative border border-[#3a3a3a]"
+          className="bg-gradient-to-b from-[var(--border-color)] to-[var(--bg-darker)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden relative border border-[var(--border-color)]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header with close button */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#3a3a3a] bg-[#252525]">
-            <h2 className="text-xl font-bold text-[#e0c8c8] truncate">{character.Nomperso}</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] truncate">{character.Nomperso}</h2>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded-lg transition-colors"
+              className="p-2 text-gray-400 hover:text-white hover:bg-[var(--border-color)] rounded-lg transition-colors"
               aria-label="Fermer"
             >
               <X size={20} />
@@ -150,12 +150,12 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-[#3a3a3a]">
+          <div className="flex border-b border-[var(--border-color)]">
             <button
               onClick={() => setActiveTab('character')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 font-medium transition-colors ${activeTab === 'character'
-                ? 'text-[#e0c8c8] bg-[#2a2a2a] border-b-2 border-[#c0a080]'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-[#2a2a2a]/50'
+                ? 'text-[var(--text-primary)] bg-[var(--border-color)] border-b-2 border-[var(--accent-brown)]'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-[color-mix(in_srgb,var(--border-color)_50%,transparent)]'
                 }`}
             >
               <User size={18} />
@@ -164,8 +164,8 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
             <button
               onClick={() => setActiveTab('inventory')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 font-medium transition-colors ${activeTab === 'inventory'
-                ? 'text-[#e0c8c8] bg-[#2a2a2a] border-b-2 border-[#c0a080]'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-[#2a2a2a]/50'
+                ? 'text-[var(--text-primary)] bg-[var(--border-color)] border-b-2 border-[var(--accent-brown)]'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-[color-mix(in_srgb,var(--border-color)_50%,transparent)]'
                 }`}
             >
               <Package size={18} />
@@ -196,37 +196,37 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
 
                     {/* Basic Info */}
                     <div className="flex-grow">
-                      <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a]">
+                      <div className="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)]">
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('niveau') ? PRIVATE_PLACEHOLDER : character.niveau}</span>
                           </div>
                           {hasInitStat && (
                             <div className="flex justify-between">
-                              <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                              <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                               <span className="text-white font-medium">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
                             </div>
                           )}
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">{careerLabel} {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">{careerLabel} {isFieldPrivate('Profile') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : careerDisplay}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">{raceLabel} {isFieldPrivate('Race') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">{raceLabel} {isFieldPrivate('Race') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('Race') ? PRIVATE_PLACEHOLDER : raceDisplay}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">Taille {isFieldPrivate('Taille') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Taille {isFieldPrivate('Taille') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('Taille') ? PRIVATE_PLACEHOLDER : `${character.Taille} cm`}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400 flex items-center gap-1">Poids {isFieldPrivate('Poids') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Poids {isFieldPrivate('Poids') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('Poids') ? PRIVATE_PLACEHOLDER : `${character.Poids} kg`}</span>
                           </div>
                           {isDndClassic && (
                             <div className="flex justify-between col-span-2">
-                              <span className="text-gray-400 flex items-center gap-1">Dé de Vie {isFieldPrivate('deVie') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                              <span className="text-gray-400 flex items-center gap-1">Dé de Vie {isFieldPrivate('deVie') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                               <span className="text-white font-medium">{isFieldHidden('deVie') ? PRIVATE_PLACEHOLDER : character.deVie}</span>
                             </div>
                           )}
@@ -245,7 +245,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                   <div className="flex items-center gap-4">
                     {/* NPC Image - Only show if image exists */}
                     {(character.imageURL2 || character.imageURL) && (
-                      <div className="flex-shrink-0 w-36 h-36 rounded-lg overflow-hidden border border-[#3a3a3a]">
+                      <div className="flex-shrink-0 w-36 h-36 rounded-lg overflow-hidden border border-[var(--border-color)]">
                         <img
                           src={character.imageURL2 || character.imageURL}
                           alt={character.Nomperso}
@@ -255,21 +255,21 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                     )}
 
                     {/* NPC Basic Info */}
-                    <div className="flex-grow bg-[#252525] p-3 rounded-xl border border-[#3a3a3a]">
+                    <div className="flex-grow bg-[var(--bg-card)] p-3 rounded-xl border border-[var(--border-color)]">
                       <div className="flex flex-wrap justify-between gap-4 text-sm">
                         {character.Profile && (
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-400 flex items-center gap-1">{careerLabel} {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">{careerLabel} {isFieldPrivate('Profile') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : careerDisplay}</span>
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                          <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                           <span className="text-white font-bold text-lg">{isFieldHidden('niveau') ? PRIVATE_PLACEHOLDER : character.niveau}</span>
                         </div>
                         {hasInitStat && (
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[var(--accent-brown)]" />}</span>
                             <span className="text-white font-bold text-lg">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
                           </div>
                         )}
@@ -283,10 +283,10 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                   {primaryVitalStat && (
                     <Tooltip>
                       <TooltipTrigger className="w-full">
-                        <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
+                        <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors">
                           <Heart className="text-red-500" size={28} />
                           <div className="text-left">
-                            <div className="text-xs text-gray-400 flex items-center gap-1">{primaryVitalStat.label} {isFieldPrivate(primaryVitalStat.key) && <Lock size={10} className="text-[#c0a080]" />}</div>
+                            <div className="text-xs text-gray-400 flex items-center gap-1">{primaryVitalStat.label} {isFieldPrivate(primaryVitalStat.key) && <Lock size={10} className="text-[var(--accent-brown)]" />}</div>
                             <div className="text-2xl font-bold text-white">
                               {(isFieldHidden(primaryVitalStat.key) || (primaryVitalMaxKey && isFieldHidden(primaryVitalMaxKey)))
                                 ? PRIVATE_PLACEHOLDER
@@ -314,10 +314,10 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                     return (
                       <Tooltip>
                         <TooltipTrigger className="w-full">
-                          <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
+                          <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors">
                             <Shield className="text-blue-500" size={28} />
                             <div className="text-left">
-                              <div className="text-xs text-gray-400 flex items-center gap-1">{defenseLabel} {isFieldPrivate(activeDefenseKey) && <Lock size={10} className="text-[#c0a080]" />}</div>
+                              <div className="text-xs text-gray-400 flex items-center gap-1">{defenseLabel} {isFieldPrivate(activeDefenseKey) && <Lock size={10} className="text-[var(--accent-brown)]" />}</div>
                               <div className="text-2xl font-bold text-white">{isFieldHidden(activeDefenseKey) ? PRIVATE_PLACEHOLDER : getDisplayValue(activeDefenseKey)}</div>
                             </div>
                           </div>
@@ -347,8 +347,8 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       return (
                         <Tooltip key={statDef.key}>
                           <TooltipTrigger className="w-full">
-                            <div className="bg-[#252525] p-3 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
-                              <div className="text-xs font-semibold text-[#c0a080] mb-1 flex items-center justify-center gap-1">
+                            <div className="bg-[var(--bg-card)] p-3 rounded-xl border border-[var(--border-color)] text-center hover:border-[var(--accent-brown)] transition-colors">
+                              <div className="text-xs font-semibold text-[var(--accent-brown)] mb-1 flex items-center justify-center gap-1">
                                 {statDef.shortLabel || statDef.key}
                                 {isFieldPrivate(statDef.key) && <Lock size={9} />}
                               </div>
@@ -397,7 +397,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                         return (
                           <Tooltip key={skill.key}>
                             <TooltipTrigger className="w-full">
-                              <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                              <div className="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] text-center hover:border-[var(--accent-brown)] transition-colors">
                                 <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
                                   {skill.label}
                                   {isFieldPrivate(skill.key) && <Lock size={9} />}
@@ -422,7 +422,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                         return (
                           <Tooltip key={key}>
                             <TooltipTrigger className="w-full">
-                              <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                              <div className="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] text-center hover:border-[var(--accent-brown)] transition-colors">
                                 <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
                                   {label}
                                   {isFieldPrivate(key) && <Lock size={9} />}

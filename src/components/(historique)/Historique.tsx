@@ -315,7 +315,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
     return (
         <div className="flex flex-col h-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg overflow-hidden shadow-xl">
             {/* Header */}
-            <div className="py-2 px-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-darker)]/40 backdrop-blur-md sticky top-0 z-20">
+            <div className="py-2 px-5 border-b border-[var(--border-color)] flex items-center justify-between backdrop-blur-md sticky top-0 z-20" style={{ background: 'color-mix(in srgb, var(--bg-darker) 40%, transparent)' }}>
                 <div className="text-lg font-bold text-[var(--accent-brown)] flex items-center gap-2">
                     {viewMode === 'characterEvents' ? (
                         lockToCharacter ? (
@@ -360,7 +360,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
             </div>
 
             {viewMode === 'characterList' && (
-                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[var(--bg-dark)]/10">
+                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar" style={{ background: 'color-mix(in srgb, var(--bg-dark) 10%, transparent)' }}>
                     <div className="max-w-4xl mx-auto grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-6 gap-4">
                         {characters.map(char => {
                             const avatar = getCharacterAvatar(char);
@@ -395,7 +395,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
             )}
 
             {viewMode === 'characterEvents' && (
-                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[var(--bg-dark)]/10">
+                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar" style={{ background: 'color-mix(in srgb, var(--bg-dark) 10%, transparent)' }}>
                     <div className="max-w-4xl mx-auto space-y-3">
                         {isLoadingCharacterEvents ? (
                             <div className="flex items-center justify-center py-20">
@@ -427,7 +427,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
                                             {event.message.split(/(\*\*.*?\*\*)/g).map((part, i) => {
                                                 if (part.startsWith('**') && part.endsWith('**')) {
                                                     return (
-                                                        <span key={i} className="px-2 py-0.5 bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20 text-[var(--accent-brown)] rounded-md text-[9px] font-black uppercase tracking-widest inline-block mx-0.5 shadow-sm align-baseline">
+                                                        <span key={i} className="px-2 py-0.5 border text-[var(--accent-brown)] rounded-md text-[9px] font-black uppercase tracking-widest inline-block mx-0.5 shadow-sm align-baseline" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                                                             {part.slice(2, -2)}
                                                         </span>
                                                     );
@@ -445,7 +445,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
 
             {/* Event List (Timeline) */}
             {viewMode === 'timeline' && (
-            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[var(--bg-dark)]/10" ref={scrollRef}>
+            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar" ref={scrollRef} style={{ background: 'color-mix(in srgb, var(--bg-dark) 10%, transparent)' }}>
                 {events.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full opacity-40 py-20 pointer-events-none text-center">
                         <History className="w-16 h-16 mb-4 text-[var(--text-secondary)] mx-auto" />
@@ -455,7 +455,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
                     <div className="space-y-6 max-w-4xl mx-auto">
                         {displayDate && (
                             <div key={displayDate} className="space-y-4">
-                                <div className="flex items-center gap-4 py-2 sticky top-0 bg-[var(--bg-dark)]/80 backdrop-blur-sm z-10 -mx-4 px-4">
+                                <div className="flex items-center gap-4 py-2 sticky top-0 backdrop-blur-sm z-10 -mx-4 px-4" style={{ background: 'color-mix(in srgb, var(--bg-dark) 80%, transparent)' }}>
                                     <div className="h-px grow bg-gradient-to-r from-transparent via-[var(--border-color)] to-transparent opacity-50"></div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -523,7 +523,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
                                                         {event.message.split(/(\*\*.*?\*\*)/g).map((part, i) => {
                                                             if (part.startsWith('**') && part.endsWith('**')) {
                                                                 return (
-                                                                    <span key={i} className="px-2 py-0.5 bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20 text-[var(--accent-brown)] rounded-md text-[9px] font-black uppercase tracking-widest inline-block mx-0.5 shadow-sm align-baseline">
+                                                                    <span key={i} className="px-2 py-0.5 border text-[var(--accent-brown)] rounded-md text-[9px] font-black uppercase tracking-widest inline-block mx-0.5 shadow-sm align-baseline" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                                                                         {part.slice(2, -2)}
                                                                     </span>
                                                                 );
@@ -609,18 +609,18 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
                                             <textarea
                                                 value={editedModalText}
                                                 onChange={(e) => setEditedModalText(e.target.value)}
-                                                className="w-full min-h-[350px] bg-[var(--bg-dark)] border border-[var(--border-color)] focus:border-[var(--accent-brown)]/40 rounded-lg p-5 text-sm text-[var(--text-primary)] focus:outline-none transition-colors leading-relaxed font-body resize-y scrollbar-thin"
+                                                className="w-full min-h-[350px] bg-[var(--bg-dark)] border border-[var(--border-color)] focus:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] rounded-lg p-5 text-sm text-[var(--text-primary)] focus:outline-none transition-colors leading-relaxed font-body resize-y scrollbar-thin"
                                                 placeholder="Rédigez ici le récit de votre séance..."
                                                 autoFocus
                                             />
                                         ) : (
-                                            <div className="bg-[var(--bg-dark)]/60 border border-[var(--border-color)] rounded-lg p-6 relative">
-                                                <div className="absolute top-0 left-0 w-0.5 h-full bg-gradient-to-b from-[var(--accent-brown)]/60 via-[var(--accent-brown)]/20 to-transparent rounded-full"></div>
-                                                <div className="text-sm text-[var(--text-primary)] leading-[1.9] whitespace-pre-wrap font-body pl-3 selection:bg-[var(--accent-brown)]/20">
+                                            <div className="border border-[var(--border-color)] rounded-lg p-6 relative" style={{ background: 'color-mix(in srgb, var(--bg-dark) 60%, transparent)' }}>
+                                                <div className="absolute top-0 left-0 w-0.5 h-full bg-gradient-to-b from-[color-mix(in_srgb,var(--accent-brown)_60%,transparent)] via-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] to-transparent rounded-full"></div>
+                                                <div className="text-sm text-[var(--text-primary)] leading-[1.9] whitespace-pre-wrap font-body pl-3 selection:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]">
                                                     {summaries[selectedDate].split(/(\*\*.*?\*\*)/g).map((part, i) => {
                                                         if (part.startsWith('**') && part.endsWith('**')) {
                                                             return (
-                                                                <span key={i} className="px-1.5 py-0.5 mx-0.5 bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20 text-[var(--accent-brown)] rounded text-[10px] font-bold uppercase tracking-wider inline-block align-baseline">
+                                                                <span key={i} className="px-1.5 py-0.5 mx-0.5 border text-[var(--accent-brown)] rounded text-[10px] font-bold uppercase tracking-wider inline-block align-baseline" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                                                                     {part.slice(2, -2)}
                                                                 </span>
                                                             );

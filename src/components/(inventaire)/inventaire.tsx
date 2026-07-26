@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, MinusCircle, PlusCircle, Lock, Eye, Package } from 'lucide-react';
+import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, MinusCircle, PlusCircle, Lock, Eye, Package, Folder, FolderPlus, ArrowLeft, FolderOpen } from 'lucide-react';
 import { db, doc, collection, updateDoc, setDoc, deleteDoc, addDoc, getDoc, getDocs, query, where } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useCharacterInventory, useCharacterBonuses, useSingleItemBonus } from '@/hooks/useCharacterData';
@@ -27,6 +27,10 @@ interface InventoryItem {
   visibility?: string;
   weight?: number;
   bonusTypes?: any;
+  /** Dossier optionnel contenant cet objet (id d'un doc isFolder). Absent/undefined = racine. */
+  folderId?: string | null;
+  /** Marque ce doc comme un dossier plutôt qu'un objet : seuls id/message/isFolder sont pertinents. */
+  isFolder?: boolean;
   /** Arme d'un système à dés à symboles (ex EotE) : dégâts de base FIXES (remplace diceSelection),
    *  Indice Critique (Avantages requis pour une Blessure Critique) et Points de Fixation
    *  (emplacements d'accessoires). Absents pour un système numérique (D&D : diceSelection). */
@@ -131,6 +135,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [sortBy, setSortBy] = useState<string>('category');
   const [bonusActiveMap, setBonusActiveMap] = useState<Record<string, boolean>>({});
   const [itemsWithBonus, setItemsWithBonus] = useState<Set<string>>(new Set());
+  // Dossiers (optionnels) : simples docs isFolder:true dans la même collection Inventaire.
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState<boolean>(false);
+  const [newFolderName, setNewFolderName] = useState<string>('');
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState<boolean>(false);
 
   // Descriptions d'objets legacy (Items.json = contenu D&D Classique) : chargées uniquement si la
   // salle utilise ce système — une salle en système custom n'affiche pas les descriptions D&D.
@@ -289,7 +298,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
 
   const handleAddItem = async (item: string) => {
     try {
-      const existingItem = inventory.find(i => i.message === item && i.category === currentCategory);
+      const existingItem = inventory.find(i => i.message === item && i.category === currentCategory && (i.folderId ?? null) === currentFolderId);
       if (existingItem) {
         const itemRef = doc(inventoryRef, existingItem.id);
         await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
@@ -314,6 +323,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           bonusTypes: {},
           visibility: 'public',
           weight: 1,
+          folderId: currentFolderId ?? null,
           ...weaponFieldsFor(item, currentCategory)
         });
         toast.success(`${item} créé`, {
@@ -341,7 +351,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
 
   const handleAddPredefinedItem = async (item: string, category: string) => {
     try {
-      const existingItem = inventory.find(i => i.message === item && i.category === category);
+      const existingItem = inventory.find(i => i.message === item && i.category === category && (i.folderId ?? null) === currentFolderId);
       if (existingItem) {
         const itemRef = doc(inventoryRef, existingItem.id);
         await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
@@ -366,6 +376,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           bonusTypes: {},
           visibility: 'public',
           weight: 1,
+          folderId: currentFolderId ?? null,
           ...weaponFieldsFor(item, category)
         });
         toast.success(`${item} ajouté`, {
@@ -415,6 +426,57 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         description: "Impossible de supprimer l'objet.",
         duration: 3000,
       });
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    try {
+      await addDoc(inventoryRef, {
+        message: name,
+        isFolder: true,
+        folderId: currentFolderId ?? null,
+        category: '',
+        quantity: 0,
+      });
+      toast.success('Dossier créé', { description: name, duration: 2000 });
+      setNewFolderName('');
+      setIsCreateFolderDialogOpen(false);
+    } catch (error) {
+      console.error('Erreur lors de la création du dossier:', error);
+      toast.error('Erreur', { description: "Impossible de créer le dossier.", duration: 3000 });
+    }
+  };
+
+  const handleDeleteFolder = async (folder: InventoryItem) => {
+    try {
+      // Les objets contenus remontent à la racine du dossier parent plutôt que d'être supprimés.
+      const children = inventory.filter(i => i.folderId === folder.id);
+      await Promise.all(children.map(child =>
+        updateDoc(doc(inventoryRef, child.id), { folderId: folder.folderId ?? null })
+      ));
+      await deleteDoc(doc(inventoryRef, folder.id));
+      toast.success('Dossier supprimé', { description: folder.message, duration: 2000 });
+    } catch (error) {
+      console.error('Erreur lors de la suppression du dossier:', error);
+      toast.error('Erreur', { description: "Impossible de supprimer le dossier.", duration: 3000 });
+    }
+  };
+
+  const handleMoveItemToFolder = async (item: InventoryItem, folderId: string | null) => {
+    try {
+      const itemRef = doc(inventoryRef, item.id);
+      await updateDoc(itemRef, { folderId });
+      toast.success(folderId ? 'Objet déplacé' : 'Objet sorti du dossier', {
+        description: item.message,
+        duration: 2000,
+      });
+      setIsMoveDialogOpen(false);
+      setCurrentItem(null);
+    } catch (error) {
+      console.error("Erreur lors du déplacement de l'objet:", error);
+      toast.error('Erreur', { description: "Impossible de déplacer l'objet.", duration: 3000 });
     }
   };
 
@@ -809,8 +871,19 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     }
   };
 
+  // Une recherche active regarde dans tout l'inventaire (peu importe le dossier) ; sans recherche,
+  // on ne montre que le contenu du dossier courant (racine = folderId absent/null).
+  const isSearching = searchTerm.trim().length > 0;
+  const allFolders = useMemo(() => inventory.filter(item => item.isFolder), [inventory]);
+  const filteredFolders = useMemo(() => isSearching ? [] : allFolders
+    .filter(f => (f.folderId ?? null) === currentFolderId)
+    .sort((a, b) => a.message.localeCompare(b.message)),
+    [allFolders, isSearching, currentFolderId]);
+
   const filteredInventory = useMemo(() => inventory
+    .filter(item => !item.isFolder)
     .filter(item => canSeePrivate || item.visibility !== 'private')
+    .filter(item => isSearching || (item.folderId ?? null) === currentFolderId)
     .filter(item =>
       item.message && item.message.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -829,7 +902,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           const categoryCompare = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
           return categoryCompare !== 0 ? categoryCompare : a.message.localeCompare(b.message);
       }
-    }), [inventory, searchTerm, sortBy, displayedCategories]);
+    }), [inventory, searchTerm, isSearching, sortBy, displayedCategories, currentFolderId, canSeePrivate]);
+
+  const currentFolder = useMemo(() => currentFolderId ? allFolders.find(f => f.id === currentFolderId) ?? null : null, [allFolders, currentFolderId]);
 
 
 
@@ -852,7 +927,35 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                 style={{ fontSize: '16px' }}
               />
             </InputGroup>
+            {canEdit && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0 text-[var(--text-secondary)] hover:text-[var(--accent-brown)]"
+                      onClick={() => setIsCreateFolderDialogOpen(true)}
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                    <p>Nouveau dossier</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
+          {currentFolder && !isSearching && (
+            <button
+              onClick={() => setCurrentFolderId(currentFolder.folderId ?? null)}
+              className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              {currentFolder.message}
+            </button>
+          )}
         </div>
 
         <CardContent className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-6 pt-2 custom-scrollbar">
@@ -991,7 +1094,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                             <Tooltip key={item}>
                                               <TooltipTrigger asChild>
                                                 <button
-                                                  className="group relative bg-[var(--bg-dark)] rounded-xl px-4 py-4 text-left border border-[var(--border-color)] hover:border-[var(--accent-brown)] hover:shadow-lg hover:shadow-[var(--accent-brown)]/10 transition-all cursor-pointer"
+                                                  className="group relative bg-[var(--bg-dark)] rounded-xl px-4 py-4 text-left border border-[var(--border-color)] hover:border-[var(--accent-brown)] hover:shadow-lg hover:shadow-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] transition-all cursor-pointer"
                                                   onClick={() => handleAddPredefinedItem(item, categoryKey)}
                                                 >
                                                   <div className="flex items-center gap-3">
@@ -1089,6 +1192,38 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                 </Dialog>
               </>)}
 
+              {filteredFolders.map(folder => (
+                <Card
+                  key={folder.id}
+                  className="relative group hover:shadow-lg hover:border-[var(--accent-brown)] transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
+                >
+                  <CardContent className="p-2 flex flex-col items-center justify-center h-full">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer flex-shrink-0"
+                          onClick={() => setCurrentFolderId(folder.id)}
+                        >
+                          <Folder className="w-6 h-6 text-[var(--accent-brown)]" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                        <p className="font-semibold">{folder.message}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDeleteFolder(folder)}
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 p-1"
+                        title="Supprimer le dossier"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+
               {filteredInventory.map(item => (
                 <Card
                   key={item.id}
@@ -1103,7 +1238,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                               {/* Icône de la catégorie avec badge de quantité - cliquable */}
                               <div className="relative w-14 h-14 sm:w-16 sm:h-16 cursor-pointer">
                                 <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
-                                  ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
+                                  ? 'border-[var(--accent-brown)] shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]'
                                   : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                                   }`}>
                                   {getCategoryIcon(item.category)}
@@ -1216,6 +1351,14 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                               Modifier les dés
                             </DropdownMenuItem>
                           )}
+                          {allFolders.length > 0 && (
+                            <DropdownMenuItem onSelect={() => {
+                              setCurrentItem(item);
+                              setIsMoveDialogOpen(true);
+                            }}>
+                              Déplacer vers…
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onSelect={() => handleDeleteItem(item.id)} className="text-red-500">
                             Supprimer
                           </DropdownMenuItem>
@@ -1227,7 +1370,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                           {/* Vue en lecture seule - juste l'icône avec le tooltip */}
                           <div className="relative w-14 h-14 sm:w-16 sm:h-16">
                             <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
-                              ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
+                              ? 'border-[var(--accent-brown)] shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]'
                               : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                               }`}>
                               {getCategoryIcon(item.category)}
@@ -1563,6 +1706,68 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                 >
                   Donner
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isCreateFolderDialogOpen} onOpenChange={(open) => {
+            setIsCreateFolderDialogOpen(open);
+            if (!open) setNewFolderName('');
+          }}>
+            <DialogContent className="modal-content max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="modal-title flex items-center gap-2">
+                  <FolderPlus className="w-5 h-5 text-[var(--accent-brown)]" />
+                  Nouveau dossier
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4">
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Nom du dossier"
+                  className="input-field"
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); }}
+                />
+                <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="button-primary">
+                  Créer
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isMoveDialogOpen} onOpenChange={(open) => {
+            setIsMoveDialogOpen(open);
+            if (!open) setCurrentItem(null);
+          }}>
+            <DialogContent className="modal-content max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="modal-title">Déplacer {currentItem?.message}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-2">
+                {currentItem?.folderId && (
+                  <Button
+                    variant="ghost"
+                    className="justify-start gap-2 text-[var(--text-primary)]"
+                    onClick={() => currentItem && handleMoveItemToFolder(currentItem, null)}
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Racine (hors dossier)
+                  </Button>
+                )}
+                {allFolders
+                  .filter(f => f.id !== currentItem?.folderId)
+                  .map(folder => (
+                    <Button
+                      key={folder.id}
+                      variant="ghost"
+                      className="justify-start gap-2 text-[var(--text-primary)]"
+                      onClick={() => currentItem && handleMoveItemToFolder(currentItem, folder.id)}
+                    >
+                      <FolderOpen className="w-4 h-4 text-[var(--accent-brown)]" />
+                      {folder.message}
+                    </Button>
+                  ))}
               </div>
             </DialogContent>
           </Dialog>

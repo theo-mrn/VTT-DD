@@ -102,15 +102,16 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="relative w-[95vw] h-[90vh] max-w-[1600px] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#c0a080]/30 shadow-2xl overflow-hidden">
+            <div className="relative w-[95vw] h-[90vh] max-w-[1600px] bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-darker)] rounded-2xl border-2 shadow-2xl overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }}>
 
                 {/* Header */}
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-[#2a2a2a] to-transparent p-6 border-b border-[#c0a080]/20 z-10">
+                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-[var(--border-color)] to-transparent p-6 border-b z-10" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                     <div className="flex items-center justify-between">
-                        <h2 className="text-3xl font-bold text-[#c0a080]">Sélectionner une image</h2>
+                        <h2 className="text-3xl font-bold text-[var(--accent-brown)]">Sélectionner une image</h2>
                         <button
                             onClick={onClose}
-                            className="p-2 rounded-lg bg-[#c0a080]/10 hover:bg-[#c0a080]/20 text-[#c0a080] transition-colors"
+                            className="p-2 rounded-lg hover:bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] text-[var(--accent-brown)] transition-colors"
+                            style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}
                         >
                             <X className="w-6 h-6" />
                         </button>
@@ -121,8 +122,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                         <button
                             onClick={() => setMode('token')}
                             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${mode === 'token'
-                                ? 'bg-[#c0a080] text-black shadow-lg scale-105'
-                                : 'bg-[#2a2a2a] text-gray-400 hover:bg-[#333] hover:text-white border border-[#444]'
+                                ? 'bg-[var(--accent-brown)] text-black shadow-lg scale-105'
+                                : 'bg-[var(--border-color)] text-gray-400 hover:bg-[var(--border-color)] hover:text-white border border-[#444]'
                                 }`}
                         >
                             <User className="w-5 h-5" />
@@ -131,8 +132,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                         <button
                             onClick={() => setMode('image')}
                             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${mode === 'image'
-                                ? 'bg-[#c0a080] text-black shadow-lg scale-105'
-                                : 'bg-[#2a2a2a] text-gray-400 hover:bg-[#333] hover:text-white border border-[#444]'
+                                ? 'bg-[var(--accent-brown)] text-black shadow-lg scale-105'
+                                : 'bg-[var(--border-color)] text-gray-400 hover:bg-[var(--border-color)] hover:text-white border border-[#444]'
                                 }`}
                         >
                             <ImageIcon className="w-5 h-5" />
@@ -147,7 +148,7 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                                 onChange={handleFileUpload}
                                 className="hidden"
                             />
-                            <div className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#c0a080] to-[#b09070] text-black font-bold rounded-lg hover:shadow-xl hover:scale-105 transition-all">
+                            <div className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] text-black font-bold rounded-lg hover:shadow-xl hover:scale-105 transition-all">
                                 <Upload className="w-5 h-5" />
                                 Uploader une image
                             </div>
@@ -158,8 +159,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                 {/* Content Area */}
                 <div className="flex h-full pt-40 pb-6">
                     {/* Sidebar - Filters */}
-                    <div className="w-64 bg-[#1a1a1a] border-r border-[#c0a080]/20 p-6 overflow-y-auto">
-                        <h3 className="text-lg font-bold text-[#c0a080] mb-4">
+                    <div className="w-64 bg-[var(--bg-dark)] border-r p-6 overflow-y-auto" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                        <h3 className="text-lg font-bold text-[var(--accent-brown)] mb-4">
                             {mode === 'token' ? 'Races' : 'Catégories'}
                         </h3>
 
@@ -171,8 +172,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                                         key={race}
                                         onClick={() => setSelectedRace(race)}
                                         className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${selectedRace === race
-                                            ? 'bg-[#c0a080] text-black shadow-md'
-                                            : 'bg-[#2a2a2a] text-gray-300 hover:bg-[#333] hover:text-white'
+                                            ? 'bg-[var(--accent-brown)] text-black shadow-md'
+                                            : 'bg-[var(--border-color)] text-gray-300 hover:bg-[var(--border-color)] hover:text-white'
                                             }`}
                                     >
                                         {race}
@@ -184,8 +185,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                                     <button
                                         onClick={() => setSelectedCategory('all')}
                                         className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${selectedCategory === 'all'
-                                            ? 'bg-[#c0a080] text-black shadow-md'
-                                            : 'bg-[#2a2a2a] text-gray-300 hover:bg-[#333] hover:text-white'
+                                            ? 'bg-[var(--accent-brown)] text-black shadow-md'
+                                            : 'bg-[var(--border-color)] text-gray-300 hover:bg-[var(--border-color)] hover:text-white'
                                             }`}
                                     >
                                         Toutes
@@ -195,8 +196,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                                             key={category}
                                             onClick={() => setSelectedCategory(category)}
                                             className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all ${selectedCategory === category
-                                                ? 'bg-[#c0a080] text-black shadow-md'
-                                                : 'bg-[#2a2a2a] text-gray-300 hover:bg-[#333] hover:text-white'
+                                                ? 'bg-[var(--accent-brown)] text-black shadow-md'
+                                                : 'bg-[var(--border-color)] text-gray-300 hover:bg-[var(--border-color)] hover:text-white'
                                                 }`}
                                         >
                                             {category.replace('Photos/', '')}
@@ -211,7 +212,7 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                     <div className="flex-1 px-8 overflow-y-auto">
                         {loading ? (
                             <div className="flex items-center justify-center h-full">
-                                <div className="text-[#c0a080] text-xl">Chargement...</div>
+                                <div className="text-[var(--accent-brown)] text-xl">Chargement...</div>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-6">
@@ -220,8 +221,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
                                         key={asset.path}
                                         onClick={() => handleImageSelect(asset.path)}
                                         className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all hover:scale-105 hover:shadow-2xl ${currentImage === asset.path
-                                            ? 'border-[#c0a080] ring-4 ring-[#c0a080]/50 shadow-lg shadow-[#c0a080]/30'
-                                            : 'border-[#444] hover:border-[#c0a080]'
+                                            ? 'border-[var(--accent-brown)] ring-4 ring-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)]'
+                                            : 'border-[#444] hover:border-[var(--accent-brown)]'
                                             }`}
                                     >
                                         <img
@@ -242,8 +243,8 @@ export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentIma
 
                                         {/* Selected indicator */}
                                         {currentImage === asset.path && (
-                                            <div className="absolute inset-0 bg-[#c0a080]/20 flex items-center justify-center">
-                                                <div className="bg-[#c0a080] rounded-full p-3 shadow-lg">
+                                            <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                                                <div className="bg-[var(--accent-brown)] rounded-full p-3 shadow-lg">
                                                     <svg className="w-8 h-8 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                     </svg>

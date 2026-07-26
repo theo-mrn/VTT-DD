@@ -4,6 +4,7 @@ import { SettingsProvider } from '@/contexts/SettingsContext';
 import { GameSystemTypography } from '@/modules/game-system/GameSystemTypography';
 import { GameSystemStyles } from '@/modules/game-system/GameSystemStyles';
 import { ExtensionHost } from '@/modules/bundle-scripts/ExtensionHost';
+import { DndTheme } from '@/modules/builtin/dnd-classic/DndTheme';
 import { db, doc, getDoc } from '@/lib/firebase';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect } from 'react';
@@ -48,6 +49,7 @@ export default function RoomLayout({
     <SettingsProvider>
       <GameSystemTypography roomId={roomid ?? null} />
       <GameSystemStyles roomId={roomid ?? null} />
+      <DndTheme roomId={roomid ?? null} />
       <ExtensionHost roomId={roomid ?? null} />
       {children}
     </SettingsProvider>

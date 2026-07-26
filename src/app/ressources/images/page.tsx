@@ -37,7 +37,7 @@ export default function ImagesPage() {
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('https://assets.yner.fr/images/index2.webp')" }}
       />
-      <div className="fixed inset-0 z-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm" />
+      <div className="fixed inset-0 z-0 backdrop-blur-sm" style={{ background: 'color-mix(in srgb, var(--bg-canvas) 80%, transparent)' }} />
 
       <AppNavbar
         variant="home"

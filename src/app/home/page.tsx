@@ -199,7 +199,7 @@ export default function RejoindrePageComponent() {
           <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
 
           {/* Sticky header */}
-          <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]/80 backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg">
+          <div className="border-b border-[var(--border-color)] backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg" style={{ background: 'color-mix(in srgb, var(--bg-card) 80%, transparent)' }}>
             <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                 <Button variant="ghost" size="sm" onClick={() => setSelectedRoom(null)} className="gap-2 shrink-0 text-[var(--text-primary)] hover:bg-white/10">
@@ -215,7 +215,7 @@ export default function RejoindrePageComponent() {
             <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
               <div className="lg:col-span-2 space-y-6 lg:space-y-8">
                 <div className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent-brown)]/20 via-[var(--accent-brown)]/40 to-[var(--accent-brown)]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] via-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] to-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
                   <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border-color)] shadow-2xl bg-[var(--bg-dark)]">
                     <img src={selectedRoom.imageUrl || '/placeholder.svg'} alt={selectedRoom.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                   </div>
@@ -289,8 +289,8 @@ export default function RejoindrePageComponent() {
                     <CardContent>
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          <img src={creatorInfo.pp} alt={creatorInfo.name} className="w-14 h-14 rounded-full border-2 border-[var(--accent-brown)]/30 shadow-md" />
-                          <div className="absolute -inset-0.5 rounded-full bg-[var(--accent-brown)]/20 blur-sm -z-10" />
+                          <img src={creatorInfo.pp} alt={creatorInfo.name} className="w-14 h-14 rounded-full border-2 shadow-md" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }} />
+                          <div className="absolute -inset-0.5 rounded-full blur-sm -z-10" style={{ background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
                         </div>
                         <div>
                           <p className="font-bold text-[var(--text-primary)] text-lg">{creatorInfo.name}</p>
@@ -338,7 +338,7 @@ export default function RejoindrePageComponent() {
             {/* ── Left panel: Join with code ── */}
             <div className="lg:sticky lg:top-28 space-y-10">
               <div className="space-y-6">
-                <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent-brown)]/70">
+                <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: 'color-mix(in srgb, var(--accent-brown) 70%, transparent)' }}>
                   Rejoindre une aventure
                 </p>
                 <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
@@ -363,7 +363,8 @@ export default function RejoindrePageComponent() {
                       <InputOTPSlot
                         key={index}
                         index={index}
-                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono bg-[var(--bg-card)]/60 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                        style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                       />
                     ))}
                   </InputOTPGroup>
@@ -373,7 +374,8 @@ export default function RejoindrePageComponent() {
                       <InputOTPSlot
                         key={index}
                         index={index}
-                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono bg-[var(--bg-card)]/60 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                        style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                       />
                     ))}
                   </InputOTPGroup>
@@ -389,7 +391,7 @@ export default function RejoindrePageComponent() {
 
               {/* Divider ornament */}
               <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-gradient-to-r from-[var(--accent-brown)]/30 to-transparent" />
+                <div className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] to-transparent" />
               </div>
             </div>
 
@@ -397,7 +399,7 @@ export default function RejoindrePageComponent() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                  <div className="p-2 rounded-xl" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                     <Globe className="h-5 w-5 text-[var(--accent-brown)]" />
                   </div>
                   <div>
@@ -413,7 +415,8 @@ export default function RejoindrePageComponent() {
                     <div
                       key={room.id}
                       onClick={() => handleJoinRoom(room.id)}
-                      className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm hover:border-[var(--accent-brown)]/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                      className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                      style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                     >
                       {/* Room image */}
                       <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
@@ -421,7 +424,7 @@ export default function RejoindrePageComponent() {
                           <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
-                            <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                            <Gamepad2 className="h-12 w-12" style={{ color: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
                           </div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -457,7 +460,7 @@ export default function RejoindrePageComponent() {
                 </div>
               ) : (
                 <div className="text-center py-24 space-y-6 border border-dashed border-[var(--border-color)] rounded-2xl">
-                  <div className="w-20 h-20 mx-auto rounded-2xl bg-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/10 flex items-center justify-center">
+                  <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 5%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}>
                     <Globe className="h-10 w-10 text-[var(--text-secondary)] opacity-30" />
                   </div>
                   <div className="space-y-2">

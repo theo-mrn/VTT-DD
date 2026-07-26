@@ -539,7 +539,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                 </div>
               </div>
 
-              <Button onClick={handleAddBonus} className="w-full mt-4 bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] text-[var(--bg-dark)] hover:shadow-lg hover:shadow-[var(--accent-brown)]/20 font-bold transition-all">
+              <Button onClick={handleAddBonus} className="w-full mt-4 bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] text-[var(--bg-dark)] hover:shadow-lg hover:shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] font-bold transition-all">
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Ajouter le bonus
               </Button>
@@ -564,7 +564,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                       }
                       setIsDiceDialogOpen(true);
                     }}
-                    className="text-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10"
+                    className="text-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]"
                   >
                     Modifier les dés
                   </Button>

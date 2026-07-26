@@ -565,7 +565,7 @@ export default function CharacterCreationPage() {
           placeholder="Ex: Alagarth de Viveflamme"
           value={character.Nomperso}
           onChange={(e) => setCharacter(prev => ({ ...prev, Nomperso: e.target.value }))}
-          className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+          className="bg-[var(--bg-canvas)] border-[var(--border-color)] text-white focus:border-[var(--accent-brown)]"
         />
       </div>
 
@@ -575,7 +575,7 @@ export default function CharacterCreationPage() {
           placeholder="Apparence, signes distinctifs, particularités..."
           value={(character as any).Description || ''}
           onChange={(e) => setCharacter(prev => ({ ...prev, Description: e.target.value }))}
-          className="w-full min-h-[100px] p-3 rounded-md bg-[#121212] border border-[#333] text-white focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080] outline-none transition-all custom-scrollbar resize-y text-sm"
+          className="w-full min-h-[100px] p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-color)] text-white focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[var(--accent-brown)] outline-none transition-all custom-scrollbar resize-y text-sm"
         />
       </div>
 
@@ -585,7 +585,7 @@ export default function CharacterCreationPage() {
           placeholder="Origine, motivations, événements marquants..."
           value={(character as any).Background || ''}
           onChange={(e) => setCharacter(prev => ({ ...prev, Background: e.target.value }))}
-          className="w-full min-h-[180px] p-3 rounded-md bg-[#121212] border border-[#333] text-white focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080] outline-none transition-all custom-scrollbar resize-y text-sm"
+          className="w-full min-h-[180px] p-3 rounded-md bg-[var(--bg-canvas)] border border-[var(--border-color)] text-white focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[var(--accent-brown)] outline-none transition-all custom-scrollbar resize-y text-sm"
         />
       </div>
 
@@ -667,11 +667,11 @@ export default function CharacterCreationPage() {
     }
 
     return (
-      <div className="flex w-full h-[85vh] bg-[#09090b] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden mt-2">
+      <div className="flex w-full h-[85vh] bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden mt-2">
         {/* LEFT PANEL - Browser */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e]">
+        <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-darker)]">
           {/* Selection Summary Bar */}
-          <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
+          <div className="px-6 py-2 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex items-center gap-4 text-xs text-zinc-500 h-10">
             {character.Race ? (
               <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                 {raceLabel}: {character.Race.replace('_', ' ')}
@@ -703,13 +703,13 @@ export default function CharacterCreationPage() {
                           group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                           border
                           ${isSelected
-                          ? 'border-[#c0a080] ring-1 ring-[#c0a080] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
-                          : 'border-[#27272a] hover:border-[#52525b] hover:shadow-xl opacity-80 hover:opacity-100'
+                          ? 'border-[var(--accent-brown)] ring-1 ring-[var(--accent-brown)] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
+                          : 'border-[var(--border-color)] hover:border-[var(--border-color)] hover:shadow-xl opacity-80 hover:opacity-100'
                         }
                         `}
                     >
                       {/* Image Layer */}
-                      <div className="absolute inset-0 bg-[#1a1a1a]">
+                      <div className="absolute inset-0 bg-[var(--bg-darker)]">
                         {race.image && (
                           <img
                             src={race.image}
@@ -722,7 +722,7 @@ export default function CharacterCreationPage() {
 
                       {/* Content Layer */}
                       <div className="relative flex-1 flex flex-col justify-end p-4">
-                        <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
+                        <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[var(--accent-brown)]' : 'text-zinc-200 group-hover:text-white'}`}>
                           {race.label.replace('_', ' ')}
                         </h3>
 
@@ -736,7 +736,7 @@ export default function CharacterCreationPage() {
 
                       {/* Selection Indicator */}
                       {isSelected && (
-                        <div className="absolute top-3 right-3 w-6 h-6 bg-[#c0a080] rounded-full flex items-center justify-center shadow-lg">
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-[var(--accent-brown)] rounded-full flex items-center justify-center shadow-lg">
                           <Check className="w-4 h-4 text-black" strokeWidth={3} />
                         </div>
                       )}
@@ -753,13 +753,13 @@ export default function CharacterCreationPage() {
                           group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                           border
                           ${isSelected
-                          ? 'border-[#c0a080] ring-1 ring-[#c0a080] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
-                          : 'border-[#27272a] hover:border-[#52525b] hover:shadow-xl opacity-80 hover:opacity-100'
+                          ? 'border-[var(--accent-brown)] ring-1 ring-[var(--accent-brown)] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
+                          : 'border-[var(--border-color)] hover:border-[var(--border-color)] hover:shadow-xl opacity-80 hover:opacity-100'
                         }
                         `}
                     >
                       {/* Image Layer */}
-                      <div className="absolute inset-0 bg-[#1a1a1a]">
+                      <div className="absolute inset-0 bg-[var(--bg-darker)]">
                         {profile.image && (
                           <img
                             src={profile.image}
@@ -772,7 +772,7 @@ export default function CharacterCreationPage() {
 
                       {/* Content Layer */}
                       <div className="relative flex-1 flex flex-col justify-end p-4">
-                        <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
+                        <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[var(--accent-brown)]' : 'text-zinc-200 group-hover:text-white'}`}>
                           {profile.label}
                         </h3>
 
@@ -782,7 +782,7 @@ export default function CharacterCreationPage() {
 
                       {/* Selection Indicator */}
                       {isSelected && (
-                        <div className="absolute top-3 right-3 w-6 h-6 bg-[#c0a080] rounded-full flex items-center justify-center shadow-lg">
+                        <div className="absolute top-3 right-3 w-6 h-6 bg-[var(--accent-brown)] rounded-full flex items-center justify-center shadow-lg">
                           <Check className="w-4 h-4 text-black" strokeWidth={3} />
                         </div>
                       )}
@@ -795,19 +795,19 @@ export default function CharacterCreationPage() {
         </div>
 
         {/* RIGHT PANEL - Preview */}
-        <div className="w-[420px] border-l border-[#2a2a2a] bg-[#121212] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
+        <div className="w-[420px] border-l border-[var(--border-color)] bg-[var(--bg-canvas)] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
           <div className="flex-1 overflow-y-auto custom-scrollbar relative">
             {/* Portrait Header */}
-            <div className="relative h-[400px] bg-black group overflow-hidden border-b border-[#2a2a2a]">
+            <div className="relative h-[400px] bg-black group overflow-hidden border-b border-[var(--border-color)]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-black opacity-30" />
               {getPreviewImage() ? (
                 <img src={getPreviewImage()} className="w-full h-full object-cover object-top" alt="Preview" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#151515]">
-                  <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                <div className="w-full h-full flex items-center justify-center bg-[var(--bg-darker)]">
+                  <User className="w-20 h-20 text-[var(--border-color)]" strokeWidth={1} />
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none z-20" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-canvas)] via-[color-mix(in_srgb,var(--bg-canvas)_60%,transparent)] to-transparent pointer-events-none z-20" />
 
             </div>
 
@@ -821,11 +821,18 @@ export default function CharacterCreationPage() {
                   <div className="prose prose-invert prose-sm">
                     {selectedRace && (
                       <div className="mb-4">
-                        <h4 className="text-[#c0a080] text-sm font-bold mb-1">{selectedRace.label.replace('_', ' ')}</h4>
+                        <h4 className="text-[var(--accent-brown)] text-sm font-bold mb-1">{selectedRace.label.replace('_', ' ')}</h4>
                         <p className="text-zinc-400 text-xs leading-relaxed">{selectedRace.description}</p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {Object.entries(selectedRace.modifiers).map(([stat, mod]) => (
-                            <span key={stat} className="text-[10px] bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30 text-[#c0a080]">
+                            <span
+                              key={stat}
+                              className="text-[10px] px-2 py-0.5 rounded border text-[var(--accent-brown)]"
+                              style={{
+                                background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)',
+                                borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)',
+                              }}
+                            >
                               {stat} {mod > 0 ? '+' : ''}{mod}
                             </span>
                           ))}
@@ -834,7 +841,7 @@ export default function CharacterCreationPage() {
                           <div className="mt-2 space-y-1">
                             {selectedRace.abilities.map((ability) => (
                               <p key={ability.id} className="text-zinc-400 text-xs leading-relaxed">
-                                <span className="text-[#c0a080] font-bold">{ability.label}</span>{ability.description ? ` : ${ability.description}` : ''}
+                                <span className="text-[var(--accent-brown)] font-bold">{ability.label}</span>{ability.description ? ` : ${ability.description}` : ''}
                               </p>
                             ))}
                           </div>
@@ -843,7 +850,7 @@ export default function CharacterCreationPage() {
                     )}
                     {selectedProfile && (
                       <div>
-                        <h4 className="text-[#c0a080] text-sm font-bold mb-1">{selectedProfile.label}</h4>
+                        <h4 className="text-[var(--accent-brown)] text-sm font-bold mb-1">{selectedProfile.label}</h4>
                         <p className="text-zinc-400 text-xs leading-relaxed">{selectedProfile.description}</p>
                         {selectedProfile.hitDie && <p className="text-red-300 text-xs mt-2">Dé de vie: {selectedProfile.hitDie}</p>}
                       </div>
@@ -855,14 +862,14 @@ export default function CharacterCreationPage() {
           </div>
 
           {/* Footer Actions */}
-          <div className="p-6 border-t border-[#2a2a2a] bg-[#121212] flex gap-3 z-20">
-            <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white">
+          <div className="p-6 border-t border-[var(--border-color)] bg-[var(--bg-canvas)] flex gap-3 z-20">
+            <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white">
               <ChevronLeft className="mr-2 w-4 h-4" /> Précédent
             </Button>
             <Button
               onClick={nextStep}
               disabled={!character.Race || !character.Profile}
-              className={`flex-1 font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+              className={`flex-1 font-bold transition-all ${character.Race && character.Profile ? 'bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black shadow-lg' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
             >
               Suivant <ChevronRight className="ml-2 w-4 h-4" />
             </Button>
@@ -909,12 +916,12 @@ export default function CharacterCreationPage() {
       const canRefund = purchases > 0
 
       return (
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 flex flex-col items-center relative overflow-hidden group hover:border-[#c0a080]/50 transition-all duration-300">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex flex-col items-center relative overflow-hidden group hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all duration-300">
           <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
           {/* Header */}
           <div className="flex items-center gap-2 mb-3 z-10">
-            <div className="p-1.5 rounded-lg bg-[#27272a] text-[#c0a080]">
+            <div className="p-1.5 rounded-lg bg-[var(--border-color)] text-[var(--accent-brown)]">
               <Icon className="w-4 h-4" />
             </div>
             <span className="font-serif font-bold text-zinc-200 tracking-wide">{label}</span>
@@ -925,11 +932,11 @@ export default function CharacterCreationPage() {
             <span className="text-4xl font-bold text-white tracking-tight flex items-center gap-1 shadow-black drop-shadow-lg">
               {hasModifier ? `${finalMod > 0 ? '+' : ''}${finalMod}` : finalVal}
             </span>
-            <span className="text-[10px] uppercase tracking-widest text-[#c0a080]">{hasModifier ? 'Modificateur' : 'Valeur'}</span>
+            <span className="text-[10px] uppercase tracking-widest text-[var(--accent-brown)]">{hasModifier ? 'Modificateur' : 'Valeur'}</span>
           </div>
 
           {/* Footer (Calculation) */}
-          <div className="w-full pt-3 border-t border-[#27272a] flex justify-between items-center text-xs z-10">
+          <div className="w-full pt-3 border-t border-[var(--border-color)] flex justify-between items-center text-xs z-10">
             <div className="flex flex-col items-center">
               <span className="text-zinc-500">Base</span>
               <span className="font-mono text-zinc-300">{baseVal}</span>
@@ -937,12 +944,12 @@ export default function CharacterCreationPage() {
             <div className="text-zinc-600">+</div>
             <div className="flex flex-col items-center">
               <span className="text-zinc-500">Race</span>
-              <span className={`font-mono ${raceMod !== 0 ? 'text-[#c0a080]' : 'text-zinc-600'}`}>
+              <span className={`font-mono ${raceMod !== 0 ? 'text-[var(--accent-brown)]' : 'text-zinc-600'}`}>
                 {raceMod > 0 ? '+' : ''}{raceMod}
               </span>
             </div>
             <div className="text-zinc-600">=</div>
-            <div className="flex flex-col items-center px-2 py-0.5 rounded bg-[#27272a]">
+            <div className="flex flex-col items-center px-2 py-0.5 rounded bg-[var(--border-color)]">
               <span className="text-zinc-500 text-[10px]">Score</span>
               <span className="font-mono font-bold text-white">{finalVal}</span>
             </div>
@@ -950,24 +957,24 @@ export default function CharacterCreationPage() {
 
           {/* Achat avec l'XP de départ (systèmes à compétences EotE-like uniquement) */}
           {hasSkillSystem && (
-            <div className="w-full mt-3 pt-3 border-t border-[#27272a] flex items-center justify-between gap-2 z-10">
+            <div className="w-full mt-3 pt-3 border-t border-[var(--border-color)] flex items-center justify-between gap-2 z-10">
               <button
                 type="button"
                 disabled={!canRefund}
                 onClick={() => setStatPurchases((prev) => ({ ...prev, [statKey]: Math.max(0, (prev[statKey] ?? 0) - 1) }))}
-                className="h-7 w-7 rounded-lg border border-[#333] text-zinc-400 hover:text-white hover:border-[#c0a080]/50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                className="h-7 w-7 rounded-lg border border-[var(--border-color)] text-zinc-400 hover:text-white hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                 title={canRefund ? `Rendre +1 (récupère ${statUpgradeCost(finalVal)} XP)` : 'Aucun achat à rembourser'}
               >
                 −
               </button>
-              <span className={`text-[10px] uppercase tracking-wide font-mono ${finalVal >= CREATION_STAT_MAX ? 'text-zinc-600' : canBuy ? 'text-[#c0a080]' : 'text-zinc-600'}`}>
+              <span className={`text-[10px] uppercase tracking-wide font-mono ${finalVal >= CREATION_STAT_MAX ? 'text-zinc-600' : canBuy ? 'text-[var(--accent-brown)]' : 'text-zinc-600'}`}>
                 {finalVal >= CREATION_STAT_MAX ? 'Max (5)' : `+1 → ${nextCost} XP`}
               </span>
               <button
                 type="button"
                 disabled={!canBuy}
                 onClick={() => setStatPurchases((prev) => ({ ...prev, [statKey]: (prev[statKey] ?? 0) + 1 }))}
-                className="h-7 w-7 rounded-lg border border-[#333] text-zinc-400 hover:text-white hover:border-[#c0a080]/50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                className="h-7 w-7 rounded-lg border border-[var(--border-color)] text-zinc-400 hover:text-white hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] disabled:opacity-25 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                 title={finalVal >= CREATION_STAT_MAX ? 'Plafond de création atteint (5)' : canBuy ? `Passer à ${finalVal + 1} pour ${nextCost} XP` : 'XP de départ insuffisant'}
               >
                 +
@@ -981,9 +988,9 @@ export default function CharacterCreationPage() {
     return (
       <div className="w-full h-full flex flex-col gap-6">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-[#121212] p-6 rounded-2xl border border-[#27272a] shrink-0">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-[var(--bg-canvas)] p-6 rounded-2xl border border-[var(--border-color)] shrink-0">
           <div>
-            <h2 className="text-2xl font-serif font-bold text-[#e4e4e7] mb-2">Caractéristiques</h2>
+            <h2 className="text-2xl font-serif font-bold text-[var(--text-primary)] mb-2">Caractéristiques</h2>
             {hasSkillSystem && (
               <p className="text-xs text-zinc-500">
                 Améliorez vos caractéristiques avec votre XP de départ — coût : 10 × la valeur visée, palier par palier, max {CREATION_STAT_MAX}.
@@ -993,14 +1000,20 @@ export default function CharacterCreationPage() {
 
           <div className="flex flex-col items-end gap-2">
             {hasSkillSystem && (
-              <span className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg border border-[#c0a080]/40 bg-[#c0a080]/10 text-[#c0a080]">
+              <span
+                className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg border text-[var(--accent-brown)]"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)',
+                  background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)',
+                }}
+              >
                 {creationXpRemaining} / {creationStartingXp} XP
               </span>
             )}
             <Button
               onClick={rollStats}
               disabled={rollsExhausted}
-              className="bg-[#c0a080] text-[#09090b] hover:bg-[#d0b090] border-none font-bold shadow-lg shadow-[#c0a080]/20 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="bg-[var(--accent-brown)] text-[var(--bg-darker)] hover:bg-[var(--accent-brown-hover)] border-none font-bold shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] transition-all transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Dice6 className="mr-2 h-4 w-4" />
               Lancer les dés
@@ -1020,7 +1033,7 @@ export default function CharacterCreationPage() {
                 stat.category === 'ability' ? (
                   <StatCard key={stat.key} label={(stat.shortLabel ?? stat.label).toUpperCase()} statKey={stat.key} icon={ABILITY_ICONS[stat.key] ?? Sparkles} hasModifier={!!stat.rollUsesModifier} />
                 ) : (
-                  <div key={stat.key} className="text-center p-3 bg-[#18181b] rounded-xl border border-[#27272a] flex flex-col justify-center">
+                  <div key={stat.key} className="text-center p-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] flex flex-col justify-center">
                     <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1 truncate">{stat.label}</div>
                     <div className="text-2xl font-bold text-white">{String(displayStatValues[stat.key] ?? 0)}</div>
                   </div>
@@ -1031,39 +1044,39 @@ export default function CharacterCreationPage() {
         ))}
 
         {/* Physionomie — méta, indépendante du système de règles */}
-        <div className="bg-[#121212] rounded-2xl border border-[#27272a] overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#27272a] bg-[#18181b] flex items-center gap-2">
-            <Crosshair className="w-5 h-5 text-[#c0a080]" />
+        <div className="bg-[var(--bg-canvas)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-card)] flex items-center gap-2">
+            <Crosshair className="w-5 h-5 text-[var(--accent-brown)]" />
             <h3 className="font-serif font-bold text-zinc-200">Physionomie</h3>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
+            <div className="p-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-2">
               <Label className="text-zinc-400 text-xs uppercase tracking-wider">Taille (cm)</Label>
               <Input
                 type="number"
                 value={character.Taille}
                 onChange={(e) => setCharacter(prev => ({ ...prev, Taille: Number(e.target.value) }))}
-                className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+                className="bg-[var(--bg-canvas)] border-[var(--border-color)] text-white focus:border-[var(--accent-brown)]"
               />
             </div>
-            <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
+            <div className="p-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-2">
               <Label className="text-zinc-400 text-xs uppercase tracking-wider">Poids (kg)</Label>
               <Input
                 type="number"
                 value={character.Poids}
                 onChange={(e) => setCharacter(prev => ({ ...prev, Poids: Number(e.target.value) }))}
-                className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+                className="bg-[var(--bg-canvas)] border-[var(--border-color)] text-white focus:border-[var(--accent-brown)]"
               />
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-8 border-t border-[#2a2a2a]">
+        <div className="flex justify-between items-center pt-8 border-t border-[var(--border-color)]">
           <Button
             onClick={prevStep}
             variant="outline"
-            className="border-[#333] text-zinc-400 hover:text-white hover:bg-[#222]"
+            className="border-[var(--border-color)] text-zinc-400 hover:text-white hover:bg-[var(--border-color)]"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Précédent
@@ -1071,7 +1084,7 @@ export default function CharacterCreationPage() {
           <Button
             onClick={nextStep}
             disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
-            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-[#c0a080]/20' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
           >
             Suivant
             <ChevronRight className="w-4 h-4 ml-2" />
@@ -1109,7 +1122,7 @@ export default function CharacterCreationPage() {
         {/* max-w large + padding réduit + scroll horizontal de secours : le nombre d'onglets varie
             (onglets contribués par le bundle), la barre ne doit jamais déborder de l'écran. */}
         <div className="flex items-center justify-evenly relative pb-2 mx-auto max-w-6xl overflow-x-auto">
-          <div className="absolute left-0 right-0 h-px bg-[#2a2a2a] bottom-0 z-0" />
+          <div className="absolute left-0 right-0 h-px bg-[var(--border-color)] bottom-0 z-0" />
           {tabsList.map((tab) => {
             const isActive = currentTab === tab.id;
             const Icon = tab.icon;
@@ -1117,7 +1130,7 @@ export default function CharacterCreationPage() {
               <button
                 key={tab.id}
                 onClick={() => setCurrentTab(tab.id as any)}
-                className={`relative z-10 flex flex-col items-center gap-2 pb-3 px-4 shrink-0 transition-colors ${isActive ? 'text-[#c0a080]' : 'text-zinc-500 hover:text-zinc-300'
+                className={`relative z-10 flex flex-col items-center gap-2 pb-3 px-4 shrink-0 transition-colors ${isActive ? 'text-[var(--accent-brown)]' : 'text-zinc-500 hover:text-zinc-300'
                   }`}
               >
                 <Icon className={`w-6 h-6 ${isActive ? 'text-white' : ''}`} />
@@ -1125,7 +1138,7 @@ export default function CharacterCreationPage() {
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#c0a080] rounded-t-sm"
+                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-[var(--accent-brown)] rounded-t-sm"
                   />
                 )}
               </button>
@@ -1144,18 +1157,18 @@ export default function CharacterCreationPage() {
             transition={{ duration: 0.2 }}
           >
             {currentTab === 'info' && (
-              <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-4xl mx-auto">
+              <Card className="bg-[var(--bg-darker)] border-[var(--border-color)] rounded-2xl max-w-4xl mx-auto">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-serif text-[#e4e4e7]">Informations de base</CardTitle>
+                  <CardTitle className="text-2xl font-serif text-[var(--text-primary)]">Informations de base</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {renderBasicInfo()}
                   <div className="flex justify-between mt-6">
-                    <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                     <Button
                       onClick={nextStep}
                       disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
-                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                     >
                       Suivant <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>
@@ -1165,7 +1178,7 @@ export default function CharacterCreationPage() {
             )}
             {(currentTab === 'race' || currentTab === 'profile') && renderSelectionPanel()}
             {currentTab === 'competences' && (
-              <div className="bg-[#09090b] border border-[#2a2a2a] rounded-2xl p-6 shadow-2xl mt-2">
+              <div className="bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl p-6 shadow-2xl mt-2">
                 {hasSkillSystem ? (
                   <CareerSkillPicker
                     gameSystem={gameSystem}
@@ -1190,12 +1203,12 @@ export default function CharacterCreationPage() {
                     avance vers l'onglet suivant sur la dernière — une seconde paire ici dupliquait
                     visuellement les boutons et permettait de sauter l'étape sans la valider. */}
                 {!hasSkillSystem && (
-                  <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a]">
-                    <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                  <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[var(--border-color)]">
+                    <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                     <Button
                       onClick={nextStep}
                       disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
-                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                      className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                     >
                       Suivant <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>
@@ -1205,7 +1218,7 @@ export default function CharacterCreationPage() {
             )}
             {currentTab === 'stats' && renderStatsSelection()}
             {currentTab === 'inventory' && (
-              <div className="bg-[#09090b] border border-[#2a2a2a] rounded-2xl p-6 shadow-2xl mt-2 h-[85vh] flex flex-col">
+              <div className="bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl p-6 shadow-2xl mt-2 h-[85vh] flex flex-col">
                 <div className="flex-1 overflow-hidden">
                   {character.Nomperso ? (
                     <InventoryManagement
@@ -1214,20 +1227,20 @@ export default function CharacterCreationPage() {
                       canEdit={true}
                     />
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-[#121212] rounded-xl border border-[#2a2a2a]">
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-[var(--bg-canvas)] rounded-xl border border-[var(--border-color)]">
                       <BookOpen className="w-16 h-16 text-zinc-600 mb-4" />
-                      <h3 className="text-xl font-serif text-[#e4e4e7] mb-2">Nom du personnage manquant</h3>
+                      <h3 className="text-xl font-serif text-[var(--text-primary)] mb-2">Nom du personnage manquant</h3>
                       <p className="text-zinc-500 max-w-md">L'inventaire est lié à votre nom de personnage. Veuillez retourner à l'onglet "INFORMATIONS" pour définir un nom avant de gérer votre équipement.</p>
-                      <Button onClick={() => setCurrentTab('info')} className="mt-6 bg-[#c0a080] text-black hover:bg-[#d0b090] font-bold">Retour aux informations</Button>
+                      <Button onClick={() => setCurrentTab('info')} className="mt-6 bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold">Retour aux informations</Button>
                     </div>
                   )}
                 </div>
-                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a] shrink-0">
-                  <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[var(--border-color)] shrink-0">
+                  <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
                   <Button
                     onClick={nextStep}
                     disabled={hasRaceProfileContent && (!character.Race || !character.Profile)}
-                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    className={`font-bold transition-all ${!hasRaceProfileContent || (character.Race && character.Profile) ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                   >
                     Suivant <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>
@@ -1240,46 +1253,46 @@ export default function CharacterCreationPage() {
               const bundleTab = creationTabs.find((t) => `bundle:${t.id}` === currentTab);
               if (!bundleTab) return null;
               return (
-                <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-4xl mx-auto">
+                <Card className="bg-[var(--bg-darker)] border-[var(--border-color)] rounded-2xl max-w-4xl mx-auto">
                   <CardHeader>
-                    <CardTitle className="text-2xl font-serif text-[#e4e4e7] text-center">{bundleTab.label}</CardTitle>
+                    <CardTitle className="text-2xl font-serif text-[var(--text-primary)] text-center">{bundleTab.label}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <bundleTab.component draft={bundleDraft} setDraft={mergeBundleDraft} />
-                    <div className="flex w-full justify-between pt-6 border-t border-[#2a2a2a]">
-                      <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
-                      <Button onClick={nextStep} className="bg-[#c0a080] text-black hover:bg-[#d0b090] font-bold">Suivant <ChevronRight className="ml-2 w-4 h-4" /></Button>
+                    <div className="flex w-full justify-between pt-6 border-t border-[var(--border-color)]">
+                      <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                      <Button onClick={nextStep} className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold">Suivant <ChevronRight className="ml-2 w-4 h-4" /></Button>
                     </div>
                   </CardContent>
                 </Card>
               );
             })()}
             {currentTab === 'image' && (
-              <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-lg mx-auto">
+              <Card className="bg-[var(--bg-darker)] border-[var(--border-color)] rounded-2xl max-w-lg mx-auto">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-serif text-[#e4e4e7] text-center">Portrait du personnage</CardTitle>
+                  <CardTitle className="text-2xl font-serif text-[var(--text-primary)] text-center">Portrait du personnage</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-8 flex flex-col items-center">
-                  <div className="relative w-64 h-80 rounded-2xl overflow-hidden border border-[#2a2a2a] bg-[#121212] flex items-center justify-center shadow-lg">
+                  <div className="relative w-64 h-80 rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-canvas)] flex items-center justify-center shadow-lg">
                     {getPreviewImage() ? (
                       <img src={getPreviewImage()} className="w-full h-full object-cover object-top" alt="Preview" />
                     ) : (
-                      <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                      <User className="w-20 h-20 text-[var(--border-color)]" strokeWidth={1} />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/20 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-canvas)] via-[color-mix(in_srgb,var(--bg-canvas)_20%,transparent)] to-transparent pointer-events-none" />
                   </div>
 
                   <div className="w-full max-w-xs">
-                    <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 hover:bg-[#c0a080]/5 transition-all group w-full shadow-md">
-                      <Upload className="w-6 h-6 text-zinc-500 group-hover:text-[#c0a080] mb-3" />
+                    <label className="bg-[var(--bg-darker)] border border-[var(--border-color)] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)] transition-all group w-full shadow-md">
+                      <Upload className="w-6 h-6 text-zinc-500 group-hover:text-[var(--accent-brown)] mb-3" />
                       <span className="text-xs uppercase text-zinc-400 font-bold tracking-wider group-hover:text-zinc-200">Choisir une image</span>
                       <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                     </label>
                   </div>
 
-                  <div className="flex w-full justify-between mt-4 pt-6 border-t border-[#2a2a2a]">
-                    <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
-                    <Button onClick={handleCreateCharacter} className="bg-[#c0a080] hover:bg-[#e0c0a0] text-black font-bold flex-1 ml-4 shadow-lg shadow-[#c0a080]/20">Créer le personnage<ChevronRight className="ml-2 w-4 h-4" /></Button>
+                  <div className="flex w-full justify-between mt-4 pt-6 border-t border-[var(--border-color)]">
+                    <Button onClick={prevStep} variant="outline" className="border-[var(--border-color)] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button onClick={handleCreateCharacter} className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black font-bold flex-1 ml-4 shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]">Créer le personnage<ChevronRight className="ml-2 w-4 h-4" /></Button>
                   </div>
                 </CardContent>
               </Card>

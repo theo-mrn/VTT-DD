@@ -385,32 +385,32 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
     const selectedNPC = useMemo(() => npcs.find(n => n.id === selectedNpcId), [npcs, selectedNpcId])
 
     const Content = (
-        <div className="flex h-full bg-[#09090b] text-[#e0e0e0] overflow-hidden rounded-2xl border border-[#2a2a2a] shadow-2xl relative">
+        <div className="flex h-full bg-[var(--bg-darker)] text-[var(--text-primary)] overflow-hidden rounded-2xl border border-[var(--border-color)] shadow-2xl relative">
 
             {/* --- LEFT PANEL: BROWSER (65%) --- */}
-            <div className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e]">
+            <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-darker)]">
                 {/* Header */}
-                <div className="p-6 border-b border-[#2a2a2a] bg-[#121214] flex flex-wrap justify-between items-center gap-4 lg:gap-6">
+                <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-dark)] flex flex-wrap justify-between items-center gap-4 lg:gap-6">
                     <div>
-                        <h1 className="text-lg font-serif font-bold text-[#e4e4e7] tracking-tight">Bibliothèque du Grimoire</h1>
+                        <h1 className="text-lg font-serif font-bold text-[var(--text-primary)] tracking-tight">Bibliothèque du Grimoire</h1>
                     </div>
 
                     {/* Search */}
                     <div className="relative flex-1 min-w-[200px] max-w-sm group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c0a080] transition-colors" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[var(--accent-brown)] transition-colors" />
                         <input
                             type="text"
                             placeholder="Rechercher..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[#18181b] border border-[#27272a] rounded-full py-2 pl-10 pr-4 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080]/50 transition-all text-sm"
+                            className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-full py-2 pl-10 pr-4 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all text-sm"
                         />
                     </div>
 
                     <div className="flex items-center gap-2">
 
 
-                        <Button onClick={handleCreateNew} className="bg-[#c0a080] text-black font-bold hover:bg-[#b09070] h-9 px-4 text-xs uppercase tracking-wide">
+                        <Button onClick={handleCreateNew} className="bg-[var(--accent-brown)] text-black font-bold hover:bg-[var(--accent-brown-hover)] h-9 px-4 text-xs uppercase tracking-wide">
                             <Plus className="w-3 h-3 mr-2" />
                             Nouveau
                         </Button>
@@ -418,20 +418,20 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                 </div>
 
                 {/* Filters */}
-                <div className="px-6 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex flex-wrap items-center gap-2">
+                <div className="px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex flex-wrap items-center gap-2">
                     {/* ... filters ... */}
                     <button
                         onClick={() => setSelectedCategoryId(null)}
                         className={cn(
                             "px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap",
                             selectedCategoryId === null
-                                ? "bg-[#c0a080] text-black shadow-lg"
-                                : "bg-[#18181b] border border-[#27272a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+                                ? "bg-[var(--accent-brown)] text-black shadow-lg"
+                                : "bg-[var(--bg-card)] border border-[var(--border-color)] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
                         )}
                     >
                         Tout afficher
                     </button>
-                    <div className="w-px h-6 bg-[#27272a] mx-1" />
+                    <div className="w-px h-6 bg-[var(--border-color)] mx-1" />
                     {categories.map(cat => (
                         <button
                             key={cat.id}
@@ -439,8 +439,8 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                             className={cn(
                                 "px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2",
                                 selectedCategoryId === cat.id
-                                    ? "bg-[#c0a080] text-black shadow-lg"
-                                    : "bg-[#18181b] border border-[#27272a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+                                    ? "bg-[var(--accent-brown)] text-black shadow-lg"
+                                    : "bg-[var(--bg-card)] border border-[var(--border-color)] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
                             )}
                         >
                             {cat.color && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />}
@@ -452,8 +452,8 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                         className={cn(
                             "px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap",
                             selectedCategoryId === 'none'
-                                ? "bg-[#c0a080] text-black shadow-lg"
-                                : "bg-[#18181b] border border-[#27272a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+                                ? "bg-[var(--accent-brown)] text-black shadow-lg"
+                                : "bg-[var(--bg-card)] border border-[var(--border-color)] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
                         )}
                     >
                         Sans catégorie
@@ -464,7 +464,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                         onClick={() => setIsCategoryManagerOpen(true)}
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-zinc-500 hover:text-[#c0a080] ml-auto"
+                        className="h-8 w-8 text-zinc-500 hover:text-[var(--accent-brown)] ml-auto"
                         title="Gérer les catégories"
                     >
                         <Edit className="w-4 h-4" />
@@ -486,7 +486,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             </div>
 
             {/* --- RIGHT PANEL: INSPECTOR (35%) --- */}
-            <div className="w-[400px] border-l border-[#2a2a2a] bg-[#121212] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
+            <div className="w-[400px] border-l border-[var(--border-color)] bg-[var(--bg-dark)] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
                 {/* Close Button within panel */}
                 {onClose && (
                     <button
@@ -538,7 +538,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                     </div>
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 p-8 text-center">
-                        <div className="w-20 h-20 rounded-full bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center mb-6">
+                        <div className="w-20 h-20 rounded-full bg-[var(--bg-dark)] border border-[var(--border-color)] flex items-center justify-center mb-6">
                             <User className="w-8 h-8 opacity-20" />
                         </div>
                         <h3 className="text-lg font-serif font-bold text-zinc-500 mb-2">Inspecteur</h3>
@@ -563,9 +563,9 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             />
 
             <Dialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-                <DialogContent className="bg-[#1a1a1a] border-[#333] text-[#e0e0e0]">
+                <DialogContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-[#c0a080]">
+                        <DialogTitle className="flex items-center gap-2 text-[var(--accent-brown)]">
                             <AlertTriangle className="w-5 h-5 text-red-500" />
                             Confirmer la suppression
                         </DialogTitle>
@@ -577,7 +577,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                         <Button
                             variant="ghost"
                             onClick={() => setDeleteConfirmId(null)}
-                            className="text-gray-400 hover:text-white hover:bg-[#222]"
+                            className="text-gray-400 hover:text-white hover:bg-[var(--bg-dark)]"
                         >
                             Annuler
                         </Button>
@@ -672,7 +672,7 @@ function InspectorView({
     return (
         <div className="flex flex-col h-full overflow-hidden relative">
             {/* 1. Header Image */}
-            <div className="relative h-80 bg-black group shrink-0 overflow-hidden border-b border-[#2a2a2a]">
+            <div className="relative h-80 bg-black group shrink-0 overflow-hidden border-b border-[var(--border-color)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-black opacity-30" />
 
                 {imageSrc ? (
@@ -684,26 +684,26 @@ function InspectorView({
                         )}
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#151515]">
-                        <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                    <div className="w-full h-full flex items-center justify-center bg-[var(--bg-darker)]">
+                        <User className="w-20 h-20 text-[var(--border-color)]" strokeWidth={1} />
                     </div>
                 )}
 
-                <div className={cn("absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none transition-opacity duration-500", showToken ? "opacity-0" : "")} />
+                <div className={cn("absolute inset-0 bg-gradient-to-t from-[var(--bg-dark)] via-[color-mix(in_srgb,var(--bg-dark)_60%,transparent)] to-transparent pointer-events-none transition-opacity duration-500", showToken ? "opacity-0" : "")} />
 
                 {/* View Toggle (Token / Image) - Only if base image exists */}
                 {hasBaseImage && (
                     <div className="absolute top-4 left-4 z-20 flex gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10">
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowToken(true) }}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showToken ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showToken ? 'bg-[var(--accent-brown)] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
                             title="Vue Token"
                         >
                             <ScanFace className="w-4 h-4" />
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); setShowToken(false) }}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${!showToken ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${!showToken ? 'bg-[var(--accent-brown)] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
                             title="Vue Image Complète"
                         >
                             <ImageIcon className="w-4 h-4" />
@@ -731,7 +731,7 @@ function InspectorView({
                                 value={getVal('name', '')}
                                 onChange={(e) => onChange('name', e.target.value)}
                                 placeholder="Nom du personnage"
-                                className="w-full bg-transparent text-3xl font-serif font-bold text-white leading-none drop-shadow-md outline-none border-b border-transparent hover:border-white/20 focus:border-[#c0a080] transition-colors placeholder:text-white/30"
+                                className="w-full bg-transparent text-3xl font-serif font-bold text-white leading-none drop-shadow-md outline-none border-b border-transparent hover:border-white/20 focus:border-[var(--accent-brown)] transition-colors placeholder:text-white/30"
                             />
                             <Pencil className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 pointer-events-none opacity-0 group-hover/input:opacity-100 transition-opacity" />
                         </div>
@@ -748,10 +748,10 @@ function InspectorView({
                                 value={category?.id || '__none__'}
                                 onValueChange={(val) => onCategoryChange(val === '__none__' ? null : val)}
                             >
-                                <SelectTrigger className="w-fit bg-[#c0a080] text-black text-[10px] uppercase font-bold tracking-wider rounded px-2 py-1 outline-none cursor-pointer border-none h-auto data-[placeholder]:text-black/70">
+                                <SelectTrigger className="w-fit bg-[var(--accent-brown)] text-black text-[10px] uppercase font-bold tracking-wider rounded px-2 py-1 outline-none cursor-pointer border-none h-auto data-[placeholder]:text-black/70">
                                     <SelectValue placeholder="Sans catégorie" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                                <SelectContent className="bg-zinc-900 text-white" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }}>
                                     <SelectGroup>
                                         <SelectItem value="__none__">Sans catégorie</SelectItem>
                                         {categories.map((cat) => (
@@ -764,7 +764,7 @@ function InspectorView({
                             </Select>
                         ) : (
                             category && (
-                                <Badge className="bg-[#c0a080] text-black hover:bg-[#c0a080] border-none text-[10px] uppercase font-bold tracking-wider">
+                                <Badge className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown)] border-none text-[10px] uppercase font-bold tracking-wider">
                                     {category.name}
                                 </Badge>
                             )
@@ -797,8 +797,8 @@ function InspectorView({
                 {/* Stats Grid — dérivé du système de règles actif (stat vitale principale, défense,
                     attaques de combat) plutôt que PV/Defense/Contact/Distance/Magie en dur. */}
                 <div className="space-y-3">
-                    <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                    <h3 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                         Statistiques de Combat
                     </h3>
                     <div className="grid grid-cols-3 gap-3">
@@ -847,11 +847,11 @@ function InspectorView({
                 {/* Attributes */}
                 {abilityStats.length > 0 && (
                     <div className="space-y-3">
-                        <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                        <h3 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                             Caractéristiques
                         </h3>
-                        <div className="grid gap-2 bg-[#1a1a1a] p-3 rounded-lg border border-[#2a2a2a]" style={{ gridTemplateColumns: `repeat(${Math.min(6, abilityStats.length)}, minmax(0, 1fr))` }}>
+                        <div className="grid gap-2 bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)]" style={{ gridTemplateColumns: `repeat(${Math.min(6, abilityStats.length)}, minmax(0, 1fr))` }}>
                             {abilityStats.map((stat) => (
                                 <div key={stat.key} className="flex flex-col items-center gap-1">
                                     <span className="text-[9px] font-bold text-zinc-500 uppercase">{stat.shortLabel || stat.key}</span>
@@ -860,10 +860,10 @@ function InspectorView({
                                             type="number"
                                             value={(char as any)?.[stat.key] ?? 10}
                                             onChange={(e) => onChange(stat.key, e.target.value)}
-                                            className="w-full bg-[#121212] border border-[#333] rounded text-center text-sm font-mono font-bold text-[#e0e0e0] focus:border-[#c0a080] outline-none py-1"
+                                            className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded text-center text-sm font-mono font-bold text-[var(--text-primary)] focus:border-[var(--accent-brown)] outline-none py-1"
                                         />
                                     ) : (
-                                        <span className="text-sm font-mono font-bold text-[#e0e0e0]">
+                                        <span className="text-sm font-mono font-bold text-[var(--text-primary)]">
                                             {(npc as any)?.[stat.key]}
                                         </span>
                                     )}
@@ -875,19 +875,19 @@ function InspectorView({
             </div>
 
             {/* 3. Footer Actions */}
-            <div className="p-6 border-t border-[#2a2a2a] bg-[#121212] flex gap-3 z-20">
+            <div className="p-6 border-t border-[var(--border-color)] bg-[var(--bg-dark)] flex gap-3 z-20">
                 {isEditing ? (
                     <>
                         <Button
                             variant="outline"
                             onClick={onCancel}
-                            className="border-[#333] text-zinc-400 hover:text-white hover:bg-[#222]"
+                            className="border-[var(--border-color)] text-zinc-400 hover:text-white hover:bg-[var(--bg-dark)]"
                         >
                             Annuler
                         </Button>
                         <Button
                             onClick={onSave}
-                            className="flex-1 bg-[#c0a080] text-black font-bold hover:bg-[#b09070]"
+                            className="flex-1 bg-[var(--accent-brown)] text-black font-bold hover:bg-[var(--accent-brown-hover)]"
                         >
                             Sauvegarder
                         </Button>
@@ -896,7 +896,7 @@ function InspectorView({
                     <>
                         <Button
                             onClick={onEditTrigger}
-                            className="flex-1 bg-[#c0a080] text-black font-bold hover:bg-[#b09070] px-2"
+                            className="flex-1 bg-[var(--accent-brown)] text-black font-bold hover:bg-[var(--accent-brown-hover)] px-2"
                         >
                             <Edit className="w-4 h-4 mr-1" />
                             Modifier
@@ -904,7 +904,7 @@ function InspectorView({
                         <Button
                             variant="outline"
                             onClick={onDeleteTrigger}
-                            className="border-[#333] text-red-500 hover:text-red-400 hover:bg-red-500/10 px-3"
+                            className="border-[var(--border-color)] text-red-500 hover:text-red-400 hover:bg-red-500/10 px-3"
                         >
                             <Trash2 className="w-4 h-4" />
                         </Button>
@@ -917,7 +917,7 @@ function InspectorView({
 
 function StatBlock({ label, value, subValue, onChange, color, icon }: { label: string, value: number, subValue?: string, onChange?: (val: string) => void, color: string, icon?: React.ReactNode }) {
     return (
-        <div className="bg-[#1e1e20] p-2.5 rounded border border-[#2a2a2a] flex flex-col items-center justify-center gap-1 group focus-within:border-[#c0a080]/50 transition-colors">
+        <div className="bg-[var(--bg-card)] p-2.5 rounded border border-[var(--border-color)] flex flex-col items-center justify-center gap-1 group focus-within:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-colors">
             <span className="text-zinc-500 text-[9px] uppercase font-bold flex items-center gap-1">
                 {icon} {label}
             </span>

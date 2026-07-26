@@ -289,9 +289,9 @@ export default function EncounterGenerator() {
                                 ) : (
                                     <div className="space-y-1">
                                         {players.map(p => (
-                                            <div key={p.id} className="flex items-center justify-between px-3 py-1.5 bg-[#1e1e1e] border border-[#333] rounded text-sm">
+                                            <div key={p.id} className="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded text-sm">
                                                 <span className="text-gray-200">{p.name}</span>
-                                                <span className="text-xs text-[#c0a080]">Niv. {p.niveau}</span>
+                                                <span className="text-xs text-[var(--accent-brown)]">Niv. {p.niveau}</span>
                                             </div>
                                         ))}
                                         <div className="flex justify-between pt-1 text-xs text-gray-500">
@@ -303,7 +303,7 @@ export default function EncounterGenerator() {
                             </div>
                         </div>
 
-                        <div className="h-px bg-[#333]" />
+                        <div className="h-px bg-[var(--border-color)]" />
 
                         {/* Encounter Settings */}
                         <div className="space-y-4">
@@ -319,9 +319,9 @@ export default function EncounterGenerator() {
                                         size="sm"
                                         onClick={() => setDifficulty(diff)}
                                         className={`
-                                            text-xs border-[#333] transition-all
+                                            text-xs border-[var(--border-color)] transition-all
                                             ${difficulty === diff
-                                                ? 'bg-[#c0a080] text-black hover:bg-[#d4b494] font-bold'
+                                                ? 'bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold'
                                                 : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#222]'
                                             }
                                         `}
@@ -342,7 +342,7 @@ export default function EncounterGenerator() {
                                             variant="outline"
                                             role="combobox"
                                             aria-expanded={openTypeSelect}
-                                            className="w-full justify-between bg-[#222] border-[#333] text-white hover:bg-[#2a2a2a] hover:text-white"
+                                            className="w-full justify-between bg-[#222] border-[var(--border-color)] text-white hover:bg-[var(--border-color)] hover:text-white"
                                         >
                                             {selectedTypes.length === 0
                                                 ? "Tous les types"
@@ -350,7 +350,7 @@ export default function EncounterGenerator() {
                                             <Shield className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[300px] p-0 bg-[#222] border-[#333] text-white">
+                                    <PopoverContent className="w-[300px] p-0 bg-[#222] border-[var(--border-color)] text-white">
                                         <Command className="bg-transparent">
                                             <CommandInput placeholder="Rechercher un type..." className="text-white placeholder:text-gray-500" />
                                             <CommandList>
@@ -366,7 +366,7 @@ export default function EncounterGenerator() {
                                                             <div className={cn(
                                                                 "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
                                                                 selectedTypes.includes(type)
-                                                                    ? "bg-[#c0a080] text-black border-[#c0a080]"
+                                                                    ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]"
                                                                     : "opacity-50 [&_svg]:invisible"
                                                             )}>
                                                                 <Check className={cn("h-4 w-4")} />
@@ -392,7 +392,7 @@ export default function EncounterGenerator() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-5 text-[10px] text-[#c0a080] hover:text-[#d4b494] px-1"
+                                            className="h-5 text-[10px] text-[var(--accent-brown)] hover:text-[var(--accent-brown-hover)] px-1"
                                             onClick={() => setSelectedTypes([])}
                                         >
                                             Reset
@@ -413,7 +413,7 @@ export default function EncounterGenerator() {
                                         { label: 'CR min', value: minCR, set: setMinCR },
                                         { label: 'CR max', value: maxCR, set: setMaxCR },
                                     ].map(({ label, value, set }) => (
-                                        <div key={label} className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#333] rounded px-2 py-1 focus-within:border-[#c0a080]/50">
+                                        <div key={label} className="flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-2 py-1 focus-within:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]">
                                             <span className="text-[10px] text-gray-500 shrink-0 w-12">{label}</span>
                                             <input
                                                 type="number"
@@ -429,7 +429,7 @@ export default function EncounterGenerator() {
 
                             <div className="flex justify-between text-xs text-gray-500 mb-1 pt-2">
                                 <span>Budget XP Base:</span>
-                                <span className="font-mono text-[#c0a080]">{budget} XP</span>
+                                <span className="font-mono text-[var(--accent-brown)]">{budget} XP</span>
                             </div>
                         </div>
                     </div>
@@ -437,7 +437,7 @@ export default function EncounterGenerator() {
 
     const generateButton = (
         <Button
-            className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494] font-bold py-6"
+            className="w-full bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold py-6"
             onClick={handleGenerate}
             disabled={loading || isGenerating}
         >
@@ -453,7 +453,7 @@ export default function EncounterGenerator() {
     const resultsPanel = (
                     <>{Object.keys(scenarios).length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-500 gap-4">
-                            <div className="w-20 h-20 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-[#333]">
+                            <div className="w-20 h-20 rounded-full bg-[var(--bg-card)] flex items-center justify-center border border-[var(--border-color)]">
                                 <Skull className="w-10 h-10 opacity-50" />
                             </div>
                             <p>Lancez la génération pour voir les 3 options.</p>
@@ -461,8 +461,8 @@ export default function EncounterGenerator() {
                     ) : (
                         <div className="flex flex-col h-full">
                             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as EncounterScenarioType)} className="flex-1 flex flex-col">
-                                <div className="border-b border-[#333] bg-[#1a1a1a] px-4 pt-2">
-                                    <TabsList className="grid w-full grid-cols-3 bg-[#111]">
+                                <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)] px-4 pt-2">
+                                    <TabsList className="grid w-full grid-cols-3 bg-[var(--bg-darker)]">
                                         {(Object.keys(SCENARIO_TYPES) as EncounterScenarioType[]).map((type) => {
                                             const hasResult = !!scenarios[type];
                                             return (
@@ -470,7 +470,7 @@ export default function EncounterGenerator() {
                                                     key={type}
                                                     value={type}
                                                     disabled={!hasResult}
-                                                    className="data-[state=active]:bg-[#333] data-[state=active]:text-[#c0a080]"
+                                                    className="data-[state=active]:bg-[#333] data-[state=active]:text-[var(--accent-brown)]"
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         {getIconForScenario(type)}
@@ -490,15 +490,16 @@ export default function EncounterGenerator() {
                                                 <div className="p-3 sm:p-4">
                                                     <div className="space-y-6">
                                                         {proposals?.map((encounter, pi) => (
-                                                            <div key={pi} className="rounded-xl border border-[#333] bg-[#1a1a1a] overflow-hidden">
+                                                            <div key={pi} className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden">
                                                                 {/* Proposal header */}
-                                                                <div className="flex justify-between items-center px-4 py-2 bg-[#141414] border-b border-[#333]">
+                                                                <div className="flex justify-between items-center px-4 py-2 bg-[var(--bg-dark)] border-b border-[var(--border-color)]">
                                                                     <span className="text-xs font-bold text-gray-400">Proposition {pi + 1}</span>
                                                                     <div className="flex items-center gap-2">
                                                                         <Button
                                                                             size="sm"
                                                                             variant="outline"
-                                                                            className="border-[#c0a080]/40 bg-transparent text-[#c0a080] hover:bg-[#c0a080]/10 hover:text-[#c0a080] h-7 text-xs"
+                                                                            className="bg-transparent text-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] hover:text-[var(--accent-brown)] h-7 text-xs"
+                                                                            style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)' }}
                                                                             onClick={() => openTreasure(encounter, `Proposition ${pi + 1}`)}
                                                                             title="Générer un trésor pour cette rencontre"
                                                                         >
@@ -507,7 +508,7 @@ export default function EncounterGenerator() {
                                                                         </Button>
                                                                         <Button
                                                                             size="sm"
-                                                                            className="bg-[#c0a080] text-black hover:bg-[#d4b494] h-7 text-xs"
+                                                                            className="bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] h-7 text-xs"
                                                                             onClick={() => handleSaveAsTemplates(pi)}
                                                                         >
                                                                             <PlusCircle className="w-3 h-3 mr-1" />
@@ -521,7 +522,7 @@ export default function EncounterGenerator() {
                                                                         <HoverCard key={idx} openDelay={150} closeDelay={50}>
                                                                             <HoverCardTrigger asChild>
                                                                                 <div className="flex items-center gap-3 px-4 py-2 hover:bg-[#222] cursor-default transition-colors">
-                                                                                    <div className="w-10 h-10 rounded bg-black overflow-hidden border border-[#333] shrink-0">
+                                                                                    <div className="w-10 h-10 rounded bg-black overflow-hidden border border-[var(--border-color)] shrink-0">
                                                                                         <img
                                                                                             src={item.creature.image || ''}
                                                                                             alt={item.creature.Nom}
@@ -532,7 +533,7 @@ export default function EncounterGenerator() {
                                                                                     <div className="flex-1 min-w-0">
                                                                                         <div className="flex items-center gap-2">
                                                                                             <span className="font-semibold text-white text-sm truncate">{item.creature.Nom}</span>
-                                                                                            <span className="text-[#c0a080] text-xs font-bold shrink-0">×{item.count}</span>
+                                                                                            <span className="text-[var(--accent-brown)] text-xs font-bold shrink-0">×{item.count}</span>
                                                                                         </div>
                                                                                         <p className="text-xs text-gray-500 truncate">{item.creature.Type}</p>
                                                                                     </div>
@@ -545,10 +546,10 @@ export default function EncounterGenerator() {
                                                                             <HoverCardContent
                                                                                 side="left"
                                                                                 align="start"
-                                                                                className="w-80 bg-[#1a1a1a] border-[#333] text-gray-200"
+                                                                                className="w-80 bg-[var(--bg-card)] border-[var(--border-color)] text-gray-200"
                                                                             >
                                                                                 <div className="flex gap-3">
-                                                                                    <div className="w-16 h-16 rounded bg-black overflow-hidden border border-[#333] shrink-0">
+                                                                                    <div className="w-16 h-16 rounded bg-black overflow-hidden border border-[var(--border-color)] shrink-0">
                                                                                         <img
                                                                                             src={item.creature.image || ''}
                                                                                             alt={item.creature.Nom}
@@ -568,15 +569,15 @@ export default function EncounterGenerator() {
                                                                                 )}
 
                                                                                 <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                                                                                    <div className="bg-[#111] rounded px-2 py-1 border border-[#333]">
+                                                                                    <div className="bg-[var(--bg-darker)] rounded px-2 py-1 border border-[var(--border-color)]">
                                                                                         <p className="text-[10px] text-gray-500">PV</p>
                                                                                         <p className="text-sm font-bold text-white">{item.creature.PV}/{item.creature.PV_Max}</p>
                                                                                     </div>
-                                                                                    <div className="bg-[#111] rounded px-2 py-1 border border-[#333]">
+                                                                                    <div className="bg-[var(--bg-darker)] rounded px-2 py-1 border border-[var(--border-color)]">
                                                                                         <p className="text-[10px] text-gray-500">Défense</p>
                                                                                         <p className="text-sm font-bold text-white">{item.creature.Defense}</p>
                                                                                     </div>
-                                                                                    <div className="bg-[#111] rounded px-2 py-1 border border-[#333]">
+                                                                                    <div className="bg-[var(--bg-darker)] rounded px-2 py-1 border border-[var(--border-color)]">
                                                                                         <p className="text-[10px] text-gray-500">Init</p>
                                                                                         <p className="text-sm font-bold text-white">{item.creature.INIT}</p>
                                                                                     </div>
@@ -593,18 +594,18 @@ export default function EncounterGenerator() {
                                                                                     ].map(({ label, value }) => (
                                                                                         <div key={label}>
                                                                                             <p className="text-[9px] text-gray-500">{label}</p>
-                                                                                            <p className="text-xs font-semibold text-[#c0a080]">{value}</p>
+                                                                                            <p className="text-xs font-semibold text-[var(--accent-brown)]">{value}</p>
                                                                                         </div>
                                                                                     ))}
                                                                                 </div>
 
                                                                                 {item.creature.Actions && item.creature.Actions.length > 0 && (
-                                                                                    <div className="mt-3 pt-2 border-t border-[#333] space-y-1.5">
+                                                                                    <div className="mt-3 pt-2 border-t border-[var(--border-color)] space-y-1.5">
                                                                                         {item.creature.Actions.map((action, ai) => (
                                                                                             <div key={ai} className="text-xs">
                                                                                                 <span className="font-semibold text-white">{action.Nom}</span>
                                                                                                 {typeof action.Toucher === 'number' && (
-                                                                                                    <span className="text-[#c0a080]"> (+{action.Toucher})</span>
+                                                                                                    <span className="text-[var(--accent-brown)]"> (+{action.Toucher})</span>
                                                                                                 )}
                                                                                                 <p className="text-gray-400 line-clamp-2">{action.Description}</p>
                                                                                             </div>
@@ -629,10 +630,10 @@ export default function EncounterGenerator() {
     );
 
     const header = (
-        <div className="p-3 sm:p-6 border-b border-[#333] bg-gradient-to-r from-[#1a1a1a] to-[#252525] shrink-0">
+        <div className="p-3 sm:p-6 border-b border-[var(--border-color)] bg-gradient-to-r from-[var(--bg-card)] to-[#252525] shrink-0">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20 shrink-0">
-                    <Swords className="w-5 h-5 sm:w-6 sm:h-6 text-[#c0a080]" />
+                <div className="p-2 rounded-lg border shrink-0" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                    <Swords className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-brown)]" />
                 </div>
                 <div className="min-w-0 flex-1">
                     <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">
@@ -645,16 +646,16 @@ export default function EncounterGenerator() {
     );
 
     return (
-        <div className="h-full flex flex-col bg-[#141414] text-gray-200">
+        <div className="h-full flex flex-col bg-[var(--bg-dark)] text-gray-200">
             {header}
 
             {/* ───────── DESKTOP ───────── */}
             <div className="hidden md:flex flex-1 overflow-hidden flex-row">
-                <div className="w-1/3 p-6 border-r border-[#333] bg-[#141414] overflow-y-auto shrink-0">
+                <div className="w-1/3 p-6 border-r border-[var(--border-color)] bg-[var(--bg-dark)] overflow-y-auto shrink-0">
                     {settingsContent}
                     <div className="mt-6">{generateButton}</div>
                 </div>
-                <div className="w-2/3 flex flex-col bg-[#0a0a0a] min-h-0">
+                <div className="w-2/3 flex flex-col bg-[var(--bg-canvas)] min-h-0">
                     {resultsPanel}
                 </div>
             </div>
@@ -662,22 +663,22 @@ export default function EncounterGenerator() {
             {/* ───────── MOBILE ───────── */}
             <div className="md:hidden flex-1 min-h-0 flex flex-col">
                 {/* Results take all available space */}
-                <div className="flex-1 min-h-0 overflow-y-auto bg-[#0a0a0a]" style={{ touchAction: 'pan-y' }}>
+                <div className="flex-1 min-h-0 overflow-y-auto bg-[var(--bg-canvas)]" style={{ touchAction: 'pan-y' }}>
                     {resultsPanel}
                 </div>
                 {/* Sticky action bar: Settings (icon) + Generate (icon) — always visible */}
-                <div className="shrink-0 flex items-center gap-2 p-3 border-t border-[#333] bg-[#141414]">
+                <div className="shrink-0 flex items-center gap-2 p-3 border-t border-[var(--border-color)] bg-[var(--bg-dark)]">
                     <Button
                         variant="outline"
                         size="icon"
                         onClick={() => setMobileSettingsOpen(true)}
-                        className="h-12 w-12 shrink-0 border-[#333] bg-[#1e1e1e] text-gray-200"
+                        className="h-12 w-12 shrink-0 border-[var(--border-color)] bg-[#1e1e1e] text-gray-200"
                         title="Options"
                     >
                         <SlidersHorizontal className="w-5 h-5" />
                     </Button>
                     <Button
-                        className="flex-1 h-12 bg-[#c0a080] text-black hover:bg-[#d4b494] font-bold"
+                        className="flex-1 h-12 bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold"
                         onClick={handleGenerate}
                         disabled={loading || isGenerating}
                         title="Générer les scénarios"
@@ -690,10 +691,10 @@ export default function EncounterGenerator() {
 
             {/* Treasure dialog */}
             <Dialog open={treasureOpen} onOpenChange={setTreasureOpen}>
-                <DialogContent className="bg-[#141414] border-[#333] text-gray-200 max-h-[85vh] overflow-y-auto">
+                <DialogContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-200 max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
-                            <Gem className="w-5 h-5 text-[#c0a080]" /> Trésor
+                            <Gem className="w-5 h-5 text-[var(--accent-brown)]" /> Trésor
                             {treasureSource && <span className="text-xs font-normal text-gray-500">— {treasureSource}</span>}
                         </DialogTitle>
                     </DialogHeader>
@@ -712,7 +713,7 @@ export default function EncounterGenerator() {
                                         { key: 'pa', label: 'Argent', color: 'text-gray-300' },
                                         { key: 'pc', label: 'Cuivre', color: 'text-amber-600' },
                                     ] as const).map(({ key, label, color }) => (
-                                        <div key={key} className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2 py-2 text-center">
+                                        <div key={key} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg px-2 py-2 text-center">
                                             <p className={cn("text-lg font-bold", color)}>{treasure.coins[key]}</p>
                                             <p className="text-[10px] text-gray-500 uppercase">{key} · {label}</p>
                                         </div>
@@ -730,10 +731,10 @@ export default function EncounterGenerator() {
                                 ) : (
                                     <div className="space-y-1">
                                         {treasure.items.map((item, i) => (
-                                            <div key={i} className="flex items-center justify-between bg-[#1a1a1a] border border-[#333] rounded px-3 py-1.5">
+                                            <div key={i} className="flex items-center justify-between bg-[var(--bg-card)] border border-[var(--border-color)] rounded px-3 py-1.5">
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <span className="text-sm text-gray-200 truncate">{item.nom}</span>
-                                                    {item.quantity > 1 && <span className="text-[#c0a080] text-xs font-bold shrink-0">×{item.quantity}</span>}
+                                                    {item.quantity > 1 && <span className="text-[var(--accent-brown)] text-xs font-bold shrink-0">×{item.quantity}</span>}
                                                 </div>
                                                 <span className="text-[10px] text-gray-500 capitalize shrink-0">{item.category.replace(/_/g, ' ')}</span>
                                             </div>
@@ -747,7 +748,7 @@ export default function EncounterGenerator() {
                                     variant="outline"
                                     size="sm"
                                     onClick={rerollTreasure}
-                                    className="border-[#333] bg-transparent text-gray-300 hover:bg-[#222] hover:text-white"
+                                    className="border-[var(--border-color)] bg-transparent text-gray-300 hover:bg-[#222] hover:text-white"
                                 >
                                     <Dices className="w-4 h-4 mr-2" /> Re-tirer
                                 </Button>
@@ -759,10 +760,10 @@ export default function EncounterGenerator() {
 
             {/* Mobile settings dialog — parameters only, no generate button */}
             <Dialog open={mobileSettingsOpen} onOpenChange={setMobileSettingsOpen}>
-                <DialogContent className="bg-[#141414] border-[#333] text-gray-200 max-h-[85vh] overflow-y-auto">
+                <DialogContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-200 max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
-                            <SlidersHorizontal className="w-5 h-5 text-[#c0a080]" /> Options de rencontre
+                            <SlidersHorizontal className="w-5 h-5 text-[var(--accent-brown)]" /> Options de rencontre
                         </DialogTitle>
                     </DialogHeader>
                     {settingsContent}

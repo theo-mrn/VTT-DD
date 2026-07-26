@@ -277,7 +277,7 @@ function SortableIconButton({
         }}
         className={cn(
           buttonClassName,
-          editMode && item.isNative && "ring-2 ring-[var(--accent-brown)]/40 rounded-lg",
+          editMode && item.isNative && "ring-2 ring-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] rounded-lg",
           canDrag && "cursor-grab active:cursor-grabbing touch-none"
         )}
         title={item.label}
@@ -643,7 +643,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             {editMode && (
               <button
                 onClick={openPickerForAdd}
-                className="p-2 rounded-lg border border-dashed border-[var(--accent-brown)]/50 text-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10"
+                className="p-2 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] text-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]"
                 title="Ajouter"
               >
                 <Plus className="h-5 w-5" />
@@ -712,7 +712,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           {editMode && (
             <button
               onClick={openPickerForAdd}
-              className="flex-shrink-0 flex items-center justify-center h-11 w-11 rounded-lg border border-dashed border-[var(--accent-brown)]/50 text-[var(--accent-brown)]"
+              className="flex-shrink-0 flex items-center justify-center h-11 w-11 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] text-[var(--accent-brown)]"
               title="Ajouter"
             >
               <Plus className="h-5 w-5" />

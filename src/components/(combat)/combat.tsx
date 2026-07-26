@@ -77,7 +77,7 @@ const ActionCard = ({ title, icon: Icon, value, color, onClick }: any) => (
     type="button"
     onPointerUp={(e) => { if (e.pointerType !== 'mouse') onClick() }}
     onClick={onClick}
-    className="group relative w-full h-32 sm:h-64 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 bg-[#0a0a0a] shadow-2xl transition-all duration-300 sm:hover:scale-[1.02] sm:hover:-translate-y-1"
+    className="group relative w-full h-32 sm:h-64 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 bg-[var(--bg-dark)] shadow-2xl transition-all duration-300 sm:hover:scale-[1.02] sm:hover:-translate-y-1"
   >
     {/* Dynamic Background Gradient */}
     <div className={`pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-t ${color.replace('to-', 'from-black/0 via-black/0 to-')}`} />
@@ -121,7 +121,7 @@ const WeaponCard = ({ weapon, onClick, onSoundClick, damageModifier = 0 }: { wea
     className={`w-full flex items-center justify-between p-4 rounded-xl border bg-white/5 hover:bg-white/10 transition-all duration-200 group relative overflow-hidden sm:hover:scale-[1.02] ${
       weapon.source === 'competence'
         ? 'border-purple-500/20 hover:border-purple-500/50'
-        : 'border-white/5 hover:border-[var(--accent-brown)]/50'
+        : 'border-white/5 hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)]'
     }`}
   >
     <div className="flex flex-col items-start gap-1">
@@ -137,7 +137,7 @@ const WeaponCard = ({ weapon, onClick, onSoundClick, damageModifier = 0 }: { wea
         <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
           weapon.source === 'competence'
             ? 'text-purple-400 bg-purple-500/10'
-            : 'text-[var(--accent-brown)] bg-[var(--accent-brown)]/10'
+            : 'text-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]'
         }`}>
           {weapon.numDice}d{weapon.numFaces}{damageModifier !== 0 ? ` ${damageModifier > 0 ? '+' : ''}${damageModifier}` : ''}
         </span>
@@ -698,15 +698,15 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 sm:bg-black/80 sm:backdrop-blur-md p-0 sm:p-4">
 
       <div
-        className="relative w-full h-full sm:h-[700px] sm:max-w-5xl bg-[#0b0b0b] sm:rounded-[2rem] border border-white/5 shadow-2xl flex flex-col overflow-hidden text-white"
+        className="relative w-full h-full sm:h-[700px] sm:max-w-5xl bg-[var(--bg-darker)] sm:rounded-[2rem] border border-white/5 shadow-2xl flex flex-col overflow-hidden text-white"
         style={{ boxShadow: '0 0 100px rgba(0,0,0,0.8)' }}
       >
         {/* Background Effects — desktop only (heavy blurs crash mobile Safari) */}
-        <div className="hidden sm:block absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-b from-[var(--accent-brown)]/10 to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
+        <div className="hidden sm:block absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
         <div className="hidden sm:block absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-t from-red-600/5 to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
 
         {/* --- 1. THE VERSUS HEADER --- */}
-        <div className="h-[120px] sm:h-[200px] border-b border-white/5 relative flex items-center justify-between px-4 sm:px-16 bg-[#0a0a0a]/50">
+        <div className="h-[120px] sm:h-[200px] border-b border-white/5 relative flex items-center justify-between px-4 sm:px-16" style={{ background: 'color-mix(in srgb, var(--bg-dark) 50%, transparent)' }}>
           {/* Attacker */}
           <div className="flex items-center gap-3 sm:gap-8 relative z-10 min-w-0">
             <div className="relative group shrink-0">
@@ -792,7 +792,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         key={weapon.id ?? `w-${idx}`}
                         onClick={() => setEoteWeapon(weapon)}
                         className={`p-3 rounded-xl border text-left transition-all ${eoteWeapon?.name === weapon.name
-                          ? 'border-[var(--accent-brown)] bg-[var(--accent-brown)]/10'
+                          ? 'border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]'
                           : 'border-white/10 bg-white/5 hover:border-white/30'}`}
                       >
                         <div className="text-sm font-bold text-white truncate">{weapon.name}</div>
@@ -819,7 +819,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                           key={skill.key}
                           onClick={() => setEoteSkillKey((k) => k === skill.key ? null : skill.key)}
                           className={`px-3 py-2 rounded-xl border text-sm transition-all flex items-center gap-2 ${eoteSkillKey === skill.key
-                            ? 'border-[var(--accent-brown)] bg-[var(--accent-brown)]/10 text-white'
+                            ? 'border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-white'
                             : 'border-white/10 bg-white/5 text-gray-300 hover:border-white/30'}`}
                           title={`${statLabel(skill.linkedStatKey)} ${statValue} / rang ${rank}`}
                         >
@@ -923,7 +923,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                 {/* If Actions exist: Only show Actions */}
                 {actions.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                    <div className="mb-4 flex items-center gap-3 justify-center sticky top-0 bg-[#0b0b0b] z-20 pb-3">
+                    <div className="mb-4 flex items-center gap-3 justify-center sticky top-0 bg-[var(--bg-darker)] z-20 pb-3">
                       <Zap className="w-5 h-5 text-yellow-500" />
                       <h3 className="text-xl font-bold uppercase tracking-wider text-gray-300">Attaques</h3>
                     </div>
@@ -938,7 +938,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                             setActionDice({ numDice: 1, numFaces: 20, modifier: 0 })
                             setStep('ACTION_CONFIG')
                           })}
-                          className="group relative min-h-[12rem] p-4 rounded-2xl border border-white/5 bg-[#0a0a0a] overflow-hidden shadow-2xl transition-all duration-300 text-left flex flex-col justify-between sm:hover:scale-[1.02] sm:hover:-translate-y-1"
+                          className="group relative min-h-[12rem] p-4 rounded-2xl border border-white/5 bg-[var(--bg-dark)] overflow-hidden shadow-2xl transition-all duration-300 text-left flex flex-col justify-between sm:hover:scale-[1.02] sm:hover:-translate-y-1"
                         >
                           {/* Background Gradients */}
                           <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
@@ -1033,7 +1033,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                           exit={{ opacity: 0, height: 0 }}
                           className="col-span-2 lg:col-span-4 mt-6 flex justify-center overflow-hidden"
                         >
-                          <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 shadow-2xl ring-1 ring-blue-500/30 mb-2">
+                          <div className="bg-[var(--bg-card)] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 shadow-2xl ring-1 ring-blue-500/30 mb-2">
                             <span className="text-xs font-bold uppercase text-blue-400 tracking-wider">Config Dé Custom</span>
 
                             <div className="hidden sm:block h-6 w-px bg-white/10 mx-2" />
@@ -1108,7 +1108,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                   </div>
 
                   {/* Dice Configuration - Compact */}
-                  <div className="bg-[#111] border border-white/5 rounded-xl p-6">
+                  <div className="bg-[var(--bg-card)] border border-white/5 rounded-xl p-6">
                     <h3 className="text-base font-bold uppercase tracking-wider text-center mb-4 text-gray-300">
                       Configuration du Dé
                     </h3>
@@ -1318,7 +1318,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       </div>
 
                       {/* Swappable Action Card (Visual Reference) */}
-                      <div className="bg-[#111] border border-white/10 rounded-xl p-4 mb-4 min-h-[100px] flex flex-col justify-center relative overflow-hidden">
+                      <div className="bg-[var(--bg-card)] border border-white/10 rounded-xl p-4 mb-4 min-h-[100px] flex flex-col justify-center relative overflow-hidden">
                         <AnimatePresence mode="wait">
                           <motion.div
                             key={activeActionIndex}
@@ -1500,13 +1500,13 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
             and not affected by the combat modal's flex-centering/stacking context. */}
         {isSoundSelectorOpen && createPortal(
             <div
-              className="fixed inset-0 z-[10001] bg-[#0a0a0a] flex flex-col"
+              className="fixed inset-0 z-[10001] bg-[var(--bg-dark)] flex flex-col"
             >
               {/* HEADER */}
-              <div className="p-3 sm:p-5 border-b border-[#222] bg-[#111] flex flex-col gap-3 sm:gap-4 shrink-0">
+              <div className="p-3 sm:p-5 border-b border-[var(--border-color)] bg-[var(--bg-card)] flex flex-col gap-3 sm:gap-4 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-[#1e1e1e] flex items-center justify-center border border-[#333]">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-[var(--bg-darker)] flex items-center justify-center border border-[var(--border-color)]">
                       <Library className="w-5 h-5 text-[var(--accent-brown)]" />
                     </div>
                     <div className="min-w-0">
@@ -1528,7 +1528,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       onChange={(e) => setSoundSearchQuery(e.target.value)}
                       onPointerUp={(e) => { if (e.pointerType !== 'mouse') (e.currentTarget as HTMLInputElement).focus() }}
                       style={{ fontSize: '16px' }}
-                      className="bg-[#1a1a1a] border-[#333] h-10 pl-10 focus:border-[var(--accent-brown)] placeholder:text-gray-600 text-white"
+                      className="bg-[var(--bg-card)] border-[var(--border-color)] h-10 pl-10 focus:border-[var(--accent-brown)] placeholder:text-gray-600 text-white"
                       placeholder="Rechercher un son..."
                     />
                   </div>
@@ -1538,7 +1538,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     <button
                       type="button"
                       {...tap(() => setCatMenuOpen(o => !o))}
-                      className="h-10 px-3 flex items-center gap-1.5 bg-[#1a1a1a] border border-[#333] rounded-md text-sm text-gray-200 whitespace-nowrap max-w-[45vw]"
+                      className="h-10 px-3 flex items-center gap-1.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-md text-sm text-gray-200 whitespace-nowrap max-w-[45vw]"
                     >
                       <span className="truncate">
                         {selectedCategory === 'all' ? 'Tout voir' : (SOUND_CATEGORIES.find(c => c.id === selectedCategory)?.label ?? 'Catégorie')}
@@ -1546,13 +1546,13 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       <ArrowRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${catMenuOpen ? '-rotate-90' : 'rotate-90'}`} />
                     </button>
                     {catMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 z-10 w-48 max-h-64 overflow-y-auto bg-[#161616] border border-[#333] rounded-lg shadow-xl py-1" style={{ touchAction: 'pan-y' }}>
+                      <div className="absolute right-0 top-full mt-1 z-10 w-48 max-h-64 overflow-y-auto bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg shadow-xl py-1" style={{ touchAction: 'pan-y' }}>
                         {[{ id: 'all', label: 'Tout voir' }, ...SOUND_CATEGORIES.filter(c => c.id !== 'all')].map(cat => (
                           <button
                             key={cat.id}
                             type="button"
                             {...tap(() => { setSelectedCategory(cat.id); setCatMenuOpen(false) })}
-                            className={`w-full text-left px-3 py-2 text-sm ${selectedCategory === cat.id ? 'text-[var(--accent-brown)] bg-[var(--accent-brown)]/10' : 'text-gray-300'}`}
+                            className={`w-full text-left px-3 py-2 text-sm ${selectedCategory === cat.id ? 'text-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]' : 'text-gray-300'}`}
                           >
                             {cat.label}
                           </button>
@@ -1567,22 +1567,22 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden w-full max-w-full min-w-0">
 
                 {/* CATEGORIES — sidebar on desktop only (mobile uses the header dropdown) */}
-                <div className="hidden sm:flex sm:w-48 bg-[#111] sm:border-r border-[#222] shrink-0">
+                <div className="hidden sm:flex sm:w-48 bg-[var(--bg-card)] sm:border-r border-[var(--border-color)] shrink-0">
                   <div className="flex flex-col gap-1 overflow-y-auto no-scrollbar py-3 px-2 w-full">
                     <Button
                       variant="ghost"
                       {...tap(() => setSelectedCategory('all'))}
-                      className={`shrink-0 justify-start text-xs h-8 sm:w-full whitespace-nowrap ${selectedCategory === 'all' ? 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
+                      className={`shrink-0 justify-start text-xs h-8 sm:w-full whitespace-nowrap ${selectedCategory === 'all' ? 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[var(--bg-card)]'}`}
                     >
                       <Volume2 className="w-3 h-3 mr-2" /> Tout voir
                     </Button>
-                    <div className="hidden sm:block h-px bg-[#222] my-2 mx-1" />
+                    <div className="hidden sm:block h-px bg-[var(--border-color)] my-2 mx-1" />
                     {SOUND_CATEGORIES.filter(cat => cat.id !== 'all').map(cat => (
                       <Button
                         key={cat.id}
                         variant="ghost"
                         {...tap(() => setSelectedCategory(cat.id))}
-                        className={`shrink-0 justify-start text-xs h-8 sm:w-full whitespace-nowrap ${selectedCategory === cat.id ? 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
+                        className={`shrink-0 justify-start text-xs h-8 sm:w-full whitespace-nowrap ${selectedCategory === cat.id ? 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[var(--bg-card)]'}`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-current mr-2.5 opacity-50" />
                         {cat.label}
@@ -1592,7 +1592,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                 </div>
 
                 {/* MAIN: GRID */}
-                <div className="flex-1 min-h-0 bg-[#0a0a0a] flex flex-col min-w-0 overflow-hidden">
+                <div className="flex-1 min-h-0 bg-[var(--bg-dark)] flex flex-col min-w-0 overflow-hidden">
                   <div
                     className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 sm:p-5"
                     style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
@@ -1602,7 +1602,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       {/* Option: Silent */}
                       <div
                         {...tap(() => handleSoundSelect("none"))}
-                        className="group p-3 rounded-xl border border-white/5 bg-[#161616] hover:bg-[#1a1a1a] flex items-center gap-3 cursor-pointer hover:border-white/20 transition-all"
+                        className="group p-3 rounded-xl border border-white/5 bg-[var(--bg-card)] hover:bg-[var(--bg-dark)] flex items-center gap-3 cursor-pointer hover:border-white/20 transition-all"
                       >
                         <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-white"><Volume2 className="w-5 h-5" /></div>
                         <span className="text-sm font-bold text-gray-400 group-hover:text-white">Silencieux</span>
@@ -1619,7 +1619,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         return (
                           <div
                             key={sound.id || i}
-                            className={`group relative p-3 rounded-xl border transition-all duration-200 bg-[#161616] hover:bg-[#1a1a1a] flex flex-col gap-2 ${isSelected ? 'border-[var(--accent-brown)] bg-[var(--accent-brown)]/5' : 'border-[#222] hover:border-[#444]'}`}
+                            className={`group relative p-3 rounded-xl border transition-all duration-200 bg-[var(--bg-card)] hover:bg-[var(--bg-dark)] flex flex-col gap-2 ${isSelected ? 'border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)]' : 'border-[var(--border-color)] hover:border-[var(--border-color)]'}`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
@@ -1627,7 +1627,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                                   {sound.name}
                                 </div>
                                 <div className="mt-1">
-                                  <Badge variant="outline" className="h-[18px] px-1.5 border-[#333] bg-[#111] text-[9px] text-gray-400 font-normal rounded">
+                                  <Badge variant="outline" className="h-[18px] px-1.5 border-[var(--border-color)] bg-[var(--bg-card)] text-[9px] text-gray-400 font-normal rounded">
                                     {sound.category || 'Custom'}
                                   </Badge>
                                 </div>
@@ -1641,8 +1641,8 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                                 variant="ghost"
                                 {...tap((e) => { e?.stopPropagation?.(); togglePreview(sound.soundUrl); })}
                                 className={`flex-1 h-8 rounded-lg text-xs font-medium border transition-colors ${isPlaying
-                                  ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)] hover:bg-[#d4b494]'
-                                  : 'bg-[#111] border-[#333] text-gray-300 hover:bg-[#222] hover:border-[#555]'
+                                  ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)]'
+                                  : 'bg-[var(--bg-card)] border-[var(--border-color)] text-gray-300 hover:bg-[var(--bg-dark)] hover:border-[var(--border-color)]'
                                   }`}
                               >
                                 {isPlaying ? (
@@ -1658,7 +1658,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                                 {...tap((e) => { e?.stopPropagation?.(); handleSoundSelect(sound.id); })}
                                 className={`h-8 w-8 rounded-lg shrink-0 transition-all ${isSelected
                                   ? 'bg-[var(--accent-brown)] text-black'
-                                  : 'bg-[#111] border border-[#333] text-gray-400 hover:text-white hover:border-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10'
+                                  : 'bg-[var(--bg-card)] border border-[var(--border-color)] text-gray-400 hover:text-white hover:border-[var(--accent-brown)] hover:bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]'
                                   }`}
                               >
                                 {isSelected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}

@@ -154,7 +154,7 @@ export default function MesCampagnesPage() {
         {selectedRoom ? (
           <>
             {/* Header */}
-            <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]/80 backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg">
+            <div className="border-b border-[var(--border-color)] backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg" style={{ background: 'color-mix(in srgb, var(--bg-card) 80%, transparent)' }}>
               <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <Button variant="ghost" size="sm" onClick={() => setSelectedRoom(null)} className="gap-2 shrink-0 text-[var(--text-primary)] hover:bg-white/10">
@@ -172,7 +172,7 @@ export default function MesCampagnesPage() {
                 {/* Image principale */}
                 <div className="lg:col-span-2 space-y-8">
                   <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent-brown)]/20 via-[var(--accent-brown)]/40 to-[var(--accent-brown)]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
+                    <div className="absolute -inset-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] via-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] to-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
                     <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border-color)] shadow-2xl bg-[var(--bg-dark)]">
                       <img
                         src={selectedRoom.imageUrl || '/placeholder.svg'}
@@ -345,19 +345,19 @@ export default function MesCampagnesPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-gradient-to-r from-[var(--accent-brown)]/30 to-transparent" />
+                  <div className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] to-transparent" />
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)]">
+                  <div className="p-4 rounded-xl backdrop-blur-sm border border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 40%, transparent)' }}>
                     <div className="flex items-center gap-2 mb-1">
                       <Shield className="h-4 w-4 text-[var(--accent-brown)]" />
                       <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Créées</span>
                     </div>
                     <p className="text-2xl font-bold text-[var(--text-primary)]">{myCreatedRooms.length}</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)]">
+                  <div className="p-4 rounded-xl backdrop-blur-sm border border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-card) 40%, transparent)' }}>
                     <div className="flex items-center gap-2 mb-1">
                       <Gamepad2 className="h-4 w-4 text-[var(--accent-brown)]" />
                       <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Rejointes</span>
@@ -371,7 +371,7 @@ export default function MesCampagnesPage() {
               <div className="space-y-10">
                 {userRooms.length === 0 ? (
                   <div className="text-center py-24 space-y-6 border border-dashed border-[var(--border-color)] rounded-2xl">
-                    <div className="w-20 h-20 mx-auto rounded-2xl bg-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/10 flex items-center justify-center">
+                    <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 5%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}>
                       <Gamepad2 className="h-10 w-10 text-[var(--text-secondary)] opacity-30" />
                     </div>
                     <div className="space-y-2">
@@ -386,7 +386,7 @@ export default function MesCampagnesPage() {
                     {myCreatedRooms.length > 0 && (
                       <div className="space-y-5">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                          <div className="p-2 rounded-xl" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                             <Shield className="h-5 w-5 text-[var(--accent-brown)]" />
                           </div>
                           <div>
@@ -399,14 +399,15 @@ export default function MesCampagnesPage() {
                             <div
                               key={room.id}
                               onClick={() => setSelectedRoom(room)}
-                              className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm hover:border-[var(--accent-brown)]/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                              className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                              style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                             >
                               <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
                                 {room.imageUrl ? (
                                   <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
-                                    <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                                    <Gamepad2 className="h-12 w-12" style={{ color: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
                                   </div>
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -414,7 +415,7 @@ export default function MesCampagnesPage() {
                                   <Users className="h-3 w-3" />
                                   {room.occupantsCount || 0}/{room.maxPlayers}
                                 </div>
-                                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[var(--accent-brown)]/40 backdrop-blur-sm border border-[var(--accent-brown)]/50 text-xs font-bold text-[var(--accent-brown)] flex items-center gap-1.5">
+                                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full backdrop-blur-sm text-xs font-bold text-[var(--accent-brown)] flex items-center gap-1.5" style={{ background: 'color-mix(in srgb, var(--accent-brown) 40%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 50%, transparent)' }}>
                                   <Shield className="h-3 w-3" />
                                   MJ
                                 </div>
@@ -437,7 +438,7 @@ export default function MesCampagnesPage() {
                     {myJoinedRooms.length > 0 && (
                       <div className="space-y-5">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                          <div className="p-2 rounded-xl" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
                             <Gamepad2 className="h-5 w-5 text-[var(--accent-brown)]" />
                           </div>
                           <div>
@@ -450,14 +451,15 @@ export default function MesCampagnesPage() {
                             <div
                               key={room.id}
                               onClick={() => setSelectedRoom(room)}
-                              className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm hover:border-[var(--accent-brown)]/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                              className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                              style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                             >
                               <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
                                 {room.imageUrl ? (
                                   <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
-                                    <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                                    <Gamepad2 className="h-12 w-12" style={{ color: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
                                   </div>
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />

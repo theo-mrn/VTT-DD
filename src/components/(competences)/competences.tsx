@@ -498,7 +498,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                                     </h2>
                                     <div className={`px-2 py-1 rounded text-xs font-semibold border ${selectedCharacter && Number(selectedCharacter[selectedSkill.voie as keyof Character] ?? 0) >= selectedSkill.rank
                                         ? 'bg-green-500/10 text-green-500 border-green-500/20'
-                                        : 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border-[var(--accent-brown)]/20'
+                                        : 'bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-[var(--accent-brown)] border-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)]'
                                         }`}>
                                         Rang {selectedSkill.rank}
                                     </div>
@@ -529,7 +529,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                                                 disabled={!isUnlockable}
                                                 className={`relative overflow-hidden transition-all duration-300 ${!isUnlockable
                                                     ? 'opacity-50 cursor-not-allowed bg-[var(--bg-darker)]'
-                                                    : 'bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] hover:shadow-lg hover:shadow-[var(--accent-brown)]/20 text-[var(--bg-dark)] font-bold'
+                                                    : 'bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] hover:shadow-lg hover:shadow-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] text-[var(--bg-dark)] font-bold'
                                                     }`}
                                             >
                                                 {selectedCharacter && Number(selectedCharacter[selectedSkill.voie as keyof Character] ?? 0) >= selectedSkill.rank

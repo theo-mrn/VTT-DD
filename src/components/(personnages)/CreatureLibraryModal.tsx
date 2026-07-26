@@ -219,7 +219,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         footer={
                             hasProfile && !isSelected ? (
                                 <div className="flex items-center justify-end w-full">
-                                    <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
+                                    <div className="bg-[var(--accent-brown)] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
                                         <Plus className="w-3 h-3" strokeWidth={4} />
                                     </div>
                                 </div>
@@ -277,59 +277,59 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         <div className="fixed inset-0 z-[999999999] flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
 
             {/* Main Container - The "Opened Book" */}
-            <div className="w-[95vw] h-[90vh] max-w-7xl bg-[#09090b] border border-[#2a2a2a] rounded-2xl shadow-2xl flex relative overflow-hidden ring-1 ring-white/10">
+            <div className="w-[95vw] h-[90vh] max-w-7xl bg-[var(--bg-darker)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex relative overflow-hidden ring-1 ring-white/10">
 
                 {/* --- LEFT PANEL: BROWSER (65%) --- */}
-                <div className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e]">
+                <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-darker)]">
 
                     {/* Header */}
-                    <div className="p-6 border-b border-[#2a2a2a] bg-[#121214] flex justify-between items-center gap-6">
+                    <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-dark)] flex justify-between items-center gap-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20 flex items-center justify-center">
-                                <BookOpen className="w-5 h-5 text-[#c0a080]" />
+                            <div className="w-10 h-10 rounded-lg border flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                                <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-serif font-bold text-[#e4e4e7] tracking-tight">Mes PNJ</h1>
+                                <h1 className="text-2xl font-serif font-bold text-[var(--text-primary)] tracking-tight">Mes PNJ</h1>
                                 <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium"></p>
                             </div>
                         </div>
 
                         {/* Search Bar */}
                         <div className="relative flex-1 max-w-md group">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c0a080] transition-colors" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[var(--accent-brown)] transition-colors" />
                             <input
                                 type="text"
                                 placeholder="Rechercher une créature, une race..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-[#18181b] border border-[#27272a] rounded-full py-2.5 pl-10 pr-4 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080]/50 transition-all font-medium text-sm"
+                                className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-full py-2.5 pl-10 pr-4 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-all font-medium text-sm"
                             />
                         </div>
                     </div>
                     {/* Top Navigation Bar */}
                     <div className="flex items-center justify-start mb-4 px-6">
-                        <div className="flex items-center p-1.5 bg-[#18181b] rounded-2xl border border-[#27272a] shadow-2xl w-fit">
+                        <div className="flex items-center p-1.5 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] shadow-2xl w-fit">
                             <button
                                 onClick={() => { setActiveTab('npc'); setSelectedCreature(null) }}
                                 className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
                                     ${activeTab === 'npc'
-                                        ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                        ? 'bg-[var(--accent-brown)] text-[var(--bg-darker)] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
                                         : 'text-zinc-500 hover:text-zinc-200'
                                     }`}
                             >
-                                <User className={`w-4 h-4 ${activeTab === 'npc' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                <User className={`w-4 h-4 ${activeTab === 'npc' ? 'text-black' : 'text-[var(--accent-brown)]'}`} />
                                 <span>Nouveau PNJ</span>
                             </button>
-                            <div className="w-px h-6 bg-[#2a2a2a] mx-2" />
+                            <div className="w-px h-6 bg-[var(--border-color)] mx-2" />
                             <button
                                 onClick={() => setActiveTab('bestiary')}
                                 className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
                                     ${activeTab === 'bestiary'
-                                        ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                        ? 'bg-[var(--accent-brown)] text-[var(--bg-darker)] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
                                         : 'text-zinc-500 hover:text-zinc-200'
                                     }`}
                             >
-                                <Ghost className={`w-4 h-4 ${activeTab === 'bestiary' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                <Ghost className={`w-4 h-4 ${activeTab === 'bestiary' ? 'text-black' : 'text-[var(--accent-brown)]'}`} />
                                 <span className="flex items-center gap-1.5">
                                     Bestiaire
                                     {selectedCreature && (
@@ -343,14 +343,14 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     {/* Content Grid */}
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <div className="w-8 h-8 border-4 border-[#c0a080] border-t-transparent rounded-full animate-spin" />
+                            <div className="w-8 h-8 border-4 border-[var(--accent-brown)] border-t-transparent rounded-full animate-spin" />
                         </div>
                     ) : activeTab === 'npc' ? (
                         /* NPC MODE: 2 columns side by side */
                         <div className="flex-1 flex min-h-0 overflow-hidden">
                             {/* Races column */}
-                            <div className="flex-1 flex flex-col min-w-0 border-r border-[#2a2a2a]">
-                                <div className="px-4 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-2 shrink-0">
+                            <div className="flex-1 flex flex-col min-w-0 border-r border-[var(--border-color)]">
+                                <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-dark)] flex items-center gap-2 shrink-0">
                                     <Dna className="w-3.5 h-3.5 text-blue-400" />
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Races</span>
                                     {selectedRaceData && (
@@ -397,7 +397,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
                             {/* Classes column */}
                             <div className="flex-1 flex flex-col min-w-0">
-                                <div className="px-4 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-2 shrink-0">
+                                <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-dark)] flex items-center gap-2 shrink-0">
                                     <Swords className="w-3.5 h-3.5 text-purple-400" />
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Classes</span>
                                     {selectedProfileData && (
@@ -443,10 +443,10 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 </div>
 
                 {/* --- RIGHT PANEL: INSPECTOR (35%) --- */}
-                <div className="w-[420px] border-l border-[#2a2a2a] bg-[#121212] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
+                <div className="w-[420px] border-l border-[var(--border-color)] bg-[var(--bg-dark)] flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-10 relative">
 
                     {/* Background Ambient Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a1a] to-transparent opacity-50 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-dark)] to-transparent opacity-50 pointer-events-none" />
 
                     {/* Close Button (Moved Inside Right Panel with z-50) */}
                     <button
@@ -458,7 +458,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                         {/* 1. Portrait Header - Larger Image */}
-                        <div className="relative h-[400px] bg-black group overflow-hidden border-b border-[#2a2a2a]">
+                        <div className="relative h-[400px] bg-black group overflow-hidden border-b border-[var(--border-color)]">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-black opacity-30" />
                             {isEditing ? (
                                 <div className="absolute inset-0 z-10">
@@ -486,12 +486,12 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         <img src={getPreviewImage() || ''} className="w-full h-full object-cover object-top" />
                                     </div>
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-[#151515]">
-                                        <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                                    <div className="w-full h-full flex items-center justify-center bg-[var(--bg-card)]">
+                                        <User className="w-20 h-20 text-[var(--border-color)]" strokeWidth={1} />
                                     </div>
                                 )
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none z-20" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-dark)] via-[color-mix(in_srgb,var(--bg-dark)_60%,transparent)] to-transparent pointer-events-none z-20" />
 
                             {/* Edit / Controls Overlay */}
                             {!isEditing && getPreviewImage() && (
@@ -509,7 +509,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
                             {/* Edit Mode Controls */}
                             {isEditing && (
-                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[#18181b] border border-white/10 rounded-full px-4 py-2 shadow-xl w-3/4">
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[var(--bg-card)] border border-white/10 rounded-full px-4 py-2 shadow-xl w-3/4">
                                     <ZoomIn className="w-4 h-4 text-zinc-400" />
                                     <Slider
                                         value={[zoom]}
@@ -534,7 +534,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                     {selectedCreature && (
                                         <button
                                             onClick={() => setActiveImageSource('creature')}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'creature' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'creature' ? 'bg-[var(--accent-brown)] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
                                             title="Image de Créature"
                                         >
                                             <Ghost className="w-4 h-4" />
@@ -543,7 +543,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                     {selectedRace && (
                                         <button
                                             onClick={() => setActiveImageSource('race')}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'race' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'race' ? 'bg-[var(--accent-brown)] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
                                             title="Image de Race"
                                         >
                                             <Dna className="w-4 h-4" />
@@ -552,7 +552,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                     {selectedProfile && (
                                         <button
                                             onClick={() => setActiveImageSource('profile')}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'profile' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'profile' ? 'bg-[var(--accent-brown)] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
                                             title="Image de Profil"
                                         >
                                             <Swords className="w-4 h-4" />
@@ -561,7 +561,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                     {customImage && activeImageSource === 'custom' && (
                                         <button
                                             onClick={() => setActiveImageSource('custom')}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'custom' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'custom' ? 'bg-[var(--accent-brown)] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
                                             title="Image Personnalisée"
                                         >
                                             <User className="w-4 h-4" />
@@ -579,11 +579,11 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                             value={customName}
                                             onChange={(e) => setCustomName(e.target.value)}
                                             placeholder={getPreviewName()}
-                                            className="w-full bg-transparent text-3xl font-serif font-bold text-white drop-shadow-md leading-tight focus:outline-none border-b-2 border-white/10 hover:border-white/30 focus:border-[#c0a080] placeholder:text-white transition-all py-1"
+                                            className="w-full bg-transparent text-3xl font-serif font-bold text-white drop-shadow-md leading-tight focus:outline-none border-b-2 border-white/10 hover:border-white/30 focus:border-[var(--accent-brown)] placeholder:text-white transition-all py-1"
                                         />
                                         <Pencil className="absolute right-0 w-5 h-5 text-white/30 group-hover:text-white/80 pointer-events-none transition-colors" />
                                     </div>
-                                    <div className="flex items-center gap-2 text-[#c0a080] text-sm font-medium uppercase tracking-wider">
+                                    <div className="flex items-center gap-2 text-[var(--accent-brown)] text-sm font-medium uppercase tracking-wider">
                                         {selectedCreatureData ? 'Créature' : 'Nouvelle Créature'}
                                     </div>
                                 </div>
@@ -593,20 +593,20 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         {/* 2. Interactive Controls (Level/Image) - Always Available */}
                         <div className="px-6 py-4 space-y-4">
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col gap-2">
+                                <div className="bg-[var(--bg-dark)] border border-[var(--border-color)] p-3 rounded-lg flex flex-col gap-2">
                                     <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Niveau</span>
                                     <div className="flex items-center gap-3">
                                         <input
                                             type="range" min="1" max="20"
                                             value={targetLevel}
                                             onChange={(e) => setTargetLevel(parseInt(e.target.value))}
-                                            className="flex-1 accent-[#c0a080] h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                                            className="flex-1 accent-[var(--accent-brown)] h-1.5 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer"
                                         />
-                                        <span className="text-[#c0a080] font-mono font-bold text-lg">{targetLevel}</span>
+                                        <span className="text-[var(--accent-brown)] font-mono font-bold text-lg">{targetLevel}</span>
                                     </div>
                                 </div>
-                                <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 transition-colors group">
-                                    <Upload className="w-4 h-4 text-zinc-500 group-hover:text-[#c0a080] mb-1" />
+                                <label className="bg-[var(--bg-dark)] border border-[var(--border-color)] p-3 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[color-mix(in_srgb,var(--accent-brown)_50%,transparent)] transition-colors group">
+                                    <Upload className="w-4 h-4 text-zinc-500 group-hover:text-[var(--accent-brown)] mb-1" />
                                     <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider group-hover:text-zinc-300">Image</span>
                                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                                 </label>
@@ -623,7 +623,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                     <p className="text-zinc-400 leading-relaxed text-sm">
                                         {(selectedCreatureData ?? selectedRaceData)?.description}
                                         {selectedProfileData && !selectedCreatureData && (
-                                            <span className="block mt-2 text-zinc-500 italic border-l-2 border-[#333] pl-3">
+                                            <span className="block mt-2 text-zinc-500 italic border-l-2 border-[var(--border-color)] pl-3">
                                                 {selectedProfileData.description}
                                             </span>
                                         )}
@@ -635,8 +635,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 principale, défense, attaques de combat, caractéristiques) plutôt que
                                 PV/Defense/Contact/Distance/Magie/FOR/DEX/... en dur. */}
                             <div className="space-y-6">
-                                <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                                <h3 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                                     Statistiques
                                 </h3>
 
@@ -648,7 +648,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         ...(defenseKey ? [{ label: 'DEF', key: defenseKey, color: 'text-blue-400' }] : []),
                                         ...extraCombatStats.map((stat) => ({ label: stat.shortLabel || stat.label, key: stat.key, color: 'text-yellow-400' })),
                                     ].map(stat => (
-                                        <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
+                                        <div key={stat.key} className="bg-[var(--bg-card)] p-2 rounded border border-[var(--border-color)] flex flex-col items-center">
                                             <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
                                             <input
                                                 type="number"
@@ -664,7 +664,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 {combatAttackKeys.length > 0 && (
                                     <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${combatAttackKeys.length}, minmax(0, 1fr))` }}>
                                         {combatAttackKeys.map((key, i) => (
-                                            <div key={key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
+                                            <div key={key} className="bg-[var(--bg-card)] p-2 rounded border border-[var(--border-color)] flex flex-col items-center">
                                                 <span className="text-zinc-500 text-[10px] uppercase font-bold">{key}</span>
                                                 <input
                                                     type="number"
@@ -681,13 +681,13 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 {abilityStats.length > 0 && (
                                     <div className="grid grid-cols-3 gap-2">
                                         {abilityStats.map((stat) => (
-                                            <div key={stat.key} className="flex items-center justify-between bg-[#1a1a1a] px-2 py-1.5 rounded border border-[#2a2a2a]">
+                                            <div key={stat.key} className="flex items-center justify-between bg-[var(--bg-dark)] px-2 py-1.5 rounded border border-[var(--border-color)]">
                                                 <span className="text-[10px] font-bold text-zinc-400">{stat.shortLabel || stat.key}</span>
                                                 <input
                                                     type="number"
                                                     value={stats[stat.key] ?? 10}
                                                     onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
-                                                    className="w-12 bg-transparent text-right font-mono text-sm text-[#e0e0e0] focus:outline-none focus:text-[#c0a080]"
+                                                    className="w-12 bg-transparent text-right font-mono text-sm text-[var(--text-primary)] focus:outline-none focus:text-[var(--accent-brown)]"
                                                 />
                                             </div>
                                         ))}
@@ -699,16 +699,16 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="p-6 border-t border-[#2a2a2a] bg-[#121212] flex gap-3 z-20">
-                        <button onClick={onClose} className="px-6 py-3 rounded-xl border border-[#333] text-zinc-400 hover:text-white hover:bg-[#222] font-medium text-sm transition-colors">
+                    <div className="p-6 border-t border-[var(--border-color)] bg-[var(--bg-dark)] flex gap-3 z-20">
+                        <button onClick={onClose} className="px-6 py-3 rounded-xl border border-[var(--border-color)] text-zinc-400 hover:text-white hover:bg-[var(--bg-card)] font-medium text-sm transition-colors">
                             Fermer
                         </button>
                         <button
                             onClick={handleImport}
                             disabled={!(getPreviewImage() || customImage) || isCreating}
                             className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${(getPreviewImage() || customImage) && !isCreating
-                                ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg shadow-[#c0a080]/10'
-                                : 'bg-[#1a1a1a] text-zinc-600 cursor-not-allowed border border-[#2a2a2a]'
+                                ? 'bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black shadow-lg shadow-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]'
+                                : 'bg-[var(--bg-dark)] text-zinc-600 cursor-not-allowed border border-[var(--border-color)]'
                             }`}
                         >
                             {isCreating ? (
@@ -765,13 +765,13 @@ function Card({ title, subtitle, image, isSelected, onClick, footer }: CardProps
                 group relative flex flex-col aspect-[3/4] rounded-xl overflow-hidden cursor-pointer transition-all duration-300
                 border 
                 ${isSelected
-                    ? 'border-[#c0a080] ring-1 ring-[#c0a080] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
-                    : 'border-[#27272a] hover:border-[#52525b] hover:shadow-xl opacity-80 hover:opacity-100'
+                    ? 'border-[var(--accent-brown)] ring-1 ring-[var(--accent-brown)] scale-[1.02] shadow-[0_0_20px_rgba(192,160,128,0.2)]'
+                    : 'border-[var(--border-color)] hover:border-[var(--text-secondary)] hover:shadow-xl opacity-80 hover:opacity-100'
                 }
             `}
         >
             {/* Image Layer */}
-            <div className="absolute inset-0 bg-[#1a1a1a]">
+            <div className="absolute inset-0 bg-[var(--bg-dark)]">
                 {image ? (
                     <img
                         src={image}
@@ -779,8 +779,8 @@ function Card({ title, subtitle, image, isSelected, onClick, footer }: CardProps
                         className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#202022]">
-                        <User className="w-12 h-12 text-[#333]" />
+                    <div className="w-full h-full flex items-center justify-center bg-[var(--bg-card)]">
+                        <User className="w-12 h-12 text-[var(--border-color)]" />
                     </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
@@ -788,10 +788,10 @@ function Card({ title, subtitle, image, isSelected, onClick, footer }: CardProps
 
             {/* Content Layer */}
             <div className="relative flex-1 flex flex-col justify-end p-4">
-                <span className="text-[10px] font-bold text-[#c0a080] uppercase tracking-wider mb-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
+                <span className="text-[10px] font-bold text-[var(--accent-brown)] uppercase tracking-wider mb-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 duration-300">
                     {subtitle}
                 </span>
-                <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[#c0a080]' : 'text-zinc-200 group-hover:text-white'}`}>
+                <h3 className={`font-serif text-lg font-bold leading-none mb-2 ${isSelected ? 'text-[var(--accent-brown)]' : 'text-zinc-200 group-hover:text-white'}`}>
                     {title}
                 </h3>
 
@@ -804,7 +804,7 @@ function Card({ title, subtitle, image, isSelected, onClick, footer }: CardProps
 
             {/* Selection Indicator */}
             {isSelected && (
-                <div className="absolute top-3 right-3 w-6 h-6 bg-[#c0a080] rounded-full flex items-center justify-center shadow-lg">
+                <div className="absolute top-3 right-3 w-6 h-6 bg-[var(--accent-brown)] rounded-full flex items-center justify-center shadow-lg">
                     <Check className="w-4 h-4 text-black" strokeWidth={3} />
                 </div>
             )}

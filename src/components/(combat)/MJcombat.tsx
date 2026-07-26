@@ -80,7 +80,7 @@ function ConditionManager({ character, onToggle }: { character: Character, onTog
                     key={condition.id}
                     variant="ghost"
                     size="sm"
-                    className={`w-full justify-start gap-2 h-8 ${isActive ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-dark)]'}`}
+                    className={`w-full justify-start gap-2 h-8 ${isActive ? 'bg-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] text-[var(--accent-brown)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-dark)]'}`}
                     onClick={() => onToggle(character.id, condition.id)}
                   >
                     {condition.iconSrc ? (
@@ -203,7 +203,7 @@ function CompactCharacterCard({
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   const accentClasses = {
-    brown: { border: 'border-[var(--accent-brown)]', bg: 'bg-[var(--accent-brown)]/5', text: 'text-[var(--accent-brown)]' },
+    brown: { border: 'border-[var(--accent-brown)]', bg: 'bg-[color-mix(in_srgb,var(--accent-brown)_5%,transparent)]', text: 'text-[var(--accent-brown)]' },
     red: { border: 'border-red-900/40', bg: 'bg-red-950/10', text: 'text-red-500' },
     blue: { border: 'border-blue-500/50', bg: 'bg-blue-950/10', text: 'text-blue-400' },
   }[accent]
@@ -1257,7 +1257,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
       (activeSide === 'joueurs' ? c.type === 'joueurs' : c.type !== 'joueurs')
       && !slotState.actedIds.includes(c.id))
     return (
-      <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2 bg-[var(--bg-dark)]/40">
+      <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2" style={{ background: 'color-mix(in srgb, var(--bg-dark) 40%, transparent)' }}>
         <div className="flex items-center gap-1.5 flex-wrap">
           <Badge variant="outline" className="border-[var(--border-color)] text-[var(--text-secondary)] shrink-0">Round {slotState.round}</Badge>
           {slotState.slots.map((side, i) => (
@@ -1266,7 +1266,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
               title={side === 'joueurs' ? 'Créneau Joueur' : 'Créneau Ennemi'}
               className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold border ${
                 side === 'joueurs' ? 'text-blue-400 border-blue-500/40' : 'text-red-400 border-red-500/40'
-              } ${i === slotState.slotIndex ? 'ring-2 ring-[var(--accent-brown)] bg-[var(--accent-brown)]/15' : 'opacity-60'}`}
+              } ${i === slotState.slotIndex ? 'ring-2 ring-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)]' : 'opacity-60'}`}
             >
               {side === 'joueurs' ? 'J' : 'E'}
             </span>
@@ -1368,7 +1368,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
         {/* Active character card */}
         {activeCharacter ? (
           <div className="rounded-2xl border-2 border-[var(--accent-brown)] bg-[var(--bg-card)] overflow-hidden">
-            <div className="p-4 bg-[var(--accent-brown)]/5">
+            <div className="p-4" style={{ background: 'color-mix(in srgb, var(--accent-brown) 5%, transparent)' }}>
               <div className="flex items-center gap-3">
                 <Avatar className="h-16 w-16 shrink-0 border-2 border-[var(--accent-brown)]">
                   <AvatarImage src={activeCharacter.avatar} alt={activeCharacter.name} className="object-cover" />
@@ -1641,12 +1641,12 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                       className={`relative flex flex-col overflow-hidden rounded-xl border bg-[var(--bg-card)] shadow-sm transition-colors ${report.applied
                         ? 'border-[var(--border-color)] opacity-55'
                         : report.réussite
-                          ? 'border-[var(--accent-brown)]/40'
+                          ? 'border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)]'
                           : 'border-[var(--border-color)]'
                         }`}
                     >
                       {/* Status rail */}
-                      <div className={`absolute left-0 top-0 h-full w-1 ${report.applied ? 'bg-[var(--text-secondary)]/30' : report.réussite ? 'bg-[var(--accent-brown)]' : 'bg-[var(--text-secondary)]/40'}`} />
+                      <div className={`absolute left-0 top-0 h-full w-1 ${report.applied ? 'bg-[color-mix(in_srgb,var(--text-secondary)_30%,transparent)]' : report.réussite ? 'bg-[var(--accent-brown)]' : 'bg-[color-mix(in_srgb,var(--text-secondary)_40%,transparent)]'}`} />
 
                       <div className="flex items-start justify-between gap-2 px-4 pt-3.5 pl-5">
                         <div className="min-w-0">
@@ -1661,8 +1661,8 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
 
                         <span
                           className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${report.réussite
-                            ? 'bg-[var(--accent-brown)]/15 text-[var(--accent-brown)]'
-                            : 'bg-[var(--text-secondary)]/15 text-[var(--text-secondary)]'
+                            ? 'bg-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)] text-[var(--accent-brown)]'
+                            : 'bg-[color-mix(in_srgb,var(--text-secondary)_15%,transparent)] text-[var(--text-secondary)]'
                             }`}
                         >
                           {report.réussite ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
@@ -1709,7 +1709,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-[var(--text-secondary)] bg-[var(--bg-dark)]/50 rounded-lg border border-dashed border-[var(--border-color)] text-sm">
+                <div className="text-center py-6 text-[var(--text-secondary)] rounded-lg border border-dashed border-[var(--border-color)] text-sm" style={{ background: 'color-mix(in srgb, var(--bg-dark) 50%, transparent)' }}>
                   Aucune attaque enregistrée.
                 </div>
               )}

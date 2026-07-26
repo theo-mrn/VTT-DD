@@ -482,10 +482,10 @@ export default function LootComponent({
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-5xl bg-[#1a1a1a] border border-[#333] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[700px]"
+                        className="relative w-full max-w-5xl bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[700px]"
                     >
                         {/* Header */}
-                        <div className="p-6 border-b border-white/5 bg-[#1a1a1a] flex justify-between items-center">
+                        <div className="p-6 border-b border-white/5 bg-[var(--bg-dark)] flex justify-between items-center">
                             <div className="flex items-center gap-3 flex-1">
                                 <div className="p-2 bg-amber-900/20 rounded-lg text-amber-500">
                                     <Package size={24} />
@@ -496,7 +496,7 @@ export default function LootComponent({
                                             <Input
                                                 value={interaction.name}
                                                 onChange={(e) => handleUpdateName(e.target.value)}
-                                                className="bg-[#111] border-[#333] text-xl font-bold text-white mb-1"
+                                                className="bg-[var(--bg-darker)] border-[var(--border-color)] text-xl font-bold text-white mb-1"
                                                 placeholder="Nom du butin"
                                             />
                                         </div>
@@ -504,7 +504,7 @@ export default function LootComponent({
                                         <div className="flex items-center gap-4">
                                             <h2 className="text-2xl font-bold text-white font-serif">{interaction.name}</h2>
                                             {isMJ && (
-                                                <div className="flex items-center gap-2 bg-[#222] px-3 py-1 rounded-full border border-[#333]">
+                                                <div className="flex items-center gap-2 bg-[var(--bg-card)] px-3 py-1 rounded-full border border-[var(--border-color)]">
                                                     <Switch
                                                         id="shared-mode-header"
                                                         checked={isShared}
@@ -546,27 +546,27 @@ export default function LootComponent({
                         >
                             <div className="flex flex-1 overflow-hidden">
                                 {/* Left: Container */}
-                                <div className="flex-1 flex flex-col bg-[#161616] p-4 border-r border-[#333]">
+                                <div className="flex-1 flex flex-col bg-[var(--bg-dark)] p-4 border-r border-[var(--border-color)]">
                                     <h3 className="text-lg font-bold text-gray-300 mb-4 flex items-center gap-2">
                                         <Package className="text-amber-600" size={18} />
                                         Contenu
                                     </h3>
                                     {isEditMode ? (
-                                        <div className="flex-1 bg-[#0f0f0f] rounded-xl p-3 overflow-y-auto border border-[#333] min-h-[200px] space-y-2">
+                                        <div className="flex-1 bg-[var(--bg-darker)] rounded-xl p-3 overflow-y-auto border border-[var(--border-color)] min-h-[200px] space-y-2">
                                             {interaction.items.map((item) => (
-                                                <div key={item.id} className="flex flex-col gap-2 p-3 bg-[#202020] rounded-lg border border-white/5">
+                                                <div key={item.id} className="flex flex-col gap-2 p-3 bg-[var(--bg-card)] rounded-lg border border-white/5">
                                                     <div className="flex gap-2">
                                                         <Input
                                                             value={item.name}
                                                             onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
-                                                            className="flex-1 h-8 bg-[#151515] border-[#333] text-sm"
+                                                            className="flex-1 h-8 bg-[var(--bg-darker)] border-[var(--border-color)] text-sm"
                                                             placeholder="Nom"
                                                         />
                                                         <Input
                                                             type="number"
                                                             value={item.quantity}
                                                             onChange={(e) => handleUpdateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
-                                                            className="w-20 h-8 bg-[#151515] border-[#333] text-sm"
+                                                            className="w-20 h-8 bg-[var(--bg-darker)] border-[var(--border-color)] text-sm"
                                                             placeholder="Qté"
                                                         />
                                                         <Button
@@ -581,14 +581,14 @@ export default function LootComponent({
                                                     <Input
                                                         value={item.description || ""}
                                                         onChange={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
-                                                        className="h-8 bg-[#151515] border-[#333] text-xs text-gray-400"
+                                                        className="h-8 bg-[var(--bg-darker)] border-[var(--border-color)] text-xs text-gray-400"
                                                         placeholder="Description..."
                                                     />
                                                 </div>
                                             ))}
                                             <Button
                                                 variant="outline"
-                                                className="w-full border-dashed border-[#444] text-gray-500 hover:text-amber-500 hover:border-amber-500/50 h-10 text-sm"
+                                                className="w-full border-dashed border-[var(--border-color)] text-gray-500 hover:text-amber-500 hover:border-amber-500/50 h-10 text-sm"
                                                 onClick={handleAddItem}
                                             >
                                                 <Plus size={14} className="mr-2" /> Ajouter un objet
@@ -600,19 +600,19 @@ export default function LootComponent({
                                 </div>
 
                                 {/* Center: Action Area (Visual separator) */}
-                                <div className="w-12 bg-[#111] flex flex-col items-center justify-center border-x border-[#333] text-gray-600">
+                                <div className="w-12 bg-[var(--bg-darker)] flex flex-col items-center justify-center border-x border-[var(--border-color)] text-gray-600">
                                     <ArrowRightLeft size={20} />
                                 </div>
 
                                 {/* Right: Character Inventory or GM Tools */}
-                                <div className="flex-1 flex flex-col bg-[#1a1a1a] p-4">
+                                <div className="flex-1 flex flex-col bg-[var(--bg-dark)] p-4">
                                     {isMJ ? (
                                         <div className="flex flex-col h-full">
                                             <h3 className="text-lg font-bold text-amber-500 mb-4 flex items-center gap-2">
                                                 <Plus size={18} />
                                                 Ajouter au butin
                                             </h3>
-                                            <div className="bg-[#202020] p-4 rounded-xl border border-[#333] space-y-4">
+                                            <div className="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] space-y-4">
                                                 <Button
                                                     onClick={() => setIsCatalogOpen(true)}
                                                     className="w-full bg-amber-600 hover:bg-amber-700 text-white h-12 text-lg font-medium shadow-lg shadow-amber-900/20"
@@ -622,19 +622,19 @@ export default function LootComponent({
                                                 </Button>
 
                                                 <div className="relative flex items-center py-2">
-                                                    <div className="flex-grow border-t border-[#333]"></div>
+                                                    <div className="flex-grow border-t border-[var(--border-color)]"></div>
                                                     <span className="flex-shrink-0 mx-4 text-gray-500 text-xs uppercase tracking-wider">Ou ajout manuel</span>
-                                                    <div className="flex-grow border-t border-[#333]"></div>
+                                                    <div className="flex-grow border-t border-[var(--border-color)]"></div>
                                                 </div>
 
-                                                <div className="space-y-3 bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+                                                <div className="space-y-3 bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)]">
                                                     <div className="space-y-2">
                                                         <label className="text-xs font-medium text-gray-400 uppercase">Nom de l'objet</label>
                                                         <Input
                                                             value={newItemName}
                                                             onChange={(e) => setNewItemName(e.target.value)}
                                                             placeholder="Ex: Épée longue"
-                                                            className="bg-[#151515] border-[#333]"
+                                                            className="bg-[var(--bg-darker)] border-[var(--border-color)]"
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
@@ -643,7 +643,7 @@ export default function LootComponent({
                                                             type="number"
                                                             value={newItemQty}
                                                             onChange={(e) => setNewItemQty(parseInt(e.target.value) || 1)}
-                                                            className="bg-[#151515] border-[#333]"
+                                                            className="bg-[var(--bg-darker)] border-[var(--border-color)]"
                                                             min={1}
                                                         />
                                                     </div>
@@ -653,14 +653,14 @@ export default function LootComponent({
                                                             value={newItemDesc}
                                                             onChange={(e) => setNewItemDesc(e.target.value)}
                                                             placeholder="Ex: Une vieille lame rouillée..."
-                                                            className="bg-[#151515] border-[#333]"
+                                                            className="bg-[var(--bg-darker)] border-[var(--border-color)]"
                                                         />
                                                     </div>
                                                     <Button
                                                         onClick={handleGMAddItem}
                                                         disabled={!newItemName}
                                                         variant="ghost"
-                                                        className="w-full text-gray-400 hover:text-white hover:bg-[#333] border border-dashed border-[#444] mt-2"
+                                                        className="w-full text-gray-400 hover:text-white hover:bg-[var(--border-color)] border border-dashed border-[var(--border-color)] mt-2"
                                                     >
                                                         <Plus size={16} className="mr-2" />
                                                         Ajouter manuellement
@@ -721,7 +721,7 @@ function SortableList({ id, items }: SortableListProps) {
     const { setNodeRef } = useSortable({ id });
 
     return (
-        <div ref={setNodeRef} className="flex-1 bg-[#0f0f0f] rounded-xl p-3 overflow-y-auto border border-[#333] min-h-[200px]">
+        <div ref={setNodeRef} className="flex-1 bg-[var(--bg-darker)] rounded-xl p-3 overflow-y-auto border border-[var(--border-color)] min-h-[200px]">
             <SortableContext items={items.map(i => i.id)} strategy={rectSortingStrategy}>
                 <div className="grid grid-cols-1 gap-2">
                     {items.map((item) => (
@@ -769,10 +769,10 @@ function ItemCard({ item, overlay }: { item: LootItem, overlay?: boolean }) {
     return (
         <div className={`
             flex items-center gap-3 p-3 rounded-lg border 
-            ${overlay ? 'bg-[#252525] border-amber-500 shadow-xl scale-105 cursor-grabbing' : 'bg-[#202020] border-white/5 hover:bg-[#252525] hover:border-white/10 cursor-grab'}
+            ${overlay ? 'bg-[var(--bg-dark)] border-amber-500 shadow-xl scale-105 cursor-grabbing' : 'bg-[var(--bg-card)] border-white/5 hover:bg-[var(--bg-dark)] hover:border-white/10 cursor-grab'}
             transition-all select-none
         `}>
-            <div className="w-10 h-10 rounded bg-[#151515] border border-white/5 flex items-center justify-center overflow-hidden shrink-0 text-amber-700/50">
+            <div className="w-10 h-10 rounded bg-[var(--bg-darker)] border border-white/5 flex items-center justify-center overflow-hidden shrink-0 text-amber-700/50">
                 {item.image ? (
                     <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                 ) : (
