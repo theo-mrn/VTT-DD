@@ -27,6 +27,7 @@ export const WidgetBourse: React.FC<WidgetProps> = ({ style }) => {
         const foundCurrencies: typeof currencies = [];
 
         rawInventory.forEach((item: any) => {
+            if (item.isFolder) return;
             const isBourse = item.category === 'bourse' ||
                 (item.message && ["pièce d'or", "pièce d'argent", "pièce de cuivre"].some(s => item.message.toLowerCase().includes(s)));
 

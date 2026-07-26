@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Tabs,
     TabsContent,
@@ -50,6 +50,7 @@ interface InventoryItem {
     category: string;
     quantity: number;
     visibility?: string;
+    isFolder?: boolean;
 }
 
 const categoryShortLabels: Record<string, string> = {
@@ -532,7 +533,8 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
     const privateFields: string[] = selectedCharacter?.privateFields ?? [];
     const [activeDialogTab, setActiveDialogTab] = useState<'attributs' | 'inventaire'>('attributs');
 
-    const inventory = useCharacterInventory<InventoryItem>(roomId, selectedCharacter?.Nomperso);
+    const rawInventory = useCharacterInventory<InventoryItem>(roomId, selectedCharacter?.Nomperso);
+    const inventory = useMemo(() => rawInventory.filter(item => !item.isFolder), [rawInventory]);
     const handleToggleItemVisibility = async (item: InventoryItem) => {
         if (!roomId || !selectedCharacter) return;
         const newVisibility = item.visibility === 'private' ? 'public' : 'private';

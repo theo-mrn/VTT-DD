@@ -140,6 +140,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState<boolean>(false);
   const [newFolderName, setNewFolderName] = useState<string>('');
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState<boolean>(false);
+  const [contextMenuFolderId, setContextMenuFolderId] = useState<string | null>(null);
 
   // Descriptions d'objets legacy (Items.json = contenu D&D Classique) : chargées uniquement si la
   // salle utilise ce système — une salle en système custom n'affiche pas les descriptions D&D.
@@ -876,9 +877,10 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const isSearching = searchTerm.trim().length > 0;
   const allFolders = useMemo(() => inventory.filter(item => item.isFolder), [inventory]);
   const filteredFolders = useMemo(() => isSearching ? [] : allFolders
+    .filter(f => canSeePrivate || f.visibility !== 'private')
     .filter(f => (f.folderId ?? null) === currentFolderId)
     .sort((a, b) => a.message.localeCompare(b.message)),
-    [allFolders, isSearching, currentFolderId]);
+    [allFolders, isSearching, currentFolderId, canSeePrivate]);
 
   const filteredInventory = useMemo(() => inventory
     .filter(item => !item.isFolder)
@@ -1198,27 +1200,75 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                   className="relative group hover:shadow-lg hover:border-[var(--accent-brown)] transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
                 >
                   <CardContent className="p-2 flex flex-col items-center justify-center h-full">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer flex-shrink-0"
-                          onClick={() => setCurrentFolderId(folder.id)}
-                        >
-                          <Folder className="w-6 h-6 text-[var(--accent-brown)]" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
-                        <p className="font-semibold">{folder.message}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    {canEdit && (
-                      <button
-                        onClick={() => handleDeleteFolder(folder)}
-                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 p-1"
-                        title="Supprimer le dossier"
+                    {canEdit ? (
+                      <DropdownMenu
+                        modal={false}
+                        open={contextMenuFolderId === folder.id}
+                        onOpenChange={(open) => setContextMenuFolderId(open ? folder.id : null)}
                       >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                              <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
+                                <button
+                                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer"
+                                  onClick={() => setCurrentFolderId(folder.id)}
+                                  onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    setContextMenuFolderId(folder.id);
+                                  }}
+                                >
+                                  <Folder className="w-6 h-6 text-[var(--accent-brown)]" />
+                                </button>
+                                {folder.visibility === 'private' && (
+                                  <div className="absolute -bottom-1 -right-1 bg-[var(--bg-dark)] text-[var(--accent-brown)] rounded-full w-5 h-5 flex items-center justify-center border-2 border-[var(--bg-card)]">
+                                    <Lock size={10} />
+                                  </div>
+                                )}
+                              </div>
+                            </DropdownMenuTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                            <p className="font-semibold flex items-center gap-1">
+                              {folder.message}
+                              {folder.visibility === 'private' && <Lock size={10} className="text-[var(--accent-brown)]" />}
+                            </p>
+                            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">Clic droit pour les options</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <DropdownMenuContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                          <DropdownMenuItem onSelect={() => setCurrentFolderId(folder.id)}>
+                            Ouvrir
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => {
+                            setCurrentItem(folder);
+                            setNewItemName(folder.message);
+                            setIsRenameDialogOpen(true);
+                          }}>
+                            Renommer
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleToggleVisibility(folder)}>
+                            {folder.visibility === 'private' ? 'Rendre public' : 'Rendre privé'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDeleteFolder(folder)} className="text-red-500">
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer flex-shrink-0"
+                            onClick={() => setCurrentFolderId(folder.id)}
+                          >
+                            <Folder className="w-6 h-6 text-[var(--accent-brown)]" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                          <p className="font-semibold">{folder.message}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </CardContent>
                 </Card>
