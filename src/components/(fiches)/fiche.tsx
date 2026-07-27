@@ -26,7 +26,7 @@ import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
 import { ThemeConfig } from './theme-portal/types';
 import { buildCharacterExport, downloadCharacterExport, parseCharacterExport, importCharacterExport } from '@/utils/characterTransfer';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
-import { getFormulaDependencies } from '@/lib/rules-engine';
+import { getFormulaDependencies, resolveCharacterStats } from '@/lib/rules-engine';
 import { useGameContent } from '@/modules/game-content/useGameContent';
 import type { SpecializationDoc } from '@/modules/game-content/types';
 import { getSheetBackgroundOptions, subscribeSheetBackgrounds, getServerSheetBackgroundOptions } from '@/app/[roomid]/map/sheet-background-store';
@@ -171,7 +171,7 @@ export default function Component() {
   } = useCharacter();
 
   const { persoId: userPersoId, isMJ } = useGame();
-  const { gameSystem } = useGameSystem(roomId ?? null);
+  const { gameSystem, tableCustomStats } = useGameSystem(roomId ?? null);
 
   // Fonds de fiche fournis par un script de bundle (sheet-background-store) : la fiche pilote tout
   // (rendu du fond + sélecteur + persistance par personnage sur le champ sheetBackgroundId).
@@ -865,13 +865,17 @@ export default function Component() {
 
   const handleEdit = () => {
     if (!selectedCharacter) return;
-    // Initialise editForm depuis les stats du SYSTÈME ACTIF (ability/derived/vital) plutôt qu'une
-    // liste de clés D&D en dur — sans quoi un système custom (ex Star Wars) verrait ses champs vides
-    // à l'ouverture du formulaire tant que l'utilisateur n'a pas retapé une valeur.
+    // Initialise editForm depuis les stats du SYSTÈME ACTIF (ability/vital) plutôt qu'une liste de
+    // clés D&D en dur — sans quoi un système custom (ex Star Wars) verrait ses champs vides à
+    // l'ouverture du formulaire tant que l'utilisateur n'a pas retapé une valeur. Les stats 'derived'
+    // (ex Seuil de Blessure = base espèce + Vigueur) sont volontairement EXCLUES : elles sont
+    // recalculées en continu depuis leur valueFormula tant qu'aucune valeur n'est stockée en base
+    // (cf resolveCharacterStats) — les inclure ici écrirait leur valeur affichée telle quelle à
+    // chaque sauvegarde, les figeant définitivement et cassant leur lien avec la stat source.
     const statsForm: Record<string, number> = {};
     for (const stat of gameSystem.stats) {
       const isAbility = stat.category === 'ability' && abilityStats.some((a) => a.key === stat.key);
-      if (isAbility || stat.category === 'derived' || stat.category === 'vital') {
+      if (isAbility || stat.category === 'vital') {
         statsForm[stat.key] = Number(selectedCharacter[stat.key as keyof Character] ?? 0);
       }
     }
@@ -985,7 +989,73 @@ export default function Component() {
     setIsRaceModalOpen(true);
   };
 
-  const handleSave = async () => {
+  // Stats 'derived' dont la valueFormula référence directement une autre stat — ex Seuil de Blessure
+  // référence Vigueur, PV_Max référence Seuil de Blessure. Un lien direct (une seule arête), jamais codé
+  // en dur (pas de nom de stat en dur, ex "vigueur" n'apparaît nulle part ici) — la chaîne complète
+  // (Vigueur -> Seuil de Blessure -> PV_Max) se parcourt par transitivité dans computeDependentImpacts.
+  const directDependentsByStatKey = React.useMemo(() => {
+    const map = new Map<string, typeof gameSystem.stats>();
+    for (const stat of gameSystem.stats) {
+      if (stat.category !== 'derived' || !stat.valueFormula) continue;
+      for (const depKey of getFormulaDependencies(stat.valueFormula)) {
+        const list = map.get(depKey) ?? [];
+        list.push(stat);
+        map.set(depKey, list);
+      }
+    }
+    return map;
+  }, [gameSystem.stats]);
+
+  // Dialogue de confirmation affiché à la sauvegarde quand une ability modifiée impacte une ou
+  // plusieurs stats dérivées (ex Vigueur -> Seuil de Blessure -> PV_Max) — ces stats restent calculées
+  // en continu par le moteur (jamais stockées, cf handleEdit), donc aucune écriture supplémentaire n'est
+  // nécessaire : ce popup est purement informatif, pour que le joueur/MJ voie l'impact avant de valider
+  // plutôt que de le découvrir après coup sur la fiche.
+  const [pendingDependentImpacts, setPendingDependentImpacts] = useState<Array<{ label: string; from: number; to: number }> | null>(null);
+
+  const computeDependentImpacts = (): Array<{ label: string; from: number; to: number }> => {
+    if (!selectedCharacter || directDependentsByStatKey.size === 0) return [];
+
+    // Parcours transitif depuis chaque ability modifiée (BFS) : Vigueur change -> Seuil de Blessure
+    // (dépendant direct) -> PV_Max (dépendant du dépendant), etc. — sans ça une stat affichée au joueur
+    // mais à deux formules de distance de l'ability éditée (cas Star Wars : PV_Max référence Seuil de
+    // Blessure, qui référence Vigueur) ne serait jamais détectée.
+    const impactedStats = new Map<string, typeof gameSystem.stats[number]>();
+    const queue: string[] = [];
+    for (const stat of abilityStats) {
+      const before = Number(selectedCharacter[stat.key as keyof Character] ?? 0);
+      const after = Number(editForm[stat.key as keyof Character] ?? before);
+      if (before !== after) queue.push(stat.key);
+    }
+    while (queue.length > 0) {
+      const key = queue.shift()!;
+      for (const dependent of directDependentsByStatKey.get(key) ?? []) {
+        if (impactedStats.has(dependent.key)) continue;
+        impactedStats.set(dependent.key, dependent);
+        queue.push(dependent.key);
+      }
+    }
+    if (impactedStats.size === 0) return [];
+
+    const beforeResolved = resolveCharacterStats(gameSystem, tableCustomStats, selectedCharacter, bonuses ?? undefined);
+    const afterCharacter = { ...selectedCharacter, ...editForm } as Record<string, unknown>;
+    const afterResolved = resolveCharacterStats(gameSystem, tableCustomStats, afterCharacter, bonuses ?? undefined);
+
+    // Seules les stats visibles des joueurs sont affichées dans le popup — une stat intermédiaire cachée
+    // (ex Star Wars : SeuilBlessure/ValeurEncaissement, visibleToPlayers=false, existent uniquement pour
+    // que PV_Max/ValeurEncaissement/Stress_Max les enveloppent) resterait incompréhensible listée telle
+    // quelle ; elle sert seulement de maillon dans la chaîne de transitivité ci-dessus.
+    const impacts: Array<{ label: string; from: number; to: number }> = [];
+    for (const stat of impactedStats.values()) {
+      if (stat.visibleToPlayers === false) continue;
+      const from = Number(beforeResolved.values[stat.key] ?? 0);
+      const to = Number(afterResolved.values[stat.key] ?? 0);
+      if (from !== to) impacts.push({ label: stat.label, from, to });
+    }
+    return impacts;
+  };
+
+  const persistEditForm = async () => {
     if (!selectedCharacter) return;
     try {
       await updateCharacter(selectedCharacter.id, editForm);
@@ -1001,6 +1071,25 @@ export default function Component() {
         duration: 4000,
       });
     }
+  };
+
+  const handleSave = async () => {
+    if (!selectedCharacter) return;
+    const impacts = computeDependentImpacts();
+    if (impacts.length > 0) {
+      setPendingDependentImpacts(impacts);
+      return;
+    }
+    await persistEditForm();
+  };
+
+  const confirmSaveWithImpacts = async () => {
+    setPendingDependentImpacts(null);
+    await persistEditForm();
+  };
+
+  const cancelSaveImpacts = () => {
+    setPendingDependentImpacts(null);
   };
 
   const openLevelUpModal = () => {
@@ -1855,11 +1944,13 @@ export default function Component() {
                 Modifier {selectedCharacter?.Nomperso || "Personnage"}
               </h2>
 
-              {/* Stats dérivées/vitales (ex PV, Défense, Initiative) — dérivées du SYSTÈME ACTIF plutôt
-                  que des champs D&D en dur (PV/PV_Max/Defense/Contact/Magie/Distance/INIT n'existent
-                  que pour dnd-classic) ; un système custom (ex Star Wars) affiche ses propres stats. */}
+              {/* Stats vitales (ex PV, Stress) — dérivées du SYSTÈME ACTIF plutôt que des champs D&D en
+                  dur (PV/Defense/Contact/Magie/Distance/INIT n'existent que pour dnd-classic) ; un
+                  système custom (ex Star Wars) affiche ses propres stats. Les stats 'derived' (ex
+                  Défense, Seuil de Blessure) ne sont volontairement PAS éditables ici : elles sont
+                  recalculées depuis leur formule, jamais stockées en override manuel. */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-                {gameSystem.stats.filter((s) => s.category === 'derived' || s.category === 'vital').map((stat) => (
+                {gameSystem.stats.filter((s) => s.category === 'vital').map((stat) => (
                   <div key={stat.key} className="space-y-2">
                     <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">{stat.label}</label>
                     <input
@@ -1978,6 +2069,39 @@ export default function Component() {
                 >
                   Sauvegarder
                 </button>
+              </div>
+            </div>
+          )}
+
+          {pendingDependentImpacts && pendingDependentImpacts.length > 0 && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[110] p-4">
+              <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center">
+                <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)] mb-4">Stats liées impactées</h2>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Cette modification va aussi changer :
+                </p>
+                <div className="space-y-2 mb-6">
+                  {pendingDependentImpacts.map((impact) => (
+                    <div key={impact.label} className="flex items-center justify-between text-sm bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2">
+                      <span className="text-[var(--text-primary)]">{impact.label}</span>
+                      <span className="font-bold text-[var(--accent-brown)]">{impact.from} → {impact.to}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col xs:flex-row justify-center gap-3 xs:gap-4">
+                  <button
+                    onClick={cancelSaveImpacts}
+                    className="bg-[var(--bg-darker)] text-[var(--text-primary)] border border-[var(--border-color)] px-4 sm:px-6 py-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-300 text-xs sm:text-sm font-bold"
+                  >
+                    Revoir
+                  </button>
+                  <button
+                    onClick={confirmSaveWithImpacts}
+                    className="bg-[var(--accent-brown)] text-black px-4 sm:px-6 py-2 rounded-lg hover:bg-[var(--accent-brown-hover)] transition duration-300 text-xs sm:text-sm font-bold"
+                  >
+                    Confirmer
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -556,7 +556,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
   // figée par personnage). À chaque créneau Joueur, les joueurs décident ensemble qui agit (parmi ceux
   // qui n'ont pas encore agi ce round) ; à chaque créneau Ennemi, le MJ choisit son PNJ. Null = mode
   // classique (ordre de personnages figé, ex D&D).
-  const [slotState, setSlotState] = useState<{ slots: ('joueurs' | 'ennemis')[]; slotIndex: number; round: number; actedIds: string[] } | null>(null)
+  const [slotState, setSlotState] = useState<{ slots: ('joueurs' | 'ennemis')[]; slotIndex: number; round: number; actedIds: string[]; slotActors: Record<number, string> } | null>(null)
 
   // Classement d'initiative : rang décroissant, égalités au départage, et à égalité PARFAITE un
   // Joueur passe toujours devant un PNJ (règle EotE ; sans effet notable pour un tri numérique
@@ -608,6 +608,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
           slotIndex: data.slotIndex ?? 0,
           round: data.round ?? 1,
           actedIds: (data.actedIds ?? []) as string[],
+          slotActors: (data.slotActors ?? {}) as Record<number, string>,
         } : null)
       } else {
         setActivePlayerId(null)
@@ -984,7 +985,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
             // Mode créneaux (EotE) : chaque jet génère un créneau pour SON CAMP, dans l'ordre du
             // classement — personne n'est encore désigné, le camp du créneau actif choisit qui agit.
             const slots = sortedCharacters.map((c) => (c.type === 'joueurs' ? 'joueurs' : 'ennemis'))
-            await setDoc(combatRef, { slotMode: true, slots, slotIndex: 0, round: 1, actedIds: [], activePlayer: null }, { merge: true })
+            await setDoc(combatRef, { slotMode: true, slots, slotIndex: 0, round: 1, actedIds: [], slotActors: {}, activePlayer: null }, { merge: true })
           } else {
             await setDoc(combatRef, { slotMode: false, activePlayer: sortedCharacters[0].id }, { merge: true })
           }
@@ -1042,22 +1043,41 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
   }
 
   // Avance/recule d'un créneau (mode EotE) : en fin de round, on repart au premier créneau et tous
-  // les personnages redeviennent éligibles (actedIds remis à zéro).
+  // les personnages redeviennent éligibles (actedIds remis à zéro). En avançant, les rapports
+  // d'attaque de l'acteur du créneau qu'on quitte sont purgés (comme nextCharacter en mode
+  // classique) — sinon ils restent affichés indéfiniment une fois son tour terminé. En reculant,
+  // on restaure l'acteur exact désigné sur le créneau précédent (slotActors) au lieu de laisser
+  // activePlayer à null.
   const advanceSlot = async (dir: 1 | -1) => {
     if (!slotState || !roomId || !currentCityId || slotState.slots.length === 0) return
+
+    if (dir === 1) {
+      const leavingActorId = slotState.slotActors[slotState.slotIndex]
+      if (leavingActorId) {
+        const combatRef = collection(db, `cartes/${roomId}/combat/${leavingActorId}/rapport`)
+        const reportsToDelete = attackReports.filter(report => report.attaquant === leavingActorId)
+        for (const report of reportsToDelete) {
+          await deleteDoc(doc(combatRef, report.reportId))
+        }
+      }
+    }
+
     let slotIndex = slotState.slotIndex + dir
     let round = slotState.round
     let actedIds = slotState.actedIds
+    let slotActors = slotState.slotActors
     if (slotIndex >= slotState.slots.length) {
       slotIndex = 0
       round += 1
       actedIds = []
+      slotActors = {}
     } else if (slotIndex < 0) {
       slotIndex = slotState.slots.length - 1
       round = Math.max(1, round - 1)
     }
+    const activePlayer = slotActors[slotIndex] ?? null
     const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
-    await setDoc(combatRef, { slotIndex, round, actedIds, activePlayer: null }, { merge: true })
+    await setDoc(combatRef, { slotIndex, round, actedIds, slotActors, activePlayer }, { merge: true })
   }
 
   // Désigne le personnage qui agit sur le créneau actif (choisi par les joueurs ensemble sur un
@@ -1068,6 +1088,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
     await setDoc(combatRef, {
       activePlayer: char.id,
       actedIds: [...slotState.actedIds.filter((id) => id !== char.id), char.id],
+      slotActors: { ...slotState.slotActors, [slotState.slotIndex]: char.id },
     }, { merge: true })
   }
 
@@ -1248,14 +1269,24 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
 
   const activeCharacter = characters[0]
 
+  // Liste "Ordre du tour" : en mode classique, characters[0] est déjà affiché dans la carte
+  // "actif" donc on l'exclut du reste. En mode créneaux (EotE), il n'y a pas d'acteur figé en
+  // position 0 — chaque créneau choisit son acteur (renderSlotBar) — donc on affiche TOUS les
+  // personnages, sinon celui ayant agi sur un créneau précédent disparaîtrait de la liste alors
+  // qu'il reste éligible sur d'autres créneaux du round.
+  const turnOrderList = slotState ? characters : characters.slice(1)
+
   // Barre de créneaux (mode EotE) : round courant, suite des créneaux J/E (actif surligné), et
-  // choix du personnage qui agit sur le créneau actif parmi les éligibles de son camp.
+  // choix du personnage qui agit sur le créneau actif parmi TOUS les personnages de son camp — un
+  // personnage peut être désigné sur plusieurs créneaux du même round (règle EotE : le nombre de
+  // créneaux par camp = nombre de participants, mais rien n'empêche le même perso d'agir sur
+  // plusieurs créneaux de son camp pendant qu'un autre n'agit sur aucun). actedIds ne filtre donc
+  // plus la liste, il sert seulement à griser visuellement ceux ayant déjà agi ce round.
   const renderSlotBar = () => {
     if (!slotState || slotState.slots.length === 0) return null
     const activeSide = slotState.slots[slotState.slotIndex]
     const eligible = characters.filter((c) =>
-      (activeSide === 'joueurs' ? c.type === 'joueurs' : c.type !== 'joueurs')
-      && !slotState.actedIds.includes(c.id))
+      (activeSide === 'joueurs' ? c.type === 'joueurs' : c.type !== 'joueurs'))
     return (
       <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2" style={{ background: 'color-mix(in srgb, var(--bg-dark) 40%, transparent)' }}>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1276,21 +1307,27 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
           <span className="text-xs text-[var(--text-secondary)] shrink-0">
             Créneau {activeSide === 'joueurs' ? 'Joueur' : 'Ennemi'} — qui agit ?
           </span>
-          {eligible.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => chooseSlotActor(c)}
-              title={c.name}
-              className={`rounded-full transition-all ${activePlayerId === c.id ? 'ring-2 ring-[var(--accent-brown)] scale-105' : 'opacity-80 hover:opacity-100 hover:scale-105'}`}
-            >
-              <Avatar className="h-8 w-8 border border-[var(--border-color)]">
-                <AvatarImage src={c.avatar} alt={c.name} className="object-cover" />
-                <AvatarFallback className="text-[10px]">{c.name[0]}</AvatarFallback>
-              </Avatar>
-            </button>
-          ))}
+          {eligible.map((c) => {
+            const hasActed = slotState.actedIds.includes(c.id)
+            return (
+              <button
+                key={c.id}
+                onClick={() => chooseSlotActor(c)}
+                title={hasActed ? `${c.name} (a déjà agi ce round — peut rejouer)` : c.name}
+                className={`relative rounded-full transition-all ${activePlayerId === c.id ? 'ring-2 ring-[var(--accent-brown)] scale-105' : 'opacity-80 hover:opacity-100 hover:scale-105'}`}
+              >
+                <Avatar className="h-8 w-8 border border-[var(--border-color)]">
+                  <AvatarImage src={c.avatar} alt={c.name} className="object-cover" />
+                  <AvatarFallback className="text-[10px]">{c.name[0]}</AvatarFallback>
+                </Avatar>
+                {hasActed && (
+                  <Check className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-[var(--accent-brown)] text-white p-0.5" />
+                )}
+              </button>
+            )
+          })}
           {eligible.length === 0 && (
-            <span className="text-xs italic text-[var(--text-secondary)]">Tous les personnages de ce camp ont agi ce round — passez au créneau suivant.</span>
+            <span className="text-xs italic text-[var(--text-secondary)]">Aucun personnage dans ce camp.</span>
           )}
         </div>
       </div>
@@ -1463,9 +1500,9 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
           </div>
           {renderSlotBar()}
           <div className="p-3 space-y-2">
-            {characters.slice(1).map((char, index) => (
+            {turnOrderList.map((char, index) => (
               <div key={char.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)]" onClick={() => setViewedCharacter(char)}>
-                <span className="font-mono text-base font-bold text-[var(--text-secondary)] w-5 text-center shrink-0">{index + 2}</span>
+                <span className="font-mono text-base font-bold text-[var(--text-secondary)] w-5 text-center shrink-0">{slotState ? index + 1 : index + 2}</span>
                 <Avatar className="h-9 w-9 shrink-0 border border-[var(--border-color)]">
                   <AvatarImage src={char.avatar} />
                   <AvatarFallback>{char.name[0]}</AvatarFallback>
@@ -1482,7 +1519,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                 </Button>
               </div>
             ))}
-            {characters.length <= 1 && (
+            {turnOrderList.length === 0 && (
               <div className="text-center py-3 text-[var(--text-secondary)] text-sm">Aucun autre personnage en attente.</div>
             )}
           </div>
@@ -1504,14 +1541,14 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
             {renderSlotBar()}
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-3">
-                {characters.slice(1).map((char, index) => (
+                {turnOrderList.map((char, index) => (
                   <div
                     key={char.id}
                     className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors group cursor-pointer"
                     onClick={() => setViewedCharacter(char)}
                   >
                     <div className="font-mono text-lg font-bold text-[var(--text-secondary)] w-6 text-center">
-                      {index + 2}
+                      {slotState ? index + 1 : index + 2}
                     </div>
                     <Avatar className="h-10 w-10 border border-[var(--border-color)]">
                       <AvatarImage src={char.avatar} />
@@ -1542,7 +1579,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                     </Button>
                   </div>
                 ))}
-                {characters.length <= 1 && (
+                {turnOrderList.length === 0 && (
                   <div className="text-center py-4 text-[var(--text-secondary)] text-sm">
                     Aucun autre personnage en attente.
                   </div>

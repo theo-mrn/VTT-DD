@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check, Upload } from 'lucide-react'
+import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check, Upload, Loader2 } from 'lucide-react'
 import { auth, db, doc, getDoc, setDoc, addDoc, collection, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -60,6 +60,7 @@ export default function CreerPageComponent() {
   // Vrai pendant la lecture/upload d'un bundle zip (les assets partent sur R2 dès la sélection) —
   // bloque la soumission du formulaire tant que les URLs ne sont pas réécrites dans le bundle.
   const [isImportingBundle, setIsImportingBundle] = useState(false)
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false)
   const { confirm: confirmAsync, dialog: confirmDialog } = useConfirmAsync()
   const router = useRouter()
 
@@ -123,6 +124,9 @@ export default function CreerPageComponent() {
       toast.error("Veuillez sélectionner une image")
       return
     }
+
+    if (isCreatingRoom) return
+    setIsCreatingRoom(true)
 
     try {
       const code = await generateRoomCode()
@@ -196,6 +200,7 @@ export default function CreerPageComponent() {
     } catch (error) {
       console.error("Error creating room:", error)
       toast.error("Erreur lors de la création de la salle")
+      setIsCreatingRoom(false)
     }
   }
 
@@ -546,10 +551,10 @@ export default function CreerPageComponent() {
                 {/* Submit */}
                 <Button
                   type="submit"
-                  disabled={isImportingBundle}
+                  disabled={isImportingBundle || isCreatingRoom}
                   className="w-full h-14 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-lg font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl disabled:opacity-40"
                 >
-                  Créer la campagne <ArrowRight className="h-5 w-5" />
+                  {isCreatingRoom ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Créer la campagne <ArrowRight className="h-5 w-5" /></>}
                 </Button>
               </form>
             </div>

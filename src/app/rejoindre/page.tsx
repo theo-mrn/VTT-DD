@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Play, Users, ArrowLeft, Settings, Gamepad2, ArrowRight, Globe } from 'lucide-react'
+import { Play, Users, ArrowLeft, Settings, Gamepad2, ArrowRight, Globe, Loader2 } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -65,6 +65,8 @@ export default function RejoindrePageComponent() {
   const [userData, setUserData] = useState<any>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
+  const [isFindingRoom, setIsFindingRoom] = useState(false)
+  const [isJoining, setIsJoining] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -120,11 +122,17 @@ export default function RejoindrePageComponent() {
       toast.error("Veuillez entrer un code valide")
       return
     }
-    const room = await fetchRoomByCode(code)
-    if (room) {
-      setSelectedRoom(room)
-    } else {
-      toast.error("Aucune salle trouvée avec ce code")
+    if (isFindingRoom) return
+    setIsFindingRoom(true)
+    try {
+      const room = await fetchRoomByCode(code)
+      if (room) {
+        setSelectedRoom(room)
+      } else {
+        toast.error("Aucune salle trouvée avec ce code")
+      }
+    } finally {
+      setIsFindingRoom(false)
     }
   }
 
@@ -134,6 +142,8 @@ export default function RejoindrePageComponent() {
       toast.error("Vous devez être connecté")
       return
     }
+    if (isJoining) return
+    setIsJoining(true)
 
     try {
       const roomRef = doc(db, 'Salle', room.id)
@@ -173,6 +183,7 @@ export default function RejoindrePageComponent() {
     } catch (error) {
       console.error("Error joining room:", error)
       toast.error("Erreur lors de la connexion à la salle")
+      setIsJoining(false)
     }
   }
 
@@ -268,8 +279,9 @@ export default function RejoindrePageComponent() {
                 <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
                   <CardHeader><CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Actions</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
-                    <Button onClick={() => handleJoin(selectedRoom)} className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold shadow-[0_0_20px_rgba(192,160,128,0.2)]" size="lg">
-                      <Play className="h-4 w-4" /> Rejoindre la partie
+                    <Button onClick={() => handleJoin(selectedRoom)} disabled={isJoining} className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold shadow-[0_0_20px_rgba(192,160,128,0.2)] disabled:opacity-60" size="lg">
+                      {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                      {isJoining ? 'Connexion en cours…' : 'Rejoindre la partie'}
                     </Button>
                     {selectedRoom.creatorId === userId && (
                       <Button variant="outline" onClick={() => router.push(`/creer`)} className="w-full h-12 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
@@ -379,10 +391,11 @@ export default function RejoindrePageComponent() {
                 </InputOTP>
                 <Button
                   onClick={() => handleJoinRoom(roomCode)}
+                  disabled={isFindingRoom}
                   size="lg"
-                  className="w-full"
+                  className="w-full disabled:opacity-60"
                 >
-                  Rejoindre <ArrowRight className="h-4 w-4" />
+                  {isFindingRoom ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Rejoindre <ArrowRight className="h-4 w-4" /></>}
                 </Button>
               </div>
 
@@ -411,8 +424,11 @@ export default function RejoindrePageComponent() {
                   {availablePublicRooms.map((room) => (
                     <div
                       key={room.id}
-                      onClick={() => handleJoinRoom(room.id)}
-                      className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                      onClick={() => !isFindingRoom && handleJoinRoom(room.id)}
+                      className={cn(
+                        "group relative rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]",
+                        isFindingRoom ? "cursor-wait opacity-60" : "cursor-pointer"
+                      )}
                       style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
                     >
                       {/* Room image */}

@@ -97,9 +97,26 @@ export function resolveCharacterStats(
     return !!(def?.category === 'derived' && def.valueFormula && formulaContainsDice(def.valueFormula) && !hasStoredValue(key));
   }
 
+  /** Vrai si `key` est une stat dérivée dont la formule NE contient PAS de dé (ex Seuil de Blessure =
+   *  base espèce + Vigueur) ET qui n'a PAS de rollFormula propre — une telle formule est déterministe,
+   *  jamais "instable", donc doit TOUJOURS être recalculée depuis ses dépendances plutôt que gelée sur
+   *  une valeur stockée. Sans cette distinction, une valeur écrite une seule fois en base (à la
+   *  création, ou par une ancienne sauvegarde) fige la stat pour toujours : modifier Vigueur ensuite ne
+   *  fait plus jamais bouger Seuil de Blessure/Encaissement, même si la formule qui les lie est correcte.
+   *  Deux exceptions restent figées après leur premier tirage/écriture : une formule AVEC dé (ex
+   *  PV_Max = 1+mod(CON)+dé de vie, comportement inchangé, nécessaire pour ne pas re-tirer le dé à
+   *  chaque résolution) — ET une stat qui a sa PROPRE rollFormula distincte (ex PV_Max = valueFormula
+   *  "const 10" par défaut MAIS rollFormula "aléatoire entre 7 et 20" tirée une fois à la création,
+   *  cf rollCharacterStats) : la présence de rollFormula signale une valeur one-shot que
+   *  resolveCharacterStats ne doit jamais écraser en recalculant valueFormula par-dessus. */
+  function isDeterministicDerived(key: string): boolean {
+    const def = statDefs[key];
+    return !!(def?.category === 'derived' && def.valueFormula && !def.rollFormula && !formulaContainsDice(def.valueFormula));
+  }
+
   function resolveFrozen(key: string): number {
     const bonus = bonuses?.[key] ?? 0;
-    if (isUnstableDiceRoll(key)) {
+    if (isUnstableDiceRoll(key) || isDeterministicDerived(key)) {
       return resolveStatValue(key, ctx);
     }
     if (hasStoredValue(key)) {

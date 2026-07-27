@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Play, Plus, Shield, Gamepad2, ArrowLeft, Settings, ArrowRight } from 'lucide-react'
+import { Users, Play, Plus, Shield, Gamepad2, ArrowLeft, Settings, ArrowRight, Loader2 } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -55,6 +55,7 @@ export default function MesCampagnesPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isPlayingRoom, setIsPlayingRoom] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -121,11 +122,15 @@ export default function MesCampagnesPage() {
   // celle d'avant. C'est le mécanisme déjà en place dans home/page.tsx pour "Rejoindre" ; il manquait
   // ici pour le bouton "Jouer".
   const handlePlayRoom = async (roomId: string) => {
+    if (isPlayingRoom) return
+    setIsPlayingRoom(true)
     if (userId) {
       try {
         await setDoc(doc(db, 'users', userId), { room_id: roomId }, { merge: true })
       } catch (e) {
         console.error('Error syncing room_id', e)
+        setIsPlayingRoom(false)
+        return
       }
     }
     router.push(`/${roomId}/map`)
@@ -242,10 +247,11 @@ export default function MesCampagnesPage() {
                     <CardContent className="space-y-3">
                       <Button
                         onClick={() => handlePlayRoom(selectedRoom.id)}
-                        className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold"
+                        disabled={isPlayingRoom}
+                        className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold disabled:opacity-60"
                         size="lg"
                       >
-                        <Play className="h-4 w-4" />
+                        {isPlayingRoom ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                         {isOwner ? 'Jouer (MJ)' : 'Jouer'}
                       </Button>
                       {isOwner && (

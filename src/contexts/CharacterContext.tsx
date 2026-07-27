@@ -154,17 +154,38 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     return Math.floor((value - 10) / 2);
   }, []);
 
+  // Résolution complète (formules valueFormula/modifierFormula) du personnage sélectionné — mémoïsée
+  // une seule fois par changement réel, puis réutilisée par CHAQUE appel de getDisplayValue/
+  // getDisplayModifier (potentiellement des dizaines par render, un par stat affichée dans les
+  // widgets). Remplace la lecture brute parseInt(selectedCharacter[stat]) qui ignorait totalement
+  // valueFormula : une stat 'derived' (ex Seuil de Blessure = base espèce + Vigueur, Star Wars)
+  // n'était donc JAMAIS recalculée à l'écran quand Vigueur changeait, seule sa valeur figée en base
+  // (souvent 0, ou une ancienne valeur avant correction) s'affichait.
+  const resolvedStats = useMemo(
+    () => (selectedCharacter ? resolveCharacterStats(gameSystem, tableCustomStats, selectedCharacter, bonuses ?? undefined) : null),
+    [selectedCharacter, bonuses, gameSystem, tableCustomStats],
+  );
+
   const getDisplayModifier = useCallback((stat: keyof Character): number => {
+    const key = stat as string;
+    if (resolvedStats && key in resolvedStats.modifiers) {
+      return resolvedStats.modifiers[key];
+    }
     const baseValue = selectedCharacter ? parseInt(selectedCharacter[stat] as any || "0") : 0;
     const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
     return getModifier(baseValue) + bonusValue;
-  }, [selectedCharacter, bonuses, getModifier]);
+  }, [selectedCharacter, bonuses, getModifier, resolvedStats]);
 
   const getDisplayValue = useCallback((stat: keyof Character): number => {
+    const key = stat as string;
+    if (resolvedStats && key in resolvedStats.values) {
+      const resolved = resolvedStats.values[key];
+      if (typeof resolved === 'number') return resolved;
+    }
     const baseValue = selectedCharacter ? parseInt(selectedCharacter[stat] as any || "0") : 0;
     const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
     return baseValue + bonusValue;
-  }, [selectedCharacter, bonuses]);
+  }, [selectedCharacter, bonuses, resolvedStats]);
 
   // ==================== SYNCHRONISATION DES STATS "_F" (lues côté serveur : Discord, challenge-tracker) ====================
   // Délègue le calcul au moteur de règles partagé (resolveCharacterStats) piloté par le système de jeu
