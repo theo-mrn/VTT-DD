@@ -172,14 +172,17 @@ describe('rollCharacterStats — génération complète d\'un personnage dnd-cla
     expect(result.abilities.DEX).toBe(result.rolledAbilities.DEX); // pas de modificateur racial sur DEX ici
   });
 
-  test('calcule Defense = 18 + mod(DEX), Contact = 1 + mod(FOR), etc. de façon cohérente', () => {
-    const result = rollCharacterStats(dndClassicModule.gameSystem, {});
-    const { FOR, DEX, CHA } = result.abilities;
+  test('calcule Defense = 10 + mod(DEX), Contact = 1 + mod(FOR), etc. de façon cohérente', () => {
+    // niveau: 1 reflète app/creation/page.tsx qui initialise toujours niveau à 1 pour un nouveau
+    // personnage — Contact/Distance/Magie retranchent 1 au niveau, donc +0 de bonus à la création.
+    const result = rollCharacterStats(dndClassicModule.gameSystem, {}, [], { niveau: 1 });
+    const { FOR, DEX, INT, SAG, CHA } = result.abilities;
 
-    expect(result.derived.Defense).toBe(18 + mod(DEX));
+    expect(result.derived.Defense).toBe(10 + mod(DEX));
     expect(result.derived.Contact).toBe(1 + mod(FOR));
     expect(result.derived.Distance).toBe(1 + mod(DEX));
-    expect(result.derived.Magie).toBe(1 + mod(CHA));
+    // Magie utilise la meilleure des trois caractéristiques "mentales", pas toujours CHA.
+    expect(result.derived.Magie).toBe(1 + Math.max(mod(INT), mod(SAG), mod(CHA)));
     expect(result.derived.INIT).toBe(DEX);
   });
 

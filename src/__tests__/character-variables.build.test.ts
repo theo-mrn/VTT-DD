@@ -2,9 +2,13 @@
 // partagé (src/lib/rules-engine) — produit les mêmes variables que l'ancienne implémentation
 // dupliquée (MODIFIER_STATS/DIRECT_STATS codés en dur), pour un personnage dnd-classic typique.
 
+// niveau: 1 reflète un personnage réel (toujours initialisé à la création) — Contact/Distance/Magie
+// sont des stats 'derived' recalculées en direct depuis leur formule (1 + mod(carac) + (niveau-1)),
+// jamais lues brutes depuis Defense/Contact/Distance/Magie ci-dessous une fois stockées.
 const mockCharacterData = {
   FOR: 14, DEX: 12, CON: 16, SAG: 10, INT: 8, CHA: 13,
-  Defense: 19, Contact: 3, Distance: 3, Magie: 2, INIT: 12,
+  niveau: 1,
+  Defense: 11, Contact: 3, Distance: 3, Magie: 2, INIT: 12,
   deVie: 'd12', PV_Max: 12, PV: 12,
 };
 
@@ -35,7 +39,7 @@ describe('buildCharacterVariables (wrapper sur le moteur de règles)', () => {
     const vars = await buildCharacterVariables('uid1');
     expect(vars.FOR).toBe(mod(14));
     expect(vars.DEX).toBe(mod(12));
-    expect(vars.Defense).toBe(19);
+    expect(vars.Defense).toBe(10 + mod(12));
     expect(vars.Contact).toBe(3);
     expect(vars.INIT).toBe(12);
   });

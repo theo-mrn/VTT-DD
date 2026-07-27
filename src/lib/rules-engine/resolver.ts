@@ -15,6 +15,26 @@ function buildStatDefsIndex(gameSystem: GameSystemDefinition, tableCustomStats: 
   return index;
 }
 
+/** Construit le FormulaContext utilisé en interne par resolveCharacterStats — exposé séparément pour
+ *  un appelant qui a besoin d'évaluer une formule ponctuelle (ex describeFormulaTerms pour un détail
+ *  "mod(FOR) + niveau = 2 + 3 = 5" affiché dans un Popover de la fiche) sans dupliquer la construction
+ *  de rawStats/statDefs déjà faite ici. */
+export function buildFormulaContext(
+  gameSystem: GameSystemDefinition,
+  tableCustomStats: StatDefinition[],
+  character: Record<string, unknown>,
+  bonuses?: Record<string, number>,
+): FormulaContext {
+  const statDefs = buildStatDefsIndex(gameSystem, tableCustomStats);
+  const rawStats: Record<string, number | string | boolean | undefined> = {
+    ...(character as Record<string, number | string | boolean | undefined>),
+  };
+  for (const key of Object.keys(statDefs)) {
+    rawStats[key] = character[key] as number | string | boolean | undefined;
+  }
+  return { rawStats, bonuses, statDefs, _memo: new Map(), gameSystemModifierFormula: gameSystem.modifierFormula };
+}
+
 export interface StatGroupEntry {
   /** Nom du groupe (StatDefinition.group), ou null pour les stats sans groupe. */
   name: string | null;
@@ -64,17 +84,8 @@ export function resolveCharacterStats(
   character: Record<string, unknown>,
   bonuses?: Record<string, number>,
 ): ResolvedStats {
-  const statDefs = buildStatDefsIndex(gameSystem, tableCustomStats);
-  // Base = document personnage complet (couvre les champs méta référencés par diceField,
-  // ex `deVie`, qui ne sont pas eux-mêmes des StatDefinition), complété/écrasé par le schéma.
-  const rawStats: Record<string, number | string | boolean | undefined> = {
-    ...(character as Record<string, number | string | boolean | undefined>),
-  };
-  for (const key of Object.keys(statDefs)) {
-    rawStats[key] = character[key] as number | string | boolean | undefined;
-  }
-
-  const ctx: FormulaContext = { rawStats, bonuses, statDefs, _memo: new Map(), gameSystemModifierFormula: gameSystem.modifierFormula };
+  const ctx = buildFormulaContext(gameSystem, tableCustomStats, character, bonuses);
+  const { rawStats, statDefs } = ctx;
 
   // Une stat dérivée dont la formule contient un jet de dé (ex PV_Max = 1+mod(CON)+dé de vie) n'est
   // évaluée dynamiquement QUE tant qu'aucune valeur n'a encore été stockée pour ce personnage (création).

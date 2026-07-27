@@ -41,7 +41,7 @@ const COMBAT_STATS: StatDefinition[] = [
     shortLabel: 'Déf',
     category: 'derived',
     dataType: 'number',
-    valueFormula: { type: 'add', args: [{ type: 'const', value: 18 }, { type: 'modifier', key: 'DEX' }] },
+    valueFormula: { type: 'add', args: [{ type: 'const', value: 10 }, { type: 'modifier', key: 'DEX' }] },
     isRollable: false,
     origin: 'module',
     group: 'Combat',
@@ -53,7 +53,11 @@ const COMBAT_STATS: StatDefinition[] = [
     shortLabel: 'Ctt',
     category: 'derived',
     dataType: 'number',
-    valueFormula: { type: 'add', args: [{ type: 'const', value: 1 }, { type: 'modifier', key: 'FOR' }] },
+    // niveau référence directement le champ Character.niveau (pas une StatDefinition dédiée) — un noeud
+    // {type:'stat'} sur une clé hors schéma retombe sur sa valeur brute dans le document personnage
+    // (cf resolveStatValue), donc valide sans déclarer 'niveau' comme ability/derived. Le "+1" de base
+    // et le "-1" du niveau de départ s'annulent (personnage créé au niveau 1) : mod(carac) + niveau.
+    valueFormula: { type: 'add', args: [{ type: 'modifier', key: 'FOR' }, { type: 'stat', key: 'niveau' }] },
     isRollable: false,
     origin: 'module',
     group: 'Combat',
@@ -65,7 +69,7 @@ const COMBAT_STATS: StatDefinition[] = [
     shortLabel: 'Dst',
     category: 'derived',
     dataType: 'number',
-    valueFormula: { type: 'add', args: [{ type: 'const', value: 1 }, { type: 'modifier', key: 'DEX' }] },
+    valueFormula: { type: 'add', args: [{ type: 'modifier', key: 'DEX' }, { type: 'stat', key: 'niveau' }] },
     isRollable: false,
     origin: 'module',
     group: 'Combat',
@@ -77,7 +81,15 @@ const COMBAT_STATS: StatDefinition[] = [
     shortLabel: 'Mag',
     category: 'derived',
     dataType: 'number',
-    valueFormula: { type: 'add', args: [{ type: 'const', value: 1 }, { type: 'modifier', key: 'CHA' }] },
+    // Le plus haut des trois modificateurs "mentaux" (INT, SAG, CHA) — un personnage lance ses sorts
+    // avec sa meilleure caractéristique parmi les trois, pas toujours CHA.
+    valueFormula: {
+      type: 'add',
+      args: [
+        { type: 'max', args: [{ type: 'modifier', key: 'INT' }, { type: 'modifier', key: 'SAG' }, { type: 'modifier', key: 'CHA' }] },
+        { type: 'stat', key: 'niveau' },
+      ],
+    },
     isRollable: false,
     origin: 'module',
     group: 'Combat',

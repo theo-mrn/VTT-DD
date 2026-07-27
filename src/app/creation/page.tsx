@@ -51,7 +51,7 @@ type CharacterState = {
   Profile: string;
   deVie: string;
   imageURL: string;
-  level: number;
+  niveau: number;
   Taille: number;
   Poids: number;
   [statKey: string]: unknown;
@@ -74,7 +74,7 @@ const BASE_CHARACTER: CharacterState = {
   Profile: '',
   deVie: 'd12',
   imageURL: '',
-  level: 1,
+  niveau: 1,
   Taille: 175,
   Poids: 75,
 }
@@ -283,7 +283,10 @@ export default function CharacterCreationPage() {
   const rollStats = () => {
     if (rollsExhausted) return
     const raceMods = races.find((r) => r.id === character.Race)?.modifiers ?? {}
-    const result = rollCharacterStats(gameSystem, raceMods, tableCustomStats, { deVie: character.deVie })
+    // niveau: 1 dès l'aperçu (pas seulement à la sauvegarde finale, ligne ~500) — sans lui, une stat
+    // dérivée qui intègre (niveau - 1) dans sa formule (ex Contact/Distance/Magie pour dnd-classic)
+    // afficherait un résultat en dessous de la réalité pendant tout le flux de création.
+    const result = rollCharacterStats(gameSystem, raceMods, tableCustomStats, { deVie: character.deVie, niveau: 1 })
 
     setBaseStats(result.rolledAbilities)
 

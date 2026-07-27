@@ -1,4 +1,4 @@
-import { evaluateFormula, resolveStatValue, resolveStatModifier, FormulaCycleError, type FormulaContext } from '../formula';
+import { evaluateFormula, resolveStatValue, resolveStatModifier, describeFormulaTerms, FormulaCycleError, type FormulaContext } from '../formula';
 import type { FormulaNode } from '@/modules/game-system/types';
 
 function modifierFormulaFor(key: string): FormulaNode {
@@ -133,5 +133,45 @@ describe('resolveStatValue — dérivées récursives', () => {
       rawStats: {},
     });
     expect(() => resolveStatValue('A', ctx)).toThrow(FormulaCycleError);
+  });
+});
+
+describe('describeFormulaTerms', () => {
+  test('Defense = 18 + mod(DEX) — deux termes, chacun avec son texte et sa valeur réelle', () => {
+    const ctx = makeCtx();
+    const formula: FormulaNode = { type: 'add', args: [{ type: 'const', value: 18 }, { type: 'modifier', key: 'DEX' }] };
+    expect(describeFormulaTerms(formula, ctx)).toEqual([
+      { sign: '+', text: '18', value: 18 },
+      { sign: '+', text: 'mod(DEX)', value: 1 }, // DEX=12 -> mod=1
+    ]);
+  });
+
+  test('sub inverse le signe des termes suivants (mod(FOR) - niveau)', () => {
+    const ctx = makeCtx({ rawStats: { FOR: 14, DEX: 12, CON: 16, niveau: 3 } });
+    const formula: FormulaNode = { type: 'sub', args: [{ type: 'modifier', key: 'FOR' }, { type: 'stat', key: 'niveau' }] };
+    expect(describeFormulaTerms(formula, ctx)).toEqual([
+      { sign: '+', text: 'mod(FOR)', value: 2 }, // FOR=14 -> mod=2
+      { sign: '-', text: 'niveau', value: 3 },
+    ]);
+  });
+
+  test('un noeud qui n\'est pas add/sub de premier niveau est retourné comme un terme unique', () => {
+    const ctx = makeCtx();
+    const formula: FormulaNode = { type: 'modifier', key: 'FOR' };
+    expect(describeFormulaTerms(formula, ctx)).toEqual([{ sign: '+', text: 'mod(FOR)', value: 2 }]);
+  });
+
+  test('add imbriqué dans un sub reste décomposé récursivement, avec le bon signe hérité', () => {
+    const ctx = makeCtx({ rawStats: { FOR: 14, DEX: 12, CON: 16, niveau: 3 } });
+    // mod(FOR) - (niveau + 1)  ->  mod(FOR), -niveau, -1
+    const formula: FormulaNode = {
+      type: 'sub',
+      args: [{ type: 'modifier', key: 'FOR' }, { type: 'add', args: [{ type: 'stat', key: 'niveau' }, { type: 'const', value: 1 }] }],
+    };
+    expect(describeFormulaTerms(formula, ctx)).toEqual([
+      { sign: '+', text: 'mod(FOR)', value: 2 },
+      { sign: '-', text: 'niveau', value: 3 },
+      { sign: '-', text: '1', value: 1 },
+    ]);
   });
 });

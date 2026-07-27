@@ -4,11 +4,12 @@ import React, { useState } from 'react';
 import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
-import { getFormulaDependencies } from '@/lib/rules-engine';
+import { getFormulaDependencies, describeFormulaTerms, buildFormulaContext } from '@/lib/rules-engine';
 import { useGameContent } from '@/modules/game-content/useGameContent';
 import type { SpecializationDoc } from '@/modules/game-content/types';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Heart, Shield, Info, Lock } from 'lucide-react';
 import {
     Dialog,
@@ -17,6 +18,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { FormulaPreview } from './game-system/FormulaEditor';
 import useMeasure from 'react-use-measure';
 import { toast } from 'sonner';
 
@@ -427,9 +429,9 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
 };
 
 export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch', onFieldClick?: (fieldKey: string) => void }> = ({ style, fieldIds = ['PV', 'Defense'], layout = 'horizontal', styleOption = 'separated', justify = 'center', onFieldClick }) => {
-    const { selectedCharacter, roomId, getDisplayValue, categorizedBonuses } = useCharacter();
+    const { selectedCharacter, roomId, getDisplayValue, categorizedBonuses, bonuses } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
-    const { gameSystem } = useGameSystem(roomId);
+    const { gameSystem, tableCustomStats } = useGameSystem(roomId);
 
     // Pour toute stat 'vital' (ex PV) dont la borne maximale référence une autre stat du système (ex
     // PV_Max, via maxFormula plutôt qu'un nom en dur), affiche "valeur / max" en une seule carte —
@@ -460,6 +462,15 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
         ? { gridTemplateColumns: `repeat(${visibleFieldIds.length}, minmax(0, 1fr))` }
         : undefined;
+
+    // Contexte de résolution partagé par toutes les cartes de ce widget — construit une seule fois par
+    // render plutôt que dans chaque itération de .map() ci-dessous (describeFormulaTerms n'en a besoin
+    // que pour les cartes 'derived' cliquées, mais le construire reste bon marché comparé à le refaire
+    // par carte).
+    const formulaCtx = React.useMemo(
+        () => (selectedCharacter ? buildFormulaContext(gameSystem, tableCustomStats, selectedCharacter, bonuses ?? undefined) : null),
+        [gameSystem, tableCustomStats, selectedCharacter, bonuses],
+    );
 
     return (
         <div className={containerClassName} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
@@ -492,7 +503,68 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                     displayVal = getDisplayValue(name as any);
                 }
 
-                const canClick = !isCustom && !!onFieldClick;
+                // Une stat 'derived' (ex Défense, encore présente par défaut dans fieldIds pour
+                // dnd-classic) n'est jamais ajustable à la main — 100% calculée depuis sa formule. Le
+                // curseur/hover ne doit pas laisser croire le contraire (le clic est de toute façon
+                // ignoré côté fiche.tsx, cf openVitalDrawer).
+                const isDerived = statDef?.category === 'derived';
+                const canClick = !isCustom && !!onFieldClick && !isDerived;
+                // Une stat derived reste cliquable, mais pour ouvrir le détail de sa formule (Popover,
+                // reste ouvert jusqu'à un clic ailleurs — contrairement au Tooltip hover-only utilisé
+                // pour les autres stats, qui ne marche pas au tactile) plutôt que le drawer d'ajustement.
+                const canShowFormula = !isCustom && !hidden && isDerived && !!statDef?.valueFormula;
+
+                const cardContent = (
+                    <div className="flex items-center gap-2 min-w-0">
+                        {isVitalWithMax ? <Heart className="text-red-500 shrink-0" size={16} /> : <Shield className={`shrink-0 ${isCustom ? "text-[color:var(--accent-brown)]" : "text-blue-500"}`} size={16} />}
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-[10px] sm:text-xs uppercase tracking-wide text-[color:var(--text-secondary,#a0a0a0)] truncate max-w-[120px] sm:max-w-[200px]" title={label}>
+                                {label}
+                            </span>
+                            <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] truncate max-w-[120px] sm:max-w-[200px]">
+                                {hidden ? PRIVATE_PLACEHOLDER : displayVal}
+                            </span>
+                        </div>
+                        {isPrivate && <Lock size={10} className="text-[var(--accent-brown)] shrink-0" />}
+                    </div>
+                );
+                const statLabel = (key: string) => gameSystem.stats.find((s) => s.key === key)?.label ?? key;
+                // Détail chiffré (ex "mod(Force) = 2, niveau = 3") sous la formule symbolique, pour
+                // comprendre d'où vient le résultat sans avoir à calculer mentalement chaque terme.
+                const formulaTerms = canShowFormula && formulaCtx ? describeFormulaTerms(statDef!.valueFormula!, formulaCtx) : null;
+                const detailBody = hidden ? (
+                    <p>Information privée.</p>
+                ) : isCustom ? (
+                    <p>Valeur personnalisée: {String(customField.value)}</p>
+                ) : (
+                    <>
+                        {canShowFormula && (
+                            <div className="mb-1.5 pb-1.5 border-b border-[var(--border-color)] font-mono space-y-0.5">
+                                <p><FormulaPreview node={statDef!.valueFormula!} statLabel={statLabel} /></p>
+                                {formulaTerms && (
+                                    <p className="text-[var(--text-secondary)]">
+                                        {formulaTerms.map((t, i) => {
+                                            const readableText = t.text.replace(/\bmod\(([^)]+)\)/g, (_m, key) => `mod(${statLabel(key)})`);
+                                            // Un terme purement numérique (ex "10") n'a rien à détailler : afficher "10=10" serait redondant.
+                                            const detail = readableText === String(t.value) ? readableText : `${readableText}=${t.value}`;
+                                            const prefix = i === 0 ? (t.sign === '-' ? '− ' : '') : ` ${t.sign} `;
+                                            return prefix + detail;
+                                        }).join('')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        {/* Pas de ligne "Base" pour une stat derived : sa valeur affichée vient déjà
+                            entièrement de la formule ci-dessus (jamais d'un champ Firestore séparé) —
+                            selectedCharacter[name] resterait un champ mort de l'ancien système, dont la
+                            valeur diverge silencieusement du résultat réel dès que niveau/carac changent. */}
+                        {!canShowFormula && (
+                            <p>Base: {selectedCharacter ? selectedCharacter[name as keyof Character] as number : 0}</p>
+                        )}
+                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                    </>
+                );
 
                 return (
                     <div
@@ -502,35 +574,21 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                         onClick={canClick ? () => onFieldClick!(name) : undefined}
                         role={canClick ? 'button' : undefined}
                     >
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 cursor-help min-w-0">
-                                    {isVitalWithMax ? <Heart className="text-red-500 shrink-0" size={16} /> : <Shield className={`shrink-0 ${isCustom ? "text-[color:var(--accent-brown)]" : "text-blue-500"}`} size={16} />}
-                                    <div className="flex flex-col leading-tight min-w-0">
-                                        <span className="text-[10px] sm:text-xs uppercase tracking-wide text-[color:var(--text-secondary,#a0a0a0)] truncate max-w-[120px] sm:max-w-[200px]" title={label}>
-                                            {label}
-                                        </span>
-                                        <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] truncate max-w-[120px] sm:max-w-[200px]">
-                                            {hidden ? PRIVATE_PLACEHOLDER : displayVal}
-                                        </span>
-                                    </div>
-                                    {isPrivate && <Lock size={10} className="text-[var(--accent-brown)] shrink-0" />}
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {hidden ? (
-                                    <p>Information privée.</p>
-                                ) : isCustom ? (
-                                    <p>Valeur personnalisée: {String(customField.value)}</p>
-                                ) : (
-                                    <>
-                                        <p>Base: {selectedCharacter ? selectedCharacter[name as keyof Character] as number : 0}</p>
-                                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
-                                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
-                                    </>
-                                )}
-                            </TooltipContent>
-                        </Tooltip>
+                        {canShowFormula ? (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <div className="cursor-pointer min-w-0">{cardContent}</div>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto text-xs bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">{detailBody}</PopoverContent>
+                            </Popover>
+                        ) : (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="cursor-help min-w-0">{cardContent}</div>
+                                </TooltipTrigger>
+                                <TooltipContent>{detailBody}</TooltipContent>
+                            </Tooltip>
+                        )}
                     </div>
                 )
             })}
@@ -539,8 +597,9 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
 };
 
 export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['Contact', 'Distance', 'Magie'], layout = 'grid', styleOption = 'separated', justify = 'center' }) => {
-    const { selectedCharacter, getDisplayValue, categorizedBonuses } = useCharacter();
+    const { selectedCharacter, roomId, getDisplayValue, categorizedBonuses, bonuses } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
+    const { gameSystem, tableCustomStats } = useGameSystem(roomId);
 
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
@@ -554,6 +613,12 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
+
+    // cf WidgetVitals : contexte de résolution partagé, construit une seule fois par render.
+    const formulaCtx = React.useMemo(
+        () => (selectedCharacter ? buildFormulaContext(gameSystem, tableCustomStats, selectedCharacter, bonuses ?? undefined) : null),
+        [gameSystem, tableCustomStats, selectedCharacter, bonuses],
+    );
 
     return (
         <div className={containerClassName} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
@@ -572,35 +637,73 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
                 }
 
                 const hidden = isFieldHidden(name);
+                const statDef = gameSystem.stats.find((s) => s.key === name);
+                // Contact/Distance/Magie sont 'derived' (formule vs FOR/DEX/CHA + niveau) — pas
+                // d'ajustement manuel possible ici (déjà non éditable), mais la formule mérite d'être
+                // visible au clic (Popover, tactile-friendly) plutôt qu'au seul survol.
+                const canShowFormula = !isCustom && !hidden && statDef?.category === 'derived' && !!statDef?.valueFormula;
+                const statLabel = (key: string) => gameSystem.stats.find((s) => s.key === key)?.label ?? key;
+                const formulaTerms = canShowFormula && formulaCtx ? describeFormulaTerms(statDef!.valueFormula!, formulaCtx) : null;
 
                 const childClasses = isUnified
                     ? "p-1 text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]"
                     : "bg-[color:var(--bg-secondary,#2a2a2a)] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]";
 
-                return (
+                const cardContent = (
+                    <div className={childClasses} style={isUnified ? {} : style}>
+                        <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 truncate flex items-center justify-center gap-1" title={label}>
+                            {label}
+                            {isFieldPrivate(name) && <Lock size={9} className="text-[var(--accent-brown)] shrink-0" />}
+                        </h3>
+                        <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{hidden ? PRIVATE_PLACEHOLDER : valueStr}</span>
+                    </div>
+                );
+                const detailBody = hidden ? (
+                    <p>Information privée.</p>
+                ) : isCustom ? (
+                    <p>Valeur personnalisée: {String(customField.value)}</p>
+                ) : (
+                    <>
+                        {canShowFormula && (
+                            <div className="mb-1.5 pb-1.5 border-b border-[var(--border-color)] font-mono space-y-0.5">
+                                <p><FormulaPreview node={statDef!.valueFormula!} statLabel={statLabel} /></p>
+                                {formulaTerms && (
+                                    <p className="text-[var(--text-secondary)]">
+                                        {formulaTerms.map((t, i) => {
+                                            const readableText = t.text.replace(/\bmod\(([^)]+)\)/g, (_m, key) => `mod(${statLabel(key)})`);
+                                            const detail = readableText === String(t.value) ? readableText : `${readableText}=${t.value}`;
+                                            const prefix = i === 0 ? (t.sign === '-' ? '− ' : '') : ` ${t.sign} `;
+                                            return prefix + detail;
+                                        }).join('')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        {/* Pas de ligne "Base" pour une stat derived : sa valeur affichée vient déjà
+                            entièrement de la formule ci-dessus (jamais d'un champ Firestore séparé) —
+                            selectedCharacter[name] resterait un champ mort de l'ancien système, dont la
+                            valeur diverge silencieusement du résultat réel dès que niveau/carac changent. */}
+                        {!canShowFormula && (
+                            <p>Base: {selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</p>
+                        )}
+                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                    </>
+                );
+
+                return canShowFormula ? (
+                    <Popover key={name}>
+                        <PopoverTrigger asChild>
+                            <div className="cursor-pointer">{cardContent}</div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto text-xs bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">{detailBody}</PopoverContent>
+                    </Popover>
+                ) : (
                     <Tooltip key={name}>
                         <TooltipTrigger asChild>
-                            <div className={childClasses} style={isUnified ? {} : style}>
-                                <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 truncate flex items-center justify-center gap-1" title={label}>
-                                    {label}
-                                    {isFieldPrivate(name) && <Lock size={9} className="text-[var(--accent-brown)] shrink-0" />}
-                                </h3>
-                                <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{hidden ? PRIVATE_PLACEHOLDER : valueStr}</span>
-                            </div>
+                            {cardContent}
                         </TooltipTrigger>
-                        <TooltipContent>
-                            {hidden ? (
-                                <p>Information privée.</p>
-                            ) : isCustom ? (
-                                <p>Valeur personnalisée: {String(customField.value)}</p>
-                            ) : (
-                                <>
-                                    <p>Base: {selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</p>
-                                    <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
-                                    <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
-                                </>
-                            )}
-                        </TooltipContent>
+                        <TooltipContent>{detailBody}</TooltipContent>
                     </Tooltip>
                 )
             })}

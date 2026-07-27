@@ -1,5 +1,6 @@
 import type { FormulaNode, StatDefinition } from '@/modules/game-system/types';
 import { rollDice } from './dice';
+import { formulaToText } from './formula-parser';
 
 export class FormulaCycleError extends Error {
   constructor(public readonly key: string) {
@@ -179,6 +180,41 @@ export function formulaContainsDice(node: FormulaNode): boolean {
     case 'clamp':
       return formulaContainsDice(node.arg) || formulaContainsDice(node.lo) || formulaContainsDice(node.hi);
   }
+}
+
+export interface FormulaTerm {
+  /** Signe appliqué à ce terme dans la somme globale ('+' ou '-'), pour affichage (ex "− niveau"). */
+  sign: '+' | '-';
+  /** Texte lisible du terme SEUL, sans le signe (ex "mod(FOR)", "niveau", "18") — traduit en label
+   *  lisible par l'appelant si besoin (même convention que FormulaPreview : remplacer mod(key)). */
+  text: string;
+  /** Valeur réellement calculée de ce terme dans le contexte donné (ex mod(FOR)=2, niveau=3). */
+  value: number;
+}
+
+/** Décompose une formule 'add'/'sub' de premier niveau en ses termes individuels, chacun avec son
+ *  texte ET sa valeur réellement calculée (ex "mod(FOR)" → 2, "niveau" → 3) — pour afficher un détail
+ *  du type "mod(FOR) + niveau = 2 + 3 = 5" plutôt que la seule formule symbolique. Un noeud qui n'est
+ *  pas un 'add'/'sub' de premier niveau (ex un simple {type:'stat'}, ou une formule utilisant mul/div/
+ *  floor/clamp) est retourné comme un terme UNIQUE — la décomposition ne s'applique qu'au niveau
+ *  supérieur d'une somme, pas récursivement dans les sous-expressions (mod() reste un terme atomique
+ *  même s'il contient lui-même une division interne). */
+export function describeFormulaTerms(node: FormulaNode, ctx: FormulaContext): FormulaTerm[] {
+  const terms: FormulaTerm[] = [];
+  function walk(n: FormulaNode, sign: '+' | '-'): void {
+    if (n.type === 'add') {
+      for (const arg of n.args) walk(arg, sign);
+      return;
+    }
+    if (n.type === 'sub') {
+      walk(n.args[0], sign);
+      for (let i = 1; i < n.args.length; i++) walk(n.args[i], sign === '+' ? '-' : '+');
+      return;
+    }
+    terms.push({ sign, text: formulaToText(n), value: evaluateFormula(n, ctx) });
+  }
+  walk(node, '+');
+  return terms;
 }
 
 /**

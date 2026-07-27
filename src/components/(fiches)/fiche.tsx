@@ -23,6 +23,7 @@ import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
+import { FormulaPreview } from './game-system/FormulaEditor';
 import { ThemeConfig } from './theme-portal/types';
 import { buildCharacterExport, downloadCharacterExport, parseCharacterExport, importCharacterExport } from '@/utils/characterTransfer';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
@@ -305,6 +306,18 @@ export default function Component() {
   // unique câblé en dur sur PV : un clic sur n'importe quelle carte ouvre désormais le drawer de LA
   // stat cliquée.
   const [selectedVitalKey, setSelectedVitalKey] = useState<string | null>(null);
+
+  // Garde générique : n'ouvre JAMAIS le drawer d'ajustement pour une stat 'derived' (ex Défense,
+  // Contact, Seuil de Blessure) — ces stats sont 100% calculées depuis leur formule (cf handleEdit),
+  // +1/-1 à la main n'aurait aucun sens et écrirait une valeur qui gèlerait le calcul. Filtre à la
+  // SOURCE (peu importe comment la clé s'est retrouvée dans fieldIds — config par défaut historique
+  // de WidgetVitals qui inclut encore Défense, layout perso déjà sauvegardé, etc.) plutôt que de
+  // corriger chaque widget/liste de champs par défaut individuellement.
+  const openVitalDrawer = React.useCallback((key: string) => {
+    const stat = gameSystem.stats.find((s) => s.key === key);
+    if (stat?.category === 'derived') return;
+    setSelectedVitalKey(key);
+  }, [gameSystem.stats]);
 
   // Garantit une entrée 'talents' dans le layout pour les systèmes à compétences EotE-like : les
   // layouts déjà sauvegardés (ou les défauts MJ pas encore ré-importés) datent d'avant la séparation
@@ -1134,11 +1147,16 @@ export default function Component() {
         <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4">
           Félicitations, votre personnage a monté de niveau ! Voici les nouvelles valeurs :
         </p>
+        {/* Contact/Distance/Magie sont des stats 'derived' (formule mod(carac) + niveau) — lues via
+            getDisplayValue (résolution live, cf CharacterContext) plutôt que le champ Character brut,
+            qui ne reflète plus rien depuis que confirmLevelUp ne les écrit plus (la formule s'en charge
+            automatiquement dès que niveau change). PV_Max reste un champ stocké (contient un jet de dé,
+            cf handleRollDie/rollResult), donc lu tel quel depuis updatedCharacter. */}
         <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
           <div>PV Max: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.PV_Max}</span></div>
-          <div>Contact: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.Contact}</span></div>
-          <div>Distance: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.Distance}</span></div>
-          <div>Magie: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.Magie}</span></div>
+          <div>Contact: <span className="text-[var(--text-primary)] font-bold">{getDisplayValue('Contact')}</span></div>
+          <div>Distance: <span className="text-[var(--text-primary)] font-bold">{getDisplayValue('Distance')}</span></div>
+          <div>Magie: <span className="text-[var(--text-primary)] font-bold">{getDisplayValue('Magie')}</span></div>
         </div>
         <button
           onClick={onClose}
@@ -1161,12 +1179,14 @@ export default function Component() {
 
     const newPV_Max = (parseInt(selectedCharacter.PV_Max as any) || 0) + rollResult;
     const newNiveau = (selectedCharacter.niveau || 0) + 1;
+    // Contact/Distance/Magie ne sont PLUS écrits ici : ce sont des stats 'derived' (formule
+    // mod(carac) + niveau, cf dnd-classic/stats.ts) — incrémenter niveau ci-dessous leur donne déjà
+    // automatiquement +1 via la formule. Les écrire aussi en dur ferait doublement compter le niveau
+    // le jour où quelqu'un réintroduirait un override manuel, et n'a de toute façon plus aucun effet
+    // depuis que resolveCharacterStats ignore la valeur stockée pour une formule sans dé.
     const updates = {
       PV_Max: newPV_Max,
       PV: newPV_Max,
-      Contact: (parseInt(selectedCharacter.Contact as any) || 0) + 1,
-      Distance: (parseInt(selectedCharacter.Distance as any) || 0) + 1,
-      Magie: (parseInt(selectedCharacter.Magie as any) || 0) + 1,
       niveau: newNiveau,
     };
 
@@ -1757,7 +1777,7 @@ export default function Component() {
                   const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: defaultVitalKeys, layout: 'horizontal' });
                   return (
                     <div id={`vtt-widget-vitals-view-${l.i}`} key={l.i} className="overflow-hidden h-full">
-                      <WidgetVitals style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} onFieldClick={setSelectedVitalKey} />
+                      <WidgetVitals style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} onFieldClick={openVitalDrawer} />
                     </div>
                   );
                 })}
@@ -1962,6 +1982,28 @@ export default function Component() {
                   </div>
                 ))}
               </div>
+
+              {/* Rappel visible que les stats 'derived' (ex Défense, Contact, Distance, Magie, Initiative
+                  pour dnd-classic ; Seuil de Blessure/Encaissement pour Star Wars) ne figurent plus dans
+                  ce formulaire — elles restent calculées en continu depuis leur formule et suivent
+                  automatiquement les caractéristiques ci-dessous, jamais éditées à la main. Le calcul
+                  exact (ex "18 + mod(Dextérité)") est affiché via FormulaPreview, déjà utilisé par
+                  l'éditeur de règles — même lecture pour le MJ ET pour le joueur qui édite sa fiche. */}
+              {gameSystem.stats.some((s) => s.category === 'derived' && s.visibleToPlayers !== false) && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">Calculées automatiquement</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {gameSystem.stats.filter((s) => s.category === 'derived' && s.visibleToPlayers !== false).map((s) => (
+                      <div key={s.key} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2">
+                        <div className="text-xs text-[var(--text-secondary)]">{s.label}</div>
+                        <div className="text-sm font-mono text-[var(--text-primary)] mt-0.5 break-words">
+                          <FormulaPreview node={s.valueFormula ?? null} statLabel={(key) => gameSystem.stats.find((x) => x.key === key)?.label ?? key} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Caractéristiques (ability, hors compteurs de dés à symboles) du système actif */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">

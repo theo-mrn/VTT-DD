@@ -1,6 +1,7 @@
-export { evaluateFormula, resolveStatValue, resolveStatModifier, getFormulaDependencies, FormulaCycleError, type FormulaContext } from './formula';
+export { evaluateFormula, resolveStatValue, resolveStatModifier, getFormulaDependencies, describeFormulaTerms, FormulaCycleError, type FormulaContext, type FormulaTerm } from './formula';
 export {
   resolveCharacterStats,
+  buildFormulaContext,
   buildDiceVariables,
   applyVariablesToNotation,
   getRollableStats,

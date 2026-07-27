@@ -3,8 +3,8 @@ import { dndClassicModule } from '../index';
 
 // Vérifie que le module dnd-classic reproduit EXACTEMENT les formules actuelles :
 // - getModifier(v) = floor((v-10)/2), CharacterContext.tsx ligne 182-184
-// - Defense = 18 + mod(DEX), Contact = 1 + mod(FOR), Distance = 1 + mod(DEX),
-//   Magie = 1 + mod(CHA), INIT = DEX  (app/creation/page.tsx lignes 151-156)
+// - Defense = 10 + mod(DEX), Contact = 1 + mod(FOR) + niveau, Distance = 1 + mod(DEX) + niveau,
+//   Magie = 1 + max(mod(INT), mod(SAG), mod(CHA)) + niveau, INIT = DEX (app/creation/page.tsx lignes 151-156)
 // - PV_Max = 1 + mod(CON) + jet du dé de vie
 
 function mod(v: number) {
@@ -13,10 +13,13 @@ function mod(v: number) {
 
 describe('dnd-classic module — parité avec les formules actuelles codées en dur', () => {
   // Nouveau personnage : PV_Max pas encore stocké -> la formule (avec jet de dé) est évaluée.
+  // niveau: 1 reflète la réalité (app/creation/page.tsx initialise toujours niveau à 1) — Contact/
+  // Distance/Magie retranchent 1 au niveau pour ne pas déjà donner de bonus à la création.
   const character = {
     FOR: 14, DEX: 12, CON: 16, SAG: 10, INT: 8, CHA: 13,
     deVie: 'd12',
     PV: 999,
+    niveau: 1,
   };
 
   test('les modificateurs d\'abilities correspondent à floor((v-10)/2)', () => {
@@ -29,16 +32,30 @@ describe('dnd-classic module — parité avec les formules actuelles codées en 
     expect(resolved.modifiers.CHA).toBe(mod(13));
   });
 
-  test('Defense = 18 + mod(DEX)', () => {
+  test('Defense = 10 + mod(DEX)', () => {
     const resolved = resolveCharacterStats(dndClassicModule.gameSystem, [], character);
-    expect(resolved.values.Defense).toBe(18 + mod(12));
+    expect(resolved.values.Defense).toBe(10 + mod(12));
   });
 
-  test('Contact = 1 + mod(FOR), Distance = 1 + mod(DEX), Magie = 1 + mod(CHA)', () => {
+  test('Contact = 1 + mod(FOR), Distance = 1 + mod(DEX), Magie = 1 + mod(CHA) (CHA est le max mental ici) au niveau 1 (pas de bonus)', () => {
     const resolved = resolveCharacterStats(dndClassicModule.gameSystem, [], character);
     expect(resolved.values.Contact).toBe(1 + mod(14));
     expect(resolved.values.Distance).toBe(1 + mod(12));
     expect(resolved.values.Magie).toBe(1 + mod(13));
+  });
+
+  test('Contact/Distance/Magie ajoutent (niveau - 1) du personnage', () => {
+    const leveledCharacter = { ...character, niveau: 4 };
+    const resolved = resolveCharacterStats(dndClassicModule.gameSystem, [], leveledCharacter);
+    expect(resolved.values.Contact).toBe(1 + mod(14) + 3);
+    expect(resolved.values.Distance).toBe(1 + mod(12) + 3);
+    expect(resolved.values.Magie).toBe(1 + mod(13) + 3);
+  });
+
+  test('Magie utilise la meilleure des trois caractéristiques mentales (INT, SAG, ou CHA), pas toujours CHA', () => {
+    const wisdomCaster = { ...character, SAG: 18, CHA: 8 }; // mod(SAG=18)=4 > mod(CHA=8)=-1
+    const resolved = resolveCharacterStats(dndClassicModule.gameSystem, [], wisdomCaster);
+    expect(resolved.values.Magie).toBe(1 + mod(18));
   });
 
   test('INIT = DEX (valeur brute, pas de modificateur)', () => {
