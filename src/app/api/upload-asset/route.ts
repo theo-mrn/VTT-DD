@@ -28,6 +28,8 @@ const CONTENT_TYPES: Record<string, string> = {
     '.woff': 'font/woff',
     '.ttf': 'font/ttf',
     '.otf': 'font/otf',
+    '.glb': 'model/gltf-binary',
+    '.gltf': 'model/gltf+json',
 };
 
 /**
@@ -37,7 +39,7 @@ const CONTENT_TYPES: Record<string, string> = {
  * Request body (FormData):
  *   - file: File - The file to upload
  *   - category: string - Category path (e.g., "Map/Camps", "Token", "items/arbre")
- *   - type: 'image' | 'video' | 'json' - Asset type
+ *   - type: 'image' | 'video' | 'json' | 'font' | 'model' - Asset type
  * 
  * Response:
  *   - url: string - R2 public URL
@@ -65,9 +67,9 @@ export async function POST(request: Request) {
         }
 
         // Validate type
-        if (!['image', 'video', 'json', 'font'].includes(type)) {
+        if (!['image', 'video', 'json', 'font', 'model'].includes(type)) {
             return NextResponse.json(
-                { error: 'Invalid type. Must be image, video, json, or font' },
+                { error: 'Invalid type. Must be image, video, json, font, or model' },
                 { status: 400 }
             );
         }

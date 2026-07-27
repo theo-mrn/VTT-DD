@@ -253,7 +253,26 @@ export interface GameSystemDefinition {
    *  polices peuvent être des chemins relatifs d'un bundle zip (assets/fonts/x.woff2), réécrits en
    *  URL R2 à l'import. Absent = polices historiques (IM Fell English / Cinzel) inchangées. */
   typography?: TypographyConfig;
+  /** Fond personnalisé (2D ou 3D) affiché derrière la grille de sélection de personnage
+   *  (page /personnages uniquement — jamais AppBackground globalement, qui reste neutre pour
+   *  les systèmes sans fond déclaré, ex dnd-classic). Absent = fond générique inchangé. */
+  background?: BackgroundConfig;
 }
+
+/** Fond personnalisé d'un système de règles — cf GameSystemDefinition.background.
+ *  `src` est un chemin relatif du bundle (assets/3d/x.glb, assets/images/x.jpg), réécrit en URL R2
+ *  à l'import (même mécanisme que FontFaceDefinition.src), ou une URL https directe. */
+export type BackgroundConfig =
+  | { type: 'image'; src: string }
+  | { type: 'video'; src: string }
+  | {
+      type: 'model';
+      src: string;
+      /** Échelle du modèle (défaut 1). */
+      scale?: number;
+      /** Rotation idle en radians/seconde autour de l'axe Y (défaut 0 = statique). */
+      spin?: number;
+    };
 
 /** Une police embarquée par le bundle du système, chargée à l'exécution via l'API FontFace. */
 export interface FontFaceDefinition {

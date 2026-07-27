@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from '@/contexts/CharacterContext';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { Coins, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { db, doc, updateDoc } from '@/lib/firebase';
@@ -96,6 +97,7 @@ export const WidgetBourse: React.FC<WidgetProps> = ({ style }) => {
 
 export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
     const { selectedCharacter, roomId } = useCharacter();
+    const { gameSystem } = useGameSystem(roomId);
     const rawEffects = useCharacterBonuses(roomId, selectedCharacter?.Nomperso);
     const [effects, setEffects] = useState<any[]>([]);
 
@@ -119,14 +121,19 @@ export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
         }
     };
 
+    // Dérivé du SYSTÈME ACTIF (gameSystem.stats) plutôt qu'une liste de clés dnd-classic codée en dur
+    // (FOR/DEX/.../Defense/Contact/.../INIT) — sans quoi un bonus posé sur une stat d'un système custom
+    // (ex "vigueur", "SeuilBlessure" pour Star Wars) n'était jamais reconnu : effectStr restait vide et
+    // l'effet actif disparaissait purement et simplement de la liste (cf appelant, plus de `return null`).
     const getEffectString = (effect: any) => {
-        const stats = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA', 'PV', 'PV_Max', 'Defense', 'Contact', 'Mythe', 'Magie', 'Distance', 'INIT'];
         const parts: string[] = [];
-        stats.forEach(stat => {
-            if (effect[stat] && effect[stat] !== 0) {
-                parts.push(`${stat} ${effect[stat] > 0 ? '+' : ''}${effect[stat]}`);
+        for (const stat of gameSystem.stats) {
+            if (stat.category === 'meta') continue;
+            const value = effect[stat.key];
+            if (value && value !== 0) {
+                parts.push(`${stat.shortLabel ?? stat.label} ${value > 0 ? '+' : ''}${value}`);
             }
-        });
+        }
         return parts.join(', ');
     };
 
@@ -147,9 +154,10 @@ export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
                 {effects.length > 0 ? (
                     effects.map((effect) => {
                         const effectStr = getEffectString(effect);
-                        // Filter out items with no actual bonuses (all stats 0 or missing)
-                        if (!effectStr) return null;
-
+                        // Un effet actif sans bonus reconnu reste affiché (avec le fallback "Aucun
+                        // bonus de stat" plus bas) plutôt que masqué : le joueur doit pouvoir le voir
+                        // et le toggler même si effectStr est vide (ex effet mal configuré, ou bonus
+                        // sur une clé qui n'existe plus dans le système actif).
                         return (
                             <div
                                 key={effect.id}

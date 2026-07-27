@@ -17,8 +17,9 @@ export interface ParsedZipBundle {
   styles: Map<string, string>;
 }
 
-const ASSET_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.woff2', '.woff', '.ttf', '.otf'];
+const ASSET_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.woff2', '.woff', '.ttf', '.otf', '.glb', '.gltf', '.mp4', '.webm'];
 const FONT_EXTENSIONS = ['.woff2', '.woff', '.ttf', '.otf'];
+const MODEL_EXTENSIONS = ['.glb', '.gltf'];
 const SCRIPT_EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
 
 /** Détection zip par extension OU magic bytes (PK\x03\x04) — un fichier renommé sans extension
@@ -123,7 +124,13 @@ export async function uploadBundleAssets(opts: {
 
   const uploadOne = async ([path, bytes]: [string, Uint8Array]) => {
     const lower = path.toLowerCase();
-    const type = FONT_EXTENSIONS.some((ext) => lower.endsWith(ext)) ? 'font' : 'image';
+    const type = FONT_EXTENSIONS.some((ext) => lower.endsWith(ext))
+      ? 'font'
+      : MODEL_EXTENSIONS.some((ext) => lower.endsWith(ext))
+        ? 'model'
+        : lower.endsWith('.mp4') || lower.endsWith('.webm')
+          ? 'video'
+          : 'image';
     const basename = path.split('/').pop()!;
     const dirname = path.slice(0, path.length - basename.length - 1);
     const formData = new FormData();

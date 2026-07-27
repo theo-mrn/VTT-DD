@@ -4317,6 +4317,12 @@
     "obligation": {
       "startingValue": 10,
       "minValue": 5
+    },
+    "background": {
+      "type": "model",
+      "src": "assets/3d/holotable.glb",
+      "scale": 1,
+      "spin": 0.25
     }
   },
   "groupEntities": {

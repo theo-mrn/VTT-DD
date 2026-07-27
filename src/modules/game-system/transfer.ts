@@ -1,4 +1,5 @@
 import type {
+  BackgroundConfig,
   CharacterCreationRule,
   CharacterLayoutEntry,
   DicePoolUpgradeRule,
@@ -59,6 +60,7 @@ export interface GameSystemExportData {
   combat?: CombatRule;
   objectLibraryId?: string;
   typography?: TypographyConfig;
+  background?: BackgroundConfig;
 }
 
 /** Source minimale requise pour construire un export — n'importe quel Draft (GameSystemManagerPanel)
@@ -95,6 +97,7 @@ export interface GameSystemExportSource {
   combat?: CombatRule;
   objectLibraryId?: string;
   typography?: TypographyConfig;
+  background?: BackgroundConfig;
 }
 
 /** systemId n'est jamais inclus dans l'export : un fichier partagé ne doit jamais forcer un identifiant
@@ -136,6 +139,7 @@ export function buildGameSystemExport(source: GameSystemExportSource): GameSyste
   if (source.combat != null) result.combat = source.combat;
   if (source.objectLibraryId != null) result.objectLibraryId = source.objectLibraryId;
   if (source.typography != null) result.typography = source.typography;
+  if (source.background != null) result.background = source.background;
   return result;
 }
 
@@ -284,5 +288,14 @@ export function parseGameSystemExport(raw: string): GameSystemExportData {
   if (json.typography != null && typeof json.typography === 'object' && !Array.isArray(json.typography)) {
     result.typography = json.typography;
   }
+  if (isBackgroundConfig(json.background)) {
+    result.background = json.background;
+  }
   return result;
+}
+
+function isBackgroundConfig(v: unknown): v is BackgroundConfig {
+  if (!v || typeof v !== 'object') return false;
+  const b = v as Record<string, unknown>;
+  return (b.type === 'image' || b.type === 'video' || b.type === 'model') && typeof b.src === 'string';
 }

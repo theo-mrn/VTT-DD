@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES, SUGGESTED_MUSICS, MUSIC_CATEGORIES } from '@/lib/suggested-sounds'
+import { SUGGESTED_SOUNDS_STARWARS, SOUND_CATEGORIES_STARWARS } from '@/lib/suggested-sounds-starwars'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
@@ -46,6 +48,14 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
         updatePlaylist,
         deletePlaylist,
     } = useGMTemplates();
+
+    // Bibliothèque de sons d'ambiance/effets : bascule vers la variante Star Wars quand le système actif
+    // est Star Wars — même logique que ObjectDrawer.tsx (gameSystem.objectLibraryId === 'starwars'). Les
+    // musiques (playlists) restent inchangées, seule la bibliothèque d'effets sonores est concernée.
+    const { gameSystem } = useGameSystem(roomId);
+    const isStarWars = gameSystem.objectLibraryId === 'starwars';
+    const librarySounds = isStarWars ? SUGGESTED_SOUNDS_STARWARS : SUGGESTED_SOUNDS;
+    const librarySoundCategories = isStarWars ? SOUND_CATEGORIES_STARWARS : SOUND_CATEGORIES;
 
     // Register dialog state when drawer opens/closes
     useEffect(() => {
@@ -1018,7 +1028,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                         </Button>
                                         <div className="h-px bg-[var(--border-color)] my-2 mx-1" />
                                         <div className="px-2 pb-1 text-[10px] font-semibold text-gray-600 uppercase">Catégories</div>
-                                        {(activeTab === 'music' ? MUSIC_CATEGORIES : SOUND_CATEGORIES).map(cat => (
+                                        {(activeTab === 'music' ? MUSIC_CATEGORIES : librarySoundCategories).map(cat => (
                                             <Button
                                                 key={cat.id}
                                                 variant="ghost"
@@ -1037,7 +1047,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                             <div className="flex-1 bg-[var(--bg-darker)] flex flex-col min-w-0">
                                 <ScrollArea className="flex-1 p-5">
                                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                        {(activeTab === 'music' ? SUGGESTED_MUSICS : SUGGESTED_SOUNDS)
+                                        {(activeTab === 'music' ? SUGGESTED_MUSICS : librarySounds)
                                             .filter(s => {
                                                 const matchesSearch = s.name.toLowerCase().includes(librarySearch.toLowerCase()) || s.category.toLowerCase().includes(librarySearch.toLowerCase())
                                                 const matchesCat = selectedLibraryCategory === 'all' || s.category === selectedLibraryCategory
@@ -1110,7 +1120,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                     </div>
 
                                     {/* Empty State */}
-                                    {(activeTab === 'music' ? SUGGESTED_MUSICS : SUGGESTED_SOUNDS).filter(s => (s.name.toLowerCase().includes(librarySearch.toLowerCase()) || s.category.includes(librarySearch))).length === 0 && (
+                                    {(activeTab === 'music' ? SUGGESTED_MUSICS : librarySounds).filter(s => (s.name.toLowerCase().includes(librarySearch.toLowerCase()) || s.category.includes(librarySearch))).length === 0 && (
                                         <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                                             <Search className="w-12 h-12 mb-4 opacity-20" />
                                             <p>Aucun son trouvé pour "{librarySearch}"</p>

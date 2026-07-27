@@ -9,6 +9,8 @@ import { db, getDocs, collection, doc, setDoc, getDoc, writeBatch, dbRef, rtdbRe
 import { useGame } from '@/contexts/GameContext'
 import { cn } from '@/lib/utils'
 import { AppBackground } from '@/components/ui/background-components'
+import { ThemeBackground3D } from '@/components/ui/theme-background-3d'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { ProfileCard } from '@/components/ui/profile-card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -84,6 +86,16 @@ export default function CharacterSelection() {
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const { gameSystem } = useGameSystem(user?.roomId && user.roomId !== '0' ? user.roomId : null)
+  const customBackground = gameSystem.background
+  // Tant qu'un fond custom (ex holotable 3D) charge, on retient l'apparition des cartes pour ne pas
+  // les afficher devant un fond encore vide — pas de fond custom = rien à attendre, prêt d'emblée.
+  const [backgroundReady, setBackgroundReady] = useState(!customBackground)
+  useEffect(() => {
+    if (!customBackground) setBackgroundReady(true)
+  }, [customBackground])
+  const handleBackgroundReady = useCallback(() => setBackgroundReady(true), [])
 
   const loadData = useCallback(async () => {
     if (!user?.uid || !user?.roomId || user.roomId === '0') return;
@@ -308,42 +320,65 @@ export default function CharacterSelection() {
   // ── Main UI ────────────────────────────────────────────────────────────────
   return (
     <AppBackground>
-      <div className="flex flex-col min-h-screen items-center justify-center px-4 py-12">
+      {customBackground && (
+        <ThemeBackground3D
+          background={customBackground}
+          className="absolute inset-0 -z-10 pointer-events-none"
+          onReady={handleBackgroundReady}
+        />
+      )}
+      <div className={cn(
+        "relative flex flex-col min-h-screen items-center px-4",
+        customBackground ? "justify-start pt-24 pb-4" : "justify-center py-12"
+      )}>
 
         {/* Title */}
-        <motion.div
-          initial={{ opacity: 0, y: -24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="text-center mb-14"
-        >
-          <h1
-            className="text-4xl md:text-6xl font-bold tracking-tight mb-3"
-            style={{
-              fontFamily: "'Aclonica', sans-serif",
-              background: 'linear-gradient(135deg, #e8d5b7 0%, #c0a080 50%, #8a6a4b 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
+        {!customBackground && (
+          <motion.div
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="text-center mb-14"
           >
-            Qui joue&nbsp;?
-          </h1>
-          <p className="text-zinc-400 text-base md:text-lg font-light tracking-wide">
-            Choisissez votre incarnation pour cette aventure
-          </p>
+            <h1
+              className="text-4xl md:text-6xl font-bold tracking-tight mb-3"
+              style={{
+                fontFamily: "'Aclonica', sans-serif",
+                background: 'linear-gradient(135deg, #e8d5b7 0%, #c0a080 50%, #8a6a4b 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Qui joue&nbsp;?
+            </h1>
+            <p className="text-zinc-400 text-base md:text-lg font-light tracking-wide">
+              Choisissez votre incarnation pour cette aventure
+            </p>
 
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing || charactersLoading}
+              className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-zinc-400 hover:text-[#c0a080]"
+            >
+              <RotateCcw className={cn("w-3.5 h-3.5", (isRefreshing || charactersLoading) && "animate-spin")} />
+              {isRefreshing ? "Mise à jour..." : "Actualiser la liste"}
+            </button>
+          </motion.div>
+        )}
+
+        {customBackground && (
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing || charactersLoading}
-            className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-zinc-400 hover:text-[#c0a080]"
+            className="mb-8 flex items-center gap-2 mx-auto px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-zinc-400 hover:text-[#c0a080]"
           >
             <RotateCcw className={cn("w-3.5 h-3.5", (isRefreshing || charactersLoading) && "animate-spin")} />
             {isRefreshing ? "Mise à jour..." : "Actualiser la liste"}
           </button>
-        </motion.div>
+        )}
 
         {/* Profiles grid */}
-        {charactersLoading ? (
+        {charactersLoading || !backgroundReady ? (
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-10 h-10 text-[#c0a080] animate-spin" />
             <p className="text-zinc-500 text-sm animate-pulse">Invocation des héros…</p>
@@ -391,7 +426,7 @@ export default function CharacterSelection() {
                     )}
                   </ContextMenu>
 
-                  {isTakenByOther && occupant && (
+                  {isTakenByOther && occupant && !customBackground && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
