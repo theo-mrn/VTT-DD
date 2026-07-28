@@ -2,13 +2,14 @@
 //  1. Bouton "Vision" (infrarouge) réservé aux Chiss.
 //  2. Fonds de fiche : on FOURNIT la liste des fonds animés à l'app ; la FICHE elle-même les rend
 //     derrière son contenu, propose le sélecteur (menu Actions) et persiste le choix par personnage.
-//  3. Onglet "Radar" : senseurs de proximité centrés sur son personnage (voir radar.tsx).
+//  3. Onglet "Instruments" (joueur, flottant) : fusion Radar + Scanner de fréquences + Moniteur
+//     d'activité en un seul panneau à sous-navigation. Voir instruments.tsx (radar.tsx, scanner.tsx,
+//     activity-monitor.tsx pour le contenu de chaque instrument). Le Scanner MJ (programmation du
+//     canal secret) reste un onglet séparé, voir scanner-mj.tsx.
 //  4. Onglet "Vaisseaux" du drawer Recherche unifiée de la carte (MJ) : glisser un vaisseau de la
 //     flotte/catalogue sur la carte comme token, avec ses vraies stats visibles (voir deploy-ships.tsx).
-//  5. Onglet "Scanner" : radio cryptée à molette de fréquence (joueur) + programmation du canal
-//     secret (MJ). Voir scanner.tsx / scanner-mj.tsx.
-//  6. Onglet "Moniteur d'activité" (joueur, autonome) : secteurs d'activité hostile détectés en
-//     direct depuis les positions/mouvements des tokens ennemis. Voir activity-monitor.tsx.
+//  5. Onglet "Codex" (joueur) : fusion Vaisseaux + Planètes en un seul wiki galactique à
+//     sous-navigation. Voir codex.tsx.
 //  7. Onglet "Droïde compagnon" (joueur) : soins (cooldown) + buffs de stat intégrés au moteur, sur
 //     son propre personnage. Voir droid.tsx.
 //  8. Onglet "Bombardement" (joueur, flottant bas-droit) : pad + rayon définissant une zone en % de
@@ -20,19 +21,16 @@
 //     4 bandes de fader verticales (LED meter + poignée à inertie) — même raccourci/bouton/toggle
 //     que le natif, mêmes canaux localStorage/CustomEvent, les volumes s'appliquent donc partout.
 //     Voir mixer.tsx.
-import { Eye, EyeOff, Radar, Scale, Rocket, Target, RadioTower, Activity, Bot, Bomb, Globe2 } from 'lucide-react';
+import { Eye, EyeOff, Gauge, Scale, BookOpen, Target, RadioTower, Bot, Rocket } from 'lucide-react';
 import { BACKGROUNDS } from './backgrounds';
-import { makeRadarPanel } from './radar';
 import { makeLocationOverlay } from './location';
 import { makeObligationWidget } from './obligation';
 import { makeObligationCreationTab } from './creation-obligation';
-import { makeShipsPanel } from './ships';
-import { makePlanetsPanel } from './planet';
+import { makeCodexPanel } from './codex';
+import { makeInstrumentsPanel } from './instruments';
 import { makeDeployShipsPanel } from './deploy-ships';
 import { makeCommsControl } from './comms-mj';
-import { makeScannerPanel } from './scanner';
 import { makeScannerControl } from './scanner-mj';
-import { makeActivityMonitorPanel } from './activity-monitor';
 import { makeDroidPanel } from './droid';
 import { makeBombardementPanel, makeBombardementMjPanel } from './bombardement';
 import { makeMixerPanel } from './mixer';
@@ -65,38 +63,20 @@ export default (ctx) => {
   // persistance par personnage. Rien à afficher côté script.
   api.sheet.setBackgrounds(BACKGROUNDS);
 
-  // Panneau Vaisseaux — pour TOUS (accès rapide en jeu, comme le radar) : flotte acquise en gros
-  // plan + catalogue complet, en lecture seule ; le MJ gère stats et acquisitions via son panneau
-  // natif d'entités de groupe. Onglet classique (pas floating : c'est un vrai panneau de contenu).
-  // PAS de width custom : ce champ attend des classes Tailwind déjà présentes dans le CSS compilé
-  // de l'app (le JIT ne connaît pas les classes venant d'un script chargé à l'exécution — une
-  // classe inconnue = panneau pleine largeur). Sans width, le rail applique sa largeur par défaut.
-  const shipsTab = {
-    id: 'sw-ships',
-    label: 'Vaisseaux',
-    icon: Rocket,
-    component: makeShipsPanel(api),
-  };
-
-  // Onglet Planètes — pour TOUS (comme Vaisseaux) : catalogue des lieux du système (api.locations)
-  // avec globe réel (ctx.ui.RotatingEarth, fourni par l'app) pour les mondes sans illustration.
-  // Voir planet.tsx.
-  const planetsTab = {
-    id: 'sw-planets',
-    label: 'Planètes',
-    icon: Globe2,
-    component: makePlanetsPanel(api, ui),
-  };
-
-  // Onglet Radar — joueurs uniquement : le MJ voit déjà toute la carte, et sans personnage incarné
-  // le radar n'a pas de point d'origine. Panneau flottant : dimensionné par le radar lui-même,
-  // pointer-events désactivés sur le conteneur — la carte reste interactive tout autour.
-  const radarTab = {
-    id: 'sw-radar',
-    label: 'Radar',
-    icon: Radar,
-    component: makeRadarPanel(api),
-    floating: true,
+  // Onglet Codex — pour TOUS (accès rapide en jeu, comme le radar) : wiki galactique fusionnant
+  // les anciens onglets "Vaisseaux" (flotte acquise + catalogue, lecture seule pour les joueurs —
+  // le MJ gère stats/acquisitions via son panneau natif d'entités de groupe) et "Planètes"
+  // (catalogue des lieux du système api.locations, globe 3D ctx.ui.RotatingEarth pour les mondes
+  // sans illustration), avec une sous-navigation interne entre les deux. Voir codex.tsx.
+  // Onglet classique (pas floating : c'est un vrai panneau de contenu). PAS de width custom : ce
+  // champ attend des classes Tailwind déjà présentes dans le CSS compilé de l'app (le JIT ne
+  // connaît pas les classes venant d'un script chargé à l'exécution — une classe inconnue =
+  // panneau pleine largeur). Sans width, le rail applique sa largeur par défaut.
+  const codexTab = {
+    id: 'sw-codex',
+    label: 'Codex',
+    icon: BookOpen,
+    component: makeCodexPanel(api, ui),
   };
 
   // Onglet "Vaisseaux" du drawer Recherche unifiée de la carte (MJ, où sont déjà PNJ/Objets/Sons) :
@@ -110,34 +90,29 @@ export default (ctx) => {
     component: makeDeployShipsPanel(api),
   };
 
-  // Onglet Scanner de fréquences — JOUEUR : radio cryptée flottante (comme le radar). La molette de
-  // fréquence se cherche pour capter le message secret du MJ (voir scanner.tsx).
-  const scannerTab = {
-    id: 'sw-scanner',
-    label: 'Scanner',
-    icon: RadioTower,
-    component: makeScannerPanel(api),
+  // Onglet Instruments — JOUEURS uniquement : fusionne les anciens onglets flottants "Radar" (le MJ
+  // voit déjà toute la carte, et sans personnage incarné le radar n'a pas de point d'origine),
+  // "Scanner de fréquences" (radio cryptée, molette à caler sur le message secret du MJ) et
+  // "Moniteur d'activité" (secteurs d'activité hostile, autonome) en un seul panneau flottant à
+  // sous-navigation. Un seul instrument monté à la fois (voir instruments.tsx) : les rAF/
+  // souscriptions des deux autres s'arrêtent tant qu'on ne les consulte pas.
+  const instrumentsTab = {
+    id: 'sw-instruments',
+    label: 'Instruments',
+    icon: Gauge,
+    component: makeInstrumentsPanel(api),
     floating: true,
   };
 
   // Onglet Scanner — MJ : programmation du canal secret (interrupteur d'émission + fréquence/
   // décalage/gain + message). Panneau flottant compact depuis la v2 (plus de colonne pleine
-  // hauteur — le formulaire tient dans une carte de 320px).
+  // hauteur — le formulaire tient dans une carte de 320px). Reste séparé des Instruments joueur :
+  // c'est un panneau de configuration MJ, pas un instrument consulté en jeu.
   const scannerControlTab = {
     id: 'sw-scanner-mj',
     label: 'Scanner',
     icon: RadioTower,
     component: makeScannerControl(api),
-    floating: true,
-  };
-
-  // Onglet Moniteur d'activité — JOUEUR, autonome (aucune config MJ) : secteurs d'activité hostile
-  // détectés en direct. Panneau flottant comme le radar.
-  const activityTab = {
-    id: 'sw-activity',
-    label: 'Activité',
-    icon: Activity,
-    component: makeActivityMonitorPanel(api),
     floating: true,
   };
 
@@ -157,7 +132,7 @@ export default (ctx) => {
   const bombardementTab = {
     id: 'sw-bombardement',
     label: 'Bombardement',
-    icon: Bomb,
+    icon: Rocket,
     component: makeBombardementPanel(api),
     floating: true,
     dock: 'bottom-right',
@@ -184,8 +159,8 @@ export default (ctx) => {
   // première). Seules les sidebarActions (vision Chiss) sont ré-enregistrées plus bas.
   ctx.register({
     sidebarTabs: isMJ
-      ? [shipsTab, planetsTab, scannerControlTab]
-      : [shipsTab, planetsTab, radarTab, scannerTab, activityTab, droidTab, bombardementTab],
+      ? [codexTab, scannerControlTab]
+      : [codexTab, instrumentsTab, droidTab, bombardementTab],
     searchDrawerTabs: isMJ ? [deployShipsTab] : [],
     characterWidgets: [{
       id: 'sw-obligation',

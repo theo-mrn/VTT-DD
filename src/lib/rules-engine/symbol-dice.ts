@@ -66,3 +66,30 @@ export function formatSymbolDiceResult(gameSystem: GameSystemDefinition, resolut
 
   return parts.length > 0 ? parts.join(' + ') : 'Aucun effet';
 }
+
+export interface SymbolDiceBreakdownEntry {
+  /** Clé de la stat dérivée (ex 'succesNets', 'avantagesNets', 'triomphes') — sert de base à un
+   *  mapping icône/couleur côté UI, jamais interprétée ici. */
+  key: string;
+  label: string;
+  value: number;
+}
+
+/** Même sélection que formatSymbolDiceResult (stats dérivées non nulles dont la formule dépend d'au
+ *  moins une clé touchée par ce jet), mais sous forme structurée — pour un rendu par badges (icône +
+ *  valeur par symbole) au lieu d'une seule ligne de texte concaténée. */
+export function getSymbolDiceBreakdown(gameSystem: GameSystemDefinition, resolution: SymbolDiceResolution): SymbolDiceBreakdownEntry[] {
+  const touched = new Set(resolution.touchedKeys);
+  const entries: SymbolDiceBreakdownEntry[] = [];
+
+  for (const stat of gameSystem.stats) {
+    if (stat.category !== 'derived' || !stat.valueFormula) continue;
+    const deps = getFormulaDependencies(stat.valueFormula);
+    if (!deps.some((key) => touched.has(key))) continue;
+    const value = resolution.values[stat.key];
+    if (typeof value !== 'number' || value === 0) continue;
+    entries.push({ key: stat.key, label: stat.label || stat.key, value });
+  }
+
+  return entries;
+}

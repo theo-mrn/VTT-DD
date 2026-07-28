@@ -18,8 +18,10 @@ export {
   rollSymbolDie,
   resolveSymbolDiceRoll,
   formatSymbolDiceResult,
+  getSymbolDiceBreakdown,
   type SymbolDieRoll,
   type SymbolDiceResolution,
+  type SymbolDiceBreakdownEntry,
 } from './symbol-dice';
 export { resolveGameSystemById, resolveRoomGameSystem, type RoomGameSystemDoc } from './room-game-system';
 export {

@@ -23,7 +23,8 @@ import { LightRays } from "@/components/ui/light-rays"
 import { useParams } from 'next/navigation'
 import { useNpcStatFields } from '@/hooks/useNpcStatFields'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
-import { evaluateFormula, rollComposedDicePool, resolveSymbolDiceRoll, formatSymbolDiceResult } from '@/lib/rules-engine'
+import { evaluateFormula, rollComposedDicePool, resolveSymbolDiceRoll, formatSymbolDiceResult, type SymbolDiceBreakdownEntry } from '@/lib/rules-engine'
+import { SymbolDiceBadges, SymbolDiceRollDetails } from './symbol-dice-badges'
 
 
 type Character = {
@@ -169,6 +170,22 @@ type AttackReport = {
   /** Résumé du jet à dés à symboles (ex "2 Succès + 1 Avantage(s)") — le MJ y lit les
    *  Avantages/Menaces restants à dépenser (étapes 4-5 EotE). Absent pour un jet numérique. */
   symbol_summary?: string
+  /** Même détail que symbol_summary mais structuré (un par symbole net non nul) — pour un rendu
+   *  par badges (icône + valeur) plutôt qu'une ligne de texte concaténée. */
+  symbol_breakdown?: SymbolDiceBreakdownEntry[]
+  /** Dés physiquement lancés, groupés par type (ex "Aptitude [8], Maîtrise [7, 3]") — la même
+   *  traçabilité que voit le joueur, pour que le MJ puisse vérifier/contester un jet. */
+  symbol_dice_detail?: string
+  /** Indice Critique de l'arme utilisée (item.critique) — absent si l'arme n'a pas de critique. */
+  symbol_crit_threshold?: number
+  /** Nombre de fois où la Blessure Critique est déclenchable (Triomphes + Avantages nets / indice).
+   *  0 = non déclenché. Chaque activation au-delà de la 1re ajoute +10 au d100 (règle EotE). */
+  symbol_crit_activations?: number
+  /** Triomphes du jet — un seul suffit à déclencher le critique quel que soit l'indice de l'arme. */
+  symbol_crit_triumphs?: number
+  /** Avantages nets du jet — comparés à symbol_crit_threshold pour savoir si le critique est atteint
+   *  par dépense d'Avantages (indépendamment d'un Triomphe). */
+  symbol_crit_net_advantages?: number
 }
 
 // Carte compacte réutilisable (Personnage actif / Cible) : avatar + PV + DEF seulement,
@@ -520,7 +537,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
   const [damageChange, setDamageChange] = useState(0)
   const { user } = useGame()
   const roomId = user?.roomId ?? null
-  const { abilityStats, primaryVitalStat, defenseKey, extraCombatStats } = useNpcStatFields(roomId)
+  const { abilityStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, extraCombatStats } = useNpcStatFields(roomId)
   const { gameSystem } = useGameSystem(roomId)
   // Stat "initiative"-like : la première stat 'derived' du système (ex INIT pour dnd-classic),
   // absente pour un système sans cette notion — jamais une clé "INIT" supposée exister.
@@ -739,6 +756,14 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
             reportId: doc.id,
             applied: data.applied === true,
             ...(data.symbol_summary ? { symbol_summary: data.symbol_summary as string } : {}),
+            ...(Array.isArray(data.symbol_breakdown) ? { symbol_breakdown: data.symbol_breakdown as SymbolDiceBreakdownEntry[] } : {}),
+            ...(data.symbol_dice_detail ? { symbol_dice_detail: data.symbol_dice_detail as string } : {}),
+            ...(typeof data.symbol_crit_threshold === 'number' ? {
+              symbol_crit_threshold: data.symbol_crit_threshold as number,
+              symbol_crit_activations: (data.symbol_crit_activations ?? 0) as number,
+              symbol_crit_triumphs: (data.symbol_crit_triumphs ?? 0) as number,
+              symbol_crit_net_advantages: (data.symbol_crit_net_advantages ?? 0) as number,
+            } : {}),
           }
         })
 
@@ -751,6 +776,47 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
     fetchAttackReports()
   }, [roomId, characters])
 
+  // Seuil max de la stat vitale principale d'UN personnage (ex Seuil de Blessure = base espèce +
+  // Vigueur) — recalculé depuis raw à chaque appel (jamais figé), même logique que le formula-eval
+  // déjà utilisé par rollCharacterInitiative. Retourne null si non configuré (ex système sans borne).
+  const getVitalMax = (character: Character): number | null => {
+    if (!primaryVitalMaxKey) return null
+    const raw = character.raw as Record<string, unknown> | undefined
+    // Valeur déjà stockée sur le personnage (ex PV_Max: 21) — TOUJOURS prioritaire sur un recalcul
+    // depuis les composants de la formule (ex baseSeuilBlessure + vigueur) : un PNJ créé par un
+    // formulaire qui n'a jamais exposé ces sous-champs (ex baseSeuilBlessure absent du doc) ferait
+    // recalculer un seuil bien plus bas que le vrai, en traitant les clés manquantes comme 0.
+    const stored = raw?.[primaryVitalMaxKey]
+    if (typeof stored === 'number' && Number.isFinite(stored)) return stored
+
+    const maxStatDef = gameSystem.stats.find((s) => s.key === primaryVitalMaxKey)
+    if (!maxStatDef?.valueFormula) return null
+    const statDefs = Object.fromEntries(gameSystem.stats.map((s) => [s.key, s]))
+    return Math.floor(evaluateFormula(maxStatDef.valueFormula, {
+      rawStats: (raw ?? {}) as Record<string, number | string | boolean | undefined>,
+      statDefs,
+    }))
+  }
+
+  // Sens d'application des dégâts sur la stat vitale principale : deux modèles opposés selon le
+  // système (StatDefinition.recoversToZero) —
+  // - D&D (recoversToZero absent/false) : PV = points de vie, les dégâts SOUSTRAIENT, mort à 0.
+  // - EotE/Star Wars (recoversToZero true) : PV = Blessures accumulées, les dégâts ADDITIONNENT,
+  //   K.O./mort quand la valeur ATTEINT le Seuil de Blessure (primaryVitalMaxKey) plutôt qu'à 0.
+  // Sans cette distinction, un jet de dégâts Star Wars soustrayait des PV au lieu d'accumuler des
+  // Blessures, et la popup de mort (PNJ) ne se déclenchait jamais (elle testait <= 0, jamais atteint
+  // par une jauge qui ne fait que monter).
+  const computeVitalAfterDamage = (character: Character, damage: number): { newValue: number; isDown: boolean } => {
+    const max = getVitalMax(character)
+    if (primaryVitalStat?.recoversToZero) {
+      const upperBound = max ?? Infinity
+      const newValue = Math.max(0, Math.min(upperBound, character.pv + damage))
+      return { newValue, isDown: max != null && newValue >= max }
+    }
+    const newValue = Math.max(0, character.pv - damage)
+    return { newValue, isDown: newValue <= 0 }
+  }
+
   const applyDamage = async (targetId: string, damage: number, attackerPersoId?: string, weaponUsed?: string, options?: { silent?: boolean, skipDeathConfirm?: boolean }) => {
     const targetCharacter = characters.find(char => char.id === targetId)
     if (!targetCharacter || !roomId) return
@@ -758,7 +824,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
     if (!primaryVitalStat) return
 
     try {
-      const newPv = Math.max(0, targetCharacter.pv - damage)
+      const { newValue: newPv, isDown } = computeVitalAfterDamage(targetCharacter, damage)
       const characterRef = doc(db, `cartes/${roomId}/characters/${targetId}`)
       await updateDoc(characterRef, { [primaryVitalStat.key]: newPv })
 
@@ -776,7 +842,9 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
 
       if (!options?.silent) {
         toast.success('Dégâts appliqués', {
-          description: `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
+          description: primaryVitalStat.recoversToZero
+            ? `${targetCharacter.name} : +${damage} ${primaryVitalStat.label} (${newPv} au total)`
+            : `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
           duration: 2000,
         })
       }
@@ -784,8 +852,19 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
       const attacker = attackerPersoId ? characters.find(c => c.id === attackerPersoId) : undefined
       const attackerName = attacker?.name || 'Quelqu\'un'
       const withWeapon = weaponUsed ? ` (${weaponUsed})` : ''
+      const vitalLabel = primaryVitalStat.label
       let historyMessage: string
-      if (damage > 0) {
+      if (primaryVitalStat.recoversToZero) {
+        // Modèle Star Wars : la stat vitale ACCUMULE les dégâts (Blessures/Stress) — "damage > 0"
+        // ajoute des Blessures (pire état), "damage < 0" en retire (soin).
+        if (damage > 0) {
+          historyMessage = `**${targetCharacter.name}** a reçu **${damage} ${vitalLabel}** de **${attackerName}**${withWeapon} (${newPv} au total).`
+        } else if (damage < 0) {
+          historyMessage = `**${targetCharacter.name}** a récupéré **${Math.abs(damage)} ${vitalLabel}** grâce à **${attackerName}**${withWeapon} (${newPv} au total).`
+        } else {
+          historyMessage = `**${targetCharacter.name}** n'a subi aucun effet de **${attackerName}**${withWeapon} (${newPv} ${vitalLabel}).`
+        }
+      } else if (damage > 0) {
         historyMessage = `**${targetCharacter.name}** a reçu **${damage} dégâts** de **${attackerName}**${withWeapon} (${newPv} PV restants).`
       } else if (damage < 0) {
         historyMessage = `**${targetCharacter.name}** a reçu **${Math.abs(damage)} PV** de **${attackerName}**${withWeapon} (${newPv} PV).`
@@ -795,8 +874,8 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
 
       logHistoryEvent({
         roomId,
-        type: newPv <= 0 ? 'mort' : 'combat',
-        message: newPv <= 0 ? `**${targetCharacter.name}** a succombé à ses blessures !` : historyMessage,
+        type: isDown ? 'mort' : 'combat',
+        message: isDown ? `**${targetCharacter.name}** a succombé à ses blessures !` : historyMessage,
         characterId: targetId,
         characterName: targetCharacter.name,
         characterType: targetCharacter.type,
@@ -818,7 +897,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
         })
       }
 
-      if (newPv <= 0 && targetCharacter.type !== 'joueurs' && !options?.skipDeathConfirm) {
+      if (isDown && targetCharacter.type !== 'joueurs' && !options?.skipDeathConfirm) {
         confirmDeleteCharacter(targetCharacter)
       }
     } catch (error) {
@@ -871,8 +950,8 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
         const damage = bulkReviewDamages[report.reportId] ?? report.degat_result
         const targetCharacter = characters.find(c => c.id === report.cible)
         if (targetCharacter) {
-          const willDie = targetCharacter.type !== 'joueurs' && (targetCharacter.pv - damage) <= 0
-          if (willDie) deaths.push({ ...targetCharacter, pv: 0 })
+          const { isDown } = computeVitalAfterDamage(targetCharacter, damage)
+          if (targetCharacter.type !== 'joueurs' && isDown) deaths.push({ ...targetCharacter, pv: 0 })
         }
 
         await applyDamage(report.cible, damage, report.attaquant, report.arme_utilisée, {
@@ -1166,31 +1245,33 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
     if (selectedCharacter && roomId && primaryVitalStat) {
       try {
         const newPv = Math.max(0, selectedCharacter.pv + hpChange)
+        const max = getVitalMax(selectedCharacter)
+        const isDown = primaryVitalStat.recoversToZero ? (max != null && newPv >= max) : newPv <= 0
         const characterRef = doc(db, `cartes/${roomId}/characters/${selectedCharacter.id}`)
         await updateDoc(characterRef, { [primaryVitalStat.key]: newPv })
         setCharacters(prevChars =>
           prevChars.map(char => char.id === selectedCharacter.id ? { ...char, pv: newPv } : char)
         )
 
-        toast.success('PV modifiés', {
-          description: `${selectedCharacter.name} : ${hpChange > 0 ? '+' : ''}${hpChange} PV (${newPv} PV)`,
+        toast.success(`${primaryVitalStat.label} modifié(es)`, {
+          description: `${selectedCharacter.name} : ${hpChange > 0 ? '+' : ''}${hpChange} (${newPv} au total)`,
           duration: 2000,
         })
 
         if (hpChange !== 0) {
           logHistoryEvent({
             roomId,
-            type: newPv <= 0 ? 'mort' : 'combat',
-            message: newPv <= 0
+            type: isDown ? 'mort' : 'combat',
+            message: isDown
               ? `**${selectedCharacter.name}** a succombé à ses blessures !`
-              : `**MJ** ajuste les PV de **${selectedCharacter.name}** : ${hpChange > 0 ? '+' : ''}${hpChange} (${newPv} PV).`,
+              : `**MJ** ajuste les ${primaryVitalStat.label} de **${selectedCharacter.name}** : ${hpChange > 0 ? '+' : ''}${hpChange} (${newPv} au total).`,
             characterId: selectedCharacter.id,
             characterName: selectedCharacter.name,
             characterType: selectedCharacter.type,
           })
         }
 
-        if (newPv <= 0 && selectedCharacter.type !== 'joueurs') {
+        if (isDown && selectedCharacter.type !== 'joueurs') {
           confirmDeleteCharacter(selectedCharacter)
         }
       } catch (error) {
@@ -1476,9 +1557,21 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                         <span className="text-[var(--text-secondary)]">Jet <b className="text-[var(--text-primary)] font-mono">{report.attaque_result}</b></span>
                         <span className="text-[var(--text-secondary)]">Dégâts <b className="text-red-400 font-mono">{report.degat_result}</b></span>
                       </div>
-                      {report.symbol_summary && (
+                      {report.symbol_breakdown && report.symbol_breakdown.length > 0 ? (
+                        <SymbolDiceBadges breakdown={report.symbol_breakdown} className="mb-2" />
+                      ) : report.symbol_summary && (
                         <div className="text-[11px] font-bold text-[var(--accent-brown)] mb-2">{report.symbol_summary}</div>
                       )}
+                      <SymbolDiceRollDetails
+                        diceDetail={report.symbol_dice_detail}
+                        crit={{
+                          critThreshold: report.symbol_crit_threshold,
+                          critActivations: report.symbol_crit_activations,
+                          critTriumphs: report.symbol_crit_triumphs,
+                          critNetAdvantages: report.symbol_crit_net_advantages,
+                        }}
+                        className="mb-2"
+                      />
                       <Button size="sm" className="w-full h-8 text-xs button-secondary" onClick={() => openOtherDrawer(report)}>Appliquer</Button>
                     </div>
                   ))}
@@ -1725,9 +1818,22 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                         </div>
                       </div>
 
-                      {report.symbol_summary && (
+                      {report.symbol_breakdown && report.symbol_breakdown.length > 0 ? (
+                        <SymbolDiceBadges breakdown={report.symbol_breakdown} className="mx-4 ml-5 -mt-1 mb-2" />
+                      ) : report.symbol_summary && (
                         <div className="mx-4 ml-5 -mt-1 mb-2 text-[11px] font-bold text-[var(--accent-brown)]">{report.symbol_summary}</div>
                       )}
+
+                      <SymbolDiceRollDetails
+                        diceDetail={report.symbol_dice_detail}
+                        crit={{
+                          critThreshold: report.symbol_crit_threshold,
+                          critActivations: report.symbol_crit_activations,
+                          critTriumphs: report.symbol_crit_triumphs,
+                          critNetAdvantages: report.symbol_crit_net_advantages,
+                        }}
+                        className="mx-4 ml-5 -mt-1 mb-2"
+                      />
 
                       {report.applied ? (
                         <div className="mx-4 mb-3 ml-5 flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-color)] py-2 text-xs font-bold text-[var(--text-secondary)]">
@@ -1759,7 +1865,7 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
       <Drawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)}>
         <DrawerContent className="bg-[var(--bg-card)] border-t border-[var(--border-color)] max-w-2xl mx-auto">
           <DrawerHeader>
-            <DrawerTitle className="text-[var(--text-primary)] text-center text-2xl">Ajuster les PV</DrawerTitle>
+            <DrawerTitle className="text-[var(--text-primary)] text-center text-2xl">Ajuster les {primaryVitalStat?.label ?? 'PV'}</DrawerTitle>
             <DrawerDescription className="text-[var(--text-secondary)] text-center">
               {selectedCharacter?.name} (Actuel: {selectedCharacter?.pv})
             </DrawerDescription>
@@ -1798,11 +1904,17 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                   <SelectValue placeholder="Choisir une cible" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-card)] border-[var(--border-color)]">
-                  {characters.map((character) => (
-                    <SelectItem key={character.id} value={character.id}>
-                      {character.name} ({character.pv} PV)
-                    </SelectItem>
-                  ))}
+                  {characters.map((character) => {
+                    const max = primaryVitalStat?.recoversToZero ? getVitalMax(character) : null
+                    const vitalText = max != null
+                      ? `${character.pv}/${max} ${primaryVitalStat?.label ?? 'PV'}`
+                      : `${character.pv} PV`
+                    return (
+                      <SelectItem key={character.id} value={character.id}>
+                        {character.name} ({vitalText})
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -1816,9 +1928,21 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
                 {' = '}<b className="text-red-400">{Math.max(0, selectedAttack.degat_result - targetSoak(selectedTarget))}</b>
               </div>
             )}
-            {selectedAttack?.symbol_summary && (
+            {selectedAttack?.symbol_breakdown && selectedAttack.symbol_breakdown.length > 0 ? (
+              <SymbolDiceBadges breakdown={selectedAttack.symbol_breakdown} className="justify-center" />
+            ) : selectedAttack?.symbol_summary && (
               <div className="text-center text-xs font-bold text-[var(--accent-brown)]">{selectedAttack.symbol_summary}</div>
             )}
+            <SymbolDiceRollDetails
+              diceDetail={selectedAttack?.symbol_dice_detail}
+              crit={{
+                critThreshold: selectedAttack?.symbol_crit_threshold,
+                critActivations: selectedAttack?.symbol_crit_activations,
+                critTriumphs: selectedAttack?.symbol_crit_triumphs,
+                critNetAdvantages: selectedAttack?.symbol_crit_net_advantages,
+              }}
+              className="justify-center text-center [&>div]:justify-center"
+            />
 
             <div className="flex items-center justify-center gap-8 py-4">
               <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => setDamageChange(prev => Math.max(0, prev - 1))}>
@@ -1844,7 +1968,11 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
             <DialogHeader>
               <DialogTitle className="text-[var(--text-primary)]">Confirmer la mort (supprimer)</DialogTitle>
               <DialogDescription className="text-[var(--text-secondary)]">
-                <span className="font-bold text-[var(--text-primary)]">{characterToDelete?.name} n'a plus de PV, le supprimer ? </span>
+                <span className="font-bold text-[var(--text-primary)]">
+                  {characterToDelete?.name} {primaryVitalStat?.recoversToZero
+                    ? `a dépassé son Seuil de ${primaryVitalStat.label}`
+                    : `n'a plus de ${primaryVitalStat?.label || 'PV'}`}, le supprimer ?
+                </span>
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -1975,15 +2103,15 @@ export function GMDashboard({ isActive = true }: { isActive?: boolean } = {}) {
         </DialogPortal>
       </Dialog>
 
-      {/* Confirmation groupée des PNJ tombés à 0 PV après un "Tout appliquer" — évite
-          d'enchaîner un dialog de suppression par personnage. */}
+      {/* Confirmation groupée des PNJ tombés (0 PV, ou Seuil de Blessure dépassé pour un système
+          type Star Wars) après un "Tout appliquer" — évite d'enchaîner un dialog par personnage. */}
       <Dialog open={isBulkDeathDialogOpen} onOpenChange={setIsBulkDeathDialogOpen}>
         <DialogPortal>
           <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
           <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)]">
             <DialogHeader>
               <DialogTitle className="text-[var(--text-primary)]">
-                PNJ tombés à 0 PV ({bulkDeathCandidates.length})
+                PNJ tombés ({bulkDeathCandidates.length})
               </DialogTitle>
               <DialogDescription className="text-[var(--text-secondary)]">
                 Décochez ceux à conserver (ex : un boss avec une seconde phase).

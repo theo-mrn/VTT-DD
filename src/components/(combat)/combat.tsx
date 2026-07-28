@@ -16,7 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
-import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, resolveCharacterStats } from '@/lib/rules-engine'
+import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, getSymbolDiceBreakdown, type SymbolDiceBreakdownEntry, resolveCharacterStats } from '@/lib/rules-engine'
+import { SymbolDiceBadges } from './symbol-dice-badges'
 
 // --- Interfaces ---
 
@@ -253,7 +254,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [eoteDifficulty, setEoteDifficulty] = useState<number>(2)
   const [eoteFortune, setEoteFortune] = useState<number>(0)
   const [eoteInfortune, setEoteInfortune] = useState<number>(0)
-  const [eoteResult, setEoteResult] = useState<{ hit: boolean; netSuccess: number; damage: number; summary: string; detail: string; netAdvantages: number; triumphs: number; critActivations: number } | null>(null)
+  const [eoteResult, setEoteResult] = useState<{ hit: boolean; netSuccess: number; damage: number; summary: string; detail: string; netAdvantages: number; triumphs: number; critActivations: number; breakdown: SymbolDiceBreakdownEntry[] } | null>(null)
   const eoteSkill = combatSkills.find((s) => s.key === eoteSkillKey) ?? null
   // Pseudo-arme toujours proposée : mains nues. Sans compétence sélectionnée, le pool est
   // combatRule.unarmedBaseDice dés de base (verts) ; avec compétence, pool carac+rang normal.
@@ -575,6 +576,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
     const resolution = resolveSymbolDiceRoll(gameSystem, allFaces)
     const summary = formatSymbolDiceResult(gameSystem, resolution)
+    const breakdown = getSymbolDiceBreakdown(gameSystem, resolution)
     const netSuccess = Number(resolution.values[combatRule.successStatKey ?? ''] ?? 0)
     const hit = netSuccess >= 1
     const damage = hit ? (eoteWeapon.baseDamage ?? 0) + netSuccess : 0
@@ -589,13 +591,29 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
       ? triumphs + (crit > 0 ? Math.floor(netAdvantages / crit) : 0)
       : 0
 
+    const detail = detailParts.join(', ')
+
     if (hit) playWeaponSound(eoteWeapon)
-    setEoteResult({ hit, netSuccess, damage, summary, detail: detailParts.join(', '), netAdvantages, triumphs, critActivations })
+    setEoteResult({ hit, netSuccess, damage, summary, detail, netAdvantages, triumphs, critActivations, breakdown })
     setStep('EOTE_RESULT')
-    sendEoteReport(hit, netSuccess, damage, eoteSkill ? `${eoteWeapon.name} (${eoteSkill.label})` : eoteWeapon.name, summary)
+    sendEoteReport(hit, netSuccess, damage, eoteSkill ? `${eoteWeapon.name} (${eoteSkill.label})` : eoteWeapon.name, summary, breakdown, detail, {
+      critThreshold: crit ?? null,
+      critActivations,
+      triumphs,
+      netAdvantages,
+    })
   }
 
-  const sendEoteReport = async (hit: boolean, netSuccess: number, dmg: number, weaponName: string, summary: string) => {
+  const sendEoteReport = async (
+    hit: boolean,
+    netSuccess: number,
+    dmg: number,
+    weaponName: string,
+    summary: string,
+    breakdown: SymbolDiceBreakdownEntry[],
+    diceDetail: string,
+    crit: { critThreshold: number | null; critActivations: number; triumphs: number; netAdvantages: number },
+  ) => {
     if (!roomId) return
     const targetsToReport = targets.length > 0 ? targets : [{ id: targetId || 'unknown', name: "Unknown", defense: 0 }]
     for (const t of targetsToReport) {
@@ -611,6 +629,14 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
           cible_nom: t.name,
           resultat: hit ? "Success" : "Failure",
           symbol_summary: summary,
+          symbol_breakdown: breakdown,
+          symbol_dice_detail: diceDetail,
+          ...(crit.critThreshold != null ? {
+            symbol_crit_threshold: crit.critThreshold,
+            symbol_crit_activations: crit.critActivations,
+            symbol_crit_triumphs: crit.triumphs,
+            symbol_crit_net_advantages: crit.netAdvantages,
+          } : {}),
           timestamp: new Date().toLocaleString()
         })
       } catch (e) { console.error(e) }
@@ -882,20 +908,23 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                 )}
                 {eoteResult.hit && eoteWeapon?.critical != null && (
                   eoteResult.critActivations >= 1 ? (
-                    <div className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                      Blessure Critique déclenchable
-                      {eoteResult.critActivations > 1 ? ` ×${eoteResult.critActivations} (+10 au d100 par activation en plus)` : ''}
-                      {' — '}
-                      {eoteResult.triumphs > 0 ? 'Triomphe' : `${eoteWeapon.critical} Avantages dépensés (Crit ${eoteWeapon.critical})`}
-                      {' · si ≥ 1 dégât passe l’Encaissement'}
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                        Blessure Critique déclenchable{eoteResult.critActivations > 1 ? ` ×${eoteResult.critActivations}` : ''}
+                      </div>
+                      <div className="text-[10px] text-gray-500">
+                        {eoteResult.triumphs > 0 ? 'Grâce à un Triomphe' : `Grâce aux ${eoteResult.netAdvantages} Avantages (seuil Crit ${eoteWeapon.critical})`}
+                        {eoteResult.critActivations > 1 ? ` · +10 au d100 par activation en plus` : ''}
+                      </div>
+                      <div className="text-[10px] text-gray-500">Le MJ tranche si ça s'applique une fois l'Encaissement de la cible déduit.</div>
                     </div>
                   ) : (
                     <div className="text-[10px] text-gray-500">
-                      Crit {eoteWeapon.critical} : non déclenché ({eoteResult.netAdvantages} Avantage{eoteResult.netAdvantages > 1 ? 's' : ''} / {eoteWeapon.critical} requis, pas de Triomphe)
+                      Crit {eoteWeapon.critical} non déclenché ({eoteResult.netAdvantages} Avantage{eoteResult.netAdvantages > 1 ? 's' : ''} / {eoteWeapon.critical} requis, pas de Triomphe)
                     </div>
                   )
                 )}
-                <div className="text-lg font-bold text-[var(--accent-brown)]">{eoteResult.summary}</div>
+                <SymbolDiceBadges breakdown={eoteResult.breakdown} className="justify-center" />
                 <div className="text-xs font-mono text-gray-500">{eoteResult.detail}</div>
                 <p className="text-[11px] text-gray-500 max-w-md mx-auto">
                   Avantages/Triomphes : à dépenser par le joueur (capacités d'arme, critique, action d'éclat).
