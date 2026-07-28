@@ -102,10 +102,14 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const symbolDieShortLabel = (die: SymbolDieDefinition) => (die.label || die.key).split(' (')[0];
 
   const buildSkillPool = (skill: SkillDefinition) => {
+    // La carac liée (ex vigueur/agilite) n'est pas forcément marquée isRollable dans le bundle (elle ne
+    // sert alors qu'à composer les pools de compétence, jamais lancée seule) — dans ce cas elle est
+    // absente de rollableStats et il faut retomber sur la valeur brute + totalBonuses à la main, sinon
+    // les bonus (objets/effets actifs) sont silencieusement ignorés pour cette carac.
+    const rollableStat = rollableStats.find((s) => s.key === skill.linkedStatKey)
     const statValue = Number(
-      rollableStats.find((s) => s.key === skill.linkedStatKey)?.rawValue
-      ?? (selectedCharacter as Record<string, unknown> | null)?.[skill.linkedStatKey]
-      ?? 0,
+      rollableStat?.rawValue
+      ?? (Number((selectedCharacter as Record<string, unknown> | null)?.[skill.linkedStatKey] ?? 0) + (totalBonuses?.[skill.linkedStatKey as keyof typeof totalBonuses] ?? 0)),
     );
     const rank = Number(((selectedCharacter as Record<string, unknown> | null)?.skillRanks as Record<string, number> | undefined)?.[skill.key] ?? 0);
     const { baseCount, upgradedCount } = composeDicePool(statValue, rank);

@@ -7,8 +7,11 @@ import { useParams } from "next/navigation";
 import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import { useGameContent } from "@/modules/game-content/useGameContent";
 import type { BestiaryChunkDoc, EquipmentDoc, LocationDoc } from "@/modules/game-content/types";
+import type { GroupEntity } from "@/app/[roomid]/map/types";
+import { db, collection, onSnapshot } from "@/lib/firebase";
+import { advancedSearch } from "@/lib/advanced-search";
 import debounce from "lodash/debounce";
-import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull, Globe2 } from "lucide-react";
+import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull, Globe2, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
@@ -16,7 +19,7 @@ import { getAssetUrl } from "@/lib/asset-loader";
 
 const ACCENT = "#c0a080";
 
-type TabId = "all" | "races" | "classes" | "prestiges" | "regles" | "objets" | "bestiaire" | "lieux";
+type TabId = "all" | "races" | "classes" | "prestiges" | "regles" | "objets" | "bestiaire" | "lieux" | "entites";
 
 const BASE_TABS = [
     { id: "all", label: "Tout", icon: Layers },
@@ -48,6 +51,7 @@ type BestiaryData = Record<string, BestiaryMonster>;
 const ITEM_SOURCE_PREFIX = "Objet:";
 const MONSTER_SOURCE_PREFIX = "Créature:";
 const LOCATION_SOURCE_PREFIX = "Lieu:";
+const ENTITY_SOURCE_PREFIX = "Entité:";
 
 // Résout un chemin d'image local (ex: "/images/races/Elfe.webp") vers son URL R2, en laissant
 // les URLs déjà absolues (ex: Star Wars → media.anakinworld.com) inchangées.
@@ -56,7 +60,7 @@ const resolveImagePath = (path: string) =>
 
 export default function SearchMenu() {
     const [open, setOpen] = useState(false);
-    const { searchCompetences, isLoading, allCompetences } = useCompetences();
+    const { isLoading, allCompetences } = useCompetences();
     const { isShortcutPressed, onActionTriggered } = useShortcuts();
 
     // Races/classes/règles du SYSTÈME ACTIF de la salle (Firestore, cf useGameSystem) — remplace les
@@ -207,6 +211,40 @@ export default function SearchMenu() {
         return mapped;
     }, [locationDocs, locationLabel, gameSystem.locationFields]);
 
+    // Entités de groupe (Firestore Salle/{roomId}/groupEntities — ex vaisseaux Star Wars) transformées
+    // en Competence[]. PAS de useGameContent ici : ces instances vivent hors du catalogue de règles du
+    // système (gameSystems/{systemId}/content, filtré par 'kind') — c'est de l'état de partie mutable
+    // (acquis/non acquis), pas du contenu de wiki, cf ExtensionHost.tsx (api.groupEntities). Même
+    // logique de feature-gate que locationLabel : rien tant que le MJ n'a pas nommé cette catégorie.
+    const [groupEntityDocs, setGroupEntityDocs] = useState<(GroupEntity & { id: string })[]>([]);
+    useEffect(() => {
+        if (!roomId) return;
+        return onSnapshot(collection(db, `Salle/${roomId}/groupEntities`), (snap) => {
+            setGroupEntityDocs(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<GroupEntity, 'id'>) })));
+        });
+    }, [roomId]);
+    const groupEntityLabel = gameSystem.groupEntityLabel;
+    const groupEntities = useMemo(() => {
+        if (!groupEntityLabel) return [];
+        const stats = gameSystem.groupEntityStats ?? [];
+        const mapped: Competence[] = [];
+        for (const ent of groupEntityDocs) {
+            const extra = stats
+                .map((s) => ent.values?.[s.key] != null && ent.values[s.key] !== '' && `${s.label} : ${ent.values[s.key]}`)
+                .filter(Boolean)
+                .join('\n');
+            mapped.push({
+                titre: ent.label,
+                description: extra,
+                type: groupEntityLabel,
+                source: ent.acquis ? `${ENTITY_SOURCE_PREFIX} acquis` : ENTITY_SOURCE_PREFIX,
+                image: ent.image && ent.image.trim() !== '' ? ent.image : undefined,
+            });
+        }
+        mapped.sort((a, b) => a.titre.localeCompare(b.titre));
+        return mapped;
+    }, [groupEntityDocs, groupEntityLabel, gameSystem.groupEntityStats]);
+
     // N'affiche un onglet que s'il a réellement du contenu pour le système actif — une salle en système
     // custom (Star Wars...) ne doit pas montrer "Prestiges"/"Bestiaire" hérités du contenu D&D legacy
     // si elle n'en a aucun, même si l'onglet existe dans BASE_TABS.
@@ -218,7 +256,7 @@ export default function SearchMenu() {
         const hasObjet = items.length > 0;
         const hasBestiaire = monsters.length > 0;
 
-        const available: Record<Exclude<TabId, 'all' | 'lieux'>, boolean> = {
+        const available: Record<Exclude<TabId, 'all' | 'lieux' | 'entites'>, boolean> = {
             races: hasRace,
             classes: hasClasse,
             prestiges: hasPrestige,
@@ -229,11 +267,12 @@ export default function SearchMenu() {
 
         const tabs: Array<{ id: TabId; label: string; icon: typeof Layers }> = [BASE_TABS[0]];
         for (const tab of BASE_TABS.slice(1)) {
-            if (available[tab.id as Exclude<TabId, 'all' | 'lieux'>]) tabs.push(tab);
+            if (available[tab.id as Exclude<TabId, 'all' | 'lieux' | 'entites'>]) tabs.push(tab);
         }
         if (locationLabel) tabs.push({ id: "lieux", label: `${locationLabel}s`, icon: Globe2 });
+        if (groupEntityLabel && groupEntities.length > 0) tabs.push({ id: "entites", label: groupEntityLabel, icon: Rocket });
         return tabs;
-    }, [systemEntries, isDndClassic, allCompetences, items, monsters, locationLabel]);
+    }, [systemEntries, isDndClassic, allCompetences, items, monsters, locationLabel, groupEntityLabel, groupEntities]);
 
     // Si l'onglet actif disparaît (plus de contenu pour ce système), retombe sur "Tout" plutôt que de
     // rester bloqué sur un onglet qui ne s'affiche plus dans la barre de filtres.
@@ -244,8 +283,6 @@ export default function SearchMenu() {
     }, [TABS, activeTab]);
 
     // Use ref to ensure we always have the latest state setters
-    // Note: In this full rewrite, we might simplify this if we just filter locally,
-    // but preserving the async/debounced structure is safer for performance if the list is huge.
     const searchResultsRef = useRef(setSearchResults);
     searchResultsRef.current = setSearchResults;
 
@@ -299,6 +336,7 @@ export default function SearchMenu() {
             const isItem = source.startsWith(ITEM_SOURCE_PREFIX);
             const isMonster = source.startsWith(MONSTER_SOURCE_PREFIX);
             const isLocation = source.startsWith(LOCATION_SOURCE_PREFIX);
+            const isEntity = source.startsWith(ENTITY_SOURCE_PREFIX);
             const isRuleType = item.type === "Règle";
             const isRaceType = item.type === "Race" || source.startsWith("Race:");
             const isPrestigeType = source.startsWith("Prestige:");
@@ -306,7 +344,8 @@ export default function SearchMenu() {
             if (tab === "objets") return isItem;
             if (tab === "bestiaire") return isMonster;
             if (tab === "lieux") return isLocation;
-            if (isItem || isMonster || isLocation) return false; // seulement dans leur onglet dédié
+            if (tab === "entites") return isEntity;
+            if (isItem || isMonster || isLocation || isEntity) return false; // seulement dans leur onglet dédié
             if (tab === "regles") return isRuleType;
             if (tab === "races") return isRaceType;
             if (tab === "prestiges") return isPrestigeType;
@@ -315,29 +354,37 @@ export default function SearchMenu() {
         });
     }, []);
 
+    // Tout le contenu cherchable de la salle, toutes catégories confondues — la recherche fuzzy
+    // (ci-dessous) tourne sur cet ensemble fusionné plutôt que sur chaque source séparément, pour
+    // trier par pertinence globale (un titre presque exact dans une catégorie doit sortir avant un
+    // match faible dans une autre).
+    const allSearchable = useMemo(
+        () => [...systemEntries, ...(isDndClassic ? allCompetences : []), ...items, ...monsters, ...locations, ...groupEntities],
+        [systemEntries, isDndClassic, allCompetences, items, monsters, locations, groupEntities]
+    );
+
+    // Recherche floue (Fuse.js, cf src/lib/advanced-search.ts) : tolère fautes de frappe et normalise
+    // les accents (é/e) — remplace le .includes() exact précédent. useSemanticSearch désactivé : le
+    // dictionnaire de synonymes de search-config.ts est pensé pour les objets/décors de carte
+    // (tonneau/barrel, coffre/chest...), pas pour du contenu de règles/bestiaire/créatures.
     const debouncedSearch = useCallback(
-        debounce((term: string) => {
+        debounce((term: string, pool: Competence[]) => {
             isSearchingRef.current(true);
             try {
-                // We search everything first (les voies legacy du contexte = contenu D&D uniquement)
-                let results = isDndClassic ? searchCompetences(term) : [];
-
-                // Then set results -- filtering by tab happens in render or effect?
-                // Actually, let's store ALL matches and filter in render for tab switching speed.
+                const results = advancedSearch(pool, term, {
+                    keys: ['titre', 'description', 'type'],
+                    threshold: 0.4,
+                    useSemanticSearch: false,
+                }).map((r) => r.item);
                 searchResultsRef.current(results);
-
-                // If we have results and no selection, select the first one
-                if (results.length > 0) {
-                    // setSelectedCompetence(results[0]); 
-                }
             } catch (error) {
                 console.error(error);
                 searchResultsRef.current([]);
             } finally {
                 isSearchingRef.current(false);
             }
-        }, 300),
-        [searchCompetences, isDndClassic]
+        }, 250),
+        []
     );
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,23 +392,13 @@ export default function SearchMenu() {
         setSearchTerm(value);
         if (value.trim()) {
             setIsSearching(true);
-            debouncedSearch(value);
+            debouncedSearch(value, allSearchable);
         } else {
             setSearchResults([]);
             setIsSearching(false);
             setSelectedCompetence(null);
         }
     };
-
-    // Recherche locale dans les données non gérées par le contexte (système actif + objets + bestiaire + lieux)
-    const searchLocal = useCallback((term: string) => {
-        const q = term.toLowerCase();
-        const match = (c: Competence) =>
-            c.titre.toLowerCase().includes(q) ||
-            c.description.toLowerCase().includes(q) ||
-            (c.type || "").toLowerCase().includes(q);
-        return [...systemEntries.filter(match), ...items.filter(match), ...monsters.filter(match), ...locations.filter(match)];
-    }, [systemEntries, items, monsters, locations]);
 
     // Derived state for display
     const visibleResults = useMemo(() => {
@@ -371,12 +408,13 @@ export default function SearchMenu() {
             if (activeTab === "objets") return items;
             if (activeTab === "bestiaire") return monsters;
             if (activeTab === "lieux") return locations;
+            if (activeTab === "entites") return groupEntities;
             return filterByTab([...systemEntries, ...(isDndClassic ? allCompetences : [])], activeTab);
         }
-        // Fusionne résultats de compétences (contexte) + système actif + objets + bestiaire + lieux (local)
-        const merged = [...searchResults, ...searchLocal(searchTerm)];
-        return filterByTab(merged, activeTab);
-    }, [searchResults, allCompetences, systemEntries, isDndClassic, activeTab, searchTerm, filterByTab, items, monsters, locations, searchLocal]);
+        // searchResults est déjà trié par pertinence (score Fuse.js croissant) — filterByTab ne fait
+        // que sous-filtrer par catégorie, sans re-trier, donc l'ordre de pertinence est préservé.
+        return filterByTab(searchResults, activeTab);
+    }, [searchResults, allCompetences, systemEntries, isDndClassic, activeTab, searchTerm, filterByTab, items, monsters, locations, groupEntities]);
 
     const closeAll = () => {
         setOpen(false);
@@ -417,15 +455,6 @@ export default function SearchMenu() {
                                 className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder:text-white/30 h-full"
                                 autoComplete="off"
                             />
-                            {searchTerm && (
-                                <motion.button
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={() => { setSearchTerm(''); setSearchResults([]); }}
-                                    className="text-white/40 hover:text-white transition-colors shrink-0"
-                                >
-                                    <X className="w-4 h-4" />
-                                </motion.button>
-                            )}
                             <motion.button
                                 whileTap={{ scale: 0.9 }}
                                 onClick={closeAll}

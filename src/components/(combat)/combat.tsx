@@ -7,16 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   X, Sword, Target, Wand2, Settings, Volume2,
-  ArrowRight, Shield, Zap, Skull, Library, StopCircle, PlayCircle, Check, Music, Plus, Search
+  ArrowRight, Shield, Zap, Skull, Library, StopCircle, PlayCircle, Check, Music, Plus, Search, ScrollText
 } from 'lucide-react'
 import { db, doc, getDoc, collection, getDocs, setDoc, onSnapshot, query } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
-import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, getSymbolDiceBreakdown, type SymbolDiceBreakdownEntry, resolveCharacterStats } from '@/lib/rules-engine'
+import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, getSymbolDiceBreakdown, type SymbolDiceBreakdownEntry, resolveCharacterStats, getFormulaDependencies } from '@/lib/rules-engine'
 import { SymbolDiceBadges } from './symbol-dice-badges'
 
 // --- Interfaces ---
@@ -47,11 +48,9 @@ interface CustomRoll {
   modifier: number;
 }
 
-interface Attacks {
-  contact: number | null;
-  distance: number | null;
-  magie: number | null;
-}
+/** Mode numérique classique : un modificateur d'attaque par clé de gameSystem.combatAttackKeys
+ *  (nombre de clés arbitraire selon le bundle actif, pas figé à 3). */
+type Attacks = Record<string, number>;
 
 interface SoundTemplate {
   id: string
@@ -69,7 +68,18 @@ interface CombatPageProps {
 }
 
 type CombatStep = 'ATTACK_CHOICE' | 'ATTACK_ROLLING' | 'ATTACK_RESULT' | 'WEAPON_SELECT' | 'DAMAGE_ROLLING' | 'DAMAGE_RESULT' | 'ACTION_CONFIG' | 'EOTE_DECLARE' | 'EOTE_RESULT'
-type AttackType = 'contact' | 'distance' | 'magic' | 'custom'
+/** Clé de gameSystem.combatAttackKeys (ex 'Contact'), ou 'custom' pour le jet de dé libre. */
+type AttackType = string
+
+// Icônes/couleurs par défaut pour les N premiers types d'attaque du bundle actif — indexées par
+// position (pas par nom) pour rester agnostiques du système de jeu ; fallback générique au-delà.
+const ATTACK_TYPE_STYLES: Array<{ icon: typeof Sword; color: string; iconColorClass: string }> = [
+  { icon: Sword, color: 'from-[var(--accent-brown)] to-orange-900/40', iconColorClass: 'text-orange-400' },
+  { icon: Target, color: 'from-green-500 to-emerald-900/40', iconColorClass: 'text-emerald-400' },
+  { icon: Wand2, color: 'from-purple-500 to-indigo-900/40', iconColorClass: 'text-purple-400' },
+  { icon: Zap, color: 'from-blue-500 to-cyan-900/40', iconColorClass: 'text-cyan-400' },
+]
+const attackTypeStyle = (index: number) => ATTACK_TYPE_STYLES[index] ?? ATTACK_TYPE_STYLES[ATTACK_TYPE_STYLES.length - 1]
 
 // --- Components ---
 
@@ -217,7 +227,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [attackResult, setAttackResult] = useState<number>(0)
   const [damageResult, setDamageResult] = useState<number>(0)
   const [damageWeapon, setDamageWeapon] = useState<Weapon | null>(null)
-  const [selectedAttackType, setSelectedAttackType] = useState<AttackType>('contact')
+  const [selectedAttackType, setSelectedAttackType] = useState<AttackType>('custom')
 
   // Custom
   const [customRoll, setCustomRoll] = useState<CustomRoll>({ numDice: 1, numFaces: 20, modifier: 0 })
@@ -227,13 +237,8 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const roomId = gameUser?.roomId ?? null
   const { gameSystem, tableCustomStats } = useGameSystem(roomId)
 
-  // Clés de stat + labels affichés dérivés du système de jeu actif (fallback sur les clés dnd-classic
-  // si le système custom en définit moins de 3, pour ne jamais casser les 3 boutons/icônes fixes).
-  const [contactKey, distanceKey, magieKey] = [
-    gameSystem.combatAttackKeys?.[0] ?? 'Contact',
-    gameSystem.combatAttackKeys?.[1] ?? 'Distance',
-    gameSystem.combatAttackKeys?.[2] ?? 'Magie',
-  ]
+  // Types d'attaque numériques du bundle actif — nombre arbitraire (0, 1, 2, 4+...), jamais figé à 3.
+  const attackKeys = useMemo(() => gameSystem.combatAttackKeys ?? [], [gameSystem.combatAttackKeys])
   const defenseKey = gameSystem.combatDefenseKey ?? 'Defense'
   const statLabel = (key: string) => gameSystem.stats.find(s => s.key === key)?.label ?? key
 
@@ -277,27 +282,55 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [targets, setTargets] = useState<Array<{ id: string, name: string, defense: number, image?: string }>>([])
 
   const { totalBonuses } = useCalculatedBonuses(roomId, attackerName)
-  const [baseAttacks, setBaseAttacks] = useState<{ contact: number, distance: number, magie: number }>({ contact: 0, distance: 0, magie: 0 })
+  const [baseAttacks, setBaseAttacks] = useState<Attacks>({})
 
-  // Calculate dynamic attacks based on base stats + live bonuses (clés dérivées du système de jeu actif)
-  const attacks: Attacks = {
-    contact: baseAttacks.contact + (totalBonuses?.[contactKey as keyof typeof totalBonuses] || 0),
-    distance: baseAttacks.distance + (totalBonuses?.[distanceKey as keyof typeof totalBonuses] || 0),
-    magie: baseAttacks.magie + (totalBonuses?.[magieKey as keyof typeof totalBonuses] || 0)
-  }
+  // Calculate dynamic attacks based on base stats + live bonuses, une entrée par clé du bundle actif
+  const attacks: Attacks = useMemo(() => Object.fromEntries(
+    attackKeys.map((key) => [key, (baseAttacks[key] ?? 0) + (totalBonuses?.[key as keyof typeof totalBonuses] || 0)])
+  ), [attackKeys, baseAttacks, totalBonuses])
 
   const [weapons, setWeapons] = useState<Weapon[]>([])
   const [actions, setActions] = useState<Array<{ Nom: string; Description: string; Toucher: number }>>([])
 
+  // Stats résolues (valeurs + modificateurs) de l'attaquant selon les formules du bundle actif.
+  const resolvedAttackerStats = useMemo(() => {
+    if (!attackerRaw) return { values: {} as Record<string, number | string | boolean>, modifiers: {} as Record<string, number> }
+    return resolveCharacterStats(gameSystem, tableCustomStats, attackerRaw, totalBonuses)
+  }, [gameSystem, tableCustomStats, attackerRaw, totalBonuses])
+
   // Modificateurs de caractéristique (FOR/DEX/...) de l'attaquant, pour les ajouter au jet de dégâts
   // d'une arme portant damageStatKeys (mode numérique D&D uniquement, pas le mode dés à symboles).
-  const damageStatModifiers = useMemo(() => {
-    if (!attackerRaw) return {} as Record<string, number>
-    return resolveCharacterStats(gameSystem, tableCustomStats, attackerRaw, totalBonuses).modifiers
-  }, [gameSystem, tableCustomStats, attackerRaw, totalBonuses])
+  const damageStatModifiers = resolvedAttackerStats.modifiers
 
   const weaponDamageModifier = (weapon: Weapon | null) =>
     (weapon?.damageStatKeys ?? []).reduce((sum, key) => sum + (damageStatModifiers[key] ?? 0), 0)
+
+  // Toutes les caractéristiques de base du bundle actif (6 pour dnd-classic et Star Wars), pour le
+  // popover "Statistiques" du header — jamais de nombre fixe supposé, dépend uniquement du bundle.
+  // visibleToPlayers === false exclut les stats intermédiaires internes à une formule (ex Star Wars
+  // baseSeuilBlessure/baseSeuilStress, qui n'existent que pour calculer SeuilBlessure/SeuilStress et
+  // ne sont jamais montrées au joueur ailleurs dans l'app — cf abilityStats de fiche.tsx).
+  const abilityStats = useMemo(
+    () => gameSystem.stats.filter((s) => s.category === 'ability' && s.visibleToPlayers !== false),
+    [gameSystem.stats]
+  )
+
+  // Jauges "valeur / max" (ex PV/PV_Max pour dnd-classic, Blessures/Seuil de Blessure pour Star Wars) —
+  // même mécanisme générique que WidgetVitals (FicheWidgets.tsx) : une stat 'vital' dont maxFormula
+  // référence une autre stat du bundle s'affiche combinée, sans jamais nommer PV/Blessures en dur.
+  const vitalGauges = useMemo(() => {
+    const maxKeyByKey = new Map<string, string>()
+    for (const stat of gameSystem.stats) {
+      if (stat.category !== 'vital' || !stat.maxFormula) continue
+      const [maxKey] = getFormulaDependencies(stat.maxFormula)
+      if (maxKey) maxKeyByKey.set(stat.key, maxKey)
+    }
+    return Array.from(maxKeyByKey.entries()).map(([key, maxKey]) => ({
+      key,
+      maxKey,
+      label: statLabel(key),
+    }))
+  }, [gameSystem.stats])
 
   // Sounds
   const [sounds, setSounds] = useState<SoundTemplate[]>([])
@@ -329,11 +362,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
         setAttackerType(data.type || 'joueurs')
         // Doc brut : le mode dés à symboles lit la carac liée et les rangs (skillRanks) dynamiquement.
         setAttackerRaw(data as Record<string, unknown>)
-        setBaseAttacks({
-          contact: parseInt(data[contactKey] || 0),
-          distance: parseInt(data[distanceKey] || 0),
-          magie: parseInt(data[magieKey] || 0)
-        })
+        setBaseAttacks(Object.fromEntries(attackKeys.map((key) => [key, parseInt(data[key] || 0)])))
         setActions(data.Actions || [])
         await loadWeapons(roomId, data.Nomperso)
       }
@@ -414,7 +443,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     }
 
     fetchData()
-  }, [roomId, attackerId, targetId, targetIds])
+  }, [roomId, attackerId, targetId, targetIds, attackKeys])
 
   // Load Sounds
   useEffect(() => {
@@ -461,13 +490,12 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
       let numDice = 1
       let numFaces = 20
 
-      if (type === 'contact') mod = attacks.contact || 0
-      if (type === 'distance') mod = attacks.distance || 0
-      if (type === 'magic') mod = attacks.magie || 0
       if (type === 'custom') {
         mod = customRoll.modifier
         numDice = customRoll.numDice
         numFaces = customRoll.numFaces
+      } else {
+        mod = attacks[type] ?? 0
       }
 
       // Calculate raw dice sum excluding modifier
@@ -742,26 +770,75 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[var(--accent-brown)] text-black font-bold uppercase text-[8px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg whitespace-nowrap">Attaquant</div>
             </div>
             <div className="flex flex-col gap-1.5 sm:gap-3 min-w-0">
-              <div className="min-w-0">
+              <div className="min-w-0 flex items-center gap-1.5 sm:gap-2">
                 <h2 className="text-base sm:text-3xl font-black uppercase tracking-tight text-white leading-none truncate">{attackerName}</h2>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      title="Statistiques du personnage"
+                      className="shrink-0 p-1 sm:p-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-[var(--accent-brown)] hover:border-[var(--accent-brown)]/40 transition-colors"
+                    >
+                      <ScrollText className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 z-[10000] bg-[var(--bg-darker)] border-white/10 text-white" sideOffset={8}>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--accent-brown)] mb-3">{attackerName}</h4>
+                    {vitalGauges.length > 0 && (
+                      <div className="mb-3 flex flex-col gap-1.5">
+                        {vitalGauges.map(({ key, maxKey, label }) => (
+                          <div key={key} className="flex items-center justify-between bg-white/5 rounded-lg py-1.5 px-2.5">
+                            <span className="text-[9px] uppercase text-gray-400 font-bold">{label}</span>
+                            <span className="font-mono font-bold text-sm">
+                              {String(resolvedAttackerStats.values[key] ?? '—')} / {String(resolvedAttackerStats.values[maxKey] ?? '—')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {abilityStats.length > 0 && (
+                      <div className="mb-3">
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Caractéristiques</span>
+                        <div className="grid grid-cols-3 gap-2 mt-1.5">
+                          {abilityStats.map((stat) => (
+                            <div key={stat.key} className="flex flex-col items-center bg-white/5 rounded-lg py-1.5">
+                              <span className="text-[9px] uppercase text-gray-400 font-bold">{stat.shortLabel || stat.label}</span>
+                              <span className="font-mono font-bold text-sm">{String(resolvedAttackerStats.values[stat.key] ?? '—')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {attackKeys.length > 0 && (
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Combat</span>
+                        <div className="grid grid-cols-3 gap-2 mt-1.5">
+                          {attackKeys.map((key) => (
+                            <div key={key} className="flex flex-col items-center bg-white/5 rounded-lg py-1.5">
+                              <span className="text-[9px] uppercase text-gray-400 font-bold">{statLabel(key)}</span>
+                              <span className="font-mono font-bold text-sm">+{attacks[key] || 0}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="min-w-0">
                 <span className="hidden sm:inline text-xs text-[var(--accent-brown)] font-bold tracking-[0.2em] opacity-60">COMBAT PHASE</span>
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2">
-                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(contactKey)}>
-                  <Sword className="w-3 h-3 text-orange-400" />
-                  <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.contact || 0}</span>
-                </div>
-
-                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(distanceKey)}>
-                  <Target className="w-3 h-3 text-emerald-400" />
-                  <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.distance || 0}</span>
-                </div>
-
-                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(magieKey)}>
-                  <Wand2 className="w-3 h-3 text-purple-400" />
-                  <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.magie || 0}</span>
-                </div>
+                {attackKeys.map((key, index) => {
+                  const { icon: Icon, iconColorClass } = attackTypeStyle(index)
+                  return (
+                    <div key={key} className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title={statLabel(key)}>
+                      <Icon className={`w-3 h-3 ${iconColorClass}`} />
+                      <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks[key] || 0}</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -1019,36 +1096,26 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                 ) : (
                   /* No Actions: Show standard attack buttons */
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                    <ActionCard
-                      title={statLabel(contactKey)}
-                      icon={Sword}
-                      value={attacks.contact}
-                      color="from-[var(--accent-brown)] to-orange-900/40"
-                      delay={0}
-                      onClick={() => handleAttack('contact')}
-                    />
-                    <ActionCard
-                      title={statLabel(distanceKey)}
-                      icon={Target}
-                      value={attacks.distance}
-                      color="from-green-500 to-emerald-900/40"
-                      delay={0.1}
-                      onClick={() => handleAttack('distance')}
-                    />
-                    <ActionCard
-                      title={statLabel(magieKey)}
-                      icon={Wand2}
-                      value={attacks.magie}
-                      color="from-purple-500 to-indigo-900/40"
-                      delay={0.2}
-                      onClick={() => handleAttack('magic')}
-                    />
+                    {attackKeys.map((key, index) => {
+                      const { icon, color } = attackTypeStyle(index)
+                      return (
+                        <ActionCard
+                          key={key}
+                          title={statLabel(key)}
+                          icon={icon}
+                          value={attacks[key]}
+                          color={color}
+                          delay={index * 0.1}
+                          onClick={() => handleAttack(key)}
+                        />
+                      )
+                    })}
                     <ActionCard
                       title="Custom"
                       icon={Settings}
                       value={customRoll.modifier}
                       color="from-blue-500 to-cyan-900/40"
-                      delay={0.3}
+                      delay={attackKeys.length * 0.1}
                       onClick={() => setIsCustomOpen(!isCustomOpen)}
                     />
 
@@ -1278,7 +1345,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                             <span className="text-gray-500 font-mono uppercase tracking-widest text-sm">
                               {selectedAttackType === 'custom'
                                 ? `${customRoll.numDice}d${customRoll.numFaces} + ${attackDetails.modifier}`
-                                : `1d20 + ${selectedAttackType}`}
+                                : `1d20 + ${statLabel(selectedAttackType)}`}
                             </span>
                             <div className="flex items-center justify-center gap-4 text-2xl font-bold font-mono text-gray-300 bg-white/5 px-8 py-3 rounded-2xl border border-white/10 shadow-lg">
                               <span className="text-white">{attackDetails.dice}</span>

@@ -109,9 +109,17 @@ export default function ExportImportPanel() {
       // Si un nouveau système est importé dans ce même fichier, le contenu (équipement, bestiaire,
       // voies) doit suivre CE système fraîchement créé, pas l'ancien système actif de la salle.
       let targetContentPath = contentPath;
+      // true si ce bundle met à jour un système DÉJÀ actif dans la salle (même nom) plutôt que d'en
+      // créer un nouveau à côté : sinon chaque ré-import du même bundle (ex règles enrichies) fabrique
+      // un nouveau `custom_{ts}`, fait basculer la salle dessus, et abandonne l'ancienne sous-collection
+      // `content` — qui contenait tout ce que le MJ avait ajouté/édité à la main (spécialisations...) —
+      // orpheline et invisible, donnant l'impression que ce contenu manuel a été perdu.
+      let isExistingSystem = !bundle.gameSystem;
 
       if (bundle.gameSystem) {
-        const id = `custom_${Date.now()}`;
+        const currentSystemName = (gameSystem as { name?: string }).name;
+        isExistingSystem = !!currentSystemName && currentSystemName === bundle.gameSystem.name;
+        const id = isExistingSystem ? gameSystem.systemId : `custom_${Date.now()}`;
         targetContentPath = `Salle/${roomId}/gameSystemOverrides/${id}/content`;
         // Spread intégral (moins exportVersion/exportedAt, propres au format d'échange, jamais au doc
         // système) plutôt qu'une liste de champs recopiés à la main : GameSystemExportData a déjà
@@ -165,18 +173,40 @@ export default function ExportImportPanel() {
       }
 
       if (bundle.content) {
-        // Réimporter dans un système EXISTANT (bundle.gameSystem absent, donc targetContentPath =
-        // contentPath actuel, pas une sous-collection neuve) : les anciens scripts/styles doivent
-        // être purgés avant réinsertion, sinon chaque réimport ADDITIONNE une copie de plus des
-        // mêmes scripts (addDoc génère un id Firestore aléatoire à chaque appel, jamais stable par
-        // fichier) — l'ancien code compilé continue de s'exécuter à côté du nouveau indéfiniment.
-        // Même logique que GameSystemManagerPanel.handleImportFile.
-        if (!bundle.gameSystem) {
+        if (isExistingSystem) {
+          // Système déjà actif (même targetContentPath qu'avant l'import, ou qu'on y revient via le
+          // nom) : scripts/styles sont purgés puis recréés (addDoc génère un id Firestore aléatoire à
+          // chaque appel, jamais stable par fichier — sans purge, l'ancien code compilé continuerait
+          // de s'exécuter à côté du nouveau indéfiniment). Le reste du contenu (specialization/
+          // equipment/location/bestiary...) est upserté par (kind, name) : le bundle fait autorité sur
+          // SON contenu propre (entrée déjà présente => mise à jour), mais tout doc ajouté à la main
+          // par le MJ et absent du bundle reste intact, jamais supprimé ni dupliqué.
           const existingScripts = await getDocs(query(collection(db, targetContentPath), where('kind', 'in', ['script', 'style'])));
           for (const d of existingScripts.docs) await deleteDoc(d.ref);
-        }
-        for (const contentDoc of bundle.content) {
-          await addDoc(collection(db, targetContentPath), contentDoc);
+
+          const existingSnap = await getDocs(collection(db, targetContentPath));
+          const existingIdByKey = new Map<string, string>();
+          for (const d of existingSnap.docs) {
+            const data = d.data() as ContentDoc;
+            existingIdByKey.set(`${data.kind}::${data.name}`, d.id);
+          }
+          for (const contentDoc of bundle.content) {
+            if (contentDoc.kind === 'script' || contentDoc.kind === 'style') {
+              await addDoc(collection(db, targetContentPath), contentDoc); // déjà purgés ci-dessus
+              continue;
+            }
+            const existingId = existingIdByKey.get(`${contentDoc.kind}::${contentDoc.name}`);
+            if (existingId) {
+              await updateDoc(doc(db, targetContentPath, existingId), stripUndefinedDeep(contentDoc as unknown as Record<string, unknown>));
+            } else {
+              await addDoc(collection(db, targetContentPath), contentDoc);
+            }
+          }
+        } else {
+          // Nouveau système (sous-collection fraîchement créée) : aucun existant à ménager.
+          for (const contentDoc of bundle.content) {
+            await addDoc(collection(db, targetContentPath), contentDoc);
+          }
         }
         importedCount += bundle.content.length;
       }

@@ -598,48 +598,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
       );
     }
 
-    //  MODE : Mesure
-    if (measureMode) {
-      return (
-        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-            <Ruler className="w-4 h-4 text-[#c0a080]" />
-            <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Mesure</span>
-          </div>
 
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          <div className="text-xs text-gray-400">
-            {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
-          </div>
-
-          {!isCalibrating && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setIsCalibrating(true);
-                setMeasureStart(null);
-                setMeasureEnd(null);
-              }}
-              className="h-8 px-3 ml-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 rounded-lg"
-            >
-              Étalonner
-            </Button>
-          )}
-          {isCalibrating && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCalibrating(false)}
-              className="h-8 px-3 ml-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg"
-            >
-              Annuler
-            </Button>
-          )}
-        </div>
-      );
-    }
 
     // Visibility mode UI is now in VisibilityDrawer component
 

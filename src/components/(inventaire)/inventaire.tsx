@@ -407,6 +407,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     try {
       const item = inventory.find(i => i.id === id);
       await deleteDoc(doc(inventoryRef, id));
+      // Le bonus lié à cet item (même ID de document, cf handleAddBonus) doit disparaître avec lui —
+      // sinon il reste actif indéfiniment dans totalBonuses malgré l'objet supprimé.
+      await deleteDoc(doc(db, `Bonus/${roomId}/${playerName}/${id}`));
       toast.success('Objet supprimé', {
         description: item?.message,
         duration: 2000,
@@ -555,6 +558,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         });
       } else {
         await deleteDoc(doc(inventoryRef, item.id));
+        // cf handleDeleteItem : le bonus lié disparaît avec le dernier exemplaire de l'item.
+        await deleteDoc(doc(db, `Bonus/${roomId}/${playerName}/${item.id}`));
         toast.success(`${item.message} consommé (épuisé)`, {
           duration: 2000,
         });
@@ -583,6 +588,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
 
         if (giveQuantity === currentItem.quantity) {
           await deleteDoc(doc(inventoryRef, currentItem.id));
+          // cf handleDeleteItem : le bonus lié au donneur disparaît avec l'item — le destinataire ne
+          // récupère pas automatiquement le bonus (il devra l'ajouter lui-même s'il le souhaite).
+          await deleteDoc(doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`));
         } else {
           const itemRef = doc(inventoryRef, currentItem.id);
           await updateDoc(itemRef, { quantity: currentItem.quantity - giveQuantity });
@@ -790,6 +798,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             .filter(value => value !== 0);
 
           if (remainingBonuses.length === 0) {
+            // Plus aucun stat non-nul sur ce bonus : supprimer le doc plutôt que le laisser en base
+            // avec tous ses champs à 0 (déchet Firestore, cf handleDeleteItem pour le même principe).
+            await deleteDoc(itemRef);
             setItemsWithBonus(prev => {
               const newSet = new Set(prev);
               newSet.delete(currentItem.id);
