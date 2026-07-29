@@ -169,6 +169,19 @@
             }
           ]
         },
+        "rollFormula": {
+          "type": "add",
+          "args": [
+            {
+              "type": "stat",
+              "key": "baseSeuilStress"
+            },
+            {
+              "type": "stat",
+              "key": "volonte"
+            }
+          ]
+        },
         "visibleToPlayers": false
       },
       {
@@ -192,6 +205,10 @@
         "origin": "module",
         "order": 13,
         "valueFormula": {
+          "type": "stat",
+          "key": "SeuilStress"
+        },
+        "rollFormula": {
           "type": "stat",
           "key": "SeuilStress"
         },

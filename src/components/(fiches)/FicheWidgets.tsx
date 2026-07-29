@@ -71,8 +71,11 @@ function getContainerClasses(opts: {
 
 export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
     const { selectedCharacter } = useCharacter();
+    const { persoId, isMJ } = useGame();
 
     if (!selectedCharacter) return null;
+
+    const canEdit = selectedCharacter.id === persoId || isMJ;
 
     return (
         <div className="h-full w-full p-2 overflow-hidden flex items-center justify-center">
@@ -85,6 +88,7 @@ export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
                     altText={selectedCharacter.Nomperso}
                     characterId={selectedCharacter.id}
                     imageBorderRadius={(selectedCharacter as Record<string, unknown>).imageBorderRadius as number | undefined}
+                    canEdit={canEdit}
                 />
             </div>
         </div>
@@ -432,6 +436,11 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
     const { selectedCharacter, roomId, getDisplayValue, categorizedBonuses, bonuses } = useCharacter();
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
     const { gameSystem, tableCustomStats } = useGameSystem(roomId);
+    const { persoId, isMJ } = useGame();
+    const canEdit = !!selectedCharacter && (selectedCharacter.id === persoId || isMJ);
+    // Clé de la carte actuellement survolée — pilote l'ouverture du Popover de détail au hover, pour ne
+    // jamais entrer en conflit avec le onClick (drawer d'ajustement) porté par la même carte.
+    const [hoveredDetailKey, setHoveredDetailKey] = useState<string | null>(null);
 
     // Pour toute stat 'vital' (ex PV) dont la borne maximale référence une autre stat du système (ex
     // PV_Max, via maxFormula plutôt qu'un nom en dur), affiche "valeur / max" en une seule carte —
@@ -506,13 +515,49 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                 // Une stat 'derived' (ex Défense, encore présente par défaut dans fieldIds pour
                 // dnd-classic) n'est jamais ajustable à la main — 100% calculée depuis sa formule. Le
                 // curseur/hover ne doit pas laisser croire le contraire (le clic est de toute façon
-                // ignoré côté fiche.tsx, cf openVitalDrawer).
+                // ignoré côté fiche.tsx, cf openVitalDrawer). Idem pour un joueur qui n'est ni le
+                // propriétaire du perso ni le MJ : openVitalDrawer ignore aussi le clic côté fiche.tsx,
+                // le curseur/hover ne doit donc pas laisser croire que la carte est ajustable.
                 const isDerived = statDef?.category === 'derived';
-                const canClick = !isCustom && !!onFieldClick && !isDerived;
-                // Une stat derived reste cliquable, mais pour ouvrir le détail de sa formule (Popover,
-                // reste ouvert jusqu'à un clic ailleurs — contrairement au Tooltip hover-only utilisé
-                // pour les autres stats, qui ne marche pas au tactile) plutôt que le drawer d'ajustement.
+                const canClick = !isCustom && !!onFieldClick && !isDerived && canEdit;
                 const canShowFormula = !isCustom && !hidden && isDerived && !!statDef?.valueFormula;
+                // Pour une stat vitale SANS formule propre (ex Blessures, valeur stockée à la main) dont
+                // la borne max référence une autre stat 'derived' avec formule (ex Stress_Max = 10 +
+                // mod(Vigueur)), afficher la formule de CETTE borne dans le Popover : elle explique d'où
+                // vient le "/ max" affiché sur la carte, même si la valeur courante elle-même n'a pas de
+                // formule à montrer.
+                // La vraie formule n'est pas toujours portée directement par maxKey : certains systèmes
+                // (ex Star Wars) enveloppent une stat INTERMÉDIAIRE cachée (ex SeuilBlessure,
+                // visibleToPlayers=false) dans la stat affichée (Stress_Max = {type:'stat',
+                // key:'SeuilBlessure'}) — cf computeDependentImpacts plus bas qui suit la même chaîne par
+                // transitivité pour le popup "Stats liées impactées". Sans ce suivi, la formule visible
+                // n'est qu'une référence triviale à elle-même en apparence ("Seuil de Stress =
+                // SeuilStress") alors que le vrai calcul (+ mod(Vigueur)) existe un cran plus loin.
+                // On déroule donc la chaîne de références nues ({type:'stat'}) jusqu'à trouver soit une
+                // formule composée à afficher, soit une stat non-derived (fin de chaîne, rien à montrer).
+                const resolvedMaxFormula = (() => {
+                    if (!isVitalWithMax || !maxKey) return undefined;
+                    let currentKey = maxKey;
+                    const visited = new Set<string>();
+                    for (let i = 0; i < 10; i++) {
+                        if (visited.has(currentKey)) return undefined; // cycle : abandon silencieux
+                        visited.add(currentKey);
+                        const def = gameSystem.stats.find((s) => s.key === currentKey);
+                        if (def?.category !== 'derived' || !def.valueFormula) return undefined;
+                        if (def.valueFormula.type === 'stat') { currentKey = def.valueFormula.key; continue; }
+                        return { key: currentKey, formula: def.valueFormula };
+                    }
+                    return undefined;
+                })();
+                const canShowMaxFormula = !canShowFormula && !!resolvedMaxFormula;
+                // Toute stat non-custom (derived OU vital) obtient le même Popover détaillé (formule si
+                // derived, sinon Base/Inventaire/Compétence) — pas seulement un Tooltip hover-only, qui ne
+                // marche ni au tactile ni pour un joueur sans droit d'édition (canClick=false : le clic
+                // n'ouvre alors plus le drawer d'ajustement, le Popover reste le seul moyen de voir le
+                // détail du calcul). Ouvert au survol (onMouseEnter/Leave), PAS au clic du Trigger : sur
+                // une carte vital cliquable (canClick=true), le clic doit rester réservé au drawer
+                // d'ajustement — un Popover contrôlé par hover cohabite sans conflit avec ce onClick.
+                const canShowDetail = !isCustom && !hidden;
 
                 const cardContent = (
                     <div className="flex items-center gap-2 min-w-0">
@@ -532,6 +577,7 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                 // Détail chiffré (ex "mod(Force) = 2, niveau = 3") sous la formule symbolique, pour
                 // comprendre d'où vient le résultat sans avoir à calculer mentalement chaque terme.
                 const formulaTerms = canShowFormula && formulaCtx ? describeFormulaTerms(statDef!.valueFormula!, formulaCtx) : null;
+                const maxFormulaTerms = canShowMaxFormula && formulaCtx ? describeFormulaTerms(resolvedMaxFormula!.formula, formulaCtx) : null;
                 const detailBody = hidden ? (
                     <p>Information privée.</p>
                 ) : isCustom ? (
@@ -546,6 +592,25 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                                         {formulaTerms.map((t, i) => {
                                             const readableText = t.text.replace(/\bmod\(([^)]+)\)/g, (_m, key) => `mod(${statLabel(key)})`);
                                             // Un terme purement numérique (ex "10") n'a rien à détailler : afficher "10=10" serait redondant.
+                                            const detail = readableText === String(t.value) ? readableText : `${readableText}=${t.value}`;
+                                            const prefix = i === 0 ? (t.sign === '-' ? '− ' : '') : ` ${t.sign} `;
+                                            return prefix + detail;
+                                        }).join('')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        {/* Stat vitale sans formule propre (ex Blessures) mais dont le max (Blessures_Max)
+                            en a une : montre la formule de CETTE borne, préfixée du label, pour expliquer
+                            le "/ max" affiché sur la carte sans laisser croire que la valeur courante
+                            elle-même est calculée. */}
+                        {canShowMaxFormula && (
+                            <div className="mb-1.5 pb-1.5 border-b border-[var(--border-color)] font-mono space-y-0.5">
+                                <p className="text-[var(--text-secondary)]">{statLabel(resolvedMaxFormula!.key)} = <FormulaPreview node={resolvedMaxFormula!.formula} statLabel={statLabel} /></p>
+                                {maxFormulaTerms && (
+                                    <p className="text-[var(--text-secondary)]">
+                                        {maxFormulaTerms.map((t, i) => {
+                                            const readableText = t.text.replace(/\bmod\(([^)]+)\)/g, (_m, key) => `mod(${statLabel(key)})`);
                                             const detail = readableText === String(t.value) ? readableText : `${readableText}=${t.value}`;
                                             const prefix = i === 0 ? (t.sign === '-' ? '− ' : '') : ` ${t.sign} `;
                                             return prefix + detail;
@@ -572,14 +637,21 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                         className={`${childClasses} ${canClick ? 'cursor-pointer hover:brightness-110 transition-all' : ''}`}
                         style={isUnified ? {} : style}
                         onClick={canClick ? () => onFieldClick!(name) : undefined}
+                        onMouseEnter={canShowDetail ? () => setHoveredDetailKey(name) : undefined}
+                        onMouseLeave={canShowDetail ? () => setHoveredDetailKey((k) => (k === name ? null : k)) : undefined}
                         role={canClick ? 'button' : undefined}
                     >
-                        {canShowFormula ? (
-                            <Popover>
+                        {canShowDetail ? (
+                            <Popover open={hoveredDetailKey === name} onOpenChange={(open) => setHoveredDetailKey((k) => (open ? name : (k === name ? null : k)))}>
                                 <PopoverTrigger asChild>
-                                    <div className="cursor-pointer min-w-0">{cardContent}</div>
+                                    <div className={`min-w-0 ${canClick ? '' : 'cursor-help'}`}>{cardContent}</div>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto text-xs bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">{detailBody}</PopoverContent>
+                                <PopoverContent
+                                    className="w-auto text-xs bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]"
+                                    onOpenAutoFocus={(e) => e.preventDefault()}
+                                >
+                                    {detailBody}
+                                </PopoverContent>
                             </Popover>
                         ) : (
                             <Tooltip>

@@ -25,7 +25,7 @@ import {
   Store
 } from 'lucide-react';
 
-export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId, imageBorderRadius }) {
+export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId, imageBorderRadius, canEdit = true }) {
   // --- State Management ---
   const [currentUser, setCurrentUser] = useState(null);
   const { user: gameUser } = useGame();
@@ -248,13 +248,15 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
 
   return (
     <>
-      {/* 1. THE PORTAL (Avatar on Sheet) */}
+      {/* 1. THE PORTAL (Avatar on Sheet) — l'ouverture du Studio (et donc tout upload/cadre/recadrage)
+          n'est permise qu'au propriétaire du personnage ou au MJ ; les autres joueurs voient l'avatar
+          en lecture seule, sans le curseur/hover qui suggérerait une action possible. */}
       <div
-        onClick={() => setShowForge(true)}
-        className="relative group cursor-pointer w-full h-full flex items-center justify-center transition-all duration-500 hover:scale-[1.02]"
+        onClick={canEdit ? () => setShowForge(true) : undefined}
+        className={`relative group w-full h-full flex items-center justify-center transition-all duration-500 ${canEdit ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
       >
         {/* Subtle Glow */}
-        <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/5 transition-colors duration-500" />
+        {canEdit && <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/5 transition-colors duration-500" />}
 
         {/* Main Image Container — repli : image tokenisée (générée au Save du studio), sinon la
             version croppée, sinon l'image brute de création (un perso fraîchement créé n'a que
@@ -291,16 +293,20 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
         </div>
 
         {/* Hover Action */}
-        <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pt-10 pointer-events-none">
-          <div className="bg-neutral-900/90 backdrop-blur-sm border border-white/10 px-3 py-1.5 rounded-full shadow-xl flex items-center gap-2">
-            <Wand2 className="text-white w-3 h-3" />
-            <span className="text-[10px] font-medium text-white tracking-wide">EDIT</span>
+        {canEdit && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pt-10 pointer-events-none">
+            <div className="bg-neutral-900/90 backdrop-blur-sm border border-white/10 px-3 py-1.5 rounded-full shadow-xl flex items-center gap-2">
+              <Wand2 className="text-white w-3 h-3" />
+              <span className="text-[10px] font-medium text-white tracking-wide">EDIT</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 2. THE FORGE (Studio Editor) */}
-      {showForge && createPortal(
+      {/* 2. THE FORGE (Studio Editor) — jamais montée pour un viewer sans droit d'édition, même si
+          showForge devait rester true par un état résiduel : défense en profondeur en plus du garde
+          sur le clic d'ouverture ci-dessus. */}
+      {canEdit && showForge && createPortal(
         <div className="fixed inset-0 z-[9999] bg-[#09090b] animate-in fade-in duration-300 flex flex-col overflow-hidden font-sans text-neutral-200">
 
           {/* Background Texture */}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCharacter } from '@/contexts/CharacterContext';
+import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { Coins, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -97,9 +98,11 @@ export const WidgetBourse: React.FC<WidgetProps> = ({ style }) => {
 
 export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
     const { selectedCharacter, roomId } = useCharacter();
+    const { persoId, isMJ } = useGame();
     const { gameSystem } = useGameSystem(roomId);
     const rawEffects = useCharacterBonuses(roomId, selectedCharacter?.Nomperso);
     const [effects, setEffects] = useState<any[]>([]);
+    const canEdit = !!selectedCharacter && (selectedCharacter.id === persoId || isMJ);
 
     useEffect(() => {
         if (!selectedCharacter?.Nomperso || !roomId) {
@@ -111,6 +114,7 @@ export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
 
     const toggleEffect = async (effectId: string, currentActive: boolean) => {
         if (!selectedCharacter || !roomId) return;
+        if (!canEdit) return;
         const effectRef = doc(db, `Bonus/${roomId}/${selectedCharacter.Nomperso}/${effectId}`);
         try {
             await updateDoc(effectRef, { active: !currentActive });
@@ -161,9 +165,9 @@ export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
                         return (
                             <div
                                 key={effect.id}
-                                onClick={() => toggleEffect(effect.id, effect.active)}
+                                onClick={canEdit ? () => toggleEffect(effect.id, effect.active) : undefined}
                                 className={`
-                                    cursor-pointer border rounded-lg p-2 transition-all select-none
+                                    border rounded-lg p-2 transition-all select-none ${canEdit ? 'cursor-pointer' : ''}
                                     ${effect.active
                                         ? 'bg-[#444]/40 border-[#666] text-[color:var(--text-primary,#d4d4d4)] shadow-sm'
                                         : 'bg-[color:var(--bg-secondary,#2a2a2a)]/40 border-[#333] text-[color:var(--text-secondary,#666)] opacity-60 hover:opacity-100'

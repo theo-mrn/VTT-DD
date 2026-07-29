@@ -191,6 +191,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                         altText={character.Nomperso}
                         characterId={character.id}
                         imageBorderRadius={(character as Record<string, unknown>).imageBorderRadius as number | undefined}
+                        canEdit={character.id === userPersoId || isMJ}
                       />
                     </div>
 

@@ -314,10 +314,11 @@ export default function Component() {
   // de WidgetVitals qui inclut encore Défense, layout perso déjà sauvegardé, etc.) plutôt que de
   // corriger chaque widget/liste de champs par défaut individuellement.
   const openVitalDrawer = React.useCallback((key: string) => {
+    if (!selectedCharacter || (selectedCharacter.id !== userPersoId && !isMJ)) return;
     const stat = gameSystem.stats.find((s) => s.key === key);
     if (stat?.category === 'derived') return;
     setSelectedVitalKey(key);
-  }, [gameSystem.stats]);
+  }, [gameSystem.stats, selectedCharacter, userPersoId, isMJ]);
 
   // Garantit une entrée 'talents' dans le layout pour les systèmes à compétences EotE-like : les
   // layouts déjà sauvegardés (ou les défauts MJ pas encore ré-importés) datent d'avant la séparation
@@ -1124,6 +1125,7 @@ export default function Component() {
   // s'applique à n'importe quelle stat que le MJ configure pour ce système, bornée par maxKey si fournie.
   const handleUpdateVital = async (statKey: string, amount: number, maxKey?: string) => {
     if (!selectedCharacter) return;
+    if (selectedCharacter.id !== userPersoId && !isMJ) return;
     const current = Number(selectedCharacter[statKey as keyof Character] ?? 0);
     let next = current + amount;
 
