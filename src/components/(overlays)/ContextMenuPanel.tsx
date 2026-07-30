@@ -42,6 +42,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { Label } from "@/components/ui/label";
 import { EntityNotes } from './EntityNotes';
 import { useNpcStatFields } from '@/hooks/useNpcStatFields';
+import { useGameSystem } from '@/modules/game-system/useGameSystem';
+import { ShinyActionButton } from '@/components/ui/shiny-action-button';
 
 interface ContextMenuPanelProps {
     character: Character | null;
@@ -69,6 +71,11 @@ export default function ContextMenuPanel({
     const params = useParams();
     const roomId = (params?.roomid as string) ?? null;
     const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId);
+    // Habillage "shiny" des boutons d'action réservé aux systèmes à dés à symboles (Star Wars EotE) —
+    // même discriminant que le flux de combat EotE dans combat.tsx (symbolDice + diceUpgradeRule),
+    // plus robuste qu'un systemId (généré à l'import) ou que le nom du système (renommable par le MJ).
+    const { gameSystem } = useGameSystem(roomId);
+    const useShinyActions = !!gameSystem?.diceUpgradeRule && (gameSystem?.symbolDice?.length ?? 0) > 0;
     const dragControls = useDragControls();
     const [customCondition, setCustomCondition] = useState("");
     // 🆕 State local pour feedback visuel immédiat de la sélection de joueurs
@@ -169,14 +176,24 @@ export default function ContextMenuPanel({
                                 </>
                             )}
 
-                            {/* Attack */}
-                            <motion.button
-                                whileTap={{ scale: 0.96 }}
-                                onClick={() => onAction('attack', character.id)}
-                                className="flex items-center gap-1.5 h-8 px-3.5 rounded-full font-semibold text-xs bg-red-900/40 border border-red-700/40 hover:bg-red-900/60 hover:border-red-500/60 text-red-100 transition-colors"
-                            >
-                                <Sword className="h-3.5 w-3.5" /> Attaquer
-                            </motion.button>
+                            {/* Attack — habillage sabre (bordure animée) sous Star Wars, bouton standard sinon */}
+                            {useShinyActions ? (
+                                <ShinyActionButton
+                                    onClick={() => onAction('attack', character.id)}
+                                    accent="#ff3b3b"
+                                    accentSubtle="#7f1d1d"
+                                >
+                                    <Sword className="h-3.5 w-3.5" /> Attaquer
+                                </ShinyActionButton>
+                            ) : (
+                                <motion.button
+                                    whileTap={{ scale: 0.96 }}
+                                    onClick={() => onAction('attack', character.id)}
+                                    className="flex items-center gap-1.5 h-8 px-3.5 rounded-full font-semibold text-xs bg-red-900/40 border border-red-700/40 hover:bg-red-900/60 hover:border-red-500/60 text-red-100 transition-colors"
+                                >
+                                    <Sword className="h-3.5 w-3.5" /> Attaquer
+                                </motion.button>
+                            )}
 
                             {/* Interactions */}
                             {character.interactions?.map((interaction) => {
@@ -190,6 +207,28 @@ export default function ContextMenuPanel({
                                         : isLoot
                                             ? 'bg-emerald-900/40 border-emerald-700/40 hover:border-emerald-500/60 text-emerald-100'
                                             : 'bg-blue-900/40 border-blue-700/40 hover:border-blue-500/60 text-blue-100';
+                                const icon = (
+                                    <>
+                                        {isVendor && <Store className="h-3.5 w-3.5" />}
+                                        {isGame && <Dices className="h-3.5 w-3.5" />}
+                                        {isLoot && <Package className="h-3.5 w-3.5" />}
+                                    </>
+                                );
+                                // Sous Star Wars, toutes les interactions passent en jaune impérial —
+                                // le code couleur par type (marchand/jeu/butin) reste porté par l'icône.
+                                if (useShinyActions) {
+                                    return (
+                                        <ShinyActionButton
+                                            key={interaction.id}
+                                            onClick={() => onAction('interact', character.id, interaction.id)}
+                                            accent="#ffe81f"
+                                            accentSubtle="#c9b400"
+                                        >
+                                            {icon}
+                                            {interaction.name || "Interagir"}
+                                        </ShinyActionButton>
+                                    );
+                                }
                                 return (
                                     <motion.button
                                         key={interaction.id}
@@ -197,9 +236,7 @@ export default function ContextMenuPanel({
                                         onClick={() => onAction('interact', character.id, interaction.id)}
                                         className={`flex items-center gap-1.5 h-8 px-3.5 rounded-full font-semibold text-xs border transition-colors ${scheme}`}
                                     >
-                                        {isVendor && <Store className="h-3.5 w-3.5" />}
-                                        {isGame && <Dices className="h-3.5 w-3.5" />}
-                                        {isLoot && <Package className="h-3.5 w-3.5" />}
+                                        {icon}
                                         {interaction.name || "Interagir"}
                                     </motion.button>
                                 );

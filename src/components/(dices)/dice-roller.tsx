@@ -45,6 +45,23 @@ interface DiceRollerProps {
   onClose?: () => void;
 }
 
+/** Couleurs officielles des dés à symboles Star Wars (Edge of the Empire), indexées par la clé du dé
+ *  telle que définie dans le bundle. Volontairement PAS dérivées du skin 3D (SymbolDieDefinition n'a
+ *  pas de champ couleur, seulement skinId) : les skins ne correspondent pas toujours à la couleur
+ *  réelle du dé — l'Infortune/Setback est noir dans les règles alors que son skin "hyperespace" est
+ *  bleu clair. Un système sans clé correspondante ici retombe simplement sur le style neutre. */
+const EOTE_DIE_COLORS: Record<string, string> = {
+  fortune:    '#4aa8e0', // Boost — bleu clair
+  // Le vrai dé Setback est noir, mais un noir pur serait invisible sur le fond sombre du panneau :
+  // on le rend par un gris clair neutre, seule teinte "non colorée" lisible ici.
+  infortune:  '#9a9aa2', // Setback — noir (rendu en gris neutre)
+  aptitude:   '#3fbf6a', // Ability — vert
+  difficulte: '#a065e0', // Difficulty — violet
+  maitrise:   '#f0c419', // Proficiency — jaune
+  defi:       '#e04b3a', // Challenge — rouge
+  force:      '#f2f2f2', // Force — blanc
+};
+
 export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const { selectedCharacter, roomId: contextRoomId } = useCharacter();
   const { isMJ, persoId, user: gameUser } = useGame();
@@ -92,6 +109,10 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const skills = gameSystem.skills ?? [];
   const canSkillRoll = !isMJ && !!selectedCharacter && skills.length > 0 && !!diceUpgradeRule
     && symbolDiceByKey.has(diceUpgradeRule.baseDiceKey) && symbolDiceByKey.has(diceUpgradeRule.upgradedDiceKey);
+  // Habillage "shiny" du bouton Roll réservé aux systèmes à dés à symboles (Star Wars EotE) — même
+  // discriminant que le flux de combat EotE (combat.tsx) et que le menu contextuel des personnages
+  // (ContextMenuPanel), plus robuste qu'un systemId (généré à l'import) ou que le nom du système.
+  const useShinyRoll = !!diceUpgradeRule && symbolDice.length > 0;
   const [selectedSkillKey, setSelectedSkillKey] = useState<string>('');
   // Menu du Select rendu en portail HORS de containerRef (position "item-aligned" : pas de wrapper
   // popper identifiable dans le DOM) — on suit son état d'ouverture pour suspendre la fermeture
@@ -1070,17 +1091,22 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                 {/* Dice grid : dés à symboles du système s'il en définit, sinon numériques classiques */}
                 {symbolDice.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2">
-                    {symbolDice.map((die) => (
-                      <button
-                        key={`m-${die.key}`}
-                        onClick={() => addToInput(`1${die.key}`)}
-                        className="h-12 flex items-center justify-center rounded-xl border font-bold text-xs active:scale-95 transition-transform px-1"
-                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
-                        title={die.label || die.key}
-                      >
-                        <span className="truncate">{symbolDieShortLabel(die)}</span>
-                      </button>
-                    ))}
+                    {symbolDice.map((die) => {
+                      const c = EOTE_DIE_COLORS[die.key];
+                      return (
+                        <button
+                          key={`m-${die.key}`}
+                          onClick={() => addToInput(`1${die.key}`)}
+                          className="h-12 flex items-center justify-center rounded-xl border font-bold text-xs active:scale-95 transition-transform px-1"
+                          style={c
+                            ? { borderColor: c, color: c, background: `color-mix(in srgb, ${c} 8%, transparent)` }
+                            : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                          title={die.label || die.key}
+                        >
+                          <span className="truncate">{symbolDieShortLabel(die)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
@@ -1168,8 +1194,17 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                   <button onClick={() => { setInput(''); setLatestResult(null); }} className="h-12 px-3 shrink-0 flex items-center justify-center rounded-xl border text-xs font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}>
                     CLR
                   </button>
-                  <button onClick={() => handleRoll()} disabled={isLoading} className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl font-bold uppercase text-sm text-black" style={{ background: 'var(--accent-brown)' }}>
-                    Roll <Send className="w-4 h-4" />
+                  <button
+                    onClick={() => handleRoll()}
+                    disabled={isLoading}
+                    className={useShinyRoll
+                      ? 'sw-roll-btn flex-1 h-12 flex items-center justify-center gap-2 rounded-xl font-bold uppercase text-sm'
+                      : 'flex-1 h-12 flex items-center justify-center gap-2 rounded-xl font-bold uppercase text-sm text-black'}
+                    style={useShinyRoll ? undefined : { background: 'var(--accent-brown)' }}
+                  >
+                    <span className="relative z-[1] inline-flex items-center gap-2">
+                      Roll <Send className="w-4 h-4" />
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1190,19 +1225,39 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                 <div className="w-[120px] flex-shrink-0 p-2 space-y-2" style={{ borderRight: '1px solid var(--border-color)' }}>
                   {symbolDice.length > 0 ? (
                     <div className="grid grid-cols-1 gap-1.5">
-                      {symbolDice.map((die) => (
-                        <button
-                          key={die.key}
-                          onClick={() => addToInput(`1${die.key}`)}
-                          className="group relative w-full h-8 flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 px-1"
-                          style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
-                          title={die.label || die.key}
-                        >
-                          <span className="text-[10px] font-bold truncate">{symbolDieShortLabel(die)}</span>
-                        </button>
-                      ))}
+                      {symbolDice.map((die) => {
+                        const c = EOTE_DIE_COLORS[die.key];
+                        // Dé coloré : bordure + libellé à la couleur du dé, fond quasi transparent.
+                        // Au survol, le fond se teinte un peu plus (même logique que le survol accent
+                        // des dés sans couleur connue, mais dans la teinte du dé).
+                        return (
+                          <button
+                            key={die.key}
+                            onClick={() => addToInput(`1${die.key}`)}
+                            className="group relative w-full h-8 flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 px-1"
+                            style={c
+                              ? { border: `1px solid ${c}`, color: c, background: `color-mix(in srgb, ${c} 8%, transparent)` }
+                              : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                            onMouseEnter={e => {
+                              const el = e.currentTarget as HTMLElement;
+                              if (c) { el.style.background = `color-mix(in srgb, ${c} 22%, transparent)`; return; }
+                              el.style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)';
+                              el.style.borderColor = 'var(--accent-brown)';
+                              el.style.color = 'var(--accent-brown)';
+                            }}
+                            onMouseLeave={e => {
+                              const el = e.currentTarget as HTMLElement;
+                              if (c) { el.style.background = `color-mix(in srgb, ${c} 8%, transparent)`; return; }
+                              el.style.background = 'transparent';
+                              el.style.borderColor = 'var(--border-color)';
+                              el.style.color = 'var(--text-secondary)';
+                            }}
+                            title={die.label || die.key}
+                          >
+                            <span className="text-[10px] font-bold truncate">{symbolDieShortLabel(die)}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
@@ -1532,20 +1587,33 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
                             </button>
 
                             {/* Send Button */}
-                            <button
-                              id="vtt-dice-btn-roll"
-                              onClick={() => handleRoll()}
-                              className="group relative p-2.5 pl-4 pr-3 bg-[var(--accent-brown)] border-none rounded-xl cursor-pointer transition-all duration-300 text-black shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transform flex items-center gap-2"
-                              style={{
-                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
-                              }}
-                            >
-                              <span className="text-xs font-bold uppercase tracking-wide opacity-90">Roll</span>
-                              <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
+                            {useShinyRoll ? (
+                              <button
+                                id="vtt-dice-btn-roll"
+                                onClick={() => handleRoll()}
+                                className="sw-roll-btn group p-2.5 pl-4 pr-3 rounded-xl flex items-center gap-2"
+                              >
+                                <span className="relative z-[1] inline-flex items-center gap-2">
+                                  <span className="text-xs font-bold uppercase tracking-wide">Roll</span>
+                                  <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
+                                </span>
+                              </button>
+                            ) : (
+                              <button
+                                id="vtt-dice-btn-roll"
+                                onClick={() => handleRoll()}
+                                className="group relative p-2.5 pl-4 pr-3 bg-[var(--accent-brown)] border-none rounded-xl cursor-pointer transition-all duration-300 text-black shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transform flex items-center gap-2"
+                                style={{
+                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
+                                }}
+                              >
+                                <span className="text-xs font-bold uppercase tracking-wide opacity-90">Roll</span>
+                                <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
 
-                              {/* Animated background glow */}
-                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
-                            </button>
+                                {/* Animated background glow */}
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1713,9 +1781,168 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
             transform: scale(1) translateX(0);
           }
         }
-        
+
         .floating-dice-button:hover {
           transform: scale(1.1);
+        }
+
+        /* ── Bouton Roll "sabre" — Star Wars uniquement (cf useShinyRoll) ──
+           Bordure animée par dégradé conique tournant + trame de points + reflet interne, jaune
+           impérial. Les animations sont en pause hors survol/focus : le panneau de dés reste ouvert
+           en permanence pendant une partie, un dégradé animé en continu y serait coûteux et
+           distrayant. */
+        @property --swr-angle {
+          syntax: "<angle>";
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @property --swr-angle-offset {
+          syntax: "<angle>";
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @property --swr-percent {
+          syntax: "<percentage>";
+          initial-value: 5%;
+          inherits: false;
+        }
+        @property --swr-shine {
+          syntax: "<color>";
+          initial-value: white;
+          inherits: false;
+        }
+
+        .sw-roll-btn {
+          --swr-accent: #ffe81f;
+          --swr-accent-subtle: #c9b400;
+          --swr-bg: #0a0a0b;
+          --animation: swr-spin linear infinite;
+          --duration: 3s;
+          --transition: 800ms cubic-bezier(0.25, 1, 0.5, 1);
+
+          isolation: isolate;
+          position: relative;
+          overflow: hidden;
+          cursor: pointer;
+          outline-offset: 4px;
+          border: 1px solid transparent;
+          color: var(--swr-accent);
+          background:
+            linear-gradient(var(--swr-bg), var(--swr-bg)) padding-box,
+            conic-gradient(
+                from calc(var(--swr-angle) - var(--swr-angle-offset)),
+                transparent,
+                var(--swr-accent) var(--swr-percent),
+                var(--swr-shine) calc(var(--swr-percent) * 2),
+                var(--swr-accent) calc(var(--swr-percent) * 3),
+                transparent calc(var(--swr-percent) * 4)
+              )
+              border-box;
+          box-shadow: inset 0 0 0 1px #1a1818;
+          transition: var(--transition);
+          transition-property: --swr-angle-offset, --swr-percent, --swr-shine;
+        }
+
+        .sw-roll-btn::before,
+        .sw-roll-btn::after {
+          content: "";
+          pointer-events: none;
+          position: absolute;
+          inset-inline-start: 50%;
+          inset-block-start: 50%;
+          translate: -50% -50%;
+          z-index: -1;
+        }
+
+        .sw-roll-btn:active {
+          translate: 0 1px;
+        }
+
+        /* Trame de points */
+        .sw-roll-btn::before {
+          --size: calc(100% - 6px);
+          --position: 2px;
+          --space: calc(var(--position) * 2);
+          width: var(--size);
+          height: var(--size);
+          background: radial-gradient(
+              circle at var(--position) var(--position),
+              white calc(var(--position) / 4),
+              transparent 0
+            )
+            padding-box;
+          background-size: var(--space) var(--space);
+          background-repeat: space;
+          mask-image: conic-gradient(
+            from calc(var(--swr-angle) + 45deg),
+            black,
+            transparent 10% 90%,
+            black
+          );
+          border-radius: 0.75rem;
+          opacity: 0.4;
+          z-index: -1;
+        }
+
+        /* Reflet interne */
+        .sw-roll-btn::after {
+          --animation: swr-shimmer linear infinite;
+          width: 100%;
+          aspect-ratio: 1;
+          background: linear-gradient(
+            -50deg,
+            transparent,
+            var(--swr-accent),
+            transparent
+          );
+          mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+          opacity: 0.6;
+        }
+
+        .sw-roll-btn,
+        .sw-roll-btn::before,
+        .sw-roll-btn::after {
+          animation:
+            var(--animation) var(--duration),
+            var(--animation) calc(var(--duration) / 0.4) reverse paused;
+          animation-composition: add;
+        }
+
+        .sw-roll-btn:is(:hover, :focus-visible) {
+          --swr-percent: 20%;
+          --swr-angle-offset: 95deg;
+          --swr-shine: var(--swr-accent-subtle);
+        }
+
+        .sw-roll-btn:is(:hover, :focus-visible),
+        .sw-roll-btn:is(:hover, :focus-visible)::before,
+        .sw-roll-btn:is(:hover, :focus-visible)::after {
+          animation-play-state: running;
+        }
+
+        .sw-roll-btn:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+
+        @keyframes swr-spin {
+          to {
+            --swr-angle: 360deg;
+          }
+        }
+
+        @keyframes swr-shimmer {
+          to {
+            rotate: 360deg;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .sw-roll-btn,
+          .sw-roll-btn::before,
+          .sw-roll-btn::after {
+            animation: none;
+          }
         }
       `}</style>
     </div >
