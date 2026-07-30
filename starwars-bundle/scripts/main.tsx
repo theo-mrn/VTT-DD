@@ -21,7 +21,7 @@
 //     4 bandes de fader verticales (LED meter + poignée à inertie) — même raccourci/bouton/toggle
 //     que le natif, mêmes canaux localStorage/CustomEvent, les volumes s'appliquent donc partout.
 //     Voir mixer.tsx.
-import { Eye, EyeOff, Gauge, Scale, BookOpen, Target, RadioTower, Bot, Rocket } from 'lucide-react';
+import { Eye, EyeOff, Gauge, Scale, BookOpen, Target, RadioTower, Bot, Rocket, Terminal } from 'lucide-react';
 import { BACKGROUNDS } from './backgrounds';
 import { makeLocationOverlay } from './location';
 import { makeObligationWidget } from './obligation';
@@ -35,6 +35,7 @@ import { makeDroidPanel } from './droid';
 import { makeBombardementPanel, makeBombardementMjPanel } from './bombardement';
 import { makeMixerPanel } from './mixer';
 import { makeSabaccGame } from './sabacc';
+import { makeTerminalPanel } from './terminal';
 
 const RACE_VISION = 'chiss'; // espèce autorisant la vision infrarouge (races[].id des règles)
 
@@ -138,6 +139,16 @@ export default (ctx) => {
     dock: 'bottom-right',
   };
 
+  // Onglet Terminal — JOUEURS et MJ : console de recherche générique (Lieux/Entités de groupe/
+  // Règles du MJ), pas de dépendance à des données propres à Star Wars. Voir terminal.tsx.
+  const terminalTab = {
+    id: 'sw-terminal',
+    label: 'Terminal',
+    icon: Terminal,
+    component: makeTerminalPanel(api),
+    floating: true,
+  };
+
   // Mixeur SW : REMPLACE le panneau natif via l'override dédié — le raccourci clavier (Q), le
   // bouton tool_mixer de la sidebar/toolbar et le toggle existants ouvrent directement cette
   // version, aucun onglet séparé ni doublon.
@@ -159,8 +170,8 @@ export default (ctx) => {
   // première). Seules les sidebarActions (vision Chiss) sont ré-enregistrées plus bas.
   ctx.register({
     sidebarTabs: isMJ
-      ? [codexTab, scannerControlTab]
-      : [codexTab, instrumentsTab, droidTab, bombardementTab],
+      ? [codexTab, scannerControlTab, terminalTab]
+      : [codexTab, instrumentsTab, droidTab, bombardementTab, terminalTab],
     searchDrawerTabs: isMJ ? [deployShipsTab] : [],
     characterWidgets: [{
       id: 'sw-obligation',

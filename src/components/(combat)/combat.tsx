@@ -256,7 +256,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [attackerRaw, setAttackerRaw] = useState<Record<string, unknown> | null>(null)
   const [eoteWeapon, setEoteWeapon] = useState<Weapon | null>(null)
   const [eoteSkillKey, setEoteSkillKey] = useState<string | null>(null)
-  const [eoteDifficulty, setEoteDifficulty] = useState<number>(2)
+  const [eoteDifficulty, setEoteDifficulty] = useState<number>(0)
   const [eoteFortune, setEoteFortune] = useState<number>(0)
   const [eoteInfortune, setEoteInfortune] = useState<number>(0)
   const [eoteResult, setEoteResult] = useState<{ hit: boolean; netSuccess: number; damage: number; summary: string; detail: string; netAdvantages: number; triumphs: number; critActivations: number; breakdown: SymbolDiceBreakdownEntry[] } | null>(null)
@@ -272,7 +272,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   useEffect(() => {
     if (isSymbolCombat && step === 'ATTACK_CHOICE') {
       setStep('EOTE_DECLARE')
-      setEoteDifficulty(combatRule?.defaultDifficulty ?? 2)
+      setEoteDifficulty(combatRule?.defaultDifficulty ?? 0)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSymbolCombat])

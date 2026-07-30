@@ -4380,7 +4380,7 @@
         "ranged_heavy",
         "gunnery"
       ],
-      "defaultDifficulty": 2,
+      "defaultDifficulty": 0,
       "difficultyDieKey": "difficulte",
       "bonusDieKey": "fortune",
       "penaltyDieKey": "infortune",
