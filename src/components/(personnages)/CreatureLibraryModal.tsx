@@ -10,7 +10,8 @@ import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RaceImageSelector } from './RaceImageSelector'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
-import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import { useNpcStatFields, pickKnownSkillRanks } from '@/hooks/useNpcStatFields'
+import { NpcSkillRanksEditor } from './NpcSkillRanksEditor'
 import { rollCharacterStats } from '@/lib/rules-engine'
 import type { RaceDefinition, ProfileDefinition } from '@/modules/game-system/types'
 import { toast } from 'sonner'
@@ -34,7 +35,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const params = useParams()
     const roomId = (params?.roomid as string) ?? null
     const { gameSystem } = useGameSystem(roomId)
-    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId)
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, skills, skillLabel, skillGroups } = useNpcStatFields(roomId)
+    const statByKey = useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats])
     const races: RaceDefinition[] = gameSystem.races ?? []
     const profiles: ProfileDefinition[] = gameSystem.profiles ?? []
     // Pseudo-bestiaire : les races servent de gabarits de créature (cf commentaire plus haut).
@@ -52,6 +54,15 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     // Stats State — clés dérivées du système actif (caractéristiques/stat vitale/défense/attaques),
     // pas les 6+7 clés D&D fixes.
     const [stats, setStats] = useState<Record<string, number>>({})
+
+    // Rangs de compétences — état séparé de `stats` (qui est un Record<string, number> plat de clés de
+    // stats) parce qu'ils partent dans un sous-objet `skillRanks`, exactement comme sur un PJ.
+    const [skillRanks, setSkillRanks] = useState<Record<string, number>>({})
+
+    // Onglet du panneau de droite : les stats et les compétences ne tiennent pas ensemble dans la
+    // hauteur du panneau (l'image de tête en mange déjà 400px), et empiler les deux rendait la liste
+    // de compétences inatteignable au scroll.
+    const [detailTab, setDetailTab] = useState<'stats' | 'skills'>('stats')
 
     // Selection State
     const [activeTab, setActiveTab] = useState<'bestiary' | 'npc'>('npc')
@@ -92,7 +103,16 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         }
 
         setStats(newStats)
-    }, [selectedRace, selectedProfile, selectedCreature, activeTab, races, profiles, bestiary, gameSystem])
+
+        // Pré-remplissage des rangs : 1 rang dans chaque compétence de carrière du profil choisi —
+        // point de départ crédible pour un PNJ de cette classe, que le MJ ajuste ensuite à la main.
+        // Aucun profil (ou système sans compétences) = aucun rang, pas de valeur inventée.
+        const nextRanks: Record<string, number> = {}
+        for (const key of profileData?.careerSkillKeys ?? []) {
+            if (skills.some((s) => s.key === key)) nextRanks[key] = 1
+        }
+        setSkillRanks(nextRanks)
+    }, [selectedRace, selectedProfile, selectedCreature, activeTab, races, profiles, bestiary, gameSystem, skills])
 
     // Reset crop when selection changes
     useEffect(() => {
@@ -158,6 +178,9 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 Actions: []
             } as NewCharacter
             for (const [key, value] of Object.entries(stats)) newChar[key] = value
+            // Rangs de compétences — même champ que sur un PJ, pour que le moteur de combat compose
+            // le pool carac liée + rang sans distinguer PJ et PNJ.
+            if (skills.length > 0) newChar.skillRanks = pickKnownSkillRanks(skillRanks, skills)
 
             await onImport(newChar)
             onClose()
@@ -631,10 +654,38 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 </div>
                             )}
 
+                            {/* Onglets Statistiques / Compétences — masqués si le système ne déclare
+                                aucune compétence (ex dnd-classic) : un seul onglet n'apporte rien. */}
+                            {skills.length > 0 && (
+                                <div className="flex gap-2 border-b border-[var(--border-color)] -mt-2">
+                                    {([
+                                        { id: 'stats' as const, label: 'Statistiques' },
+                                        { id: 'skills' as const, label: skillLabel },
+                                    ]).map((tab) => (
+                                        <button
+                                            key={tab.id}
+                                            type="button"
+                                            onClick={() => setDetailTab(tab.id)}
+                                            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b-2 -mb-px transition-colors ${detailTab === tab.id
+                                                ? 'border-[var(--accent-brown)] text-[var(--accent-brown)]'
+                                                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                                                }`}
+                                        >
+                                            {tab.label}
+                                            {tab.id === 'skills' && Object.keys(skillRanks).length > 0 && (
+                                                <span className="ml-1.5 font-mono text-[10px] opacity-70">
+                                                    {Object.keys(skillRanks).length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Stat Grid - Always Available — dérivé du système actif (stat vitale
                                 principale, défense, attaques de combat, caractéristiques) plutôt que
                                 PV/Defense/Contact/Distance/Magie/FOR/DEX/... en dur. */}
-                            <div className="space-y-6">
+                            <div className={`space-y-6 ${detailTab === 'stats' || skills.length === 0 ? '' : 'hidden'}`}>
                                 <h3 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                                     Statistiques
@@ -693,7 +744,24 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         ))}
                                     </div>
                                 )}
+
                             </div>
+
+                            {/* Onglet Compétences — rangs individuels, pré-remplis à 1 pour les
+                                compétences de carrière du profil choisi. */}
+                            {skills.length > 0 && (
+                                <div className={detailTab === 'skills' ? '' : 'hidden'}>
+                                    <NpcSkillRanksEditor
+                                        skills={skills}
+                                        skillLabel={skillLabel}
+                                        skillGroups={skillGroups}
+                                        skillRanks={skillRanks}
+                                        onChange={setSkillRanks}
+                                        statByKey={statByKey}
+                                        values={stats}
+                                    />
+                                </div>
+                            )}
 
                         </div>
                     </div>

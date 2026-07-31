@@ -14,7 +14,7 @@ import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { advancedSearch } from '@/lib/advanced-search'
-import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import { useNpcStatFields, pickKnownSkillRanks } from '@/hooks/useNpcStatFields'
 
 interface NPCTemplateDrawerProps {
     roomId: string
@@ -27,7 +27,7 @@ interface NPCTemplateDrawerProps {
 
 export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, isEmbedded }: NPCTemplateDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
-    const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue } = useNpcStatFields(roomId ?? null)
+    const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats, skills, getDefaultValue } = useNpcStatFields(roomId ?? null)
     const {
         npcTemplates: templates,
         npcCategories: categories,
@@ -76,6 +76,9 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             image: null,
             visibility: 'visible',
             nombre: 1,
+            // Rangs de compétences, même stockage que sur un PJ (cf NpcSkillRanksEditor) — un PNJ tout
+            // neuf n'a aucun rang, les clés n'apparaissent qu'une fois réellement attribuées.
+            skillRanks: {},
         }
         for (const stat of abilityStats) base[stat.key] = getDefaultValue(stat)
         for (const { stat, maxKey } of vitalStats) {
@@ -170,6 +173,9 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             }
             if (defenseKey) npcData[defenseKey] = char[defenseKey]
             for (const key of combatAttackKeys) npcData[key] = char[key]
+            // Rangs de compétences — filtrés aux clés réellement définies par le système actif, pour
+            // qu'un template importé d'un autre système ne traîne pas de rangs orphelins.
+            if (skills.length > 0) npcData.skillRanks = pickKnownSkillRanks(char.skillRanks, skills)
 
             if (editingNpcId) {
                 // Update existing template
@@ -220,6 +226,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             }
             if (defenseKey) npcData[defenseKey] = importedChar[defenseKey]
             for (const key of combatAttackKeys) npcData[key] = importedChar[key]
+            if (skills.length > 0) npcData.skillRanks = pickKnownSkillRanks(importedChar.skillRanks, skills)
 
             await addNPCTemplate(npcData)
             setShowLibraryModal(false)

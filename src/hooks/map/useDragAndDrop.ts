@@ -13,7 +13,7 @@ import {
 } from '@/lib/obstacle-utils';
 import { getMediaDimensions } from '@/app/[roomid]/map/utils/coordinates';
 import type { Point, ObjectTemplate, MusicZone, LootItem } from '@/app/[roomid]/map/types';
-import { useNpcStatFields } from '@/hooks/useNpcStatFields';
+import { useNpcStatFields, pickKnownSkillRanks } from '@/hooks/useNpcStatFields';
 
 // ---- Types ----
 
@@ -138,7 +138,7 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
   // Champs de stats dérivés du système de règles actif de la salle — remplace la copie en dur des 13
   // clés D&D (FOR/DEX/.../Defense/Contact/Distance/Magie) qui produisait `undefined` explicite pour un
   // système custom sans ces clés (ex Star Wars sans combatDefenseKey), rejeté par Firestore addDoc.
-  const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId ?? null);
+  const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, skills } = useNpcStatFields(roomId ?? null);
 
   // Throttle ref for dragover updates (~30fps)
   const dragOverThrottleRef = useRef<number>(0);
@@ -437,6 +437,10 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
         }
         if (defenseKey) characterData[defenseKey] = (draggedTemplate as any)[defenseKey] ?? 0;
         for (const key of combatAttackKeys) characterData[key] = (draggedTemplate as any)[key] ?? 0;
+        // Rangs de compétences du template — recopiés sur le PNJ posé pour que le moteur de combat
+        // compose le même pool (carac liée + rang) qu'un PJ. `{}` plutôt qu'undefined : Firestore
+        // rejette les undefined explicites.
+        if (skills.length > 0) characterData.skillRanks = pickKnownSkillRanks((draggedTemplate as any).skillRanks, skills);
 
         await addWithHistory(
           'characters',
@@ -463,7 +467,7 @@ export function useDragAndDrop(params: UseDragAndDropParams): UseDragAndDropRetu
   }, [
     draggedTemplate, dropPosition, selectedCityId,
     addWithHistory, setShowPlaceModal, setDraggedTemplate, setDropPosition,
-    abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats,
+    abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, skills,
   ]);
 
   // ---------------------------------------------------------

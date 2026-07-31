@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import type { MapMarker } from "@/modules/game-system/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,6 +18,22 @@ import type { MapMarker } from "@/modules/game-system/types";
 // interdit de dézoomer plus bas, sinon l'image flotte dans un vide au lieu que ses bords touchent
 // systématiquement au moins un côté du conteneur. Pas de borne maximale : on peut zoomer à l'infini.
 const MIN_ZOOM = 1;
+
+/** Extensions vidéo reconnues pour le fond de carte — mêmes conteneurs que ceux acceptés à l'upload
+ *  (cf MapPanel.tsx). L'URL Firebase Storage porte le nom de fichier d'origine (avec extension) avant
+ *  la query string `?alt=media&token=…`, d'où le découpage sur '?' avant test. */
+export const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogv', '.ogg', '.mov', '.m4v'];
+
+/** Vrai si l'URL de fond désigne une vidéo plutôt qu'une image. Heuristique sur l'extension : le
+ *  champ `image` de MapConfig ne stocke qu'une URL, sans type MIME — et une data: URL porte son type
+ *  directement. Se trompe silencieusement du bon côté : un faux négatif rend une <img> cassée, jamais
+ *  un crash. */
+export function isVideoUrl(url: string): boolean {
+  if (!url) return false;
+  if (url.startsWith('data:')) return url.startsWith('data:video/');
+  const withoutQuery = url.split('?')[0].toLowerCase();
+  return VIDEO_EXTENSIONS.some((ext) => withoutQuery.endsWith(ext));
+}
 
 export interface MapCanvasProps {
   backgroundUrl: string;
@@ -246,6 +262,92 @@ export function MapCanvas({
     panStateRef.current = null;
   }, []);
 
+  const isVideo = isVideoUrl(backgroundUrl);
+
+  // ── Contrôles du fond vidéo ────────────────────────────────────────────────
+  // L'état miroir (isPlaying/isMuted) suit les événements de l'élément plutôt que d'être la source de
+  // vérité : la lecture peut changer sans passer par nos boutons (autoplay refusé par le navigateur,
+  // onde de fin de boucle, contrôles natifs de l'OS), et un état piloté uniquement par les clics
+  // finirait désynchronisé de la vidéo réellement affichée.
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  // React n'applique pas fiablement l'attribut JSX `muted` à la PROPRIÉTÉ DOM correspondante (écart
+  // connu attribut/propriété) ; sans cette pose explicite, l'autoplay peut être refusé par le
+  // navigateur qui considère la vidéo comme non muette.
+  const applyVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    if (el) el.muted = true;
+  }, []);
+  const [isPlaying, setIsPlaying] = useState(true);
+  // Démarre muet : `muted` est la condition pour que l'autoplay soit autorisé. Le son ne peut être
+  // activé qu'ensuite, par un geste explicite de l'utilisateur — ce que fait le bouton.
+  const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(1);
+
+  const togglePlay = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.paused) el.play().catch(() => { /* lecture refusée : l'événement onPause garde l'état juste */ });
+    else el.pause();
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const nextMuted = !el.muted;
+    el.muted = nextMuted;
+    // Rallumer le son alors que le volume est à zéro ne produirait rien d'audible : on remonte à un
+    // niveau utile plutôt que de laisser croire à une panne.
+    if (!nextMuted && el.volume === 0) {
+      el.volume = 1;
+      setVolume(1);
+    }
+    setIsMuted(nextMuted);
+  }, []);
+
+  const handleVolumeChange = useCallback((next: number) => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.volume = next;
+    // Descendre à 0 revient à couper le son ; en remonter le rétablit — sinon le bouton et le curseur
+    // afficheraient deux vérités différentes.
+    el.muted = next === 0;
+    setVolume(next);
+    setIsMuted(next === 0);
+  }, []);
+
+  // Dimensions naturelles du média (image OU vidéo) : identiques dans leurs effets, seule la source
+  // de l'information diffère (naturalWidth vs videoWidth). Centre le média dès le chargement — zoom=1
+  // (== fitScale) ne remplit exactement le conteneur que sur UN axe ; sans ceci l'autre resterait
+  // collé en haut/gauche. Calcul local (pas clampOffset, qui dépend d'un naturalSize pas encore
+  // reflété dans le state).
+  const handleMediaSize = useCallback((width: number, height: number) => {
+    if (!width || !height) return;
+    setNaturalSize({ width, height });
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect && rect.width > 0 && rect.height > 0) {
+      const initialFitScale = Math.min(rect.width / width, rect.height / height);
+      setOffset({
+        x: (width * initialFitScale - rect.width) / 2,
+        y: (height * initialFitScale - rect.height) / 2,
+      });
+    }
+  }, []);
+
+  // Changement de fond (ex le MJ remplace l'image par une vidéo) : les dimensions du média précédent
+  // ne valent plus rien. Sans reset, fitScale resterait calculé sur l'ancienne taille jusqu'au
+  // chargement du nouveau média, avec un cadrage faux entre-temps.
+  useEffect(() => {
+    setNaturalSize(null);
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+    // L'état des contrôles décrit le média PRÉCÉDENT : une nouvelle vidéo redémarre en lecture
+    // automatique et muette (seul mode où l'autoplay est autorisé), pas dans l'état laissé par
+    // l'ancienne — sinon les boutons afficheraient "en pause" sur une vidéo qui joue.
+    setIsPlaying(true);
+    setIsMuted(true);
+    setVolume(1);
+  }, [backgroundUrl]);
+
   return (
     <div
       ref={containerRef}
@@ -269,28 +371,37 @@ export function MapCanvas({
           transformOrigin: "top left",
         }}
       >
-        <img
-          src={backgroundUrl}
-          alt=""
-          draggable={false}
-          className="max-w-none pointer-events-none"
-          onLoad={(e) => {
-            const width = e.currentTarget.naturalWidth;
-            const height = e.currentTarget.naturalHeight;
-            setNaturalSize({ width, height });
-            // Centre l'image dès le chargement (zoom=1 == fitScale ne remplit exactement le conteneur
-            // que sur UN axe ; sans ceci l'autre axe resterait collé en haut/gauche au lieu d'être centré).
-            // Calcul local (pas clampOffset, qui dépend de naturalSize pas encore reflété dans le state).
-            const rect = containerRef.current?.getBoundingClientRect();
-            if (rect && rect.width > 0 && rect.height > 0) {
-              const initialFitScale = Math.min(rect.width / width, rect.height / height);
-              setOffset({
-                x: (width * initialFitScale - rect.width) / 2,
-                y: (height * initialFitScale - rect.height) / 2,
-              });
-            }
-          }}
-        />
+        {isVideo ? (
+          // Fond vidéo : mêmes dimensions naturelles (videoWidth/Height) et même centrage initial que
+          // l'image, donc tout le zoom/pan/positionnement des marqueurs fonctionne à l'identique.
+          // muted est requis pour que l'autoplay démarre (politique des navigateurs) ; playsInline
+          // évite le passage en plein écran sur iOS.
+          <video
+            ref={applyVideoRef}
+            src={backgroundUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            draggable={false}
+            className="max-w-none pointer-events-none"
+            onLoadedMetadata={(e) => handleMediaSize(e.currentTarget.videoWidth, e.currentTarget.videoHeight)}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onVolumeChange={(e) => {
+              setIsMuted(e.currentTarget.muted);
+              setVolume(e.currentTarget.volume);
+            }}
+          />
+        ) : (
+          <img
+            src={backgroundUrl}
+            alt=""
+            draggable={false}
+            className="max-w-none pointer-events-none"
+            onLoad={(e) => handleMediaSize(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+          />
+        )}
         {naturalSize &&
           markers.map((marker) => {
             const pos = dragPreview?.id === marker.id ? dragPreview : marker;
@@ -322,6 +433,48 @@ export function MapCanvas({
             );
           })}
       </div>
+
+      {/* Contrôles du fond vidéo — HORS du conteneur transformé, sinon ils seraient zoomés/déplacés
+          avec la carte. stopPropagation sur les gestes : sans ça, cliquer un bouton déclencherait
+          aussi le pan du fond (et, en mode edit, la création d'un marqueur sous la barre). */}
+      {isVideo && naturalSize && (
+        <div
+          className="absolute bottom-3 left-3 z-10 flex items-center gap-1 rounded-lg px-1.5 py-1 backdrop-blur-sm"
+          style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(255,255,255,0.12)" }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={togglePlay}
+            title={isPlaying ? "Pause" : "Lecture"}
+            aria-label={isPlaying ? "Mettre en pause la vidéo de fond" : "Lire la vidéo de fond"}
+            className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            {isPlaying ? <Pause size={15} /> : <Play size={15} />}
+          </button>
+          <button
+            onClick={toggleMute}
+            title={isMuted ? "Activer le son" : "Couper le son"}
+            aria-label={isMuted ? "Activer le son de la vidéo de fond" : "Couper le son de la vidéo de fond"}
+            className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={isMuted ? 0 : volume}
+            onChange={(e) => handleVolumeChange(Number(e.target.value))}
+            title="Volume"
+            aria-label="Volume de la vidéo de fond"
+            className="w-20 h-1 cursor-pointer"
+            style={{ accentColor: "var(--accent-brown)" }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -63,7 +63,7 @@ const EOTE_DIE_COLORS: Record<string, string> = {
 };
 
 export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
-  const { selectedCharacter, roomId: contextRoomId } = useCharacter();
+  const { characters, selectedCharacter, roomId: contextRoomId } = useCharacter();
   const { isMJ, persoId, user: gameUser } = useGame();
   const { isShortcutPressed, customShortcuts, checkKeyCombination, onActionTriggered } = useShortcuts();
   const roomId = contextRoomId;
@@ -81,8 +81,22 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const [quickRollInput, setQuickRollInput] = useState('');
   const quickRollInputRef = useRef<HTMLInputElement>(null);
 
-  const userName = isMJ ? "MJ" : (selectedCharacter?.Nomperso || "Utilisateur");
-  const userAvatar = isMJ ? undefined : (selectedCharacter?.imageURLFinal || selectedCharacter?.imageURL || undefined);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Personnage AU NOM DUQUEL on lance. Un joueur lance TOUJOURS avec le sien (persoId), jamais avec
+  // celui affiché par la fiche : la barre de personnages de fiche.tsx permet de consulter la fiche
+  // d'un autre joueur, ce qui déplaçait `selectedCharacter` du contexte et faisait lancer les dés
+  // avec les caractéristiques, bonus et rangs de compétence de CET autre personnage (jet faussé et
+  // publié sous son nom dans le journal).
+  // Le MJ, lui, n'a pas de personnage propre : sa sélection courante EST son intention de jet.
+  // ─────────────────────────────────────────────────────────────────────────────
+  const ownCharacter = useMemo(
+    () => (persoId ? characters.find((c) => c.id === persoId) ?? null : null),
+    [characters, persoId],
+  );
+  const rollCharacter = isMJ ? selectedCharacter : (ownCharacter ?? (persoId ? null : selectedCharacter));
+
+  const userName = isMJ ? "MJ" : (rollCharacter?.Nomperso || "Utilisateur");
+  const userAvatar = isMJ ? undefined : (rollCharacter?.imageURLFinal || rollCharacter?.imageURL || undefined);
 
   const { gameSystem, tableCustomStats } = useGameSystem(roomId);
   // Dés à symboles (ex système narratif façon Star Wars) — configurés par le MJ dans l'éditeur de
@@ -95,9 +109,9 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   // délégué au moteur de règles partagé, remplace le calcul dupliqué avec application du bonus
   // séparée dans replaceCharacteristics().
   const rollableStats = useMemo(() => {
-    if (!selectedCharacter) return [];
-    return getRollableStats(gameSystem, tableCustomStats, selectedCharacter, selectedCharacter.statRollable, totalBonuses);
-  }, [selectedCharacter, gameSystem, tableCustomStats, totalBonuses]);
+    if (!rollCharacter) return [];
+    return getRollableStats(gameSystem, tableCustomStats, rollCharacter, rollCharacter.statRollable, totalBonuses);
+  }, [rollCharacter, gameSystem, tableCustomStats, totalBonuses]);
 
   // ── Jet de compétence (ex système narratif type EotE) : pool composé Caractéristique + Compétence.
   // max(carac, rang) = nombre total de dés de base, min = combien sont upgradés (composeDicePool, moteur
@@ -107,7 +121,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   // skills + diceUpgradeRule (référençant deux dés à symboles existants) — invisible sinon (D&D intact).
   const diceUpgradeRule = gameSystem.diceUpgradeRule;
   const skills = gameSystem.skills ?? [];
-  const canSkillRoll = !isMJ && !!selectedCharacter && skills.length > 0 && !!diceUpgradeRule
+  const canSkillRoll = !isMJ && !!rollCharacter && skills.length > 0 && !!diceUpgradeRule
     && symbolDiceByKey.has(diceUpgradeRule.baseDiceKey) && symbolDiceByKey.has(diceUpgradeRule.upgradedDiceKey);
   // Habillage "shiny" du bouton Roll réservé aux systèmes à dés à symboles (Star Wars EotE) — même
   // discriminant que le flux de combat EotE (combat.tsx) et que le menu contextuel des personnages
@@ -130,9 +144,9 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
     const rollableStat = rollableStats.find((s) => s.key === skill.linkedStatKey)
     const statValue = Number(
       rollableStat?.rawValue
-      ?? (Number((selectedCharacter as Record<string, unknown> | null)?.[skill.linkedStatKey] ?? 0) + (totalBonuses?.[skill.linkedStatKey as keyof typeof totalBonuses] ?? 0)),
+      ?? (Number((rollCharacter as Record<string, unknown> | null)?.[skill.linkedStatKey] ?? 0) + (totalBonuses?.[skill.linkedStatKey as keyof typeof totalBonuses] ?? 0)),
     );
-    const rank = Number(((selectedCharacter as Record<string, unknown> | null)?.skillRanks as Record<string, number> | undefined)?.[skill.key] ?? 0);
+    const rank = Number(((rollCharacter as Record<string, unknown> | null)?.skillRanks as Record<string, number> | undefined)?.[skill.key] ?? 0);
     const { baseCount, upgradedCount } = composeDicePool(statValue, rank);
     const parts: string[] = [];
     if (upgradedCount > 0 && diceUpgradeRule) parts.push(`${upgradedCount}${diceUpgradeRule.upgradedDiceKey}`);

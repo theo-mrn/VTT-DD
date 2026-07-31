@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { getFormulaDependencies } from '@/lib/rules-engine';
-import type { StatDefinition } from '@/modules/game-system/types';
+import type { SkillDefinition, StatDefinition } from '@/modules/game-system/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dérive les champs de statistiques à afficher/éditer pour un template PNJ (bibliothèque de PNJ,
@@ -36,8 +36,37 @@ export interface NpcStatFields {
    *  borne max d'une stat vitale, PAS combatDefenseKey, PAS dans combatAttackKeys. Remplace toute
    *  référence codée en dur à "INIT" — un système sans cette notion n'en produit simplement aucune ici. */
   extraCombatStats: StatDefinition[];
+  /** Compétences du système actif (gameSystem.skills), vide pour un système qui n'en définit pas (ex
+   *  dnd-classic, qui passe par les Voies) — un PNJ les stocke dans `skillRanks[key]`, exactement comme
+   *  un personnage joueur, pour que combat.tsx/MJcombat.tsx/dice-roller composent le même pool de dés
+   *  (carac liée + rang) sans savoir si l'acteur est un PJ ou un PNJ. */
+  skills: SkillDefinition[];
+  /** Libellé de la section compétences (gameSystem.skillLabel), ex "Compétences". */
+  skillLabel: string;
+  /** Groupes distincts déclarés par les compétences (SkillDefinition.group), dans l'ordre d'apparition —
+   *  vide si le système ne groupe pas ses compétences. */
+  skillGroups: string[];
   /** Résout la valeur par défaut d'une stat (StatDefinition.defaultValue, ou 0/10 selon la catégorie). */
   getDefaultValue: (stat: StatDefinition) => number;
+}
+
+/** Rang maximum d'une compétence — même plafond que la fiche joueur (SkillsSheet). */
+export const MAX_SKILL_RANK = 5;
+
+/** Normalise un `skillRanks` avant écriture Firestore : ne garde que les clés déclarées par le système
+ *  actif (un template importé d'un autre système ne traîne pas de rangs orphelins), borne à
+ *  [1, MAX_SKILL_RANK] et retire les rangs nuls plutôt que d'écrire une entrée par compétence. */
+export function pickKnownSkillRanks(
+  raw: unknown,
+  skills: SkillDefinition[],
+): Record<string, number> {
+  const source = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const out: Record<string, number> = {};
+  for (const skill of skills) {
+    const rank = Math.floor(Number(source[skill.key] ?? 0));
+    if (Number.isFinite(rank) && rank > 0) out[skill.key] = Math.min(MAX_SKILL_RANK, rank);
+  }
+  return out;
 }
 
 export function useNpcStatFields(roomId: string | null): NpcStatFields {
@@ -75,6 +104,10 @@ export function useNpcStatFields(roomId: string | null): NpcStatFields {
       (s) => s.category === 'derived' && s.visibleToPlayers !== false && !excludedFromExtra.has(s.key),
     );
 
+    const skills = gameSystem.skills ?? [];
+    const skillLabel = gameSystem.skillLabel || 'Compétences';
+    const skillGroups = Array.from(new Set(skills.map((s) => s.group).filter((g): g is string => !!g)));
+
     const getDefaultValue = (stat: StatDefinition): number => {
       if (typeof stat.defaultValue === 'number') return stat.defaultValue;
       return stat.category === 'ability' ? 10 : 0;
@@ -82,7 +115,8 @@ export function useNpcStatFields(roomId: string | null): NpcStatFields {
 
     return {
       abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey,
-      defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue,
+      defenseKey, combatAttackKeys, extraCombatStats,
+      skills, skillLabel, skillGroups, getDefaultValue,
     };
   }, [gameSystem]);
 }

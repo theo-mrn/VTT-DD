@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   X, Sword, Target, Wand2, Settings, Volume2,
-  ArrowRight, Shield, Zap, Skull, Library, StopCircle, PlayCircle, Check, Music, Plus, Search, ScrollText
+  ArrowRight, Shield, Zap, Skull, Library, StopCircle, PlayCircle, Check, Music, Plus, Search, ScrollText, Dices
 } from 'lucide-react'
 import { db, doc, getDoc, collection, getDocs, setDoc, onSnapshot, query } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 import { useGameSystem } from '@/modules/game-system/useGameSystem'
-import { composeDicePool, rollComposedDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, getSymbolDiceBreakdown, type SymbolDiceBreakdownEntry, resolveCharacterStats, getFormulaDependencies } from '@/lib/rules-engine'
+import { composeDicePool, rollSymbolDie, resolveSymbolDiceRoll, formatSymbolDiceResult, getSymbolDiceBreakdown, type SymbolDiceBreakdownEntry, resolveCharacterStats, getFormulaDependencies } from '@/lib/rules-engine'
 import { SymbolDiceBadges } from './symbol-dice-badges'
 
 // --- Interfaces ---
@@ -257,8 +257,14 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [eoteWeapon, setEoteWeapon] = useState<Weapon | null>(null)
   const [eoteSkillKey, setEoteSkillKey] = useState<string | null>(null)
   const [eoteDifficulty, setEoteDifficulty] = useState<number>(0)
-  const [eoteFortune, setEoteFortune] = useState<number>(0)
-  const [eoteInfortune, setEoteInfortune] = useState<number>(0)
+  // Pool de dés du jet : UN compteur éditable par dé déclaré par le système (les 7 d'EotE —
+  // Aptitude, Maîtrise, Difficulté, Fortune, Infortune, Défi, Force), et pas seulement les
+  // situationnels. Les dés du pool carac+rang (diceUpgradeRule) sont pré-remplis automatiquement
+  // depuis la fiche à chaque changement d'arme/compétence, mais restent surchargeables à la main :
+  // le MJ doit pouvoir ajuster n'importe quel dé au moment du jet sans toucher à la fiche.
+  // `null` = jamais touché par l'utilisateur, donc suit le calcul auto ; un nombre = valeur forcée.
+  const allDice = gameSystem.symbolDice ?? []
+  const [eoteDiceCounts, setEoteDiceCounts] = useState<Record<string, number | null>>({})
   const [eoteResult, setEoteResult] = useState<{ hit: boolean; netSuccess: number; damage: number; summary: string; detail: string; netAdvantages: number; triumphs: number; critActivations: number; breakdown: SymbolDiceBreakdownEntry[] } | null>(null)
   const eoteSkill = combatSkills.find((s) => s.key === eoteSkillKey) ?? null
   // Pseudo-arme toujours proposée : mains nues. Sans compétence sélectionnée, le pool est
@@ -266,6 +272,25 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const UNARMED_WEAPON: Weapon = { id: 'unarmed', name: 'Mains nues', numDice: 0, numFaces: 0, baseDamage: 0, source: 'inventory' }
   const isUnarmed = eoteWeapon?.id === UNARMED_WEAPON.id
   const unarmedBaseDice = combatRule?.unarmedBaseDice ?? 2
+
+  // Valeurs AUTO de chaque dé, dérivées de la fiche + de la config du système. Sert de valeur de
+  // départ affichée dans les compteurs, et de valeur retenue tant que l'utilisateur n'a rien forcé.
+  const autoDiceCounts: Record<string, number> = {}
+  {
+    const statValue = eoteSkill ? Number(attackerRaw?.[eoteSkill.linkedStatKey] ?? 0) : (isUnarmed ? unarmedBaseDice : 0)
+    const rank = eoteSkill ? Number((attackerRaw?.skillRanks as Record<string, number> | undefined)?.[eoteSkill.key] ?? 0) : 0
+    const { baseCount, upgradedCount } = composeDicePool(statValue, rank)
+    const baseKey = gameSystem.diceUpgradeRule?.baseDiceKey
+    const upKey = gameSystem.diceUpgradeRule?.upgradedDiceKey
+    if (baseKey) autoDiceCounts[baseKey] = (autoDiceCounts[baseKey] ?? 0) + baseCount
+    if (upKey) autoDiceCounts[upKey] = (autoDiceCounts[upKey] ?? 0) + upgradedCount
+    if (combatRule?.difficultyDieKey) autoDiceCounts[combatRule.difficultyDieKey] = eoteDifficulty
+  }
+  /** Nombre de dés réellement lancés pour une clé : surcharge manuelle si présente, sinon valeur auto. */
+  const effectiveDiceCount = (key: string): number => {
+    const override = eoteDiceCounts[key]
+    return override != null ? override : (autoDiceCounts[key] ?? 0)
+  }
 
   // gameSystem charge en asynchrone : bascule vers le flux EotE dès qu'il est identifié (le step
   // initial ATTACK_CHOICE n'existe pas dans ce mode).
@@ -571,25 +596,15 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     if (!eoteSkill && !isUnarmed) return
     markTargetsEngaged()
 
-    const statValue = eoteSkill ? Number(attackerRaw[eoteSkill.linkedStatKey] ?? 0) : unarmedBaseDice
-    const rank = eoteSkill ? Number((attackerRaw.skillRanks as Record<string, number> | undefined)?.[eoteSkill.key] ?? 0) : 0
-    const { baseCount, upgradedCount } = composeDicePool(statValue, rank)
-    const positives = rollComposedDicePool(gameSystem, gameSystem.diceUpgradeRule, statValue, rank)
-
-    const baseDie = symbolDieByKey(gameSystem.diceUpgradeRule.baseDiceKey)
-    const upgradedDie = symbolDieByKey(gameSystem.diceUpgradeRule.upgradedDiceKey)
-    const difficultyDie = symbolDieByKey(combatRule.difficultyDieKey)
-    const bonusDie = symbolDieByKey(combatRule.bonusDieKey)
-    const penaltyDie = symbolDieByKey(combatRule.penaltyDieKey)
-
-    // rollComposedDicePool tire d'abord les dés de base, puis les upgradés — reconstitution du détail.
+    // Le pool lancé est EXACTEMENT ce que montrent les compteurs : une seule boucle sur tous les dés
+    // du système, chacun avec sa valeur effective (surcharge manuelle sinon calcul auto). Plus de
+    // chemin séparé pour le pool carac+rang — sinon une surcharge manuelle d'Aptitude/Maîtrise aurait
+    // été ignorée au tirage.
     const detailParts: string[] = []
-    const allFaces = positives.map((r) => r.face ?? { values: {} })
-    if (baseCount > 0 && baseDie) detailParts.push(`${baseDie.label || baseDie.key} [${positives.slice(0, baseCount).map((r) => r.value).join(', ')}]`)
-    if (upgradedCount > 0 && upgradedDie) detailParts.push(`${upgradedDie.label || upgradedDie.key} [${positives.slice(baseCount).map((r) => r.value).join(', ')}]`)
-
-    const rollExtra = (die: typeof difficultyDie, count: number) => {
-      if (!die || count <= 0) return
+    const allFaces: { values: Record<string, number> }[] = []
+    for (const die of allDice) {
+      const count = effectiveDiceCount(die.key)
+      if (count <= 0) continue
       const values: number[] = []
       for (let i = 0; i < count; i++) {
         const roll = rollSymbolDie(die)
@@ -598,9 +613,6 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
       }
       detailParts.push(`${die.label || die.key} [${values.join(', ')}]`)
     }
-    rollExtra(difficultyDie, eoteDifficulty)
-    rollExtra(bonusDie, eoteFortune)
-    rollExtra(penaltyDie, eoteInfortune)
 
     const resolution = resolveSymbolDiceRoll(gameSystem, allFaces)
     const summary = formatSymbolDiceResult(gameSystem, resolution)
@@ -893,7 +905,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     {[UNARMED_WEAPON, ...weapons.filter(w => w.source === 'inventory')].map((weapon, idx) => (
                       <button
                         key={weapon.id ?? `w-${idx}`}
-                        onClick={() => setEoteWeapon(weapon)}
+                        onClick={() => { setEoteWeapon(weapon); setEoteDiceCounts({}) }}
                         className={`p-3 rounded-xl border text-left transition-all ${eoteWeapon?.name === weapon.name
                           ? 'border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)]'
                           : 'border-white/10 bg-white/5 hover:border-white/30'}`}
@@ -920,7 +932,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       return (
                         <button
                           key={skill.key}
-                          onClick={() => setEoteSkillKey((k) => k === skill.key ? null : skill.key)}
+                          onClick={() => { setEoteSkillKey((k) => k === skill.key ? null : skill.key); setEoteDiceCounts({}) }}
                           className={`px-3 py-2 rounded-xl border text-sm transition-all flex items-center gap-2 ${eoteSkillKey === skill.key
                             ? 'border-[var(--accent-brown)] bg-[color-mix(in_srgb,var(--accent-brown)_10%,transparent)] text-white'
                             : 'border-white/10 bg-white/5 text-gray-300 hover:border-white/30'}`}
@@ -940,22 +952,49 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                   )}
                 </div>
 
-                {/* Dés situationnels : difficulté (portée/situation), fortune, infortune */}
-                <div className="grid grid-cols-3 gap-3">
-                  {([
-                    { label: 'Difficulté', value: eoteDifficulty, set: setEoteDifficulty, hint: '2 = mêlée / portée moyenne', color: 'text-purple-400' },
-                    { label: 'Fortune', value: eoteFortune, set: setEoteFortune, hint: 'ex à couvert, avantage situationnel', color: 'text-blue-400' },
-                    { label: 'Infortune', value: eoteInfortune, set: setEoteInfortune, hint: 'ex obscurité, gêne', color: 'text-gray-400' },
-                  ] as const).map(({ label, value, set, hint, color }) => (
-                    <div key={label} className="p-3 rounded-xl border border-white/10 bg-white/5 text-center">
-                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${color}`} title={hint}>{label}</div>
-                      <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => set(Math.max(0, value - 1))} className="w-7 h-7 rounded-lg border border-white/10 text-white hover:bg-white/10">−</button>
-                        <span className="font-mono font-bold text-white text-lg w-6">{value}</span>
-                        <button onClick={() => set(Math.min(9, value + 1))} className="w-7 h-7 rounded-lg border border-white/10 text-white hover:bg-white/10">+</button>
-                      </div>
-                    </div>
-                  ))}
+                {/* Pool de dés : UN compteur par dé déclaré par le système (les 7 d'EotE), tous
+                    modifiables à la main. Les dés dérivés de la fiche (Aptitude/Maîtrise via
+                    diceUpgradeRule, Difficulté) affichent leur valeur calculée et peuvent être
+                    surchargés ; un point signale une valeur forcée, avec retour au calcul auto. */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                      <Dices className="w-4 h-4" /> Pool de dés
+                    </h3>
+                    {Object.values(eoteDiceCounts).some((v) => v != null) && (
+                      <button
+                        onClick={() => setEoteDiceCounts({})}
+                        className="text-[10px] uppercase tracking-wider text-gray-500 hover:text-white transition-colors"
+                        title="Revenir aux valeurs calculées depuis la fiche"
+                      >
+                        Réinitialiser
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+                    {allDice.map((die) => {
+                      const value = effectiveDiceCount(die.key)
+                      const isOverridden = eoteDiceCounts[die.key] != null
+                      const auto = autoDiceCounts[die.key] ?? 0
+                      const setValue = (v: number) => setEoteDiceCounts((prev) => ({ ...prev, [die.key]: Math.max(0, Math.min(9, v)) }))
+                      return (
+                        <div key={die.key} className="p-3 rounded-xl border border-white/10 bg-white/5 text-center">
+                          <div
+                            className="text-[10px] font-bold uppercase tracking-wider mb-1 text-gray-300 flex items-center justify-center gap-1"
+                            title={isOverridden ? `Valeur forcée (calcul : ${auto})` : `Dés « ${die.label || die.key} »`}
+                          >
+                            <span className="truncate">{die.label || die.key}</span>
+                            {isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)] shrink-0" />}
+                          </div>
+                          <div className="flex items-center justify-center gap-3">
+                            <button onClick={() => setValue(value - 1)} className="w-7 h-7 rounded-lg border border-white/10 text-white hover:bg-white/10">−</button>
+                            <span className="font-mono font-bold text-white text-lg w-6">{value}</span>
+                            <button onClick={() => setValue(value + 1)} className="w-7 h-7 rounded-lg border border-white/10 text-white hover:bg-white/10">+</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <Button

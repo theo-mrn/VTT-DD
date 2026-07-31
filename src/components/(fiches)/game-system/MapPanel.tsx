@@ -5,7 +5,7 @@ import { Trash2, Upload, Loader2 } from 'lucide-react';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { uploadWithQuota } from '@/lib/storageHelper';
 import { toast } from 'sonner';
-import { MapCanvas } from '@/components/(maps)/MapCanvas';
+import { MapCanvas, VIDEO_EXTENSIONS } from '@/components/(maps)/MapCanvas';
 import type { MapConfig, MapMarker } from '@/modules/game-system/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,10 +64,21 @@ export function MapDetail({ maps, onChange, roomId, mapId, onRemove, onSelectMar
     onChange(maps.map((m) => (m.id === mapId ? { ...m, ...patch } : m)));
   };
 
+  // Le fond accepte une image OU une vidéo (ex carte galactique animée) — même champ `image` de
+  // MapConfig dans les deux cas : ce n'est qu'une URL, et MapCanvas déduit le média à rendre de son
+  // extension (isVideoUrl). Pas de champ séparé, sinon toutes les cartes existantes seraient à migrer.
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    // Le nom de fichier voyage dans le chemin Storage, donc dans l'URL finale : c'est lui qui porte
+    // l'extension sur laquelle isVideoUrl s'appuie. Un fichier vidéo sans extension exploitable
+    // serait rendu comme une image cassée — on le signale plutôt que de l'accepter silencieusement.
+    const isVideoFile = file.type.startsWith('video/');
+    if (isVideoFile && !VIDEO_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+      toast.error(`Format vidéo non reconnu — utilisez ${VIDEO_EXTENSIONS.join(', ')}.`);
+      return;
+    }
     setIsUploading(true);
     try {
       const storage = getStorage();
@@ -76,8 +87,8 @@ export function MapDetail({ maps, onChange, roomId, mapId, onRemove, onSelectMar
       const url = roomId ? await uploadWithQuota(imageRef, file, roomId) : await (async () => { await uploadBytes(imageRef, file); return getDownloadURL(imageRef); })();
       updateMap({ image: url });
     } catch (error) {
-      console.error('[MapDetail] erreur upload image:', error);
-      toast.error("Erreur lors de l'envoi de l'image.");
+      console.error('[MapDetail] erreur upload fond:', error);
+      toast.error(`Erreur lors de l'envoi ${isVideoFile ? 'de la vidéo' : "de l'image"}.`);
     } finally {
       setIsUploading(false);
     }
@@ -103,12 +114,15 @@ export function MapDetail({ maps, onChange, roomId, mapId, onRemove, onSelectMar
 
       <div className="space-y-4 max-w-2xl">
         <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Image de fond</label>
+          <label className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>Fond de carte (image ou vidéo)</label>
           <label className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border border-dashed cursor-pointer transition-colors hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)] w-fit" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
             {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {isUploading ? 'Envoi en cours…' : map.image ? "Remplacer l'image" : 'Uploader une image'}
-            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={isUploading} />
+            {isUploading ? 'Envoi en cours…' : map.image ? 'Remplacer le fond' : 'Uploader une image ou une vidéo'}
+            <input type="file" accept={`image/*,video/*,${VIDEO_EXTENSIONS.join(',')}`} className="hidden" onChange={handleImageUpload} disabled={isUploading} />
           </label>
+          <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            Vidéo : lue en boucle, sans son ({VIDEO_EXTENSIONS.join(', ')}).
+          </p>
         </div>
 
         {map.image ? (
@@ -128,7 +142,7 @@ export function MapDetail({ maps, onChange, roomId, mapId, onRemove, onSelectMar
             </div>
           </div>
         ) : (
-          <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Uploadez une image de fond pour commencer à placer des marqueurs.</p>
+          <p className="text-[11px] italic" style={{ color: 'var(--text-secondary)' }}>Uploadez une image ou une vidéo de fond pour commencer à placer des marqueurs.</p>
         )}
 
         <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{map.markers.length} marqueur{map.markers.length > 1 ? 's' : ''} défini{map.markers.length > 1 ? 's' : ''}.</p>

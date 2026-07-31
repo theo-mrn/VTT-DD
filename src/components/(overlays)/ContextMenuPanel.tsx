@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
@@ -42,6 +42,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { Label } from "@/components/ui/label";
 import { EntityNotes } from './EntityNotes';
 import { useNpcStatFields } from '@/hooks/useNpcStatFields';
+import { NpcSkillRanksEditor } from '@/components/(personnages)/NpcSkillRanksEditor';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { ShinyActionButton } from '@/components/ui/shiny-action-button';
 
@@ -70,12 +71,13 @@ export default function ContextMenuPanel({
 }: ContextMenuPanelProps) {
     const params = useParams();
     const roomId = (params?.roomid as string) ?? null;
-    const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId);
+    const { abilityStats, vitalStats, primaryVitalStat, primaryVitalMaxKey, defenseKey, combatAttackKeys, extraCombatStats, skills, skillLabel, skillGroups } = useNpcStatFields(roomId);
     // Habillage "shiny" des boutons d'action réservé aux systèmes à dés à symboles (Star Wars EotE) —
     // même discriminant que le flux de combat EotE dans combat.tsx (symbolDice + diceUpgradeRule),
     // plus robuste qu'un systemId (généré à l'import) ou que le nom du système (renommable par le MJ).
     const { gameSystem } = useGameSystem(roomId);
     const useShinyActions = !!gameSystem?.diceUpgradeRule && (gameSystem?.symbolDice?.length ?? 0) > 0;
+    const statByKey = useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats]);
     const dragControls = useDragControls();
     const [customCondition, setCustomCondition] = useState("");
     // 🆕 State local pour feedback visuel immédiat de la sélection de joueurs
@@ -87,6 +89,9 @@ export default function ContextMenuPanel({
 
     // States for edit and delete dialogs (moved from page.tsx)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    // Onglet du dialogue "Modifier le personnage" : stats d'un côté, compétences de l'autre — empilées,
+    // le dialogue dépassait la hauteur de l'écran et le bas devenait inatteignable.
+    const [editTab, setEditTab] = useState<'stats' | 'skills'>('stats');
     const [localEditingCharacter, setLocalEditingCharacter] = useState<Character | null>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -950,12 +955,44 @@ export default function ContextMenuPanel({
                 setIsEditDialogOpen(open);
                 if (!open) setLocalEditingCharacter(null);
             }}>
+                {/* DialogContent enveloppe ses enfants dans deux div de style (cf ui/dialog.tsx) qui
+                    n'ont pas de hauteur : borner la racine ne suffit pas, le contenu débordait et le
+                    ScrollArea ne scrollait jamais. On borne donc directement ce conteneur-ci, seul
+                    parent flex réel de l'en-tête / des onglets / du corps / du pied de page. */}
                 <DialogContent className="bg-[var(--bg-card)] text-[var(--accent-brown)] max-w-3xl">
-                    <DialogHeader>
+                    <div className="flex flex-col max-h-[75vh] min-h-0">
+                    <DialogHeader className="shrink-0">
                         <DialogTitle>Modifier le personnage</DialogTitle>
                     </DialogHeader>
-                    <ScrollArea className="h-auto max-h-[85vh] pr-4">
-                        <div className="space-y-6 py-4">
+
+                    {/* Onglets Statistiques / Compétences — masqués pour un système sans compétences. */}
+                    {skills.length > 0 && (
+                        <div className="shrink-0 flex gap-2 border-b border-gray-700">
+                            {([
+                                { id: 'stats' as const, label: 'Statistiques' },
+                                { id: 'skills' as const, label: skillLabel },
+                            ]).map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setEditTab(tab.id)}
+                                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 -mb-px transition-colors ${editTab === tab.id
+                                        ? 'border-[var(--accent-brown)] text-[var(--accent-brown)]'
+                                        : 'border-transparent text-gray-500 hover:text-gray-300'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* overflow-y-auto natif plutôt que <ScrollArea> : la Root Radix est en
+                        `overflow-hidden` et délègue le défilement à son propre JS, qui ne prenait
+                        pas la main ici — mesuré au navigateur, le contenu débordait (2568px dans
+                        527px) sans qu'aucun scroll ne soit possible. */}
+                    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-4">
+                        <div className={`space-y-6 py-4 ${editTab === 'stats' || skills.length === 0 ? '' : 'hidden'}`}>
 
                             {/* --- SECTION 1: GÉNÉRAL --- */}
                             <div className="space-y-3">
@@ -1081,8 +1118,24 @@ export default function ContextMenuPanel({
                             )}
 
                         </div>
-                    </ScrollArea>
-                    <DialogFooter>
+
+                        {/* --- ONGLET COMPÉTENCES --- rangs individuels, même stockage (skillRanks)
+                            que sur la fiche joueur. Rien pour un système sans gameSystem.skills. */}
+                        {skills.length > 0 && (
+                            <div className={`py-4 ${editTab === 'skills' ? '' : 'hidden'}`}>
+                                <NpcSkillRanksEditor
+                                    skills={skills}
+                                    skillLabel={skillLabel}
+                                    skillGroups={skillGroups}
+                                    skillRanks={(localEditingCharacter?.skillRanks as Record<string, number> | undefined) ?? {}}
+                                    onChange={(next) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, skillRanks: next })}
+                                    statByKey={statByKey}
+                                    values={(localEditingCharacter ?? {}) as Record<string, unknown>}
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="shrink-0">
                         <Button onClick={() => {
                             if (localEditingCharacter) {
                                 onAction('edit', character.id, localEditingCharacter);
@@ -1091,6 +1144,7 @@ export default function ContextMenuPanel({
                             }
                         }}>Modifier</Button>
                     </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 

@@ -5,7 +5,7 @@ import { Pencil, ChevronDown, Plus, X } from "lucide-react";
 import { useGameSystem } from "@/modules/game-system/useGameSystem";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapCanvas } from "./MapCanvas";
+import { MapCanvas, isVideoUrl } from "./MapCanvas";
 import { MapDetail, MapMarkerDetail, makeMapId } from "@/components/(fiches)/game-system/MapPanel";
 import type { MapConfig } from "@/modules/game-system/types";
 
@@ -127,7 +127,7 @@ export default function MapExplorer({ roomId, isMJ }: { roomId: string; isMJ: bo
           <MapCanvas backgroundUrl={activeMap.image} markers={activeMap.markers} mode="view" onMarkerClick={setSelectedMarkerId} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-sm text-center p-6" style={{ color: "var(--text-secondary)" }}>
-            Cette carte n&apos;a pas encore d&apos;image de fond.
+            Cette carte n&apos;a pas encore de fond (image ou vidéo).
           </div>
         )}
       </div>
@@ -140,7 +140,11 @@ export default function MapExplorer({ roomId, isMJ }: { roomId: string; isMJ: bo
               <h3 className="text-xl font-bold mb-3" style={{ color: "var(--accent-brown)", fontFamily: "var(--font-title)" }}>
                 {selected.name || "(sans nom)"}
               </h3>
-              {selected.image && <img src={selected.image} alt="" className="w-full rounded-lg mb-3" />}
+              {selected.image && (
+                isVideoUrl(selected.image)
+                  ? <video src={selected.image} autoPlay loop muted playsInline className="w-full rounded-lg mb-3" />
+                  : <img src={selected.image} alt="" className="w-full rounded-lg mb-3" />
+              )}
               {selected.description && <p className="text-sm leading-relaxed" style={{ color: "var(--text-primary)" }}>{selected.description}</p>}
             </div>
           )}

@@ -116,6 +116,9 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
         if (defenseKey) npc[defenseKey] = data[defenseKey] ?? 5
         for (const key of combatAttackKeys) npc[key] = data[key] ?? 0
         for (const stat of extraCombatStats) npc[stat.key] = data[stat.key] ?? 0
+        // Rangs de compétences (mêmes clés que sur un PJ) — recopiés pour qu'un PNJ déjà posé qu'on
+        // reprend depuis l'onglet "PNJ" conserve ses rangs.
+        npc.skillRanks = data.skillRanks ?? {}
         return npc
     }, [abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue])
 

@@ -310,7 +310,10 @@ export interface CombatRule {
   /** Nombre de dés de difficulté par défaut du pool (ex 2 = difficulté "Moyenne" EotE) — ajustable
    *  par le joueur/MJ au moment du jet selon la portée/situation. */
   defaultDifficulty?: number;
-  /** Clés SymbolDieDefinition des dés négatifs/situationnels ajoutés au pool. */
+  /** Clés SymbolDieDefinition des dés négatifs/situationnels ajoutés au pool. difficultyDieKey sert
+   *  aussi de valeur de départ au compteur correspondant (defaultDifficulty). Note : le panneau
+   *  d'attaque propose un compteur pour CHAQUE dé de gameSystem.symbolDice, pas seulement ceux-ci —
+   *  ces clés servent à donner un rôle/pré-remplissage, pas à filtrer ce qui est affiché. */
   difficultyDieKey?: string;
   bonusDieKey?: string;
   penaltyDieKey?: string;

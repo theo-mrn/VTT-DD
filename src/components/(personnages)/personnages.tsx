@@ -32,8 +32,10 @@ import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { CategoryManager } from './CategoryManager'
 import { cn } from '@/lib/utils'
 import { uploadWithQuota } from '@/lib/storageHelper'
-import { useNpcStatFields } from '@/hooks/useNpcStatFields'
-import type { StatDefinition } from '@/modules/game-system/types'
+import { useNpcStatFields, pickKnownSkillRanks } from '@/hooks/useNpcStatFields'
+import { NpcSkillRanksEditor } from './NpcSkillRanksEditor'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
+import type { SkillDefinition, StatDefinition } from '@/modules/game-system/types'
 
 interface NPCManagerProps {
     isOpen?: boolean
@@ -73,7 +75,9 @@ export interface NPC {
 export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCManagerProps) {
     const params = useParams()
     const roomId = params?.roomid as string
-    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, getDefaultValue } = useNpcStatFields(roomId ?? null)
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, skills, skillLabel, skillGroups, getDefaultValue } = useNpcStatFields(roomId ?? null)
+    const { gameSystem } = useGameSystem(roomId ?? null)
+    const statByKey = useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats])
 
     // Data State
     const [npcs, setNpcs] = useState<NPC[]>([])
@@ -103,6 +107,8 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             image: null,
             visibility: 'visible',
             nombre: 1,
+            // Rangs de compétences, même stockage que sur un PJ (cf NpcSkillRanksEditor).
+            skillRanks: {},
         }
         for (const stat of abilityStats) base[stat.key] = getDefaultValue(stat)
         for (const { stat, maxKey } of vitalStats) {
@@ -166,6 +172,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
         }
         if (defenseKey) next[defenseKey] = npc[defenseKey] ?? 10
         for (const key of combatAttackKeys) next[key] = npc[key] ?? 0
+        next.skillRanks = pickKnownSkillRanks(npc.skillRanks, skills)
         setChar(next)
         setSelectedCategoryId(npc.categoryId || null) // Set category to form context if needed
         setSelectedNpcId(npc.id)
@@ -259,6 +266,9 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             }
             if (defenseKey) npcData[defenseKey] = char[defenseKey]
             for (const key of combatAttackKeys) npcData[key] = char[key]
+            // Rangs de compétences — filtrés aux clés réellement déclarées par le système actif, pour
+            // qu'un template venu d'un autre système ne traîne pas de rangs orphelins.
+            if (skills.length > 0) npcData.skillRanks = pickKnownSkillRanks(char.skillRanks, skills)
 
             if (viewMode === 'edit' && selectedNpcId) {
                 await updateDoc(doc(db, 'npc_templates', roomId, 'templates', selectedNpcId), npcData)
@@ -323,6 +333,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             }
             if (defenseKey) npcData[defenseKey] = importedChar[defenseKey]
             for (const key of combatAttackKeys) npcData[key] = importedChar[key]
+            if (skills.length > 0) npcData.skillRanks = pickKnownSkillRanks(importedChar.skillRanks, skills)
 
             await addDoc(templatesRef, npcData)
             setShowLibraryModal(false)
@@ -510,6 +521,10 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                             defenseKey={defenseKey}
                             combatAttackKeys={combatAttackKeys}
                             extraCombatStats={extraCombatStats}
+                            skills={skills}
+                            skillLabel={skillLabel}
+                            skillGroups={skillGroups}
+                            statByKey={statByKey}
                             onEditTrigger={() => selectedNPC && handleEdit(selectedNPC)}
                             onDeleteTrigger={() => selectedNPC && setDeleteConfirmId(selectedNPC.id)}
                             onSave={handleSubmit}
@@ -621,6 +636,10 @@ interface InspectorViewProps {
     defenseKey: string | null
     combatAttackKeys: string[]
     extraCombatStats: StatDefinition[]
+    skills: SkillDefinition[]
+    skillLabel: string
+    skillGroups: string[]
+    statByKey: Map<string, StatDefinition>
     onEditTrigger: () => void
     onDeleteTrigger: () => void
     onSave: () => void
@@ -633,12 +652,16 @@ interface InspectorViewProps {
 function InspectorView({
     mode, npc, char, category, categories,
     abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats,
+    skills, skillLabel, skillGroups, statByKey,
     onEditTrigger, onDeleteTrigger, onSave, onCancel,
     onChange, onImageUpload, onCategoryChange
 }: InspectorViewProps) {
 
     const isEditing = mode === 'edit' || mode === 'create'
     const displayData = isEditing ? char : npc
+    // Onglet du corps de l'inspecteur : stats de combat + caractéristiques d'un côté, compétences de
+    // l'autre — empilées, la liste de compétences passait sous la zone visible.
+    const [activeTab, setActiveTab] = useState<'stats' | 'skills'>('stats')
 
     // Helper to get value safe
     const getVal = (field: string, fallback?: any) => {
@@ -794,9 +817,32 @@ function InspectorView({
             {/* 2. Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
 
+                {/* Onglets Statistiques / Compétences — masqués si le système ne déclare aucune
+                    compétence (ex dnd-classic). */}
+                {skills.length > 0 && (
+                    <div className="flex gap-2 border-b border-[var(--border-color)]">
+                        {([
+                            { id: 'stats' as const, label: 'Statistiques' },
+                            { id: 'skills' as const, label: skillLabel },
+                        ]).map((tab) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`px-4 py-2.5 text-xs font-bold uppercase tracking-widest border-b-2 -mb-px transition-colors ${activeTab === tab.id
+                                    ? 'border-[var(--accent-brown)] text-[var(--accent-brown)]'
+                                    : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                                    }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {/* Stats Grid — dérivé du système de règles actif (stat vitale principale, défense,
                     attaques de combat) plutôt que PV/Defense/Contact/Distance/Magie en dur. */}
-                <div className="space-y-3">
+                <div className={`space-y-3 ${activeTab === 'stats' || skills.length === 0 ? '' : 'hidden'}`}>
                     <h3 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                         Statistiques de Combat
@@ -846,7 +892,7 @@ function InspectorView({
 
                 {/* Attributes */}
                 {abilityStats.length > 0 && (
-                    <div className="space-y-3">
+                    <div className={`space-y-3 ${activeTab === 'stats' || skills.length === 0 ? '' : 'hidden'}`}>
                         <h3 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                             Caractéristiques
@@ -870,6 +916,24 @@ function InspectorView({
                                 </div>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {/* Compétences — rangs individuels. En consultation on n'affiche que celles entraînées ;
+                    en édition, la liste complète du système avec recherche et filtre par groupe. */}
+                {skills.length > 0 && (
+                    <div className={activeTab === 'skills' ? '' : 'hidden'}>
+                        <NpcSkillRanksEditor
+                            skills={skills}
+                            skillLabel={skillLabel}
+                            skillGroups={skillGroups}
+                            skillRanks={((isEditing ? char?.skillRanks : npc?.skillRanks) as Record<string, number> | undefined) ?? {}}
+                            onChange={(next) => onChange('skillRanks', next)}
+                            statByKey={statByKey}
+                            values={(displayData ?? {}) as Record<string, unknown>}
+                            readOnly={!isEditing}
+                            onlyRanked={!isEditing}
+                        />
                     </div>
                 )}
             </div>

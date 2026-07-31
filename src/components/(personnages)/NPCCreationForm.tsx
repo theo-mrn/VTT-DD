@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { UserPlus, Heart, Shield, Zap, Dices, Image as ImageIcon, User, Check, RotateCcw, Loader2, ImagePlus, Upload, Folder, Plus } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,8 @@ import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { ImageSelectorDialog } from './ImageSelectorDialog'
 import { type Category } from './personnages'
 import { useNpcStatFields } from '@/hooks/useNpcStatFields'
+import { NpcSkillRanksEditor } from './NpcSkillRanksEditor'
+import { useGameSystem } from '@/modules/game-system/useGameSystem'
 import { useParams } from 'next/navigation'
 
 interface NPCCreationFormProps {
@@ -51,9 +53,15 @@ export const NPCCreationForm = React.memo(({
     onGenerateStats
 }: NPCCreationFormProps) => {
     const [isImageDialogOpen, setIsImageDialogOpen] = useState(false)
+    // Onglet du corps du formulaire : combat+caractéristiques d'un côté, compétences de l'autre —
+    // empilées, la liste de compétences se retrouvait hors de portée du scroll.
+    const [activeTab, setActiveTab] = useState<'stats' | 'skills'>('stats')
     const params = useParams()
     const roomId = (params?.roomid as string) ?? null
-    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats } = useNpcStatFields(roomId)
+    const { abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats, skills, skillLabel, skillGroups } = useNpcStatFields(roomId)
+    const { gameSystem } = useGameSystem(roomId)
+    const statByKey = useMemo(() => new Map(gameSystem.stats.map((s) => [s.key, s])), [gameSystem.stats])
+    const skillRanks = (char.skillRanks as Record<string, number> | undefined) ?? {}
 
     const handleImageSelect = (imageUrl: string) => {
         const img = new Image()
@@ -195,9 +203,38 @@ export const NPCCreationForm = React.memo(({
                         </div>
                     </div>
 
+                    {/* Onglets Combat / Compétences — masqués si le système ne déclare aucune
+                        compétence (ex dnd-classic) : un seul onglet n'apporte rien. Sans ça les deux
+                        sections s'empilaient et la liste de compétences devenait inatteignable. */}
+                    {skills.length > 0 && (
+                        <div className="flex gap-2 border-b border-[var(--border-color)]">
+                            {([
+                                { id: 'stats' as const, label: 'Combat' },
+                                { id: 'skills' as const, label: skillLabel },
+                            ]).map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 -mb-px transition-colors ${activeTab === tab.id
+                                        ? 'border-[var(--accent-brown)] text-[var(--accent-brown)]'
+                                        : 'border-transparent text-gray-500 hover:text-gray-300'
+                                        }`}
+                                >
+                                    {tab.label}
+                                    {tab.id === 'skills' && Object.keys(skillRanks).length > 0 && (
+                                        <span className="ml-1.5 font-mono text-[10px] opacity-70">
+                                            {Object.keys(skillRanks).length}
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {/* 2. Combat Stats — dérivé du système de règles actif plutôt que
                         PV/Defense/Contact/Distance/Magie en dur. */}
-                    <div className="space-y-4">
+                    <div className={`space-y-4 ${activeTab === 'stats' || skills.length === 0 ? '' : 'hidden'}`}>
                         <h3 className="text-xs font-bold text-[var(--accent-brown)] uppercase tracking-wider flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                             Combat
@@ -266,7 +303,7 @@ export const NPCCreationForm = React.memo(({
 
                     {/* 3. Attributes — dérivé des caractéristiques (ability) du système actif */}
                     {abilityStats.length > 0 && (
-                        <div className="space-y-4">
+                        <div className={`space-y-4 ${activeTab === 'stats' || skills.length === 0 ? '' : 'hidden'}`}>
                             <h3 className="text-xs font-bold text-[var(--accent-brown)] uppercase tracking-wider flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-brown)]" />
                                 Caractéristiques
@@ -279,6 +316,22 @@ export const NPCCreationForm = React.memo(({
                                     ['red', 'green', 'orange', 'blue', 'purple', 'yellow'][i % 6],
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* 4. Compétences — rangs individuels, comme sur la fiche joueur. Rien n'est rendu
+                        pour un système sans gameSystem.skills (ex dnd-classic). */}
+                    {skills.length > 0 && (
+                        <div className={activeTab === 'skills' ? '' : 'hidden'}>
+                            <NpcSkillRanksEditor
+                                skills={skills}
+                                skillLabel={skillLabel}
+                                skillGroups={skillGroups}
+                                skillRanks={skillRanks}
+                                onChange={(next) => onCharChange({ ...char, skillRanks: next })}
+                                statByKey={statByKey}
+                                values={char as Record<string, unknown>}
+                            />
                         </div>
                     )}
 

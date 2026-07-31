@@ -1188,6 +1188,9 @@ export default function Component() {
     if (defenseKey && data[defenseKey] !== undefined) charObj[defenseKey] = data[defenseKey];
     for (const key of combatAttackKeys) if (data[key] !== undefined) charObj[key] = data[key];
     for (const stat of extraCombatStats) if (data[stat.key] !== undefined) charObj[stat.key] = data[stat.key];
+    // Rangs de compétences (PJ comme PNJ, même stockage) — sans ça un PNJ posé sur la carte perdait
+    // ses rangs et le moteur de combat recomposait un pool sans le rang de compétence.
+    if (data.skillRanks !== undefined) charObj.skillRanks = data.skillRanks;
     return charObj;
   }, [abilityStats, vitalStats, defenseKey, combatAttackKeys, extraCombatStats]);
 
