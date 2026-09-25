@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1.7
 # Image générique des services Node : docker build --build-arg SERVICE=gateway -f deploy/docker/service.Dockerfile .
-ARG NODE_VERSION=22.12
+ARG NODE_VERSION=22
 
 FROM node:${NODE_VERSION}-bookworm-slim AS build
 ARG SERVICE
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
-RUN corepack enable
+# pnpm installé directement : le corepack livré avec Node 22 peut rejeter
+# les signatures des versions récentes de pnpm
+RUN npm install -g pnpm@10.28.0 --no-fund --no-audit
 WORKDIR /repo
 # Couche dépendances : ne se reconstruit que si les manifests changent
 # Tous les manifests du workspace : sans eux, --frozen-lockfile refuse le lockfile

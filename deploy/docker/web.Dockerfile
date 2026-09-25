@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1.7
 # Front Next.js en mode standalone : docker build -f deploy/docker/web.Dockerfile .
-ARG NODE_VERSION=22.12
+ARG NODE_VERSION=22
 
 FROM node:${NODE_VERSION}-bookworm-slim AS build
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable
+# pnpm installé directement : le corepack livré avec Node 22 peut rejeter
+# les signatures des versions récentes de pnpm
+RUN npm install -g pnpm@10.28.0 --no-fund --no-audit
 WORKDIR /repo
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json ./apps/web/

@@ -38,7 +38,16 @@ jobs:
       - name: Variables factices pour le build Next
         run: grep -E '^[A-Z0-9_]+=' deploy/ci/build-placeholders.env >> "$GITHUB_ENV"
       - name: Lint, typecheck, tests, build (paquets modifiés)
-        run: pnpm turbo run lint typecheck test build ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+        run: |
+          set -o pipefail
+          pnpm turbo run lint typecheck test build --output-logs=errors-only \
+            ${{ github.event_name == 'pull_request' && '--affected' || '' }} 2>&1 | tee /tmp/turbo.log
+      - name: Résumé de l'échec
+        if: failure()
+        run: |
+          # Les dernières lignes utiles en annotation : lisibles sur la PR sans ouvrir les logs
+          msg=$(grep -vE '^\s*$' /tmp/turbo.log | grep -vE 'warning ' | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+          echo "::error title=Échec lint/typecheck/tests/build::${msg}"
 
   sql:
     name: Tests SQL (PostGIS)
@@ -87,7 +96,12 @@ jobs:
           fail-on-severity: high
           deny-licenses: AGPL-3.0, GPL-3.0
           comment-summary-in-pr: on-failure
-      - name: OSV-Scanner (lockfile)
+      - name: Audit pnpm (bloquant sur high/critical)
+        run: |
+          npm install -g pnpm@10.28.0 --no-fund --no-audit
+          pnpm audit --audit-level high
+      - name: OSV-Scanner (rapport, non bloquant)
+        continue-on-error: true
         uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
         with:
           scan-args: |-
@@ -140,6 +154,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build (sans push)
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -149,6 +164,15 @@ jobs:
           load: true
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+      - name: Résumé de l'échec du build
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          set +e
+          args=""; [ -n "${{ matrix.args }}" ] && args="--build-arg ${{ matrix.args }}"
+          docker buildx build --progress=plain -f ${{ matrix.dockerfile }} $args . > /tmp/docker.log 2>&1
+          msg=$(grep -vE '^\s*$' /tmp/docker.log | tail -n 60 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+          echo "::error title=Échec du build ${{ matrix.image }}::${msg}"
+          exit 1
       - name: Trivy (CVE critiques et mauvaises configurations)
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
@@ -159,7 +183,7 @@ jobs:
           format: sarif
           output: trivy-${{ matrix.image }}.sarif
       - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
-        if: always()
+        if: always() && hashFiles(format('trivy-{0}.sarif', matrix.image)) != ''
         with:
           { sarif_file: 'trivy-${{ matrix.image }}.sarif', category: 'trivy-${{ matrix.image }}' }
       - name: Bloquer sur CRITICAL
