@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 3002",
+    "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start -p 3002",
+    "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "lint": "prettier --check src",
     "test": "echo 'pas encore de tests'"

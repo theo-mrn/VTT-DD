@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3100",
     "dev:discord": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
