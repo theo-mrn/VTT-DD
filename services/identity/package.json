@@ -1,0 +1,28 @@
+{
+  "name": "@vtt/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --env-file-if-exists=.env --import ./dist/instrumentation.js dist/main.js",
+    "start": "node --import ./dist/instrumentation.js dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check src"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
+    "@vtt/contracts": "workspace:*",
+    "@vtt/platform": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "vitest": "^3.2.7"
+  },
+  "files": [
+    "dist"
+  ]
+}
