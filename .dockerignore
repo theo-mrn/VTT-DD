@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/.env*
+!**/.env.example
+.git
+apps/web/starwars-bundle
+apps/web/starwars.docx
+**/*.test.ts
+**/__tests__

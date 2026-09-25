@@ -1,5 +1,15 @@
 import { context, trace } from '@opentelemetry/api';
+import { createRequire } from 'node:module';
 import { pino, type LoggerOptions, type Logger } from 'pino';
+
+function prettyAvailable(): boolean {
+  try {
+    createRequire(import.meta.url).resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Champs jamais écrits dans les logs, quel que soit leur niveau d'imbrication
@@ -54,7 +64,7 @@ export function loggerOptions(s: LoggerSettings): LoggerOptions {
       const { traceId, spanId, traceFlags } = span.spanContext();
       return { trace_id: traceId, span_id: spanId, trace_flags: traceFlags };
     },
-    ...(s.pretty
+    ...(s.pretty && prettyAvailable()
       ? {
           transport: {
             target: 'pino-pretty',

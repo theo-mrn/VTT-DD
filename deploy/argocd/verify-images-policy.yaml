@@ -1,0 +1,27 @@
+# Kyverno : dans les namespaces vtt-*, seules les images de ghcr.io/theo-mrn
+# signées par le workflow GitHub Actions du dépôt (cosign keyless) sont admises.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: vtt-verify-images
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 15
+  rules:
+    - name: signed-by-ci
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ['vtt-*']
+      verifyImages:
+        - imageReferences: ['ghcr.io/theo-mrn/vtt-*']
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: https://token.actions.githubusercontent.com
+                    subject: 'https://github.com/theo-mrn/VTT-DD/.github/workflows/release.yml@refs/heads/main'
+                    rekor: { url: https://rekor.sigstore.dev }

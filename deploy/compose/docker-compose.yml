@@ -1,0 +1,73 @@
+# Infrastructure de développement local : `pnpm infra:up`
+# Remplace l'émulateur Firebase. Ports publiés sur 127.0.0.1 uniquement.
+name: vtt
+
+services:
+  postgres:
+    # Même base que la prod (CloudNativePG + PostGIS)
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: vtt
+      POSTGRES_PASSWORD: vtt
+      POSTGRES_DB: vtt
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c wal_level=logical
+      -c log_min_duration_statement=250
+    ports: ['127.0.0.1:5432:5432']
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vtt -d vtt']
+      interval: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.11-alpine
+    command: ['-js', '-sd', '/data', '-m', '8222']
+    ports: ['127.0.0.1:4222:4222', '127.0.0.1:8222:8222']
+    volumes: [nats-data:/data]
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command:
+      [
+        'valkey-server',
+        '--appendonly',
+        'yes',
+        '--maxmemory-policy',
+        'allkeys-lru',
+        '--maxmemory',
+        '256mb',
+      ]
+    ports: ['127.0.0.1:6379:6379']
+    volumes: [valkey-data:/data]
+
+  minio:
+    # Remplace R2 en local (API S3)
+    image: minio/minio:latest
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: vtt
+      MINIO_ROOT_PASSWORD: vtt-dev-secret
+    ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
+    volumes: [minio-data:/data]
+
+  mailpit:
+    # Capture les e-mails (Resend en prod) : http://localhost:8025
+    image: axllent/mailpit:latest
+    ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
+
+  lgtm:
+    # Collecteur OTLP + Grafana, Loki, Tempo, Prometheus en un conteneur
+    # Grafana : http://localhost:3300 (admin/admin)
+    image: grafana/otel-lgtm:latest
+    ports: ['127.0.0.1:3300:3000', '127.0.0.1:4317:4317', '127.0.0.1:4318:4318']
+
+volumes:
+  pg-data:
+  nats-data:
+  valkey-data:
+  minio-data:

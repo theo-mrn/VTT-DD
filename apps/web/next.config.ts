@@ -1,6 +1,10 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+    // Image autonome pour le cluster k3s (ignoré par Vercel)
+    output: "standalone",
+    outputFileTracingRoot: path.join(__dirname, "../.."),
     async headers() {
         return [
             {
