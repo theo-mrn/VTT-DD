@@ -45,24 +45,27 @@ services:
     ports: ['127.0.0.1:6379:6379']
     volumes: [valkey-data:/data]
 
-  minio:
-    # Remplace R2 en local (API S3)
-    image: minio/minio:latest
-    command: server /data --console-address :9001
-    environment:
-      MINIO_ROOT_USER: vtt
-      MINIO_ROOT_PASSWORD: vtt-dev-secret
-    ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
-    volumes: [minio-data:/data]
+  # ── Optionnels : `pnpm dev -- --stockage --mails --observabilite` ou `--tout` ──
+
+  s3:
+    # Remplace R2 en local (API S3 sur :8333). MinIO ne publie plus d'images
+    # communautaires ; SeaweedFS est maintenu et compatible S3.
+    profiles: [stockage]
+    image: chrislusf/seaweedfs:latest
+    command: server -dir=/data -s3 -s3.port=8333
+    ports: ['127.0.0.1:8333:8333']
+    volumes: [s3-data:/data]
 
   mailpit:
     # Capture les e-mails (Resend en prod) : http://localhost:8025
+    profiles: [mails]
     image: axllent/mailpit:latest
     ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
 
   lgtm:
     # Collecteur OTLP + Grafana, Loki, Tempo, Prometheus en un conteneur
     # Grafana : http://localhost:3300 (admin/admin)
+    profiles: [observabilite]
     image: grafana/otel-lgtm:latest
     ports: ['127.0.0.1:3300:3000', '127.0.0.1:4317:4317', '127.0.0.1:4318:4318']
 
@@ -70,4 +73,4 @@ volumes:
   pg-data:
   nats-data:
   valkey-data:
-  minio-data:
+  s3-data:

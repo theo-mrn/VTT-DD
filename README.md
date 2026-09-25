@@ -19,8 +19,11 @@ pnpm dev          # toute la stack : infra, migrations, services et front
 | http://localhost:3000  | front (`apps/web`)                    |
 | http://localhost:8080  | gateway                               |
 | http://localhost:3001  | identity                              |
-| http://localhost:8025  | e-mails capturés (Mailpit)            |
 | localhost:5432         | PostgreSQL (`vtt` / `vtt`)            |
+
+Par défaut, seuls PostgreSQL, NATS et Valkey démarrent. Services optionnels :
+`pnpm dev --stockage` (S3 local sur :8333), `--mails` (Mailpit sur :8025),
+`--observabilite` (Grafana sur :3300), ou `--tout`.
 
 Autres commandes : `pnpm dev:down` (arrête l'infra), `pnpm dev:legacy`
 (ancienne app sur :3100), `pnpm db:migrate <service>`, `pnpm test`,

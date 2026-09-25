@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Démarre toute la stack de dev en une commande : `pnpm dev`
-#   1. Docker (lancé s'il est éteint), infra (Postgres, NATS, Valkey, MinIO, Mailpit)
+#   1. Docker (lancé s'il est éteint), infra : Postgres, NATS, Valkey
+#      (+ optionnels : --stockage, --mails, --observabilite, --tout)
 #   2. rôles SQL puis migrations Liquibase de chaque service ayant db/changelog.yaml
 #   3. .env de chaque service créé depuis son .env.example s'il manque
 #   4. tous les services + le nouveau front, en parallèle, avec rechargement à chaud
@@ -20,8 +21,20 @@ if ! docker info >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 || { echo "Docker ne répond pas. Démarre-le puis relance pnpm dev." >&2; exit 1; }
 fi
 
+# Services optionnels : --stockage (S3), --mails (Mailpit), --observabilite (Grafana), --tout
+PROFILS=()
+for arg in "$@"; do
+  case "$arg" in
+    --stockage) PROFILS+=(--profile stockage) ;;
+    --mails) PROFILS+=(--profile mails) ;;
+    --observabilite) PROFILS+=(--profile observabilite) ;;
+    --tout) PROFILS+=(--profile stockage --profile mails --profile observabilite) ;;
+    *) echo "Option inconnue : $arg (--stockage, --mails, --observabilite, --tout)" >&2; exit 2 ;;
+  esac
+done
+
 etape "Infrastructure"
-$COMPOSE up -d --wait
+$COMPOSE "${PROFILS[@]}" up -d --wait
 
 etape "Rôles et schémas SQL"
 for f in infra/postgres/init/*.sql; do
@@ -49,5 +62,4 @@ done
 etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"
 echo "  gateway  http://localhost:8080"
-echo "  mails    http://localhost:8025"
 exec pnpm turbo run dev --filter='./services/*' --filter=@vtt/web

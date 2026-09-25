@@ -15,7 +15,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "bash infra/postgres/liquibase/migrate.sh",
     "prepare": "husky || true",
-    "dev:down": "docker compose -f infra/local/docker-compose.yml down",
+    "dev:down": "docker compose -f infra/local/docker-compose.yml --profile \"*\" down",
     "dev:legacy": "pnpm --filter @vtt/legacy dev"
   },
   "devDependencies": {
