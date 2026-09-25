@@ -62,7 +62,7 @@ export const metadata: Metadata = {
   title: "Yner",
   description: "Plateforme de JDR VTT pour créer, gérer et jouer vos aventures épiques en ligne.",
   icons: {
-    icon: '/favicon.png',
+    icon: '/favicon.ico',
   },
 };
 
