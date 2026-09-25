@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+# Dépendances natives autorisées à exécuter leurs scripts d'installation
+onlyBuiltDependencies:
+  - sharp
+  - esbuild
+  - protobufjs
+  - '@firebase/util'
+
+peerDependencyRules:
+  allowedVersions:
+    '@emoji-mart/react>react': '19'

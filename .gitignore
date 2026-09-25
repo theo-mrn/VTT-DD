@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .pnpm-store/
@@ -12,28 +12,28 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage
 
 # playwright
-/test-results/
-/playwright-report/
-/blob-report/
+test-results/
+playwright-report/
+blob-report/
 playwright/.cache/
-src/__tests__/playwright/helpers/.session.json
+apps/web/src/__tests__/playwright/helpers/.session.json
 # next.js
-/starwars-bundle
-/.next/
-/out/
+apps/web/starwars-bundle
+.next/
+out/
 
 # production
-/build
+build
 
 # misc
 .DS_Store
 *.pem
 /document.md
 /documentation.md
-/scripts/
+apps/web/scripts/
 
 # debug
 npm-debug.log*
@@ -52,15 +52,20 @@ yarn-error.log*
 next-env.d.ts
 
 
-/public/Map/
-/public/Cartes/
-/public/Photos/
-/public/Token/
-/public/items/
-/public/Musics/
+apps/web/public/Map/
+apps/web/public/Cartes/
+apps/web/public/Photos/
+apps/web/public/Token/
+apps/web/public/items/
+apps/web/public/Musics/
 
 firestore-debug.log
 
 certificates
 # Bundles de règles générés (npm run bundle:zip)
 *-bundle.zip
+
+# monorepo
+dist/
+.turbo/
+*.tsbuildinfo

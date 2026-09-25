@@ -1,0 +1,4 @@
+# Le front garde son formatage actuel tant qu'il n'est pas migré
+apps/web/
+pnpm-lock.yaml
+deploy/charts/**/templates/
