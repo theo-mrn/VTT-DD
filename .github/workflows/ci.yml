@@ -73,6 +73,15 @@ jobs:
           psql -v ON_ERROR_STOP=1 -q -f deploy/platform/data/schemas.sql
       - name: Tests spatial, outbox, historique
         run: psql -v ON_ERROR_STOP=1 -f deploy/postgres/tests/smoke.sql
+      # Chaque service est migré avec son rôle propriétaire ; update-testing-rollback
+      # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
+      - name: Migrations Liquibase (applique, annule, réapplique)
+        run: |
+          for svc in identity; do
+            deploy/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
+          done
+      - name: Droits et contraintes du schéma identity
+        run: bash deploy/postgres/tests/identity-droits.sh
 
   security:
     name: Secrets et dépendances

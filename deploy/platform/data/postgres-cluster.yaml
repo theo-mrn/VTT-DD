@@ -33,6 +33,38 @@ spec:
   # Un rôle par service ; mots de passe générés et stockés dans des Secrets
   managed:
     roles:
+      # Propriétaires des schémas : utilisés seulement par les Jobs Liquibase (DDL)
+      - {
+          name: identity_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-identity-owner },
+        }
+      - {
+          name: billing_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-billing-owner },
+        }
+      - {
+          name: campaign_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-campaign-owner },
+        }
+      - {
+          name: characters_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-characters-owner },
+        }
+      - {
+          name: history_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-history-owner },
+        }
+      # Rôles des services : données uniquement (DML)
       - { name: identity_svc, ensure: present, login: true, passwordSecret: { name: pg-identity } }
       - { name: billing_svc, ensure: present, login: true, passwordSecret: { name: pg-billing } }
       - { name: campaign_svc, ensure: present, login: true, passwordSecret: { name: pg-campaign } }
