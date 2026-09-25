@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getDocs, collection, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useGame } from "@/contexts/GameContext";
 import { useStorageQuota } from "@/hooks/useStorageQuota";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -209,9 +209,13 @@ async function resolveSize(url: string): Promise<number | null> {
         if (blob.size > 0) return blob.size;
     } catch { /* noop */ }
 
-    // Strategy 4: Server-side proxy — no CORS restriction, always works
+    // Strategy 4: Server-side proxy — no CORS restriction (authentifié, hôtes en liste blanche)
     try {
-        const res = await fetch(`/api/file-size?url=${encodeURIComponent(url)}`);
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return null;
+        const res = await fetch(`/api/file-size?url=${encodeURIComponent(url)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
         const json = await res.json();
         if (json.size > 0) return json.size;
     } catch { /* noop */ }
