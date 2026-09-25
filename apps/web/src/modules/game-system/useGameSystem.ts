@@ -119,7 +119,10 @@ export function useGameSystem(roomId: string | null): UseGameSystemResult {
           setSystemLoaded(true);
         },
         (error) => {
-          console.error(`${LOG_PREFIX} [étape 2] ERREUR overlay narratif '${gameSystemId}':`, error.code, error.message);
+          // Visiteur non connecté : la règle Firestore refuse la lecture, on garde le système builtin seul
+          if (error.code !== 'permission-denied') {
+            console.error(`${LOG_PREFIX} [étape 2] ERREUR overlay narratif '${gameSystemId}':`, error.code, error.message);
+          }
           setBuiltinOverlay(null);
           setSystemLoaded(true);
         },
