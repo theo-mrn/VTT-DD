@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { ThemeCard } from './ThemeCard';
 import { Loader2, Edit2, AlertTriangle, Send } from 'lucide-react';
 import { ThemeConfig, CommunityTheme } from './types';
@@ -40,7 +41,7 @@ export function MyThemesTab({ onApplyTheme, onPreviewTheme, onStopPreview, curre
     }, []);
 
     const fetchThemes = async () => {
-        const user = auth.currentUser;
+        const user = getCurrentUser();
         if (!user) {
             setLoading(false);
             return;
@@ -122,7 +123,7 @@ export function MyThemesTab({ onApplyTheme, onPreviewTheme, onStopPreview, curre
         }
     };
 
-    if (!auth.currentUser) {
+    if (!getCurrentUser()) {
         return (
             <div className="py-12 text-center text-[#a0a0a0]">
                 <p>Vous devez être connecté pour voir vos thèmes.</p>
@@ -164,7 +165,7 @@ export function MyThemesTab({ onApplyTheme, onPreviewTheme, onStopPreview, curre
                     <ThemeCard
                         key={theme.id}
                         theme={theme}
-                        currentUserId={auth.currentUser?.uid}
+                        currentUserId={getCurrentUser()?.uid}
                         isPreviewLocked={lockedPreviewId === theme.id}
                         onEdit={(t) => {
                             setEditingTheme(t);

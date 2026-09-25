@@ -3,15 +3,15 @@
 import { useEffect, useState, ChangeEvent } from "react";
 import {
   db,
-  auth,
   storage,
   doc,
   getDoc,
   collection,
   setDoc,
   getDocs,
-  deleteDoc,
+  deleteDoc
 } from "@/lib/firebase";
+import { getCurrentUser } from "@/data/identity";
 import { useGame } from "@/contexts/GameContext";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
@@ -78,7 +78,7 @@ export default function ProfilePage() {
     const uid = gameUser?.uid;
     if (!uid) return;
     setUid(uid);
-    setUserEmail(auth.currentUser?.email ?? null);
+    setUserEmail(getCurrentUser()?.email ?? null);
   }, [gameUser?.uid]);
 
   useEffect(() => {

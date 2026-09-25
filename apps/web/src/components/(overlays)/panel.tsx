@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { auth, db, doc, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
+import { db, doc, updateDoc, onSnapshot } from "@/lib/firebase";
+import { getCurrentUser, signOut } from "@/data/identity";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useGame } from "@/contexts/GameContext";
 import { useGameSystem } from "@/modules/game-system/useGameSystem";
@@ -122,7 +123,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   }, [gameUser?.uid]);
 
   const handleQuitterLaPartie = async () => {
-    const currentUser = auth.currentUser;
+    const currentUser = getCurrentUser();
     if (currentUser) {
       const userDocRef = doc(db, "users", currentUser.uid);
       try {
@@ -151,7 +152,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await signOut();
       router.push("/home");
     } catch (error) {
       console.error("Erreur lors de la déconnexion :", error);

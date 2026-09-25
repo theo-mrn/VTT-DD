@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db, collection, getDocs, doc, getDoc, deleteDoc, updateDoc, auth } from '@/lib/firebase';
+import { db, collection, getDocs, doc, getDoc, deleteDoc, updateDoc } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,8 +47,8 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
             let roomData;
             if (roomDoc.exists()) {
                 roomData = roomDoc.data();
-                if (auth.currentUser) {
-                    setIsOwner(roomData.creatorId === auth.currentUser.uid);
+                if (getCurrentUser()) {
+                    setIsOwner(roomData.creatorId === getCurrentUser()?.uid);
                 } else if (propIsOwner) {
                     setIsOwner(propIsOwner);
                 }
@@ -98,7 +99,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
 
             setUsers(loadedUsers);
 
-            if (isOwner || (roomData?.creatorId === auth.currentUser?.uid)) {
+            if (isOwner || (roomData?.creatorId === getCurrentUser()?.uid)) {
                 const bannedUids = roomData?.bannedUsers || [];
                 const loadedBannedUsers: BannedUser[] = [];
                 for (const uid of bannedUids) {
@@ -221,7 +222,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                                     </div>
                                 </div>
 
-                                {isOwner && u.uid !== auth.currentUser?.uid && (
+                                {isOwner && u.uid !== getCurrentUser()?.uid && (
                                     <Button
                                         variant="ghost"
                                         size="icon"

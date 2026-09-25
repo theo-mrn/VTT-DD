@@ -20,7 +20,8 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import ResizableImage from 'tiptap-extension-resize-image'
 import { motion, AnimatePresence } from "framer-motion"
 
-import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, getDocs, getDoc, serverTimestamp } from "@/lib/firebase"
+import { db, storage, addDoc, collection, doc, updateDoc, deleteDoc, getDocs, getDoc, serverTimestamp } from "@/lib/firebase"
+import { getCurrentUser } from "@/data/identity"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { cn } from "@/lib/utils"
 import { toast } from 'sonner'
@@ -246,7 +247,7 @@ function Notes({ isActive = true }: { isActive?: boolean }) {
         characterId: characterId,
         characterName: characterName,
         timestamp: serverTimestamp(),
-        targetUserId: isPrivate ? auth.currentUser?.uid : null
+        targetUserId: isPrivate ? getCurrentUser()?.uid : null
       });
     } catch (err) {
       console.error("Erreur log note history:", err);

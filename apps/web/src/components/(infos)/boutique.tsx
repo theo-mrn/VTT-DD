@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { Heart, Sparkles, Check, Crown, Dices, Loader2, Settings, ExternalLink, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import { auth, db, doc, getDoc } from "@/lib/firebase";
+import { db, doc, getDoc } from "@/lib/firebase";
+import { getCurrentUser } from "@/data/identity";
 import { useGame } from '@/contexts/GameContext';
 import { Button } from "@/components/ui/button";
 import { useRouter, usePathname } from "next/navigation";
@@ -63,16 +64,16 @@ export default function Boutique() {
                     const data = userSnap.data();
                     setUserData({
                         uid: gameUser.uid,
-                        email: auth.currentUser?.email ?? null,
+                        email: getCurrentUser()?.email ?? null,
                         premium: data.premium ?? false,
                         stripeCustomerId: data.stripeCustomerId,
                     });
                 } else {
-                    setUserData({ uid: gameUser.uid, email: auth.currentUser?.email ?? null, premium: false });
+                    setUserData({ uid: gameUser.uid, email: getCurrentUser()?.email ?? null, premium: false });
                 }
             } catch (err) {
                 console.error("Error fetching user data:", err);
-                setUserData({ uid: gameUser.uid, email: auth.currentUser?.email ?? null, premium: false });
+                setUserData({ uid: gameUser.uid, email: getCurrentUser()?.email ?? null, premium: false });
             }
             setLoading(false);
         };

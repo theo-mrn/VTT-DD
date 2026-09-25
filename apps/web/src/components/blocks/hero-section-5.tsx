@@ -9,8 +9,8 @@ import { useScroll, motion, useTransform } from 'framer-motion'
 import { Aclonica } from "next/font/google"
 import Login06 from '@/components/ui/login-3'
 import { useRouter } from 'next/navigation'
-import { signOut } from 'firebase/auth'
-import { auth, db, doc, getDoc, addDoc, collection, serverTimestamp } from '../../lib/firebase'
+import { db, doc, getDoc, addDoc, collection, serverTimestamp } from '@/lib/firebase'
+import { getCurrentUser, signOut } from '@/data/identity'
 import { useGame } from '@/contexts/GameContext'
 import { Features1 } from '@/components/blocks/features1'
 import { MockupCtaSection } from '@/components/blocks/mockup-cta-section'
@@ -158,7 +158,7 @@ const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, route
                                                 <span>Voir mon profil</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator className="bg-white/10" />
-                                            <DropdownMenuItem onClick={() => signOut(auth).then(() => router.push("/"))} className="focus:bg-red-500/20 focus:text-red-400 text-red-400 cursor-pointer gap-2">
+                                            <DropdownMenuItem onClick={() => signOut().then(() => router.push("/"))} className="focus:bg-red-500/20 focus:text-red-400 text-red-400 cursor-pointer gap-2">
                                                 <LogOut className="w-4 h-4" />
                                                 <span>Se déconnecter</span>
                                             </DropdownMenuItem>
@@ -391,7 +391,7 @@ export function HeroSection() {
 
             {isUserLoggedIn && (
                 <UserProfileDialog
-                    userId={auth.currentUser?.uid}
+                    userId={getCurrentUser()?.uid}
                     isOpen={isProfileOpen}
                     onClose={() => setIsProfileOpen(false)}
                 />
@@ -441,9 +441,9 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
         try {
             await addDoc(collection(db, "feedback"), {
                 message,
-                userEmail: auth.currentUser?.email || userData?.email || "Anonyme",
+                userEmail: getCurrentUser()?.email || userData?.email || "Anonyme",
                 userName: userData?.name || "Aventurier anonyme",
-                userId: auth.currentUser?.uid || null,
+                userId: getCurrentUser()?.uid || null,
                 createdAt: serverTimestamp(),
             })
             setOpen(false)

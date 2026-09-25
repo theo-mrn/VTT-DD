@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { auth, db, doc, updateDoc } from '@/lib/firebase';
+import { db, doc, updateDoc } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { arrayUnion } from 'firebase/firestore';
 
 function CheckoutSuccessContent() {
@@ -24,7 +25,7 @@ function CheckoutSuccessContent() {
         }
 
         const processPurchase = async () => {
-            const user = auth.currentUser;
+            const user = getCurrentUser();
             if (!user) {
                 setStatus('success');
                 return;

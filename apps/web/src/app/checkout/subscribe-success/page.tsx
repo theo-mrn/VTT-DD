@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Crown, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { auth, db, doc, updateDoc } from "@/lib/firebase";
+import { db, doc, updateDoc } from "@/lib/firebase";
+import { getCurrentUser } from "@/data/identity";
 
 function SubscribeSuccessContent() {
     const searchParams = useSearchParams();
@@ -21,7 +22,7 @@ function SubscribeSuccessContent() {
         }
 
         const processSubscription = async () => {
-            const user = auth.currentUser;
+            const user = getCurrentUser();
             if (!user) {
                 // Pas connecté, on affiche quand même le succès
                 // Le webhook aura déjà traité l'activation via metadata userId

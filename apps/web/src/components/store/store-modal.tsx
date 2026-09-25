@@ -9,7 +9,8 @@ import { TokenCard } from '../(fiches)/token-card';
 import { Store, Backpack, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles, Search, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
+import { db, doc, getDoc, updateDoc } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { arrayUnion } from 'firebase/firestore';
 import { useGame } from '@/contexts/GameContext';
 
@@ -164,7 +165,7 @@ export function StoreModal({
             return;
         }
         setUid(currentUid);
-        setEmail(auth.currentUser?.email || null);
+        setEmail(getCurrentUser()?.email || null);
         const loadInventory = async () => {
             try {
                 const userRef = doc(db, 'users', currentUid);

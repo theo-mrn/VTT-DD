@@ -16,8 +16,7 @@ import {
   Store
 } from "lucide-react";
 import * as React from "react";
-import { signOut } from 'firebase/auth'
-import { auth as firebaseAuth } from '@/lib/firebase'
+import { signOut } from '@/data/identity'
 import { useRouter } from 'next/navigation'
 
 import {
@@ -142,7 +141,7 @@ export default function Navbar({
   const router = useRouter()
 
   const handleSignOut = () => {
-    signOut(firebaseAuth).then(() => router.push("/"))
+    signOut().then(() => router.push("/"))
   }
 
   const renderAuthButtons = (isMobile = false) => {

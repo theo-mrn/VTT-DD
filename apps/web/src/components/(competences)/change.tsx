@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { db, auth, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
+import { db, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { useGame } from '@/contexts/GameContext';
 import { X, Plus, Trash2, Check, ChevronsUpDown, Info, GripVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -313,7 +314,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
       let targetPersoId = propCharacterId;
 
       if (!targetRoomId || !targetPersoId) {
-        const user = auth.currentUser;
+        const user = getCurrentUser();
         if (user) {
           const userRef = doc(db, 'users', user.uid);
           const userData = await getDoc(userRef);

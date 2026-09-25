@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { ThemeConfig } from './types';
 import { Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,7 +39,7 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
             return;
         }
 
-        const user = auth.currentUser;
+        const user = getCurrentUser();
         if (!user) {
             toast.error("Vous devez être connecté pour publier un thème.");
             return;

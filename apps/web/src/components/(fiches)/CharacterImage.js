@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
-import { doc, updateDoc, getDoc, db, auth, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
+import { doc, updateDoc, getDoc, db, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { getCroppedImg, createCompositeImage, getCroppedGif, createCompositeGif } from '@/lib/cropImageHelper';
 import { useGame } from '@/contexts/GameContext';
 import { Slider } from '@/components/ui/slider';
@@ -81,7 +82,7 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   useEffect(() => {
     const uid = gameUser?.uid;
     if (!uid) { setCurrentUser(null); return; }
-    setCurrentUser(auth.currentUser);
+    setCurrentUser(getCurrentUser());
     setRoomId(gameUser?.roomId || null);
     // Still need to fetch inventory and premium from user doc
     const loadUserData = async () => {

@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
-import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
+import { doc, getDoc, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
+import { getCurrentUser } from "@/data/identity";
 import { toast } from 'sonner';
 import { generateSlug } from "@/lib/titles";
 import { getAssetUrl } from "@/lib/asset-loader";
@@ -255,7 +256,8 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
           // Check if it's a NEW roll (within last 5 seconds) and NOT from the current user
           // userName check might be tricky if two people have same name, but UID is safer
-          const isMe = (auth.currentUser && rollData.uid === auth.currentUser.uid) || rollData.userName === userName;
+          const moi = getCurrentUser();
+          const isMe = (moi && rollData.uid === moi.uid) || rollData.userName === userName;
 
           if (!isMe && (now - rollData.timestamp < 5000)) {
             // Trigger Sonner Toast for other players
@@ -315,7 +317,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   useEffect(() => {
     const uid = gameUser?.uid;
     if (!uid) return;
-    setUserEmail(auth.currentUser?.email || null);
+    setUserEmail(getCurrentUser()?.email || null);
   }, [gameUser?.uid]);
 
   // Listen for 3D roll completion
@@ -672,6 +674,8 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
           mainDieCount = requests[0].count;
         }
 
+        const moi = getCurrentUser();
+
         const firebaseRoll: FirebaseRoll = {
           id: crypto.randomUUID(),
           isPrivate,
@@ -689,18 +693,18 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
           notation: notation,
           output: output,
           ...(persoId ? { persoId } : {}),
-          ...(auth.currentUser ? { uid: auth.currentUser.uid } : {})
+          ...(moi ? { uid: moi.uid } : {})
         };
 
         await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
 
         // === CHALLENGE TRACKING: Dice Roll ===
-        if (auth.currentUser) {
+        if (moi) {
           const isCritical = mainDieFaces === 20; // Critique uniquement pour d20
           const mainResult = physicalResults.length > 0 ? physicalResults[0].value : 0;
 
           trackDiceRoll(
-            auth.currentUser.uid,
+            moi.uid,
             mainDieFaces,
             mainResult,
             isCritical
@@ -713,10 +717,10 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         const hasNat1 = d20Results.some(r => r.value === 1);
         const hasNat20 = d20Results.some(r => r.value === 20);
 
-        if (hasD20 && hasNat1 && userEmail && auth.currentUser) {
+        if (hasD20 && hasNat1 && userEmail && moi) {
           const titleLabel = "Maudit des dés";
           const slug = generateSlug(titleLabel);
-          const userRef = doc(db, "users", auth.currentUser.uid);
+          const userRef = doc(db, "users", moi.uid);
 
           getDoc(userRef).then((snap) => {
             if (snap.exists()) {
@@ -736,10 +740,10 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
           });
         }
 
-        if (hasD20 && hasNat20 && userEmail && auth.currentUser) {
+        if (hasD20 && hasNat20 && userEmail && moi) {
           const titleLabel = "Béni des Dieux";
           const slug = generateSlug(titleLabel);
-          const userRef = doc(db, "users", auth.currentUser.uid);
+          const userRef = doc(db, "users", moi.uid);
 
           getDoc(userRef).then((snap) => {
             if (snap.exists()) {

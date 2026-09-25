@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { auth, db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, deleteDoc, limitToLast } from '@/lib/firebase'
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, deleteDoc, limitToLast } from '@/lib/firebase'
+import { getCurrentUser } from '@/data/identity'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,7 +61,7 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    const user = auth.currentUser
+    const user = getCurrentUser()
     if (!user || !newMessage.trim()) return
 
     const info = await resolveUser(user.uid)
@@ -79,7 +80,7 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
     await deleteDoc(doc(db, `Salle/${roomId}/chat`, msgId))
   }
 
-  const currentUid = auth.currentUser?.uid
+  const currentUid = getCurrentUser()?.uid
 
   return (
     <Card className="mt-6">

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth, doc, getDoc } from "@/lib/firebase";
+import { db, doc, getDoc } from "@/lib/firebase";
+import { getCurrentUser } from "@/data/identity";
 import { X as XIcon, Edit, Loader2, Users, Search as SearchIcon, Inbox, Crown, Bell, Shield, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFriends } from "@/hooks/useFriends";
@@ -54,13 +55,12 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
 
     // Get current user
     useEffect(() => {
-        const user = auth.currentUser;
+        const user = getCurrentUser();
         if (user) {
             setUid(user.uid);
             setUserEmail(user.email);
             // Vérifier si l'utilisateur est uniquement Google
-            const isGoogle = user.providerData.some(p => p.providerId === 'google.com') &&
-                !user.providerData.some(p => p.providerId === 'password');
+            const isGoogle = user.providers.includes('google') && !user.providers.includes('password');
             setIsGoogleOnly(isGoogle);
         } else {
             setLoading(false);

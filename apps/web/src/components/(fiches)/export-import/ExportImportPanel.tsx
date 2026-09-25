@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { db, collection, getDocs, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where, auth } from '@/lib/firebase';
+import { db, collection, getDocs, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { useGame } from '@/contexts/GameContext';
 import { useGameSystem } from '@/modules/game-system/useGameSystem';
 import { buildRoomExportBundle, downloadRoomExportBundle, parseRoomExportBundle, type RoomExportBundle } from '@/modules/export-bundle/transfer';
@@ -94,7 +95,7 @@ export default function ExportImportPanel() {
       // à l'identique. Un fichier .json passe directement par parseRoomExportBundle comme avant.
       let bundle: RoomExportBundle;
       if (await isZipFile(file)) {
-        const uid = auth.currentUser?.uid ?? 'anonyme';
+        const uid = getCurrentUser()?.uid ?? 'anonyme';
         const result = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }), (count) => confirmAsync({
           title: 'Bundle avec scripts exécutables',
           description: `Ce bundle contient ${count} script(s) exécutable(s) avec les pleins droits de la page (accès à votre session). N'importez que des bundles de confiance. Continuer ?`,

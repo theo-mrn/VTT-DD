@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs, setDoc, where, limit } from '@/lib/firebase';
+import { db, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs, setDoc, where, limit } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star, Book, MapPin, Sparkles, Loader2, Pencil, Check, X, ScrollText, ChevronDown, Users, ArrowLeft } from 'lucide-react';
@@ -135,7 +136,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
         );
 
         const unsubscribeEvents = onSnapshot(qEvents, (snapshot) => {
-            const userId = auth.currentUser?.uid;
+            const userId = getCurrentUser()?.uid;
             const loadedEvents: GameEvent[] = [];
 
             snapshot.forEach((doc) => {
@@ -187,7 +188,7 @@ export default function Historique({ roomId, initialCharacterId, lockToCharacter
         );
 
         const unsubscribe = onSnapshot(qCharacterEvents, (snapshot) => {
-            const userId = auth.currentUser?.uid;
+            const userId = getCurrentUser()?.uid;
             const loadedEvents: GameEvent[] = [];
 
             snapshot.forEach((doc) => {

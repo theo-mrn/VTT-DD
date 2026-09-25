@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmAsync } from '@/hooks/useConfirmAsync';
-import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, getDocs, onSnapshot, collection, query, where, auth } from '@/lib/firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, addDoc, getDocs, onSnapshot, collection, query, where } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { isZipFile, importZipToBundle } from '@/modules/export-bundle/zip';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useGame } from '@/contexts/GameContext';
@@ -616,7 +617,7 @@ export function GameSystemEditor({ draft, contentPath, roomId, onBack, onSave }:
         // le flux d'import existant (parseGameSystemExport déroule déjà un RoomExportBundle).
         let raw: string;
         if (await isZipFile(file)) {
-          const uid = auth.currentUser?.uid ?? 'anonyme';
+          const uid = getCurrentUser()?.uid ?? 'anonyme';
           const { bundle } = await importZipToBundle(file, uid, (msg) => toast.loading(msg, { id: 'bundle-import' }), (count) => confirmAsync({
             title: 'Bundle avec scripts exécutables',
             description: `Ce bundle contient ${count} script(s) exécutable(s) avec les pleins droits de la page (accès à votre session). N'importez que des bundles de confiance. Continuer ?`,

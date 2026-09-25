@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, getDocs, limit, doc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { getCurrentUser } from '@/data/identity';
 import { ThemeCard } from './ThemeCard';
 import { Loader2 } from 'lucide-react';
 import { ThemeConfig, CommunityTheme } from './types';
@@ -49,7 +50,7 @@ export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview, 
     };
 
     const handleToggleLike = async (themeId: string, isCurrentlyLiked: boolean) => {
-        const user = auth.currentUser;
+        const user = getCurrentUser();
         if (!user) return;
 
         const userId = user.uid;
@@ -135,7 +136,7 @@ export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview, 
                     <ThemeCard
                         key={theme.id}
                         theme={theme}
-                        currentUserId={auth.currentUser?.uid}
+                        currentUserId={getCurrentUser()?.uid}
                         onToggleLike={handleToggleLike}
                         isPreviewLocked={lockedPreviewId === theme.id}
                         onTogglePreviewLock={() => {
