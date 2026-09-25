@@ -13,14 +13,11 @@ import * as SeparatorPrimitive from "@radix-ui/react-separator";
 
 // Firebase imports
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signInWithPopup,
-  GoogleAuthProvider
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../lib/firebase';
+  sendPasswordReset,
+  signInWithGoogle,
+  signInWithPassword,
+  signUpWithPassword,
+} from '@/data/identity';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -202,14 +199,8 @@ export default function Login06() {
 
     try {
       if (isSignUp) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        // Stocker le nom d'utilisateur et le titre dans Firestore
-        await setDoc(doc(db, "users", user.uid), {
-          name: username,
-          title: "débutant",
-          email: email,
-        });
+        // Crée le compte et le profil (nom, titre initial, e-mail)
+        await signUpWithPassword({ email, password, name: username });
 
         // Envoyer l'email d'inscription
         try {
@@ -229,7 +220,7 @@ export default function Login06() {
 
         router.push('/home');
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithPassword(email, password);
         router.push('/home');
       }
     } catch (error: unknown) {
@@ -251,7 +242,7 @@ export default function Login06() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordReset(email);
       setInfoMessage("Un email de réinitialisation a été envoyé à votre adresse.");
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -266,22 +257,9 @@ export default function Login06() {
     setError(null);
     setInfoMessage(null);
     setIsLoading(true);
-    const provider = new GoogleAuthProvider();
-
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Vérifier si l'utilisateur existe déjà dans Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, "users", user.uid), {
-          name: user.displayName || "Joueur",
-          title: "débutant",
-          email: user.email
-        });
-      }
-
+      // Crée le profil à la première connexion
+      await signInWithGoogle();
       router.push('/home');
     } catch (error: unknown) {
       if (error instanceof Error) {

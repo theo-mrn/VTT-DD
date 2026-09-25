@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { AuthError, changePassword, useSession } from "@/data/identity";
 import { Shield, Key, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +17,8 @@ export default function SecurityTab() {
     const [showCurrent, setShowCurrent] = useState(false);
     const [showNew, setShowNew] = useState(false);
 
-    const user = auth.currentUser;
-    const isGoogleUser = user?.providerData.some(provider => provider.providerId === 'google.com') &&
-        !user?.providerData.some(provider => provider.providerId === 'password');
+    const { user } = useSession();
+    const isGoogleUser = !!user?.providers.includes('google') && !user.providers.includes('password');
 
     const handleUpdatePassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,29 +34,21 @@ export default function SecurityTab() {
         }
 
         setLoading(true);
-        const user = auth.currentUser;
-
-        if (!user || !user.email) {
-            toast.error("Utilisateur non authentifié");
-            setLoading(false);
-            return;
-        }
 
         try {
-            // Re-authentifier l'utilisateur (requis par Firebase pour le changement de mot de passe)
-            const credential = EmailAuthProvider.credential(user.email, currentPassword);
-            await reauthenticateWithCredential(user, credential);
-
-            // Mettre à jour le mot de passe
-            await updatePassword(user, newPassword);
+            // Vérifie le mot de passe actuel puis le remplace
+            await changePassword(currentPassword, newPassword);
 
             toast.success("Mot de passe mis à jour avec succès");
             setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");
-        } catch (error: any) {
+        } catch (error) {
             console.error("Erreur changement mot de passe:", error);
-            if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password") {
+            const code = error instanceof AuthError ? error.code : "unknown";
+            if (code === "not-authenticated") {
+                toast.error("Utilisateur non authentifié");
+            } else if (code === "invalid-credentials") {
                 toast.error("Mot de passe actuel incorrect");
             } else {
                 toast.error("Une erreur est survenue lors de la mise à jour");

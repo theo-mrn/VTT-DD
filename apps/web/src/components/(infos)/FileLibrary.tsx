@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getDocs, collection, query } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { getAccessToken } from "@/data/identity";
 import { useGame } from "@/contexts/GameContext";
 import { useStorageQuota } from "@/hooks/useStorageQuota";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -211,7 +212,7 @@ async function resolveSize(url: string): Promise<number | null> {
 
     // Strategy 4: Server-side proxy — no CORS restriction (authentifié, hôtes en liste blanche)
     try {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await getAccessToken();
         if (!token) return null;
         const res = await fetch(`/api/file-size?url=${encodeURIComponent(url)}`, {
             headers: { Authorization: `Bearer ${token}` },
