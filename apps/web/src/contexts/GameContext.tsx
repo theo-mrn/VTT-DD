@@ -1,7 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { auth, onAuthStateChanged, doc, getDoc, db, onSnapshot } from '@/lib/firebase';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
+import { doc, getDoc, db } from '@/lib/firebase';
+import { getSession, subscribeSession, type SessionStatus } from '@/data/identity';
 import { initializeUserChallenges } from '@/lib/challenges';
 
 export interface PlayerData {
@@ -189,21 +190,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [setPlayerData]);
 
-  // Fonction pour récupérer le roomId de l'utilisateur
-  const getRoomId = useCallback(async (authUser: { uid: string }): Promise<string | null> => {
-    try {
-      const userRef = doc(db, 'users', authUser.uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        return userDoc.data().room_id as string;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error getting room ID:", error);
-      return null;
-    }
-  }, []);
-
   // Helper pour construire PlayerData depuis un document character
   const buildPlayerData = (persoId: string, characterData: Record<string, any>, fallbackName?: string): PlayerData => ({
     id: persoId,
@@ -283,13 +269,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [setIsMJ, setPersoId, setPlayerData]);
 
   // Fonction pour rafraîchir les données utilisateur
+  // Le profil est déjà suivi en temps réel par le store de session : plus de relecture réseau.
   const refreshUserData = useCallback(async () => {
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const roomId = await getRoomId(currentUser);
-      setUser(prev => ({ uid: currentUser.uid, roomId, perso: prev?.perso ?? null }));
+    const { user: sessionUser, profile } = getSession();
+    if (sessionUser) {
+      setUser(prev => ({ uid: sessionUser.uid, roomId: profile?.roomId ?? null, perso: prev?.perso ?? null }));
     }
-  }, [getRoomId]);
+  }, []);
 
   // Effet pour l'hydratation - charger depuis localStorage après le montage
   useEffect(() => {
@@ -306,59 +292,72 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Gestion de l'authentification avec restauration automatique
+  // Tâches d'initialisation déjà lancées, par utilisateur : une seule fois par session.
+  // Avant, elles repartaient à chaque modification de users/{uid}, et la migration
+  // des titres écrit dans ce même document : la boucle se relançait d'elle-même.
+  const tachesLanceesRef = useRef(new Set<string>());
+
+  // Gestion de l'authentification avec restauration automatique.
+  // L'utilisateur et son profil viennent du store de session partagé (@/data/identity) :
+  // un seul écouteur d'auth et un seul abonnement à users/{uid} pour toute l'app.
   useEffect(() => {
     let mounted = true;
-    let userDocUnsubscribe: (() => void) | null = null;
+    // Champs du profil dont dépend restorePlayerDataFromSnapshot : on ne la relance
+    // que s'ils changent, pas à chaque modification du document.
+    let derniereCle: string | null = null;
+    let dernierStatut: SessionStatus | null = null;
 
-    const authUnsubscribe = onAuthStateChanged(auth, async (authUser) => {
-      if (!mounted) return;
+    const setUserSiDifferent = (suivant: UserData | null) =>
+      setUser(prev =>
+        prev && suivant && prev.uid === suivant.uid && prev.roomId === suivant.roomId && prev.perso === suivant.perso
+          ? prev
+          : suivant,
+      );
 
-      // Nettoyer l'ancien listener si présent
-      if (userDocUnsubscribe) {
-        userDocUnsubscribe();
-        userDocUnsubscribe = null;
+    const appliquer = async () => {
+      const session = getSession();
+      const statutPrecedent = dernierStatut;
+      dernierStatut = session.status;
+
+      if (session.status === 'loading') return;
+
+      if (session.status === 'authenticated' && session.user) {
+        const uid = session.user.uid;
+        setIsAuthenticated(true);
+        setIsLoading(false);
+
+        if (session.profileStatus === 'missing') {
+          // Le document user n'existe pas encore
+          derniereCle = null;
+          setUserSiDifferent({ uid, roomId: null, perso: null });
+          return;
+        }
+        if (session.profileStatus !== 'ready' || !session.profile) return;
+
+        const userData = session.profile.raw as Record<string, any>;
+        setUserSiDifferent({ uid, roomId: session.profile.roomId, perso: session.profile.perso });
+
+        const cle = [uid, userData.room_id, userData.persoId, userData.role, userData.perso].join('|');
+        if (cle !== derniereCle) {
+          derniereCle = cle;
+          await restorePlayerDataFromSnapshot(uid, userData);
+        }
+
+        if (!tachesLanceesRef.current.has(uid)) {
+          tachesLanceesRef.current.add(uid);
+          // Tâches secondaires en parallèle — ne bloquent pas l'affichage
+          Promise.all([
+            initializeUserChallenges(uid).catch(e => console.error('Error initializing challenges:', e)),
+            import('@/lib/migrate-titles').then(m => m.migrateTitlesForUser(uid)).catch(e => console.error('Error migrating titles:', e)),
+          ]);
+        }
+        return;
       }
 
-      if (authUser) {
-        try {
-          // Créer un listener en temps réel sur le document de l'utilisateur
-          const userRef = doc(db, 'users', authUser.uid);
-          userDocUnsubscribe = onSnapshot(userRef, async (snapshot) => {
-            if (!mounted) return;
-
-            if (snapshot.exists()) {
-              const userData = snapshot.data();
-              const roomId = userData.room_id || null;
-
-              setUser({ uid: authUser.uid, roomId, perso: userData.perso || null });
-              setIsAuthenticated(true);
-
-              // Restaurer les données en passant directement le snapshot (plus de getDoc dupliqué)
-              // + lancer challenges et migration en parallèle (non-bloquant)
-              await restorePlayerDataFromSnapshot(authUser.uid, userData);
-
-              // Tâches secondaires en parallèle — ne bloquent pas l'affichage
-              Promise.all([
-                initializeUserChallenges(authUser.uid).catch(e => console.error('Error initializing challenges:', e)),
-                import('@/lib/migrate-titles').then(m => m.migrateTitlesForUser(authUser.uid)).catch(e => console.error('Error migrating titles:', e)),
-              ]);
-            } else {
-              // Gérer le cas où le document user n'existe pas encore
-              setUser({ uid: authUser.uid, roomId: null, perso: null });
-              setIsAuthenticated(true);
-            }
-          }, (error) => {
-            console.error("Error listening to user document:", error);
-          });
-        } catch (error) {
-          console.error("Error during authentication setup:", error);
-          if (mounted) {
-            setUser(null);
-            setIsAuthenticated(false);
-          }
-        }
-      } else {
+      // Anonyme : ne vérifier Discord qu'au passage à l'état anonyme
+      if (statutPrecedent === 'anonymous') return;
+      derniereCle = null;
+      {
         // Fallback : vérifier si connecté via Discord Activity (cookie discord_uid)
         try {
           const res = await fetch('/api/discord/me', { credentials: 'include' });
@@ -389,12 +388,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (mounted) {
         setIsLoading(false);
       }
+    };
+
+    const desabonner = subscribeSession(() => {
+      if (mounted) void appliquer();
     });
+    void appliquer();
 
     return () => {
       mounted = false;
-      authUnsubscribe();
-      if (userDocUnsubscribe) userDocUnsubscribe();
+      desabonner();
     };
   }, [restorePlayerDataFromSnapshot, setIsMJ, setPersoId, setPlayerData]);
 
