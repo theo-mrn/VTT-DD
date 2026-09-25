@@ -2,7 +2,7 @@
 # Image générique des services Node : docker build --build-arg SERVICE=gateway -f deploy/docker/service.Dockerfile .
 ARG NODE_VERSION=22
 
-FROM node:${NODE_VERSION}-bookworm-slim AS build
+FROM node:${NODE_VERSION}-trixie-slim AS build
 ARG SERVICE
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
 # pnpm installé directement : le corepack livré avec Node 22 peut rejeter
@@ -25,7 +25,7 @@ RUN pnpm --filter "@vtt/${SERVICE}..." run build
 # Bundle autonome : seulement les dépendances de prod du service
 RUN pnpm --filter "@vtt/${SERVICE}" deploy --prod --legacy /out
 
-FROM gcr.io/distroless/nodejs22-debian12:nonroot AS runtime
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
 ARG SERVICE
 ARG VERSION=dev
 LABEL org.opencontainers.image.source="https://github.com/theo-mrn/VTT-DD" \

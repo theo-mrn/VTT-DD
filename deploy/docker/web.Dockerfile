@@ -2,7 +2,7 @@
 # Front Next.js en mode standalone : docker build -f deploy/docker/web.Dockerfile .
 ARG NODE_VERSION=22
 
-FROM node:${NODE_VERSION}-bookworm-slim AS build
+FROM node:${NODE_VERSION}-trixie-slim AS build
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true NEXT_TELEMETRY_DISABLED=1
 # pnpm installé directement : le corepack livré avec Node 22 peut rejeter
 # les signatures des versions récentes de pnpm
@@ -37,7 +37,7 @@ RUN while IFS='=' read -r k v; do \
     done < /tmp/build.env \
     && pnpm --filter @vtt/web build
 
-FROM gcr.io/distroless/nodejs22-debian12:nonroot AS runtime
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
 ARG VERSION=dev
 LABEL org.opencontainers.image.source="https://github.com/theo-mrn/VTT-DD" \
       org.opencontainers.image.title="vtt-web" \
