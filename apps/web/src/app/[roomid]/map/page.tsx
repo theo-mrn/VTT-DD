@@ -14,7 +14,8 @@ import { useGame } from '@/contexts/GameContext'
 import { Button } from "@/components/ui/button"
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon, MousePointer } from 'lucide-react'
 import { toast } from 'sonner';
-import { auth, db, realtimeDb, dbRef, onValue, update as rtdbUpdate, rtdbRemove, rtdbPush, set as rtdbSet, onAuthStateChanged } from '@/lib/firebase'
+import { db, realtimeDb, dbRef, onValue, update as rtdbUpdate, rtdbRemove, rtdbPush, set as rtdbSet } from '@/lib/firebase'
+import { useSession } from '@/data/identity'
 import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
@@ -460,7 +461,7 @@ export default function Component() {
 
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [authResolved, setAuthResolved] = useState(false); // 🆕 True dès la 1ère réponse d'onAuthStateChanged (évite d'afficher "non connecté" avant que Firebase Auth ait répondu)
+  const [authResolved, setAuthResolved] = useState(false); // 🆕 True dès que la session partagée a résolu l'auth (évite d'afficher "non connecté" avant que Firebase Auth ait répondu)
   const [userName, setUserName] = useState<string>('Anonyme');
   const [loading, setLoading] = useState(true)
   const [fontFamilyMap, setFontFamilyMap] = useState<Record<string, string>>({})
@@ -1024,15 +1025,22 @@ export default function Component() {
 
   // 📡 Listener global sound → centralisé dans useMapData
 
+  // Session partagée (@/data/identity) : pas d'écouteur d'auth propre à la carte
+  const { status: sessionStatus, user: sessionUser } = useSession();
+  const sessionUid = sessionUser?.uid ?? null;
+  const sessionName = sessionUser?.displayName ?? null;
+
   useEffect(() => {
+    // Attendre que l'auth soit résolue avant d'ouvrir les écouteurs de la salle
+    if (sessionStatus === 'loading') return;
+
     let cleanup: (() => void) | undefined;
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (cleanup) cleanup(); // Clean up previous listeners
+    {
       setAuthResolved(true);
 
-      if (user) {
-        setUserId(user.uid);
-        setUserName(user.displayName || 'Joueur');
+      if (sessionUid) {
+        setUserId(sessionUid);
+        setUserName(sessionName || 'Joueur');
         cleanup = INITializeFirebaseListeners(roomId);
       } else {
         setUserId(null);
@@ -1053,13 +1061,12 @@ export default function Component() {
           cleanup = () => unsubChars();
         }
       }
-    });
+    }
 
     return () => {
-      unsubscribe();
       if (cleanup) cleanup();
     };
-  }, [roomId]);
+  }, [roomId, sessionStatus, sessionUid, sessionName]);
 
   // 📡 Listener combat/state → centralisé dans useMapData (doublon supprimé)
 
@@ -2065,7 +2072,7 @@ export default function Component() {
     // 📡 Les listeners Firestore (settings/general, cities, etc.) sont maintenant
     // centralisés dans useMapData et ne dépendent plus de l'état d'authentification.
     // Cette fonction ne fait plus rien de spécial — elle existe pour compatibilité
-    // avec le onAuthStateChanged ci-dessus.
+    // avec l'effet de session ci-dessus.
     return () => { };
   };
 

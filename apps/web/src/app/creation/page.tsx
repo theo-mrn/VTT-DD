@@ -11,11 +11,11 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Dice6, Check, Images, Upload, Dna, Swords, User, BookOpen, Search, Ghost, Heart, Zap, Crosshair, Sparkles, Brain } from 'lucide-react'
 import Image from 'next/image'
-import { db, auth, storage, realtimeDb } from '@/lib/firebase'
-import { doc, addDoc, collection, getDoc, setDoc } from 'firebase/firestore'
+import { db, storage, realtimeDb } from '@/lib/firebase'
+import { doc, addDoc, collection, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useSession } from '@/data/identity'
 import { useRouter } from 'next/navigation'
 import InventoryManagement from '@/components/(inventaire)/inventaire'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
@@ -129,7 +129,8 @@ export default function CharacterCreationPage() {
   const [currentTab, setCurrentTab] = useState<string>('info')
   const [raceData, setRaceData] = useState<Record<string, RaceData>>({})
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
-  const [userId, setUserId] = useState<string | null>(null)
+  const { user: sessionUser, profile } = useSession()
+  const userId = sessionUser?.uid ?? null
   const [roomId, setRoomId] = useState<string | null>(null)
   const { gameSystem, tableCustomStats, isLoading: isGameSystemLoading } = useGameSystem(roomId)
   const isDndClassic = gameSystem.systemId === 'dnd-classic'
@@ -331,18 +332,10 @@ export default function CharacterCreationPage() {
   // stockées sur `character`, cf commentaire ci-dessus) — reflète toujours les abilities courantes.
   const displayStatValues = resolveCharacterStats(gameSystem, tableCustomStats, character).values
 
+  // Salle courante suivie par la session partagée (l'ancien écouteur d'auth n'était jamais désabonné)
   useEffect(() => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid)
-        const userDoc = await getDoc(doc(db, `users/${user.uid}`))
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          setRoomId(userData.room_id)
-        }
-      }
-    })
-  }, [])
+    if (profile?.roomId) setRoomId(profile.roomId)
+  }, [profile?.roomId])
 
 
   useEffect(() => {

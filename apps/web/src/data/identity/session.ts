@@ -16,6 +16,14 @@ import type { User } from 'firebase/auth';
 import { auth, db, doc, onAuthStateChanged, onSnapshot } from '@/lib/firebase';
 import type { SessionUser } from './types';
 
+/**
+ * Document profil tel quel. Les pages le manipulaient déjà en `any` ; le typer
+ * ici évite un `as any` par page. À remplacer par un schéma Zod quand le
+ * service identity exposera le profil.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RawProfile = Record<string, any>;
+
 /** Champs du document profil utilisés par l'app. */
 export interface UserProfile {
     name: string | null;
@@ -30,7 +38,7 @@ export interface UserProfile {
      * Document complet, pour les champs pas encore typés ici.
      * À réduire au fil de la migration ; disparaît avec le service identity.
      */
-    raw: Record<string, unknown>;
+    raw: RawProfile;
 }
 
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
@@ -76,7 +84,7 @@ function texte(v: unknown): string | null {
     return typeof v === 'string' && v !== '' ? v : null;
 }
 
-function toUserProfile(data: Record<string, unknown>): UserProfile {
+function toUserProfile(data: RawProfile): UserProfile {
     return {
         name: texte(data.name),
         email: texte(data.email),

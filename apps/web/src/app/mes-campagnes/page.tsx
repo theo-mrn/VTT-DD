@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Play, Plus, Shield, Gamepad2, ArrowLeft, Settings, ArrowRight, Loader2 } from 'lucide-react'
-import { auth, db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
+import { useSession } from '@/data/identity'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
@@ -50,29 +50,15 @@ export default function MesCampagnesPage() {
   const [userRooms, setUserRooms] = useState<Room[]>([])
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
   const [creatorInfo, setCreatorInfo] = useState<{ name: string; pp: string } | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [userData, setUserData] = useState<any>(null)
+  // Session partagée : aucune requête ici, le profil est suivi en temps réel par le store
+  const { user: sessionUser, profile } = useSession()
+  const userId = sessionUser?.uid ?? null
+  const userData = profile?.raw ?? null
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isPlayingRoom, setIsPlayingRoom] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid)
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          setUserData(userDoc.data())
-        }
-      } else {
-        setUserId(null)
-        setUserData(null)
-      }
-    })
-    return () => unsubscribe()
-  }, [])
 
   useEffect(() => {
     if (!userId) return

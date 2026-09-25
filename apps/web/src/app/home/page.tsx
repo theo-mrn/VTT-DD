@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Play, Users, ArrowLeft, Settings, Gamepad2, ArrowRight, Globe, Loader2 } from 'lucide-react'
-import { auth, db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
+import { getCurrentUser, useSession } from '@/data/identity'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
@@ -61,29 +61,15 @@ export default function RejoindrePageComponent() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
   const [creatorInfo, setCreatorInfo] = useState<{ name: string; pp: string } | null>(null)
   const [publicRooms, setPublicRooms] = useState<Room[]>([])
-  const [userId, setUserId] = useState<string | null>(null)
-  const [userData, setUserData] = useState<any>(null)
+  // Session partagée : aucune requête ici, le profil est suivi en temps réel par le store
+  const { user: sessionUser, profile } = useSession()
+  const userId = sessionUser?.uid ?? null
+  const userData = profile?.raw ?? null
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
   const [isFindingRoom, setIsFindingRoom] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid)
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          setUserData(userDoc.data())
-        }
-      } else {
-        setUserId(null)
-        setUserData(null)
-      }
-    })
-    return () => unsubscribe()
-  }, [])
 
   useEffect(() => {
     const fetchPublicRooms = async () => {
@@ -137,7 +123,7 @@ export default function RejoindrePageComponent() {
   }
 
   const handleJoin = async (room: Room) => {
-    const user = auth.currentUser
+    const user = getCurrentUser()
     if (!user) {
       toast.error("Vous devez être connecté")
       return

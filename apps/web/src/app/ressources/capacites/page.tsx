@@ -1,35 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
 import { AppBackground } from '@/components/ui/background-components'
-import { auth, db } from '@/lib/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
+import { useSession } from '@/data/identity'
 import Capacites from "@/components/(infos)/capacites"
 
 export default function CapacitesPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [userData, setUserData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user)
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          setUserData(userDoc.data())
-        }
-      }
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+  // Session partagée : aucune requête ici, le profil est suivi en temps réel par le store
+  const { user, profile } = useSession()
+  const userData = profile?.raw ?? null
 
   return (
     <AppBackground className="text-[var(--text-primary)]">

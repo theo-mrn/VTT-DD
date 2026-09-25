@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2, Check, Upload, Loader2 } from 'lucide-react'
-import { auth, db, doc, getDoc, setDoc, addDoc, collection, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
+import { db, doc, getDoc, setDoc, addDoc, collection, writeBatch, serverTimestamp, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { onAuthStateChanged } from 'firebase/auth'
+import { useSession } from '@/data/identity'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
@@ -50,8 +50,10 @@ export default function CreerPageComponent() {
     gameSystemId: 'dnd-classic',
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [userData, setUserData] = useState<any>(null)
+  // Session partagée : aucune requête ici, le profil est suivi en temps réel par le store
+  const { user: sessionUser, profile } = useSession()
+  const userId = sessionUser?.uid ?? null
+  const userData = profile?.raw ?? null
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
   const [customSystemDraft, setCustomSystemDraft] = useState<Draft | null>(null)
@@ -82,22 +84,6 @@ export default function CreerPageComponent() {
       if (imagePreview) URL.revokeObjectURL(imagePreview)
     }
   }, [imagePreview])
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid)
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          setUserData(userDoc.data())
-        }
-      } else {
-        setUserId(null)
-        setUserData(null)
-      }
-    })
-    return () => unsubscribe()
-  }, [])
 
   const generateRoomCode = async (): Promise<string> => {
     let code: string = ""

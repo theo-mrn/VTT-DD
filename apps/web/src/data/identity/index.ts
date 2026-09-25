@@ -9,6 +9,7 @@ export {
     getCurrentUser,
     getSession,
     subscribeSession,
+    type RawProfile,
     type SessionState,
     type SessionStatus,
     type UserProfile,

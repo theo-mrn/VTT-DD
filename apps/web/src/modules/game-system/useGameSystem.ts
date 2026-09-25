@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { db, doc, onSnapshot, setDoc, auth, onAuthStateChanged } from '@/lib/firebase';
+import { db, doc, onSnapshot, setDoc } from '@/lib/firebase';
+import { useSession } from '@/data/identity';
 import { moduleRegistry } from '@/modules/registry';
 import { dndClassicModule } from '@/modules/builtin/dnd-classic';
 import { stripUndefinedDeep } from './transfer';
@@ -46,18 +47,8 @@ function narrativeOverlay(data: Partial<GameSystemDefinition>): Partial<GameSyst
  *  stockage local) peut essuyer un refus de permission transitoire — sans attendre ici, rien ne
  *  retenterait la lecture une fois réellement authentifié. */
 function useAuthReady(): boolean {
-  const [ready, setReady] = useState(() => {
-    const initial = auth.currentUser !== null;
-    return initial;
-  });
-  useEffect(() => {
-    if (ready) return;
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setReady(true);
-    });
-    return () => unsubscribe();
-  }, [ready]);
-  return ready;
+  // Session partagée : prête dès que l'auth a répondu (connecté ou anonyme)
+  return useSession().status !== 'loading';
 }
 
 /** Résout le système de règles actif d'une room : d'abord gameSystemId (Salle/{roomId}), puis soit un
