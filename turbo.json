@@ -21,7 +21,19 @@
     "@vtt/web#build": {
       "dependsOn": ["^build", "@vtt/web#typecheck"],
       "outputs": [".next/**", "!.next/cache/**"],
-      "env": ["NEXT_PUBLIC_*"]
+      "env": ["NEXT_PUBLIC_*"],
+      "passThroughEnv": [
+        "STRIPE_*",
+        "RESEND_*",
+        "R2_*",
+        "GEMINI_API_KEY",
+        "DEEPL_API_KEY",
+        "CRON_SECRET",
+        "FIREBASE_*",
+        "DISCORD_*",
+        "METERED_*",
+        "NO_PROJECT"
+      ]
     }
   }
 }
