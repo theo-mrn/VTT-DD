@@ -82,6 +82,18 @@ jobs:
           done
       - name: Droits et contraintes du schéma identity
         run: bash deploy/postgres/tests/identity-droits.sh
+      # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
+      # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --filter '@vtt/identity...'
+      - name: Tests d'intégration identity (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/identity^...'
+          pnpm --filter @vtt/identity test
 
   security:
     name: Secrets et dépendances
