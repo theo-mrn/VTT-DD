@@ -1,0 +1,21 @@
+{
+  "name": "@vtt/firebase-export",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Export de Firestore en NDJSON sans perte, pour les imports de la refonte",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "export": "node dist/cli.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check src"
+  },
+  "dependencies": {
+    "firebase-admin": "13.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "vitest": "^3.2.7"
+  }
+}

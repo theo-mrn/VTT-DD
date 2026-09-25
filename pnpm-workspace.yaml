@@ -2,6 +2,7 @@ packages:
   - apps/*
   - services/*
   - packages/*
+  - tools/*
 
 # Dépendances natives autorisées à exécuter leurs scripts d'installation
 onlyBuiltDependencies:

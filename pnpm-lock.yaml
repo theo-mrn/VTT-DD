@@ -660,6 +660,19 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@22.20.4)(jiti@2.6.1)(jsdom@26.1.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  tools/firebase-export:
+    dependencies:
+      firebase-admin:
+        specifier: 13.8.0
+        version: 13.8.0(@firebase/app-compat@0.4.2)(@firebase/app@0.13.2)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.4
+        version: 22.20.4
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/node@22.20.4)(jiti@2.6.1)(jsdom@26.1.0)(tsx@4.23.15)(yaml@2.9.1)
+
 packages:
 
   '@adobe/css-tools@4.5.0':
