@@ -21,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^22.20.4",
     "jose": "^6.2.12",
+    "tsx": "^4.23.15",
     "vitest": "^3.2.7"
   },
   "files": [

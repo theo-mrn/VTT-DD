@@ -34,7 +34,7 @@ for arg in "$@"; do
 done
 
 etape "Infrastructure"
-$COMPOSE "${PROFILS[@]}" up -d --wait
+$COMPOSE ${PROFILS[@]+"${PROFILS[@]}"} up -d --wait
 
 etape "Rôles et schémas SQL"
 for f in infra/postgres/init/*.sql; do
