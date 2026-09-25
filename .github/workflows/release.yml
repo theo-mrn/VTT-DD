@@ -1,0 +1,128 @@
+# main → images signées sur GHCR → staging (GitOps, automatique)
+# tag vX.Y.Z (release-please) → prod (GitOps, approbation manuelle)
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publier ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # signature keyless cosign + attestations
+      attestations: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - {
+              image: gateway,
+              dockerfile: deploy/docker/service.Dockerfile,
+              args: 'SERVICE=gateway',
+            }
+          - { image: web, dockerfile: deploy/docker/web.Dockerfile, args: '' }
+    outputs:
+      digest-gateway: ${{ steps.out.outputs.digest-gateway }}
+      digest-web: ${{ steps.out.outputs.digest-web }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
+        with: { egress-policy: audit }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: |
+            ${{ matrix.args }}
+            VERSION=${{ github.ref_name }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          provenance: mode=max
+          sbom: true
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+      - name: Signer l'image (keyless, identité du workflow)
+        env:
+          REF: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}@${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "$REF"
+      - name: SBOM SPDX
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+      - name: Attestation de provenance (SLSA)
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/vtt-${{ matrix.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: 'sbom-${{ matrix.image }}', path: 'sbom-${{ matrix.image }}.spdx.json' }
+      - id: out
+        run: echo "digest-${{ matrix.image }}=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Déployer (${{ startsWith(github.ref, 'refs/tags/') && 'prod' || 'staging' }})
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # « production » exige une approbation manuelle (Settings → Environments)
+    environment: ${{ startsWith(github.ref, 'refs/tags/') && 'production' || 'staging' }}
+    permissions:
+      contents: write
+    env:
+      TARGET: ${{ startsWith(github.ref, 'refs/tags/') && 'prod' || 'staging' }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with: { ref: main }
+      - name: Mettre à jour les digests GitOps
+        env:
+          DIGEST_GATEWAY: ${{ needs.publish.outputs.digest-gateway }}
+          DIGEST_WEB: ${{ needs.publish.outputs.digest-web }}
+        run: |
+          set -euo pipefail
+          for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB"; do
+            svc=${pair%%:*}; digest=${pair#*:}
+            test -n "$digest"
+            yq -i ".image.digest = \"$digest\"" "deploy/gitops/$TARGET/$svc.yaml"
+          done
+          git diff --stat
+      - name: Commit (Argo CD synchronise)
+        run: |
+          git config user.name "vtt-release-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/gitops
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(deploy): $TARGET ← ${GITHUB_SHA::7} [skip ci]"
+          git push origin HEAD:main

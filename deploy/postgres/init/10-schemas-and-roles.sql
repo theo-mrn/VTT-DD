@@ -6,7 +6,9 @@ DO $$
 DECLARE svc text;
 BEGIN
   FOREACH svc IN ARRAY ARRAY['identity','billing','campaign','characters','history'] LOOP
-    EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', svc || '_svc', svc || '-dev');
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = svc || '_svc') THEN
+      EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', svc || '_svc', svc || '-dev');
+    END IF;
     EXECUTE format('CREATE SCHEMA IF NOT EXISTS %I AUTHORIZATION %I', svc, svc || '_svc');
     EXECUTE format('ALTER ROLE %I SET search_path = %I, public', svc || '_svc', svc);
     EXECUTE format('REVOKE ALL ON SCHEMA %I FROM PUBLIC', svc);
@@ -16,5 +18,9 @@ END $$;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 
 -- Rôle de sauvegarde logique (pg_dump) : lecture seule sur tout
-CREATE ROLE backup_ro LOGIN PASSWORD 'backup-dev';
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backup_ro') THEN
+    CREATE ROLE backup_ro LOGIN PASSWORD 'backup-dev';
+  END IF;
+END $$;
 GRANT pg_read_all_data TO backup_ro;

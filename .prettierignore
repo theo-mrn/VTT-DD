@@ -2,3 +2,4 @@
 apps/web/
 pnpm-lock.yaml
 deploy/charts/**/templates/
+README.md

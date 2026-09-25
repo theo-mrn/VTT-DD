@@ -24,8 +24,6 @@ export default function MapContextMenu({
     showAllBadges = false,
     onToggleBadges
 }: MapContextMenuProps) {
-    if (!position) return null;
-
     const { user } = useGame();
     const {
         showCharBorders, setShowCharBorders,
@@ -34,6 +32,9 @@ export default function MapContextMenu({
         showGrid, setShowGrid,
         setShowBackgroundSelector
     } = useSettings();
+
+    // Après les hooks : un retour anticipé avant eux change leur nombre d'un rendu à l'autre
+    if (!position) return null;
 
     const items = [
         {
