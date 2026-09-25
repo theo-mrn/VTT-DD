@@ -16,6 +16,8 @@
     "infra:up": "docker compose -f deploy/compose/docker-compose.yml up -d",
     "infra:down": "docker compose -f deploy/compose/docker-compose.yml down",
     "db:migrate": "bash deploy/postgres/liquibase/migrate.sh",
+    "dev:identity": "bash deploy/dev/identity.sh",
+    "dev:vtt": "pnpm --filter @vtt/vtt dev",
     "prepare": "husky || true"
   },
   "devDependencies": {
