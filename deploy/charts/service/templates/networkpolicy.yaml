@@ -17,6 +17,11 @@ spec:
           podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
         {{- end }}
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+        {{- if .Values.cronJobs }}
+        # CronJobs du service (mêmes labels) : ils appellent leurs routes en interne
+        - podSelector:
+            matchLabels: {{- include "svc.selector" . | nindent 14 }}
+        {{- end }}
         {{- with .Values.networkPolicy.allowFrom }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

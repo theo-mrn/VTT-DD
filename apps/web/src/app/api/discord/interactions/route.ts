@@ -6,7 +6,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { applyVariables } from '@/lib/character-variables';
 import { resolveCharacterStats, buildDiceVariables, resolveRoomGameSystem } from '@/lib/rules-engine';
 import type { GameSystemDefinition } from '@/modules/game-system/types';
-import { waitUntil } from '@vercel/functions';
+import { waitUntil } from '@/lib/background-task';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 

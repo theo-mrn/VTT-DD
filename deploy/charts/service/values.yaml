@@ -46,6 +46,15 @@ networkPolicy:
   allowFrom: []
   #  - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
 
+# Tâches planifiées (remplacent les crons Vercel) : appellent une route du service
+# avec Authorization: Bearer $CRON_SECRET, via le Service interne.
+cronJobs: {}
+#  session-reminder:
+#    schedule: '0 8 * * *'
+#    path: /api/session-reminder
+# Image utilisée par les CronJob ci-dessus
+cronImage: 'curlimages/curl:8.11.1'
+
 # Chemins inscriptibles en plus de /tmp (le système de fichiers racine est en lecture seule)
 writablePaths: []
 #  - /app/apps/web/.next/cache

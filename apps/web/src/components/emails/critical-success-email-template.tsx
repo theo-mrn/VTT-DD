@@ -21,10 +21,6 @@ interface CriticalSuccessEmailTemplateProps {
     campaignName?: string;
 }
 
-const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : '';
-
 export const CriticalSuccessEmailTemplate = ({
     firstName,
     rollDetails = '1d20 → 20',
