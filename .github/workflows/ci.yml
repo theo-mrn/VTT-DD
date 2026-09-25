@@ -35,12 +35,10 @@ jobs:
       - name: Commits conventionnels
         if: github.event_name == 'pull_request'
         run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+      - name: Variables factices pour le build Next
+        run: grep -E '^[A-Z0-9_]+=' deploy/ci/build-placeholders.env >> "$GITHUB_ENV"
       - name: Lint, typecheck, tests, build (paquets modifiés)
         run: pnpm turbo run lint typecheck test build ${{ github.event_name == 'pull_request' && '--affected' || '' }}
-        env:
-          # Build du front sans secrets : les appels Firebase sont côté client
-          NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-placeholder
 
   sql:
     name: Tests SQL (PostGIS)

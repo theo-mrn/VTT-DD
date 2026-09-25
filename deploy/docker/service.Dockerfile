@@ -8,12 +8,18 @@ ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
 RUN corepack enable
 WORKDIR /repo
 # Couche dépendances : ne se reconstruit que si les manifests changent
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json turbo.json ./
-COPY packages ./packages
-COPY services/${SERVICE} ./services/${SERVICE}
+# Tous les manifests du workspace : sans eux, --frozen-lockfile refuse le lockfile
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY apps/web/package.json ./apps/web/
+COPY services/gateway/package.json ./services/gateway/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/platform/package.json ./packages/platform/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/${SERVICE}..." --ignore-scripts
-RUN pnpm turbo run build --filter "@vtt/${SERVICE}..."
+COPY packages ./packages
+COPY services/${SERVICE} ./services/${SERVICE}
+# Build du service et de ses dépendances internes, dans l'ordre topologique
+RUN pnpm --filter "@vtt/${SERVICE}..." run build
 # Bundle autonome : seulement les dépendances de prod du service
 RUN pnpm --filter "@vtt/${SERVICE}" deploy --prod --legacy /out
 

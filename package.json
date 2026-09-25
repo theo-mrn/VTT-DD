@@ -15,15 +15,15 @@
     "format:check": "prettier --check .",
     "infra:up": "docker compose -f deploy/compose/docker-compose.yml up -d",
     "infra:down": "docker compose -f deploy/compose/docker-compose.yml down",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.0",
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.8",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.4",
     "typescript": "^5.9.3"
   },
   "lint-staged": {

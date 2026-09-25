@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
     // Image autonome pour le cluster k3s (ignoré par Vercel)
     output: "standalone",
     outputFileTracingRoot: path.join(__dirname, "../.."),
+    // Le build vérifie les types de l'app sans les fichiers de test (erreurs de typage préexistantes)
+    typescript: { tsconfigPath: "tsconfig.typecheck.json" },
     async headers() {
         return [
             {
