@@ -1,69 +1,16 @@
-import path from "node:path";
-import type { NextConfig } from "next";
+import path from 'node:path';
+import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
-    // Image autonome pour le cluster k3s (ignoré par Vercel)
-    output: "standalone",
-    outputFileTracingRoot: path.join(__dirname, "../.."),
-    // Le build vérifie les types de l'app sans les fichiers de test (erreurs de typage préexistantes)
-    typescript: { tsconfigPath: "tsconfig.typecheck.json" },
-    async headers() {
-        return [
-            {
-                source: "/(.*)",
-                headers: [
-                    {
-                        key: "Content-Security-Policy",
-                        value: "frame-ancestors https://*.discord.com https://discord.com",
-                    },
-                ],
-            },
-        ];
-    },
-    images: {
-        qualities: [1, 10, 25, 50, 75, 100],
-        remotePatterns: [
-            {
-                protocol: 'https',
-                hostname: 'assets.yner.fr',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'www.dnd5eapi.co',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'firebasestorage.googleapis.com',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'media.anakinworld.com',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'cdn-www.swtor.com',
-                port: '',
-                pathname: '/**',
-            },
-            {
-                protocol: 'https',
-                hostname: 'lumiere-a.akamaihd.net',
-                port: '',
-                pathname: '/**',
-            },
-        ],
-    },
-    experimental: {
+// /v1/* part vers la gateway : même origine,
+// comme en prod derrière l'ingress. Le cookie de session reste donc first-party.
+const API_URL = process.env.API_URL ?? 'http://localhost:8080';
 
-    },
+const config: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../..'),
+  async rewrites() {
+    return [{ source: '/v1/:chemin*', destination: `${API_URL}/v1/:chemin*` }];
+  },
 };
 
-export default nextConfig;
+export default config;

@@ -1,20 +1,17 @@
-'use client'
+'use client';
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { HeroSection } from "@/components/blocks/hero-section-5"
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useSession } from '@/lib/session';
 
-export default function Home() {
-  const router = useRouter()
+export default function Accueil() {
+  const { statut } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('frame_id')) {
-      router.replace('/discord' + window.location.search)
-    }
-  }, [router])
+    if (statut === 'connecte') router.replace('/profil');
+    if (statut === 'anonyme') router.replace('/connexion');
+  }, [statut, router]);
 
-  return <div className="relative">
-    <HeroSection />
-  </div>
+  return <p className="p-8 text-texte-doux">Chargement…</p>;
 }

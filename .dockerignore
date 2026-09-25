@@ -6,7 +6,9 @@
 **/.env*
 !**/.env.example
 .git
-apps/web/starwars-bundle
-apps/web/starwars.docx
+docs
+# Ancienne app : seul son manifest sert (cohérence du lockfile pnpm)
+apps/legacy/**
+!apps/legacy/package.json
 **/*.test.ts
 **/__tests__

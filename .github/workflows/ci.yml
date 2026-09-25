@@ -36,7 +36,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
       - name: Variables factices pour le build Next
-        run: grep -E '^[A-Z0-9_]+=' deploy/ci/build-placeholders.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Z0-9_]+=' infra/ci/build-placeholders.env >> "$GITHUB_ENV"
       - name: Lint, typecheck, tests, build (paquets modifiés)
         run: |
           set -o pipefail
@@ -69,19 +69,19 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Initialisation (identique au dev local)
         run: |
-          for f in deploy/postgres/init/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
-          psql -v ON_ERROR_STOP=1 -q -f deploy/platform/data/schemas.sql
+          for f in infra/postgres/init/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -v ON_ERROR_STOP=1 -q -f infra/cluster/data/schemas.sql
       - name: Tests spatial, outbox, historique
-        run: psql -v ON_ERROR_STOP=1 -f deploy/postgres/tests/smoke.sql
+        run: psql -v ON_ERROR_STOP=1 -f infra/postgres/tests/smoke.sql
       # Chaque service est migré avec son rôle propriétaire ; update-testing-rollback
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
           for svc in identity; do
-            deploy/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
+            infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
-        run: bash deploy/postgres/tests/identity-droits.sh
+        run: bash infra/postgres/tests/identity-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -141,18 +141,18 @@ jobs:
           sudo mv kubeconform /usr/local/bin/
       - name: helm lint + rendu de chaque environnement
         run: |
-          helm lint deploy/charts/service --strict
+          helm lint infra/helm/service --strict
           mkdir -p rendered
-          for f in deploy/gitops/*/*.yaml; do
+          for f in infra/gitops/*/*.yaml; do
             env=$(basename "$(dirname "$f")"); svc=$(basename "$f" .yaml)
-            helm template "$svc" deploy/charts/service -n "vtt-$env" -f "$f" > "rendered/$env-$svc.yaml"
+            helm template "$svc" infra/helm/service -n "vtt-$env" -f "$f" > "rendered/$env-$svc.yaml"
           done
       - name: Validation des schémas
         run: |
           kubeconform -strict -summary -ignore-missing-schemas \
             -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-            rendered/ deploy/platform deploy/argocd
+            rendered/ infra/cluster infra/argocd
 
   images:
     name: Image ${{ matrix.image }}
@@ -165,12 +165,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {
-              image: gateway,
-              dockerfile: deploy/docker/service.Dockerfile,
-              args: 'SERVICE=gateway',
-            }
-          - { image: web, dockerfile: deploy/docker/web.Dockerfile, args: '' }
+          - { image: gateway, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=gateway' }
+          - { image: web, dockerfile: infra/docker/web.Dockerfile, args: '' }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3

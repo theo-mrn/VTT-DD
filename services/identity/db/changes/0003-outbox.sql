@@ -1,7 +1,7 @@
 --liquibase formatted sql
 
 --changeset identity:0003-outbox
---comment: Outbox transactionnelle et dédoublonnage (gabarit deploy/postgres/templates/outbox.sql).
+--comment: Outbox transactionnelle et dédoublonnage (gabarit infra/postgres/templates/outbox.sql).
 CREATE TABLE outbox (
   id            uuid        PRIMARY KEY,           -- = id de l'événement (UUIDv7)
   subject       text        NOT NULL,              -- vtt.<roomId>.<domaine>.<action>

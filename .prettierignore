@@ -1,5 +1,6 @@
 # Le front garde son formatage actuel tant qu'il n'est pas migré
-apps/web/
+apps/legacy/
 pnpm-lock.yaml
-deploy/charts/**/templates/
+infra/helm/**/templates/
 README.md
+.claude/

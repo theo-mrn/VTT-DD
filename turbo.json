@@ -19,8 +19,8 @@
       "persistent": true,
       "dependsOn": ["^build"]
     },
-    "@vtt/web#build": {
-      "dependsOn": ["^build", "@vtt/web#typecheck"],
+    "@vtt/legacy#build": {
+      "dependsOn": ["^build", "@vtt/legacy#typecheck"],
       "outputs": [".next/**", "!.next/cache/**"],
       "env": ["NEXT_PUBLIC_*"],
       "passThroughEnv": [

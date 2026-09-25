@@ -6,19 +6,17 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "bash deploy/dev/up.sh",
+    "dev": "bash infra/local/up.sh",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "infra:up": "docker compose -f deploy/compose/docker-compose.yml up -d",
-    "infra:down": "docker compose -f deploy/compose/docker-compose.yml down",
-    "db:migrate": "bash deploy/postgres/liquibase/migrate.sh",
+    "db:migrate": "bash infra/postgres/liquibase/migrate.sh",
     "prepare": "husky || true",
-    "dev:down": "docker compose -f deploy/compose/docker-compose.yml down",
-    "dev:legacy": "pnpm --filter @vtt/web dev"
+    "dev:down": "docker compose -f infra/local/docker-compose.yml down",
+    "dev:legacy": "pnpm --filter @vtt/legacy dev"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",

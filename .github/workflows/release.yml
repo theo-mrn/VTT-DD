@@ -28,12 +28,8 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - {
-              image: gateway,
-              dockerfile: deploy/docker/service.Dockerfile,
-              args: 'SERVICE=gateway',
-            }
-          - { image: web, dockerfile: deploy/docker/web.Dockerfile, args: '' }
+          - { image: gateway, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=gateway' }
+          - { image: web, dockerfile: infra/docker/web.Dockerfile, args: '' }
     outputs:
       digest-gateway: ${{ steps.out.outputs.digest-gateway }}
       digest-web: ${{ steps.out.outputs.digest-web }}
@@ -126,14 +122,14 @@ jobs:
           for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
-            yq -i ".image.digest = \"$digest\"" "deploy/gitops/$TARGET/$svc.yaml"
+            yq -i ".image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"
           done
           git diff --stat
       - name: Commit (Argo CD synchronise)
         run: |
           git config user.name "vtt-release-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add deploy/gitops
+          git add infra/gitops
           git diff --cached --quiet && exit 0
           git commit -m "chore(deploy): $TARGET ← ${GITHUB_SHA::7} [skip ci]"
           git push origin HEAD:main
