@@ -6,7 +6,7 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "bash deploy/dev/up.sh",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -16,9 +16,9 @@
     "infra:up": "docker compose -f deploy/compose/docker-compose.yml up -d",
     "infra:down": "docker compose -f deploy/compose/docker-compose.yml down",
     "db:migrate": "bash deploy/postgres/liquibase/migrate.sh",
-    "dev:identity": "bash deploy/dev/identity.sh",
-    "dev:vtt": "pnpm --filter @vtt/vtt dev",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "dev:down": "docker compose -f deploy/compose/docker-compose.yml down",
+    "dev:legacy": "pnpm --filter @vtt/web dev"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
@@ -27,7 +27,8 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.9.9",
     "turbo": "^2.11.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "tsx": "^4.20.0"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,md,yml,yaml}": "prettier --write --ignore-unknown"

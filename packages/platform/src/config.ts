@@ -22,6 +22,13 @@ export const BaseConfig = z.object({
   CORS_ORIGINS: csv.default([]),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
   RATE_LIMIT_WINDOW: z.string().default('1 minute'),
+  /**
+   * Nombre de proxys de confiance devant le service (Traefik devant la gateway,
+   * la gateway devant les services). L'IP du client est lue à cette profondeur
+   * dans X-Forwarded-For : ce que le client y écrit lui-même est ignoré, sinon
+   * il contournerait les limites de débit en changeant d'IP à chaque requête.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
 
   JWT_ISSUER: z.string().optional(),
   JWT_AUDIENCE: z.string().optional(),

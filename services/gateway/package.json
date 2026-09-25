@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "node --watch --env-file-if-exists=.env --import ./dist/instrumentation.js dist/main.js",
+    "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
     "start": "node --import ./dist/instrumentation.js dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

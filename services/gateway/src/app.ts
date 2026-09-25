@@ -63,6 +63,9 @@ export async function buildGateway(
         rewriteRequestHeaders: (req, headers) => ({
           ...headers,
           'x-request-id': req.id,
+          // Chaîne reçue + IP du client vue par la gateway : le service en aval,
+          // qui ne fait confiance qu'à un proxy, lit ainsi l'IP réelle
+          'x-forwarded-for': [headers['x-forwarded-for'], req.ip].filter(Boolean).join(', '),
           'x-correlation-id': (req as unknown as { ctx: { correlationId: string } }).ctx
             .correlationId,
           'x-forwarded-user': (req as unknown as { user?: { userId: string } }).user?.userId ?? '',

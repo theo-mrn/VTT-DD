@@ -65,7 +65,8 @@ export async function createService(opts: ServiceOptions) {
       // Les sondes Kubernetes passent toutes les 10 s : inutile de les logger
       disableRequestLogging: (req) => req.url === '/healthz' || req.url === '/readyz',
     }),
-    trustProxy: true,
+    // Confiance aux N proxys les plus proches seulement (équivalent de trustProxy: N)
+    trustProxy: (_adresse: string, saut: number) => saut < c.TRUST_PROXY_HOPS,
     bodyLimit: 1024 * 1024,
   }).withTypeProvider<ZodTypeProvider>();
 
