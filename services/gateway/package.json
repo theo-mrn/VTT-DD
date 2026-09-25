@@ -1,0 +1,26 @@
+{
+  "name": "@vtt/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --env-file-if-exists=.env --import ./dist/instrumentation.js dist/main.js",
+    "start": "node --import ./dist/instrumentation.js dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check src"
+  },
+  "dependencies": {
+    "@fastify/http-proxy": "^11.6.2",
+    "@vtt/contracts": "workspace:*",
+    "@vtt/platform": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "jose": "^6.2.12",
+    "vitest": "^3.2.7"
+  }
+}
