@@ -4,7 +4,12 @@ import { z } from 'zod';
  * Enveloppe commune à tous les événements publiés sur le bus.
  * C'est aussi le format stocké par le service history (journal append-only).
  */
-export const ActorRole = z.enum(['gm', 'player', 'system']);
+/**
+ * Rôle de l'auteur d'un événement : `gm`/`player` dans une salle, `user` pour
+ * un utilisateur agissant hors salle (son compte, son profil), `system` pour
+ * les traitements automatiques (imports, crons).
+ */
+export const ActorRole = z.enum(['gm', 'player', 'user', 'system']);
 export type ActorRole = z.infer<typeof ActorRole>;
 
 export const Visibility = z.enum(['public', 'gm_only', 'owner']);
