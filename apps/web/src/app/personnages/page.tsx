@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Crown, Loader2, LogIn, CircleCheck, User, RotateCcw, Trash2, AlertTriangle, Heart, Shield, Zap, Play } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { db, getDocs, collection, doc, setDoc, getDoc, writeBatch, dbRef, rtdbRemove, realtimeDb } from '@/lib/firebase'
+import { getPublicProfile } from '@/data/identity'
 import { useGame } from '@/contexts/GameContext'
 import { cn } from '@/lib/utils'
 import { AppBackground } from '@/components/ui/background-components'
@@ -125,8 +126,7 @@ export default function CharacterSelection() {
         const data = d.data();
         if (data.nom && data.nom !== 'MJ') {
           try {
-            const userDoc = await getDoc(doc(db, 'users', d.id));
-            const userData = userDoc.exists() ? userDoc.data() : null;
+            const userData = await getPublicProfile(d.id);
 
             takenMap[data.nom] = {
               name: userData?.name || data.userName || "Joueur",

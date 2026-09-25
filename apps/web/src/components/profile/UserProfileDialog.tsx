@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { doc, getDoc, collection, getDocs, db } from "@/lib/firebase";
+import { getPublicProfile } from "@/data/identity";
 import { ProfileCard } from "@/components/ui/profile-card";
 import { Loader2 } from "lucide-react";
 
@@ -48,12 +49,8 @@ export function UserProfileDialog({ userId, characterName, roomId, isOpen, onClo
           return;
         }
 
-        const userDoc = await getDoc(doc(db, "users", actualUserId));
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        } else {
-          setUserData(null);
-        }
+        // Seuls les champs publics : plus d'e-mail ni de réglages chargés pour afficher un profil
+        setUserData(await getPublicProfile(actualUserId));
       } catch (error) {
         console.error("Error fetching user:", error);
       } finally {

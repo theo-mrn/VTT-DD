@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from "framer-motion";
 import { db } from '../../lib/firebase';
-import { collection, query, orderBy, limit, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { getPublicProfile } from '@/data/identity';
 import { cn } from '@/lib/utils';
 import { Aclonica } from "next/font/google";
 
@@ -108,10 +109,8 @@ export const TestimonialsSection = () => {
 
         if (data.userId) {
           try {
-            const userDoc = await getDoc(doc(db, "users", data.userId));
-            if (userDoc.exists()) {
-              profilePic = userDoc.data().pp || "";
-            }
+            const profil = await getPublicProfile(data.userId);
+            profilePic = profil?.pp || "";
           } catch (e) {
             console.error("Error fetching user PP:", e);
           }

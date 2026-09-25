@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, deleteDoc, limitToLast } from '@/lib/firebase'
-import { getCurrentUser } from '@/data/identity'
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, deleteDoc, limitToLast } from '@/lib/firebase'
+import { getCurrentUser, getPublicProfile } from '@/data/identity'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,9 +51,10 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
   // Resolve user info for display
   const resolveUser = async (uid: string): Promise<{ name: string; pp: string }> => {
     if (userCache[uid]) return userCache[uid]
-    const userDoc = await getDoc(doc(db, 'users', uid))
-    const info = userDoc.exists()
-      ? (userDoc.data() as { name: string; pp: string })
+    // Cache partagé : un auteur n'est lu qu'une fois, même d'un montage à l'autre
+    const profil = await getPublicProfile(uid)
+    const info = profil
+      ? { name: profil.name ?? '', pp: profil.pp ?? '' }
       : { name: 'Inconnu', pp: '' }
     setUserCache((prev) => ({ ...prev, [uid]: info }))
     return info

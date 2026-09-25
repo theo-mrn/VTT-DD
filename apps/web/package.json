@@ -7,7 +7,7 @@
     "dev:discord": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src --max-warnings=2226",
+    "lint": "eslint src --max-warnings=2224",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

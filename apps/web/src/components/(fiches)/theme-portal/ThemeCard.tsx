@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Heart, User, Edit2, Trash2 } from 'lucide-react';
 import { ThemeConfig, CommunityTheme } from './types';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getPublicProfile } from '@/data/identity';
 
 interface ThemeCardProps {
     theme: CommunityTheme;
@@ -29,9 +28,9 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
         const fetchAuthorData = async () => {
             if (!theme.authorId) return;
             try {
-                const userDoc = await getDoc(doc(db, 'users', theme.authorId));
-                if (userDoc.exists()) {
-                    const data = userDoc.data();
+                // Cache partagé : un auteur n'est lu qu'une fois pour toutes ses cartes
+                const data = await getPublicProfile(theme.authorId);
+                if (data) {
                     setAuthorData({
                         name: data.name || theme.authorName,
                         pp: data.pp || null

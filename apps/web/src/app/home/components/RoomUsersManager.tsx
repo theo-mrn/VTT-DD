@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, collection, getDocs, doc, getDoc, deleteDoc, updateDoc } from '@/lib/firebase';
-import { getCurrentUser } from '@/data/identity';
+import { getCurrentUser, getPublicProfile, getPublicProfiles } from '@/data/identity';
 import { arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,12 +71,10 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                 const characterName = nomData.nom;
                 const isMJ = characterName === 'MJ';
 
-                // Fetch user info
-                const userDocRef = doc(db, 'users', uid);
-                const userDoc = await getDoc(userDocRef);
+                // Profil public, servi par le cache partagé
+                const userData = await getPublicProfile(uid);
 
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
+                if (userData) {
 
                     let characterImage = '';
                     if (!isMJ && characterName) {
@@ -102,11 +100,11 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
             if (isOwner || (roomData?.creatorId === getCurrentUser()?.uid)) {
                 const bannedUids = roomData?.bannedUsers || [];
                 const loadedBannedUsers: BannedUser[] = [];
+                // Lectures en parallèle (avant : une à la suite de l'autre)
+                const profilsBannis = await getPublicProfiles(bannedUids);
                 for (const uid of bannedUids) {
-                    const userDocRef = doc(db, 'users', uid);
-                    const userDoc = await getDoc(userDocRef);
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
+                    const userData = profilsBannis.get(uid);
+                    if (userData) {
                         loadedBannedUsers.push({
                             uid,
                             name: userData.name || 'Utilisateur inconnu',

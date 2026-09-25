@@ -16,6 +16,14 @@ export {
 } from './session';
 export { useSession } from './use-session';
 export {
+    clearPublicProfiles,
+    getPublicProfile,
+    getPublicProfiles,
+    invalidatePublicProfile,
+    usePublicProfile,
+    type PublicProfile,
+} from './profiles';
+export {
     changePassword,
     sendPasswordReset,
     signInWithGoogle,

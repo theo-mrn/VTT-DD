@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Play, Plus, Shield, Gamepad2, ArrowLeft, Settings, ArrowRight, Loader2 } from 'lucide-react'
 import { db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
-import { useSession } from '@/data/identity'
+import { getPublicProfile, useSession } from '@/data/identity'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
@@ -38,12 +38,10 @@ interface Room {
   occupantsCount?: number;
 }
 
+// Profil public du créateur, servi par le cache partagé (une lecture par personne)
 const fetchCreatorInfo = async (creatorId: string) => {
-  const creatorDoc = await getDoc(doc(db, 'users', creatorId))
-  if (creatorDoc.exists()) {
-    return creatorDoc.data() as { name: string; pp: string }
-  }
-  return null
+  const profil = await getPublicProfile(creatorId)
+  return profil ? { name: profil.name ?? '', pp: profil.pp ?? '' } : null
 }
 
 export default function MesCampagnesPage() {

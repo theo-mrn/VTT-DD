@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Play, Users, ArrowLeft, Settings, Gamepad2, ArrowRight, Globe, Loader2 } from 'lucide-react'
 import { db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
-import { getCurrentUser, useSession } from '@/data/identity'
+import { getCurrentUser, getPublicProfile, useSession } from '@/data/identity'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
@@ -48,12 +48,10 @@ const fetchRoomByCode = async (code: string): Promise<Room | null> => {
   return null
 }
 
+// Profil public du créateur, servi par le cache partagé (une lecture par personne)
 const fetchCreatorInfo = async (creatorId: string) => {
-  const creatorDoc = await getDoc(doc(db, 'users', creatorId))
-  if (creatorDoc.exists()) {
-    return creatorDoc.data() as { name: string; pp: string }
-  }
-  return null
+  const profil = await getPublicProfile(creatorId)
+  return profil ? { name: profil.name ?? '', pp: profil.pp ?? '' } : null
 }
 
 export default function RejoindrePageComponent() {
