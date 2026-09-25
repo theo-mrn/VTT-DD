@@ -8,7 +8,10 @@ metadata:
 spec:
   # 1 primaire + 2 réplicas dès qu'il y a 3 nœuds ; mettre 1 sur un nœud unique
   instances: 3
-  imageName: ghcr.io/cloudnative-pg/postgis:17-3.5
+  # PostgreSQL 17 + PostGIS 3.5, build 177 de CloudNativePG (le tag « 17-3.5 »
+  # seul n'existe pas), épinglé par digest. Image publiée en amd64 uniquement :
+  # les nœuds k3s qui portent Postgres doivent être en x86_64.
+  imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
   primaryUpdateStrategy: unsupervised
 
   postgresql:

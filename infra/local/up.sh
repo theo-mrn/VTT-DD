@@ -22,14 +22,17 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 # Services optionnels : --stockage (S3), --mails (Mailpit), --observabilite (Grafana), --tout
+# --preparer : infra, migrations et .env seulement, sans lancer les apps (CI, vérification)
 PROFILS=()
+PREPARER_SEULEMENT=0
 for arg in "$@"; do
   case "$arg" in
+    --preparer) PREPARER_SEULEMENT=1 ;;
     --stockage) PROFILS+=(--profile stockage) ;;
     --mails) PROFILS+=(--profile mails) ;;
     --observabilite) PROFILS+=(--profile observabilite) ;;
     --tout) PROFILS+=(--profile stockage --profile mails --profile observabilite) ;;
-    *) echo "Option inconnue : $arg (--stockage, --mails, --observabilite, --tout)" >&2; exit 2 ;;
+    *) echo "Option inconnue : $arg (--stockage, --mails, --observabilite, --tout, --preparer)" >&2; exit 2 ;;
   esac
 done
 
@@ -45,8 +48,14 @@ etape "Migrations"
 for changelog in services/*/db/changelog.yaml; do
   [ -e "$changelog" ] || continue
   service=$(basename "$(dirname "$(dirname "$changelog")")")
-  echo "• $service"
-  infra/postgres/liquibase/migrate.sh "$service" update --log-level=WARNING >/dev/null
+  # Silencieux si tout va bien ; en cas d'échec, sortie complète de Liquibase
+  if sortie=$(infra/postgres/liquibase/migrate.sh "$service" update --log-level=WARNING 2>&1); then
+    echo "• $service : à jour"
+  else
+    echo "$sortie" >&2
+    echo "• $service : échec des migrations" >&2
+    exit 1
+  fi
 done
 
 etape "Configuration"
@@ -58,6 +67,11 @@ for dossier in services/*/; do
     cp "$dossier/.env.example" "$dossier/.env" && echo "services/$service/.env créé"
   fi
 done
+
+if [ "$PREPARER_SEULEMENT" = 1 ]; then
+  etape "Prêt (--preparer : services non lancés)"
+  exit 0
+fi
 
 etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"

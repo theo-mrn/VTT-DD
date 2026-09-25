@@ -17,6 +17,10 @@ const jsonJwks = z.string().transform((brut, ctx) => {
   return z.NEVER;
 });
 
+/** Variable facultative : une valeur vide dans le .env (`CLE=`) vaut absence, pas 0 ni "". */
+const facultatif = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+
 export const IdentityConfig = BaseConfig.extend({
   SERVICE_NAME: z.string().default('identity'),
   /** Connexion avec le rôle identity_svc (jamais identity_owner). */
@@ -28,10 +32,10 @@ export const IdentityConfig = BaseConfig.extend({
   JWT_PRIVATE_JWKS: jsonJwks,
 
   /** Paramètres de hachage du projet Firebase, requis tant que des comptes importés n'ont pas été re-hashés. */
-  FIREBASE_SCRYPT_SIGNER_KEY: z.string().optional(),
-  FIREBASE_SCRYPT_SALT_SEPARATOR: z.string().optional(),
-  FIREBASE_SCRYPT_ROUNDS: z.coerce.number().int().positive().optional(),
-  FIREBASE_SCRYPT_MEM_COST: z.coerce.number().int().positive().optional(),
+  FIREBASE_SCRYPT_SIGNER_KEY: facultatif(z.string()),
+  FIREBASE_SCRYPT_SALT_SEPARATOR: facultatif(z.string()),
+  FIREBASE_SCRYPT_ROUNDS: facultatif(z.coerce.number().int().positive()),
+  FIREBASE_SCRYPT_MEM_COST: facultatif(z.coerce.number().int().positive()),
 
   /** Cookie du refresh token en Secure (désactivable en dev HTTP local uniquement). */
   COOKIE_SECURE: z

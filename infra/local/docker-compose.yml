@@ -2,10 +2,16 @@
 # Remplace l'émulateur Firebase. Ports publiés sur 127.0.0.1 uniquement.
 name: vtt
 
+# Images épinglées par version + digest (index multi-architecture : arm64 pour
+# les Mac Apple Silicon, amd64 ailleurs). Renovate propose les mises à jour.
+
 services:
   postgres:
-    # Même base que la prod (CloudNativePG + PostGIS)
-    image: postgis/postgis:17-3.5
+    # PostgreSQL 17 + PostGIS 3.5, comme la prod. imresamu/postgis est la
+    # déclinaison multi-architecture de l'image officielle postgis/postgis
+    # (publiée par un de ses mainteneurs) : l'officielle n'existe qu'en amd64
+    # et ne tourne pas nativement sur les Mac Apple Silicon.
+    image: imresamu/postgis:17-3.5@sha256:35fe7dceda62bfe7d2965b0ba78d915ff9f901b5e0466d633ecc58421b5b5210
     environment:
       POSTGRES_USER: vtt
       POSTGRES_PASSWORD: vtt
@@ -25,13 +31,13 @@ services:
       retries: 10
 
   nats:
-    image: nats:2.11-alpine
+    image: nats:2.11.17-alpine@sha256:e4bf19f15fd3218814a4e3c9e0064e1334bd8aa20d5984b9f1a0afd084f8cc00
     command: ['-js', '-sd', '/data', '-m', '8222']
     ports: ['127.0.0.1:4222:4222', '127.0.0.1:8222:8222']
     volumes: [nats-data:/data]
 
   valkey:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:8.1.10-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
     command:
       [
         'valkey-server',
@@ -51,7 +57,7 @@ services:
     # Remplace R2 en local (API S3 sur :8333). MinIO ne publie plus d'images
     # communautaires ; SeaweedFS est maintenu et compatible S3.
     profiles: [stockage]
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.47@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882
     command: server -dir=/data -s3 -s3.port=8333
     ports: ['127.0.0.1:8333:8333']
     volumes: [s3-data:/data]
@@ -59,14 +65,14 @@ services:
   mailpit:
     # Capture les e-mails (Resend en prod) : http://localhost:8025
     profiles: [mails]
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.31.2@sha256:74d609a42ec279aa63c6b4622a6fa9b5408d1ad5b1d76a1c4be40a265ce0863d
     ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
 
   lgtm:
     # Collecteur OTLP + Grafana, Loki, Tempo, Prometheus en un conteneur
     # Grafana : http://localhost:3300 (admin/admin)
     profiles: [observabilite]
-    image: grafana/otel-lgtm:latest
+    image: grafana/otel-lgtm:0.34.0@sha256:b966ea107831d526d9eb8fe4d2d86c9e5731392fad9dce8296bcf2072031f07c
     ports: ['127.0.0.1:3300:3000', '127.0.0.1:4317:4317', '127.0.0.1:4318:4318']
 
 volumes:

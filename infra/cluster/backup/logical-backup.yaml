@@ -29,7 +29,7 @@ spec:
             seccompProfile: { type: RuntimeDefault }
           initContainers:
             - name: dump
-              image: ghcr.io/cloudnative-pg/postgis:17-3.5
+              image: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
               command: ['/bin/bash', '-ec']
               args:
                 - |
