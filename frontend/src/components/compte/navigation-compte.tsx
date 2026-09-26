@@ -1,6 +1,15 @@
 'use client';
 
-import { Home, KeyRound, LogOut, Shield, User, Users, type LucideIcon } from 'lucide-react';
+import {
+  Home,
+  KeyRound,
+  LogOut,
+  ScrollText,
+  Shield,
+  User,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -35,6 +44,7 @@ export const LIENS_COMPTE: LienCompte[] = [
 
 const LIENS_NAV: LienCompte[] = [
   { href: '/', label: 'Accueil', icone: Home, exact: true },
+  { href: '/personnages', label: 'Personnages', icone: ScrollText },
   ...LIENS_COMPTE,
 ];
 
