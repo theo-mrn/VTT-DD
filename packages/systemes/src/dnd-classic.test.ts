@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  aleatoireGraine,
   aleatoireImpose,
   appliquerModifications,
   calculer,
@@ -12,6 +13,7 @@ import {
   EtatEntite,
   executerAction,
   initiative,
+  tirerEtape,
   type EtatEntiteSaisi,
   type Fiche,
   type Valeur,
@@ -292,13 +294,20 @@ describe('dnd-classic : voies et création', () => {
     expect(() => grok().evaluer(f, { aleatoire: aleatoireImpose([13]) })).toThrow();
   });
 
-  it('contrainte de tirage : total de 75 (condition nécessaire de la règle legacy)', () => {
-    const c = systeme.formule(chemins.etape('personnage', 'caracteristiques', 'contrainte'));
-    const f = thorin();
-    const essai = (total: number) =>
-      f.evaluer(c, { variable: (n): Valeur => (n === 'total' ? total : 0) });
-    expect(essai(75)).toBe(true);
-    expect(essai(74)).toBe(false);
+  it('tirage relancé jusqu’à 3 valeurs paires et +6 de modificateurs', () => {
+    for (const graine of ['a', 'b', 'c']) {
+      const etat = EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: systeme.source.id, version: systeme.source.version },
+        creation: true,
+      });
+      const r = tirerEtape(systeme, etat, 'caracteristiques', aleatoireGraine(graine));
+      if (!r.ok) throw new Error(r.erreur);
+      const v = r.retenu.valeurs;
+      expect(v).toHaveLength(6);
+      expect(v.filter((x) => x % 2 === 0)).toHaveLength(3);
+      expect(v.reduce((s, x) => s + Math.floor((x - 10) / 2), 0)).toBe(6);
+    }
   });
 });
 

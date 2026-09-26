@@ -198,10 +198,8 @@ creation:
         groupe: caracteristiques
         formule: 1d15 + 5
         attribution: ordre
-        # Avec 3 valeurs impaires, somme des modificateurs = (total - 63) / 2 :
-        # « = 6 » équivaut à total = 75. La parité (3 paires) n'est pas
-        # exprimable avec les variables disponibles (total, min, max).
-        contrainte: total == 75
+        contrainte: pairs == 3 et somme_modificateurs == 6
+        relancer: true
       - id: de-de-vie
         nom: Dé de vie
         description: Le dé de vie du profil est lancé une fois ; PV max = 1 + mod(CON) + ce jet.

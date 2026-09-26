@@ -20,7 +20,7 @@
  */
 import { calculer, type Fiche } from '../calcul/index.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
-import type { FormuleVerifiee } from '../formules/index.js';
+import type { FormuleVerifiee, Valeur } from '../formules/index.js';
 import type {
   Achat,
   Arbre,
@@ -218,6 +218,7 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
       cible,
       nombre: c.nombre,
       creation: etat.creation,
+      ...champsEntree(fiche, c),
     }),
     fonctions: { marque: (m: unknown) => fiche.marques.get(vise)?.has(String(m)) ?? false },
   };
@@ -490,4 +491,26 @@ export function rembourser(
     }
   }
   return { ok: true, etat: suivant, ligne };
+}
+
+/** Champs de l'entrée visée, exposés aux formules d'achat sous la forme `entree.<champ>`. */
+function champsEntree(fiche: Fiche, c: Candidat): Record<string, Valeur> {
+  const vars: Record<string, Valeur> = {};
+  if (!c.entree || !c.sorte) return vars;
+  for (const champ of c.sorte.champs) {
+    if (champ.type === 'entrees') continue;
+    const v = c.entree.champs[champ.id];
+    if (champ.type === 'formule') {
+      const f = fiche.systeme.formules.get(chemins.champ(c.entree.id, champ.id));
+      vars[`entree.${champ.id}`] = f ? fiche.evaluer(f, {}, 0) : 0;
+    } else if (v !== undefined && !Array.isArray(v)) {
+      vars[`entree.${champ.id}`] = v;
+    } else if ('defaut' in champ && champ.defaut !== undefined) {
+      vars[`entree.${champ.id}`] = champ.defaut;
+    } else {
+      vars[`entree.${champ.id}`] =
+        champ.type === 'nombre' ? 0 : champ.type === 'booleen' ? false : '';
+    }
+  }
+  return vars;
 }

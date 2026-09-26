@@ -442,7 +442,10 @@ export const Action = z.object({
   /** Condition pour que l'acteur puisse utiliser l'action (`possede("minotaure")`). */
   exige: Formule.optional(),
   /** Type d'entité visé, si l'action a une cible. */
-  cible: Id.optional(),
+  cible: z
+    .union([Id, z.array(Id).min(1)])
+    .transform((v) => (Array.isArray(v) ? v : [v]))
+    .optional(),
   parametres: z.array(Parametre).default([]),
   /** Valeurs intermédiaires calculées avant le jet, utilisables ensuite par leur clé. */
   variables: z.array(z.object({ cle: Cle, formule: Formule })).default([]),

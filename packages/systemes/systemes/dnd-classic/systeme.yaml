@@ -262,14 +262,14 @@ creation:
       - id: caracteristiques
         nom: Caractéristiques
         description: >-
-          3d6 par caractéristique, dans l'ordre. Règle de l'ancienne app : exactement
-          3 valeurs paires et somme des modificateurs = +6, ce qui impose un total de 75
-          (seule cette condition nécessaire est exprimable ici).
+          3d6 par caractéristique, dans l'ordre, relancés tant qu'il n'y a pas
+          exactement 3 valeurs paires et une somme des modificateurs de +6.
         type: tirer
         groupe: caracteristiques
         formule: 3d6
         attribution: ordre
-        contrainte: total == 75
+        contrainte: pairs == 3 et somme_modificateurs == 6
+        relancer: true
       - id: de-de-vie
         nom: Dé de vie
         description: PV max de départ = 1 + mod. CON + ce jet.

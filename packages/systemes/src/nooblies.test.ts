@@ -3,7 +3,14 @@
  * (valeurs dérivées connues, calculées à la main depuis les règles legacy).
  */
 import { describe, expect, it } from 'vitest';
-import { calculer, EtatEntite, type EtatEntiteSaisi, type SystemeCharge } from '@vtt/rules';
+import {
+  aleatoireGraine,
+  calculer,
+  EtatEntite,
+  tirerEtape,
+  type EtatEntiteSaisi,
+  type SystemeCharge,
+} from '@vtt/rules';
 import { chargerSource } from './test-utils.js';
 
 const systeme: SystemeCharge = chargerSource('nooblies');
@@ -86,12 +93,19 @@ describe('Nooblies Chroniques', () => {
     expect(f.valeur('jetDeVie')).toBe(4);
   });
 
-  it('contrainte de tirage : total des caractéristiques = 75', () => {
-    const contrainte = systeme.formule('creation/personnage/caracteristiques/contrainte');
-    const f = fiche({});
-    const avec = (total: number) =>
-      f.evaluer(contrainte, { variable: (n) => (n === 'total' ? total : 0) });
-    expect(avec(75)).toBe(true);
-    expect(avec(74)).toBe(false);
+  it('tirage relancé jusqu’à 3 valeurs paires et +6 de modificateurs', () => {
+    for (const graine of ['a', 'b', 'c']) {
+      const etat = EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: systeme.source.id, version: systeme.source.version },
+        creation: true,
+      });
+      const r = tirerEtape(systeme, etat, 'caracteristiques', aleatoireGraine(graine));
+      if (!r.ok) throw new Error(r.erreur);
+      const v = r.retenu.valeurs;
+      expect(v).toHaveLength(6);
+      expect(v.filter((x) => x % 2 === 0)).toHaveLength(3);
+      expect(v.reduce((s, x) => s + Math.floor((x - 10) / 2), 0)).toBe(6);
+    }
   });
 });

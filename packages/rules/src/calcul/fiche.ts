@@ -196,7 +196,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     }
     const existante = possessions.get(id);
     if (existante) {
-      existante.rang += rangs;
+      existante.rang += rangs + (possession?.rang ?? 0);
       if (possession) {
         existante.possession = possession;
         existante.achete += possession.rang;
@@ -208,7 +208,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     possessions.set(id, {
       entree,
       sorte,
-      rang: rangs,
+      rang: rangs + (possession?.rang ?? 0),
       achete: possession?.rang ?? 0,
       actif: sorte.activable ? (possession?.actif ?? true) : true,
       ...(possession ? { possession } : {}),
@@ -294,9 +294,6 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     bonus = suivant;
     if (stable) break;
   }
-
-  // Rang total = achetés + gratuits
-  for (const p of possessions.values()) p.rang += p.achete;
 
   // ─── 2. Effets sur les attributs ──────────────────────────────────────────
 

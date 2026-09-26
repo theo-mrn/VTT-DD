@@ -158,8 +158,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     if (!cible) refus.push({ message: `${action.nom} demande une cible` });
     else if (cible.systeme !== systeme)
       refus.push({ message: 'La fiche de la cible a été calculée avec un autre système' });
-    else if (cible.etat.type !== action.cible) {
-      const attendu = systeme.entites.get(action.cible)?.type.nom ?? action.cible;
+    else if (!action.cible.includes(cible.etat.type)) {
+      const attendu = action.cible.map((t) => systeme.entites.get(t)?.type.nom ?? t).join(' ou ');
       refus.push({ message: `Cible invalide : ${attendu} attendu, ${cible.entite.type.nom} reçu` });
     }
   } else if (cible) refus.push({ message: `${action.nom} ne prend pas de cible` });
@@ -511,9 +511,11 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   // ─── Après le jet, conséquences, tables ───────────────────────────────────
 
   for (const v of action.apres) {
-    const valeur = evType(ch(`apres/${v.cle}`));
-    variables.set(v.cle, valeur);
-    explications.push(`${v.cle} = ${String(valeur)}`);
+    const chemin = ch(`apres/${v.cle}`);
+    const r = calculerFormule(chemin, defautDe(systeme.formule(chemin).type), ctx);
+    variables.set(v.cle, r.valeur);
+    const des = r.jets.length ? ` [${r.jets.map(decrireJet).join(' ; ')}]` : '';
+    explications.push(`${v.cle} = ${String(r.valeur)}${des}`);
   }
 
   const modifications: Modification[] = [];

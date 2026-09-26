@@ -614,9 +614,22 @@ class Chargeur {
         for (const x of o.arbres ?? [])
           if (!this.arbres.has(x)) this.erreur(chemin, `Arbre inconnu : ${x}`);
 
+      const variables: Record<string, TypeValeur> = {
+        actuel: 'nombre',
+        cible: 'nombre',
+        nombre: 'nombre',
+        creation: 'booleen',
+      };
+      // Champs de l'entrée visée (`entree.prix`) pour les achats de rangs ou d'entrées
+      if (o.type === 'rang' || o.type === 'entree') {
+        for (const c of this.sortes.get(o.sorte)?.champs ?? []) {
+          const t = typeChamp(c);
+          if (t) variables[`entree.${c.id}`] = t;
+        }
+      }
       const opts: OptionsEnv = {
         entite: this.attributsDe(this.typesAchat(a)),
-        variables: { actuel: 'nombre', cible: 'nombre', nombre: 'nombre', creation: 'booleen' },
+        variables,
         fonctions: { marque: { args: ['texte'], retour: 'booleen' } },
       };
       this.compiler(chemins.achat(a.id, 'cout'), a.cout, opts, 'nombre');
@@ -731,7 +744,7 @@ class Chargeur {
       const chemin = `actions/${a.id}`;
       const ch = (x: string) => chemins.action(a.id, x);
       this.verifierTypes(chemin, a.pour);
-      if (a.cible) this.verifierTypes(chemin, [a.cible]);
+      if (a.cible) this.verifierTypes(chemin, a.cible);
 
       const variables: Record<string, TypeValeur> = {};
       const declarer = (nom: string, type: TypeValeur, ou: string) => {
@@ -779,7 +792,7 @@ class Chargeur {
 
       const opts = (): OptionsEnv => ({
         entite: this.attributsDe(a.pour),
-        externes: a.cible ? { cible: this.attributsDe([a.cible]) } : {},
+        externes: a.cible ? { cible: this.attributsDe(a.cible) } : {},
         variables: { ...variables },
         dynamique: true,
       });
@@ -822,13 +835,13 @@ class Chargeur {
       declarer('reussi', 'booleen', ch('jet'));
 
       for (const v of a.apres) {
-        const f = this.compiler(ch(`apres/${v.cle}`), v.formule, opts());
+        const f = this.compiler(ch(`apres/${v.cle}`), v.formule, { ...opts(), des: true });
         declarer(v.cle, f?.type ?? 'nombre', `${chemin}/apres/${v.cle}`);
       }
 
       a.consequences.forEach((c, i) => {
         const ou = ch(`consequences/${i}`);
-        const types = c.entite === 'acteur' ? a.pour : a.cible ? [a.cible] : [];
+        const types = c.entite === 'acteur' ? a.pour : (a.cible ?? []);
         if (c.entite === 'cible' && !a.cible)
           this.erreur(ou, 'Conséquence sur la cible d’une action sans cible');
         for (const t of this.attributsDe(types)) {
