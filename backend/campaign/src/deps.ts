@@ -3,12 +3,12 @@
  * (src/modules/<nom>/index.ts) reçoit l'instance Fastify et ces dépendances.
  */
 import type { createService } from '@vtt/platform';
-import type { ClientCharacter } from './clients/character.js';
-import type { ClientProfils } from './clients/profils.js';
+import type { CharacterClient } from './clients/character.js';
+import type { ProfilesClient } from './clients/profiles.js';
 import type { CampaignConfig } from './config.js';
 import type { Db } from './db/client.js';
-import type { Signataire } from './stockage/images.js';
-import type { Catalogue } from './systemes/catalogue.js';
+import type { UploadSigner } from './storage/images.js';
+import type { Catalog } from './systems/catalog.js';
 
 /** Instance renvoyée par createService (logger pino, fournisseur de types Zod). */
 export type ServiceApp = Awaited<ReturnType<typeof createService>>;
@@ -17,15 +17,15 @@ export interface Deps {
   config: CampaignConfig;
   db: Db;
   /** Systèmes de jeu connus (identité et initiative). */
-  catalogue: Catalogue;
+  catalog: Catalog;
   /** Service character (routes internes). */
-  character: ClientCharacter;
+  character: CharacterClient;
   /** Noms et avatars des membres (identity). */
-  profils: ClientProfils;
+  profiles: ProfilesClient;
   /** Horloge (expiration des invitations, sessions à venir). */
-  maintenant: () => Date;
-  /** URL d'envoi des images de salle ; absent si le stockage n'est pas configuré. */
-  signataire: Signataire | undefined;
+  now: () => Date;
+  /** URL d'envoi des images de campagne ; absent si le stockage n'est pas configuré. */
+  signer: UploadSigner | undefined;
 }
 
 export type Module = (app: ServiceApp, deps: Deps) => Promise<void>;

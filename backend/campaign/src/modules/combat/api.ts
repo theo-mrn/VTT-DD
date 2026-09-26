@@ -1,46 +1,56 @@
 /** Forme de l'état de combat renvoyée par l'API. */
-import type { Camp, combatParticipants, combats } from '../../db/schema.js';
-import type { EtatCombat } from './ordre.js';
+import type {
+  campaignCombatParticipants,
+  campaignCombats,
+  CombatMode,
+  Side,
+} from '../../db/schema.js';
+import type { CombatState } from './turns.js';
 
 export interface CombatApi {
   id: string;
   round: number;
-  mode: 'individuel' | 'creneaux';
-  ordre: { characterId: string; camp: Camp; cles: number[]; aAgi: boolean }[];
-  /** Index du participant (individuel) ou du créneau (creneaux) dont c'est le tour. */
-  courant: number;
-  creneaux?: { camp: Camp }[];
+  mode: CombatMode;
+  order: { characterId: string; side: Side; sortKeys: number[]; hasActed: boolean }[];
+  /** Index du participant (individual) ou du créneau (slots) dont c'est le tour. */
+  currentIndex: number;
+  slots?: { side: Side }[];
   /** Vrai une fois l'initiative tirée. */
-  initiative: boolean;
+  initiativeRolled: boolean;
   version: number;
 }
 
-type LigneCombat = typeof combats.$inferSelect;
-type LigneParticipant = typeof combatParticipants.$inferSelect;
+type CombatRow = typeof campaignCombats.$inferSelect;
+type ParticipantRow = typeof campaignCombatParticipants.$inferSelect;
 
 /** État pur (règles de tour) depuis les lignes en base, participants triés par rang. */
-export function etatDe(combat: LigneCombat, participants: LigneParticipant[]): EtatCombat {
+export function stateOf(combat: CombatRow, participants: ParticipantRow[]): CombatState {
   return {
     mode: combat.mode,
     round: combat.round,
-    courant: combat.courant,
-    creneaux: combat.creneaux ?? null,
-    ordre: [...participants]
-      .sort((a, b) => a.rang - b.rang)
-      .map((p) => ({ characterId: p.characterId, camp: p.camp, cles: p.cles, aAgi: p.aAgi })),
+    currentIndex: combat.currentIndex,
+    slots: combat.slots ?? null,
+    order: [...participants]
+      .sort((a, b) => a.turnOrder - b.turnOrder)
+      .map((p) => ({
+        characterId: p.characterId,
+        side: p.side,
+        sortKeys: p.sortKeys,
+        hasActed: p.hasActed,
+      })),
   };
 }
 
-export function combatApi(combat: LigneCombat, participants: LigneParticipant[]): CombatApi {
-  const etat = etatDe(combat, participants);
+export function combatApi(combat: CombatRow, participants: ParticipantRow[]): CombatApi {
+  const state = stateOf(combat, participants);
   return {
     id: combat.id,
-    round: etat.round,
-    mode: etat.mode,
-    ordre: etat.ordre,
-    courant: etat.courant,
-    ...(etat.creneaux ? { creneaux: etat.creneaux.map((camp) => ({ camp })) } : {}),
-    initiative: combat.initiative,
+    round: state.round,
+    mode: state.mode,
+    order: state.order,
+    currentIndex: state.currentIndex,
+    ...(state.slots ? { slots: state.slots.map((side) => ({ side })) } : {}),
+    initiativeRolled: combat.initiativeRolled,
     version: combat.version,
   };
 }

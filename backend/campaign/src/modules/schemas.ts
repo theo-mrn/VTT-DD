@@ -1,104 +1,109 @@
 /** Schémas Zod partagés par les routes du service. */
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { CAMPS, MODES, ROLES } from '../db/schema.js';
+import { COMBAT_MODES, ROLES, SIDES } from '../db/schema.js';
 
 export const Uuid = (message: string) => z.uuid(message).transform((s) => s.toLowerCase());
-export const IdSalle = Uuid('Identifiant de salle invalide');
-export const IdPersonnage = Uuid('Identifiant de personnage invalide');
-export const IdUtilisateur = Uuid('Identifiant d’utilisateur invalide');
-export const IdSysteme = z
+export const CampaignId = Uuid('Identifiant de campagne invalide');
+export const CharacterId = Uuid('Identifiant de personnage invalide');
+export const UserId = Uuid('Identifiant d’utilisateur invalide');
+export const SystemId = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, 'Identifiant de système invalide');
 
 export const Role = z.enum(ROLES);
-export const Camp = z.enum(CAMPS);
-export const ModeCombat = z.enum(MODES);
+export const Side = z.enum(SIDES);
+export const CombatMode = z.enum(COMBAT_MODES);
 
-export const Nom = z.string().trim().min(1, 'Nom requis').max(100, '100 caractères au plus');
+export const Name = z.string().trim().min(1, 'Nom requis').max(100, '100 caractères au plus');
 export const Description = z.string().trim().max(2000, '2000 caractères au plus');
 /** Joueurs au plus, MJ non compris (4 par défaut, comme l'ancienne app). */
-export const MaxJoueurs = z.number().int().min(1).max(50);
-export const MAX_JOUEURS_DEFAUT = 4;
+export const MaxPlayers = z.number().int().min(1).max(50);
+export const DEFAULT_MAX_PLAYERS = 4;
 
 /** Utilisateur affiché (propriétaire, auteur) : profil public d'identity. */
-export const Utilisateur = z.object({
+export const UserRef = z.object({
   id: z.string(),
-  nom: z.string().nullable(),
+  name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
 });
 
-/** Champs d'une salle communs à la liste, aux campagnes publiques et au détail. */
-const ChampsSalle = {
+/** Champs d'une campagne communs à la liste, aux campagnes publiques et au détail. */
+const CampaignFields = {
   id: z.string(),
-  nom: z.string(),
+  name: z.string(),
   description: z.string(),
-  systeme: z.object({ id: z.string(), version: z.string() }),
+  system: z.object({ id: z.string(), version: z.string() }),
   code: z.string(),
   imageUrl: z.string().nullable(),
-  maxJoueurs: z.number().int(),
-  publique: z.boolean(),
-  creationPersonnages: z.boolean(),
+  maxPlayers: z.number().int(),
+  isPublic: z.boolean(),
+  characterCreation: z.boolean(),
   /** Membres qui ne sont pas MJ (spectateurs compris) : les places occupées. */
-  joueurs: z.number().int(),
-  complete: z.boolean(),
-  proprietaire: Utilisateur,
+  playerCount: z.number().int(),
+  isFull: z.boolean(),
+  owner: UserRef,
   updatedAt: z.string(),
 };
 
-/** Salle dans une liste ; `role` vaut null si l'appelant n'en est pas membre. */
-export const ResumeSalle = z.object({
-  ...ChampsSalle,
+/** Campagne dans une liste ; `role` vaut null si l'appelant n'en est pas membre. */
+export const CampaignSummary = z.object({
+  ...CampaignFields,
   role: Role.nullable(),
-  membres: z.number().int(),
+  memberCount: z.number().int(),
 });
 
-export const Membre = z.object({
+export const Member = z.object({
   userId: z.string(),
-  nom: z.string().nullable(),
+  name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   role: Role,
 });
 
-export const CombatReponse = z.object({
+export const CombatResponse = z.object({
   id: z.string(),
   round: z.number().int(),
-  mode: ModeCombat,
-  ordre: z.array(
-    z.object({ characterId: z.string(), camp: Camp, cles: z.array(z.number()), aAgi: z.boolean() }),
+  mode: CombatMode,
+  order: z.array(
+    z.object({
+      characterId: z.string(),
+      side: Side,
+      sortKeys: z.array(z.number()),
+      hasActed: z.boolean(),
+    }),
   ),
-  courant: z.number().int(),
-  creneaux: z.array(z.object({ camp: Camp })).optional(),
-  initiative: z.boolean(),
+  currentIndex: z.number().int(),
+  slots: z.array(z.object({ side: Side })).optional(),
+  initiativeRolled: z.boolean(),
   version: z.number().int(),
 });
 
-export const SalleReponse = z.object({
-  ...ChampsSalle,
-  proprietaireId: z.string(),
+export const CampaignResponse = z.object({
+  ...CampaignFields,
+  ownerId: z.string(),
   role: Role,
-  /** Personnage incarné par l'appelant dans cette salle. */
-  personnageIncarne: z.string().nullable(),
-  membres: z.array(Membre),
-  personnages: z.array(
+  /** Personnage incarné par l'appelant dans cette campagne. */
+  playedCharacterId: z.string().nullable(),
+  members: z.array(Member),
+  characters: z.array(
     z.object({
       characterId: z.string(),
       ownerId: z.string(),
-      camp: Camp,
-      ajoutePar: z.string(),
-      incarnePar: z.string().nullable(),
+      side: Side,
+      addedBy: z.string(),
+      playedBy: z.string().nullable(),
     }),
   ),
-  combat: CombatReponse.optional(),
+  combat: CombatResponse.optional(),
   version: z.number().int(),
   createdAt: z.string(),
 });
 
 /** Contexte des événements écrits par la requête. */
-export const contexte = (req: FastifyRequest) => ({
+export const eventContext = (req: FastifyRequest) => ({
   correlationId: req.ctx.correlationId,
   traceparent: (req.headers.traceparent as string | undefined) ?? null,
 });
 
 /** Utilisateur authentifié (identifiant en minuscules, comme en base). */
-export const moi = (req: FastifyRequest) => req.user!.userId.toLowerCase();
+export const currentUser = (req: FastifyRequest) => req.user!.userId.toLowerCase();

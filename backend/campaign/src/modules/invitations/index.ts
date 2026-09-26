@@ -1,15 +1,15 @@
 /**
- * Module « invitations » : liens d'invitation d'une salle et adhésion.
+ * Module « invitations » : liens d'invitation d'une campagne et adhésion.
  *
- *   POST /v1/rooms/:id/invitations   { expireDans?, utilisations? } → { code, url, expireLe } (MJ)
- *   POST /v1/rooms/rejoindre         { code } → la salle ; l'appelant devient joueur
+ *   POST /v1/campaigns/:id/invitations   { expiresIn?, maxUses? } → { code, url, expiresAt, maxUses } (MJ)
+ *   POST /v1/campaigns/join              { code } → la campagne ; l'appelant devient joueur
  *
- * `code` est un code d'invitation (« inv_… ») ou le code court de la salle,
- * publique ou privée. Refus : 404 `salle_introuvable`, 403 `banni`,
- * 410 invitation périmée, 409 `salle_complete` (joueurs max atteint).
+ * `code` est un code d'invitation (« inv_… ») ou le code court de la
+ * campagne, publique ou privée. Refus : 404 `campaign_not_found`, 403 `banned`,
+ * 410 invitation périmée, 409 `campaign_full` (joueurs max atteint).
  *
- * `expireDans` est en secondes (7 jours par défaut, 30 jours au plus) ;
- * `utilisations` est le nombre d'adhésions permises (10 par défaut, 100 au plus).
+ * `expiresIn` est en secondes (7 jours par défaut, 30 jours au plus) ;
+ * `maxUses` est le nombre d'adhésions permises (10 par défaut, 100 au plus).
  */
 import { uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
@@ -17,26 +17,26 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { invitations, roomBans, roomMembers, rooms } from '../../db/schema.js';
+import { campaignBans, campaignInvitations, campaignMembers, campaigns } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { contexte, IdSalle, moi, SalleReponse } from '../schemas.js';
-import { FORME_CODE_SALLE, normaliserCodeSalle } from '../salles/code.js';
-import { accesMj, detailSalle, evenementSalle, joueursDe } from '../salles/depot.js';
-import { empreinte, FORME_CODE, nouveauCode } from './codes.js';
+import { CAMPAIGN_CODE_FORMAT, normalizeCampaignCode } from '../campaigns/code.js';
+import { campaignDetail, campaignEvent, gmAccess, playerCountOf } from '../campaigns/repository.js';
+import { CampaignId, CampaignResponse, currentUser, eventContext } from '../schemas.js';
+import { hashCode, INVITATION_CODE_FORMAT, newInvitationCode } from './codes.js';
 
-const JOUR = 24 * 3600;
-export const EXPIRATION_DEFAUT = 7 * JOUR;
-export const UTILISATIONS_DEFAUT = 10;
+const DAY = 24 * 3600;
+export const DEFAULT_EXPIRY = 7 * DAY;
+export const DEFAULT_MAX_USES = 10;
 
-const perimee = (detail: string, code: string) =>
+const expired = (detail: string, code: string) =>
   new HttpError(410, 'Invitation périmée', code, detail);
 
-const introuvable = () =>
+const notFound = () =>
   new HttpError(
     404,
     'Ressource introuvable',
-    'salle_introuvable',
-    'Aucune salle ni invitation ne correspond à ce code',
+    'campaign_not_found',
+    'Aucune campagne ni invitation ne correspond à ce code',
   );
 
 export const register: Module = async (app, deps) => {
@@ -45,154 +45,168 @@ export const register: Module = async (app, deps) => {
   const auth = { preValidation: app.authenticate };
 
   r.post(
-    '/v1/rooms/:id/invitations',
+    '/v1/campaigns/:id/invitations',
     {
       ...auth,
       schema: {
-        params: z.object({ id: IdSalle }),
+        params: z.object({ id: CampaignId }),
         body: z
           .object({
-            expireDans: z
+            expiresIn: z
               .number()
               .int()
               .min(60)
-              .max(30 * JOUR)
+              .max(30 * DAY)
               .optional(),
-            utilisations: z.number().int().min(1).max(100).optional(),
+            maxUses: z.number().int().min(1).max(100).optional(),
           })
           .default({}),
         response: {
           201: z.object({
             code: z.string(),
             url: z.string(),
-            expireLe: z.string(),
-            utilisations: z.number().int(),
+            expiresAt: z.string(),
+            maxUses: z.number().int(),
           }),
         },
       },
     },
     async (req, reply) => {
-      const userId = moi(req);
-      const a = await accesMj(db, req.params.id, userId);
-      const code = nouveauCode();
-      const expireLe = new Date(
-        deps.maintenant().getTime() + (req.body.expireDans ?? EXPIRATION_DEFAUT) * 1000,
+      const userId = currentUser(req);
+      const a = await gmAccess(db, req.params.id, userId);
+      const code = newInvitationCode();
+      const expiresAt = new Date(
+        deps.now().getTime() + (req.body.expiresIn ?? DEFAULT_EXPIRY) * 1000,
       );
-      const utilisations = req.body.utilisations ?? UTILISATIONS_DEFAUT;
-      await db.insert(invitations).values({
+      const maxUses = req.body.maxUses ?? DEFAULT_MAX_USES;
+      await db.insert(campaignInvitations).values({
         id: uuidv7(),
-        roomId: a.salle.id,
-        codeHash: empreinte(code),
-        creePar: userId,
-        expireLe,
-        utilisationsMax: utilisations,
+        campaignId: a.campaign.id,
+        codeHash: hashCode(code),
+        createdBy: userId,
+        expiresAt,
+        maxUses,
       });
       // Le code n'est renvoyé qu'ici, jamais journalisé ni stocké en clair
       reply.code(201).header('cache-control', 'no-store');
       return {
         code,
-        url: new URL(`/rejoindre/${code}`, deps.config.APP_URL).toString(),
-        expireLe: expireLe.toISOString(),
-        utilisations,
+        url: new URL(`/join/${code}`, deps.config.APP_URL).toString(),
+        expiresAt: expiresAt.toISOString(),
+        maxUses,
       };
     },
   );
 
   r.post(
-    '/v1/rooms/rejoindre',
+    '/v1/campaigns/join',
     {
       ...auth,
-      // Limite par IP : les codes de salle sont courts, on ne les laisse pas deviner en boucle
+      // Limite par IP : les codes de campagne sont courts, on ne les laisse pas deviner en boucle
       config: {
-        rateLimit: { max: deps.config.RATE_LIMIT_REJOINDRE_MAX, timeWindow: '1 minute' },
+        rateLimit: { max: deps.config.RATE_LIMIT_JOIN_MAX, timeWindow: '1 minute' },
       } as FastifyContextConfig,
       schema: {
         body: z.object({ code: z.string().trim().min(1).max(200) }),
-        response: { 200: SalleReponse },
+        response: { 200: CampaignResponse },
       },
     },
     async (req) => {
-      const userId = moi(req);
+      const userId = currentUser(req);
       const code = req.body.code;
-      const parInvitation = FORME_CODE.test(code);
-      const codeSalle = normaliserCodeSalle(code);
-      if (!parInvitation && !FORME_CODE_SALLE.test(codeSalle)) throw introuvable();
+      const byInvitation = INVITATION_CODE_FORMAT.test(code);
+      const campaignCode = normalizeCampaignCode(code);
+      if (!byInvitation && !CAMPAIGN_CODE_FORMAT.test(campaignCode)) throw notFound();
 
-      const salle = await db.transaction(async (tx) => {
-        let invitation: typeof invitations.$inferSelect | undefined;
-        let roomId: string | undefined;
-        if (parInvitation) {
+      const joined = await db.transaction(async (tx) => {
+        let invitation: typeof campaignInvitations.$inferSelect | undefined;
+        let campaignId: string | undefined;
+        if (byInvitation) {
           [invitation] = await tx
             .select()
-            .from(invitations)
-            .where(eq(invitations.codeHash, empreinte(code)));
-          roomId = invitation?.roomId;
+            .from(campaignInvitations)
+            .where(eq(campaignInvitations.codeHash, hashCode(code)));
+          campaignId = invitation?.campaignId;
         } else {
-          [{ id: roomId } = { id: undefined }] = await tx
-            .select({ id: rooms.id })
-            .from(rooms)
-            .where(eq(rooms.code, codeSalle));
+          [{ id: campaignId } = { id: undefined }] = await tx
+            .select({ id: campaigns.id })
+            .from(campaigns)
+            .where(eq(campaigns.code, campaignCode));
         }
-        if (!roomId) throw introuvable();
+        if (!campaignId) throw notFound();
 
-        // Salle verrouillée (toujours avant l'invitation, comme les autres routes) : deux
+        // Campagne verrouillée (toujours avant l'invitation, comme les autres routes) : deux
         // adhésions simultanées ne dépassent ni la limite de joueurs ni les utilisations
-        const [salle] = await tx.select().from(rooms).where(eq(rooms.id, roomId)).for('update');
-        if (!salle) throw introuvable();
+        const [campaign] = await tx
+          .select()
+          .from(campaigns)
+          .where(eq(campaigns.id, campaignId))
+          .for('update');
+        if (!campaign) throw notFound();
         if (invitation) {
           [invitation] = await tx
             .select()
-            .from(invitations)
-            .where(eq(invitations.id, invitation.id))
+            .from(campaignInvitations)
+            .where(eq(campaignInvitations.id, invitation.id))
             .for('update');
-          if (!invitation) throw introuvable();
+          if (!invitation) throw notFound();
         }
-        const [deja] = await tx
+        const [already] = await tx
           .select()
-          .from(roomMembers)
-          .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)));
-        // Déjà membre : rien à consommer, on renvoie la salle
-        if (deja) return { salle, role: deja.role };
+          .from(campaignMembers)
+          .where(
+            and(eq(campaignMembers.campaignId, campaignId), eq(campaignMembers.userId, userId)),
+          );
+        // Déjà membre : rien à consommer, on renvoie la campagne
+        if (already) return { campaign, role: already.role };
 
-        const [banni] = await tx
+        const [banned] = await tx
           .select()
-          .from(roomBans)
-          .where(and(eq(roomBans.roomId, roomId), eq(roomBans.userId, userId)));
-        if (banni)
-          throw new HttpError(403, 'Accès refusé', 'banni', 'Vous avez été banni de cette salle');
+          .from(campaignBans)
+          .where(and(eq(campaignBans.campaignId, campaignId), eq(campaignBans.userId, userId)));
+        if (banned)
+          throw new HttpError(
+            403,
+            'Accès refusé',
+            'banned',
+            'Vous avez été banni de cette campagne',
+          );
 
         if (invitation) {
-          if (invitation.expireLe.getTime() <= deps.maintenant().getTime())
-            throw perimee('Cette invitation a expiré', 'invitation_expiree');
-          if (invitation.utilisations >= invitation.utilisationsMax)
-            throw perimee(
+          if (invitation.expiresAt.getTime() <= deps.now().getTime())
+            throw expired('Cette invitation a expiré', 'invitation_expired');
+          if (invitation.uses >= invitation.maxUses)
+            throw expired(
               'Cette invitation a atteint son nombre d’utilisations',
-              'invitation_epuisee',
+              'invitation_exhausted',
             );
         }
-        if ((await joueursDe(tx, roomId)) >= salle.maxJoueurs)
-          throw HttpError.conflict('Cette salle a atteint sa limite de joueurs', 'salle_complete');
+        if ((await playerCountOf(tx, campaignId)) >= campaign.maxPlayers)
+          throw HttpError.conflict(
+            'Cette campagne a atteint sa limite de joueurs',
+            'campaign_full',
+          );
 
         if (invitation)
           await tx
-            .update(invitations)
-            .set({ utilisations: sql`${invitations.utilisations} + 1` })
-            .where(eq(invitations.id, invitation.id));
-        await tx.insert(roomMembers).values({ roomId, userId, role: 'joueur' });
-        await evenementSalle(tx, contexte(req), {
-          type: 'room.member_joined',
-          roomId,
+            .update(campaignInvitations)
+            .set({ uses: sql`${campaignInvitations.uses} + 1` })
+            .where(eq(campaignInvitations.id, invitation.id));
+        await tx.insert(campaignMembers).values({ campaignId, userId, role: 'player' });
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.member_joined',
+          campaignId,
           userId,
-          role: 'joueur',
+          role: 'player',
           payload: {
             userId,
-            role: 'joueur',
-            ...(invitation ? { invitationId: invitation.id } : { parCodeSalle: true }),
+            role: 'player',
+            ...(invitation ? { invitationId: invitation.id } : { byCampaignCode: true }),
           },
         });
-        return { salle, role: 'joueur' as const };
+        return { campaign, role: 'player' as const };
       });
-      return detailSalle(deps, salle, req);
+      return campaignDetail(deps, joined, req);
     },
   );
 };

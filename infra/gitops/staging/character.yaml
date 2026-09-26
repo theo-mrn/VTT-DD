@@ -13,7 +13,7 @@ env:
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
-  # Droits des MJ et des joueurs sur les personnages engagés dans leurs salles
+  # Droits des MJ et des joueurs sur les personnages engagés dans leurs campagnes
   CAMPAIGN_URL: http://campaign.vtt-staging.svc
 # Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc), INTERNAL_API_SECRET
 # (même valeur que campaign)

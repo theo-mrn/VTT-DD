@@ -5,12 +5,12 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 
-export const FORME_CODE = /^inv_[A-Za-z0-9_-]{27}$/;
+export const INVITATION_CODE_FORMAT = /^inv_[A-Za-z0-9_-]{27}$/;
 
-export function nouveauCode(): string {
+export function newInvitationCode(): string {
   return `inv_${randomBytes(20).toString('base64url')}`;
 }
 
-export function empreinte(code: string): string {
+export function hashCode(code: string): string {
   return createHash('sha256').update(code, 'utf8').digest('hex');
 }

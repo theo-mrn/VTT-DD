@@ -6,66 +6,58 @@ import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { outbox } from '../../db/schema.js';
 import {
-  appDeTest,
-  outils,
+  helpers,
   TEST_DATABASE_URL,
-  type Contexte,
-  type Utilisateur,
-} from '../../test/app-de-test.js';
+  testApp,
+  type TestContext,
+  type TestUser,
+} from '../../test/test-app.js';
 
 interface Session {
   id: string;
   date: string;
-  titre: string | null;
+  title: string | null;
 }
 
-const JOUR = 24 * 3600 * 1000;
-const dans = (ms: number) => new Date(Date.now() + ms).toISOString();
+const DAY = 24 * 3600 * 1000;
+const inMs = (ms: number) => new Date(Date.now() + ms).toISOString();
 
 describe.skipIf(!TEST_DATABASE_URL)('sessions prévues', () => {
-  let t: Contexte;
-  let o: ReturnType<typeof outils>;
-  let mj: Utilisateur;
-  let joueur: Utilisateur;
+  let t: TestContext;
+  let h: ReturnType<typeof helpers>;
+  let gm: TestUser;
+  let player: TestUser;
 
   beforeEach(async () => {
-    t = await appDeTest();
-    o = outils(t);
-    mj = await t.utilisateur();
-    joueur = await t.utilisateur();
+    t = await testApp();
+    h = helpers(t);
+    gm = await t.user();
+    player = await t.user();
   });
 
   afterEach(async () => {
-    await t.fermer();
+    await t.close();
   });
 
   it('le MJ planifie, les membres lisent dans l’ordre, le MJ annule', async () => {
-    const id = await o.salle(mj, 'dnd-classic', [joueur]);
-    const deux = await o.requete(mj, 'POST', `/v1/rooms/${id}/sessions`, {
-      date: dans(2 * JOUR),
-      titre: '  Le donjon  ',
+    const id = await h.campaign(gm, 'dnd-classic', [player]);
+    const url = `/v1/campaigns/${id}/sessions`;
+    const second = await h.request(gm, 'POST', url, {
+      date: inMs(2 * DAY),
+      title: '  Le donjon  ',
     });
-    expect(deux.statusCode, deux.body).toBe(201);
-    expect(deux.json()).toMatchObject({ titre: 'Le donjon' });
-    const une = await o.ok<Session>(mj, 'POST', `/v1/rooms/${id}/sessions`, {
-      date: dans(JOUR),
-      titre: '',
-    });
-    expect(une.titre).toBeNull();
+    expect(second.statusCode, second.body).toBe(201);
+    expect(second.json()).toMatchObject({ title: 'Le donjon' });
+    const first = await h.ok<Session>(gm, 'POST', url, { date: inMs(DAY), title: '' });
+    expect(first.title).toBeNull();
 
-    const liste = await o.ok<Session[]>(joueur, 'GET', `/v1/rooms/${id}/sessions`);
-    expect(liste.map((s) => s.id)).toEqual([une.id, (deux.json() as Session).id]);
+    const list = await h.ok<Session[]>(player, 'GET', url);
+    expect(list.map((s) => s.id)).toEqual([first.id, (second.json() as Session).id]);
 
-    expect(
-      (await o.requete(joueur, 'DELETE', `/v1/rooms/${id}/sessions/${une.id}`)).statusCode,
-    ).toBe(403);
-    expect((await o.requete(mj, 'DELETE', `/v1/rooms/${id}/sessions/${une.id}`)).statusCode).toBe(
-      204,
-    );
-    expect((await o.requete(mj, 'DELETE', `/v1/rooms/${id}/sessions/${une.id}`)).statusCode).toBe(
-      404,
-    );
-    expect(await o.ok<Session[]>(joueur, 'GET', `/v1/rooms/${id}/sessions`)).toHaveLength(1);
+    expect((await h.request(player, 'DELETE', `${url}/${first.id}`)).statusCode).toBe(403);
+    expect((await h.request(gm, 'DELETE', `${url}/${first.id}`)).statusCode).toBe(204);
+    expect((await h.request(gm, 'DELETE', `${url}/${first.id}`)).statusCode).toBe(404);
+    expect(await h.ok<Session[]>(player, 'GET', url)).toHaveLength(1);
 
     const types = (
       await t
@@ -73,36 +65,35 @@ describe.skipIf(!TEST_DATABASE_URL)('sessions prévues', () => {
         .from(outbox)
         .where(sql`${outbox.envelope}->>'roomId' = ${id}`)
     ).map((e) => e.type);
-    expect(types.filter((x) => x.startsWith('room.session_')).sort()).toEqual([
-      'room.session_cancelled',
-      'room.session_scheduled',
-      'room.session_scheduled',
+    expect(types.filter((x) => x.startsWith('campaign.session_')).sort()).toEqual([
+      'campaign.session_cancelled',
+      'campaign.session_scheduled',
+      'campaign.session_scheduled',
     ]);
   });
 
   it('refus : joueur, non-membre, date passée ou invalide, titre trop long', async () => {
-    const id = await o.salle(mj, 'dnd-classic', [joueur]);
-    const url = `/v1/rooms/${id}/sessions`;
-    expect((await o.requete(joueur, 'POST', url, { date: dans(JOUR) })).statusCode).toBe(403);
-    const etranger = await t.utilisateur();
-    expect((await o.requete(etranger, 'GET', url)).statusCode).toBe(404);
-    expect((await o.requete(mj, 'POST', url, { date: dans(-60_000) })).json()).toMatchObject({
+    const id = await h.campaign(gm, 'dnd-classic', [player]);
+    const url = `/v1/campaigns/${id}/sessions`;
+    expect((await h.request(player, 'POST', url, { date: inMs(DAY) })).statusCode).toBe(403);
+    const stranger = await t.user();
+    expect((await h.request(stranger, 'GET', url)).statusCode).toBe(404);
+    expect((await h.request(gm, 'POST', url, { date: inMs(-60_000) })).json()).toMatchObject({
       status: 400,
-      code: 'date_passee',
+      code: 'date_in_past',
     });
-    for (const corps of [{ date: 'demain' }, { date: dans(JOUR), titre: 'x'.repeat(101) }, {}]) {
-      expect((await o.requete(mj, 'POST', url, corps)).statusCode).toBe(400);
+    for (const body of [{ date: 'demain' }, { date: inMs(DAY), title: 'x'.repeat(101) }, {}]) {
+      expect((await h.request(gm, 'POST', url, body)).statusCode).toBe(400);
     }
-    expect((await o.requete(mj, 'DELETE', `/v1/rooms/${id}/sessions/pas-un-uuid`)).statusCode).toBe(
-      400,
-    );
+    expect((await h.request(gm, 'DELETE', `${url}/pas-un-uuid`)).statusCode).toBe(400);
   });
 
   it('une session passée n’est plus listée', async () => {
-    const id = await o.salle(mj);
-    await o.ok(mj, 'POST', `/v1/rooms/${id}/sessions`, { date: dans(3600_000) });
-    await o.ok(mj, 'POST', `/v1/rooms/${id}/sessions`, { date: dans(3 * 3600_000) });
-    t.avancer(2 * 3600_000);
-    expect(await o.ok<Session[]>(mj, 'GET', `/v1/rooms/${id}/sessions`)).toHaveLength(1);
+    const id = await h.campaign(gm);
+    const url = `/v1/campaigns/${id}/sessions`;
+    await h.ok(gm, 'POST', url, { date: inMs(3600_000) });
+    await h.ok(gm, 'POST', url, { date: inMs(3 * 3600_000) });
+    t.advance(2 * 3600_000);
+    expect(await h.ok<Session[]>(gm, 'GET', url)).toHaveLength(1);
   });
 });

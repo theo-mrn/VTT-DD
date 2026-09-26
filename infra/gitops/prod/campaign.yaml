@@ -16,9 +16,9 @@ env:
   # Routes internes de character (engagement, initiative, durées) et profils d'identity
   CHARACTER_URL: http://character.vtt-prod.svc
   IDENTITY_URL: http://identity.vtt-prod.svc
-  # Liens d'invitation <APP_URL>/rejoindre/<code>
+  # Liens d'invitation <APP_URL>/join/<code>
   APP_URL: https://yner.fr
-  # Images des salles : même bucket qu'identity (dossier rooms/). La signature des URL
+  # Images des campagnes : même bucket qu'identity (dossier campaigns/). La signature des URL
   # d'envoi se calcule sur place : aucun flux réseau vers le stockage depuis le pod.
   S3_REGION: auto
 # Secret campaign-secrets (SOPS) : DATABASE_URL (rôle campaign_svc), INTERNAL_API_SECRET
@@ -36,7 +36,7 @@ networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
-    # character demande les droits des salles (/internal, secret partagé)
+    # character demande les droits des campagnes (/internal, secret partagé)
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
 migrations:
   enabled: true

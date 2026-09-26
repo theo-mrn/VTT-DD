@@ -1,151 +1,156 @@
 /**
- * Module « messages » : discussion de la salle (ancienne sous-collection
+ * Module « messages » : discussion de la campagne (ancienne sous-collection
  * Salle/{id}/chat). Lue en polling en attendant le service realtime : les
- * événements room.message_* sont déjà écrits dans l'outbox.
+ * événements campaign.message_* sont déjà écrits dans l'outbox.
  *
- *   GET    /v1/rooms/:id/messages?avant=&apres=&limite=   (membres)
- *   POST   /v1/rooms/:id/messages                         { texte } (membres)
- *   DELETE /v1/rooms/:id/messages/:messageId              (auteur ou MJ)
+ *   GET    /v1/campaigns/:id/messages?before=&after=&limit=   (membres)
+ *   POST   /v1/campaigns/:id/messages                         { body } (membres)
+ *   DELETE /v1/campaigns/:id/messages/:messageId              (auteur ou MJ)
  *
  * Les messages sont renvoyés du plus ancien au plus récent. Sans curseur : les
- * `limite` derniers ; `avant` : la page précédente (messages plus anciens) ;
- * `apres` : les nouveaux messages depuis le dernier reçu (polling).
+ * `limit` derniers ; `before` : la page précédente (messages plus anciens) ;
+ * `after` : les nouveaux messages depuis le dernier reçu (polling).
  */
 import { uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, count, desc, eq, gt, lt, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { roomMessages } from '../../db/schema.js';
+import { campaignMessages } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { acces, evenementSalle, utilisateurApi } from '../salles/depot.js';
-import { contexte, IdSalle, moi, Utilisateur, Uuid } from '../schemas.js';
+import { access, campaignEvent, userApi } from '../campaigns/repository.js';
+import { CampaignId, currentUser, eventContext, UserRef, Uuid } from '../schemas.js';
 
-export const TEXTE_MAX = 1000;
-export const LIMITE_DEFAUT = 50;
-export const LIMITE_MAX = 100;
+export const MAX_BODY = 1000;
+export const DEFAULT_LIMIT = 50;
+export const MAX_LIMIT = 100;
 
-const IdMessage = Uuid('Identifiant de message invalide');
+const MessageId = Uuid('Identifiant de message invalide');
 
 const Message = z.object({
   id: z.string(),
-  auteur: Utilisateur,
-  texte: z.string(),
+  author: UserRef,
+  body: z.string(),
   createdAt: z.string(),
 });
 
-type LigneMessage = typeof roomMessages.$inferSelect;
+type MessageRow = typeof campaignMessages.$inferSelect;
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
   const auth = { preValidation: app.authenticate };
 
-  async function messagesApi(lignes: LigneMessage[], authorization: string | undefined) {
-    const profils = await deps.profils.profils(
-      [...new Set(lignes.map((m) => m.auteurId))],
+  async function messagesApi(rows: MessageRow[], authorization: string | undefined) {
+    const profiles = await deps.profiles.profiles(
+      [...new Set(rows.map((m) => m.authorId))],
       authorization,
     );
-    return lignes.map((m) => ({
+    return rows.map((m) => ({
       id: m.id,
-      auteur: utilisateurApi(m.auteurId, profils),
-      texte: m.texte,
+      author: userApi(m.authorId, profiles),
+      body: m.body,
       createdAt: m.createdAt.toISOString(),
     }));
   }
 
   r.get(
-    '/v1/rooms/:id/messages',
+    '/v1/campaigns/:id/messages',
     {
       ...auth,
       schema: {
-        params: z.object({ id: IdSalle }),
+        params: z.object({ id: CampaignId }),
         querystring: z
           .object({
-            avant: IdMessage.optional(),
-            apres: IdMessage.optional(),
-            limite: z.coerce.number().int().min(1).max(LIMITE_MAX).default(LIMITE_DEFAUT),
+            before: MessageId.optional(),
+            after: MessageId.optional(),
+            limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
           })
-          .refine((q) => !(q.avant && q.apres), 'avant et apres ne se combinent pas'),
+          .refine((q) => !(q.before && q.after), 'before et after ne se combinent pas'),
         response: { 200: z.array(Message) },
       },
     },
     async (req) => {
-      const a = await acces(db, req.params.id, moi(req));
-      const { avant, apres, limite } = req.query;
-      const dansLaSalle = eq(roomMessages.roomId, a.salle.id);
-      let lignes: LigneMessage[];
-      if (apres) {
-        lignes = await db
+      const a = await access(db, req.params.id, currentUser(req));
+      const { before, after, limit } = req.query;
+      const inCampaign = eq(campaignMessages.campaignId, a.campaign.id);
+      let rows: MessageRow[];
+      if (after) {
+        rows = await db
           .select()
-          .from(roomMessages)
-          .where(and(dansLaSalle, gt(roomMessages.id, apres)))
-          .orderBy(asc(roomMessages.id))
-          .limit(limite);
+          .from(campaignMessages)
+          .where(and(inCampaign, gt(campaignMessages.id, after)))
+          .orderBy(asc(campaignMessages.id))
+          .limit(limit);
       } else {
-        lignes = (
+        rows = (
           await db
             .select()
-            .from(roomMessages)
-            .where(and(dansLaSalle, avant ? lt(roomMessages.id, avant) : undefined))
-            .orderBy(desc(roomMessages.id))
-            .limit(limite)
+            .from(campaignMessages)
+            .where(and(inCampaign, before ? lt(campaignMessages.id, before) : undefined))
+            .orderBy(desc(campaignMessages.id))
+            .limit(limit)
         ).reverse();
       }
-      return messagesApi(lignes, req.headers.authorization);
+      return messagesApi(rows, req.headers.authorization);
     },
   );
 
   r.post(
-    '/v1/rooms/:id/messages',
+    '/v1/campaigns/:id/messages',
     {
       ...auth,
       schema: {
-        params: z.object({ id: IdSalle }),
+        params: z.object({ id: CampaignId }),
         body: z.object({
-          texte: z
+          body: z
             .string()
             .trim()
             .min(1, 'Message vide')
-            .max(TEXTE_MAX, `${TEXTE_MAX} caractères au plus`),
+            .max(MAX_BODY, `${MAX_BODY} caractères au plus`),
         }),
         response: { 201: Message },
       },
     },
     async (req, reply) => {
-      const userId = moi(req);
+      const userId = currentUser(req);
       const message = await db.transaction(async (tx) => {
-        const a = await acces(tx, req.params.id, userId);
-        // Débit par membre et par salle, compté en base : vaut pour toutes les instances
-        const [recents] = await tx
+        const a = await access(tx, req.params.id, userId);
+        // Débit par membre et par campagne, compté en base : vaut pour toutes les instances
+        const [recent] = await tx
           .select({ n: count() })
-          .from(roomMessages)
+          .from(campaignMessages)
           .where(
             and(
-              eq(roomMessages.roomId, a.salle.id),
-              eq(roomMessages.auteurId, userId),
-              gt(roomMessages.createdAt, sql`now() - interval '1 minute'`),
+              eq(campaignMessages.campaignId, a.campaign.id),
+              eq(campaignMessages.authorId, userId),
+              gt(campaignMessages.createdAt, sql`now() - interval '1 minute'`),
             ),
           );
-        if (recents!.n >= deps.config.RATE_LIMIT_MESSAGES_MAX) {
+        if (recent!.n >= deps.config.RATE_LIMIT_MESSAGES_MAX) {
           reply.header('retry-after', '60');
           throw new HttpError(
             429,
             'Trop de requêtes',
-            'trop_de_messages',
+            'too_many_messages',
             'Trop de messages en peu de temps : patientez un instant',
           );
         }
         const [message] = await tx
-          .insert(roomMessages)
-          .values({ id: uuidv7(), roomId: a.salle.id, auteurId: userId, texte: req.body.texte })
+          .insert(campaignMessages)
+          .values({
+            id: uuidv7(),
+            campaignId: a.campaign.id,
+            authorId: userId,
+            body: req.body.body,
+          })
           .returning();
-        await evenementSalle(tx, contexte(req), {
-          type: 'room.message_posted',
-          roomId: a.salle.id,
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.message_posted',
+          campaignId: a.campaign.id,
           userId,
           role: a.role,
-          payload: { id: message!.id, auteurId: userId, texte: message!.texte },
+          payload: { id: message!.id, authorId: userId, body: message!.body },
         });
         return message!;
       });
@@ -156,28 +161,31 @@ export const register: Module = async (app, deps) => {
   );
 
   r.delete(
-    '/v1/rooms/:id/messages/:messageId',
-    { ...auth, schema: { params: z.object({ id: IdSalle, messageId: IdMessage }) } },
+    '/v1/campaigns/:id/messages/:messageId',
+    { ...auth, schema: { params: z.object({ id: CampaignId, messageId: MessageId }) } },
     async (req, reply) => {
-      const userId = moi(req);
+      const userId = currentUser(req);
       await db.transaction(async (tx) => {
-        const a = await acces(tx, req.params.id, userId);
+        const a = await access(tx, req.params.id, userId);
         const [message] = await tx
           .select()
-          .from(roomMessages)
+          .from(campaignMessages)
           .where(
-            and(eq(roomMessages.roomId, a.salle.id), eq(roomMessages.id, req.params.messageId)),
+            and(
+              eq(campaignMessages.campaignId, a.campaign.id),
+              eq(campaignMessages.id, req.params.messageId),
+            ),
           );
         if (!message) throw HttpError.notFound('Message introuvable');
-        if (message.auteurId !== userId && a.role !== 'mj')
+        if (message.authorId !== userId && a.role !== 'gm')
           throw HttpError.forbidden('Seuls l’auteur et le MJ suppriment ce message');
-        await tx.delete(roomMessages).where(eq(roomMessages.id, message.id));
-        await evenementSalle(tx, contexte(req), {
-          type: 'room.message_deleted',
-          roomId: a.salle.id,
+        await tx.delete(campaignMessages).where(eq(campaignMessages.id, message.id));
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.message_deleted',
+          campaignId: a.campaign.id,
           userId,
           role: a.role,
-          payload: { id: message.id, auteurId: message.auteurId },
+          payload: { id: message.id, authorId: message.authorId },
         });
       });
       reply.code(204);

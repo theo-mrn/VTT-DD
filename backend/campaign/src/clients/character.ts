@@ -4,14 +4,17 @@
  *  - résumé d'un personnage (propriétaire, système) avant de l'engager ;
  *  - action d'initiative d'un participant (clés de tri renvoyées) ;
  *  - décompte des durées en fin de round.
+ *
+ * Le contrat de ces routes appartient à character (champs en français) : ce
+ * client le traduit en types anglais pour le reste du service.
  */
 import { HttpError } from '@vtt/platform';
 import { z } from 'zod';
-import { EN_TETE_SECRET_INTERNE } from '../interne/secret.js';
+import { INTERNAL_SECRET_HEADER } from '../internal/secret.js';
 
-const DELAI_MS = 5_000;
+const TIMEOUT_MS = 5_000;
 
-const Resume = z.object({
+const SummaryResponse = z.object({
   id: z.string(),
   ownerId: z.string(),
   nom: z.string(),
@@ -25,145 +28,187 @@ const Resume = z.object({
    */
   creation: z.boolean().default(false),
 });
-export type ResumePersonnage = z.infer<typeof Resume>;
 
-const Action = z.object({ resultat: z.unknown(), cles: z.array(z.number()).optional() });
-export type ActionJouee = z.infer<typeof Action>;
+export interface CharacterSummary {
+  id: string;
+  ownerId: string;
+  name: string;
+  avatarUrl: string | null;
+  system: { id: string; version: string };
+  type: string;
+  inCreation: boolean;
+}
 
-const Decompte = z.object({
+const ActionResponse = z.object({ resultat: z.unknown(), cles: z.array(z.number()).optional() });
+
+export interface PlayedAction {
+  result: unknown;
+  sortKeys?: number[];
+}
+
+const DurationsResponse = z.object({
   modifie: z.boolean(),
   retirees: z.array(z.string()),
   version: z.number(),
 });
-export type Decompte = z.infer<typeof Decompte>;
 
-/** Origine d'un appel : MJ déclencheur, salle, corrélation (reprise dans les événements). */
-export interface Origine {
+export interface DurationsTick {
+  changed: boolean;
+  /** Entrées (états temporaires) arrivées à expiration. */
+  expired: string[];
+  version: number;
+}
+
+/** Origine d'un appel : MJ déclencheur, campagne, corrélation (reprise dans les événements). */
+export interface CallOrigin {
   userId?: string;
-  roomId?: string;
+  campaignId?: string;
   correlationId?: string;
 }
 
 /** Refus de character (4xx) ou panne (status 0 : injoignable, 5xx). */
-export class ErreurCharacter extends Error {
+export class CharacterError extends Error {
   constructor(
     public readonly status: number,
     message: string,
     public readonly code?: string,
   ) {
     super(message);
-    this.name = 'ErreurCharacter';
+    this.name = 'CharacterError';
   }
-  get refus() {
+  get rejected() {
     return this.status >= 400 && this.status < 500;
   }
 }
 
-export interface ClientCharacter {
+export interface CharacterClient {
   /** Résumé d'un personnage actif ; `null` s'il n'existe pas (ou plus). */
-  resume(id: string, origine?: Origine): Promise<ResumePersonnage | null>;
+  summary(id: string, origin?: CallOrigin): Promise<CharacterSummary | null>;
   action(
     id: string,
     action: string,
-    corps: { parametres?: Record<string, unknown>; appliquer?: boolean },
-    origine?: Origine,
-  ): Promise<ActionJouee>;
-  decompterDurees(id: string, origine?: Origine): Promise<Decompte>;
+    body: { params?: Record<string, unknown>; apply?: boolean },
+    origin?: CallOrigin,
+  ): Promise<PlayedAction>;
+  tickDurations(id: string, origin?: CallOrigin): Promise<DurationsTick>;
 }
 
 /** Sans CHARACTER_URL ou sans secret : toute demande répond 503. */
-export const characterAbsent: ClientCharacter = {
-  resume: async () => {
-    throw indisponible();
+export const characterUnavailable: CharacterClient = {
+  summary: async () => {
+    throw unavailable();
   },
   action: async () => {
-    throw indisponible();
+    throw unavailable();
   },
-  decompterDurees: async () => {
-    throw indisponible();
+  tickDurations: async () => {
+    throw unavailable();
   },
 };
 
-function indisponible() {
+function unavailable() {
   return new HttpError(
     503,
     'Service indisponible',
-    'character_indisponible',
+    'character_unavailable',
     'Le service des personnages n’est pas configuré',
   );
 }
 
-export function clientCharacter(o: {
+export function characterClient(o: {
   url: string;
   secret: string;
   fetch?: typeof globalThis.fetch;
-}): ClientCharacter {
-  const appel = o.fetch ?? globalThis.fetch;
+}): CharacterClient {
+  const doFetch = o.fetch ?? globalThis.fetch;
 
-  async function requete<S extends z.ZodType>(
-    methode: 'GET' | 'POST',
-    chemin: string,
+  async function request<S extends z.ZodType>(
+    method: 'GET' | 'POST',
+    path: string,
     schema: S,
-    origine: Origine | undefined,
-    corps?: object,
+    origin: CallOrigin | undefined,
+    body?: object,
   ): Promise<z.output<S>> {
     let res: Response;
     try {
-      res = await appel(new URL(chemin, o.url), {
-        method: methode,
+      res = await doFetch(new URL(path, o.url), {
+        method,
         headers: {
-          [EN_TETE_SECRET_INTERNE]: o.secret,
+          [INTERNAL_SECRET_HEADER]: o.secret,
           accept: 'application/json',
-          ...(corps ? { 'content-type': 'application/json' } : {}),
-          ...(origine?.correlationId ? { 'x-correlation-id': origine.correlationId } : {}),
+          ...(body ? { 'content-type': 'application/json' } : {}),
+          ...(origin?.correlationId ? { 'x-correlation-id': origin.correlationId } : {}),
         },
-        ...(corps ? { body: JSON.stringify(corps) } : {}),
-        signal: AbortSignal.timeout(DELAI_MS),
+        ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (e) {
-      throw new ErreurCharacter(0, `character injoignable : ${(e as Error).message}`);
+      throw new CharacterError(0, `character injoignable : ${(e as Error).message}`);
     }
     if (!res.ok) {
-      const probleme = (await res.json().catch(() => ({}))) as { detail?: string; code?: string };
-      throw new ErreurCharacter(
+      const problem = (await res.json().catch(() => ({}))) as { detail?: string; code?: string };
+      throw new CharacterError(
         res.status,
-        probleme.detail ?? `character a répondu ${res.status}`,
-        probleme.code,
+        problem.detail ?? `character a répondu ${res.status}`,
+        problem.code,
       );
     }
     return schema.parse(await res.json());
   }
 
-  const origineCorps = (origine?: Origine) => ({
-    ...(origine?.userId ? { userId: origine.userId } : {}),
-    ...(origine?.roomId ? { roomId: origine.roomId } : {}),
+  // `roomId` : nom du champ dans le contrat de character (enveloppe d'événement commune)
+  const originBody = (origin?: CallOrigin) => ({
+    ...(origin?.userId ? { userId: origin.userId } : {}),
+    ...(origin?.campaignId ? { roomId: origin.campaignId } : {}),
   });
   const id = (v: string) => encodeURIComponent(v);
 
   return {
-    async resume(personnage, origine) {
+    async summary(characterId, origin) {
       try {
-        return await requete('GET', `/internal/characters/${id(personnage)}`, Resume, origine);
+        const r = await request(
+          'GET',
+          `/internal/characters/${id(characterId)}`,
+          SummaryResponse,
+          origin,
+        );
+        return {
+          id: r.id,
+          ownerId: r.ownerId,
+          name: r.nom,
+          avatarUrl: r.avatarUrl,
+          system: r.systeme,
+          type: r.type,
+          inCreation: r.creation,
+        };
       } catch (e) {
-        if (e instanceof ErreurCharacter && e.status === 404) return null;
+        if (e instanceof CharacterError && e.status === 404) return null;
         throw e;
       }
     },
-    action: (personnage, action, corps, origine) =>
-      requete(
+    async action(characterId, action, body, origin) {
+      const r = await request(
         'POST',
-        `/internal/characters/${id(personnage)}/actions/${id(action)}`,
-        Action,
-        origine,
-        { ...corps, ...origineCorps(origine) },
-      ),
-    decompterDurees: (personnage, origine) =>
-      requete(
+        `/internal/characters/${id(characterId)}/actions/${id(action)}`,
+        ActionResponse,
+        origin,
+        {
+          ...(body.apply !== undefined ? { appliquer: body.apply } : {}),
+          ...(body.params ? { parametres: body.params } : {}),
+          ...originBody(origin),
+        },
+      );
+      return { result: r.resultat, ...(r.cles ? { sortKeys: r.cles } : {}) };
+    },
+    async tickDurations(characterId, origin) {
+      const r = await request(
         'POST',
-        `/internal/characters/${id(personnage)}/durees/decompter`,
-        Decompte,
-        origine,
-        origineCorps(origine),
-      ),
+        `/internal/characters/${id(characterId)}/durees/decompter`,
+        DurationsResponse,
+        origin,
+        originBody(origin),
+      );
+      return { changed: r.modifie, expired: r.retirees, version: r.version };
+    },
   };
 }

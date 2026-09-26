@@ -24,7 +24,8 @@ export async function appendEvent(
     aggregate: { type: string; id: string };
     payload: Record<string, unknown>;
     visibility?: Visibility;
-    roomId?: string | null;
+    /** Campagne concernée : champ `roomId` de l'enveloppe commune (sujet vtt.<id>.…). */
+    campaignId?: string | null;
   },
 ): Promise<EventEnvelope> {
   // Validé contre le contrat partagé : un événement mal formé fait échouer la transaction
@@ -33,7 +34,7 @@ export async function appendEvent(
     type: event.type,
     version: 1,
     occurredAt: new Date().toISOString(),
-    roomId: event.roomId ?? null,
+    roomId: event.campaignId ?? null,
     actor: event.actor,
     aggregate: event.aggregate,
     visibility: event.visibility ?? 'public',

@@ -1,18 +1,19 @@
 /**
- * Documents de l'ancienne app (Firestore) utiles aux salles, tels que les
+ * Documents de l'ancienne app (Firestore) utiles aux campagnes, tels que les
  * exporte tools/firebase-export : une ligne NDJSON par document,
  * `{"path": "Salle/123456", "id": "123456", "data": {...}}`, les types
- * Firestore étant balisés (`{"$timestamp": "…"}`).
+ * Firestore étant balisés (`{"$timestamp": "…"}`). Les noms de collections et
+ * de champs sont ceux de l'ancienne app : ils ne se traduisent pas.
  *
  * Formes déduites du code legacy (legacy/src) :
- *  - salle : `Salle/{code}`, écrite par app/creer/page.tsx (et la route
+ *  - campagne : `Salle/{code}`, écrite par app/creer/page.tsx (et la route
  *    api/discord/create-room), modifiée par home/components/RoomSettingsManager
  *    et RoomUsersManager (`bannedUsers`) ;
  *  - sessions : `Salle/{code}/sessions/{id}` (home/components/RoomSessions.tsx) ;
  *  - discussion : `Salle/{code}/chat/{id}` (home/components/RoomChat.tsx). La
- *    discussion de la carte (`rooms/{code}/chat`) n'est pas celle de la salle ;
- *  - membres : `users/{uid}/rooms/{code}` (salles rejointes ou créées),
- *    `users/{uid}.room_id` (salle ouverte en dernier), et
+ *    discussion de la carte (`rooms/{code}/chat`) n'est pas celle de la campagne ;
+ *  - membres : `users/{uid}/rooms/{code}` (campagnes rejointes ou créées),
+ *    `users/{uid}.room_id` (campagne ouverte en dernier), et
  *    `salles/{code}/Noms/{uid}` : `nom` vaut « MJ » pour qui est entré comme
  *    MJ, sinon le `Nomperso` du personnage choisi (app/personnages/page.tsx) ;
  *  - personnage joué : `users/{uid}.persoId` (id du personnage dans
@@ -20,14 +21,14 @@
  */
 
 /** Une ligne de l'export NDJSON. */
-export interface DocFirestore<T = Record<string, unknown>> {
+export interface FirestoreDoc<T = Record<string, unknown>> {
   path: string;
   id: string;
   data: T;
 }
 
 /** `Salle/{code}`. */
-export interface SalleLegacy {
+export interface LegacyCampaign {
   title?: string;
   description?: string;
   maxPlayers?: number | string;
@@ -39,51 +40,51 @@ export interface SalleLegacy {
   bannedUsers?: string[];
   /** `dnd-classic`, id d'un document `gameSystems`, ou `custom_{code}`. Absent : D&D. */
   gameSystemId?: string;
-  [cle: string]: unknown;
+  [key: string]: unknown;
 }
 
 /** `Salle/{code}/sessions/{id}`. */
-export interface SessionLegacy {
+export interface LegacySession {
   date?: unknown;
 }
 
 /** `Salle/{code}/chat/{id}`. */
-export interface MessageLegacy {
+export interface LegacyMessage {
   uid?: string;
   senderName?: string;
   text?: string;
   timestamp?: unknown;
 }
 
-/** `users/{uid}` (seuls les champs de salle). */
-export interface UtilisateurLegacy {
+/** `users/{uid}` (seuls les champs de campagne). */
+export interface LegacyUser {
   room_id?: string;
   persoId?: string | null;
   perso?: string | null;
-  [cle: string]: unknown;
+  [key: string]: unknown;
 }
 
 /** `salles/{code}/Noms/{uid}`. */
-export interface NomLegacy {
+export interface LegacyName {
   /** « MJ », `Nomperso` du personnage joué, ou null (personnage supprimé). */
   nom?: string | null;
 }
 
-/** `cartes/{code}/characters/{id}` (seuls les champs utiles aux salles). */
-export interface PersonnageLegacy {
+/** `cartes/{code}/characters/{id}` (seuls les champs utiles aux campagnes). */
+export interface LegacyCharacter {
   Nomperso?: string;
   /** 'joueurs' pour un personnage joueur ; autre valeur (ou absent) pour un PNJ. */
   type?: string;
-  [cle: string]: unknown;
+  [key: string]: unknown;
 }
 
 /** Valeur de `salles/{code}/Noms/{uid}.nom` pour qui est entré comme MJ. */
-export const NOM_MJ = 'MJ';
+export const GM_NAME = 'MJ';
 
 // ─── Lectures tolérantes ─────────────────────────────────────────────────────
 
 /** Nombre fini, y compris écrit en chaîne ("12") ; `undefined` sinon. */
-export function nombre(v: unknown): number | undefined {
+export function toNumber(v: unknown): number | undefined {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
   if (typeof v === 'string' && v.trim() !== '') {
     const n = Number(v.replace(',', '.'));
@@ -97,12 +98,12 @@ export function nombre(v: unknown): number | undefined {
 }
 
 /** Chaîne non vide (espaces retirés), ou `undefined`. */
-export function texte(v: unknown): string | undefined {
+export function toText(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined;
 }
 
 /** Booléen, y compris écrit en chaîne ("true") ; `undefined` sinon. */
-export function booleen(v: unknown): boolean | undefined {
+export function toBoolean(v: unknown): boolean | undefined {
   if (typeof v === 'boolean') return v;
   if (v === 'true') return true;
   if (v === 'false') return false;
@@ -110,17 +111,17 @@ export function booleen(v: unknown): boolean | undefined {
 }
 
 /** Date ISO d'un `{"$timestamp"}`, d'une chaîne ISO ou de millisecondes. */
-export function dateIso(v: unknown): string | undefined {
-  let brut: unknown = v;
-  if (brut && typeof brut === 'object' && '$timestamp' in brut) {
-    brut = (brut as { $timestamp: unknown }).$timestamp;
+export function toIsoDate(v: unknown): string | undefined {
+  let raw: unknown = v;
+  if (raw && typeof raw === 'object' && '$timestamp' in raw) {
+    raw = (raw as { $timestamp: unknown }).$timestamp;
   }
-  if (typeof brut === 'string') {
-    const d = new Date(brut.replace(/(\.\d{3})\d+/, '$1'));
+  if (typeof raw === 'string') {
+    const d = new Date(raw.replace(/(\.\d{3})\d+/, '$1'));
     return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
   }
-  if (typeof brut === 'number' && Number.isFinite(brut) && brut > 0) {
-    return new Date(brut).toISOString();
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return new Date(raw).toISOString();
   }
   return undefined;
 }

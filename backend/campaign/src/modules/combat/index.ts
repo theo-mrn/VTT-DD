@@ -1,11 +1,11 @@
 /**
- * Module « combat » : combat actif d'une salle (un seul à la fois).
+ * Module « combat » : combat actif d'une campagne (un seul à la fois).
  *
- *   POST /v1/rooms/:id/combat              { participants, mode? }  démarrer (MJ)
- *   POST /v1/rooms/:id/combat/initiative   { parametres? }          initiative (MJ)
- *   POST /v1/rooms/:id/combat/suivant      { characterId? }         tour suivant
- *   POST /v1/rooms/:id/combat/fin                                   terminer (MJ)
- *   GET  /v1/rooms/:id/combat                                       état (membres)
+ *   POST /v1/campaigns/:id/combat              { participants, mode? }  démarrer (MJ)
+ *   POST /v1/campaigns/:id/combat/initiative   { params? }              initiative (MJ)
+ *   POST /v1/campaigns/:id/combat/next         { characterId? }         tour suivant
+ *   POST /v1/campaigns/:id/combat/end                                   terminer (MJ)
+ *   GET  /v1/campaigns/:id/combat                                       état (membres)
  *
  * L'initiative est lancée par character (action d'initiative du système,
  * route interne) pour chaque participant ; campaign trie avec les clés
@@ -17,309 +17,337 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { ErreurCharacter } from '../../clients/character.js';
-import { combatParticipants, combats, roomCharacters } from '../../db/schema.js';
+import { CharacterError } from '../../clients/character.js';
+import type { Tx } from '../../db/outbox.js';
+import {
+  campaignCharacters,
+  campaignCombatParticipants,
+  campaignCombats,
+} from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { CombatReponse, contexte, IdPersonnage, IdSalle, ModeCombat, moi } from '../schemas.js';
-import { acces, accesMj, verrouillerSalle, type Acces } from '../salles/depot.js';
-import { combatApi, etatDe } from './api.js';
-import { enregistrerEtat, evenementCombat, lireCombat } from './depot.js';
-import { depart, peuventAgir, suivant, trier, type Participant } from './ordre.js';
+import { access, gmAccess, lockCampaign, type Access } from '../campaigns/repository.js';
+import {
+  CampaignId,
+  CharacterId,
+  CombatMode,
+  CombatResponse,
+  currentUser,
+  eventContext,
+} from '../schemas.js';
+import { combatApi, stateOf } from './api.js';
+import { combatEvent, loadCombat, saveState } from './repository.js';
+import {
+  canActNow,
+  next,
+  sortByInitiative,
+  start,
+  type CombatState,
+  type Participant,
+} from './turns.js';
 
-const Params = z.object({ id: IdSalle });
+const Params = z.object({ id: CampaignId });
 
-const Parametre = z.union([z.number().finite(), z.string().max(10_000), z.boolean()]);
+const Param = z.union([z.number().finite(), z.string().max(10_000), z.boolean()]);
 
-const Decompte = z.object({ characterId: z.string(), retirees: z.array(z.string()) });
+const DurationUpdate = z.object({ characterId: z.string(), expired: z.array(z.string()) });
 
-const aucunCombat = () => HttpError.notFound('Aucun combat en cours dans cette salle');
+const noCombat = () => HttpError.notFound('Aucun combat en cours dans cette campagne');
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
   const auth = { preValidation: app.authenticate };
 
-  const origine = (req: FastifyRequest, roomId: string) => ({
-    userId: moi(req),
-    roomId,
+  const origin = (req: FastifyRequest, campaignId: string) => ({
+    userId: currentUser(req),
+    campaignId,
     correlationId: req.ctx.correlationId,
   });
 
   r.get(
-    '/v1/rooms/:id/combat',
-    { ...auth, schema: { params: Params, response: { 200: CombatReponse } } },
+    '/v1/campaigns/:id/combat',
+    { ...auth, schema: { params: Params, response: { 200: CombatResponse } } },
     async (req) => {
-      const a = await acces(db, req.params.id, moi(req));
-      const lu = await lireCombat(db, a.salle.id);
-      if (!lu) throw aucunCombat();
-      return combatApi(lu.combat, lu.participants);
+      const a = await access(db, req.params.id, currentUser(req));
+      const loaded = await loadCombat(db, a.campaign.id);
+      if (!loaded) throw noCombat();
+      return combatApi(loaded.combat, loaded.participants);
     },
   );
 
   r.post(
-    '/v1/rooms/:id/combat',
+    '/v1/campaigns/:id/combat',
     {
       ...auth,
       schema: {
         params: Params,
         body: z.object({
-          participants: z.array(IdPersonnage).min(1).max(100),
-          mode: ModeCombat.optional(),
+          participants: z.array(CharacterId).min(1).max(100),
+          mode: CombatMode.optional(),
         }),
-        response: { 201: CombatReponse },
+        response: { 201: CombatResponse },
       },
     },
     async (req, reply) => {
-      const userId = moi(req);
+      const userId = currentUser(req);
       const ids = req.body.participants;
       if (new Set(ids).size !== ids.length)
-        throw HttpError.badRequest('Participant en double', 'participant_double');
-      const mode = req.body.mode ?? 'individuel';
-      const lu = await db.transaction(async (tx) => {
-        await verrouillerSalle(tx, req.params.id);
-        const a = await accesMj(tx, req.params.id, userId);
-        if (await lireCombat(tx, a.salle.id))
+        throw HttpError.badRequest('Participant en double', 'duplicate_participant');
+      const mode = req.body.mode ?? 'individual';
+      const loaded = await db.transaction(async (tx) => {
+        await lockCampaign(tx, req.params.id);
+        const a = await gmAccess(tx, req.params.id, userId);
+        if (await loadCombat(tx, a.campaign.id))
           throw HttpError.conflict(
-            'Un combat est déjà en cours dans cette salle',
-            'combat_en_cours',
+            'Un combat est déjà en cours dans cette campagne',
+            'combat_in_progress',
           );
-        const engages = await tx
+        const engaged = await tx
           .select()
-          .from(roomCharacters)
+          .from(campaignCharacters)
           .where(
-            and(eq(roomCharacters.roomId, a.salle.id), inArray(roomCharacters.characterId, ids)),
+            and(
+              eq(campaignCharacters.campaignId, a.campaign.id),
+              inArray(campaignCharacters.characterId, ids),
+            ),
           );
-        const absents = ids.filter((id) => !engages.some((e) => e.characterId === id));
-        if (absents.length)
+        const missing = ids.filter((id) => !engaged.some((e) => e.characterId === id));
+        if (missing.length)
           throw new HttpError(
             422,
             'Refusé',
-            'personnage_non_engage',
-            `Personnages non engagés dans la salle : ${absents.join(', ')}`,
+            'character_not_engaged',
+            `Personnages non engagés dans la campagne : ${missing.join(', ')}`,
           );
-        const ordre: Participant[] = ids.map((id) => ({
+        const order: Participant[] = ids.map((id) => ({
           characterId: id,
-          camp: engages.find((e) => e.characterId === id)!.camp,
-          cles: [],
-          aAgi: false,
+          side: engaged.find((e) => e.characterId === id)!.side,
+          sortKeys: [],
+          hasActed: false,
         }));
         const [combat] = await tx
-          .insert(combats)
+          .insert(campaignCombats)
           .values({
-            roomId: a.salle.id,
+            campaignId: a.campaign.id,
             id: uuidv7(),
             mode,
-            creneaux: mode === 'creneaux' ? ordre.map((p) => p.camp) : null,
-            demarrePar: userId,
+            slots: mode === 'slots' ? order.map((p) => p.side) : null,
+            startedBy: userId,
           })
           .returning();
         const participants = await tx
-          .insert(combatParticipants)
-          .values(ordre.map((p, rang) => ({ roomId: a.salle.id, ...p, rang })))
+          .insert(campaignCombatParticipants)
+          .values(order.map((p, turnOrder) => ({ campaignId: a.campaign.id, ...p, turnOrder })))
           .returning();
-        await evenementCombat(tx, contexte(req), {
+        await combatEvent(tx, eventContext(req), {
           type: 'combat.started',
           combat: combat!,
           userId,
           role: a.role,
           payload: { mode, participants: ids, round: 1 },
         });
-        return { combat: combat!, participants: participants.sort((x, y) => x.rang - y.rang) };
+        return {
+          combat: combat!,
+          participants: participants.sort((x, y) => x.turnOrder - y.turnOrder),
+        };
       });
       reply.code(201);
-      return combatApi(lu.combat, lu.participants);
+      return combatApi(loaded.combat, loaded.participants);
     },
   );
 
   r.post(
-    '/v1/rooms/:id/combat/initiative',
+    '/v1/campaigns/:id/combat/initiative',
     {
       ...auth,
       schema: {
         params: Params,
         body: z
           .object({
-            parametres: z
-              .record(z.string(), z.record(z.string().min(1).max(100), Parametre))
-              .optional(),
+            params: z.record(z.string(), z.record(z.string().min(1).max(100), Param)).optional(),
           })
           .default({}),
-        response: { 200: CombatReponse },
+        response: { 200: CombatResponse },
       },
     },
     async (req) => {
-      const userId = moi(req);
-      const a = await accesMj(db, req.params.id, userId);
-      const systeme = deps.catalogue.systeme(a.salle.systemId);
-      const action = systeme?.initiative?.action;
+      const userId = currentUser(req);
+      const a = await gmAccess(db, req.params.id, userId);
+      const system = deps.catalog.system(a.campaign.systemId);
+      const action = system?.initiative?.action;
       if (!action)
         throw new HttpError(
           422,
           'Refusé',
-          'initiative_absente',
-          `Le système ${a.salle.systemId} ne déclare pas d’initiative`,
+          'no_initiative',
+          `Le système ${a.campaign.systemId} ne déclare pas d’initiative`,
         );
-      const avant = await lireCombat(db, a.salle.id);
-      if (!avant) throw aucunCombat();
-      const parametres = normaliserParametres(req.body.parametres ?? {});
-      const inconnus = Object.keys(parametres).filter(
-        (id) => !avant.participants.some((p) => p.characterId === id),
+      const before = await loadCombat(db, a.campaign.id);
+      if (!before) throw noCombat();
+      const params = normalizeParams(req.body.params ?? {});
+      const unknown = Object.keys(params).filter(
+        (id) => !before.participants.some((p) => p.characterId === id),
       );
-      if (inconnus.length)
+      if (unknown.length)
         throw HttpError.badRequest(
-          `Paramètres pour des personnages hors du combat : ${inconnus.join(', ')}`,
-          'participant_inconnu',
+          `Paramètres pour des personnages hors du combat : ${unknown.join(', ')}`,
+          'unknown_participant',
         );
 
       // Chaque participant lance l'action d'initiative du système (dans character)
-      const lances = await Promise.allSettled(
-        avant.participants.map((p) =>
+      const rolls = await Promise.allSettled(
+        before.participants.map((p) =>
           deps.character.action(
             p.characterId,
             action,
             {
-              appliquer: true,
-              ...(parametres[p.characterId] ? { parametres: parametres[p.characterId] } : {}),
+              apply: true,
+              ...(params[p.characterId] ? { params: params[p.characterId] } : {}),
             },
-            origine(req, a.salle.id),
+            origin(req, a.campaign.id),
           ),
         ),
       );
-      const echecs = lances.flatMap((l, i) =>
-        l.status === 'rejected'
-          ? [{ characterId: avant.participants[i]!.characterId, e: l.reason }]
+      const failures = rolls.flatMap((roll, i) =>
+        roll.status === 'rejected'
+          ? [{ characterId: before.participants[i]!.characterId, error: roll.reason }]
           : [],
       );
-      if (echecs.length) throw erreurInitiative(req, echecs);
+      if (failures.length) throw initiativeError(req, failures);
 
-      const cles = new Map(
-        avant.participants.map((p, i) => {
-          const l = lances[i] as PromiseFulfilledResult<{ cles?: number[] }>;
-          return [p.characterId, l.value.cles ?? []];
+      const sortKeys = new Map(
+        before.participants.map((p, i) => {
+          const roll = rolls[i] as PromiseFulfilledResult<{ sortKeys?: number[] }>;
+          return [p.characterId, roll.value.sortKeys ?? []];
         }),
       );
 
-      const lu = await db.transaction(async (tx) => {
-        await verrouillerSalle(tx, a.salle.id);
-        const courant = await lireCombat(tx, a.salle.id, true);
+      const loaded = await db.transaction(async (tx) => {
+        await lockCampaign(tx, a.campaign.id);
+        const current = await loadCombat(tx, a.campaign.id, true);
         // Combat terminé ou relancé pendant les jets : on ne mélange pas deux combats
-        if (!courant || courant.combat.id !== avant.combat.id)
-          throw HttpError.conflict('Le combat a changé pendant l’initiative', 'combat_modifie');
-        const etat = etatDe(courant.combat, courant.participants);
-        const ordre = trier(
-          etat.ordre
-            .filter((p) => cles.has(p.characterId))
-            .map((p) => ({ ...p, cles: cles.get(p.characterId)! })),
+        if (!current || current.combat.id !== before.combat.id)
+          throw HttpError.conflict('Le combat a changé pendant l’initiative', 'combat_changed');
+        const state = stateOf(current.combat, current.participants);
+        const order = sortByInitiative(
+          state.order
+            .filter((p) => sortKeys.has(p.characterId))
+            .map((p) => ({ ...p, sortKeys: sortKeys.get(p.characterId)! })),
         );
-        const suivantEtat = depart(etat.mode, ordre, etat.round);
-        const lu = await enregistrerEtat(tx, courant.combat, suivantEtat, { initiative: true });
-        await evenementCombat(tx, contexte(req), {
+        const saved = await saveState(tx, current.combat, start(state.mode, order, state.round), {
+          initiativeRolled: true,
+        });
+        await combatEvent(tx, eventContext(req), {
           type: 'combat.turn_changed',
-          combat: lu.combat,
+          combat: saved.combat,
           userId,
           role: a.role,
           payload: {
-            raison: 'initiative',
-            round: lu.combat.round,
-            courant: 0,
-            ordre: ordre.map((p) => ({ characterId: p.characterId, cles: p.cles })),
-            version: lu.combat.version,
+            reason: 'initiative',
+            round: saved.combat.round,
+            currentIndex: 0,
+            order: order.map((p) => ({ characterId: p.characterId, sortKeys: p.sortKeys })),
+            version: saved.combat.version,
           },
         });
-        return lu;
+        return saved;
       });
-      return combatApi(lu.combat, lu.participants);
+      return combatApi(loaded.combat, loaded.participants);
     },
   );
 
   r.post(
-    '/v1/rooms/:id/combat/suivant',
+    '/v1/campaigns/:id/combat/next',
     {
       ...auth,
       schema: {
         params: Params,
-        body: z.object({ characterId: IdPersonnage.optional() }).default({}),
+        body: z.object({ characterId: CharacterId.optional() }).default({}),
         response: {
-          200: CombatReponse.extend({
-            /** Fin de round : états retirés par personnage, et personnages injoignables. */
-            decomptes: z.array(Decompte).optional(),
-            echecsDecompte: z.array(z.string()).optional(),
+          200: CombatResponse.extend({
+            /** Fin de round : états expirés par personnage, et personnages injoignables. */
+            durationUpdates: z.array(DurationUpdate).optional(),
+            durationFailures: z.array(z.string()).optional(),
           }),
         },
       },
     },
     async (req) => {
-      const userId = moi(req);
+      const userId = currentUser(req);
       const { characterId } = req.body;
-      const { lu, finDeRound, a } = await db.transaction(async (tx) => {
-        await verrouillerSalle(tx, req.params.id);
-        const a = await acces(tx, req.params.id, userId);
-        const lu = await lireCombat(tx, a.salle.id, true);
-        if (!lu) throw aucunCombat();
-        const etat = etatDe(lu.combat, lu.participants);
-        await exigerTour(tx, a, userId, etat, characterId);
-        const passage = suivant(etat, characterId);
-        const suivantLu = await enregistrerEtat(tx, lu.combat, passage.etat);
-        await evenementCombat(tx, contexte(req), {
+      const { loaded, endOfRound, a } = await db.transaction(async (tx) => {
+        await lockCampaign(tx, req.params.id);
+        const a = await access(tx, req.params.id, userId);
+        const current = await loadCombat(tx, a.campaign.id, true);
+        if (!current) throw noCombat();
+        const state = stateOf(current.combat, current.participants);
+        await requireTurn(tx, a, userId, state, characterId);
+        const advance = next(state, characterId);
+        const saved = await saveState(tx, current.combat, advance.state);
+        await combatEvent(tx, eventContext(req), {
           type: 'combat.turn_changed',
-          combat: suivantLu.combat,
+          combat: saved.combat,
           userId,
           role: a.role,
           payload: {
-            raison: passage.finDeRound ? 'nouveau_round' : 'suivant',
-            aAgi: passage.aAgi,
-            round: suivantLu.combat.round,
-            courant: suivantLu.combat.courant,
-            version: suivantLu.combat.version,
+            reason: advance.endOfRound ? 'new_round' : 'next',
+            acted: advance.acted,
+            round: saved.combat.round,
+            currentIndex: saved.combat.currentIndex,
+            version: saved.combat.version,
           },
         });
-        return { lu: suivantLu, finDeRound: passage.finDeRound, a };
+        return { loaded: saved, endOfRound: advance.endOfRound, a };
       });
-      const api = combatApi(lu.combat, lu.participants);
-      if (!finDeRound) return api;
+      const api = combatApi(loaded.combat, loaded.participants);
+      if (!endOfRound) return api;
 
       // Fin de round, après validation du nouveau round : chaque état à durée
       // perd un round (au plus une fois par round, même si un appel échoue)
-      const resultats = await Promise.allSettled(
-        lu.participants.map((p) =>
-          deps.character.decompterDurees(p.characterId, origine(req, a.salle.id)),
+      const results = await Promise.allSettled(
+        loaded.participants.map((p) =>
+          deps.character.tickDurations(p.characterId, origin(req, a.campaign.id)),
         ),
       );
-      const decomptes: z.infer<typeof Decompte>[] = [];
-      const echecsDecompte: string[] = [];
-      resultats.forEach((res, i) => {
-        const id = lu.participants[i]!.characterId;
+      const durationUpdates: z.infer<typeof DurationUpdate>[] = [];
+      const durationFailures: string[] = [];
+      results.forEach((res, i) => {
+        const id = loaded.participants[i]!.characterId;
         if (res.status === 'fulfilled')
-          decomptes.push({ characterId: id, retirees: res.value.retirees });
+          durationUpdates.push({ characterId: id, expired: res.value.expired });
         else {
-          echecsDecompte.push(id);
+          durationFailures.push(id);
           req.log.error(
-            { characterId: id, erreur: (res.reason as Error).message },
+            { characterId: id, error: (res.reason as Error).message },
             'décompte des durées impossible',
           );
         }
       });
-      return { ...api, decomptes, ...(echecsDecompte.length ? { echecsDecompte } : {}) };
+      return {
+        ...api,
+        durationUpdates,
+        ...(durationFailures.length ? { durationFailures } : {}),
+      };
     },
   );
 
   r.post(
-    '/v1/rooms/:id/combat/fin',
+    '/v1/campaigns/:id/combat/end',
     { ...auth, schema: { params: Params } },
     async (req, reply) => {
-      const userId = moi(req);
+      const userId = currentUser(req);
       await db.transaction(async (tx) => {
-        await verrouillerSalle(tx, req.params.id);
-        const a = await accesMj(tx, req.params.id, userId);
-        const lu = await lireCombat(tx, a.salle.id, true);
-        if (!lu) throw aucunCombat();
-        await tx.delete(combats).where(eq(combats.roomId, a.salle.id));
-        await evenementCombat(tx, contexte(req), {
+        await lockCampaign(tx, req.params.id);
+        const a = await gmAccess(tx, req.params.id, userId);
+        const loaded = await loadCombat(tx, a.campaign.id, true);
+        if (!loaded) throw noCombat();
+        await tx.delete(campaignCombats).where(eq(campaignCombats.campaignId, a.campaign.id));
+        await combatEvent(tx, eventContext(req), {
           type: 'combat.ended',
-          combat: lu.combat,
+          combat: loaded.combat,
           userId,
           role: a.role,
-          payload: { round: lu.combat.round },
+          payload: { round: loaded.combat.round },
         });
       });
       reply.code(204);
@@ -328,57 +356,61 @@ export const register: Module = async (app, deps) => {
 };
 
 /** Paramètres d'initiative indexés par identifiant de personnage en minuscules. */
-function normaliserParametres(
-  parametres: Record<string, Record<string, number | string | boolean>>,
-) {
-  const sortie: Record<string, Record<string, number | string | boolean>> = {};
-  for (const [id, valeurs] of Object.entries(parametres)) sortie[id.toLowerCase()] = valeurs;
-  return sortie;
+function normalizeParams(params: Record<string, Record<string, number | string | boolean>>) {
+  const out: Record<string, Record<string, number | string | boolean>> = {};
+  for (const [id, values] of Object.entries(params)) out[id.toLowerCase()] = values;
+  return out;
 }
 
 /**
  * Qui peut passer au tour suivant : le MJ, ou un joueur pour son propre
  * personnage quand celui-ci peut agir (son tour, ou un créneau de son camp).
  */
-async function exigerTour(
-  tx: Parameters<typeof lireCombat>[0],
-  a: Acces,
+async function requireTurn(
+  tx: Tx,
+  a: Access,
   userId: string,
-  etat: ReturnType<typeof etatDe>,
+  state: CombatState,
   characterId: string | undefined,
 ) {
-  if (a.role === 'mj') return;
-  if (a.role === 'spectateur') throw HttpError.forbidden('Un spectateur ne joue pas');
-  const possibles = peuventAgir(etat);
-  const vise = characterId ?? (etat.mode === 'individuel' ? possibles[0]?.characterId : undefined);
-  if (!vise)
+  if (a.role === 'gm') return;
+  if (a.role === 'spectator') throw HttpError.forbidden('Un spectateur ne joue pas');
+  const candidates = canActNow(state);
+  const target =
+    characterId ?? (state.mode === 'individual' ? candidates[0]?.characterId : undefined);
+  if (!target)
     throw HttpError.badRequest(
       'Indiquez le personnage qui a agi (characterId)',
-      'personnage_requis',
+      'character_required',
     );
   const [engagement] = await tx
-    .select({ ownerId: roomCharacters.ownerId })
-    .from(roomCharacters)
-    .where(and(eq(roomCharacters.roomId, a.salle.id), eq(roomCharacters.characterId, vise)));
+    .select({ ownerId: campaignCharacters.ownerId })
+    .from(campaignCharacters)
+    .where(
+      and(
+        eq(campaignCharacters.campaignId, a.campaign.id),
+        eq(campaignCharacters.characterId, target),
+      ),
+    );
   if (!engagement || engagement.ownerId !== userId)
     throw HttpError.forbidden('Seul le MJ ou le propriétaire du personnage termine son tour');
 }
 
-function erreurInitiative(
+function initiativeError(
   req: FastifyRequest,
-  echecs: { characterId: string; e: unknown }[],
+  failures: { characterId: string; error: unknown }[],
 ): HttpError {
-  const refus = echecs.filter((x) => x.e instanceof ErreurCharacter && x.e.refus);
-  if (refus.length === echecs.length) {
+  const rejected = failures.filter((f) => f.error instanceof CharacterError && f.error.rejected);
+  if (rejected.length === failures.length) {
     return new HttpError(
       422,
       'Initiative refusée',
-      'initiative_refusee',
-      refus.map((x) => `${x.characterId} : ${(x.e as Error).message}`).join(' ; '),
+      'initiative_rejected',
+      rejected.map((f) => `${f.characterId} : ${(f.error as Error).message}`).join(' ; '),
     );
   }
-  const panne = echecs.find((x) => !(x.e instanceof ErreurCharacter && x.e.refus))!;
-  if (panne.e instanceof HttpError) return panne.e;
-  req.log.error({ erreur: (panne.e as Error).message }, 'initiative : character injoignable');
-  return new HttpError(502, 'Service indisponible', 'character_indisponible');
+  const outage = failures.find((f) => !(f.error instanceof CharacterError && f.error.rejected))!;
+  if (outage.error instanceof HttpError) return outage.error;
+  req.log.error({ error: (outage.error as Error).message }, 'initiative : character injoignable');
+  return new HttpError(502, 'Service indisponible', 'character_unavailable');
 }
