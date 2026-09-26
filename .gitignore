@@ -18,7 +18,7 @@ playwright-report/
 blob-report/
 playwright/.cache/
 # Session Playwright enregistrée (jeton de connexion)
-apps/legacy/src/__tests__/playwright/helpers/.session.json
+legacy/src/__tests__/playwright/helpers/.session.json
 
 # ── Secrets : jamais dans git ──────────────────────────────────────────────────
 .env*
@@ -31,14 +31,14 @@ certificates/
 *.log
 .vercel
 
-# ── Ancienne app (apps/legacy) : médias lourds, servis depuis R2 ───────────────
-apps/legacy/public/Map/
-apps/legacy/public/Cartes/
-apps/legacy/public/Photos/
-apps/legacy/public/Token/
-apps/legacy/public/items/
-apps/legacy/public/Musics/
+# ── Ancienne app (legacy) : médias lourds, servis depuis R2 ───────────────
+legacy/public/Map/
+legacy/public/Cartes/
+legacy/public/Photos/
+legacy/public/Token/
+legacy/public/items/
+legacy/public/Musics/
 # Modèle 3D de 65 Mo : trop lourd pour git sans LFS (hébergé sur R2)
-apps/legacy/starwars-bundle/assets/3d/
+legacy/starwars-bundle/assets/3d/
 # Bundles générés (pnpm bundle:zip)
 *-bundle.zip

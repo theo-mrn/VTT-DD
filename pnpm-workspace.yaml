@@ -1,8 +1,10 @@
 packages:
-  - apps/*
-  - services/*
+  - frontend
+  - backend/*
   - packages/*
   - tools/*
+  # Ancienne app, supprimée à la parité
+  - legacy
 
 # Dépendances natives autorisées à exécuter leurs scripts d'installation
 onlyBuiltDependencies:

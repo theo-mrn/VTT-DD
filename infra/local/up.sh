@@ -45,7 +45,7 @@ for f in infra/postgres/init/*.sql; do
 done
 
 etape "Migrations"
-for changelog in services/*/db/changelog.yaml; do
+for changelog in backend/*/db/changelog.yaml; do
   [ -e "$changelog" ] || continue
   service=$(basename "$(dirname "$(dirname "$changelog")")")
   # Silencieux si tout va bien ; en cas d'échec, sortie complète de Liquibase
@@ -59,12 +59,12 @@ for changelog in services/*/db/changelog.yaml; do
 done
 
 etape "Configuration"
-for dossier in services/*/; do
+for dossier in backend/*/; do
   service=$(basename "$dossier")
   if [ -f "$dossier/scripts/init-env.mjs" ]; then
     node "$dossier/scripts/init-env.mjs"
   elif [ -f "$dossier/.env.example" ] && [ ! -f "$dossier/.env" ]; then
-    cp "$dossier/.env.example" "$dossier/.env" && echo "services/$service/.env créé"
+    cp "$dossier/.env.example" "$dossier/.env" && echo "backend/$service/.env créé"
   fi
 done
 
@@ -76,4 +76,4 @@ fi
 etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"
 echo "  gateway  http://localhost:8080"
-exec pnpm turbo run dev --filter='./services/*' --filter=@vtt/web
+exec pnpm turbo run dev --filter='./backend/*' --filter=@vtt/web

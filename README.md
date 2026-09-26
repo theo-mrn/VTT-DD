@@ -16,7 +16,7 @@ pnpm dev          # toute la stack : infra, migrations, services et front
 
 | Adresse                | Quoi                                  |
 | ---------------------- | ------------------------------------- |
-| http://localhost:3000  | front (`apps/web`)                    |
+| http://localhost:3000  | front (`frontend`)                    |
 | http://localhost:8080  | gateway                               |
 | http://localhost:3001  | identity                              |
 | localhost:5432         | PostgreSQL (`vtt` / `vtt`)            |
@@ -32,19 +32,19 @@ Autres commandes : `pnpm dev:down` (arrête l'infra), `pnpm dev:legacy`
 ## Structure
 
 ```
-apps/
-  web/                nouveau front Next.js
-  legacy/             ancienne app Firebase, référence fonctionnelle jusqu'à la parité
-services/             un dossier par microservice
-  gateway/            point d'entrée : JWT, limites de débit, routage
-  identity/           comptes, sessions, jetons (src/, db/ = migrations Liquibase)
+frontend/             le front Next.js (@vtt/web)
+backend/              un dossier par service : chacun est un pod indépendant,
+  gateway/            utilisable par son API sans le front
+  identity/           comptes, connexion, profils, amis, titres, clés d'API
+                      (src/, db/ = migrations Liquibase, .env.example)
 packages/
   contracts/          schémas partagés front/back (événements, erreurs, identifiants)
   platform/           socle des services (sécurité, logs, traces, cache, santé)
+legacy/               ancienne app Firebase, référence jusqu'à la parité
 tools/
-  firebase-export/    export Firestore en NDJSON pour les imports
+  firebase-export/    export Firebase (comptes, Firestore) pour les imports
 infra/
-  local/              docker compose et script de `pnpm dev`
+  local/              docker compose, pnpm dev, import Firebase
   docker/             Dockerfiles (services, front)
   helm/service/       chart Helm commun à tous les services
   gitops/             valeurs par environnement (staging, prod), lues par Argo CD
@@ -52,12 +52,12 @@ infra/
   cluster/            PostgreSQL CloudNativePG et sauvegardes
   postgres/           rôles SQL, lanceur Liquibase, gabarits, tests SQL
   ci/                 variables factices de build
-docs/                 plan de refonte et documentation
+docs/                 plan de refonte
 ```
 
 ### Ajouter un service
 
-Créer `services/<nom>/` avec un `package.json` (script `dev`), `src/main.ts`
+Créer `backend/<nom>/` avec un `package.json` (script `dev`), `src/main.ts`
 démarré par `createService()` de `@vtt/platform`, un `.env.example` et, s'il a
 une base, `db/changelog.yaml`. `pnpm dev` le démarre et le migre sans autre
 modification.

@@ -8,7 +8,7 @@
 .git
 docs
 # Ancienne app : seul son manifest sert (cohérence du lockfile pnpm)
-apps/legacy/**
-!apps/legacy/package.json
+legacy/**
+!legacy/package.json
 **/*.test.ts
 **/__tests__

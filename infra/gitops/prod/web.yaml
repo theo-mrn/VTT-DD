@@ -14,7 +14,7 @@ probes:
   liveness: /api/healthz
   readiness: /api/healthz
 writablePaths:
-  - /app/apps/web/.next/cache
+  - /app/frontend/.next/cache
 # Remplacent les crons de l'ancien vercel.json (supprimé).
 # Horaires laissés en UTC, comme sur Vercel, pour ne rien décaler.
 cronJobs:

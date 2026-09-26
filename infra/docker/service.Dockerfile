@@ -12,17 +12,17 @@ WORKDIR /repo
 # Couche dépendances : ne se reconstruit que si les manifests changent
 # Tous les manifests du workspace : sans eux, --frozen-lockfile refuse le lockfile
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
-COPY apps/web/package.json ./apps/web/
-COPY apps/legacy/package.json ./apps/legacy/
-COPY services/gateway/package.json ./services/gateway/
-COPY services/identity/package.json ./services/identity/
+COPY frontend/package.json ./frontend/
+COPY legacy/package.json ./legacy/
+COPY backend/gateway/package.json ./backend/gateway/
+COPY backend/identity/package.json ./backend/identity/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/platform/package.json ./packages/platform/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/${SERVICE}..." --ignore-scripts
 COPY packages ./packages
-COPY services/${SERVICE} ./services/${SERVICE}
+COPY backend/${SERVICE} ./backend/${SERVICE}
 # Build du service et de ses dépendances internes, dans l'ordre topologique
 RUN pnpm --filter "@vtt/${SERVICE}..." run build
 # Bundle autonome : seulement les dépendances de prod du service

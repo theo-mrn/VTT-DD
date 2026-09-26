@@ -3,5 +3,5 @@
 /.github/               @theo-mrn
 /infra/                 @theo-mrn
 /packages/platform/     @theo-mrn
-/services/billing/      @theo-mrn
-/services/identity/     @theo-mrn
+/backend/billing/      @theo-mrn
+/backend/identity/     @theo-mrn

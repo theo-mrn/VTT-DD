@@ -57,7 +57,7 @@ cronImage: 'curlimages/curl:8.11.1'
 
 # Chemins inscriptibles en plus de /tmp (le système de fichiers racine est en lecture seule)
 writablePaths: []
-#  - /app/apps/web/.next/cache
+#  - /app/frontend/.next/cache
 
 probes:
   liveness: /healthz

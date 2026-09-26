@@ -20,7 +20,7 @@ commande=("$@")
 [ ${#commande[@]} -eq 0 ] && commande=(update)
 
 racine="$(cd "$(dirname "$0")/../../.." && pwd)"
-dossier="$racine/services/$service/db"
+dossier="$racine/backend/$service/db"
 [ -f "$dossier/changelog.yaml" ] || { echo "Aucun changelog : $dossier/changelog.yaml" >&2; exit 1; }
 
 # Le service character utilise le schéma « characters » (mot réservé SQL)

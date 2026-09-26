@@ -2,7 +2,7 @@
  * Export des comptes Firebase Auth avec leurs hash, et des paramètres de
  * hachage du projet, via le compte de service (pas besoin de la console).
  *
- *   node --env-file=apps/legacy/.env tools/firebase-export/dist/auth.js --out ~/vtt-export
+ *   node --env-file=legacy/.env tools/firebase-export/dist/auth.js --out ~/vtt-export
  *
  * Produit, dans --out (hors du dépôt, fichiers en 0600) :
  *   comptes.json      même format que `firebase auth:export --format=json`
@@ -32,7 +32,7 @@ const sortie = await realpath(values.out);
 
 const brut = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 if (!brut) {
-  console.error('FIREBASE_SERVICE_ACCOUNT_KEY manquant (lancer avec --env-file=apps/legacy/.env)');
+  console.error('FIREBASE_SERVICE_ACCOUNT_KEY manquant (lancer avec --env-file=legacy/.env)');
   process.exit(2);
 }
 const compte = JSON.parse(brut) as ServiceAccount & { project_id?: string };

@@ -2,32 +2,32 @@
 # Importe les comptes Firebase dans la base locale : `pnpm import:firebase`
 #   1. exporte les comptes (avec leurs hash) et les paramètres de hachage du projet
 #   2. exporte les profils Firestore (collection users)
-#   3. écrit les paramètres de hachage dans services/identity/.env
+#   3. écrit les paramètres de hachage dans backend/identity/.env
 #   4. importe le tout dans identity (rejouable : un compte déjà importé est ignoré)
-# Identifiants : FIREBASE_SERVICE_ACCOUNT_KEY dans apps/legacy/.env.
+# Identifiants : FIREBASE_SERVICE_ACCOUNT_KEY dans legacy/.env.
 # Les exports (hash, e-mails) vont dans ~/vtt-export, hors du dépôt, en 0600.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 EXPORT="${VTT_EXPORT_DIR:-$HOME/vtt-export}"
 etape() { printf '\n\033[1;33m▶ %s\033[0m\n' "$1"; }
 
-[ -f apps/legacy/.env ] || { echo "apps/legacy/.env introuvable (FIREBASE_SERVICE_ACCOUNT_KEY)" >&2; exit 1; }
-[ -f services/identity/.env ] || { echo "Lance d'abord : pnpm dev --preparer" >&2; exit 1; }
+[ -f legacy/.env ] || { echo "legacy/.env introuvable (FIREBASE_SERVICE_ACCOUNT_KEY)" >&2; exit 1; }
+[ -f backend/identity/.env ] || { echo "Lance d'abord : pnpm dev --preparer" >&2; exit 1; }
 
 etape "Build des outils"
 pnpm turbo run build --filter=@vtt/firebase-export --filter=@vtt/identity --output-logs=errors-only
 
 etape "Export des comptes Firebase"
-node --env-file=apps/legacy/.env tools/firebase-export/dist/auth.js --out "$EXPORT"
+node --env-file=legacy/.env tools/firebase-export/dist/auth.js --out "$EXPORT"
 
 etape "Export des profils Firestore"
-node --env-file=apps/legacy/.env tools/firebase-export/dist/cli.js --collection users --out "$EXPORT"
+node --env-file=legacy/.env tools/firebase-export/dist/cli.js --collection users --out "$EXPORT"
 
 etape "Configuration d'identity"
 node tools/firebase-export/dist/configurer-identity.js "$EXPORT/hash-config.json"
 
 etape "Import dans la base"
-node --env-file=services/identity/.env services/identity/dist/import/cli.js \
+node --env-file=backend/identity/.env backend/identity/dist/import/cli.js \
   --auth "$EXPORT/comptes.json" --profils "$EXPORT/users.ndjson"
 
 etape "Terminé — relance pnpm dev pour qu'identity lise les paramètres de hachage"

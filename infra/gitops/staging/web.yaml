@@ -14,7 +14,7 @@ probes:
   liveness: /api/healthz
   readiness: /api/healthz
 writablePaths:
-  - /app/apps/web/.next/cache
+  - /app/frontend/.next/cache
 # Désactivés en staging : session-reminder enverrait de vrais e-mails en double
 # avec la prod, et optimize-images écrirait dans le même bucket R2.
 cronJobs:
