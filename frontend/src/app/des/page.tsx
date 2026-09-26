@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Carte, Chargement, Interrupteur, Message, TitrePage } from '@/components/compte/elements';
-import { LanceurDes } from '@/components/des';
+import { LanceurDes } from '@/components/(dices)';
 import { messageErreur } from '@/lib/api';
 import {
   chargerSystemeJets,

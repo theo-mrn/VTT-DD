@@ -10,9 +10,9 @@
  */
 import dynamic from 'next/dynamic';
 import { forwardRef, useImperativeHandle, useRef } from 'react';
-import type { FunDiceHandle } from '@/components/(dices)/throw-fun';
+import type { FunDiceHandle } from './throw-fun';
 
-const FunDiceThrower = dynamic(() => import('@/components/(dices)/throw-fun'), { ssr: false });
+const FunDiceThrower = dynamic(() => import('./throw-fun'), { ssr: false });
 
 /** Formes connues du rendu 3D ; un d100 est lancé comme un d10. */
 const FORMES_3D = new Set(['d4', 'd6', 'd8', 'd10', 'd12', 'd20']);
