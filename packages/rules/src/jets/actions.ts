@@ -645,13 +645,22 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
     // Type de dégâts fixe ou calculé ; un type calculé vide : dégâts non typés
     let typeDegats: string | undefined = c.type;
-    if (c.typeCalcule !== undefined) {
-      const t = String(ev(`${ou}/type`, ''));
+    // `degats: true` : le type déclaré par l'action, fixe ou calculé
+    const cheminType =
+      c.typeCalcule !== undefined
+        ? `${ou}/type`
+        : c.degats && action.typeDegatsCalcule !== undefined
+          ? ch('typeDegats')
+          : undefined;
+    if (c.degats && c.type === undefined && c.typeCalcule === undefined)
+      typeDegats = action.typeDegats;
+    if (cheminType) {
+      const t = String(ev(cheminType, ''));
       if (t && !systeme.source.typesDegats.some((x) => x.id === t)) {
-        erreurs.push({ ou: `${ou}/type`, message: `Type de dégâts inconnu : ${t}` });
+        erreurs.push({ ou: cheminType, message: `Type de dégâts inconnu : ${t}` });
       } else if (t) typeDegats = t;
     }
-    if (c.type !== undefined || c.typeCalcule !== undefined) {
+    if (c.type !== undefined || c.typeCalcule !== undefined || c.degats) {
       // Dégâts : résistances, immunités et vulnérabilités de l'entité touchée
       const minimum = c.minimum === undefined ? 0 : Number(ev(`${ou}/minimum`, 0));
       const recus = reduireDegats(fiche, valeur, typeDegats, c.attribut, minimum);

@@ -947,6 +947,13 @@ class Chargeur {
         declarer(v.cle, f?.type ?? 'nombre', `${chemin}/apres/${v.cle}`);
       }
 
+      if (a.typeDegats !== undefined && !this.typesDegats.has(a.typeDegats))
+        this.erreur(ch('typeDegats'), `Type de dégâts inconnu : ${a.typeDegats}`);
+      if (a.typeDegats !== undefined && a.typeDegatsCalcule !== undefined)
+        this.erreur(ch('typeDegats'), 'typeDegats et typeDegatsCalcule sont exclusifs');
+      if (a.typeDegatsCalcule !== undefined)
+        this.compiler(ch('typeDegats'), a.typeDegatsCalcule, opts(), 'texte');
+
       a.consequences.forEach((c, i) => {
         const ou = ch(`consequences/${i}`);
         const types = c.entite === 'acteur' ? a.pour : (a.cible ?? []);
@@ -978,7 +985,7 @@ class Chargeur {
         if (c.typeCalcule !== undefined)
           this.compiler(`${ou}/type`, c.typeCalcule, opts(), 'texte');
         if (c.minimum !== undefined) {
-          if (c.type === undefined && c.typeCalcule === undefined)
+          if (c.type === undefined && c.typeCalcule === undefined && !c.degats)
             this.erreur(ou, 'Un minimum de dégâts demande un type de dégâts');
           this.compiler(`${ou}/minimum`, c.minimum, opts(), 'nombre');
         }

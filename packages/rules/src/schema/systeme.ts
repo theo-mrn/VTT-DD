@@ -500,6 +500,8 @@ export const ConsequenceAttribut = z.object({
   type: Id.optional(),
   /** Type de dégâts calculé (texte, ex. `capacite.typeDegats`) ; vide : dégâts non typés. */
   typeCalcule: Formule.optional(),
+  /** Dégâts du type déclaré par l'action (`typeDegats`) : passent par les résistances. */
+  degats: z.boolean().default(false),
   /**
    * Dégâts minimaux après résistances quand les dégâts bruts sont positifs
    * (« au moins 1 DM ») ; une immunité donne toujours 0.
@@ -529,6 +531,10 @@ export const Action = z.object({
   pour: z.array(Id).min(1),
   /** Condition pour que l'acteur puisse utiliser l'action (`possede("minotaure")`). */
   exige: Formule.optional(),
+  /** Type des dégâts infligés par l'action, lu par les conséquences `degats: true`. */
+  typeDegats: Id.optional(),
+  /** Type des dégâts calculé après le jet (texte, ex. `capacite.typeDegats`). */
+  typeDegatsCalcule: Formule.optional(),
   /** Type d'entité visé, si l'action a une cible. */
   cible: z
     .union([Id, z.array(Id).min(1)])

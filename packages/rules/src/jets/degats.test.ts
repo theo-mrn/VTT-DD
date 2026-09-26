@@ -200,3 +200,37 @@ describe('type de dégâts calculé', () => {
     expect(mod(true)).toMatchObject({ type: 'froid', valeur: 0 });
   });
 });
+
+describe('type de dégâts déclaré par l’action', () => {
+  it('les conséquences « degats » prennent le type de l’action', () => {
+    const s3saisi = structuredClone(saisi);
+    const a = s3saisi.actions![0]!;
+    a.typeDegatsCalcule = 'si(element, "froid", "feu")';
+    a.consequences = [
+      {
+        condition: 'total > 0',
+        entite: 'cible',
+        attribut: 'PV',
+        operation: 'retirer',
+        valeur: 'total',
+        degats: true,
+        minimum: 1,
+      },
+    ];
+    const r3 = charger(s3saisi);
+    if (!r3.ok) throw new Error(JSON.stringify(r3.erreurs));
+    const f = (e: Partial<EtatEntiteSaisi> = {}) => calculer(r3.systeme, fiche(e).etat);
+    const mod = (element: boolean) => {
+      const res = executerAction(r3.systeme, {
+        action: 'souffle',
+        acteur: f(),
+        cible: f({ possessions: [{ entree: 'ecailles' }] }),
+        parametres: { element },
+        aleatoire: aleatoireImpose([6, 5]),
+      });
+      return res.ok ? res.resultat.modifications[0] : res.erreurs;
+    };
+    expect(mod(false)).toMatchObject({ type: 'feu', valeur: 3 });
+    expect(mod(true)).toMatchObject({ type: 'froid', valeur: 0 });
+  });
+});
