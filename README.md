@@ -20,6 +20,7 @@ pnpm dev          # toute la stack : infra, migrations, services et front
 | http://localhost:8080  | gateway                               |
 | http://localhost:3001  | identity                              |
 | http://localhost:3002  | character                             |
+| http://localhost:3003  | campaign                              |
 | localhost:5432         | PostgreSQL (`vtt` / `vtt`)            |
 
 Par défaut, seuls PostgreSQL, NATS et Valkey démarrent. Services optionnels :
@@ -40,6 +41,8 @@ backend/              un dossier par service : chacun est un pod indépendant,
                       (src/, db/ = migrations Liquibase, .env.example)
   character/          personnages et systèmes de jeu, règles recalculées côté
                       serveur (contrat : docs/api-character.md)
+  campaign/           salles, membres, invitations, personnages engagés et combat
+                      (contrat : docs/api-campaign.md)
 packages/
   contracts/          schémas partagés front/back (événements, erreurs, identifiants)
   platform/           socle des services (sécurité, logs, traces, cache, santé)
