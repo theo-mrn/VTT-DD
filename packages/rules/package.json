@@ -1,0 +1,29 @@
+{
+  "name": "@vtt/rules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Moteur de règles générique : les systèmes de jeu sont décrits en données",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check src"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "vitest": "^3.2.7"
+  }
+}
