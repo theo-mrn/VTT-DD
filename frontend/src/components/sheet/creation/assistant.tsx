@@ -10,91 +10,88 @@ import { AlertCircle, Check, ChevronLeft, ChevronRight, Circle, Flag } from 'luc
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { ecritures, lireEtapesCreation, useLectureVersionnee } from '@/lib/characters';
+import { writes, getCreationSteps, useVersionedRead } from '@/lib/characters';
 import { cn } from '@/lib/utils';
-import { useFiche } from '../context';
-import { Bloc } from '../elements';
+import { useSheet } from '../context';
+import { Block } from '../elements';
 import {
-  boutonAccent,
-  boutonSecondaire,
+  accentButton,
+  secondaryButton,
   focus,
-  policeTitres,
-  texte,
-  texteAccent,
-  texteSecondaire,
+  titleFont,
+  text,
+  textAccent,
+  textMuted,
 } from '../styles';
-import { EtapeAcheter } from './step-purchase';
-import { EtapeChoisir } from './step-choose';
-import { EtapeRepartir, EtapeSaisir, EtapeTirer } from './value-steps';
+import { PurchaseStep } from './step-purchase';
+import { ChooseStep } from './step-choose';
+import { DistributeStep, InputStep, RollStep } from './value-steps';
 
-export type Etape<T extends EtapeCreation['type']> = Extract<EtapeCreation, { type: T }>;
+export type Step<T extends EtapeCreation['type']> = Extract<EtapeCreation, { type: T }>;
 
-export function AssistantCreation() {
-  const { personnage, systeme, etat, enAttente, lectureSeule, ecrire } = useFiche();
+export function CreationAssistant() {
+  const { character, system, state, pending, readOnly, write } = useSheet();
   const router = useRouter();
-  const serveur = useLectureVersionnee('creation', personnage, enAttente, lireEtapesCreation);
+  const server = useVersionedRead('creation', character, pending, getCreationSteps);
   const local = useMemo(
-    () => (serveur ? null : etapesCreation(systeme, etat)),
-    [serveur, systeme, etat],
+    () => (server ? null : etapesCreation(system, state)),
+    [server, system, state],
   );
-  const etapes: EtatEtape[] = serveur ?? local ?? [];
-  const [choisie, setChoisie] = useState<string | null>(null);
-  const [fin, setFin] = useState(false);
+  const steps: EtatEtape[] = server ?? local ?? [];
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
-  const premiereAFaire = etapes.findIndex((e) => e.statut !== 'faite');
-  const index = Math.max(
-    0,
-    choisie ? etapes.findIndex((e) => e.etape.id === choisie) : premiereAFaire,
-  );
-  const courante = etapes[index];
-  const restantes = etapes.filter((e) => e.statut !== 'faite');
+  const firstTodo = steps.findIndex((e) => e.statut !== 'faite');
+  const index = Math.max(0, chosen ? steps.findIndex((e) => e.etape.id === chosen) : firstTodo);
+  const currentStep = steps[index];
+  const remaining = steps.filter((e) => e.statut !== 'faite');
 
-  const aller = (i: number) => {
-    const e = etapes[i];
+  const goTo = (i: number) => {
+    const e = steps[i];
     if (e) {
-      setChoisie(e.etape.id);
+      setChosen(e.etape.id);
       if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   async function terminer() {
-    setFin(true);
-    const ok = await ecrire(ecritures.terminer(), (e) => {
-      const r = terminerCreation(systeme, e);
+    setDone(true);
+    const ok = await write(writes.finish(), (e) => {
+      const r = terminerCreation(system, e);
       return r.ok ? r.etat : null;
     });
-    setFin(false);
-    if (ok) router.push(`/characters/${personnage.id}`);
+    setDone(false);
+    if (ok) router.push(`/characters/${character.id}`);
   }
 
-  if (!etat.creation)
+  if (!state.creation)
     return (
-      <Bloc titre="Création terminée">
-        <p className={cn(texte, 'mb-3 text-sm')}>Ce personnage est prêt à jouer.</p>
-        <Link href={`/characters/${personnage.id}`} className={boutonAccent}>
+      <Block title="Création terminée">
+        <p className={cn(text, 'mb-3 text-sm')}>Ce personnage est prêt à jouer.</p>
+        <Link href={`/characters/${character.id}`} className={accentButton}>
           Voir la fiche
         </Link>
-      </Bloc>
+      </Block>
     );
 
-  if (lectureSeule)
+  if (readOnly)
     return (
-      <Bloc titre="Création">
-        <p className={cn(texteSecondaire, 'text-sm')}>
+      <Block title="Création">
+        <p className={cn(textMuted, 'text-sm')}>
           Seul le propriétaire de ce personnage peut le créer.
         </p>
-      </Bloc>
+      </Block>
     );
 
   return (
     <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
       <nav aria-label="Étapes de création" className="lg:sticky lg:top-20 lg:self-start">
         <ol className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] lg:flex-col lg:overflow-visible">
-          {etapes.map((e, i) => (
+          {steps.map((e, i) => (
             <li key={e.etape.id} className="shrink-0">
               <button
                 type="button"
-                onClick={() => aller(i)}
+                onClick={() => goTo(i)}
                 aria-current={i === index ? 'step' : undefined}
                 className={cn(
                   'flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
@@ -104,9 +101,9 @@ export function AssistantCreation() {
                   focus,
                 )}
               >
-                <IconeStatut statut={e.statut} />
-                <span className={cn(texte, 'whitespace-nowrap lg:whitespace-normal')}>
-                  <span className={texteSecondaire}>{i + 1}.</span> {e.etape.nom}
+                <StatusIcon status={e.statut} />
+                <span className={cn(text, 'whitespace-nowrap lg:whitespace-normal')}>
+                  <span className={textMuted}>{i + 1}.</span> {e.etape.nom}
                 </span>
               </button>
             </li>
@@ -115,44 +112,44 @@ export function AssistantCreation() {
       </nav>
 
       <div className="min-w-0 space-y-4">
-        {courante ? (
-          <Bloc titre={`${index + 1}. ${courante.etape.nom}`}>
+        {currentStep ? (
+          <Block title={`${index + 1}. ${currentStep.etape.nom}`}>
             <div className="space-y-4">
-              {courante.etape.description && (
-                <p className={cn(texteSecondaire, 'text-sm leading-relaxed')}>
-                  {courante.etape.description}
+              {currentStep.etape.description && (
+                <p className={cn(textMuted, 'text-sm leading-relaxed')}>
+                  {currentStep.etape.description}
                 </p>
               )}
-              {courante.raisons.length > 0 && (
+              {currentStep.raisons.length > 0 && (
                 <ul
                   className={cn(
                     'space-y-1 rounded-lg border px-3 py-2 text-sm',
-                    courante.statut === 'invalide'
+                    currentStep.statut === 'invalide'
                       ? 'border-red-500/30 bg-red-500/10 text-red-300'
                       : 'border-[color:var(--fiche-bordure)] text-[color:var(--fiche-texte-secondaire)]',
                   )}
                 >
-                  {courante.raisons.map((r, i) => (
+                  {currentStep.raisons.map((r, i) => (
                     <li key={i}>{r}</li>
                   ))}
                 </ul>
               )}
-              <VueEtape etat={courante} onSuivante={() => aller(index + 1)} />
+              <StepView state={currentStep} onNext={() => goTo(index + 1)} />
             </div>
-          </Bloc>
+          </Block>
         ) : (
-          <Bloc titre="Création">
-            <p className={cn(texteSecondaire, 'text-sm')}>
+          <Block title="Création">
+            <p className={cn(textMuted, 'text-sm')}>
               Ce système ne déclare pas d&apos;étapes de création pour ce type de fiche.
             </p>
-          </Bloc>
+          </Block>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
-            className={boutonSecondaire}
-            onClick={() => aller(index - 1)}
+            className={secondaryButton}
+            onClick={() => goTo(index - 1)}
             disabled={index <= 0}
           >
             <ChevronLeft />
@@ -160,9 +157,9 @@ export function AssistantCreation() {
           </button>
           <button
             type="button"
-            className={boutonSecondaire}
-            onClick={() => aller(index + 1)}
-            disabled={index >= etapes.length - 1}
+            className={secondaryButton}
+            onClick={() => goTo(index + 1)}
+            disabled={index >= steps.length - 1}
           >
             Suivante
             <ChevronRight />
@@ -173,24 +170,24 @@ export function AssistantCreation() {
           aria-label="Fin de la création"
           className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--fiche-bordure)] bg-[color:var(--fiche-carte)] p-4"
         >
-          <p className={cn(texte, 'text-sm')}>
-            {restantes.length ? (
+          <p className={cn(text, 'text-sm')}>
+            {remaining.length ? (
               <>
-                {restantes.length} étape{restantes.length > 1 ? 's' : ''} à compléter avant de
+                {remaining.length} étape{remaining.length > 1 ? 's' : ''} à compléter avant de
                 terminer.
               </>
             ) : (
-              <span className={cn(policeTitres, texteAccent)}>Tout est prêt !</span>
+              <span className={cn(titleFont, textAccent)}>Tout est prêt !</span>
             )}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/characters/${personnage.id}`} className={boutonSecondaire}>
+            <Link href={`/characters/${character.id}`} className={secondaryButton}>
               Voir la fiche
             </Link>
             <button
               type="button"
-              className={boutonAccent}
-              disabled={restantes.length > 0 || fin || enAttente > 0}
+              className={accentButton}
+              disabled={remaining.length > 0 || done || pending > 0}
               onClick={terminer}
             >
               <Flag />
@@ -203,29 +200,29 @@ export function AssistantCreation() {
   );
 }
 
-function IconeStatut({ statut }: { statut: EtatEtape['statut'] }) {
-  if (statut === 'faite')
-    return <Check aria-label="faite" className={cn(texteAccent, 'h-4 w-4 shrink-0')} />;
-  if (statut === 'invalide')
+function StatusIcon({ status }: { status: EtatEtape['statut'] }) {
+  if (status === 'faite')
+    return <Check aria-label="faite" className={cn(textAccent, 'h-4 w-4 shrink-0')} />;
+  if (status === 'invalide')
     return <AlertCircle aria-label="à corriger" className="h-4 w-4 shrink-0 text-red-400" />;
-  return <Circle aria-label="à faire" className={cn(texteSecondaire, 'h-4 w-4 shrink-0')} />;
+  return <Circle aria-label="à faire" className={cn(textMuted, 'h-4 w-4 shrink-0')} />;
 }
 
-function VueEtape({ etat, onSuivante }: { etat: EtatEtape; onSuivante(): void }) {
-  const { personnage } = useFiche();
-  const e = etat.etape;
+function StepView({ state, onNext }: { state: EtatEtape; onNext(): void }) {
+  const { character } = useSheet();
+  const e = state.etape;
   // La clé remet la saisie à l'état enregistré après chaque réponse du serveur
-  const cle = `${e.id}:${personnage.version}`;
+  const key = `${e.id}:${character.version}`;
   switch (e.type) {
     case 'choisir':
-      return <EtapeChoisir key={cle} etape={e} onSuivante={onSuivante} />;
+      return <ChooseStep key={key} step={e} onNext={onNext} />;
     case 'repartir':
-      return <EtapeRepartir key={cle} etape={e} etat={etat} onSuivante={onSuivante} />;
+      return <DistributeStep key={key} step={e} state={state} onNext={onNext} />;
     case 'tirer':
-      return <EtapeTirer key={cle} etape={e} />;
+      return <RollStep key={key} step={e} />;
     case 'saisir':
-      return <EtapeSaisir key={cle} etape={e} onSuivante={onSuivante} />;
+      return <InputStep key={key} step={e} onNext={onNext} />;
     case 'acheter':
-      return <EtapeAcheter key={e.id} etape={e} />;
+      return <PurchaseStep key={e.id} step={e} />;
   }
 }

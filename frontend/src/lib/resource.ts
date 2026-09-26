@@ -1,56 +1,56 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { messageErreur } from './api';
+import { errorMessage } from './api';
 
-export interface Ressource<T> {
-  donnees: T | undefined;
-  erreur: string | null;
-  chargement: boolean;
-  recharger(): Promise<void>;
+export interface Resource<T> {
+  data: T | undefined;
+  error: string | null;
+  loading: boolean;
+  reload(): Promise<void>;
   /** Mise à jour locale (après une action), sans nouvel appel. */
-  modifier(maj: (actuel: T | undefined) => T | undefined): void;
+  update(patch: (current: T | undefined) => T | undefined): void;
 }
 
 /**
  * Charge une ressource de l'API et suit son état. `cle` identifie la requête :
  * elle est relancée quand la clé change, et rien n'est chargé si elle vaut null.
  */
-export function useRessource<T>(cle: string | null, charger: () => Promise<T>): Ressource<T> {
-  const [donnees, setDonnees] = useState<T | undefined>(undefined);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [chargement, setChargement] = useState(cle !== null);
-  const chargeur = useRef(charger);
-  const derniere = useRef(0);
+export function useResource<T>(key: string | null, load: () => Promise<T>): Resource<T> {
+  const [data, setData] = useState<T | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(key !== null);
+  const loaderRef = useRef(load);
+  const lastRequest = useRef(0);
 
   useEffect(() => {
-    chargeur.current = charger;
+    loaderRef.current = load;
   });
 
-  const recharger = useCallback(async () => {
-    if (cle === null) return;
-    const numero = ++derniere.current;
-    setChargement(true);
+  const reload = useCallback(async () => {
+    if (key === null) return;
+    const requestId = ++lastRequest.current;
+    setLoading(true);
     try {
-      const d = await chargeur.current();
-      if (numero !== derniere.current) return;
-      setDonnees(d);
-      setErreur(null);
+      const d = await loaderRef.current();
+      if (requestId !== lastRequest.current) return;
+      setData(d);
+      setError(null);
     } catch (err) {
-      if (numero !== derniere.current) return;
-      setErreur(messageErreur(err));
+      if (requestId !== lastRequest.current) return;
+      setError(errorMessage(err));
     } finally {
-      if (numero === derniere.current) setChargement(false);
+      if (requestId === lastRequest.current) setLoading(false);
     }
-  }, [cle]);
+  }, [key]);
 
   useEffect(() => {
-    void recharger();
-  }, [recharger]);
+    void reload();
+  }, [reload]);
 
-  const modifier = useCallback((maj: (actuel: T | undefined) => T | undefined) => {
-    setDonnees((d) => maj(d));
+  const update = useCallback((patch: (current: T | undefined) => T | undefined) => {
+    setData((d) => patch(d));
   }, []);
 
-  return { donnees, erreur, chargement, recharger, modifier };
+  return { data, error, loading, reload, update };
 }

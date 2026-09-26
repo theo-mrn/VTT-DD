@@ -3,16 +3,16 @@
 import { AlertTriangle, Check, Copy, KeyRound, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import {
-  Bouton,
-  Carte,
-  Chargement,
-  formaterDate,
-  formaterDepuis,
+  AppButton,
+  Card,
+  Loading,
+  formatDate,
+  formatSince,
   Message,
-  TitrePage,
-  Vide,
+  PageTitle,
+  Empty,
 } from '@/components/account/elements';
-import { aclonica, styleChamp, styleLabel } from '@/components/account/styles';
+import { aclonica, inputStyle, labelStyle } from '@/components/account/styles';
 import {
   Dialog,
   DialogContent,
@@ -23,47 +23,47 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { messageErreur } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
 import {
-  creerCleApi,
-  lireClesApi,
-  revoquerCleApi,
-  type CleApi,
-  type CleApiCreee,
+  createApiKey,
+  getApiKeys,
+  revokeApiKey,
+  type ApiKey,
+  type CreatedApiKey,
 } from '@/lib/api-keys';
-import { useRessource } from '@/lib/resource';
+import { useResource } from '@/lib/resource';
 import { cn } from '@/lib/utils';
 
-export default function PageClesApi() {
-  const cles = useRessource('cles-api', lireClesApi);
-  const [creation, setCreation] = useState(false);
-  const [aRevoquer, setARevoquer] = useState<CleApi | null>(null);
+export default function ApiKeysPage() {
+  const keys = useResource('cles-api', getApiKeys);
+  const [creating, setCreating] = useState(false);
+  const [toRevoke, setToRevoke] = useState<ApiKey | null>(null);
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Pour accéder à votre compte depuis vos propres outils (scripts, bots…).">
+      <PageTitle subtitle="Pour accéder à votre compte depuis vos propres outils (scripts, bots…).">
         Clés d&apos;API
-      </TitrePage>
+      </PageTitle>
 
-      <Carte
-        titre="Mes clés"
+      <Card
+        title="Mes clés"
         description="Une clé donne accès à votre compte : ne la partagez jamais. Révoquez-la au moindre doute."
         action={
-          <Bouton onClick={() => setCreation(true)}>
+          <AppButton onClick={() => setCreating(true)}>
             <Plus />
             Nouvelle clé
-          </Bouton>
+          </AppButton>
         }
       >
-        {cles.chargement && !cles.donnees ? (
-          <Chargement />
-        ) : cles.erreur ? (
-          <Message>{cles.erreur}</Message>
-        ) : !cles.donnees?.length ? (
-          <Vide>Aucune clé d&apos;API pour l&apos;instant.</Vide>
+        {keys.loading && !keys.data ? (
+          <Loading />
+        ) : keys.error ? (
+          <Message>{keys.error}</Message>
+        ) : !keys.data?.length ? (
+          <Empty>Aucune clé d&apos;API pour l&apos;instant.</Empty>
         ) : (
           <ul className="divide-y divide-zinc-800">
-            {cles.donnees.map((c) => (
+            {keys.data.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-3 py-3">
                 <KeyRound className="h-5 w-5 shrink-0 text-[#c9a965]" />
                 <div className="min-w-0 flex-1">
@@ -72,24 +72,24 @@ export default function PageClesApi() {
                     <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
                       {c.prefix}…
                     </code>{' '}
-                    · créée le {formaterDate(c.createdAt)} · utilisée{' '}
-                    {c.lastUsedAt ? formaterDepuis(c.lastUsedAt) : 'jamais'}
+                    · créée le {formatDate(c.createdAt)} · utilisée{' '}
+                    {c.lastUsedAt ? formatSince(c.lastUsedAt) : 'jamais'}
                   </p>
                 </div>
-                <Bouton ton="danger" size="sm" onClick={() => setARevoquer(c)}>
+                <AppButton tone="danger" size="sm" onClick={() => setToRevoke(c)}>
                   Révoquer
-                </Bouton>
+                </AppButton>
               </li>
             ))}
           </ul>
         )}
-      </Carte>
+      </Card>
 
-      <DialogueCreation
-        ouvert={creation}
-        onFermer={() => setCreation(false)}
-        onCreee={(c) =>
-          cles.modifier((liste) => [
+      <CreateDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreated={(c) =>
+          keys.update((list) => [
             {
               id: c.id,
               name: c.name,
@@ -97,78 +97,78 @@ export default function PageClesApi() {
               createdAt: new Date().toISOString(),
               lastUsedAt: null,
             },
-            ...(liste ?? []),
+            ...(list ?? []),
           ])
         }
       />
-      <DialogueRevocation
-        cle={aRevoquer}
-        onFermer={() => setARevoquer(null)}
-        onRevoquee={(id) => cles.modifier((liste) => liste?.filter((c) => c.id !== id))}
+      <RevokeDialog
+        apiKey={toRevoke}
+        onClose={() => setToRevoke(null)}
+        onRevoked={(id) => keys.update((list) => list?.filter((c) => c.id !== id))}
       />
     </div>
   );
 }
 
-function DialogueCreation({
-  ouvert,
-  onFermer,
-  onCreee,
+function CreateDialog({
+  open,
+  onClose,
+  onCreated,
 }: {
-  ouvert: boolean;
-  onFermer(): void;
-  onCreee(cle: CleApiCreee): void;
+  open: boolean;
+  onClose(): void;
+  onCreated(key: CreatedApiKey): void;
 }) {
-  const [nom, setNom] = useState('');
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // La clé complète ne vit que dans cet état : elle disparaît à la fermeture
-  const [creee, setCreee] = useState<CleApiCreee | null>(null);
-  const [copiee, setCopiee] = useState(false);
+  const [created, setCreated] = useState<CreatedApiKey | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  function fermer() {
-    if (envoi) return;
-    setNom('');
-    setErreur(null);
-    setCreee(null);
-    setCopiee(false);
-    onFermer();
+  function close() {
+    if (sending) return;
+    setName('');
+    setError(null);
+    setCreated(null);
+    setCopied(false);
+    onClose();
   }
 
-  async function creer(e: FormEvent) {
+  async function create(e: FormEvent) {
     e.preventDefault();
-    setEnvoi(true);
-    setErreur(null);
+    setSending(true);
+    setError(null);
     try {
-      const c = await creerCleApi(nom.trim());
-      setCreee(c);
-      onCreee(c);
+      const c = await createApiKey(name.trim());
+      setCreated(c);
+      onCreated(c);
     } catch (err) {
-      setErreur(messageErreur(err));
+      setError(errorMessage(err));
     } finally {
-      setEnvoi(false);
+      setSending(false);
     }
   }
 
-  async function copier() {
-    if (!creee) return;
+  async function copy() {
+    if (!created) return;
     try {
-      await navigator.clipboard.writeText(creee.key);
-      setCopiee(true);
-      setTimeout(() => setCopiee(false), 2000);
+      await navigator.clipboard.writeText(created.key);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
-      setErreur('Copie impossible : sélectionnez la clé et copiez-la à la main.');
+      setError('Copie impossible : sélectionnez la clé et copiez-la à la main.');
     }
   }
 
   return (
-    <Dialog open={ouvert} onOpenChange={(o) => !o && fermer()}>
+    <Dialog open={open} onOpenChange={(o) => !o && close()}>
       <DialogContent className="sm:max-w-lg">
-        {creee ? (
+        {created ? (
           <div className="space-y-4">
             <DialogHeader>
               <DialogTitle className={cn(aclonica, 'text-white')}>Clé créée</DialogTitle>
-              <DialogDescription className="text-zinc-400">« {creee.name} »</DialogDescription>
+              <DialogDescription className="text-zinc-400">« {created.name} »</DialogDescription>
             </DialogHeader>
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -182,20 +182,20 @@ function DialogueCreation({
                 className="min-w-0 flex-1 select-all break-all rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-[#e2cc97]"
                 aria-label="Clé d'API"
               >
-                {creee.key}
+                {created.key}
               </code>
-              <Bouton ton="secondaire" onClick={copier} className="shrink-0">
-                {copiee ? <Check /> : <Copy />}
-                {copiee ? 'Copiée' : 'Copier'}
-              </Bouton>
+              <AppButton tone="secondaire" onClick={copy} className="shrink-0">
+                {copied ? <Check /> : <Copy />}
+                {copied ? 'Copiée' : 'Copier'}
+              </AppButton>
             </div>
-            {erreur && <Message>{erreur}</Message>}
+            {error && <Message>{error}</Message>}
             <DialogFooter>
-              <Bouton onClick={fermer}>J&apos;ai copié ma clé</Bouton>
+              <AppButton onClick={close}>J&apos;ai copié ma clé</AppButton>
             </DialogFooter>
           </div>
         ) : (
-          <form onSubmit={creer} className="space-y-4">
+          <form onSubmit={create} className="space-y-4">
             <DialogHeader>
               <DialogTitle className={cn(aclonica, 'text-white')}>
                 Nouvelle clé d&apos;API
@@ -206,28 +206,28 @@ function DialogueCreation({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
-              <Label htmlFor="nom-cle" className={styleLabel}>
+              <Label htmlFor="nom-cle" className={labelStyle}>
                 Nom
               </Label>
               <Input
                 id="nom-cle"
                 required
                 maxLength={64}
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Bot Discord de la campagne"
-                className={styleChamp}
+                className={inputStyle}
                 autoFocus
               />
             </div>
-            {erreur && <Message>{erreur}</Message>}
+            {error && <Message>{error}</Message>}
             <DialogFooter>
-              <Bouton type="button" ton="secondaire" onClick={fermer} disabled={envoi}>
+              <AppButton type="button" tone="secondaire" onClick={close} disabled={sending}>
                 Annuler
-              </Bouton>
-              <Bouton type="submit" chargement={envoi} disabled={!nom.trim()}>
+              </AppButton>
+              <AppButton type="submit" loading={sending} disabled={!name.trim()}>
                 Créer la clé
-              </Bouton>
+              </AppButton>
             </DialogFooter>
           </form>
         )}
@@ -236,57 +236,57 @@ function DialogueCreation({
   );
 }
 
-function DialogueRevocation({
-  cle,
-  onFermer,
-  onRevoquee,
+function RevokeDialog({
+  apiKey,
+  onClose,
+  onRevoked,
 }: {
-  cle: CleApi | null;
-  onFermer(): void;
-  onRevoquee(id: string): void;
+  apiKey: ApiKey | null;
+  onClose(): void;
+  onRevoked(id: string): void;
 }) {
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function fermer() {
-    if (envoi) return;
-    setErreur(null);
-    onFermer();
+  function close() {
+    if (sending) return;
+    setError(null);
+    onClose();
   }
 
-  async function revoquer() {
-    if (!cle) return;
-    setEnvoi(true);
-    setErreur(null);
+  async function revoke() {
+    if (!apiKey) return;
+    setSending(true);
+    setError(null);
     try {
-      await revoquerCleApi(cle.id);
-      onRevoquee(cle.id);
-      setEnvoi(false);
-      onFermer();
+      await revokeApiKey(apiKey.id);
+      onRevoked(apiKey.id);
+      setSending(false);
+      onClose();
     } catch (err) {
-      setErreur(messageErreur(err));
-      setEnvoi(false);
+      setError(errorMessage(err));
+      setSending(false);
     }
   }
 
   return (
-    <Dialog open={cle !== null} onOpenChange={(o) => !o && fermer()}>
+    <Dialog open={apiKey !== null} onOpenChange={(o) => !o && close()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className={cn(aclonica, 'text-white')}>Révoquer cette clé ?</DialogTitle>
           <DialogDescription className="text-zinc-400">
-            Les outils qui utilisent « {cle?.name} » perdront immédiatement l&apos;accès à votre
+            Les outils qui utilisent « {apiKey?.name} » perdront immédiatement l&apos;accès à votre
             compte.
           </DialogDescription>
         </DialogHeader>
-        {erreur && <Message className="mt-4">{erreur}</Message>}
+        {error && <Message className="mt-4">{error}</Message>}
         <DialogFooter className="mt-6">
-          <Bouton ton="secondaire" onClick={fermer} disabled={envoi}>
+          <AppButton tone="secondaire" onClick={close} disabled={sending}>
             Annuler
-          </Bouton>
-          <Bouton ton="danger" className="bg-red-500/10" chargement={envoi} onClick={revoquer}>
+          </AppButton>
+          <AppButton tone="danger" className="bg-red-500/10" loading={sending} onClick={revoke}>
             Révoquer
-          </Bouton>
+          </AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

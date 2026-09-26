@@ -11,61 +11,61 @@ import {
 import { Check, Lock, Undo2 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { BoutonAchat } from './purchase-button';
-import { useFiche } from './context';
-import { Bloc, VideFiche } from './elements';
-import { derniereLigne } from './possessions';
-import { boutonSecondaire, focus, texte, texteAccent, texteSecondaire } from './styles';
+import { PurchaseButton } from './purchase-button';
+import { useSheet } from './context';
+import { Block, SheetEmpty } from './elements';
+import { lastLine } from './possessions';
+import { secondaryButton, focus, text, textAccent, textMuted } from './styles';
 
-type WidgetArbres = Extract<Widget, { type: 'arbres' }>;
-type Noeud = Arbre['noeuds'][number];
-type Statut = 'acquis' | 'achetable' | 'bloque';
+type TreesWidget = Extract<Widget, { type: 'arbres' }>;
+type TreeNode = Arbre['noeuds'][number];
+type Status = 'acquis' | 'achetable' | 'bloque';
 
 /** Géométrie par défaut de la grille, quand la présentation n'en déclare pas (px). */
-const GEOMETRIE = { colonne: 190, ligne: 110, noeud: { largeur: 170, hauteur: 60 } };
+const GEOMETRY = { colonne: 190, ligne: 110, noeud: { largeur: 170, hauteur: 60 } };
 
-export function WidgetArbres({ widget }: { widget: WidgetArbres }) {
-  const { systeme, fiche } = useFiche();
-  const ouverts = useMemo(
+export function TreesWidget({ widget }: { widget: TreesWidget }) {
+  const { system, sheet } = useSheet();
+  const opened = useMemo(
     () =>
-      [...systeme.arbres.values()].filter(
+      [...system.arbres.values()].filter(
         (a) =>
-          arbreOuvert(fiche, a) &&
+          arbreOuvert(sheet, a) &&
           a.noeuds.some((n) => {
-            const e = systeme.entrees.get(n.entree);
-            return !!e && !!systeme.sortes.get(e.sorte)?.pour.includes(fiche.etat.type);
+            const e = system.entrees.get(n.entree);
+            return !!e && !!system.sortes.get(e.sorte)?.pour.includes(sheet.etat.type);
           }),
       ),
-    [systeme, fiche],
+    [system, sheet],
   );
-  const [choisi, setChoisi] = useState<string | null>(null);
-  const actif = ouverts.find((a) => a.id === choisi) ?? ouverts[0];
-  const idOnglets = useId();
+  const [selected, setSelected] = useState<string | null>(null);
+  const active = opened.find((a) => a.id === selected) ?? opened[0];
+  const tabIds = useId();
 
   return (
-    <Bloc titre={widget.titre}>
-      {!actif ? (
-        <VideFiche>Aucun arbre ouvert pour l&apos;instant.</VideFiche>
+    <Block title={widget.titre}>
+      {!active ? (
+        <SheetEmpty>Aucun arbre ouvert pour l&apos;instant.</SheetEmpty>
       ) : (
         <>
-          {ouverts.length > 1 && (
+          {opened.length > 1 && (
             <div
               role="tablist"
               aria-label={widget.titre}
               className="mb-3 flex gap-1 overflow-x-auto pb-1 [scrollbar-width:thin]"
             >
-              {ouverts.map((a) => (
+              {opened.map((a) => (
                 <button
                   key={a.id}
-                  id={`${idOnglets}-${a.id}`}
+                  id={`${tabIds}-${a.id}`}
                   type="button"
                   role="tab"
-                  aria-selected={a.id === actif.id}
-                  aria-controls={`${idOnglets}-panneau`}
-                  onClick={() => setChoisi(a.id)}
+                  aria-selected={a.id === active.id}
+                  aria-controls={`${tabIds}-panneau`}
+                  onClick={() => setSelected(a.id)}
                   className={cn(
                     'shrink-0 rounded-lg px-3 py-1.5 text-sm transition-colors',
-                    a.id === actif.id
+                    a.id === active.id
                       ? 'bg-[color:color-mix(in_srgb,var(--fiche-accent)_16%,transparent)] text-[color:var(--fiche-accent)]'
                       : 'text-[color:var(--fiche-texte-secondaire)] hover:text-[color:var(--fiche-texte)]',
                     focus,
@@ -77,77 +77,74 @@ export function WidgetArbres({ widget }: { widget: WidgetArbres }) {
             </div>
           )}
           <div
-            id={`${idOnglets}-panneau`}
-            role={ouverts.length > 1 ? 'tabpanel' : undefined}
-            aria-labelledby={ouverts.length > 1 ? `${idOnglets}-${actif.id}` : undefined}
+            id={`${tabIds}-panneau`}
+            role={opened.length > 1 ? 'tabpanel' : undefined}
+            aria-labelledby={opened.length > 1 ? `${tabIds}-${active.id}` : undefined}
           >
-            <GrilleArbre key={actif.id} arbre={actif} avecNom={ouverts.length === 1} />
+            <TreeGrid key={active.id} tree={active} withName={opened.length === 1} />
           </div>
         </>
       )}
-    </Bloc>
+    </Block>
   );
 }
 
-function GrilleArbre({ arbre, avecNom }: { arbre: Arbre; avecNom: boolean }) {
-  const { systeme, fiche, etat, presentation, achats, lectureSeule, acheter, rembourser } =
-    useFiche();
-  const g = presentation.arbres ?? GEOMETRIE;
+function TreeGrid({ tree, withName }: { tree: Arbre; withName: boolean }) {
+  const { system, sheet, state, presentation, purchases, readOnly, buy, refund } = useSheet();
+  const g = presentation.arbres ?? GEOMETRY;
   const [selection, setSelection] = useState<string | null>(null);
-  const acquis = new Set(etat.noeuds[arbre.id] ?? []);
+  const acquired = new Set(state.noeuds[tree.id] ?? []);
 
-  const objets = new Map<string, ObjetAchetable>();
-  for (const a of achats)
+  const items = new Map<string, ObjetAchetable>();
+  for (const a of purchases)
     for (const o of a.objets)
-      if (o.type === 'noeud' && o.arbre === arbre.id && o.noeud) objets.set(o.noeud, o);
+      if (o.type === 'noeud' && o.arbre === tree.id && o.noeud) items.set(o.noeud, o);
 
-  const statut = (n: Noeud): Statut =>
-    acquis.has(n.id) ? 'acquis' : objets.get(n.id)?.possible ? 'achetable' : 'bloque';
+  const status = (n: TreeNode): Status =>
+    acquired.has(n.id) ? 'acquis' : items.get(n.id)?.possible ? 'achetable' : 'bloque';
 
-  const cout = (n: Noeud) => {
-    const o = objets.get(n.id);
+  const cost = (n: TreeNode) => {
+    const o = items.get(n.id);
     if (o) return o.cout;
-    const f = systeme.formules.get(chemins.noeud(arbre.id, n.id));
+    const f = system.formules.get(chemins.noeud(tree.id, n.id));
     if (!f) return undefined;
-    const r = essayer(fiche, f, {
-      variable: (nom) => (nom === 'x' ? n.x : nom === 'y' ? n.y : 0),
+    const r = essayer(sheet, f, {
+      variable: (name) => (name === 'x' ? n.x : name === 'y' ? n.y : 0),
     });
     return r.ok ? Number(r.valeur) : undefined;
   };
 
-  const minX = Math.min(...arbre.noeuds.map((n) => n.x));
-  const minY = Math.min(...arbre.noeuds.map((n) => n.y));
-  const pos = (n: Noeud) => ({ x: (n.x - minX) * g.colonne, y: (n.y - minY) * g.ligne });
-  const largeur = Math.max(...arbre.noeuds.map((n) => pos(n).x)) + g.noeud.largeur;
-  const hauteur = Math.max(...arbre.noeuds.map((n) => pos(n).y)) + g.noeud.hauteur;
-  const parId = new Map(arbre.noeuds.map((n) => [n.id, n]));
-  const noeud = selection ? parId.get(selection) : undefined;
-  const entreeNoeud = noeud ? systeme.entrees.get(noeud.entree) : undefined;
-  const objetNoeud = noeud ? objets.get(noeud.id) : undefined;
-  const ligneJournal = noeud ? derniereLigne(etat, `${arbre.id}/${noeud.id}`) : -1;
-  const monnaie = objetNoeud
-    ? (systeme.monnaies.get(objetNoeud.monnaie)?.nom ?? objetNoeud.monnaie)
-    : '';
+  const minX = Math.min(...tree.noeuds.map((n) => n.x));
+  const minY = Math.min(...tree.noeuds.map((n) => n.y));
+  const pos = (n: TreeNode) => ({ x: (n.x - minX) * g.colonne, y: (n.y - minY) * g.ligne });
+  const width = Math.max(...tree.noeuds.map((n) => pos(n).x)) + g.noeud.largeur;
+  const height = Math.max(...tree.noeuds.map((n) => pos(n).y)) + g.noeud.hauteur;
+  const byId = new Map(tree.noeuds.map((n) => [n.id, n]));
+  const node = selection ? byId.get(selection) : undefined;
+  const nodeEntry = node ? system.entrees.get(node.entree) : undefined;
+  const nodeItem = node ? items.get(node.id) : undefined;
+  const logLine = node ? lastLine(state, `${tree.id}/${node.id}`) : -1;
+  const currency = nodeItem ? (system.monnaies.get(nodeItem.monnaie)?.nom ?? nodeItem.monnaie) : '';
 
   return (
     <div className="space-y-3">
-      {avecNom && <h3 className={cn(texte, 'text-sm font-semibold')}>{arbre.nom}</h3>}
-      {arbre.description && <p className={cn(texteSecondaire, 'text-xs')}>{arbre.description}</p>}
+      {withName && <h3 className={cn(text, 'text-sm font-semibold')}>{tree.nom}</h3>}
+      {tree.description && <p className={cn(textMuted, 'text-xs')}>{tree.description}</p>}
       <div className="overflow-x-auto rounded-xl border border-[color:var(--fiche-bordure)] bg-[color:var(--fiche-canevas)] p-3">
-        <div className="relative" style={{ width: largeur, height: hauteur }}>
+        <div className="relative" style={{ width, height }}>
           <svg
             aria-hidden
             className="pointer-events-none absolute inset-0"
-            width={largeur}
-            height={hauteur}
+            width={width}
+            height={height}
           >
-            {arbre.liens.map((l, i) => {
-              const a = parId.get(l.de);
-              const b = parId.get(l.vers);
+            {tree.liens.map((l, i) => {
+              const a = byId.get(l.de);
+              const b = byId.get(l.vers);
               if (!a || !b) return null;
               const pa = pos(a);
               const pb = pos(b);
-              const actifLien = acquis.has(a.id) && acquis.has(b.id);
+              const activeLink = acquired.has(a.id) && acquired.has(b.id);
               return (
                 <line
                   key={i}
@@ -155,18 +152,18 @@ function GrilleArbre({ arbre, avecNom }: { arbre: Arbre; avecNom: boolean }) {
                   y1={pa.y + g.noeud.hauteur / 2}
                   x2={pb.x + g.noeud.largeur / 2}
                   y2={pb.y + g.noeud.hauteur / 2}
-                  stroke={actifLien ? 'var(--fiche-accent)' : 'var(--fiche-bordure)'}
-                  strokeWidth={actifLien ? 4 : 3}
+                  stroke={activeLink ? 'var(--fiche-accent)' : 'var(--fiche-bordure)'}
+                  strokeWidth={activeLink ? 4 : 3}
                   strokeDasharray={l.sens === 'simple' ? '6 4' : undefined}
                 />
               );
             })}
           </svg>
-          {arbre.noeuds.map((n) => {
-            const e = systeme.entrees.get(n.entree);
-            const s = statut(n);
+          {tree.noeuds.map((n) => {
+            const e = system.entrees.get(n.entree);
+            const s = status(n);
             const p = pos(n);
-            const c = cout(n);
+            const c = cost(n);
             return (
               <button
                 key={n.id}
@@ -187,17 +184,17 @@ function GrilleArbre({ arbre, avecNom }: { arbre: Arbre; avecNom: boolean }) {
                 )}
                 style={{ left: p.x, top: p.y, width: g.noeud.largeur, height: g.noeud.hauteur }}
               >
-                <span className={cn(texte, 'line-clamp-2 text-xs font-medium leading-tight')}>
+                <span className={cn(text, 'line-clamp-2 text-xs font-medium leading-tight')}>
                   {e?.nom ?? n.entree}
                 </span>
                 <span className="mt-0.5 flex items-center gap-1 text-[11px]">
                   {s === 'acquis' ? (
-                    <Check className={cn(texteAccent, 'h-3 w-3')} />
+                    <Check className={cn(textAccent, 'h-3 w-3')} />
                   ) : s === 'bloque' ? (
-                    <Lock className={cn(texteSecondaire, 'h-3 w-3')} />
+                    <Lock className={cn(textMuted, 'h-3 w-3')} />
                   ) : null}
                   {c !== undefined && s !== 'acquis' && (
-                    <span className={cn(texteSecondaire, 'tabular-nums')}>{c}</span>
+                    <span className={cn(textMuted, 'tabular-nums')}>{c}</span>
                   )}
                 </span>
               </button>
@@ -206,38 +203,36 @@ function GrilleArbre({ arbre, avecNom }: { arbre: Arbre; avecNom: boolean }) {
         </div>
       </div>
 
-      {noeud && (
+      {node && (
         <div
           aria-live="polite"
           className="space-y-2 rounded-xl border border-[color:var(--fiche-bordure)] p-3"
         >
-          <p className={cn(texte, 'text-sm font-semibold')}>{entreeNoeud?.nom ?? noeud.entree}</p>
-          {entreeNoeud?.description && (
-            <p className={cn(texteSecondaire, 'whitespace-pre-line text-sm')}>
-              {entreeNoeud.description}
-            </p>
+          <p className={cn(text, 'text-sm font-semibold')}>{nodeEntry?.nom ?? node.entree}</p>
+          {nodeEntry?.description && (
+            <p className={cn(textMuted, 'whitespace-pre-line text-sm')}>{nodeEntry.description}</p>
           )}
-          {statut(noeud) === 'bloque' && objetNoeud && (
+          {status(node) === 'bloque' && nodeItem && (
             <p className="text-xs text-red-300">
-              {objetNoeud.blocages.map((b) => b.message).join(' ; ')}
+              {nodeItem.blocages.map((b) => b.message).join(' ; ')}
             </p>
           )}
-          {!lectureSeule && (
+          {!readOnly && (
             <div className="flex flex-wrap gap-2">
-              {objetNoeud && !acquis.has(noeud.id) && (
-                <BoutonAchat
-                  objet={objetNoeud}
-                  libelle={`Acheter ${entreeNoeud?.nom ?? noeud.entree}`}
-                  monnaie={monnaie}
-                  texteBouton={`Acheter · ${objetNoeud.cout} ${monnaie}`}
-                  onAcheter={() => acheter(objetNoeud.achat, objetNoeud.objet)}
+              {nodeItem && !acquired.has(node.id) && (
+                <PurchaseButton
+                  item={nodeItem}
+                  label={`Acheter ${nodeEntry?.nom ?? node.entree}`}
+                  currency={currency}
+                  buttonText={`Acheter · ${nodeItem.cout} ${currency}`}
+                  onBuy={() => buy(nodeItem.achat, nodeItem.objet)}
                 />
               )}
-              {acquis.has(noeud.id) && ligneJournal >= 0 && (
+              {acquired.has(node.id) && logLine >= 0 && (
                 <button
                   type="button"
-                  className={boutonSecondaire}
-                  onClick={() => void rembourser(ligneJournal)}
+                  className={secondaryButton}
+                  onClick={() => void refund(logLine)}
                 >
                   <Undo2 />
                   Annuler l&apos;achat

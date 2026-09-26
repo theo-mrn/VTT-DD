@@ -10,31 +10,31 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
 import { cn } from '@/lib/utils';
 
-export type FormeDe = 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
+export type DieShape = 'd4' | 'd6' | 'd8' | 'd10' | 'd12' | 'd20' | 'd100';
 
 /** Accent par défaut des écrans (celui des pages de compte). */
-export const ACCENT_DEFAUT = '#c9a965';
+export const DEFAULT_ACCENT = '#c9a965';
 
 /** Couleur d'accent du thème du système, sinon celle de l'application. */
-export function accentPresentation(presentation?: Presentation | null): string {
-  return presentation?.theme?.couleurs.accent ?? ACCENT_DEFAUT;
+export function presentationAccent(presentation?: Presentation | null): string {
+  return presentation?.theme?.couleurs.accent ?? DEFAULT_ACCENT;
 }
 
 /** Couleur stable dérivée d'un identifiant, quand la présentation n'en donne pas. */
-function couleurDerivee(id: string): string {
+function derivedColor(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
   return `hsl(${h} 55% 55%)`;
 }
 
 /** Couleur translucide (color-mix, jamais `var(--x)/N` qui ne génère rien avec Tailwind). */
-export function attenuer(couleur: string, pourcentage: number): string {
-  return `color-mix(in srgb, ${couleur} ${pourcentage}%, transparent)`;
+export function dim(color: string, percent: number): string {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 }
 
 /** Texte lisible (sombre ou clair) sur un fond de couleur hexadécimale. */
-export function texteSur(couleur: string): string {
-  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})/i.exec(couleur);
+export function textOn(color: string): string {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})/i.exec(color);
   if (!m) return '#fafafa';
   const hex =
     m[1]!.length === 3
@@ -53,59 +53,59 @@ export function texteSur(couleur: string): string {
 
 // ─── Sortes de dé ────────────────────────────────────────────────────────────
 
-export interface ApparenceSorte {
+export interface KindAppearance {
   id: string;
-  nom: string;
-  court: string;
-  couleur: string;
-  forme: FormeDe;
+  name: string;
+  short: string;
+  color: string;
+  shape: DieShape;
   original?: string;
   /** Skin 3D du catalogue de dés (animation facultative). */
   skin?: string;
 }
 
-const FORMES: FormeDe[] = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+const SHAPES: DieShape[] = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
 
 /** Forme la plus proche du nombre de faces, quand la présentation n'en donne pas. */
-function formeParFaces(faces: number): FormeDe {
+function shapeForFaces(faces: number): DieShape {
   if (faces > 20) return 'd100';
-  return FORMES.find((f) => Number(f.slice(1)) >= faces) ?? 'd20';
+  return SHAPES.find((f) => Number(f.slice(1)) >= faces) ?? 'd20';
 }
 
 /** Apparence d'une sorte de dé à symboles du système (ou d'un dé numérique `d20`). */
-export function apparenceSorte(
+export function kindAppearance(
   id: string,
-  systeme: SystemeCharge,
+  system: SystemeCharge,
   presentation?: Presentation | null,
-): ApparenceSorte {
-  const sorte = systeme.source.des?.sortes.find((s) => s.id === id);
+): KindAppearance {
+  const kind = system.source.des?.sortes.find((s) => s.id === id);
   const p = presentation?.des?.sortes[id];
-  const faces = sorte?.faces.length ?? (Number(id.replace(/^d/, '')) || 6);
-  const nom = sorte?.nom ?? id;
+  const faces = kind?.faces.length ?? (Number(id.replace(/^d/, '')) || 6);
+  const name = kind?.nom ?? id;
   return {
     id,
-    nom,
-    court: p?.court ?? nom,
-    couleur: p?.couleur ?? couleurDerivee(id),
-    forme: p?.forme ?? formeParFaces(faces),
+    name,
+    short: p?.court ?? name,
+    color: p?.couleur ?? derivedColor(id),
+    shape: p?.forme ?? shapeForFaces(faces),
     ...(p?.original ? { original: p.original } : {}),
     ...(p?.skin ? { skin: p.skin } : {}),
   };
 }
 
 /** Sortes de dé améliorées (cible d'une amélioration dans une action ou un effet du système). */
-export function sortesAmeliorees(systeme: SystemeCharge): Set<string> {
-  const vers = new Set<string>();
-  for (const a of systeme.actions.values())
-    if (a.jet.type === 'symboles') for (const x of a.jet.ameliorations) vers.add(x.vers);
-  for (const e of systeme.entrees.values())
+export function upgradedKinds(system: SystemeCharge): Set<string> {
+  const target = new Set<string>();
+  for (const a of system.actions.values())
+    if (a.jet.type === 'symboles') for (const x of a.jet.ameliorations) target.add(x.vers);
+  for (const e of system.entrees.values())
     for (const f of e.effets)
-      if (f.sur === 'jet' && f.ajout && 'ameliorer' in f.ajout) vers.add(f.ajout.vers);
-  return vers;
+      if (f.sur === 'jet' && f.ajout && 'ameliorer' in f.ajout) target.add(f.ajout.vers);
+  return target;
 }
 
 /** Contours des formes, dans une boîte 0..100. */
-const CONTOURS: Record<FormeDe, string> = {
+const OUTLINES: Record<DieShape, string> = {
   d4: 'M50 6 L95 90 L5 90 Z',
   d6: 'M14 14 L86 14 L86 86 L14 86 Z',
   d8: 'M50 3 L96 50 L50 97 L4 50 Z',
@@ -116,43 +116,43 @@ const CONTOURS: Record<FormeDe, string> = {
 };
 
 /** Dé dessiné à plat : forme et couleur de la sorte, contenu centré (face, symboles, compteur). */
-export function DeForme({
-  forme,
-  couleur,
-  taille = 44,
-  plein = false,
+export function ShapedDie({
+  shape,
+  color,
+  size = 44,
+  filled = false,
   className,
-  titre,
+  title,
   children,
 }: {
-  forme: FormeDe;
-  couleur: string;
+  shape: DieShape;
+  color: string;
   /** Côté en pixels. */
-  taille?: number;
+  size?: number;
   /** Fond opaque (dé tiré) plutôt que translucide (touche). */
-  plein?: boolean;
+  filled?: boolean;
   className?: string;
-  titre?: string;
+  title?: string;
   children?: ReactNode;
 }) {
   return (
     <span
       className={cn('relative inline-flex shrink-0 items-center justify-center', className)}
-      style={{ width: taille, height: taille }}
-      title={titre}
+      style={{ width: size, height: size }}
+      title={title}
     >
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden>
         <path
-          d={CONTOURS[forme]}
-          fill={plein ? couleur : attenuer(couleur, 22)}
-          stroke={couleur}
+          d={OUTLINES[shape]}
+          fill={filled ? color : dim(color, 22)}
+          stroke={color}
           strokeWidth={5}
           strokeLinejoin="round"
         />
       </svg>
       <span
         className="relative flex flex-wrap items-center justify-center gap-px px-1 text-center font-semibold leading-none"
-        style={{ color: plein ? texteSur(couleur) : couleur, fontSize: taille * 0.3 }}
+        style={{ color: filled ? textOn(color) : color, fontSize: size * 0.3 }}
       >
         {children}
       </span>
@@ -163,8 +163,8 @@ export function DeForme({
 // ─── Symboles et résultats ───────────────────────────────────────────────────
 
 /** `trending-up` → `TrendingUp`, clé de l'export `icons` de lucide-react. */
-function nomComposant(icone: string): string {
-  return icone
+function componentName(icon: string): string {
+  return icon
     .split(/[-_\s]+/)
     .filter(Boolean)
     .map((m) => m.charAt(0).toUpperCase() + m.slice(1))
@@ -172,85 +172,85 @@ function nomComposant(icone: string): string {
 }
 
 /** Icône lucide désignée par son nom kebab-case ; `null` si elle n'existe pas. */
-export function IconeLucide({ nom, ...props }: { nom: string } & LucideProps) {
-  const Icone = icons[nomComposant(nom) as keyof typeof icons];
-  return Icone ? <Icone {...props} /> : null;
+export function LucideIcon({ name, ...props }: { name: string } & LucideProps) {
+  const Icon = icons[componentName(name) as keyof typeof icons];
+  return Icon ? <Icon {...props} /> : null;
 }
 
-export interface ApparenceSymboleAffiche {
-  cle: string;
-  nom: string;
-  court: string;
-  couleur: string;
-  icone?: string;
+export interface DisplayedSymbolAppearance {
+  key: string;
+  name: string;
+  short: string;
+  color: string;
+  icon?: string;
 }
 
 /** Apparence d'un symbole brut ou d'un résultat déclaré par le système. */
-export function apparenceSymbole(
-  cle: string,
-  systeme: SystemeCharge,
+export function symbolAppearance(
+  key: string,
+  system: SystemeCharge,
   presentation?: Presentation | null,
-): ApparenceSymboleAffiche {
-  const des = systeme.source.des;
-  const nom =
-    des?.symboles.find((s) => s.id === cle)?.nom ??
-    des?.resultats.find((r) => r.cle === cle)?.nom ??
-    cle;
-  const p = presentation?.symboles[cle];
+): DisplayedSymbolAppearance {
+  const dice = system.source.des;
+  const name =
+    dice?.symboles.find((s) => s.id === key)?.nom ??
+    dice?.resultats.find((r) => r.cle === key)?.nom ??
+    key;
+  const p = presentation?.symboles[key];
   return {
-    cle,
-    nom,
-    court: p?.court ?? nom,
-    couleur: p?.couleur ?? '#d4d4d8',
-    ...(p?.icone ? { icone: p.icone } : {}),
+    key,
+    name,
+    short: p?.court ?? name,
+    color: p?.couleur ?? '#d4d4d8',
+    ...(p?.icone ? { icon: p.icone } : {}),
   };
 }
 
 /** Icône d'un symbole (lucide), repli sur son libellé court abrégé. */
-export function IconeSymbole({
-  apparence,
-  taille = 16,
-  couleur,
+export function SymbolIcon({
+  appearance,
+  size = 16,
+  color,
   className,
 }: {
-  apparence: ApparenceSymboleAffiche;
-  taille?: number;
+  appearance: DisplayedSymbolAppearance;
+  size?: number;
   /** Force la couleur (sur un dé plein, par exemple). */
-  couleur?: string;
+  color?: string;
   className?: string;
 }) {
-  const style: CSSProperties = { color: couleur ?? apparence.couleur };
-  const icone = apparence.icone ? (
-    <IconeLucide
-      nom={apparence.icone}
-      size={taille}
+  const style: CSSProperties = { color: color ?? appearance.color };
+  const icon = appearance.icon ? (
+    <LucideIcon
+      name={appearance.icon}
+      size={size}
       strokeWidth={2.5}
       className={className}
       style={style}
-      aria-label={apparence.nom}
+      aria-label={appearance.name}
     />
   ) : null;
   return (
-    icone ?? (
+    icon ?? (
       <span
         className={cn('font-bold leading-none', className)}
-        style={{ ...style, fontSize: taille * 0.75 }}
-        title={apparence.nom}
+        style={{ ...style, fontSize: size * 0.75 }}
+        title={appearance.name}
       >
-        {apparence.court.slice(0, 2)}
+        {appearance.short.slice(0, 2)}
       </span>
     )
   );
 }
 
 /** Badge « icône + valeur » d'un résultat net ou d'un symbole. */
-export function BadgeSymbole({
-  apparence,
-  valeur,
+export function SymbolBadge({
+  appearance,
+  value,
   className,
 }: {
-  apparence: ApparenceSymboleAffiche;
-  valeur: number;
+  appearance: DisplayedSymbolAppearance;
+  value: number;
   className?: string;
 }) {
   return (
@@ -260,15 +260,15 @@ export function BadgeSymbole({
         className,
       )}
       style={{
-        borderColor: attenuer(apparence.couleur, 45),
-        backgroundColor: attenuer(apparence.couleur, 12),
-        color: apparence.couleur,
+        borderColor: dim(appearance.color, 45),
+        backgroundColor: dim(appearance.color, 12),
+        color: appearance.color,
       }}
-      title={apparence.nom}
+      title={appearance.name}
     >
-      <IconeSymbole apparence={apparence} taille={15} />
-      <span className="tabular-nums">{valeur}</span>
-      <span className="text-xs font-medium opacity-80">{apparence.court}</span>
+      <SymbolIcon appearance={appearance} size={15} />
+      <span className="tabular-nums">{value}</span>
+      <span className="text-xs font-medium opacity-80">{appearance.short}</span>
     </span>
   );
 }

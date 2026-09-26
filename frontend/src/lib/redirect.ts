@@ -2,12 +2,12 @@
  * Chemin de retour après connexion : uniquement un chemin interne au site
  * (« /… » mais pas « //… » ni « /\… »), pour éviter toute redirection ouverte.
  */
-export function cheminInterne(valeur: string | null | undefined, parDefaut = '/profile'): string {
-  if (!valeur || !valeur.startsWith('/') || valeur.startsWith('//') || valeur.startsWith('/\\'))
-    return parDefaut;
-  return valeur;
+export function internalPath(value: string | null | undefined, fallback = '/profile'): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\'))
+    return fallback;
+  return value;
 }
 
-export function urlConnexion(retour: string) {
-  return `/login?${new URLSearchParams({ redirect: retour })}`;
+export function loginUrl(returnTo: string) {
+  return `/login?${new URLSearchParams({ redirect: returnTo })}`;
 }

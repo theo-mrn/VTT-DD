@@ -3,68 +3,64 @@
 import { acheterEtape, detailSolde, type ObjetAchetable } from '@vtt/rules';
 import { Search, Undo2 } from 'lucide-react';
 import { useState } from 'react';
-import { ecritures } from '@/lib/characters';
+import { writes } from '@/lib/characters';
 import { cn } from '@/lib/utils';
-import { BoutonAchat } from '../purchase-button';
-import { useFiche } from '../context';
-import { normaliser, VideFiche } from '../elements';
-import { formaterNombre, nomObjet } from '../format';
+import { PurchaseButton } from '../purchase-button';
+import { useSheet } from '../context';
+import { normalize, SheetEmpty } from '../elements';
+import { formatNumber, itemName } from '../format';
 import {
-  boutonIcone,
-  boutonSecondaire,
-  caseValeur,
-  champ,
-  texte,
-  texteAccent,
-  texteSecondaire,
+  iconButton,
+  secondaryButton,
+  valueBox,
+  field,
+  text,
+  textAccent,
+  textMuted,
 } from '../styles';
-import { WidgetArbres } from '../widget-trees';
-import type { Etape } from './assistant';
+import { TreesWidget } from '../widget-trees';
+import type { Step } from './assistant';
 
 /** Étape « acheter » : achats autorisés par l'étape, soldes, et annulation des achats faits. */
-export function EtapeAcheter({ etape }: { etape: Etape<'acheter'> }) {
-  const { systeme, fiche, etat, achats, ecrire, rembourser } = useFiche();
-  const [recherche, setRecherche] = useState('');
-  const [bloques, setBloques] = useState(false);
+export function PurchaseStep({ step }: { step: Step<'acheter'> }) {
+  const { system, sheet, state, purchases, write, refund } = useSheet();
+  const [search, setSearch] = useState('');
+  const [blockedItems, setBlockedItems] = useState(false);
 
-  const disponibles = achats.filter((a) => etape.achats.includes(a.achat.id));
-  const monnaies = [...new Set(etape.achats.map((id) => systeme.achats.get(id)?.monnaie))]
-    .filter((m): m is string => !!m && !!systeme.monnaies.get(m)?.pour.includes(etat.type))
-    .map((m) => detailSolde(fiche, m));
+  const availableOnes = purchases.filter((a) => step.achats.includes(a.achat.id));
+  const currencies = [...new Set(step.achats.map((id) => system.achats.get(id)?.monnaie))]
+    .filter((m): m is string => !!m && !!system.monnaies.get(m)?.pour.includes(state.type))
+    .map((m) => detailSolde(sheet, m));
   // Les nœuds d'arbre s'achètent sur la grille, plus lisible qu'une liste
-  const avecNoeuds = etape.achats.some((id) => systeme.achats.get(id)?.obtient.type === 'noeud');
-  const filtre = normaliser(recherche.trim());
-  const journal = etat.journal
+  const withNodes = step.achats.some((id) => system.achats.get(id)?.obtient.type === 'noeud');
+  const filter = normalize(search.trim());
+  const log = state.journal
     .map((l, i) => ({ l, i }))
-    .filter(({ l }) => l.creation && etape.achats.includes(l.achat))
+    .filter(({ l }) => l.creation && step.achats.includes(l.achat))
     .reverse();
 
-  const acheter = (o: ObjetAchetable) =>
-    ecrire(ecritures.etape(etape.id, { achat: o.achat, objet: o.objet }), (e) => {
-      const r = acheterEtape(systeme, e, etape.id, { achat: o.achat, objet: o.objet });
+  const buy = (o: ObjetAchetable) =>
+    write(writes.step(step.id, { achat: o.achat, objet: o.objet }), (e) => {
+      const r = acheterEtape(system, e, step.id, { achat: o.achat, objet: o.objet });
       return r.ok ? r.etat : null;
     });
 
   return (
     <div className="space-y-5">
-      {monnaies.length > 0 && (
+      {currencies.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-live="polite">
-          {monnaies.map((s) => (
-            <div key={s.monnaie.id} className={cn(caseValeur, 'px-3 py-2')}>
-              <p className={cn(texteSecondaire, 'text-xs uppercase tracking-wide')}>
-                {s.monnaie.nom}
-              </p>
+          {currencies.map((s) => (
+            <div key={s.monnaie.id} className={cn(valueBox, 'px-3 py-2')}>
+              <p className={cn(textMuted, 'text-xs uppercase tracking-wide')}>{s.monnaie.nom}</p>
               <p
                 className={cn(
                   'text-2xl font-semibold tabular-nums',
-                  s.solde < 0 ? 'text-red-400' : texteAccent,
+                  s.solde < 0 ? 'text-red-400' : textAccent,
                 )}
               >
-                {formaterNombre(s.solde)}
+                {formatNumber(s.solde)}
               </p>
-              <p className={cn(texteSecondaire, 'text-xs tabular-nums')}>
-                sur {formaterNombre(s.total)}
-              </p>
+              <p className={cn(textMuted, 'text-xs tabular-nums')}>sur {formatNumber(s.total)}</p>
             </div>
           ))}
         </div>
@@ -73,99 +69,94 @@ export function EtapeAcheter({ etape }: { etape: Etape<'acheter'> }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search
-            className={cn(texteSecondaire, 'pointer-events-none absolute left-3 top-2.5 h-4 w-4')}
+            className={cn(textMuted, 'pointer-events-none absolute left-3 top-2.5 h-4 w-4')}
           />
           <input
             type="search"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher…"
             aria-label="Rechercher un achat"
-            className={cn(champ, 'pl-9')}
+            className={cn(field, 'pl-9')}
           />
         </div>
         <button
           type="button"
-          aria-pressed={bloques}
-          className={cn(boutonSecondaire, 'text-xs')}
-          onClick={() => setBloques((b) => !b)}
+          aria-pressed={blockedItems}
+          className={cn(secondaryButton, 'text-xs')}
+          onClick={() => setBlockedItems((b) => !b)}
         >
-          {bloques ? 'Masquer les achats impossibles' : 'Afficher les achats impossibles'}
+          {blockedItems ? 'Masquer les achats impossibles' : 'Afficher les achats impossibles'}
         </button>
       </div>
 
-      {disponibles
+      {availableOnes
         .filter((a) => a.achat.obtient.type !== 'noeud')
         .map((a) => {
-          const objets = a.objets
+          const items = a.objets
             .filter(
-              (o) => (bloques || o.possible) && (!filtre || normaliser(o.nom).includes(filtre)),
+              (o) => (blockedItems || o.possible) && (!filter || normalize(o.nom).includes(filter)),
             )
             .sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
-          const monnaie = systeme.monnaies.get(a.achat.monnaie)?.nom ?? a.achat.monnaie;
+          const currency = system.monnaies.get(a.achat.monnaie)?.nom ?? a.achat.monnaie;
           return (
             <section key={a.achat.id} aria-label={a.achat.nom} className="space-y-2">
               <div>
-                <h3 className={cn(texte, 'text-sm font-semibold')}>{a.achat.nom}</h3>
+                <h3 className={cn(text, 'text-sm font-semibold')}>{a.achat.nom}</h3>
                 {a.achat.description && (
-                  <p className={cn(texteSecondaire, 'text-xs')}>{a.achat.description}</p>
+                  <p className={cn(textMuted, 'text-xs')}>{a.achat.description}</p>
                 )}
               </div>
-              {objets.length ? (
+              {items.length ? (
                 <ul className="max-h-80 divide-y divide-[color:var(--fiche-bordure)] overflow-y-auto rounded-xl border border-[color:var(--fiche-bordure)] px-3">
-                  {objets.map((o) => (
+                  {items.map((o) => (
                     <li key={o.objet} className="flex items-center gap-3 py-2">
                       <span className="min-w-0 flex-1">
-                        <span className={cn(texte, 'block truncate text-sm')}>{o.nom}</span>
-                        <span className={cn(texteSecondaire, 'block text-xs')}>
+                        <span className={cn(text, 'block truncate text-sm')}>{o.nom}</span>
+                        <span className={cn(textMuted, 'block text-xs')}>
                           {o.possible
                             ? o.type === 'entree'
-                              ? `${o.cout} ${monnaie}`
-                              : `${o.actuel} → ${o.cible} · ${o.cout} ${monnaie}`
+                              ? `${o.cout} ${currency}`
+                              : `${o.actuel} → ${o.cible} · ${o.cout} ${currency}`
                             : o.blocages.map((b) => b.message).join(' ; ')}
                         </span>
                       </span>
-                      <BoutonAchat
-                        objet={o}
-                        libelle={`${a.achat.nom} : ${o.nom}`}
-                        monnaie={monnaie}
-                        onAcheter={() => acheter(o)}
+                      <PurchaseButton
+                        item={o}
+                        label={`${a.achat.nom} : ${o.nom}`}
+                        currency={currency}
+                        onBuy={() => buy(o)}
                       />
                     </li>
                   ))}
                 </ul>
               ) : (
-                <VideFiche>
-                  {filtre ? 'Aucun résultat.' : 'Plus rien d’achetable pour l’instant.'}
-                </VideFiche>
+                <SheetEmpty>
+                  {filter ? 'Aucun résultat.' : 'Plus rien d’achetable pour l’instant.'}
+                </SheetEmpty>
               )}
             </section>
           );
         })}
 
-      {avecNoeuds && <WidgetArbres widget={{ type: 'arbres', titre: 'Arbres' }} />}
+      {withNodes && <TreesWidget widget={{ type: 'arbres', titre: 'Arbres' }} />}
 
-      {journal.length > 0 && (
+      {log.length > 0 && (
         <section aria-label="Achats de cette étape" className="space-y-2">
-          <h3 className={cn(texte, 'text-sm font-semibold')}>Achats faits</h3>
+          <h3 className={cn(text, 'text-sm font-semibold')}>Achats faits</h3>
           <ul className="divide-y divide-[color:var(--fiche-bordure)] rounded-xl border border-[color:var(--fiche-bordure)] px-3">
-            {journal.map(({ l, i }) => (
+            {log.map(({ l, i }) => (
               <li key={i} className="flex items-center gap-3 py-2 text-sm">
-                <span className={cn(texte, 'min-w-0 flex-1 truncate')}>
-                  {nomObjet(systeme, etat.type, l)}
-                  <span className={texteSecondaire}>
-                    {' '}
-                    · {systeme.achats.get(l.achat)?.nom ?? l.achat}
-                  </span>
+                <span className={cn(text, 'min-w-0 flex-1 truncate')}>
+                  {itemName(system, state.type, l)}
+                  <span className={textMuted}> · {system.achats.get(l.achat)?.nom ?? l.achat}</span>
                 </span>
-                <span className={cn(texteSecondaire, 'tabular-nums')}>
-                  −{formaterNombre(l.cout)}
-                </span>
+                <span className={cn(textMuted, 'tabular-nums')}>−{formatNumber(l.cout)}</span>
                 <button
                   type="button"
-                  className={cn(boutonIcone, 'h-8 w-8')}
-                  aria-label={`Annuler : ${nomObjet(systeme, etat.type, l)}`}
-                  onClick={() => void rembourser(i)}
+                  className={cn(iconButton, 'h-8 w-8')}
+                  aria-label={`Annuler : ${itemName(system, state.type, l)}`}
+                  onClick={() => void refund(i)}
                 >
                   <Undo2 className="h-4 w-4" />
                 </button>

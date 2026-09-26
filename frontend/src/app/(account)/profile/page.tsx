@@ -3,106 +3,112 @@
 import { Camera, Check, Clock, Crown, ImagePlus, Lock, Mail, CalendarDays } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  AvatarJoueur,
-  BORDURES,
-  Bouton,
-  Carte,
-  Chargement,
-  formaterDate,
-  formaterDuree,
-  Interrupteur,
+  PlayerAvatar,
+  BORDERS,
+  AppButton,
+  Card,
+  Loading,
+  formatDate,
+  formatDuration,
+  Switch,
   Message,
-  TitrePage,
+  PageTitle,
 } from '@/components/account/elements';
-import { useEnvoiImage } from '@/components/account/image-upload';
-import { aclonica, styleChamp, styleLabel } from '@/components/account/styles';
+import { useImageUpload } from '@/components/account/image-upload';
+import { aclonica, inputStyle, labelStyle } from '@/components/account/styles';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { messageErreur } from '@/lib/api';
+import { errorMessage } from '@/lib/api';
 import {
-  choisirTitre,
-  lireJoueur,
-  lireMesTitres,
-  lireTitres,
-  modifierMonProfil,
-  type ModificationProfil,
-  type Profil,
-  texteCondition,
+  chooseTitle,
+  getPlayer,
+  getMyTitles,
+  getTitles,
+  updateMyProfile,
+  type ProfileUpdate,
+  type Profile,
+  conditionText,
 } from '@/lib/profile';
-import { useRessource } from '@/lib/resource';
-import { envoyerVerificationEmail } from '@/lib/security';
-import { useProfil, useSession } from '@/lib/session';
+import { useResource } from '@/lib/resource';
+import { sendVerificationEmail } from '@/lib/security';
+import { useProfile, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
-const LONGUEUR_MAX_NOM = 64;
-const LONGUEUR_MAX_BIO = 500;
+const MAX_NAME_LENGTH = 64;
+const MAX_BIO_LENGTH = 500;
 
-export default function PageProfil() {
-  const profil = useProfil();
+export default function ProfilePage() {
+  const profile = useProfile();
   // Le statut premium n'est exposé que par le profil public
-  const premium = useRessource(`premium:${profil.id}`, () =>
-    lireJoueur(profil.id).then((p) => p.premium),
+  const premium = useResource(`premium:${profile.id}`, () =>
+    getPlayer(profile.id).then((p) => p.premium),
   );
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Ce que les autres joueurs voient de vous, et vos préférences.">
+      <PageTitle subtitle="Ce que les autres joueurs voient de vous, et vos préférences.">
         Mon profil
-      </TitrePage>
-      {profil.email && !profil.emailVerified && <BandeauVerification email={profil.email} />}
-      <EnTete profil={profil} />
+      </PageTitle>
+      {profile.email && !profile.emailVerified && <VerificationBanner email={profile.email} />}
+      <Header profile={profile} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <CarteIdentite profil={profil} />
-        <CarteTitre profil={profil} />
-        <CarteApparence profil={profil} premium={premium.donnees ?? false} />
-        <CartePreferences profil={profil} />
+        <IdentityCard profile={profile} />
+        <TitleCard profile={profile} />
+        <AppearanceCard profile={profile} premium={premium.data ?? false} />
+        <PreferencesCard profile={profile} />
       </div>
     </div>
   );
 }
 
 /** Enregistre une modification du profil et met la session à jour. */
-function useEnregistrement() {
-  const { remplacerProfil } = useSession();
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [succes, setSucces] = useState(false);
+function useSave() {
+  const { replaceProfile } = useSession();
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  async function enregistrer(modif: ModificationProfil) {
-    setEnvoi(true);
-    setErreur(null);
-    setSucces(false);
+  async function save(update: ProfileUpdate) {
+    setSending(true);
+    setError(null);
+    setSuccess(false);
     try {
-      remplacerProfil(await modifierMonProfil(modif));
-      setSucces(true);
+      replaceProfile(await updateMyProfile(update));
+      setSuccess(true);
       return true;
     } catch (err) {
-      setErreur(messageErreur(err));
+      setError(errorMessage(err));
       return false;
     } finally {
-      setEnvoi(false);
+      setSending(false);
     }
   }
 
-  return { enregistrer, envoi, erreur, succes, effacer: () => setSucces(false) };
+  return {
+    save,
+    sending,
+    error,
+    success,
+    clear: () => setSuccess(false),
+  };
 }
 
 // ─── Bandeau « e-mail non vérifié » ──────────────────────────────────────────
 
-function BandeauVerification({ email }: { email: string }) {
-  const [etat, setEtat] = useState<'repos' | 'envoi' | 'envoye'>('repos');
-  const [erreur, setErreur] = useState<string | null>(null);
+function VerificationBanner({ email }: { email: string }) {
+  const [state, setState] = useState<'repos' | 'envoi' | 'envoye'>('repos');
+  const [error, setError] = useState<string | null>(null);
 
-  async function envoyer() {
-    setEtat('envoi');
-    setErreur(null);
+  async function send() {
+    setState('envoi');
+    setError(null);
     try {
-      await envoyerVerificationEmail();
-      setEtat('envoye');
+      await sendVerificationEmail();
+      setState('envoye');
     } catch (err) {
-      setErreur(messageErreur(err));
-      setEtat('repos');
+      setError(errorMessage(err));
+      setState('repos');
     }
   }
 
@@ -113,55 +119,60 @@ function BandeauVerification({ email }: { email: string }) {
         <div className="min-w-0 text-sm">
           <p className="text-[#e2cc97]">Votre adresse e-mail n&apos;est pas vérifiée.</p>
           <p className="break-all text-zinc-400">
-            {etat === 'envoye'
+            {state === 'envoye'
               ? `Lien envoyé à ${email} : ouvrez-le pour confirmer votre adresse.`
               : `Confirmez ${email} pour sécuriser votre compte.`}
           </p>
-          {erreur && <p className="mt-1 text-red-300">{erreur}</p>}
+          {error && <p className="mt-1 text-red-300">{error}</p>}
         </div>
       </div>
-      <Bouton
-        ton={etat === 'envoye' ? 'secondaire' : 'dore'}
-        chargement={etat === 'envoi'}
-        onClick={envoyer}
+      <AppButton
+        tone={state === 'envoye' ? 'secondaire' : 'dore'}
+        loading={state === 'envoi'}
+        onClick={send}
         className="shrink-0"
       >
-        {etat === 'envoye' ? 'Renvoyer le lien' : 'Envoyer le lien'}
-      </Bouton>
+        {state === 'envoye' ? 'Renvoyer le lien' : 'Envoyer le lien'}
+      </AppButton>
     </div>
   );
 }
 
 // ─── En-tête : bannière, avatar, résumé ──────────────────────────────────────
 
-function EnTete({ profil }: { profil: Profil }) {
-  const banniere = useEnvoiImage('banner');
-  const avatar = useEnvoiImage('avatar');
-  const urlBanniere = banniere.apercu ?? profil.bannerUrl;
+function Header({ profile }: { profile: Profile }) {
+  const banner = useImageUpload('banner');
+  const avatar = useImageUpload('avatar');
+  const bannerUrl = banner.preview ?? profile.bannerUrl;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-      {banniere.input}
+      {banner.input}
       {avatar.input}
       <div
         className="relative h-32 bg-gradient-to-br from-zinc-800 via-zinc-900 to-[#c9a965]/20 bg-cover bg-center sm:h-44"
-        style={urlBanniere ? { backgroundImage: `url(${JSON.stringify(urlBanniere)})` } : undefined}
+        style={bannerUrl ? { backgroundImage: `url(${JSON.stringify(bannerUrl)})` } : undefined}
       >
         <div className="absolute right-3 top-3 flex gap-2">
-          {banniere.enAttente ? (
+          {banner.pending ? (
             <>
-              <Bouton ton="secondaire" size="sm" className="bg-black/60" onClick={banniere.annuler}>
+              <AppButton
+                tone="secondaire"
+                size="sm"
+                className="bg-black/60"
+                onClick={banner.cancel}
+              >
                 Annuler
-              </Bouton>
-              <Bouton size="sm" chargement={banniere.envoi} onClick={banniere.enregistrer}>
+              </AppButton>
+              <AppButton size="sm" loading={banner.sending} onClick={banner.save}>
                 Enregistrer la bannière
-              </Bouton>
+              </AppButton>
             </>
           ) : (
-            <Bouton ton="secondaire" size="sm" className="bg-black/60" onClick={banniere.ouvrir}>
+            <AppButton tone="secondaire" size="sm" className="bg-black/60" onClick={banner.open}>
               <ImagePlus />
               <span className="hidden sm:inline">Changer la bannière</span>
-            </Bouton>
+            </AppButton>
           )}
         </div>
       </div>
@@ -169,16 +180,16 @@ function EnTete({ profil }: { profil: Profil }) {
       <div className="px-4 pb-5 sm:px-6">
         <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end">
           <div className="relative w-fit">
-            <AvatarJoueur
-              nom={profil.name}
-              url={avatar.apercu ?? profil.avatarUrl}
-              bordure={profil.borderType}
-              taille="xl"
+            <PlayerAvatar
+              name={profile.name}
+              url={avatar.preview ?? profile.avatarUrl}
+              border={profile.borderType}
+              size="xl"
             />
-            {!avatar.enAttente && (
+            {!avatar.pending && (
               <button
                 type="button"
-                onClick={avatar.ouvrir}
+                onClick={avatar.open}
                 aria-label="Changer l'avatar"
                 className="absolute bottom-1 right-1 rounded-full border border-zinc-700 bg-zinc-900 p-2 text-zinc-200 transition-colors hover:border-[#c9a965] hover:text-[#c9a965]"
               >
@@ -187,45 +198,41 @@ function EnTete({ profil }: { profil: Profil }) {
             )}
           </div>
           <div className="min-w-0 flex-1 space-y-1">
-            <h2 className={cn(aclonica, 'truncate text-2xl text-white')}>{profil.name}</h2>
-            {profil.title && <p className="text-sm text-[#c9a965]">{profil.title}</p>}
+            <h2 className={cn(aclonica, 'truncate text-2xl text-white')}>{profile.name}</h2>
+            {profile.title && <p className="text-sm text-[#c9a965]">{profile.title}</p>}
           </div>
         </div>
 
-        {avatar.enAttente && (
+        {avatar.pending && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-sm text-zinc-400">Aperçu du nouvel avatar :</span>
-            <Bouton ton="secondaire" size="sm" onClick={avatar.annuler}>
+            <AppButton tone="secondaire" size="sm" onClick={avatar.cancel}>
               Annuler
-            </Bouton>
-            <Bouton size="sm" chargement={avatar.envoi} onClick={avatar.enregistrer}>
+            </AppButton>
+            <AppButton size="sm" loading={avatar.sending} onClick={avatar.save}>
               Enregistrer l&apos;avatar
-            </Bouton>
+            </AppButton>
           </div>
         )}
-        {(avatar.erreur || banniere.erreur) && (
+        {(avatar.error || banner.error) && (
           <div className="mt-4 space-y-2">
-            {banniere.erreur && <Message>Bannière : {banniere.erreur}</Message>}
-            {avatar.erreur && <Message>Avatar : {avatar.erreur}</Message>}
+            {banner.error && <Message>Bannière : {banner.error}</Message>}
+            {avatar.error && <Message>Avatar : {avatar.error}</Message>}
           </div>
         )}
 
-        {profil.bio && (
-          <p className="mt-4 whitespace-pre-line text-sm text-zinc-300">{profil.bio}</p>
+        {profile.bio && (
+          <p className="mt-4 whitespace-pre-line text-sm text-zinc-300">{profile.bio}</p>
         )}
 
         <dl className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
-          <Statistique
-            icone={Clock}
+          <Stat
+            icon={Clock}
             label="Temps de jeu"
-            valeur={formaterDuree(profil.timeSpentMinutes)}
+            value={formatDuration(profile.timeSpentMinutes)}
           />
-          <Statistique
-            icone={CalendarDays}
-            label="Membre depuis"
-            valeur={formaterDate(profil.createdAt)}
-          />
-          <Statistique icone={Mail} label="E-mail" valeur={profil.email ?? '—'} />
+          <Stat icon={CalendarDays} label="Membre depuis" value={formatDate(profile.createdAt)} />
+          <Stat icon={Mail} label="E-mail" value={profile.email ?? '—'} />
         </dl>
         <p className="mt-3 text-xs text-zinc-500">Images PNG, JPEG, WebP ou GIF, 5 Mo maximum.</p>
       </div>
@@ -233,21 +240,13 @@ function EnTete({ profil }: { profil: Profil }) {
   );
 }
 
-function Statistique({
-  icone: Icone,
-  label,
-  valeur,
-}: {
-  icone: typeof Clock;
-  label: string;
-  valeur: string;
-}) {
+function Stat({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-800 bg-[#0c0c0e]/60 px-3 py-2.5">
-      <Icone className="h-4 w-4 shrink-0 text-[#c9a965]" />
+      <Icon className="h-4 w-4 shrink-0 text-[#c9a965]" />
       <div className="min-w-0">
         <dt className="text-xs text-zinc-500">{label}</dt>
-        <dd className="truncate text-zinc-200">{valeur}</dd>
+        <dd className="truncate text-zinc-200">{value}</dd>
       </div>
     </div>
   );
@@ -255,138 +254,136 @@ function Statistique({
 
 // ─── Nom et bio ──────────────────────────────────────────────────────────────
 
-function CarteIdentite({ profil }: { profil: Profil }) {
-  const [nom, setNom] = useState(profil.name);
-  const [bio, setBio] = useState(profil.bio ?? '');
-  const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
+function IdentityCard({ profile }: { profile: Profile }) {
+  const [name, setName] = useState(profile.name);
+  const [bio, setBio] = useState(profile.bio ?? '');
+  const { save, sending, error, success, clear } = useSave();
 
-  const modifie = nom.trim() !== profil.name || bio.trim() !== (profil.bio ?? '');
+  const changed = name.trim() !== profile.name || bio.trim() !== (profile.bio ?? '');
 
-  async function valider(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    const modif: ModificationProfil = {};
-    if (nom.trim() !== profil.name) modif.name = nom.trim();
-    if (bio.trim() !== (profil.bio ?? '')) modif.bio = bio.trim();
-    await enregistrer(modif);
+    const update: ProfileUpdate = {};
+    if (name.trim() !== profile.name) update.name = name.trim();
+    if (bio.trim() !== (profile.bio ?? '')) update.bio = bio.trim();
+    await save(update);
   }
 
   return (
-    <Carte titre="Identité" description="Votre nom d'aventurier et quelques mots sur vous.">
-      <form onSubmit={valider} className="space-y-4">
+    <Card title="Identité" description="Votre nom d'aventurier et quelques mots sur vous.">
+      <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="nom" className={styleLabel}>
+          <Label htmlFor="nom" className={labelStyle}>
             Nom
           </Label>
           <Input
             id="nom"
             required
-            maxLength={LONGUEUR_MAX_NOM}
-            value={nom}
+            maxLength={MAX_NAME_LENGTH}
+            value={name}
             onChange={(e) => {
-              setNom(e.target.value);
-              effacer();
+              setName(e.target.value);
+              clear();
             }}
-            className={styleChamp}
+            className={inputStyle}
           />
         </div>
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
-            <Label htmlFor="bio" className={styleLabel}>
+            <Label htmlFor="bio" className={labelStyle}>
               Bio
             </Label>
             <span className="text-xs text-zinc-500">
-              {bio.length} / {LONGUEUR_MAX_BIO}
+              {bio.length} / {MAX_BIO_LENGTH}
             </span>
           </div>
           <Textarea
             id="bio"
-            maxLength={LONGUEUR_MAX_BIO}
+            maxLength={MAX_BIO_LENGTH}
             value={bio}
             onChange={(e) => {
               setBio(e.target.value);
-              effacer();
+              clear();
             }}
             placeholder="Rôliste depuis…, joue plutôt MJ…"
-            className={cn(styleChamp, 'h-auto min-h-[110px] resize-y py-2')}
+            className={cn(inputStyle, 'h-auto min-h-[110px] resize-y py-2')}
           />
         </div>
-        {erreur && <Message>{erreur}</Message>}
-        {succes && !modifie && <Message ton="succes">Profil enregistré.</Message>}
-        <Bouton type="submit" chargement={envoi} disabled={!modifie || !nom.trim()}>
+        {error && <Message>{error}</Message>}
+        {success && !changed && <Message tone="succes">Profil enregistré.</Message>}
+        <AppButton type="submit" loading={sending} disabled={!changed || !name.trim()}>
           Enregistrer
-        </Bouton>
+        </AppButton>
       </form>
-    </Carte>
+    </Card>
   );
 }
 
 // ─── Titre affiché ───────────────────────────────────────────────────────────
 
-function CarteTitre({ profil }: { profil: Profil }) {
-  const { remplacerProfil } = useSession();
-  const debloques = useRessource('mes-titres', lireMesTitres);
-  const catalogue = useRessource('titres', lireTitres);
-  const [envoi, setEnvoi] = useState<string | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
+function TitleCard({ profile }: { profile: Profile }) {
+  const { replaceProfile } = useSession();
+  const unlocked = useResource('mes-titres', getMyTitles);
+  const catalogue = useResource('titres', getTitles);
+  const [sending, setSending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const liste = debloques.donnees ?? [];
-  const actuel =
-    liste.find((t) => t.label === profil.title || t.slug === profil.title)?.slug ?? null;
-  const verrouilles = (catalogue.donnees ?? []).filter(
-    (t) => !liste.some((d) => d.slug === t.slug),
-  );
+  const list = unlocked.data ?? [];
+  const current =
+    list.find((t) => t.label === profile.title || t.slug === profile.title)?.slug ?? null;
+  const locked = (catalogue.data ?? []).filter((t) => !list.some((d) => d.slug === t.slug));
 
-  async function choisir(slug: string | null) {
-    if (slug === actuel) return;
-    setEnvoi(slug ?? '');
-    setErreur(null);
+  async function choose(slug: string | null) {
+    if (slug === current) return;
+    setSending(slug ?? '');
+    setError(null);
     try {
-      const { title } = await choisirTitre(slug);
-      remplacerProfil({ ...profil, title });
+      const { title } = await chooseTitle(slug);
+      replaceProfile({ ...profile, title });
     } catch (err) {
-      setErreur(messageErreur(err));
+      setError(errorMessage(err));
     } finally {
-      setEnvoi(null);
+      setSending(null);
     }
   }
 
   return (
-    <Carte
-      titre="Titre"
+    <Card
+      title="Titre"
       description="Le titre affiché sous votre nom, parmi ceux que vous avez débloqués."
     >
-      {debloques.chargement && !debloques.donnees ? (
-        <Chargement />
-      ) : debloques.erreur ? (
-        <Message>{debloques.erreur}</Message>
+      {unlocked.loading && !unlocked.data ? (
+        <Loading />
+      ) : unlocked.error ? (
+        <Message>{unlocked.error}</Message>
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Titre affiché">
-            <PastilleTitre
+            <TitleChip
               label="Aucun titre"
-              actif={actuel === null && !profil.title}
-              chargement={envoi === ''}
-              onClick={() => choisir(null)}
+              active={current === null && !profile.title}
+              loading={sending === ''}
+              onClick={() => choose(null)}
             />
-            {liste.map((t) => (
-              <PastilleTitre
+            {list.map((t) => (
+              <TitleChip
                 key={t.slug}
                 label={t.label}
-                actif={actuel === t.slug}
-                chargement={envoi === t.slug}
-                onClick={() => choisir(t.slug)}
+                active={current === t.slug}
+                loading={sending === t.slug}
+                onClick={() => choose(t.slug)}
               />
             ))}
           </div>
-          {liste.length === 0 && (
+          {list.length === 0 && (
             <p className="text-sm text-zinc-500">Aucun titre débloqué pour l&apos;instant.</p>
           )}
-          {erreur && <Message>{erreur}</Message>}
-          {verrouilles.length > 0 && (
+          {error && <Message>{error}</Message>}
+          {locked.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-wider text-zinc-500">À débloquer</p>
               <ul className="space-y-2">
-                {verrouilles.map((t) => (
+                {locked.map((t) => (
                   <li
                     key={t.slug}
                     className="flex items-start gap-3 rounded-lg border border-zinc-800 px-3 py-2 text-sm"
@@ -395,7 +392,7 @@ function CarteTitre({ profil }: { profil: Profil }) {
                     <div className="min-w-0">
                       <p className="text-zinc-300">{t.label}</p>
                       <p className="text-xs text-zinc-500">
-                        {texteCondition(t.condition, t.description)}
+                        {conditionText(t.condition, t.description)}
                       </p>
                     </div>
                   </li>
@@ -405,36 +402,36 @@ function CarteTitre({ profil }: { profil: Profil }) {
           )}
         </div>
       )}
-    </Carte>
+    </Card>
   );
 }
 
-function PastilleTitre({
+function TitleChip({
   label,
-  actif,
-  chargement,
+  active,
+  loading,
   onClick,
 }: {
   label: string;
-  actif: boolean;
-  chargement: boolean;
+  active: boolean;
+  loading: boolean;
   onClick(): void;
 }) {
   return (
     <button
       type="button"
       role="radio"
-      aria-checked={actif}
+      aria-checked={active}
       onClick={onClick}
-      disabled={chargement}
+      disabled={loading}
       className={cn(
         'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-60',
-        actif
+        active
           ? 'border-[#c9a965] bg-[#c9a965]/15 text-[#e2cc97]'
           : 'border-zinc-700 text-zinc-300 hover:border-zinc-500',
       )}
     >
-      {actif && <Check className="h-3.5 w-3.5" />}
+      {active && <Check className="h-3.5 w-3.5" />}
       {label}
     </button>
   );
@@ -442,31 +439,31 @@ function PastilleTitre({
 
 // ─── Bordure et badge premium ────────────────────────────────────────────────
 
-function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean }) {
-  const [bordure, setBordure] = useState(profil.borderType);
-  const [badge, setBadge] = useState(profil.showPremiumBadge);
-  const { enregistrer, envoi, erreur, succes, effacer } = useEnregistrement();
+function AppearanceCard({ profile, premium }: { profile: Profile; premium: boolean }) {
+  const [border, setBorder] = useState(profile.borderType);
+  const [badge, setBadge] = useState(profile.showPremiumBadge);
+  const { save, sending, error, success, clear } = useSave();
 
   useEffect(() => {
-    setBordure(profil.borderType);
-    setBadge(profil.showPremiumBadge);
-  }, [profil.borderType, profil.showPremiumBadge]);
+    setBorder(profile.borderType);
+    setBadge(profile.showPremiumBadge);
+  }, [profile.borderType, profile.showPremiumBadge]);
 
-  const modifie = bordure !== profil.borderType || badge !== profil.showPremiumBadge;
+  const changed = border !== profile.borderType || badge !== profile.showPremiumBadge;
 
-  function valider() {
-    const modif: ModificationProfil = {};
-    if (bordure !== profil.borderType) modif.borderType = bordure;
-    if (badge !== profil.showPremiumBadge) modif.showPremiumBadge = badge;
-    void enregistrer(modif);
+  function submit() {
+    const update: ProfileUpdate = {};
+    if (border !== profile.borderType) update.borderType = border;
+    if (badge !== profile.showPremiumBadge) update.showPremiumBadge = badge;
+    void save(update);
   }
 
   return (
-    <Carte
-      titre="Apparence"
+    <Card
+      title="Apparence"
       description="La bordure de votre avatar, visible par les autres joueurs."
       action={
-        <AvatarJoueur nom={profil.name} url={profil.avatarUrl} bordure={bordure} taille="md" />
+        <PlayerAvatar name={profile.name} url={profile.avatarUrl} border={border} size="md" />
       }
     >
       <div className="space-y-4">
@@ -477,21 +474,21 @@ function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean 
           </p>
         )}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {BORDURES.map((b) => {
-            const verrou = !premium && b.id !== 'none' && b.id !== profil.borderType;
+          {BORDERS.map((b) => {
+            const lock = !premium && b.id !== 'none' && b.id !== profile.borderType;
             return (
               <button
                 key={b.id}
                 type="button"
-                disabled={verrou}
-                aria-pressed={bordure === b.id}
+                disabled={lock}
+                aria-pressed={border === b.id}
                 onClick={() => {
-                  setBordure(b.id);
-                  effacer();
+                  setBorder(b.id);
+                  clear();
                 }}
                 className={cn(
                   'flex flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-[11px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-                  bordure === b.id
+                  border === b.id
                     ? 'border-[#c9a965] bg-[#c9a965]/10 text-[#e2cc97]'
                     : 'border-zinc-800 text-zinc-400 hover:border-zinc-600',
                 )}
@@ -499,28 +496,28 @@ function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean 
                 <span
                   className="relative h-6 w-6 rounded-full border border-zinc-700"
                   style={
-                    b.couleurs.length
+                    b.colors.length
                       ? {
                           background:
-                            b.couleurs.length === 1
-                              ? b.couleurs[0]
-                              : `conic-gradient(${[...b.couleurs, b.couleurs[0]].join(', ')})`,
+                            b.colors.length === 1
+                              ? b.colors[0]
+                              : `conic-gradient(${[...b.colors, b.colors[0]].join(', ')})`,
                         }
                       : undefined
                   }
                 >
-                  {verrou && <Lock className="absolute inset-0 m-auto h-3 w-3 text-white" />}
+                  {lock && <Lock className="absolute inset-0 m-auto h-3 w-3 text-white" />}
                 </span>
                 <span className="text-center">{b.label}</span>
               </button>
             );
           })}
         </div>
-        <Interrupteur
-          actif={badge}
+        <Switch
+          active={badge}
           onChange={(v) => {
             setBadge(v);
-            effacer();
+            clear();
           }}
           label="Afficher le badge Premium"
           description={
@@ -529,33 +526,33 @@ function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean 
               : 'Le badge ne s’affiche que pour les membres Premium.'
           }
         />
-        {erreur && <Message>{erreur}</Message>}
-        {succes && !modifie && <Message ton="succes">Apparence enregistrée.</Message>}
-        <Bouton onClick={valider} chargement={envoi} disabled={!modifie}>
+        {error && <Message>{error}</Message>}
+        {success && !changed && <Message tone="succes">Apparence enregistrée.</Message>}
+        <AppButton onClick={submit} loading={sending} disabled={!changed}>
           Enregistrer
-        </Bouton>
+        </AppButton>
       </div>
-    </Carte>
+    </Card>
   );
 }
 
 // ─── Préférences ─────────────────────────────────────────────────────────────
 
-function CartePreferences({ profil }: { profil: Profil }) {
-  const { enregistrer, envoi, erreur } = useEnregistrement();
+function PreferencesCard({ profile }: { profile: Profile }) {
+  const { save, sending, error } = useSave();
 
   return (
-    <Carte titre="Préférences">
+    <Card title="Préférences">
       <div className="space-y-4">
-        <Interrupteur
-          actif={profil.emailNotifications}
-          disabled={envoi}
-          onChange={(v) => void enregistrer({ emailNotifications: v })}
+        <Switch
+          active={profile.emailNotifications}
+          disabled={sending}
+          onChange={(v) => void save({ emailNotifications: v })}
           label="Notifications par e-mail"
           description="Rappels de session et nouvelles de vos campagnes."
         />
-        {erreur && <Message>{erreur}</Message>}
+        {error && <Message>{error}</Message>}
       </div>
-    </Carte>
+    </Card>
   );
 }

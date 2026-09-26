@@ -3,45 +3,41 @@
 import type { Action, Widget } from '@vtt/rules';
 import { Dices } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFiche } from './context';
-import { Bloc, VideFiche } from './elements';
-import { boutonSecondaire, texte, texteSecondaire } from './styles';
+import { useSheet } from './context';
+import { Block, SheetEmpty } from './elements';
+import { secondaryButton, text, textMuted } from './styles';
 
-type WidgetActionsProps = Extract<Widget, { type: 'actions' }>;
+type ActionsWidgetProps = Extract<Widget, { type: 'actions' }>;
 
 /** Actions du système utilisables par ce type d'entité (liste du bloc, sinon toutes). */
-export function actionsDuBloc(
-  actions: Map<string, Action>,
-  type: string,
-  ids?: string[],
-): Action[] {
-  const liste = ids
+export function blockActions(actions: Map<string, Action>, type: string, ids?: string[]): Action[] {
+  const list = ids
     ? ids.flatMap((id) => {
         const a = actions.get(id);
         return a ? [a] : [];
       })
     : [...actions.values()];
-  return liste.filter((a) => a.pour.includes(type));
+  return list.filter((a) => a.pour.includes(type));
 }
 
 /**
  * Emplacement des actions de la fiche. Le lanceur (paramètres, jet, résultat)
  * sera branché ici : en attendant, la liste s'affiche avec un bouton désactivé.
  */
-export function WidgetActions({ widget }: { widget: WidgetActionsProps }) {
-  const { systeme, etat } = useFiche();
-  const actions = actionsDuBloc(systeme.actions, etat.type, widget.actions);
+export function ActionsWidget({ widget }: { widget: ActionsWidgetProps }) {
+  const { system, state } = useSheet();
+  const actions = blockActions(system.actions, state.type, widget.actions);
 
   return (
-    <Bloc titre={widget.titre}>
+    <Block title={widget.titre}>
       {actions.length ? (
         <ul className="divide-y divide-[color:var(--fiche-bordure)]">
           {actions.map((a) => (
             <li key={a.id} className="flex items-center gap-3 py-2">
               <span className="min-w-0 flex-1">
-                <span className={cn(texte, 'block truncate text-sm')}>{a.nom}</span>
+                <span className={cn(text, 'block truncate text-sm')}>{a.nom}</span>
                 {a.description && (
-                  <span className={cn(texteSecondaire, 'line-clamp-1 block text-xs')}>
+                  <span className={cn(textMuted, 'line-clamp-1 block text-xs')}>
                     {a.description}
                   </span>
                 )}
@@ -49,7 +45,7 @@ export function WidgetActions({ widget }: { widget: WidgetActionsProps }) {
               <button
                 type="button"
                 disabled
-                className={cn(boutonSecondaire, 'min-h-8 px-2.5 text-xs')}
+                className={cn(secondaryButton, 'min-h-8 px-2.5 text-xs')}
                 title="Le lanceur d'actions arrive bientôt"
                 aria-label={`${a.nom} : bientôt disponible`}
               >
@@ -60,8 +56,8 @@ export function WidgetActions({ widget }: { widget: WidgetActionsProps }) {
           ))}
         </ul>
       ) : (
-        <VideFiche>Aucune action pour ce type d&apos;entité.</VideFiche>
+        <SheetEmpty>Aucune action pour ce type d&apos;entité.</SheetEmpty>
       )}
-    </Bloc>
+    </Block>
   );
 }

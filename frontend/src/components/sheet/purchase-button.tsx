@@ -4,39 +4,39 @@ import type { ObjetAchetable } from '@vtt/rules';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { boutonIcone } from './styles';
+import { iconButton } from './styles';
 
 /** Achat d'un objet : coût affiché, raisons du blocage au survol et pour les lecteurs d'écran. */
-export function BoutonAchat({
-  objet,
-  libelle,
-  monnaie,
-  onAcheter,
-  texteBouton,
+export function PurchaseButton({
+  item,
+  label,
+  currency,
+  onBuy,
+  buttonText,
 }: {
-  objet: ObjetAchetable;
-  libelle: string;
-  monnaie: string;
-  onAcheter(): Promise<boolean>;
-  texteBouton?: string;
+  item: ObjetAchetable;
+  label: string;
+  currency: string;
+  onBuy(): Promise<boolean>;
+  buttonText?: string;
 }) {
-  const [envoi, setEnvoi] = useState(false);
-  const raison = objet.blocages.map((b) => b.message).join(' ; ');
+  const [sending, setSending] = useState(false);
+  const reason = item.blocages.map((b) => b.message).join(' ; ');
   return (
     <button
       type="button"
-      className={cn(boutonIcone, 'w-auto gap-1 px-2 text-xs tabular-nums')}
-      disabled={!objet.possible || envoi}
-      title={objet.possible ? `${libelle} : ${objet.cout} ${monnaie}` : raison}
-      aria-label={`${libelle} : ${objet.cout} ${monnaie}${objet.possible ? '' : ` (impossible : ${raison})`}`}
+      className={cn(iconButton, 'w-auto gap-1 px-2 text-xs tabular-nums')}
+      disabled={!item.possible || sending}
+      title={item.possible ? `${label} : ${item.cout} ${currency}` : reason}
+      aria-label={`${label} : ${item.cout} ${currency}${item.possible ? '' : ` (impossible : ${reason})`}`}
       onClick={async () => {
-        setEnvoi(true);
-        await onAcheter();
-        setEnvoi(false);
+        setSending(true);
+        await onBuy();
+        setSending(false);
       }}
     >
       <Plus className="h-3.5 w-3.5" />
-      {texteBouton ?? objet.cout}
+      {buttonText ?? item.cout}
     </button>
   );
 }

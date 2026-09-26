@@ -4,43 +4,46 @@ import type { Attribut, Widget } from '@vtt/rules';
 import { BedDouble, Minus, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useFiche } from './context';
-import { Bloc, Explication, VideFiche } from './elements';
-import { formaterNombre } from './format';
-import { boutonIcone, boutonSecondaire, caseValeur, champ, texte, texteSecondaire } from './styles';
+import { useSheet } from './context';
+import { Block, Explanation, SheetEmpty } from './elements';
+import { formatNumber } from './format';
+import { iconButton, secondaryButton, valueBox, field, text, textMuted } from './styles';
 
-type WidgetRessources = Extract<Widget, { type: 'ressources' }>;
-type Ressource = Extract<Attribut, { nature: 'ressource' }>;
-export type Sens = 'descendant' | 'montant';
+type ResourcesWidget = Extract<Widget, { type: 'ressources' }>;
+type Resource = Extract<Attribut, { nature: 'ressource' }>;
+export type Direction = 'descendant' | 'montant';
 
 /**
  * Sens d'une jauge : celui de la présentation, sinon déduit de la récupération
  * (une ressource qui se récupère vers son maximum part pleine et descend).
  */
-export function sensRessource(sensPresentation: Sens | undefined, a: Ressource): Sens {
-  return sensPresentation ?? (a.recuperation === 'max' ? 'descendant' : 'montant');
+export function resourceDirection(
+  presentationDirection: Direction | undefined,
+  a: Resource,
+): Direction {
+  return presentationDirection ?? (a.recuperation === 'max' ? 'descendant' : 'montant');
 }
 
-export function WidgetRessources({ widget }: { widget: WidgetRessources }) {
-  const { fiche, lectureSeule, repos } = useFiche();
-  const [repos_, setRepos] = useState(false);
-  const ressources = widget.attributs
-    .map((c) => fiche.entite.attributs.get(c))
-    .filter((a): a is Ressource => a?.nature === 'ressource');
+export function ResourcesWidget({ widget }: { widget: ResourcesWidget }) {
+  const { sheet, readOnly, rest } = useSheet();
+  const [resting, setResting] = useState(false);
+  const resources = widget.attributs
+    .map((c) => sheet.entite.attributs.get(c))
+    .filter((a): a is Resource => a?.nature === 'ressource');
 
   return (
-    <Bloc
-      titre={widget.titre}
+    <Block
+      title={widget.titre}
       action={
-        !lectureSeule && ressources.length ? (
+        !readOnly && resources.length ? (
           <button
             type="button"
-            className={cn(boutonSecondaire, 'min-h-8 px-2.5 text-xs')}
-            disabled={repos_}
+            className={cn(secondaryButton, 'min-h-8 px-2.5 text-xs')}
+            disabled={resting}
             onClick={async () => {
-              setRepos(true);
-              await repos(ressources.map((a) => a.cle));
-              setRepos(false);
+              setResting(true);
+              await rest(resources.map((a) => a.cle));
+              setResting(false);
             }}
             title="Ramène chaque ressource de ce bloc à sa valeur de repos"
           >
@@ -50,90 +53,90 @@ export function WidgetRessources({ widget }: { widget: WidgetRessources }) {
         ) : undefined
       }
     >
-      {ressources.length ? (
+      {resources.length ? (
         <div className="space-y-3">
-          {ressources.map((a) => (
-            <LigneRessource key={a.cle} attribut={a} />
+          {resources.map((a) => (
+            <ResourceRow key={a.cle} attribute={a} />
           ))}
         </div>
       ) : (
-        <VideFiche>Aucune ressource.</VideFiche>
+        <SheetEmpty>Aucune ressource.</SheetEmpty>
       )}
-    </Bloc>
+    </Block>
   );
 }
 
-function LigneRessource({ attribut: a }: { attribut: Ressource }) {
-  const { json, presentation, lectureSeule, fixerValeurs } = useFiche();
+function ResourceRow({ attribute: a }: { attribute: Resource }) {
+  const { json, presentation, readOnly, setValues } = useSheet();
   const v = json.valeurs[a.cle];
-  const valeur = typeof v?.valeur === 'number' ? v.valeur : 0;
+  const value = typeof v?.valeur === 'number' ? v.valeur : 0;
   const min = v?.min ?? 0;
   const max = v?.max ?? 0;
-  const apparence = presentation.ressources[a.cle];
-  const sens = sensRessource(apparence?.sens, a);
-  const couleur = apparence?.couleur ?? 'var(--fiche-accent)';
-  const etendue = max - min;
-  const part = etendue > 0 ? Math.min(1, Math.max(0, (valeur - min) / etendue)) : 0;
+  const appearance = presentation.ressources[a.cle];
+  const direction = resourceDirection(appearance?.sens, a);
+  const color = appearance?.couleur ?? 'var(--fiche-accent)';
+  const range = max - min;
+  const part = range > 0 ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
   // Alerte : jauge descendante presque vide, ou jauge montante au seuil (ou au-delà)
-  const alerte = sens === 'descendant' ? part <= 0.25 : valeur >= max && max > min;
-  const depasse = valeur > max;
-  const [saisie, setSaisie] = useState(String(valeur));
+  const alert = direction === 'descendant' ? part <= 0.25 : value >= max && max > min;
+  const exceeded = value > max;
+  const [draft, setDraft] = useState(String(value));
   const id = `ressource-${a.cle}`;
 
-  useEffect(() => setSaisie(String(valeur)), [valeur]);
+  useEffect(() => setDraft(String(value)), [value]);
 
-  const borner = (n: number) => Math.max(min, a.plafonnee ? Math.min(max, n) : n);
+  const clamp = (n: number) => Math.max(min, a.plafonnee ? Math.min(max, n) : n);
   const fixer = (n: number) => {
-    const b = borner(Math.round(n));
-    setSaisie(String(b));
-    if (b !== valeur) void fixerValeurs({ [a.cle]: b });
+    const b = clamp(Math.round(n));
+    setDraft(String(b));
+    if (b !== value) void setValues({ [a.cle]: b });
   };
 
   return (
-    <div className={cn(caseValeur, 'p-3')}>
+    <div className={cn(valueBox, 'p-3')}>
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <label
-          htmlFor={lectureSeule ? undefined : id}
-          className={cn(texte, 'text-sm font-medium')}
+          htmlFor={readOnly ? undefined : id}
+          className={cn(text, 'text-sm font-medium')}
           title={a.description}
         >
           {a.nom}
         </label>
-        <Explication titre={a.nom} detail={v?.detail} className="w-auto rounded">
-          <span className={cn(texte, 'text-sm tabular-nums')}>
-            <span className="text-base font-semibold">{formaterNombre(valeur)}</span>
-            <span className={texteSecondaire}> / {formaterNombre(max)}</span>
+        <Explanation title={a.nom} detail={v?.detail} className="w-auto rounded">
+          <span className={cn(text, 'text-sm tabular-nums')}>
+            <span className="text-base font-semibold">{formatNumber(value)}</span>
+            <span className={textMuted}> / {formatNumber(max)}</span>
           </span>
-        </Explication>
+        </Explanation>
       </div>
       <div
         role="meter"
-        aria-label={`${a.nom}${sens === 'montant' ? ' (se remplit)' : ''}`}
+        aria-label={`${a.nom}${direction === 'montant' ? ' (se remplit)' : ''}`}
         aria-valuemin={min}
         aria-valuemax={max}
-        aria-valuenow={valeur}
-        aria-valuetext={`${formaterNombre(valeur)} sur ${formaterNombre(max)}${depasse ? ', seuil dépassé' : ''}`}
+        aria-valuenow={value}
+        aria-valuetext={`${formatNumber(value)} sur ${formatNumber(max)}${exceeded ? ', seuil dépassé' : ''}`}
         className="h-3 overflow-hidden rounded-full bg-[color:var(--fiche-carte)] ring-1 ring-[color:var(--fiche-bordure)]"
       >
         <div
           className={cn(
             'h-full rounded-full transition-[width] duration-300',
-            depasse && 'animate-pulse',
+            exceeded && 'animate-pulse',
           )}
           style={{
             width: `${part * 100}%`,
-            background: alerte ? '#ef4444' : couleur,
+            background: alert ? '#ef4444' : color,
           }}
         />
       </div>
-      {!lectureSeule && (
+      {!readOnly && (
         <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
-            className={boutonIcone}
+            className={iconButton}
             aria-label={`${a.nom} : retirer 1`}
-            disabled={valeur <= min}
-            onClick={() => fixer(valeur - 1)}
+            disabled={value <= min}
+            onClick={() => fixer(value - 1)}
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -141,30 +144,30 @@ function LigneRessource({ attribut: a }: { attribut: Ressource }) {
             id={id}
             type="number"
             inputMode="numeric"
-            value={saisie}
+            value={draft}
             min={min}
             max={a.plafonnee ? max : undefined}
-            onChange={(e) => setSaisie(e.target.value)}
+            onChange={(e) => setDraft(e.target.value)}
             onBlur={() => {
-              const n = Number(saisie);
-              if (saisie.trim() === '' || !Number.isFinite(n)) setSaisie(String(valeur));
+              const n = Number(draft);
+              if (draft.trim() === '' || !Number.isFinite(n)) setDraft(String(value));
               else fixer(n);
             }}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            className={cn(champ, 'w-20 text-center tabular-nums')}
+            className={cn(field, 'w-20 text-center tabular-nums')}
           />
           <button
             type="button"
-            className={boutonIcone}
+            className={iconButton}
             aria-label={`${a.nom} : ajouter 1`}
-            disabled={a.plafonnee && valeur >= max}
-            onClick={() => fixer(valeur + 1)}
+            disabled={a.plafonnee && value >= max}
+            onClick={() => fixer(value + 1)}
           >
             <Plus className="h-4 w-4" />
           </button>
-          <span className={cn(texteSecondaire, 'ml-auto text-xs')}>
-            {sens === 'montant' ? 'se remplit' : 'se vide'}
-            {depasse ? ' · seuil dépassé' : ''}
+          <span className={cn(textMuted, 'ml-auto text-xs')}>
+            {direction === 'montant' ? 'se remplit' : 'se vide'}
+            {exceeded ? ' · seuil dépassé' : ''}
           </span>
         </div>
       )}

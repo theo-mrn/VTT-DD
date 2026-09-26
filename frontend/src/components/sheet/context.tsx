@@ -31,93 +31,93 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  ecritures,
-  lireAchats,
-  useLectureVersionnee,
-  type MajPossession,
-  type Personnage,
-  type SuiviPersonnage,
+  writes,
+  getPurchases,
+  useVersionedRead,
+  type PossessionUpdate,
+  type Character,
+  type CharacterTracker,
 } from '@/lib/characters';
-import type { SystemePret } from '@/lib/systems';
-import { chargerPolices, variablesTheme } from './theme';
+import type { ReadySystem } from '@/lib/systems';
+import { loadFonts, themeVariables } from './theme';
 
-export interface ContexteFiche {
-  pret: SystemePret;
-  systeme: SystemeCharge;
+export interface SheetContextValue {
+  ready: ReadySystem;
+  system: SystemeCharge;
   presentation: Presentation;
-  personnage: Personnage;
+  character: Character;
   /** État affiché (serveur + aperçus en attente). */
-  etat: EtatEntite;
+  state: EtatEntite;
   /** Fiche calculée localement sur l'état affiché. */
-  fiche: Fiche;
+  sheet: Fiche;
   /** Valeurs affichées : celles du serveur, ou le calcul local pendant une écriture. */
   json: FicheJson;
   /** Achats possibles : ceux du serveur s'ils sont à jour, sinon le calcul local. */
-  achats: AchatDisponible[];
-  lectureSeule: boolean;
-  enAttente: number;
+  purchases: AchatDisponible[];
+  readOnly: boolean;
+  pending: number;
   /** Variables CSS du thème, à reposer sur les dialogues (rendus hors du cadre). */
   variables: CSSProperties;
-  ecrire: SuiviPersonnage['ecrire'];
-  fixerValeurs(valeurs: Record<string, Valeur>): Promise<boolean>;
-  acheter(achat: string, objet: string): Promise<boolean>;
-  rembourser(index: number): Promise<boolean>;
-  majPossession(maj: MajPossession): Promise<boolean>;
-  retirerPossession(entree: string): Promise<boolean>;
-  repos(attributs?: string[]): Promise<boolean>;
+  write: CharacterTracker['write'];
+  setValues(values: Record<string, Valeur>): Promise<boolean>;
+  buy(purchase: string, item: string): Promise<boolean>;
+  refund(index: number): Promise<boolean>;
+  updatePossession(update: PossessionUpdate): Promise<boolean>;
+  removePossession(entry: string): Promise<boolean>;
+  rest(attributes?: string[]): Promise<boolean>;
 }
 
-const Contexte = createContext<ContexteFiche | null>(null);
+const SheetContext = createContext<SheetContextValue | null>(null);
 
-export function useFiche(): ContexteFiche {
-  const c = useContext(Contexte);
+export function useSheet(): SheetContextValue {
+  const c = useContext(SheetContext);
   if (!c) throw new Error('useFiche doit être utilisé dans <FournisseurFiche>');
   return c;
 }
 
 /** Calcul local protégé : un état incohérent avec le système ne casse pas la page. */
-export function calculerSur(systeme: SystemeCharge, etat: EtatEntite): Fiche | null {
+export function computeOn(system: SystemeCharge, state: EtatEntite): Fiche | null {
   try {
-    return calculer(systeme, etat);
+    return calculer(system, state);
   } catch {
     return null;
   }
 }
 
-export function FournisseurFiche({
-  suivi,
-  pret,
-  lectureSeule,
+export function SheetProvider({
+  tracker,
+  ready,
+  readOnly,
   children,
-  repli,
+  fallback,
 }: {
-  suivi: SuiviPersonnage;
-  pret: SystemePret;
-  lectureSeule: boolean;
+  tracker: CharacterTracker;
+  ready: ReadySystem;
+  readOnly: boolean;
   children: ReactNode;
   /** Affiché si le personnage ne se calcule pas avec ce système. */
-  repli: ReactNode;
+  fallback: ReactNode;
 }) {
-  const { personnage, etat, ecrire, enAttente } = suivi;
-  const { systeme, presentation } = pret;
-  const fiche = useMemo(() => (etat ? calculerSur(systeme, etat) : null), [systeme, etat]);
-  const achatsServeur = useLectureVersionnee('achats', personnage, enAttente, lireAchats);
-  const achatsLocaux = useMemo(
-    () => (fiche && !achatsServeur ? achatsPossibles(fiche) : []),
-    [fiche, achatsServeur],
+  const { personnage: character, etat: state, write, pending } = tracker;
+  const { system, presentation } = ready;
+  const sheet = useMemo(() => (state ? computeOn(system, state) : null), [system, state]);
+  const serverPurchases = useVersionedRead('achats', character, pending, getPurchases);
+  const localPurchases = useMemo(
+    () => (sheet && !serverPurchases ? achatsPossibles(sheet) : []),
+    [sheet, serverPurchases],
   );
-  const variables = useMemo(() => variablesTheme(presentation), [presentation]);
+  const variables = useMemo(() => themeVariables(presentation), [presentation]);
 
-  useEffect(() => chargerPolices(presentation), [presentation]);
+  useEffect(() => loadFonts(presentation), [presentation]);
 
-  const valeur = useMemo<ContexteFiche | null>(() => {
-    if (!personnage || !etat || !fiche) return null;
+  const value = useMemo<SheetContextValue | null>(() => {
+    if (!character || !state || !sheet) return null;
     // Copie des erreurs : les évaluations faites ensuite par l'interface ne s'y ajoutent pas
     const json =
-      !enAttente && personnage.fiche?.valeurs
-        ? personnage.fiche
-        : { ...ficheJson(fiche), erreurs: [...fiche.erreurs] };
-    const essai =
+      !pending && character.fiche?.valeurs
+        ? character.fiche
+        : { ...ficheJson(sheet), erreurs: [...sheet.erreurs] };
+    const attempt =
       (f: (e: EtatEntite) => EtatEntite | null) =>
       (e: EtatEntite): EtatEntite | null => {
         try {
@@ -127,90 +127,90 @@ export function FournisseurFiche({
         }
       };
     return {
-      pret,
-      systeme,
+      ready,
+      system,
       presentation,
-      personnage,
-      etat,
-      fiche,
+      character,
+      state,
+      sheet,
       json,
-      achats: achatsServeur ?? achatsLocaux,
-      lectureSeule,
-      enAttente,
+      purchases: serverPurchases ?? localPurchases,
+      readOnly,
+      pending,
       variables,
-      ecrire,
-      fixerValeurs: (valeurs) =>
-        ecrire(
-          ecritures.valeurs(valeurs),
-          essai((e) => {
+      write,
+      setValues: (values) =>
+        write(
+          writes.values(values),
+          attempt((e) => {
             const s = copier(e);
-            Object.assign(s.valeurs, valeurs);
+            Object.assign(s.valeurs, values);
             return s;
           }),
         ),
-      acheter: (achat, objet) =>
-        ecrire(
-          ecritures.acheter(achat, objet),
-          essai((e) => {
-            const r = acheterLocal(systeme, e, { achat, objet });
+      buy: (purchase, item) =>
+        write(
+          writes.buy(purchase, item),
+          attempt((e) => {
+            const r = acheterLocal(system, e, { achat: purchase, objet: item });
             return r.ok ? r.etat : null;
           }),
         ),
-      rembourser: (index) =>
-        ecrire(
-          ecritures.rembourser(index),
-          essai((e) => {
-            const r = rembourserLocal(systeme, e, index);
+      refund: (index) =>
+        write(
+          writes.refund(index),
+          attempt((e) => {
+            const r = rembourserLocal(system, e, index);
             return r.ok ? r.etat : null;
           }),
         ),
-      majPossession: (maj) =>
-        ecrire(
-          ecritures.possession(maj),
-          essai((e) => {
+      updatePossession: (update) =>
+        write(
+          writes.possession(update),
+          attempt((e) => {
             const s = copier(e);
-            let p = s.possessions.find((x) => x.entree === maj.entree);
+            let p = s.possessions.find((x) => x.entree === update.entree);
             if (!p) {
-              p = nouvellePossession(maj.entree, maj.rang ?? 0);
+              p = nouvellePossession(update.entree, update.rang ?? 0);
               s.possessions.push(p);
             }
-            if (maj.rang !== undefined) p.rang = maj.rang;
-            if (maj.actif !== undefined) p.actif = maj.actif;
-            if (maj.choix) p.choix = { ...p.choix, ...maj.choix };
-            if (maj.champs) p.champs = { ...p.champs, ...maj.champs };
+            if (update.rang !== undefined) p.rang = update.rang;
+            if (update.actif !== undefined) p.actif = update.actif;
+            if (update.choix) p.choix = { ...p.choix, ...update.choix };
+            if (update.champs) p.champs = { ...p.champs, ...update.champs };
             return s;
           }),
         ),
-      retirerPossession: (entree) =>
-        ecrire(
-          ecritures.retirerPossession(entree),
-          essai((e) => {
+      removePossession: (entry) =>
+        write(
+          writes.removePossession(entry),
+          attempt((e) => {
             const s = copier(e);
-            s.possessions = s.possessions.filter((p) => p.entree !== entree);
+            s.possessions = s.possessions.filter((p) => p.entree !== entry);
             return s;
           }),
         ),
-      repos: (attributs) =>
-        ecrire(
-          ecritures.repos(attributs),
-          essai((e) => recuperer(calculer(systeme, e), attributs)),
+      rest: (attributes) =>
+        write(
+          writes.rest(attributes),
+          attempt((e) => recuperer(calculer(system, e), attributes)),
         ),
     };
   }, [
-    pret,
-    systeme,
+    ready,
+    system,
     presentation,
-    personnage,
-    etat,
-    fiche,
-    achatsServeur,
-    achatsLocaux,
-    lectureSeule,
-    enAttente,
+    character,
+    state,
+    sheet,
+    serverPurchases,
+    localPurchases,
+    readOnly,
+    pending,
     variables,
-    ecrire,
+    write,
   ]);
 
-  if (!valeur) return <>{repli}</>;
-  return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>;
+  if (!value) return <>{fallback}</>;
+  return <SheetContext.Provider value={value}>{children}</SheetContext.Provider>;
 }

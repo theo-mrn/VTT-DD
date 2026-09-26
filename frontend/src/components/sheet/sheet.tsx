@@ -8,27 +8,27 @@
 import type { Widget } from '@vtt/rules';
 import { AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { widgetsFiche } from '@/lib/systems';
+import { sheetWidgets } from '@/lib/systems';
 import { cn } from '@/lib/utils';
-import { useFiche } from './context';
-import { texte } from './styles';
-import { WidgetActions } from './widget-actions';
-import { WidgetArbres } from './widget-trees';
-import { WidgetAttributs } from './widget-attributes';
-import { WidgetDetails } from './widget-details';
-import { WidgetMonnaies } from './widget-currencies';
-import { WidgetPossessions } from './widget-possessions';
-import { WidgetRessources } from './widget-resources';
-import { WidgetTexte } from './widget-text';
+import { useSheet } from './context';
+import { text } from './styles';
+import { ActionsWidget } from './widget-actions';
+import { TreesWidget } from './widget-trees';
+import { AttributesWidget } from './widget-attributes';
+import { DetailsWidget } from './widget-details';
+import { CurrenciesWidget } from './widget-currencies';
+import { PossessionsWidget } from './widget-possessions';
+import { ResourcesWidget } from './widget-resources';
+import { TextWidget } from './widget-text';
 
 /** Cadre aux couleurs du système (le thème global de l'app n'est pas touché). */
-export function CadreTheme({ children, className }: { children: ReactNode; className?: string }) {
-  const { variables } = useFiche();
+export function ThemeFrame({ children, className }: { children: ReactNode; className?: string }) {
+  const { variables } = useSheet();
   return (
     <div
       style={variables}
       className={cn(
-        texte,
+        text,
         'rounded-3xl bg-[color:var(--fiche-fond)] p-2 font-[family-name:var(--fiche-police-corps)] sm:p-4',
         className,
       )}
@@ -39,33 +39,33 @@ export function CadreTheme({ children, className }: { children: ReactNode; class
 }
 
 /** Blocs larges : ils occupent toute la largeur de la fiche. */
-const estLarge = (w: Widget) =>
+const isWide = (w: Widget) =>
   w.type === 'arbres' || (w.type === 'attributs' && (w.colonnes ?? 0) >= 5);
 
-export function RenduWidget({ widget }: { widget: Widget }) {
+export function WidgetRenderer({ widget }: { widget: Widget }) {
   switch (widget.type) {
     case 'attributs':
-      return <WidgetAttributs widget={widget} />;
+      return <AttributesWidget widget={widget} />;
     case 'ressources':
-      return <WidgetRessources widget={widget} />;
+      return <ResourcesWidget widget={widget} />;
     case 'possessions':
-      return <WidgetPossessions widget={widget} />;
+      return <PossessionsWidget widget={widget} />;
     case 'arbres':
-      return <WidgetArbres widget={widget} />;
+      return <TreesWidget widget={widget} />;
     case 'monnaies':
-      return <WidgetMonnaies widget={widget} />;
+      return <CurrenciesWidget widget={widget} />;
     case 'details':
-      return <WidgetDetails widget={widget} />;
+      return <DetailsWidget widget={widget} />;
     case 'actions':
-      return <WidgetActions widget={widget} />;
+      return <ActionsWidget widget={widget} />;
     case 'texte':
-      return <WidgetTexte widget={widget} />;
+      return <TextWidget widget={widget} />;
   }
 }
 
-export function FicheGeneree() {
-  const { pret, etat, json } = useFiche();
-  const widgets = widgetsFiche(pret, etat.type);
+export function GeneratedSheet() {
+  const { ready, state, json } = useSheet();
+  const widgets = sheetWidgets(ready, state.type);
 
   return (
     <div className="space-y-4">
@@ -88,11 +88,8 @@ export function FicheGeneree() {
       {/* Deux colonnes sur grand écran : les blocs s'enchaînent sans trous, les larges traversent */}
       <div className="gap-4 lg:columns-2">
         {widgets.map((w, i) => (
-          <div
-            key={i}
-            className={cn('mb-4 break-inside-avoid', estLarge(w) && '[column-span:all]')}
-          >
-            <RenduWidget widget={w} />
+          <div key={i} className={cn('mb-4 break-inside-avoid', isWide(w) && '[column-span:all]')}>
+            <WidgetRenderer widget={w} />
           </div>
         ))}
       </div>

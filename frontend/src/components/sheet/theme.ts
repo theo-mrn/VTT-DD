@@ -8,7 +8,7 @@ import type { Presentation } from '@vtt/rules';
 import type { CSSProperties } from 'react';
 
 /** Couleurs de l'app, utilisées quand la présentation n'en déclare pas. */
-const COULEURS_APP: Record<string, string> = {
+const APP_COLORS: Record<string, string> = {
   fond: '#0c0c0e',
   fondProfond: '#09090b',
   carte: '#18181b',
@@ -20,40 +20,37 @@ const COULEURS_APP: Record<string, string> = {
   accentSurvol: '#d8bb7a',
 };
 
-const enKebab = (nom: string) => nom.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+const toKebab = (name: string) => name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 
-const police = (nom: string | undefined, repli: string) =>
-  nom ? `"${nom.replace(/"/g, '')}", ${repli}` : repli;
+const font = (name: string | undefined, fallback: string) =>
+  name ? `"${name.replace(/"/g, '')}", ${fallback}` : fallback;
 
-export function variablesTheme(presentation: Presentation): CSSProperties {
-  const couleurs = { ...COULEURS_APP, ...(presentation.theme?.couleurs ?? {}) };
+export function themeVariables(presentation: Presentation): CSSProperties {
+  const colors = { ...APP_COLORS, ...(presentation.theme?.couleurs ?? {}) };
   const vars: Record<string, string> = {};
-  for (const [nom, valeur] of Object.entries(couleurs)) vars[`--fiche-${enKebab(nom)}`] = valeur;
-  const polices = presentation.theme?.polices ?? {};
-  vars['--fiche-police-corps'] = police(
-    polices.corps,
-    'var(--font-modern), ui-sans-serif, system-ui',
-  );
-  vars['--fiche-police-titres'] = police(polices.titres, 'var(--font-aclonica), serif');
+  for (const [name, value] of Object.entries(colors)) vars[`--fiche-${toKebab(name)}`] = value;
+  const fonts = presentation.theme?.polices ?? {};
+  vars['--fiche-police-corps'] = font(fonts.corps, 'var(--font-modern), ui-sans-serif, system-ui');
+  vars['--fiche-police-titres'] = font(fonts.titres, 'var(--font-aclonica), serif');
   return vars as CSSProperties;
 }
 
-const chargees = new Set<string>();
+const loadedFonts = new Set<string>();
 
 /**
  * Charge les polices nommées par la présentation depuis Google Fonts (une
  * fois par nom). Une police absente du catalogue est ignorée : la fiche
  * garde alors la police de repli.
  */
-export function chargerPolices(presentation: Presentation) {
+export function loadFonts(presentation: Presentation) {
   if (typeof document === 'undefined') return;
   const p = presentation.theme?.polices ?? {};
-  for (const nom of [p.corps, p.titres]) {
-    if (!nom || chargees.has(nom)) continue;
-    chargees.add(nom);
-    const lien = document.createElement('link');
-    lien.rel = 'stylesheet';
-    lien.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nom)}&display=swap`;
-    document.head.appendChild(lien);
+  for (const name of [p.corps, p.titres]) {
+    if (!name || loadedFonts.has(name)) continue;
+    loadedFonts.add(name);
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name)}&display=swap`;
+    document.head.appendChild(link);
   }
 }

@@ -5,8 +5,8 @@ import { ArrowLeft, Loader2, MoreVertical, Pencil, Sparkles, Trash2, X } from 'l
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { AvatarJoueur, Bouton, Message } from '@/components/account/elements';
-import { aclonica, styleChamp, styleLabel } from '@/components/account/styles';
+import { PlayerAvatar, AppButton, Message } from '@/components/account/elements';
+import { aclonica, inputStyle, labelStyle } from '@/components/account/styles';
 import {
   Dialog,
   DialogContent,
@@ -23,16 +23,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { messageErreur } from '@/lib/api';
-import { ecritures, supprimerPersonnage } from '@/lib/characters';
+import { errorMessage } from '@/lib/api';
+import { writes, deleteCharacter } from '@/lib/characters';
 import { cn } from '@/lib/utils';
-import { useFiche } from './context';
+import { useSheet } from './context';
 
-export function EnTeteFiche({ page }: { page: 'fiche' | 'creation' }) {
-  const { personnage, systeme, etat, lectureSeule, enAttente } = useFiche();
-  const [renommer, setRenommer] = useState(false);
-  const [supprimer, setSupprimer] = useState(false);
-  const type = systeme.entites.get(etat.type)?.type.nom ?? etat.type;
+export function SheetHeader({ page }: { page: 'fiche' | 'creation' }) {
+  const { character, system, state, readOnly, pending } = useSheet();
+  const [renaming, setRenaming] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const type = system.entites.get(state.type)?.type.nom ?? state.type;
 
   return (
     <header className="space-y-3">
@@ -44,16 +44,16 @@ export function EnTeteFiche({ page }: { page: 'fiche' | 'creation' }) {
         Mes personnages
       </Link>
       <div className="flex items-center gap-3 sm:gap-4">
-        <AvatarJoueur nom={personnage.nom} url={personnage.avatarUrl} taille="lg" />
+        <PlayerAvatar name={character.nom} url={character.avatarUrl} size="lg" />
         <div className="min-w-0 flex-1">
           <h1 className={cn(aclonica, 'truncate text-2xl tracking-wide text-white sm:text-3xl')}>
-            {personnage.nom}
+            {character.nom}
           </h1>
           <p className="truncate text-sm text-zinc-400">
-            {type} · {systeme.source.nom}
+            {type} · {system.source.nom}
           </p>
           <p aria-live="polite" className="h-4 text-xs text-zinc-500">
-            {enAttente > 0 && (
+            {pending > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Enregistrement…
@@ -61,7 +61,7 @@ export function EnTeteFiche({ page }: { page: 'fiche' | 'creation' }) {
             )}
           </p>
         </div>
-        {!lectureSeule && (
+        {!readOnly && (
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Actions du personnage"
@@ -73,12 +73,12 @@ export function EnTeteFiche({ page }: { page: 'fiche' | 'creation' }) {
               align="end"
               className="w-52 border-zinc-800 bg-[#0c0c0e] text-white"
             >
-              <DropdownMenuItem onSelect={() => setRenommer(true)} className="cursor-pointer gap-2">
+              <DropdownMenuItem onSelect={() => setRenaming(true)} className="cursor-pointer gap-2">
                 <Pencil className="h-4 w-4" />
                 Renommer
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={() => setSupprimer(true)}
+                onSelect={() => setRemoving(true)}
                 className="cursor-pointer gap-2 text-red-400 focus:bg-red-500/20 focus:text-red-400"
               >
                 <Trash2 className="h-4 w-4" />
@@ -89,43 +89,43 @@ export function EnTeteFiche({ page }: { page: 'fiche' | 'creation' }) {
         )}
       </div>
 
-      {etat.creation && page === 'fiche' && (
+      {state.creation && page === 'fiche' && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#c9a965]/30 bg-[#c9a965]/10 px-4 py-3 text-sm text-[#e2cc97]">
           <span className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 shrink-0" />
             La création de ce personnage n&apos;est pas terminée.
           </span>
-          {!lectureSeule && (
-            <Bouton asChild size="sm">
-              <Link href={`/characters/${personnage.id}/creation`}>Reprendre la création</Link>
-            </Bouton>
+          {!readOnly && (
+            <AppButton asChild size="sm">
+              <Link href={`/characters/${character.id}/creation`}>Reprendre la création</Link>
+            </AppButton>
           )}
         </div>
       )}
 
-      <DialogueRenommer ouvert={renommer} onFermer={() => setRenommer(false)} />
-      <DialogueSupprimer ouvert={supprimer} onFermer={() => setSupprimer(false)} />
+      <RenameDialog open={renaming} onClose={() => setRenaming(false)} />
+      <DeleteDialog open={removing} onClose={() => setRemoving(false)} />
     </header>
   );
 }
 
-function DialogueRenommer({ ouvert, onFermer }: { ouvert: boolean; onFermer(): void }) {
-  const { personnage, ecrire } = useFiche();
-  const [nom, setNom] = useState(personnage.nom);
-  const [envoi, setEnvoi] = useState(false);
+function RenameDialog({ open, onClose }: { open: boolean; onClose(): void }) {
+  const { character, write } = useSheet();
+  const [name, setName] = useState(character.nom);
+  const [sending, setSending] = useState(false);
 
-  async function valider(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    setEnvoi(true);
-    const ok = await ecrire(ecritures.modifier({ nom: nom.trim() }));
-    setEnvoi(false);
-    if (ok) onFermer();
+    setSending(true);
+    const ok = await write(writes.update({ nom: name.trim() }));
+    setSending(false);
+    if (ok) onClose();
   }
 
   return (
-    <Dialog open={ouvert} onOpenChange={(o) => !o && !envoi && onFermer()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !sending && onClose()}>
       <DialogContent className="sm:max-w-md">
-        <form onSubmit={valider} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
             <DialogTitle className={cn(aclonica, 'text-white')}>Renommer</DialogTitle>
             <DialogDescription className="text-zinc-400">
@@ -133,26 +133,26 @@ function DialogueRenommer({ ouvert, onFermer }: { ouvert: boolean; onFermer(): v
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="renommer-personnage" className={styleLabel}>
+            <Label htmlFor="renommer-personnage" className={labelStyle}>
               Nom
             </Label>
             <Input
               id="renommer-personnage"
               required
               maxLength={100}
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              className={styleChamp}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputStyle}
               autoFocus
             />
           </div>
           <DialogFooter>
-            <Bouton type="button" ton="secondaire" onClick={onFermer} disabled={envoi}>
+            <AppButton type="button" tone="secondaire" onClick={onClose} disabled={sending}>
               Annuler
-            </Bouton>
-            <Bouton type="submit" chargement={envoi} disabled={!nom.trim()}>
+            </AppButton>
+            <AppButton type="submit" loading={sending} disabled={!name.trim()}>
               Enregistrer
-            </Bouton>
+            </AppButton>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -160,44 +160,44 @@ function DialogueRenommer({ ouvert, onFermer }: { ouvert: boolean; onFermer(): v
   );
 }
 
-function DialogueSupprimer({ ouvert, onFermer }: { ouvert: boolean; onFermer(): void }) {
-  const { personnage } = useFiche();
+function DeleteDialog({ open, onClose }: { open: boolean; onClose(): void }) {
+  const { character } = useSheet();
   const router = useRouter();
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function supprimer() {
-    setEnvoi(true);
-    setErreur(null);
+  async function remove() {
+    setSending(true);
+    setError(null);
     try {
-      await supprimerPersonnage(personnage.id);
+      await deleteCharacter(character.id);
       router.push('/characters');
     } catch (err) {
-      setErreur(messageErreur(err));
-      setEnvoi(false);
+      setError(errorMessage(err));
+      setSending(false);
     }
   }
 
   return (
-    <Dialog open={ouvert} onOpenChange={(o) => !o && !envoi && onFermer()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !sending && onClose()}>
       <DialogContent className="sm:max-w-md">
         <div className="space-y-4">
           <DialogHeader>
             <DialogTitle className={cn(aclonica, 'text-white')}>
-              Supprimer {personnage.nom} ?
+              Supprimer {character.nom} ?
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
               La fiche, ses achats et son historique seront définitivement effacés.
             </DialogDescription>
           </DialogHeader>
-          {erreur && <Message>{erreur}</Message>}
+          {error && <Message>{error}</Message>}
           <DialogFooter>
-            <Bouton type="button" ton="secondaire" onClick={onFermer} disabled={envoi}>
+            <AppButton type="button" tone="secondaire" onClick={onClose} disabled={sending}>
               Annuler
-            </Bouton>
-            <Bouton ton="danger" onClick={supprimer} chargement={envoi}>
+            </AppButton>
+            <AppButton tone="danger" onClick={remove} loading={sending}>
               Supprimer
-            </Bouton>
+            </AppButton>
           </DialogFooter>
         </div>
       </DialogContent>
@@ -206,14 +206,14 @@ function DialogueSupprimer({ ouvert, onFermer }: { ouvert: boolean; onFermer(): 
 }
 
 /** Erreur de la dernière écriture, en bas de l'écran (visible même en bas de fiche). */
-export function ErreurEcriture({ erreur, onFermer }: { erreur: string | null; onFermer(): void }) {
-  if (!erreur) return null;
+export function WriteError({ error, onClose }: { error: string | null; onClose(): void }) {
+  if (!error) return null;
   return (
     <div className="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-xl items-start gap-2 sm:bottom-6">
-      <Message className="flex-1 bg-zinc-950/95 shadow-xl backdrop-blur">{erreur}</Message>
+      <Message className="flex-1 bg-zinc-950/95 shadow-xl backdrop-blur">{error}</Message>
       <button
         type="button"
-        onClick={onFermer}
+        onClick={onClose}
         aria-label="Fermer le message"
         className="rounded-lg bg-zinc-950/95 p-2 text-zinc-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a965]"
       >

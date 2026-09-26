@@ -4,105 +4,105 @@ import type { Entree, ObjetAchetable, PossessionJson, Sorte, Widget } from '@vtt
 import { ChevronRight, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useFiche } from './context';
-import { Bloc, DialogueFiche, normaliser, VideFiche } from './elements';
-import { nomMarque } from './format';
+import { useSheet } from './context';
+import { Block, SheetDialog, normalize, SheetEmpty } from './elements';
+import { tagName } from './format';
 import {
-  achatRangSuivant,
-  champLisible,
-  objetsDeSorte,
-  rangMax,
-  sorteAchetable,
-  sorteLibre,
-  valeurChamp,
+  nextRankPurchase,
+  readableField,
+  itemsOfKind,
+  maxRank,
+  purchasableKind,
+  freeKind,
+  fieldValue,
 } from './possessions';
-import { BoutonAchat } from './purchase-button';
-import { DialoguePossession } from './possession-dialog';
+import { PurchaseButton } from './purchase-button';
+import { PossessionDialog } from './possession-dialog';
 import {
-  boutonIcone,
-  boutonSecondaire,
-  champ,
+  iconButton,
+  secondaryButton,
+  field,
   focus,
-  pastille,
-  texte,
-  texteAccent,
-  texteSecondaire,
+  chip,
+  text,
+  textAccent,
+  textMuted,
 } from './styles';
 
-type WidgetPossessions = Extract<Widget, { type: 'possessions' }>;
+type PossessionsWidget = Extract<Widget, { type: 'possessions' }>;
 
 /** Au-delà de ce nombre d'entrées au catalogue, seules les possessions sont listées par défaut. */
-const TOUT_AFFICHER_JUSQUA = 40;
+const SHOW_ALL_UP_TO = 40;
 
-interface Ligne {
-  entree: Entree;
+interface Row {
+  entry: Entree;
   possession?: PossessionJson;
 }
 
-export function WidgetPossessions({ widget }: { widget: WidgetPossessions }) {
-  const { systeme, etat, json, achats, lectureSeule } = useFiche();
-  const sorte = systeme.sortes.get(widget.sorte);
-  const [ouverte, setOuverte] = useState<string | null>(null);
-  const [ajout, setAjout] = useState(false);
+export function PossessionsWidget({ widget }: { widget: PossessionsWidget }) {
+  const { system, state, json, purchases, readOnly } = useSheet();
+  const kind = system.sortes.get(widget.sorte);
+  const [openKind, setOpenKind] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   // Sorte à rangs achetables : on peut aussi lister tout le catalogue (rang 0)
   const catalogue = useMemo(
-    () => [...systeme.entrees.values()].filter((e) => e.sorte === widget.sorte),
-    [systeme, widget.sorte],
+    () => [...system.entrees.values()].filter((e) => e.sorte === widget.sorte),
+    [system, widget.sorte],
   );
-  const aRangsAchetables = !!sorte?.rangs && sorteAchetable(systeme, widget.sorte);
-  const [tout, setTout] = useState(aRangsAchetables && catalogue.length <= TOUT_AFFICHER_JUSQUA);
+  const hasPurchasableRanks = !!kind?.rangs && purchasableKind(system, widget.sorte);
+  const [all, setAll] = useState(hasPurchasableRanks && catalogue.length <= SHOW_ALL_UP_TO);
 
-  if (!sorte) return null;
+  if (!kind) return null;
 
-  const possedees = json.possessions.filter((p) => p.sorte === widget.sorte);
-  const lignes: Ligne[] = possedees.flatMap((p) => {
-    const e = systeme.entrees.get(p.entree);
-    return e ? [{ entree: e, possession: p }] : [];
+  const owned = json.possessions.filter((p) => p.sorte === widget.sorte);
+  const lines: Row[] = owned.flatMap((p) => {
+    const e = system.entrees.get(p.entree);
+    return e ? [{ entry: e, possession: p }] : [];
   });
-  if (tout && aRangsAchetables) {
-    const vues = new Set(possedees.map((p) => p.entree));
-    for (const e of catalogue) if (!vues.has(e.id)) lignes.push({ entree: e });
+  if (all && hasPurchasableRanks) {
+    const views = new Set(owned.map((p) => p.entree));
+    for (const e of catalogue) if (!views.has(e.id)) lines.push({ entry: e });
   }
-  lignes.sort((a, b) => a.entree.nom.localeCompare(b.entree.nom, 'fr'));
+  lines.sort((a, b) => a.entry.nom.localeCompare(b.entry.nom, 'fr'));
 
-  const groupes = grouper(lignes, (l) =>
-    widget.groupeChamp ? libelleGroupe(l.entree, sorte, widget.groupeChamp) : '',
+  const groups = groupBy(lines, (l) =>
+    widget.groupeChamp ? groupLabel(l.entry, kind, widget.groupeChamp) : '',
   );
-  const pleine = sorte.maximum !== undefined && possedees.length >= sorte.maximum;
-  const ajoutPossible =
-    !lectureSeule &&
-    !pleine &&
-    (sorteAchetable(systeme, sorte.id)
-      ? objetsDeSorte(systeme, achats, sorte.id).some((o) => o.actuel === 0)
-      : sorteLibre(systeme, sorte.id));
+  const full = kind.maximum !== undefined && owned.length >= kind.maximum;
+  const canAdd =
+    !readOnly &&
+    !full &&
+    (purchasableKind(system, kind.id)
+      ? itemsOfKind(system, purchases, kind.id).some((o) => o.actuel === 0)
+      : freeKind(system, kind.id));
 
-  function libelleGroupe(e: Entree, s: Sorte, champId: string) {
-    const c = s.champs.find((x) => x.id === champId);
+  function groupLabel(e: Entree, s: Sorte, fieldId: string) {
+    const c = s.champs.find((x) => x.id === fieldId);
     if (!c) return '';
-    return champLisible(systeme, json.type, c, valeurChamp(etat, e, c));
+    return readableField(system, json.type, c, fieldValue(state, e, c));
   }
 
   return (
-    <Bloc
-      titre={widget.titre}
+    <Block
+      title={widget.titre}
       action={
         <div className="flex items-center gap-2">
-          {aRangsAchetables && (
+          {hasPurchasableRanks && (
             <button
               type="button"
-              className={cn(boutonSecondaire, 'min-h-8 px-2.5 text-xs')}
-              aria-pressed={tout}
-              onClick={() => setTout((t) => !t)}
+              className={cn(secondaryButton, 'min-h-8 px-2.5 text-xs')}
+              aria-pressed={all}
+              onClick={() => setAll((t) => !t)}
             >
-              {tout ? 'Possédées seulement' : 'Tout le catalogue'}
+              {all ? 'Possédées seulement' : 'Tout le catalogue'}
             </button>
           )}
-          {ajoutPossible && (
+          {canAdd && (
             <button
               type="button"
-              className={cn(boutonSecondaire, 'min-h-8 px-2.5 text-xs')}
-              onClick={() => setAjout(true)}
+              className={cn(secondaryButton, 'min-h-8 px-2.5 text-xs')}
+              onClick={() => setAdding(true)}
             >
               <Plus />
               Ajouter
@@ -111,23 +111,21 @@ export function WidgetPossessions({ widget }: { widget: WidgetPossessions }) {
         </div>
       }
     >
-      {lignes.length ? (
+      {lines.length ? (
         <div className="space-y-3">
-          {groupes.map(([groupe, liste]) => (
-            <div key={groupe}>
-              {groupe && (
-                <h3 className={cn(texteSecondaire, 'mb-1 text-xs uppercase tracking-wide')}>
-                  {groupe}
-                </h3>
+          {groups.map(([group, list]) => (
+            <div key={group}>
+              {group && (
+                <h3 className={cn(textMuted, 'mb-1 text-xs uppercase tracking-wide')}>{group}</h3>
               )}
               <ul className="divide-y divide-[color:var(--fiche-bordure)]">
-                {liste.map((l) => (
-                  <LignePossession
-                    key={l.entree.id}
-                    ligne={l}
-                    sorte={sorte}
-                    groupeChamp={widget.groupeChamp}
-                    onOuvrir={() => setOuverte(l.entree.id)}
+                {list.map((l) => (
+                  <PossessionRow
+                    key={l.entry.id}
+                    line={l}
+                    kind={kind}
+                    groupField={widget.groupeChamp}
+                    onOpen={() => setOpenKind(l.entry.id)}
                   />
                 ))}
               </ul>
@@ -135,21 +133,21 @@ export function WidgetPossessions({ widget }: { widget: WidgetPossessions }) {
           ))}
         </div>
       ) : (
-        <VideFiche>Rien ici pour l&apos;instant.</VideFiche>
+        <SheetEmpty>Rien ici pour l&apos;instant.</SheetEmpty>
       )}
 
-      {ouverte && (
-        <DialoguePossession entree={ouverte} sorte={sorte} onFermer={() => setOuverte(null)} />
+      {openKind && (
+        <PossessionDialog entry={openKind} kind={kind} onClose={() => setOpenKind(null)} />
       )}
-      {ajout && <DialogueAjout sorte={sorte} onFermer={() => setAjout(false)} />}
-    </Bloc>
+      {adding && <AddDialog kind={kind} onClose={() => setAdding(false)} />}
+    </Block>
   );
 }
 
-function grouper<T>(liste: T[], cle: (x: T) => string): [string, T[]][] {
+function groupBy<T>(list: T[], key: (x: T) => string): [string, T[]][] {
   const m = new Map<string, T[]>();
-  for (const x of liste) {
-    const k = cle(x);
+  for (const x of list) {
+    const k = key(x);
     m.set(k, [...(m.get(k) ?? []), x]);
   }
   return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'));
@@ -157,28 +155,28 @@ function grouper<T>(liste: T[], cle: (x: T) => string): [string, T[]][] {
 
 // ─── Ligne ───────────────────────────────────────────────────────────────────
 
-function LignePossession({
-  ligne,
-  sorte,
-  groupeChamp,
-  onOuvrir,
+function PossessionRow({
+  line,
+  kind,
+  groupField,
+  onOpen,
 }: {
-  ligne: Ligne;
-  sorte: Sorte;
-  groupeChamp?: string;
-  onOuvrir(): void;
+  line: Row;
+  kind: Sorte;
+  groupField?: string;
+  onOpen(): void;
 }) {
-  const { systeme, fiche, etat, json, achats, lectureSeule, acheter, majPossession } = useFiche();
-  const { entree, possession: p } = ligne;
-  const max = rangMax(fiche, sorte);
-  const suivant = achatRangSuivant(achats, entree.id);
-  const monnaie = suivant ? systeme.monnaies.get(suivant.monnaie) : undefined;
-  const explicite = etat.possessions.some((x) => x.entree === entree.id);
+  const { system, sheet, state, json, purchases, readOnly, buy, updatePossession } = useSheet();
+  const { entry, possession: p } = line;
+  const max = maxRank(sheet, kind);
+  const next = nextRankPurchase(purchases, entry.id);
+  const currency = next ? system.monnaies.get(next.monnaie) : undefined;
+  const explicit = state.possessions.some((x) => x.entree === entry.id);
 
   // Résumé : quelques champs renseignés de l'entrée
-  const resume = sorte.champs
-    .filter((c) => c.id !== groupeChamp && c.type !== 'entrees' && c.type !== 'booleen')
-    .map((c) => ({ c, v: valeurChamp(etat, entree, c) }))
+  const summary = kind.champs
+    .filter((c) => c.id !== groupField && c.type !== 'entrees' && c.type !== 'booleen')
+    .map((c) => ({ c, v: fieldValue(state, entry, c) }))
     .filter(({ v }) => v !== undefined && v !== '' && v !== 0)
     .slice(0, 3);
 
@@ -186,62 +184,62 @@ function LignePossession({
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
       <button
         type="button"
-        onClick={onOuvrir}
+        onClick={onOpen}
         className={cn('group flex min-w-0 flex-1 items-center gap-2 rounded text-left', focus)}
       >
         <span className="min-w-0">
           <span
             className={cn(
               'block truncate text-sm group-hover:underline',
-              p?.effective ? texte : texteSecondaire,
+              p?.effective ? text : textMuted,
             )}
           >
-            {entree.nom}
+            {entry.nom}
           </span>
-          {resume.length > 0 && (
-            <span className={cn(texteSecondaire, 'block truncate text-xs')}>
-              {resume
-                .map(({ c, v }) => `${c.nom} : ${champLisible(systeme, json.type, c, v)}`)
+          {summary.length > 0 && (
+            <span className={cn(textMuted, 'block truncate text-xs')}>
+              {summary
+                .map(({ c, v }) => `${c.nom} : ${readableField(system, json.type, c, v)}`)
                 .join(' · ')}
             </span>
           )}
         </span>
         <ChevronRight
-          className={cn(texteSecondaire, 'h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100')}
+          className={cn(textMuted, 'h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100')}
         />
       </button>
 
       {p?.marques.length ? (
         <span className="flex flex-wrap gap-1">
           {p.marques.map((m) => (
-            <span key={m} className={cn(pastille, texteAccent)}>
-              {nomMarque(m)}
+            <span key={m} className={cn(chip, textAccent)}>
+              {tagName(m)}
             </span>
           ))}
         </span>
       ) : null}
 
-      {sorte.rangs && <Rangs rang={p?.rang ?? 0} max={max} achete={p?.achete ?? 0} />}
+      {kind.rangs && <Ranks rank={p?.rang ?? 0} max={max} bought={p?.achete ?? 0} />}
 
-      {!lectureSeule && suivant && (
-        <BoutonAchat
-          objet={suivant}
-          libelle={`Acheter le rang ${suivant.cible} de ${entree.nom}`}
-          monnaie={monnaie?.nom ?? suivant.monnaie}
-          onAcheter={() => acheter(suivant.achat, suivant.objet)}
+      {!readOnly && next && (
+        <PurchaseButton
+          item={next}
+          label={`Acheter le rang ${next.cible} de ${entry.nom}`}
+          currency={currency?.nom ?? next.monnaie}
+          onBuy={() => buy(next.achat, next.objet)}
         />
       )}
 
-      {sorte.activable && p && (
+      {kind.activable && p && (
         <button
           type="button"
           role="switch"
           aria-checked={p.actif}
-          aria-label={`${entree.nom} : ${p.actif ? 'actif' : 'inactif'}`}
-          disabled={lectureSeule || !explicite}
-          onClick={() => void majPossession({ entree: entree.id, actif: !p.actif })}
+          aria-label={`${entry.nom} : ${p.actif ? 'actif' : 'inactif'}`}
+          disabled={readOnly || !explicit}
+          onClick={() => void updatePossession({ entree: entry.id, actif: !p.actif })}
           className={cn(
-            pastille,
+            chip,
             'min-h-8 px-2.5 text-xs disabled:cursor-not-allowed',
             p.actif &&
               'border-[color:var(--fiche-accent)] bg-[color:color-mix(in_srgb,var(--fiche-accent)_14%,transparent)] text-[color:var(--fiche-texte)]',
@@ -255,24 +253,24 @@ function LignePossession({
   );
 }
 
-function Rangs({ rang, max, achete }: { rang: number; max?: number; achete: number }) {
-  const libelle = `Rang ${rang}${max ? ` sur ${max}` : ''}${rang > achete ? ` (dont ${rang - achete} gratuit${rang - achete > 1 ? 's' : ''})` : ''}`;
+function Ranks({ rank, max, bought }: { rank: number; max?: number; bought: number }) {
+  const label = `Rang ${rank}${max ? ` sur ${max}` : ''}${rank > bought ? ` (dont ${rank - bought} gratuit${rank - bought > 1 ? 's' : ''})` : ''}`;
   if (!max || max > 10)
     return (
-      <span className={cn(texte, 'text-sm tabular-nums')} title={libelle}>
-        {rang}
-        {max ? <span className={texteSecondaire}> / {max}</span> : null}
+      <span className={cn(text, 'text-sm tabular-nums')} title={label}>
+        {rank}
+        {max ? <span className={textMuted}> / {max}</span> : null}
       </span>
     );
   return (
-    <span className="flex items-center gap-1" role="img" aria-label={libelle} title={libelle}>
+    <span className="flex items-center gap-1" role="img" aria-label={label} title={label}>
       {Array.from({ length: max }, (_, i) => (
         <span
           key={i}
           className={cn(
             'h-2.5 w-2.5 rounded-full border',
-            i < rang
-              ? i < achete
+            i < rank
+              ? i < bought
                 ? 'border-[color:var(--fiche-accent)] bg-[color:var(--fiche-accent)]'
                 : 'border-[color:var(--fiche-accent)] bg-[color:color-mix(in_srgb,var(--fiche-accent)_45%,transparent)]'
               : 'border-[color:var(--fiche-bordure)]',
@@ -285,89 +283,83 @@ function Rangs({ rang, max, achete }: { rang: number; max?: number; achete: numb
 
 // ─── Ajout ───────────────────────────────────────────────────────────────────
 
-function DialogueAjout({ sorte, onFermer }: { sorte: Sorte; onFermer(): void }) {
-  const { systeme, json, achats, acheter, majPossession } = useFiche();
-  const [recherche, setRecherche] = useState('');
-  const achetable = sorteAchetable(systeme, sorte.id);
-  const possedees = new Set(json.possessions.map((p) => p.entree));
-  const filtre = (nom: string) => normaliser(nom).includes(normaliser(recherche.trim()));
+function AddDialog({ kind, onClose }: { kind: Sorte; onClose(): void }) {
+  const { system, json, purchases, buy, updatePossession } = useSheet();
+  const [search, setSearch] = useState('');
+  const purchasable = purchasableKind(system, kind.id);
+  const owned = new Set(json.possessions.map((p) => p.entree));
+  const filter = (name: string) => normalize(name).includes(normalize(search.trim()));
 
   // Sorte achetée : les objets des achats (avec coût et blocages) ; sinon le catalogue, librement
-  const objets: ObjetAchetable[] = achetable
-    ? objetsDeSorte(systeme, achats, sorte.id).filter((o) => o.actuel === 0 && filtre(o.nom))
+  const items: ObjetAchetable[] = purchasable
+    ? itemsOfKind(system, purchases, kind.id).filter((o) => o.actuel === 0 && filter(o.nom))
     : [];
-  const libres = achetable
+  const free = purchasable
     ? []
-    : [...systeme.entrees.values()].filter(
-        (e) => e.sorte === sorte.id && !possedees.has(e.id) && filtre(e.nom),
+    : [...system.entrees.values()].filter(
+        (e) => e.sorte === kind.id && !owned.has(e.id) && filter(e.nom),
       );
-  objets.sort(
-    (a, b) => Number(b.possible) - Number(a.possible) || a.nom.localeCompare(b.nom, 'fr'),
-  );
-  libres.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  items.sort((a, b) => Number(b.possible) - Number(a.possible) || a.nom.localeCompare(b.nom, 'fr'));
+  free.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 
   return (
-    <DialogueFiche ouvert onFermer={onFermer} titre={`Ajouter : ${sorte.nomPluriel ?? sorte.nom}`}>
+    <SheetDialog open onClose={onClose} title={`Ajouter : ${kind.nomPluriel ?? kind.nom}`}>
       <div className="relative">
-        <Search
-          className={cn(texteSecondaire, 'pointer-events-none absolute left-3 top-2.5 h-4 w-4')}
-        />
+        <Search className={cn(textMuted, 'pointer-events-none absolute left-3 top-2.5 h-4 w-4')} />
         <input
           type="search"
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher…"
           aria-label="Rechercher"
-          className={cn(champ, 'pl-9')}
+          className={cn(field, 'pl-9')}
           autoFocus
         />
       </div>
       <ul className="max-h-[50vh] divide-y divide-[color:var(--fiche-bordure)] overflow-y-auto">
-        {objets.map((o) => {
-          const monnaie = systeme.monnaies.get(o.monnaie)?.nom ?? o.monnaie;
+        {items.map((o) => {
+          const currency = system.monnaies.get(o.monnaie)?.nom ?? o.monnaie;
           return (
             <li key={`${o.achat}:${o.objet}`} className="flex items-center gap-3 py-2">
               <span className="min-w-0 flex-1">
-                <span className={cn(texte, 'block truncate text-sm')}>{o.nom}</span>
-                <span className={cn(texteSecondaire, 'block text-xs')}>
+                <span className={cn(text, 'block truncate text-sm')}>{o.nom}</span>
+                <span className={cn(textMuted, 'block text-xs')}>
                   {o.possible
-                    ? `${o.cout} ${monnaie}`
+                    ? `${o.cout} ${currency}`
                     : o.blocages.map((b) => b.message).join(' ; ')}
                 </span>
               </span>
-              <BoutonAchat
-                objet={o}
-                libelle={`Acheter ${o.nom}`}
-                monnaie={monnaie}
-                texteBouton={String(o.cout)}
-                onAcheter={async () => {
-                  const ok = await acheter(o.achat, o.objet);
-                  if (ok) onFermer();
+              <PurchaseButton
+                item={o}
+                label={`Acheter ${o.nom}`}
+                currency={currency}
+                buttonText={String(o.cout)}
+                onBuy={async () => {
+                  const ok = await buy(o.achat, o.objet);
+                  if (ok) onClose();
                   return ok;
                 }}
               />
             </li>
           );
         })}
-        {libres.map((e) => (
+        {free.map((e) => (
           <li key={e.id} className="flex items-center gap-3 py-2">
             <span className="min-w-0 flex-1">
-              <span className={cn(texte, 'block truncate text-sm')}>{e.nom}</span>
+              <span className={cn(text, 'block truncate text-sm')}>{e.nom}</span>
               {e.description && (
-                <span className={cn(texteSecondaire, 'line-clamp-1 block text-xs')}>
-                  {e.description}
-                </span>
+                <span className={cn(textMuted, 'line-clamp-1 block text-xs')}>{e.description}</span>
               )}
             </span>
             <button
               type="button"
-              className={cn(boutonIcone, 'w-auto gap-1 px-2 text-xs')}
+              className={cn(iconButton, 'w-auto gap-1 px-2 text-xs')}
               onClick={async () => {
-                const ok = await majPossession({
+                const ok = await updatePossession({
                   entree: e.id,
-                  ...(sorte.rangs ? { rang: 1 } : {}),
+                  ...(kind.rangs ? { rang: 1 } : {}),
                 });
-                if (ok) onFermer();
+                if (ok) onClose();
               }}
               aria-label={`Ajouter ${e.nom}`}
             >
@@ -377,7 +369,7 @@ function DialogueAjout({ sorte, onFermer }: { sorte: Sorte; onFermer(): void }) 
           </li>
         ))}
       </ul>
-      {!objets.length && !libres.length && <VideFiche>Rien à ajouter.</VideFiche>}
-    </DialogueFiche>
+      {!items.length && !free.length && <SheetEmpty>Rien à ajouter.</SheetEmpty>}
+    </SheetDialog>
   );
 }

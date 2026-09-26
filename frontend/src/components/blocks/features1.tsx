@@ -255,8 +255,8 @@ export function Features1() {
       mapImagePath('/landingpage/fiche.png'),
       mapImagePath('/landingpage/ombres.gif'),
       mapImagePath('/landingpage/weather.mp4'),
-    ]).then(([creation, fiche, ombres, weather]) => {
-      setAssets({ creation, fiche, ombres, weather });
+    ]).then(([creation, sheet, shadows, weather]) => {
+      setAssets({ creation, fiche: sheet, ombres: shadows, weather });
     });
   }, []);
 

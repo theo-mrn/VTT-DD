@@ -2,10 +2,10 @@
  * Sécurité du compte (service identity) : sessions, mot de passe, e-mail,
  * suppression du compte et connexion OAuth.
  */
-import { api, ENTETE_CSRF, setAccessToken } from './api';
-import type { Fournisseur } from './profile';
+import { api, CSRF_HEADER, setAccessToken } from './api';
+import type { Provider } from './profile';
 
-export interface SessionActive {
+export interface ActiveSession {
   id: string;
   createdAt: string;
   lastUsedAt: string;
@@ -14,32 +14,32 @@ export interface SessionActive {
   current: boolean;
 }
 
-export function lireSessions() {
-  return api<SessionActive[]>('/v1/auth/sessions');
+export function getSessions() {
+  return api<ActiveSession[]>('/v1/auth/sessions');
 }
 
-export function revoquerSession(id: string) {
+export function revokeSession(id: string) {
   return api<void>(`/v1/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 /** Déconnecte tous les appareils, y compris celui-ci. */
-export async function deconnecterPartout() {
+export async function logoutEverywhere() {
   try {
-    await api<void>('/v1/auth/logout-all', { method: 'POST', headers: ENTETE_CSRF });
+    await api<void>('/v1/auth/logout-all', { method: 'POST', headers: CSRF_HEADER });
   } finally {
     setAccessToken(null);
   }
 }
 
-export function changerMotDePasse(motDePasseActuel: string, nouveauMotDePasse: string) {
+export function changePassword(currentPassword: string, newPassword: string) {
   return api<void>('/v1/auth/password', {
     method: 'POST',
-    body: JSON.stringify({ currentPassword: motDePasseActuel, newPassword: nouveauMotDePasse }),
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
 
 /** Toujours 202, que le compte existe ou non. */
-export function demanderReinitialisation(email: string) {
+export function requestPasswordReset(email: string) {
   return api<void>('/v1/auth/password/forgot', {
     method: 'POST',
     body: JSON.stringify({ email }),
@@ -47,46 +47,46 @@ export function demanderReinitialisation(email: string) {
 }
 
 /** Réinitialise le mot de passe : toutes les sessions sont révoquées. */
-export async function reinitialiserMotDePasse(jeton: string, nouveauMotDePasse: string) {
+export async function resetPassword(token: string, newPassword: string) {
   await api<void>('/v1/auth/password/reset', {
     method: 'POST',
-    body: JSON.stringify({ token: jeton, newPassword: nouveauMotDePasse }),
+    body: JSON.stringify({ token, newPassword }),
   });
   setAccessToken(null);
 }
 
-export function envoyerVerificationEmail() {
+export function sendVerificationEmail() {
   return api<void>('/v1/auth/email/verification', { method: 'POST' });
 }
 
-export function verifierEmail(jeton: string) {
+export function verifyEmail(token: string) {
   return api<void>('/v1/auth/email/verify', {
     method: 'POST',
-    body: JSON.stringify({ token: jeton }),
+    body: JSON.stringify({ token }),
   });
 }
 
 /** Supprime définitivement le compte (mot de passe exigé s'il en a un). */
-export async function supprimerCompte(motDePasse?: string) {
+export async function deleteAccount(password?: string) {
   await api<void>('/v1/users/me', {
     method: 'DELETE',
-    body: JSON.stringify(motDePasse ? { password: motDePasse } : {}),
+    body: JSON.stringify(password ? { password } : {}),
   });
   setAccessToken(null);
 }
 
-export const LONGUEUR_MIN_MDP = 8;
-export const LONGUEUR_MAX_MDP = 128;
+export const MIN_PASSWORD_LENGTH = 8;
+export const MAX_PASSWORD_LENGTH = 128;
 
 // ─── OAuth ───────────────────────────────────────────────────────────────────
 
-export type FournisseursOAuth = Record<Fournisseur, boolean>;
+export type OAuthProviders = Record<Provider, boolean>;
 
-export function lireFournisseursOAuth() {
-  return api<FournisseursOAuth>('/v1/auth/oauth/providers');
+export function getOAuthProviders() {
+  return api<OAuthProviders>('/v1/auth/oauth/providers');
 }
 
 /** Adresse de départ OAuth : le backend redirige vers `redirection` avec la session ouverte. */
-export function urlOAuth(fournisseur: Fournisseur, redirection: string) {
-  return `/v1/auth/oauth/${fournisseur}/start?${new URLSearchParams({ redirect: redirection })}`;
+export function oauthUrl(provider: Provider, redirection: string) {
+  return `/v1/auth/oauth/${provider}/start?${new URLSearchParams({ redirect: redirection })}`;
 }

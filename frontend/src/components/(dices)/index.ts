@@ -6,22 +6,34 @@
  * - `ResultatJet` : affichage d'un résultat d'action ou d'un lancer libre.
  * - `PanneauActions` : actions d'un personnage, paramètres, aperçu, lancer par l'API.
  */
-export { LanceurDes, type LanceurDesProps } from './dice-launcher';
-export { ResultatJet, resumerJet, type JetAffiche, type ResultatJetProps } from './roll-result';
 export {
-  ApercuPool,
-  PanneauActions,
-  type CibleAction,
-  type PanneauActionsProps,
+  DiceLauncher as LanceurDes,
+  type DiceLauncherProps as LanceurDesProps,
+} from './dice-launcher';
+export {
+  RollResult as ResultatJet,
+  summarizeRoll as resumerJet,
+  type DisplayedRoll as JetAffiche,
+  type RollResultProps as ResultatJetProps,
+} from './roll-result';
+export {
+  PoolPreview as ApercuPool,
+  ActionsPanel as PanneauActions,
+  type ActionTarget as CibleAction,
+  type ActionsPanelProps as PanneauActionsProps,
 } from './actions-panel';
 export {
-  apparenceSorte,
-  apparenceSymbole,
-  BadgeSymbole,
-  DeForme,
-  IconeLucide,
-  IconeSymbole,
-  type ApparenceSorte,
-  type ApparenceSymboleAffiche,
+  kindAppearance as apparenceSorte,
+  symbolAppearance as apparenceSymbole,
+  SymbolBadge as BadgeSymbole,
+  ShapedDie as DeForme,
+  LucideIcon as IconeLucide,
+  SymbolIcon as IconeSymbole,
+  type KindAppearance as ApparenceSorte,
+  type DisplayedSymbolAppearance as ApparenceSymboleAffiche,
 } from './appearance';
-export { Lancer3D, type De3D, type Lancer3DHandle } from './throw-3d';
+export {
+  Throw3D as Lancer3D,
+  type Die3D as De3D,
+  type Throw3DHandle as Lancer3DHandle,
+} from './throw-3d';

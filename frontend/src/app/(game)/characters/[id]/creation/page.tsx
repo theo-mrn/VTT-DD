@@ -1,21 +1,21 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { AssistantCreation } from '@/components/sheet/creation/assistant';
-import { EnTeteFiche } from '@/components/sheet/header';
-import { CadreTheme } from '@/components/sheet/sheet';
-import { PagePersonnage } from '@/components/sheet/character-page';
+import { CreationAssistant } from '@/components/sheet/creation/assistant';
+import { SheetHeader } from '@/components/sheet/header';
+import { ThemeFrame } from '@/components/sheet/sheet';
+import { CharacterPage } from '@/components/sheet/character-page';
 
-export default function PageCreation() {
+export default function CreationPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <PagePersonnage id={id}>
+    <CharacterPage id={id}>
       <div className="space-y-6">
-        <EnTeteFiche page="creation" />
-        <CadreTheme>
-          <AssistantCreation />
-        </CadreTheme>
+        <SheetHeader page="creation" />
+        <ThemeFrame>
+          <CreationAssistant />
+        </ThemeFrame>
       </div>
-    </PagePersonnage>
+    </CharacterPage>
   );
 }

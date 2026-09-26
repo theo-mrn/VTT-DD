@@ -1,20 +1,20 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { EnTeteFiche } from '@/components/sheet/header';
-import { CadreTheme, FicheGeneree } from '@/components/sheet/sheet';
-import { PagePersonnage } from '@/components/sheet/character-page';
+import { SheetHeader } from '@/components/sheet/header';
+import { ThemeFrame, GeneratedSheet } from '@/components/sheet/sheet';
+import { CharacterPage } from '@/components/sheet/character-page';
 
-export default function PageFiche() {
+export default function SheetPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <PagePersonnage id={id}>
+    <CharacterPage id={id}>
       <div className="space-y-6">
-        <EnTeteFiche page="fiche" />
-        <CadreTheme>
-          <FicheGeneree />
-        </CadreTheme>
+        <SheetHeader page="fiche" />
+        <ThemeFrame>
+          <GeneratedSheet />
+        </ThemeFrame>
       </div>
-    </PagePersonnage>
+    </CharacterPage>
   );
 }

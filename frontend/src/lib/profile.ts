@@ -4,10 +4,10 @@
  */
 import { api, ApiError } from './api';
 
-export type Fournisseur = 'google' | 'discord';
+export type Provider = 'google' | 'discord';
 
 /** GET /v1/users/me */
-export interface Profil {
+export interface Profile {
   id: string;
   email: string | null;
   emailVerified: boolean;
@@ -22,13 +22,13 @@ export interface Profil {
   emailNotifications: boolean;
   settings: Record<string, unknown>;
   hasPassword: boolean;
-  providers: Fournisseur[];
+  providers: Provider[];
   createdAt: string;
 }
 
-export type ModificationProfil = Partial<
+export type ProfileUpdate = Partial<
   Pick<
-    Profil,
+    Profile,
     | 'name'
     | 'bio'
     | 'avatarUrl'
@@ -41,7 +41,7 @@ export type ModificationProfil = Partial<
 >;
 
 /** GET /v1/users/:id */
-export interface ProfilPublic {
+export interface PublicProfile {
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -55,50 +55,50 @@ export interface ProfilPublic {
 }
 
 /** GET /v1/users?search= */
-export interface JoueurTrouve {
+export interface FoundPlayer {
   id: string;
   name: string;
   avatarUrl: string | null;
   title: string | null;
 }
 
-export function lireMonProfil() {
-  return api<Profil>('/v1/users/me');
+export function getMyProfile() {
+  return api<Profile>('/v1/users/me');
 }
 
-export function modifierMonProfil(modif: ModificationProfil) {
-  return api<Profil>('/v1/users/me', { method: 'PATCH', body: JSON.stringify(modif) });
+export function updateMyProfile(update: ProfileUpdate) {
+  return api<Profile>('/v1/users/me', { method: 'PATCH', body: JSON.stringify(update) });
 }
 
-export function lireJoueur(id: string) {
-  return api<ProfilPublic>(`/v1/users/${encodeURIComponent(id)}`);
+export function getPlayer(id: string) {
+  return api<PublicProfile>(`/v1/users/${encodeURIComponent(id)}`);
 }
 
 /** Recherche de joueurs par nom (2 caractères minimum, sinon liste vide sans appel). */
-export function rechercherJoueurs(texte: string, limite = 10) {
-  const t = texte.trim();
-  if (t.length < 2) return Promise.resolve([] as JoueurTrouve[]);
-  const params = new URLSearchParams({ search: t, limit: String(limite) });
-  return api<JoueurTrouve[]>(`/v1/users?${params}`);
+export function searchPlayers(text: string, limit = 10) {
+  const t = text.trim();
+  if (t.length < 2) return Promise.resolve([] as FoundPlayer[]);
+  const params = new URLSearchParams({ search: t, limit: String(limit) });
+  return api<FoundPlayer[]>(`/v1/users?${params}`);
 }
 
 // ─── Images (avatar, bannière) ───────────────────────────────────────────────
 
-export type TypeImage = 'avatar' | 'banner';
-export const TYPES_IMAGE = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
-export const TAILLE_MAX_IMAGE = 5 * 1024 * 1024;
+export type ImageKind = 'avatar' | 'banner';
+export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
-interface UrlEnvoi {
+interface UploadUrl {
   uploadUrl: string;
   publicUrl: string;
   expiresIn: number;
 }
 
 /** Vérifie le fichier avant envoi ; renvoie un message d'erreur ou null. */
-export function verifierImage(fichier: File): string | null {
-  if (!(TYPES_IMAGE as readonly string[]).includes(fichier.type))
+export function checkImage(file: File): string | null {
+  if (!(IMAGE_TYPES as readonly string[]).includes(file.type))
     return 'Format non pris en charge : PNG, JPEG, WebP ou GIF uniquement.';
-  if (fichier.size > TAILLE_MAX_IMAGE) return 'Image trop lourde : 5 Mo maximum.';
+  if (file.size > MAX_IMAGE_SIZE) return 'Image trop lourde : 5 Mo maximum.';
   return null;
 }
 
@@ -106,40 +106,40 @@ export function verifierImage(fichier: File): string | null {
  * Envoie une image en trois temps : URL présignée, dépôt direct du fichier
  * sur le stockage (sans jeton), puis enregistrement de l'URL publique.
  */
-export async function envoyerImage(type: TypeImage, fichier: File): Promise<Profil> {
-  const { uploadUrl, publicUrl } = await api<UrlEnvoi>('/v1/users/me/uploads', {
+export async function uploadImage(type: ImageKind, file: File): Promise<Profile> {
+  const { uploadUrl, publicUrl } = await api<UploadUrl>('/v1/users/me/uploads', {
     method: 'POST',
-    body: JSON.stringify({ kind: type, contentType: fichier.type, size: fichier.size }),
+    body: JSON.stringify({ kind: type, contentType: file.type, size: file.size }),
   });
-  let depot: Response;
+  let upload: Response;
   try {
-    depot = await fetch(uploadUrl, {
+    upload = await fetch(uploadUrl, {
       method: 'PUT',
-      headers: { 'content-type': fichier.type },
-      body: fichier,
+      headers: { 'content-type': file.type },
+      body: file,
     });
   } catch {
     throw new ApiError({ status: 0, title: "L'envoi du fichier vers le stockage a échoué." });
   }
-  if (!depot.ok)
+  if (!upload.ok)
     throw new ApiError({
-      status: depot.status,
-      title: `Le stockage a refusé le fichier (${depot.status}).`,
+      status: upload.status,
+      title: `Le stockage a refusé le fichier (${upload.status}).`,
     });
-  return modifierMonProfil(type === 'avatar' ? { avatarUrl: publicUrl } : { bannerUrl: publicUrl });
+  return updateMyProfile(type === 'avatar' ? { avatarUrl: publicUrl } : { bannerUrl: publicUrl });
 }
 
 // ─── Titres ──────────────────────────────────────────────────────────────────
 
 /** Condition de déblocage d'un titre (GET /v1/titles). */
-export type ConditionTitre =
+export type TitleCondition =
   | { type: 'time'; minutes: number }
   | { type: 'event'; description: string }
   | { type: 'premium' }
-  | { type: string; [cle: string]: unknown };
+  | { type: string; [key: string]: unknown };
 
 /** Phrase lisible pour une condition de déblocage. */
-export function texteCondition(c: ConditionTitre | null, description?: string | null): string {
+export function conditionText(c: TitleCondition | null, description?: string | null): string {
   if (!c) return description ?? 'Attribué par un maître du jeu';
   if (c.type === 'time' && typeof c.minutes === 'number') {
     const m = c.minutes;
@@ -150,30 +150,30 @@ export function texteCondition(c: ConditionTitre | null, description?: string | 
   return description ?? 'Condition particulière';
 }
 
-export interface Titre {
+export interface Title {
   slug: string;
   label: string;
   description: string;
-  condition: ConditionTitre | null;
+  condition: TitleCondition | null;
   defaultUnlocked: boolean;
 }
 
-export interface TitreDebloque {
+export interface UnlockedTitle {
   slug: string;
   label: string;
   unlockedAt: string;
 }
 
-export function lireTitres() {
-  return api<Titre[]>('/v1/titles');
+export function getTitles() {
+  return api<Title[]>('/v1/titles');
 }
 
-export function lireMesTitres() {
-  return api<TitreDebloque[]>('/v1/users/me/titles');
+export function getMyTitles() {
+  return api<UnlockedTitle[]>('/v1/users/me/titles');
 }
 
 /** Choisit le titre affiché (null pour n'en afficher aucun). */
-export function choisirTitre(slug: string | null) {
+export function chooseTitle(slug: string | null) {
   return api<{ title: string | null }>('/v1/users/me/title', {
     method: 'PUT',
     body: JSON.stringify({ slug }),

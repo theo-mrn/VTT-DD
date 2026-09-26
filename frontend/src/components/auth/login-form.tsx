@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { messageErreur } from '@/lib/api';
-import type { Fournisseur } from '@/lib/profile';
-import { lireFournisseursOAuth, urlOAuth, type FournisseursOAuth } from '@/lib/security';
+import { errorMessage } from '@/lib/api';
+import type { Provider } from '@/lib/profile';
+import { getOAuthProviders, oauthUrl, type OAuthProviders } from '@/lib/security';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
@@ -16,62 +16,62 @@ import { cn } from '@/lib/utils';
  * `redirection` : page où revenir après une connexion Google / Discord
  * (par défaut, la page courante).
  */
-export function FormulaireConnexion({
-  onConnecte,
+export function LoginForm({
+  onLoggedIn,
   redirection,
-  erreurInitiale = null,
+  initialError = null,
 }: {
-  onConnecte?: () => void;
+  onLoggedIn?: () => void;
   redirection?: string;
-  erreurInitiale?: string | null;
+  initialError?: string | null;
 }) {
-  const { seConnecter, sInscrire } = useSession();
-  const chemin = usePathname();
+  const { signIn, signUp } = useSession();
+  const path = usePathname();
   const [mode, setMode] = useState<'connexion' | 'inscription'>('connexion');
   const [email, setEmail] = useState('');
-  const [motDePasse, setMotDePasse] = useState('');
-  const [nom, setNom] = useState('');
-  const [erreur, setErreur] = useState<string | null>(erreurInitiale);
-  const [envoi, setEnvoi] = useState(false);
-  const [fournisseurs, setFournisseurs] = useState<FournisseursOAuth | null>(null);
-  const [depart, setDepart] = useState<Fournisseur | null>(null);
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(initialError);
+  const [sending, setSending] = useState(false);
+  const [providers, setProviders] = useState<OAuthProviders | null>(null);
+  const [startingProvider, setStartingProvider] = useState<Provider | null>(null);
 
   useEffect(() => {
-    lireFournisseursOAuth()
-      .then(setFournisseurs)
-      .catch(() => setFournisseurs(null));
+    getOAuthProviders()
+      .then(setProviders)
+      .catch(() => setProviders(null));
   }, []);
 
-  useEffect(() => setErreur(erreurInitiale), [erreurInitiale]);
+  useEffect(() => setError(initialError), [initialError]);
 
-  async function valider(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    setErreur(null);
-    setEnvoi(true);
+    setError(null);
+    setSending(true);
     try {
-      if (mode === 'connexion') await seConnecter(email, motDePasse);
-      else await sInscrire(email, motDePasse, nom);
-      onConnecte?.();
+      if (mode === 'connexion') await signIn(email, password);
+      else await signUp(email, password, name);
+      onLoggedIn?.();
     } catch (err) {
-      setErreur(messageErreur(err, 'Serveur injoignable'));
+      setError(errorMessage(err, 'Serveur injoignable'));
     } finally {
-      setEnvoi(false);
+      setSending(false);
     }
   }
 
-  function continuerAvec(f: Fournisseur) {
-    setDepart(f);
-    window.location.assign(urlOAuth(f, redirection ?? chemin ?? '/'));
+  function continueWith(f: Provider) {
+    setStartingProvider(f);
+    window.location.assign(oauthUrl(f, redirection ?? path ?? '/'));
   }
 
-  const actifs = (['google', 'discord'] as const).filter((f) => fournisseurs?.[f]);
+  const active = (['google', 'discord'] as const).filter((f) => providers?.[f]);
 
-  const champ =
+  const field =
     'w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2.5 text-white placeholder:text-zinc-500 outline-none focus:border-[#c9a965]';
 
   return (
     <form
-      onSubmit={valider}
+      onSubmit={submit}
       className="w-full max-w-sm space-y-4 rounded-2xl bg-zinc-900 px-6 py-10 shadow-2xl"
     >
       <h2 className="text-center font-[family-name:var(--font-aclonica)] text-3xl tracking-wider text-white">
@@ -94,19 +94,19 @@ export function FormulaireConnexion({
         ))}
       </div>
 
-      {actifs.length > 0 && (
+      {active.length > 0 && (
         <>
           <div className="space-y-2">
-            {actifs.map((f) => (
+            {active.map((f) => (
               <button
                 key={f}
                 type="button"
-                onClick={() => continuerAvec(f)}
-                disabled={depart !== null}
+                onClick={() => continueWith(f)}
+                disabled={startingProvider !== null}
                 className="flex w-full items-center justify-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/60 py-2.5 text-sm text-white transition-colors hover:border-[#c9a965] disabled:opacity-50"
               >
-                {f === 'google' ? <LogoGoogle /> : <LogoDiscord />}
-                {depart === f ? 'Redirection…' : `Continuer avec ${NOMS[f]}`}
+                {f === 'google' ? <GoogleLogo /> : <DiscordLogo />}
+                {startingProvider === f ? 'Redirection…' : `Continuer avec ${PROVIDER_LABELS[f]}`}
               </button>
             ))}
           </div>
@@ -120,16 +120,16 @@ export function FormulaireConnexion({
 
       {mode === 'inscription' && (
         <input
-          className={champ}
+          className={field}
           placeholder="Nom d'aventurier"
-          value={nom}
-          onChange={(e) => setNom(e.target.value)}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           required
           maxLength={64}
         />
       )}
       <input
-        className={champ}
+        className={field}
         type="email"
         placeholder="E-mail"
         autoComplete="email"
@@ -138,12 +138,12 @@ export function FormulaireConnexion({
         required
       />
       <input
-        className={champ}
+        className={field}
         type="password"
         placeholder="Mot de passe"
         autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
-        value={motDePasse}
-        onChange={(e) => setMotDePasse(e.target.value)}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
         required
         minLength={mode === 'inscription' ? 8 : 1}
         maxLength={128}
@@ -160,26 +160,26 @@ export function FormulaireConnexion({
         </div>
       )}
 
-      {erreur && (
+      {error && (
         <p role="alert" className="text-sm text-red-400">
-          {erreur}
+          {error}
         </p>
       )}
 
       <button
         type="submit"
-        disabled={envoi}
+        disabled={sending}
         className="w-full rounded-lg bg-[#c9a965] py-2.5 font-semibold text-zinc-950 transition-colors hover:bg-[#d8bb7a] disabled:opacity-50"
       >
-        {envoi ? '…' : mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
+        {sending ? '…' : mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
       </button>
     </form>
   );
 }
 
-const NOMS: Record<Fournisseur, string> = { google: 'Google', discord: 'Discord' };
+const PROVIDER_LABELS: Record<Provider, string> = { google: 'Google', discord: 'Discord' };
 
-function LogoGoogle() {
+function GoogleLogo() {
   return (
     <svg viewBox="0 0 48 48" className="h-4 w-4" aria-hidden>
       <path
@@ -202,7 +202,7 @@ function LogoGoogle() {
   );
 }
 
-function LogoDiscord() {
+function DiscordLogo() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
       <path

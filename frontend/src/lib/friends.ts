@@ -1,9 +1,9 @@
 /** Amis et demandes d'amitié (service identity). */
 import { useCallback, useState } from 'react';
-import { api, messageErreur } from './api';
-import { useRessource } from './resource';
+import { api, errorMessage } from './api';
+import { useResource } from './resource';
 
-export interface Ami {
+export interface Friend {
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -11,47 +11,47 @@ export interface Ami {
   since: string;
 }
 
-export interface DemandeAmi {
+export interface FriendRequest {
   id: string;
   name: string;
   avatarUrl: string | null;
   createdAt: string;
 }
 
-export interface DemandesAmis {
-  received: DemandeAmi[];
-  sent: DemandeAmi[];
+export interface FriendRequests {
+  received: FriendRequest[];
+  sent: FriendRequest[];
 }
 
-export function lireAmis() {
-  return api<Ami[]>('/v1/friends');
+export function getFriends() {
+  return api<Friend[]>('/v1/friends');
 }
 
-export function lireDemandesAmis() {
-  return api<DemandesAmis>('/v1/friends/requests');
+export function getFriendRequests() {
+  return api<FriendRequests>('/v1/friends/requests');
 }
 
 /** 'accepted' si l'autre joueur nous avait déjà envoyé une demande. 409 si déjà amis ou déjà demandé. */
-export function demanderEnAmi(idJoueur: string) {
+export function sendFriendRequest(playerId: string) {
   return api<{ status: 'pending' | 'accepted' }>('/v1/friends/requests', {
     method: 'POST',
-    body: JSON.stringify({ userId: idJoueur }),
+    body: JSON.stringify({ userId: playerId }),
   });
 }
 
-export function accepterDemande(idJoueur: string) {
-  return api<void>(`/v1/friends/requests/${encodeURIComponent(idJoueur)}/accept`, {
+export function acceptFriendRequest(playerId: string) {
+  return api<void>(`/v1/friends/requests/${encodeURIComponent(playerId)}/accept`, {
     method: 'POST',
   });
 }
 
 /** Refuse une demande reçue ou annule une demande envoyée. */
-export function supprimerDemande(idJoueur: string) {
-  return api<void>(`/v1/friends/requests/${encodeURIComponent(idJoueur)}`, { method: 'DELETE' });
+export function deleteFriendRequest(playerId: string) {
+  return api<void>(`/v1/friends/requests/${encodeURIComponent(playerId)}`, { method: 'DELETE' });
 }
 
-export function retirerAmi(idJoueur: string) {
-  return api<void>(`/v1/friends/${encodeURIComponent(idJoueur)}`, { method: 'DELETE' });
+export function removeFriend(playerId: string) {
+  return api<void>(`/v1/friends/${encodeURIComponent(playerId)}`, { method: 'DELETE' });
 }
 
 // ─── Hook de domaine ─────────────────────────────────────────────────────────
@@ -62,39 +62,39 @@ export type Relation = 'moi' | 'ami' | 'recue' | 'envoyee' | 'aucune';
  * Amis et demandes de l'utilisateur, relation avec un joueur donné, et actions
  * (chaque action recharge les listes, puisqu'elle peut en modifier deux à la fois).
  */
-export function useRelations(idMoi: string) {
-  const amis = useRessource('amis', lireAmis);
-  const demandes = useRessource('demandes-amis', lireDemandesAmis);
-  const [enCours, setEnCours] = useState<string | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const { recharger: rechargerAmis } = amis;
-  const { recharger: rechargerDemandes } = demandes;
+export function useRelations(myId: string) {
+  const friends = useResource('amis', getFriends);
+  const requests = useResource('demandes-amis', getFriendRequests);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { reload: reloadFriends } = friends;
+  const { reload: reloadRequests } = requests;
 
   const relation = (id: string): Relation => {
-    if (id === idMoi) return 'moi';
-    if (amis.donnees?.some((a) => a.id === id)) return 'ami';
-    if (demandes.donnees?.received.some((d) => d.id === id)) return 'recue';
-    if (demandes.donnees?.sent.some((d) => d.id === id)) return 'envoyee';
+    if (id === myId) return 'moi';
+    if (friends.data?.some((a) => a.id === id)) return 'ami';
+    if (requests.data?.received.some((d) => d.id === id)) return 'recue';
+    if (requests.data?.sent.some((d) => d.id === id)) return 'envoyee';
     return 'aucune';
   };
 
-  const agir = useCallback(
-    async (idJoueur: string, action: (id: string) => Promise<unknown>) => {
-      setEnCours(idJoueur);
-      setErreur(null);
+  const act = useCallback(
+    async (playerId: string, action: (id: string) => Promise<unknown>) => {
+      setBusy(playerId);
+      setError(null);
       try {
-        await action(idJoueur);
+        await action(playerId);
         return true;
       } catch (err) {
-        setErreur(messageErreur(err));
+        setError(errorMessage(err));
         return false;
       } finally {
-        await Promise.all([rechargerAmis(), rechargerDemandes()]);
-        setEnCours(null);
+        await Promise.all([reloadFriends(), reloadRequests()]);
+        setBusy(null);
       }
     },
-    [rechargerAmis, rechargerDemandes],
+    [reloadFriends, reloadRequests],
   );
 
-  return { amis, demandes, relation, agir, enCours, erreur };
+  return { friends, requests, relation, act, busy, error };
 }

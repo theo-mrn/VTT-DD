@@ -4,134 +4,127 @@ import type { Champ, Sorte } from '@vtt/rules';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useFiche } from './context';
-import { EditeurChoix, aDesChoix, type Choix } from './choice-editor';
-import { DialogueFiche } from './elements';
-import { nomMarque, nomObjet } from './format';
+import { useSheet } from './context';
+import { ChoiceEditor, hasChoices, type Choice } from './choice-editor';
+import { SheetDialog } from './elements';
+import { tagName, itemName } from './format';
+import { nextRankPurchase, readableField, lastLine, freeKind, fieldValue } from './possessions';
+import { PurchaseButton } from './purchase-button';
 import {
-  achatRangSuivant,
-  champLisible,
-  derniereLigne,
-  sorteLibre,
-  valeurChamp,
-} from './possessions';
-import { BoutonAchat } from './purchase-button';
-import {
-  boutonAccent,
-  boutonSecondaire,
-  champ as styleChamp,
-  pastille,
-  texte,
-  texteAccent,
-  texteSecondaire,
+  accentButton,
+  secondaryButton,
+  field as styleChamp,
+  chip,
+  text,
+  textAccent,
+  textMuted,
 } from './styles';
 
-type ValeurChamp = number | string | boolean;
+type FieldValue = number | string | boolean;
 
 /** Champs propres à chaque exemplaire, modifiables sur la fiche (valeur, détail…). */
-const estModifiable = (c: Champ) =>
-  c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen';
+const isEditable = (c: Champ) => c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen';
 
 /** Détail d'une possession : description, champs, choix, achats et retrait. */
-export function DialoguePossession({
-  entree: id,
-  sorte,
-  onFermer,
+export function PossessionDialog({
+  entry: id,
+  kind,
+  onClose,
 }: {
-  entree: string;
-  sorte: Sorte;
-  onFermer(): void;
+  entry: string;
+  kind: Sorte;
+  onClose(): void;
 }) {
   const {
-    systeme,
-    fiche,
-    etat,
+    system,
+    sheet,
+    state,
     json,
-    achats,
-    lectureSeule,
-    acheter,
-    rembourser,
-    majPossession,
-    retirerPossession,
-  } = useFiche();
-  const entree = systeme.entrees.get(id);
+    purchases,
+    readOnly,
+    buy,
+    refund,
+    updatePossession,
+    removePossession,
+  } = useSheet();
+  const entry = system.entrees.get(id);
   const p = json.possessions.find((x) => x.entree === id);
-  const explicite = etat.possessions.find((x) => x.entree === id);
-  const [champs, setChamps] = useState<Record<string, ValeurChamp>>({});
-  const [choix, setChoix] = useState<Choix>(() => ({ ...(explicite?.choix ?? {}) }));
-  const [envoi, setEnvoi] = useState(false);
-  if (!entree) return null;
+  const explicit = state.possessions.find((x) => x.entree === id);
+  const [fields, setFields] = useState<Record<string, FieldValue>>({});
+  const [choices, setChoices] = useState<Choice>(() => ({ ...(explicit?.choix ?? {}) }));
+  const [sending, setSending] = useState(false);
+  if (!entry) return null;
 
-  const suivant = achatRangSuivant(achats, id);
-  const ligne = derniereLigne(etat, id);
-  const libre = sorteLibre(systeme, sorte.id);
-  const modifiables = explicite ? sorte.champs.filter(estModifiable) : [];
-  const champsModifies = Object.keys(champs).length > 0;
-  const choixModifies = JSON.stringify(choix) !== JSON.stringify(explicite?.choix ?? {});
+  const next = nextRankPurchase(purchases, id);
+  const line = lastLine(state, id);
+  const free = freeKind(system, kind.id);
+  const editableKeys = explicit ? kind.champs.filter(isEditable) : [];
+  const changedFields = Object.keys(fields).length > 0;
+  const changedChoices = JSON.stringify(choices) !== JSON.stringify(explicit?.choix ?? {});
 
-  const executer = async (f: () => Promise<boolean>, fermer = false) => {
-    setEnvoi(true);
+  const run = async (f: () => Promise<boolean>, close = false) => {
+    setSending(true);
     const ok = await f();
-    setEnvoi(false);
-    if (ok && fermer) onFermer();
+    setSending(false);
+    if (ok && close) onClose();
     return ok;
   };
 
   return (
-    <DialogueFiche ouvert onFermer={onFermer} titre={entree.nom} description={sorte.nom} large>
-      {entree.description && (
-        <p className={cn(texte, 'whitespace-pre-line text-sm leading-relaxed')}>
-          {entree.description}
+    <SheetDialog open onClose={onClose} title={entry.nom} description={kind.nom} large>
+      {entry.description && (
+        <p className={cn(text, 'whitespace-pre-line text-sm leading-relaxed')}>
+          {entry.description}
         </p>
       )}
 
-      {(p || entree.etiquettes.length > 0) && (
+      {(p || entry.etiquettes.length > 0) && (
         <div className="flex flex-wrap gap-1.5">
-          {p && sorte.rangs && (
-            <span className={pastille}>
+          {p && kind.rangs && (
+            <span className={chip}>
               Rang {p.rang}
               {p.rang > p.achete ? ` (${p.achete} acheté${p.achete > 1 ? 's' : ''})` : ''}
             </span>
           )}
           {p?.marques.map((m) => (
-            <span key={m} className={cn(pastille, texteAccent)}>
-              {nomMarque(m)}
+            <span key={m} className={cn(chip, textAccent)}>
+              {tagName(m)}
             </span>
           ))}
-          {entree.etiquettes.map((e) => (
-            <span key={e} className={pastille}>
-              {nomMarque(e)}
+          {entry.etiquettes.map((e) => (
+            <span key={e} className={chip}>
+              {tagName(e)}
             </span>
           ))}
         </div>
       )}
 
       {p && p.sources.length > 0 && (
-        <p className={cn(texteSecondaire, 'text-xs')}>
-          Obtenu par : {p.sources.map((s) => nomObjet(systeme, etat.type, { objet: s })).join(', ')}
+        <p className={cn(textMuted, 'text-xs')}>
+          Obtenu par : {p.sources.map((s) => itemName(system, state.type, { objet: s })).join(', ')}
         </p>
       )}
 
-      {sorte.champs.length > 0 && (
+      {kind.champs.length > 0 && (
         <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-          {sorte.champs.map((c) => {
-            const v = valeurChamp(etat, entree, c);
-            const modifiable = !lectureSeule && modifiables.some((m) => m.id === c.id);
+          {kind.champs.map((c) => {
+            const v = fieldValue(state, entry, c);
+            const editable = !readOnly && editableKeys.some((m) => m.id === c.id);
             return (
               <div key={c.id} className="min-w-0">
-                <dt className={cn(texteSecondaire, 'text-xs')}>
-                  {modifiable ? <label htmlFor={`champ-${c.id}`}>{c.nom}</label> : c.nom}
+                <dt className={cn(textMuted, 'text-xs')}>
+                  {editable ? <label htmlFor={`champ-${c.id}`}>{c.nom}</label> : c.nom}
                 </dt>
-                <dd className={cn(texte, 'text-sm')}>
-                  {modifiable ? (
-                    <ChampModifiable
+                <dd className={cn(text, 'text-sm')}>
+                  {editable ? (
+                    <EditableField
                       id={`champ-${c.id}`}
-                      champ={c}
-                      valeur={(champs[c.id] ?? v) as ValeurChamp | undefined}
-                      onChange={(x) => setChamps((m) => ({ ...m, [c.id]: x }))}
+                      field={c}
+                      value={(fields[c.id] ?? v) as FieldValue | undefined}
+                      onChange={(x) => setFields((m) => ({ ...m, [c.id]: x }))}
                     />
                   ) : (
-                    champLisible(systeme, etat.type, c, v)
+                    readableField(system, state.type, c, v)
                   )}
                 </dd>
               </div>
@@ -139,15 +132,15 @@ export function DialoguePossession({
           })}
         </dl>
       )}
-      {champsModifies && (
+      {changedFields && (
         <button
           type="button"
-          className={boutonAccent}
-          disabled={envoi}
+          className={accentButton}
+          disabled={sending}
           onClick={() =>
-            executer(async () => {
-              const ok = await majPossession({ entree: id, champs });
-              if (ok) setChamps({});
+            run(async () => {
+              const ok = await updatePossession({ entree: id, champs: fields });
+              if (ok) setFields({});
               return ok;
             })
           }
@@ -156,21 +149,21 @@ export function DialoguePossession({
         </button>
       )}
 
-      {explicite && aDesChoix(entree) && (
+      {explicit && hasChoices(entry) && (
         <div className="space-y-3 rounded-xl border border-[color:var(--fiche-bordure)] p-3">
-          <EditeurChoix
-            fiche={fiche}
-            entree={entree}
-            valeur={choix}
-            onChange={setChoix}
-            desactive={lectureSeule || envoi}
+          <ChoiceEditor
+            sheet={sheet}
+            entry={entry}
+            value={choices}
+            onChange={setChoices}
+            disabled={readOnly || sending}
           />
-          {!lectureSeule && choixModifies && (
+          {!readOnly && changedChoices && (
             <button
               type="button"
-              className={boutonAccent}
-              disabled={envoi}
-              onClick={() => executer(() => majPossession({ entree: id, choix }))}
+              className={accentButton}
+              disabled={sending}
+              onClick={() => run(() => updatePossession({ entree: id, choix: choices }))}
             >
               Enregistrer les choix
             </button>
@@ -178,35 +171,35 @@ export function DialoguePossession({
         </div>
       )}
 
-      {!lectureSeule && (
+      {!readOnly && (
         <div className="flex flex-wrap gap-2 border-t border-[color:var(--fiche-bordure)] pt-4">
-          {suivant && (
-            <BoutonAchat
-              objet={suivant}
-              libelle={`Acheter le rang ${suivant.cible}`}
-              monnaie={systeme.monnaies.get(suivant.monnaie)?.nom ?? suivant.monnaie}
-              texteBouton={`Rang ${suivant.cible} · ${suivant.cout} ${systeme.monnaies.get(suivant.monnaie)?.nom ?? ''}`}
-              onAcheter={() => acheter(suivant.achat, suivant.objet)}
+          {next && (
+            <PurchaseButton
+              item={next}
+              label={`Acheter le rang ${next.cible}`}
+              currency={system.monnaies.get(next.monnaie)?.nom ?? next.monnaie}
+              buttonText={`Rang ${next.cible} · ${next.cout} ${system.monnaies.get(next.monnaie)?.nom ?? ''}`}
+              onBuy={() => buy(next.achat, next.objet)}
             />
           )}
-          {ligne >= 0 && (
+          {line >= 0 && (
             <button
               type="button"
-              className={boutonSecondaire}
-              disabled={envoi}
-              onClick={() => executer(() => rembourser(ligne))}
-              title={`Rend ${etat.journal[ligne]!.cout} ${systeme.monnaies.get(etat.journal[ligne]!.monnaie)?.nom ?? ''}`}
+              className={secondaryButton}
+              disabled={sending}
+              onClick={() => run(() => refund(line))}
+              title={`Rend ${state.journal[line]!.cout} ${system.monnaies.get(state.journal[line]!.monnaie)?.nom ?? ''}`}
             >
               <Undo2 />
               Annuler le dernier achat
             </button>
           )}
-          {libre && explicite && (
+          {free && explicit && (
             <button
               type="button"
-              className={cn(boutonSecondaire, 'text-red-400 hover:border-red-400')}
-              disabled={envoi}
-              onClick={() => executer(() => retirerPossession(id), true)}
+              className={cn(secondaryButton, 'text-red-400 hover:border-red-400')}
+              disabled={sending}
+              onClick={() => run(() => removePossession(id), true)}
             >
               <Trash2 />
               Retirer
@@ -214,38 +207,38 @@ export function DialoguePossession({
           )}
         </div>
       )}
-    </DialogueFiche>
+    </SheetDialog>
   );
 }
 
-function ChampModifiable({
+function EditableField({
   id,
-  champ,
-  valeur,
+  field,
+  value,
   onChange,
 }: {
   id: string;
-  champ: Champ;
-  valeur: ValeurChamp | undefined;
-  onChange(v: ValeurChamp): void;
+  field: Champ;
+  value: FieldValue | undefined;
+  onChange(v: FieldValue): void;
 }) {
-  if (champ.type === 'booleen')
+  if (field.type === 'booleen')
     return (
       <input
         id={id}
         type="checkbox"
-        checked={valeur === true}
+        checked={value === true}
         onChange={(e) => onChange(e.target.checked)}
         className="h-4 w-4 accent-[color:var(--fiche-accent)]"
       />
     );
-  if (champ.type === 'nombre')
+  if (field.type === 'nombre')
     return (
       <input
         id={id}
         type="number"
         inputMode="numeric"
-        value={typeof valeur === 'number' ? valeur : ''}
+        value={typeof value === 'number' ? value : ''}
         onChange={(e) => e.target.value !== '' && onChange(Number(e.target.value))}
         className={cn(styleChamp, 'w-28')}
       />
@@ -254,7 +247,7 @@ function ChampModifiable({
     <input
       id={id}
       type="text"
-      value={typeof valeur === 'string' ? valeur : ''}
+      value={typeof value === 'string' ? value : ''}
       onChange={(e) => onChange(e.target.value)}
       className={styleChamp}
     />

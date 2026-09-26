@@ -6,16 +6,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  AvatarJoueur,
-  Bouton,
-  Carte,
-  Chargement,
-  formaterDepuis,
+  PlayerAvatar,
+  AppButton,
+  Card,
+  Loading,
+  formatSince,
   Message,
-  TitrePage,
-  Vide,
+  PageTitle,
+  Empty,
 } from '@/components/account/elements';
-import { aclonica, styleChamp, styleLabel } from '@/components/account/styles';
+import { aclonica, inputStyle, labelStyle } from '@/components/account/styles';
 import {
   Dialog,
   DialogContent,
@@ -26,53 +26,51 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { messageErreur } from '@/lib/api';
-import { creerPersonnage, listerPersonnages } from '@/lib/characters';
-import { useRessource } from '@/lib/resource';
-import { listerSystemes, useSysteme, type ResumeSysteme } from '@/lib/systems';
+import { errorMessage } from '@/lib/api';
+import { createCharacter, listCharacters } from '@/lib/characters';
+import { useResource } from '@/lib/resource';
+import { listSystems, useSystem, type SystemSummary } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 
-export default function PagePersonnages() {
-  const personnages = useRessource('personnages', listerPersonnages);
-  const systemes = useRessource('systemes', listerSystemes);
-  const [creation, setCreation] = useState(false);
-  const nomSysteme = (id: string) => systemes.donnees?.find((s) => s.id === id)?.nom ?? id;
-  const liste = [...(personnages.donnees ?? [])].sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt),
-  );
+export default function CharactersPage() {
+  const characters = useResource('personnages', listCharacters);
+  const systems = useResource('systemes', listSystems);
+  const [creating, setCreating] = useState(false);
+  const systemName = (id: string) => systems.data?.find((s) => s.id === id)?.nom ?? id;
+  const list = [...(characters.data ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Vos fiches, tous systèmes de jeu confondus.">Personnages</TitrePage>
+      <PageTitle subtitle="Vos fiches, tous systèmes de jeu confondus.">Personnages</PageTitle>
 
-      <Carte
-        titre="Mes personnages"
+      <Card
+        title="Mes personnages"
         action={
-          <Bouton onClick={() => setCreation(true)}>
+          <AppButton onClick={() => setCreating(true)}>
             <Plus />
             Nouveau personnage
-          </Bouton>
+          </AppButton>
         }
       >
-        {personnages.chargement && !personnages.donnees ? (
-          <Chargement />
-        ) : personnages.erreur ? (
-          <Message>{personnages.erreur}</Message>
-        ) : !liste.length ? (
-          <Vide>Aucun personnage pour l&apos;instant : créez le premier !</Vide>
+        {characters.loading && !characters.data ? (
+          <Loading />
+        ) : characters.error ? (
+          <Message>{characters.error}</Message>
+        ) : !list.length ? (
+          <Empty>Aucun personnage pour l&apos;instant : créez le premier !</Empty>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
-            {liste.map((p) => (
+            {list.map((p) => (
               <li key={p.id}>
                 <Link
                   href={p.creation ? `/characters/${p.id}/creation` : `/characters/${p.id}`}
                   className="group flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3 transition-colors hover:border-[#c9a965] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a965]"
                 >
-                  <AvatarJoueur nom={p.nom} url={p.avatarUrl} />
+                  <PlayerAvatar name={p.nom} url={p.avatarUrl} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-white">{p.nom}</span>
                     <span className="block truncate text-xs text-zinc-400">
-                      {nomSysteme(p.systeme.id)}
+                      {systemName(p.systeme.id)}
                     </span>
                     <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                       {p.creation && (
@@ -81,7 +79,7 @@ export default function PagePersonnages() {
                           En création
                         </span>
                       )}
-                      Modifié {formaterDepuis(p.updatedAt)}
+                      Modifié {formatSince(p.updatedAt)}
                     </span>
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600 transition-colors group-hover:text-[#c9a965]" />
@@ -90,78 +88,77 @@ export default function PagePersonnages() {
             ))}
           </ul>
         )}
-      </Carte>
+      </Card>
 
-      <DialogueNouveau
-        ouvert={creation}
-        onFermer={() => setCreation(false)}
-        systemes={systemes.donnees}
-        erreurSystemes={systemes.erreur}
+      <NewCharacterDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        systems={systems.data}
+        systemsError={systems.error}
       />
     </div>
   );
 }
 
-function DialogueNouveau({
-  ouvert,
-  onFermer,
-  systemes,
-  erreurSystemes,
+function NewCharacterDialog({
+  open,
+  onClose,
+  systems,
+  systemsError,
 }: {
-  ouvert: boolean;
-  onFermer(): void;
-  systemes: ResumeSysteme[] | undefined;
-  erreurSystemes: string | null;
+  open: boolean;
+  onClose(): void;
+  systems: SystemSummary[] | undefined;
+  systemsError: string | null;
 }) {
   const router = useRouter();
-  const [nom, setNom] = useState('');
-  const [systemeId, setSystemeId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [systemId, setSystemId] = useState<string | null>(null);
   const [type, setType] = useState<string | null>(null);
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const systeme = useSysteme(ouvert ? systemeId : null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const system = useSystem(open ? systemId : null);
   // Pendant le chargement d'un autre système, l'ancien reste en mémoire : on l'écarte
-  const charge =
-    systeme.donnees?.systeme.source.id === systemeId ? systeme.donnees.systeme : undefined;
+  const charge = system.data?.system.source.id === systemId ? system.data.system : undefined;
   const types = charge ? [...charge.entites.values()].map((e) => e.type) : [];
 
   // Premier système par défaut ; type par défaut : le premier qui a une création déclarée
   useEffect(() => {
-    if (!systemeId && systemes?.length) setSystemeId(systemes[0]!.id);
-  }, [systemes, systemeId]);
+    if (!systemId && systems?.length) setSystemId(systems[0]!.id);
+  }, [systems, systemId]);
   useEffect(() => {
     if (!charge) return;
     if (type && charge.entites.has(type)) return;
-    const avecCreation = [...charge.entites.keys()].find((t) => creationDe(charge, t));
-    setType(avecCreation ?? charge.entites.keys().next().value ?? null);
+    const withCreation = [...charge.entites.keys()].find((t) => creationDe(charge, t));
+    setType(withCreation ?? charge.entites.keys().next().value ?? null);
   }, [charge, type]);
 
-  function fermer() {
-    if (envoi) return;
-    setNom('');
-    setErreur(null);
-    onFermer();
+  function close() {
+    if (sending) return;
+    setName('');
+    setError(null);
+    onClose();
   }
 
-  async function creer(e: FormEvent) {
+  async function create(e: FormEvent) {
     e.preventDefault();
-    if (!systemeId || !type) return;
-    setEnvoi(true);
-    setErreur(null);
+    if (!systemId || !type) return;
+    setSending(true);
+    setError(null);
     try {
-      const p = await creerPersonnage({ systemeId, type, nom: nom.trim() });
+      const p = await createCharacter({ systemeId: systemId, type, nom: name.trim() });
       const assistant = p.etat.creation && !!charge && !!creationDe(charge, type);
       router.push(assistant ? `/characters/${p.id}/creation` : `/characters/${p.id}`);
     } catch (err) {
-      setErreur(messageErreur(err));
-      setEnvoi(false);
+      setError(errorMessage(err));
+      setSending(false);
     }
   }
 
   return (
-    <Dialog open={ouvert} onOpenChange={(o) => !o && fermer()}>
+    <Dialog open={open} onOpenChange={(o) => !o && close()}>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={creer} className="max-h-[80vh] space-y-4 overflow-y-auto pr-1">
+        <form onSubmit={create} className="max-h-[80vh] space-y-4 overflow-y-auto pr-1">
           <DialogHeader>
             <DialogTitle className={cn(aclonica, 'text-white')}>Nouveau personnage</DialogTitle>
             <DialogDescription className="text-zinc-400">
@@ -170,34 +167,34 @@ function DialogueNouveau({
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="nom-personnage" className={styleLabel}>
+            <Label htmlFor="nom-personnage" className={labelStyle}>
               Nom
             </Label>
             <Input
               id="nom-personnage"
               required
               maxLength={100}
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              className={styleChamp}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputStyle}
               autoFocus
             />
           </div>
 
           <fieldset className="space-y-2">
-            <legend className={styleLabel}>Système de jeu</legend>
-            {erreurSystemes ? (
-              <Message>{erreurSystemes}</Message>
-            ) : !systemes ? (
-              <Chargement texte="Chargement des systèmes…" />
+            <legend className={labelStyle}>Système de jeu</legend>
+            {systemsError ? (
+              <Message>{systemsError}</Message>
+            ) : !systems ? (
+              <Loading text="Chargement des systèmes…" />
             ) : (
               <div className="grid gap-2">
-                {systemes.map((s) => (
+                {systems.map((s) => (
                   <label
                     key={s.id}
                     className={cn(
                       'flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors',
-                      systemeId === s.id
+                      systemId === s.id
                         ? 'border-[#c9a965] bg-[#c9a965]/10'
                         : 'border-zinc-800 hover:border-zinc-600',
                     )}
@@ -206,9 +203,9 @@ function DialogueNouveau({
                       type="radio"
                       name="systeme"
                       value={s.id}
-                      checked={systemeId === s.id}
+                      checked={systemId === s.id}
                       onChange={() => {
-                        setSystemeId(s.id);
+                        setSystemId(s.id);
                         setType(null);
                       }}
                       className="mt-1 accent-[#c9a965]"
@@ -227,21 +224,21 @@ function DialogueNouveau({
             )}
           </fieldset>
 
-          {systemeId && (
+          {systemId && (
             <div className="space-y-2">
-              <Label htmlFor="type-personnage" className={styleLabel}>
+              <Label htmlFor="type-personnage" className={labelStyle}>
                 Type de fiche
               </Label>
-              {systeme.erreur ? (
-                <Message>{systeme.erreur}</Message>
+              {system.error ? (
+                <Message>{system.error}</Message>
               ) : !charge ? (
-                <Chargement texte="Chargement des règles…" />
+                <Loading text="Chargement des règles…" />
               ) : (
                 <select
                   id="type-personnage"
                   value={type ?? ''}
                   onChange={(e) => setType(e.target.value)}
-                  className={cn(styleChamp, 'w-full border px-3')}
+                  className={cn(inputStyle, 'w-full border px-3')}
                 >
                   {types.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -253,14 +250,14 @@ function DialogueNouveau({
             </div>
           )}
 
-          {erreur && <Message>{erreur}</Message>}
+          {error && <Message>{error}</Message>}
           <DialogFooter>
-            <Bouton type="button" ton="secondaire" onClick={fermer} disabled={envoi}>
+            <AppButton type="button" tone="secondaire" onClick={close} disabled={sending}>
               Annuler
-            </Bouton>
-            <Bouton type="submit" chargement={envoi} disabled={!nom.trim() || !type || !charge}>
+            </AppButton>
+            <AppButton type="submit" loading={sending} disabled={!name.trim() || !type || !charge}>
               Créer
-            </Bouton>
+            </AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

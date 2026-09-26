@@ -3,163 +3,163 @@
 import { Check, Search, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
-  Bouton,
-  Carte,
-  Chargement,
-  formaterDate,
-  formaterDepuis,
+  AppButton,
+  Card,
+  Loading,
+  formatDate,
+  formatSince,
   Message,
-  TitrePage,
-  Vide,
+  PageTitle,
+  Empty,
 } from '@/components/account/elements';
-import { LigneJoueur } from '@/components/account/player-row';
-import { styleChamp } from '@/components/account/styles';
+import { PlayerRow } from '@/components/account/player-row';
+import { inputStyle } from '@/components/account/styles';
 import { Input } from '@/components/ui/input';
 import {
-  accepterDemande,
-  demanderEnAmi,
-  retirerAmi,
-  supprimerDemande,
+  acceptFriendRequest,
+  sendFriendRequest,
+  removeFriend,
+  deleteFriendRequest,
   useRelations,
   type Relation,
 } from '@/lib/friends';
-import { messageErreur } from '@/lib/api';
-import { rechercherJoueurs, type JoueurTrouve } from '@/lib/profile';
-import { useProfil } from '@/lib/session';
+import { errorMessage } from '@/lib/api';
+import { searchPlayers, type FoundPlayer } from '@/lib/profile';
+import { useProfile } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
-const DELAI_RECHERCHE = 300;
+const SEARCH_DELAY = 300;
 
-export default function PageAmis() {
-  const profil = useProfil();
-  const { amis, demandes, relation, agir, enCours, erreur } = useRelations(profil.id);
-  const [aRetirer, setARetirer] = useState<string | null>(null);
+export default function FriendsPage() {
+  const profile = useProfile();
+  const { friends, requests, relation, act, busy, error } = useRelations(profile.id);
+  const [toRemove, setToRemove] = useState<string | null>(null);
 
-  const recues = demandes.donnees?.received ?? [];
-  const envoyees = demandes.donnees?.sent ?? [];
+  const received = requests.data?.received ?? [];
+  const sent = requests.data?.sent ?? [];
 
   return (
     <div className="space-y-6">
-      <TitrePage sousTitre="Retrouvez vos compagnons d'aventure.">Amis</TitrePage>
+      <PageTitle subtitle="Retrouvez vos compagnons d'aventure.">Amis</PageTitle>
 
-      {erreur && <Message>{erreur}</Message>}
+      {error && <Message>{error}</Message>}
 
-      <Recherche relation={relation} agir={agir} enCours={enCours} />
+      <PlayerSearch relation={relation} act={act} busy={busy} />
 
-      {recues.length > 0 && (
-        <Carte titre={`Demandes reçues (${recues.length})`}>
+      {received.length > 0 && (
+        <Card title={`Demandes reçues (${received.length})`}>
           <ul className="divide-y divide-zinc-800">
-            {recues.map((d) => (
-              <LigneJoueur
+            {received.map((d) => (
+              <PlayerRow
                 key={d.id}
                 id={d.id}
-                nom={d.name}
+                name={d.name}
                 avatarUrl={d.avatarUrl}
-                detail={`Demande ${formaterDepuis(d.createdAt)}`}
+                detail={`Demande ${formatSince(d.createdAt)}`}
                 actions={
                   <>
-                    <Bouton
+                    <AppButton
                       size="sm"
-                      chargement={enCours === d.id}
-                      onClick={() => agir(d.id, accepterDemande)}
+                      loading={busy === d.id}
+                      onClick={() => act(d.id, acceptFriendRequest)}
                     >
                       <Check />
                       Accepter
-                    </Bouton>
-                    <Bouton
+                    </AppButton>
+                    <AppButton
                       size="sm"
-                      ton="secondaire"
-                      disabled={enCours === d.id}
-                      onClick={() => agir(d.id, supprimerDemande)}
+                      tone="secondaire"
+                      disabled={busy === d.id}
+                      onClick={() => act(d.id, deleteFriendRequest)}
                     >
                       <X />
                       Refuser
-                    </Bouton>
+                    </AppButton>
                   </>
                 }
               />
             ))}
           </ul>
-        </Carte>
+        </Card>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,22rem)]">
-        <Carte titre={`Mes amis${amis.donnees ? ` (${amis.donnees.length})` : ''}`}>
-          {amis.chargement && !amis.donnees ? (
-            <Chargement />
-          ) : amis.erreur ? (
-            <Message>{amis.erreur}</Message>
-          ) : !amis.donnees?.length ? (
-            <Vide>Pas encore d&apos;amis : cherchez des joueurs ci-dessus.</Vide>
+        <Card title={`Mes amis${friends.data ? ` (${friends.data.length})` : ''}`}>
+          {friends.loading && !friends.data ? (
+            <Loading />
+          ) : friends.error ? (
+            <Message>{friends.error}</Message>
+          ) : !friends.data?.length ? (
+            <Empty>Pas encore d&apos;amis : cherchez des joueurs ci-dessus.</Empty>
           ) : (
             <ul className="divide-y divide-zinc-800">
-              {amis.donnees.map((a) => (
-                <LigneJoueur
+              {friends.data.map((a) => (
+                <PlayerRow
                   key={a.id}
                   id={a.id}
-                  nom={a.name}
+                  name={a.name}
                   avatarUrl={a.avatarUrl}
-                  detail={[a.title, `ami depuis le ${formaterDate(a.since)}`]
+                  detail={[a.title, `ami depuis le ${formatDate(a.since)}`]
                     .filter(Boolean)
                     .join(' · ')}
                   actions={
-                    aRetirer === a.id ? (
+                    toRemove === a.id ? (
                       <>
-                        <Bouton
+                        <AppButton
                           size="sm"
-                          ton="danger"
-                          chargement={enCours === a.id}
-                          onClick={() => agir(a.id, retirerAmi).then(() => setARetirer(null))}
+                          tone="danger"
+                          loading={busy === a.id}
+                          onClick={() => act(a.id, removeFriend).then(() => setToRemove(null))}
                         >
                           Confirmer
-                        </Bouton>
-                        <Bouton size="sm" ton="discret" onClick={() => setARetirer(null)}>
+                        </AppButton>
+                        <AppButton size="sm" tone="discret" onClick={() => setToRemove(null)}>
                           Annuler
-                        </Bouton>
+                        </AppButton>
                       </>
                     ) : (
-                      <Bouton size="sm" ton="discret" onClick={() => setARetirer(a.id)}>
+                      <AppButton size="sm" tone="discret" onClick={() => setToRemove(a.id)}>
                         Retirer
-                      </Bouton>
+                      </AppButton>
                     )
                   }
                 />
               ))}
             </ul>
           )}
-        </Carte>
+        </Card>
 
-        <Carte titre="Demandes envoyées">
-          {demandes.chargement && !demandes.donnees ? (
-            <Chargement />
-          ) : demandes.erreur ? (
-            <Message>{demandes.erreur}</Message>
-          ) : envoyees.length === 0 ? (
-            <Vide>Aucune demande en attente.</Vide>
+        <Card title="Demandes envoyées">
+          {requests.loading && !requests.data ? (
+            <Loading />
+          ) : requests.error ? (
+            <Message>{requests.error}</Message>
+          ) : sent.length === 0 ? (
+            <Empty>Aucune demande en attente.</Empty>
           ) : (
             <ul className="divide-y divide-zinc-800">
-              {envoyees.map((d) => (
-                <LigneJoueur
+              {sent.map((d) => (
+                <PlayerRow
                   key={d.id}
                   id={d.id}
-                  nom={d.name}
+                  name={d.name}
                   avatarUrl={d.avatarUrl}
-                  detail={`Envoyée ${formaterDepuis(d.createdAt)}`}
+                  detail={`Envoyée ${formatSince(d.createdAt)}`}
                   actions={
-                    <Bouton
+                    <AppButton
                       size="sm"
-                      ton="discret"
-                      chargement={enCours === d.id}
-                      onClick={() => agir(d.id, supprimerDemande)}
+                      tone="discret"
+                      loading={busy === d.id}
+                      onClick={() => act(d.id, deleteFriendRequest)}
                     >
                       Annuler
-                    </Bouton>
+                    </AppButton>
                   }
                 />
               ))}
             </ul>
           )}
-        </Carte>
+        </Card>
       </div>
     </div>
   );
@@ -167,86 +167,86 @@ export default function PageAmis() {
 
 // ─── Recherche de joueurs ────────────────────────────────────────────────────
 
-function Recherche({
+function PlayerSearch({
   relation,
-  agir,
-  enCours,
+  act,
+  busy,
 }: {
   relation(id: string): Relation;
-  agir(id: string, action: (id: string) => Promise<unknown>): Promise<boolean>;
-  enCours: string | null;
+  act(id: string, action: (id: string) => Promise<unknown>): Promise<boolean>;
+  busy: string | null;
 }) {
-  const [texte, setTexte] = useState('');
-  const [resultats, setResultats] = useState<JoueurTrouve[] | null>(null);
-  const [recherche, setRecherche] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [results, setResults] = useState<FoundPlayer[] | null>(null);
+  const [search, setSearch] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Anti-rebond : on attend que la saisie se calme avant d'interroger l'API
   useEffect(() => {
-    const t = texte.trim();
+    const t = text.trim();
     if (t.length < 2) {
-      setResultats(null);
-      setRecherche(false);
-      setErreur(null);
+      setResults(null);
+      setSearch(false);
+      setError(null);
       return;
     }
-    let actif = true;
-    setRecherche(true);
-    const minuteur = setTimeout(() => {
-      rechercherJoueurs(t)
+    let active = true;
+    setSearch(true);
+    const timer = setTimeout(() => {
+      searchPlayers(t)
         .then((r) => {
-          if (!actif) return;
-          setResultats(r);
-          setErreur(null);
+          if (!active) return;
+          setResults(r);
+          setError(null);
         })
-        .catch((err) => actif && setErreur(messageErreur(err)))
-        .finally(() => actif && setRecherche(false));
-    }, DELAI_RECHERCHE);
+        .catch((err) => active && setError(errorMessage(err)))
+        .finally(() => active && setSearch(false));
+    }, SEARCH_DELAY);
     return () => {
-      actif = false;
-      clearTimeout(minuteur);
+      active = false;
+      clearTimeout(timer);
     };
-  }, [texte]);
+  }, [text]);
 
-  const visibles = (resultats ?? []).filter((j) => relation(j.id) !== 'moi');
+  const visible = (results ?? []).filter((j) => relation(j.id) !== 'moi');
 
   return (
-    <Carte titre="Trouver des joueurs">
+    <Card title="Trouver des joueurs">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
         <Input
           type="search"
-          value={texte}
-          onChange={(e) => setTexte(e.target.value)}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
           placeholder="Nom d'un joueur (2 caractères minimum)"
           aria-label="Rechercher un joueur"
-          className={cn(styleChamp, 'pl-9')}
+          className={cn(inputStyle, 'pl-9')}
         />
       </div>
 
-      {texte.trim().length >= 2 && (
+      {text.trim().length >= 2 && (
         <div className="mt-3">
-          {erreur ? (
-            <Message>{erreur}</Message>
-          ) : recherche && !resultats ? (
-            <Chargement texte="Recherche…" />
-          ) : visibles.length === 0 ? (
-            !recherche && <Vide>Aucun joueur trouvé pour « {texte.trim()} ».</Vide>
+          {error ? (
+            <Message>{error}</Message>
+          ) : search && !results ? (
+            <Loading text="Recherche…" />
+          ) : visible.length === 0 ? (
+            !search && <Empty>Aucun joueur trouvé pour « {text.trim()} ».</Empty>
           ) : (
-            <ul className={cn('divide-y divide-zinc-800', recherche && 'opacity-60')}>
-              {visibles.map((j) => (
-                <LigneJoueur
+            <ul className={cn('divide-y divide-zinc-800', search && 'opacity-60')}>
+              {visible.map((j) => (
+                <PlayerRow
                   key={j.id}
                   id={j.id}
-                  nom={j.name}
+                  name={j.name}
                   avatarUrl={j.avatarUrl}
                   detail={j.title}
                   actions={
                     <ActionRelation
                       relation={relation(j.id)}
-                      chargement={enCours === j.id}
-                      onAjouter={() => agir(j.id, demanderEnAmi)}
-                      onAccepter={() => agir(j.id, accepterDemande)}
+                      loading={busy === j.id}
+                      onAdd={() => act(j.id, sendFriendRequest)}
+                      onAccept={() => act(j.id, acceptFriendRequest)}
                     />
                   }
                 />
@@ -255,34 +255,34 @@ function Recherche({
           )}
         </div>
       )}
-    </Carte>
+    </Card>
   );
 }
 
 function ActionRelation({
   relation,
-  chargement,
-  onAjouter,
-  onAccepter,
+  loading,
+  onAdd,
+  onAccept,
 }: {
   relation: Relation;
-  chargement: boolean;
-  onAjouter(): void;
-  onAccepter(): void;
+  loading: boolean;
+  onAdd(): void;
+  onAccept(): void;
 }) {
   if (relation === 'ami') return <span className="text-xs text-emerald-400">Ami</span>;
   if (relation === 'envoyee') return <span className="text-xs text-zinc-500">Demande envoyée</span>;
   if (relation === 'recue')
     return (
-      <Bouton size="sm" chargement={chargement} onClick={onAccepter}>
+      <AppButton size="sm" loading={loading} onClick={onAccept}>
         <Check />
         Accepter
-      </Bouton>
+      </AppButton>
     );
   return (
-    <Bouton size="sm" ton="secondaire" chargement={chargement} onClick={onAjouter}>
+    <AppButton size="sm" tone="secondaire" loading={loading} onClick={onAdd}>
       <UserPlus />
       Ajouter
-    </Bouton>
+    </AppButton>
   );
 }

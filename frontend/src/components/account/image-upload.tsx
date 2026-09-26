@@ -1,87 +1,85 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { ApiError, messageErreur } from '@/lib/api';
-import { envoyerImage, TYPES_IMAGE, verifierImage, type TypeImage } from '@/lib/profile';
+import { ApiError, errorMessage } from '@/lib/api';
+import { uploadImage, IMAGE_TYPES, checkImage, type ImageKind } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 
-const MESSAGE_STOCKAGE =
+const STORAGE_MESSAGE =
   "L'envoi d'images n'est pas encore disponible : le stockage n'est pas configuré sur ce serveur.";
 
 /**
  * Choix d'une image (avatar ou bannière) : vérification locale, aperçu,
  * puis envoi sur le stockage et mise à jour du profil de la session.
  */
-export function useEnvoiImage(type: TypeImage) {
-  const { remplacerProfil } = useSession();
-  const champ = useRef<HTMLInputElement>(null);
-  const [fichier, setFichier] = useState<File | null>(null);
-  const [apercu, setApercu] = useState<string | null>(null);
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+export function useImageUpload(type: ImageKind) {
+  const { replaceProfile } = useSession();
+  const field = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Libère l'aperçu quand il est remplacé ou que la page est quittée
   useEffect(() => {
-    if (!apercu) return;
-    return () => URL.revokeObjectURL(apercu);
-  }, [apercu]);
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
 
-  function ouvrir() {
-    champ.current?.click();
+  function open() {
+    field.current?.click();
   }
 
-  function choisir(e: ChangeEvent<HTMLInputElement>) {
+  function choose(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
-    const probleme = verifierImage(f);
-    setErreur(probleme);
-    if (probleme) return;
-    setFichier(f);
-    setApercu(URL.createObjectURL(f));
+    const problem = checkImage(f);
+    setError(problem);
+    if (problem) return;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
   }
 
-  function annuler() {
-    setFichier(null);
-    setApercu(null);
-    setErreur(null);
+  function cancel() {
+    setFile(null);
+    setPreview(null);
+    setError(null);
   }
 
-  async function enregistrer() {
-    if (!fichier) return;
-    setEnvoi(true);
-    setErreur(null);
+  async function save() {
+    if (!file) return;
+    setSending(true);
+    setError(null);
     try {
-      remplacerProfil(await envoyerImage(type, fichier));
-      setFichier(null);
-      setApercu(null);
+      replaceProfile(await uploadImage(type, file));
+      setFile(null);
+      setPreview(null);
     } catch (err) {
-      setErreur(
-        err instanceof ApiError && err.status === 503 ? MESSAGE_STOCKAGE : messageErreur(err),
-      );
+      setError(err instanceof ApiError && err.status === 503 ? STORAGE_MESSAGE : errorMessage(err));
     } finally {
-      setEnvoi(false);
+      setSending(false);
     }
   }
 
   const input = (
     <input
-      ref={champ}
+      ref={field}
       type="file"
-      accept={TYPES_IMAGE.join(',')}
+      accept={IMAGE_TYPES.join(',')}
       className="hidden"
-      onChange={choisir}
+      onChange={choose}
     />
   );
 
   return {
     input,
-    ouvrir,
-    apercu,
-    envoi,
-    erreur,
-    annuler,
-    enregistrer,
-    enAttente: fichier !== null,
+    open,
+    preview,
+    sending,
+    error,
+    cancel,
+    save,
+    pending: file !== null,
   };
 }

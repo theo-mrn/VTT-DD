@@ -1,17 +1,17 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AvatarJoueur } from './elements';
+import { PlayerAvatar } from './elements';
 
 /** Ligne de liste : avatar, nom (lien vers le profil public), détail et actions. */
-export function LigneJoueur({
+export function PlayerRow({
   id,
-  nom,
+  name,
   avatarUrl,
   detail,
   actions,
 }: {
   id: string;
-  nom: string;
+  name: string;
   avatarUrl: string | null;
   detail?: ReactNode;
   actions?: ReactNode;
@@ -19,14 +19,14 @@ export function LigneJoueur({
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
       <Link href={`/players/${encodeURIComponent(id)}`} className="shrink-0" tabIndex={-1}>
-        <AvatarJoueur nom={nom} url={avatarUrl} taille="sm" />
+        <PlayerAvatar name={name} url={avatarUrl} size="sm" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link
           href={`/players/${encodeURIComponent(id)}`}
           className="block truncate text-sm text-zinc-100 hover:text-[#c9a965]"
         >
-          {nom}
+          {name}
         </Link>
         {detail && <p className="truncate text-xs text-zinc-500">{detail}</p>}
       </div>

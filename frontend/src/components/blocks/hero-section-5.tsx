@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Menu, X, Mail, ChevronDown, Send } from 'lucide-react';
 import { useScroll, motion, useTransform } from 'framer-motion';
 import { Aclonica } from 'next/font/google';
-import { FormulaireConnexion } from '@/components/auth/login-form';
+import { LoginForm } from '@/components/auth/login-form';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/lib/session';
 import { Features1 } from '@/components/blocks/features1';
@@ -128,7 +128,7 @@ const FloatingPortrait = ({
       transition={{
         opacity: { duration: 0.8, delay: delay + 0.5 },
         scale: { duration: 0.8, delay: delay + 0.5 },
-        y: { duration: 3.5 + index * 0.5, repeat: Infinity, ease: 'easeInOut', delay: delay },
+        y: { duration: 3.5 + index * 0.5, repeat: Infinity, ease: 'easeInOut', delay },
       }}
     >
       {src && <img src={src} alt="" className="w-full h-full object-cover" loading="eager" />}
@@ -249,10 +249,12 @@ export function HeroSection() {
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
   const [heroPortraits, setHeroPortraits] = React.useState<string[]>([]);
 
-  const { statut, profil, seDeconnecter } = useSession();
-  const isUserLoggedIn = statut === 'chargement' ? null : statut === 'connecte';
+  const { status, profile, signOut } = useSession();
+  const isUserLoggedIn = status === 'chargement' ? null : status === 'connecte';
   // Même forme que l'ancien document Firestore (pp, name) pour le menu utilisateur
-  const userData = profil ? { pp: profil.avatarUrl, name: profil.name, email: profil.email } : null;
+  const userData = profile
+    ? { pp: profile.avatarUrl, name: profile.name, email: profile.email }
+    : null;
   const router = useRouter();
   const { scrollYProgress } = useScroll();
 
@@ -277,7 +279,7 @@ export function HeroSection() {
         isUserLoggedIn={isUserLoggedIn}
         userData={userData}
         onOpenProfile={() => router.push('/profile')}
-        onSignOut={seDeconnecter}
+        onSignOut={signOut}
         router={router}
       />
       <main className="overflow-x-hidden">
@@ -440,7 +442,7 @@ export function HeroSection() {
               >
                 <X className="h-4 w-4" />
               </button>
-              <FormulaireConnexion onConnecte={() => setIsAuthModalOpen(false)} />
+              <LoginForm onLoggedIn={() => setIsAuthModalOpen(false)} />
             </div>
           </div>
         </div>
@@ -499,9 +501,9 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
     setIsSending(true);
     try {
       // Pas encore de service « retours » dans la nouvelle stack : envoi par e-mail
-      const sujet = encodeURIComponent('Retour sur YNER');
-      const corps = encodeURIComponent(`${message}\n\n— ${userData?.name || 'Aventurier anonyme'}`);
-      window.location.href = `mailto:contact@yner.fr?subject=${sujet}&body=${corps}`;
+      const subject = encodeURIComponent('Retour sur YNER');
+      const body = encodeURIComponent(`${message}\n\n— ${userData?.name || 'Aventurier anonyme'}`);
+      window.location.href = `mailto:contact@yner.fr?subject=${subject}&body=${body}`;
       setOpen(false);
       setMessage('');
     } catch (error) {

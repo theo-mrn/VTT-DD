@@ -30,7 +30,7 @@ import { api } from './api';
 // Chargeur local au lanceur de dés : `src/lib/systemes.ts` pourra le remplacer.
 
 /** GET /v1/systems */
-export interface ResumeSysteme {
+export interface SystemSummary {
   id: string;
   version: string;
   nom: string;
@@ -38,23 +38,23 @@ export interface ResumeSysteme {
 }
 
 /** Système prêt à l'emploi : règles chargées et présentation vérifiée. */
-export interface SystemeJouable {
-  systeme: SystemeCharge;
+export interface PlayableSystem {
+  system: SystemeCharge;
   presentation: Presentation | null;
   /** Erreurs de la présentation, ignorée si elle est invalide. */
-  erreursPresentation: string[];
+  presentationErrors: string[];
 }
 
-export function listerSystemesJets(): Promise<ResumeSysteme[]> {
-  return api<ResumeSysteme[]>('/v1/systems');
+export function listRollSystems(): Promise<SystemSummary[]> {
+  return api<SystemSummary[]>('/v1/systems');
 }
 
 /** GET /v1/systems/:id, puis chargement et vérification complète avec `@vtt/rules`. */
-export async function chargerSystemeJets(id: string): Promise<SystemeJouable> {
-  const brut = await api<{ systeme: SystemeSaisi; presentation: unknown }>(
+export async function loadRollSystem(id: string): Promise<PlayableSystem> {
+  const raw = await api<{ systeme: SystemeSaisi; presentation: unknown }>(
     `/v1/systems/${encodeURIComponent(id)}`,
   );
-  const r = charger(brut.systeme);
+  const r = charger(raw.systeme);
   if (!r.ok) {
     const detail = r.erreurs
       .slice(0, 3)
@@ -62,22 +62,22 @@ export async function chargerSystemeJets(id: string): Promise<SystemeJouable> {
       .join(' ; ');
     throw new Error(`Système invalide (${detail})`);
   }
-  if (brut.presentation == null)
-    return { systeme: r.systeme, presentation: null, erreursPresentation: [] };
-  const p = verifierPresentation(brut.presentation, r.systeme);
+  if (raw.presentation == null)
+    return { system: r.systeme, presentation: null, presentationErrors: [] };
+  const p = verifierPresentation(raw.presentation, r.systeme);
   return p.ok
-    ? { systeme: r.systeme, presentation: p.presentation, erreursPresentation: [] }
+    ? { system: r.systeme, presentation: p.presentation, presentationErrors: [] }
     : {
-        systeme: r.systeme,
+        system: r.systeme,
         presentation: null,
-        erreursPresentation: p.erreurs.map((e) => `${e.chemin} : ${e.message}`),
+        presentationErrors: p.erreurs.map((e) => `${e.chemin} : ${e.message}`),
       };
 }
 
 // ─── Actions d'un personnage (docs/api-character.md) ─────────────────────────
 
 /** Personnage renvoyé par le service character (forme du contrat). */
-export interface PersonnageJet {
+export interface RollCharacter {
   id: string;
   ownerId: string;
   nom: string;
@@ -89,7 +89,7 @@ export interface PersonnageJet {
   updatedAt: string;
 }
 
-export interface DemandeActionApi {
+export interface ActionRequest {
   /** Valeurs des paramètres de l'action, par identifiant (les absents prennent leur défaut). */
   parametres?: Record<string, Valeur>;
   /** Personnage visé, si l'action déclare une cible. */
@@ -103,82 +103,82 @@ export interface DemandeActionApi {
   appliquer?: boolean;
 }
 
-export interface ReponseActionApi {
+export interface ActionResponse {
   resultat: ResultatAction;
   /** Acteur à jour, quand les modifications ont été appliquées. */
-  personnage?: PersonnageJet;
+  personnage?: RollCharacter;
   /** Cible à jour, quand les modifications ont été appliquées. */
-  cible?: PersonnageJet;
+  cible?: RollCharacter;
 }
 
 /** POST /v1/characters/:id/actions/:action : jet tiré par le serveur (générateur cryptographique). */
-export function executerActionPersonnage(
-  personnageId: string,
+export function runCharacterAction(
+  characterId: string,
   action: string,
-  demande: DemandeActionApi = {},
-): Promise<ReponseActionApi> {
-  return api<ReponseActionApi>(
-    `/v1/characters/${encodeURIComponent(personnageId)}/actions/${encodeURIComponent(action)}`,
-    { method: 'POST', body: JSON.stringify(demande) },
+  request: ActionRequest = {},
+): Promise<ActionResponse> {
+  return api<ActionResponse>(
+    `/v1/characters/${encodeURIComponent(characterId)}/actions/${encodeURIComponent(action)}`,
+    { method: 'POST', body: JSON.stringify(request) },
   );
 }
 
 // ─── Jets libres (hors personnage), calculés localement ─────────────────────
 
 /** Lance un pool de dés à symboles du système, avec un générateur cryptographique. */
-export function lancerPoolLibre(systeme: SystemeCharge, pool: Pool): LancerSymboles {
+export function rollFreePool(system: SystemeCharge, pool: Pool): LancerSymboles {
   return lancerSymboles(
-    systeme,
+    system,
     pool.filter((p) => p.nombre > 0),
     aleatoireCrypto(),
   );
 }
 
 /** Jet libre : dés, nombres et calcul ; aucun attribut, variable ni entrée de catalogue. */
-const ENV_LIBRE: EnvironnementTypes = {
+const FREE_ENV: EnvironnementTypes = {
   attribut: () => undefined,
   variable: () => undefined,
   entree: () => false,
   des: true,
 };
 
-export type NotationAnalysee =
-  { ok: true; texte: string } | { ok: false; message: string; position: number };
+export type ParsedNotation =
+  { ok: true; text: string } | { ok: false; message: string; position: number };
 
 /**
  * Vérifie une notation de dés libre (`2d6 + 3`, `4d6k3`, `1d20!`) : dés, nombres
  * et fonctions de calcul uniquement, sans attribut ni variable.
  */
-export function analyserNotation(texte: string): NotationAnalysee {
-  const propre = texte.trim();
-  if (!propre) return { ok: false, message: 'Saisissez une formule', position: 0 };
-  const r = compiler(propre, ENV_LIBRE, 'nombre');
+export function parseNotation(text: string): ParsedNotation {
+  const trimmed = text.trim();
+  if (!trimmed) return { ok: false, message: 'Saisissez une formule', position: 0 };
+  const r = compiler(trimmed, FREE_ENV, 'nombre');
   if (!r.ok) {
     const e = r.erreurs[0]!;
     return { ok: false, message: e.message, position: e.position };
   }
-  return { ok: true, texte: propre };
+  return { ok: true, text: trimmed };
 }
 
-export interface LancerNotation {
-  texte: string;
-  valeur: number;
-  jets: JetDes[];
+export interface NotationRoll {
+  text: string;
+  value: number;
+  rolls: JetDes[];
 }
 
 /** Lance une notation vérifiée par `analyserNotation`. Lève une erreur lisible sinon. */
-export function lancerNotation(texte: string): LancerNotation {
-  const propre = texte.trim();
-  const r = compiler(propre, ENV_LIBRE, 'nombre');
+export function rollNotation(text: string): NotationRoll {
+  const trimmed = text.trim();
+  const r = compiler(trimmed, FREE_ENV, 'nombre');
   if (!r.ok) throw new Error(r.erreurs[0]!.message);
-  const refus = (quoi: string) => (): never => {
-    throw new Error(`${quoi} indisponible dans un jet libre`);
+  const reject = (what: string) => (): never => {
+    throw new Error(`${what} indisponible dans un jet libre`);
   };
   const res = evaluer(r.formule.noeud, {
-    attribut: refus('Attribut'),
-    modificateur: refus('Modificateur'),
-    variable: refus('Variable'),
+    attribut: reject('Attribut'),
+    modificateur: reject('Modificateur'),
+    variable: reject('Variable'),
     aleatoire: aleatoireCrypto(),
   });
-  return { texte: propre, valeur: Number(res.valeur), jets: res.jets };
+  return { text: trimmed, value: Number(res.valeur), rolls: res.jets };
 }

@@ -15,133 +15,134 @@ import {
 } from '@vtt/rules';
 import { Dices, Minus, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { ecritures } from '@/lib/characters';
+import { writes } from '@/lib/characters';
 import { cn } from '@/lib/utils';
-import { useFiche } from '../context';
-import { VideFiche } from '../elements';
-import { formaterNombre, formaterValeur } from '../format';
+import { useSheet } from '../context';
+import { SheetEmpty } from '../elements';
+import { formatNumber, formatValue } from '../format';
 import {
-  boutonAccent,
-  boutonIcone,
-  boutonSecondaire,
-  caseValeur,
-  champ,
+  accentButton,
+  iconButton,
+  secondaryButton,
+  valueBox,
+  field,
   focus,
-  texte,
-  texteAccent,
-  texteSecondaire,
+  text,
+  textAccent,
+  textMuted,
 } from '../styles';
-import type { Etape } from './assistant';
+import type { Step } from './assistant';
 
 type Base = Extract<Attribut, { nature: 'base' }>;
-const estBase = (a: Attribut): a is Base => a.nature === 'base';
+const isBase = (a: Attribut): a is Base => a.nature === 'base';
 
 /** Évalue une formule d'étape (budget, coût, bornes) ; undefined si absente ou en erreur. */
-function formuleEtape(
-  fiche: Fiche,
-  etape: string,
-  champ: string,
+function stepFormula(
+  sheet: Fiche,
+  step: string,
+  field: string,
   vars?: Record<string, Valeur>,
 ): number | undefined {
-  const f = fiche.systeme.formules.get(chemins.etape(fiche.etat.type, etape, champ));
+  const f = sheet.systeme.formules.get(chemins.etape(sheet.etat.type, step, field));
   if (!f) return undefined;
-  const r = essayer(fiche, f, vars ? { variable: variables(vars) } : {});
+  const r = essayer(sheet, f, vars ? { variable: variables(vars) } : {});
   return r.ok ? Number(r.valeur) : undefined;
 }
 
-const valeurBase = (fiche: Fiche, a: Base) => {
-  const v = fiche.etat.valeurs[a.cle];
+const baseValue = (sheet: Fiche, a: Base) => {
+  const v = sheet.etat.valeurs[a.cle];
   return typeof v === 'number' ? v : a.defaut;
 };
 
 // ─── Répartir ────────────────────────────────────────────────────────────────
 
-export function EtapeRepartir({
-  etape,
-  etat: examen,
-  onSuivante,
+export function DistributeStep({
+  step,
+  state: review,
+  onNext,
 }: {
-  etape: Etape<'repartir'>;
-  etat: EtatEtape;
-  onSuivante(): void;
+  step: Step<'repartir'>;
+  state: EtatEtape;
+  onNext(): void;
 }) {
-  const { systeme, fiche, ecrire } = useFiche();
-  const attributs = attributsVises(fiche.entite, etape, estBase).filter(estBase);
-  const [valeurs, setValeurs] = useState<Record<string, number>>(() =>
-    Object.fromEntries(attributs.map((a) => [a.cle, valeurBase(fiche, a)])),
+  const { system, sheet, write } = useSheet();
+  const attributes = attributsVises(sheet.entite, step, isBase).filter(isBase);
+  const [values, setValues] = useState<Record<string, number>>(() =>
+    Object.fromEntries(attributes.map((a) => [a.cle, baseValue(sheet, a)])),
   );
-  const [envoi, setEnvoi] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const budget = formuleEtape(fiche, etape.id, 'budget') ?? examen.budget;
-  const min = formuleEtape(fiche, etape.id, 'min');
-  const max = formuleEtape(fiche, etape.id, 'max');
-  const cout = (v: number) => formuleEtape(fiche, etape.id, 'cout', { valeur: v }) ?? 0;
-  const depense = attributs.reduce((s, a) => s + cout(valeurs[a.cle] ?? 0), 0);
-  const reste = budget !== undefined ? budget - depense : undefined;
+  const budget = stepFormula(sheet, step.id, 'budget') ?? review.budget;
+  const min = stepFormula(sheet, step.id, 'min');
+  const max = stepFormula(sheet, step.id, 'max');
+  const cost = (v: number) => stepFormula(sheet, step.id, 'cout', { valeur: v }) ?? 0;
+  const spent = attributes.reduce((s, a) => s + cost(values[a.cle] ?? 0), 0);
+  const remaining = budget !== undefined ? budget - spent : undefined;
 
-  async function valider() {
-    setEnvoi(true);
-    const ok = await ecrire(ecritures.etape(etape.id, { valeurs }), (e) => {
-      const r = repartirEtape(systeme, e, etape.id, valeurs);
+  async function submit() {
+    setSending(true);
+    const ok = await write(writes.step(step.id, { valeurs: values }), (e) => {
+      const r = repartirEtape(system, e, step.id, values);
       return r.ok ? r.etat : null;
     });
-    setEnvoi(false);
-    if (ok) onSuivante();
+    setSending(false);
+    if (ok) onNext();
   }
 
-  if (!attributs.length) return <VideFiche>Aucun attribut à répartir.</VideFiche>;
+  if (!attributes.length) return <SheetEmpty>Aucun attribut à répartir.</SheetEmpty>;
 
   return (
     <div className="space-y-4">
-      {reste !== undefined && (
+      {remaining !== undefined && (
         <p
           role="status"
-          className={cn('text-sm', reste < 0 ? 'text-red-400' : texte)}
+          className={cn('text-sm', remaining < 0 ? 'text-red-400' : text)}
           aria-live="polite"
         >
           Points restants :{' '}
-          <strong className={cn('tabular-nums', reste >= 0 && texteAccent)}>
-            {formaterNombre(reste)}
+          <strong className={cn('tabular-nums', remaining >= 0 && textAccent)}>
+            {formatNumber(remaining)}
           </strong>{' '}
-          <span className={texteSecondaire}>sur {formaterNombre(budget ?? 0)}</span>
+          <span className={textMuted}>sur {formatNumber(budget ?? 0)}</span>
         </p>
       )}
       <ul className="grid gap-2 sm:grid-cols-2">
-        {attributs.map((a) => {
-          const v = valeurs[a.cle] ?? 0;
-          const surcout = cout(v + 1) - cout(v);
-          const plus =
-            (max === undefined || v + 1 <= max) && (reste === undefined || surcout <= reste);
-          const moins = min === undefined || v - 1 >= min;
+        {attributes.map((a) => {
+          const v = values[a.cle] ?? 0;
+          const extraCost = cost(v + 1) - cost(v);
+          const canIncrease =
+            (max === undefined || v + 1 <= max) &&
+            (remaining === undefined || extraCost <= remaining);
+          const canDecrease = min === undefined || v - 1 >= min;
           return (
-            <li key={a.cle} className={cn(caseValeur, 'flex items-center gap-3 px-3 py-2')}>
+            <li key={a.cle} className={cn(valueBox, 'flex items-center gap-3 px-3 py-2')}>
               <span className="min-w-0 flex-1">
-                <span className={cn(texte, 'block truncate text-sm')}>{a.nom}</span>
-                <span className={cn(texteSecondaire, 'block text-xs tabular-nums')}>
-                  coût {formaterNombre(cout(v))}
+                <span className={cn(text, 'block truncate text-sm')}>{a.nom}</span>
+                <span className={cn(textMuted, 'block text-xs tabular-nums')}>
+                  coût {formatNumber(cost(v))}
                 </span>
               </span>
               <button
                 type="button"
-                className={boutonIcone}
-                disabled={!moins || envoi}
+                className={iconButton}
+                disabled={!canDecrease || sending}
                 aria-label={`${a.nom} : retirer 1`}
-                onClick={() => setValeurs((m) => ({ ...m, [a.cle]: v - 1 }))}
+                onClick={() => setValues((m) => ({ ...m, [a.cle]: v - 1 }))}
               >
                 <Minus className="h-4 w-4" />
               </button>
               <span
-                className={cn(texte, 'w-8 text-center text-lg font-semibold tabular-nums')}
+                className={cn(text, 'w-8 text-center text-lg font-semibold tabular-nums')}
                 aria-live="polite"
               >
                 {v}
               </span>
               <button
                 type="button"
-                className={boutonIcone}
-                disabled={!plus || envoi}
+                className={iconButton}
+                disabled={!canIncrease || sending}
                 aria-label={`${a.nom} : ajouter 1`}
-                onClick={() => setValeurs((m) => ({ ...m, [a.cle]: v + 1 }))}
+                onClick={() => setValues((m) => ({ ...m, [a.cle]: v + 1 }))}
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -152,9 +153,9 @@ export function EtapeRepartir({
       <div className="flex justify-end">
         <button
           type="button"
-          className={boutonAccent}
-          disabled={envoi || (reste !== undefined && reste < 0)}
-          onClick={valider}
+          className={accentButton}
+          disabled={sending || (remaining !== undefined && remaining < 0)}
+          onClick={submit}
         >
           Valider la répartition
         </button>
@@ -169,69 +170,69 @@ export function EtapeRepartir({
  * Tirage fait par le serveur (générateur cryptographique). En attribution
  * libre, les valeurs tirées peuvent ensuite être échangées entre attributs.
  */
-export function EtapeTirer({ etape }: { etape: Etape<'tirer'> }) {
-  const { fiche, ecrire, fixerValeurs } = useFiche();
-  const attributs = attributsVises(fiche.entite, etape, estBase).filter(estBase);
-  const tires = attributs.every((a) => typeof fiche.etat.valeurs[a.cle] === 'number');
-  const valeursTirees = attributs.map((a) => valeurBase(fiche, a));
+export function RollStep({ step }: { step: Step<'tirer'> }) {
+  const { sheet, write, setValues } = useSheet();
+  const attributes = attributsVises(sheet.entite, step, isBase).filter(isBase);
+  const rolled = attributes.every((a) => typeof sheet.etat.valeurs[a.cle] === 'number');
+  const rolledValues = attributes.map((a) => baseValue(sheet, a));
   // Attribution libre : indice de la valeur tirée retenue pour chaque attribut
-  const [affectation, setAffectation] = useState<number[]>(() => attributs.map((_, i) => i));
-  const [envoi, setEnvoi] = useState(false);
-  const permutation = new Set(affectation).size === attributs.length;
-  const modifiee = affectation.some((x, i) => x !== i);
+  const [assignment, setAssignment] = useState<number[]>(() => attributes.map((_, i) => i));
+  const [sending, setSending] = useState(false);
+  const permutation = new Set(assignment).size === attributes.length;
+  const changed = assignment.some((x, i) => x !== i);
 
-  async function tirer() {
-    setEnvoi(true);
-    await ecrire(ecritures.etape(etape.id, {}));
-    setEnvoi(false);
+  async function roll() {
+    setSending(true);
+    await write(writes.step(step.id, {}));
+    setSending(false);
   }
 
-  async function reattribuer() {
-    setEnvoi(true);
-    await fixerValeurs(
-      Object.fromEntries(attributs.map((a, i) => [a.cle, valeursTirees[affectation[i]!]!])),
+  async function reassign() {
+    setSending(true);
+    await setValues(
+      Object.fromEntries(attributes.map((a, i) => [a.cle, rolledValues[assignment[i]!]!])),
     );
-    setEnvoi(false);
+    setSending(false);
   }
 
-  if (!attributs.length) return <VideFiche>Aucun attribut à tirer.</VideFiche>;
+  if (!attributes.length) return <SheetEmpty>Aucun attribut à tirer.</SheetEmpty>;
 
   return (
     <div className="space-y-4">
-      <p className={cn(texteSecondaire, 'text-sm')}>
-        Formule <code className={texte}>{etape.formule}</code>
-        {etape.contrainte && (
+      <p className={cn(textMuted, 'text-sm')}>
+        Formule <code className={text}>{step.formule}</code>
+        {step.contrainte && (
           <>
             {' '}
-            · contrainte <code className={texte}>{etape.contrainte}</code>
-            {etape.relancer ? ' (relancé automatiquement)' : ''}
+            · contrainte <code className={text}>{step.contrainte}</code>
+            {step.relancer ? ' (relancé automatiquement)' : ''}
           </>
         )}
         {' · '}
-        {etape.essais} essai{etape.essais > 1 ? 's' : ''}
+        {step.essais} essai{step.essais > 1 ? 's' : ''}
         {' · '}
-        {etape.attribution === 'ordre' ? 'valeurs attribuées dans l’ordre' : 'répartition libre'}
+        {step.attribution === 'ordre' ? 'valeurs attribuées dans l’ordre' : 'répartition libre'}
       </p>
 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {attributs.map((a, i) => (
-          <li key={a.cle} className={cn(caseValeur, 'px-3 py-2 text-center')}>
+        {attributes.map((a, i) => (
+          <li key={a.cle} className={cn(valueBox, 'px-3 py-2 text-center')}>
             <label
               htmlFor={`tirage-${a.cle}`}
-              className={cn(texteSecondaire, 'block text-xs uppercase tracking-wide')}
+              className={cn(textMuted, 'block text-xs uppercase tracking-wide')}
             >
               {a.abrege ?? a.nom}
             </label>
-            {tires && etape.attribution === 'libre' ? (
+            {rolled && step.attribution === 'libre' ? (
               <select
                 id={`tirage-${a.cle}`}
-                value={affectation[i]}
+                value={assignment[i]}
                 onChange={(e) =>
-                  setAffectation((af) => af.map((x, j) => (j === i ? Number(e.target.value) : x)))
+                  setAssignment((aff) => aff.map((x, j) => (j === i ? Number(e.target.value) : x)))
                 }
-                className={cn(champ, 'mt-1 h-8 text-center')}
+                className={cn(field, 'mt-1 h-8 text-center')}
               >
-                {valeursTirees.map((v, j) => (
+                {rolledValues.map((v, j) => (
                   <option key={j} value={j}>
                     {v} (n°{j + 1})
                   </option>
@@ -240,9 +241,9 @@ export function EtapeTirer({ etape }: { etape: Etape<'tirer'> }) {
             ) : (
               <span
                 id={`tirage-${a.cle}`}
-                className={cn(texte, 'block text-2xl font-semibold tabular-nums')}
+                className={cn(text, 'block text-2xl font-semibold tabular-nums')}
               >
-                {tires ? formaterValeur(a, fiche.etat.valeurs[a.cle]) : '—'}
+                {rolled ? formatValue(a, sheet.etat.valeurs[a.cle]) : '—'}
               </span>
             )}
           </li>
@@ -253,19 +254,19 @@ export function EtapeTirer({ etape }: { etape: Etape<'tirer'> }) {
         <p className="text-xs text-red-300">Chaque valeur tirée ne peut servir qu&apos;une fois.</p>
       )}
       <div className="flex flex-wrap justify-end gap-2">
-        {tires && etape.attribution === 'libre' && modifiee && (
+        {rolled && step.attribution === 'libre' && changed && (
           <button
             type="button"
-            className={boutonSecondaire}
-            disabled={!permutation || envoi}
-            onClick={reattribuer}
+            className={secondaryButton}
+            disabled={!permutation || sending}
+            onClick={reassign}
           >
             Enregistrer la répartition
           </button>
         )}
-        <button type="button" className={boutonAccent} disabled={envoi} onClick={tirer}>
+        <button type="button" className={accentButton} disabled={sending} onClick={roll}>
           <Dices />
-          {tires ? 'Tirer à nouveau' : 'Tirer'}
+          {rolled ? 'Tirer à nouveau' : 'Tirer'}
         </button>
       </div>
     </div>
@@ -274,13 +275,13 @@ export function EtapeTirer({ etape }: { etape: Etape<'tirer'> }) {
 
 // ─── Saisir ──────────────────────────────────────────────────────────────────
 
-export function EtapeSaisir({ etape, onSuivante }: { etape: Etape<'saisir'>; onSuivante(): void }) {
-  const { systeme, fiche, json, ecrire } = useFiche();
-  const attributs = attributsVises(fiche.entite, etape, (a) => a.nature !== 'derivee');
-  const [valeurs, setValeurs] = useState<Record<string, Valeur | ''>>(() =>
+export function InputStep({ step, onNext }: { step: Step<'saisir'>; onNext(): void }) {
+  const { system, sheet, json, write } = useSheet();
+  const attributes = attributsVises(sheet.entite, step, (a) => a.nature !== 'derivee');
+  const [values, setValues] = useState<Record<string, Valeur | ''>>(() =>
     Object.fromEntries(
-      attributs.map((a) => {
-        const v = fiche.etat.valeurs[a.cle];
+      attributes.map((a) => {
+        const v = sheet.etat.valeurs[a.cle];
         if (v !== undefined) return [a.cle, v];
         switch (a.nature) {
           case 'texte':
@@ -297,64 +298,64 @@ export function EtapeSaisir({ etape, onSuivante }: { etape: Etape<'saisir'>; onS
       }),
     ),
   );
-  const [envoi, setEnvoi] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  async function valider(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    const corps: Record<string, Valeur> = {};
-    for (const a of attributs) {
-      const v = valeurs[a.cle];
+    const body: Record<string, Valeur> = {};
+    for (const a of attributes) {
+      const v = values[a.cle];
       if (v === undefined || (v === '' && a.nature !== 'texte')) continue;
-      corps[a.cle] = v;
+      body[a.cle] = v;
     }
-    setEnvoi(true);
-    const ok = await ecrire(ecritures.etape(etape.id, { valeurs: corps }), (et) => {
-      const r = saisirEtape(systeme, et, etape.id, corps);
+    setSending(true);
+    const ok = await write(writes.step(step.id, { valeurs: body }), (st) => {
+      const r = saisirEtape(system, st, step.id, body);
       return r.ok ? r.etat : null;
     });
-    setEnvoi(false);
-    if (ok) onSuivante();
+    setSending(false);
+    if (ok) onNext();
   }
 
-  if (!attributs.length) return <VideFiche>Aucune valeur à saisir.</VideFiche>;
+  if (!attributes.length) return <SheetEmpty>Aucune valeur à saisir.</SheetEmpty>;
 
   return (
-    <form onSubmit={valider} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        {attributs.map((a) => {
+        {attributes.map((a) => {
           const id = `saisie-${a.cle}`;
-          const v = valeurs[a.cle];
+          const v = values[a.cle];
           const large = a.nature === 'texte' && a.multiligne;
-          const maj = (x: Valeur | '') => setValeurs((m) => ({ ...m, [a.cle]: x }));
+          const update = (x: Valeur | '') => setValues((m) => ({ ...m, [a.cle]: x }));
           return (
             <div key={a.cle} className={cn('space-y-1', large && 'sm:col-span-2')}>
-              <label htmlFor={id} className={cn(texte, 'block text-sm')}>
+              <label htmlFor={id} className={cn(text, 'block text-sm')}>
                 {a.nom}
               </label>
-              {a.description && <p className={cn(texteSecondaire, 'text-xs')}>{a.description}</p>}
+              {a.description && <p className={cn(textMuted, 'text-xs')}>{a.description}</p>}
               {a.nature === 'texte' ? (
                 large ? (
                   <textarea
                     id={id}
                     value={typeof v === 'string' ? v : ''}
-                    onChange={(e) => maj(e.target.value)}
+                    onChange={(e) => update(e.target.value)}
                     rows={4}
-                    className={cn(champ, 'h-auto py-2')}
+                    className={cn(field, 'h-auto py-2')}
                   />
                 ) : (
                   <input
                     id={id}
                     value={typeof v === 'string' ? v : ''}
-                    onChange={(e) => maj(e.target.value)}
-                    className={champ}
+                    onChange={(e) => update(e.target.value)}
+                    className={field}
                   />
                 )
               ) : a.nature === 'choix' ? (
                 <select
                   id={id}
                   value={typeof v === 'string' ? v : ''}
-                  onChange={(e) => maj(e.target.value)}
-                  className={champ}
+                  onChange={(e) => update(e.target.value)}
+                  className={field}
                   required
                 >
                   <option value="" disabled>
@@ -371,7 +372,7 @@ export function EtapeSaisir({ etape, onSuivante }: { etape: Etape<'saisir'>; onS
                   id={id}
                   type="checkbox"
                   checked={v === true}
-                  onChange={(e) => maj(e.target.checked)}
+                  onChange={(e) => update(e.target.checked)}
                   className={cn('h-5 w-5 accent-[color:var(--fiche-accent)]', focus)}
                 />
               ) : (
@@ -380,8 +381,8 @@ export function EtapeSaisir({ etape, onSuivante }: { etape: Etape<'saisir'>; onS
                   type="number"
                   inputMode="numeric"
                   value={typeof v === 'number' ? v : ''}
-                  onChange={(e) => maj(e.target.value === '' ? '' : Number(e.target.value))}
-                  className={cn(champ, 'w-32')}
+                  onChange={(e) => update(e.target.value === '' ? '' : Number(e.target.value))}
+                  className={cn(field, 'w-32')}
                 />
               )}
             </div>
@@ -389,7 +390,7 @@ export function EtapeSaisir({ etape, onSuivante }: { etape: Etape<'saisir'>; onS
         })}
       </div>
       <div className="flex justify-end">
-        <button type="submit" className={boutonAccent} disabled={envoi}>
+        <button type="submit" className={accentButton} disabled={sending}>
           Valider cette étape
         </button>
       </div>

@@ -2,41 +2,41 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
-import { FormulaireConnexion } from '@/components/auth/login-form';
-import { cheminInterne } from '@/lib/redirect';
+import { LoginForm } from '@/components/auth/login-form';
+import { internalPath } from '@/lib/redirect';
 import { useSession } from '@/lib/session';
 
-const ERREURS: Record<string, string> = {
+const ERRORS: Record<string, string> = {
   oauth: 'La connexion avec Google ou Discord a échoué. Réessayez, ou connectez-vous par e-mail.',
 };
 
-function Connexion() {
-  const { statut } = useSession();
+function Login() {
+  const { status } = useSession();
   const router = useRouter();
   const params = useSearchParams();
   // Page demandée avant la connexion (?redirect=/amis), sinon le profil
-  const retour = cheminInterne(params.get('redirect'));
-  const codeErreur = params.get('erreur');
-  const erreur = codeErreur ? (ERREURS[codeErreur] ?? 'La connexion a échoué.') : null;
+  const returnTo = internalPath(params.get('redirect'));
+  const errorCode = params.get('erreur');
+  const error = errorCode ? (ERRORS[errorCode] ?? 'La connexion a échoué.') : null;
 
   useEffect(() => {
-    if (statut === 'connecte') router.replace(retour);
-  }, [statut, router, retour]);
+    if (status === 'connecte') router.replace(returnTo);
+  }, [status, router, returnTo]);
 
   return (
-    <FormulaireConnexion
-      redirection={retour}
-      erreurInitiale={erreur}
-      onConnecte={() => router.replace(retour)}
+    <LoginForm
+      redirection={returnTo}
+      initialError={error}
+      onLoggedIn={() => router.replace(returnTo)}
     />
   );
 }
 
-export default function PageConnexion() {
+export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#0c0c0e] p-4">
       <Suspense>
-        <Connexion />
+        <Login />
       </Suspense>
     </main>
   );

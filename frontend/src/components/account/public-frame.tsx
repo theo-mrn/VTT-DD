@@ -3,15 +3,15 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { aclonica } from './styles';
 
-export { styleLien } from './styles';
+export { linkStyle as styleLien } from './styles';
 
 /** Cadre centré des pages hors session (mot de passe oublié, réinitialisation, vérification). */
-export function CadrePublic({
-  titre,
+export function PublicFrame({
+  title,
   description,
   children,
 }: {
-  titre: string;
+  title: string;
   description?: ReactNode;
   children: ReactNode;
 }) {
@@ -22,7 +22,7 @@ export function CadrePublic({
           <Link href="/" className={cn(aclonica, 'text-3xl tracking-wider text-white')}>
             YNER
           </Link>
-          <h1 className={cn(aclonica, 'text-lg text-[#c9a965]')}>{titre}</h1>
+          <h1 className={cn(aclonica, 'text-lg text-[#c9a965]')}>{title}</h1>
           {description && <p className="text-sm text-zinc-400">{description}</p>}
         </div>
         {children}

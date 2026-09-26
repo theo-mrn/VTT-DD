@@ -3,85 +3,85 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { CadrePublic } from '@/components/account/public-frame';
-import { Bouton, Chargement, Message } from '@/components/account/elements';
-import { messageErreur } from '@/lib/api';
-import { verifierEmail } from '@/lib/security';
+import { PublicFrame } from '@/components/account/public-frame';
+import { AppButton, Loading, Message } from '@/components/account/elements';
+import { errorMessage } from '@/lib/api';
+import { verifyEmail } from '@/lib/security';
 import { useSession } from '@/lib/session';
 
 // Le jeton ne sert qu'une fois : une seule requête par jeton, même si l'effet est rejoué
 const verifications = new Map<string, Promise<void>>();
 
 function Verification() {
-  const jeton = useSearchParams().get('jeton');
-  const { statut, rechargerProfil } = useSession();
-  const [etat, setEtat] = useState<'attente' | 'ok' | 'erreur'>('attente');
-  const [erreur, setErreur] = useState<string | null>(null);
+  const token = useSearchParams().get('jeton');
+  const { status, reloadProfile } = useSession();
+  const [state, setState] = useState<'attente' | 'ok' | 'erreur'>('attente');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!jeton) return;
-    let promesse = verifications.get(jeton);
-    if (!promesse) {
-      promesse = verifierEmail(jeton);
-      verifications.set(jeton, promesse);
+    if (!token) return;
+    let promise = verifications.get(token);
+    if (!promise) {
+      promise = verifyEmail(token);
+      verifications.set(token, promise);
     }
-    let actif = true;
-    promesse
-      .then(() => actif && setEtat('ok'))
+    let active = true;
+    promise
+      .then(() => active && setState('ok'))
       .catch((err) => {
-        if (!actif) return;
-        setErreur(messageErreur(err));
-        setEtat('erreur');
+        if (!active) return;
+        setError(errorMessage(err));
+        setState('erreur');
       });
     return () => {
-      actif = false;
+      active = false;
     };
-  }, [jeton]);
+  }, [token]);
 
   // Le profil affiché doit refléter l'e-mail vérifié
   useEffect(() => {
-    if (etat === 'ok' && statut === 'connecte') rechargerProfil().catch(() => undefined);
-  }, [etat, statut, rechargerProfil]);
+    if (state === 'ok' && status === 'connecte') reloadProfile().catch(() => undefined);
+  }, [state, status, reloadProfile]);
 
-  const suite =
-    statut === 'connecte' ? (
-      <Bouton asChild className="h-10 w-full">
+  const suffix =
+    status === 'connecte' ? (
+      <AppButton asChild className="h-10 w-full">
         <Link href="/profile">Aller à mon profil</Link>
-      </Bouton>
+      </AppButton>
     ) : (
-      <Bouton asChild className="h-10 w-full">
+      <AppButton asChild className="h-10 w-full">
         <Link href="/login">Se connecter</Link>
-      </Bouton>
+      </AppButton>
     );
 
-  if (!jeton)
+  if (!token)
     return (
       <div className="space-y-4">
         <Message>Ce lien est incomplet : il manque le jeton de vérification.</Message>
-        {suite}
+        {suffix}
       </div>
     );
 
-  if (etat === 'attente') return <Chargement texte="Vérification de votre adresse…" />;
+  if (state === 'attente') return <Loading text="Vérification de votre adresse…" />;
 
   return (
     <div className="space-y-4">
-      {etat === 'ok' ? (
-        <Message ton="succes">Adresse e-mail vérifiée, merci !</Message>
+      {state === 'ok' ? (
+        <Message tone="succes">Adresse e-mail vérifiée, merci !</Message>
       ) : (
-        <Message>{erreur} Vous pouvez demander un nouveau lien depuis votre profil.</Message>
+        <Message>{error} Vous pouvez demander un nouveau lien depuis votre profil.</Message>
       )}
-      {suite}
+      {suffix}
     </div>
   );
 }
 
-export default function PageVerificationEmail() {
+export default function VerifyEmailPage() {
   return (
-    <CadrePublic titre="Vérification de l'e-mail">
-      <Suspense fallback={<Chargement />}>
+    <PublicFrame title="Vérification de l'e-mail">
+      <Suspense fallback={<Loading />}>
         <Verification />
       </Suspense>
-    </CadrePublic>
+    </PublicFrame>
   );
 }

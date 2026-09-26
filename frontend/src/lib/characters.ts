@@ -11,10 +11,10 @@
 
 import type { AchatDisponible, EtatEntite, EtatEtape, FicheJson, Valeur } from '@vtt/rules';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError, messageErreur } from './api';
-import { useRessource } from './resource';
+import { api, ApiError, errorMessage } from './api';
+import { useResource } from './resource';
 
-export interface Personnage {
+export interface Character {
   id: string;
   ownerId: string;
   nom: string;
@@ -26,7 +26,7 @@ export interface Personnage {
   updatedAt: string;
 }
 
-export interface ResumePersonnage {
+export interface CharacterSummary {
   id: string;
   nom: string;
   avatarUrl: string | null;
@@ -37,20 +37,20 @@ export interface ResumePersonnage {
 }
 
 /** Entrée retenue à une étape « choisir ». */
-export interface EntreeChoisie {
+export interface ChosenEntry {
   entree: string;
   choix?: Record<string, string[]>;
 }
 
 /** Corps d'une étape de création, selon son type (sans la version). */
-export type CorpsEtape =
-  | { entrees: EntreeChoisie[] }
+export type StepBody =
+  | { entrees: ChosenEntry[] }
   | { valeurs: Record<string, Valeur> }
   | { affectation?: Record<string, number> }
   | { achat: string; objet: string };
 
 /** Ajout ou mise à jour d'une possession. */
-export interface MajPossession {
+export interface PossessionUpdate {
   entree: string;
   rang?: number;
   actif?: boolean;
@@ -58,185 +58,186 @@ export interface MajPossession {
   champs?: Record<string, number | string | boolean>;
 }
 
-const chemin = (id: string, suite = '') => `/v1/characters/${encodeURIComponent(id)}${suite}`;
+const path = (id: string, suffix = '') => `/v1/characters/${encodeURIComponent(id)}${suffix}`;
 
 // ─── Lectures ────────────────────────────────────────────────────────────────
 
-export function listerPersonnages() {
-  return api<ResumePersonnage[]>('/v1/characters');
+export function listCharacters() {
+  return api<CharacterSummary[]>('/v1/characters');
 }
 
-export function lirePersonnage(id: string) {
-  return api<Personnage>(chemin(id));
+export function getCharacter(id: string) {
+  return api<Character>(path(id));
 }
 
-export function creerPersonnage(corps: { systemeId: string; type: string; nom: string }) {
-  return api<Personnage>('/v1/characters', { method: 'POST', body: JSON.stringify(corps) });
+export function createCharacter(body: { systemeId: string; type: string; nom: string }) {
+  return api<Character>('/v1/characters', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export function supprimerPersonnage(id: string) {
-  return api<void>(chemin(id), { method: 'DELETE' });
+export function deleteCharacter(id: string) {
+  return api<void>(path(id), { method: 'DELETE' });
 }
 
-export function lireEtapesCreation(id: string) {
-  return api<EtatEtape[]>(chemin(id, '/creation'));
+export function getCreationSteps(id: string) {
+  return api<EtatEtape[]>(path(id, '/creation'));
 }
 
-export function lireAchats(id: string) {
-  return api<AchatDisponible[]>(chemin(id, '/achats'));
+export function getPurchases(id: string) {
+  return api<AchatDisponible[]>(path(id, '/achats'));
 }
 
 // ─── Écritures (versionnées) ─────────────────────────────────────────────────
 
 /** Une écriture reçoit l'identifiant et la version courante, et renvoie le personnage à jour. */
-export type Ecriture = (id: string, version: number) => Promise<Personnage>;
+export type Write = (id: string, version: number) => Promise<Character>;
 
-const envoyer =
-  (suite: string, method: string, corps: Record<string, unknown> = {}): Ecriture =>
+const send =
+  (suffix: string, method: string, body: Record<string, unknown> = {}): Write =>
   (id, version) =>
-    api<Personnage>(chemin(id, suite), {
+    api<Character>(path(id, suffix), {
       method,
-      body: JSON.stringify({ version, ...corps }),
+      body: JSON.stringify({ version, ...body }),
     });
 
-export const ecritures = {
-  modifier: (champs: { nom?: string; avatarUrl?: string | null }) => envoyer('', 'PATCH', champs),
-  valeurs: (valeurs: Record<string, Valeur>) => envoyer('/valeurs', 'PUT', { valeurs }),
-  etape: (etape: string, corps: CorpsEtape) =>
-    envoyer(`/creation/${encodeURIComponent(etape)}`, 'POST', corps),
-  terminer: () => envoyer('/creation/terminer', 'POST'),
-  acheter: (achat: string, objet: string) => envoyer('/achats', 'POST', { achat, objet }),
-  rembourser: (index: number) => envoyer('/achats/rembourser', 'POST', { index }),
-  possession: (maj: MajPossession) => envoyer('/possessions', 'POST', { ...maj }),
-  retirerPossession:
-    (entree: string): Ecriture =>
+export const writes = {
+  update: (fields: { nom?: string; avatarUrl?: string | null }) => send('', 'PATCH', fields),
+  values: (values: Record<string, Valeur>) => send('/valeurs', 'PUT', { valeurs: values }),
+  step: (step: string, body: StepBody) =>
+    send(`/creation/${encodeURIComponent(step)}`, 'POST', body),
+  finish: () => send('/creation/terminer', 'POST'),
+  buy: (purchase: string, item: string) =>
+    send('/achats', 'POST', { achat: purchase, objet: item }),
+  refund: (index: number) => send('/achats/rembourser', 'POST', { index }),
+  possession: (update: PossessionUpdate) => send('/possessions', 'POST', { ...update }),
+  removePossession:
+    (entry: string): Write =>
     (id, version) =>
-      api<Personnage>(chemin(id, `/possessions/${encodeURIComponent(entree)}?version=${version}`), {
+      api<Character>(path(id, `/possessions/${encodeURIComponent(entry)}?version=${version}`), {
         method: 'DELETE',
       }),
-  repos: (attributs?: string[]) => envoyer('/repos', 'POST', attributs ? { attributs } : {}),
+  rest: (attributes?: string[]) =>
+    send('/repos', 'POST', attributes ? { attributs: attributes } : {}),
 };
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 /** Aperçu local d'une écriture : nouvel état, ou null si le moteur la refuse. */
-export type Apercu = (etat: EtatEntite) => EtatEntite | null;
+export type Preview = (state: EtatEntite) => EtatEntite | null;
 
-interface EcritureEnAttente {
-  cle: number;
-  apercu?: Apercu;
+interface PendingWrite {
+  key: number;
+  preview?: Preview;
 }
 
-const est409 = (e: unknown) => e instanceof ApiError && e.status === 409;
+const is409 = (e: unknown) => e instanceof ApiError && e.status === 409;
 
 /**
  * Personnage et ses écritures. Les écritures passent une par une (chacune
  * part de la version renvoyée par la précédente) ; `etat` inclut les aperçus
  * des écritures encore en attente.
  */
-export function usePersonnage(id: string) {
-  const ressource = useRessource(`personnage:${id}`, () => lirePersonnage(id));
-  const { donnees: personnage, modifier, recharger } = ressource;
-  const courant = useRef<Personnage | undefined>(undefined);
-  const file = useRef<Promise<unknown>>(Promise.resolve());
-  const compteur = useRef(0);
-  const [attente, setAttente] = useState<EcritureEnAttente[]>([]);
-  const [erreur, setErreur] = useState<string | null>(null);
+export function useCharacter(id: string) {
+  const resource = useResource(`personnage:${id}`, () => getCharacter(id));
+  const { data: character, update, reload } = resource;
+  const latest = useRef<Character | undefined>(undefined);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const counter = useRef(0);
+  const [pendingWrites, setPendingWrites] = useState<PendingWrite[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (personnage && (!courant.current || personnage.version >= courant.current.version))
-      courant.current = personnage;
-  }, [personnage]);
+    if (character && (!latest.current || character.version >= latest.current.version))
+      latest.current = character;
+  }, [character]);
 
-  const remplacer = useCallback(
-    (p: Personnage) => {
-      courant.current = p;
-      modifier(() => p);
+  const replace = useCallback(
+    (p: Character) => {
+      latest.current = p;
+      update(() => p);
     },
-    [modifier],
+    [update],
   );
 
-  const ecrire = useCallback(
-    (op: Ecriture, apercu?: Apercu): Promise<boolean> => {
-      const cle = ++compteur.current;
-      setAttente((a) => [...a, { cle, apercu }]);
-      setErreur(null);
-      const tache = file.current.then(async () => {
+  const write = useCallback(
+    (op: Write, preview?: Preview): Promise<boolean> => {
+      const key = ++counter.current;
+      setPendingWrites((a) => [...a, { key, preview }]);
+      setError(null);
+      const task = queue.current.then(async () => {
         try {
-          const p = courant.current;
+          const p = latest.current;
           if (!p) throw new Error('Personnage non chargé');
-          let r: Personnage;
+          let r: Character;
           try {
             r = await op(p.id, p.version);
           } catch (e) {
-            if (!est409(e)) throw e;
+            if (!is409(e)) throw e;
             // Version périmée : on relit, puis on rejoue une fois sur l'état frais
-            const frais = await lirePersonnage(p.id);
-            remplacer(frais);
-            r = await op(frais.id, frais.version);
+            const fresh = await getCharacter(p.id);
+            replace(fresh);
+            r = await op(fresh.id, fresh.version);
           }
-          remplacer(r);
+          replace(r);
           return true;
         } catch (e) {
-          setErreur(
-            est409(e)
+          setError(
+            is409(e)
               ? 'Le personnage a été modifié ailleurs entre-temps : la fiche a été rechargée.'
-              : messageErreur(e),
+              : errorMessage(e),
           );
-          if (est409(e)) void recharger();
+          if (is409(e)) void reload();
           return false;
         } finally {
-          setAttente((a) => a.filter((x) => x.cle !== cle));
+          setPendingWrites((a) => a.filter((x) => x.key !== key));
         }
       });
-      file.current = tache;
-      return tache;
+      queue.current = task;
+      return task;
     },
-    [remplacer, recharger],
+    [replace, reload],
   );
 
-  const etat = useMemo(() => {
-    if (!personnage) return undefined;
-    return attente.reduce<EtatEntite>(
-      (e, x) => (x.apercu ? (x.apercu(e) ?? e) : e),
-      personnage.etat,
+  const state = useMemo(() => {
+    if (!character) return undefined;
+    return pendingWrites.reduce<EtatEntite>(
+      (e, x) => (x.preview ? (x.preview(e) ?? e) : e),
+      character.etat,
     );
-  }, [personnage, attente]);
+  }, [character, pendingWrites]);
 
   return {
-    personnage,
+    personnage: character,
     /** État affiché : celui du serveur, plus les aperçus des écritures en attente. */
-    etat,
-    chargement: ressource.chargement,
-    erreurChargement: ressource.erreur,
-    recharger,
-    ecrire,
+    etat: state,
+    loading: resource.loading,
+    loadError: resource.error,
+    reload,
+    write,
     /** Nombre d'écritures en attente du serveur. */
-    enAttente: attente.length,
-    erreur,
-    effacerErreur: () => setErreur(null),
+    pending: pendingWrites.length,
+    error,
+    clearError: () => setError(null),
   };
 }
 
-export type SuiviPersonnage = ReturnType<typeof usePersonnage>;
+export type CharacterTracker = ReturnType<typeof useCharacter>;
 
 /**
  * Donnée lue sur le serveur pour une version précise du personnage (étapes de
  * création, achats possibles). `null` tant qu'elle ne correspond pas à la
  * version affichée : l'appelant utilise alors son calcul local.
  */
-export function useLectureVersionnee<T>(
-  nom: string,
-  personnage: Personnage | undefined,
-  enAttente: number,
-  lire: (id: string) => Promise<T>,
+export function useVersionedRead<T>(
+  name: string,
+  character: Character | undefined,
+  pending: number,
+  read: (id: string) => Promise<T>,
 ): T | null {
-  const cle = personnage && !enAttente ? `${nom}:${personnage.id}:${personnage.version}` : null;
-  const r = useRessource(cle, async () => ({
-    version: personnage!.version,
-    donnees: await lire(personnage!.id),
+  const key = character && !pending ? `${name}:${character.id}:${character.version}` : null;
+  const r = useResource(key, async () => ({
+    version: character!.version,
+    data: await read(character!.id),
   }));
-  if (!personnage || enAttente || !r.donnees || r.donnees.version !== personnage.version)
-    return null;
-  return r.donnees.donnees;
+  if (!character || pending || !r.data || r.data.version !== character.version) return null;
+  return r.data.data;
 }

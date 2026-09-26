@@ -13,10 +13,10 @@ import {
 } from '@vtt/rules';
 
 /** Un achat du système vise-t-il les entrées de cette sorte (rang ou nouvelle entrée) ? */
-export function sorteAchetable(systeme: SystemeCharge, sorte: string): boolean {
-  for (const a of systeme.achats.values()) {
+export function purchasableKind(system: SystemeCharge, kind: string): boolean {
+  for (const a of system.achats.values()) {
     const o = a.obtient;
-    if ((o.type === 'rang' || o.type === 'entree') && o.sorte === sorte) return true;
+    if ((o.type === 'rang' || o.type === 'entree') && o.sorte === kind) return true;
   }
   return false;
 }
@@ -25,83 +25,84 @@ export function sorteAchetable(systeme: SystemeCharge, sorte: string): boolean {
  * Sorte ajoutée librement depuis le catalogue (équipement, états…) : aucun
  * achat ne la vise et ses entrées ne s'obtiennent pas par un nœud d'arbre.
  */
-export function sorteLibre(systeme: SystemeCharge, sorte: string): boolean {
-  if (sorteAchetable(systeme, sorte)) return false;
-  for (const a of systeme.arbres.values())
-    for (const n of a.noeuds) if (systeme.entrees.get(n.entree)?.sorte === sorte) return false;
+export function freeKind(system: SystemeCharge, kind: string): boolean {
+  if (purchasableKind(system, kind)) return false;
+  for (const a of system.arbres.values())
+    for (const n of a.noeuds) if (system.entrees.get(n.entree)?.sorte === kind) return false;
   return true;
 }
 
 /** Objets achetables (rang ou entrée) d'une sorte, avec leur achat. */
-export function objetsDeSorte(
-  systeme: SystemeCharge,
-  achats: AchatDisponible[],
-  sorte: string,
+export function itemsOfKind(
+  system: SystemeCharge,
+  purchases: AchatDisponible[],
+  kind: string,
 ): ObjetAchetable[] {
-  return achats.flatMap((a) =>
+  return purchases.flatMap((a) =>
     a.objets.filter(
       (o) =>
-        (o.type === 'rang' || o.type === 'entree') && systeme.entrees.get(o.objet)?.sorte === sorte,
+        (o.type === 'rang' || o.type === 'entree') && system.entrees.get(o.objet)?.sorte === kind,
     ),
   );
 }
 
 /** Achat du rang suivant d'une entrée, s'il existe. */
-export function achatRangSuivant(achats: AchatDisponible[], entree: string) {
-  for (const a of achats)
-    for (const o of a.objets) if (o.type === 'rang' && o.objet === entree) return o;
+export function nextRankPurchase(purchases: AchatDisponible[], entry: string) {
+  for (const a of purchases)
+    for (const o of a.objets) if (o.type === 'rang' && o.objet === entry) return o;
   return undefined;
 }
 
 /** Index de la dernière ligne du journal qui porte sur cet objet (le seul remboursable). */
-export function derniereLigne(etat: EtatEntite, objet: string): number {
-  for (let i = etat.journal.length - 1; i >= 0; i--) if (etat.journal[i]!.objet === objet) return i;
+export function lastLine(state: EtatEntite, item: string): number {
+  for (let i = state.journal.length - 1; i >= 0; i--)
+    if (state.journal[i]!.objet === item) return i;
   return -1;
 }
 
 /** Valeur d'un champ pour une possession : celle de l'exemplaire, de l'entrée, sinon le défaut. */
-export function valeurChamp(
-  etat: EtatEntite,
-  entree: Entree,
-  champ: Champ,
+export function fieldValue(
+  state: EtatEntite,
+  entry: Entree,
+  field: Champ,
 ): number | string | boolean | string[] | undefined {
-  const p = etat.possessions.find((x) => x.entree === entree.id);
-  const v = p?.champs[champ.id] ?? entree.champs[champ.id];
+  const p = state.possessions.find((x) => x.entree === entry.id);
+  const v = p?.champs[field.id] ?? entry.champs[field.id];
   if (v !== undefined) return v;
-  return 'defaut' in champ ? champ.defaut : undefined;
+  return 'defaut' in field ? field.defaut : undefined;
 }
 
 /** Valeur d'un champ, lisible (noms d'attribut ou d'entrée résolus). */
-export function champLisible(
-  systeme: SystemeCharge,
+export function readableField(
+  system: SystemeCharge,
   type: string,
-  champ: Champ,
+  field: Champ,
   v: number | string | boolean | string[] | undefined,
 ): string {
   if (v === undefined || v === '') return '—';
-  if (Array.isArray(v)) return v.map((id) => systeme.entrees.get(id)?.nom ?? id).join(', ') || '—';
+  if (Array.isArray(v)) return v.map((id) => system.entrees.get(id)?.nom ?? id).join(', ') || '—';
   if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
-  if (champ.type === 'attribut')
-    return systeme.entites.get(type)?.attributs.get(String(v))?.nom ?? String(v);
-  if (champ.type === 'entree') return systeme.entrees.get(String(v))?.nom ?? String(v);
+  if (field.type === 'attribut')
+    return system.entites.get(type)?.attributs.get(String(v))?.nom ?? String(v);
+  if (field.type === 'entree') return system.entrees.get(String(v))?.nom ?? String(v);
   if (typeof v === 'number') return v.toLocaleString('fr-FR');
   return v;
 }
 
 /** Rang maximal d'une sorte à rangs (formule du système), ou undefined. */
-export function rangMax(fiche: Fiche, sorte: Sorte): number | undefined {
-  if (!sorte.rangs) return undefined;
-  const f = fiche.systeme.formules.get(chemins.rangsMax(sorte.id));
+export function maxRank(sheet: Fiche, kind: Sorte): number | undefined {
+  if (!kind.rangs) return undefined;
+  const f = sheet.systeme.formules.get(chemins.rangsMax(kind.id));
   if (!f) return undefined;
-  const r = essayer(fiche, f);
+  const r = essayer(sheet, f);
   const n = r.ok ? Number(r.valeur) : NaN;
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 /** Prérequis d'une entrée rempli sur la fiche (vrai s'il n'y en a pas). */
-export function prerequisRempli(fiche: Fiche, entree: string): boolean {
-  const f = fiche.systeme.formules.get(chemins.exige(entree));
+export function prerequisitesMet(sheet: Fiche, entry: string): boolean {
+  const f = sheet.systeme.formules.get(chemins.exige(entry));
   if (!f) return true;
-  const r = essayer(fiche, f);
+  const r = essayer(sheet, f);
   return r.ok && r.valeur === true;
 }

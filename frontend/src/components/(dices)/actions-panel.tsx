@@ -24,42 +24,42 @@ import {
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
-import { Bouton, Interrupteur, Message, styleChamp } from '@/components/account/elements';
+import { AppButton, Switch, Message, styleChamp } from '@/components/account/elements';
 import { Input } from '@/components/ui/input';
-import { messageErreur } from '@/lib/api';
-import { executerActionPersonnage, type PersonnageJet } from '@/lib/rolls';
+import { errorMessage } from '@/lib/api';
+import { runCharacterAction, type RollCharacter } from '@/lib/rolls';
 import { cn } from '@/lib/utils';
 import {
-  accentPresentation,
-  apparenceSorte,
-  attenuer,
-  DeForme,
-  sortesAmeliorees,
-  texteSur,
+  presentationAccent,
+  kindAppearance,
+  dim,
+  ShapedDie,
+  upgradedKinds,
+  textOn,
 } from './appearance';
-import { ResultatJet, type JetAffiche } from './roll-result';
+import { RollResult, type DisplayedRoll } from './roll-result';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 /** Cible proposée pour les actions qui en déclarent une. */
-export interface CibleAction {
+export interface ActionTarget {
   /** Identifiant du personnage visé, envoyé au serveur (`cibleId`). */
   id: string;
-  nom: string;
+  name: string;
   /**
    * Fiche calculée de la cible (`calculer(systeme, cible.etat)`) : elle permet
    * l'aperçu du jet et les options de réaction de la cible. Facultative.
    */
-  fiche?: Fiche;
+  sheet?: Fiche;
   /** Type d'entité, quand la fiche n'est pas fournie (filtre des cibles valides). */
   type?: string;
 }
 
-export interface PanneauActionsProps {
+export interface ActionsPanelProps {
   /** Personnage qui agit (route `POST /v1/characters/:id/actions/:action`). */
-  personnageId: string;
+  characterId: string;
   /** Système chargé (`charger`). */
-  systeme: SystemeCharge;
+  system: SystemeCharge;
   /** Présentation vérifiée du système (couleurs des dés, icônes) ; facultative. */
   presentation?: Presentation | null;
   /**
@@ -67,29 +67,29 @@ export interface PanneauActionsProps {
    * sert à griser les actions et options indisponibles et à l'aperçu du jet.
    * Le serveur recalcule tout et fait autorité.
    */
-  fiche: Fiche;
+  sheet: Fiche;
   /** Nom de l'acteur, affiché dans les conséquences. */
-  nom?: string;
+  name?: string;
   /** Cibles possibles ; seules celles du type attendu par l'action sont proposées. */
-  cibles?: CibleAction[];
+  targets?: ActionTarget[];
   /** Restreint la liste à ces actions (bloc `actions` de la présentation). */
   actions?: string[];
   /**
    * Appelé quand le serveur a appliqué les conséquences : acteur à jour, et
    * cible à jour si elle a été modifiée.
    */
-  onApplique?(personnage: PersonnageJet, cible?: PersonnageJet): void;
+  onApplied?(character: RollCharacter, target?: RollCharacter): void;
   className?: string;
 }
 
-type Parametre = Action['parametres'][number];
+type Parameter = Action['parametres'][number];
 
 // ─── Règles lues localement ──────────────────────────────────────────────────
 
 /** Condition compilée (`exige`) vraie pour cette fiche ; vraie s'il n'y en a pas. */
-function conditionRemplie(systeme: SystemeCharge, fiche: Fiche, chemin: string): boolean {
-  const f = systeme.formules.get(chemin);
-  return !f || fiche.evaluer(f, {}, false) === true;
+function conditionMet(system: SystemeCharge, sheet: Fiche, path: string): boolean {
+  const f = system.formules.get(path);
+  return !f || sheet.evaluer(f, {}, false) === true;
 }
 
 /**
@@ -97,73 +97,73 @@ function conditionRemplie(systeme: SystemeCharge, fiche: Fiche, chemin: string):
  * décideur la remplit. Une réaction de la cible n'est proposée que si sa fiche
  * est connue (ou si elle n'est pas réservée).
  */
-function parametreVisible(
-  systeme: SystemeCharge,
+function parameterVisible(
+  system: SystemeCharge,
   action: Action,
-  p: Parametre,
-  acteur: Fiche,
-  cible: Fiche | undefined,
+  p: Parameter,
+  actor: Fiche,
+  target: Fiche | undefined,
 ): boolean {
-  const chemin = chemins.action(action.id, `parametres/${p.id}/exige`);
+  const path = chemins.action(action.id, `parametres/${p.id}/exige`);
   if (p.par === 'cible') {
     if (!action.cible) return false;
-    if (!systeme.formules.has(chemin)) return true;
-    return !!cible && conditionRemplie(systeme, cible, chemin);
+    if (!system.formules.has(path)) return true;
+    return !!target && conditionMet(system, target, path);
   }
-  return conditionRemplie(systeme, acteur, chemin);
+  return conditionMet(system, actor, path);
 }
 
-interface OptionEntree {
+interface EntryOption {
   id: string;
-  nom: string;
-  rang: number;
-  possedee: boolean;
+  name: string;
+  rank: number;
+  owned: boolean;
 }
 
 /** Entrées proposées pour un paramètre `entree` (possédées et actives d'abord). */
-function optionsEntree(
-  systeme: SystemeCharge,
-  fiche: Fiche,
-  p: Extract<Parametre, { type: 'entree' }>,
-): OptionEntree[] {
-  const options: OptionEntree[] = [];
-  for (const e of systeme.entrees.values()) {
+function entryOptions(
+  system: SystemeCharge,
+  sheet: Fiche,
+  p: Extract<Parameter, { type: 'entree' }>,
+): EntryOption[] {
+  const options: EntryOption[] = [];
+  for (const e of system.entrees.values()) {
     if (e.sorte !== p.sorte) continue;
     if (p.etiquette && !e.etiquettes.includes(p.etiquette)) continue;
-    const possession = fiche.possessions.get(e.id);
+    const possession = sheet.possessions.get(e.id);
     if (possession && !possession.actif) continue;
     if (!possession && p.possedee) continue;
-    options.push({ id: e.id, nom: e.nom, rang: possession?.rang ?? 0, possedee: !!possession });
+    options.push({ id: e.id, name: e.nom, rank: possession?.rang ?? 0, owned: !!possession });
   }
-  const tri = (a: OptionEntree, b: OptionEntree) => a.nom.localeCompare(b.nom, 'fr');
+  const tri = (a: EntryOption, b: EntryOption) => a.name.localeCompare(b.name, 'fr');
   return [
-    ...options.filter((o) => o.possedee).sort(tri),
-    ...options.filter((o) => !o.possedee).sort(tri),
+    ...options.filter((o) => o.owned).sort(tri),
+    ...options.filter((o) => !o.owned).sort(tri),
   ];
 }
 
 /** Attributs proposés pour un paramètre `attribut` (liste explicite ou groupe). */
-function optionsAttribut(fiche: Fiche, p: Extract<Parametre, { type: 'attribut' }>) {
-  return [...fiche.entite.attributs.values()]
+function attributeOptions(sheet: Fiche, p: Extract<Parameter, { type: 'attribut' }>) {
+  return [...sheet.entite.attributs.values()]
     .filter(
       (a) => p.attributs?.includes(a.cle) || (p.groupe !== undefined && a.groupe === p.groupe),
     )
-    .map((a) => ({ cle: a.cle, nom: a.nom, valeur: fiche.valeur(a.cle) }));
+    .map((a) => ({ key: a.cle, name: a.nom, value: sheet.valeur(a.cle) }));
 }
 
-function valeursInitiales(
-  systeme: SystemeCharge,
+function initialValues(
+  system: SystemeCharge,
   action: Action | undefined,
-  fiche: Fiche,
+  sheet: Fiche,
 ): Record<string, Valeur> {
   const v: Record<string, Valeur> = {};
   for (const p of action?.parametres ?? []) {
     if (p.type === 'nombre' || p.type === 'booleen') v[p.id] = p.defaut;
-    else if (p.type === 'attribut') v[p.id] = optionsAttribut(fiche, p)[0]?.cle ?? '';
+    else if (p.type === 'attribut') v[p.id] = attributeOptions(sheet, p)[0]?.key ?? '';
     else {
       // Entrée : la première possédée, sinon rien (choix explicite)
-      const premiere = optionsEntree(systeme, fiche, p)[0];
-      v[p.id] = !p.facultatif && premiere?.possedee ? premiere.id : '';
+      const premiere = entryOptions(system, sheet, p)[0];
+      v[p.id] = !p.facultatif && premiere?.owned ? premiere.id : '';
     }
   }
   return v;
@@ -171,118 +171,118 @@ function valeursInitiales(
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
-export function PanneauActions({
-  personnageId,
-  systeme,
+export function ActionsPanel({
+  characterId,
+  system,
   presentation,
-  fiche,
-  nom,
-  cibles = [],
+  sheet,
+  name,
+  targets = [],
   actions: restriction,
-  onApplique,
+  onApplied,
   className,
-}: PanneauActionsProps) {
-  const accent = accentPresentation(presentation);
+}: ActionsPanelProps) {
+  const accent = presentationAccent(presentation);
 
   const actions = useMemo(
     () =>
-      [...systeme.actions.values()]
-        .filter((a) => a.pour.includes(fiche.etat.type))
+      [...system.actions.values()]
+        .filter((a) => a.pour.includes(sheet.etat.type))
         .filter((a) => !restriction || restriction.includes(a.id))
         .map((a) => ({
           action: a,
-          disponible: conditionRemplie(systeme, fiche, chemins.action(a.id, 'exige')),
+          available: conditionMet(system, sheet, chemins.action(a.id, 'exige')),
         })),
-    [systeme, fiche, restriction],
+    [system, sheet, restriction],
   );
 
   const [selection, setSelection] = useState<string | undefined>(
-    () => actions.find((a) => a.disponible)?.action.id,
+    () => actions.find((a) => a.available)?.action.id,
   );
   const action = actions.find((a) => a.action.id === selection)?.action;
-  const [valeurs, setValeurs] = useState<Record<string, Valeur>>(() =>
-    valeursInitiales(systeme, action, fiche),
+  const [values, setValues] = useState<Record<string, Valeur>>(() =>
+    initialValues(system, action, sheet),
   );
-  const [cibleId, setCibleId] = useState('');
-  const [appliquer, setAppliquer] = useState(true);
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [dernier, setDernier] = useState<{ jet: JetAffiche; cible?: string } | null>(null);
+  const [targetId, setTargetId] = useState('');
+  const [apply, setApply] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dernier, setDernier] = useState<{ roll: DisplayedRoll; target?: string } | null>(null);
 
-  const choisir = (id: string) => {
-    const a = systeme.actions.get(id);
+  const choose = (id: string) => {
+    const a = system.actions.get(id);
     setSelection(id);
-    setValeurs(valeursInitiales(systeme, a, fiche));
-    const valides = ciblesValides(a);
-    setCibleId(valides.length === 1 ? valides[0]!.id : '');
-    setErreur(null);
+    setValues(initialValues(system, a, sheet));
+    const valid = validTargets(a);
+    setTargetId(valid.length === 1 ? valid[0]!.id : '');
+    setError(null);
   };
 
-  function ciblesValides(a: Action | undefined): CibleAction[] {
+  function validTargets(a: Action | undefined): ActionTarget[] {
     if (!a?.cible) return [];
-    return cibles.filter((c) => {
-      const type = c.fiche?.etat.type ?? c.type;
+    return targets.filter((c) => {
+      const type = c.sheet?.etat.type ?? c.type;
       return type === undefined || a.cible!.includes(type);
     });
   }
 
-  const proposees = ciblesValides(action);
-  const cible = proposees.find((c) => c.id === cibleId);
-  const visibles = (action?.parametres ?? []).filter((p) =>
-    parametreVisible(systeme, action!, p, fiche, cible?.fiche),
+  const offered = validTargets(action);
+  const target = offered.find((c) => c.id === targetId);
+  const visible = (action?.parametres ?? []).filter((p) =>
+    parameterVisible(system, action!, p, sheet, target?.sheet),
   );
 
   /** Paramètres envoyés : seulement ceux proposés, sans les entrées facultatives omises. */
-  const parametres: Record<string, Valeur> = {};
-  for (const p of visibles) {
-    const v = valeurs[p.id];
+  const parameters: Record<string, Valeur> = {};
+  for (const p of visible) {
+    const v = values[p.id];
     if (v === undefined || (p.type === 'entree' && v === '')) continue;
-    parametres[p.id] = v;
+    parameters[p.id] = v;
   }
-  const signature = JSON.stringify(parametres);
+  const signature = JSON.stringify(parameters);
 
-  const manques: string[] = [];
-  for (const p of visibles) {
-    if (p.type === 'entree' && !p.facultatif && !parametres[p.id]) manques.push(p.nom);
-    if (p.type === 'attribut' && !parametres[p.id]) manques.push(p.nom);
+  const missing: string[] = [];
+  for (const p of visible) {
+    if (p.type === 'entree' && !p.facultatif && !parameters[p.id]) missing.push(p.nom);
+    if (p.type === 'attribut' && !parameters[p.id]) missing.push(p.nom);
   }
-  if (action?.cible && !cible) manques.push('Cible');
+  if (action?.cible && !target) missing.push('Cible');
 
   // Aperçu : l'action exécutée localement avec des dés fictifs, pour lire le pool et les refus
-  const apercu = useMemo((): ResultatExecution | null => {
-    if (!action || manques.length) return null;
-    if (action.cible && !cible?.fiche) return null;
+  const preview = useMemo((): ResultatExecution | null => {
+    if (!action || missing.length) return null;
+    if (action.cible && !target?.sheet) return null;
     try {
-      return executerAction(systeme, {
+      return executerAction(system, {
         action: action.id,
-        acteur: fiche,
-        ...(action.cible && cible?.fiche ? { cible: cible.fiche } : {}),
-        parametres,
+        acteur: sheet,
+        ...(action.cible && target?.sheet ? { cible: target.sheet } : {}),
+        parametres: parameters,
         aleatoire: aleatoireGraine('apercu'),
       });
     } catch {
       return null;
     }
     // Recalcul seulement quand les valeurs envoyées changent (signature)
-  }, [systeme, action, fiche, cible, signature, manques.length]);
+  }, [system, action, sheet, target, signature, missing.length]);
 
-  const lancer = async () => {
+  const roll = async () => {
     if (!action) return;
-    setEnvoi(true);
-    setErreur(null);
-    const applique = appliquer && aDesConsequences(action);
+    setSending(true);
+    setError(null);
+    const applied = apply && hasConsequences(action);
     try {
-      const r = await executerActionPersonnage(personnageId, action.id, {
-        parametres,
-        ...(action.cible && cible ? { cibleId: cible.id } : {}),
-        ...(applique ? { appliquer: true } : {}),
+      const r = await runCharacterAction(characterId, action.id, {
+        parametres: parameters,
+        ...(action.cible && target ? { cibleId: target.id } : {}),
+        ...(applied ? { appliquer: true } : {}),
       });
-      setDernier({ jet: { sorte: 'action', resultat: r.resultat, applique }, cible: cible?.nom });
-      if (r.personnage) onApplique?.(r.personnage, r.cible);
+      setDernier({ roll: { kind: 'action', result: r.resultat, applied }, target: target?.name });
+      if (r.personnage) onApplied?.(r.personnage, r.cible);
     } catch (e) {
-      setErreur(messageErreur(e));
+      setError(errorMessage(e));
     } finally {
-      setEnvoi(false);
+      setSending(false);
     }
   };
 
@@ -298,34 +298,34 @@ export function PanneauActions({
     <div className={cn('grid gap-4 md:grid-cols-[13rem_minmax(0,1fr)]', className)}>
       <nav aria-label="Actions" className="flex flex-col gap-1">
         {actions
-          .filter((x) => x.disponible)
+          .filter((x) => x.available)
           .map(({ action: a }) => (
-            <BoutonAction
+            <ActionButton
               key={a.id}
               action={a}
-              disponible
-              choisie={a.id === selection}
+              available
+              chosen={a.id === selection}
               accent={accent}
-              onChoisir={() => choisir(a.id)}
+              onChoose={() => choose(a.id)}
             />
           ))}
-        {actions.some((x) => !x.disponible) && (
+        {actions.some((x) => !x.available) && (
           <details className="group mt-1">
             <summary className="cursor-pointer list-none px-1 py-1 text-xs text-zinc-500 hover:text-zinc-300">
-              {actions.filter((x) => !x.disponible).length} action(s) indisponible(s)
+              {actions.filter((x) => !x.available).length} action(s) indisponible(s)
             </summary>
             <div className="mt-1 flex flex-col gap-1">
               {actions
-                .filter((x) => !x.disponible)
+                .filter((x) => !x.available)
                 .map(({ action: a }) => (
-                  <BoutonAction
+                  <ActionButton
                     key={a.id}
                     action={a}
-                    disponible={false}
-                    choisie={false}
+                    available={false}
+                    chosen={false}
                     accent={accent}
-                    exige={systeme.formules.get(chemins.action(a.id, 'exige'))?.texte}
-                    onChoisir={() => choisir(a.id)}
+                    requires={system.formules.get(chemins.action(a.id, 'exige'))?.texte}
+                    onChoose={() => choose(a.id)}
                   />
                 ))}
             </div>
@@ -345,92 +345,92 @@ export function PanneauActions({
           </header>
 
           {action.cible && (
-            <Champ libelle="Cible" icone={<Crosshair className="h-3.5 w-3.5" />}>
-              {proposees.length ? (
+            <Field label="Cible" icon={<Crosshair className="h-3.5 w-3.5" />}>
+              {offered.length ? (
                 <select
-                  value={cibleId}
-                  onChange={(e) => setCibleId(e.target.value)}
+                  value={targetId}
+                  onChange={(e) => setTargetId(e.target.value)}
                   className={styleSelect}
                 >
                   <option value="">Choisir une cible…</option>
-                  {proposees.map((c) => (
+                  {offered.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.nom}
+                      {c.name}
                     </option>
                   ))}
                 </select>
               ) : (
                 <p className="text-sm text-zinc-500">Aucune cible disponible.</p>
               )}
-            </Champ>
+            </Field>
           )}
 
-          <Parametres
-            systeme={systeme}
-            fiche={fiche}
-            parametres={visibles.filter((p) => p.par !== 'cible')}
-            valeurs={valeurs}
-            onChange={(id, v) => setValeurs((x) => ({ ...x, [id]: v }))}
+          <Parameters
+            system={system}
+            sheet={sheet}
+            parameters={visible.filter((p) => p.par !== 'cible')}
+            values={values}
+            onChange={(id, v) => setValues((x) => ({ ...x, [id]: v }))}
           />
 
-          {visibles.some((p) => p.par === 'cible') && (
+          {visible.some((p) => p.par === 'cible') && (
             <fieldset className="space-y-3 rounded-lg border border-zinc-800 p-3">
               <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 Réaction de la cible
               </legend>
-              <Parametres
-                systeme={systeme}
-                fiche={cible?.fiche ?? fiche}
-                parametres={visibles.filter((p) => p.par === 'cible')}
-                valeurs={valeurs}
-                onChange={(id, v) => setValeurs((x) => ({ ...x, [id]: v }))}
+              <Parameters
+                system={system}
+                sheet={target?.sheet ?? sheet}
+                parameters={visible.filter((p) => p.par === 'cible')}
+                values={values}
+                onChange={(id, v) => setValues((x) => ({ ...x, [id]: v }))}
               />
             </fieldset>
           )}
 
-          <Apercu
+          <Preview
             action={action}
-            apercu={apercu}
-            systeme={systeme}
+            preview={preview}
+            system={system}
             presentation={presentation}
-            sansCible={!!action.cible && !!cible && !cible.fiche}
+            noTarget={!!action.cible && !!target && !target.sheet}
           />
 
           <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-            {aDesConsequences(action) && (
-              <Interrupteur
-                actif={appliquer}
-                onChange={setAppliquer}
+            {hasConsequences(action) && (
+              <Switch
+                active={apply}
+                onChange={setApply}
                 label="Appliquer les conséquences"
                 description="Le serveur tire le jet et applique ses conséquences en une fois. Sinon, le résultat est seulement affiché."
               />
             )}
             <div className="flex flex-wrap items-center gap-3">
-              <Bouton
-                onClick={lancer}
-                chargement={envoi}
-                disabled={manques.length > 0}
-                style={{ backgroundColor: accent, color: texteSur(accent) }}
+              <AppButton
+                onClick={roll}
+                loading={sending}
+                disabled={missing.length > 0}
+                style={{ backgroundColor: accent, color: textOn(accent) }}
               >
                 <Dices />
                 Lancer
-              </Bouton>
-              {manques.length > 0 && (
-                <span className="text-xs text-zinc-500">À choisir : {manques.join(', ')}</span>
+              </AppButton>
+              {missing.length > 0 && (
+                <span className="text-xs text-zinc-500">À choisir : {missing.join(', ')}</span>
               )}
             </div>
           </div>
 
-          {erreur && <Message>{erreur}</Message>}
+          {error && <Message>{error}</Message>}
 
           {dernier &&
-            dernier.jet.sorte === 'action' &&
-            dernier.jet.resultat.action === action.id && (
-              <ResultatJet
-                jet={dernier.jet}
-                systeme={systeme}
+            dernier.roll.kind === 'action' &&
+            dernier.roll.result.action === action.id && (
+              <RollResult
+                roll={dernier.roll}
+                system={system}
                 presentation={presentation}
-                noms={{ acteur: nom, cible: dernier.cible }}
+                names={{ actor: name, target: dernier.target }}
               />
             )}
         </div>
@@ -441,38 +441,38 @@ export function PanneauActions({
   );
 }
 
-function BoutonAction({
+function ActionButton({
   action,
-  disponible,
-  choisie,
+  available,
+  chosen,
   accent,
-  exige,
-  onChoisir,
+  requires,
+  onChoose,
 }: {
   action: Action;
-  disponible: boolean;
-  choisie: boolean;
+  available: boolean;
+  chosen: boolean;
   accent: string;
   /** Condition non remplie, affichée au survol. */
-  exige?: string;
-  onChoisir(): void;
+  requires?: string;
+  onChoose(): void;
 }) {
   return (
     <button
       type="button"
-      disabled={!disponible}
-      onClick={onChoisir}
-      title={disponible ? action.description : `Condition non remplie : ${exige ?? ''}`}
+      disabled={!available}
+      onClick={onChoose}
+      title={available ? action.description : `Condition non remplie : ${requires ?? ''}`}
       className={cn(
         'flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-        choisie
+        chosen
           ? 'text-white'
           : 'border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700',
-        !disponible && 'cursor-not-allowed opacity-40 hover:border-zinc-800',
+        !available && 'cursor-not-allowed opacity-40 hover:border-zinc-800',
       )}
-      style={choisie ? { borderColor: accent, backgroundColor: attenuer(accent, 12) } : undefined}
+      style={chosen ? { borderColor: accent, backgroundColor: dim(accent, 12) } : undefined}
     >
-      {!disponible ? (
+      {!available ? (
         <Ban className="h-4 w-4 shrink-0 text-zinc-500" />
       ) : action.cible ? (
         <Swords className="h-4 w-4 shrink-0 text-zinc-500" />
@@ -484,7 +484,7 @@ function BoutonAction({
   );
 }
 
-function aDesConsequences(action: Action): boolean {
+function hasConsequences(action: Action): boolean {
   return action.consequences.length > 0 || action.tables.length > 0;
 }
 
@@ -495,62 +495,62 @@ const styleSelect = cn(
   'focus-visible:border-[#c9a965] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c9a965]/40',
 );
 
-function Champ({
-  libelle,
-  icone,
+function Field({
+  label,
+  icon,
   children,
 }: {
-  libelle: string;
-  icone?: ReactNode;
+  label: string;
+  icon?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <label className="block space-y-1.5">
       <span className="flex items-center gap-1.5 text-sm text-zinc-300">
-        {icone}
-        {libelle}
+        {icon}
+        {label}
       </span>
       {children}
     </label>
   );
 }
 
-function Parametres({
-  systeme,
-  fiche,
-  parametres,
-  valeurs,
+function Parameters({
+  system,
+  sheet,
+  parameters,
+  values,
   onChange,
 }: {
-  systeme: SystemeCharge;
-  fiche: Fiche;
-  parametres: Parametre[];
-  valeurs: Record<string, Valeur>;
+  system: SystemeCharge;
+  sheet: Fiche;
+  parameters: Parameter[];
+  values: Record<string, Valeur>;
   onChange(id: string, v: Valeur): void;
 }) {
-  if (!parametres.length) return null;
-  const booleens = parametres.filter((p) => p.type === 'booleen');
-  const autres = parametres.filter((p) => p.type !== 'booleen');
+  if (!parameters.length) return null;
+  const booleans = parameters.filter((p) => p.type === 'booleen');
+  const others = parameters.filter((p) => p.type !== 'booleen');
   return (
     <div className="space-y-3">
-      {autres.length > 0 && (
+      {others.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {autres.map((p) => (
-            <ChampParametre
+          {others.map((p) => (
+            <ParameterField
               key={p.id}
-              systeme={systeme}
-              fiche={fiche}
+              system={system}
+              sheet={sheet}
               p={p}
-              valeur={valeurs[p.id]}
+              value={values[p.id]}
               onChange={(v) => onChange(p.id, v)}
             />
           ))}
         </div>
       )}
-      {booleens.map((p) => (
-        <Interrupteur
+      {booleans.map((p) => (
+        <Switch
           key={p.id}
-          actif={valeurs[p.id] === true}
+          active={values[p.id] === true}
           onChange={(v) => onChange(p.id, v)}
           label={p.nom}
         />
@@ -559,80 +559,80 @@ function Parametres({
   );
 }
 
-function ChampParametre({
-  systeme,
-  fiche,
+function ParameterField({
+  system,
+  sheet,
   p,
-  valeur,
+  value,
   onChange,
 }: {
-  systeme: SystemeCharge;
-  fiche: Fiche;
-  p: Exclude<Parametre, { type: 'booleen' }>;
-  valeur: Valeur | undefined;
+  system: SystemeCharge;
+  sheet: Fiche;
+  p: Exclude<Parameter, { type: 'booleen' }>;
+  value: Valeur | undefined;
   onChange(v: Valeur): void;
 }) {
   if (p.type === 'nombre') {
     return (
-      <Champ libelle={p.nom}>
+      <Field label={p.nom}>
         <Input
           type="number"
           step={1}
-          value={typeof valeur === 'number' ? valeur : p.defaut}
+          value={typeof value === 'number' ? value : p.defaut}
           onChange={(e) => {
             const n = e.target.valueAsNumber;
             onChange(Number.isFinite(n) ? n : p.defaut);
           }}
           className={styleChamp}
         />
-      </Champ>
+      </Field>
     );
   }
   if (p.type === 'attribut') {
-    const options = optionsAttribut(fiche, p);
+    const options = attributeOptions(sheet, p);
     return (
-      <Champ libelle={p.nom}>
+      <Field label={p.nom}>
         <select
-          value={String(valeur ?? '')}
+          value={String(value ?? '')}
           onChange={(e) => onChange(e.target.value)}
           className={styleSelect}
         >
           {options.map((o) => (
-            <option key={o.cle} value={o.cle}>
-              {o.nom} ({String(o.valeur)})
+            <option key={o.key} value={o.key}>
+              {o.name} ({String(o.value)})
             </option>
           ))}
         </select>
-      </Champ>
+      </Field>
     );
   }
-  const options = optionsEntree(systeme, fiche, p);
-  const possedees = options.filter((o) => o.possedee);
-  const autres = options.filter((o) => !o.possedee);
-  const aRangs = !!systeme.sortes.get(p.sorte)?.rangs;
-  const libelle = (o: OptionEntree) => (aRangs ? `${o.nom} (${o.rang})` : o.nom);
-  const sorte = systeme.sortes.get(p.sorte);
+  const options = entryOptions(system, sheet, p);
+  const owned = options.filter((o) => o.owned);
+  const others = options.filter((o) => !o.owned);
+  const hasRanks = !!system.sortes.get(p.sorte)?.rangs;
+  const label = (o: EntryOption) => (hasRanks ? `${o.name} (${o.rank})` : o.name);
+  const kind = system.sortes.get(p.sorte);
   return (
-    <Champ libelle={p.nom}>
+    <Field label={p.nom}>
       <select
-        value={String(valeur ?? '')}
+        value={String(value ?? '')}
         onChange={(e) => onChange(e.target.value)}
         className={styleSelect}
       >
-        <option value="">{p.facultatif ? 'Aucune' : `Choisir : ${sorte?.nom ?? p.sorte}…`}</option>
-        {autres.length > 0 && possedees.length > 0 ? (
+        <option value="">{p.facultatif ? 'Aucune' : `Choisir : ${kind?.nom ?? p.sorte}…`}</option>
+        {others.length > 0 && owned.length > 0 ? (
           <>
             <optgroup label="Possédées">
-              {possedees.map((o) => (
+              {owned.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {libelle(o)}
+                  {label(o)}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Autres">
-              {autres.map((o) => (
+              {others.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {libelle(o)}
+                  {label(o)}
                 </option>
               ))}
             </optgroup>
@@ -640,71 +640,71 @@ function ChampParametre({
         ) : (
           options.map((o) => (
             <option key={o.id} value={o.id}>
-              {libelle(o)}
+              {label(o)}
             </option>
           ))
         )}
       </select>
       {options.length === 0 && (
         <span className="text-xs text-zinc-500">
-          Aucune entrée « {sorte?.nomPluriel ?? sorte?.nom ?? p.sorte} » disponible.
+          Aucune entrée « {kind?.nomPluriel ?? kind?.nom ?? p.sorte} » disponible.
         </span>
       )}
-    </Champ>
+    </Field>
   );
 }
 
 // ─── Aperçu du jet ───────────────────────────────────────────────────────────
 
-function Apercu({
+function Preview({
   action,
-  apercu,
-  systeme,
+  preview,
+  system,
   presentation,
-  sansCible,
+  noTarget,
 }: {
   action: Action;
-  apercu: ResultatExecution | null;
-  systeme: SystemeCharge;
+  preview: ResultatExecution | null;
+  system: SystemeCharge;
   presentation?: Presentation | null;
-  sansCible: boolean;
+  noTarget: boolean;
 }) {
-  const refus = apercu && !apercu.ok ? apercu.erreurs : [];
-  const jet = apercu?.ok ? apercu.resultat.jet : null;
+  const reject = preview && !preview.ok ? preview.erreurs : [];
+  const roll = preview?.ok ? preview.resultat.jet : null;
   return (
     <section className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
       <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
         Aperçu du jet
       </h4>
-      {jet?.type === 'symboles' && (
+      {roll?.type === 'symboles' && (
         <>
-          <ApercuPool pool={jet.pool} systeme={systeme} presentation={presentation} />
-          <EtapesEffets etapes={jet.construction} systeme={systeme} presentation={presentation} />
+          <PoolPreview pool={roll.pool} system={system} presentation={presentation} />
+          <EffectSteps steps={roll.construction} system={system} presentation={presentation} />
         </>
       )}
-      {jet?.type === 'numerique' && (
+      {roll?.type === 'numerique' && (
         <div className="space-y-1 text-sm">
           <p className="break-words font-mono text-xs text-zinc-300">
             {action.jet.type === 'numerique' && action.jet.formule}
           </p>
-          {jet.bonus.map((b, i) => (
+          {roll.bonus.map((b, i) => (
             <p key={i} className="text-xs text-zinc-400">
               {b.nom} : {b.valeur >= 0 ? `+ ${b.valeur}` : `− ${-b.valeur}`}
             </p>
           ))}
         </div>
       )}
-      {!apercu && (
+      {!preview && (
         <p className="flex items-center gap-1.5 text-xs text-zinc-500">
           <Info className="h-3.5 w-3.5" />
-          {sansCible
+          {noTarget
             ? 'Aperçu indisponible : la fiche de la cible n’est pas chargée.'
             : 'Complétez les paramètres pour voir le jet.'}
         </p>
       )}
-      {refus.length > 0 && (
+      {reject.length > 0 && (
         <ul className="space-y-1 text-xs text-amber-300">
-          {refus.map((e, i) => (
+          {reject.map((e, i) => (
             <li key={i}>{e.message}</li>
           ))}
         </ul>
@@ -714,38 +714,38 @@ function Apercu({
 }
 
 /** Pool en glyphes de la présentation (dé de base / dé amélioré), sinon en formes de dé. */
-export function ApercuPool({
+export function PoolPreview({
   pool,
-  systeme,
+  system,
   presentation,
 }: {
   pool: Pool;
-  systeme: SystemeCharge;
+  system: SystemeCharge;
   presentation?: Presentation | null;
 }) {
-  const glyphes = presentation?.des?.glyphes;
-  const ameliores = useMemo(() => sortesAmeliorees(systeme), [systeme]);
+  const glyphs = presentation?.des?.glyphes;
+  const upgraded = useMemo(() => upgradedKinds(system), [system]);
   if (!pool.length) return <p className="text-sm text-zinc-500">Aucun dé</p>;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {pool.map((p) => {
-        const a = apparenceSorte(p.de, systeme, presentation);
+        const a = kindAppearance(p.de, system, presentation);
         return (
           <span
             key={p.de}
             className="inline-flex items-center gap-1.5"
-            title={`${p.nombre} × ${a.nom}`}
+            title={`${p.nombre} × ${a.name}`}
           >
-            {glyphes ? (
-              <span className="text-lg leading-none tracking-tight" style={{ color: a.couleur }}>
-                {(ameliores.has(p.de) ? glyphes.ameliore : glyphes.base).repeat(p.nombre)}
+            {glyphs ? (
+              <span className="text-lg leading-none tracking-tight" style={{ color: a.color }}>
+                {(upgraded.has(p.de) ? glyphs.ameliore : glyphs.base).repeat(p.nombre)}
               </span>
             ) : (
               Array.from({ length: p.nombre }, (_, i) => (
-                <DeForme key={i} forme={a.forme} couleur={a.couleur} taille={18} plein />
+                <ShapedDie key={i} shape={a.shape} color={a.color} size={18} filled />
               ))
             )}
-            <span className="text-xs text-zinc-400">{a.court}</span>
+            <span className="text-xs text-zinc-400">{a.short}</span>
           </span>
         );
       })}
@@ -754,28 +754,28 @@ export function ApercuPool({
 }
 
 /** Dés ajoutés, améliorés ou retirés par les possessions (talents, équipement…). */
-function EtapesEffets({
-  etapes,
-  systeme,
+function EffectSteps({
+  steps,
+  system,
   presentation,
 }: {
-  etapes: EtapePool[];
-  systeme: SystemeCharge;
+  steps: EtapePool[];
+  system: SystemeCharge;
   presentation?: Presentation | null;
 }) {
-  const effets = etapes.filter((e) => e.source !== 'action' && e.nombre > 0);
-  if (!effets.length) return null;
-  const nom = (de: string) => apparenceSorte(de, systeme, presentation).court;
+  const effects = steps.filter((e) => e.source !== 'action' && e.nombre > 0);
+  if (!effects.length) return null;
+  const name = (die: string) => kindAppearance(die, system, presentation).short;
   return (
     <ul className="space-y-0.5 text-xs text-zinc-500">
-      {effets.map((e, i) => (
+      {effects.map((e, i) => (
         <li key={i}>
           {e.nom} :{' '}
           {e.operation === 'ajouter'
-            ? `+ ${e.nombre} ${nom(e.de)}`
+            ? `+ ${e.nombre} ${name(e.de)}`
             : e.operation === 'retirer'
-              ? `− ${e.nombre} ${nom(e.de)}`
-              : `${e.nombre} ${nom(e.de)} → ${nom(e.vers ?? e.de)}`}
+              ? `− ${e.nombre} ${name(e.de)}`
+              : `${e.nombre} ${name(e.de)} → ${name(e.vers ?? e.de)}`}
         </li>
       ))}
     </ul>

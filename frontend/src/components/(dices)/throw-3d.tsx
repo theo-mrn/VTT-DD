@@ -15,31 +15,31 @@ import type { FunDiceHandle } from './throw-fun';
 const FunDiceThrower = dynamic(() => import('./throw-fun'), { ssr: false });
 
 /** Formes connues du rendu 3D ; un d100 est lancé comme un d10. */
-const FORMES_3D = new Set(['d4', 'd6', 'd8', 'd10', 'd12', 'd20']);
+const SHAPES_3D = new Set(['d4', 'd6', 'd8', 'd10', 'd12', 'd20']);
 
-export interface De3D {
+export interface Die3D {
   /** Skin du catalogue 3D (`presentation.des.sortes.*.skin`) ; skin par défaut sinon. */
   skin?: string;
   /** Forme physique (`d6`, `d12`…). */
-  forme: string;
+  shape: string;
 }
 
-export interface Lancer3DHandle {
+export interface Throw3DHandle {
   /** Lance ces dés à l'écran (au plus 12, décalés dans le temps). */
-  lancer(des: De3D[]): void;
+  roll(dice: Die3D[]): void;
 }
 
-export const Lancer3D = forwardRef<Lancer3DHandle>(function Lancer3D(_props, ref) {
-  const lanceur = useRef<FunDiceHandle>(null);
+export const Throw3D = forwardRef<Throw3DHandle>(function Throw3D(_props, ref) {
+  const thrower = useRef<FunDiceHandle>(null);
 
   useImperativeHandle(ref, () => ({
-    lancer(des) {
-      des.slice(0, 12).forEach((d, i) => {
-        const forme = FORMES_3D.has(d.forme) ? d.forme : d.forme === 'd100' ? 'd10' : 'd6';
-        window.setTimeout(() => lanceur.current?.roll(d.skin, forme), i * 90);
+    roll(dice) {
+      dice.slice(0, 12).forEach((d, i) => {
+        const shape = SHAPES_3D.has(d.shape) ? d.shape : d.shape === 'd100' ? 'd10' : 'd6';
+        window.setTimeout(() => thrower.current?.roll(d.skin, shape), i * 90);
       });
     },
   }));
 
-  return <FunDiceThrower ref={lanceur} hideButton />;
+  return <FunDiceThrower ref={thrower} hideButton />;
 });

@@ -6,51 +6,50 @@
  * et les erreurs comme les écrans de compte.
  */
 import type { ReactNode } from 'react';
-import { Bouton, Chargement, Message } from '@/components/account/elements';
-import { usePersonnage } from '@/lib/characters';
-import { useProfil } from '@/lib/session';
-import { useSysteme } from '@/lib/systems';
-import { FournisseurFiche } from './context';
-import { ErreurEcriture } from './header';
+import { AppButton, Loading, Message } from '@/components/account/elements';
+import { useCharacter } from '@/lib/characters';
+import { useProfile } from '@/lib/session';
+import { useSystem } from '@/lib/systems';
+import { SheetProvider } from './context';
+import { WriteError } from './header';
 
-export function PagePersonnage({ id, children }: { id: string; children: ReactNode }) {
-  const profil = useProfil();
-  const suivi = usePersonnage(id);
-  const { personnage } = suivi;
-  const pret = useSysteme(personnage?.etat.systeme.id ?? null);
+export function CharacterPage({ id, children }: { id: string; children: ReactNode }) {
+  const profile = useProfile();
+  const tracker = useCharacter(id);
+  const { personnage: character } = tracker;
+  const ready = useSystem(character?.etat.systeme.id ?? null);
 
-  if (suivi.erreurChargement && !personnage)
-    return <ErreurPage message={suivi.erreurChargement} onReessayer={suivi.recharger} />;
-  if (!personnage) return <Chargement texte="Chargement du personnage…" />;
-  if (pret.erreur && !pret.donnees)
-    return <ErreurPage message={pret.erreur} onReessayer={pret.recharger} />;
-  if (!pret.donnees) return <Chargement texte="Chargement des règles…" />;
+  if (tracker.loadError && !character)
+    return <PageError message={tracker.loadError} onRetry={tracker.reload} />;
+  if (!character) return <Loading text="Chargement du personnage…" />;
+  if (ready.error && !ready.data) return <PageError message={ready.error} onRetry={ready.reload} />;
+  if (!ready.data) return <Loading text="Chargement des règles…" />;
 
   return (
-    <FournisseurFiche
-      suivi={suivi}
-      pret={pret.donnees}
-      lectureSeule={personnage.ownerId !== profil.id}
-      repli={
+    <SheetProvider
+      tracker={tracker}
+      ready={ready.data}
+      readOnly={character.ownerId !== profile.id}
+      fallback={
         <Message>
           Ce personnage ne se calcule pas avec la version actuelle de son système (type «&nbsp;
-          {personnage.etat.type}&nbsp;» inconnu).
+          {character.etat.type}&nbsp;» inconnu).
         </Message>
       }
     >
       {children}
-      <ErreurEcriture erreur={suivi.erreur} onFermer={suivi.effacerErreur} />
-    </FournisseurFiche>
+      <WriteError error={tracker.error} onClose={tracker.clearError} />
+    </SheetProvider>
   );
 }
 
-function ErreurPage({ message, onReessayer }: { message: string; onReessayer(): void }) {
+function PageError({ message, onRetry }: { message: string; onRetry(): void }) {
   return (
     <div className="mx-auto max-w-lg space-y-4 py-10">
       <Message>{message}</Message>
-      <Bouton ton="secondaire" onClick={onReessayer}>
+      <AppButton tone="secondaire" onClick={onRetry}>
         Réessayer
-      </Bouton>
+      </AppButton>
     </div>
   );
 }

@@ -68,13 +68,13 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
   // Lecture 100% locale : fichier importé via object URL, vidéo via player
   // YouTube caché — rien n'est envoyé ni stocké côté serveur.
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const queue = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (!queue) return;
 
     stopAll();
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(queue);
     objectUrlRef.current = url;
 
     const audio = new Audio(url);
@@ -88,7 +88,7 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
     audio
       .play()
       .then(() => {
-        setActiveSource({ kind: 'file', label: file.name });
+        setActiveSource({ kind: 'file', label: queue.name });
         setIsPlaying(true);
       })
       .catch(() => {});

@@ -25,16 +25,16 @@ export class ApiError extends Error {
 }
 
 /** Message lisible pour l'utilisateur : le `detail` du problème, sinon un message générique. */
-export function messageErreur(
+export function errorMessage(
   err: unknown,
-  parDefaut = 'Serveur injoignable, réessayez dans un instant.',
+  fallback = 'Serveur injoignable, réessayez dans un instant.',
 ): string {
-  if (err instanceof ApiError) return err.message || err.problem.title || parDefaut;
-  return parDefaut;
+  if (err instanceof ApiError) return err.message || err.problem.title || fallback;
+  return fallback;
 }
 
 /** En-tête exigé par les routes qui lisent le cookie de refresh (protection CSRF). */
-export const ENTETE_CSRF = { 'x-vtt-csrf': '1' } as const;
+export const CSRF_HEADER = { 'x-vtt-csrf': '1' } as const;
 
 interface TokenResponse {
   accessToken: string;
@@ -42,14 +42,14 @@ interface TokenResponse {
   user: { id: string };
 }
 
-let jetonAcces: string | null = null;
-let renouvellementEnCours: Promise<string | null> | null = null;
+let accessToken: string | null = null;
+let pendingRefresh: Promise<string | null> | null = null;
 
-export function setAccessToken(jeton: string | null) {
-  jetonAcces = jeton;
+export function setAccessToken(token: string | null) {
+  accessToken = token;
 }
 
-async function lireErreur(res: Response): Promise<ApiError> {
+async function readError(res: Response): Promise<ApiError> {
   try {
     return new ApiError((await res.json()) as ProblemDetail);
   } catch {
@@ -57,85 +57,87 @@ async function lireErreur(res: Response): Promise<ApiError> {
   }
 }
 
-async function renouveler(): Promise<string | null> {
+async function renewSession(): Promise<string | null> {
   const res = await fetch('/v1/auth/refresh', {
     method: 'POST',
-    headers: ENTETE_CSRF,
+    headers: CSRF_HEADER,
     credentials: 'same-origin',
   });
   if (!res.ok) {
-    jetonAcces = null;
+    accessToken = null;
     return null;
   }
-  const corps = (await res.json()) as TokenResponse;
-  jetonAcces = corps.accessToken;
-  return jetonAcces;
+  const body = (await res.json()) as TokenResponse;
+  accessToken = body.accessToken;
+  return accessToken;
 }
 
 /** Renouvelle la session ; un seul appel à la fois, y compris entre onglets. */
 export function refreshSession(): Promise<string | null> {
-  if (!renouvellementEnCours) {
-    const verrouille: Promise<string | null> =
+  if (!pendingRefresh) {
+    const locked: Promise<string | null> =
       typeof navigator !== 'undefined' && navigator.locks
         ? // Le verrou résout avec la valeur de la promesse du rappel (types DOM imprécis)
-          (navigator.locks.request('vtt-refresh', renouveler) as unknown as Promise<string | null>)
-        : renouveler();
-    renouvellementEnCours = verrouille.finally(() => {
-      renouvellementEnCours = null;
+          (navigator.locks.request('vtt-refresh', renewSession) as unknown as Promise<
+            string | null
+          >)
+        : renewSession();
+    pendingRefresh = locked.finally(() => {
+      pendingRefresh = null;
     });
   }
-  return renouvellementEnCours;
+  return pendingRefresh;
 }
 
-export async function api<T>(chemin: string, init: RequestInit = {}): Promise<T> {
-  const appel = (jeton: string | null) =>
-    fetch(chemin, {
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const send = (token: string | null) =>
+    fetch(path, {
       ...init,
       credentials: 'same-origin',
       headers: {
         ...(init.body ? { 'content-type': 'application/json' } : {}),
-        ...(jeton ? { authorization: `Bearer ${jeton}` } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
         ...init.headers,
       },
     });
 
-  let res = await appel(jetonAcces);
-  if (res.status === 401 && jetonAcces !== null) {
-    res = await appel(await refreshSession());
+  let res = await send(accessToken);
+  if (res.status === 401 && accessToken !== null) {
+    res = await send(await refreshSession());
   }
-  if (!res.ok) throw await lireErreur(res);
+  if (!res.ok) throw await readError(res);
   if (res.status === 204) return undefined as T;
   // Certaines réponses (202) n'ont pas de corps
-  const texte = await res.text();
-  return (texte ? JSON.parse(texte) : undefined) as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
-export async function connexion(email: string, password: string) {
+export async function login(email: string, password: string) {
   const r = await api<TokenResponse>('/v1/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  jetonAcces = r.accessToken;
+  accessToken = r.accessToken;
   return r.user;
 }
 
-export async function inscription(email: string, password: string, name: string) {
+export async function register(email: string, password: string, name: string) {
   const r = await api<TokenResponse>('/v1/auth/register', {
     method: 'POST',
     body: JSON.stringify({ email, password, name }),
   });
-  jetonAcces = r.accessToken;
+  accessToken = r.accessToken;
   return r.user;
 }
 
-export async function deconnexion() {
+export async function logout() {
   try {
     await fetch('/v1/auth/logout', {
       method: 'POST',
-      headers: ENTETE_CSRF,
+      headers: CSRF_HEADER,
       credentials: 'same-origin',
     });
   } finally {
-    jetonAcces = null;
+    accessToken = null;
   }
 }
