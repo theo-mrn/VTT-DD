@@ -57,9 +57,19 @@ export type StepBody =
   | { affectation?: Record<string, number> }
   | { achat: string; objet: string };
 
-/** Ajout ou mise à jour d'une possession. */
+/**
+ * Ajout ou mise à jour d'une possession (voir « Possessions : exemplaires et
+ * quantités » dans docs/api-character.md). Sans `exemplaire` ni `nouveau` :
+ * l'exemplaire sans identifiant (créé s'il n'existe pas).
+ */
 export interface PossessionUpdate {
   entree: string;
+  /** Exemplaire visé (404 s'il n'existe pas, sauf avec `nouveau`). */
+  exemplaire?: string;
+  /** Ajoute un exemplaire (identifiant généré si l'entrée est déjà possédée). */
+  nouveau?: boolean;
+  /** Nombre d'unités de l'exemplaire (sorte `quantites`), entier ≥ 1. */
+  quantite?: number;
   rang?: number;
   actif?: boolean;
   choix?: Record<string, string[]>;
@@ -122,12 +132,16 @@ export const writes = {
     send('/achats', 'POST', { achat: purchase, objet: item }),
   refund: (index: number) => send('/achats/rembourser', 'POST', { index }),
   possession: (update: PossessionUpdate) => send('/possessions', 'POST', { ...update }),
+  /** Retire un exemplaire précis (absent : l'exemplaire sans identifiant). */
   removePossession:
-    (entry: string): Write =>
-    (id, version) =>
-      api<Character>(path(id, `/possessions/${encodeURIComponent(entry)}?version=${version}`), {
+    (entry: string, copy?: string): Write =>
+    (id, version) => {
+      const query = new URLSearchParams({ version: String(version) });
+      if (copy !== undefined) query.set('exemplaire', copy);
+      return api<Character>(path(id, `/possessions/${encodeURIComponent(entry)}?${query}`), {
         method: 'DELETE',
-      }),
+      });
+    },
   rest: (attributes?: string[]) =>
     send('/repos', 'POST', attributes ? { attributs: attributes } : {}),
   /** Pose un bonus libre, ou remplace celui qui a le même identifiant. */
@@ -151,6 +165,13 @@ interface PendingWrite {
 }
 
 const is409 = (e: unknown) => e instanceof ApiError && e.status === 409;
+
+/** Message d'une écriture refusée, précisé pour une saisie réservée au MJ (403). */
+function writeErrorMessage(e: unknown): string {
+  if (e instanceof ApiError && e.problem.code === 'saisie_reservee_mj')
+    return `Réservé au MJ : ${e.message}`;
+  return errorMessage(e);
+}
 
 /**
  * Personnage et ses écritures. Les écritures passent une par une (chacune
@@ -204,7 +225,7 @@ export function useCharacter(id: string) {
           setError(
             is409(e)
               ? 'Le personnage a été modifié ailleurs entre-temps : la fiche a été rechargée.'
-              : errorMessage(e),
+              : writeErrorMessage(e),
           );
           if (is409(e)) void reload();
           return false;
