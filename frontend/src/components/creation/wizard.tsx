@@ -21,8 +21,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { getCreationSteps, useVersionedRead } from '@/lib/characters';
+import { afterCreationPath } from '@/lib/rooms';
 import { cn } from '@/lib/utils';
 import { useSheet } from '../sheet/context';
 import { accentButton, focus, text, textMuted, titleFont } from '../sheet/styles';
@@ -46,6 +48,7 @@ const ICONS: Record<EtapeCreation['type'], LucideIcon> = {
 
 export function CreationWizard() {
   const { character, system, state, pending, readOnly } = useSheet();
+  const roomId = useSearchParams().get('room');
   const server = useVersionedRead('creation', character, pending, getCreationSteps);
   const local = useMemo(() => {
     if (server) return null;
@@ -86,8 +89,8 @@ export function CreationWizard() {
       <div className={cn(panel, 'mx-auto max-w-lg space-y-4 p-8 text-center')}>
         <h2 className={cn(titleFont, text, 'text-2xl font-bold')}>Création terminée</h2>
         <p className={cn(textMuted, 'text-sm')}>Ce personnage est prêt à jouer.</p>
-        <Link href={`/characters/${character.id}`} className={accentButton}>
-          Voir la fiche
+        <Link href={afterCreationPath(character.id, roomId)} className={accentButton}>
+          {roomId ? 'Rejoindre la table' : 'Voir la fiche'}
         </Link>
       </div>
     );

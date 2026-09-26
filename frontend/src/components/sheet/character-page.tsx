@@ -20,8 +20,8 @@ export function CharacterPage({
 }: {
   id: string;
   /**
-   * L'utilisateur mène une salle où le personnage est engagé (attributs
-   * `saisie: mj`). À brancher quand les campagnes le diront ; faux d'ici là.
+   * L'utilisateur mène la salle d'où la fiche est ouverte (`?room=`, table de
+   * jeu) : il saisit les attributs `saisie: mj`.
    */
   gm?: boolean;
   children: ReactNode;
