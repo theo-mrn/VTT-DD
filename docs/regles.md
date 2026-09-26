@@ -59,6 +59,8 @@ Un système déclare ses **types d'entité** (personnage, PNJ, véhicule, groupe
 
 Chaque attribut porte aussi son libellé, son groupe d'affichage, sa visibilité (tous ou MJ seul), sa valeur par défaut, et sa **formule de modificateur** s'il en a une (propre à l'attribut ou commune à tout le système).
 
+Un attribut de base déclare aussi qui le **saisit** une fois la création terminée (`saisie`, voir la référence rapide) : personne (il s'achète), le joueur ou le MJ (crédits, bourse), ou le MJ seul (XP gagnée, niveau).
+
 ### 3. Catalogues
 
 Les races, classes, carrières, spécialisations, compétences, talents, armes, armures, qualités d'arme, états (étourdi, à terre…) et blessures critiques sont tous des **entrées de catalogue**. Le système déclare lui-même ses **sortes** d'entrée, avec leurs champs propres : le moteur n'a pas de liste fermée.
@@ -113,7 +115,7 @@ Le jet est concerné quand :
 
 La règle est la même dans tous les systèmes.
 
-Chaque ligne d'explication de la fiche porte l'identifiant de sa source : `armure-cuir`, `armure-cuir#exemplaire`, `bonus:potion`.
+Chaque ligne d'explication de la fiche porte l'identifiant de sa source : `armure-cuir`, `armure-cuir#exemplaire` (effets propres du premier exemplaire), `dague#2` (effets propres de l'exemplaire `2`), `bonus:potion`.
 
 ### 5. Progression et achats
 
@@ -230,7 +232,8 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
 | `floor`, `ceil`, `round`, `abs`, `min`, `max`, `clamp`               | Calcul                                                                         |
 | `et`, `ou`, `non`, `==`, `!=`, `<`, `<=`, `>`, `>=`                  | Logique et comparaisons                                                        |
 | `rang("athletisme")`, `possede("elfe")`                              | Rang total d'une entrée ; possession (rang 1 minimum pour une entrée à rangs)  |
-| `compte("sorte")`, `somme("sorte", "champ")`, `somme_rangs("sorte")` | Agrégats sur les possessions                                                   |
+| `compte("sorte")`, `somme("sorte", "champ")`, `somme_rangs("sorte")` | Agrégats sur les possessions (un par exemplaire ; `somme` × la quantité)       |
+| `quantite("sorte")`                                                  | Total des quantités des possessions de la sorte                                |
 | `compte_actifs(…)`, `somme_actifs(…)`                                | Les mêmes agrégats, restreints aux entrées équipées ou actives                 |
 | `marquee("entree", "marque")`, `a_etiquette(entree, "etiquette")`    | Marque posée par un effet ; étiquette d'une entrée du catalogue                |
 | `valeur(x)`, `modificateur(x)`, `rang(x)` avec `x` calculé           | Lecture dynamique, dans les actions uniquement                                 |
@@ -238,7 +241,7 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
 
 ### Variables selon l'endroit
 
-- **Effet** : `rang` et `actif` de la source, `source.<champ>`.
+- **Effet** : `rang`, `actif` et `quantite` de la source, `source.<champ>` (ceux de l'exemplaire pour ses effets propres).
 - **Condition d'un effet de jet** : en plus, `action`, et pour chaque paramètre son identifiant, son `.rang` et ses `.<champ>`.
 - **Achat** : `actuel`, `calcule` (valeur avec les effets), `cible`, `nombre`, `creation`, `entree.<champ>`, et `marque("m")`.
 - **Action**, dans cet ordre :
@@ -269,6 +272,13 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
   - `consequences`, qui sont des modifications proposées, appliquées par `appliquerModifications` ;
   - `tables`, tirées par `tirerTable` et appliquées par `appliquerTirage`.
 
+### Exemplaires, quantités et saisie
+
+- **Exemplaires** : une sorte sans rangs déclarée `exemplaires: true` (armes, armures, Obligations) se possède plusieurs fois. Chaque possession est un exemplaire, avec son `actif`, ses `champs`, ses `effets` et sa durée, distingué par `exemplaire` : identifiant unique par entrée, absent pour le premier. Outils : `estExemplaire(p, entree, exemplaire?)` (absent désigne l'exemplaire sans identifiant), `nouvelExemplaire(possessions, entree)` (`2`, `3`…), `sourceExemplaire(p)` (`entree#id`). Une entrée à rangs n'a qu'une possession, dont les rangs s'additionnent.
+- **Quantités** : une sorte `quantites: true` (munitions, stimpacks, dagues D&D) porte `quantite` sur chaque possession (entier ≥ 1, absent : 1, `quantiteDe(p)`). `somme` la multiplie, `quantite("sorte")` l'additionne.
+- Don, tirage, achat et remboursement (`donnerEntree`, `retirerEntree`) ajoutent ou retirent une unité, ou un exemplaire si la sorte l'autorise.
+- **Saisie** d'un attribut de base (`saisie`, défaut `creation`) : pendant la création, le propriétaire saisit tout ; ensuite `jeu` = propriétaire ou MJ, `mj` = MJ seul, `creation` = plus personne (l'attribut s'achète). `refusSaisie(attribut, creation, { proprietaire, mj })` donne la raison d'un refus ; le service character la renvoie en 403 (réservé au MJ) ou 422.
+
 ### Présentation
 
 Le fichier `presentation.yaml` de chaque système décrit :
@@ -295,4 +305,4 @@ Le portage complet de D&D et de Star Wars a fait apparaître des besoins qui ne 
 | Cibles multiples, alliés | Commandant de terrain, attaques de zone                     | Une action exécutée pour chaque cible, avec un résultat groupé dans l'historique.                                                        |
 | Initiative par camp      | Créneaux joueurs et PNJ (Star Wars)                         | Camps et créneaux dans l'état de combat ; le tri reste celui du système.                                                                 |
 | Lien pilote et véhicule  | Talents de pilotage                                         | Une relation entre entités dans la campagne ; les effets s'appliquent à l'entité liée.                                                   |
-| Exemplaires multiples    | Deux dagues, consommables                                   | À trancher avec le modèle de stockage des personnages (quantité ou identifiant par exemplaire).                                          |
+| Exemplaires multiples    | Deux dagues, consommables                                   | Fait : sortes `exemplaires` et `quantites` (voir la référence rapide), routes de possessions du service character.                       |

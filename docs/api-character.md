@@ -33,24 +33,24 @@ Un personnage renvoyé par l'API a cette forme :
 
 Une écriture qui envoie une `version` périmée reçoit **409** (problem+json). Le client relit alors le personnage et réessaie.
 
-| Méthode | Route                                    | Corps                                                      | Réponse                                                                                                                                                |
-| ------- | ---------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| GET     | `/v1/characters`                         | —                                                          | `[{ id, nom, avatarUrl, systeme: { id, version }, type, creation, updatedAt }]` : mes personnages                                                      |
-| POST    | `/v1/characters`                         | `{ systemeId, type, nom }`                                 | 201 et le personnage (`etat.creation = true`)                                                                                                          |
-| GET     | `/v1/characters/:id`                     | —                                                          | le personnage                                                                                                                                          |
-| PATCH   | `/v1/characters/:id`                     | `{ version, nom?, avatarUrl? }`                            | le personnage                                                                                                                                          |
-| DELETE  | `/v1/characters/:id`                     | —                                                          | 204                                                                                                                                                    |
-| PUT     | `/v1/characters/:id/valeurs`             | `{ version, valeurs: { [cle]: valeur } }`                  | le personnage. Seuls les attributs saisissables sont acceptés : texte, choix, booléen, ressource ; les attributs de base seulement pendant la création |
-| GET     | `/v1/characters/:id/creation`            | —                                                          | `etapesCreation()` : état de chaque étape                                                                                                              |
-| POST    | `/v1/characters/:id/creation/:etape`     | `{ version, ... }` selon le type d'étape (voir ci-dessous) | le personnage                                                                                                                                          |
-| POST    | `/v1/characters/:id/creation/terminer`   | `{ version }`                                              | le personnage                                                                                                                                          |
-| GET     | `/v1/characters/:id/achats`              | —                                                          | `achatsPossibles()`                                                                                                                                    |
-| POST    | `/v1/characters/:id/achats`              | `{ version, achat, objet }`                                | le personnage                                                                                                                                          |
-| POST    | `/v1/characters/:id/achats/rembourser`   | `{ version, index }`                                       | le personnage                                                                                                                                          |
-| POST    | `/v1/characters/:id/possessions`         | `{ version, entree, rang?, actif?, choix?, champs? }`      | le personnage (ajout ou mise à jour d'une possession)                                                                                                  |
-| DELETE  | `/v1/characters/:id/possessions/:entree` | `?version=`                                                | le personnage                                                                                                                                          |
-| POST    | `/v1/characters/:id/repos`               | `{ version, attributs? }`                                  | le personnage (`recuperer()`)                                                                                                                          |
-| POST    | `/v1/characters/:id/actions/:action`     | `{ parametres?, cibleId?, appliquer? }`                    | `{ resultat, personnage?, cible? }`                                                                                                                    |
+| Méthode | Route                                    | Corps                                                      | Réponse                                                                                           |
+| ------- | ---------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/characters`                         | —                                                          | `[{ id, nom, avatarUrl, systeme: { id, version }, type, creation, updatedAt }]` : mes personnages |
+| POST    | `/v1/characters`                         | `{ systemeId, type, nom }`                                 | 201 et le personnage (`etat.creation = true`)                                                     |
+| GET     | `/v1/characters/:id`                     | —                                                          | le personnage                                                                                     |
+| PATCH   | `/v1/characters/:id`                     | `{ version, nom?, avatarUrl? }`                            | le personnage                                                                                     |
+| DELETE  | `/v1/characters/:id`                     | —                                                          | 204                                                                                               |
+| PUT     | `/v1/characters/:id/valeurs`             | `{ version, valeurs: { [cle]: valeur } }`                  | le personnage. Seuls les attributs saisissables sont acceptés (voir « Saisie des valeurs »)       |
+| GET     | `/v1/characters/:id/creation`            | —                                                          | `etapesCreation()` : état de chaque étape                                                         |
+| POST    | `/v1/characters/:id/creation/:etape`     | `{ version, ... }` selon le type d'étape (voir ci-dessous) | le personnage                                                                                     |
+| POST    | `/v1/characters/:id/creation/terminer`   | `{ version }`                                              | le personnage                                                                                     |
+| GET     | `/v1/characters/:id/achats`              | —                                                          | `achatsPossibles()`                                                                               |
+| POST    | `/v1/characters/:id/achats`              | `{ version, achat, objet }`                                | le personnage                                                                                     |
+| POST    | `/v1/characters/:id/achats/rembourser`   | `{ version, index }`                                       | le personnage                                                                                     |
+| POST    | `/v1/characters/:id/possessions`         | voir « Possessions » ci-dessous                            | le personnage (ajout ou mise à jour d'un exemplaire)                                              |
+| DELETE  | `/v1/characters/:id/possessions/:entree` | `?version=&exemplaire=`                                    | le personnage (retrait d'un exemplaire précis)                                                    |
+| POST    | `/v1/characters/:id/repos`               | `{ version, attributs? }`                                  | le personnage (`recuperer()`)                                                                     |
+| POST    | `/v1/characters/:id/actions/:action`     | `{ parametres?, cibleId?, appliquer? }`                    | `{ resultat, personnage?, cible? }`                                                               |
 
 Corps des étapes de création, selon leur type :
 
@@ -58,6 +58,43 @@ Corps des étapes de création, selon leur type :
 - `repartir` et `saisir` : `{ valeurs }`
 - `tirer` : `{ affectation? }`. Le serveur tire lui-même avec un générateur cryptographique.
 - `acheter` : `{ achat, objet }`
+
+### Saisie des valeurs
+
+`PUT /valeurs` accepte, pour le propriétaire comme pour le MJ d'une salle où le personnage est engagé :
+
+- texte, choix, booléen et ressource, à tout moment ;
+- un attribut de base pendant la création ; ensuite, selon sa `saisie` dans le système :
+  - `jeu` (crédits, bourse) : propriétaire ou MJ ;
+  - `mj` (XP gagnée, niveau, jets de dés de vie) : MJ seul. Le propriétaire reçoit **403** `saisie_reservee_mj`, sauf s'il mène lui-même une salle où le personnage est engagé ;
+  - `creation` (défaut : caractéristiques) : plus personne, **422** (l'attribut s'achète).
+
+Un attribut inconnu, calculé, une valeur hors bornes ou de mauvaise nature donnent **422** avec le détail de chaque erreur.
+
+### Possessions : exemplaires et quantités
+
+Corps de `POST /possessions` : `{ version, entree, exemplaire?, nouveau?, quantite?, rang?, actif?, choix?, champs?, effets? }`. Seuls les champs fournis changent ; `effets` (effets propres à l'exemplaire) remplace les précédents.
+
+Une entrée d'une sorte `exemplaires` (armes, armures, Obligations) peut être possédée plusieurs fois : chaque possession est un exemplaire, avec son `actif`, ses `champs`, ses `effets` et sa durée, distingué par `exemplaire` (identifiant unique par entrée ; absent pour le premier). Choix de l'exemplaire visé :
+
+| Corps                                | Effet                                                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| sans `exemplaire` ni `nouveau`       | met à jour l'exemplaire **sans identifiant** ; s'il n'existe pas, il est créé. Envoyer deux fois `{ entree }` ne crée pas de doublon |
+| `exemplaire: "2"`                    | met à jour cet exemplaire ; **404** s'il n'existe pas (le message liste les exemplaires existants)                                   |
+| `nouveau: true`                      | ajoute un exemplaire : sans identifiant si l'entrée n'est pas possédée, sinon identifiant généré (`2`, `3`…, `nouvelExemplaire`)     |
+| `nouveau: true, exemplaire: "plus1"` | ajoute l'exemplaire `plus1` ; **422** `exemplaire_existant` s'il existe déjà                                                         |
+
+`exemplaire`, ou `nouveau` sur une entrée déjà possédée, demandent une sorte `exemplaires` : sinon **422** `exemplaires_refuses` (une entrée à rangs n'a qu'une possession, dont les rangs s'additionnent). Chaque exemplaire compte dans le `maximum` de la sorte.
+
+`quantite` (entier ≥ 1, absent : 1) remplace le nombre d'unités de l'exemplaire (munitions, stimpacks, dagues D&D). Il demande une sorte `quantites`, sinon **422** `quantite_refusee`.
+
+`DELETE /possessions/:entree?version=&exemplaire=` retire l'exemplaire `exemplaire`, ou sans ce paramètre l'exemplaire sans identifiant (la seule possession d'une sorte sans exemplaires) : **404** s'il n'existe pas. Le dernier exemplaire d'une entrée qui ouvre un arbre dont des nœuds sont acquis ne se retire pas (**422**).
+
+L'événement `character.updated` d'une possession porte la demande avec l'exemplaire touché (`possession.exemplaire`, généré compris) et `cree` (exemplaire ajouté ou mis à jour) ; celui d'un retrait porte `entree` et `exemplaire`.
+
+En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre.
+
+### Actions
 
 Les jets d'action sont tirés par le serveur avec `aleatoireCrypto()`. Avec `appliquer: true`, les modifications de l'acteur et de la cible sont appliquées dans la même transaction, à deux conditions :
 
