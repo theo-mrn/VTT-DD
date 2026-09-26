@@ -510,20 +510,21 @@ class Chargeur {
               }
             }
           }
-          if (f.si !== undefined)
-            this.compiler(ch('si'), f.si, { ...oEffet, variables: vars }, 'booleen');
+          // Toutes les formules d'un effet de jet lisent les paramètres des actions
+          const oJet: OptionsEnv = { ...oEffet, variables: vars };
+          if (f.si !== undefined) this.compiler(ch('si'), f.si, oJet, 'booleen');
           const aj = f.ajout;
           if (aj && 'de' in aj) {
             this.verifierDe(ch('ajout'), aj.de);
-            this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
           } else if (aj && 'ameliorer' in aj) {
             this.verifierDe(ch('ajout'), aj.ameliorer);
             this.verifierDe(ch('ajout'), aj.vers);
-            this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
           } else if (aj && 'retrograder' in aj) {
             this.verifierDe(ch('ajout'), aj.retrograder);
             this.verifierDe(ch('ajout'), aj.vers);
-            this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
           } else if (aj && 'variable' in aj) {
             const visees = f.actions?.length ? f.actions : [...this.actions.keys()];
             const connue = visees.some((id) => {
@@ -531,12 +532,12 @@ class Chargeur {
               return !!act && [...act.variables, ...act.apres].some((x) => x.cle === aj.variable);
             });
             if (!connue) this.erreur(ch('ajout'), `Variable d’action inconnue : ${aj.variable}`);
-            this.compiler(ch('ajouter'), aj.ajouter, oEffet, 'nombre');
+            this.compiler(ch('ajouter'), aj.ajouter, oJet, 'nombre');
           } else if (aj && 'retirer' in aj) {
             this.verifierDe(ch('ajout'), aj.retirer);
-            this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
           } else if (aj) {
-            this.compiler(ch('bonus'), aj.bonus, oEffet, 'nombre');
+            this.compiler(ch('bonus'), aj.bonus, oJet, 'nombre');
           }
           break;
         }
