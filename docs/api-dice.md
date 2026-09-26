@@ -13,13 +13,14 @@ Toutes les routes passent par la gateway (`/v1/dice/*`). Elles demandent un jeto
 
 ## Jets
 
-| Méthode | Route                                              | Corps           | Réponse                                                             |
-| ------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------- |
-| POST    | `/v1/dice/rolls`                                   | voir ci-dessous | 201 : le jet, plus `rolls`, `saved` et `user` de l'ancienne API     |
-| GET     | `/v1/dice/rolls?campaignId=&before=&after=&limit=` | —               | jets visibles par l'appelant, **du plus récent au plus ancien**     |
-| GET     | `/v1/dice/rolls/:id`                               | —               | un jet (404 `roll_not_found` s'il n'est pas visible par l'appelant) |
-| DELETE  | `/v1/dice/rolls/:id`                               | —               | 204 ; auteur ou MJ de la campagne, sinon 403 `not_roll_author`      |
-| GET     | `/v1/dice/skins`                                   | —               | catalogue des skins : `[{ id, free }]`                              |
+| Méthode | Route                                              | Corps           | Réponse                                                                                                                                                                                                                             |
+| ------- | -------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST    | `/v1/dice/rolls`                                   | voir ci-dessous | 201 : le jet, plus `rolls`, `saved` et `user` de l'ancienne API                                                                                                                                                                     |
+| GET     | `/v1/dice/rolls?campaignId=&before=&after=&limit=` | —               | jets visibles par l'appelant, **du plus récent au plus ancien**                                                                                                                                                                     |
+| GET     | `/v1/dice/rolls/:id`                               | —               | un jet (404 `roll_not_found` s'il n'est pas visible par l'appelant)                                                                                                                                                                 |
+| DELETE  | `/v1/dice/rolls/:id`                               | —               | 204 ; auteur ou MJ de la campagne, sinon 403 `not_roll_author`                                                                                                                                                                      |
+| DELETE  | `/v1/dice/rolls?campaignId=`                       | —               | `{ deleted }` : vide tout l'historique de la campagne (jets importés et d'action compris) ; MJ seul, sinon 403 `gm_required` ; 400 `campaign_required` sans campagne ; 404 si non membre ; un seul événement `dice.history_cleared` |
+| GET     | `/v1/dice/skins`                                   | —               | catalogue des skins : `[{ id, free }]`                                                                                                                                                                                              |
 
 ### Lancer
 
@@ -253,11 +254,11 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 
 Écrits dans l'outbox du service, dans la transaction de la donnée :
 
-| Type                       | Charge utile                                                                 | Visibilité de l'enveloppe                                                                                  |
-| -------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `dice.rolled`              | le jet complet (sans masquage), `results`, `output`, `userName`, `authorId`… | `public` ; `private` et `gm` → `gm_only` (l'auteur est `actor.userId`) ; `self` et jet personnel → `owner` |
-| `dice.roll_deleted`        | `{ id, campaignId, authorId }`                                               | celle du jet                                                                                               |
-| `dice.preferences_updated` | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (route interne all-skins, `actor.userId` null)                 |
+| Type                                                                            | Charge utile                                                                 | Visibilité de l'enveloppe                                                                                  |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `dice.rolled`                                                                   | le jet complet (sans masquage), `results`, `output`, `userName`, `authorId`… | `public` ; `private` et `gm` → `gm_only` (l'auteur est `actor.userId`) ; `self` et jet personnel → `owner` |
+| `dice.roll_deleted`, `dice.history_cleared` (`{ campaignId, deleted, userId }`) | `{ id, campaignId, authorId }`                                               | celle du jet                                                                                               |
+| `dice.preferences_updated`                                                      | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (route interne all-skins, `actor.userId` null)                 |
 
 `roomId` de l'enveloppe = la campagne (sujet `vtt.<campagne>.dice.rolled`). Les titres de l'ancienne app débloqués par un 1 ou un 20 naturel (« Maudit des dés », « Béni des Dieux ») seront attribués par identity en écoutant `dice.rolled` (dés et `outcome` dans la charge utile).
 

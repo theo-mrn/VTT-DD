@@ -184,6 +184,34 @@ export async function deleteRoll(
   });
 }
 
+/**
+ * Vide l'historique d'une campagne (MJ) : tous ses jets, importés et d'action
+ * compris, en une requête, et un seul événement `dice.history_cleared`
+ * (seulement s'il y avait des jets). Renvoie le nombre de jets supprimés.
+ */
+export async function clearCampaignHistory(
+  tx: Tx,
+  ctx: EventContext,
+  campaignId: string,
+  by: Viewer,
+): Promise<number> {
+  const deleted = await tx
+    .delete(rolls)
+    .where(eq(rolls.campaignId, campaignId))
+    .returning({ id: rolls.id });
+  if (deleted.length) {
+    await appendEvent(tx, ctx, {
+      type: 'dice.history_cleared',
+      actor: { userId: by.userId, role: actorRole(by), characterId: null },
+      aggregate: { type: 'campaign', id: campaignId },
+      payload: { campaignId, deleted: deleted.length, userId: by.userId },
+      visibility: 'public',
+      campaignId,
+    });
+  }
+  return deleted.length;
+}
+
 /** Jet déjà enregistré pour cette clé d'idempotence (même auteur). */
 export async function findByIdempotencyKey(
   db: Db | Tx,

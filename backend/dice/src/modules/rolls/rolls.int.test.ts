@@ -485,4 +485,40 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
     expect(skins).toHaveLength(71);
     expect(skins.filter((s) => s.free).map((s) => s.id)).toContain('gold');
   });
+
+  it('le MJ vide l’historique de la campagne ; un joueur est refusé ; les autres campagnes restent', async () => {
+    const other = t.services.campaign({ [gm.id]: 'gm', [alice.id]: 'player' });
+    await h.roll(alice, { notation: '1d20', campaignId });
+    await h.roll(bob, { notation: '2d6', campaignId, isBlind: true });
+    await h.roll(alice, { notation: '1d8', campaignId: other });
+
+    const refused = await h.request(alice, 'DELETE', `/v1/dice/rolls?campaignId=${campaignId}`);
+    expect([refused.statusCode, refused.json().code]).toEqual([403, 'gm_required']);
+    const missing = await h.request(gm, 'DELETE', '/v1/dice/rolls');
+    expect([missing.statusCode, missing.json().code]).toEqual([400, 'campaign_required']);
+
+    const cleared = await h.ok<{ deleted: number }>(
+      gm,
+      'DELETE',
+      `/v1/dice/rolls?campaignId=${campaignId}`,
+    );
+    expect(cleared).toEqual({ deleted: 2 });
+    expect(await history(gm)).toEqual([]);
+    expect(await history(alice, `campaignId=${other}`)).toHaveLength(1);
+
+    const events = await t
+      .db!.select()
+      .from(outbox)
+      .where(sql`${outbox.envelope}->>'type' = 'dice.history_cleared'`);
+    expect(events.map((e) => (e.envelope as { payload: unknown }).payload)).toContainEqual({
+      campaignId,
+      deleted: 2,
+      userId: gm.id,
+    });
+
+    // Historique déjà vide : rien à supprimer, aucun nouvel événement
+    expect(await h.ok(gm, 'DELETE', `/v1/dice/rolls?campaignId=${campaignId}`)).toEqual({
+      deleted: 0,
+    });
+  });
 });

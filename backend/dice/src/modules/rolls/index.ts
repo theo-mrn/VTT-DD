@@ -18,6 +18,7 @@
  *   GET    /v1/dice/rolls?campaignId=&before=&after=&limit=    historique
  *   GET    /v1/dice/rolls/:id                                  un jet
  *   DELETE /v1/dice/rolls/:id                                  auteur ou MJ
+ *   DELETE /v1/dice/rolls?campaignId=                          vide l'historique (MJ)
  *   GET    /v1/dice/skins                                      catalogue des skins
  *
  * Comme l'ancienne app, l'historique est renvoyé du plus récent au plus
@@ -59,6 +60,7 @@ import {
 import {
   actorRole,
   canSee,
+  clearCampaignHistory,
   deleteRoll,
   findByIdempotencyKey,
   insertRoll,
@@ -416,6 +418,42 @@ export const register: Module = async (app, deps) => {
         );
       await db.transaction((tx) => deleteRoll(tx, eventContext(req), row, viewer));
       reply.code(204);
+    },
+  );
+
+  r.delete(
+    '/v1/dice/rolls',
+    {
+      ...auth,
+      schema: {
+        querystring: z.object({ campaignId: CampaignId.optional() }),
+        response: { 200: z.object({ deleted: z.number().int().nonnegative() }) },
+      },
+    },
+    async (req) => {
+      const { campaignId } = req.query;
+      if (!campaignId)
+        throw new HttpError(
+          400,
+          'Campagne requise',
+          'campaign_required',
+          'Préciser la campagne dont on vide l’historique (campaignId)',
+        );
+      const userId = currentUser(req);
+      // 404 si l'appelant n'est pas membre, comme pour la lecture de l'historique
+      const role = await memberRole(deps, campaignId, userId);
+      if (role !== 'gm')
+        throw new HttpError(
+          403,
+          'Accès refusé',
+          'gm_required',
+          'Seul le MJ de la campagne vide l’historique des dés',
+        );
+      const viewer: Viewer = { userId, role };
+      const deleted = await db.transaction((tx) =>
+        clearCampaignHistory(tx, eventContext(req), campaignId, viewer),
+      );
+      return { deleted };
     },
   );
 
