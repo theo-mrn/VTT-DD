@@ -16,7 +16,7 @@ import { accentButton, secondaryButton, field, focus, text, textMuted } from './
 type TextWidgetProps = Extract<Widget, { type: 'texte' }>;
 
 export function TextWidget({ widget }: { widget: TextWidgetProps }) {
-  const { sheet, json, readOnly, setValues } = useSheet();
+  const { sheet, json, canSetValue, setValues } = useSheet();
   const a = sheet.entite.attributs.get(widget.attribut);
   const raw = json.valeurs[widget.attribut]?.valeur;
   const value = typeof raw === 'string' ? raw : raw === undefined ? '' : String(raw);
@@ -24,7 +24,7 @@ export function TextWidget({ widget }: { widget: TextWidgetProps }) {
   const [editing, setEditing] = useState(false);
   const [sending, setSending] = useState(false);
   const id = useId();
-  const editable = !readOnly && a?.nature === 'texte';
+  const editable = a?.nature === 'texte' && canSetValue(a);
 
   useEffect(() => {
     if (!editing) setDraft(value);

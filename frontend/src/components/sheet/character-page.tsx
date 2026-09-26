@@ -13,7 +13,19 @@ import { useSystem } from '@/lib/systems';
 import { SheetProvider } from './context';
 import { WriteError } from './header';
 
-export function CharacterPage({ id, children }: { id: string; children: ReactNode }) {
+export function CharacterPage({
+  id,
+  gm = false,
+  children,
+}: {
+  id: string;
+  /**
+   * L'utilisateur mène une salle où le personnage est engagé (attributs
+   * `saisie: mj`). À brancher quand les campagnes le diront ; faux d'ici là.
+   */
+  gm?: boolean;
+  children: ReactNode;
+}) {
   const profile = useProfile();
   const tracker = useCharacter(id);
   const { personnage: character } = tracker;
@@ -30,6 +42,7 @@ export function CharacterPage({ id, children }: { id: string; children: ReactNod
       tracker={tracker}
       ready={ready.data}
       readOnly={character.ownerId !== profile.id}
+      gm={gm}
       fallback={
         <Message>
           Ce personnage ne se calcule pas avec la version actuelle de son système (type «&nbsp;

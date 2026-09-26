@@ -13,19 +13,28 @@ export function PurchaseButton({
   currency,
   onBuy,
   buttonText,
+  compact,
 }: {
   item: ObjetAchetable;
   label: string;
   currency: string;
   onBuy(): Promise<boolean>;
   buttonText?: string;
+  /** Petit bouton, posé dans le coin d'une case. */
+  compact?: boolean;
 }) {
   const [sending, setSending] = useState(false);
   const reason = item.blocages.map((b) => b.message).join(' ; ');
   return (
     <button
       type="button"
-      className={cn(iconButton, 'w-auto gap-1 px-2 text-xs tabular-nums')}
+      className={cn(
+        iconButton,
+        'w-auto gap-1 tabular-nums',
+        compact
+          ? 'h-6 gap-0.5 bg-[color:var(--fiche-carte)] px-1.5 text-[10px] [&_svg]:h-3 [&_svg]:w-3'
+          : 'px-2 text-xs',
+      )}
       disabled={!item.possible || sending}
       title={item.possible ? `${label} : ${item.cout} ${currency}` : reason}
       aria-label={`${label} : ${item.cout} ${currency}${item.possible ? '' : ` (impossible : ${reason})`}`}

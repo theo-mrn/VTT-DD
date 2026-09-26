@@ -329,9 +329,9 @@ function InfosDialog({ attributes, onClose }: { attributes: Attribut[]; onClose(
 
 /** Ligne d'un attribut court, modifiable sur place s'il est saisissable (texte, choix). */
 function AttributeRow({ attribute: a }: { attribute: Attribut }) {
-  const { json, readOnly, setValues } = useSheet();
+  const { json, canSetValue, setValues } = useSheet();
   const v = json.valeurs[a.cle]?.valeur;
-  const editable = !readOnly && (a.nature === 'texte' || a.nature === 'choix');
+  const editable = (a.nature === 'texte' || a.nature === 'choix') && canSetValue(a);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const id = `detail-${a.cle}`;

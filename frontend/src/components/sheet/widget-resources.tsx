@@ -34,7 +34,7 @@ export function resourceDirection(
 }
 
 export function ResourcesWidget({ widget }: { widget: ResourcesWidget }) {
-  const { sheet, readOnly, rest } = useSheet();
+  const { sheet, readOnly, canSetValue, rest } = useSheet();
   const [resting, setResting] = useState(false);
   const [adjusting, setAdjusting] = useState<Resource | null>(null);
   const resources = widget.attributs
@@ -73,7 +73,7 @@ export function ResourcesWidget({ widget }: { widget: ResourcesWidget }) {
             <ResourceCard
               key={a.cle}
               attribute={a}
-              onAdjust={readOnly ? undefined : () => setAdjusting(a)}
+              onAdjust={canSetValue(a) ? () => setAdjusting(a) : undefined}
             />
           ))}
         </div>
