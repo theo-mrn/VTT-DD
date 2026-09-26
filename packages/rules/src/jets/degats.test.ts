@@ -169,3 +169,34 @@ describe('minimum de dégâts', () => {
     expect(reduireDegats(f, 9, 'froid', 'PV', 1).valeur).toBe(0);
   });
 });
+
+describe('type de dégâts calculé', () => {
+  it('le type vient d’une formule texte', () => {
+    const s2saisi = structuredClone(saisi);
+    s2saisi.actions![0]!.consequences = [
+      {
+        entite: 'cible',
+        attribut: 'PV',
+        operation: 'retirer',
+        valeur: 'total',
+        typeCalcule: 'si(element, "froid", "feu")',
+        minimum: 1,
+      },
+    ];
+    const r2 = charger(s2saisi);
+    if (!r2.ok) throw new Error(JSON.stringify(r2.erreurs));
+    const cible = calculer(r2.systeme, fiche({ possessions: [{ entree: 'ecailles' }] }).etat);
+    const mod = (element: boolean) => {
+      const res = executerAction(r2.systeme, {
+        action: 'souffle',
+        acteur: calculer(r2.systeme, fiche().etat),
+        cible,
+        parametres: { element },
+        aleatoire: aleatoireImpose([6, 5]),
+      });
+      return res.ok ? res.resultat.modifications[0] : res.erreurs;
+    };
+    expect(mod(false)).toMatchObject({ type: 'feu', valeur: 3, brut: 11 });
+    expect(mod(true)).toMatchObject({ type: 'froid', valeur: 0 });
+  });
+});

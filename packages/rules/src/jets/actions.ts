@@ -643,11 +643,20 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
     let valeur = Number(ev(`${ou}/valeur`, 0));
     const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
-    if (c.type !== undefined) {
-      // Dégâts typés : résistances, immunités et vulnérabilités de l'entité touchée
+    // Type de dégâts fixe ou calculé ; un type calculé vide : dégâts non typés
+    let typeDegats: string | undefined = c.type;
+    if (c.typeCalcule !== undefined) {
+      const t = String(ev(`${ou}/type`, ''));
+      if (t && !systeme.source.typesDegats.some((x) => x.id === t)) {
+        erreurs.push({ ou: `${ou}/type`, message: `Type de dégâts inconnu : ${t}` });
+      } else if (t) typeDegats = t;
+    }
+    if (c.type !== undefined || c.typeCalcule !== undefined) {
+      // Dégâts : résistances, immunités et vulnérabilités de l'entité touchée
       const minimum = c.minimum === undefined ? 0 : Number(ev(`${ou}/minimum`, 0));
-      const recus = reduireDegats(fiche, valeur, c.type, c.attribut, minimum);
-      const typeNom = systeme.source.typesDegats.find((t) => t.id === c.type)?.nom ?? c.type;
+      const recus = reduireDegats(fiche, valeur, typeDegats, c.attribut, minimum);
+      const typeNom =
+        systeme.source.typesDegats.find((t) => t.id === typeDegats)?.nom ?? 'non typés';
       for (const l of recus.lignes) {
         const effet =
           l.operation === 'annuler'
@@ -663,7 +672,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         attribut: c.attribut,
         operation: c.operation,
         valeur: recus.valeur,
-        type: c.type,
+        ...(typeDegats ? { type: typeDegats } : {}),
         brut: recus.brut,
       });
       valeur = recus.valeur;
