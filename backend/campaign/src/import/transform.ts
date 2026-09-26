@@ -9,7 +9,8 @@
  * Rôles :
  *   - le créateur (`creatorId`) est MJ (`gm`) et propriétaire ;
  *   - un membre entré comme MJ (`salles/{code}/Noms/{uid}.nom` = « MJ ») est
- *     MJ : l'ancienne app lui en donnait tous les droits (co-MJ) ;
+ *     importé joueur (décision du propriétaire : seul le créateur est MJ, il
+ *     promeut ensuite qui il veut) ;
  *   - les autres membres sont joueurs (`player`) ; un banni n'est pas membre.
  * Personnage incarné : `users/{uid}.persoId` si la campagne est la campagne
  * active du joueur, sinon le personnage de la campagne dont le nom est dans `Noms`.
@@ -211,8 +212,7 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
     let role: Role = 'player';
     if (m.uid === ownerUid) role = 'gm';
     else if (m.name === GM_NAME) {
-      role = 'gm';
-      warn(`Membre ${m.uid} entré comme MJ : importé MJ (co-MJ)`);
+      warn(`Membre ${m.uid} entré comme MJ : importé joueur (le créateur peut le promouvoir)`);
     }
     members.push({ uid: m.uid, role });
   }

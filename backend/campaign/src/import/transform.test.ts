@@ -85,15 +85,17 @@ describe('migration d’une campagne', () => {
     );
   });
 
-  it('rôles : créateur MJ, entré comme MJ co-MJ, les autres joueurs, bannis écartés', () => {
+  it('rôles : créateur seul MJ, entré comme MJ importé joueur, bannis écartés', () => {
     const m = transformCampaign(campaign());
     expect(m.members.map((x) => [x.uid, x.role])).toEqual([
       ['uidMJ', 'gm'],
       ['uidA', 'player'],
       ['uidB', 'player'],
-      ['uidC', 'gm'],
+      ['uidC', 'player'],
     ]);
-    expect(m.warnings).toContain('Membre uidC entré comme MJ : importé MJ (co-MJ)');
+    expect(m.warnings).toContain(
+      'Membre uidC entré comme MJ : importé joueur (le créateur peut le promouvoir)',
+    );
     expect(m.warnings).toContain('Membre uidBanni banni : importé comme banni seulement');
   });
 
