@@ -15,6 +15,7 @@ env:
   JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
   UPSTREAM_IDENTITY_URL: http://identity.vtt-prod.svc
   UPSTREAM_CHARACTER_URL: http://character.vtt-prod.svc
+  UPSTREAM_CAMPAIGN_URL: http://campaign.vtt-prod.svc
 ingress:
   enabled: true
   host: api.yner.fr

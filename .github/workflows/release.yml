@@ -50,6 +50,16 @@ jobs:
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=character',
             }
+          - {
+              image: campaign,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=campaign',
+            }
+          - {
+              image: campaign-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=campaign',
+            }
     outputs:
       digest-gateway: ${{ steps.out.outputs.digest-gateway }}
       digest-web: ${{ steps.out.outputs.digest-web }}
@@ -57,6 +67,8 @@ jobs:
       digest-identity-migrations: ${{ steps.out.outputs.digest-identity-migrations }}
       digest-character: ${{ steps.out.outputs.digest-character }}
       digest-character-migrations: ${{ steps.out.outputs.digest-character-migrations }}
+      digest-campaign: ${{ steps.out.outputs.digest-campaign }}
+      digest-campaign-migrations: ${{ steps.out.outputs.digest-campaign-migrations }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with: { egress-policy: audit }
@@ -145,16 +157,19 @@ jobs:
           DIGEST_IDENTITY_MIGRATIONS: ${{ needs.publish.outputs.digest-identity-migrations }}
           DIGEST_CHARACTER: ${{ needs.publish.outputs.digest-character }}
           DIGEST_CHARACTER_MIGRATIONS: ${{ needs.publish.outputs.digest-character-migrations }}
+          DIGEST_CAMPAIGN: ${{ needs.publish.outputs.digest-campaign }}
+          DIGEST_CAMPAIGN_MIGRATIONS: ${{ needs.publish.outputs.digest-campaign-migrations }}
         run: |
           set -euo pipefail
           for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB" "identity:$DIGEST_IDENTITY" \
-            "character:$DIGEST_CHARACTER"; do
+            "character:$DIGEST_CHARACTER" "campaign:$DIGEST_CAMPAIGN"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"
           done
           # Images de migration : même commit que le service, lancées en PreSync
-          for pair in "identity:$DIGEST_IDENTITY_MIGRATIONS" "character:$DIGEST_CHARACTER_MIGRATIONS"; do
+          for pair in "identity:$DIGEST_IDENTITY_MIGRATIONS" "character:$DIGEST_CHARACTER_MIGRATIONS" \
+            "campaign:$DIGEST_CAMPAIGN_MIGRATIONS"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".migrations.image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"

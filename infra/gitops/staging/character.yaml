@@ -13,7 +13,10 @@ env:
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
-# Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc)
+  # Droits des MJ et des joueurs sur les personnages engagés dans leurs salles
+  CAMPAIGN_URL: http://campaign.vtt-staging.svc
+# Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc), INTERNAL_API_SECRET
+# (même valeur que campaign)
 envFromSecrets:
   - name: character-secrets
 probes:
@@ -26,6 +29,8 @@ networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    # campaign appelle les routes /internal (initiative, durées, résumé)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
 migrations:
   enabled: true
   image:
