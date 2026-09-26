@@ -42,9 +42,24 @@ ingress:
 
 networkPolicy:
   enabled: true
+  # Ports sortants supplémentaires vers Internet (ex. 587 pour le SMTP)
+  extraEgressPorts: []
   # Namespaces autorisés à appeler ce service (en plus de l'ingress)
   allowFrom: []
   #  - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+
+# Migrations Liquibase (hook Argo CD PreSync), pour les services qui ont une base
+migrations:
+  enabled: false
+  image:
+    repository: ''
+    digest: ''
+    tag: 'main'
+  # Endpoint en écriture du cluster CloudNativePG
+  jdbcUrl: 'jdbc:postgresql://vtt-pg-rw.data.svc:5432/vtt'
+  schema: ''
+  # Secret CNPG du rôle <schéma>_owner (clés username / password)
+  secretName: ''
 
 # Tâches planifiées (remplacent les crons Vercel) : appellent une route du service
 # avec Authorization: Bearer $CRON_SECRET, via le Service interne.

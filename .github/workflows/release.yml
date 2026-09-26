@@ -30,9 +30,21 @@ jobs:
         include:
           - { image: gateway, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=gateway' }
           - { image: web, dockerfile: infra/docker/web.Dockerfile, args: '' }
+          - {
+              image: identity,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=identity',
+            }
+          - {
+              image: identity-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=identity',
+            }
     outputs:
       digest-gateway: ${{ steps.out.outputs.digest-gateway }}
       digest-web: ${{ steps.out.outputs.digest-web }}
+      digest-identity: ${{ steps.out.outputs.digest-identity }}
+      digest-identity-migrations: ${{ steps.out.outputs.digest-identity-migrations }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with: { egress-policy: audit }
@@ -117,13 +129,18 @@ jobs:
         env:
           DIGEST_GATEWAY: ${{ needs.publish.outputs.digest-gateway }}
           DIGEST_WEB: ${{ needs.publish.outputs.digest-web }}
+          DIGEST_IDENTITY: ${{ needs.publish.outputs.digest-identity }}
+          DIGEST_IDENTITY_MIGRATIONS: ${{ needs.publish.outputs.digest-identity-migrations }}
         run: |
           set -euo pipefail
-          for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB"; do
+          for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB" "identity:$DIGEST_IDENTITY"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"
           done
+          # Image de migration : même commit que le service, lancée en PreSync
+          test -n "$DIGEST_IDENTITY_MIGRATIONS"
+          yq -i ".migrations.image.digest = \"$DIGEST_IDENTITY_MIGRATIONS\"" "infra/gitops/$TARGET/identity.yaml"
           git diff --stat
       - name: Commit (Argo CD synchronise)
         run: |

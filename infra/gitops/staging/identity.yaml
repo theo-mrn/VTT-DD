@@ -1,0 +1,42 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-identity
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://valkey.messaging.svc:6379
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  APP_URL: https://staging.yner.fr
+  MAIL_FROM: 'YNER <contact@yner.fr>'
+  S3_REGION: auto
+# Secret identity-secrets (SOPS) : DATABASE_URL (rôle identity_svc), JWT_PRIVATE_JWKS,
+# INTERNAL_API_SECRET, SMTP_URL, S3_*, GOOGLE_*, DISCORD_*, FIREBASE_SCRYPT_*
+envFromSecrets:
+  - name: identity-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : identity n'est joignable que par la gateway
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+  # SMTP (Resend) en plus du HTTPS
+  extraEgressPorts: [587]
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-identity-migrations
+    digest: ''
+    tag: 'main'
+  schema: identity
+  # Secret généré par CloudNativePG pour le rôle identity_owner
+  secretName: pg-identity-owner

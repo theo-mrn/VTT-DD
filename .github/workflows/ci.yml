@@ -167,6 +167,16 @@ jobs:
         include:
           - { image: gateway, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=gateway' }
           - { image: web, dockerfile: infra/docker/web.Dockerfile, args: '' }
+          - {
+              image: identity,
+              dockerfile: infra/docker/service.Dockerfile,
+              args: 'SERVICE=identity',
+            }
+          - {
+              image: identity-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=identity',
+            }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
