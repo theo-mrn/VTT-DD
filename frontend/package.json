@@ -21,6 +21,7 @@
     "@react-three/cannon": "^6.6.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.8.1",
+    "@vtt/rules": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.18.2",

@@ -16,6 +16,8 @@ COPY backend/gateway/package.json ./backend/gateway/
 COPY backend/identity/package.json ./backend/identity/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/platform/package.json ./packages/platform/
+COPY packages/rules/package.json ./packages/rules/
+COPY packages/systemes/package.json ./packages/systemes/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/web..."
