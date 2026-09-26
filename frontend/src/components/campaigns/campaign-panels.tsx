@@ -2,7 +2,7 @@
 
 /**
  * Panneaux de la vue détaillée d'une campagne, repris de l'ancienne app
- * (mes-campagnes et rejoindre, salle sélectionnée) : barre de retour, image,
+ * (mes-campagnes et rejoindre, campagne sélectionnée) : barre de retour, image,
  * description, informations et créateur.
  */
 import { ArrowLeft, Gamepad2 } from 'lucide-react';
@@ -10,10 +10,10 @@ import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { aclonica, RoomImage } from './elements';
+import { aclonica, CampaignImage } from './elements';
 
 /** Barre sous la navigation : « Retour » et titre de la campagne. */
-export function RoomHeaderBar({ title, onBack }: { title: string; onBack(): void }) {
+export function CampaignHeaderBar({ title, onBack }: { title: string; onBack(): void }) {
   return (
     <div
       className="relative z-20 border-b border-[var(--border-color)] shadow-lg backdrop-blur-md"
@@ -45,7 +45,7 @@ export function RoomHeaderBar({ title, onBack }: { title: string; onBack(): void
 }
 
 /** Grille de la vue détaillée : colonne principale (2/3) et barre latérale. */
-export function RoomLayout({ main, side }: { main: ReactNode; side: ReactNode }) {
+export function CampaignLayout({ main, side }: { main: ReactNode; side: ReactNode }) {
   return (
     <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
       <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
@@ -56,15 +56,15 @@ export function RoomLayout({ main, side }: { main: ReactNode; side: ReactNode })
   );
 }
 
-/** Image principale de la salle, avec son halo doré au survol. */
-export function RoomHero({ url, title }: { url: string | null | undefined; title: string }) {
+/** Image principale de la campagne, avec son halo doré au survol. */
+export function CampaignHero({ url, title }: { url: string | null | undefined; title: string }) {
   return (
     <div className="group relative">
       <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] via-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] to-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] opacity-0 blur-sm transition duration-500 group-hover:opacity-100" />
       <div className="relative aspect-video overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-dark)] shadow-2xl">
-        <RoomImage
+        <CampaignImage
           url={url}
-          alt={`Image de la salle ${title}`}
+          alt={`Image de la campagne ${title}`}
           zoom={false}
           className="transition-transform duration-300 group-hover:scale-105"
         />
@@ -74,7 +74,7 @@ export function RoomHero({ url, title }: { url: string | null | undefined; title
 }
 
 /** Carte au style de l'ancienne app (fond de carte, bordure du thème). */
-export function RoomCard({
+export function CampaignCard({
   title,
   icon,
   children,
@@ -108,7 +108,7 @@ export function RoomCard({
 }
 
 /** Conteneur des panneaux (discussion, sessions, joueurs). */
-export function RoomPanel({ children }: { children: ReactNode }) {
+export function CampaignPanel({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
       {children}
@@ -118,7 +118,7 @@ export function RoomPanel({ children }: { children: ReactNode }) {
 
 export function DescriptionCard({ text }: { text: string | undefined }) {
   return (
-    <RoomCard>
+    <CampaignCard>
       <div className="py-2 sm:py-4">
         <h3
           className={cn(
@@ -132,7 +132,7 @@ export function DescriptionCard({ text }: { text: string | undefined }) {
           {text || 'Aucune description.'}
         </p>
       </div>
-    </RoomCard>
+    </CampaignCard>
   );
 }
 
@@ -152,7 +152,7 @@ export function InfoCard({
 }) {
   const full = max !== undefined && players >= max;
   return (
-    <RoomCard title="Informations" icon={<Gamepad2 className="h-5 w-5" />}>
+    <CampaignCard title="Informations" icon={<Gamepad2 className="h-5 w-5" />}>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <span className="font-medium text-[var(--text-secondary)]">Joueurs</span>
@@ -183,13 +183,13 @@ export function InfoCard({
         )}
         {children}
       </div>
-    </RoomCard>
+    </CampaignCard>
   );
 }
 
 export function CreatorCard({ name, avatarUrl }: { name: string; avatarUrl: string | null }) {
   return (
-    <RoomCard title="Créateur">
+    <CampaignCard title="Créateur">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           {avatarUrl ? (
@@ -211,6 +211,6 @@ export function CreatorCard({ name, avatarUrl }: { name: string; avatarUrl: stri
           <p className="text-sm font-medium text-[var(--accent-brown)]">Maître de jeu</p>
         </div>
       </div>
-    </RoomCard>
+    </CampaignCard>
   );
 }

@@ -2,7 +2,7 @@
 
 /**
  * Rejoindre une campagne, reprise des anciennes pages « home » et
- * « rejoindre » : code de salle (ou d'invitation) à gauche, campagnes
+ * « rejoindre » : code de campagne (ou d'invitation) à gauche, campagnes
  * publiques en ligne à droite, puis la vue détaillée d'une campagne choisie.
  */
 import { ArrowRight, Globe, Loader2, Play, Search } from 'lucide-react';
@@ -19,8 +19,8 @@ import {
   Notice,
   outlineButton,
   primaryButton,
-  RoomGrid,
-  RoomTile,
+  CampaignGrid,
+  CampaignTile,
   SectionHeading,
   SplitLayout,
 } from '@/components/campaigns/elements';
@@ -28,22 +28,21 @@ import {
   CreatorCard,
   DescriptionCard,
   InfoCard,
-  RoomCard,
-  RoomHeaderBar,
-  RoomHero,
-  RoomLayout,
-} from '@/components/campaigns/room-panels';
+  CampaignCard,
+  CampaignHeaderBar,
+  CampaignHero,
+  CampaignLayout,
+} from '@/components/campaigns/campaign-panels';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useResource } from '@/lib/resource';
 import {
   joinErrorMessage,
-  joinRoom,
-  listPublicRooms,
-  playerCount,
-  type PublicRoomsPage,
-  type RoomSummary,
-} from '@/lib/rooms';
+  joinCampaign,
+  listPublicCampaigns,
+  type PublicCampaignsPage,
+  type CampaignSummary,
+} from '@/lib/campaigns';
 import { listSystems } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 
@@ -62,14 +61,16 @@ function Join() {
   const [code, setCode] = useState(initialCode ? normalizeCode(initialCode) : '');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<RoomSummary | null>(null);
+  const [selected, setSelected] = useState<CampaignSummary | null>(null);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const publicRooms = useResource(`salles-publiques:${query}`, () => listPublicRooms(query));
+  const publicCampaigns = useResource(`campagnes-publiques:${query}`, () =>
+    listPublicCampaigns(query),
+  );
   const systems = useResource('systemes', listSystems);
   const autoJoined = useRef(false);
   // Pages suivantes des campagnes en ligne (20 par page), ajoutées à la première
-  const [more, setMore] = useState<{ query: string; pages: PublicRoomsPage[] }>({
+  const [more, setMore] = useState<{ query: string; pages: PublicCampaignsPage[] }>({
     query: '',
     pages: [],
   });
@@ -92,8 +93,8 @@ function Join() {
       setJoining(true);
       setError(null);
       try {
-        const room = await joinRoom(c);
-        router.push(`/campaigns/${room.id}/characters`);
+        const campaign = await joinCampaign(c);
+        router.push(`/campaigns/${campaign.id}/characters`);
       } catch (err) {
         setError(joinErrorMessage(err));
         setJoining(false);
@@ -110,14 +111,14 @@ function Join() {
   }, [initialCode, join]);
 
   const extra = more.query === query ? more.pages : [];
-  const rooms = [publicRooms.data, ...extra].flatMap((p) => p?.salles ?? []);
-  const total = Math.max(publicRooms.data?.total ?? 0, rooms.length);
-  const lastPage = extra.at(-1)?.page ?? publicRooms.data?.page ?? 1;
+  const campaigns = [publicCampaigns.data, ...extra].flatMap((p) => p?.campaigns ?? []);
+  const total = Math.max(publicCampaigns.data?.total ?? 0, campaigns.length);
+  const lastPage = extra.at(-1)?.page ?? publicCampaigns.data?.page ?? 1;
 
   async function loadMore() {
     setLoadingMore(true);
     try {
-      const next = await listPublicRooms(query, lastPage + 1);
+      const next = await listPublicCampaigns(query, lastPage + 1);
       setMore({ query, pages: [...extra, next] });
     } catch {
       // Le bouton reste disponible pour réessayer
@@ -127,36 +128,36 @@ function Join() {
   }
 
   if (selected) {
-    const systemName = systems.data?.find((s) => s.id === selected.systeme.id)?.nom;
+    const systemName = systems.data?.find((s) => s.id === selected.system.id)?.nom;
     return (
       <>
-        <RoomHeaderBar
-          title={selected.nom}
+        <CampaignHeaderBar
+          title={selected.name}
           onBack={() => {
             setSelected(null);
             setError(null);
           }}
         />
-        <RoomLayout
+        <CampaignLayout
           main={
             <>
-              <RoomHero url={selected.imageUrl} title={selected.nom} />
+              <CampaignHero url={selected.imageUrl} title={selected.name} />
               <DescriptionCard text={selected.description} />
             </>
           }
           side={
             <>
               <InfoCard
-                players={playerCount(selected)}
-                max={selected.maxJoueurs}
-                isPublic={selected.publique}
+                players={selected.playerCount}
+                max={selected.maxPlayers}
+                isPublic={selected.isPublic}
                 system={systemName}
               />
-              <RoomCard title="Actions">
+              <CampaignCard title="Actions">
                 <div className="space-y-3">
                   <Button
-                    onClick={() => void join(selected.code ?? selected.id)}
-                    disabled={joining || selected.complete}
+                    onClick={() => void join(selected.code)}
+                    disabled={joining || selected.isFull}
                     size="lg"
                     className={cn(
                       primaryButton,
@@ -170,17 +171,17 @@ function Join() {
                     )}
                     {joining
                       ? 'Connexion en cours…'
-                      : selected.complete
+                      : selected.isFull
                         ? 'Campagne complète'
                         : 'Rejoindre la partie'}
                   </Button>
                   {error && <Notice>{error}</Notice>}
                 </div>
-              </RoomCard>
-              {selected.proprietaire && (
+              </CampaignCard>
+              {selected.owner && (
                 <CreatorCard
-                  name={selected.proprietaire.nom ?? 'Maître du jeu'}
-                  avatarUrl={selected.proprietaire.avatarUrl}
+                  name={selected.owner.name ?? 'Maître du jeu'}
+                  avatarUrl={selected.owner.avatarUrl}
                 />
               )}
             </>
@@ -261,27 +262,27 @@ function Join() {
           </div>
         </div>
 
-        {publicRooms.error && !publicRooms.data ? (
-          <Notice>{publicRooms.error}</Notice>
-        ) : publicRooms.loading && !publicRooms.data ? (
+        {publicCampaigns.error && !publicCampaigns.data ? (
+          <Notice>{publicCampaigns.error}</Notice>
+        ) : publicCampaigns.loading && !publicCampaigns.data ? (
           <Loading text="Recherche des campagnes…" />
-        ) : rooms.length > 0 ? (
+        ) : campaigns.length > 0 ? (
           <div className="space-y-6">
-            <RoomGrid>
-              {rooms.map((room) => (
-                <RoomTile
-                  key={room.id}
-                  room={room}
+            <CampaignGrid>
+              {campaigns.map((c) => (
+                <CampaignTile
+                  key={c.id}
+                  campaign={c}
                   variant="public"
                   busy={joining}
                   onClick={() => {
                     setError(null);
-                    setSelected(room);
+                    setSelected(c);
                   }}
                 />
               ))}
-            </RoomGrid>
-            {rooms.length < total && (
+            </CampaignGrid>
+            {campaigns.length < total && (
               <Button
                 variant="outline"
                 onClick={() => void loadMore()}

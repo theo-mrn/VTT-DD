@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * « Nouveau héros » dans une salle : crée le personnage dans le système de la
- * salle, l'engage, l'incarne, puis ouvre la création avec retour vers la
- * salle. On peut aussi engager un de ses personnages existants du même système.
+ * « Nouveau héros » dans une campagne : crée le personnage dans le système de la
+ * campagne, l'engage, l'incarne, puis ouvre la création avec retour vers la
+ * campagne. On peut aussi engager un de ses personnages existants du même système.
  */
 import { creationDe } from '@vtt/rules';
 import { Loader2 } from 'lucide-react';
@@ -25,26 +25,26 @@ import { Label } from '@/components/ui/label';
 import { errorMessage } from '@/lib/api';
 import { createCharacter, listCharacters } from '@/lib/characters';
 import { useResource } from '@/lib/resource';
-import { engageCharacter, playCharacter } from '@/lib/rooms';
+import { engageCharacter, playCharacter } from '@/lib/campaigns';
 import { useSystem } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 import { Notice } from './elements';
 
-export function NewRoomCharacterDialog({
+export function NewCampaignCharacterDialog({
   open,
   onClose,
-  roomId,
+  campaignId,
   systemId,
   engagedIds,
   canCreate,
 }: {
   open: boolean;
   onClose(): void;
-  roomId: string;
+  campaignId: string;
   systemId: string;
-  /** Personnages déjà engagés dans la salle (écartés de « mes personnages »). */
+  /** Personnages déjà engagés dans la campagne (écartés de « mes personnages »). */
   engagedIds: string[];
-  /** Création d'un nouveau personnage permise (salle ouverte à la création, ou MJ). */
+  /** Création d'un nouveau personnage permise (campagne ouverte à la création, ou MJ). */
   canCreate: boolean;
 }) {
   const router = useRouter();
@@ -85,13 +85,13 @@ export function NewRoomCharacterDialog({
     setError(null);
     try {
       const c = await createCharacter({ systemeId: systemId, type, nom: name.trim() });
-      await engageCharacter(roomId, c.id, 'joueurs');
-      await playCharacter(roomId, c.id);
+      await engageCharacter(campaignId, c.id, 'players');
+      await playCharacter(campaignId, c.id);
       const wizard = c.etat.creation && !!creationDe(system, type);
       router.push(
         wizard
-          ? `/characters/${c.id}/creation?room=${encodeURIComponent(roomId)}`
-          : `/campaigns/${roomId}/play`,
+          ? `/characters/${c.id}/creation?campaign=${encodeURIComponent(campaignId)}`
+          : `/campaigns/${campaignId}/play`,
       );
     } catch (err) {
       setError(errorMessage(err));
@@ -104,12 +104,12 @@ export function NewRoomCharacterDialog({
     setSending(id);
     setError(null);
     try {
-      await engageCharacter(roomId, id, 'joueurs');
-      await playCharacter(roomId, id);
+      await engageCharacter(campaignId, id, 'players');
+      await playCharacter(campaignId, id);
       router.push(
         creation
-          ? `/characters/${id}/creation?room=${encodeURIComponent(roomId)}`
-          : `/campaigns/${roomId}/play`,
+          ? `/characters/${id}/creation?campaign=${encodeURIComponent(campaignId)}`
+          : `/campaigns/${campaignId}/play`,
       );
     } catch (err) {
       setError(errorMessage(err));
@@ -139,11 +139,11 @@ export function NewRoomCharacterDialog({
           ) : canCreate ? (
             <form onSubmit={create} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="room-character-name" className="text-[var(--text-secondary)]">
+                <Label htmlFor="campaign-character-name" className="text-[var(--text-secondary)]">
                   Nom
                 </Label>
                 <Input
-                  id="room-character-name"
+                  id="campaign-character-name"
                   required
                   maxLength={100}
                   value={name}
@@ -154,11 +154,11 @@ export function NewRoomCharacterDialog({
               </div>
               {types.length > 1 && (
                 <div className="space-y-2">
-                  <Label htmlFor="room-character-type" className="text-[var(--text-secondary)]">
+                  <Label htmlFor="campaign-character-type" className="text-[var(--text-secondary)]">
                     Type de fiche
                   </Label>
                   <select
-                    id="room-character-type"
+                    id="campaign-character-type"
                     value={type ?? ''}
                     onChange={(e) => setType(e.target.value)}
                     className="h-9 w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-dark)] px-3 text-sm text-[var(--text-primary)]"

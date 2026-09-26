@@ -9,7 +9,7 @@ import { Block, SheetEmpty } from './elements';
 
 type ActionsWidgetProps = Extract<Widget, { type: 'actions' }>;
 
-/** Cibles fournies par la page (personnages engagés dans la salle) ; sinon, mes personnages. */
+/** Cibles fournies par la page (personnages engagés dans la campagne) ; sinon, mes personnages. */
 const TargetsContext = createContext<ActionTarget[] | null>(null);
 
 export function ActionTargetsProvider({
@@ -35,7 +35,7 @@ export function blockActions(actions: Map<string, Action>, type: string, ids?: s
 
 /**
  * Actions de la fiche : paramètres, aperçu du jet, lancer par le serveur et
- * résultat. Cibles : les personnages de la salle quand la page les fournit
+ * résultat. Cibles : les personnages de la campagne quand la page les fournit
  * (table de jeu), sinon mes autres personnages du même système.
  */
 export function ActionsWidget({ widget }: { widget: ActionsWidgetProps }) {

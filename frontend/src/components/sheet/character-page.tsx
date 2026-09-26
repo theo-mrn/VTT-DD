@@ -20,7 +20,7 @@ export function CharacterPage({
 }: {
   id: string;
   /**
-   * L'utilisateur mène la salle d'où la fiche est ouverte (`?room=`, table de
+   * L'utilisateur mène la campagne d'où la fiche est ouverte (`?campaign=`, table de
    * jeu) : il saisit les attributs `saisie: mj`.
    */
   gm?: boolean;

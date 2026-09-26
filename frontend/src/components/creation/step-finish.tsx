@@ -10,7 +10,7 @@ import { AlertCircle, Check, ChevronRight, Circle, Loader2, User } from 'lucide-
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { writes } from '@/lib/characters';
-import { afterCreationPath } from '@/lib/rooms';
+import { afterCreationPath } from '@/lib/campaigns';
 import { cn } from '@/lib/utils';
 import { useSheet } from '../sheet/context';
 import {
@@ -48,8 +48,8 @@ export function FinishStep({
 }) {
   const { character, system, presentation, state, write, pending } = useSheet();
   const router = useRouter();
-  // Création ouverte depuis une salle : retour à sa table
-  const roomId = useSearchParams().get('room');
+  // Création ouverte depuis une campagne : retour à sa table
+  const campaignId = useSearchParams().get('campaign');
   const [name, setName] = useState(character.nom);
   const [url, setUrl] = useState(draft.draft.image ?? character.avatarUrl ?? '');
   const [sending, setSending] = useState<'nom' | 'image' | 'fin' | null>(null);
@@ -102,7 +102,7 @@ export function FinishStep({
     setSending(null);
     if (ok) {
       clearCreationDraft(character.id);
-      router.push(afterCreationPath(character.id, roomId));
+      router.push(afterCreationPath(character.id, campaignId));
     }
   }
 

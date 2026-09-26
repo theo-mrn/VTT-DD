@@ -10,31 +10,25 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loading } from '@/components/account/elements';
 import { aclonica, Notice, outlineButton, primaryButton } from '@/components/campaigns/elements';
-import { RoomChat } from '@/components/campaigns/room-chat';
+import { CampaignChat } from '@/components/campaigns/campaign-chat';
 import {
   CreatorCard,
   DescriptionCard,
   InfoCard,
-  RoomCard,
-  RoomHeaderBar,
-  RoomHero,
-  RoomLayout,
-  RoomPanel,
-} from '@/components/campaigns/room-panels';
-import { RoomSessions } from '@/components/campaigns/room-sessions';
-import { RoomSettingsManager } from '@/components/campaigns/room-settings';
-import { RoomUsersManager } from '@/components/campaigns/room-users';
+  CampaignCard,
+  CampaignHeaderBar,
+  CampaignHero,
+  CampaignLayout,
+  CampaignPanel,
+} from '@/components/campaigns/campaign-panels';
+import { CampaignSessions } from '@/components/campaigns/campaign-sessions';
+import { CampaignSettingsManager } from '@/components/campaigns/campaign-settings';
+import { CampaignUsersManager } from '@/components/campaigns/campaign-users';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { errorMessage } from '@/lib/api';
 import { useResource } from '@/lib/resource';
-import {
-  createInvitation,
-  getRoom,
-  listRoomCharacters,
-  removeMember,
-  type Invitation,
-} from '@/lib/rooms';
+import { createInvitation, getCampaign, removeMember, type Invitation } from '@/lib/campaigns';
 import { useProfile } from '@/lib/session';
 import { listSystems } from '@/lib/systems';
 import { cn } from '@/lib/utils';
@@ -46,17 +40,17 @@ export default function CampaignPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const profile = useProfile();
-  const room = useResource(`salle:${id}`, () => getRoom(id));
+  const campaign = useResource(`campagne:${id}`, () => getCampaign(id));
   const systems = useResource('systemes', listSystems);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (room.error && !room.data)
+  if (campaign.error && !campaign.data)
     return (
       <div className="container mx-auto max-w-lg space-y-4 px-4 py-16">
-        <Notice>{room.error}</Notice>
+        <Notice>{campaign.error}</Notice>
         <Button
           variant="outline"
           className={outlineButton}
@@ -66,15 +60,15 @@ export default function CampaignPage() {
         </Button>
       </div>
     );
-  if (!room.data) return <Loading text="Chargement de la campagne…" />;
+  if (!campaign.data) return <Loading text="Chargement de la campagne…" />;
 
-  const r = room.data;
-  const isOwner = same(r.proprietaireId, profile.id);
-  const isGm = r.role === 'mj';
+  const c = campaign.data;
+  const isOwner = same(c.ownerId, profile.id);
+  const isGm = c.role === 'gm';
   // Places occupées : membres qui ne sont pas MJ (spectateurs compris)
-  const players = r.joueurs ?? r.membres.filter((m) => m.role !== 'mj').length;
-  const owner = r.membres.find((m) => same(m.userId, r.proprietaireId));
-  const systemName = systems.data?.find((s) => s.id === r.systeme.id)?.nom ?? r.systeme.id;
+  const players = c.playerCount;
+  const owner = c.members.find((m) => same(m.userId, c.ownerId));
+  const systemName = systems.data?.find((s) => s.id === c.system.id)?.nom ?? c.system.id;
 
   // « Jouer » : le MJ va à la table ; un joueur y retrouve son personnage, sinon il en choisit un
   async function play() {
@@ -85,16 +79,8 @@ export default function CampaignPage() {
       router.push(`/campaigns/${id}/play`);
       return;
     }
-    // Le détail de la salle dit quel personnage j'incarne ; sinon on le cherche dans la liste
-    let playing = r.personnageIncarne;
-    if (playing === undefined) {
-      try {
-        const characters = await listRoomCharacters(id);
-        playing = characters.find((c) => same(c.incarnePar, profile.id))?.characterId ?? null;
-      } catch {
-        playing = null;
-      }
-    }
+    // Le détail de la campagne dit quel personnage j'incarne
+    const playing = c.playedCharacterId;
     router.push(playing ? `/campaigns/${id}/play` : `/campaigns/${id}/characters`);
   }
 
@@ -112,40 +98,40 @@ export default function CampaignPage() {
 
   return (
     <>
-      <RoomHeaderBar title={r.nom} onBack={() => router.push('/campaigns')} />
+      <CampaignHeaderBar title={c.name} onBack={() => router.push('/campaigns')} />
 
-      <RoomLayout
+      <CampaignLayout
         main={
           <>
-            <RoomHero url={r.imageUrl} title={r.nom} />
-            <DescriptionCard text={r.description} />
-            <RoomPanel>
-              <RoomChat roomId={id} isOwner={isGm} />
-            </RoomPanel>
+            <CampaignHero url={c.imageUrl} title={c.name} />
+            <DescriptionCard text={c.description} />
+            <CampaignPanel>
+              <CampaignChat campaignId={id} isOwner={isGm} />
+            </CampaignPanel>
           </>
         }
         side={
           <>
             <InfoCard
               players={players}
-              max={r.maxJoueurs}
-              isPublic={r.publique}
+              max={c.maxPlayers}
+              isPublic={c.isPublic}
               system={systemName}
             >
-              {isGm && r.code && (
+              {isGm && c.code && (
                 <div className="border-t border-[var(--border-color)] pt-4">
                   <p className="mb-2 text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    Code de la salle :
+                    Code de la campagne :
                   </p>
                   <code className="block rounded-lg border border-[var(--border-color)] bg-[var(--bg-dark)] px-4 py-3 text-center font-mono text-lg font-bold text-[var(--accent-brown)] shadow-inner">
-                    {r.code}
+                    {c.code}
                   </code>
                 </div>
               )}
-              {isGm && <InvitationLink roomId={id} />}
+              {isGm && <InvitationLink campaignId={id} />}
             </InfoCard>
 
-            <RoomCard title="Actions">
+            <CampaignCard title="Actions">
               <div className="space-y-3">
                 <Button
                   onClick={() => void play()}
@@ -166,7 +152,7 @@ export default function CampaignPage() {
                   className={cn(outlineButton, 'h-12 w-full gap-2')}
                 >
                   <Users className="h-4 w-4" />
-                  Personnages de la salle
+                  Personnages de la campagne
                 </Button>
                 {isGm && (
                   <Button
@@ -175,7 +161,7 @@ export default function CampaignPage() {
                     className={cn(outlineButton, 'h-12 w-full gap-2')}
                   >
                     <Settings className="h-4 w-4" />
-                    Gérer la salle
+                    Gérer la campagne
                   </Button>
                 )}
                 {!isOwner && (
@@ -195,24 +181,24 @@ export default function CampaignPage() {
                 )}
                 {error && <Notice>{error}</Notice>}
               </div>
-            </RoomCard>
+            </CampaignCard>
 
-            <RoomPanel>
-              <RoomSessions roomId={id} isOwner={isGm} />
-            </RoomPanel>
+            <CampaignPanel>
+              <CampaignSessions campaignId={id} isOwner={isGm} />
+            </CampaignPanel>
 
             {owner && (
-              <CreatorCard name={owner.nom ?? 'Maître du jeu'} avatarUrl={owner.avatarUrl} />
+              <CreatorCard name={owner.name ?? 'Maître du jeu'} avatarUrl={owner.avatarUrl} />
             )}
 
-            <RoomPanel>
-              <RoomUsersManager
-                roomId={id}
-                members={r.membres}
+            <CampaignPanel>
+              <CampaignUsersManager
+                campaignId={id}
+                members={c.members}
                 canManage={isGm}
-                onChanged={() => void room.reload()}
+                onChanged={() => void campaign.reload()}
               />
-            </RoomPanel>
+            </CampaignPanel>
           </>
         }
       />
@@ -225,11 +211,11 @@ export default function CampaignPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[80vh] overflow-y-auto">
-            <RoomSettingsManager
-              room={r}
+            <CampaignSettingsManager
+              campaign={c}
               players={players}
               isOwner={isOwner}
-              onSaved={() => void room.reload()}
+              onSaved={() => void campaign.reload()}
             />
           </div>
         </DialogContent>
@@ -239,13 +225,13 @@ export default function CampaignPage() {
 }
 
 /** Lien d'invitation à partager (MJ) : créé à la demande, copié en un clic. */
-function InvitationLink({ roomId }: { roomId: string }) {
+function InvitationLink({ campaignId }: { campaignId: string }) {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Le lien du service vise /rejoindre/<code> ; le front l'ouvre sous /join/<code>
+  // Lien du service (<APP_URL>/join/<code>), recalé sur l'origine du navigateur
   const url = invitation
     ? typeof window !== 'undefined'
       ? `${window.location.origin}/join/${encodeURIComponent(invitation.code)}`
@@ -256,7 +242,7 @@ function InvitationLink({ roomId }: { roomId: string }) {
     setSending(true);
     setError(null);
     try {
-      setInvitation(await createInvitation(roomId));
+      setInvitation(await createInvitation(campaignId));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -301,10 +287,10 @@ function InvitationLink({ roomId }: { roomId: string }) {
             </Button>
           </div>
           {copied && <p className="text-xs text-green-400">Lien copié !</p>}
-          {invitation?.expireLe && (
+          {invitation?.expiresAt && (
             <p className="text-xs text-[var(--text-secondary)]">
               Expire le{' '}
-              {new Date(invitation.expireLe).toLocaleString('fr-FR', {
+              {new Date(invitation.expiresAt).toLocaleString('fr-FR', {
                 day: 'numeric',
                 month: 'long',
                 hour: '2-digit',

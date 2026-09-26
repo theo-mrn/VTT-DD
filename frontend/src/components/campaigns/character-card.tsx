@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Carte d'un personnage de la salle, reprise de l'ancienne page
+ * Carte d'un personnage de la campagne, reprise de l'ancienne page
  * « personnages » : carte holographique (GlareCard) qui s'ouvre en grand
  * (MorphingDialog) sur un aperçu de la fiche et le bouton « Jouer ». L'aperçu
  * suit la présentation du système (résumé, ressources, premier bloc
@@ -25,12 +25,12 @@ import { blockAttributes } from '@/components/sheet/widget-attributes';
 import { GlareCard } from '@/components/ui/glare-card';
 import { getCharacter, type Character } from '@/lib/characters';
 import { useResource } from '@/lib/resource';
-import type { RoomCharacter } from '@/lib/rooms';
+import type { CampaignCharacter } from '@/lib/campaigns';
 import { sheetWidgets, useSystem } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 
 export interface CharacterCardProps {
-  character: RoomCharacter;
+  character: CampaignCharacter;
   systemId: string;
   /** Ce personnage est en cours de sélection. */
   isSelected: boolean;
@@ -59,7 +59,7 @@ export function CharacterCard(props: CharacterCardProps) {
     >
       <MorphingDialog transition={{ type: 'spring', stiffness: 170, damping: 24, mass: 1.1 }}>
         <MorphingDialogTrigger
-          label={`Voir ${character.nom}`}
+          label={`Voir ${character.name}`}
           className={cn(
             'relative rounded-[24px] transition-transform duration-300 ease-out',
             !isTaken && 'hover:-translate-y-2',
@@ -114,7 +114,7 @@ function CardFace({ character, isActive, isTaken, occupantName }: CharacterCardP
             </span>
           </div>
         )}
-        {character.creation && !isTaken && !isActive && (
+        {character.inCreation && !isTaken && !isActive && (
           <span className="absolute inset-x-2 bottom-2 z-10 rounded-full border border-[#c9a965]/40 bg-black/60 px-2 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider text-[#e2cc97] backdrop-blur-sm">
             En création
           </span>
@@ -130,13 +130,13 @@ function CardFace({ character, isActive, isTaken, occupantName }: CharacterCardP
 }
 
 /** Image du personnage ; `shared` la fait voyager de la carte à la fenêtre. */
-function CardImage({ character, shared }: { character: RoomCharacter; shared?: boolean }) {
+function CardImage({ character, shared }: { character: CampaignCharacter; shared?: boolean }) {
   if (character.avatarUrl) {
     if (shared)
       return (
         <MorphingDialogImage
           src={character.avatarUrl}
-          alt={character.nom}
+          alt={character.name}
           className="absolute inset-0 h-full w-full object-cover object-top"
         />
       );
@@ -144,7 +144,7 @@ function CardImage({ character, shared }: { character: RoomCharacter; shared?: b
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={character.avatarUrl}
-        alt={character.nom}
+        alt={character.name}
         className="absolute inset-0 h-full w-full object-cover object-top"
       />
     );
@@ -152,7 +152,7 @@ function CardImage({ character, shared }: { character: RoomCharacter; shared?: b
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-700 to-zinc-900">
       <span className="select-none font-serif text-6xl font-bold text-zinc-400">
-        {character.nom.charAt(0).toUpperCase() || '?'}
+        {character.name.charAt(0).toUpperCase() || '?'}
       </span>
     </div>
   );
@@ -218,7 +218,7 @@ function CharacterStatsPreview({
         <div className="relative px-6 pb-6 pt-24">
           <div className="mb-5">
             <h2 className="font-[family-name:var(--font-aclonica)] text-3xl font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-              {character.nom}
+              {character.name}
             </h2>
             <p className="mt-1 text-sm tracking-wide text-[#f5d491]/90">{subtitle}</p>
             {full.data && system && (

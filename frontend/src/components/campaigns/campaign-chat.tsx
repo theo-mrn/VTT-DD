@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Discussion de la salle, reprise de l'ancienne app (RoomChat). Les messages
+ * Discussion de la campagne, reprise de l'ancienne app (CampaignChat). Les messages
  * sont relus toutes les quelques secondes en attendant le service temps réel.
  */
 import { MessageSquare, Send, Trash2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { errorMessage } from '@/lib/api';
-import { deleteMessage, listMessages, sendMessage, type RoomMessage } from '@/lib/rooms';
+import { deleteMessage, listMessages, sendMessage, type CampaignMessage } from '@/lib/campaigns';
 import { useSession } from '@/lib/session';
 
 const POLL_MS = 5000;
@@ -28,10 +28,10 @@ function formatStamp(iso: string) {
       });
 }
 
-export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean }) {
+export function CampaignChat({ campaignId, isOwner }: { campaignId: string; isOwner: boolean }) {
   const { profile } = useSession();
   const currentUid = profile?.id.toLowerCase();
-  const [messages, setMessages] = useState<RoomMessage[]>([]);
+  const [messages, setMessages] = useState<CampaignMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,11 +40,11 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
 
   const refresh = useCallback(async () => {
     try {
-      setMessages(await listMessages(roomId));
+      setMessages(await listMessages(campaignId));
     } catch {
       // Relu au prochain passage
     }
-  }, [roomId]);
+  }, [campaignId]);
 
   useEffect(() => {
     void refresh();
@@ -69,7 +69,7 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
     setSending(true);
     setError(null);
     try {
-      const m = await sendMessage(roomId, text);
+      const m = await sendMessage(campaignId, text);
       setNewMessage('');
       if (m?.id) setMessages((list) => [...list.filter((x) => x.id !== m.id), m]);
       void refresh();
@@ -83,7 +83,7 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
   async function handleDelete(id: string) {
     setMessages((list) => list.filter((m) => m.id !== id));
     try {
-      await deleteMessage(roomId, id);
+      await deleteMessage(campaignId, id);
     } catch (err) {
       setError(errorMessage(err));
       void refresh();
@@ -107,17 +107,17 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
           ) : (
             <div className="flex flex-col gap-3">
               {messages.map((msg) => {
-                const isMe = msg.auteur.id.toLowerCase() === currentUid;
-                const name = msg.auteur.nom ?? 'Inconnu';
+                const isMe = msg.author.id.toLowerCase() === currentUid;
+                const name = msg.author.name ?? 'Inconnu';
                 return (
                   <div
                     key={msg.id}
                     className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}
                   >
-                    {msg.auteur.avatarUrl ? (
+                    {msg.author.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={msg.auteur.avatarUrl}
+                        src={msg.author.avatarUrl}
                         alt={name}
                         className="h-8 w-8 flex-shrink-0 rounded-full border border-border object-cover"
                       />
@@ -148,7 +148,7 @@ export function RoomChat({ roomId, isOwner }: { roomId: string; isOwner: boolean
                               : 'rounded-tl-sm bg-muted text-foreground'
                           }`}
                         >
-                          {msg.texte}
+                          {msg.body}
                         </div>
                         {(isMe || isOwner) && (
                           <button

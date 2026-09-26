@@ -1,6 +1,6 @@
 'use client';
 
-/** Prochaines sessions de la salle, reprises de l'ancienne app (RoomSessions). */
+/** Prochaines sessions de la campagne, reprises de l'ancienne app (CampaignSessions). */
 import { CalendarDays, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { errorMessage } from '@/lib/api';
 import { useResource } from '@/lib/resource';
-import { addSession, deleteSession, listSessions } from '@/lib/rooms';
+import { addSession, deleteSession, listSessions } from '@/lib/campaigns';
 
-export function RoomSessions({ roomId, isOwner }: { roomId: string; isOwner: boolean }) {
-  const sessions = useResource(`salle:${roomId}:sessions`, () => listSessions(roomId));
+export function CampaignSessions({
+  campaignId,
+  isOwner,
+}: {
+  campaignId: string;
+  isOwner: boolean;
+}) {
+  const sessions = useResource(`campagne:${campaignId}:sessions`, () => listSessions(campaignId));
   const [newDate, setNewDate] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +35,7 @@ export function RoomSessions({ roomId, isOwner }: { roomId: string; isOwner: boo
     setAdding(true);
     setError(null);
     try {
-      await addSession(roomId, date);
+      await addSession(campaignId, date);
       setNewDate('');
       await sessions.reload();
     } catch (err) {
@@ -42,7 +48,7 @@ export function RoomSessions({ roomId, isOwner }: { roomId: string; isOwner: boo
   async function handleDelete(id: string) {
     sessions.update((list) => list?.filter((s) => s.id !== id));
     try {
-      await deleteSession(roomId, id);
+      await deleteSession(campaignId, id);
     } catch (err) {
       setError(errorMessage(err));
       void sessions.reload();
@@ -80,9 +86,9 @@ export function RoomSessions({ roomId, isOwner }: { roomId: string; isOwner: boo
                       minute: '2-digit',
                     })}
                   </span>
-                  {session.titre && (
+                  {session.title && (
                     <span className="w-full truncate text-xs text-[var(--text-secondary)]">
-                      {session.titre}
+                      {session.title}
                     </span>
                   )}
                 </div>

@@ -12,25 +12,25 @@ import {
   Notice,
   primaryButton,
   outlineButton,
-  RoomGrid,
-  RoomTile,
+  CampaignGrid,
+  CampaignTile,
   SectionHeading,
   SplitLayout,
 } from '@/components/campaigns/elements';
 import { Button } from '@/components/ui/button';
 import { useResource } from '@/lib/resource';
-import { listRooms, ownsRoom, type RoomSummary } from '@/lib/rooms';
+import { listCampaigns, ownsCampaign, type CampaignSummary } from '@/lib/campaigns';
 import { useProfile } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 export default function CampaignsPage() {
   const profile = useProfile();
   const router = useRouter();
-  const rooms = useResource('salles', () => listRooms());
-  const list = rooms.data ?? [];
-  const created = list.filter((r) => ownsRoom(r, profile.id));
-  const joined = list.filter((r) => !ownsRoom(r, profile.id));
-  const open = (r: RoomSummary) => router.push(`/campaigns/${r.id}`);
+  const campaigns = useResource('campagnes', () => listCampaigns());
+  const list = campaigns.data ?? [];
+  const created = list.filter((c) => ownsCampaign(c, profile.id));
+  const joined = list.filter((c) => !ownsCampaign(c, profile.id));
+  const open = (r: CampaignSummary) => router.push(`/campaigns/${r.id}`);
   const plural = (n: number) => `${n} campagne${n !== 1 ? 's' : ''}`;
 
   return (
@@ -72,9 +72,9 @@ export default function CampaignsPage() {
       }
     >
       <div className="space-y-10">
-        {rooms.error && !rooms.data ? (
-          <Notice>{rooms.error}</Notice>
-        ) : rooms.loading && !rooms.data ? (
+        {campaigns.error && !campaigns.data ? (
+          <Notice>{campaigns.error}</Notice>
+        ) : campaigns.loading && !campaigns.data ? (
           <Loading text="Chargement des campagnes…" />
         ) : list.length === 0 ? (
           <EmptyState icon={Gamepad2} title="Aucune campagne">
@@ -89,11 +89,16 @@ export default function CampaignsPage() {
                   title="Campagnes créées"
                   subtitle={plural(created.length)}
                 />
-                <RoomGrid>
+                <CampaignGrid>
                   {created.map((r) => (
-                    <RoomTile key={r.id} room={r} variant="created" onClick={() => open(r)} />
+                    <CampaignTile
+                      key={r.id}
+                      campaign={r}
+                      variant="created"
+                      onClick={() => open(r)}
+                    />
                   ))}
-                </RoomGrid>
+                </CampaignGrid>
               </div>
             )}
             {joined.length > 0 && (
@@ -103,11 +108,16 @@ export default function CampaignsPage() {
                   title="Campagnes rejointes"
                   subtitle={plural(joined.length)}
                 />
-                <RoomGrid>
+                <CampaignGrid>
                   {joined.map((r) => (
-                    <RoomTile key={r.id} room={r} variant="joined" onClick={() => open(r)} />
+                    <CampaignTile
+                      key={r.id}
+                      campaign={r}
+                      variant="joined"
+                      onClick={() => open(r)}
+                    />
                   ))}
-                </RoomGrid>
+                </CampaignGrid>
               </div>
             )}
           </>

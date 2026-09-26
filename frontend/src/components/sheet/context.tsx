@@ -62,7 +62,7 @@ export interface SheetContextValue {
   purchases: AchatDisponible[];
   readOnly: boolean;
   /**
-   * L'utilisateur mène une salle où le personnage est engagé : il saisit les
+   * L'utilisateur mène une campagne où le personnage est engagé : il saisit les
    * attributs réservés au MJ (`saisie: mj`). Faux tant que la fiche ne le sait pas.
    */
   gm: boolean;
@@ -170,7 +170,7 @@ export function SheetProvider({
   tracker: CharacterTracker;
   ready: ReadySystem;
   readOnly: boolean;
-  /** L'utilisateur est MJ d'une salle où le personnage est engagé (voir `SheetContextValue.gm`). */
+  /** L'utilisateur est MJ d'une campagne où le personnage est engagé (voir `SheetContextValue.gm`). */
   gm?: boolean;
   children: ReactNode;
   /** Affiché si le personnage ne se calcule pas avec ce système. */

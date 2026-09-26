@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Joueurs de la salle, repris de l'ancienne app (RoomUsersManager) : membres
+ * Joueurs de la campagne, repris de l'ancienne app (CampaignUsersManager) : membres
  * avec le personnage qu'ils incarnent, bannissement et levée des bannissements
  * par le MJ. Un clic sur un joueur ouvre son profil.
  */
@@ -23,45 +23,49 @@ import {
 import { errorMessage } from '@/lib/api';
 import { useResource } from '@/lib/resource';
 import {
-  listBanned,
-  listRoomCharacters,
+  listBans,
+  listCampaignCharacters,
   removeMember,
   unban,
   type BannedUser,
-  type RoomMember,
-} from '@/lib/rooms';
+  type CampaignMember,
+} from '@/lib/campaigns';
 import { useSession } from '@/lib/session';
 
 const same = (a: string | null | undefined, b: string | null | undefined) =>
   !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
-export function RoomUsersManager({
-  roomId,
+export function CampaignUsersManager({
+  campaignId,
   members,
   canManage,
   onChanged,
 }: {
-  roomId: string;
-  members: RoomMember[];
+  campaignId: string;
+  members: CampaignMember[];
   /** L'utilisateur est MJ : il bannit et lève les bannissements. */
   canManage: boolean;
   onChanged?(): void;
 }) {
   const { profile } = useSession();
-  const characters = useResource(`salle:${roomId}:personnages`, () => listRoomCharacters(roomId));
-  const banned = useResource(canManage ? `salle:${roomId}:bannis` : null, () => listBanned(roomId));
-  const [userToKick, setUserToKick] = useState<RoomMember | null>(null);
+  const characters = useResource(`campagne:${campaignId}:personnages`, () =>
+    listCampaignCharacters(campaignId),
+  );
+  const banned = useResource(canManage ? `campagne:${campaignId}:bannis` : null, () =>
+    listBans(campaignId),
+  );
+  const [userToKick, setUserToKick] = useState<CampaignMember | null>(null);
   const [kicking, setKicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const played = (userId: string) => characters.data?.find((c) => same(c.incarnePar, userId));
+  const played = (userId: string) => characters.data?.find((c) => same(c.playedBy, userId));
 
   async function handleKick() {
     if (!userToKick) return;
     setKicking(true);
     setError(null);
     try {
-      await removeMember(roomId, userToKick.userId, true);
+      await removeMember(campaignId, userToKick.userId, true);
       setUserToKick(null);
       onChanged?.();
       void banned.reload();
@@ -75,7 +79,7 @@ export function RoomUsersManager({
   async function handleUnban(u: BannedUser) {
     banned.update((list) => list?.filter((b) => b.userId !== u.userId));
     try {
-      await unban(roomId, u.userId);
+      await unban(campaignId, u.userId);
     } catch (err) {
       setError(errorMessage(err));
       void banned.reload();
@@ -95,14 +99,14 @@ export function RoomUsersManager({
       <CardContent>
         {members.length === 0 ? (
           <p className="py-6 text-center text-sm italic text-muted-foreground">
-            Aucun joueur dans cette salle pour le moment.
+            Aucun joueur dans cette campagne pour le moment.
           </p>
         ) : (
           <div className="max-h-[60vh] space-y-1 overflow-y-auto pr-2">
             {members.map((u) => {
-              const isMJ = u.role === 'mj';
+              const isMJ = u.role === 'gm';
               const character = played(u.userId);
-              const name = u.nom ?? 'Utilisateur inconnu';
+              const name = u.name ?? 'Utilisateur inconnu';
               return (
                 <div
                   key={u.userId}
@@ -132,7 +136,7 @@ export function RoomUsersManager({
                           <span className="font-medium text-[color-mix(in_srgb,var(--accent-brown)_80%,transparent)]">
                             Maître du Jeu
                           </span>
-                        ) : u.role === 'spectateur' && !character ? (
+                        ) : u.role === 'spectator' && !character ? (
                           <span>Spectateur</span>
                         ) : (
                           <div
@@ -145,12 +149,12 @@ export function RoomUsersManager({
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={character.avatarUrl}
-                                alt={character.nom}
+                                alt={character.name}
                                 className="h-4 w-4 rounded-full border border-white/10 object-cover"
                               />
                             )}
                             <span className="max-w-[140px] truncate tracking-wide">
-                              {character?.nom ?? 'Sans personnage'}
+                              {character?.name ?? 'Sans personnage'}
                             </span>
                           </div>
                         )}
@@ -191,13 +195,13 @@ export function RoomUsersManager({
                 >
                   <Link href={`/players/${u.userId}`} className="flex min-w-0 items-center gap-4">
                     <Avatar className="h-8 w-8 border border-[var(--border-color)] grayscale">
-                      {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.nom ?? ''} />}
+                      {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name ?? ''} />}
                       <AvatarFallback className="bg-[var(--bg-darker)] text-[var(--accent-brown)]">
                         <User className="h-3 w-3" />
                       </AvatarFallback>
                     </Avatar>
                     <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
-                      {u.nom ?? 'Utilisateur inconnu'}
+                      {u.name ?? 'Utilisateur inconnu'}
                     </p>
                   </Link>
                   <Button
@@ -220,8 +224,8 @@ export function RoomUsersManager({
           <DialogHeader>
             <DialogTitle>Bannir un joueur</DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir bannir {userToKick?.nom ?? 'ce joueur'} de cette salle ? Ils
-              perdront l&apos;accès à la salle et ne pourront plus la rejoindre.
+              Êtes-vous sûr de vouloir bannir {userToKick?.name ?? 'ce joueur'} de cette campagne ?
+              Ils perdront l&apos;accès à la campagne et ne pourront plus la rejoindre.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">

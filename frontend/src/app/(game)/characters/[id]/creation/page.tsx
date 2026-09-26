@@ -11,7 +11,7 @@ import { ThemeFrame } from '@/components/sheet/sheet';
 export default function CreationPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    // L'assistant lit `?room=` (retour vers la salle à la fin)
+    // L'assistant lit `?campaign=` (retour vers la campagne à la fin)
     <Suspense fallback={<Loading />}>
       <CharacterPage id={id}>
         <div className="space-y-6">

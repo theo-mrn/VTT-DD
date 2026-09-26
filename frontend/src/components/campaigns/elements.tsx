@@ -3,12 +3,12 @@
 /**
  * Éléments communs aux pages de campagnes, repris de l'ancienne app
  * (mes-campagnes, creer, rejoindre) : fond, titres de section, tuiles de
- * salle, état vide. Couleurs du thème (variables CSS de globals.css).
+ * campagne, état vide. Couleurs du thème (variables CSS de globals.css).
  */
 import { ArrowRight, Gamepad2, Shield, Users, type LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { aclonica } from '@/components/account/styles';
-import { playerCount, type RoomSummary } from '@/lib/rooms';
+import type { CampaignSummary } from '@/lib/campaigns';
 import { cn } from '@/lib/utils';
 
 export { aclonica };
@@ -41,7 +41,7 @@ export const outlineButton =
   'border-[var(--border-color)] bg-transparent font-bold text-[var(--text-primary)] hover:bg-white/10 hover:text-[var(--text-primary)]';
 
 /** Fond de l'ancienne app : noir profond, reflets doux, lueurs ambrées. */
-export function RoomsBackground({
+export function CampaignsBackground({
   children,
   className,
 }: {
@@ -195,8 +195,8 @@ export function EmptyState({
   );
 }
 
-/** Image de salle, ou l'icône manette sur fond dégradé. */
-export function RoomImage({
+/** Image de campagne, ou l'icône manette sur fond dégradé. */
+export function CampaignImage({
   url,
   alt,
   className,
@@ -208,7 +208,7 @@ export function RoomImage({
   zoom?: boolean;
 }) {
   return url ? (
-    // Image de salle stockée hors de Next (URL publique du stockage)
+    // Image de campagne stockée hors de Next (URL publique du stockage)
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
@@ -240,16 +240,16 @@ export function PlayersBadge({ count, max }: { count: number; max?: number }) {
 }
 
 /**
- * Tuile d'une salle dans les grilles (mes campagnes, campagnes en ligne) :
+ * Tuile d'une campagne dans les grilles (mes campagnes, campagnes en ligne) :
  * image 16/10 zoomée au survol, pastilles, titre et pied selon l'usage.
  */
-export function RoomTile({
-  room,
+export function CampaignTile({
+  campaign,
   variant,
   onClick,
   busy = false,
 }: {
-  room: RoomSummary;
+  campaign: CampaignSummary;
   variant: 'created' | 'joined' | 'public';
   onClick(): void;
   busy?: boolean;
@@ -266,9 +266,9 @@ export function RoomTile({
       style={glass()}
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-[var(--bg-dark)]">
-        <RoomImage url={room.imageUrl} alt={room.nom} />
+        <CampaignImage url={campaign.imageUrl} alt={campaign.name} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <PlayersBadge count={playerCount(room)} max={room.maxJoueurs} />
+        <PlayersBadge count={campaign.playerCount} max={campaign.maxPlayers} />
         {variant === 'created' && (
           <div
             className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-[var(--accent-brown)] backdrop-blur-sm"
@@ -279,7 +279,7 @@ export function RoomTile({
           </div>
         )}
         {variant === 'public' &&
-          (room.complete ? (
+          (campaign.isFull ? (
             <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/20 px-2.5 py-1 text-xs font-bold text-red-400 backdrop-blur-sm">
               Complète
             </div>
@@ -292,7 +292,7 @@ export function RoomTile({
       </div>
       <div className="space-y-2 p-4">
         <h3 className="line-clamp-1 text-base font-bold text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-brown)]">
-          {room.nom}
+          {campaign.name}
         </h3>
         {variant === 'public' ? (
           <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--border-color)] px-3 text-xs font-bold transition-all group-hover:border-[var(--accent-brown)] group-hover:text-[var(--accent-brown)]">
@@ -301,7 +301,7 @@ export function RoomTile({
         ) : (
           <div className="flex items-center justify-between">
             <span className="text-xs text-[var(--text-secondary)]">
-              {room.publique ? 'Publique' : 'Privée'}
+              {campaign.isPublic ? 'Publique' : 'Privée'}
             </span>
             <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--accent-brown)] opacity-0 transition-opacity group-hover:opacity-100">
               Détails <ArrowRight className="h-3.5 w-3.5" />
@@ -314,7 +314,7 @@ export function RoomTile({
 }
 
 /** Grille des tuiles. */
-export function RoomGrid({ children }: { children: ReactNode }) {
+export function CampaignGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 

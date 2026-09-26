@@ -8,7 +8,7 @@ import { Loading } from '@/components/account/elements';
 import { CharacterPage } from '@/components/sheet/character-page';
 import { CharacterSheet } from '@/components/sheet/sheet';
 import { useResource } from '@/lib/resource';
-import { getRoom } from '@/lib/rooms';
+import { getCampaign } from '@/lib/campaigns';
 
 export default function SheetPage() {
   return (
@@ -19,23 +19,25 @@ export default function SheetPage() {
 }
 
 /**
- * Fiche d'un personnage. Ouverte depuis une salle (`?room=`), elle sait si
+ * Fiche d'un personnage. Ouverte depuis une campagne (`?campaign=`), elle sait si
  * l'utilisateur en est le MJ : il saisit alors les attributs réservés au MJ.
  */
 function Sheet() {
   const { id } = useParams<{ id: string }>();
-  const roomId = useSearchParams().get('room');
-  const room = useResource(roomId ? `salle:${roomId}` : null, () => getRoom(roomId!));
+  const campaignId = useSearchParams().get('campaign');
+  const campaign = useResource(campaignId ? `campagne:${campaignId}` : null, () =>
+    getCampaign(campaignId!),
+  );
 
   return (
-    <CharacterPage id={id} gm={room.data?.role === 'mj'}>
-      {roomId && room.data && (
+    <CharacterPage id={id} gm={campaign.data?.role === 'gm'}>
+      {campaignId && campaign.data && (
         <Link
-          href={`/campaigns/${encodeURIComponent(roomId)}/play`}
+          href={`/campaigns/${encodeURIComponent(campaignId)}/play`}
           className="mb-4 inline-flex items-center gap-1 rounded text-sm text-zinc-400 hover:text-[#c9a965] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a965]"
         >
           <ArrowLeft className="h-4 w-4" />
-          Retour à la table · {room.data.nom}
+          Retour à la table · {campaign.data.name}
         </Link>
       )}
       <CharacterSheet />

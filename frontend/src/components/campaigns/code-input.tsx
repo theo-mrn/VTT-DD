@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Saisie du code de salle en cases, comme l'ancienne app (InputOTP 3 + 3).
+ * Saisie du code de campagne en cases, comme l'ancienne app (InputOTP 3 + 3).
  * Un seul vrai champ, transparent, posé sur les cases : collage, effacement
  * et clavier mobile fonctionnent comme dans un champ normal. Un code plus
  * long (code d'invitation, lien collé) bascule sur un champ texte simple.
@@ -14,7 +14,7 @@ export const ROOM_CODE_LENGTH = 6;
 
 /**
  * Code saisi ou collé : celui d'un lien d'invitation (…/join/<code>,
- * …/rejoindre/<code>, ?code=), sinon le texte lui-même. Un code de salle
+ * …/rejoindre/<code>, ?code=), sinon le texte lui-même. Un code de campagne
  * (6 caractères) passe en capitales, sans espaces ni tirets, comme le
  * service l'accepte ; un code d'invitation garde sa casse.
  */
@@ -81,7 +81,7 @@ export function CodeInput({
         autoCapitalize="off"
         spellCheck={false}
         maxLength={200}
-        aria-label="Code de la salle ou code d'invitation"
+        aria-label="Code de la campagne ou code d'invitation"
         className={cn(
           long
             ? 'h-14 w-full rounded-xl border border-[var(--border-color)] px-4 font-mono text-sm text-[var(--text-primary)] outline-none backdrop-blur-md focus:border-[var(--accent-brown)]'

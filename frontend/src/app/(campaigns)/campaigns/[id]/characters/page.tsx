@@ -2,7 +2,7 @@
 
 /**
  * « Qui joue ? », reprise de l'ancienne page « personnages » : personnages
- * de la salle (camp des joueurs), le mien, ceux pris par d'autres, « Nouveau
+ * de la campagne (camp des joueurs), le mien, ceux pris par d'autres, « Nouveau
  * héros », « Maître du Jeu » pour le MJ, et le retrait d'un personnage par le MJ.
  */
 import { motion } from 'framer-motion';
@@ -22,7 +22,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { CharacterCard } from '@/components/campaigns/character-card';
 import { Notice } from '@/components/campaigns/elements';
-import { NewRoomCharacterDialog } from '@/components/campaigns/new-room-character';
+import { NewCampaignCharacterDialog } from '@/components/campaigns/new-campaign-character';
 import {
   Dialog,
   DialogContent,
@@ -35,57 +35,57 @@ import { Input } from '@/components/ui/input';
 import { ApiError, errorMessage } from '@/lib/api';
 import { useResource } from '@/lib/resource';
 import {
-  getRoom,
-  listRoomCharacters,
+  getCampaign,
+  listCampaignCharacters,
   playCharacter,
-  removeRoomCharacter,
-  type RoomCharacter,
-} from '@/lib/rooms';
+  removeCampaignCharacter,
+  type CampaignCharacter,
+} from '@/lib/campaigns';
 import { useProfile } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 const same = (a: string | null | undefined, b: string | null | undefined) =>
   !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
-export default function RoomCharactersPage() {
+export default function CampaignCharactersPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const profile = useProfile();
-  const room = useResource(`salle:${id}`, () => getRoom(id));
-  const characters = useResource(`salle:${id}:personnages`, () => listRoomCharacters(id));
+  const campaign = useResource(`campagne:${id}`, () => getCampaign(id));
+  const characters = useResource(`campagne:${id}:personnages`, () => listCampaignCharacters(id));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gmLoading, setGmLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toRemove, setToRemove] = useState<RoomCharacter | null>(null);
+  const [toRemove, setToRemove] = useState<CampaignCharacter | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const [removing, setRemoving] = useState(false);
 
-  const r = room.data;
-  const isGm = r?.role === 'mj';
-  const loading = (room.loading && !r) || (characters.loading && !characters.data);
-  const list = (characters.data ?? []).filter((c) => c.camp === 'joueurs');
+  const detail = campaign.data;
+  const isGm = detail?.role === 'gm';
+  const loading = (campaign.loading && !detail) || (characters.loading && !characters.data);
+  const list = (characters.data ?? []).filter((c) => c.side === 'players');
   const memberName = (userId: string) =>
-    r?.membres.find((m) => same(m.userId, userId))?.nom ?? 'un joueur';
+    detail?.members.find((m) => same(m.userId, userId))?.name ?? 'un joueur';
 
   async function refresh() {
-    await Promise.all([room.reload(), characters.reload()]);
+    await Promise.all([campaign.reload(), characters.reload()]);
   }
 
-  async function play(c: RoomCharacter) {
+  async function play(c: CampaignCharacter) {
     if (selectedId) return;
     setSelectedId(c.characterId);
     setError(null);
     try {
       await playCharacter(id, c.characterId);
       router.push(
-        c.creation && same(c.proprietaireId, profile.id)
-          ? `/characters/${c.characterId}/creation?room=${encodeURIComponent(id)}`
+        c.inCreation && same(c.ownerId, profile.id)
+          ? `/characters/${c.characterId}/creation?campaign=${encodeURIComponent(id)}`
           : `/campaigns/${id}/play`,
       );
     } catch (err) {
       setError(
-        err instanceof ApiError && err.problem.code === 'personnage_pris'
+        err instanceof ApiError && err.problem.code === 'character_taken'
           ? 'Ce personnage vient d’être pris par un autre joueur.'
           : errorMessage(err),
       );
@@ -110,7 +110,7 @@ export default function RoomCharactersPage() {
     if (!toRemove) return;
     setRemoving(true);
     try {
-      await removeRoomCharacter(id, toRemove.characterId);
+      await removeCampaignCharacter(id, toRemove.characterId);
       characters.update((l) => l?.filter((c) => c.characterId !== toRemove.characterId));
       setToRemove(null);
       setConfirmText('');
@@ -121,17 +121,17 @@ export default function RoomCharactersPage() {
     }
   }
 
-  if (room.error && !r)
+  if (campaign.error && !detail)
     return (
       <div className="container mx-auto max-w-lg space-y-4 px-4 py-16">
-        <Notice>{room.error}</Notice>
+        <Notice>{campaign.error}</Notice>
         <Link href="/campaigns" className="text-sm text-[var(--accent-brown)] hover:underline">
           Retour à mes campagnes
         </Link>
       </div>
     );
 
-  const canCreate = !!r && (r.creationPersonnages !== false || isGm);
+  const canCreate = !!detail && (detail.characterCreation || isGm);
 
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] flex-col items-center px-4 py-12">
@@ -140,7 +140,7 @@ export default function RoomCharactersPage() {
         className="mb-6 inline-flex items-center gap-1 self-start rounded text-sm text-zinc-400 hover:text-[#c0a080] sm:absolute sm:left-6 sm:top-6 sm:mb-0"
       >
         <ArrowLeft className="h-4 w-4" />
-        {r?.nom ?? 'Campagne'}
+        {detail?.name ?? 'Campagne'}
       </Link>
 
       <motion.div
@@ -165,13 +165,16 @@ export default function RoomCharactersPage() {
         <button
           type="button"
           onClick={() => void refresh()}
-          disabled={loading || room.loading || characters.loading}
+          disabled={loading || campaign.loading || characters.loading}
           className="mx-auto mt-4 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-zinc-400 transition-all hover:bg-white/10 hover:text-[#c0a080]"
         >
           <RotateCcw
-            className={cn('h-3.5 w-3.5', (room.loading || characters.loading) && 'animate-spin')}
+            className={cn(
+              'h-3.5 w-3.5',
+              (campaign.loading || characters.loading) && 'animate-spin',
+            )}
           />
-          {room.loading || characters.loading ? 'Mise à jour...' : 'Actualiser la liste'}
+          {campaign.loading || characters.loading ? 'Mise à jour...' : 'Actualiser la liste'}
         </button>
       </motion.div>
 
@@ -186,7 +189,7 @@ export default function RoomCharactersPage() {
         </div>
       )}
 
-      {loading || !r ? (
+      {loading || !detail ? (
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-[#c0a080]" />
           <p className="animate-pulse text-sm text-zinc-500">Invocation des héros…</p>
@@ -199,17 +202,17 @@ export default function RoomCharactersPage() {
           className="flex flex-wrap justify-center gap-8 md:gap-10"
         >
           {list.map((c, i) => {
-            const takenByOther = !!c.incarnePar && !same(c.incarnePar, profile.id);
-            const mine = same(c.incarnePar, profile.id);
+            const takenByOther = !!c.playedBy && !same(c.playedBy, profile.id);
+            const mine = same(c.playedBy, profile.id);
             return (
               <div key={c.characterId} className="relative flex flex-col items-center gap-6">
                 <CharacterCard
                   character={c}
-                  systemId={r.systeme.id}
+                  systemId={detail.system.id}
                   isSelected={selectedId === c.characterId}
                   isActive={mine}
                   isTaken={takenByOther}
-                  occupantName={c.incarnePar ? memberName(c.incarnePar) : undefined}
+                  occupantName={c.playedBy ? memberName(c.playedBy) : undefined}
                   index={i}
                   isBusy={!!selectedId}
                   onPlay={() => !takenByOther && void play(c)}
@@ -221,29 +224,29 @@ export default function RoomCharactersPage() {
                       setToRemove(c);
                       setConfirmText('');
                     }}
-                    aria-label={`Retirer ${c.nom} de la salle`}
+                    aria-label={`Retirer ${c.name} de la campagne`}
                     title="Retirer le personnage"
                     className="absolute -right-2 -top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-red-900/50 bg-[#150d0a] text-red-400 shadow-lg transition-colors hover:bg-red-950"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
-                {(isGm || same(c.proprietaireId, profile.id)) && !takenByOther && (
+                {(isGm || same(c.ownerId, profile.id)) && !takenByOther && (
                   <Link
-                    href={`/characters/${c.characterId}?room=${encodeURIComponent(id)}`}
+                    href={`/characters/${c.characterId}?campaign=${encodeURIComponent(id)}`}
                     className="-mt-3 flex items-center gap-1.5 text-xs text-zinc-500 transition-colors hover:text-[#c0a080]"
                   >
                     <Eye className="h-3.5 w-3.5" /> Voir la fiche
                   </Link>
                 )}
-                {takenByOther && c.incarnePar && (
+                {takenByOther && c.playedBy && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4 }}
                   >
                     <Link
-                      href={`/players/${c.incarnePar}`}
+                      href={`/players/${c.playedBy}`}
                       className="group flex items-center gap-2 rounded-full border border-[#c0a080]/20 bg-[#c0a080]/10 px-4 py-2 backdrop-blur-sm transition-all duration-300 hover:border-[#c0a080]/50"
                     >
                       <User className="h-4 w-4 text-[#c0a080]" />
@@ -258,7 +261,7 @@ export default function RoomCharactersPage() {
           })}
 
           {/* Nouveau héros */}
-          {(canCreate || r.role === 'joueur') && (
+          {(canCreate || detail.role === 'player') && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -324,12 +327,12 @@ export default function RoomCharactersPage() {
         </motion.div>
       )}
 
-      {r && (
-        <NewRoomCharacterDialog
+      {detail && (
+        <NewCampaignCharacterDialog
           open={creating}
           onClose={() => setCreating(false)}
-          roomId={id}
-          systemId={r.systeme.id}
+          campaignId={id}
+          systemId={detail.system.id}
           engagedIds={(characters.data ?? []).map((c) => c.characterId)}
           canCreate={canCreate}
         />
@@ -348,23 +351,23 @@ export default function RoomCharactersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-300">
               <AlertTriangle className="h-5 w-5" />
-              Retirer ce personnage de la salle
+              Retirer ce personnage de la campagne
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Le personnage <span className="font-semibold text-zinc-200">{toRemove?.nom}</span>{' '}
+              Le personnage <span className="font-semibold text-zinc-200">{toRemove?.name}</span>{' '}
               quitte la campagne et n&apos;est plus jouable ici. Sa fiche reste dans les personnages
               de son propriétaire.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 space-y-2">
             <p className="text-xs text-zinc-500">
-              Pour confirmer, tapez <span className="font-mono text-zinc-300">{toRemove?.nom}</span>{' '}
-              ci-dessous :
+              Pour confirmer, tapez{' '}
+              <span className="font-mono text-zinc-300">{toRemove?.name}</span> ci-dessous :
             </p>
             <Input
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={toRemove?.nom}
+              placeholder={toRemove?.name}
               disabled={removing}
               autoFocus
               className="border-red-900/40 bg-black/30 text-zinc-100"
@@ -385,7 +388,7 @@ export default function RoomCharactersPage() {
             <button
               type="button"
               onClick={() => void confirmRemove()}
-              disabled={removing || confirmText !== toRemove?.nom}
+              disabled={removing || confirmText !== toRemove?.name}
               className="flex items-center gap-2 rounded-lg bg-red-900/80 px-4 py-2 text-sm font-semibold text-red-100 transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-900/80"
             >
               {removing ? (
@@ -393,7 +396,7 @@ export default function RoomCharactersPage() {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Retirer de la salle
+              Retirer de la campagne
             </button>
           </DialogFooter>
         </DialogContent>

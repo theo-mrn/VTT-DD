@@ -16,7 +16,7 @@ import {
   HeroTitle,
   Notice,
   primaryButton,
-  RoomImage,
+  CampaignImage,
   SplitLayout,
 } from '@/components/campaigns/elements';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { errorMessage } from '@/lib/api';
 import { checkImage } from '@/lib/profile';
 import { useResource } from '@/lib/resource';
-import { createRoom, uploadRoomImage } from '@/lib/rooms';
+import { createCampaign, uploadCampaignImage } from '@/lib/campaigns';
 import { listSystems } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 
@@ -35,18 +35,18 @@ const MAX_PLAYERS = 12;
 export default function NewCampaignPage() {
   const router = useRouter();
   const systems = useResource('systemes', listSystems);
-  const [room, setRoom] = useState({
-    nom: '',
+  const [form, setForm] = useState({
+    name: '',
     description: '',
-    maxJoueurs: 4,
-    publique: false,
-    creationPersonnages: true,
-    systemeId: '',
+    maxPlayers: 4,
+    isPublic: false,
+    characterCreation: true,
+    systemId: '',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Salle créée mais image refusée : on propose de continuer quand même. */
+  /** Campagne créée mais image refusée : on propose de continuer quand même. */
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   const imagePreview = useMemo(
@@ -62,9 +62,9 @@ export default function NewCampaignPage() {
 
   // Premier système par défaut
   useEffect(() => {
-    if (!room.systemeId && systems.data?.length)
-      setRoom((r) => ({ ...r, systemeId: systems.data![0]!.id }));
-  }, [systems.data, room.systemeId]);
+    if (!form.systemId && systems.data?.length)
+      setForm((f) => ({ ...f, systemId: systems.data![0]!.id }));
+  }, [systems.data, form.systemId]);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -76,21 +76,21 @@ export default function NewCampaignPage() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    if (creating || !room.systemeId) return;
+    if (creating || !form.systemId) return;
     setCreating(true);
     setError(null);
     let id: string | null = null;
     try {
-      const created = await createRoom({
-        nom: room.nom.trim(),
-        systemeId: room.systemeId,
-        description: room.description.trim(),
-        maxJoueurs: room.maxJoueurs,
-        publique: room.publique,
-        creationPersonnages: room.creationPersonnages,
+      const created = await createCampaign({
+        name: form.name.trim(),
+        systemId: form.systemId,
+        description: form.description.trim(),
+        maxPlayers: form.maxPlayers,
+        isPublic: form.isPublic,
+        characterCreation: form.characterCreation,
       });
       id = created.id;
-      if (imageFile) await uploadRoomImage(id, imageFile);
+      if (imageFile) await uploadCampaignImage(id, imageFile);
       router.push(`/campaigns/${id}/characters`);
     } catch (err) {
       if (id) {
@@ -103,8 +103,8 @@ export default function NewCampaignPage() {
     }
   }
 
-  const set = <K extends keyof typeof room>(key: K, value: (typeof room)[K]) =>
-    setRoom((r) => ({ ...r, [key]: value }));
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   return (
     <SplitLayout
@@ -125,13 +125,13 @@ export default function NewCampaignPage() {
             style={glass()}
           >
             <div className="relative aspect-[16/10] overflow-hidden bg-[var(--bg-dark)]">
-              <RoomImage url={imagePreview} alt="Aperçu" zoom={false} />
+              <CampaignImage url={imagePreview} alt="Aperçu" zoom={false} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
                 <Users className="h-3 w-3" />
-                0/{room.maxJoueurs}
+                0/{form.maxPlayers}
               </div>
-              {room.publique && (
+              {form.isPublic && (
                 <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/20 px-2.5 py-1 text-xs font-bold text-green-400 backdrop-blur-sm">
                   <Globe className="h-3 w-3" />
                   Publique
@@ -140,10 +140,10 @@ export default function NewCampaignPage() {
             </div>
             <div className="space-y-1 p-4">
               <h3 className="line-clamp-1 text-base font-bold text-[var(--text-primary)]">
-                {room.nom || 'Titre de la campagne'}
+                {form.name || 'Titre de la campagne'}
               </h3>
               <p className="line-clamp-2 text-xs text-[var(--text-secondary)]">
-                {room.description || 'La description apparaîtra ici...'}
+                {form.description || 'La description apparaîtra ici...'}
               </p>
             </div>
           </div>
@@ -170,8 +170,8 @@ export default function NewCampaignPage() {
               </label>
               <Input
                 id="title"
-                value={room.nom}
-                onChange={(e) => set('nom', e.target.value)}
+                value={form.name}
+                onChange={(e) => set('name', e.target.value)}
                 placeholder="Le Secret des Anciens"
                 maxLength={100}
                 required
@@ -186,9 +186,9 @@ export default function NewCampaignPage() {
               <Input
                 type="number"
                 id="maxPlayers"
-                value={room.maxJoueurs}
+                value={form.maxPlayers}
                 onChange={(e) =>
-                  set('maxJoueurs', Math.max(1, Math.min(MAX_PLAYERS, Number(e.target.value) || 1)))
+                  set('maxPlayers', Math.max(1, Math.min(MAX_PLAYERS, Number(e.target.value) || 1)))
                 }
                 min={1}
                 max={MAX_PLAYERS}
@@ -205,7 +205,7 @@ export default function NewCampaignPage() {
             </label>
             <Textarea
               id="description"
-              value={room.description}
+              value={form.description}
               onChange={(e) => set('description', e.target.value)}
               placeholder="Décrivez votre aventure, l'ambiance, les prérequis..."
               rows={4}
@@ -233,14 +233,14 @@ export default function NewCampaignPage() {
                 aria-label="Système de règles"
               >
                 {systems.data.map((system) => {
-                  const selected = room.systemeId === system.id;
+                  const selected = form.systemId === system.id;
                   return (
                     <button
                       key={system.id}
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      onClick={() => set('systemeId', system.id)}
+                      onClick={() => set('systemId', system.id)}
                       className="rounded-xl border p-4 text-left backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brown)]"
                       style={{
                         borderColor: selected ? 'var(--accent-brown)' : 'var(--border-color)',
@@ -295,15 +295,15 @@ export default function NewCampaignPage() {
               icon={Globe}
               title="Campagne publique"
               description="Visible dans les campagnes en ligne"
-              checked={room.publique}
-              onChange={(v) => set('publique', v)}
+              checked={form.isPublic}
+              onChange={(v) => set('isPublic', v)}
             />
             <ToggleRow
               icon={Sparkles}
               title="Création libre"
               description="Les joueurs peuvent créer un personnage"
-              checked={room.creationPersonnages}
-              onChange={(v) => set('creationPersonnages', v)}
+              checked={form.characterCreation}
+              onChange={(v) => set('characterCreation', v)}
             />
           </div>
 
@@ -317,7 +317,7 @@ export default function NewCampaignPage() {
           ) : (
             <Button
               type="submit"
-              disabled={creating || !room.systemeId}
+              disabled={creating || !form.systemId}
               className={cn(
                 primaryButton,
                 'h-14 w-full gap-3 rounded-xl text-lg shadow-[0_4px_25px_rgba(192,160,128,0.3)] transition-all hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] disabled:opacity-40',
