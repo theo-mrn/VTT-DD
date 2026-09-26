@@ -1,12 +1,11 @@
 'use client';
 
 import { creationDe } from '@vtt/rules';
-import { ChevronRight, Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  PlayerAvatar,
   AppButton,
   Card,
   Loading,
@@ -27,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { errorMessage } from '@/lib/api';
-import { createCharacter, listCharacters } from '@/lib/characters';
+import { createCharacter, listCharacters, type CharacterSummary } from '@/lib/characters';
 import { useResource } from '@/lib/resource';
 import { listSystems, useSystem, type SystemSummary } from '@/lib/systems';
 import { cn } from '@/lib/utils';
@@ -59,31 +58,10 @@ export default function CharactersPage() {
         ) : !list.length ? (
           <Empty>Aucun personnage pour l&apos;instant : créez le premier !</Empty>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid grid-cols-2 justify-items-center gap-x-4 gap-y-6 xs:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {list.map((p) => (
-              <li key={p.id}>
-                <Link
-                  href={p.creation ? `/characters/${p.id}/creation` : `/characters/${p.id}`}
-                  className="group flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3 transition-colors hover:border-[#c9a965] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c9a965]"
-                >
-                  <PlayerAvatar name={p.nom} url={p.avatarUrl} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-white">{p.nom}</span>
-                    <span className="block truncate text-xs text-zinc-400">
-                      {systemName(p.systeme.id)}
-                    </span>
-                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      {p.creation && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#c9a965]/40 px-2 py-0.5 text-[#e2cc97]">
-                          <Sparkles className="h-3 w-3" />
-                          En création
-                        </span>
-                      )}
-                      Modifié {formatSince(p.updatedAt)}
-                    </span>
-                  </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600 transition-colors group-hover:text-[#c9a965]" />
-                </Link>
+              <li key={p.id} className="w-full max-w-[160px]">
+                <CharacterCard character={p} systemName={systemName(p.systeme.id)} />
               </li>
             ))}
           </ul>
@@ -97,6 +75,67 @@ export default function CharactersPage() {
         systemsError={systems.error}
       />
     </div>
+  );
+}
+
+/**
+ * Carte portrait d'un personnage, reprise de l'écran de sélection de
+ * l'ancienne app : image (ou initiale) en pleine carte, reflet au survol, nom
+ * et système dessous.
+ */
+function CharacterCard({
+  character: p,
+  systemName,
+}: {
+  character: CharacterSummary;
+  systemName: string;
+}) {
+  return (
+    <Link
+      href={p.creation ? `/characters/${p.id}/creation` : `/characters/${p.id}`}
+      className="group flex flex-col items-center gap-3 rounded-[24px] focus-visible:outline-none"
+    >
+      <span className="relative block aspect-[17/21] w-full overflow-hidden rounded-[24px] border border-zinc-800 bg-zinc-950 shadow-lg transition-transform duration-300 ease-out group-hover:-translate-y-2 group-focus-visible:ring-2 group-focus-visible:ring-[#c9a965] group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-black">
+        {p.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.avatarUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-top"
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-700 to-zinc-900">
+            <span className="select-none font-serif text-6xl font-bold text-zinc-400">
+              {p.nom.charAt(0).toUpperCase() || '?'}
+            </span>
+          </span>
+        )}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10"
+        />
+        {/* Reflet qui balaie la carte au survol */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+        />
+        {p.creation && (
+          <span className="absolute inset-x-2 bottom-2 inline-flex items-center justify-center gap-1 rounded-full border border-[#c9a965]/40 bg-black/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#e2cc97] backdrop-blur-sm">
+            <Sparkles className="h-3 w-3" />
+            En création
+          </span>
+        )}
+      </span>
+      <span className="w-full min-w-0 text-center">
+        <span className="block truncate text-sm font-medium text-white group-hover:text-[#e2cc97]">
+          {p.nom}
+        </span>
+        <span className="block truncate text-xs text-zinc-400">{systemName}</span>
+        <span className="block truncate text-[11px] text-zinc-500">
+          Modifié {formatSince(p.updatedAt)}
+        </span>
+      </span>
+    </Link>
   );
 }
 
