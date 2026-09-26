@@ -1,0 +1,50 @@
+# Arbre de talents de la spécialisation « Voleur ».
+- id: arbre-voleur
+  nom: Arbre Voleur
+  description: 'Grille officielle : 4 colonnes × 5 lignes, coût 5 XP par ligne (5 à 25). Liens traversables dans les deux sens ; la première ligne est toujours achetable.'
+  ouvertPar: voleur
+  noeuds:
+    - { id: l1c1, entree: debrouillard, x: 0, y: 0, cout: 5 * (y + 1), depart: true }
+    - { id: l1c2, entree: contacts-au-marche-noir, x: 1, y: 0, cout: 5 * (y + 1), depart: true }
+    - { id: l1c3, entree: anonyme, x: 2, y: 0, cout: 5 * (y + 1), depart: true }
+    - { id: l1c4, entree: contournement-de-securite, x: 3, y: 0, cout: 5 * (y + 1), depart: true }
+    - { id: l2c1, entree: contacts-au-marche-noir, x: 0, y: 1, cout: 5 * (y + 1) }
+    - { id: l2c2, entree: esquive, x: 1, y: 1, cout: 5 * (y + 1) }
+    - { id: l2c3, entree: cran, x: 2, y: 1, cout: 5 * (y + 1) }
+    - { id: l2c4, entree: cache-secrete, x: 3, y: 1, cout: 5 * (y + 1) }
+    - { id: l3c1, entree: traqueur, x: 0, y: 2, cout: 5 * (y + 1) }
+    - { id: l3c2, entree: cran, x: 1, y: 2, cout: 5 * (y + 1) }
+    - { id: l3c3, entree: reaction-rapide, x: 2, y: 2, cout: 5 * (y + 1) }
+    - { id: l3c4, entree: raccourci, x: 3, y: 2, cout: 5 * (y + 1) }
+    - { id: l4c1, entree: contournement-de-securite, x: 0, y: 3, cout: 5 * (y + 1) }
+    - { id: l4c2, entree: filou-ne, x: 1, y: 3, cout: 5 * (y + 1) }
+    - { id: l4c3, entree: debrouillard, x: 2, y: 3, cout: 5 * (y + 1) }
+    - { id: l4c4, entree: debout, x: 3, y: 3, cout: 5 * (y + 1) }
+    - { id: l5c1, entree: maitre-des-ombres, x: 0, y: 4, cout: 5 * (y + 1) }
+    - { id: l5c2, entree: esquive, x: 1, y: 4, cout: 5 * (y + 1) }
+    - { id: l5c3, entree: anonyme, x: 2, y: 4, cout: 5 * (y + 1) }
+    - { id: l5c4, entree: devouement, x: 3, y: 4, cout: 5 * (y + 1) }
+  liens:
+    - { de: l1c1, vers: l2c1 }
+    - { de: l2c1, vers: l2c2 }
+    - { de: l2c2, vers: l2c3 }
+    - { de: l1c4, vers: l2c4 }
+    - { de: l2c3, vers: l2c4 }
+    - { de: l2c1, vers: l3c1 }
+    - { de: l2c2, vers: l3c2 }
+    - { de: l3c1, vers: l3c2 }
+    - { de: l2c3, vers: l3c3 }
+    - { de: l3c2, vers: l3c3 }
+    - { de: l2c4, vers: l3c4 }
+    - { de: l3c3, vers: l3c4 }
+    - { de: l3c1, vers: l4c1 }
+    - { de: l3c2, vers: l4c2 }
+    - { de: l3c3, vers: l4c3 }
+    - { de: l4c2, vers: l4c3 }
+    - { de: l3c4, vers: l4c4 }
+    - { de: l4c3, vers: l4c4 }
+    - { de: l4c1, vers: l5c1 }
+    - { de: l4c2, vers: l5c2 }
+    - { de: l4c3, vers: l5c3 }
+    - { de: l5c2, vers: l5c3 }
+    - { de: l4c4, vers: l5c4 }

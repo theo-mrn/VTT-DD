@@ -1,0 +1,204 @@
+# Équipement général, accessoires (attachments) et devises.
+- id: oreillette-comlink
+  sorte: objet
+  nom: Oreillette comlink
+  description: Communication discrète insérée dans l'oreille.
+  champs: { encombrement: 0, prix: 250, rarete: 3 }
+
+- id: holoprojecteur-portable
+  sorte: objet
+  nom: Holoprojecteur portable
+  description: Comlink + projection d'hologrammes jusqu'à 2 mètres.
+  champs: { encombrement: 0, prix: 150, rarete: 2 }
+
+- id: lomin-ale
+  sorte: objet
+  nom: Lomin-ale
+  description: Boisson alcoolisée populaire des cantinas de la Bordure Extérieure.
+  champs: { encombrement: 0, prix: 10, rarete: 1 }
+
+- id: stout-darkmoon
+  sorte: objet
+  nom: Stout Darkmoon
+  description: Selon un test de Résilience, ajoute Avantage ou Menace au prochain test social.
+  champs: { encombrement: 0, prix: 15, rarete: 1 }
+
+- id: repas-chaud
+  sorte: objet
+  nom: Repas chaud
+  description: Régénère de la Tension par succès/avantage obtenu au test de cuisine.
+  champs: { encombrement: 0, prix: 20, rarete: 1 }
+
+- id: fixations-de-bottes-magnetiques
+  sorte: objet
+  nom: Fixations de bottes magnétiques
+  description: Inflige 2 Menaces aux tests d'Agilité en apesanteur/surface métallique.
+  champs: { encombrement: 2, prix: 300, rarete: 3 }
+
+- id: bottes-repulsives
+  sorte: objet
+  nom: Bottes répulsives
+  description: Permet de planer jusqu'à 30 minutes près du sol.
+  champs: { encombrement: 2, prix: 2200, rarete: 5 }
+
+- id: etui-rapide-de-rodeur
+  sorte: objet
+  nom: Étui rapide de rôdeur
+  description: Réduit l'encombrement d'un pistolet de 1.
+  champs: { encombrement: 1, prix: 500, rarete: 4 }
+
+- id: patch-de-ryll
+  sorte: objet
+  nom: Patch de Ryll
+  description: Patch topique régénérant de la Tension.
+  champs: { encombrement: 0, prix: 50, rarete: 1 }
+
+- id: stimulant-d-endurance-surrenale
+  sorte: objet
+  nom: Stimulant d'endurance surrénale
+  description: Bonus aux tests médicaux pour blessures critiques.
+  champs: { encombrement: 0, prix: 200, rarete: 5 }
+
+- id: implant-de-communication-cybernetique
+  sorte: objet
+  nom: Implant de communication cybernétique
+  description: Implant crânien faisant office de comlink et d'enregistreur audio.
+  champs: { encombrement: 0, prix: 400, rarete: 3 }
+
+- id: cocktail-de-pheromones
+  sorte: objet
+  nom: Cocktail de phéromones
+  description: Aérosol ajoutant aléatoirement des Avantages ou Menaces aux tests sociaux pendant une heure.
+  champs: { encombrement: 0, prix: 300, rarete: 3 }
+
+- id: cylindre-de-code
+  sorte: objet
+  nom: Cylindre de code
+  description: Clé télécommandée sécurisée programmable pour verrous physiques.
+  champs: { encombrement: 0, prix: 150, rarete: 2 }
+
+- id: aerosol-amortisseur
+  sorte: objet
+  nom: Aérosol amortisseur
+  description: Accorde +1 Encaissement à une personne pendant un round.
+  champs: { encombrement: 1, prix: 400, rarete: 4 }
+
+- id: cle-a-hydro-impulsion
+  sorte: objet
+  nom: Clé à hydro-impulsion
+  description: Outil multi-usage retirant une Menace aux tests de Mécanique.
+  champs: { encombrement: 2, prix: 100, rarete: 1 }
+
+- id: traineau-repulsif
+  sorte: objet
+  nom: Traîneau répulsif
+  description: Micro-véhicule transportant deux éléments de Silhouette 1 à vitesse de marche.
+  champs: { prix: 1500, rarete: 2 }
+
+- id: plaque-de-beskar-brute
+  sorte: objet
+  nom: Plaque de Beskar (brute)
+  description: Alliage mandalorien légendaire, quasi indestructible — résiste même aux lames de sabre laser. Matériau brut utilisé pour la fabrication ou le renforcement d'une armure (test d'Artisanat requis) ; ne procure aucune protection tant qu'il n'est pas forgé. Extrêmement rare, sa provenance est presque toujours mandalorienne.
+  champs: { encombrement: 1, prix: 25000, rarete: 9 }
+
+- id: poignee-de-duel
+  sorte: accessoire
+  nom: Poignée de duel
+  description: Accorde Defensive +2 à l'arme.
+  champs: { pourType: Épées/Vibrolames, pointsFixation: 1, prix: 1500, rarete: 5 }
+
+- id: detente-rapide
+  sorte: accessoire
+  nom: Détente rapide
+  description: Accorde Auto-Fire, ajoute 1 Menace.
+  champs: { pourType: Armes à distance, pointsFixation: 1, prix: 1000, rarete: 4 }
+
+- id: cellule-d-energie
+  sorte: accessoire
+  nom: Cellule d'énergie
+  description: Accorde Disorient +2, Dégâts +1.
+  champs: { pourType: Armes de mêlée, pointsFixation: 1, prix: 750, rarete: 4 }
+
+- id: lanceur-de-grappin
+  sorte: accessoire
+  nom: Lanceur de grappin
+  description: Permet une attaque à crochet (Ensnare 2).
+  champs: { pourType: Pistolets blaster, pointsFixation: 1, prix: 400, rarete: 2 }
+
+- id: interrupteur-suicide
+  sorte: accessoire
+  nom: Interrupteur suicide
+  description: L'arme peut être surchargée pour faire office d'explosif.
+  champs: { pourType: Armes blaster, pointsFixation: 1, prix: 300, rarete: 3 }
+
+- id: telemetre-electronique-compact
+  sorte: accessoire
+  nom: Télémètre électronique compact
+  description: Qualité Prepare 1, bonus de portée.
+  champs: { pourType: Pistolets, pointsFixation: 1, prix: 1600, rarete: 5 }
+
+- id: pulsateur-de-puissance
+  sorte: accessoire
+  nom: Pulsateur de puissance
+  description: Augmente les dégâts de +2, augmente la difficulté du tir.
+  champs: { pourType: Pistolets blaster, pointsFixation: 2, prix: 1000, rarete: 4 }
+
+- id: filet-electrifie
+  sorte: accessoire
+  nom: Filet électrifié
+  description: Ajoute la propriété Stun 2 à une arme de mêlée.
+  champs: { pourType: Armes de mêlée, pointsFixation: 2, prix: 950, rarete: 3 }
+
+- id: sous-couche-biorestaurative
+  sorte: accessoire
+  nom: Sous-couche biorestaurative
+  description: Bonus en Médecine, régénère 1 Blessure par combat.
+  champs: { pourType: Armure, pointsFixation: 2, prix: 2000, rarete: 5 }
+
+- id: blindage-balistique
+  sorte: accessoire
+  nom: Blindage balistique
+  description: +2 Défense contre les attaques physiques.
+  champs: { pourType: Armure, pointsFixation: 2, prix: 1800, rarete: 5 }
+
+- id: surtissu-de-survie
+  sorte: accessoire
+  nom: Surtissu de survie
+  description: Rend la qualité Sunder inefficace contre le porteur.
+  champs: { pourType: Armure, pointsFixation: 1, prix: 1100, rarete: 4 }
+
+- id: credit-galactique
+  sorte: devise
+  nom: Crédit galactique
+  description: Monnaie standard de la galaxie, émise par la Banque Galactique. Référence universelle utilisée pour tous les prix de l'équipement — acceptée presque partout, sous forme de crédits-puces ou de virements électroniques.
+  champs: { valeurCredits: 1, rarete: 0 }
+
+- id: wupiupi
+  sorte: devise
+  nom: Wupiupi
+  description: Petite monnaie métallique de Tatooine, utilisée par les Jawas et dans les échanges informels de la Bordure Extérieure. 20 Wupiupi valent environ 1 Peggat.
+  champs: { valeurCredits: 0.1, rarete: 2 }
+
+- id: peggat
+  sorte: devise
+  nom: Peggat
+  description: Monnaie intermédiaire de Tatooine, entre le Wupiupi et le Trugut. Souvent utilisée dans les marchés de Mos Eisley et Mos Espa.
+  champs: { valeurCredits: 2, rarete: 2 }
+
+- id: trugut
+  sorte: devise
+  nom: Trugut
+  description: Plus grosse dénomination de la monnaie tatooïne, équivalente à environ 20 Peggat. Rarement acceptée en dehors de la planète.
+  champs: { valeurCredits: 20, rarete: 3 }
+
+- id: dataria-republic-datari
+  sorte: devise
+  nom: Dataria (Republic Datari)
+  description: Ancienne monnaie de la République galactique, progressivement remplacée par le Crédit impérial standard après la formation de l'Empire — encore acceptée dans certains systèmes reculés ou par nostalgie.
+  champs: { valeurCredits: 1, rarete: 4 }
+
+- id: jeton-hutt
+  sorte: devise
+  nom: Jeton Hutt
+  description: Jeton de crédit émis par les clans Hutts pour leurs transactions internes (jeu, contrebande, dettes) — accepté principalement sur Nal Hutta et dans les territoires sous influence hutte.
+  champs: { valeurCredits: 5, rarete: 4 }

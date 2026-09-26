@@ -1,0 +1,1265 @@
+# Talents (138) : obtenus par les nœuds des arbres, chaque nœud donne un rang.
+# Seuls les effets exprimables en données sont codés ; le reste est décrit.
+- id: agile
+  sorte: talent
+  nom: Agile
+  etiquettes: [passif]
+  description: |-
+    Ne subit pas les pénalités habituelles de déplacement en terrain difficile.
+
+    VO : Swift.
+
+- id: anonyme
+  sorte: talent
+  nom: Anonyme
+  etiquettes: [passif]
+  description: |-
+    Améliore une fois par rang la difficulté des tests visant à identifier le personnage.
+
+    VO : Indistinguishable.
+
+- id: aptitude-technique
+  sorte: talent
+  nom: Aptitude technique
+  etiquettes: [passif]
+  description: |-
+    Réduit de 25 % par rang le temps nécessaire aux tâches informatiques.
+
+    VO : Technical Aptitude.
+
+- id: arc-boute
+  sorte: talent
+  nom: Arc-bouté
+  etiquettes: [actif]
+  description: |-
+    Manœuvre Arc-bouté : retire 1 dé d'Infortune par rang de sa prochaine action (uniquement ceux dus aux conditions environnementales).
+
+    VO : Brace.
+
+- id: as-du-manche
+  sorte: talent
+  nom: As du manche
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang de tous les tests de Pilotage (planétaire) et (spatial).
+
+    VO : Skilled Jockey.
+
+- id: assurance
+  sorte: talent
+  nom: Assurance
+  etiquettes: [passif]
+  description: |-
+    Peut réduire de 1 par rang la difficulté des tests de Discipline pour résister à la peur.
+
+    VO : Confidence.
+
+- id: attaque-frenetique
+  sorte: talent
+  nom: Attaque frénétique
+  etiquettes: [actif]
+  description: |-
+    Lors d'un test de Mêlée ou de Corps à corps, subit un nombre de points de stress (au plus ses rangs) pour améliorer l'attaque d'autant.
+
+    VO : Frenzied Attack.
+
+- id: attitude-convaincante
+  sorte: talent
+  nom: Attitude convaincante
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests de Tromperie ou de Magouilles.
+
+    VO : Convincing Demeanor.
+
+- id: autorite
+  sorte: talent
+  nom: Autorité
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dé de Fortune par rang aux tests de Commandement. Les cibles affectées ajoutent 1 dé de Fortune à leurs tests de Discipline pendant 24 heures.
+
+    VO : Command.
+  effets:
+    - { sur: jet, si: competence == "commandement", ajout: { de: fortune, nombre: rang } }
+
+- id: bagarreur-ne
+  sorte: talent
+  nom: Bagarreur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Corps à corps ou de Mêlée.
+
+    VO : Natural Brawler.
+
+- id: baroudeur
+  sorte: talent
+  nom: Baroudeur
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests pour traverser un terrain ou gérer les effets de l'environnement. Les voyages terrestres prennent deux fois moins de temps.
+
+    VO : Outdoorsman.
+
+- id: baroudeur-ne
+  sorte: talent
+  nom: Baroudeur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Résistance ou de Survie.
+
+    VO : Natural Outdoorsman.
+
+- id: barrage
+  sorte: talent
+  nom: Barrage
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dégât par rang à une touche d'une attaque réussie en Distance (armes lourdes) ou en Artillerie à portée longue ou extrême.
+
+    VO : Barrage.
+
+- id: beau-parleur
+  sorte: talent
+  nom: Beau parleur
+  etiquettes: [actif]
+  description: |-
+    À l'acquisition, choisir Charme, Coercition, Tromperie ou Négociation. Lors d'un test de cette compétence, peut dépenser un Avantage pour gagner des Triomphes supplémentaires égaux à ses rangs.
+
+    VO : Smooth Talker.
+
+- id: bidouilleur
+  sorte: talent
+  nom: Bidouilleur
+  etiquettes: [passif]
+  description: |-
+    Peut ajouter 1 point de fixation supplémentaire à un nombre d'objets égal à ses rangs (une seule fois par objet).
+
+    VO : Tinkerer.
+
+- id: bidouilleur-ne
+  sorte: talent
+  nom: Bidouilleur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Mécanique.
+
+    VO : Natural Tinkerer.
+
+- id: bout-portant
+  sorte: talent
+  nom: Bout portant
+  etiquettes: [actif]
+  description: |-
+    Ajoute 1 dégât par rang à une touche d'une attaque réussie en Distance (armes légères ou lourdes) à portée courte ou engagée.
+
+    VO : Point Blank.
+
+- id: bras-puissant
+  sorte: talent
+  nom: Bras puissant
+  etiquettes: [passif]
+  description: |-
+    Les armes de jet sont traitées comme ayant une bande de portée de plus.
+
+    VO : Strong Arm.
+
+- id: cache-secrete
+  sorte: talent
+  nom: Cache secrète
+  etiquettes: [passif]
+  description: |-
+    Dispose dans ses véhicules ou son équipement d'une cache pouvant contenir des objets d'un encombrement total égal à ses rangs.
+
+    VO : Hidden Storage.
+
+- id: cartographe-galactique
+  sorte: talent
+  nom: Cartographe galactique
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests d'Astrogation, qui prennent deux fois moins de temps.
+
+    VO : Galaxy Mapper.
+
+- id: casseur-de-codes
+  sorte: talent
+  nom: Casseur de codes
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests pour casser un code ou déchiffrer des communications, et réduit leur difficulté de 1.
+
+    VO : Codebreaker.
+
+- id: ceinture-utilitaire
+  sorte: talent
+  nom: Ceinture utilitaire
+  etiquettes: [actif]
+  description: |-
+    Dépense 1 point de Destin pour l'incident Ceinture utilitaire : sort de sa ceinture ou de sa sacoche un objet ou une arme jusque-là non mentionné (avec restrictions).
+
+    VO : Utility Belt.
+
+- id: chargeur-de-rechange
+  sorte: talent
+  nom: Chargeur de rechange
+  etiquettes: [passif]
+  description: |-
+    Ne peut pas tomber à court de munitions à cause d'une Menace (les armes à Munitions limitées s'épuisent normalement).
+
+    VO : Spare Clip.
+
+- id: charmeur-ne
+  sorte: talent
+  nom: Charmeur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Charme ou de Tromperie.
+
+    VO : Natural Charmer.
+
+- id: chasseur
+  sorte: talent
+  nom: Chasseur
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dé de Fortune par rang à tous les tests impliquant des bêtes ou des animaux (tests de combat compris). Ajoute +10 par rang aux Blessures critiques infligées aux bêtes et animaux.
+
+    VO : Hunter.
+
+- id: chasseur-ne
+  sorte: talent
+  nom: Chasseur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Perception ou de Vigilance.
+
+    VO : Natural Hunter.
+
+- id: chercheur
+  sorte: talent
+  nom: Chercheur
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang de tous les tests de Connaissance. Les recherches prennent deux fois moins de temps.
+
+    VO : Researcher.
+
+- id: chirurgien
+  sorte: talent
+  nom: Chirurgien
+  etiquettes: [passif]
+  description: |-
+    Lors d'un test de Médecine pour soigner des blessures, la cible en récupère 1 de plus par rang.
+
+    VO : Surgeon.
+
+- id: cible-insaisissable
+  sorte: talent
+  nom: Cible insaisissable
+  etiquettes: [passif]
+  description: |-
+    Le véhicule ou le vaisseau piloté compte comme ayant une silhouette de moins lorsqu'il est attaqué.
+
+    VO : Tricky Target.
+
+- id: commandant-de-terrain
+  sorte: talent
+  nom: Commandant de terrain
+  etiquettes: [passif]
+  description: |-
+    Action Commandant de terrain : test de Commandement Moyen. Un nombre d'alliés égal à sa Présence peut subir 1 point de stress pour effectuer immédiatement une manœuvre gratuite.
+
+    VO : Field Commander.
+
+- id: commandant-de-terrain-ameliore
+  sorte: talent
+  nom: Commandant de terrain amélioré
+  etiquettes: [passif]
+  description: |-
+    Commandant de terrain affecte un nombre d'alliés égal au double de sa Présence, et un Triomphe peut leur permettre de subir 1 point de stress pour effectuer une action gratuite.
+
+    VO : Improved Field Commander.
+
+- id: concentration-intense
+  sorte: talent
+  nom: Concentration intense
+  etiquettes: [actif]
+  description: |-
+    Manœuvre Concentration intense : subit 1 point de stress et améliore une fois l'aptitude du prochain test de compétence.
+
+    VO : Intense Focus.
+
+- id: conduite-defensive
+  sorte: talent
+  nom: Conduite défensive
+  etiquettes: [passif]
+  description: |-
+    Augmente de 1 par rang la Défense du véhicule ou du vaisseau piloté.
+
+    VO : Defensive Driving.
+
+- id: connaitre-quelqu-un
+  sorte: talent
+  nom: Connaître quelqu'un
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, pour acheter un objet légal, réduit sa rareté de 1 par rang.
+
+    VO : Know Somebody.
+
+- id: contacts-au-marche-noir
+  sorte: talent
+  nom: Contacts au marché noir
+  etiquettes: [actif]
+  description: |-
+    Pour acheter des biens illégaux, réduit la rareté de 1 par rang, chaque réduction augmentant le prix de 50 % du prix de base.
+
+    VO : Black Market Contacts.
+
+- id: contournement-de-securite
+  sorte: talent
+  nom: Contournement de sécurité
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests pour désactiver un dispositif de sécurité ou ouvrir une porte verrouillée.
+
+    VO : Bypass Security.
+
+- id: coup-cible
+  sorte: talent
+  nom: Coup ciblé
+  etiquettes: [actif]
+  description: |-
+    Après une attaque réussie, peut dépenser 1 point de Destin pour ajouter à une touche des dégâts égaux à son Agilité.
+
+    VO : Targeted Blow.
+
+- id: coup-de-genie
+  sorte: talent
+  nom: Coup de génie
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, effectue un test de compétence avec l'Intellect au lieu de la caractéristique liée.
+
+    VO : Stroke of Genius.
+
+- id: coup-etourdissant
+  sorte: talent
+  nom: Coup étourdissant
+  etiquettes: [actif]
+  description: |-
+    Lors des tests de Mêlée, peut infliger les dégâts sous forme de stress plutôt que de blessures (l'Encaissement s'applique).
+
+    VO : Stunning Blow.
+
+- id: coup-etourdissant-ameliore
+  sorte: talent
+  nom: Coup étourdissant amélioré
+  etiquettes: [passif]
+  description: |-
+    En infligeant des dégâts de stress en Mêlée ou en Corps à corps, peut dépenser des Avantages pour faire chanceler la cible 1 round par Avantage.
+
+    VO : Improved Stunning Blow.
+
+- id: coup-handicapant
+  sorte: talent
+  nom: Coup handicapant
+  etiquettes: [actif]
+  description: |-
+    Augmente de 1 la difficulté du prochain test de combat. S'il inflige des dégâts, la cible subit 1 point de stress à chaque déplacement jusqu'à la fin de la rencontre.
+
+    VO : Crippling Blow.
+
+- id: coups-mortels
+  sorte: talent
+  nom: Coups mortels
+  etiquettes: [passif]
+  description: |-
+    Ajoute +10 par rang aux Blessures critiques infligées aux adversaires.
+
+    VO : Lethal Blows.
+
+- id: courage-heroique
+  sorte: talent
+  nom: Courage héroïque
+  etiquettes: [actif]
+  description: |-
+    Peut dépenser 1 point de Destin pour ignorer les effets des Blessures critiques sur les tests de Vigueur ou d'Agilité jusqu'à la fin de la rencontre.
+
+    VO : Heroic Fortitude.
+
+- id: cran
+  sorte: talent
+  nom: Cran
+  etiquettes: [passif]
+  description: |-
+    Gagne +1 en seuil de stress par rang.
+
+    VO : Grit.
+  effets:
+    - { sur: attribut, attribut: seuilStress, operation: ajouter, valeur: rang }
+
+- id: debout
+  sorte: talent
+  nom: Debout !
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, peut se relever (assis ou à terre) en tant qu'incident.
+
+    VO : Jump Up.
+
+- id: debrouillard
+  sorte: talent
+  nom: Débrouillard
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests de Sens de la rue ou de Connaissance (Pègre).
+
+    VO : Street Smarts.
+
+- id: degainer-rapide
+  sorte: talent
+  nom: Dégainer rapide
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, dégaine ou range une arme ou un objet accessible en tant qu'incident.
+
+    VO : Quick Draw.
+
+- id: deni-plausible
+  sorte: talent
+  nom: Déni plausible
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang de tous les tests de Coercition et de Tromperie.
+
+    VO : Plausible Deniability.
+
+- id: desorientation
+  sorte: talent
+  nom: Désorientation
+  etiquettes: [passif]
+  description: |-
+    Après avoir touché avec un test de combat, peut dépenser 2 Avantages pour désorienter la cible pendant un nombre de rounds égal à ses rangs.
+
+    VO : Disorient.
+
+- id: devouement
+  sorte: talent
+  nom: Dévouement
+  etiquettes: [passif]
+  description: |-
+    Gagne +1 dans une caractéristique au choix, sans pouvoir dépasser 6.
+
+    VO : Dedication.
+
+- id: en-plein-dans-le-mille
+  sorte: talent
+  nom: En plein dans le mille
+  etiquettes: [passif]
+  description: |-
+    Dépense 1 point de Destin pour ajouter à une touche d'une attaque réussie avec une arme de vaisseau ou de véhicule des dégâts égaux à la moitié de son Agilité (arrondie au supérieur).
+
+    VO : Dead to Rights.
+
+- id: en-plein-dans-le-mille-ameliore
+  sorte: talent
+  nom: En plein dans le mille amélioré
+  etiquettes: [passif]
+  description: |-
+    Dépense 1 point de Destin pour ajouter à une touche d'une attaque réussie avec une arme de vaisseau ou de véhicule des dégâts égaux à son Agilité.
+
+    VO : Improved Dead to Rights.
+
+- id: en-selle
+  sorte: talent
+  nom: En selle !
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, peut monter sur un véhicule ou une bête, en descendre, ou rejoindre un cockpit ou un poste de tir en tant qu'incident.
+
+    VO : Let's Ride.
+
+- id: endurant
+  sorte: talent
+  nom: Endurant
+  etiquettes: [passif]
+  description: |-
+    Gagne +1 en Encaissement par rang.
+
+    VO : Enduring.
+  effets:
+    - { sur: attribut, attribut: encaissement, operation: ajouter, valeur: rang }
+
+- id: endurci
+  sorte: talent
+  nom: Endurci
+  etiquettes: [passif]
+  description: |-
+    Gagne +2 en seuil de blessure par rang.
+
+    VO : Toughened.
+  effets:
+    - { sur: attribut, attribut: seuilBlessure, operation: ajouter, valeur: 2 * rang }
+
+- id: erudit-ne
+  sorte: talent
+  nom: Érudit né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Connaissance.
+
+    VO : Natural Scholar.
+
+- id: erudit-respecte
+  sorte: talent
+  nom: Érudit respecté
+  etiquettes: [passif]
+  description: |-
+    Peut réduire d'un niveau par rang la difficulté des tests d'interaction avec les institutions du savoir.
+
+    VO : Respected Scholar.
+
+- id: esquive
+  sorte: talent
+  nom: Esquive
+  etiquettes: [actif]
+  description: |-
+    Ciblé par un test de combat, peut effectuer l'incident Esquive : subit un nombre de points de stress (au plus ses rangs) et améliore d'autant la difficulté du test.
+
+    VO : Dodge.
+
+- id: evasion-brillante
+  sorte: talent
+  nom: Évasion brillante
+  etiquettes: [actif]
+  description: |-
+    Une fois par rencontre, action Évasion brillante : test opposé de Pilotage (planétaire ou spatial) contre un adversaire pour l'empêcher d'attaquer pendant un nombre de rounds égal à son Agilité.
+
+    VO : Brilliant Evasion.
+
+- id: filou-ne
+  sorte: talent
+  nom: Filou né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Magouilles ou de Discrétion.
+
+    VO : Natural Rogue.
+
+- id: fondu-de-mecanique
+  sorte: talent
+  nom: Fondu de mécanique
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests de Mécanique. Le coût en crédits des modifications d'accessoires est divisé par deux.
+
+    VO : Gearhead.
+
+- id: force-sauvage
+  sorte: talent
+  nom: Force sauvage
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dégât par rang à une touche des attaques réussies en Corps à corps ou en Mêlée.
+
+    VO : Feral Strength.
+
+- id: forteresse-mentale
+  sorte: talent
+  nom: Forteresse mentale
+  etiquettes: [actif]
+  description: |-
+    Dépense 1 point de Destin pour ignorer les effets des Blessures critiques sur les tests d'Intellect ou de Ruse jusqu'à la fin de la rencontre.
+
+    VO : Mental Fortress.
+
+- id: fourrageur
+  sorte: talent
+  nom: Fourrageur
+  etiquettes: [passif]
+  description: |-
+    Retire jusqu'à 2 dés d'Infortune des tests pour trouver nourriture, eau ou abri. Les tests de Survie pour fourrager prennent deux fois moins de temps.
+
+    VO : Forager.
+
+- id: frappe-rapide
+  sorte: talent
+  nom: Frappe rapide
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dé de Fortune par rang aux tests de combat contre les cibles qui n'ont pas encore agi pendant la rencontre.
+
+    VO : Quick Strike.
+
+- id: gros-bras-ne
+  sorte: talent
+  nom: Gros bras né
+  etiquettes: [passif]
+  description: |-
+    Une fois par séance, peut relancer un test de Coercition ou de Sens de la rue.
+
+    VO : Natural Enforcer.
+
+- id: injection-de-stimulant
+  sorte: talent
+  nom: Injection de stimulant
+  etiquettes: [actif]
+  description: |-
+    Action Injection de stimulant : test de Médecine Moyen. En cas de réussite, un allié engagé augmente une caractéristique de 1 jusqu'à la fin de la rencontre et subit 4 points de stress.
+
+    VO : Stim Application.
+
+- id: injection-de-stimulant-amelioree
+  sorte: talent
+  nom: Injection de stimulant améliorée
+  etiquettes: [actif]
+  description: |-
+    En effectuant Injection de stimulant, peut porter la difficulté à Difficile : la cible ne subit alors que 1 point de stress.
+
+    VO : Improved Stim Application.
+
+- id: injection-de-stimulant-supreme
+  sorte: talent
+  nom: Injection de stimulant suprême
+  etiquettes: [actif]
+  description: |-
+    En effectuant Injection de stimulant, peut dépenser pour augmenter de 1 une caractéristique supplémentaire.
+
+    VO : Supreme Stim Application.
+
+- id: intimidant
+  sorte: talent
+  nom: Intimidant
+  etiquettes: [actif]
+  description: |-
+    Peut subir un nombre de points de stress (au plus ses rangs) pour réduire d'autant la difficulté de ses tests de Coercition, ou améliorer d'autant celle des tests de Coercition qui le visent.
+
+    VO : Intimidating.
+
+- id: inventeur
+  sorte: talent
+  nom: Inventeur
+  etiquettes: [passif]
+  description: |-
+    En construisant un objet ou en modifiant un accessoire, ajoute 1 dé de Fortune ou retire 1 dé d'Infortune par rang.
+
+    VO : Inventor.
+
+- id: lecons-d-anatomie
+  sorte: talent
+  nom: Leçons d'anatomie
+  etiquettes: [actif]
+  description: |-
+    Après une attaque réussie, peut dépenser 1 point de Destin pour ajouter à une touche des dégâts égaux à son Intellect.
+
+    VO : Anatomy Lessons.
+
+- id: maitre-astronavigateur
+  sorte: talent
+  nom: Maître astronavigateur
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, subit 2 points de stress pour réduire de 1 la difficulté du prochain test d'Astrogation (minimum Facile).
+
+    VO : Master Starhopper.
+
+- id: maitre-des-armures
+  sorte: talent
+  nom: Maître des armures
+  etiquettes: [passif]
+  description: |-
+    En portant une armure, augmente de 1 sa valeur d'Encaissement totale.
+
+    VO : Armor Master.
+
+- id: maitre-des-armures-ameliore
+  sorte: talent
+  nom: Maître des armures amélioré
+  etiquettes: [passif]
+  description: |-
+    En portant une armure d'Encaissement 2 ou plus, augmente sa Défense de 1.
+
+    VO : Improved Armor Master.
+
+- id: maitre-des-ombres
+  sorte: talent
+  nom: Maître des ombres
+  etiquettes: [passif]
+  description: |-
+    Une fois par round, subit 2 points de stress pour réduire de 1 la difficulté du prochain test de Discrétion ou de Magouilles.
+
+    VO : Master of Shadows.
+
+- id: maitre-marchand
+  sorte: talent
+  nom: Maître marchand
+  etiquettes: [actif]
+  description: |-
+    En achetant ou vendant des biens, ou en réglant ou contractant de l'Obligation, peut subir 2 points de stress pour vendre 25 % plus cher, acheter 25 % moins cher, rembourser 1 point d'Obligation de plus ou en contracter 1 de moins.
+
+    VO : Master Merchant.
+
+- id: maitre-medecin
+  sorte: talent
+  nom: Maître médecin
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, subit 2 points de stress pour réduire de 1 la difficulté d'un test de Médecine.
+
+    VO : Master Doctor.
+
+- id: maitre-pilote
+  sorte: talent
+  nom: Maître pilote
+  etiquettes: [passif]
+  description: |-
+    Une fois par round aux commandes d'un vaisseau, peut subir 2 points de stress pour effectuer une action en tant que manœuvre.
+
+    VO : Master Pilot.
+
+- id: maitre-pirate
+  sorte: talent
+  nom: Maître pirate
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, incident Maître pirate : subit 2 points de stress pour réduire de 1 la difficulté d'un test d'Informatique ou de piratage (minimum Facile).
+
+    VO : Master Slicer.
+
+- id: marchandage
+  sorte: talent
+  nom: Marchandage
+  etiquettes: [passif]
+  description: |-
+    En vendant légalement des biens, gagne 10 % de crédits de plus par rang.
+
+    VO : Wheel and Deal.
+
+- id: mauvais-moteur
+  sorte: talent
+  nom: Mauvais moteur
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, action Mauvais moteur : test de Mécanique Difficile pour provoquer la panne spontanée d'un appareil ciblé.
+
+    VO : Bad Motivator.
+
+- id: medecin-ne
+  sorte: talent
+  nom: Médecin né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Médecine.
+
+    VO : Natural Doctor.
+
+- id: negociateur-ne
+  sorte: talent
+  nom: Négociateur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Sang-froid ou de Négociation.
+
+    VO : Natural Negotiator.
+
+- id: nerfs-d-acier
+  sorte: talent
+  nom: Nerfs d'acier
+  etiquettes: [actif]
+  description: |-
+    Dépense 1 point de Destin pour ignorer les effets des Blessures critiques sur les tests de Volonté ou de Présence jusqu'à la fin de la rencontre.
+
+    VO : Steely Nerves.
+
+- id: parle-le-binaire
+  sorte: talent
+  nom: Parle le binaire
+  etiquettes: [passif]
+  description: |-
+    En dirigeant des droïdes PNJ, peut leur accorder 1 dé de Fortune par rang à leurs tests.
+
+    VO : Speaks Binary.
+
+- id: pas-de-cote
+  sorte: talent
+  nom: Pas de côté
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, manœuvre Pas de côté : subit un nombre de points de stress (au plus ses rangs) et améliore d'autant la difficulté de toutes les attaques à distance reçues jusqu'au round suivant.
+
+    VO : Side Step.
+
+- id: pas-ne-d-hier
+  sorte: talent
+  nom: Pas né d'hier
+  etiquettes: [passif]
+  description: |-
+    Peut améliorer une fois par rang la difficulté des tests de Charme, de Coercition ou de Tromperie qui le visent.
+
+    VO : Nobody's Fool.
+
+- id: pilote-ne
+  sorte: talent
+  nom: Pilote né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Pilotage (spatial) ou d'Artillerie.
+
+    VO : Natural Pilot.
+
+- id: piratage-defensif
+  sorte: talent
+  nom: Piratage défensif
+  etiquettes: [passif]
+  description: |-
+    En défendant un système informatique, ajoute 1 dé d'Infortune par rang aux tests des adversaires.
+
+    VO : Defensive Slicing.
+
+- id: piratage-defensif-ameliore
+  sorte: talent
+  nom: Piratage défensif amélioré
+  etiquettes: [passif]
+  description: |-
+    Le Piratage défensif améliore désormais la difficulté des adversaires une fois par rang, au lieu de ses effets habituels.
+
+    VO : Improved Defensive Slicing.
+
+- id: pirate-habile
+  sorte: talent
+  nom: Pirate habile
+  etiquettes: [actif]
+  description: |-
+    Lors d'un test d'Informatique, peut dépenser un Avantage pour effectuer les tests suivants dans ce système en tant que manœuvres.
+
+    VO : Skilled Slicer.
+
+- id: pisteur-expert
+  sorte: talent
+  nom: Pisteur expert
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests pour trouver des traces ou pister une cible. Le temps de pistage est divisé par deux.
+
+    VO : Expert Tracker.
+
+- id: plans-connus
+  sorte: talent
+  nom: Plans connus
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, manœuvre Plans connus : test Difficile de Connaissance (Éducation). En cas de réussite, connaît les plans d'un bâtiment ou d'un vaisseau.
+
+    VO : Known Schematic.
+
+- id: plein-gaz
+  sorte: talent
+  nom: Plein gaz
+  etiquettes: [passif]
+  description: |-
+    Action Plein gaz : test de Pilotage Difficile pour augmenter de 1 la vitesse maximale du véhicule pendant un nombre de rounds égal à sa Ruse.
+
+    VO : Full Throttle.
+
+- id: plein-gaz-ameliore
+  sorte: talent
+  nom: Plein gaz amélioré
+  etiquettes: [actif]
+  description: |-
+    Subit 1 point de stress pour tenter Plein gaz en tant que manœuvre, avec une difficulté réduite à Moyenne.
+
+    VO : Improved Full Throttle.
+
+- id: plein-gaz-supreme
+  sorte: talent
+  nom: Plein gaz suprême
+  etiquettes: [actif]
+  description: |-
+    Avec Plein gaz, la vitesse maximale augmente de 2 au lieu de 1.
+
+    VO : Supreme Full Throttle.
+
+- id: point-de-pression
+  sorte: talent
+  nom: Point de pression
+  etiquettes: [actif]
+  description: |-
+    Lors d'un test de Corps à corps, au lieu d'infliger des dégâts, peut infliger autant de stress, plus un stress supplémentaire égal à ses rangs en Médecine (ignore l'Encaissement).
+
+    VO : Pressure Point.
+
+- id: point-faible
+  sorte: talent
+  nom: Point faible
+  etiquettes: [actif]
+  description: |-
+    Après une attaque réussie, peut dépenser 1 point de Destin pour ajouter à une touche des dégâts égaux à sa Ruse.
+
+    VO : Soft Spot.
+
+- id: polyvalent
+  sorte: talent
+  nom: Polyvalent
+  etiquettes: [passif]
+  description: |-
+    Choisir deux compétences : elles deviennent définitivement des compétences de carrière.
+
+    VO : Well Rounded.
+  choix:
+    - id: competences
+      nom: Deux compétences qui deviennent de carrière
+      nombre: 2
+      parmi: { sorte: competence }
+      donne: { type: marque, marque: carriere }
+
+- id: posture-defensive
+  sorte: talent
+  nom: Posture défensive
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, manœuvre Posture défensive : subit un nombre de points de stress (au plus ses rangs) et améliore d'autant la difficulté de toutes les attaques de mêlée reçues jusqu'au round suivant.
+
+    VO : Defensive Stance.
+
+- id: precision-mortelle
+  sorte: talent
+  nom: Précision mortelle
+  etiquettes: [actif]
+  description: |-
+    À l'acquisition, choisir une compétence de combat. Ajoute à une touche d'une attaque réussie avec cette compétence des dégâts égaux à ses rangs dans celle-ci.
+
+    VO : Deadly Accuracy.
+
+- id: presence-intense
+  sorte: talent
+  nom: Présence intense
+  etiquettes: [actif]
+  description: |-
+    Dépense 1 point de Destin pour récupérer un nombre de points de stress égal à sa Présence.
+
+    VO : Intense Presence.
+
+- id: programmeur-ne
+  sorte: talent
+  nom: Programmeur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test d'Informatique ou d'Astrogation.
+
+    VO : Natural Programmer.
+
+- id: protecteur
+  sorte: talent
+  nom: Protecteur
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, manœuvre Protecteur pour garder un personnage engagé : subit jusqu'à un nombre de points de stress égal à ses rangs, puis jusqu'au début de son prochain tour améliore d'autant la difficulté des tests de combat visant ce personnage.
+
+    VO : Body Guard.
+
+- id: raccourci
+  sorte: talent
+  nom: Raccourci
+  etiquettes: [passif]
+  description: |-
+    Pendant une poursuite, ajoute 1 dé de Fortune par rang aux tests pour rattraper ou semer un adversaire.
+
+    VO : Shortcut.
+
+- id: rafistolage
+  sorte: talent
+  nom: Rafistolage
+  etiquettes: [passif]
+  description: |-
+    Choisir une arme, une armure ou un autre objet : il reçoit une amélioration permanente tant qu'il reste en usage.
+
+    VO : Jury Rigged.
+
+- id: reaction-rapide
+  sorte: talent
+  nom: Réaction rapide
+  etiquettes: [actif]
+  description: |-
+    Subit un nombre de points de stress (au plus ses rangs) pour ajouter autant de dés de Fortune à ses tests d'Initiative.
+
+    VO : Rapid Reaction.
+
+- id: recuperation-rapide
+  sorte: talent
+  nom: Récupération rapide
+  etiquettes: [passif]
+  description: |-
+    En récupérant du stress après une rencontre, récupère 1 point de plus par rang.
+
+    VO : Rapid Recovery.
+
+- id: reglage-fin
+  sorte: talent
+  nom: Réglage fin
+  etiquettes: [passif]
+  description: |-
+    En réduisant la tension système d'un vaisseau ou d'un véhicule, en retire 1 de plus par rang.
+
+    VO : Fine Tuning.
+
+- id: renverser
+  sorte: talent
+  nom: Renverser
+  etiquettes: [passif]
+  description: |-
+    Après avoir touché avec une attaque de mêlée, peut dépenser un Avantage pour mettre la cible à terre.
+
+    VO : Knockdown.
+
+- id: reparations-solides
+  sorte: talent
+  nom: Réparations solides
+  etiquettes: [passif]
+  description: |-
+    Répare 1 point de dégâts de coque de plus par rang lorsqu'il répare un vaisseau ou un véhicule.
+
+    VO : Solid Repairs.
+
+- id: resistant
+  sorte: talent
+  nom: Résistant
+  etiquettes: [passif]
+  description: |-
+    Réduit de 10 par rang le résultat de toute Blessure critique subie (minimum 1).
+
+    VO : Durable.
+  effets:
+    - { sur: attribut, attribut: resistanceCritique, operation: ajouter, valeur: 10 * rang }
+
+- id: resolution
+  sorte: talent
+  nom: Résolution
+  etiquettes: [passif]
+  description: |-
+    Lorsqu'il subit du stress involontairement, en subit 1 de moins par rang (minimum 1).
+
+    VO : Resolve.
+
+- id: rhetorique-inspirante
+  sorte: talent
+  nom: Rhétorique inspirante
+  etiquettes: [actif]
+  description: |-
+    Action Rhétorique inspirante : test de Commandement Moyen. Chaque succès fait récupérer 1 point de stress à un allié à portée courte ; un Triomphe fait récupérer 1 point de plus à un allié affecté.
+
+    VO : Inspiring Rhetoric.
+
+- id: rhetorique-inspirante-amelioree
+  sorte: talent
+  nom: Rhétorique inspirante améliorée
+  etiquettes: [passif]
+  description: |-
+    Chaque allié affecté par Rhétorique inspirante gagne 1 dé de Fortune à tous ses tests pendant un nombre de rounds égal à ses rangs en Commandement.
+
+    VO : Improved Inspiring Rhetoric.
+
+- id: rhetorique-inspirante-supreme
+  sorte: talent
+  nom: Rhétorique inspirante suprême
+  etiquettes: [actif]
+  description: |-
+    Subit 1 point de stress pour effectuer Rhétorique inspirante en tant que manœuvre plutôt qu'action.
+
+    VO : Supreme Inspiring Rhetoric.
+
+- id: sang-epais
+  sorte: talent
+  nom: Sang épais
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dé de Fortune par rang aux tests pour résister ou se remettre des poisons, venins et toxines. Réduit de 1 round par rang la durée des poisons en cours (minimum 1).
+
+    VO : Blooded.
+
+- id: second-souffle
+  sorte: talent
+  nom: Second souffle
+  etiquettes: [actif]
+  description: |-
+    Une fois par rencontre, incident Second souffle : récupère un nombre de points de stress égal à ses rangs.
+
+    VO : Second Wind.
+
+- id: soleils-familiers
+  sorte: talent
+  nom: Soleils familiers
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, manœuvre Soleils familiers : test Difficile de Connaissance (Bordure Extérieure) ou (Mondes du Noyau) pour connaître l'environnement planétaire et d'autres informations utiles.
+
+    VO : Familiar Suns.
+
+- id: specialisation-du-savoir
+  sorte: talent
+  nom: Spécialisation du savoir
+  etiquettes: [passif]
+  description: |-
+    À l'acquisition, choisir une compétence de Connaissance. Lors d'un test de celle-ci, peut dépenser un Triomphe pour gagner des succès supplémentaires égaux à ses rangs.
+
+    VO : Knowledge Specialization.
+
+- id: specialiste-du-bacta
+  sorte: talent
+  nom: Spécialiste du bacta
+  etiquettes: [passif]
+  description: |-
+    Les patients récupèrent 1 blessure supplémentaire par rang lorsqu'ils guérissent en cuve de bacta ou par des soins de longue durée.
+
+    VO : Bacta Specialist.
+
+- id: systeme-d
+  sorte: talent
+  nom: Système D
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, action Système D : test de Mécanique Difficile pour fabriquer, avec les outils et pièces à portée de main, un appareil qui résout le problème du moment.
+
+    VO : Contraption.
+
+- id: systemes-redondants
+  sorte: talent
+  nom: Systèmes redondants
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, action Systèmes redondants : test de Mécanique Facile pour récupérer des composants d'un appareil fonctionnel et réparer un appareil en panne sans casser le premier.
+
+    VO : Redundant Systems.
+
+- id: tenir-le-coup
+  sorte: talent
+  nom: Tenir le coup
+  etiquettes: [passif]
+  description: |-
+    Dépense 1 point de Destin pour l'incident Tenir le coup juste après que le véhicule ou le vaisseau a subi des dégâts, afin de les convertir en tension système.
+
+    VO : Hold Together.
+
+- id: tete-dure
+  sorte: talent
+  nom: Tête dure
+  etiquettes: [actif]
+  description: |-
+    Chancelant ou désorienté, action Tête dure : test de Discipline Intimidant pour se débarrasser de l'état. La difficulté diminue de 1 par rang.
+
+    VO : Hard Headed.
+
+- id: tete-dure-amelioree
+  sorte: talent
+  nom: Tête dure améliorée
+  etiquettes: [actif]
+  description: |-
+    Neutralisé par un stress dépassant son seuil, peut tenter une action Tête dure plus difficile pour ramener son stress à 1 sous son seuil.
+
+    VO : Improved Hard Headed.
+
+- id: tir-de-precision
+  sorte: talent
+  nom: Tir de précision
+  etiquettes: [actif]
+  description: |-
+    Avant une attaque à distance (hors arme de jet), manœuvre Tir de précision : augmente la portée de l'arme d'une bande par rang, et améliore la difficulté de l'attaque de 1 par bande ajoutée.
+
+    VO : Sniper Shot.
+
+- id: tirade-cinglante
+  sorte: talent
+  nom: Tirade cinglante
+  etiquettes: [actif]
+  description: |-
+    Action Tirade cinglante : test de Coercition Moyen. Chaque succès inflige 1 point de stress à un ennemi à portée courte ; une Menace inflige 1 point de plus à un ennemi affecté.
+
+    VO : Scathing Tirade.
+
+- id: tirade-cinglante-amelioree
+  sorte: talent
+  nom: Tirade cinglante améliorée
+  etiquettes: [passif]
+  description: |-
+    Chaque ennemi affecté par Tirade cinglante subit 1 dé d'Infortune à tous ses tests pendant un nombre de rounds égal à ses rangs en Coercition.
+
+    VO : Improved Scathing Tirade.
+
+- id: tirade-cinglante-supreme
+  sorte: talent
+  nom: Tirade cinglante suprême
+  etiquettes: [actif]
+  description: |-
+    Subit 1 point de stress pour effectuer Tirade cinglante en tant que manœuvre plutôt qu'action.
+
+    VO : Supreme Scathing Tirade.
+
+- id: tireur-ne
+  sorte: talent
+  nom: Tireur né
+  etiquettes: [actif]
+  description: |-
+    Une fois par séance, peut relancer un test de Distance (armes légères) ou (armes lourdes).
+
+    VO : Natural Marksman.
+
+- id: traqueur
+  sorte: talent
+  nom: Traqueur
+  etiquettes: [passif]
+  description: |-
+    Ajoute 1 dé de Fortune par rang à tous les tests de Discrétion et de Coordination.
+
+    VO : Stalker.
+  effets:
+    - {
+        sur: jet,
+        si: competence == "discretion" ou competence == "coordination",
+        ajout: { de: fortune, nombre: rang },
+      }
+
+- id: tuer-par-la-gentillesse
+  sorte: talent
+  nom: Tuer par la gentillesse
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang de tous les tests de Charme et de Commandement.
+
+    VO : Kill with Kindness.
+
+- id: utinni
+  sorte: talent
+  nom: Utinni !
+  etiquettes: [passif]
+  description: |-
+    Retire 1 dé d'Infortune par rang des tests pour trouver ou récupérer objets et matériel, qui prennent deux fois moins de temps.
+
+    VO : Utinni!.
+
+- id: vigilance-accrue
+  sorte: talent
+  nom: Vigilance accrue
+  etiquettes: [passif]
+  description: |-
+    Les alliés à portée courte ajoutent 1 dé de Fortune à leurs tests de Perception ou de Vigilance ; les alliés engagés en ajoutent 2.
+
+    VO : Heightened Awareness.
+
+- id: visee-parfaite
+  sorte: talent
+  nom: Visée parfaite
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, manœuvre Visée parfaite : bénéficie des avantages de la visée et améliore le test de combat une fois par rang.
+
+    VO : True Aim.
+
+- id: visee-precise
+  sorte: talent
+  nom: Visée précise
+  etiquettes: [actif]
+  description: |-
+    Une fois par round, manœuvre Visée précise : subit un nombre de points de stress (au plus ses rangs) et réduit d'autant la Défense de mêlée et à distance de la cible.
+
+    VO : Precise Aim.

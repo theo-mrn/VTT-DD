@@ -1,0 +1,2062 @@
+# Espèces (100) : caractéristiques de départ, seuils de base, XP de départ,
+# rangs gratuits et choix. Les capacités narratives sont dans la description.
+- id: bothan
+  sorte: espece
+  nom: Bothan
+  description: |-
+    Courtiers en information de la galaxie, réputés pour leur vaste réseau d'espionnage (spynet). Sens très aiguisés, fourrure qui ondule pour communiquer et exprimer leurs émotions.
+
+    Capacités :
+    - **Fréquentation des bas-fonds** : 1 rang gratuit dans la compétence Sens de la rue (maximum rang 2 à la création).
+    - **Attitude convaincante** : 1 rang gratuit dans le talent Attitude convaincante.
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: sens-de-la-rue, valeur: 1 }
+    - { sur: rang, entree: attitude-convaincante, valeur: 1 }
+
+- id: droide
+  sorte: espece
+  nom: Droïde
+  description: |-
+    Construits pour obéir (sécurité, médecine, réparations, pilotage), certains droïdes ont développé une conscience et une personnalité uniques. Classés en 5 catégories, de la science pure au travail manuel lourd.
+
+    Capacités :
+    - **Besoins biologiques & Implants** : N'a pas besoin de manger, dormir ou respirer ; immunisé contre les toxines et poisons. Limite d'implants cybernétiques de 6 (au lieu du score de Vigueur).
+    - **Compétences de départ accrues** : Après le choix de carrière : 1 rang dans 6 des 8 compétences de carrière (au lieu de 4). Après la première spécialisation : 1 rang dans 3 compétences de spécialisation (au lieu de 2).
+    - **Inorganique** : Ne bénéficie pas des cuves de bacta, stimpacks ou jets de Médecine — se répare au repos ou via des tests de Mécanique (mêmes difficultés que les soins organiques). Les patchs de réparation d'urgence remplacent les stimpacks. 1 rang gratuit dans le talent Endurant.
+    - **Être mécanique** : Ne peut pas être sensible à la Force, ni acquérir une valeur de Force ou utiliser des pouvoirs de la Force. En contrepartie, immunisé contre tous les pouvoirs de la Force altérant l'esprit.
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 175 }
+    - { sur: rang, entree: endurant, valeur: 1 }
+
+- id: gand
+  sorte: espece
+  nom: Gand
+  description: |-
+    Espèce insectoïde mystérieuse à la culture fermée et religieuse, connue pour ses « trouveurs » (findsmen), pisteurs d'élite aux méthodes rituelles. Exosquelette de chitine dense, trois doigts par main.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+    - **Respirateurs d'ammoniac** : Choisir une sous-espèce à la création : Gand sans poumons (n'a pas besoin de respirer, immunisé contre l'asphyxie mais subit les blessures du vide spatial) OU Gand avec poumons (respire de l'ammoniac, commence avec un respirateur, l'oxygène est une atmosphère dangereuse de niveau 8 — en contrepartie +10 XP de départ).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+  choix:
+    - id: sous-espece
+      nom: "Respirateurs d'ammoniac : sous-espèce"
+      nombre: 1
+      parmi: { sorte: capacite, entrees: [gand-sans-poumons, gand-avec-poumons] }
+      donne: { type: possession }
+
+- id: humain
+  sorte: espece
+  nom: Humain
+  description: |-
+    L'espèce la plus populeuse, polyvalente et répandue de la galaxie, présente dans tous les rôles et sur presque tous les mondes habitables. Sous l'Empire, elle détient la quasi-totalité des leviers de pouvoir.
+
+    Capacités :
+    - **Polyvalence** : 1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 110 }
+  choix:
+    - id: polyvalence
+      nom: Deux compétences hors carrière
+      nombre: 2
+      parmi: { sorte: competence, sansMarque: carriere }
+      donne: { type: rang, valeur: 1 }
+
+- id: rodien
+  sorte: espece
+  nom: Rodien
+  description: |-
+    Chasseurs nés issus du monde tropical hostile de Rodia. Grands yeux et ventouses fonctionnelles sur les doigts et orteils, héritage de leurs ancêtres lézards grimpeurs. Culture de chasse rituelle et art théâtral réputé.
+
+    Capacités :
+    - **Survie** : 1 rang gratuit dans la compétence Survie (maximum rang 2 à la création).
+    - **Pisteur expert** : 1 rang gratuit dans le talent Pisteur expert.
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: survie, valeur: 1 }
+    - { sur: rang, entree: pisteur-expert, valeur: 1 }
+
+- id: trandoshan
+  sorte: espece
+  nom: Trandoshan
+  description: |-
+    Humanoïdes reptiliens belliqueux au sang froid, réputés pour leur haine féroce envers les Wookiees. Immenses griffes, vision infrarouge, écailles qui changent de couleur à la mue. Société articulée autour de la traque et de la divinité Scorekeeper.
+
+    Capacités :
+    - **Perception** : 1 rang gratuit dans la compétence Perception (maximum rang 2 à la création).
+    - **Régénération** : Lors d'une récupération d'au moins une blessure par repos naturel ou cuve de bacta, soigne 1 blessure additionnelle (ne s'applique pas aux stimpacks ou premiers soins). Peut faire repousser un membre perdu (au moins un mois pour qu'il soit fonctionnel).
+    - **Griffes** : Lors d'un test de corps à corps (Corps à corps) infligeant des dégâts : +1 dégât et profil de coup critique de 3 (Indice critique 3).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: perception, valeur: 1 }
+
+- id: twilek
+  sorte: espece
+  nom: Twi'lek
+  description: |-
+    Négociateurs hors pair, habiles à cerner les autres et à user de ruse. Deux tentacules préhensiles à l'arrière de la tête (lekku) servant de second langage non-verbal. Société de Ryloth structurée en clans et castes.
+
+    Capacités :
+    - **Charmee ou Tromperie** : 1 rang gratuit dans la compétence Charme OU Tromperie, au choix (maximum rang 2 à la création).
+    - **Adaptation aride** : Lors des tests de compétence, ignore un dé d'Infortune (dé noir) imposé par des conditions environnementales arides ou chaudes.
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+  choix:
+    - id: charme-ou-tromperie
+      nom: Charme ou Tromperie
+      nombre: 1
+      parmi: { sorte: competence, entrees: [charme, tromperie] }
+      donne: { type: rang, valeur: 1 }
+
+- id: wookiee
+  sorte: espece
+  nom: Wookiee
+  description: |-
+    Colosses de plus de deux mètres réputés pour leur force, leur intelligence et leur fureur au combat. Originaires de Kashyyyk, sens inné de la mécanique, code d'honneur strict (dette de vie). Comprennent le Basic mais ne peuvent parler que le Shyriiwook.
+
+    Capacités :
+    - **Corps à corps** : 1 rang gratuit dans la compétence Corps à corps (maximum rang 2 à la création).
+    - **Rage wookiee** : Avec au moins une blessure subie : +1 dégât à toutes les attaques Corps à corps et Mêlée. Gravement blessé (blessure critique) : +2 dégâts à la place.
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: corps-a-corps, valeur: 1 }
+
+- id: miraluka
+  sorte: espece
+  nom: Miraluka
+  description: |-
+    Les Miralukas sont aveugles de naissance et ne peuvent "voir" que grâce à un lien très étroit avec la Force. Là où les humains ont des yeux, ils ne présentent qu'une zone vide s'étendant sur le front, qu'ils dissimulent généralement sous des voiles, bandeaux ou masques. Ayant dû abandonner leur planète natale en raison de catastrophes géologiques récurrentes, ils se sont installés sur Alpheridies. Leur sensibilité exceptionnelle à la Force les a naturellement attirés vers les ordres Jedi et Sith.
+
+    Capacités :
+    - **Perception** : 1 rang gratuit dans la compétence Perception (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: perception, valeur: 1 }
+
+- id: lannik
+  sorte: espece
+  nom: Lannik
+  description: |-
+    Petite espèce humanoïde à la longue histoire guerrière, les Lannik sont de féroces guerriers aux compétences aiguisées, malgré leur taille réduite. Leur peau varie du rouge foncé à l'orange, en passant par le violet et le bleu foncé, et leurs oreilles larges et pointues captent les sons lointains. Leur culture valorise fortement le service militaire obligatoire et une intrépidité naturelle leur permettant de garder les idées claires dans les situations les plus dangereuses.
+
+    Capacités :
+    - **Résistance** : 1 rang gratuit dans la compétence Résistance (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: resistance, valeur: 1 }
+
+- id: mirialan
+  sorte: espece
+  nom: Mirialan
+  description: |-
+    Les Mirialans présentent une peau brune ou verdâtre marquée de tatouages distinctifs racontant leur histoire personnelle. Espèce particulièrement croyante, dotée d'une connexion profonde à la Force, ils estiment que chaque individu traverse une période fondatrice agissant comme un voyage initiatique. Leurs tatouages, portés sur les mains et le crâne, symbolisent les épreuves surmontées. Luminara Unduli et Barriss Offee, toutes deux Jedi, comptent parmi leurs figures notables.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: zeltron
+  sorte: espece
+  nom: Zeltron
+  description: |-
+    Espèce presque-humaine à la carnation rose foncée due à une réaction épidermique aux radiations de leur soleil, les Zeltrons produisent de puissantes phéromones qu'ils peuvent projeter comme défense, et possèdent un don d'empathie développé les rendant extrêmement sensibles aux émotions d'autrui. Peuple pacifique et sociable, connu pour son hospitalité et sa propension aux célébrations, il ne se montre combatif que contre ceux qui menacent sa joie de vivre.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: sith-sang-pur
+  sorte: espece
+  nom: Sith au sang pur
+  description: |-
+    Race ancienne d'humanoïdes à la peau rouge à marron, ornée d'appendices sur les joues et/ou le menton. Leur société de castes rigide comprenait esclaves, ingénieurs, guerriers Massassi et magiciens Kissai, et pratiquait des rites sacrificiels avant l'arrivée des Jedi Renégats. Naturellement gauchers, un trait qui inspira la création du Lanvarok. L'espèce s'éteignit lors du conflit contre Exar Kun, qui draina l'énergie vitale des Massassi pour préserver son propre esprit.
+
+    Capacités :
+    - **Coercition** : 1 rang gratuit dans la compétence Coercition (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: coercition, valeur: 1 }
+
+- id: kaleesh
+  sorte: espece
+  nom: Kaleesh
+  description: |-
+    Espèce reptilienne humanoïde à la peau rouge orangé, dotée de protubérances osseuses de chaque côté du menton et de quatre doigts par main. Leurs yeux à iris elliptique et glande thermo-réceptive permettent une vision infrarouge. Peuple nomade et polygame, ils revêtent des masques traditionnels faits du crâne et des dents de grands prédateurs locaux. Asservis par les Huks puis sanctionnés par la République, ils ont développé un tempérament agressif. Le Général Grievous, leur chef militaire le plus illustre, devint une figure divine de leur panthéon après sa mort.
+
+    Capacités :
+    - **Survie** : 1 rang gratuit dans la compétence Survie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: survie, valeur: 1 }
+
+- id: espece-de-yoda
+  sorte: espece
+  nom: Espèce de Yoda
+  description: |-
+    Race rare et sans désignation officielle, de petite stature, au teint verdâtre et aux longues oreilles mobiles qui s'animent au gré des émotions. Leurs mains à trois doigts se terminent en griffes acérées, leurs grands yeux ont des reflets dorés ou bruns, et leur chevelure évolue de l'auburn au blanc au fil des décennies. Cette espèce jouit d'une extraordinaire longévité, plus de 900 ans documentés, et d'une sensibilité universelle à la Force.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: presque-humain
+  sorte: espece
+  nom: Presque-Humain
+  description: |-
+    Catégorie générique regroupant des espèces à la morphologie et à la biologie comparables aux Humains, de taille similaire mais aux types de peau variables. Cette qualification fourre-tout sert à classifier des espèces insuffisamment étudiées, parlant le Basic galactique mais aux structures sociales et tempéraments très variés selon leurs mondes d'origine respectifs.
+
+    Capacités :
+    - **Polyvalence** : 1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 110 }
+  choix:
+    - id: polyvalence
+      nom: Deux compétences hors carrière
+      nombre: 2
+      parmi: { sorte: competence, sansMarque: carriere }
+      donne: { type: rang, valeur: 1 }
+
+- id: aleena
+  sorte: espece
+  nom: Aleena
+  description: |-
+    Espèce humanoïde reptilienne, petits bipèdes patauds à la tête allongée, aux membres courts couverts d'écailles bleutées sauf sur le ventre, avec une large bouche pleine de crocs. Société tribale au fort esprit communautaire et familial, les Aleena possèdent des réflexes hors du commun et une appétence marquée pour l'aventure malgré une apparence jugée inoffensive. Souvent perçus comme plus joviaux qu'intelligents, ils comptent d'excellents podracers parmi eux.
+
+    Capacités :
+    - **Pilotage (planétaire)** : 1 rang gratuit dans la compétence Pilotage (planétaire) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: pilotage-planetaire, valeur: 1 }
+
+- id: nautolan
+  sorte: espece
+  nom: Nautolan
+  description: |-
+    Espèce amphibie à la peau verte et aux yeux semblables à ceux des requins, dotée d'une couronne de longs tentacules verts remplaçant les cheveux. Ces tentacules crâniens servent d'organe sensoriel principal, détectant phéromones et émotions d'autrui dans l'eau, une capacité qui diminue sur terre. Leur squelette cartilagineux les rend exceptionnellement élastiques pour la vie sous-marine. Ils coexistent depuis des millénaires avec les Anselmi, autre espèce de leur planète.
+
+    Capacités :
+    - **Nage** : 1 rang gratuit dans la compétence Athlétisme utilisée pour nager (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: athletisme, valeur: 1 }
+
+- id: neti
+  sorte: espece
+  nom: Neti
+  description: |-
+    Rare espèce métamorphe de plantes intelligentes, à la peau grisâtre rappelant l'écorce des arbres, dotée d'arborescences fines et d'un feuillage virant du brun au gris sombre. Sans nez ni besoin de respirer, les Netis se nourrissent par photosynthèse et peuvent vivre quasiment indéfiniment en mode végétatif avec accès à l'eau et à la lumière. Très réceptifs à la Force, ils préfèrent généralement se transformer en apparence humanoïde et vivent plusieurs centaines d'années, leur reproduction étant extrêmement rare.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: tusken
+  sorte: espece
+  nom: Tusken
+  description: |-
+    Également appelés Hommes des Sables ou Pillards Tusken, ils se couvrent de bandelettes sous des robes poussiéreuses attachées par du cuir de Dewback, avec lentilles protectrices et masques filtrants. Perdre son masque entraîne l'exil du clan. Nomades vivant en tribus souvent ennemies dans le désert du Jundland, leur culture valorise l'oralité à travers le Conteur Tusken. Considérés comme agressifs et primitifs technologiquement, ils manient le Bâton Gaffi comme arme traditionnelle.
+
+    Capacités :
+    - **Survie** : 1 rang gratuit dans la compétence Survie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: survie, valeur: 1 }
+
+- id: chiss
+  sorte: espece
+  nom: Chiss
+  description: |-
+    Humanoïdes à la peau bleue, aux cheveux longs, fins et noirs, et aux yeux rouges leur conférant une acuité visuelle accrue. Plus résistants que la moyenne des humains, ils forment une société très hiérarchisée organisée autour de familles aristocratiques, intelligente mais réservée, maintenant son isolement depuis des millénaires. Extrêmement pacifiques malgré leur nature guerrière, ils prônent une attitude défensive et ont historiquement interdit l'usage de la Force, la jugeant menaçante pour la stabilité sociale.
+
+    Capacités :
+    - **Vision améliorée** : Infravision : Permet de voir dans l'infrarouge. Retire automatiquement 1 dé d'Infortune de pénalité lié à l'obscurité ou au manque de luminosité.
+    - **Vigilance** : 1 rang gratuit dans la compétence Vigilance (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: vigilance, valeur: 1 }
+
+- id: yuuzhan-vong
+  sorte: espece
+  nom: Yuuzhan Vong
+  description: |-
+    Espèce extra-galactique vénérant la douleur et la souffrance, organisée selon des castes reflétées par mutilations volontaires, scarifications et implants biologiques. Théocratie dirigée par un Seigneur Suprême, ils maîtrisent une technologie organique avancée et pratiquent un culte religieux intense. Ils envahirent la Galaxie en 25 ap. BY avant de capituler et d'être accueillis sur Zonama Sekot, où ils entreprirent la restauration écologique des mondes dévastés.
+
+    Capacités :
+    - **Coercition** : 1 rang gratuit dans la compétence Coercition (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: coercition, valeur: 1 }
+
+- id: neimoidien
+  sorte: espece
+  nom: Neimoidien
+  description: |-
+    Descendants lointains des Duros, à la peau vert-grise, aux grands yeux à facettes rouges et sans nez. Société oligarchique très hiérarchisée où habits longs et chapeaux symbolisent l'ascension sociale. Dominés par la peur et la couardise, ils préfèrent négocier plutôt que combattre. Nés dans des œufs, ils subissent dès l'enfance une compétition pour les ressources éliminant les plus faibles. Fondateurs de la Fédération du Commerce, ils sont réputés aussi puissants que corrompus.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: killik
+  sorte: espece
+  nom: Killik
+  description: |-
+    Insectes sophistiqués dotés d'une paire d'antennes permettant la communication télépathique, de pinces et de mâchoires acérées, à la morphologie variant selon le nid d'origine. Structure en ruche organisée par nids spécialisés (guerriers, constructeurs, artisans), réunis autour d'une entité spirituelle commune appelée la Volonté ou Colonie. Ayant dominé partiellement la galaxie il y a environ 35 000 ans, ils réémergèrent plus tard, déclenchant la Guerre de l'Essaim contre l'Alliance Galactique.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: falleen
+  sorte: espece
+  nom: Falleen
+  description: |-
+    Espèce reptilienne à la peau verte ou rouge, écailleuse le long de la colonne vertébrale, réputée pour sa beauté exotique rivalisant avec celle des Twi'leks. Capables de survivre plusieurs heures sous l'eau, héritage de leurs ancêtres amphibiens, ils vivent au moins 250 ans, certains atteignant 400 ans. Société féodale dirigée par des maisons nobles comme celle de Xizor, ils émettent des phéromones à effet hypnotisant utilisables comme arme, tout en restant distants et stoïques avec les étrangers.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: shiido
+  sorte: espece
+  nom: Shi'ido
+  description: |-
+    Espèce rare de créatures changeantes, à la peau pâle, au crâne allongé et aux membres fins, dont la physiologie remarquablement flexible et les os denses permettent diverses configurations corporelles. Leur capacité de métamorphose combine manipulation psychologique et télépathique, créant une image peinte au-dessus de leur forme naturelle. Curieux et individualistes, souvent réputés criminels ou espions, ils vivent jusqu'à 500 ans, ce qui leur permet de maîtriser des formes de plus en plus complexes.
+
+    Capacités :
+    - **Tromperie** : 1 rang gratuit dans la compétence Tromperie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: tromperie, valeur: 1 }
+
+- id: poletec
+  sorte: espece
+  nom: Poletec
+  description: |-
+    Humanoïdes de grande taille élancée, à la peau violette et aux membres longs et fins. Ils pratiquent un mode de vie tribal basé sur la vénération et l'apprivoisement de créatures ailées, utilisées pour se déplacer dans la brume planétaire. Méfiants envers les étrangers, ils ont dû adapter leur société lors de l'invasion de la Techno Union pendant la Guerre des Clones, s'alliant finalement avec la République Galactique.
+
+    Capacités :
+    - **Survie** : 1 rang gratuit dans la compétence Survie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: survie, valeur: 1 }
+
+- id: hutt
+  sorte: espece
+  nom: Hutt
+  description: |-
+    Longs gastéropodes à la moyenne d'âge très élevée, ressemblant à d'immenses limaces au corps épais, à la queue musclée et aux deux petits bras ; un adulte pèse environ 1500 kg pour 4 mètres de long. Hermaphrodites, puissants et impitoyables, ils s'organisent en clans appelés kajidics dirigés par un conseil d'anciens. Souvent impliqués dans des entreprises criminelles, ils vivent en moyenne 925 ans et considèrent leur langue, le Huttese, comme supérieure au Basic.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: rakata
+  sorte: espece
+  nom: Rakata
+  description: |-
+    Espèce légendaire sensible à la Force, à la coloration jaune délavé, aux écailles jaunes et à la physiologie amphibienne rappelant les Mon Calamari. Société de castes organisée en empire, ils fondèrent l'Infinite Empire des milliers d'années avant la République Galactique, l'une des espèces dominantes de la galaxie avec les Celestials et les Killiks. Leur taux naturellement élevé de midichloriens et leur maîtrise combinée de la Force et de la technologie leur permirent de créer les Holocrons et la Forge Stellaire, avant qu'une pandémie ne les coupe de la Force et ne provoque le déclin de leur empire.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: zabrak
+  sorte: espece
+  nom: Zabrak
+  description: |-
+    Humanoïdes dotés de cornes sur le haut du crâne, différentes en nombre, taille, couleur et forme selon chaque individu, servant de marque identitaire distincte. Ayant développé un instinct de survie remarquable face aux mers acides, tempêtes et prédateurs gigantesques de leur monde natal, ils sont réputés déterminés mais parfois obstinés. Ayant colonisé cinq systèmes stellaires, ils formèrent un mouvement de résistance contre l'Empire Galactique avant de se présenter comme peuple unifié à la Nouvelle République.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: mon-calamari
+  sorte: espece
+  nom: Mon Calamari
+  description: |-
+    Espèce pacifique et amicale à la peau marron marbrée, dotée de grosses têtes bombées, de gros yeux et de membres palmés. Excellente vue sous-marine et en faible lumière, se déplaçant très rapidement en milieu aquatique mais faibles en environnements secs. Utopistes et explorateurs, les Mon Calamari furent parmi les premières espèces aliens à rejoindre l'Alliance Rebelle après avoir souffert sous l'Empire, se distinguant par leurs talents de constructeurs de vaisseaux.
+
+    Capacités :
+    - **Mécanique** : 1 rang gratuit dans la compétence Mécanique (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: mecanique, valeur: 1 }
+
+- id: kel-dor
+  sorte: espece
+  nom: Kel Dor
+  description: |-
+    Espèce à la peau variant du couleur pêche au rouge écarlate, ne pouvant survivre que dans l'atmosphère unique de Dorin composée d'hélium et d'un gaz spécifique. Hors de leur monde, ils portent masques à gaz et protections oculaires. Chaleureux et de caractère calme, dotés d'un fort sens de la justice, beaucoup deviennent diplomates, marchands, chasseurs de primes ou Jedi. Ceux sensibles à la Force restent souvent sur Dorin pour rejoindre l'ordre Baran Do. Le maître Jedi Plo Koon en est l'exemple le plus célèbre.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: ewok
+  sorte: espece
+  nom: Ewok
+  description: |-
+    Petits êtres intelligents d'environ un mètre, couverts d'une épaisse fourrure de couleur variable, vivant dans des maisons arbres organisées en tribus dirigées par un chef. Ils portent des tuniques en peau de bête, plumes et ossements à valeur religieuse, reçues lors d'une cérémonie initiatique. Leur société repose sur une répartition genrée des tâches et une croyance animiste vénérant les grands arbres forestiers. Curieux, courageux mais superstitieux, ils démontrent une grande ingéniosité malgré une technologie primitive.
+
+    Capacités :
+    - **Discrétion** : 1 rang gratuit dans la compétence Discrétion (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discretion, valeur: 1 }
+
+- id: gungan
+  sorte: espece
+  nom: Gungan
+  description: |-
+    Espèce amphibienne humanoïde aux écailles vertes ou oranges, aux longues oreilles souples, deux yeux globuleux et une longue langue rétractable lors de la nage. Civilisation technologiquement avancée basée sur la biotechnologie, très fière de coexister avec la nature. Pacifiques après leurs guerres de clans, ils conservent une réputation de force et d'astuce, se montrant néanmoins inquisiteurs, suspicieux et très prudents envers les étrangers.
+
+    Capacités :
+    - **Athlétisme** : 1 rang gratuit dans la compétence Athlétisme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: athletisme, valeur: 1 }
+
+- id: gotal
+  sorte: espece
+  nom: Gotal
+  description: |-
+    Humanoïdes pacifiques à la peau gris-vert couverte de fourrure, dotés de deux cornes crâniennes abritant un système de détection électromagnétique compensant une vue et une ouïe faibles. Ce sens leur permet de percevoir les émotions d'autrui et de détecter proies ou sources d'énergie à distance. Société non hiérarchique fondée sur l'empathie naturelle ; plusieurs Gotals ont servi dans l'Ordre Jedi ou comme Rangers Antariens.
+
+    Capacités :
+    - **Perception** : 1 rang gratuit dans la compétence Perception (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: perception, valeur: 1 }
+
+- id: qiraash
+  sorte: espece
+  nom: Qiraash
+  description: |-
+    Espèce presque-humaine à la peau rose pâle et au crâne surdéveloppé, surmonté d'une masse de cheveux noirs à la nuque. Leesub Sirln en est l'unique représentante connue de la galaxie, sensible à la Force par des dons de prémonition, traquée par l'Empire avant de se réfugier sur Tatooine.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: bivall
+  sorte: espece
+  nom: Bivall
+  description: |-
+    Humanoïdes au cou allongé et à la crête distinctive, minces, aux yeux proéminents et à la peau rouge à vert d'eau. Espèce peu représentée dans l'histoire galactique connue, hormis quelques figures notables comme le Dr Sionver Boll, spécialiste de l'étude de la Bête Zillo, et le conseiller Okalin sur Onderon.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: dug
+  sorte: espece
+  nom: Dug
+  description: |-
+    Natifs de Malastare au tempérament agressif, à la peau rose pâle et aux oreilles pointues, qui se déplacent en marchant sur les mains, une adaptation à la forte gravité de leur planète. Société organisée en clans dirigés par des rois ou reines élus par combat ; les Dugs sont célèbres pour leur maîtrise des courses de Pod.
+
+    Capacités :
+    - **Pilotage (planétaire)** : 1 rang gratuit dans la compétence Pilotage (planétaire) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: pilotage-planetaire, valeur: 1 }
+
+- id: kari
+  sorte: espece
+  nom: Kari
+  description: |-
+    Insectoïdes d'environ un mètre à l'exosquelette noir, dotés d'une intelligence collective : peu développés lorsqu'ils sont isolés, ils forment une société avancée en groupe, organisée en « couvées » dirigées par des « chanteurs ». L'Empire a bloqué leur essor spatial, créant une tension idéologique persistante au sein de l'espèce.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: belugan
+  sorte: espece
+  nom: Belugan
+  description: |-
+    Humanoïdes à la peau grise ou marron, à la tête triangulaire et au bec mobile en quatre parties. De tempérament carnassier, les Beluganns ont dominé les autochtones Kage de leur planète par un régime despotique.
+
+    Capacités :
+    - **Tromperie** : 1 rang gratuit dans la compétence Tromperie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: tromperie, valeur: 1 }
+
+- id: ayrou
+  sorte: espece
+  nom: Ayrou
+  description: |-
+    Humanoïdes descendants d'aviaires non-volants, mesurant environ deux mètres et couverts de plumes multicolores reflétant leur santé et leur statut social. Culture valorisant l'intelligence et la négociation ; les Ayrous sont réputés comme des marchands avisés.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: rakaan
+  sorte: espece
+  nom: Rakaan
+  description: |-
+    Prédateurs imposants au corps segmenté vert à marron, dotés de huit jambes et capables de tisser des toiles. Leur cerveau abdominal et leurs cinq phases de vie et de sexe distinctes accompagnent une hibernation hivernale ; ils peuvent vivre jusqu'à 160 ans.
+
+    Capacités :
+    - **Résistance** : 1 rang gratuit dans la compétence Résistance (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: resistance, valeur: 1 }
+
+- id: bith
+  sorte: espece
+  nom: Bith
+  description: |-
+    Espèce très avancée au crâne massif et à la peau rose pâle, dotée de grands yeux noirs. Pacifistes tournés vers les arts et les sciences, les Bith vivent en démocratie technologique et comptent parmi eux de célèbres groupes musicaux galactiques.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: sarkhai
+  sorte: espece
+  nom: Sarkhai
+  description: |-
+    Presque-humains à la peau et aux cheveux blancs, marqués de tatouages faciaux impressionnants. Peuple vivant sous une monarchie membre de la République ; Nadia Grell, fille de sénateur sarkhai, devint une Jedi notable.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: givin
+  sorte: espece
+  nom: Givin
+  description: |-
+    Humanoïdes squelettiques dotés d'un exosquelette adapté au vide spatial et d'yeux triangulaires à facettes. Les mathématiques occupent une place quasi religieuse dans leur théocratie ; leur grande flotte marchande contraste avec une réputation de xénophobie.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: cathar
+  sorte: espece
+  nom: Cathar
+  description: |-
+    Félins bipèdes humanoïdes, les mâles arborant crinières et défenses tandis que les femelles possèdent des crocs proéminents. Ils vivent dans des cités-arbres sculptées et pratiquent une culture clanique attachée à la famille, à la tradition et à la loyauté, avec une férocité légendaire au combat.
+
+    Capacités :
+    - **Corps à corps** : 1 rang gratuit dans la compétence Corps à corps (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: corps-a-corps, valeur: 1 }
+
+- id: gesarils
+  sorte: espece
+  nom: Gesarils
+  description: |-
+    Petits êtres à fourrure dotés de six membres, naturellement doués pour la Force. Société nomade sans écriture, amicale mais franchement hostile au Côté Obscur, pratiquant un art psychique particulier.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: ishi-tib
+  sorte: espece
+  nom: Ishi Tib
+  description: |-
+    Amphibiens humanoïdes à la tête en forme d'étoile, à la peau verte et aux mains à quatre doigts. Organisés en sociétés appelées « écoles » de 100 à 10 000 individus, ils sont réputés comme administrateurs et biologistes soucieux de préserver l'écologie de leur monde.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: dantari
+  sorte: espece
+  nom: Dantari
+  description: |-
+    Nomades primitifs à la carrure imposante et à la peau épaisse et basanée, vivant traditionnellement de la chasse côtière. Après l'intervention impériale sur leur monde, certains symboles militaires impériaux ont été intégrés à leur culture.
+
+    Capacités :
+    - **Survie** : 1 rang gratuit dans la compétence Survie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: survie, valeur: 1 }
+
+- id: balnab
+  sorte: espece
+  nom: Balnab
+  description: |-
+    Humanoïdes frêles à quatre tentacules faciaux et à la peau bleue, descendants d'un équipage dont le vaisseau s'est écrasé sur Balnab. Société organisée en clans parlant le Basic ; certains deviennent chasseurs de primes ou patrons de cantina.
+
+    Capacités :
+    - **Sens de la rue** : 1 rang gratuit dans la compétence Sens de la rue (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: sens-de-la-rue, valeur: 1 }
+
+- id: nu-cosian
+  sorte: espece
+  nom: Nu-Cosian
+  description: |-
+    Cousins primitifs des Cosians, humanoïdes ratatinés au long cou, connus pour leurs voyages discrets à travers la galaxie. Bobbajo, marchand d'animaux rencontré sur Jakku, en est le représentant le plus notable.
+
+    Capacités :
+    - **Sens de la rue** : 1 rang gratuit dans la compétence Sens de la rue (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: sens-de-la-rue, valeur: 1 }
+
+- id: advozse
+  sorte: espece
+  nom: Advozse
+  description: |-
+    Petits humanoïdes d'environ 1,50 m, à la peau jaune-marron et aux grands yeux noirs offrant une bonne vision nocturne. Peuple pessimiste et méfiant, mais réputé pour ses talents d'ingénieurs en matériaux et en construction.
+
+    Capacités :
+    - **Mécanique** : 1 rang gratuit dans la compétence Mécanique (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: mecanique, valeur: 1 }
+
+- id: dresselien
+  sorte: espece
+  nom: Dresselien
+  description: |-
+    Peau beige sans cheveux, crânes allongés et yeux jaunes caractérisent cette espèce vivant en démocratie de cités-états. Combattants réputés et riches d'une culture littéraire tournée vers la poésie champêtre, les Dresseliens sont des alliés traditionnels des Bothans.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: yuzzum
+  sorte: espece
+  nom: Yuzzum
+  description: |-
+    Créatures au corps arrondi couvert d'une fourrure bleu-gris, aux longues jambes et aux dents proéminentes. Peuple primitif chassant principalement les rongeurs ; Joh Yowza, musicien du Max Rebo Band, en est le représentant le plus célèbre.
+
+    Capacités :
+    - **Perception** : 1 rang gratuit dans la compétence Perception (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: perception, valeur: 1 }
+
+- id: kentra
+  sorte: espece
+  nom: Kentra
+  description: |-
+    Humanoïdes ailés à la longue queue et aux ailes veloutées, dont l'apparence varie selon l'habitat. Société organisée en « nids », clans et volées gouvernés par un roi et un conseil, où l'honneur constitue la valeur cardinale.
+
+    Capacités :
+    - **Vol** : 1 rang gratuit dans la compétence Pilotage (planétaire) utilisée pour le vol (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: pilotage-planetaire, valeur: 1 }
+
+- id: vaathkree
+  sorte: espece
+  nom: Vaathkree
+  description: |-
+    Humanoïdes dotés d'une armure naturelle métallique, réputés comme marchands et négociants. Leur code de conduite commerciale, appelé l'Accord, est au cœur de leur religion ; ils jouissent d'une longévité dépassant 300 ans.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: bartokk
+  sorte: espece
+  nom: Bartokk
+  description: |-
+    Insectoïdes bipèdes d'environ 1,90 m, à la carapace noire et aux quatre bras griffus, capables d'une régénération rapide. Organisés en ruches reliées par une conscience télépathique collective, ce sont d'excellents assassins et soldats.
+
+    Capacités :
+    - **Corps à corps** : 1 rang gratuit dans la compétence Corps à corps (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: corps-a-corps, valeur: 1 }
+
+- id: omwati
+  sorte: espece
+  nom: Omwati
+  description: |-
+    Humanoïdes élancés à la peau bleutée, dont la civilisation harmonise technologie avancée et gestion raisonnée des ressources. Gracieux et sages, ils parlent l'Omwatese, une langue tonale.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: shatras
+  sorte: espece
+  nom: Shatras
+  description: |-
+    Reptiliens bipèdes au cou long et flexible, dotés de quatre yeux offrant une vision infrarouge. L'espèce se divise en cinq races distinctes, les Y'tras étant majoritaires ; une grande loyauté envers les non-Shatras coexiste avec des tensions internes marquées.
+
+    Capacités :
+    - **Perception** : 1 rang gratuit dans la compétence Perception (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: perception, valeur: 1 }
+
+- id: evocii
+  sorte: espece
+  nom: Evocii
+  description: |-
+    Humanoïdes bipèdes au visage allongé et aux bosses épineuses crâniennes, formant une civilisation pacifique organisée en clans. Déportés sur Nar Shaddaa après une invasion Hutt, ils furent finalement éradiqués par les Yuuzhan Vong.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: shard
+  sorte: espece
+  nom: Shard
+  description: |-
+    Créatures cristallines conscientes, communiquant par voie électromagnétique, sensibles à la Force et dotées d'une longévité millénaire. Certains d'entre eux ont été implantés dans des droïdes, comme les Iron Knights ou le Maître Aqinos.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: pho-pheahian
+  sorte: espece
+  nom: Pho Ph'eahian
+  description: |-
+    Humanoïdes à quatre bras et à la fourrure bleu ciel, grimpeurs de montagne réputés pour leur jovialité. Attirés par la technologie, ils excellent comme mécaniciens et ingénieurs, et pratiquent un culte de la propreté spirituelle.
+
+    Capacités :
+    - **Mécanique** : 1 rang gratuit dans la compétence Mécanique (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: mecanique, valeur: 1 }
+
+- id: vratix
+  sorte: espece
+  nom: Vratix
+  description: |-
+    Insectoïdes à la peau gris-vert, dotés d'antennes soniques et de membres à trois doigts. Découvreurs du bacta, ils vivent sous une hiérarchie où les « Verachen », producteurs de bacta, dominent une société qui valorise l'esprit collectif.
+
+    Capacités :
+    - **Médecine** : 1 rang gratuit dans la compétence Médecine (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: medecine, valeur: 1 }
+
+- id: colicoid
+  sorte: espece
+  nom: Colicoid
+  description: |-
+    Insectoïdes à six pattes, à la peau chitineuse et à la queue venimeuse, mesurant environ 1,80 m. Société individualiste et dénuée d'émotions, créatrice du droïde Droïdeka, alliée de la Confédération des Systèmes Indépendants.
+
+    Capacités :
+    - **Mécanique** : 1 rang gratuit dans la compétence Mécanique (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: mecanique, valeur: 1 }
+
+- id: epicanthix
+  sorte: espece
+  nom: Epicanthix
+  description: |-
+    Presque-Humains élancés au visage allongé et à la chevelure noire souvent attachée. Nature guerrière alliée à une véritable passion artistique ; unifiés sous le chef Canthar, ils furent ensuite soumis par l'Empire.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: felucien
+  sorte: espece
+  nom: Felucien de la Jungle
+  description: |-
+    Amphibiens d'au moins 1,90 m, dotés de quatre mains à ventouses et de filaments phosphorescents. Organisés en tribus dirigées par des chamans sensibles à la Force, certains ayant basculé vers le Côté Obscur, à l'image de Shaak Ti.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: bovorian
+  sorte: espece
+  nom: Bovorian
+  description: |-
+    Humanoïdes ailés à la chevelure blanche et aux yeux rouges offrant une vision infrarouge. Ils vivent en clans de cinq à dix individus dans des « aeries » arboricoles, et communiquent par sifflements et ultrasons.
+
+    Capacités :
+    - **Perception** : 1 rang gratuit dans la compétence Perception (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: perception, valeur: 1 }
+
+- id: saurin
+  sorte: espece
+  nom: Saurin
+  description: |-
+    Humanoïdes reptiliens à la peau noueuse verte ou marron, ornés de crêtes faciales et aux yeux entièrement noirs. Bien représentés dans la galaxie, notamment sur Tatooine, leur tempérament est généralement neutre.
+
+    Capacités :
+    - **Polyvalence** : 1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 110 }
+  choix:
+    - id: polyvalence
+      nom: Deux compétences hors carrière
+      nombre: 2
+      parmi: { sorte: competence, sansMarque: carriere }
+      donne: { type: rang, valeur: 1 }
+
+- id: khramboan
+  sorte: espece
+  nom: Khramboan
+  description: |-
+    Humanoïdes discrets dotés de deux tentacules faciaux, d'yeux montés sur antennes et d'une peau violet pâle. Peu de figures notables, hormis quelques marchands comme Droogan sur Coruscant.
+
+    Capacités :
+    - **Sens de la rue** : 1 rang gratuit dans la compétence Sens de la rue (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: sens-de-la-rue, valeur: 1 }
+
+- id: galidyn
+  sorte: espece
+  nom: Galidyn
+  description: |-
+    Énormes lézards ailés atteignant 5 mètres de long pour 10 mètres d'envergure, dotés d'une intelligence remarquable et d'une longévité millénaire. Société démocratique répartie en huit cités souterraines rassemblant environ 40 000 individus.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: gorothite
+  sorte: espece
+  nom: Gorothite
+  description: |-
+    Reptiliens aux bras longs disproportionnés et aux caroncules tatouées sous le menton. Devenus herbivores après une catastrophe appelée la Purgation, ils vivent sous des clans matriarcaux, dont celui des J'ber.
+
+    Capacités :
+    - **Survie** : 1 rang gratuit dans la compétence Survie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: survie, valeur: 1 }
+
+- id: lorrdien
+  sorte: espece
+  nom: Lorrdien
+  description: |-
+    Presque-Humains ayant développé la « communication kinétique », faite de gestes et d'expressions, durant leur esclavage sous les Argazdans. Grands imitateurs, ils mènent souvent des carrières politiques, militaires ou au sein de l'Ordre Jedi.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: rakririan
+  sorte: espece
+  nom: Rakririan
+  description: |-
+    Corps tubulaires dotés de cinq paires de membres et d'yeux tubulaires proéminents. Espèce réputée pour son goût raffiné et sa méticulosité ; ceux qui quittent leur monde natal deviennent souvent riches ou serviteurs de fortunés.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: paigun
+  sorte: espece
+  nom: Paigun
+  description: |-
+    Peau verte et crâne allongé caractérisent ces natifs de l'Amas de Vorzyd. Experts en mathématiques et en logique, réputés arrogants, ils construisent de gigantesques tours pour se protéger de tempêtes violentes, ce qui ne les rend guère appréciés de leurs voisins.
+
+    Capacités :
+    - **Éducation** : 1 rang gratuit dans la compétence Connaissance (Éducation) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: connaissance-education, valeur: 1 }
+
+- id: teltior
+  sorte: espece
+  nom: Teltior
+  description: |-
+    Humanoïdes à la peau bleu pâle à noir, dotés d'une queue proéminente et de mains à trois doigts très dextres. Souvent marchands prospères ou escrocs, ils entretiennent une paix durable avec les Meris, autre peuple de leur monde.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: fosh
+  sorte: espece
+  nom: Fosh
+  description: |-
+    Espèce aviaire mystérieuse au plumage multicolore changeant selon l'humeur ; Vergere en est la seule représentante connue de la galaxie. Peuple isolé et manipulateur, féru d'intrigues politiques menées en coulisses.
+
+    Capacités :
+    - **Tromperie** : 1 rang gratuit dans la compétence Tromperie (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: tromperie, valeur: 1 }
+
+- id: frenk
+  sorte: espece
+  nom: Frenk
+  description: |-
+    Grands humanoïdes minces proches des Muuns, à la peau rouge, dotés de quatre doigts et de deux paires de narines. Rumi Paramita, tireuse d'élite mercenaire, en est une représentante notable.
+
+    Capacités :
+    - **Distance (armes légères)** : 1 rang gratuit dans la compétence Distance (armes légères) (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: distance-legere, valeur: 1 }
+
+- id: borneck
+  sorte: espece
+  nom: Borneck
+  description: |-
+    Humanoïdes d'environ 1,90 m, à la peau jaune pâle à marron orangé. Peuple pacifique valorisant le travail acharné, la famille et l'agriculture, réputé pour ses excellents fermiers recherchés hors de leur monde natal.
+
+    Capacités :
+    - **Résistance** : 1 rang gratuit dans la compétence Résistance (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: resistance, valeur: 1 }
+
+- id: kindalo
+  sorte: espece
+  nom: Kindalo
+  description: |-
+    Créatures arborescentes souterraines aux membres semblables à des branches et au corps noir strié de lignes phosphorescentes blanches. Société recluse guidée spirituellement par Orphne, restée à l'écart de la République Galactique.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: emliy
+  sorte: espece
+  nom: Em'liy
+  description: |-
+    Humanoïdes musclés à la peau jaune, bleue ou orange, aux coiffures en houppes signalant le statut social et aux visages presque sans traits. Nomades martiaux, appelés les Nomades, ils furent opprimés sous l'Empire.
+
+    Capacités :
+    - **Corps à corps** : 1 rang gratuit dans la compétence Corps à corps (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: corps-a-corps, valeur: 1 }
+
+- id: talpini
+  sorte: espece
+  nom: Talpini
+  description: |-
+    Humanoïdes de petite taille, à la peau pâle et lisse, au corps velu à l'exception du visage. Weeteef Cyu-Bee, membre de la milice de Saw Gerrera à Jedha, en est le représentant le plus notable.
+
+    Capacités :
+    - **Discrétion** : 1 rang gratuit dans la compétence Discrétion (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discretion, valeur: 1 }
+
+- id: tarc
+  sorte: espece
+  nom: Tarc
+  description: |-
+    Crustacés à l'exosquelette chitineux, dotés de quatre bras et de pinces puissantes. Peuple isolationniste gouverné par un « Keddek » et des chefs continentaux, aux frontières fermées et fermement défendues.
+
+    Capacités :
+    - **Résistance** : 1 rang gratuit dans la compétence Résistance (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: resistance, valeur: 1 }
+
+- id: akwin
+  sorte: espece
+  nom: Akwin
+  description: |-
+    Mammifères aquatiques à six membres, au corps bleu-vert et dotés de branchies. Peuple pacifique valorisant la musique et les arts, organisé en cités-états monarchiques fièrement isolationnistes.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: klatooinien
+  sorte: espece
+  nom: Klatooinien
+  description: |-
+    Peau dure verte à marron foncé et canines apparentes caractérisent ces guerriers musclés. Organisés en clans respectant les anciens, réunis à la Fontaine des Anciens pour les questions religieuses et politiques, les jeunes reçoivent une éducation martiale rigoureuse. Longtemps asservis par les Hutts, certains ont rejoint la Rébellion comme contrebandiers, et quelques-uns sont même devenus Maîtres Jedi.
+
+    Capacités :
+    - **Corps à corps** : 1 rang gratuit dans la compétence Corps à corps (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: corps-a-corps, valeur: 1 }
+
+- id: vurk
+  sorte: espece
+  nom: Vurk
+  description: |-
+    Humanoïdes reptiliens de plus de deux mètres, à la peau bleue grise et aux yeux bulbeux noirs, dotés d'une crête crânienne caractéristique et de mains à trois doigts. Issus d'une planète volcanique aux océans chauds, ils ont conservé leur nature amphibie et valorisent l'honnêteté, l'intégrité et la remise en question ; nombreux sont ceux ayant mené des carrières en diplomatie ou dans l'Ordre Jedi.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: arcona
+  sorte: espece
+  nom: Arcona
+  description: |-
+    Humanoïdes à sang froid, à la peau variant de l'acajou à l'ébène, dotés d'une tête triangulaire et de grands yeux à facettes. Société organisée autour de la famille étendue où les mâles élèvent les jeunes et maintiennent l'ordre. Ils développent facilement une addiction au sel, provoquant hallucinations et dommages neurologiques ; l'eau représente leur ressource la plus précieuse.
+
+    Capacités :
+    - **Polyvalence** : 1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 110 }
+  choix:
+    - id: polyvalence
+      nom: Deux compétences hors carrière
+      nombre: 2
+      parmi: { sorte: competence, sansMarque: carriere }
+      donne: { type: rang, valeur: 1 }
+
+- id: balosar
+  sorte: espece
+  nom: Balosar
+  description: |-
+    Humanoïdes proches des humains, dotés de deux antennes crâniennes rétractables offrant une audition subsonique améliorée et une intuition proche de celle des Jedi, ainsi qu'une extrême résistance aux toxines. Société minée par une démocratie corrompue et le crime organisé, ils dominent le marché galactique des Bâtons de la Mort, une drogue tirée d'un champignon local.
+
+    Capacités :
+    - **Sens de la rue** : 1 rang gratuit dans la compétence Sens de la rue (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: sens-de-la-rue, valeur: 1 }
+
+- id: defel
+  sorte: espece
+  nom: Defel
+  description: |-
+    Mammifères humanoïdes à la fourrure variant du jaune brillant à l'azur sous lumière ultraviolette, absorbant la lumière visible et les rendant presque invisibles dans l'obscurité normale. Adaptés à une planète à forte gravité, ils sont indépendants et fiers mais loyaux envers leurs employeurs ; excellents métallurgistes, beaucoup deviennent mercenaires ou gardes du corps.
+
+    Capacités :
+    - **Discrétion** : 1 rang gratuit dans la compétence Discrétion (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: discretion, valeur: 1 }
+
+- id: herglic
+  sorte: espece
+  nom: Herglic
+  description: |-
+    Énormes bipèdes à la peau lisse et imberbe, du bleu clair au noir, respirant par un orifice au sommet du crâne révélant des ancêtres marins. Pragmatiques et neutres, ils furent parmi les premiers explorateurs galactiques aux côtés des Corelliens, et se distinguent par une passion compulsive pour le jeu.
+
+    Capacités :
+    - **Résistance** : 1 rang gratuit dans la compétence Résistance (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: resistance, valeur: 1 }
+
+- id: houk
+  sorte: espece
+  nom: Houk
+  description: |-
+    Humanoïdes imposants d'environ 2,20 m, à la peau très épaisse violette ou bleue, au crâne anguleux sans cheveux et sans oreilles ni nez visibles. Réputés brutaux et dénués d'humour, ils exploitent leur force surhumaine et se répandent dans la galaxie comme mercenaires, gladiateurs ou criminels.
+
+    Capacités :
+    - **Coercition** : 1 rang gratuit dans la compétence Coercition (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: coercition, valeur: 1 }
+
+- id: anx
+  sorte: espece
+  nom: Anx
+  description: |-
+    Géants placides et sociables d'environ quatre mètres de haut, à la peau verte changeant de couleur selon les émotions et dotés d'une large queue musclée servant de contrepoids. Leur crête contient d'énormes sinus leur permettant de communiquer à des kilomètres ; ils préfèrent la diplomatie à la violence malgré un savoir redoutable en anatomie des autres espèces.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: kyuzo
+  sorte: espece
+  nom: Kyuzo
+  description: |-
+    Humanoïdes guerriers à la peau verte et aux mains à quatre doigts longs et agiles, ressemblant aux Arkaniens. Ils accordent une importance sacrée à la parole donnée et sont réputés incapables de parler le Basic Standard Galactique ; leur couvre-chef circulaire sert à la fois de bouclier et d'arme.
+
+    Capacités :
+    - **Discipline** : 1 rang gratuit dans la compétence Discipline (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: discipline, valeur: 1 }
+
+- id: lasat
+  sorte: espece
+  nom: Lasat
+  description: |-
+    Grands humanoïdes à la peau violette, aux membres larges et agiles, aux grands yeux et grandes oreilles pointues. Guerriers réputés maniant le Fusil-Bo, ils furent presque exterminés par l'Empire Galactique ; une ancienne prophétie évoque leur origine sur le monde légendaire de Lirasan, que certains survivants comme Garazeb Orrelios ont cherché à retrouver.
+
+    Capacités :
+    - **Mêlée** : 1 rang gratuit dans la compétence Mêlée (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: melee, valeur: 1 }
+
+- id: massassi
+  sorte: espece
+  nom: Massassi
+  description: |-
+    Caste guerrière du Peuple Sith, mesurant environ 1,90 m, loyale et disciplinée bien que jugée peu intelligente. Ils maniaient le Lanvarok et portaient des armures traitées par l'Alchimie Sith ; transformés en créatures monstrueuses par des expériences alchimiques, ils obéissaient aveuglément à leurs maîtres même face à la mort.
+
+    Capacités :
+    - **Mêlée** : 1 rang gratuit dans la compétence Mêlée (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: melee, valeur: 1 }
+
+- id: mustafarien
+  sorte: espece
+  nom: Mustafarien
+  description: |-
+    Arthropodes aux yeux d'insectes et aux longues trompes nasales, divisés en deux sous-espèces : celle du Nord, sentinelles cybernétiquement renforcées, et celle du Sud, plus compacte, exploitant les ressources minérales de la lave en fusion. Neutres mais psycho-rigides envers les étrangers, ils ont travaillé pour la Techno Union avant de retrouver leur indépendance grâce à l'intervention de Darth Vader.
+
+    Capacités :
+    - **Polyvalence** : 1 rang gratuit dans deux compétences hors-carrière distinctes au choix (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 110 }
+  choix:
+    - id: polyvalence
+      nom: Deux compétences hors carrière
+      nombre: 2
+      parmi: { sorte: competence, sansMarque: carriere }
+      donne: { type: rang, valeur: 1 }
+
+- id: ongree
+  sorte: espece
+  nom: Ongree
+  description: |-
+    Humanoïdes à la peau jaunâtre tirant sur le marron, dotés d'yeux rouges et noirs disproportionnés pouvant effectuer une rotation complète, offrant une vision panoramique, ainsi que quatre narines permettant de traquer à des centaines de kilomètres. Amicaux et pacifistes, ils excellent dans les rôles diplomatiques et commerciaux au sein de la République Galactique.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: pantoran
+  sorte: espece
+  nom: Pantoran
+  description: |-
+    Humanoïdes à la peau bleue, dotés d'une excellente résistance au froid extrême. Société démocratique gouvernée par une Assemblée qui élit un Président révocable, représentée au Sénat Galactique ; leur expansion militaire sur Orto Plutonia révéla l'existence d'une population Talz indigène qu'ils durent reconnaître comme souveraine.
+
+    Capacités :
+    - **Charme** : 1 rang gratuit dans la compétence Charme (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: charme, valeur: 1 }
+
+- id: wroonien
+  sorte: espece
+  nom: Wroonien
+  description: |-
+    Peau et chevelure bleu foncé, plus grands et agiles que les humains et dotés d'une longévité supérieure. Culture valorisant fortement l'accumulation de richesses tout en restant insouciante et optimiste ; nature indépendante défiant toute autorité gouvernementale, économie organisée autour des Guildes Wrooniennes.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: karkarodon
+  sorte: espece
+  nom: Karkarodon
+  description: |-
+    Créatures aquatiques redoutables à la silhouette fuselée et aux mains palmées, capables néanmoins de survivre hors de l'eau. Leurs dents acérées peuvent transpercer une armure ; Riff Tamson, commandant séparatiste durant la Guerre des Clones, en est le seul représentant notable connu.
+
+    Capacités :
+    - **Nage** : 1 rang gratuit dans la compétence Athlétisme utilisée pour nager (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
+    - { sur: rang, entree: athletisme, valeur: 1 }
+
+- id: chevin
+  sorte: espece
+  nom: Chevin
+  description: |-
+    Aspect pachydermique, longues jambes puissantes, long nez respiratoire et deux bras à trois doigts, à la peau marron foncée et dure. Espèce migratoire ayant évolué de clans guerriers vers des dictatures, ayant réduit en esclavage les Chev de leur planète et prospéré par le commerce d'esclaves, la contrebande et le crime organisé.
+
+    Capacités :
+    - **Négociation** : 1 rang gratuit dans la compétence Négociation (maximum rang 2 à la création).
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: agilite, operation: ajouter, valeur: 1 }
+    - { sur: attribut, attribut: intellect, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: ruse, operation: ajouter, valeur: 3 }
+    - { sur: attribut, attribut: volonte, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: presence, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
+    - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: rang, entree: negociation, valeur: 1 }
+
+- id: gand-sans-poumons
+  sorte: capacite
+  nom: Gand sans poumons
+  description: "N'a pas besoin de respirer : immunisé contre l'asphyxie, mais subit les blessures du vide spatial."
+
+- id: gand-avec-poumons
+  sorte: capacite
+  nom: Gand avec poumons
+  description: Respire de l'ammoniac et commence avec un respirateur ; l'oxygène est une atmosphère dangereuse de niveau 8. En contrepartie, +10 XP de départ.
+  effets:
+    - { sur: attribut, attribut: xpDepart, operation: ajouter, valeur: 10 }

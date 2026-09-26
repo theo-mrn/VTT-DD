@@ -1,0 +1,518 @@
+# Armes : compétence, dégâts (formule, @vigueur + X en mêlée), indice critique, portée, qualités.
+- id: pistolet-blaster
+  sorte: arme
+  nom: Pistolet blaster
+  etiquettes: [distance-standard]
+  description: L'arme de poing la plus répandue de la galaxie.
+  champs:
+    competence: distance-legere
+    degats: '6'
+    critique: 3
+    portee: Moyenne
+    melee: false
+    encombrement: 1
+    prix: 400
+    rarete: 2
+    pointsFixation: 3
+
+- id: blaster-lourd
+  sorte: arme
+  nom: Blaster lourd
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-legere
+    degats: '7'
+    critique: 3
+    portee: Moyenne
+    melee: false
+    encombrement: 1
+    prix: 700
+    rarete: 3
+    pointsFixation: 3
+    vicieux: 1
+    qualites: [vicieux]
+    detailQualites: Vicieux 1
+
+- id: fusil-blaster
+  sorte: arme
+  nom: Fusil blaster
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-lourde
+    degats: '9'
+    critique: 3
+    portee: Longue
+    melee: false
+    encombrement: 3
+    prix: 700
+    rarete: 3
+    pointsFixation: 4
+    precis: 1
+    qualites: [precis]
+    detailQualites: Précis 1
+
+- id: carabine-blaster
+  sorte: arme
+  nom: Carabine blaster
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-legere
+    degats: '7'
+    critique: 3
+    portee: Moyenne
+    melee: false
+    encombrement: 2
+    prix: 450
+    rarete: 3
+    pointsFixation: 4
+
+- id: fusil-de-precision-blaster
+  sorte: arme
+  nom: Fusil de précision blaster
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-lourde
+    degats: '10'
+    critique: 4
+    portee: Extrême
+    melee: false
+    encombrement: 4
+    prix: 3000
+    rarete: 6
+    pointsFixation: 2
+    precis: 1
+    perforant: 2
+    qualites: [precis, perforant, encombrant, preparation]
+    detailQualites: Précis 1, Perforant 2, Encombrant 3, Préparation 1
+
+- id: blaster-de-poche
+  sorte: arme
+  nom: Blaster de poche
+  etiquettes: [distance-standard]
+  description: Facile à dissimuler.
+  champs:
+    competence: distance-legere
+    degats: '5'
+    critique: 4
+    portee: Courte
+    melee: false
+    encombrement: 1
+    prix: 200
+    rarete: 4
+    pointsFixation: 2
+
+- id: fusil-blaster-lourd
+  sorte: arme
+  nom: Fusil blaster lourd
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-lourde
+    degats: '10'
+    critique: 4
+    portee: Longue
+    melee: false
+    encombrement: 5
+    prix: 1500
+    rarete: 6
+    pointsFixation: 2
+    qualites: [encombrant, auto-feu]
+    detailQualites: Encombrant 3, Auto-feu
+
+- id: lance-grenades
+  sorte: arme
+  nom: Lance-grenades
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-lourde
+    degats: '8'
+    critique: 4
+    portee: Courte
+    melee: false
+    encombrement: 4
+    prix: 2000
+    rarete: 6
+    pointsFixation: 2
+    qualites: [explosif, munitions-limitees]
+    detailQualites: Explosif 6, Munitions limitées 3
+
+- id: arbalete-de-poing
+  sorte: arme
+  nom: Arbalète de poing
+  etiquettes: [distance-standard]
+  description: Silencieuse, sans énergie détectable.
+  champs:
+    competence: distance-legere
+    degats: '5'
+    critique: 4
+    portee: Courte
+    melee: false
+    encombrement: 1
+    prix: 250
+    rarete: 3
+    pointsFixation: 2
+
+- id: arc-composite
+  sorte: arme
+  nom: Arc composite
+  etiquettes: [distance-standard]
+  champs:
+    competence: distance-lourde
+    degats: '6'
+    critique: 4
+    portee: Moyenne
+    melee: false
+    encombrement: 2
+    prix: 400
+    rarete: 3
+    pointsFixation: 2
+
+- id: fusil-tenseur
+  sorte: arme
+  nom: Fusil tenseur
+  etiquettes: [distance-exotiques]
+  description: 'VO : Tensor Rifle.'
+  champs:
+    competence: distance-lourde
+    degats: '7'
+    critique: 4
+    portee: Moyenne
+    melee: false
+    encombrement: 4
+    prix: 1350
+    rarete: 6
+    pointsFixation: 2
+    vicieux: 2
+    qualites: [entrave, vicieux]
+    detailQualites: Entrave, Vicieux 2
+
+- id: fusil-blaster-sonique
+  sorte: arme
+  nom: Fusil blaster sonique
+  etiquettes: [distance-exotiques]
+  description: 'VO : Sonic Blaster Rifle.'
+  champs:
+    competence: distance-lourde
+    degats: '5'
+    critique: 4
+    portee: Moyenne
+    melee: false
+    encombrement: 4
+    prix: 3700
+    rarete: 6
+    pointsFixation: 2
+    qualites: [encombrant, tir-lent, commotion, explosif, renversement]
+    detailQualites: Encombrant 3, Tir lent 1, Commotion 2, Explosif 8, Renversement
+
+- id: canon-a-impulsion-etourdissante
+  sorte: arme
+  nom: Canon à impulsion étourdissante
+  etiquettes: [distance-exotiques]
+  description: 'VO : Stunpulse Cannon.'
+  champs:
+    competence: distance-lourde
+    degats: '9'
+    critique: 4
+    portee: Moyenne
+    melee: false
+    encombrement: 4
+    prix: 2600
+    rarete: 6
+    pointsFixation: 2
+    inexact: 1
+    etourdissant: true
+    vicieux: 1
+    qualites: [inexact, degats-etourdissants, auto-feu, desorientant, vicieux]
+    detailQualites: Inexact, Dégâts étourdissants, Auto-feu, Désorientant 1, Vicieux 1
+
+- id: canon-a-flechettes-jawa
+  sorte: arme
+  nom: Canon à fléchettes jawa
+  etiquettes: [distance-exotiques]
+  description: 'VO : Jawamake Flechette Cannon.'
+  champs:
+    competence: distance-lourde
+    degats: '6'
+    critique: 4
+    portee: Courte
+    melee: false
+    encombrement: 3
+    prix: 600
+    rarete: 4
+    pointsFixation: 2
+    qualites: [explosif]
+    detailQualites: Explosif 6
+
+- id: pistolet-de-tir-incendiaire-jawa
+  sorte: arme
+  nom: Pistolet de tir incendiaire jawa
+  etiquettes: [distance-exotiques]
+  description: 'VO : Jawamake Incendiary Target Pistol.'
+  champs:
+    competence: distance-legere
+    degats: '6'
+    critique: 4
+    portee: Longue
+    melee: false
+    encombrement: 2
+    prix: 1200
+    rarete: 6
+    pointsFixation: 2
+    vicieux: 1
+    qualites: [brulure, vicieux]
+    detailQualites: Brûlure 2, Vicieux 1
+
+- id: pistolet-flash-a-lame
+  sorte: arme
+  nom: Pistolet flash à lame
+  etiquettes: [distance-exotiques]
+  description: 'VO : Bladed Flashpistol. Type : Distance (Légère) / Mêlée.'
+  champs:
+    competence: distance-legere
+    degats: '7'
+    critique: 4
+    portee: Moyenne
+    melee: false
+    encombrement: 2
+    prix: 1800
+    rarete: 7
+    pointsFixation: 2
+    precis: 1
+    qualites: [preparation, precis]
+    detailQualites: Préparation 1, Précis
+
+- id: mini-lance-grenades-a-concussion-de-poignet
+  sorte: arme
+  nom: Mini lance-grenades à concussion de poignet
+  etiquettes: [distance-exotiques]
+  description: 'VO : Wrist-mounted Concussion Mini-grenade Launcher. Dégâts : spéciaux (voir description de la munition).'
+  champs:
+    competence: distance-legere
+    degats: '0'
+    critique: 4
+    portee: Spéciale
+    melee: false
+    encombrement: 2
+    prix: 2250
+    rarete: 7
+    pointsFixation: 2
+    qualites: [munitions-limitees]
+    detailQualites: Munitions limitées 3
+
+- id: detonateur-a-permabeton
+  sorte: arme
+  nom: Détonateur à permabéton
+  etiquettes: [distance-exotiques, explosif]
+  description: 'VO : Permacrete Detonator. Type : Explosif.'
+  champs:
+    competence: distance-legere
+    degats: '10'
+    critique: 4
+    portee: Spéciale
+    melee: false
+    encombrement: 2
+    prix: 600
+    rarete: 6
+    pointsFixation: 2
+    qualites: [explosif, percee, munitions-limitees, preparation]
+    detailQualites: Explosif 6, Percée 1, Munitions limitées 1, Préparation 2
+
+- id: mine-flash
+  sorte: arme
+  nom: Mine flash
+  etiquettes: [distance-exotiques, mine]
+  description: 'VO : Flash Mine. Type : Mine (Proximité). Dégâts : spéciaux (voir description de la munition).'
+  champs:
+    competence: distance-legere
+    degats: '0'
+    critique: 4
+    portee: Spéciale
+    melee: false
+    encombrement: 1
+    prix: 300
+    rarete: 6
+    pointsFixation: 2
+    qualites: [explosif, munitions-limitees, preparation, entrave, desorientant]
+    detailQualites: Explosif 0, Munitions limitées 1, Préparation 2, Entrave, Désorientant 1
+
+- id: mine-sonique
+  sorte: arme
+  nom: Mine sonique
+  etiquettes: [distance-exotiques, mine]
+  description: 'VO : Sonic Mine. Type : Mine (Proximité).'
+  champs:
+    competence: distance-legere
+    degats: '4'
+    critique: 4
+    portee: Spéciale
+    melee: false
+    encombrement: 1
+    prix: 400
+    rarete: 6
+    pointsFixation: 2
+    perforant: 5
+    qualites: [explosif, desorientant, perforant, munitions-limitees, preparation]
+    detailQualites: Explosif 1, Désorientant 2, Perforant 5, Munitions limitées 1, Préparation 2
+
+- id: systeme-de-roquettes-mm9
+  sorte: arme
+  nom: Système de roquettes MM9
+  etiquettes: [distance-exotiques]
+  description: 'VO : MM9 Rocket System. Dégâts : spéciaux (voir description de la munition).'
+  champs:
+    competence: distance-legere
+    degats: '0'
+    critique: 4
+    portee: Spéciale
+    melee: false
+    encombrement: 3
+    prix: 1900
+    rarete: 5
+    pointsFixation: 2
+    qualites: [preparation, guide, munitions-limitees]
+    detailQualites: Préparation 1, Guidé 2, Munitions limitées 1
+
+- id: lance-filin
+  sorte: arme
+  nom: Lance-filin
+  etiquettes: [distance-exotiques]
+  description: 'VO : Whipcord Launcher.'
+  champs:
+    competence: distance-legere
+    degats: '5'
+    critique: 4
+    portee: Courte
+    melee: false
+    encombrement: 1
+    prix: 600
+    rarete: 5
+    pointsFixation: 2
+    etourdissant: true
+    qualites: [entrave, degats-etourdissants]
+    detailQualites: Entrave 3, Dégâts étourdissants
+
+- id: couteau
+  sorte: arme
+  nom: Couteau
+  etiquettes: [melee]
+  champs:
+    competence: melee
+    degats: '@vigueur + 1'
+    critique: 3
+    portee: Engagée
+    melee: true
+    encombrement: 1
+    prix: 5
+    rarete: 0
+    pointsFixation: 0
+
+- id: baton-de-combat
+  sorte: arme
+  nom: Bâton de combat
+  etiquettes: [melee]
+  champs:
+    competence: melee
+    degats: '@vigueur + 1'
+    critique: 4
+    portee: Engagée
+    melee: true
+    encombrement: 2
+    prix: 5
+    rarete: 0
+    pointsFixation: 1
+    qualites: [defensif]
+    detailQualites: Défensif 1
+
+- id: vibrolame
+  sorte: arme
+  nom: Vibrolame
+  etiquettes: [melee]
+  champs:
+    competence: melee
+    degats: '@vigueur + 2'
+    critique: 2
+    portee: Engagée
+    melee: true
+    encombrement: 2
+    prix: 500
+    rarete: 3
+    pointsFixation: 2
+    perforant: 2
+    qualites: [perforant]
+    detailQualites: Perforant 2
+
+- id: vibromachette
+  sorte: arme
+  nom: Vibromachette
+  etiquettes: [melee]
+  champs:
+    competence: melee
+    degats: '@vigueur + 3'
+    critique: 4
+    portee: Engagée
+    melee: true
+    encombrement: 4
+    prix: 1000
+    rarete: 5
+    pointsFixation: 2
+    perforant: 2
+    qualites: [perforant, brise]
+    detailQualites: Perforant 2, Brise
+
+- id: matraque-electrique
+  sorte: arme
+  nom: Matraque électrique
+  etiquettes: [melee]
+  champs:
+    competence: melee
+    degats: '@vigueur + 1'
+    critique: 4
+    portee: Engagée
+    melee: true
+    encombrement: 1
+    prix: 5
+    rarete: 0
+    pointsFixation: 2
+    etourdissant: true
+    qualites: [degats-etourdissants]
+    detailQualites: Dégâts étourdissants
+
+- id: vibrofouet
+  sorte: arme
+  nom: Vibrofouet
+  etiquettes: [melee]
+  description: 'VO : Vibrowhip.'
+  champs:
+    competence: melee
+    degats: '@vigueur + 2'
+    critique: 4
+    portee: Courte
+    melee: true
+    encombrement: 3
+    prix: 950
+    rarete: 7
+    pointsFixation: 2
+    perforant: 2
+    vicieux: 1
+    inexact: 1
+    qualites: [perforant, vicieux, inexact]
+    detailQualites: Perforant 2, Vicieux 1, Inexact
+
+- id: epee-d-entrainement-electrolame
+  sorte: arme
+  nom: Épée d'entraînement électrolame
+  etiquettes: [melee]
+  description: "VO : Electroblade Training Sword. Type : Mêlée (Sabre d'entraînement)."
+  champs:
+    competence: melee
+    degats: '5'
+    critique: 4
+    portee: Engagée
+    melee: true
+    encombrement: 2
+    prix: 1000
+    rarete: 10
+    pointsFixation: 2
+    etourdissant: true
+    perforant: 5
+    qualites: [degats-etourdissants, defensif, desorientant, perforant]
+    detailQualites: Dégâts étourdissants, Défensif 1, Désorientant 2, Perforant 5

@@ -1,0 +1,18 @@
+# Blessures critiques : 1d100 + 10 par blessure critique déjà subie (+ Vicieux, Coups mortels…).
+- id: blessures-critiques
+  nom: Blessures critiques
+  description: Tirée quand une attaque inflige des dégâts et déclenche un critique (voir l'action « attaque »).
+  jet: 1d100 + modificateur
+  lignes:
+    - { min: -1000, max: 5, nom: Égratignure, entree: egratignure }
+    - { min: 6, max: 20, nom: Contusion, entree: contusion }
+    - { min: 21, max: 30, nom: Coupure, entree: coupure }
+    - { min: 31, max: 40, nom: Meurtrissure, entree: meurtrissure }
+    - { min: 41, max: 50, nom: Blessure ouverte modérée, entree: blessure-ouverte }
+    - { min: 51, max: 60, nom: Fracture, entree: fracture }
+    - { min: 61, max: 70, nom: Blessure profonde, entree: blessure-profonde }
+    - { min: 71, max: 80, nom: Hémorragie, entree: hemorragie }
+    - { min: 81, max: 90, nom: Mutilation, entree: mutilation }
+    - { min: 91, max: 100, nom: Traumatisme sévère, entree: traumatisme-severe }
+    - { min: 101, max: 140, nom: Blessure mortelle, entree: blessure-mortelle }
+    - { min: 141, max: 100000, nom: Mort instantanée, entree: mort }

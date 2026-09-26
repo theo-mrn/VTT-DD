@@ -1,0 +1,806 @@
+# Star Wars — Aux confins de l'Empire (Edge of the Empire).
+# Porté depuis legacy/starwars-bundle/table.json (le bundle fait foi), legacy/talents-arbres.json
+# et les règles de progression codées en dur de legacy/src/lib/rules-engine/ :
+# tout est ici en données (coûts, plafonds, pools de dés, combat, initiative, tables).
+format: 1
+id: star-wars-eote
+version: 1.0.0
+nom: Star Wars — Aux confins de l'Empire
+description: >-
+  Système narratif à dés à symboles : les jets combinent des dés de Fortune, Infortune, Aptitude,
+  Difficulté, Maîtrise, Défi et Force ; Succès et Échecs, Avantages et Menaces s'annulent. Espèces,
+  carrières, spécialisations et arbres de talents, progression à l'expérience, Obligation.
+
+entites:
+  - id: personnage
+    nom: Personnage
+    groupes:
+      - { id: caracteristiques, nom: Caractéristiques }
+      - { id: seuils, nom: Seuils }
+      - { id: defense, nom: Encaissement et Défense }
+      - { id: equipement, nom: Encombrement }
+      - { id: progression, nom: Expérience et Obligation }
+      - { id: profil, nom: Profil }
+    attributs:
+      # ─── Caractéristiques ───────────────────────────────────────────────
+      # Valeur enregistrée = points achetés à l'XP ; l'espèce ajoute sa valeur de départ.
+      - {
+          cle: vigueur,
+          nom: Vigueur,
+          abrege: VIG,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: agilite,
+          nom: Agilité,
+          abrege: AGI,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: intellect,
+          nom: Intellect,
+          abrege: INT,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: ruse,
+          nom: Ruse,
+          abrege: RUS,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: volonte,
+          nom: Volonté,
+          abrege: VOL,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: presence,
+          nom: Présence,
+          abrege: PRE,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: caracteristiques,
+        }
+
+      # ─── Seuils ─────────────────────────────────────────────────────────
+      - {
+          cle: baseSeuilBlessure,
+          nom: Base du seuil de blessure (espèce),
+          nature: base,
+          defaut: 10,
+          groupe: seuils,
+          visibilite: mj,
+        }
+      - {
+          cle: baseSeuilStress,
+          nom: Base du seuil de stress (espèce),
+          nature: base,
+          defaut: 10,
+          groupe: seuils,
+          visibilite: mj,
+        }
+      - {
+          cle: seuilBlessure,
+          nom: Seuil de blessure,
+          nature: derivee,
+          formule: '@baseSeuilBlessure + @vigueur',
+          groupe: seuils,
+        }
+      - {
+          cle: seuilStress,
+          nom: Seuil de stress,
+          nature: derivee,
+          formule: '@baseSeuilStress + @volonte',
+          groupe: seuils,
+        }
+      - cle: blessures
+        nom: Blessures
+        description: Compteur qui monte depuis 0 ; au-delà du seuil, le personnage est neutralisé.
+        nature: ressource
+        max: '@seuilBlessure'
+        initiale: min
+        recuperation: min
+        groupe: seuils
+      - cle: stress
+        nom: Stress
+        description: Compteur qui monte depuis 0 ; au-delà du seuil, le personnage est neutralisé.
+        nature: ressource
+        max: '@seuilStress'
+        initiale: min
+        recuperation: min
+        groupe: seuils
+      - cle: critiquesSubis
+        nom: Blessures critiques subies
+        description: Chaque blessure critique subie ajoute +10 au prochain jet sur la table.
+        nature: derivee
+        formule: compte("blessureCritique")
+        groupe: seuils
+      - cle: resistanceCritique
+        nom: Réduction des blessures critiques subies
+        description: Retranchée aux jets de blessure critique subis (talent Résistant).
+        nature: derivee
+        formule: '0'
+        groupe: seuils
+        visibilite: mj
+
+      # ─── Encaissement et Défense ────────────────────────────────────────
+      - {
+          cle: encaissement,
+          nom: Encaissement,
+          abrege: ENC,
+          nature: derivee,
+          formule: '@vigueur',
+          groupe: defense,
+        }
+      - {
+          cle: defenseMelee,
+          nom: Défense au corps à corps,
+          nature: derivee,
+          formule: '0',
+          groupe: defense,
+        }
+      - {
+          cle: defenseDistance,
+          nom: Défense à distance,
+          nature: derivee,
+          formule: '0',
+          groupe: defense,
+        }
+
+      # ─── Encombrement ───────────────────────────────────────────────────
+      - {
+          cle: seuilEncombrement,
+          nom: Seuil d'encombrement,
+          nature: derivee,
+          formule: '5 + @vigueur',
+          groupe: equipement,
+        }
+      - cle: encombrement
+        nom: Encombrement porté
+        nature: derivee
+        formule: somme("arme", "encombrement") + somme("armure", "encombrement") + somme("objet", "encombrement")
+        groupe: equipement
+      - cle: surcharge
+        nom: Surchargé
+        description: Au-delà du seuil, 1 dé d'Infortune par point d'excédent aux tests d'Agilité et de Vigueur.
+        nature: derivee
+        type: booleen
+        formule: '@encombrement > @seuilEncombrement'
+        groupe: equipement
+
+      # ─── Expérience et Obligation ───────────────────────────────────────
+      - { cle: xpDepart, nom: XP de départ, nature: base, defaut: 110, groupe: progression }
+      - {
+          cle: xpGagne,
+          nom: XP gagnée en jeu,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: progression,
+        }
+      - cle: obligation
+        nom: Obligation
+        description: Total des Obligations du personnage (le MJ compare 1d100 au total du groupe).
+        nature: derivee
+        formule: somme("obligation", "valeur")
+        groupe: progression
+
+      # ─── Profil ─────────────────────────────────────────────────────────
+      - { cle: nom, nom: Nom, nature: texte, groupe: profil }
+      - { cle: motivation, nom: Motivation, nature: texte, groupe: profil }
+      - { cle: historique, nom: Historique, nature: texte, multiligne: true, groupe: profil }
+
+  - id: vehicule
+    nom: Véhicule
+    description: Speeder, chasseur, cargo ou vaisseau capital.
+    groupes:
+      - { id: caracteristiques, nom: Caractéristiques }
+      - { id: defense, nom: Défense et Blindage }
+      - { id: structure, nom: Coque et Tension }
+      - { id: capacite, nom: Équipage et capacité }
+    attributs:
+      - { cle: nom, nom: Nom, nature: texte }
+      - {
+          cle: silhouette,
+          nom: Silhouette,
+          nature: base,
+          defaut: 3,
+          min: 0,
+          groupe: caracteristiques,
+        }
+      - { cle: vitesse, nom: Vitesse, nature: base, defaut: 3, min: 0, groupe: caracteristiques }
+      - { cle: maniabilite, nom: Maniabilité, nature: base, defaut: 0, groupe: caracteristiques }
+      - { cle: defenseAvant, nom: Défense avant, nature: base, defaut: 0, min: 0, groupe: defense }
+      - {
+          cle: defenseBabord,
+          nom: Défense bâbord,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: defense,
+        }
+      - {
+          cle: defenseTribord,
+          nom: Défense tribord,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: defense,
+        }
+      - {
+          cle: defenseArriere,
+          nom: Défense arrière,
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: defense,
+        }
+      - { cle: blindage, nom: Blindage, nature: base, defaut: 3, min: 0, groupe: defense }
+      - {
+          cle: seuilCoque,
+          nom: Seuil de coque,
+          nature: base,
+          defaut: 20,
+          min: 0,
+          groupe: structure,
+        }
+      - {
+          cle: coque,
+          nom: Dégâts de coque,
+          nature: ressource,
+          max: '@seuilCoque',
+          initiale: min,
+          recuperation: min,
+          groupe: structure,
+        }
+      - {
+          cle: seuilTension,
+          nom: Seuil de tension,
+          nature: base,
+          defaut: 15,
+          min: 0,
+          groupe: structure,
+        }
+      - {
+          cle: tension,
+          nom: Tension système,
+          nature: ressource,
+          max: '@seuilTension',
+          initiale: min,
+          recuperation: min,
+          groupe: structure,
+        }
+      - {
+          cle: critiquesSubis,
+          nom: Dommages critiques subis,
+          nature: derivee,
+          formule: compte("panneCritique"),
+          groupe: structure,
+        }
+      - { cle: equipage, nom: Équipage, nature: base, defaut: 1, min: 0, groupe: capacite }
+      - { cle: passagers, nom: Passagers, nature: base, defaut: 0, min: 0, groupe: capacite }
+      - {
+          cle: cargaison,
+          nom: Cargaison (encombrement),
+          nature: base,
+          defaut: 0,
+          min: 0,
+          groupe: capacite,
+        }
+      - { cle: prix, nom: Prix (crédits), nature: base, defaut: 0, min: 0, groupe: capacite }
+
+sortes:
+  - id: espece
+    nom: Espèce
+    nomPluriel: Espèces
+    pour: [personnage]
+    maximum: 1
+  - id: capacite
+    nom: Capacité d'espèce
+    nomPluriel: Capacités d'espèce
+    description: Variante choisie à la prise d'une espèce (sous-espèce…).
+    pour: [personnage]
+  - id: carriere
+    nom: Carrière
+    nomPluriel: Carrières
+    pour: [personnage]
+    maximum: 1
+  - id: specialisation
+    nom: Spécialisation
+    nomPluriel: Spécialisations
+    pour: [personnage]
+    champs:
+      - { id: carriere, nom: Carrière d'origine, type: entree, sorte: carriere }
+  - id: competence
+    nom: Compétence
+    nomPluriel: Compétences
+    pour: [personnage]
+    rangs: { max: 5 }
+    champs:
+      - { id: caracteristique, nom: Caractéristique liée, type: attribut, entite: personnage }
+  - id: talent
+    nom: Talent
+    nomPluriel: Talents
+    description: Obtenu par les nœuds des arbres de spécialisation ; chaque nœud donne un rang.
+    pour: [personnage]
+    rangs: { max: 10 }
+  - id: obligation
+    nom: Obligation
+    nomPluriel: Obligations
+    description: Dette ou engagement qui ancre le personnage dans la galaxie (valeur propre à chaque personnage).
+    pour: [personnage]
+    champs:
+      - { id: valeur, nom: Valeur, type: nombre, defaut: 10 }
+  - id: blessureCritique
+    nom: Blessure critique
+    nomPluriel: Blessures critiques
+    pour: [personnage]
+  - id: arme
+    nom: Arme
+    nomPluriel: Armes
+    pour: [personnage]
+    activable: true
+    champs:
+      - { id: competence, nom: Compétence, type: entree, sorte: competence }
+      - { id: degats, nom: Dégâts, type: formule, defaut: '0' }
+      - { id: critique, nom: Indice critique, type: nombre, defaut: 4 }
+      - { id: portee, nom: Portée, type: texte, defaut: Courte }
+      - { id: melee, nom: Arme de corps à corps, type: booleen, defaut: false }
+      - { id: precis, nom: Précis (dés de Fortune), type: nombre, defaut: 0 }
+      - { id: inexact, nom: Inexact (dés d'Infortune), type: nombre, defaut: 0 }
+      - { id: perforant, nom: Perforant (Encaissement ignoré), type: nombre, defaut: 0 }
+      - { id: vicieux, nom: Vicieux (+10 par point aux critiques), type: nombre, defaut: 0 }
+      - { id: etourdissant, nom: Dégâts étourdissants (en stress), type: booleen, defaut: false }
+      - { id: qualites, nom: Qualités, type: entrees, sorte: qualite }
+      - { id: detailQualites, nom: Qualités et valeurs, type: texte }
+      - { id: encombrement, nom: Encombrement, type: nombre, defaut: 0 }
+      - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
+      - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+      - { id: pointsFixation, nom: Points de fixation, type: nombre, defaut: 0 }
+  - id: qualite
+    nom: Qualité d'arme
+    nomPluriel: Qualités d'arme
+    description: Mot-clé de référence ; sa valeur mécanique est portée par l'arme.
+    pour: [personnage]
+  - id: armure
+    nom: Armure
+    nomPluriel: Armures
+    pour: [personnage]
+    activable: true
+    champs:
+      - { id: defense, nom: Défense, type: nombre, defaut: 0 }
+      - { id: encaissement, nom: Encaissement, type: nombre, defaut: 0 }
+      - { id: encombrement, nom: Encombrement, type: nombre, defaut: 0 }
+      - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
+      - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+  - id: objet
+    nom: Objet
+    nomPluriel: Équipement
+    pour: [personnage]
+    champs:
+      - { id: encombrement, nom: Encombrement, type: nombre, defaut: 0 }
+      - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
+      - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+  - id: accessoire
+    nom: Accessoire
+    nomPluriel: Accessoires
+    description: Modification installée sur une arme ou une armure, qui occupe des points de fixation.
+    pour: [personnage]
+    champs:
+      - { id: pourType, nom: S'installe sur, type: texte }
+      - { id: pointsFixation, nom: Points de fixation, type: nombre, defaut: 1 }
+      - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
+      - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+  - id: devise
+    nom: Devise
+    nomPluriel: Devises
+    pour: [personnage]
+    champs:
+      - { id: valeurCredits, nom: Valeur en crédits, type: nombre, defaut: 1 }
+      - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+  - id: modele
+    nom: Modèle de véhicule
+    nomPluriel: Modèles de véhicule
+    pour: [vehicule]
+    maximum: 1
+  - id: panneCritique
+    nom: Dommage critique de véhicule
+    nomPluriel: Dommages critiques de véhicule
+    pour: [vehicule]
+
+# ─── Progression ───────────────────────────────────────────────────────────
+
+monnaies:
+  - { id: xp, nom: Expérience, total: '@xpDepart + @xpGagne', pour: [personnage] }
+
+achats:
+  # Caractéristiques : 10 × la nouvelle valeur (espèce comprise), jusqu'à 5, à la création seulement.
+  - {
+      id: caracteristique-vigueur,
+      nom: Vigueur,
+      obtient: { type: attribut, entite: personnage, attributs: [vigueur] },
+      monnaie: xp,
+      cout: '10 * (@vigueur + 1)',
+      condition: '@vigueur < 5',
+      moment: creation,
+    }
+  - {
+      id: caracteristique-agilite,
+      nom: Agilité,
+      obtient: { type: attribut, entite: personnage, attributs: [agilite] },
+      monnaie: xp,
+      cout: '10 * (@agilite + 1)',
+      condition: '@agilite < 5',
+      moment: creation,
+    }
+  - {
+      id: caracteristique-intellect,
+      nom: Intellect,
+      obtient: { type: attribut, entite: personnage, attributs: [intellect] },
+      monnaie: xp,
+      cout: '10 * (@intellect + 1)',
+      condition: '@intellect < 5',
+      moment: creation,
+    }
+  - {
+      id: caracteristique-ruse,
+      nom: Ruse,
+      obtient: { type: attribut, entite: personnage, attributs: [ruse] },
+      monnaie: xp,
+      cout: '10 * (@ruse + 1)',
+      condition: '@ruse < 5',
+      moment: creation,
+    }
+  - {
+      id: caracteristique-volonte,
+      nom: Volonté,
+      obtient: { type: attribut, entite: personnage, attributs: [volonte] },
+      monnaie: xp,
+      cout: '10 * (@volonte + 1)',
+      condition: '@volonte < 5',
+      moment: creation,
+    }
+  - {
+      id: caracteristique-presence,
+      nom: Présence,
+      obtient: { type: attribut, entite: personnage, attributs: [presence] },
+      monnaie: xp,
+      cout: '10 * (@presence + 1)',
+      condition: '@presence < 5',
+      moment: creation,
+    }
+  - id: rang-competence
+    nom: Rang de compétence
+    description: 5 × le rang visé, +5 hors carrière ; rang 2 au plus à la création.
+    obtient: { type: rang, sorte: competence }
+    monnaie: xp
+    cout: 5 * cible + si(marque("carriere"), 0, 5)
+    plafond: si(creation, 2, 5)
+  - id: specialisation
+    nom: Spécialisation
+    description: 10 × le nombre de spécialisations après achat, +10 hors de la carrière d'origine.
+    obtient: { type: entree, sorte: specialisation }
+    monnaie: xp
+    cout: 10 * (nombre + 1) + si(marque("carriere"), 0, 10)
+  - id: talent
+    nom: Talent
+    description: Le coût est celui du nœud (5 XP par ligne de l'arbre).
+    obtient: { type: noeud }
+    monnaie: xp
+    cout: '0'
+
+creation:
+  - entite: personnage
+    etapes:
+      - { id: espece, nom: Espèce, type: choisir, sorte: espece }
+      - {
+          id: carriere,
+          nom: Carrière,
+          description: Choisir aussi 4 compétences de carrière qui reçoivent un rang gratuit.,
+          type: choisir,
+          sorte: carriere,
+        }
+      - {
+          id: specialisation,
+          nom: Spécialisation,
+          description: Choisir aussi 2 de ses compétences qui reçoivent un rang gratuit.,
+          type: choisir,
+          sorte: specialisation,
+        }
+      - {
+          id: obligation,
+          nom: Obligation,
+          description: Une ou plusieurs Obligations et leur valeur (10 par défaut).,
+          type: choisir,
+          sorte: obligation,
+          min: 1,
+          max: 3,
+        }
+      - id: experience
+        nom: Dépense de l'XP de départ
+        type: acheter
+        achats:
+          [
+            caracteristique-vigueur,
+            caracteristique-agilite,
+            caracteristique-intellect,
+            caracteristique-ruse,
+            caracteristique-volonte,
+            caracteristique-presence,
+            rang-competence,
+            specialisation,
+            talent,
+          ]
+      - { id: profil, nom: Profil, type: saisir, attributs: [nom, motivation, historique] }
+  - entite: vehicule
+    etapes:
+      - { id: modele, nom: Modèle, type: choisir, sorte: modele, min: 0, max: 1 }
+      - {
+          id: identite,
+          nom: Identité,
+          type: saisir,
+          attributs: [nom, equipage, passagers, cargaison, prix],
+        }
+
+# ─── Dés à symboles ────────────────────────────────────────────────────────
+
+des:
+  symboles:
+    - { id: succes, nom: Succès }
+    - { id: echec, nom: Échec }
+    - { id: avantage, nom: Avantage }
+    - { id: menace, nom: Menace }
+    - { id: triomphe, nom: Triomphe }
+    - { id: desespoir, nom: Désespoir }
+    - { id: lumiere, nom: Point du côté lumineux }
+    - { id: obscur, nom: Point du côté obscur }
+  sortes:
+    - id: fortune
+      nom: Fortune
+      apparence: d6 bleu
+      faces: [{}, {}, { succes: 1 }, { succes: 1, avantage: 1 }, { avantage: 2 }, { avantage: 1 }]
+    - id: infortune
+      nom: Infortune
+      apparence: d6 noir
+      faces: [{}, {}, { echec: 1 }, { echec: 1 }, { menace: 1 }, { menace: 1 }]
+    - id: aptitude
+      nom: Aptitude
+      apparence: d8 vert
+      faces:
+        [
+          {},
+          { succes: 1 },
+          { succes: 1 },
+          { succes: 2 },
+          { avantage: 1 },
+          { avantage: 1 },
+          { succes: 1, avantage: 1 },
+          { avantage: 2 },
+        ]
+    - id: difficulte
+      nom: Difficulté
+      apparence: d8 violet
+      faces:
+        [
+          {},
+          { echec: 1 },
+          { echec: 1 },
+          { echec: 2 },
+          { menace: 1 },
+          { menace: 1 },
+          { menace: 2 },
+          { echec: 1, menace: 1 },
+        ]
+    - id: maitrise
+      nom: Maîtrise
+      apparence: d12 jaune
+      faces:
+        - {}
+        - { succes: 1 }
+        - { succes: 1 }
+        - { succes: 2 }
+        - { succes: 2 }
+        - { avantage: 1 }
+        - { succes: 1, avantage: 1 }
+        - { succes: 1, avantage: 1 }
+        - { succes: 1, avantage: 1 }
+        - { avantage: 2 }
+        - { avantage: 2 }
+        - { triomphe: 1 }
+    - id: defi
+      nom: Défi
+      apparence: d12 rouge
+      faces:
+        - {}
+        - { echec: 1 }
+        - { echec: 1 }
+        - { echec: 2 }
+        - { echec: 2 }
+        - { menace: 1 }
+        - { menace: 1 }
+        - { echec: 1, menace: 1 }
+        - { echec: 1, menace: 1 }
+        - { menace: 2 }
+        - { menace: 2 }
+        - { desespoir: 1 }
+    - id: force
+      nom: Force
+      apparence: d12 blanc
+      faces:
+        - { obscur: 1 }
+        - { obscur: 1 }
+        - { obscur: 1 }
+        - { obscur: 1 }
+        - { obscur: 1 }
+        - { obscur: 1 }
+        - { lumiere: 1 }
+        - { lumiere: 1 }
+        - { lumiere: 2 }
+        - { lumiere: 2 }
+        - { lumiere: 2 }
+        - { lumiere: 2 }
+  # Le Triomphe compte aussi comme un Succès, le Désespoir comme un Échec.
+  resultats:
+    - { cle: succesNets, nom: Succès, formule: 'max(0, succes + triomphe - echec - desespoir)' }
+    - { cle: echecsNets, nom: Échecs, formule: 'max(0, echec + desespoir - succes - triomphe)' }
+    - { cle: avantagesNets, nom: Avantages, formule: 'max(0, avantage - menace)' }
+    - { cle: menacesNettes, nom: Menaces, formule: 'max(0, menace - avantage)' }
+    - { cle: triomphes, nom: Triomphes, formule: triomphe }
+    - { cle: desespoirs, nom: Désespoirs, formule: desespoir }
+    - { cle: coteLumineux, nom: Côté lumineux, formule: lumiere }
+    - { cle: coteObscur, nom: Côté obscur, formule: obscur }
+
+# ─── Actions ───────────────────────────────────────────────────────────────
+# Pool : max(caractéristique, rang) dés d'Aptitude, dont min(caractéristique, rang) améliorés en Maîtrise.
+
+actions:
+  - id: test
+    nom: Test de compétence
+    pour: [personnage]
+    parametres:
+      - { id: competence, nom: Compétence, type: entree, sorte: competence }
+      - { id: difficulte, nom: Dés de Difficulté, type: nombre, defaut: 2 }
+      - {
+          id: ameliorationsDifficulte,
+          nom: Dés de Difficulté améliorés en Défi,
+          type: nombre,
+          defaut: 0,
+        }
+      - { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
+      - { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
+    variables:
+      - { cle: carac, formule: valeur(competence.caracteristique) }
+    jet:
+      type: symboles
+      pool:
+        - { de: aptitude, nombre: 'max(carac, competence.rang)' }
+        - { de: difficulte, nombre: difficulte }
+        - { de: fortune, nombre: desFortune }
+        - { de: infortune, nombre: desInfortune }
+      ameliorations:
+        - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+        - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
+      reussite: succesNets >= 1
+
+  - id: attaque
+    nom: Attaque
+    description: >-
+      Test de la compétence de l'arme ; la Défense de la cible ajoute des dés d'Infortune. Touche avec
+      au moins 1 Succès net ; dégâts = dégâts de l'arme + Succès nets − Encaissement (moins Perforant).
+      Blessure critique si des dégâts passent et que les Avantages atteignent l'indice critique, ou sur
+      un Triomphe.
+    pour: [personnage]
+    cible: personnage
+    parametres:
+      - { id: arme, nom: Arme, type: entree, sorte: arme }
+      - {
+          id: competence,
+          nom: Compétence de l'arme,
+          type: entree,
+          sorte: competence,
+          etiquette: combat,
+        }
+      - { id: difficulte, nom: Dés de Difficulté (portée), type: nombre, defaut: 2 }
+      - {
+          id: ameliorationsDifficulte,
+          nom: Dés de Difficulté améliorés en Défi,
+          type: nombre,
+          defaut: 0,
+        }
+      - { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
+      - { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
+    variables:
+      - { cle: carac, formule: valeur(competence.caracteristique) }
+      - { cle: competenceDeLArme, formule: competence == arme.competence }
+      - {
+          cle: defenseCible,
+          formule: 'si(arme.melee, @cible.defenseMelee, @cible.defenseDistance)',
+        }
+    jet:
+      type: symboles
+      pool:
+        - { de: aptitude, nombre: 'max(carac, competence.rang)' }
+        - { de: difficulte, nombre: difficulte }
+        - { de: fortune, nombre: desFortune + arme.precis }
+        - { de: infortune, nombre: desInfortune + defenseCible + arme.inexact }
+      ameliorations:
+        - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+        - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
+      reussite: competenceDeLArme et succesNets >= 1
+    apres:
+      - {
+          cle: degatsBruts,
+          formule: 'arme.degats + succesNets + si(arme.melee, rang("force-sauvage"), 0)',
+        }
+      - { cle: encaissementCible, formule: 'max(0, @cible.encaissement - arme.perforant)' }
+      - { cle: degatsSubis, formule: 'si(reussi, max(0, degatsBruts - encaissementCible), 0)' }
+      - {
+          cle: critiqueDeclenche,
+          formule: 'non arme.etourdissant et degatsSubis >= 1 et (avantagesNets >= arme.critique ou triomphes >= 1)',
+        }
+    consequences:
+      - {
+          condition: reussi et non arme.etourdissant,
+          entite: cible,
+          attribut: blessures,
+          operation: ajouter,
+          valeur: degatsSubis,
+        }
+      - {
+          condition: reussi et arme.etourdissant,
+          entite: cible,
+          attribut: stress,
+          operation: ajouter,
+          valeur: degatsSubis,
+        }
+    tables:
+      - table: blessures-critiques
+        condition: critiqueDeclenche
+        modificateur: 10 * @cible.critiquesSubis + 10 * arme.vicieux + 10 * rang("coups-mortels") - @cible.resistanceCritique
+
+  - id: initiative
+    nom: Initiative
+    description: Test de Sang-froid (rencontre préparée) ou de Vigilance (surprise), sans dé de Difficulté.
+    pour: [personnage]
+    parametres:
+      - {
+          id: competence,
+          nom: Sang-froid ou Vigilance,
+          type: entree,
+          sorte: competence,
+          etiquette: initiative,
+        }
+      - { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
+      - { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
+    variables:
+      - { cle: carac, formule: valeur(competence.caracteristique) }
+    jet:
+      type: symboles
+      pool:
+        - { de: aptitude, nombre: 'max(carac, competence.rang)' }
+        - { de: fortune, nombre: desFortune }
+        - { de: infortune, nombre: desInfortune }
+      ameliorations:
+        - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+
+# Ordre décroissant des Succès nets, puis des Avantages nets.
+initiative:
+  action: initiative
+  tri: [succesNets, avantagesNets]

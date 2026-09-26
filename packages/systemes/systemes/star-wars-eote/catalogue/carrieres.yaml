@@ -1,0 +1,217 @@
+# Carrières : marquent « carriere » leurs 8 compétences et leurs 3 spécialisations ;
+# 4 rangs gratuits dans les compétences de carrière à la création.
+- id: chasseur-de-primes
+  sorte: carriere
+  nom: Chasseur de primes
+  description: 'VO : Bounty Hunter. Compétences de carrière et spécialisations de la carrière (marque « carriere »).'
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees:
+        - athletisme
+        - corps-a-corps
+        - perception
+        - pilotage-planetaire
+        - pilotage-spatial
+        - distance-lourde
+        - sens-de-la-rue
+        - vigilance
+        - assassin
+        - bricoleur
+        - survivaliste
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de carrière (création)
+      nombre: 4
+      parmi:
+        sorte: competence
+        entrees:
+          - athletisme
+          - corps-a-corps
+          - perception
+          - pilotage-planetaire
+          - pilotage-spatial
+          - distance-lourde
+          - sens-de-la-rue
+          - vigilance
+      donne: { type: rang, valeur: 1 }
+
+- id: colon
+  sorte: carriere
+  nom: Colon
+  description: 'VO : Colonist. Compétences de carrière et spécialisations de la carrière (marque « carriere »).'
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees:
+        - charme
+        - tromperie
+        - connaissance-noyau
+        - connaissance-education
+        - connaissance-traditions
+        - commandement
+        - negociation
+        - sens-de-la-rue
+        - medecin
+        - politicien
+        - erudit
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de carrière (création)
+      nombre: 4
+      parmi:
+        sorte: competence
+        entrees:
+          - charme
+          - tromperie
+          - connaissance-noyau
+          - connaissance-education
+          - connaissance-traditions
+          - commandement
+          - negociation
+          - sens-de-la-rue
+      donne: { type: rang, valeur: 1 }
+
+- id: explorateur
+  sorte: carriere
+  nom: Explorateur
+  description: 'VO : Explorer. Compétences de carrière et spécialisations de la carrière (marque « carriere »).'
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees:
+        - astrogation
+        - sang-froid
+        - connaissance-traditions
+        - connaissance-bordure
+        - connaissance-xenologie
+        - perception
+        - pilotage-spatial
+        - survie
+        - vagabond
+        - eclaireur
+        - marchand
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de carrière (création)
+      nombre: 4
+      parmi:
+        sorte: competence
+        entrees:
+          - astrogation
+          - sang-froid
+          - connaissance-traditions
+          - connaissance-bordure
+          - connaissance-xenologie
+          - perception
+          - pilotage-spatial
+          - survie
+      donne: { type: rang, valeur: 1 }
+
+- id: mercenaire
+  sorte: carriere
+  nom: Mercenaire
+  description: 'VO : Hired Gun. Compétences de carrière et spécialisations de la carrière (marque « carriere »).'
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees:
+        - athletisme
+        - corps-a-corps
+        - discipline
+        - melee
+        - pilotage-planetaire
+        - distance-legere
+        - resistance
+        - vigilance
+        - garde-du-corps
+        - maraudeur
+        - soldat-mercenaire
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de carrière (création)
+      nombre: 4
+      parmi:
+        sorte: competence
+        entrees:
+          - athletisme
+          - corps-a-corps
+          - discipline
+          - melee
+          - pilotage-planetaire
+          - distance-legere
+          - resistance
+          - vigilance
+      donne: { type: rang, valeur: 1 }
+
+- id: contrebandier
+  sorte: carriere
+  nom: Contrebandier
+  description: 'VO : Smuggler. Compétences de carrière et spécialisations de la carrière (marque « carriere »).'
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees:
+        - coordination
+        - tromperie
+        - connaissance-pegre
+        - perception
+        - pilotage-spatial
+        - magouilles
+        - sens-de-la-rue
+        - vigilance
+        - pilote
+        - canaille
+        - voleur
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de carrière (création)
+      nombre: 4
+      parmi:
+        sorte: competence
+        entrees:
+          - coordination
+          - tromperie
+          - connaissance-pegre
+          - perception
+          - pilotage-spatial
+          - magouilles
+          - sens-de-la-rue
+          - vigilance
+      donne: { type: rang, valeur: 1 }
+
+- id: technicien
+  sorte: carriere
+  nom: Technicien
+  description: 'VO : Technician. Compétences de carrière et spécialisations de la carrière (marque « carriere »).'
+  effets:
+    - sur: marque
+      marque: carriere
+      entrees:
+        - astrogation
+        - informatique
+        - coordination
+        - discipline
+        - connaissance-bordure
+        - mecanique
+        - perception
+        - pilotage-planetaire
+        - mecanicien
+        - technicien-hors-la-loi
+        - pirate-informatique
+  choix:
+    - id: rangs-de-depart
+      nom: Rangs gratuits de carrière (création)
+      nombre: 4
+      parmi:
+        sorte: competence
+        entrees:
+          - astrogation
+          - informatique
+          - coordination
+          - discipline
+          - connaissance-bordure
+          - mecanique
+          - perception
+          - pilotage-planetaire
+      donne: { type: rang, valeur: 1 }
