@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
 import { createBeveledGeometry, getCachedGeometry } from './geometry';
-import { getAudioContext, playOneShotForSkin } from './audio';
+import { getAudioContext, getMasterGain, playOneShotForSkin } from './audio';
 
 // Skins eligible for the random "for fun" roll. Orb skins use a heavier
 // transmission + GLTF-core path, so we keep the random pool to the procedural
@@ -23,6 +23,22 @@ import { getAudioContext, playOneShotForSkin } from './audio';
 const FUN_SKIN_POOL = Object.values(DICE_SKINS)
   .filter((s) => s.effectType !== 'orb')
   .map((s) => s.id);
+
+// Skins actually mounted by the shader warmer. Every textured skin compiles to
+// the SAME program (standard material + map), so one representative per
+// transparency variant is enough: warming all of them downloaded every texture
+// of the catalogue (~50 MB, one of them 40 MB) on each visit, for nothing.
+const WARM_SKIN_POOL = (() => {
+  const seenTextured = new Set<boolean>();
+  return FUN_SKIN_POOL.filter((id) => {
+    const skin = getSkinById(id);
+    if (!skin.textureMap) return true;
+    const variant = skin.opacity < 1;
+    if (seenTextured.has(variant)) return false;
+    seenTextured.add(variant);
+    return true;
+  });
+})();
 
 // NOTE: compiled shader programs belong to ONE WebGL context. Warming must
 // therefore happen once per <Canvas>, never once per session — an earlier
@@ -113,7 +129,8 @@ const FunDie = React.forwardRef(
         oscGain.gain.setValueAtTime(Math.min(0.4, vel / 5), ctx.currentTime);
         oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
         osc.connect(oscGain);
-        oscGain.connect(ctx.destination);
+        // Through the dice master gain, so the mixer's "Dés 3D" volume applies.
+        oscGain.connect(getMasterGain(ctx));
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
       } catch (e) {}
@@ -187,14 +204,14 @@ const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => vo
     const run = async () => {
       for (
         let end = WARM_BATCH_SIZE;
-        end < FUN_SKIN_POOL.length + WARM_BATCH_SIZE;
+        end < WARM_SKIN_POOL.length + WARM_BATCH_SIZE;
         end += WARM_BATCH_SIZE
       ) {
         if (cancelled) return;
         // Let the new batch's meshes mount before compiling them.
         await new Promise((r) => requestAnimationFrame(r));
         if (cancelled) return;
-        setBatchEnd(Math.min(end, FUN_SKIN_POOL.length));
+        setBatchEnd(Math.min(end, WARM_SKIN_POOL.length));
         await new Promise((r) => requestAnimationFrame(r));
         if (cancelled) return;
         try {
@@ -233,7 +250,7 @@ const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => vo
                 point light would otherwise invalidate previously-warmed
                 programs mid-run). */}
       <VisualDie type={diceType} skin={FULL_WARM_SKIN} isShattered={false} critType={null} />
-      {FUN_SKIN_POOL.slice(0, batchEnd).map((skinId) => (
+      {WARM_SKIN_POOL.slice(0, batchEnd).map((skinId) => (
         <VisualDie
           key={skinId}
           type={diceType}

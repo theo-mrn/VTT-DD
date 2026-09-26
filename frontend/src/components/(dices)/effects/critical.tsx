@@ -62,6 +62,14 @@ export const CriticalEffect = ({
 
     return { geometry: geo, material: mat };
   }, [primaryColor, secondaryColor]);
+  // Passed as props, so R3F does not dispose them on unmount.
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      material.dispose();
+    },
+    [geometry, material],
+  );
 
   // Store velocities for explosion
   const velocitiesRef = useRef<Float32Array | null>(null);
@@ -214,6 +222,8 @@ export const ShatteredDie = ({ color, onComplete }: { color: string; onComplete:
 
     return { fragments: frags, fragmentData: data };
   }, []);
+  // Fragment geometries are passed as props: dispose them ourselves.
+  useEffect(() => () => fragments.forEach((g) => g.dispose()), [fragments]);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -234,7 +244,7 @@ export const ShatteredDie = ({ color, onComplete }: { color: string; onComplete:
         data.velocity.y -= 20 * delta;
 
         // Update position
-        data.position.add(data.velocity.clone().multiplyScalar(delta));
+        data.position.addScaledVector(data.velocity, delta);
 
         // Update rotation
         data.rotation.x += data.rotationSpeed.x * delta;
