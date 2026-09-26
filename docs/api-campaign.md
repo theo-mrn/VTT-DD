@@ -31,6 +31,50 @@ Rôles :
 - `joueur` : ses propres personnages ;
 - `spectateur` : lecture seule.
 
+## Parité avec l'ancienne app (salles)
+
+Champs d'une salle, en plus de `nom`, `description` et `systemeId` :
+
+| Champ                 | Sens (ancien champ Firestore)                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `code`                | code court de la salle, affiché et partagé (« Code de la salle »), unique, généré à la création (id du document `Salle`) |
+| `imageUrl`            | image de la salle, envoyée par URL présignée comme l'avatar (`imageUrl`)                                                 |
+| `maxJoueurs`          | nombre de joueurs maximum, MJ non compris (`maxPlayers`, défaut 4)                                                       |
+| `publique`            | visible dans la liste des campagnes en ligne (`isPublic`)                                                                |
+| `creationPersonnages` | les joueurs peuvent créer leur fiche dans la salle (`allowCharacterCreation`)                                            |
+
+| Méthode      | Route                                                  | Corps                                                                            | Réponse                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET          | `/v1/rooms?role=mj\|joueur`                            | —                                                                                | mes salles, avec `code`, `imageUrl`, `maxJoueurs`, `publique`, `joueurs` (nombre), `proprietaire: { id, nom, avatarUrl }`                                                     |
+| GET          | `/v1/rooms/publiques?search=&page=`                    | —                                                                                | campagnes publiques en ligne (mêmes champs), paginées ; les salles pleines sont indiquées (`complete`)                                                                        |
+| POST         | `/v1/rooms`                                            | `{ nom, systemeId, description?, maxJoueurs?, publique?, creationPersonnages? }` | 201 ; un `code` est généré                                                                                                                                                    |
+| POST         | `/v1/rooms/:id/image`                                  | `{ contentType, size }`                                                          | `{ uploadUrl, publicUrl }` (MJ), puis `PATCH { imageUrl }`                                                                                                                    |
+| POST         | `/v1/rooms/rejoindre`                                  | `{ code }`                                                                       | code d'invitation **ou** code de salle ; refus 403 `banni`, 409 `salle_complete`, 404 `salle_introuvable` ; une salle privée ne se rejoint que par invitation ou par son code |
+| DELETE       | `/v1/rooms/:id/membres/:userId?bannir=true`            | —                                                                                | exclut le joueur ; `bannir` l'empêche de revenir (MJ)                                                                                                                         |
+| GET / DELETE | `/v1/rooms/:id/bannis`, `/v1/rooms/:id/bannis/:userId` | —                                                                                | liste et levée des bannissements (MJ)                                                                                                                                         |
+
+### Sessions prévues et discussion
+
+| Méthode | Route                                   | Corps              | Réponse                                                                                                                                   |
+| ------- | --------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/rooms/:id/sessions`                | —                  | prochaines sessions `[{ id, date, titre? }]` (membres)                                                                                    |
+| POST    | `/v1/rooms/:id/sessions`                | `{ date, titre? }` | MJ                                                                                                                                        |
+| DELETE  | `/v1/rooms/:id/sessions/:sessionId`     | —                  | MJ                                                                                                                                        |
+| GET     | `/v1/rooms/:id/messages?avant=&limite=` | —                  | derniers messages `[{ id, auteur: { id, nom, avatarUrl }, texte, createdAt }]` (membres ; lu en polling en attendant le service realtime) |
+| POST    | `/v1/rooms/:id/messages`                | `{ texte }`        | membres (1 000 caractères max, limité en débit)                                                                                           |
+| DELETE  | `/v1/rooms/:id/messages/:messageId`     | —                  | auteur ou MJ                                                                                                                              |
+
+### Personnage incarné
+
+Dans l'ancienne app, chaque joueur « jouait » un personnage de la salle (`users/{uid}.persoId`), et un personnage n'était joué que par un seul joueur à la fois.
+
+| Méthode | Route                          | Corps                             | Réponse                                                                                                                         |
+| ------- | ------------------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| PUT     | `/v1/rooms/:id/moi/personnage` | `{ characterId: string \| null }` | incarne un personnage engagé dans la salle (le sien, ou un PNJ si MJ) ; 409 `personnage_pris` s'il est joué par un autre membre |
+| GET     | `/v1/rooms/:id/personnages`    | —                                 | personnages engagés : `[{ characterId, nom, avatarUrl, type, camp, proprietaireId, incarnePar: userId \| null, creation }]`     |
+
+« Créer un nouveau personnage » dans une salle : le front crée le personnage dans character (`POST /v1/characters`, système de la salle), l'engage (`POST /v1/rooms/:id/personnages`), l'incarne, puis ouvre la création. Si `creationPersonnages` est faux, seul le MJ peut engager un personnage créé pour l'occasion ; un joueur peut toujours engager un personnage existant du bon système.
+
 ## Personnages de la salle
 
 Les personnages restent dans le service character. Campaign enregistre seulement leur **engagement** dans une salle, avec un camp :
