@@ -13,7 +13,7 @@
  * listée dans `erreurs`. Seules les données fournies par l'appelant (action,
  * entités, paramètres) sont refusées.
  */
-import { estEffective, type Fiche, type PossessionEffective } from '../calcul/index.js';
+import { type Fiche, type PossessionEffective, type SourceEffets } from '../calcul/index.js';
 import { reduireDegats } from './degats.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
 import {
@@ -21,6 +21,7 @@ import {
   evaluer,
   LIMITES,
   type ContexteEvaluation,
+  type FormuleVerifiee,
   type Generateur,
   type JetDes,
   type ResultatEvaluation,
@@ -280,8 +281,13 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     chemin: string,
     defaut: Valeur,
     ctx: ContexteEvaluation,
+  ): ResultatEvaluation => evaluerFormule(systeme.formule(chemin), chemin, defaut, ctx);
+  const evaluerFormule = (
+    f: FormuleVerifiee,
+    chemin: string,
+    defaut: Valeur,
+    ctx: ContexteEvaluation,
   ): ResultatEvaluation => {
-    const f = systeme.formule(chemin);
     try {
       return evaluer(f.noeud, ctx);
     } catch (e) {
@@ -378,13 +384,12 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       if (!neutres.has(p.id))
         neutres.set(p.id, p.type === 'nombre' ? 0 : p.type === 'booleen' ? false : '');
 
-  /** Variables d'un effet : sa source (`rang`, `actif`, `source.x`), l'action et ses entrées. */
+  /** Variables d'un effet : celles de sa source (`rang`, `actif`, `source.x`), l'action et ses paramètres. */
   const variablesEffet =
-    (p: PossessionEffective) =>
+    (source: SourceEffets) =>
     (nom: string): Valeur => {
-      if (nom === 'rang') return p.rang;
-      if (nom === 'actif') return p.actif;
-      if (nom.startsWith('source.')) return lireChamp(p, nom.slice('source.'.length));
+      if (nom === 'rang' || nom === 'actif' || nom.startsWith('source.'))
+        return source.variable(nom);
       if (nom === 'action') return action.id;
       // Paramètre de l’action : sa valeur, ou sa valeur neutre si l’action ne l’a pas
       if (neutres.has(nom)) return parametres[nom] ?? neutres.get(nom)!;
@@ -395,27 +400,62 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
     };
 
+  /**
+   * Ce que le jet implique : entrées et attributs désignés par les paramètres,
+   * et ceux auxquels renvoient les champs des entrées choisies (compétence d'une
+   * arme, caractéristique liée d'une compétence).
+   */
+  const impliques = new Set<string>();
+  for (const p of action.parametres) {
+    const v = parametres[p.id];
+    if (typeof v !== 'string' || !v) continue;
+    if (p.type === 'attribut') impliques.add(`attribut:${v}`);
+    if (p.type !== 'entree') continue;
+    impliques.add(`entree:${v}`);
+    const choisie = choisies.get(p.id);
+    for (const c of choisie?.sorte.champs ?? []) {
+      if (c.type !== 'entree' && c.type !== 'attribut') continue;
+      const renvoi = lireChamp(choisie!, c.id);
+      if (typeof renvoi === 'string' && renvoi) impliques.add(`${c.type}:${renvoi}`);
+    }
+  }
+
   type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
-  const effets: { p: PossessionEffective; ajout: AjoutJet; valeur: number; nom: string }[] = [];
-  // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`)
+  const effets: { source: string; ajout: AjoutJet; valeur: number; nom: string }[] = [];
+  // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`) :
+  // entrées du catalogue, exemplaires et bonus libres, par le même chemin
   const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
   if (cible) porteurs.push([cible, 'cible']);
   for (const [fiche, cote] of porteurs)
-    for (const p of fiche.possessions.values()) {
-      if (!p.actif || !estEffective(p)) continue;
-      const ctxEffet = fiche.contexte({ variable: variablesEffet(p) });
-      p.entree.effets.forEach((f, i) => {
+    for (const source of fiche.sources) {
+      const ctxEffet = fiche.contexte({ variable: variablesEffet(source) });
+      source.effets.forEach((f, i) => {
         if (f.sur !== 'jet' || !f.ajout) return;
         if (f.cote !== cote) return;
         if (f.actions && !f.actions.includes(action.id)) return;
-        const chemin = (x: string) => chemins.effet(p.entree.id, i, x);
-        for (const x of ['condition', 'si']) {
-          if (!systeme.formules.has(chemin(x))) continue;
-          if (calculerFormule(chemin(x), false, ctxEffet).valeur !== true) return;
+        if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
+          return;
+        if (f.implique?.attribut !== undefined && !impliques.has(`attribut:${f.implique.attribut}`))
+          return;
+        const ou = (x: string) => `${source.id}/effets/${i}/${x}`;
+        for (const [x, declaree] of [
+          ['condition', f.condition],
+          ['si', f.si],
+        ] as const) {
+          if (declaree === undefined) continue;
+          const cond = source.formule(i, x);
+          if (!cond || evaluerFormule(cond, ou(x), false, ctxEffet).valeur !== true) return;
         }
         const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
-        const valeur = Number(calculerFormule(chemin(cle), 0, ctxEffet).valeur);
-        effets.push({ p, ajout: f.ajout, valeur, nom: f.description ?? p.entree.nom });
+        const formule = source.formule(i, cle);
+        if (!formule) return;
+        const valeur = Number(evaluerFormule(formule, ou(cle), 0, ctxEffet).valeur);
+        effets.push({
+          source: source.id,
+          ajout: f.ajout,
+          valeur,
+          nom: f.description ?? source.nom,
+        });
       });
     }
 
@@ -450,7 +490,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const valeur = Number(r.valeur);
     const bonus: BonusJet[] = [];
     for (const e of effets) {
-      if ('bonus' in e.ajout) bonus.push({ source: e.p.entree.id, nom: e.nom, valeur: e.valeur });
+      if ('bonus' in e.ajout) bonus.push({ source: e.source, nom: e.nom, valeur: e.valeur });
       else if (!('variable' in e.ajout))
         explications.push(`${e.nom} : ignoré (dés à symboles sur un jet numérique)`);
     }
@@ -501,7 +541,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       ajouter('action', action.nom, p.de, nombreDes(ev(ch(`jet/pool/${i}`), 0))),
     );
     for (const e of effets)
-      if ('de' in e.ajout) ajouter(e.p.entree.id, e.nom, e.ajout.de, nombreDes(e.valeur));
+      if ('de' in e.ajout) ajouter(e.source, e.nom, e.ajout.de, nombreDes(e.valeur));
     jet.ameliorations.forEach((a, i) =>
       ameliorerPool(
         'action',
@@ -513,7 +553,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     );
     for (const e of effets) {
       if ('ameliorer' in e.ajout)
-        ameliorerPool(e.p.entree.id, e.nom, e.ajout.ameliorer, e.ajout.vers, nombreDes(e.valeur));
+        ameliorerPool(e.source, e.nom, e.ajout.ameliorer, e.ajout.vers, nombreDes(e.valeur));
       else if ('bonus' in e.ajout)
         explications.push(`${e.nom} : ignoré (bonus sur un jet à symboles)`);
     }
@@ -522,7 +562,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       const { retrograder: de, vers } = e.ajout;
       const n = nombreDes(e.valeur);
       construction.push({
-        source: e.p.entree.id,
+        source: e.source,
         nom: e.nom,
         operation: 'retrograder',
         de,
@@ -535,7 +575,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       if (!('retirer' in e.ajout)) continue;
       const de = e.ajout.retirer;
       const n = nombreDes(e.valeur);
-      construction.push({ source: e.p.entree.id, nom: e.nom, operation: 'retirer', de, nombre: n });
+      construction.push({ source: e.source, nom: e.nom, operation: 'retirer', de, nombre: n });
       pool = retirer(pool, de, n);
     }
 

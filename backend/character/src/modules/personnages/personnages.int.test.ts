@@ -393,7 +393,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
       actif: false,
     });
     expect(p.etat.possessions).toEqual([
-      { entree: 'fusil-blaster', rang: 0, actif: false, choix: {}, champs: {} },
+      { entree: 'fusil-blaster', rang: 0, actif: false, choix: {}, champs: {}, effets: [] },
     ]);
     const perime = await t.app.inject({
       method: 'DELETE',

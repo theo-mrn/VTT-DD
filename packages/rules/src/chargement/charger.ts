@@ -22,6 +22,7 @@ import {
   type Table,
   type TypeEntite,
 } from '../schema/index.js';
+import { verifierEffets, variablesSource, type ContexteEffets } from './effets.js';
 import { env, typeAttribut, typeChamp, type Attributs, type OptionsEnv } from './environnements.js';
 
 export interface ErreurChargement {
@@ -441,123 +442,14 @@ class Chargeur {
       }
     }
 
-    // Variables disponibles dans les effets : rang et état de la source, ses champs
-    const variables: Record<string, TypeValeur> = { rang: 'nombre', actif: 'booleen' };
-    for (const c of sorte.champs) {
-      const t = typeChamp(c);
-      if (t) variables[`source.${c.id}`] = t;
-    }
-    const oEffet: OptionsEnv = { entite: porteurs, variables };
-
-    e.effets.forEach((f, i) => {
-      const ch = (x: string) => chemins.effet(e.id, i, x);
-      if (f.condition !== undefined) this.compiler(ch('condition'), f.condition, oEffet, 'booleen');
-      switch (f.sur) {
-        case 'attribut': {
-          const cibles = porteurs.map((p) => p.get(f.attribut));
-          if (!cibles.length || cibles.some((a) => !a)) {
-            this.erreur(ch('attribut'), `Attribut inconnu du porteur : ${f.attribut}`);
-            break;
-          }
-          const types = new Set(cibles.map((a) => typeAttribut(a!)));
-          const numerique = types.size === 1 && types.has('nombre');
-          if (!numerique && f.operation !== 'fixer') {
-            this.erreur(
-              ch('attribut'),
-              `Seul « fixer » s’applique à un attribut non numérique (${f.attribut})`,
-            );
-          }
-          const type = numerique ? 'nombre' : [...types][0];
-          this.compiler(ch('valeur'), f.valeur, oEffet, types.size === 1 ? type : undefined);
-          break;
-        }
-        case 'rang': {
-          const cible = this.entrees.get(f.entree);
-          if (!cible) this.erreur(ch('entree'), `Entrée inconnue : ${f.entree}`);
-          else if (!this.sortes.get(cible.sorte)?.rangs)
-            this.erreur(ch('entree'), `${f.entree} ne se possède pas par rangs`);
-          // Les rangs sont calculés avant les attributs : ils ne peuvent pas en dépendre
-          this.compiler(ch('valeur'), f.valeur, { variables: { rang: 'nombre' } }, 'nombre');
-          if (f.condition !== undefined && this.formules.get(ch('condition'))?.dependances.size) {
-            this.erreur(
-              ch('condition'),
-              'La condition d’un rang gratuit ne peut pas lire d’attribut',
-            );
-          }
-          break;
-        }
-        case 'degats': {
-          for (const t of f.types ?? []) {
-            if (!this.typesDegats.has(t)) this.erreur(ch('types'), `Type de dégâts inconnu : ${t}`);
-          }
-          for (const cle of f.attributs ?? []) {
-            if (porteurs.some((p) => !p.get(cle)))
-              this.erreur(ch('attributs'), `Attribut inconnu du porteur : ${cle}`);
-          }
-          this.compiler(ch('valeur'), f.valeur, oEffet, 'nombre');
-          break;
-        }
-        case 'marque':
-          for (const x of f.entrees)
-            if (!this.entrees.has(x)) this.erreur(ch('entrees'), `Entrée inconnue : ${x}`);
-          if (f.condition !== undefined && this.formules.get(ch('condition'))?.dependances.size) {
-            this.erreur(ch('condition'), 'La condition d’une marque ne peut pas lire d’attribut');
-          }
-          break;
-        case 'jet': {
-          for (const a of f.actions ?? [])
-            if (!this.actions.has(a)) this.erreur(ch('actions'), `Action inconnue : ${a}`);
-          const vars: Record<string, TypeValeur> = { ...variables, action: 'texte' };
-          // Paramètres des actions : identifiant, et pour une entrée son rang et ses champs
-          for (const act of this.actions.values()) {
-            for (const p of act.parametres) {
-              // Tout paramètre est lisible ; valeur neutre si l'action n'a pas ce paramètre
-              if (p.type === 'nombre' || p.type === 'booleen') {
-                vars[p.id] ??= p.type;
-                continue;
-              }
-              vars[p.id] = 'texte';
-              if (p.type !== 'entree') continue;
-              vars[`${p.id}.rang`] = 'nombre';
-              for (const c of this.sortes.get(p.sorte)?.champs ?? []) {
-                const t = typeChamp(c);
-                if (t && !vars[`${p.id}.${c.id}`]) vars[`${p.id}.${c.id}`] = t;
-              }
-            }
-          }
-          // Toutes les formules d'un effet de jet lisent les paramètres des actions
-          const oJet: OptionsEnv = { ...oEffet, variables: vars };
-          if (f.si !== undefined) this.compiler(ch('si'), f.si, oJet, 'booleen');
-          const aj = f.ajout;
-          if (aj && 'de' in aj) {
-            this.verifierDe(ch('ajout'), aj.de);
-            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
-          } else if (aj && 'ameliorer' in aj) {
-            this.verifierDe(ch('ajout'), aj.ameliorer);
-            this.verifierDe(ch('ajout'), aj.vers);
-            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
-          } else if (aj && 'retrograder' in aj) {
-            this.verifierDe(ch('ajout'), aj.retrograder);
-            this.verifierDe(ch('ajout'), aj.vers);
-            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
-          } else if (aj && 'variable' in aj) {
-            const visees = f.actions?.length ? f.actions : [...this.actions.keys()];
-            const connue = visees.some((id) => {
-              const act = this.actions.get(id);
-              return !!act && [...act.variables, ...act.apres].some((x) => x.cle === aj.variable);
-            });
-            if (!connue) this.erreur(ch('ajout'), `Variable d’action inconnue : ${aj.variable}`);
-            this.compiler(ch('ajouter'), aj.ajouter, oJet, 'nombre');
-          } else if (aj && 'retirer' in aj) {
-            this.verifierDe(ch('ajout'), aj.retirer);
-            this.compiler(ch('nombre'), aj.nombre, oJet, 'nombre');
-          } else if (aj) {
-            this.compiler(ch('bonus'), aj.bonus, oJet, 'nombre');
-          }
-          break;
-        }
-      }
-    });
+    // Effets de l'entrée : même vérification que les effets posés sur un personnage
+    verifierEffets(
+      this.contexteEffets(),
+      e.effets,
+      (i, x) => chemins.effet(e.id, i, x),
+      porteurs,
+      variablesSource(sorte),
+    );
 
     // Les choix d'entrées et d'attributs partagent l'espace `possession.choix`
     this.unique([...e.choix, ...e.choixAttributs], (c) => c.id, `${chemin}/choix`, 'Choix');
@@ -607,6 +499,19 @@ class Chargeur {
 
     if (e.exige !== undefined)
       this.compiler(chemins.exige(e.id), e.exige, { entite: porteurs }, 'booleen');
+  }
+
+  private contexteEffets(): ContexteEffets {
+    return {
+      compiler: (chemin, texte, o, attendu) => this.compiler(chemin, texte, o, attendu),
+      erreur: (chemin, message) => this.erreur(chemin, message),
+      formule: (chemin) => this.formules.get(chemin),
+      entrees: this.entrees,
+      sortes: this.sortes,
+      actions: this.actions,
+      sortesDes: this.sortesDes,
+      typesDegats: this.typesDegats,
+    };
   }
 
   // ─── Dés à symboles ────────────────────────────────────────────────────────

@@ -22,26 +22,11 @@ export type Evaluation =
 
 /** Copie profonde d'un état : on modifie la copie, jamais l'original. */
 export function copier(etat: EtatEntite): EtatEntite {
-  return {
-    ...etat,
-    systeme: { ...etat.systeme },
-    valeurs: { ...etat.valeurs },
-    possessions: etat.possessions.map(copierPossession),
-    noeuds: Object.fromEntries(Object.entries(etat.noeuds).map(([k, v]) => [k, [...v]])),
-    journal: etat.journal.map((l) => ({ ...l })),
-  };
+  return structuredClone(etat);
 }
 
 export function copierPossession(p: Possession): Possession {
-  return {
-    ...p,
-    choix: Object.fromEntries(Object.entries(p.choix).map(([k, v]) => [k, [...v]])),
-    champs: { ...p.champs },
-  };
-}
-
-export function nouvellePossession(entree: string, rang = 0): Possession {
-  return { entree, rang, actif: true, choix: {}, champs: {} };
+  return structuredClone(p);
 }
 
 /** Évalue une formule sur une fiche sans jamais lever d'erreur de données. */

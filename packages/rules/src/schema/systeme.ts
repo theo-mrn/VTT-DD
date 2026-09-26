@@ -164,7 +164,14 @@ export const Effet = z.discriminatedUnion('sur', [
     cote: z.enum(['acteur', 'cible']).default('acteur'),
     /** Actions concernées (toutes si absent). */
     actions: z.array(Id).optional(),
-    /** Condition sur le jet lui-même, par exemple `competence == "perception"`. */
+    /**
+     * Le jet doit impliquer cette entrée ou cet attribut : un paramètre de
+     * l'action la désigne (compétence choisie, caractéristique testée) ou un
+     * champ du paramètre y renvoie (compétence d'une arme, caractéristique
+     * liée d'une compétence). « +2 aux tests de Discrétion » quel que soit le système.
+     */
+    implique: z.object({ entree: Id.optional(), attribut: Cle.optional() }).optional(),
+    /** Condition libre sur le jet, par exemple `competence == "perception"`. */
     si: Formule.optional(),
     ajout: z
       .union([

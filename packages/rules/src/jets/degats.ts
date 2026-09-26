@@ -1,10 +1,9 @@
 /**
  * Dégâts reçus : passage d'une valeur de dégâts par les résistances
- * (`sur: degats`) des possessions actives de l'entité qui les reçoit.
+ * (`sur: degats`) des sources d'effets actives de l'entité qui les reçoit
+ * (entrées, exemplaires, bonus libres).
  */
-import { estEffective, type Fiche, type PossessionEffective } from '../calcul/index.js';
-import { chemins } from '../chargement/index.js';
-import { ErreurEvaluation, type Valeur } from '../formules/index.js';
+import type { Fiche } from '../calcul/index.js';
 import type { EffetDegats } from '../schema/index.js';
 
 export interface LigneResistance {
@@ -24,27 +23,6 @@ export interface DegatsRecus {
   lignes: LigneResistance[];
 }
 
-/** Variables d'un effet : rang et état de sa source, champs de la source. */
-function variablesSource(fiche: Fiche, p: PossessionEffective) {
-  return (nom: string): Valeur => {
-    if (nom === 'rang') return p.rang;
-    if (nom === 'actif') return p.actif;
-    if (nom.startsWith('source.')) {
-      const c = nom.slice('source.'.length);
-      const def = p.sorte.champs.find((x) => x.id === c);
-      if (def?.type === 'formule') {
-        const f = fiche.systeme.formules.get(chemins.champ(p.entree.id, c));
-        return f ? fiche.evaluer(f, {}, 0) : 0;
-      }
-      const v = p.possession?.champs[c] ?? p.entree.champs[c];
-      if (v !== undefined && !Array.isArray(v)) return v;
-      if (def && 'defaut' in def && def.defaut !== undefined) return def.defaut;
-      return def?.type === 'nombre' ? 0 : def?.type === 'booleen' ? false : '';
-    }
-    throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
-  };
-}
-
 /**
  * Applique les résistances de `fiche` à `montant` dégâts de type `type`
  * (facultatif) sur `attribut`. Une résistance sans `types` vaut pour tous les
@@ -58,20 +36,21 @@ export function reduireDegats(
   minimum = 0,
 ): DegatsRecus {
   const candidates: LigneResistance[] = [];
-  for (const p of fiche.possessions.values()) {
-    if (!p.actif || !estEffective(p)) continue;
-    const variable = variablesSource(fiche, p);
-    p.entree.effets.forEach((f, i) => {
+  // Entrées du catalogue, exemplaires et bonus libres, par le même chemin
+  for (const s of fiche.sources) {
+    const variable = s.variable;
+    s.effets.forEach((f, i) => {
       if (f.sur !== 'degats') return;
       if (f.types && (type === undefined || !f.types.includes(type))) return;
       if (f.attributs && !f.attributs.includes(attribut)) return;
-      const cond = fiche.systeme.formules.get(chemins.effet(p.entree.id, i, 'condition'));
-      if (cond && fiche.evaluer(cond, { variable }, false) !== true) return;
-      const f2 = fiche.systeme.formules.get(chemins.effet(p.entree.id, i, 'valeur'));
+      const cond = s.formule(i, 'condition');
+      if (f.condition !== undefined && (!cond || fiche.evaluer(cond, { variable }, false) !== true))
+        return;
+      const f2 = s.formule(i, 'valeur');
       const valeur = f2 ? Number(fiche.evaluer(f2, { variable }, 0)) : 0;
       const ligne: LigneResistance = {
-        source: p.entree.id,
-        nom: f.description ?? p.entree.nom,
+        source: s.id,
+        nom: f.description ?? s.nom,
         operation: f.operation,
         valeur,
       };

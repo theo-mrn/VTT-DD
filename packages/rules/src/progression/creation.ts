@@ -19,13 +19,13 @@ import type {
   EtatEntite,
 } from '../schema/index.js';
 import { acheter, type DemandeAchat, type ResultatAchat } from './achats.js';
+import { nouvellePossession } from '../schema/index.js';
 import { detailSolde } from './monnaies.js';
 import {
   attributsVises,
   copier,
   copierPossession,
   essayer,
-  nouvellePossession,
   valeurBase,
   variables,
   type ResultatEtat,

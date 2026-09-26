@@ -327,4 +327,24 @@ describe('durées', () => {
       retirees: [],
     });
   });
+
+  it('décompte aussi les bonus libres à durée', () => {
+    const effets = [
+      { sur: 'attribut' as const, attribut: 'FOR', operation: 'ajouter' as const, valeur: '2' },
+    ];
+    const etat = verifierEtat(dnd, {
+      ...etatInitial(dnd, 'personnage'),
+      bonus: [
+        { id: 'benediction', nom: 'Bénédiction', effets, actif: true, duree: 1 },
+        { id: 'rage', nom: 'Rage', effets, actif: true, duree: 3 },
+        { id: 'anneau', nom: 'Anneau', effets, actif: true },
+      ],
+    }).etat;
+    const r = decompterDurees(etat);
+    expect(r.retirees).toEqual(['bonus:benediction']);
+    expect(r.etat!.bonus.map((b) => [b.id, b.duree])).toEqual([
+      ['rage', 2],
+      ['anneau', undefined],
+    ]);
+  });
 });

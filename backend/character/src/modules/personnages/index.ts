@@ -14,12 +14,15 @@ import type { Module } from '../../deps.js';
 import {
   acheterObjet,
   appliquerEtape,
+  DemandeBonus,
   DemandePossession,
   etatInitial,
   modifierValeurs,
+  poserBonus,
   poserPossession,
   rembourserLigne,
   reposer,
+  retirerBonus,
   retirerPossession,
   terminer,
   Valeurs,
@@ -378,6 +381,49 @@ export const register: Module = async (app, deps) => {
         changement: { etat: retirerPossession(systeme, l.etat, req.params.entree) },
         operation: 'possession.retrait',
         details: { entree: req.params.entree },
+      }));
+      return api(ligne);
+    },
+  );
+
+  // ─── Bonus libres ──────────────────────────────────────────────────────────
+
+  r.post(
+    '/v1/characters/:id/bonus',
+    {
+      ...auth,
+      schema: {
+        params: Params,
+        body: DemandeBonus.extend({ version: Version }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { version, ...demande } = req.body;
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
+        changement: { etat: poserBonus(systeme, l.etat, demande) },
+        operation: 'bonus',
+        details: { bonus: demande },
+      }));
+      return api(ligne);
+    },
+  );
+
+  r.delete(
+    '/v1/characters/:id/bonus/:bonusId',
+    {
+      ...auth,
+      schema: {
+        params: z.object({ id: IdPersonnage, bonusId: Id }),
+        querystring: z.object({ version: z.coerce.number().int().positive() }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const ligne = await modifierPour(req, req.params.id, req.query.version, (l) => ({
+        changement: { etat: retirerBonus(l.etat, req.params.bonusId) },
+        operation: 'bonus.retrait',
+        details: { bonusId: req.params.bonusId },
       }));
       return api(ligne);
     },

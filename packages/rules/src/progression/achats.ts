@@ -32,7 +32,8 @@ import type {
 } from '../schema/index.js';
 import { arbreOuvert, noeudRelie, noeudsAcquis, noeudsIsoles } from './arbres.js';
 import { solde } from './monnaies.js';
-import { copier, essayer, nouvellePossession, valeurBase, variables } from './outils.js';
+import { nouvellePossession } from '../schema/index.js';
+import { copier, essayer, valeurBase, variables } from './outils.js';
 
 export type TypeAchat = Achat['obtient']['type'];
 

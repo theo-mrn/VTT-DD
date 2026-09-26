@@ -8,6 +8,11 @@ import { HttpError } from '@vtt/platform';
 import {
   acheter,
   acheterEtape,
+  BonusLibre,
+  compilerEffets,
+  Effet,
+  nouvellePossession,
+  variablesSource,
   appliquerModifications,
   calculer,
   choisirEtape,
@@ -272,8 +277,33 @@ export const DemandePossession = z.object({
   champs: z
     .record(Id, z.union([z.number().finite(), z.string().max(10_000), z.boolean()]))
     .optional(),
+  /** Effets propres à l'exemplaire (épée +1, bonus saisi sur un objet) : remplacent les précédents. */
+  effets: z.array(Effet).max(20).optional(),
 });
 export type DemandePossession = z.output<typeof DemandePossession>;
+
+/** Refuse des effets invalides avec le détail de chaque erreur (chemin et message). */
+function verifierEffetsPoses(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  effets: readonly unknown[],
+  prefixe: string,
+  variables: Parameters<typeof compilerEffets>[4],
+): void {
+  const r = compilerEffets(
+    systeme,
+    etat.type,
+    effets,
+    (i, x) => `${prefixe}/effets/${i}/${x}`,
+    variables,
+  );
+  if (r.erreurs.length) {
+    throw refus(
+      `Effets invalides : ${r.erreurs.map((e) => `${e.chemin} : ${e.message}`).join(' ; ')}`,
+      'effets_invalides',
+    );
+  }
+}
 
 /**
  * Ajoute une possession (objet, état, capacité…) ou met à jour celle qui
@@ -298,9 +328,13 @@ export function poserPossession(
       throw refus(`${entree.nom} : choix inconnu ${k}`);
   }
 
+  if (d.effets !== undefined)
+    verifierEffetsPoses(systeme, etat, d.effets, `possessions/${d.entree}`, variablesSource(sorte));
+
   const possessions = etat.possessions.map((p) => ({ ...p }));
   const existante = possessions.find((p) => p.entree === d.entree);
   if (existante) {
+    if (d.effets !== undefined) existante.effets = d.effets;
     if (d.rang !== undefined) existante.rang = d.rang;
     if (d.actif !== undefined) existante.actif = d.actif;
     if (d.choix !== undefined) existante.choix = d.choix;
@@ -311,13 +345,14 @@ export function poserPossession(
     ).length;
     if (sorte.maximum !== undefined && nombre >= sorte.maximum)
       throw refus(`Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} atteint`);
-    possessions.push({
-      entree: d.entree,
-      rang: d.rang ?? 0,
-      actif: d.actif ?? true,
-      choix: d.choix ?? {},
-      champs: d.champs ?? {},
-    });
+    possessions.push(
+      nouvellePossession(d.entree, d.rang ?? 0, {
+        actif: d.actif ?? true,
+        choix: d.choix ?? {},
+        champs: d.champs ?? {},
+        effets: d.effets ?? [],
+      }),
+    );
   }
   return { ...etat, possessions };
 }
@@ -335,6 +370,41 @@ export function retirerPossession(
       throw refus(`Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${entree}`);
   }
   return { ...etat, possessions: etat.possessions.filter((p) => p.entree !== entree) };
+}
+
+// ─── Bonus libres ─────────────────────────────────────────────────────────────
+
+/** Bonus libre reçu du client : identifiant facultatif (créé à partir du nom). */
+export const DemandeBonus = BonusLibre.extend({ id: Id.optional() });
+export type DemandeBonus = z.output<typeof DemandeBonus>;
+
+/** Pose un bonus libre, ou remplace celui qui a le même identifiant. */
+export function poserBonus(systeme: SystemeCharge, etat: EtatEntite, d: DemandeBonus): EtatEntite {
+  const id = d.id ?? identifiantBonus(d.nom, etat);
+  verifierEffetsPoses(systeme, etat, d.effets, `bonus/${id}`, { rang: 'nombre', actif: 'booleen' });
+  const bonus = { ...d, id };
+  const autres = etat.bonus.filter((b) => b.id !== id);
+  if (autres.length >= 100) throw refus('100 bonus libres au plus');
+  return { ...etat, bonus: [...autres, bonus] };
+}
+
+export function retirerBonus(etat: EtatEntite, id: string): EtatEntite {
+  if (!etat.bonus.some((b) => b.id === id)) throw HttpError.notFound(`Bonus introuvable : ${id}`);
+  return { ...etat, bonus: etat.bonus.filter((b) => b.id !== id) };
+}
+
+function identifiantBonus(nom: string, etat: EtatEntite): string {
+  const base =
+    nom
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'bonus';
+  let id = base;
+  for (let n = 2; etat.bonus.some((b) => b.id === id); n++) id = `${base}-${n}`;
+  return id;
 }
 
 // ─── Repos ────────────────────────────────────────────────────────────────────
@@ -435,21 +505,24 @@ export function resoudreAction(
 // ─── Durées ───────────────────────────────────────────────────────────────────
 
 /**
- * Fin de round d'un combat : chaque possession à durée (état temporaire) perd
- * un round ; celles arrivées à 0 sont retirées. `etat` vaut `undefined` si
- * aucune possession n'a de durée (rien à enregistrer).
+ * Fin de round d'un combat : chaque possession à durée (état temporaire) et
+ * chaque bonus libre à durée perd un round ; ceux arrivés à 0 sont retirés
+ * (`bonus:<id>` pour un bonus). `etat` vaut `undefined` s'il n'y a aucune
+ * durée (rien à enregistrer).
  */
 export function decompterDurees(etat: EtatEntite): { etat?: EtatEntite; retirees: string[] } {
-  if (!etat.possessions.some((p) => p.duree !== undefined)) return { retirees: [] };
+  const aDuree = (x: { duree?: number | undefined }) => x.duree !== undefined;
+  if (!etat.possessions.some(aDuree) && !etat.bonus.some(aDuree)) return { retirees: [] };
   const retirees: string[] = [];
-  const possessions = etat.possessions.flatMap((p) => {
-    if (p.duree === undefined) return [p];
-    const duree = p.duree - 1;
-    if (duree <= 0) {
-      retirees.push(p.entree);
+  const decompter = <T extends { duree?: number | undefined }>(x: T, nom: string): T[] => {
+    if (x.duree === undefined) return [x];
+    if (x.duree - 1 <= 0) {
+      retirees.push(nom);
       return [];
     }
-    return [{ ...p, duree }];
-  });
-  return { etat: { ...etat, possessions }, retirees };
+    return [{ ...x, duree: x.duree - 1 }];
+  };
+  const possessions = etat.possessions.flatMap((p) => decompter(p, p.entree));
+  const bonus = etat.bonus.flatMap((b) => decompter(b, `bonus:${b.id}`));
+  return { etat: { ...etat, possessions, bonus }, retirees };
 }

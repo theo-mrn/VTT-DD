@@ -624,7 +624,7 @@ describe('briques génériques (4)', () => {
     for (let i = 0; i < 2; i++)
       etat = appliquerTirage(s4, etat, tirerTable(s4, 'critiques', 0, aleatoireImpose([3])));
     expect(etat.possessions).toEqual([
-      { entree: 'coupure', rang: 2, actif: true, choix: {}, champs: {} },
+      { entree: 'coupure', rang: 2, actif: true, choix: {}, champs: {}, effets: [] },
     ]);
   });
 });

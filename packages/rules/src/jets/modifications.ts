@@ -6,7 +6,7 @@
  */
 import type { Fiche } from '../calcul/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
-import type { EtatEntite } from '../schema/index.js';
+import { nouvellePossession, type EtatEntite } from '../schema/index.js';
 
 export interface ModificationAttribut {
   /** Entité touchée : l'acteur ou la cible de l'action. */
@@ -106,14 +106,13 @@ function modifierPossession(
       if (m.duree !== undefined) existante.duree = Math.max(existante.duree ?? 0, m.duree);
       return liste;
     }
-    liste.push({
-      entree: m.entree,
-      rang: aRangs ? rangs : 0,
-      actif: true,
-      choix: {},
-      champs: {},
-      ...(m.duree !== undefined ? { duree: m.duree } : {}),
-    });
+    liste.push(
+      nouvellePossession(
+        m.entree,
+        aRangs ? rangs : 0,
+        m.duree !== undefined ? { duree: m.duree } : {},
+      ),
+    );
     return liste;
   }
 
@@ -144,7 +143,7 @@ export function appliquerTirage(
   if (existante) {
     if (aRangs) existante.rang += 1;
   } else {
-    possessions.push({ entree: id, rang: aRangs ? 1 : 0, actif: true, choix: {}, champs: {} });
+    possessions.push(nouvellePossession(id, aRangs ? 1 : 0));
   }
   return { ...etat, possessions };
 }

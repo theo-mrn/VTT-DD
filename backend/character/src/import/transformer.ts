@@ -21,6 +21,7 @@ import {
   examinerAchat,
   nombreChoix,
   noeudsIsoles,
+  nouvellePossession,
   type Entree,
   type Fiche,
   type LigneJournal,
@@ -167,14 +168,7 @@ class Brouillon {
   posseder(id: string, init: Partial<Omit<Possession, 'entree'>> = {}): Possession {
     const deja = this.possession(id);
     if (deja) return deja;
-    const p: Possession = {
-      entree: id,
-      rang: init.rang ?? 0,
-      actif: init.actif ?? true,
-      choix: init.choix ?? {},
-      champs: init.champs ?? {},
-      ...(init.duree !== undefined ? { duree: init.duree } : {}),
-    };
+    const p = nouvellePossession(id, init.rang ?? 0, init);
     this.possessions.push(p);
     return p;
   }

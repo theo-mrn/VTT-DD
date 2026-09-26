@@ -6,8 +6,12 @@
  * Le calcul ne lève jamais d'erreur pour une donnée de jeu : une formule qui
  * échoue (division par zéro…) donne 0 et une erreur listée dans `erreurs`.
  */
-import type { EntiteChargee, SystemeCharge } from '../chargement/index.js';
-import { chemins } from '../chargement/index.js';
+import type { EffetsCompiles, EntiteChargee, SystemeCharge } from '../chargement/index.js';
+import {
+  chemins,
+  compilerEffets,
+  variablesSource as variablesDeSorte,
+} from '../chargement/index.js';
 import {
   ErreurEvaluation,
   evaluer,
@@ -15,7 +19,15 @@ import {
   type FormuleVerifiee,
   type Valeur,
 } from '../formules/index.js';
-import type { Attribut, Effet, Entree, EtatEntite, Possession, Sorte } from '../schema/index.js';
+import type {
+  Attribut,
+  BonusLibre,
+  Effet,
+  Entree,
+  EtatEntite,
+  Possession,
+  Sorte,
+} from '../schema/index.js';
 
 export type Operation =
   'base' | 'formule' | 'ajouter' | 'multiplier' | 'fixer' | 'minimum' | 'maximum' | 'borne';
@@ -54,6 +66,26 @@ export interface PossessionEffective {
   sources: string[];
 }
 
+/**
+ * Source d'effets active sur l'entité. Trois genres, un seul traitement :
+ *   - `entree`     : effets du catalogue d'une entrée possédée (race, talent…) ;
+ *   - `exemplaire` : effets propres à un exemplaire possédé (épée +1, bonus saisi) ;
+ *   - `bonus`      : bonus libre posé sur l'entité (potion, bénédiction, MJ).
+ */
+export interface SourceEffets {
+  /** Identifiant affiché dans les explications : `entree`, `entree#exemplaire`, `bonus:id`. */
+  id: string;
+  nom: string;
+  genre: 'entree' | 'exemplaire' | 'bonus';
+  effets: readonly Effet[];
+  /** Formule compilée d'un effet (`undefined` si l'effet est invalide et ignoré). */
+  formule(i: number, champ: string): FormuleVerifiee | undefined;
+  /** Variables de la source : `rang`, `actif`, `source.<champ>`. */
+  variable(nom: string): Valeur;
+  possession?: PossessionEffective;
+  bonus?: BonusLibre;
+}
+
 export interface ErreurCalcul {
   /** Attribut ou chemin concerné. */
   ou: string;
@@ -75,6 +107,32 @@ export interface Fiche {
   contexte(extra?: Partial<ContexteEvaluation>): ContexteEvaluation;
   /** Évalue une formule compilée sur cette fiche ; les erreurs deviennent `defaut`. */
   evaluer(f: FormuleVerifiee, extra?: Partial<ContexteEvaluation>, defaut?: Valeur): Valeur;
+  /** Sources d'effets actives (entrées, exemplaires, bonus libres). */
+  sources: SourceEffets[];
+}
+
+/**
+ * Effets propres à une entité, compilés une fois par système et par contenu :
+ * le calcul est rejoué à chaque écriture, la compilation ne l'est pas.
+ */
+const cacheEffets = new WeakMap<SystemeCharge, Map<string, EffetsCompiles>>();
+function effetsCompiles(
+  systeme: SystemeCharge,
+  type: string,
+  prefixe: string,
+  effets: readonly Effet[],
+  variables: Parameters<typeof compilerEffets>[4],
+): EffetsCompiles {
+  let cache = cacheEffets.get(systeme);
+  if (!cache) cacheEffets.set(systeme, (cache = new Map()));
+  const cle = `${type}\n${prefixe}\n${JSON.stringify(effets)}`;
+  let c = cache.get(cle);
+  if (!c) {
+    c = compilerEffets(systeme, type, effets, (i, x) => `${prefixe}/effets/${i}/${x}`, variables);
+    if (cache.size > 500) cache.clear();
+    cache.set(cle, c);
+  }
+  return c;
 }
 
 const PHASES: Operation[] = ['fixer', 'ajouter', 'multiplier', 'minimum', 'maximum'];
@@ -190,6 +248,78 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
     };
 
+  // ─── Sources d'effets ─────────────────────────────────────────────────────
+
+  const signaler = (c: EffetsCompiles) => {
+    for (const e of c.erreurs)
+      erreurs.push({ ou: e.chemin, message: `Effet invalide, ignoré : ${e.message}` });
+  };
+
+  /** Effets du catalogue de l'entrée, puis effets propres à l'exemplaire. */
+  const sourcesDe = (p: PossessionEffective): SourceEffets[] => {
+    const variable = variablesSource(p);
+    const r: SourceEffets[] = [];
+    if (p.entree.effets.length) {
+      r.push({
+        id: p.entree.id,
+        nom: p.entree.nom,
+        genre: 'entree',
+        effets: p.entree.effets,
+        formule: (i, x) => systeme.formules.get(chemins.effet(p.entree.id, i, x)),
+        variable,
+        possession: p,
+      });
+    }
+    const propres = p.possession?.effets ?? [];
+    if (propres.length) {
+      const prefixe = `possessions/${p.entree.id}`;
+      const c = effetsCompiles(systeme, etat.type, prefixe, propres, variablesDeSorte(p.sorte));
+      signaler(c);
+      r.push({
+        id: `${p.entree.id}#exemplaire`,
+        nom: p.entree.nom,
+        genre: 'exemplaire',
+        effets: propres,
+        formule: (i, x) => c.formules.get(`${prefixe}/effets/${i}/${x}`),
+        variable,
+        possession: p,
+      });
+    }
+    return r;
+  };
+
+  /** Bonus libres actifs : variables `rang` = 1 et `actif` = vrai, pas de champs. */
+  const sourcesBonus = (): SourceEffets[] =>
+    etat.bonus
+      .filter((b) => b.actif)
+      .map((b) => {
+        const prefixe = `bonus/${b.id}`;
+        const c = effetsCompiles(systeme, etat.type, prefixe, b.effets, {
+          rang: 'nombre',
+          actif: 'booleen',
+        });
+        signaler(c);
+        return {
+          id: `bonus:${b.id}`,
+          nom: b.nom,
+          genre: 'bonus' as const,
+          effets: b.effets,
+          formule: (i: number, x: string) => c.formules.get(`${prefixe}/effets/${i}/${x}`),
+          variable: (nom: string): Valeur => {
+            if (nom === 'rang') return 1;
+            if (nom === 'actif') return true;
+            throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
+          },
+          bonus: b,
+        };
+      });
+
+  /** Toutes les sources actives : possessions actives et effectives, bonus libres actifs. */
+  const sourcesActives = (): SourceEffets[] => [
+    ...[...possessions.values()].filter((p) => p.actif && estEffective(p)).flatMap(sourcesDe),
+    ...sourcesBonus(),
+  ];
+
   // ─── 1. Possessions effectives ────────────────────────────────────────────
 
   const ajouterPossession = (
@@ -281,17 +411,22 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       marques.set(id, s);
     };
 
+    for (const s of sourcesActives()) {
+      const vars = { variable: s.variable };
+      s.effets.forEach((f, i) => {
+        if (f.sur !== 'rang' && f.sur !== 'marque') return;
+        const cond = s.formule(i, 'condition');
+        if (f.condition !== undefined && !cond) return;
+        if (cond && evaluerSur(cond, vars, false) !== true) return;
+        if (f.sur === 'marque') return f.entrees.forEach((id) => marquer(id, f.marque));
+        const valeurF = s.formule(i, 'valeur');
+        if (!valeurF) return;
+        donner(f.entree, Number(evaluerSur(valeurF, vars)), s.id);
+      });
+    }
     for (const p of possessions.values()) {
       if (!p.actif || !estEffective(p)) continue;
       const vars = { variable: variablesSource(p) };
-      p.entree.effets.forEach((f, i) => {
-        if (f.sur !== 'rang' && f.sur !== 'marque') return;
-        const cond = systeme.formules.get(chemins.effet(p.entree.id, i, 'condition'));
-        if (cond && evaluerSur(cond, vars, false) !== true) return;
-        if (f.sur === 'marque') return f.entrees.forEach((id) => marquer(id, f.marque));
-        const v = evaluerSur(systeme.formule(chemins.effet(p.entree.id, i, 'valeur')), vars);
-        donner(f.entree, Number(v), p.entree.id);
-      });
       for (const c of p.entree.choix) {
         const choisis = p.possession?.choix[c.id] ?? [];
         if (c.donne.type === 'marque') {
@@ -315,7 +450,8 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
   // ─── 2. Effets sur les attributs ──────────────────────────────────────────
 
   interface EffetActif {
-    p: PossessionEffective;
+    sourceId: string;
+    variable: (nom: string) => Valeur;
     operation: Extract<Effet, { sur: 'attribut' }>['operation'];
     valeur: FormuleVerifiee;
     condition?: FormuleVerifiee | undefined;
@@ -328,19 +464,40 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     l.push(e);
     effetsPar.set(cle, l);
   };
-  for (const p of possessions.values()) {
-    if (!p.actif || !estEffective(p)) continue;
-    p.entree.effets.forEach((f, i) => {
+  const sources = sourcesActives();
+  const rangDans = (cle: string) => entite.ordre.indexOf(cle);
+  for (const s of sources) {
+    s.effets.forEach((f, i) => {
       if (f.sur !== 'attribut') return;
+      const valeurF = s.formule(i, 'valeur');
+      const condition = s.formule(i, 'condition');
+      if (!valeurF || (f.condition !== undefined && !condition)) return;
+      // Un effet du catalogue est ordonné au chargement ; un effet posé sur
+      // l'entité ne peut lire que des attributs calculés avant sa cible
+      if (s.genre !== 'entree') {
+        const lus = [...valeurF.dependances, ...(condition?.dependances ?? [])];
+        const tardif = lus.find((d) => rangDans(d) >= rangDans(f.attribut));
+        if (tardif) {
+          erreurs.push({
+            ou: s.id,
+            message: `Effet ignoré : il lit @${tardif}, calculé après @${f.attribut}`,
+          });
+          return;
+        }
+      }
       pousser(f.attribut, {
-        p,
+        sourceId: s.id,
+        variable: s.variable,
         operation: f.operation,
-        valeur: systeme.formule(chemins.effet(p.entree.id, i, 'valeur')),
-        condition: systeme.formules.get(chemins.effet(p.entree.id, i, 'condition')),
+        valeur: valeurF,
+        condition,
         famille: f.famille,
-        nom: f.description ?? p.entree.nom,
+        nom: f.description ?? s.nom,
       });
     });
+  }
+  for (const p of possessions.values()) {
+    if (!p.actif || !estEffective(p)) continue;
     // Choix d'attributs : un effet par attribut retenu
     for (const c of p.entree.choixAttributs) {
       const retenus = p.possession?.choix[c.id] ?? [];
@@ -376,7 +533,8 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
           continue;
         }
         pousser(cle, {
-          p,
+          sourceId: p.entree.id,
+          variable: variablesSource(p),
           operation: c.operation,
           valeur: systeme.formule(chemins.choixAttribut(p.entree.id, c.id)),
           nom: `${p.entree.nom} (${c.nom})`,
@@ -388,11 +546,11 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
   const appliquerEffets = (cle: string, depart: Valeur, detail: LigneExplication[]): Valeur => {
     const actifs: { op: Operation; v: Valeur; famille?: string; ligne: LigneExplication }[] = [];
     for (const e of effetsPar.get(cle) ?? []) {
-      const vars = { variable: variablesSource(e.p) };
+      const vars = { variable: e.variable };
       if (e.condition && evaluerSur(e.condition, vars, false, cle) !== true) continue;
       const v = evaluerSur(e.valeur, vars, 0, cle);
       const ligne: LigneExplication = {
-        source: e.p.entree.id,
+        source: e.sourceId,
         nom: e.nom,
         operation: e.operation,
         valeur: v,
@@ -574,6 +732,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     valeur,
     contexte,
     evaluer: (f, extra, defaut) => evaluerSur(f, extra, defaut),
+    sources,
   };
 }
 
