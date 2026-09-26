@@ -1,0 +1,30 @@
+{
+  "name": "@vtt/systemes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Systèmes de jeu de référence, écrits en données et validés par @vtt/rules",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node dist/assembler.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "prettier --check src"
+  },
+  "dependencies": {
+    "@vtt/rules": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "vitest": "^3.2.7",
+    "yaml": "^2.9.1"
+  }
+}

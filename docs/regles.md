@@ -176,7 +176,7 @@ Deux systèmes complets sont écrits en données dès le départ, et prouvent qu
 - **D&D classique** : port de `dnd-classic` ;
 - **Star Wars, Aux confins de l'Empire** : port du bundle (`table.json`), avec toute la progression, le combat à dés à symboles, les arbres de talents et les blessures critiques.
 
-Chaque système est un dossier versionné du dépôt (`content/systemes/<id>/` : règles, catalogues, textes, présentation), chargé et validé en CI. Les systèmes créés par les MJ dans l'app suivent exactement le même schéma, mais sont stockés en base.
+Chaque système est un dossier versionné de `packages/systemes/systemes/<id>/` : `systeme.yaml` pour les règles, `catalogue/*.yaml`, `arbres/*.yaml`, `tables/*.yaml` et `textes/*.md`. Le build de `@vtt/systemes` assemble chaque système, le valide entièrement et échoue à la moindre erreur ; la CI vérifie donc chaque système à chaque commit. Les systèmes créés par les MJ dans l'app suivent exactement le même schéma, mais sont stockés en base.
 
 ## Ce que ça change pour la suite
 
