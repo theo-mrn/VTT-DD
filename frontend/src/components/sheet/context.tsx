@@ -15,6 +15,7 @@ import {
   recuperer,
   rembourser as rembourserLocal,
   type AchatDisponible,
+  type BonusLibre,
   type EtatEntite,
   type Fiche,
   type FicheJson,
@@ -34,6 +35,7 @@ import {
   writes,
   getPurchases,
   useVersionedRead,
+  type BonusRequest,
   type PossessionUpdate,
   type Character,
   type CharacterTracker,
@@ -65,13 +67,33 @@ export interface SheetContextValue {
   updatePossession(update: PossessionUpdate): Promise<boolean>;
   removePossession(entry: string): Promise<boolean>;
   rest(attributes?: string[]): Promise<boolean>;
+  /** Pose un bonus libre (ou remplace celui qui a le même identifiant). */
+  addBonus(bonus: BonusRequest): Promise<boolean>;
+  /** Active ou désactive un bonus libre existant. */
+  setBonusActive(id: string, active: boolean): Promise<boolean>;
+  removeBonus(id: string): Promise<boolean>;
+}
+
+/** État avec ce bonus libre posé (à la place de celui qui a le même identifiant). */
+function withBonus(e: EtatEntite, bonus: BonusLibre): EtatEntite {
+  const s = copier(e);
+  s.bonus = [...s.bonus.filter((b) => b.id !== bonus.id), bonus];
+  return s;
+}
+
+/** Identifiant provisoire d'un nouveau bonus, pour l'aperçu (le serveur fixe le vrai). */
+function previewBonusId(name: string, e: EtatEntite): string {
+  const base = `apercu-${name.length}`;
+  let id = base;
+  for (let n = 2; e.bonus.some((b) => b.id === id); n++) id = `${base}-${n}`;
+  return id;
 }
 
 const SheetContext = createContext<SheetContextValue | null>(null);
 
 export function useSheet(): SheetContextValue {
   const c = useContext(SheetContext);
-  if (!c) throw new Error('useFiche doit être utilisé dans <FournisseurFiche>');
+  if (!c) throw new Error('useSheet doit être utilisé dans <SheetProvider>');
   return c;
 }
 
@@ -178,6 +200,7 @@ export function SheetProvider({
             if (update.actif !== undefined) p.actif = update.actif;
             if (update.choix) p.choix = { ...p.choix, ...update.choix };
             if (update.champs) p.champs = { ...p.champs, ...update.champs };
+            if (update.effets) p.effets = update.effets;
             return s;
           }),
         ),
@@ -194,6 +217,25 @@ export function SheetProvider({
         write(
           writes.rest(attributes),
           attempt((e) => recuperer(calculer(system, e), attributes)),
+        ),
+      addBonus: (bonus) =>
+        write(
+          writes.bonus(bonus),
+          attempt((e) => withBonus(e, { ...bonus, id: bonus.id ?? previewBonusId(bonus.nom, e) })),
+        ),
+      setBonusActive: (id, active) => {
+        const b = state.bonus.find((x) => x.id === id);
+        if (!b) return Promise.resolve(false);
+        const next = { ...b, actif: active };
+        return write(
+          writes.bonus(next),
+          attempt((e) => withBonus(e, next)),
+        );
+      },
+      removeBonus: (id) =>
+        write(
+          writes.removeBonus(id),
+          attempt((e) => ({ ...copier(e), bonus: e.bonus.filter((b) => b.id !== id) })),
         ),
     };
   }, [

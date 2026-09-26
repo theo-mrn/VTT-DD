@@ -9,7 +9,15 @@
  */
 'use client';
 
-import type { AchatDisponible, EtatEntite, EtatEtape, FicheJson, Valeur } from '@vtt/rules';
+import type {
+  AchatDisponible,
+  BonusLibre,
+  Effet,
+  EtatEntite,
+  EtatEtape,
+  FicheJson,
+  Valeur,
+} from '@vtt/rules';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, errorMessage } from './api';
 import { useResource } from './resource';
@@ -56,7 +64,12 @@ export interface PossessionUpdate {
   actif?: boolean;
   choix?: Record<string, string[]>;
   champs?: Record<string, number | string | boolean>;
+  /** Effets propres à l'exemplaire (épée +1…) : remplacent les précédents. */
+  effets?: Effet[];
 }
+
+/** Bonus libre envoyé au service : sans identifiant, il est créé à partir du nom. */
+export type BonusRequest = Omit<BonusLibre, 'id'> & { id?: string };
 
 const path = (id: string, suffix = '') => `/v1/characters/${encodeURIComponent(id)}${suffix}`;
 
@@ -117,6 +130,14 @@ export const writes = {
       }),
   rest: (attributes?: string[]) =>
     send('/repos', 'POST', attributes ? { attributs: attributes } : {}),
+  /** Pose un bonus libre, ou remplace celui qui a le même identifiant. */
+  bonus: (bonus: BonusRequest) => send('/bonus', 'POST', { ...bonus }),
+  removeBonus:
+    (bonusId: string): Write =>
+    (id, version) =>
+      api<Character>(path(id, `/bonus/${encodeURIComponent(bonusId)}?version=${version}`), {
+        method: 'DELETE',
+      }),
 };
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
