@@ -12,7 +12,8 @@
     "lint": {},
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["TEST_DATABASE_URL"]
     },
     "dev": {
       "cache": false,
