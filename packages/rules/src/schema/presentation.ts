@@ -105,6 +105,13 @@ export const Presentation = z.object({
       glyphes: z.object({ base: z.string().max(4), ameliore: z.string().max(4) }).optional(),
     })
     .optional(),
+  /** Libellé et icône des marques posées par les règles (`carriere` → « Carrière »). */
+  marques: z
+    .record(
+      z.string(),
+      z.object({ nom: Libelle, icone: z.string().max(60).optional(), couleur: Couleur.optional() }),
+    )
+    .default({}),
   /** Par clé de symbole ou de résultat (`succes`, `succesNets`, `triomphes`…). */
   symboles: z.record(z.string(), ApparenceSymbole).default({}),
   /** Sens d'affichage des ressources : `descendant` = pleine au départ (PV), `montant` = se remplit (Blessures). */
@@ -171,6 +178,10 @@ export function verifierPresentation(
 
   const attributDe = (entite: string, cle: string) =>
     systeme.entites.get(entite)?.attributs.get(cle);
+  for (const m of Object.keys(p.marques)) {
+    if (!systeme.marques.has(m))
+      erreur(`marques/${m}`, `Marque jamais posée par les règles : ${m}`);
+  }
   for (const cle of Object.keys(p.ressources)) {
     const ok = [...systeme.entites.keys()].some((e) => attributDe(e, cle)?.nature === 'ressource');
     if (!ok) erreur(`ressources/${cle}`, `Ressource inconnue : ${cle}`);

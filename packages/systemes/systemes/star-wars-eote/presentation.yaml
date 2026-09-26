@@ -63,6 +63,11 @@ symboles:
   coteLumineux: { icone: sun, couleur: '#f8fafc', court: Lumineux }
   coteObscur: { icone: moon, couleur: '#64748b', court: Obscur }
 
+# Marques posées par les règles
+marques:
+  carriere: { nom: Carrière, icone: star, couleur: '#ffe81f' }
+  precisionMortelle: { nom: Précision mortelle, icone: crosshair }
+
 # Les jauges Star Wars se remplissent : 0 = indemne, le seuil = hors de combat
 ressources:
   blessures: { sens: montant, couleur: '#ef4444' }

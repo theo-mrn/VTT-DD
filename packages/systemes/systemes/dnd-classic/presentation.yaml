@@ -28,6 +28,10 @@ des:
     d12: { couleur: '#c2956a', forme: d12 }
     d20: { couleur: '#d0ad8b', forme: d20 }
 
+# Marques posées par les règles
+marques:
+  predilection: { nom: Arme de prédilection, icone: sword }
+
 # Les PV partent du maximum et descendent
 ressources:
   PV: { sens: descendant, couleur: '#dc2626' }
