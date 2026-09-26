@@ -126,6 +126,7 @@ const bothan = perso('salleSW', 'bothan1', {
   Obligations: [{ value: 10, text: 'Prime sur ma tête posée par Jabba' }],
   Background: 'Ancien informateur du réseau bothan.',
   Description: 'Fourrure grise, cicatrice à l’oreille.',
+  customFields: [{ id: 'c1', label: 'Réputation', type: 'number', value: 3 }],
   x: 500,
   y: 500,
   visibility: 'visible',
@@ -240,6 +241,7 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
     avertit(r, /Sabre laser de famille.*absent du catalogue/);
     avertit(r, /Stimpack.*3 exemplaires/);
     avertit(r, /Bonus « Stim » \(vigueur \+1\) non migré/);
+    avertit(r, /Champ personnalisé « Réputation » \(3\) non migré/);
   });
 });
 

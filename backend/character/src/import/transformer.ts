@@ -896,6 +896,13 @@ export function transformerPersonnage(
     avertir(`Migration interrompue : ${e instanceof Error ? e.message : String(e)}`);
   }
 
+  // Champs ajoutés à la main sur la fiche (CustomField de l'ancienne app) : sans attribut cible
+  for (const c of Array.isArray(p.customFields) ? (p.customFields as unknown[]) : []) {
+    const champ = c as { label?: unknown; value?: unknown };
+    if (texte(champ.label) && champ.value !== undefined && champ.value !== '')
+      avertir(`Champ personnalisé « ${texte(champ.label)} » (${String(champ.value)}) non migré`);
+  }
+
   let etat: EtatEntite;
   try {
     etat = b.etat();
