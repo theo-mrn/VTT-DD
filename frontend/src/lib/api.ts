@@ -18,7 +18,23 @@ export class ApiError extends Error {
   constructor(readonly problem: ProblemDetail) {
     super(problem.detail ?? problem.title);
   }
+
+  get status() {
+    return this.problem.status;
+  }
 }
+
+/** Message lisible pour l'utilisateur : le `detail` du problème, sinon un message générique. */
+export function messageErreur(
+  err: unknown,
+  parDefaut = 'Serveur injoignable, réessayez dans un instant.',
+): string {
+  if (err instanceof ApiError) return err.message || err.problem.title || parDefaut;
+  return parDefaut;
+}
+
+/** En-tête exigé par les routes qui lisent le cookie de refresh (protection CSRF). */
+export const ENTETE_CSRF = { 'x-vtt-csrf': '1' } as const;
 
 interface TokenResponse {
   accessToken: string;
@@ -44,7 +60,7 @@ async function lireErreur(res: Response): Promise<ApiError> {
 async function renouveler(): Promise<string | null> {
   const res = await fetch('/v1/auth/refresh', {
     method: 'POST',
-    headers: { 'x-vtt-csrf': '1' },
+    headers: ENTETE_CSRF,
     credentials: 'same-origin',
   });
   if (!res.ok) {
@@ -88,7 +104,10 @@ export async function api<T>(chemin: string, init: RequestInit = {}): Promise<T>
     res = await appel(await refreshSession());
   }
   if (!res.ok) throw await lireErreur(res);
-  return (res.status === 204 ? undefined : await res.json()) as T;
+  if (res.status === 204) return undefined as T;
+  // Certaines réponses (202) n'ont pas de corps
+  const texte = await res.text();
+  return (texte ? JSON.parse(texte) : undefined) as T;
 }
 
 export async function connexion(email: string, password: string) {
@@ -110,10 +129,13 @@ export async function inscription(email: string, password: string, name: string)
 }
 
 export async function deconnexion() {
-  await fetch('/v1/auth/logout', {
-    method: 'POST',
-    headers: { 'x-vtt-csrf': '1' },
-    credentials: 'same-origin',
-  });
-  jetonAcces = null;
+  try {
+    await fetch('/v1/auth/logout', {
+      method: 'POST',
+      headers: ENTETE_CSRF,
+      credentials: 'same-origin',
+    });
+  } finally {
+    jetonAcces = null;
+  }
 }
