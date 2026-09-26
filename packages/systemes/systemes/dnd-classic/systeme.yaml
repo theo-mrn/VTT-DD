@@ -161,6 +161,26 @@ entites:
         nature: derivee
         formule: 0
         groupe: combat
+      - cle: RDArmes
+        nom: RD contre les armes
+        description: >-
+          Réduction supplémentaire des DM des attaques physiques (armes, attaques
+          naturelles, au contact ou à distance), mais pas de la magie.
+        nature: derivee
+        formule: 0
+        groupe: combat
+      - cle: DefContact
+        nom: DEF contre le contact
+        description: Bonus de Défense contre les seules attaques au contact.
+        nature: derivee
+        formule: 0
+        groupe: combat
+      - cle: DefMagie
+        nom: DEF contre la magie
+        description: Bonus de Défense contre les seules attaques magiques.
+        nature: derivee
+        formule: 0
+        groupe: combat
 
       # ─── Vitalité ───
       - cle: PV_Max
@@ -189,6 +209,12 @@ entites:
         nature: base
         defaut: 0
         min: 0
+        groupe: equipement
+      - cle: ArmurePortee
+        nom: Armures portées
+        description: Nombre d'armures équipées, boucliers exclus (0 = sans armure).
+        nature: derivee
+        formule: compte_actifs("armure") - somme_actifs("armure", "bouclier")
         groupe: equipement
 
 sortes:
@@ -219,13 +245,42 @@ sortes:
     description: >-
       Capacité d'une voie ou capacité raciale, accordée par un rang gratuit.
       Les capacités chiffrées portent leurs effets ; les capacités actives
-      ouvrent une action (condition « possede »).
+      ouvrent une action (condition « possede »). Étiquette « test » : bonus
+      invoqué au test de caractéristique (paramètre « Capacité invoquée ») ;
+      étiquette « sort » : sort d'attaque lancé par l'action « Sort ».
     pour: [personnage]
     rangs: { max: 1 }
-    champs:
+    champs: &champs-capacite
       - { id: voie, nom: Voie, type: entree, sorte: voie }
       - { id: rangVoie, nom: Rang dans la voie, type: nombre }
       - { id: activation, nom: Activation, type: texte }
+      # Bonus situationnel invoqué au test (« +2 par rang aux tests de survie »)
+      - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
+      - { id: avantageTest, nom: Avantage au test invoqué, type: nombre, defaut: 0 }
+      # Caractéristique retenue par le joueur (Tatouages…)
+      - { id: carac, nom: Caractéristique choisie, type: attribut, entite: personnage }
+      # Sort d'attaque (action « Sort ») : dés de DM et défense visée
+      - { id: nbDes, nom: Dés de DM du sort, type: nombre, defaut: 0 }
+      - { id: faces, nom: Faces des dés du sort, type: nombre, defaut: 6 }
+      - { id: bonusDegats, nom: Bonus aux DM du sort, type: formule }
+      - {
+          id: contre,
+          nom: 'Défense visée (Defense, PV, PV_Max, SAG)',
+          type: texte,
+          defaut: Defense,
+        }
+  - id: capacite_active
+    nom: Capacité à activer
+    nomPluriel: Capacités à activer
+    description: >-
+      Capacité d'une voie dont les effets ne comptent que lorsque le joueur
+      l'active (sort de durée, rage, transformation, posture…) : inactive par
+      défaut, activée par une possession explicite « actif ».
+    pour: [personnage]
+    rangs: { max: 1 }
+    activable: true
+    actifParDefaut: false
+    champs: *champs-capacite
   - id: arme
     nom: Arme
     pour: [personnage]
@@ -235,6 +290,7 @@ sortes:
       - { id: nbDes, nom: Nombre de dés de dégâts, type: nombre, defaut: 1 }
       - { id: faces, nom: Faces des dés de dégâts, type: nombre, defaut: 4 }
       - { id: bonusDegats, nom: Bonus aux dégâts, type: formule, defaut: 0 }
+      - { id: critique, nom: Critique à partir de (d20 naturel), type: nombre, defaut: 20 }
       - { id: portee, nom: Portée, type: texte }
       - { id: prix, nom: Prix (pa), type: nombre }
   - id: armure
@@ -244,7 +300,9 @@ sortes:
     activable: true
     champs:
       - { id: def, nom: Bonus de DEF, type: nombre, defaut: 0 }
-      - { id: bouclier, nom: Bouclier (1) ou armure (0), type: nombre, defaut: 0 }
+      - { id: bouclier, nom: Bouclier, type: booleen, defaut: false }
+      - { id: lourde, nom: Armure lourde (demi-plaque ou plus), type: booleen, defaut: false }
+      - { id: metallique, nom: Armure métallique, type: booleen, defaut: false }
       - { id: prix, nom: Prix (pa), type: nombre }
   - id: bonus
     nom: Bonus
@@ -267,6 +325,14 @@ sortes:
       - { id: PV_Max, nom: PV max, type: nombre, defaut: 0 }
   - id: etat
     nom: État
+    pour: [personnage]
+  - id: type_creature
+    nom: Type de créature
+    nomPluriel: Types de créature
+    description: >-
+      Marque posée par le MJ sur une fiche (mort-vivant, démon, humanoïde,
+      grande taille…) : les bonus « contre les morts-vivants » la lisent chez
+      la cible (cible_possede).
     pour: [personnage]
 
 # ─── Progression : voies et équipement ──────────────────────────────────────
@@ -340,6 +406,19 @@ creation:
 
 # ─── Jets et actions ────────────────────────────────────────────────────────
 # Avantage : 2d20 garder le meilleur ; désavantage : le pire ; les deux s'annulent.
+# La variable `avantages` (paramètres, puis effets de jet : « 2d20 aux tests de
+# FOR », états…) choisit le dé : > 0 → 2d20 le meilleur, < 0 → le pire.
+#
+# Variables communes des attaques, que les effets de jet des capacités modifient
+# (`ajout: { variable: …, ajouter: … }`) :
+#   bonusAttaque, bonusDM, desDM  bonus contre certains types de créatures de la
+#                                 cible (cible_possede), puis effets ; desDM en d6
+#   desCritique                   d6 ajoutés aux seuls critiques
+#   multCritique                  multiplicateur des dés de l'arme au critique
+#   seuilCritique                 d20 naturel à partir duquel l'attaque est critique
+#   reduction, demiDM, instinct   effets défensifs de la cible (`cote: cible`) :
+#                                 DM retranchés, DM divisés par 2, DM divisés par 2
+#                                 s'ils devaient l'amener à 0 PV
 # Une attaque qui touche inflige ses dégâts (`apres`), moins la RD de la cible
 # (au moins 1 DM), retirés des PV de la cible.
 actions:
@@ -348,25 +427,143 @@ actions:
     description: >-
       1d20 + score d'attaque de l'arme (Contact ou Distance) contre la Défense de
       la cible. Critique à partir de « Critique » (20 naturel par défaut) : touche
-      toujours et double les dés de l'arme ; un 1 naturel rate toujours.
+      toujours et double les dés de l'arme ; un 1 naturel rate toujours. Options
+      réservées aux capacités qui les ouvrent.
     pour: [personnage]
     cible: personnage
     parametres:
       - &arme { id: arme, nom: Arme, type: entree, sorte: arme }
       - &avantage { id: avantage, nom: Avantage, type: booleen }
       - &desavantage { id: desavantage, nom: Désavantage, type: booleen }
+      - id: auD12
+        nom: 'Attaque au d12 (Déluge de coups, Danse des lames, Combat à deux armes)'
+        type: booleen
+        exige: 'possede("moine-poing-deluge-de-coups") ou possede("prestige-guerrier-danseur-de-guerre-danse-des-lames") ou possede("race-elfe-noir-combat-a-2-armes")'
+      - id: double
+        nom: 'Double attaque (−2 en attaque)'
+        type: booleen
+        exige: 'possede("guerrier-combat-double-attaque") ou possede("samourai-sabre-lames-jumelles")'
+      - id: outrance
+        nom: 'Attaque à outrance (−2 DEF : +1d6 DM)'
+        type: booleen
+        exige: 'possede("prestige-guerrier-armes-a-2-mains-attaque-a-outrance")'
+      - id: outranceTotale
+        nom: 'Attaque à outrance (−5 DEF : +2d6 DM)'
+        type: booleen
+        exige: 'possede("prestige-guerrier-armes-a-2-mains-attaque-a-outrance")'
+      - id: premiereAttaque
+        nom: 'Première attaque du combat (À l’abordage +5/+1d6, Frappe du vide +2/+1d6)'
+        type: booleen
+        exige: 'possede("prestige-arquebusier-flibustier-a-l-abordage") ou possede("samourai-sabre-frappe-du-vide")'
+      - id: nouvelleCible
+        nom: 'Cible différente du tour précédent (Volte-face : +2, +1d6 DM)'
+        type: booleen
+        exige: 'possede("prestige-guerrier-danseur-de-guerre-volte-face")'
+      - id: simultanee
+        nom: 'Attaque simultanée avec un allié (+2, +1d6 DM)'
+        type: booleen
+        exige: 'possede("race-frouin-attaque-simultanee")'
+      - id: cibleDefiee
+        nom: 'Contre l’adversaire défié (Défi : + rang aux DM)'
+        type: booleen
+        exige: 'possede("samourai-honneur-defi")'
+      - id: gage
+        nom: 'Combat pour sa dame, gage porté (Amour courtois : +2, +2 DM)'
+        type: booleen
+        exige: 'possede("prestige-chevalier-tournoi-amour-courtois")'
+      - id: allies
+        nom: 'Alliés au contact de la cible (Lois de la meute, Combat en phalange : +1 chacun)'
+        type: nombre
+        exige: 'possede("race-wolfer-lois-de-la-meute") ou possede("guerrier-soldat-combat-en-phalange")'
+      - id: pasDeQuartier
+        nom: 'Attaque gratuite contre un fuyard (Pas de quartier : +5, +1d6 DM)'
+        type: booleen
+        exige: 'possede("prestige-arquebusier-flibustier-pas-de-quartier")'
+      - id: assautFinal
+        nom: 'Assaut final : DM doublés, la rage prend fin'
+        type: booleen
+        exige: 'possede("prestige-barbare-glaces-assaut-final")'
+      - id: degatsMax
+        nom: 'DM maximum de l’arme (Kiai, Rune de puissance)'
+        type: booleen
+        exige: 'possede("samourai-ki-kiai") ou possede("forgesort-runes-rune-de-puissance")'
+      - id: perfection
+        nom: 'Moment de perfection : réussite automatique'
+        type: booleen
+        exige: 'possede("moine-maitrise-moment-de-perfection")'
+      - &p-ouverture
+        id: ouvertureMortelle
+        nom: 'Ouverture mortelle : critique automatique'
+        type: booleen
+        exige: 'possede("voleur-assassin-ouverture-mortelle")'
+    variables: &vars-arme
+      - &v-avantages { cle: avantages, formule: 'si(avantage, 1, 0) - si(desavantage, 1, 0)' }
+      - cle: bonusAttaque
+        formule: &f-att-arme >-
+          si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
+          et (cible_possede("mort-vivant") ou cible_possede("demon") ou cible_possede("corrompu")),
+          si(rang("prestige-rodeur-chasseur-de-corruption") >= 4, 2, 1), 0)
+          + si(arme.attaque == "Distance" et cible_possede("grande-taille")
+          et ((possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux") et cible_possede("animal"))
+          ou (possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux-fantastiques") et cible_possede("monstre"))), 2, 0)
+      - cle: bonusDM
+        formule: &f-dm-arme >-
+          si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
+          et (cible_possede("mort-vivant") ou cible_possede("demon") ou cible_possede("corrompu")),
+          si(rang("prestige-rodeur-chasseur-de-corruption") >= 4, 2, 1), 0)
+          + si(possede("prestige-rodeur-chasseur-de-corruption-chasseur-de-sorciere") et cible_possede("magie-noire"), 2, 0)
+          + si(possede("race-humain-loup-parmi-les-loups") et cible_possede("humanoide"), si(rang("race-humain") >= 4, 2, 1), 0)
+          + si(arme.attaque == "Distance" et cible_possede("grande-taille")
+          et ((possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux") et cible_possede("animal"))
+          ou (possede("prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux-fantastiques") et cible_possede("monstre"))), 2, 0)
+      - cle: desDM
+        formule: &f-des >-
+          si(possede("chevalier-noblesse-massacrer-la-pietaille") et cible_possede("pietaille"), 1, 0)
+          + si(possede("chevalier-heros-laissez-le-moi") et cible_possede("chef"), 1, 0)
+          + si(possede("prestige-chevalier-grand-veneur-gibier-royal"), si(cible_possede("dragon"), 2, si(cible_possede("predateur"), 1, 0)), 0)
+          + si(possede("prestige-barbare-glaces-tueur-de-geants"), si(cible_possede("taille-colossale"), 2, si(cible_possede("taille-enorme"), 1, 0)), 0)
+      - &v-des-critique { cle: desCritique, formule: 0 }
+      - &v-mult-critique { cle: multCritique, formule: 2 }
+      - &v-seuil-arme { cle: seuilCritique, formule: 'min(@Critique, arme.critique)' }
+      - &v-reduction { cle: reduction, formule: 0 }
+      - &v-demi { cle: demiDM, formule: 0 }
+      - &v-instinct { cle: instinct, formule: 0 }
     jet:
       type: numerique
-      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque)
-      reussite: &touche-arme naturel >= @Critique ou (naturel != 1 et total >= @cible.Defense)
-      critique: &critique-arme naturel >= @Critique
+      formule: >-
+        si(auD12, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)))
+        + valeur(arme.attaque) + bonusAttaque + si(double, -2, 0)
+        + si(premiereAttaque, si(possede("prestige-arquebusier-flibustier-a-l-abordage"), 5, 2), 0)
+        + si(nouvelleCible, 2, 0) + si(simultanee, 2, 0) + si(gage, 2, 0) + si(pasDeQuartier, 5, 0)
+        + min(max(0, allies), si(possede("guerrier-soldat-combat-en-phalange"), 99, 5))
+      reussite: >-
+        ouvertureMortelle ou perfection ou naturel >= seuilCritique ou (naturel != 1
+        et total >= @cible.Defense + si(arme.attaque == "Contact", @cible.DefContact, 0))
+      critique: 'ouvertureMortelle ou naturel >= seuilCritique'
       fumble: &fumble naturel == 1
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats), 0)',
-        }
-      - &subis { cle: subis, formule: 'si(degats > 0, max(1, degats - @cible.RD), 0)' }
+      - cle: degats
+        formule: >-
+          si(reussi, si(assautFinal, 2, 1) * (max(0, si(degatsMax, si(critique, multCritique, 1) * arme.nbDes * arme.faces,
+          des(si(critique, multCritique, 1) * arme.nbDes, arme.faces))
+          + arme.bonusDegats + bonusDM + si(cibleDefiee, rang("samourai-honneur"), 0) + si(gage, 2, 0)
+          + si(possede("barde-escrime-botte-mortelle") et arme.attaque == "Contact"
+          et total >= @cible.Defense + 10, 2d6, 0)
+          + si(possede("prestige-rodeur-archer-arcanique-fleche-vivante") et a_etiquette(arme, "arc")
+          et naturel >= 15, 2d6, 0))
+          + si(desDM + si(outrance, 1, 0) + si(outranceTotale, 2, 0) + si(premiereAttaque, 1, 0)
+          + si(nouvelleCible, 1, 0) + si(simultanee, 1, 0) + si(pasDeQuartier, 1, 0) > 0,
+          des(desDM + si(outrance, 1, 0) + si(outranceTotale, 2, 0) + si(premiereAttaque, 1, 0)
+          + si(nouvelleCible, 1, 0) + si(simultanee, 1, 0) + si(pasDeQuartier, 1, 0), 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0)), 0)
+      - &brut-arme
+        cle: brut
+        formule: 'si(degats > 0, max(1, degats - @cible.RD - @cible.RDArmes - reduction), 0)'
+      - &subis
+        cle: subis
+        formule: >-
+          si(brut > 0 et (demiDM > 0 ou (instinct > 0 et brut >= @cible.PV)),
+          max(1, floor(brut / 2)), brut)
     consequences:
       - &retirer-pv {
           condition: 'subis > 0',
@@ -379,29 +576,63 @@ actions:
   - id: attaque-libre
     nom: Attaque libre
     description: >-
-      Attaque sans arme du catalogue (mains nues, sort, arme improvisée) : 1d20 +
-      Contact, Distance ou Magie contre la Défense ; dégâts saisis, dés doublés
-      au critique (20 naturel).
+      Attaque sans arme du catalogue (mains nues, griffes d'une forme animale,
+      sort, arme improvisée) : 1d20 + Contact, Distance ou Magie contre la
+      Défense ; dégâts saisis, dés doublés au critique (20 naturel, ou le seuil
+      de critique hors magie).
     pour: [personnage]
     cible: personnage
     parametres:
       - { id: score, nom: Attaque, type: attribut, attributs: [Contact, Distance, Magie] }
       - *avantage
       - *desavantage
-      - { id: nbDes, nom: Nombre de dés, type: nombre, defaut: 1 }
-      - { id: faces, nom: Faces, type: nombre, defaut: 6 }
-      - { id: bonus, nom: Bonus aux DM, type: nombre, defaut: 0 }
+      - &p-nb-des { id: nbDes, nom: Nombre de dés, type: nombre, defaut: 1 }
+      - &p-faces { id: faces, nom: Faces, type: nombre, defaut: 6 }
+      - &p-bonus { id: bonus, nom: Bonus aux DM, type: nombre, defaut: 0 }
+    variables: &vars-attaque
+      - { cle: avantages, formule: 'si(avantage, 1, 0) - si(desavantage, 1, 0)' }
+      - cle: bonusAttaque
+        formule: &f-att >-
+          si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
+          et (cible_possede("mort-vivant") ou cible_possede("demon") ou cible_possede("corrompu")),
+          si(rang("prestige-rodeur-chasseur-de-corruption") >= 4, 2, 1), 0)
+      - cle: bonusDM
+        formule: &f-dm >-
+          si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
+          et (cible_possede("mort-vivant") ou cible_possede("demon") ou cible_possede("corrompu")),
+          si(rang("prestige-rodeur-chasseur-de-corruption") >= 4, 2, 1), 0)
+          + si(possede("prestige-rodeur-chasseur-de-corruption-chasseur-de-sorciere") et cible_possede("magie-noire"), 2, 0)
+          + si(possede("race-humain-loup-parmi-les-loups") et cible_possede("humanoide"), si(rang("race-humain") >= 4, 2, 1), 0)
+      - cle: desDM
+        formule: >-
+          si(possede("chevalier-noblesse-massacrer-la-pietaille") et cible_possede("pietaille"), 1, 0)
+          + si(possede("chevalier-heros-laissez-le-moi") et cible_possede("chef"), 1, 0)
+          + si(possede("prestige-chevalier-grand-veneur-gibier-royal"), si(cible_possede("dragon"), 2, si(cible_possede("predateur"), 1, 0)), 0)
+          + si(possede("prestige-barbare-glaces-tueur-de-geants"), si(cible_possede("taille-colossale"), 2, si(cible_possede("taille-enorme"), 1, 0)), 0)
+      - { cle: desCritique, formule: 0 }
+      - { cle: multCritique, formule: 2 }
+      - &v-seuil { cle: seuilCritique, formule: '@Critique' }
+      - { cle: reduction, formule: 0 }
+      - { cle: demiDM, formule: 0 }
+      - { cle: instinct, formule: 0 }
     jet:
       type: numerique
-      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(score)
-      reussite: &touche naturel == 20 ou (naturel != 1 et total >= @cible.Defense)
-      critique: &critique naturel == 20
+      formule: &d20-attaque >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(score) + bonusAttaque
+      reussite: >-
+        naturel >= si(score == "Magie", 20, seuilCritique) ou (naturel != 1 et total >= @cible.Defense
+        + si(score == "Contact", @cible.DefContact, si(score == "Magie", @cible.DefMagie, 0)))
+      critique: 'naturel >= si(score == "Magie", 20, seuilCritique)'
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * nbDes, faces) + bonus), 0)',
-        }
+      - &degats-saisis
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * nbDes, faces) + bonus + bonusDM)
+          + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - cle: brut
+        formule: >-
+          si(degats > 0, max(1, degats - @cible.RD - si(score == "Magie", 0, @cible.RDArmes) - reduction), 0)
       - *subis
     consequences:
       - *retirer-pv
@@ -412,14 +643,19 @@ actions:
     pour: [personnage]
     cible: personnage
     parametres:
-      - { id: nbDes, nom: Nombre de dés, type: nombre, defaut: 1 }
-      - { id: faces, nom: Faces, type: nombre, defaut: 6 }
+      - *p-nb-des
+      - *p-faces
       - { id: bonus, nom: Bonus, type: nombre, defaut: 0 }
+    variables: &vars-degats
+      - { cle: reduction, formule: 0 }
+      - { cle: demiDM, formule: 0 }
+      - { cle: instinct, formule: 0 }
     jet:
       type: numerique
       formule: des(nbDes, faces) + bonus
     apres:
       - &degats-total { cle: degats, formule: 'max(0, total)' }
+      - &brut { cle: brut, formule: 'si(degats > 0, max(1, degats - @cible.RD - reduction), 0)' }
       - *subis
     consequences:
       - *retirer-pv
@@ -427,17 +663,101 @@ actions:
   # Tests de caractéristique (et jets de sauvegarde) : 1d20 + modificateur
   - id: test
     nom: Test de caractéristique
-    description: 1d20 + modificateur de la caractéristique contre la difficulté.
+    description: >-
+      1d20 + modificateur de la caractéristique contre la difficulté. Une capacité
+      au bonus situationnel (« +5 aux tests de survie ») s'invoque en paramètre.
     pour: [personnage]
     parametres:
-      - { id: caracteristique, nom: Caractéristique, type: attribut, groupe: caracteristiques }
-      - { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
+      - &p-carac {
+          id: caracteristique,
+          nom: Caractéristique,
+          type: attribut,
+          groupe: caracteristiques,
+        }
+      - &p-difficulte { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
       - *avantage
       - *desavantage
+      - id: atout
+        nom: Capacité invoquée
+        type: entree
+        sorte: capacite
+        etiquette: test
+        facultatif: true
+    variables:
+      - cle: avantagesTest
+        formule: 'si(avantage, 1, 0) - si(desavantage, 1, 0) + atout.avantageTest'
     jet:
       type: numerique
-      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + modificateur(caracteristique)
-      reussite: total >= difficulte
+      formule: >-
+        si(avantagesTest > 0, 2d20k1, si(avantagesTest < 0, 2d20kl1, 1d20))
+        + modificateur(caracteristique) + atout.bonusTest
+      reussite: &reussite-test total >= difficulte
+
+  - id: exploit
+    nom: Exploit physique
+    description: >-
+      Test de FOR ou de DEX décuplé : +10 en FOR avec Tour de force, +5 avec
+      Prouesse ; l'effort coûte 1d4 PV.
+    pour: [personnage]
+    exige: 'possede("barbare-brute-tour-de-force") ou possede("guerrier-soldat-prouesse")'
+    parametres:
+      - { id: caracteristique, nom: Caractéristique, type: attribut, attributs: [FOR, DEX] }
+      - *p-difficulte
+      - *avantage
+      - *desavantage
+    variables:
+      - &v-avantages-test {
+          cle: avantagesTest,
+          formule: 'si(avantage, 1, 0) - si(desavantage, 1, 0)',
+        }
+    jet:
+      type: numerique
+      formule: >-
+        si(avantagesTest > 0, 2d20k1, si(avantagesTest < 0, 2d20kl1, 1d20)) + modificateur(caracteristique)
+        + max(si(possede("barbare-brute-tour-de-force") et caracteristique == "FOR", 10, 0),
+        si(possede("guerrier-soldat-prouesse"), 5, 0))
+      reussite: *reussite-test
+    apres:
+      - { cle: cout, formule: 1d4 }
+    consequences:
+      - { entite: acteur, attribut: PV, operation: retirer, valeur: cout }
+
+  - id: defier-la-mort
+    nom: Défier la mort
+    description: >-
+      Quand une attaque devrait l'amener à 0 PV : test de CON (difficulté 10,
+      +10 par blessure suivante ; +10 au test s'il est enragé). Réussi, il
+      conserve 1 PV.
+    pour: [personnage]
+    exige: 'possede("barbare-rage-defier-la-mort")'
+    parametres:
+      - *p-difficulte
+      - { id: enrage, nom: Enragé (+10), type: booleen }
+      - *avantage
+      - *desavantage
+    variables:
+      - *v-avantages-test
+    jet:
+      type: numerique
+      formule: 'si(avantagesTest > 0, 2d20k1, si(avantagesTest < 0, 2d20kl1, 1d20)) + mod(@CON) + si(enrage, 10, 0)'
+      reussite: *reussite-test
+    consequences:
+      - { condition: reussi, entite: acteur, attribut: PV, operation: fixer, valeur: 1 }
+
+  - id: blagues-et-cabrioles
+    nom: Blagues et cabrioles
+    description: >-
+      Test de CHA contre la valeur d'INT de la cible : réussi, elle est distraite
+      (−5 aux tests de SAG et d'INT, −10 en Initiative).
+    pour: [personnage]
+    exige: 'possede("prestige-barde-bouffon-blagues-et-cabrioles")'
+    cible: personnage
+    parametres: [*avantage, *desavantage]
+    variables: [*v-avantages-test]
+    jet:
+      type: numerique
+      formule: 'si(avantagesTest > 0, 2d20k1, si(avantagesTest < 0, 2d20kl1, 1d20)) + mod(@CHA)'
+      reussite: total >= @cible.INT
 
   - id: initiative
     nom: Initiative
@@ -463,7 +783,7 @@ actions:
 
   # ─── Actions des capacités ─────────────────────────────────────────────────
   # Réservées aux porteurs de la capacité (`exige`). Les capacités sans jet
-  # propre restent décrites sur leur entrée.
+  # propre restent décrites sur leur entrée, ou portent des effets.
 
   # ── Attaques d’arme des capacités ──
 
@@ -473,21 +793,24 @@ actions:
     pour: [personnage]
     exige: 'possede("barbare-pourfendeur-charge") ou possede("barde-saltimbanque-grace-feline") ou possede("race-minotaure-charge")'
     cible: personnage
-    parametres:
-      - *arme
-      - *avantage
-      - *desavantage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque) + 2'
-      reussite: *touche-arme
-      critique: *critique-arme
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque + 2
+      reussite: &touche-arme >-
+        naturel >= seuilCritique ou (naturel != 1 et total >= @cible.Defense
+        + si(arme.attaque == "Contact", @cible.DefContact, 0))
+      critique: &critique-arme naturel >= seuilCritique
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + 1d6), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + 1d6) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -503,43 +826,55 @@ actions:
       - *avantage
       - *desavantage
       - { id: puissante, nom: 'Pénalité de −5 pour +2d6 DM (rang 5)', type: booleen }
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque) + si(puissante et rang("barbare-brute") >= 5, -5, -2)'
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque
+        + si(puissante et rang("barbare-brute") >= 5, -5, -2)
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + si(puissante et rang("barbare-brute") >= 5, 2d6, 1d6)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + si(puissante et rang("barbare-brute") >= 5, 2d6, 1d6))
+          + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
 
   - id: attaque-apres-feinte
-    nom: Attaque après une feinte
-    description: 'Au tour qui suit une Feinte contre le même adversaire : +5 en attaque, et +2d6 DM si la feinte a réussi.'
+    nom: Attaque après une feinte ou une blague
+    description: >-
+      Au tour qui suit une Feinte (ou une Blague et cabriole) contre le même
+      adversaire : +5 en attaque, et +2d6 DM si la feinte a réussi (toujours
+      avec Blague mortelle).
     pour: [personnage]
-    exige: 'possede("barde-escrime-feinte")'
+    exige: 'possede("barde-escrime-feinte") ou possede("prestige-barde-bouffon-blague-mortelle")'
     cible: personnage
     parametres:
       - *arme
       - *avantage
       - *desavantage
-      - { id: feinteReussie, nom: La feinte a réussi, type: booleen }
+      - { id: feinteReussie, nom: La feinte (ou la blague) a réussi, type: booleen }
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque) + 5'
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque + 5
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + si(feinteReussie, 2d6, 0)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + si(feinteReussie, 2d6, 0)) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -550,21 +885,22 @@ actions:
     pour: [personnage]
     exige: 'possede("barde-escrime-attaque-flamboyante")'
     cible: personnage
-    parametres:
-      - *arme
-      - *avantage
-      - *desavantage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque) + mod(@CHA)'
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque + mod(@CHA)
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + mod(@CHA)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + mod(@CHA)) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -575,21 +911,22 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-guerre-sainte-chatiment-divin")'
     cible: personnage
-    parametres:
-      - *arme
-      - *avantage
-      - *desavantage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque) + mod(@SAG)'
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque + mod(@SAG)
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + mod(@SAG)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + mod(@SAG)) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -600,20 +937,33 @@ actions:
     pour: [personnage]
     exige: 'possede("chevalier-guerre-frappe-lourde")'
     cible: personnage
-    parametres:
-      - *arme
+    parametres: [*arme]
+    variables: &vars-arme-sans-avantage
+      - { cle: bonusAttaque, formule: *f-att-arme }
+      - { cle: bonusDM, formule: *f-dm-arme }
+      - { cle: desDM, formule: *f-des }
+      - *v-des-critique
+      - *v-mult-critique
+      - *v-seuil-arme
+      - *v-reduction
+      - *v-demi
+      - *v-instinct
     jet:
       type: numerique
-      formule: '1d12 + valeur(arme.attaque)'
+      formule: '1d12 + valeur(arme.attaque) + bonusAttaque'
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + 2d6), 0)',
-        }
-      - { cle: subis, formule: 'si(degats > 0, max(1, degats - floor(@cible.RD / 2)), 0)' }
+      - &degats-arme-2d6
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + 2d6) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - cle: brut
+        formule: 'si(degats > 0, max(1, degats - floor((@cible.RD + @cible.RDArmes) / 2) - reduction), 0)'
+      - *subis
     consequences:
       - *retirer-pv
 
@@ -623,19 +973,17 @@ actions:
     pour: [personnage]
     exige: 'possede("guerrier-combat-attaque-puissante") ou possede("samourai-ki-puissance-du-ki") ou possede("moine-poing-puissance-du-ki")'
     cible: personnage
-    parametres:
-      - *arme
+    parametres: [*arme]
+    variables: *vars-arme-sans-avantage
     jet:
       type: numerique
-      formule: '1d12 + valeur(arme.attaque)'
+      formule: '1d12 + valeur(arme.attaque) + bonusAttaque'
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + 2d6), 0)',
-        }
+      - *degats-arme-2d6
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -646,19 +994,22 @@ actions:
     pour: [personnage]
     exige: 'possede("guerrier-maitre-d-armes-attaque-parfaite")'
     cible: personnage
-    parametres:
-      - *arme
+    parametres: [*arme]
+    variables: *vars-arme-sans-avantage
     jet:
       type: numerique
-      formule: '2d20k1 + valeur(arme.attaque)'
+      formule: '2d20k1 + valeur(arme.attaque) + bonusAttaque'
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + 1d6), 0)',
-        }
+      - &degats-arme-1d6
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + 1d6) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -669,19 +1020,17 @@ actions:
     pour: [personnage]
     exige: 'possede("chevalier-cavalier-charge")'
     cible: personnage
-    parametres:
-      - *arme
+    parametres: [*arme]
+    variables: *vars-arme-sans-avantage
     jet:
       type: numerique
-      formule: '2d20k1 + valeur(arme.attaque)'
+      formule: '2d20k1 + valeur(arme.attaque) + bonusAttaque'
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + 1d6), 0)',
-        }
+      - *degats-arme-1d6
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -692,51 +1041,235 @@ actions:
     pour: [personnage]
     exige: 'possede("druide-fauve-attaque-bondissante")'
     cible: personnage
-    parametres:
-      - *arme
-      - *avantage
-      - *desavantage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque) + 5'
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque + 5
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + 1d6), 0)',
-        }
+      - *degats-arme-1d6
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
 
   - id: attaque-sournoise
     nom: Attaque sournoise
-    description: 'Contre un adversaire surpris ou attaqué dans le dos : +2d6 DM, +1d6 par voie du voleur au rang 4 ou plus (dés bonus non doublés au critique).'
+    description: >-
+      Contre un adversaire surpris ou attaqué dans le dos : +2d6 DM, +1d6 par voie
+      du voleur au rang 4 ou plus (dés bonus non doublés au critique). Botte
+      secrète : tout critique au contact devient une attaque sournoise.
     pour: [personnage]
-    exige: 'possede("voleur-assassin-attaque-sournoise")'
+    exige: 'possede("voleur-assassin-attaque-sournoise") ou possede("voleur-spadassin-botte-secrete")'
+    cible: personnage
+    parametres: [*arme, *avantage, *desavantage, *p-ouverture]
+    variables: *vars-arme
+    jet:
+      type: numerique
+      formule: &d20-arme >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque
+      reussite: >-
+        ouvertureMortelle ou naturel >= seuilCritique ou (naturel != 1 et total >= @cible.Defense
+        + si(arme.attaque == "Contact", @cible.DefContact, 0))
+      critique: 'ouvertureMortelle ou naturel >= seuilCritique'
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM + des(2 + si(rang("voleur-assassin") >= 4, 1, 0) + si(rang("voleur-aventurier") >= 4, 1, 0)
+          + si(rang("voleur-deplacement") >= 4, 1, 0) + si(rang("voleur-roublard") >= 4, 1, 0)
+          + si(rang("voleur-spadassin") >= 4, 1, 0), 6)) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: kamikaze
+    nom: Attaque kamikaze
+    description: >-
+      Le voleur saute sur sa cible : test de DEX contre la moitié de sa Défense ;
+      réussi, DM de l'arme + 1d6 par catégorie de taille au-delà de la petite
+      (moyenne 1, grande 2… colossale 5).
+    pour: [personnage]
+    exige: 'possede("prestige-voleur-casse-cou-attaque-kamikaze")'
     cible: personnage
     parametres:
       - *arme
       - *avantage
       - *desavantage
+      - {
+          id: taille,
+          nom: 'Taille de la cible (d6 bonus : moyenne 1 … colossale 5)',
+          type: nombre,
+          defaut: 1,
+        }
+    variables: *vars-arme
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + valeur(arme.attaque)'
+      formule: 'si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + mod(@DEX)'
+      reussite: 'naturel != 1 et total >= floor(@cible.Defense / 2)'
+      critique: *critique-arme
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM) + si(desDM + max(0, taille) > 0, des(desDM + max(0, taille), 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: fleche-intangible
+    nom: Flèche intangible
+    description: "La flèche traverse les obstacles : l'attaque vise la valeur de DEX de la cible au lieu de sa Défense."
+    pour: [personnage]
+    exige: 'possede("prestige-rodeur-archer-arcanique-fleche-intangible")'
+    cible: personnage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
+    jet:
+      type: numerique
+      formule: *d20-arme
+      reussite: 'naturel >= seuilCritique ou (naturel != 1 et total >= @cible.DEX)'
+      critique: *critique-arme
+      fumble: *fumble
+    apres:
+      - &degats-arme
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: frappe-de-l-enclume
+    nom: Frappe de l’enclume
+    description: >-
+      Après 1d4 tours de concentration (RD 5, sans attaquer ni bouger) : attaque
+      dévastatrice à +10 qui triple les dés de DM.
+    pour: [personnage]
+    exige: 'possede("prestige-moine-contact-mortel-frappe-de-l-enclume")'
+    cible: personnage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
+    jet:
+      type: numerique
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque + 10
       reussite: *touche-arme
       critique: *critique-arme
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats + des(2 + si(rang("voleur-assassin") >= 4, 1, 0) + si(rang("voleur-aventurier") >= 4, 1, 0) + si(rang("voleur-deplacement") >= 4, 1, 0) + si(rang("voleur-roublard") >= 4, 1, 0) + si(rang("voleur-spadassin") >= 4, 1, 0), 6)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * 3 * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: mise-a-mort
+    nom: Mise à mort
+    description: >-
+      Après une attaque réussie de la meute : attaque qui double les dés de DM,
+      à +5 si elle est portée à l'épée. Si la cible survit, elle riposte.
+    pour: [personnage]
+    exige: 'possede("prestige-chevalier-grand-veneur-mise-a-mort")'
+    cible: personnage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
+    jet:
+      type: numerique
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + valeur(arme.attaque) + bonusAttaque
+        + si(a_etiquette(arme, "epee"), 5, 0)
+      reussite: *touche-arme
+      critique: *critique-arme
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * 2 * arme.nbDes, arme.faces) + arme.bonusDegats
+          + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: briser-l-armure
+    nom: Briser l’armure
+    description: >-
+      Attaque qui n'inflige que 1d6 DM mais, réussie, réduit la DEF et la RD de
+      la cible de 3 pour le reste du combat (ratée : DEF −1).
+    pour: [personnage]
+    exige: 'possede("prestige-chevalier-tournoi-briser-l-armure")'
+    cible: personnage
+    parametres: [*arme, *avantage, *desavantage]
+    variables: *vars-arme
+    jet:
+      type: numerique
+      formule: *d20-arme
+      reussite: *touche-arme
+      critique: *critique-arme
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: 'si(reussi, max(0, des(si(critique, multCritique, 1), 6) + bonusDM), 0)'
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
 
   # ── Attaques naturelles et à mains nues ──
+
+  - id: mains-nues
+    nom: Attaque à mains nues
+    description: >-
+      Poings de fer (moine) : Contact ou Distance, [1d6 + mod. FOR] DM, 1d8 au
+      rang 3, 1d10 au rang 5 ; Main vide (samouraï) : mod. de DEX en attaque,
+      [1d4 + mod. FOR] DM, 1d6 au rang 3, 1d8 au rang 5 ; Main lourde (âme-forgée) :
+      1d6 DM. Le meilleur de ce que possède l'attaquant est retenu.
+    pour: [personnage]
+    exige: 'possede("moine-poing-poings-de-fer") ou possede("samourai-ki-main-vide") ou possede("race-ame-forgee-main-lourde")'
+    cible: personnage
+    parametres: [*avantage, *desavantage]
+    variables: *vars-attaque
+    jet:
+      type: numerique
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + bonusAttaque
+        + max(@Contact, si(possede("moine-poing-poings-de-fer"), @Distance, @Contact),
+        si(possede("samourai-ki-main-vide"), @Contact - mod(@FOR) + mod(@DEX), @Contact))
+      reussite: &touche-contact >-
+        naturel >= seuilCritique ou (naturel != 1 et total >= @cible.Defense + @cible.DefContact)
+      critique: &critique naturel >= seuilCritique
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), max(
+          si(possede("moine-poing-poings-de-fer"), si(rang("moine-poing") >= 5, 10, si(rang("moine-poing") >= 3, 8, 6)), 0),
+          si(possede("samourai-ki-main-vide"), si(rang("samourai-ki") >= 5, 8, si(rang("samourai-ki") >= 3, 6, 4)), 0),
+          si(possede("race-ame-forgee-main-lourde"), 6, 0)))
+          + si(possede("moine-poing-poings-de-fer") ou possede("samourai-ki-main-vide"), mod(@FOR), 0) + bonusDM)
+          + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
 
   - id: coup-de-corne
     nom: Coup de corne
@@ -744,20 +1277,22 @@ actions:
     pour: [personnage]
     exige: 'possede("minotaure-coup-de-corne") ou possede("race-minotaure-encorner")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
+    parametres: [*avantage, *desavantage]
+    variables: *vars-attaque
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Contact'
-      reussite: *touche
+      formule: &d20-contact >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + @Contact + bonusAttaque
+      reussite: *touche-contact
       critique: *critique
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@FOR)), 0)',
-        }
+      - &degats-1d6-for
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 6) + mod(@FOR) + bonusDM)
+          + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -768,20 +1303,28 @@ actions:
     pour: [personnage]
     exige: 'possede("chevalier-guerre-coup-de-bouclier")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
+    variables: &vars-attaque-sans-avantage
+      - { cle: bonusAttaque, formule: *f-att }
+      - { cle: bonusDM, formule: *f-dm }
+      - { cle: desDM, formule: *f-des }
+      - *v-des-critique
+      - *v-mult-critique
+      - *v-seuil
+      - *v-reduction
+      - *v-demi
+      - *v-instinct
     jet:
       type: numerique
-      formule: '1d12 + @Contact'
-      reussite: *touche
+      formule: '1d12 + @Contact + bonusAttaque'
+      reussite: *touche-contact
       critique: *critique
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 4) + mod(@FOR)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 4) + mod(@FOR) + bonusDM)
+          + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -792,20 +1335,17 @@ actions:
     pour: [personnage]
     exige: 'possede("race-wolfer-armes-naturelles")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
+    parametres: [*avantage, *desavantage]
+    variables: *vars-attaque
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Contact'
-      reussite: *touche
+      formule: *d20-contact
+      reussite: *touche-contact
       critique: *critique
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@FOR)), 0)',
-        }
+      - *degats-1d6-for
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
@@ -816,53 +1356,151 @@ actions:
     pour: [personnage]
     exige: 'possede("race-ame-forgee-choc-electrique")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
+    parametres: [*avantage, *desavantage]
+    variables: *vars-attaque
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Contact'
-      reussite: *touche
+      formule: *d20-contact
+      reussite: *touche-contact
       critique: *critique
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * rang("race-ame-forgee"), 6)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * rang("race-ame-forgee"), 6) + bonusDM)
+          + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
       - *subis
     consequences:
       - *retirer-pv
 
   - id: mains-d-energie
     nom: Mains d’énergie
-    description: Attaque à mains nues à +2 (+5 si la cible porte une armure) ; dégâts à mains nues saisis.
+    description: Attaque à mains nues à +2, +5 si la cible porte une armure ; dégâts à mains nues saisis.
     pour: [personnage]
     exige: 'possede("moine-energie-vitale-mains-d-energie")'
+    cible: personnage
+    parametres: [*avantage, *desavantage, *p-nb-des, *p-faces, *p-bonus]
+    variables: *vars-attaque
+    jet:
+      type: numerique
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + @Contact + bonusAttaque
+        + si(@cible.ArmurePortee > 0, 5, 2)
+      reussite: *touche-contact
+      critique: *critique
+      fumble: *fumble
+    apres:
+      - *degats-saisis
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: arme-d-argent
+    nom: Arme d’argent
+    description: >-
+      Arme de lumière créée pour le combat : attaque au contact, [1d6 + mod. SAG]
+      DM ; contre les démons et les morts-vivants, +2 en attaque et +1d6 DM.
+    pour: [personnage]
+    exige: 'possede("pretre-foi-arme-d-argent")'
+    cible: personnage
+    parametres: [*avantage, *desavantage]
+    variables: *vars-attaque
+    jet:
+      type: numerique
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + @Contact + bonusAttaque
+        + si(cible_possede("demon") ou cible_possede("mort-vivant"), 2, 0)
+      reussite: *touche-contact
+      critique: *critique
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 6) + mod(@SAG) + bonusDM)
+          + si(desDM + si(cible_possede("demon") ou cible_possede("mort-vivant"), 1, 0) > 0,
+          des(desDM + si(cible_possede("demon") ou cible_possede("mort-vivant"), 1, 0), 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut-arme
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: baton-de-mage
+    nom: Bâton de mage
+    description: >-
+      Grand bâton du forgesort : +1 en attaque au contact, [1d6 + mod. INT] DM
+      magiques ; à partir du rang 3, en action limitée, attaque magique au
+      contact à [2d6 + mod. INT] DM.
+    pour: [personnage]
+    exige: 'possede("forgesort-artefacts-baton-de-mage")'
     cible: personnage
     parametres:
       - *avantage
       - *desavantage
-      - { id: cibleEnArmure, nom: La cible porte une armure, type: booleen }
-      - { id: nbDes, nom: Nombre de dés, type: nombre, defaut: 1 }
-      - { id: faces, nom: Faces, type: nombre, defaut: 6 }
-      - { id: bonus, nom: Bonus, type: nombre, defaut: 0 }
+      - { id: limitee, nom: 'Action limitée : attaque magique, 2d6 DM (rang 3)', type: booleen }
+    variables: *vars-attaque
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Contact + si(cibleEnArmure, 5, 2)'
-      reussite: *touche
+      formule: >-
+        si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)) + bonusAttaque
+        + si(limitee et rang("forgesort-artefacts") >= 3, @Magie, @Contact + 1)
+      reussite: *touche-contact
       critique: *critique
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * nbDes, faces) + bonus), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * si(limitee et rang("forgesort-artefacts") >= 3, 2, 1), 6)
+          + mod(@INT) + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
+          + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
 
   # ── Sorts et attaques magiques (1d20 + Magie contre la Défense) ──
+  # Rituel de puissance (magicien) : d12 au lieu du d20, +2d6 DM.
+
+  - id: sort
+    nom: Sort d’attaque
+    description: >-
+      Sort à test d'attaque magique porté par une capacité étiquetée « sort » :
+      ses dés de DM (éventuellement aucun), sa défense visée (DEF, PV, PV max ou
+      SAG de la cible). Les DM par tour suivants se relancent avec « Dégâts
+      automatiques ».
+    pour: [personnage]
+    cible: personnage
+    parametres:
+      - { id: capacite, nom: Sort, type: entree, sorte: capacite, etiquette: sort }
+      - *avantage
+      - *desavantage
+      - id: rituel
+        nom: 'Rituel de puissance (d12, +2d6 DM)'
+        type: booleen
+        exige: 'possede("magicien-magie-destructrice-rituel-de-puissance")'
+    variables: *vars-attaque
+    jet:
+      type: numerique
+      formule: >-
+        si(rituel, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20))) + @Magie + bonusAttaque
+      reussite: >-
+        naturel == 20 ou (naturel != 1 et total >= si(capacite.contre == "PV", @cible.PV,
+        si(capacite.contre == "PV_Max", @cible.PV_Max, si(capacite.contre == "SAG", @cible.SAG,
+        @cible.Defense + @cible.DefMagie))))
+      critique: &critique-magie naturel == 20
+      fumble: *fumble
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi et (capacite.nbDes > 0 ou capacite.bonusDegats > 0),
+          max(0, des(si(critique, multCritique, 1) * capacite.nbDes, capacite.faces) + capacite.bonusDegats
+          + bonusDM + si(rituel, 2d6, 0)) + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
+      - *subis
+    consequences:
+      - *retirer-pv
 
   - id: attaque-sonore
     nom: Attaque sonore
@@ -870,20 +1508,29 @@ actions:
     pour: [personnage]
     exige: 'possede("barde-musicien-attaque-sonore")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
+    parametres: &params-magie
+      - { id: avantage, nom: Avantage, type: booleen }
+      - { id: desavantage, nom: Désavantage, type: booleen }
+      - &p-rituel
+        id: rituel
+        nom: 'Rituel de puissance (d12, +2d6 DM)'
+        type: booleen
+        exige: 'possede("magicien-magie-destructrice-rituel-de-puissance")'
+    variables: *vars-attaque
+    jet: &jet-sort
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+      formule: >-
+        si(rituel, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20))) + @Magie + bonusAttaque
+      reussite: &touche-magie >-
+        naturel == 20 ou (naturel != 1 et total >= @cible.Defense + @cible.DefMagie)
+      critique: naturel == 20
+      fumble: naturel == 1
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@CHA)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 6) + mod(@CHA) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -894,20 +1541,15 @@ actions:
     pour: [personnage]
     exige: 'possede("ensorceleur-air-foudre")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 4, 6) + mod(@CHA)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * 4, 6) + mod(@CHA) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -918,20 +1560,15 @@ actions:
     pour: [personnage]
     exige: 'possede("ensorceleur-invocation-arme-dansante")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 8) + mod(@CHA)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 8) + mod(@CHA) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -942,20 +1579,16 @@ actions:
     pour: [personnage]
     exige: 'possede("magicien-magie-destructrice-fleche-enflammee")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@INT)), 0)',
-        }
+      - &degats-1d6-int
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 6) + mod(@INT) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -966,20 +1599,15 @@ actions:
     pour: [personnage]
     exige: 'possede("magicien-magie-destructrice-boule-de-feu")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 4, 6) + mod(@INT)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * 4, 6) + mod(@INT) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -990,44 +1618,44 @@ actions:
     pour: [personnage]
     exige: 'possede("magicien-magie-des-arcanes-desintegration")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 5, 6) + mod(@INT)), 0)',
-        }
+      - &degats-5d6-int
+        cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * 5, 6) + mod(@INT) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
 
   - id: projection-du-ki
     nom: Projection du ki
-    description: 'Attaque magique : [2d6 + mod. SAG] DM. Vague de force jusqu’à 20 m.'
+    description: >-
+      Attaque magique : [2d6 + mod. SAG] DM. Vague de force jusqu’à 20 m.
+      Projection puissante : DM doublés (puis 1d4 tours d'attente).
     pour: [personnage]
     exige: 'possede("moine-energie-vitale-projection-du-ki")'
     cible: personnage
     parametres:
       - *avantage
       - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+      - *p-rituel
+      - id: puissante
+        nom: Projection puissante (DM doublés)
+        type: booleen
+        exige: 'possede("prestige-moine-armure-sainte-projection-puissante")'
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 2, 6) + mod(@SAG)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, si(puissante, 2, 1) * (max(0, des(si(critique, multCritique, 1) * 2, 6) + mod(@SAG) + bonusDM
+          + si(rituel, 2d6, 0)) + si(desDM > 0, des(desDM, 6), 0)), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -1038,20 +1666,12 @@ actions:
     pour: [personnage]
     exige: 'possede("necromancien-mort-briser-les-c-urs")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 5, 6) + mod(@INT)), 0)',
-        }
+      - *degats-5d6-int
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -1062,20 +1682,12 @@ actions:
     pour: [personnage]
     exige: 'possede("necromancien-sombre-magie-strangulation")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@INT)), 0)',
-        }
+      - *degats-1d6-int
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -1086,20 +1698,12 @@ actions:
     pour: [personnage]
     exige: 'possede("necromancien-outre-tombe-putrefaction")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@INT)), 0)',
-        }
+      - *degats-1d6-int
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -1110,20 +1714,15 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-guerre-sainte-marteau-spirituel")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 8) + mod(@SAG)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 8) + mod(@SAG) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -1134,44 +1733,51 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-foi-foudres-divines")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
-    jet:
-      type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
-      fumble: *fumble
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 6) + mod(@SAG)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 6) + mod(@SAG) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
 
   - id: attaque-mentale
     nom: Attaque mentale
-    description: 'Attaque magique : [Nd6 + mod. CHA] DM. Portée 50 m ; 2d6 au rang 3, 3d6 au rang 5.'
+    description: >-
+      Attaque magique : [Nd6 + mod. CHA] DM. Portée 50 m ; 2d6 au rang 3, 3d6 au
+      rang 5. Attaque étourdissante : au d12, la cible touchée est étourdie un tour.
     pour: [personnage]
     exige: 'possede("psionique-attaque-mentale-attaque-mentale")'
     cible: personnage
     parametres:
       - *avantage
       - *desavantage
+      - *p-rituel
+      - id: etourdissante
+        nom: 'Attaque étourdissante (d12 : cible étourdie)'
+        type: booleen
+        exige: 'possede("psionique-attaque-mentale-attaque-etourdissante")'
+    variables: *vars-attaque
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie'
-      reussite: *touche
-      critique: *critique
+      formule: >-
+        si(rituel ou etourdissante, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)))
+        + @Magie + bonusAttaque
+      reussite: *touche-magie
+      critique: *critique-magie
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * si(rang("psionique-attaque-mentale") >= 5, 3, si(rang("psionique-attaque-mentale") >= 3, 2, 1)), 6) + mod(@CHA)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1) * si(rang("psionique-attaque-mentale") >= 5, 3,
+          si(rang("psionique-attaque-mentale") >= 3, 2, 1)), 6) + mod(@CHA) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
@@ -1182,24 +1788,51 @@ actions:
     pour: [personnage]
     exige: 'possede("necromancien-demon-aspect-de-la-succube")'
     cible: personnage
-    parametres:
-      - *avantage
-      - *desavantage
+    parametres: *params-magie
+    variables: *vars-attaque
     jet:
       type: numerique
-      formule: 'si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie + 5'
-      reussite: *touche
-      critique: *critique
+      formule: >-
+        si(rituel, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20))) + @Magie + bonusAttaque + 5
+      reussite: *touche-magie
+      critique: *critique-magie
       fumble: *fumble
     apres:
-      - {
-          cle: degats,
-          formule: 'si(reussi, max(0, des(si(critique, 2, 1) * 1, 4) + mod(@CHA)), 0)',
-        }
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 4) + mod(@CHA) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
       - *subis
     consequences:
       - *retirer-pv
-      - { condition: 'subis > 0', entite: acteur, attribut: PV, operation: ajouter, valeur: subis }
+      - &soin-drain {
+          condition: 'subis > 0',
+          entite: acteur,
+          attribut: PV,
+          operation: ajouter,
+          valeur: subis,
+        }
+
+  - id: baiser-du-vampire
+    nom: Baiser du vampire
+    description: 'Attaque magique (portée 50 m) : [1d8 + mod. INT] DM, rendus en PV au nécromancien.'
+    pour: [personnage]
+    exige: 'possede("necromancien-mort-baiser-du-vampire")'
+    cible: personnage
+    parametres: *params-magie
+    variables: *vars-attaque
+    jet: *jet-sort
+    apres:
+      - cle: degats
+        formule: >-
+          si(reussi, max(0, des(si(critique, multCritique, 1), 8) + mod(@INT) + bonusDM + si(rituel, 2d6, 0))
+          + si(desDM > 0, des(desDM, 6), 0), 0)
+      - *brut
+      - *subis
+    consequences:
+      - *retirer-pv
+      - *soin-drain
 
   # ── Dégâts automatiques (sans test d’attaque) ──
 
@@ -1209,10 +1842,15 @@ actions:
     pour: [personnage]
     exige: 'possede("magicien-magie-destructrice-projectile-magique")'
     cible: personnage
+    variables: *vars-degats
     jet: { type: numerique, formule: 'des(1, si(rang("magicien-magie-destructrice") >= 4, 6, 4))' }
-    apres:
-      - *degats-total
-      - *subis
+    apres: &apres-auto
+      - { cle: degats, formule: 'max(0, total)' }
+      - { cle: brut, formule: 'si(degats > 0, max(1, degats - @cible.RD - reduction), 0)' }
+      - cle: subis
+        formule: >-
+          si(brut > 0 et (demiDM > 0 ou (instinct > 0 et brut >= @cible.PV)),
+          max(1, floor(brut / 2)), brut)
     consequences:
       - *retirer-pv
 
@@ -1222,10 +1860,9 @@ actions:
     pour: [personnage]
     exige: 'possede("forgesort-artefacts-frappe-des-arcanes")'
     cible: personnage
+    variables: *vars-degats
     jet: { type: numerique, formule: '2d6 + mod(@INT)' }
-    apres:
-      - *degats-total
-      - *subis
+    apres: *apres-auto
     consequences:
       - *retirer-pv
 
@@ -1235,10 +1872,9 @@ actions:
     pour: [personnage]
     exige: 'possede("forgesort-elixirs-feu-gregeois")'
     cible: personnage
+    variables: *vars-degats
     jet: { type: numerique, formule: 'des(rang("forgesort-elixirs"), 6)' }
-    apres:
-      - *degats-total
-      - *subis
+    apres: *apres-auto
     consequences:
       - *retirer-pv
 
@@ -1248,10 +1884,9 @@ actions:
     pour: [personnage]
     exige: 'possede("moine-maitrise-fureur-du-dragon")'
     cible: personnage
+    variables: *vars-degats
     jet: { type: numerique, formule: '2d6 + mod(@FOR)' }
-    apres:
-      - *degats-total
-      - *subis
+    apres: *apres-auto
     consequences:
       - *retirer-pv
 
@@ -1261,27 +1896,130 @@ actions:
     pour: [personnage]
     exige: 'possede("psionique-telekinesie-onde-de-choc")'
     cible: personnage
+    variables: *vars-degats
     jet:
       {
         type: numerique,
         formule: 'des(si(rang("psionique-telekinesie") >= 5, 3, 2), 6) + mod(@CHA)',
       }
-    apres:
-      - *degats-total
-      - *subis
+    apres: *apres-auto
     consequences:
       - *retirer-pv
 
   - id: souffle
     nom: Souffle
-    description: 'Cône de 10 m : 2d6 DM par rang dans la voie (test de DEX 12 pour la moitié).'
+    description: >-
+      Souffle du drakonide (cône de 10 m) ou de l'ensorceleur au sang de dragon
+      (cône de 5 m) : 2d6 DM par rang dans la voie (test de DEX pour la moitié).
     pour: [personnage]
-    exige: 'possede("race-drakonide-souffle")'
+    exige: 'possede("race-drakonide-souffle") ou possede("prestige-ensorceleur-sang-dragon-souffle-du-dragon")'
     cible: personnage
-    jet: { type: numerique, formule: 'des(2 * rang("race-drakonide"), 6)' }
+    variables: *vars-degats
+    jet:
+      type: numerique
+      formule: >-
+        des(2 * max(si(possede("race-drakonide-souffle"), rang("race-drakonide"), 0),
+        si(possede("prestige-ensorceleur-sang-dragon-souffle-du-dragon"), rang("prestige-ensorceleur-sang-dragon"), 0)), 6)
+    apres: *apres-auto
+    consequences:
+      - *retirer-pv
+
+  - id: cone-de-froid
+    nom: Cône de froid
+    description: 'Cône de 20 m : [2d6 + mod. INT] DM et ralenti un tour (test de CON 13 : moitié des DM, pas ralenti).'
+    pour: [personnage]
+    exige: 'possede("prestige-ensorceleur-gel-cone-de-froid")'
+    cible: personnage
+    parametres:
+      - &p-moitie { id: moitie, nom: La cible réussit son test (moitié des DM), type: booleen }
+    variables: *vars-degats
+    jet: { type: numerique, formule: '2d6 + mod(@INT)' }
     apres:
-      - *degats-total
+      - &degats-moitie { cle: degats, formule: 'max(0, si(moitie, floor(total / 2), total))' }
+      - *brut
       - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: cri-de-la-banshee
+    nom: Cri de la banshee
+    description: 'Créatures vivantes dans 30 m : 6d6 DM, sauf test de CON [10 + mod. CHA] réussi.'
+    pour: [personnage]
+    exige: 'possede("prestige-barde-voix-cri-de-la-banshee")'
+    cible: personnage
+    variables: *vars-degats
+    jet: { type: numerique, formule: 6d6 }
+    apres: *apres-auto
+    consequences:
+      - *retirer-pv
+
+  - id: piege-de-feu
+    nom: Piège de feu
+    description: 'Objet scellé ouvert sans le mot de commande : 6d6 DM de feu sur 3 m (test de DEX 13 pour la moitié).'
+    pour: [personnage]
+    exige: 'possede("prestige-pretre-commerce-piege")'
+    cible: personnage
+    parametres: [*p-moitie]
+    variables: *vars-degats
+    jet: { type: numerique, formule: 6d6 }
+    apres:
+      - *degats-moitie
+      - *brut
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: destruction-des-morts-vivants
+    nom: Destruction des morts-vivants
+    description: 'Tous les morts-vivants en vue : 2d6 DM, 3d6 au rang 4 de la voie.'
+    pour: [personnage]
+    exige: 'possede("pretre-priere-destruction-des-morts-vivants")'
+    cible: personnage
+    variables: *vars-degats
+    verifications:
+      - { condition: 'cible_possede("mort-vivant")', message: La cible n’est pas un mort-vivant }
+    jet: { type: numerique, formule: 'des(si(rang("pretre-priere") >= 4, 3, 2), 6)' }
+    apres: *apres-auto
+    consequences:
+      - *retirer-pv
+
+  - id: saignement
+    nom: Saignement
+    description: >-
+      DM du tour suivant d'une attaque sanglante ou d'une flèche sanglante : 1d6
+      DM, jusqu'à un test de CON [12 + mod.] réussi ou des soins.
+    pour: [personnage]
+    exige: 'possede("race-orque-attaque-sanglante") ou possede("race-elfe-sylvain-fleche-sanglante")'
+    cible: personnage
+    variables: *vars-degats
+    jet: { type: numerique, formule: 1d6 }
+    apres: *apres-auto
+    consequences:
+      - *retirer-pv
+
+  - id: armee-des-morts
+    nom: Armée des morts
+    description: 'Squelettes innombrables pendant [niveau] tours : 3d6 DM par tour à chaque cible dans 20 m (1d6 si elle se dégage à l’arme lourde).'
+    pour: [personnage]
+    exige: 'possede("necromancien-outre-tombe-armee-des-morts")'
+    cible: personnage
+    parametres:
+      - { id: degage, nom: La cible se dégage à l’arme lourde (1d6), type: booleen }
+    variables: *vars-degats
+    jet: { type: numerique, formule: 'si(degage, 1d6, 3d6)' }
+    apres: *apres-auto
+    consequences:
+      - *retirer-pv
+
+  - id: sang-mordant
+    nom: Sang mordant
+    description: 'L’ennemi au contact qui blesse le nécromancien subit 1d6 DM d’acide.'
+    pour: [personnage]
+    exige: 'possede("necromancien-sang-sang-mordant")'
+    cible: personnage
+    variables: *vars-degats
+    jet: { type: numerique, formule: 1d6 }
+    apres: *apres-auto
     consequences:
       - *retirer-pv
 
@@ -1289,23 +2027,23 @@ actions:
 
   - id: soins-legers
     nom: Soins légers
-    description: La cible (ou le prêtre) récupère [1d8 + niveau] PV.
+    description: La cible (ou le prêtre) récupère [1d8 + niveau] PV (+1 par rang de la voie du guérisseur).
     pour: [personnage]
     exige: 'possede("pretre-soins-soins-legers")'
     cible: personnage
-    jet: { type: numerique, formule: 1d8 + @niveau }
+    jet: { type: numerique, formule: '1d8 + @niveau + rang("prestige-pretre-guerisseur")' }
     consequences:
-      - { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - &soigner-cible { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
 
   - id: soins-moderes
     nom: Soins modérés
-    description: La cible (ou le prêtre) récupère [2d8 + niveau] PV.
+    description: La cible (ou le prêtre) récupère [2d8 + niveau] PV (+1 par rang de la voie du guérisseur).
     pour: [personnage]
     exige: 'possede("pretre-soins-soins-moderes")'
     cible: personnage
-    jet: { type: numerique, formule: 2d8 + @niveau }
+    jet: { type: numerique, formule: '2d8 + @niveau + rang("prestige-pretre-guerisseur")' }
     consequences:
-      - { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - *soigner-cible
 
   - id: soins-de-groupe
     nom: Soins de groupe
@@ -1313,9 +2051,73 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-soins-soins-de-groupe")'
     cible: personnage
-    jet: { type: numerique, formule: 1d8 + @niveau }
+    jet: { type: numerique, formule: '1d8 + @niveau + rang("prestige-pretre-guerisseur")' }
     consequences:
-      - { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - *soigner-cible
+
+  - id: guerison
+    nom: Guérison
+    description: 'Une fois par jour, la cible touchée récupère tous ses PV perdus (et guérit poisons, maladies, affaiblissements).'
+    pour: [personnage]
+    exige: 'possede("pretre-soins-guerison")'
+    cible: personnage
+    jet: { type: numerique, formule: '@cible.PV_Max' }
+    consequences:
+      - { entite: cible, attribut: PV, operation: fixer, valeur: total }
+
+  - id: rappel-a-la-vie
+    nom: Rappel à la vie
+    description: 'Rituel de 10 minutes : un personnage mort depuis moins de [mod. SAG] heures revient avec 1d6 PV.'
+    pour: [personnage]
+    exige: 'possede("pretre-soins-rappel-a-la-vie")'
+    cible: personnage
+    jet: { type: numerique, formule: 1d6 }
+    consequences:
+      - { entite: cible, attribut: PV, operation: fixer, valeur: total }
+
+  - id: premiers-soins
+    nom: Premiers soins
+    description: 'Action de mouvement, sur un personnage à 0 PV : il récupère [2d6 + mod. SAG] PV.'
+    pour: [personnage]
+    exige: 'possede("prestige-pretre-guerisseur-premiers-soins")'
+    cible: personnage
+    verifications:
+      - { condition: '@cible.PV == 0', message: La cible n’est pas à 0 PV }
+    jet: { type: numerique, formule: '2d6 + mod(@SAG)' }
+    consequences:
+      - *soigner-cible
+
+  - id: zone-de-vie
+    nom: Zone de vie
+    description: 'Chaque allié dans la zone récupère 1d6 PV à la fin du tour du prêtre.'
+    pour: [personnage]
+    exige: 'possede("prestige-pretre-guerisseur-zone-de-vie")'
+    cible: personnage
+    jet: { type: numerique, formule: 1d6 }
+    consequences:
+      - *soigner-cible
+
+  - id: phenix
+    nom: Phénix
+    description: >-
+      Une fois par combat, en tombant à 0 PV : les alliés dans 30 m récupèrent
+      [3d6 + mod. SAG] PV (le double pour le prêtre lui-même).
+    pour: [personnage]
+    exige: 'possede("prestige-pretre-guerisseur-phenix")'
+    cible: personnage
+    jet: { type: numerique, formule: '3d6 + mod(@SAG)' }
+    consequences:
+      - *soigner-cible
+
+  - id: regeneration
+    nom: Régénération
+    description: 'La cible guérit 3 PV par tour pendant [niveau + mod. SAG] tours.'
+    pour: [personnage]
+    exige: 'possede("druide-protecteur-regeneration")'
+    cible: personnage
+    jet: { type: numerique, formule: '3' }
+    consequences:
+      - *soigner-cible
 
   - id: baies-magiques
     nom: Baie magique
@@ -1325,7 +2127,7 @@ actions:
     cible: personnage
     jet: { type: numerique, formule: 1d6 + @niveau }
     consequences:
-      - { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - *soigner-cible
 
   - id: elixir-de-guerison
     nom: Élixir de guérison
@@ -1335,7 +2137,7 @@ actions:
     cible: personnage
     jet: { type: numerique, formule: '3d6 + mod(@INT)' }
     consequences:
-      - { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - *soigner-cible
 
   - id: fortifiant
     nom: Fortifiant
@@ -1345,7 +2147,7 @@ actions:
     cible: personnage
     jet: { type: numerique, formule: '1d4 + rang("forgesort-elixirs")' }
     consequences:
-      - { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - *soigner-cible
 
   - id: second-souffle
     nom: Second souffle
@@ -1354,7 +2156,12 @@ actions:
     exige: 'possede("guerrier-resistance-second-souffle")'
     jet: { type: numerique, formule: '1d10 + @niveau + mod(@CON)' }
     consequences:
-      - { entite: acteur, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - &soigner-acteur {
+          entite: acteur,
+          attribut: PV,
+          operation: ajouter,
+          valeur: 'max(0, total)',
+        }
 
   - id: transe-de-guerison
     nom: Transe de guérison
@@ -1363,7 +2170,78 @@ actions:
     exige: 'possede("moine-meditation-transe-de-guerison")'
     jet: { type: numerique, formule: '@niveau + mod(@SAG)' }
     consequences:
-      - { entite: acteur, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
+      - *soigner-acteur
+
+  - id: vitalite-debordante
+    nom: Vitalité débordante
+    description: 'Tant qu’il lui reste au moins 1 PV, le barbare récupère 1d6 PV par heure.'
+    pour: [personnage]
+    exige: 'possede("barbare-primitif-vitalite-debordante")'
+    verifications:
+      - { condition: '@PV >= 1', message: Il faut au moins 1 PV }
+    jet: { type: numerique, formule: 1d6 }
+    consequences:
+      - *soigner-acteur
+
+  - id: siphon-des-ames
+    nom: Siphon des âmes
+    description: 'Une créature meurt à moins de 20 m : le nécromancien récupère 1d6 PV.'
+    pour: [personnage]
+    exige: 'possede("necromancien-mort-siphon-des-ames")'
+    jet: { type: numerique, formule: 1d6 }
+    consequences:
+      - *soigner-acteur
+
+  - id: feindre-la-mort
+    nom: Se relever (Feindre la mort)
+    description: 'Le voleur qui feignait la mort se relève avec 1d6 PV de plus et une action de mouvement supplémentaire.'
+    pour: [personnage]
+    exige: 'possede("voleur-aventurier-feindre-la-mort")'
+    jet: { type: numerique, formule: 1d6 }
+    consequences:
+      - *soigner-acteur
+
+  - id: bon-repas
+    nom: Bon pour le moral
+    description: 'Repas de qualité : 1d6 PV ; une fois par jour, festin ou sieste : [2d6 + niveau] PV.'
+    pour: [personnage]
+    exige: 'possede("race-halfelin-bon-pour-le-moral")'
+    parametres:
+      - { id: festin, nom: Festin ou sieste (une fois par jour), type: booleen }
+    jet: { type: numerique, formule: 'si(festin, 2d6 + @niveau, 1d6)' }
+    consequences:
+      - *soigner-acteur
+
+  - id: vorace
+    nom: Festin d’ogre
+    description: 'Une fois par jour, en avalant un sanglier : [3d6 + niveau] PV.'
+    pour: [personnage]
+    exige: 'possede("race-ogre-vorace")'
+    jet: { type: numerique, formule: 3d6 + @niveau }
+    consequences:
+      - *soigner-acteur
+
+  # ── Sacrifices de PV ──
+
+  - id: poussee-d-adrenaline
+    nom: Poussée d’adrénaline
+    description: 'En dépensant 1d4 PV, le voleur gagne une action de mouvement supplémentaire à son tour.'
+    pour: [personnage]
+    exige: 'possede("prestige-voleur-casse-cou-poussee-d-adrenaline")'
+    jet: { type: numerique, formule: 1d4 }
+    consequences:
+      - &sacrifier-pv { entite: acteur, attribut: PV, operation: retirer, valeur: total }
+
+  - id: pacte-sanglant
+    nom: Pacte sanglant
+    description: >-
+      Action gratuite : sacrifice de 1d4 PV pour +3 à un d20 de son choix ou en
+      DEF contre une attaque ; au rang 5, 2d4 PV pour +5.
+    pour: [personnage]
+    exige: 'possede("necromancien-demon-pacte-sanglant")'
+    jet: { type: numerique, formule: 'si(rang("necromancien-demon") >= 5, 2d4, 1d4)' }
+    consequences:
+      - *sacrifier-pv
 
 initiative:
   action: initiative

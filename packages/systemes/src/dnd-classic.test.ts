@@ -94,7 +94,9 @@ describe('dnd-classic : chargement', () => {
     expect(parSorte('race')).toHaveLength(10);
     expect(parSorte('profil')).toHaveLength(16);
     expect(parSorte('voie')).toHaveLength(80 + 13 + 34);
-    expect(parSorte('capacite')).toHaveLength((80 + 13 + 34) * 5 + 13);
+    expect([...parSorte('capacite'), ...parSorte('capacite_active')]).toHaveLength(
+      (80 + 13 + 34) * 5 + 13,
+    );
     expect(parSorte('arme')).toHaveLength(19);
     expect(parSorte('armure')).toHaveLength(18);
     expect(systeme.source.textes.map((t) => t.titre)).toContain('Glossaire des règles');
@@ -304,7 +306,7 @@ describe('dnd-classic : capacités des voies', () => {
       rangs.forEach((f, i) => {
         if (f.sur !== 'rang') return;
         const c = systeme.entrees.get(f.entree)!;
-        expect(c.sorte, f.entree).toBe('capacite');
+        expect(['capacite', 'capacite_active'], f.entree).toContain(c.sorte);
         expect([c.champs.voie, c.champs.rangVoie, f.condition]).toEqual([
           v.id,
           i + 1,
@@ -679,5 +681,381 @@ describe('dnd-classic : actions', () => {
     expect(apres.valeur('PV_Max')).toBe(15 + 7 + 4);
     expect(apres.valeur('PV')).toBe(15 + 7 + 4);
     expect(apres.valeur('Contact')).toBe(4);
+  });
+});
+
+// ─── Capacités codées par les briques génériques ────────────────────────────
+
+describe('dnd-classic : capacités codées', () => {
+  type Possessions = EtatEntiteSaisi['possessions'];
+  /** Personnage neutre : caractéristiques à 10, niveau 1, 10 PV, Défense 10, attaques à +1. */
+  const nu = (possessions: Possessions = [], valeurs: Record<string, number> = {}) =>
+    fiche({ valeurs: { niveau: 1, jetsDeVie: 9, ...valeurs }, possessions });
+  const executer = (
+    action: string,
+    acteur: Fiche,
+    des: number[],
+    cible?: Fiche,
+    parametres: Record<string, Valeur> = {},
+  ) =>
+    executerAction(systeme, {
+      action,
+      acteur,
+      ...(cible ? { cible } : {}),
+      parametres,
+      aleatoire: aleatoireImpose(des),
+    });
+  const agir = (...args: Parameters<typeof executer>) => {
+    const r = executer(...args);
+    if (!r.ok) throw new Error(r.erreurs.map((e) => e.message).join(', '));
+    expect(r.resultat.erreurs).toEqual([]);
+    return r.resultat;
+  };
+  const total = (r: ReturnType<typeof agir>) => r.variables.total;
+  const arme = (id: string) => ({ arme: id });
+
+  it('héroïques : 2d20 aux tests de la caractéristique, sans cumul avec l’avantage', () => {
+    const brute = nu([{ entree: 'barbare-brute', rang: 5 }]); // Force héroïque : FOR 12
+    const test = (carac: string, des: number[], p: Record<string, Valeur> = {}) =>
+      total(agir('test', brute, des, undefined, { caracteristique: carac, ...p }));
+    expect(test('FOR', [5, 17])).toBe(17 + 1);
+    expect(test('FOR', [5, 17], { avantage: true })).toBe(17 + 1);
+    expect(test('FOR', [5], { desavantage: true })).toBe(5 + 1);
+    expect(test('DEX', [5])).toBe(5);
+  });
+
+  it('capacité invoquée au test : bonus situationnel, étiquette « test » exigée', () => {
+    const pagne = nu([{ entree: 'barbare-pagne', rang: 2 }]);
+    const test = (atout?: string) =>
+      executer('test', pagne, [10], undefined, {
+        caracteristique: 'FOR',
+        ...(atout ? { atout } : {}),
+      });
+    const r = test('barbare-pagne-vigueur'); // +2 par rang
+    expect(r.ok && r.resultat.variables.total).toBe(10 + 4);
+    expect(total(agir('test', pagne, [10], undefined, { caracteristique: 'FOR' }))).toBe(10);
+    expect(test('barbare-pagne-peau-de-pierre').ok).toBe(false); // pas un bonus de test
+    expect(test('barbare-primitif-vigilance').ok).toBe(false); // non possédée
+    // Ça passe ou ça casse : un d20 de plus
+    const casseCou = nu([{ entree: 'prestige-voleur-casse-cou', rang: 3 }]);
+    const fatal = agir('test', casseCou, [4, 16], undefined, {
+      caracteristique: 'DEX',
+      atout: 'prestige-voleur-casse-cou-ca-passe-ou-ca-casse',
+    });
+    expect(total(fatal)).toBe(16);
+  });
+
+  it('Tatouages : +5 aux tests de la caractéristique choisie sur la possession', () => {
+    const tatoue = nu([
+      { entree: 'barbare-pagne', rang: 3 },
+      { entree: 'barbare-pagne-tatouages', champs: { carac: 'CON' } },
+    ]);
+    const test = (carac: string) =>
+      total(agir('test', tatoue, [10], undefined, { caracteristique: carac }));
+    expect([test('CON'), test('FOR')]).toEqual([15, 10]);
+  });
+
+  it('Rage du berserk : inactive par défaut ; activée, +2 Contact, −4 DEF, +1d6 DM au contact', () => {
+    const barbare = (actif?: boolean, autres: Possessions = []) =>
+      nu([
+        { entree: 'barbare-rage', rang: 3 },
+        { entree: 'epee-longue' },
+        { entree: 'arc-court' },
+        ...(actif === undefined ? [] : [{ entree: 'barbare-rage-rage-du-berserk', actif }]),
+        ...(autres ?? []),
+      ]);
+    expect([val(barbare(), 'Contact'), val(barbare(), 'Defense')]).toEqual([1, 10]);
+    const enrage = barbare(true);
+    expect([val(enrage, 'Contact'), val(enrage, 'Defense')]).toEqual([3, 6]);
+    const coup = agir('attaque', enrage, [10, 5, 4], nu(), arme('epee-longue'));
+    expect([total(coup), coup.variables.degats]).toEqual([13, 5 + 4]);
+    const tir = agir('attaque', enrage, [10, 3], nu(), arme('arc-court'));
+    expect(tir.variables.degats).toBe(3);
+    // Rage froide (voie des glaces) : plus de pénalité de DEF
+    expect(val(barbare(true, [{ entree: 'prestige-barbare-glaces', rang: 4 }]), 'Defense')).toBe(
+      10,
+    );
+  });
+
+  it('Spécialisation et Haches et marteaux : bonus aux DM selon l’arme', () => {
+    const maitre = nu([
+      { entree: 'guerrier-maitre-d-armes', rang: 3, choix: { predilection: ['epee-longue'] } },
+      { entree: 'epee-longue' },
+      { entree: 'dague' },
+    ]);
+    const favori = agir('attaque', maitre, [10, 5], nu(), arme('epee-longue'));
+    expect([total(favori), favori.variables.degats]).toEqual([10 + 1 + 1, 5 + 2]);
+    expect(agir('attaque', maitre, [10, 3], nu(), arme('dague')).variables.degats).toBe(3);
+
+    const nain = nu([
+      { entree: 'race-nain', rang: 3 },
+      { entree: 'hache-a-1-main' },
+      { entree: 'epee-longue' },
+    ]);
+    const hache = agir('attaque', nain, [10, 4], nu(), arme('hache-a-1-main'));
+    expect([total(hache), hache.variables.degats]).toEqual([12, 5]);
+    const epee = agir('attaque', nain, [10, 4], nu(), arme('epee-longue'));
+    expect([total(epee), epee.variables.degats]).toEqual([11, 4]);
+    // Résistance naine : +5 aux tests de CON
+    expect(total(agir('test', nain, [10], undefined, { caracteristique: 'CON' }))).toBe(15);
+  });
+
+  it('critiques : Critique brutal (×3 au contact), Maîtrise des arbalètes (19-20)', () => {
+    const orque = nu([
+      { entree: 'race-orque', rang: 3 },
+      { entree: 'epee-longue' },
+      { entree: 'arc-court' },
+    ]);
+    expect(agir('attaque', orque, [20, 3, 4, 5], nu(), arme('epee-longue')).variables.degats).toBe(
+      12,
+    );
+    expect(agir('attaque', orque, [20, 3, 4], nu(), arme('arc-court')).variables.degats).toBe(7);
+
+    const elfe = nu([
+      { entree: 'race-elfe-noir', rang: 3 },
+      { entree: 'arbalete-legere' },
+      { entree: 'arc-court' },
+    ]);
+    const imprenable = nu([{ entree: 'bonus-inventaire', champs: { Defense: 30 } }]);
+    const carreau = agir('attaque', elfe, [19, 2, 3, 1, 4], imprenable, arme('arbalete-legere'));
+    expect([carreau.reussi, carreau.variables.degats]).toEqual([true, 10]);
+    expect(agir('attaque', elfe, [19], imprenable, arme('arc-court')).reussi).toBe(false);
+  });
+
+  it('bonus contre des types de créatures (Massacrer la piétaille)', () => {
+    const chevalier = nu([{ entree: 'chevalier-noblesse', rang: 4 }, { entree: 'epee-longue' }]);
+    const pietaille = nu([{ entree: 'pietaille' }]);
+    expect(
+      agir('attaque', chevalier, [10, 5, 6], pietaille, arme('epee-longue')).variables.degats,
+    ).toBe(11);
+    expect(agir('attaque', chevalier, [10, 5], nu(), arme('epee-longue')).variables.degats).toBe(5);
+  });
+
+  it('défenses de la cible : Dentelles et rapière, Cri de guerre, Flou, Piqûres d’insecte', () => {
+    const attaquant = nu([{ entree: 'epee-longue' }, { entree: 'arc-long' }]);
+    const barde = nu([{ entree: 'barde-seduction', rang: 2 }]);
+    expect(val(barde, 'DefContact')).toBe(2);
+    expect(
+      val(nu([{ entree: 'barde-seduction', rang: 2 }, { entree: 'cuir' }]), 'DefContact'),
+    ).toBe(0);
+    expect(agir('attaque', attaquant, [10], barde, arme('epee-longue')).reussi).toBe(false);
+    expect(agir('attaque', attaquant, [10, 3], barde, arme('arc-long')).reussi).toBe(true);
+
+    const hurleur = nu([
+      { entree: 'barbare-rage', rang: 1 },
+      { entree: 'barbare-rage-cri-de-guerre', actif: true },
+    ]);
+    expect(total(agir('attaque', attaquant, [11, 5], hurleur, arme('epee-longue')))).toBe(12 - 2);
+    expect(total(agir('attaque', attaquant, [11, 5], hurleur, arme('arc-long')))).toBe(12);
+
+    const flou = nu([
+      { entree: 'magicien-magie-protectrice', rang: 3 },
+      { entree: 'magicien-magie-protectrice-flou', actif: true },
+    ]);
+    expect(val(flou, 'Defense')).toBe(10); // Armure du mage non activée
+    expect(agir('attaque', attaquant, [15, 7], flou, arme('epee-longue')).variables.subis).toBe(3);
+    const sort = agir('attaque-libre', nu(), [15, 5], flou, { score: 'Magie' });
+    expect(sort.variables.subis).toBe(5);
+
+    const heros = (armure: string) =>
+      nu([{ entree: 'chevalier-heros', rang: 2 }, { entree: armure }]);
+    expect(
+      agir('attaque', attaquant, [19, 6], heros('demi-plaque'), arme('arc-long')).variables.subis,
+    ).toBe(6 - 2);
+    expect(
+      agir('attaque', attaquant, [19, 6], heros('cuir'), arme('arc-long')).variables.subis,
+    ).toBe(6);
+  });
+
+  it('Instinct de survie (humain) : DM mortels divisés par 2', () => {
+    const humain = (PV: number) => nu([{ entree: 'humain' }], { PV });
+    const attaquant = nu([{ entree: 'epee-longue' }]);
+    expect(
+      agir('attaque', attaquant, [15, 8], humain(6), arme('epee-longue')).variables.subis,
+    ).toBe(4);
+    expect(
+      agir('attaque', attaquant, [15, 8], humain(10), arme('epee-longue')).variables.subis,
+    ).toBe(8);
+    expect(
+      agir('attaque', attaquant, [15, 8], nu([], { PV: 6 }), arme('epee-longue')).variables.subis,
+    ).toBe(8);
+  });
+
+  it('Armure lourde : la plaque complète ne double pas les dés au critique', () => {
+    const attaquant = nu([{ entree: 'epee-longue' }]);
+    const guerrier = nu([{ entree: 'guerrier-bouclier', rang: 4 }, { entree: 'plaque-complete' }]);
+    expect(
+      agir('attaque', attaquant, [20, 5], guerrier, arme('epee-longue')).variables.degats,
+    ).toBe(5);
+    const autre = nu([{ entree: 'plaque-complete' }]);
+    expect(
+      agir('attaque', attaquant, [20, 5, 3], autre, arme('epee-longue')).variables.degats,
+    ).toBe(8);
+  });
+
+  it('Mains d’énergie : +5 contre une cible en armure', () => {
+    const moine = nu([{ entree: 'moine-energie-vitale', rang: 1 }]);
+    expect(total(agir('mains-d-energie', moine, [10, 4], nu()))).toBe(10 + 1 + 2);
+    expect(total(agir('mains-d-energie', moine, [10, 4], nu([{ entree: 'cuir' }])))).toBe(
+      10 + 1 + 5,
+    );
+  });
+
+  it('états : désavantage de l’aveuglé, avantage contre le paralysé', () => {
+    const attaquant = (etat?: string) =>
+      nu([{ entree: 'epee-longue' }, ...(etat ? [{ entree: etat }] : [])]);
+    expect(total(agir('attaque', attaquant('aveugle'), [15, 3], nu(), arme('epee-longue')))).toBe(
+      4,
+    );
+    const paralyse = nu([{ entree: 'paralyse' }]);
+    expect(total(agir('attaque', attaquant(), [3, 15, 6], paralyse, arme('epee-longue')))).toBe(16);
+    expect(
+      total(agir('attaque', attaquant('aveugle'), [3, 6], paralyse, arme('epee-longue'))),
+    ).toBe(4);
+    const effraye = nu([{ entree: 'effraye' }]);
+    expect(total(agir('test', effraye, [15, 3], undefined, { caracteristique: 'FOR' }))).toBe(3);
+  });
+
+  it('options réservées de l’attaque, sorts génériques et vérifications', () => {
+    const attaquant = nu([{ entree: 'epee-longue' }]);
+    const outrance = executer('attaque', attaquant, [10], nu(), {
+      ...arme('epee-longue'),
+      outrance: true,
+    });
+    expect(outrance.ok).toBe(false);
+
+    const necro = nu([{ entree: 'necromancien-sang', rang: 1 }]);
+    const saignement = agir('sort', necro, [15, 4], nu(), {
+      capacite: 'necromancien-sang-saignements',
+    });
+    expect([total(saignement), saignement.variables.degats]).toEqual([16, 4]);
+    expect(executer('sort', necro, [15], nu(), { capacite: 'necromancien-sang-exsangue' }).ok).toBe(
+      false,
+    );
+    // Suggestion : contre les PV max de la cible (10), pas sa Défense (30)
+    const barde = nu([{ entree: 'barde-seduction', rang: 4 }]);
+    const cible = nu([{ entree: 'bonus-inventaire', champs: { Defense: 20 } }]);
+    const suggestion = agir('sort', barde, [9], cible, { capacite: 'barde-seduction-suggestion' });
+    expect([suggestion.reussi, suggestion.modifications]).toEqual([true, []]);
+
+    const pretre = nu([{ entree: 'pretre-priere', rang: 2 }]);
+    const vivant = executer('destruction-des-morts-vivants', pretre, [3, 4], nu());
+    expect(!vivant.ok && vivant.erreurs[0]!.message).toBe('La cible n’est pas un mort-vivant');
+    const zombi = agir(
+      'destruction-des-morts-vivants',
+      pretre,
+      [3, 4],
+      nu([{ entree: 'mort-vivant' }]),
+    );
+    expect(zombi.variables.subis).toBe(7);
+  });
+
+  it('options réservées : alliés (Lois de la meute), Kiai, Ouverture mortelle', () => {
+    const wolfer = nu([{ entree: 'race-wolfer', rang: 3 }, { entree: 'epee-longue' }]);
+    const meute = agir('attaque', wolfer, [10, 5], nu(), { ...arme('epee-longue'), allies: 7 });
+    expect(total(meute)).toBe(10 + 1 + 5); // plafonné à +5
+    const samourai = nu([{ entree: 'samourai-ki', rang: 3 }, { entree: 'epee-longue' }]);
+    const kiai = agir('attaque', samourai, [10], nu(), { ...arme('epee-longue'), degatsMax: true });
+    expect(kiai.variables.degats).toBe(8);
+    const assassin = nu([{ entree: 'voleur-assassin', rang: 5 }, { entree: 'epee-longue' }]);
+    const imprenable = nu([{ entree: 'bonus-inventaire', champs: { Defense: 30 } }]);
+    const ouverture = agir('attaque-sournoise', assassin, [2, 1, 1, 1, 1, 1], imprenable, {
+      ...arme('epee-longue'),
+      ouvertureMortelle: true,
+    });
+    // Critique automatique : 2d8 de l'arme + 3d6 d'attaque sournoise
+    expect([ouverture.reussi, ouverture.variables.degats]).toEqual([true, 5]);
+  });
+
+  it('Tour de force et Défier la mort', () => {
+    const brute = nu([
+      { entree: 'barbare-brute', rang: 2 },
+      { entree: 'barbare-rage', rang: 2 },
+    ]);
+    const force = agir('exploit', brute, [8, 3], undefined, { caracteristique: 'FOR' });
+    expect([total(force), force.modifications]).toEqual([
+      18,
+      [{ entite: 'acteur', attribut: 'PV', operation: 'retirer', valeur: 3 }],
+    ]);
+    const defi = agir('defier-la-mort', brute, [10], undefined, { difficulte: 20, enrage: true });
+    expect([defi.reussi, defi.modifications]).toEqual([
+      true,
+      [{ entite: 'acteur', attribut: 'PV', operation: 'fixer', valeur: 1 }],
+    ]);
+  });
+
+  it('armure sainte à activer, qui s’améliore avec la voie', () => {
+    const moine = (rang: number) =>
+      nu([
+        { entree: 'prestige-moine-armure-sainte', rang },
+        { entree: 'prestige-moine-armure-sainte-armure-sainte-de-bronze', actif: true },
+      ]);
+    expect([val(moine(1), 'Defense'), val(moine(1), 'RD')]).toEqual([14, 0]);
+    expect([val(moine(5), 'Defense'), val(moine(5), 'RD')]).toEqual([18, 5]);
+  });
+
+  it('bilan : plus de la moitié des capacités ont une mécanique', () => {
+    const texte = JSON.stringify(lireSysteme('dnd-classic'));
+    const caps = [...systeme.entrees.values()].filter((e) => e.sorte.startsWith('capacite'));
+    const codees = caps.filter(
+      (c) =>
+        c.effets.length > 0 ||
+        c.choixAttributs.length > 0 ||
+        c.etiquettes.some((e) => e === 'test' || e === 'sort') ||
+        texte.includes(`(\\"${c.id}\\")`),
+    );
+    expect(codees.length).toBeGreaterThan(caps.length / 2);
+  });
+});
+
+describe('dnd-classic : toutes les actions', () => {
+  it('s’exécutent sans erreur de formule pour un personnage qui possède toutes les voies', () => {
+    const tout = [...systeme.entrees.values()];
+    const voies = tout.filter((e) => e.sorte === 'voie').map((e) => ({ entree: e.id, rang: 5 }));
+    const actives = tout
+      .filter((e) => e.sorte === 'capacite_active')
+      .map((e) => ({ entree: e.id, actif: true }));
+    const acteur = calculer(
+      systeme,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: 'dnd-classic', version: '1.0.0' },
+        valeurs: { niveau: 5, jetsDeVie: 30 },
+        possessions: [...voies, ...actives, { entree: 'epee-longue' }, { entree: 'aveugle' }],
+      }),
+    );
+    const cible = calculer(
+      systeme,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: 'dnd-classic', version: '1.0.0' },
+        valeurs: { PV: 0 },
+        possessions: [
+          ...voies.slice(0, 40),
+          { entree: 'mort-vivant' },
+          { entree: 'plaque-complete' },
+        ],
+      }),
+    );
+    let reussies = 0;
+    for (const action of systeme.actions.values()) {
+      const parametres: Record<string, Valeur> = {};
+      for (const p of action.parametres) {
+        if (p.type === 'entree' && !p.facultatif)
+          parametres[p.id] = p.sorte === 'arme' ? 'epee-longue' : 'necromancien-sang-saignements';
+        if (p.type === 'attribut') parametres[p.id] = p.attributs?.[0] ?? 'FOR';
+      }
+      const r = executerAction(systeme, {
+        action: action.id,
+        acteur,
+        ...(action.cible ? { cible } : {}),
+        parametres,
+        aleatoire: aleatoireGraine(action.id),
+      });
+      if (!r.ok) throw new Error(`${action.id} : ${r.erreurs.map((e) => e.message).join(', ')}`);
+      expect(r.resultat.erreurs, action.id).toEqual([]);
+      reussies++;
+    }
+    expect(reussies).toBe(systeme.actions.size);
   });
 });

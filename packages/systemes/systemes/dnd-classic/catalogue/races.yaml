@@ -141,6 +141,8 @@
   nom: Instinct de survie
   description: |-
     Lorsqu’une attaque devrait amener le personnage à 0 PV, les DM qu’elle inflige sont divisés par 2 (minimum 1).
+  effets:
+    - { sur: jet, cote: cible, ajout: { variable: instinct, ajouter: '1' } }
 
 - id: nain
   sorte: race
@@ -212,6 +214,8 @@
 - id: minotaure-sens-de-l-orientation
   sorte: capacite
   nom: Sens de l’orientation
+  etiquettes: [test]
+  champs: { bonusTest: '5' }
   description: |-
     Le minotaure reçoit un test de +5 à tous les tests d’orientation.
 

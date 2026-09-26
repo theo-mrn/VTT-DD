@@ -1,10 +1,13 @@
-# Capacités raciales. « Petite taille » donne +1 en Défense et « Coup de corne »
-# ouvre l'action du même nom ; les autres restent descriptives (bonus à des
-# tests précis, réduction de dégâts conditionnelle).
+# Capacités raciales. « Petite taille » donne +1 en Défense (et +2 invoqué aux
+# tests de discrétion), « Coup de corne » ouvre l'action du même nom,
+# « Instinct de survie » divise par 2 les DM mortels des attaques (effet porté
+# par la cible), « Sens de l'orientation » s'invoque au test (+5).
 - id: instinct-de-survie
   sorte: capacite
   nom: Instinct de survie
   description: Lorsqu'une attaque devrait amener le personnage à 0 PV, les DM qu'elle inflige sont divisés par 2 (minimum 1).
+  effets:
+    - { sur: jet, cote: cible, ajout: { variable: instinct, ajouter: 1 } }
 
 - id: lumiere-des-etoiles
   sorte: capacite
@@ -19,6 +22,8 @@
 - id: petite-taille
   sorte: capacite
   nom: Petite taille
+  etiquettes: [test]
+  champs: { bonusTest: '2' }
   description: Le halfelin obtient un bonus de +1 en DEF et de +2 à tous les tests de discrétion. En revanche, il ne peut utiliser à une main qu'une arme dont les DM sont au maximum de 1d6, et doit utiliser 2 mains pour une arme à 1d8-1d10. Il lui est interdit d'utiliser une arme infligeant plus de 1d10 DM.
   effets:
     - {
@@ -37,6 +42,8 @@
 - id: sens-de-l-orientation
   sorte: capacite
   nom: Sens de l'orientation
+  etiquettes: [test]
+  champs: { bonusTest: '5' }
   description: Le minotaure reçoit un bonus de +5 à tous les tests d'orientation.
 
 - id: voie-raciale

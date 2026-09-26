@@ -1,0 +1,50 @@
+# Types de créature : marques posées par le MJ sur la fiche d'un adversaire.
+# Les capacités « +1 contre les morts-vivants », « +1d6 DM contre la piétaille »…
+# les lisent chez la cible (cible_possede) dans les actions d'attaque.
+- id: mort-vivant
+  sorte: type_creature
+  nom: Mort-vivant
+- id: demon
+  sorte: type_creature
+  nom: Démon
+- id: corrompu
+  sorte: type_creature
+  nom: Animal corrompu
+  description: Animal doté de pouvoirs paranormaux.
+- id: magie-noire
+  sorte: type_creature
+  nom: Pratiquant de magie noire
+  description: Nécromancien, prêtre d'une religion maléfique…
+- id: humanoide
+  sorte: type_creature
+  nom: Humanoïde
+- id: animal
+  sorte: type_creature
+  nom: Animal
+- id: monstre
+  sorte: type_creature
+  nom: Monstre non humanoïde
+- id: predateur
+  sorte: type_creature
+  nom: Prédateur
+  description: Ours, lion, prédateurs fantastiques et préhistoriques.
+- id: dragon
+  sorte: type_creature
+  nom: Dragon
+- id: pietaille
+  sorte: type_creature
+  nom: Piétaille
+  description: Au moins 4 créatures aux statistiques semblables (jamais les grandes créatures ni les cavaliers).
+- id: chef
+  sorte: type_creature
+  nom: Chef ennemi
+  description: Leader identifiable d'un groupe d'au moins 4 créatures.
+- id: grande-taille
+  sorte: type_creature
+  nom: Taille grande ou plus
+- id: taille-enorme
+  sorte: type_creature
+  nom: Taille énorme
+- id: taille-colossale
+  sorte: type_creature
+  nom: Taille colossale

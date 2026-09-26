@@ -158,4 +158,45 @@ describe('Nooblies Chroniques', () => {
     const rate = agir('coup-de-corne', minotaure(), [2], { cible: nain() });
     expect(rate.ok && [rate.resultat.reussi, rate.resultat.modifications]).toEqual([false, []]);
   });
+
+  const humain = (PV: number) =>
+    fiche({
+      valeurs: { FOR: 10, DEX: 10, CON: 10, SAG: 10, INT: 10, CHA: 10, jetDeVie: 9, PV },
+      possessions: [{ entree: 'humain' }, { entree: 'guerrier' }],
+    });
+
+  it('attaque : dégâts saisis, Instinct de survie de la cible humaine', () => {
+    const coup = (cible: ReturnType<typeof fiche>, des = [19, 4, 5]) => {
+      const r = agir('attaque', minotaure(), des, {
+        cible,
+        parametres: { score: 'Contact', nbDes: 2, faces: 6, bonus: 1 },
+      });
+      if (!r.ok) throw new Error(r.erreurs[0]!.message);
+      expect(r.resultat.erreurs).toEqual([]);
+      return r.resultat.variables.subis;
+    };
+    // 2d6 + 1 = 10 : mortel pour 6 PV, divisé par 2 ; 2d6 + 1 = 6 non mortel pour 10 PV
+    expect(coup(humain(6))).toBe(5);
+    expect(coup(humain(10), [19, 2, 3])).toBe(6);
+    expect(coup(fiche({ ...nain().etat, valeurs: { ...nain().etat.valeurs, PV: 6 } }))).toBe(10);
+    // Sans dégâts saisis : jet d'attaque seul, aucune modification
+    const sec = agir('attaque', minotaure(), [19], {
+      cible: nain(),
+      parametres: { score: 'Contact' },
+    });
+    expect(sec.ok && sec.resultat.modifications).toEqual([]);
+  });
+
+  it('test : capacité raciale invoquée (Sens de l’orientation +5)', () => {
+    const test = (acteur: ReturnType<typeof fiche>, atout?: string) =>
+      agir('test', acteur, [8], {
+        parametres: { caracteristique: 'SAG', ...(atout ? { atout } : {}) },
+      });
+    const oriente = test(minotaure(), 'sens-de-l-orientation');
+    expect(oriente.ok && oriente.resultat.variables.total).toBe(8 + 0 + 5);
+    const simple = test(minotaure());
+    expect(simple.ok && simple.resultat.variables.total).toBe(8);
+    expect(test(minotaure(), 'petite-taille').ok).toBe(false); // non possédée
+    expect(test(minotaure(), 'coup-de-corne').ok).toBe(false); // pas un bonus de test
+  });
 });

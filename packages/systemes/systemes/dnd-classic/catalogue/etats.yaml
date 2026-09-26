@@ -1,8 +1,13 @@
 # États — généré depuis legacy/public/tabs (contenu D&D classique de l'ancienne app).
+# Désavantage (variable `avantages` des attaques, `avantagesTest` des tests) et
+# avantage des attaques qui visent le porteur (`cote: cible`).
 - id: aveugle
   sorte: etat
   nom: Aveuglé
   description: Un personnage aveuglé ne peut pas voir et échoue automatiquement à tout test de caractéristique qui nécessite la vue.Les attaques contre ce personnage ont l'avantage.Les attaques du personnage aveuglé ont un désavantage.
+  effets:
+    - { sur: jet, ajout: { variable: avantages, ajouter: -1 } }
+    - { sur: jet, cote: cible, ajout: { variable: avantages, ajouter: 1 } }
 - id: charme
   sorte: etat
   nom: Charmé
@@ -15,6 +20,9 @@
   sorte: etat
   nom: Effrayé
   description: Un personnage effrayé a un désavantage sur les tests de caractéristique et les jets d'attaque tant que la source de sa peur est dans sa ligne de vue. Le personnage ne peut volontairement se déplacer plus près de la source de sa peur.
+  effets:
+    - { sur: jet, ajout: { variable: avantages, ajouter: -1 } }
+    - { sur: jet, ajout: { variable: avantagesTest, ajouter: -1 } }
 - id: incapacite
   sorte: etat
   nom: Incapacité
@@ -23,15 +31,24 @@
   sorte: etat
   nom: Paralysé
   description: Un personnage paralysé a Incapacitaté et ne peut ni bouger ni parler. Les jets d'attaque contre ce personnage ont l'avantage. Toute attaque qui touche le personnage paralysé est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds) du personnage. Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité.
+  effets:
+    - { sur: jet, cote: cible, ajout: { variable: avantages, ajouter: 1 } }
 - id: empoisonne
   sorte: etat
   nom: Empoisonné
   description: Un personnage empoisonné a un désavantage sur les jets d'attaque et les tests de caractéristique.
+  effets:
+    - { sur: jet, ajout: { variable: avantages, ajouter: -1 } }
+    - { sur: jet, ajout: { variable: avantagesTest, ajouter: -1 } }
 - id: etourdi
   sorte: etat
   nom: Etourdi
   description: Le personnage étourdi a Incapacité, ne peut pas bouger, et ne peut parler que faiblement. Les jets d'attaque contre lui ont l'avantage. Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité.
+  effets:
+    - { sur: jet, cote: cible, ajout: { variable: avantages, ajouter: 1 } }
 - id: inconscient
   sorte: etat
   nom: Inconscient
   description: Le personnage inconscient a Incapacitaté, ne peut pas bouger ou parler, et est inconscient. Il laisse tomber tout ce qu'il tient et tombe à terre (prone). Les jets d'attaque contre le personnage ont l'avantage. Toute attaque qui touche le personnage inconscient est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds). Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité.
+  effets:
+    - { sur: jet, cote: cible, ajout: { variable: avantages, ajouter: 1 } }

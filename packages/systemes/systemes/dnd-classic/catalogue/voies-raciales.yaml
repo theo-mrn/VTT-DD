@@ -99,6 +99,7 @@
     L'elfe gagne un bonus de +5 en Initiative et à tous les tests de DEX.
   effets:
     - { sur: attribut, attribut: INIT, operation: ajouter, valeur: 5 }
+    - { sur: jet, si: 'caracteristique == "DEX"', ajout: { bonus: '5' } }
 
 - id: race-haut-elfe-talent-pour-la-magie
   sorte: capacite
@@ -113,11 +114,14 @@
 - id: race-haut-elfe-force-d-ame
   sorte: capacite
   nom: Force d’âme
-  champs: { voie: race-haut-elfe, rangVoie: 3, activation: Capacité passive }
+  etiquettes: [test]
+  champs: { voie: race-haut-elfe, rangVoie: 3, activation: Capacité passive, bonusTest: '5' }
   description: |-
     Effet: +5 DEF vs magie, +5 SAG aux tests de résist. magie
 
     L'elfe est immunisé à la peur et au sommeil magique. Il obtient un bonus de +5 en DEF contre les attaques magiques et à tous les tests de SAG destinés à résister à la magie.
+  effets:
+    - { sur: attribut, attribut: DefMagie, operation: ajouter, valeur: '5' }
 
 - id: race-haut-elfe-immortel
   sorte: capacite
@@ -163,13 +167,16 @@
     - { sur: rang, entree: race-elfe-noir-superiorite-elfique, valeur: 1, condition: 'rang >= 5' }
 
 - id: race-elfe-noir-enfant-des-tenebres
-  sorte: capacite
+  sorte: capacite_active
   nom: Enfant des ténèbres
   champs: { voie: race-elfe-noir, rangVoie: 1, activation: Capacité passive }
   description: |-
     Effet : +5 Init, +5 DEX dans le noir.
 
     L'elfe gagne un bonus de +5 en Initiative et aux tests de DEX dans le noir complet ou la pénombre. Il ne subit pas de pénalité d'attaque à distance dans la pénombre.
+  effets:
+    - { sur: attribut, attribut: INIT, operation: ajouter, valeur: '5' }
+    - { sur: jet, si: 'caracteristique == "DEX"', ajout: { bonus: '5' } }
 
 - id: race-elfe-noir-societe-de-caste
   sorte: capacite
@@ -189,6 +196,12 @@
     Effet : critique d'arbalète sur 19-20.
 
     Lorsqu'il utilise une arbalète de poing ou légère, l'elfe noir obtient une réussite critique sur un résultat de 19-20. Il sait manier ces arbalètes quel que soit son profil.
+  effets:
+    - {
+        sur: jet,
+        si: 'a_etiquette(arme, "arbalete")',
+        ajout: { variable: seuilCritique, ajouter: 'min(0, 19 - @Critique)' },
+      }
 
 - id: race-elfe-noir-combat-a-2-armes
   sorte: capacite
@@ -237,6 +250,7 @@
     Effet : +5 Init et tous les tests de DEX. L'elfe gagne un bonus de +5 en Initiative et à tous les tests de DEX.
   effets:
     - { sur: attribut, attribut: INIT, operation: ajouter, valeur: 5 }
+    - { sur: jet, si: 'caracteristique == "DEX"', ajout: { bonus: '5' } }
 
 - id: race-elfe-sylvain-enfant-de-la-foret
   sorte: capacite
@@ -251,6 +265,12 @@
   champs: { voie: race-elfe-sylvain, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet: critique à l'arc sur 19-20 au d20. Lorsqu'il utilise un arc, l'elfe sylvain obtient une réussite critique sur un résultat de 19-20 au d20. Il sait utiliser les arcs quel que soit son profil.
+  effets:
+    - {
+        sur: jet,
+        si: 'a_etiquette(arme, "arc")',
+        ajout: { variable: seuilCritique, ajouter: 'min(0, 19 - @Critique)' },
+      }
 
 - id: race-elfe-sylvain-fleche-sanglante
   sorte: capacite
@@ -304,7 +324,9 @@
 - id: race-humain-adaptable
   sorte: capacite
   nom: Adaptable
-  champs: { voie: race-humain, rangVoie: 1, activation: 'Capacité passive, sortilège' }
+  etiquettes: [test]
+  champs:
+    { voie: race-humain, rangVoie: 1, activation: 'Capacité passive, sortilège', bonusTest: '5' }
   description: |-
     Effet: recommence le test raté avec un bonus de +5 au tour suivant Après avoir raté un test de Carac.,
 
@@ -370,6 +392,12 @@
     Effet : +5 aux tests de CON.
 
     Le nain gagne un bonus de +5 à tous ses tests de CON.
+  effets:
+    - {
+        sur: jet,
+        si: 'caracteristique == "CON" ou action == "defier-la-mort"',
+        ajout: { bonus: '5' },
+      }
 
 - id: race-nain-solide-comme-un-roc
   sorte: capacite
@@ -397,12 +425,8 @@
 
     Le nain gagne un bonus de + 1 en attaque et aux DM lorsqu'il utilise une hache ou un marteau de guerre. Il sait utiliser ces armes quel que soit son profil.
   effets:
-    - {
-        sur: jet,
-        si: 'arme == "hache-a-1-main" ou arme == "hache-a-2-mains" ou arme == "hachette"',
-        ajout: { bonus: 1 },
-      }
-
+    - { sur: jet, si: 'a_etiquette(arme, "hache")', ajout: { bonus: '1' } }
+    - { sur: jet, si: 'a_etiquette(arme, "hache")', ajout: { variable: bonusDM, ajouter: '1' } }
 - id: race-nain-resistance-a-la-magie
   sorte: capacite
   nom: Résistance à la magie
@@ -456,7 +480,7 @@
     Le minotaure se déplace en ligne droite d’au moins 5 mètres (20 mètres au maximum) et il réalise une attaque avec +2 au test et +1d6 DM en cas de réussite. Cette capacité peut se cumuler à la charge du barbare.
 
 - id: race-minotaure-frenesie
-  sorte: capacite
+  sorte: capacite_active
   nom: Frénésie
   champs: { voie: race-minotaure, rangVoie: 2, activation: Capacité passive }
   description: |-
@@ -464,6 +488,14 @@
     Durée : 1d6 tours.
 
     Après avoir reçu une blessure, le minotaure peut entrer en frénésie (action gratuite), il gagne un bonus de +2 en attaque au contact et aux DM, mais subit un malus de -2 en DEF pour 1d6 tours. Ces bonus/malus ne sont pas cumulables à la rage du barbare.
+  effets:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: '2', famille: rage }
+    - {
+        sur: jet,
+        si: 'arme.attaque == "Contact" ou score == "Contact" ou action == "coup-de-corne" ou action == "coup-de-bouclier" ou action == "griffes" ou action == "choc-electrique" ou action == "mains-d-energie" ou action == "mains-nues" ou action == "arme-d-argent" ou action == "baton-de-mage"',
+        ajout: { variable: bonusDM, ajouter: '2' },
+      }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '-2' }
 
 - id: race-minotaure-orientation-infaillible
   sorte: capacite
@@ -530,6 +562,9 @@
     Effet : +5 tests de CON, +5 🛡️ contre magie.
 
     Le halfelin obtient un bonus de +5 à tous ses tests de CON et un bonus de +5 en DEF contre la magie.
+  effets:
+    - { sur: jet, si: 'caracteristique == "CON"', ajout: { bonus: '5' } }
+    - { sur: attribut, attribut: DefMagie, operation: ajouter, valeur: '5' }
 
 - id: race-halfelin-bon-pour-le-moral
   sorte: capacite
@@ -543,11 +578,14 @@
 - id: race-halfelin-perception
   sorte: capacite
   nom: Perception
-  champs: { voie: race-halfelin, rangVoie: 4, activation: Capacité passive }
+  etiquettes: [test]
+  champs: { voie: race-halfelin, rangVoie: 4, activation: Capacité passive, bonusTest: '5' }
   description: |-
     Effet : fronde 🗡️ [+ mod. DEX] DM, +5 tests de perception et discrétion.
 
     Le halfelin obtient un bonus de +5 à tous les tests de perception et de discrétion. Il peut ajouter son Mod. de DEX aux DM à la fronde et il sait utiliser cette arme quel que soit son profil.
+  effets:
+    - { sur: jet, si: 'arme == "fronde"', ajout: { variable: bonusDM, ajouter: 'mod(@DEX)' } }
 
 - id: race-halfelin-lfit-et-alerte
   sorte: capacite
@@ -588,6 +626,7 @@
     Le demiorque gagne un bonus de +5 à tous les tests de FOR et ajoute son [Mod. de FOR] à son score total de PV.
   effets:
     - { sur: attribut, attribut: PV_Max, operation: ajouter, valeur: 'mod(@FOR)' }
+    - { sur: jet, si: 'caracteristique == "FOR"', ajout: { bonus: '5' } }
 
 - id: race-orque-talent-pour-la-violence
   sorte: capacite
@@ -606,6 +645,12 @@
     Effet: DM x 3 sur critique.
 
     Les DM du demi- orque sont multipliés par 3 (au lieu de 2) lorsqu'il obtient une réussite critique sur une attaque au contact.
+  effets:
+    - {
+        sur: jet,
+        si: 'arme.attaque == "Contact" ou score == "Contact" ou action == "coup-de-corne" ou action == "coup-de-bouclier" ou action == "griffes" ou action == "choc-electrique" ou action == "mains-d-energie" ou action == "mains-nues" ou action == "arme-d-argent" ou action == "baton-de-mage"',
+        ajout: { variable: multCritique, ajouter: '1' },
+      }
 
 - id: race-orque-attaque-sanglante
   sorte: capacite
@@ -657,7 +702,8 @@
 - id: race-drakonide-intimidant
   sorte: capacite
   nom: Intimidant
-  champs: { voie: race-drakonide, rangVoie: 2, activation: Capacité passive }
+  etiquettes: [test]
+  champs: { voie: race-drakonide, rangVoie: 2, activation: Capacité passive, bonusTest: '5' }
   description: |-
     Effet: +5 aux tests d'intimisation
 
@@ -682,6 +728,34 @@
     Effet: +1 (contact/distance/magie) et DM si subit un critique ou en dessous de 1/2 PV max
 
     Lorsqu'un adversaire lui inflige une réussite critique en attaque ou lorsqu'il passe sous la moitié de son score de PV max, le drakonide obtient un bonus de +1 en attaque et aux DM.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Contact,
+        operation: ajouter,
+        valeur: '1',
+        condition: '@PV * 2 < @PV_Max',
+      }
+    - {
+        sur: attribut,
+        attribut: Distance,
+        operation: ajouter,
+        valeur: '1',
+        condition: '@PV * 2 < @PV_Max',
+      }
+    - {
+        sur: attribut,
+        attribut: Magie,
+        operation: ajouter,
+        valeur: '1',
+        condition: '@PV * 2 < @PV_Max',
+      }
+    - {
+        sur: jet,
+        condition: '@PV * 2 < @PV_Max',
+        si: 'arme != "" ou score == "Contact" ou score == "Distance" ou action == "coup-de-corne" ou action == "coup-de-bouclier" ou action == "griffes" ou action == "choc-electrique" ou action == "mains-d-energie" ou action == "mains-nues" ou action == "arme-d-argent" ou action == "baton-de-mage"',
+        ajout: { variable: bonusDM, ajouter: '1' },
+      }
 
 - id: race-drakonide-heritage-draconique
   sorte: capacite
@@ -723,7 +797,8 @@
 - id: race-frouin-se-planquer
   sorte: capacite
   nom: Se planquer
-  champs: { voie: race-frouin, rangVoie: 1, activation: Capacité passive }
+  etiquettes: [test]
+  champs: { voie: race-frouin, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
   description: |-
     Effet : +5 aux tests de discrétion.
 
@@ -748,7 +823,8 @@
 - id: race-frouin-parano
   sorte: capacite
   nom: Parano
-  champs: { voie: race-frouin, rangVoie: 3, activation: Capacité passive }
+  etiquettes: [test]
+  champs: { voie: race-frouin, rangVoie: 3, activation: Capacité passive, bonusTest: '5' }
   description: |-
     Effet : +5 Init, +5 aux tests anti-surprise.
 
@@ -796,7 +872,8 @@
 - id: race-ogre-sang-froid
   sorte: capacite
   nom: Sang-froid
-  champs: { voie: race-ogre, rangVoie: 1, activation: Capacité passive }
+  etiquettes: [test]
+  champs: { voie: race-ogre, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
   description: |-
     Effet: +5 résistance à la réaction violente (RV), atténue les effets.
 
@@ -859,7 +936,14 @@
 - id: race-wolfer-chasseur-ne
   sorte: capacite
   nom: Chasseur né
-  champs: { voie: race-wolfer, rangVoie: 1, activation: Capacité passive }
+  etiquettes: [test]
+  champs:
+    {
+      voie: race-wolfer,
+      rangVoie: 1,
+      activation: Capacité passive,
+      bonusTest: 'rang("race-wolfer")',
+    }
   description: |-
     Effet : +rang SAG aux tests de pistage, chasse, détecter un piège ou créature.
 
@@ -893,10 +977,18 @@
     Une fois par jour, le personnage peut réellement prendre la forme du loup (mâle alpha) pendant une durée maximum de 1 heure par niveau du personnage. Le personnage conserve toutes ses caractéristiques quelles qu’elles soient, ainsi que son score d’attaque au contact habituel. Loup : Init 17, DEF 15, DM 1d6+3, FOR+3, DEX +1. Il peut utiliser la capacité de rang 1 de la voie du prédateur (Embuscade - voir le Bestiaire). Sous cette forme, il peut communiquer avec les autres loups (salves et sur de longues distances par hurlements).
 
 - id: race-wolfer-garou
-  sorte: capacite
+  sorte: capacite_active
   nom: Garou
   champs: { voie: race-wolfer, rangVoie: 5, activation: Action limitée }
   description: |-
     Effet : transformation Loup-garou DEX+1, Init+2, 🛡️+1, FOR+2, 🛡️+2, DM+2.
 
     Le personnage se transforme maintenant en forme hybride loup-garou sans aucune restriction de temps. Sous cette forme il a les capacités suivantes : En forme hybride, le personnage obtient un bonus de +1 au Mod. de DEX (+1 Init, +1 DEF) et +2 au Mod. de FOR (+2 Att et DM). À chaque tour, par prix d’une action limitée, il peut attaquer avec une arme de taille grande griffes ou crocs. Sous cette forme, le personnage ne peut parler qu’avec grande difficulté, il subit un malus de -10 à tous les tests de CHA, mais un bonus de +50 pour les tentatives d’intimidation.
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: '4' }
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: '2' }
+    - {
+        sur: jet,
+        si: 'arme.attaque == "Contact" ou score == "Contact" ou action == "coup-de-corne" ou action == "coup-de-bouclier" ou action == "griffes" ou action == "choc-electrique" ou action == "mains-d-energie" ou action == "mains-nues" ou action == "arme-d-argent" ou action == "baton-de-mage"',
+        ajout: { variable: bonusDM, ajouter: '2' },
+      }

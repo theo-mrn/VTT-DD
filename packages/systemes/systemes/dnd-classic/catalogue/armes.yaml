@@ -4,6 +4,7 @@
   nom: Arbalète de poing
   etiquettes:
     - distance
+    - arbalete
   champs:
     attaque: Distance
     nbDes: 1
@@ -15,6 +16,7 @@
   nom: Arbalète légère
   etiquettes:
     - distance
+    - arbalete
   champs:
     attaque: Distance
     nbDes: 2
@@ -26,6 +28,7 @@
   nom: Arbalète lourde
   etiquettes:
     - distance
+    - arbalete
   champs:
     attaque: Distance
     nbDes: 3
@@ -37,6 +40,7 @@
   nom: Arc court
   etiquettes:
     - distance
+    - arc
   champs:
     attaque: Distance
     nbDes: 1
@@ -48,6 +52,7 @@
   nom: Arc long
   etiquettes:
     - distance
+    - arc
   champs:
     attaque: Distance
     nbDes: 1
@@ -59,6 +64,7 @@
   nom: Bâton
   etiquettes:
     - contact
+    - deux-mains
   champs:
     attaque: Contact
     nbDes: 1
@@ -70,6 +76,7 @@
   nom: Bâton ferré
   etiquettes:
     - contact
+    - deux-mains
   champs:
     attaque: Contact
     nbDes: 1
@@ -81,6 +88,7 @@
   nom: Dague
   etiquettes:
     - contact
+    - legere
   champs:
     attaque: Contact
     nbDes: 1
@@ -92,6 +100,8 @@
   nom: Épée à 2 mains
   etiquettes:
     - contact
+    - epee
+    - deux-mains
   champs:
     attaque: Contact
     nbDes: 2
@@ -104,6 +114,7 @@
   description: 'Dégâts : 1d8 à 1 main, 1d12 à 2 mains.'
   etiquettes:
     - contact
+    - epee
   champs:
     attaque: Contact
     nbDes: 1
@@ -115,6 +126,8 @@
   nom: Épée courte
   etiquettes:
     - contact
+    - epee
+    - legere
   champs:
     attaque: Contact
     nbDes: 1
@@ -126,6 +139,7 @@
   nom: Épée longue
   etiquettes:
     - contact
+    - epee
   champs:
     attaque: Contact
     nbDes: 1
@@ -159,6 +173,7 @@
   nom: Hache à 1 main
   etiquettes:
     - contact
+    - hache
   champs:
     attaque: Contact
     nbDes: 1
@@ -170,6 +185,8 @@
   nom: Hache à 2 mains
   etiquettes:
     - contact
+    - hache
+    - deux-mains
   champs:
     attaque: Contact
     nbDes: 2
@@ -181,6 +198,7 @@
   nom: Hachette
   etiquettes:
     - distance
+    - hache
   champs:
     attaque: Distance
     nbDes: 1
@@ -203,6 +221,8 @@
   nom: Katana
   etiquettes:
     - contact
+    - epee
+    - sabre
   champs:
     attaque: Contact
     nbDes: 1

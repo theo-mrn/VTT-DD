@@ -178,9 +178,13 @@ sortes:
   - id: capacite
     nom: Capacité raciale
     nomPluriel: Capacités raciales
-    description: Capacité accordée par une race (un rang gratuit la fait posséder).
+    description: >-
+      Capacité accordée par une race (un rang gratuit la fait posséder).
+      Étiquette « test » : bonus situationnel invoqué au test de caractéristique.
     pour: [personnage]
     rangs: { max: 1 }
+    champs:
+      - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
 
 creation:
   - entite: personnage
@@ -209,14 +213,35 @@ creation:
         attribution: ordre
 
 actions:
-  # Attaque : 1d20 + score d'attaque choisi contre la Défense de la cible
+  # Attaque : 1d20 + score d'attaque choisi contre la Défense de la cible ;
+  # dégâts saisis (aucun par défaut), retirés des PV de la cible si elle touche.
+  # Instinct de survie (cible) : DM qui l'amèneraient à 0 PV divisés par 2.
   - id: attaque
     nom: Attaque
     pour: [personnage]
     cible: personnage
     parametres:
       - { id: score, nom: Attaque, type: attribut, attributs: [Contact, Distance, Magie] }
+      - { id: nbDes, nom: Dés de dégâts, type: nombre, defaut: 0 }
+      - { id: faces, nom: Faces des dés, type: nombre, defaut: 6 }
+      - { id: bonus, nom: Bonus aux dégâts, type: nombre, defaut: 0 }
+    variables: &vars-attaque
+      - { cle: instinct, formule: 0 }
     jet: { type: numerique, formule: 1d20 + valeur(score), reussite: total >= @cible.Defense }
+    apres:
+      - cle: degats
+        formule: 'si(reussi et (nbDes > 0 ou bonus > 0), max(0, des(nbDes, faces) + bonus), 0)'
+      - &subis
+        cle: subis
+        formule: 'si(degats > 0 et instinct > 0 et degats >= @cible.PV, max(1, floor(degats / 2)), degats)'
+    consequences:
+      - &retirer-pv {
+          condition: 'subis > 0',
+          entite: cible,
+          attribut: PV,
+          operation: retirer,
+          valeur: subis,
+        }
 
   # Capacité raciale du minotaure : attaque de corne à la place d'une attaque normale
   - id: coup-de-corne
@@ -225,27 +250,36 @@ actions:
     pour: [personnage]
     exige: possede("coup-de-corne")
     cible: personnage
+    variables: *vars-attaque
     jet: { type: numerique, formule: 1d20 + @Contact, reussite: total >= @cible.Defense }
     apres:
       - { cle: degats, formule: 'si(reussi, max(0, 1d6 + mod(@FOR)), 0)' }
+      - *subis
     consequences:
-      - { condition: reussi, entite: cible, attribut: PV, operation: retirer, valeur: degats }
+      - *retirer-pv
 
   - id: initiative
     nom: Initiative
     pour: [personnage]
     jet: { type: numerique, formule: 1d20 + @INIT }
 
-  # Test de caractéristique : 1d20 + modificateur de la caractéristique choisie
+  # Test de caractéristique : 1d20 + modificateur de la caractéristique choisie,
+  # + le bonus d'une capacité invoquée (« +5 aux tests d'orientation »)
   - id: test
     nom: Test de caractéristique
     pour: [personnage]
     parametres:
       - { id: caracteristique, nom: Caractéristique, type: attribut, groupe: caracteristiques }
       - { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
+      - id: atout
+        nom: Capacité invoquée
+        type: entree
+        sorte: capacite
+        etiquette: test
+        facultatif: true
     jet:
       type: numerique
-      formule: 1d20 + modificateur(caracteristique)
+      formule: 1d20 + modificateur(caracteristique) + atout.bonusTest
       reussite: total >= difficulte
 
 initiative:

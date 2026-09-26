@@ -6,7 +6,7 @@
   etiquettes:
     - bouclier
   champs:
-    bouclier: 1
+    bouclier: true
     def: 1
     prix: 2
   effets:
@@ -22,7 +22,7 @@
   etiquettes:
     - bouclier
   champs:
-    bouclier: 1
+    bouclier: true
     def: 3
     prix: 8
   effets:
@@ -66,7 +66,7 @@
   etiquettes:
     - bouclier
   champs:
-    bouclier: 1
+    bouclier: true
     def: 2
     prix: 4
   effets:
@@ -96,6 +96,7 @@
     - armure
   champs:
     def: 4
+    metallique: true
     prix: 15
   effets:
     - sur: attribut
@@ -110,6 +111,7 @@
     - armure
   champs:
     def: 5
+    metallique: true
     prix: 20
   effets:
     - sur: attribut
@@ -125,6 +127,8 @@
     - armure
   champs:
     def: 6
+    metallique: true
+    lourde: true
     prix: 50
   effets:
     - sur: attribut
@@ -140,6 +144,8 @@
     - armure
   champs:
     def: 8
+    metallique: true
+    lourde: true
     prix: 200
   effets:
     - sur: attribut
@@ -147,6 +153,11 @@
       operation: ajouter
       valeur: source.def
       famille: armure
+    # Armure lourde (guerrier) : la plaque complète protège des critiques
+    - sur: jet
+      cote: cible
+      condition: possede("guerrier-bouclier-armure-lourde")
+      ajout: { variable: multCritique, ajouter: -1 }
 - id: armure-de-cuir-cloutee
   sorte: armure
   nom: Armure de cuir cloutée
@@ -185,6 +196,7 @@
     - armure
   champs:
     def: 5
+    metallique: true
     prix: 25
   effets:
     - sur: attribut
@@ -200,6 +212,7 @@
     - armure
   champs:
     def: 4
+    metallique: true
     prix: 18
   effets:
     - sur: attribut
@@ -215,6 +228,7 @@
     - armure
   champs:
     def: 5
+    metallique: true
     prix: 30
   effets:
     - sur: attribut
@@ -230,6 +244,8 @@
     - armure
   champs:
     def: 6
+    metallique: true
+    lourde: true
     prix: 45
   effets:
     - sur: attribut
@@ -245,6 +261,8 @@
     - armure
   champs:
     def: 7
+    metallique: true
+    lourde: true
     prix: 100
   effets:
     - sur: attribut
@@ -260,6 +278,8 @@
     - armure
   champs:
     def: 6
+    metallique: true
+    lourde: true
     prix: 120
   effets:
     - sur: attribut
