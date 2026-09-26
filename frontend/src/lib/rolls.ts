@@ -101,6 +101,13 @@ export interface ActionRequest {
    * résultat déjà affiché.
    */
   appliquer?: boolean;
+  /**
+   * Campagne où le jet apparaît : character le transmet au service des dés
+   * pour l'historique de la salle (jet personnel sans campagne).
+   */
+  campaignId?: string;
+  /** Visibilité du jet dans l'historique (`public` par défaut). */
+  visibility?: 'public' | 'private' | 'gm' | 'self';
 }
 
 export interface ActionResponse {

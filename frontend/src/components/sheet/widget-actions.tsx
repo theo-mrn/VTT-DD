@@ -11,15 +11,23 @@ type ActionsWidgetProps = Extract<Widget, { type: 'actions' }>;
 
 /** Cibles fournies par la page (personnages engagés dans la campagne) ; sinon, mes personnages. */
 const TargetsContext = createContext<ActionTarget[] | null>(null);
+/** Campagne de la table de jeu : les jets d'action y apparaissent dans l'historique des dés. */
+const CampaignContext = createContext<string | undefined>(undefined);
 
 export function ActionTargetsProvider({
   targets,
+  campaignId,
   children,
 }: {
   targets: ActionTarget[];
+  campaignId?: string;
   children: ReactNode;
 }) {
-  return <TargetsContext.Provider value={targets}>{children}</TargetsContext.Provider>;
+  return (
+    <TargetsContext.Provider value={targets}>
+      <CampaignContext.Provider value={campaignId}>{children}</CampaignContext.Provider>
+    </TargetsContext.Provider>
+  );
 }
 
 /** Actions du système utilisables par ce type d'entité (liste du bloc, sinon toutes). */
@@ -41,6 +49,7 @@ export function blockActions(actions: Map<string, Action>, type: string, ids?: s
 export function ActionsWidget({ widget }: { widget: ActionsWidgetProps }) {
   const s = useSheet();
   const provided = useContext(TargetsContext);
+  const campaignId = useContext(CampaignContext);
   const [own, setOwn] = useState<ActionTarget[]>([]);
   const targets = provided ?? own;
   const systemId = s.system.source.id;
@@ -82,6 +91,7 @@ export function ActionsWidget({ widget }: { widget: ActionsWidgetProps }) {
         targets={targets}
         {...(widget.actions ? { actions: widget.actions } : {})}
         onApplied={() => s.reload()}
+        {...(campaignId ? { campaignId } : {})}
       />
     </Block>
   );

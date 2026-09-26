@@ -27,6 +27,7 @@ import {
 import { AppButton, Switch, Message, styleChamp } from '@/components/account/elements';
 import { Input } from '@/components/ui/input';
 import { errorMessage } from '@/lib/api';
+import { notifyRollsChanged } from '@/lib/dice';
 import { runCharacterAction, type RollCharacter } from '@/lib/rolls';
 import { cn } from '@/lib/utils';
 import {
@@ -79,6 +80,8 @@ export interface ActionsPanelProps {
    * cible à jour si elle a été modifiée.
    */
   onApplied?(character: RollCharacter, target?: RollCharacter): void;
+  /** Campagne où le jet apparaît dans l'historique des dés (table de jeu). */
+  campaignId?: string;
   className?: string;
 }
 
@@ -180,6 +183,7 @@ export function ActionsPanel({
   targets = [],
   actions: restriction,
   onApplied,
+  campaignId,
   className,
 }: ActionsPanelProps) {
   const accent = presentationAccent(presentation);
@@ -276,8 +280,11 @@ export function ActionsPanel({
         parametres: parameters,
         ...(action.cible && target ? { cibleId: target.id } : {}),
         ...(applied ? { appliquer: true } : {}),
+        ...(campaignId ? { campaignId } : {}),
       });
       setDernier({ roll: { kind: 'action', result: r.resultat, applied }, target: target?.name });
+      // Character transmet le jet au service des dés : les historiques ouverts se relisent
+      notifyRollsChanged();
       if (r.personnage) onApplied?.(r.personnage, r.cible);
     } catch (e) {
       setError(errorMessage(e));
