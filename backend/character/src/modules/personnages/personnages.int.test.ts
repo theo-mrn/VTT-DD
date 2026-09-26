@@ -302,14 +302,16 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     // Après la création, une caractéristique ne se saisit plus : elle s'achète
     const base = await requete(alice, 'PUT', `/v1/characters/${p.id}/valeurs`, {
       version: p.version,
-      valeurs: { credits: 9000 },
+      valeurs: { vigueur: 5 },
     });
     expect(base.statusCode).toBe(422);
+    expect(base.json().detail).toMatch(/Vigueur ne se saisit que pendant la création/);
+    // Les crédits (saisie: jeu) restent saisis par le joueur
     p = await ok(alice, 'PUT', `/v1/characters/${p.id}/valeurs`, {
       version: p.version,
-      valeurs: { motivation: 'La liberté', blessures: 4 },
+      valeurs: { motivation: 'La liberté', blessures: 4, credits: 9000 },
     });
-    expect(p.etat.valeurs).toMatchObject({ motivation: 'La liberté', blessures: 4 });
+    expect(p.etat.valeurs).toMatchObject({ motivation: 'La liberté', blessures: 4, credits: 9000 });
     p = await ok(alice, 'POST', `/v1/characters/${p.id}/repos`, { version: p.version });
     expect(p.etat.valeurs.blessures).toBe(0);
   });

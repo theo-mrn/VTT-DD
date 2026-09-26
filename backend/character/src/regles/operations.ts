@@ -11,7 +11,11 @@ import {
   BonusLibre,
   compilerEffets,
   Effet,
+  estExemplaire,
   nouvellePossession,
+  nouvelExemplaire,
+  prefixeExemplaire,
+  refusSaisie,
   variablesSource,
   appliquerModifications,
   calculer,
@@ -29,7 +33,9 @@ import {
   type Attribut,
   type Fiche,
   type Generateur,
+  type Possession,
   type ResultatAction,
+  type Saisisseur,
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
@@ -131,25 +137,35 @@ function erreurValeur(fiche: Fiche, a: Attribut, v: Valeur): string | undefined 
 }
 
 /**
- * Saisie libre de valeurs : texte, choix, booléen et ressource à tout moment,
- * attributs de base seulement pendant la création (ensuite, ils s'achètent).
+ * Saisie libre de valeurs : texte, choix, booléen et ressource à tout moment
+ * (propriétaire ou MJ). Un attribut de base se saisit pendant la création,
+ * puis selon sa `saisie` (voir `refusSaisie` de @vtt/rules) : `jeu` par le
+ * propriétaire ou le MJ, `mj` par le MJ seul (refus 403 pour le propriétaire),
+ * `creation` plus du tout (refus 422 : il s'achète).
  */
 export function modifierValeurs(
   systeme: SystemeCharge,
   etat: EtatEntite,
   valeurs: Record<string, Valeur>,
+  qui: Saisisseur = { proprietaire: true, mj: false },
 ): EtatEntite {
   const entite = systeme.entites.get(etat.type)!;
   const erreurs: string[] = [];
+  const reservees: string[] = [];
   const suivant: EtatEntite = { ...etat, valeurs: { ...etat.valeurs } };
   for (const [cle, v] of Object.entries(valeurs)) {
     const a = entite.attributs.get(cle);
-    if (!a) erreurs.push(`Attribut inconnu : ${cle}`);
-    else if (a.nature === 'derivee') erreurs.push(`${a.nom} est calculé, il ne se saisit pas`);
-    else if (a.nature === 'base' && !etat.creation)
-      erreurs.push(`${a.nom} ne se saisit que pendant la création (ensuite, il s’achète)`);
-    else suivant.valeurs[cle] = v;
+    if (!a) {
+      erreurs.push(`Attribut inconnu : ${cle}`);
+      continue;
+    }
+    const raison = refusSaisie(a, etat.creation, qui);
+    if (!raison) suivant.valeurs[cle] = v;
+    else if (a.nature === 'base' && a.saisie === 'mj') reservees.push(raison);
+    else erreurs.push(raison);
   }
+  if (reservees.length)
+    throw new HttpError(403, 'Accès refusé', 'saisie_reservee_mj', reservees.join(' ; '));
   if (erreurs.length) throw refus(erreurs.join(' ; '));
   const fiche = calculer(systeme, suivant);
   for (const [cle, v] of Object.entries(valeurs)) {
@@ -158,6 +174,22 @@ export function modifierValeurs(
   }
   if (erreurs.length) throw refus(erreurs.join(' ; '));
   return suivant;
+}
+
+/**
+ * Vrai si la saisie touche un attribut de base réservé au MJ (`saisie: mj`) :
+ * seul ce cas demande de savoir si le propriétaire est aussi MJ de la salle.
+ */
+export function saisieReserveeMj(
+  systeme: SystemeCharge,
+  type: string,
+  valeurs: Record<string, Valeur>,
+): boolean {
+  const attributs = systeme.entites.get(type)?.attributs;
+  return Object.keys(valeurs).some((cle) => {
+    const a = attributs?.get(cle);
+    return a?.nature === 'base' && a.saisie === 'mj';
+  });
 }
 
 // ─── Création par étapes ──────────────────────────────────────────────────────
@@ -271,6 +303,15 @@ export function rembourserLigne(
 
 export const DemandePossession = z.object({
   entree: Id,
+  /**
+   * Exemplaire visé (sorte `exemplaires`) ; absent : l'exemplaire sans
+   * identifiant. Avec `nouveau`, identifiant du nouvel exemplaire.
+   */
+  exemplaire: Id.optional(),
+  /** Ajoute un exemplaire de plus (sorte `exemplaires`), même si l'entrée est déjà possédée. */
+  nouveau: z.boolean().optional(),
+  /** Nombre d'unités de l'exemplaire (sorte `quantites`) : remplace la précédente. */
+  quantite: z.number().int().positive().max(1_000_000).optional(),
   rang: z.number().int().nonnegative().max(1000).optional(),
   actif: z.boolean().optional(),
   choix: z.record(Id, z.array(Id).max(100)).optional(),
@@ -305,16 +346,50 @@ function verifierEffetsPoses(
   }
 }
 
+/** Nom lisible d'un exemplaire, pour les messages. */
+function nomExemplaire(nom: string, exemplaire: string | undefined): string {
+  return exemplaire === undefined ? nom : `${nom} (exemplaire « ${exemplaire} »)`;
+}
+
+/** 404 d'un exemplaire absent, avec la liste de ceux qui existent. */
+function exemplaireIntrouvable(
+  nom: string,
+  exemplaire: string | undefined,
+  siens: readonly Possession[],
+): HttpError {
+  const existants = siens.map((p) => p.exemplaire ?? '(sans identifiant)').join(', ');
+  const quoi =
+    exemplaire === undefined
+      ? `${nom} : aucun exemplaire sans identifiant, précisez l’exemplaire`
+      : `${nom} : exemplaire « ${exemplaire} » introuvable`;
+  return HttpError.notFound(existants ? `${quoi} (exemplaires : ${existants})` : quoi);
+}
+
+/** Possession posée : nouvel état, et exemplaire touché (identifiant, s'il en a un). */
+export interface PossessionPosee {
+  etat: EtatEntite;
+  exemplaire?: string;
+  /** Vrai si un exemplaire a été ajouté (sinon, un exemplaire existant a changé). */
+  cree: boolean;
+}
+
 /**
- * Ajoute une possession (objet, état, capacité…) ou met à jour celle qui
- * existe : seuls les champs fournis changent. Les choix sont vérifiés contre
- * ceux que l'entrée déclare ; le reste (prérequis, effets) est recalculé.
+ * Ajoute une possession (objet, état, capacité…) ou met à jour un exemplaire
+ * existant : seuls les champs fournis changent. Exemplaire visé :
+ * - `nouveau: true` : un exemplaire de plus (sorte `exemplaires` si l'entrée
+ *   est déjà possédée), d'identifiant `exemplaire`, ou généré
+ *   (`nouvelExemplaire` : `2`, `3`…) ;
+ * - sinon, l'exemplaire `exemplaire` (404 s'il n'existe pas) ou, sans
+ *   `exemplaire`, celui sans identifiant, créé s'il n'existe pas.
+ * `quantite` demande une sorte `quantites`, `exemplaire` une sorte
+ * `exemplaires`. Les choix sont vérifiés contre ceux que l'entrée déclare ;
+ * le reste (prérequis, effets) est recalculé.
  */
 export function poserPossession(
   systeme: SystemeCharge,
   etat: EtatEntite,
   d: DemandePossession,
-): EtatEntite {
+): PossessionPosee {
   const entree = systeme.entrees.get(d.entree);
   if (!entree) throw refus(`Entrée inconnue : ${d.entree}`, 'entree_inconnue');
   const sorte = systeme.sortes.get(entree.sorte)!;
@@ -323,53 +398,111 @@ export function poserPossession(
     throw refus(`${sorte.nom} non possédable par ${entite.type.nom}`);
   if (d.rang !== undefined && d.rang > 0 && !sorte.rangs)
     throw refus(`${entree.nom} ne se possède pas par rangs`);
+  if (d.quantite !== undefined && !sorte.quantites)
+    throw refus(`${entree.nom} ne se possède pas en quantité (${sorte.nom})`, 'quantite_refusee');
+  if (d.exemplaire !== undefined && !sorte.exemplaires)
+    throw refus(
+      `${entree.nom} ne se possède pas en plusieurs exemplaires (${sorte.nom})`,
+      'exemplaires_refuses',
+    );
   for (const k of Object.keys(d.choix ?? {})) {
     if (!entree.choix.some((c) => c.id === k) && !entree.choixAttributs.some((c) => c.id === k))
       throw refus(`${entree.nom} : choix inconnu ${k}`);
   }
 
-  if (d.effets !== undefined)
-    verifierEffetsPoses(systeme, etat, d.effets, `possessions/${d.entree}`, variablesSource(sorte));
-
   const possessions = etat.possessions.map((p) => ({ ...p }));
-  const existante = possessions.find((p) => p.entree === d.entree);
+  const siens = possessions.filter((p) => p.entree === d.entree);
+  let existante: Possession | undefined;
+  let exemplaire = d.exemplaire;
+  if (d.nouveau) {
+    if (siens.length && !sorte.exemplaires)
+      throw refus(
+        `${entree.nom} est déjà possédé et ne se possède qu’une fois (${sorte.nom})`,
+        'exemplaires_refuses',
+      );
+    if (exemplaire !== undefined && siens.some((p) => estExemplaire(p, d.entree, exemplaire)))
+      throw refus(`${nomExemplaire(entree.nom, exemplaire)} existe déjà`, 'exemplaire_existant');
+    if (exemplaire === undefined && siens.length)
+      exemplaire = nouvelExemplaire(possessions, d.entree);
+  } else {
+    existante = sorte.exemplaires
+      ? siens.find((p) => estExemplaire(p, d.entree, exemplaire))
+      : siens[0];
+    if (!existante && exemplaire !== undefined)
+      throw exemplaireIntrouvable(entree.nom, exemplaire, siens);
+    if (existante) exemplaire = existante.exemplaire;
+  }
+
+  if (d.effets !== undefined)
+    verifierEffetsPoses(
+      systeme,
+      etat,
+      d.effets,
+      prefixeExemplaire({ entree: d.entree, ...(exemplaire !== undefined ? { exemplaire } : {}) }),
+      variablesSource(sorte),
+    );
+
   if (existante) {
     if (d.effets !== undefined) existante.effets = d.effets;
     if (d.rang !== undefined) existante.rang = d.rang;
     if (d.actif !== undefined) existante.actif = d.actif;
     if (d.choix !== undefined) existante.choix = d.choix;
     if (d.champs !== undefined) existante.champs = { ...existante.champs, ...d.champs };
-  } else {
-    const nombre = possessions.filter(
-      (p) => systeme.entrees.get(p.entree)?.sorte === sorte.id,
-    ).length;
-    if (sorte.maximum !== undefined && nombre >= sorte.maximum)
-      throw refus(`Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} atteint`);
-    possessions.push(
-      nouvellePossession(d.entree, d.rang ?? 0, {
-        actif: d.actif ?? true,
-        choix: d.choix ?? {},
-        champs: d.champs ?? {},
-        effets: d.effets ?? [],
-      }),
-    );
+    if (d.quantite !== undefined) existante.quantite = d.quantite;
+    return {
+      etat: { ...etat, possessions },
+      ...(exemplaire !== undefined ? { exemplaire } : {}),
+      cree: false,
+    };
   }
-  return { ...etat, possessions };
+
+  // Chaque exemplaire compte dans le maximum de la sorte
+  const nombre = possessions.filter(
+    (p) => systeme.entrees.get(p.entree)?.sorte === sorte.id,
+  ).length;
+  if (sorte.maximum !== undefined && nombre >= sorte.maximum)
+    throw refus(`Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} atteint`);
+  possessions.push(
+    nouvellePossession(d.entree, d.rang ?? 0, {
+      actif: d.actif ?? true,
+      choix: d.choix ?? {},
+      champs: d.champs ?? {},
+      effets: d.effets ?? [],
+      ...(exemplaire !== undefined ? { exemplaire } : {}),
+      ...(d.quantite !== undefined ? { quantite: d.quantite } : {}),
+    }),
+  );
+  return {
+    etat: { ...etat, possessions },
+    ...(exemplaire !== undefined ? { exemplaire } : {}),
+    cree: true,
+  };
 }
 
-/** Retire une possession, sauf si un arbre qu'elle ouvre a encore des nœuds acquis. */
+/**
+ * Retire un exemplaire précis d'une possession : celui d'identifiant
+ * `exemplaire`, ou, sans identifiant, l'exemplaire sans identifiant (seule
+ * possession d'une entrée d'une sorte sans exemplaires). Refusé si c'est le
+ * dernier exemplaire d'une entrée qui ouvre un arbre dont des nœuds sont acquis.
+ */
 export function retirerPossession(
   systeme: SystemeCharge,
   etat: EtatEntite,
   entree: string,
+  exemplaire?: string,
 ): EtatEntite {
-  if (!etat.possessions.some((p) => p.entree === entree))
-    throw HttpError.notFound(`Possession introuvable : ${entree}`);
-  for (const arbre of systeme.arbres.values()) {
-    if (arbre.ouvertPar === entree && etat.noeuds[arbre.id]?.length)
-      throw refus(`Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${entree}`);
+  const siens = etat.possessions.filter((p) => p.entree === entree);
+  if (!siens.length) throw HttpError.notFound(`Possession introuvable : ${entree}`);
+  const nom = systeme.entrees.get(entree)?.nom ?? entree;
+  const cible = siens.find((p) => estExemplaire(p, entree, exemplaire));
+  if (!cible) throw exemplaireIntrouvable(nom, exemplaire, siens);
+  if (siens.length === 1) {
+    for (const arbre of systeme.arbres.values()) {
+      if (arbre.ouvertPar === entree && etat.noeuds[arbre.id]?.length)
+        throw refus(`Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${entree}`);
+    }
   }
-  return { ...etat, possessions: etat.possessions.filter((p) => p.entree !== entree) };
+  return { ...etat, possessions: etat.possessions.filter((p) => p !== cible) };
 }
 
 // ─── Bonus libres ─────────────────────────────────────────────────────────────
@@ -506,8 +639,9 @@ export function resoudreAction(
 
 /**
  * Fin de round d'un combat : chaque possession à durée (état temporaire) et
- * chaque bonus libre à durée perd un round ; ceux arrivés à 0 sont retirés
- * (`bonus:<id>` pour un bonus). `etat` vaut `undefined` s'il n'y a aucune
+ * chaque bonus libre à durée perd un round ; ceux arrivés à 0 sont retirés,
+ * exemplaire par exemplaire (`entree`, `entree#exemplaire` pour un exemplaire
+ * identifié, `bonus:<id>` pour un bonus). `etat` vaut `undefined` s'il n'y a aucune
  * durée (rien à enregistrer).
  */
 export function decompterDurees(etat: EtatEntite): { etat?: EtatEntite; retirees: string[] } {
@@ -522,7 +656,9 @@ export function decompterDurees(etat: EtatEntite): { etat?: EtatEntite; retirees
     }
     return [{ ...x, duree: x.duree - 1 }];
   };
-  const possessions = etat.possessions.flatMap((p) => decompter(p, p.entree));
+  const possessions = etat.possessions.flatMap((p) =>
+    decompter(p, p.exemplaire === undefined ? p.entree : `${p.entree}#${p.exemplaire}`),
+  );
   const bonus = etat.bonus.flatMap((b) => decompter(b, `bonus:${b.id}`));
   return { etat: { ...etat, possessions, bonus }, retirees };
 }

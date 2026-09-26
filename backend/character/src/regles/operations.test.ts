@@ -198,14 +198,32 @@ describe('création D&D', () => {
 
 describe('valeurs saisies', () => {
   const enJeu = { ...bothan(), creation: false };
+  const joueur = { proprietaire: true, mj: false };
+  const mj = { proprietaire: false, mj: true };
 
-  it('texte, choix et ressource à tout moment ; base seulement à la création', () => {
+  it('texte, choix et ressource à tout moment ; base selon sa saisie une fois la création finie', () => {
     const e = modifierValeurs(starWars, enJeu, { nom: 'Kesh', categorie: 'rival', blessures: 3 });
     expect(e.valeurs).toMatchObject({ nom: 'Kesh', categorie: 'rival', blessures: 3 });
-    expect(erreur(() => modifierValeurs(starWars, enJeu, { credits: 900 }))).toMatchObject({
-      status: 422,
+    // Crédits (saisie: jeu) : le joueur les saisit en jeu
+    expect(modifierValeurs(starWars, enJeu, { credits: 900 }, joueur).valeurs.credits).toBe(900);
+    // Vigueur (saisie: creation) : elle s'achète, personne ne la saisit en jeu
+    for (const qui of [joueur, mj])
+      expect(erreur(() => modifierValeurs(starWars, enJeu, { vigueur: 4 }, qui))).toMatchObject({
+        status: 422,
+        detail: expect.stringMatching(/Vigueur ne se saisit que pendant la création/),
+      });
+    expect(modifierValeurs(starWars, bothan(), { vigueur: 1 }).valeurs.vigueur).toBe(1);
+  });
+
+  it('XP gagnée (saisie: mj) : refusée au joueur en jeu (403), acceptée au MJ', () => {
+    expect(erreur(() => modifierValeurs(starWars, enJeu, { xpGagne: 20 }, joueur))).toMatchObject({
+      status: 403,
+      code: 'saisie_reservee_mj',
+      detail: expect.stringMatching(/ne se saisit en jeu que par le MJ/),
     });
-    expect(modifierValeurs(starWars, bothan(), { credits: 900 }).valeurs.credits).toBe(900);
+    expect(modifierValeurs(starWars, enJeu, { xpGagne: 20 }, mj).valeurs.xpGagne).toBe(20);
+    // Pendant la création, le propriétaire saisit tout
+    expect(modifierValeurs(starWars, bothan(), { xpGagne: 20 }, joueur).valeurs.xpGagne).toBe(20);
   });
 
   it('refuse les attributs inconnus ou calculés et les mauvaises natures', () => {
@@ -216,18 +234,114 @@ describe('valeurs saisies', () => {
 });
 
 describe('possessions et repos', () => {
+  const poser = (e: EtatEntite, d: Parameters<typeof poserPossession>[2]) =>
+    poserPossession(starWars, e, d).etat;
+
   it('ajoute, met à jour puis retire une possession', () => {
-    let e = poserPossession(starWars, bothan(), { entree: 'fusil-blaster' });
+    let e = poser(bothan(), { entree: 'fusil-blaster' });
     expect(e.possessions.find((p) => p.entree === 'fusil-blaster')).toMatchObject({ actif: true });
-    e = poserPossession(starWars, e, { entree: 'fusil-blaster', actif: false });
+    e = poser(e, { entree: 'fusil-blaster', actif: false });
     expect(e.possessions.filter((p) => p.entree === 'fusil-blaster')).toHaveLength(1);
     expect(e.possessions.find((p) => p.entree === 'fusil-blaster')?.actif).toBe(false);
     e = retirerPossession(starWars, e, 'fusil-blaster');
     expect(e.possessions.some((p) => p.entree === 'fusil-blaster')).toBe(false);
     expect(erreur(() => retirerPossession(starWars, e, 'fusil-blaster')).status).toBe(404);
-    expect(erreur(() => poserPossession(starWars, e, { entree: 'inconnue' })).status).toBe(422);
+    expect(erreur(() => poser(e, { entree: 'inconnue' })).status).toBe(422);
     // Une seule espèce
-    expect(erreur(() => poserPossession(starWars, e, { entree: 'wookiee' })).status).toBe(422);
+    expect(erreur(() => poser(e, { entree: 'wookiee' })).status).toBe(422);
+  });
+
+  it('exemplaires : un second pistolet avec ses effets, chacun visé par son identifiant', () => {
+    const bonusAgilite = [
+      {
+        sur: 'attribut' as const,
+        attribut: 'agilite',
+        operation: 'ajouter' as const,
+        valeur: '1',
+      },
+    ];
+    let e = poser(bothan(), { entree: 'pistolet-blaster' });
+    // Sans « nouveau », la même demande vise l'exemplaire sans identifiant : pas de doublon
+    e = poser(e, { entree: 'pistolet-blaster' });
+    expect(e.possessions.filter((p) => p.entree === 'pistolet-blaster')).toHaveLength(1);
+
+    const second = poserPossession(starWars, e, {
+      entree: 'pistolet-blaster',
+      nouveau: true,
+      effets: bonusAgilite,
+    });
+    expect(second).toMatchObject({ exemplaire: '2', cree: true });
+    e = second.etat;
+    const nomme = poserPossession(starWars, e, {
+      entree: 'pistolet-blaster',
+      nouveau: true,
+      exemplaire: 'fetiche',
+    });
+    expect(nomme).toMatchObject({ exemplaire: 'fetiche', cree: true });
+    e = nomme.etat;
+    const pistolets = () => e.possessions.filter((p) => p.entree === 'pistolet-blaster');
+    expect(pistolets().map((p) => [p.exemplaire, p.effets.length])).toEqual([
+      [undefined, 0],
+      ['2', 1],
+      ['fetiche', 0],
+    ]);
+    const f = verifierEtat(starWars, e).fiche;
+    expect(f.erreurs).toEqual([]);
+    expect(f.sources.map((s) => s.id)).toContain('pistolet-blaster#2');
+
+    // Mise à jour d'un exemplaire précis : les autres ne bougent pas
+    e = poser(e, { entree: 'pistolet-blaster', exemplaire: '2', actif: false });
+    expect(pistolets().map((p) => p.actif)).toEqual([true, false, true]);
+    e = poser(e, { entree: 'pistolet-blaster', actif: false });
+    expect(pistolets().map((p) => p.actif)).toEqual([false, false, true]);
+
+    // Retrait d'un exemplaire précis, puis de celui sans identifiant
+    e = retirerPossession(starWars, e, 'pistolet-blaster', '2');
+    expect(pistolets().map((p) => p.exemplaire)).toEqual([undefined, 'fetiche']);
+    e = retirerPossession(starWars, e, 'pistolet-blaster');
+    expect(pistolets().map((p) => p.exemplaire)).toEqual(['fetiche']);
+    expect(erreur(() => retirerPossession(starWars, e, 'pistolet-blaster'))).toMatchObject({
+      status: 404,
+      detail: expect.stringMatching(/aucun exemplaire sans identifiant.*fetiche/),
+    });
+    // Sans identifiant ni « nouveau » : l'exemplaire sans identifiant est recréé
+    e = poser(e, { entree: 'pistolet-blaster' });
+    expect(pistolets().map((p) => p.exemplaire)).toEqual(['fetiche', undefined]);
+  });
+
+  it('exemplaires : refus clairs', () => {
+    const e = poser(bothan(), { entree: 'pistolet-blaster' });
+    expect(
+      erreur(() => poser(e, { entree: 'pistolet-blaster', exemplaire: 'absent', actif: false })),
+    ).toMatchObject({ status: 404, detail: expect.stringMatching(/« absent » introuvable/) });
+    const deux = poser(e, { entree: 'pistolet-blaster', nouveau: true, exemplaire: 'b' });
+    expect(
+      erreur(() => poser(deux, { entree: 'pistolet-blaster', nouveau: true, exemplaire: 'b' })),
+    ).toMatchObject({ status: 422, code: 'exemplaire_existant' });
+    // Espèce : une seule possession, pas d'exemplaires
+    expect(erreur(() => poser(e, { entree: 'bothan', exemplaire: 'x' }))).toMatchObject({
+      status: 422,
+      code: 'exemplaires_refuses',
+    });
+    expect(erreur(() => poser(e, { entree: 'bothan', nouveau: true }))).toMatchObject({
+      status: 422,
+      code: 'exemplaires_refuses',
+    });
+  });
+
+  it('quantités : stimpacks comptés, refusées pour une sorte sans quantités', () => {
+    let e = poser(bothan(), { entree: 'stimpack', quantite: 3 });
+    expect(e.possessions.find((p) => p.entree === 'stimpack')?.quantite).toBe(3);
+    e = poser(e, { entree: 'stimpack', quantite: 5 });
+    expect(e.possessions.filter((p) => p.entree === 'stimpack').map((p) => p.quantite)).toEqual([
+      5,
+    ]);
+    expect(verifierEtat(starWars, e).fiche.possessions.get('stimpack')?.quantite).toBe(5);
+    expect(erreur(() => poser(e, { entree: 'pistolet-blaster', quantite: 2 }))).toMatchObject({
+      status: 422,
+      code: 'quantite_refusee',
+      detail: expect.stringMatching(/ne se possède pas en quantité/),
+    });
   });
 
   it('repos : les ressources reviennent à leur borne', () => {
@@ -326,6 +440,24 @@ describe('durées', () => {
     expect(decompterDurees(verifierEtat(dnd, { ...etat, possessions: [] }).etat)).toEqual({
       retirees: [],
     });
+  });
+
+  it('exemplaires : chacun décompte sa durée, le retrait vise l’exemplaire exact', () => {
+    const etat = verifierEtat(starWars, {
+      ...bothan(),
+      possessions: [
+        ...bothan().possessions,
+        { entree: 'pistolet-blaster', duree: 3 },
+        { entree: 'pistolet-blaster', exemplaire: '2', duree: 1 },
+      ],
+    }).etat;
+    const r = decompterDurees(etat);
+    expect(r.retirees).toEqual(['pistolet-blaster#2']);
+    expect(
+      r
+        .etat!.possessions.filter((p) => p.entree === 'pistolet-blaster')
+        .map((p) => [p.exemplaire, p.duree]),
+    ).toEqual([[undefined, 2]]);
   });
 
   it('décompte aussi les bonus libres à durée', () => {

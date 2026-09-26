@@ -24,6 +24,7 @@ import {
   reposer,
   retirerBonus,
   retirerPossession,
+  saisieReserveeMj,
   terminer,
   Valeurs,
   verifierEtat,
@@ -203,12 +204,31 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
+      const { id } = req.params;
       const { version, valeurs } = req.body;
-      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
-        changement: { etat: modifierValeurs(systeme, l.etat, valeurs) },
-        operation: 'valeurs',
-        details: { valeurs },
-      }));
+      const role = await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
+      // Le propriétaire est MJ s'il mène une salle où le personnage est engagé :
+      // campaign n'est interrogé que si un attribut réservé au MJ est saisi
+      let mj = role === 'gm';
+      if (!mj) {
+        const l = await lire(db, id);
+        if (saisieReserveeMj(systemeDe(catalogue, l), l.type, valeurs))
+          mj = (await deps.droits.de(id, moi(req))).ecriture;
+      }
+      const qui = { proprietaire: role === 'user', mj };
+      const ligne = await modifier(
+        db,
+        contexte(req),
+        catalogue,
+        { userId: moi(req), role },
+        id,
+        version,
+        (l, systeme) => ({
+          changement: { etat: modifierValeurs(systeme, l.etat, valeurs, qui) },
+          operation: 'valeurs',
+          details: { valeurs },
+        }),
+      );
       return api(ligne);
     },
   );
@@ -357,11 +377,20 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, ...demande } = req.body;
-      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
-        changement: { etat: poserPossession(systeme, l.etat, demande) },
-        operation: 'possession',
-        details: { possession: demande },
-      }));
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => {
+        const r = poserPossession(systeme, l.etat, demande);
+        return {
+          changement: { etat: r.etat },
+          operation: 'possession',
+          details: {
+            possession: {
+              ...demande,
+              ...(r.exemplaire !== undefined ? { exemplaire: r.exemplaire } : {}),
+            },
+            cree: r.cree,
+          },
+        };
+      });
       return api(ligne);
     },
   );
@@ -372,15 +401,21 @@ export const register: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: z.object({ id: IdPersonnage, entree: Id }),
-        querystring: z.object({ version: z.coerce.number().int().positive() }),
+        querystring: z.object({
+          version: z.coerce.number().int().positive(),
+          /** Exemplaire retiré ; absent : l'exemplaire sans identifiant. */
+          exemplaire: Id.optional(),
+        }),
         response: { 200: Personnage },
       },
     },
     async (req) => {
-      const ligne = await modifierPour(req, req.params.id, req.query.version, (l, systeme) => ({
-        changement: { etat: retirerPossession(systeme, l.etat, req.params.entree) },
+      const { entree } = req.params;
+      const { version, exemplaire } = req.query;
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
+        changement: { etat: retirerPossession(systeme, l.etat, entree, exemplaire) },
         operation: 'possession.retrait',
-        details: { entree: req.params.entree },
+        details: { entree, ...(exemplaire !== undefined ? { exemplaire } : {}) },
       }));
       return api(ligne);
     },
