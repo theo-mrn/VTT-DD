@@ -295,3 +295,32 @@ describe('briques génériques (2)', () => {
     ]);
   });
 });
+
+import { erreursChoix, nombreChoix } from './progression/index.js';
+
+describe('nombre de choix en formule', () => {
+  const saisie: SystemeSaisi = structuredClone(miniSymboles);
+  const humain = saisie.catalogue!.find((e) => e.id === 'humain')!;
+  humain.choix![0]!.nombre = '2 + @baseBlessure - 10';
+  const r2 = charger(saisie);
+  if (!r2.ok) throw new Error(JSON.stringify(r2.erreurs));
+  const s2 = r2.systeme;
+  const f = (base: number) =>
+    calculer(
+      s2,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: s2.source.id, version: '1.0.0' },
+        valeurs: { baseBlessure: base },
+      }),
+    );
+
+  it('le nombre suit les attributs du porteur', () => {
+    const c = s2.entrees.get('humain')!.choix[0]!;
+    expect(nombreChoix(f(10), 'humain', c)).toBe(2);
+    expect(nombreChoix(f(11), 'humain', c)).toBe(3);
+    expect(erreursChoix(f(10), 'humain', c, ['distance', 'discretion', 'athletisme'])).toContain(
+      'Deux compétences hors carrière : 2 choix au plus',
+    );
+  });
+});

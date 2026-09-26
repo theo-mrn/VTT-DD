@@ -196,7 +196,8 @@ export type Sorte = z.output<typeof Sorte>;
 export const Choix = z.object({
   id: Id,
   nom: Libelle,
-  nombre: z.number().int().positive(),
+  /** Nombre d'entrées à retenir : formule sur le porteur (`4 + @bonusChoixCarriere`). */
+  nombre: Formule,
   parmi: z.object({
     sorte: Id,
     entrees: z.array(Id).optional(),

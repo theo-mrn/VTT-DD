@@ -196,11 +196,18 @@ function erreursOption(fiche: Fiche, c: Choix, e: Entree): string | undefined {
   return undefined;
 }
 
+/** Nombre d'entrées à retenir pour un choix (formule évaluée sur la fiche). */
+export function nombreChoix(fiche: Fiche, entree: string, c: Choix): number {
+  const f = fiche.systeme.formules.get(chemins.choixNombre(entree, c.id));
+  return f ? Math.max(0, Math.floor(Number(fiche.evaluer(f, {}, 0)))) : 0;
+}
+
 /** Erreurs des entrées retenues pour un choix (au plus `nombre`, sans doublon). */
-export function erreursChoix(fiche: Fiche, c: Choix, ids: string[]): string[] {
+export function erreursChoix(fiche: Fiche, entree: string, c: Choix, ids: string[]): string[] {
   const erreurs: string[] = [];
+  const nombre = nombreChoix(fiche, entree, c);
   if (new Set(ids).size !== ids.length) erreurs.push(`${c.nom} : entrée choisie deux fois`);
-  if (ids.length > c.nombre) erreurs.push(`${c.nom} : ${c.nombre} choix au plus`);
+  if (ids.length > nombre) erreurs.push(`${c.nom} : ${nombre} choix au plus`);
   for (const id of ids) {
     const e = fiche.systeme.entrees.get(id);
     const err = e ? erreursOption(fiche, c, e) : `${c.nom} : entrée inconnue ${id}`;
@@ -250,14 +257,15 @@ function examinerChoisir(fiche: Fiche, et: Etape<'choisir'>): Examen {
         invalides.push(`${entree.nom} : prérequis non rempli (${exige.texte})`);
     }
     for (const k of Object.keys(p.choix)) {
-      if (!entree.choix.some((c) => c.id === k))
+      if (!entree.choix.some((c) => c.id === k) && !entree.choixAttributs.some((c) => c.id === k))
         invalides.push(`${entree.nom} : choix inconnu ${k}`);
     }
     for (const c of entree.choix) {
       const choisis = p.choix[c.id] ?? [];
-      invalides.push(...erreursChoix(sansChoix, c, choisis));
-      if (choisis.length < c.nombre)
-        aFaire.push(`${entree.nom} : ${c.nom} (${choisis.length}/${c.nombre})`);
+      invalides.push(...erreursChoix(sansChoix, entree.id, c, choisis));
+      const nombre = nombreChoix(sansChoix, entree.id, c);
+      if (choisis.length < nombre)
+        aFaire.push(`${entree.nom} : ${c.nom} (${choisis.length}/${nombre})`);
     }
   }
   return { invalides, aFaire };

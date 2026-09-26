@@ -73,6 +73,7 @@ export const chemins = {
   exige: (entree: string) => `catalogue/${entree}/exige`,
   champ: (entree: string, champ: string) => `catalogue/${entree}/champs/${champ}`,
   choix: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/valeur`,
+  choixNombre: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/nombre`,
   choixAttribut: (entree: string, choix: string) =>
     `catalogue/${entree}/choixAttributs/${choix}/valeur`,
   achat: (id: string, champ: 'cout' | 'plafond' | 'condition') => `achats/${id}/${champ}`,
@@ -546,6 +547,7 @@ class Chargeur {
     for (const c of e.choix) {
       const ch = `${chemin}/choix/${c.id}`;
       if (!this.sortes.has(c.parmi.sorte)) this.erreur(ch, `Sorte inconnue : ${c.parmi.sorte}`);
+      this.compiler(chemins.choixNombre(e.id, c.id), c.nombre, { entite: porteurs }, 'nombre');
       for (const x of c.parmi.entrees ?? []) {
         if (this.entrees.get(x)?.sorte !== c.parmi.sorte)
           this.erreur(ch, `Entrée de sorte ${c.parmi.sorte} attendue : ${x}`);
