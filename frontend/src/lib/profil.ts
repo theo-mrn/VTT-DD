@@ -131,11 +131,30 @@ export async function envoyerImage(type: TypeImage, fichier: File): Promise<Prof
 
 // ─── Titres ──────────────────────────────────────────────────────────────────
 
+/** Condition de déblocage d'un titre (GET /v1/titles). */
+export type ConditionTitre =
+  | { type: 'time'; minutes: number }
+  | { type: 'event'; description: string }
+  | { type: 'premium' }
+  | { type: string; [cle: string]: unknown };
+
+/** Phrase lisible pour une condition de déblocage. */
+export function texteCondition(c: ConditionTitre | null, description?: string | null): string {
+  if (!c) return description ?? 'Attribué par un maître du jeu';
+  if (c.type === 'time' && typeof c.minutes === 'number') {
+    const m = c.minutes;
+    return `Jouer ${m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`}`;
+  }
+  if (c.type === 'event' && typeof c.description === 'string') return c.description;
+  if (c.type === 'premium') return 'Réservé aux membres premium';
+  return description ?? 'Condition particulière';
+}
+
 export interface Titre {
   slug: string;
   label: string;
   description: string;
-  condition: string;
+  condition: ConditionTitre | null;
   defaultUnlocked: boolean;
 }
 

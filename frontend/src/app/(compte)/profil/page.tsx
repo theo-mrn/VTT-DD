@@ -28,6 +28,7 @@ import {
   modifierMonProfil,
   type ModificationProfil,
   type Profil,
+  texteCondition,
 } from '@/lib/profil';
 import { useRessource } from '@/lib/ressource';
 import { envoyerVerificationEmail } from '@/lib/securite';
@@ -393,7 +394,9 @@ function CarteTitre({ profil }: { profil: Profil }) {
                     <Lock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" />
                     <div className="min-w-0">
                       <p className="text-zinc-300">{t.label}</p>
-                      <p className="text-xs text-zinc-500">{t.condition || t.description}</p>
+                      <p className="text-xs text-zinc-500">
+                        {texteCondition(t.condition, t.description)}
+                      </p>
                     </div>
                   </li>
                 ))}
