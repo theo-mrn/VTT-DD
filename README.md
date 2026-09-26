@@ -19,6 +19,7 @@ pnpm dev          # toute la stack : infra, migrations, services et front
 | http://localhost:3000  | front (`frontend`)                    |
 | http://localhost:8080  | gateway                               |
 | http://localhost:3001  | identity                              |
+| http://localhost:3002  | character                             |
 | localhost:5432         | PostgreSQL (`vtt` / `vtt`)            |
 
 Par défaut, seuls PostgreSQL, NATS et Valkey démarrent. Services optionnels :
@@ -37,9 +38,13 @@ backend/              un dossier par service : chacun est un pod indépendant,
   gateway/            utilisable par son API sans le front
   identity/           comptes, connexion, profils, amis, titres, clés d'API
                       (src/, db/ = migrations Liquibase, .env.example)
+  character/          personnages et systèmes de jeu, règles recalculées côté
+                      serveur (contrat : docs/api-character.md)
 packages/
   contracts/          schémas partagés front/back (événements, erreurs, identifiants)
   platform/           socle des services (sécurité, logs, traces, cache, santé)
+  rules/              moteur de règles générique (@vtt/rules)
+  systemes/           systèmes de jeu de référence, écrits en données
 legacy/               ancienne app Firebase, référence jusqu'à la parité
 tools/
   firebase-export/    export Firebase (comptes, Firestore) pour les imports

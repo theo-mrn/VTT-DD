@@ -29,6 +29,8 @@ networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    # character vérifie les jetons avec le JWKS d'identity
+    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
   # SMTP (Resend) en plus du HTTPS
   extraEgressPorts: [587]
 migrations:
