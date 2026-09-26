@@ -207,12 +207,20 @@ export function verifier(
       }
       case 'rang':
       case 'possede': {
+        const retour = n.fn === 'rang' ? 'nombre' : 'booleen';
+        const a = n.args[0];
+        // Entrée désignée à l'exécution (`rang(arme.competence)`) : permis là où `valeur()` l'est
+        if (n.args.length === 1 && a && a.t !== 'texte' && env.dynamique) {
+          dynamique = true;
+          attendre(a, 'texte', `${n.fn}()`);
+          return retour;
+        }
         const id = litteral('un identifiant d’entrée');
         if (id !== null) {
           if (env.entree && !env.entree(id)) erreur(`Entrée inconnue : ${id}`, n.pos);
           entrees.add(id);
         }
-        return n.fn === 'rang' ? 'nombre' : 'booleen';
+        return retour;
       }
       case 'valeur':
       case 'modificateur': {

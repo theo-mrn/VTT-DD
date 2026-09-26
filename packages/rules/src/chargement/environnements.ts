@@ -52,6 +52,11 @@ export const FONCTIONS_ENTITE: Record<string, SignatureFonction> = {
   compte: { args: ['texte'], retour: 'nombre' },
   /** Somme d'un champ numérique sur les entrées possédées : `somme("obligation", "valeur")`. */
   somme: { args: ['texte', 'texte'], retour: 'nombre' },
+  /** Variantes limitées aux entrées actives (équipées) : `compte_actifs("armure")`. */
+  compte_actifs: { args: ['texte'], retour: 'nombre' },
+  somme_actifs: { args: ['texte', 'texte'], retour: 'nombre' },
+  /** Somme des rangs des entrées possédées d'une sorte : `somme_rangs("blessure_critique")`. */
+  somme_rangs: { args: ['texte'], retour: 'nombre' },
   /** Marque posée sur une entrée : `marquee("athletisme", "carriere")`. */
   marquee: { args: ['texte', 'texte'], retour: 'booleen' },
 };

@@ -30,6 +30,8 @@ import type { Effet } from '../schema/index.js';
 import type { Modification } from './modifications.js';
 import {
   ameliorer,
+  retirer,
+  retrograder,
   lancerSymboles,
   regrouperPool,
   type DeSymbole,
@@ -67,7 +69,7 @@ export interface EtapePool {
   /** `action` pour le pool et les améliorations de l'action, sinon l'entrée source de l'effet. */
   source: string;
   nom: string;
-  operation: 'ajouter' | 'ameliorer';
+  operation: 'ajouter' | 'ameliorer' | 'retrograder' | 'retirer';
   de: string;
   vers?: string;
   nombre: number;
@@ -447,6 +449,27 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         ameliorerPool(e.p.entree.id, e.nom, e.ajout.ameliorer, e.ajout.vers, nombreDes(e.valeur));
       else if ('bonus' in e.ajout)
         explications.push(`${e.nom} : ignoré (bonus sur un jet à symboles)`);
+    }
+    for (const e of effets) {
+      if (!('retrograder' in e.ajout)) continue;
+      const { retrograder: de, vers } = e.ajout;
+      const n = nombreDes(e.valeur);
+      construction.push({
+        source: e.p.entree.id,
+        nom: e.nom,
+        operation: 'retrograder',
+        de,
+        vers,
+        nombre: n,
+      });
+      pool = retrograder(pool, de, vers, n);
+    }
+    for (const e of effets) {
+      if (!('retirer' in e.ajout)) continue;
+      const de = e.ajout.retirer;
+      const n = nombreDes(e.valeur);
+      construction.push({ source: e.p.entree.id, nom: e.nom, operation: 'retirer', de, nombre: n });
+      pool = retirer(pool, de, n);
     }
 
     // Pool final, dans l'ordre des sortes du système, borné au nombre maximal de dés

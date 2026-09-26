@@ -117,6 +117,14 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       [...possessions.values()]
         .filter((p) => p.sorte.id === sorte)
         .reduce((s, p) => s + (Number(champ(p, String(c))) || 0), 0),
+    compte_actifs: (sorte) =>
+      [...possessions.values()].filter((p) => p.sorte.id === sorte && p.actif).length,
+    somme_actifs: (sorte, c) =>
+      [...possessions.values()]
+        .filter((p) => p.sorte.id === sorte && p.actif)
+        .reduce((s, p) => s + (Number(champ(p, String(c))) || 0), 0),
+    somme_rangs: (sorte) =>
+      [...possessions.values()].filter((p) => p.sorte.id === sorte).reduce((s, p) => s + p.rang, 0),
     marquee: (id, m) => marques.get(String(id))?.has(String(m)) ?? false,
   };
 
@@ -299,34 +307,78 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
 
   interface EffetActif {
     p: PossessionEffective;
-    f: Extract<Effet, { sur: 'attribut' }>;
-    i: number;
+    operation: Extract<Effet, { sur: 'attribut' }>['operation'];
+    valeur: FormuleVerifiee;
+    condition?: FormuleVerifiee | undefined;
+    famille?: string | undefined;
+    nom: string;
   }
   const effetsPar = new Map<string, EffetActif[]>();
+  const pousser = (cle: string, e: EffetActif) => {
+    const l = effetsPar.get(cle) ?? [];
+    l.push(e);
+    effetsPar.set(cle, l);
+  };
   for (const p of possessions.values()) {
     if (!p.actif) continue;
     p.entree.effets.forEach((f, i) => {
       if (f.sur !== 'attribut') return;
-      const l = effetsPar.get(f.attribut) ?? [];
-      l.push({ p, f, i });
-      effetsPar.set(f.attribut, l);
+      pousser(f.attribut, {
+        p,
+        operation: f.operation,
+        valeur: systeme.formule(chemins.effet(p.entree.id, i, 'valeur')),
+        condition: systeme.formules.get(chemins.effet(p.entree.id, i, 'condition')),
+        famille: f.famille,
+        nom: f.description ?? p.entree.nom,
+      });
     });
+    // Choix d'attributs : un effet par attribut retenu
+    for (const c of p.entree.choixAttributs) {
+      const retenus = p.possession?.choix[c.id] ?? [];
+      const proposes = (cle: string) => {
+        const a = entite.attributs.get(cle);
+        return (
+          !!a &&
+          (c.parmi.attributs?.includes(cle) ||
+            (c.parmi.groupe !== undefined && a.groupe === c.parmi.groupe))
+        );
+      };
+      if (retenus.length > c.nombre)
+        erreurs.push({
+          ou: `possessions/${p.entree.id}/${c.id}`,
+          message: `${c.nom} : ${c.nombre} choix au plus`,
+        });
+      for (const cle of retenus.slice(0, c.nombre)) {
+        if (!proposes(cle)) {
+          erreurs.push({
+            ou: `possessions/${p.entree.id}/${c.id}`,
+            message: `${c.nom} : « ${cle} » n’est pas proposé`,
+          });
+          continue;
+        }
+        pousser(cle, {
+          p,
+          operation: c.operation,
+          valeur: systeme.formule(chemins.choixAttribut(p.entree.id, c.id)),
+          nom: `${p.entree.nom} (${c.nom})`,
+        });
+      }
+    }
   }
 
   const appliquerEffets = (cle: string, depart: Valeur, detail: LigneExplication[]): Valeur => {
     const actifs: { op: Operation; v: Valeur; famille?: string; ligne: LigneExplication }[] = [];
-    for (const { p, f, i } of effetsPar.get(cle) ?? []) {
-      const vars = { variable: variablesSource(p) };
-      const cond = systeme.formules.get(chemins.effet(p.entree.id, i, 'condition'));
-      if (cond && evaluerSur(cond, vars, false, cle) !== true) continue;
-      const v = evaluerSur(systeme.formule(chemins.effet(p.entree.id, i, 'valeur')), vars, 0, cle);
+    for (const e of effetsPar.get(cle) ?? []) {
+      const vars = { variable: variablesSource(e.p) };
+      if (e.condition && evaluerSur(e.condition, vars, false, cle) !== true) continue;
+      const v = evaluerSur(e.valeur, vars, 0, cle);
       const ligne: LigneExplication = {
-        source: p.entree.id,
-        nom: f.description ?? p.entree.nom,
-        operation: f.operation,
+        source: e.p.entree.id,
+        nom: e.nom,
+        operation: e.operation,
         valeur: v,
       };
-      actifs.push({ op: f.operation, v, ...(f.famille ? { famille: f.famille } : {}), ligne });
+      actifs.push({ op: e.operation, v, ...(e.famille ? { famille: e.famille } : {}), ligne });
     }
 
     // Familles : dans une même famille et une même opération, seul le plus fort compte

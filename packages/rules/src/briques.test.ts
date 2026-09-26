@@ -126,3 +126,172 @@ describe('briques génériques', () => {
     ]);
   });
 });
+
+// ─── Deuxième série : manques relevés par le portage Star Wars ─────────────
+
+import { miniSymboles } from './test/mini-systemes.js';
+
+const sw: SystemeSaisi = {
+  ...miniSymboles,
+  sortes: [
+    ...miniSymboles.sortes!,
+    {
+      id: 'arme',
+      nom: 'Arme',
+      pour: ['personnage'],
+      activable: true,
+      champs: [
+        { id: 'competence', nom: 'Compétence', type: 'entree', sorte: 'competence' },
+        { id: 'poids', nom: 'Encombrement', type: 'nombre', defaut: 0 },
+      ],
+    },
+    { id: 'blessure', nom: 'Blessure critique', pour: ['personnage'], rangs: { max: 10 } },
+  ],
+  catalogue: [
+    ...miniSymboles.catalogue!,
+    { id: 'blaster', sorte: 'arme', nom: 'Blaster', champs: { competence: 'distance', poids: 1 } },
+    { id: 'fusil', sorte: 'arme', nom: 'Fusil', champs: { competence: 'distance', poids: 4 } },
+    { id: 'jambe-cassee', sorte: 'blessure', nom: 'Jambe cassée' },
+    {
+      id: 'pisteur',
+      sorte: 'talent',
+      nom: 'Pisteur',
+      effets: [
+        { sur: 'jet', ajout: { retirer: 'difficulte', nombre: 'rang' } },
+        { sur: 'jet', ajout: { retrograder: 'maitrise', vers: 'aptitude', nombre: 1 } },
+      ],
+    },
+    {
+      id: 'devouement',
+      sorte: 'talent',
+      nom: 'Dévouement',
+      choixAttributs: [
+        { id: 'carac', nom: '+1 à une caractéristique', nombre: 1, parmi: { groupe: 'carac' } },
+      ],
+    },
+  ],
+  entites: [
+    {
+      ...miniSymboles.entites[0]!,
+      attributs: [
+        ...miniSymboles.entites[0]!.attributs,
+        {
+          cle: 'encombrement',
+          nom: 'Encombrement',
+          nature: 'derivee',
+          formule: 'somme_actifs("arme", "poids")',
+        },
+        {
+          cle: 'critiques',
+          nom: 'Critiques',
+          nature: 'derivee',
+          formule: 'somme_rangs("blessure")',
+        },
+      ],
+    },
+  ],
+  actions: [
+    ...miniSymboles.actions!,
+    {
+      id: 'tir',
+      nom: 'Tir',
+      pour: ['personnage'],
+      parametres: [{ id: 'arme', nom: 'Arme', type: 'entree', sorte: 'arme' }],
+      jet: {
+        type: 'symboles',
+        pool: [{ de: 'aptitude', nombre: 'valeur("agilite") + rang(arme.competence)' }],
+      },
+    },
+  ],
+  achats: [
+    ...miniSymboles.achats!,
+    {
+      id: 'carac-calculee',
+      nom: 'Caractéristique (valeur calculée)',
+      obtient: { type: 'attribut', entite: 'personnage', groupe: 'carac' },
+      monnaie: 'xp',
+      cout: '10 * (calcule + 1)',
+    },
+  ],
+};
+const rsw = charger(sw);
+if (!rsw.ok) throw new Error(JSON.stringify(rsw.erreurs));
+const ssw = rsw.systeme;
+const ficheSw = (e: Partial<EtatEntiteSaisi> = {}) =>
+  calculer(
+    ssw,
+    EtatEntite.parse({
+      type: 'personnage',
+      systeme: { id: ssw.source.id, version: '1.0.0' },
+      ...e,
+    }),
+  );
+
+describe('briques génériques (2)', () => {
+  it('effets de jet qui rétrogradent et retirent des dés', () => {
+    const r = executerAction(ssw, {
+      action: 'test',
+      acteur: ficheSw({
+        valeurs: { vigueur: 3 },
+        possessions: [
+          { entree: 'athletisme', rang: 2 },
+          { entree: 'pisteur', rang: 1 },
+        ],
+      }),
+      parametres: { competence: 'athletisme', difficulte: 2 },
+      aleatoire: aleatoireImpose([1, 1, 1, 1]),
+    });
+    if (!r.ok || r.resultat.jet.type !== 'symboles') throw new Error(JSON.stringify(r));
+    // 3 dés dont 2 améliorés → 1 aptitude + 2 maîtrises ; une maîtrise rétrogradée ; une difficulté retirée
+    expect(r.resultat.jet.pool).toEqual([
+      { de: 'aptitude', nombre: 2 },
+      { de: 'maitrise', nombre: 1 },
+      { de: 'difficulte', nombre: 1 },
+    ]);
+  });
+
+  it('rang() d’une entrée désignée par un champ', () => {
+    const r = executerAction(ssw, {
+      action: 'tir',
+      acteur: ficheSw({
+        valeurs: { agilite: 3 },
+        possessions: [{ entree: 'blaster' }, { entree: 'distance', rang: 2 }],
+      }),
+      parametres: { arme: 'blaster' },
+      aleatoire: aleatoireImpose([1, 1, 1, 1, 1]),
+    });
+    expect(r.ok && r.resultat.jet.type === 'symboles' && r.resultat.jet.pool).toEqual([
+      { de: 'aptitude', nombre: 5 },
+    ]);
+  });
+
+  it('agrégats limités aux entrées actives, somme des rangs', () => {
+    const f = ficheSw({
+      possessions: [
+        { entree: 'blaster' },
+        { entree: 'fusil', actif: false },
+        { entree: 'jambe-cassee', rang: 2 },
+      ],
+    });
+    expect(f.valeur('encombrement')).toBe(1);
+    expect(f.valeur('critiques')).toBe(2);
+  });
+
+  it('choix d’attribut et coût d’achat sur la valeur calculée', () => {
+    const f = ficheSw({
+      valeurs: { vigueur: 2 },
+      possessions: [{ entree: 'devouement', choix: { carac: ['vigueur'] } }],
+    });
+    expect(f.valeur('vigueur')).toBe(3);
+    const vigueur = achatsPossibles(f, ['carac-calculee'])[0]!.objets.find(
+      (o) => o.objet === 'vigueur',
+    );
+    expect(vigueur?.cout).toBe(40);
+    const faux = ficheSw({
+      possessions: [{ entree: 'devouement', choix: { carac: ['Encaissement'] } }],
+    });
+    expect(faux.erreurs.map((e) => e.message)).toEqual([
+      '+1 à une caractéristique : « Encaissement » n’est pas proposé',
+    ]);
+  });
+});

@@ -71,6 +71,22 @@ export function ameliorer(pool: Pool, de: string, vers: string, nombre: number):
   return [...nombres].map(([d, n]) => ({ de: d, nombre: n })).filter((p) => p.nombre > 0);
 }
 
+/** Remplace jusqu'à `nombre` dés `de` par des dés `vers` (sans rien ajouter s'il n'y en a pas). */
+export function retrograder(pool: Pool, de: string, vers: string, nombre: number): Pool {
+  const nombres = new Map(regrouperPool(pool).map((p) => [p.de, p.nombre]));
+  const n = Math.min(nombre, nombres.get(de) ?? 0);
+  nombres.set(de, (nombres.get(de) ?? 0) - n);
+  nombres.set(vers, (nombres.get(vers) ?? 0) + n);
+  return [...nombres].map(([d, x]) => ({ de: d, nombre: x })).filter((p) => p.nombre > 0);
+}
+
+/** Retire jusqu'à `nombre` dés `de` du pool. */
+export function retirer(pool: Pool, de: string, nombre: number): Pool {
+  return regrouperPool(pool)
+    .map((p) => (p.de === de ? { de, nombre: Math.max(0, p.nombre - nombre) } : p))
+    .filter((p) => p.nombre > 0);
+}
+
 /**
  * Lance un pool de dés à symboles. Les dés sont lancés dans l'ordre des sortes
  * déclarées par le système (et non dans l'ordre du pool), pour qu'un même pool

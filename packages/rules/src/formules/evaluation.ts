@@ -153,7 +153,8 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
       }
       case 'rang':
       case 'possede': {
-        const id = (n.args[0] as Extract<Noeud, { t: 'texte' }>).v;
+        const id = ev(n.args[0]!);
+        if (typeof id !== 'string') throw new ErreurEvaluation(`${n.fn}() attend un texte`, n.pos);
         const f = n.fn === 'rang' ? ctx.rang : ctx.possede;
         if (!f) throw new ErreurEvaluation(`${n.fn}() indisponible dans ce contexte`, n.pos);
         return f(id);

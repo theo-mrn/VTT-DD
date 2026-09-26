@@ -215,6 +215,11 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
   const extra = {
     variable: variables({
       actuel: c.actuel,
+      calcule: c.attribut
+        ? Number(fiche.valeur(c.attribut.cle))
+        : c.type === 'entree'
+          ? 0
+          : c.actuel,
       cible,
       nombre: c.nombre,
       creation: etat.creation,

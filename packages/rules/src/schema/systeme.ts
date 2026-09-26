@@ -135,7 +135,10 @@ export const Effet = z.discriminatedUnion('sur', [
   }),
   z.object({
     ...EffetCommun,
-    /** Modifie un jet : dés ajoutés ou améliorés, bonus au total. */
+    /**
+     * Modifie un jet : dés ajoutés, améliorés, rétrogradés ou retirés, bonus au
+     * total. Ordre d'application : ajouts, améliorations, rétrogradations, retraits.
+     */
     sur: z.literal('jet'),
     /** Actions concernées (toutes si absent). */
     actions: z.array(Id).optional(),
@@ -145,6 +148,10 @@ export const Effet = z.discriminatedUnion('sur', [
       .union([
         z.object({ de: Id, nombre: Formule }),
         z.object({ ameliorer: Id, vers: Id, nombre: Formule }),
+        /** Remplace des dés `retrograder` par `vers`, sans en ajouter s'il n'y en a pas. */
+        z.object({ retrograder: Id, vers: Id, nombre: Formule }),
+        /** Retire des dés du pool (jamais en dessous de zéro). */
+        z.object({ retirer: Id, nombre: Formule }),
         z.object({ bonus: Formule }),
       ])
       .optional(),
@@ -205,6 +212,18 @@ export const Choix = z.object({
 });
 export type Choix = z.output<typeof Choix>;
 
+/** Choix d'attributs (« +1 à une caractéristique au choix ») : les clés retenues vont dans `choix`. */
+export const ChoixAttribut = z.object({
+  id: Id,
+  nom: Libelle,
+  nombre: z.number().int().positive(),
+  parmi: z.object({ attributs: z.array(Cle).optional(), groupe: Id.optional() }),
+  operation: z.enum(['ajouter', 'minimum', 'maximum']).default('ajouter'),
+  /** Variable `rang` : rang de l'entrée qui porte le choix. */
+  valeur: Formule.default('1'),
+});
+export type ChoixAttribut = z.output<typeof ChoixAttribut>;
+
 export const Entree = z.object({
   id: Id,
   sorte: Cle,
@@ -217,6 +236,7 @@ export const Entree = z.object({
     .default({}),
   effets: z.array(Effet).default([]),
   choix: z.array(Choix).default([]),
+  choixAttributs: z.array(ChoixAttribut).default([]),
   /** Condition pour pouvoir prendre l'entrée. */
   exige: Formule.optional(),
 });

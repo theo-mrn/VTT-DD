@@ -73,6 +73,8 @@ export const chemins = {
   exige: (entree: string) => `catalogue/${entree}/exige`,
   champ: (entree: string, champ: string) => `catalogue/${entree}/champs/${champ}`,
   choix: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/valeur`,
+  choixAttribut: (entree: string, choix: string) =>
+    `catalogue/${entree}/choixAttributs/${choix}/valeur`,
   achat: (id: string, champ: 'cout' | 'plafond' | 'condition') => `achats/${id}/${champ}`,
   monnaie: (id: string) => `monnaies/${id}/total`,
   etape: (entite: string, etape: string, champ: string) => `creation/${entite}/${etape}/${champ}`,
@@ -181,10 +183,10 @@ class Chargeur {
       switch (x.t) {
         case 'appel': {
           const lit = x.args.map((a) => (a.t === 'texte' ? a.v : null));
-          if (x.fn === 'compte' || x.fn === 'somme') {
+          if (['compte', 'somme', 'compte_actifs', 'somme_actifs', 'somme_rangs'].includes(x.fn)) {
             const sorte = lit[0] != null ? this.sortes.get(lit[0]) : undefined;
             if (lit[0] != null && !sorte) this.erreur(chemin, `Sorte inconnue : ${lit[0]}`, x.pos);
-            if (x.fn === 'somme' && sorte && lit[1] != null) {
+            if ((x.fn === 'somme' || x.fn === 'somme_actifs') && sorte && lit[1] != null) {
               const champ = sorte.champs.find((c) => c.id === lit[1]);
               if (!champ || champ.type !== 'nombre') {
                 this.erreur(chemin, `Champ numérique inconnu sur ${sorte.id} : ${lit[1]}`, x.pos);
@@ -501,6 +503,13 @@ class Chargeur {
             this.verifierDe(ch('ajout'), aj.ameliorer);
             this.verifierDe(ch('ajout'), aj.vers);
             this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+          } else if (aj && 'retrograder' in aj) {
+            this.verifierDe(ch('ajout'), aj.retrograder);
+            this.verifierDe(ch('ajout'), aj.vers);
+            this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+          } else if (aj && 'retirer' in aj) {
+            this.verifierDe(ch('ajout'), aj.retirer);
+            this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
           } else if (aj) {
             this.compiler(ch('bonus'), aj.bonus, oEffet, 'nombre');
           }
@@ -509,7 +518,31 @@ class Chargeur {
       }
     });
 
-    this.unique(e.choix, (c) => c.id, `${chemin}/choix`, 'Choix');
+    // Les choix d'entrées et d'attributs partagent l'espace `possession.choix`
+    this.unique([...e.choix, ...e.choixAttributs], (c) => c.id, `${chemin}/choix`, 'Choix');
+    for (const c of e.choixAttributs) {
+      const ch = `${chemin}/choixAttributs/${c.id}`;
+      if (!c.parmi.attributs && !c.parmi.groupe)
+        this.erreur(ch, 'Préciser les attributs ou le groupe proposés');
+      for (const t of sorte.pour) {
+        const ent = this.entites.get(t);
+        if (!ent) continue;
+        if (c.parmi.groupe && !ent.type.groupes.some((g) => g.id === c.parmi.groupe)) {
+          this.erreur(ch, `Groupe inconnu de ${t} : ${c.parmi.groupe}`);
+        }
+        for (const cle of c.parmi.attributs ?? []) {
+          const a = ent.attributs.get(cle);
+          if (!a || typeAttribut(a) !== 'nombre')
+            this.erreur(ch, `Attribut numérique inconnu de ${t} : ${cle}`);
+        }
+      }
+      this.compiler(
+        chemins.choixAttribut(e.id, c.id),
+        c.valeur,
+        { variables: { rang: 'nombre' } },
+        'nombre',
+      );
+    }
     for (const c of e.choix) {
       const ch = `${chemin}/choix/${c.id}`;
       if (!this.sortes.has(c.parmi.sorte)) this.erreur(ch, `Sorte inconnue : ${c.parmi.sorte}`);
@@ -616,6 +649,8 @@ class Chargeur {
 
       const variables: Record<string, TypeValeur> = {
         actuel: 'nombre',
+        /** Valeur calculée (avec les effets) de l'attribut, ou rang total de l'entrée visée. */
+        calcule: 'nombre',
         cible: 'nombre',
         nombre: 'nombre',
         creation: 'booleen',
