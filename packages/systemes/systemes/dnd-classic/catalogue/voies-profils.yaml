@@ -2322,6 +2322,13 @@
 
     Le forgesort est habitué aux travaux et à la chaleur de la forge. Il réduit tous les DM de feu subits de 5 points et augmente sa valeur de CON de +2. Il peut désormais lancer deux d20 à chaque fois qu’un test de CON lui est demandé, en gardant le meilleur résultat.
   effets:
+    - {
+        sur: degats,
+        types: [feu],
+        operation: reduire,
+        valeur: 5,
+        description: 'Endurer : −5 DM de feu',
+      }
     - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
     - {
         sur: jet,

@@ -131,6 +131,13 @@
     Effet : immunisé contre poison et maladie
 
     L'elfe n'a besoin que de la moitié du repos, de la nourriture ou de la boisson d'un humain normal pour être en pleine forme. Il est immunisé aux effets des poisons et des maladies.
+  effets:
+    - {
+        sur: degats,
+        types: [poison],
+        operation: annuler,
+        description: 'Immortel : immunisé au poison',
+      }
 
 - id: race-haut-elfe-superiorite-elfique
   sorte: capacite

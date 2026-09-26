@@ -38,6 +38,13 @@
   description: |-
     Les parties métalliques d’une âme-forgée lui offrent une protection naturelle qui lui accorde un bonus de +1 en DEF. De plus, l’âme-forgée retranche 5 points (RD 5) à tous les DM de feu, de froid et aux drains de vie (pouvoir de vampire par exemple). Enfin, elle est immunisée aux effets de saignement.
   effets:
+    - {
+        sur: degats,
+        types: [feu, froid],
+        operation: reduire,
+        valeur: 5,
+        description: 'Créature de métal : RD 5 feu et froid',
+      }
     - { sur: attribut, attribut: Defense, operation: ajouter, valeur: 1 }
 
 - id: elfe

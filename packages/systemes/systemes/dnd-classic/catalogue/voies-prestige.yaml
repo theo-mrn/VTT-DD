@@ -268,6 +268,13 @@
     Effet : À force de manipuler les poisons, le voleur a développé des immunités.
 
     Lorsqu’il est empoisonné, faites un test de CON difficulté 10. En cas de succès, il ne subit aucun effet, s’il rate, seulement la moitié.
+  effets:
+    - {
+        sur: degats,
+        types: [poison],
+        operation: annuler,
+        description: 'Résistance au poison : immunisé au poison',
+      }
 
 - id: prestige-voleur-maitre-des-poisons-poisons-virulents
   sorte: capacite
@@ -1707,6 +1714,20 @@
 
     Les créatures qui le touchent ou l'attaquent avec des armes métalliques subissent 1d6 DM. Lorsqu'il marche, le sol se gèle et il peut se déplacer sur l'eau en la transformant en glace. Le sort a une durée de [1d6 + Mod. d'INT] minutes.
   effets:
+    - {
+        sur: degats,
+        types: [froid],
+        operation: annuler,
+        description: 'Présence glaciale : immunisé au froid',
+      }
+    - {
+        sur: degats,
+        types: [feu],
+        operation: multiplier,
+        valeur: 0.5,
+        famille: resistance-feu,
+        description: 'Présence glaciale : DM de feu divisés par 2',
+      }
     - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '4' }
 
 - id: prestige-ensorceleur-gel-cryogenisation
@@ -1775,6 +1796,21 @@
   champs: { voie: prestige-druide-elements, rangVoie: 4, activation: Capacité passive }
   description: |-
     Effet : Le druide devient immunisé aux DM de feu et il ne reçoit plus que la moitié des DM de froid.
+  effets:
+    - {
+        sur: degats,
+        types: [feu],
+        operation: annuler,
+        description: 'Élément feu : immunisé au feu',
+      }
+    - {
+        sur: degats,
+        types: [froid],
+        operation: multiplier,
+        valeur: 0.5,
+        famille: resistance-froid,
+        description: 'Élément feu : DM de froid divisés par 2',
+      }
 
 - id: prestige-druide-elements-forme-elementaire
   sorte: capacite_active
@@ -1965,6 +2001,14 @@
     Effet : Le chevalier est désormais un membre à part entière de l’ordre des chevaliers dragons.
 
     Il a appris à résister aux flammes les plus féroces et il retranche 5 points à tous les DM de feu subis (RD feu 5). Cette réduction passe à 10 une fois atteint le rang 5.
+  effets:
+    - {
+        sur: degats,
+        types: [feu],
+        operation: reduire,
+        valeur: 'si(rang("prestige-chevalier-chevalier-dragon") >= 5, 10, 5)',
+        description: 'Résistance au feu : RD feu 5 (10 au rang 5)',
+      }
 
 - id: prestige-chevalier-chevalier-dragon-monture-puissante
   sorte: capacite
@@ -2446,6 +2490,14 @@
     Effet : Le personnage est habitué aux températures froides, il obtient un bonus de +5 à tous les tests de survie en milieu froid et aux tests pour résister au froid.
 
     Il peut supporter des températures de 0°C en étant habillé d’un simple pagne et il retranche 5 points à tous les DM de froid subits (RD 5).
+  effets:
+    - {
+        sur: degats,
+        types: [froid],
+        operation: reduire,
+        valeur: 5,
+        description: 'Ni chaud ni froid : RD 5 froid',
+      }
 
 - id: prestige-barbare-glaces-deplacement-en-milieu-hostile
   sorte: capacite
