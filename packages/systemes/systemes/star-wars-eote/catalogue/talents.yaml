@@ -1,8 +1,11 @@
 # Talents (138) : obtenus par les nœuds des arbres, chaque nœud donne un rang.
 # Seuls les effets exprimables en données sont codés ; le reste est décrit. Les effets de jet lisent
-# la compétence testée (`competence`) ou la circonstance d'un « Test en situation » (`circonstance`) ;
-# les talents étiquetés « test » se lancent avec l'action « Test de talent » (champs du talent) ;
-# les dégâts et critiques passent par les attributs bonusDegatsMelee / bonusCritique ou l'action « attaque ».
+# la compétence testée (`competence`), celle d'un talent testé (`talent.competence`) ou de l'arme
+# (`arme.competence`), et la circonstance facultative d'un test (`circonstance`) ; ceux marqués
+# `cote: cible` s'appliquent quand le porteur est visé (défense active). Les talents étiquetés « test »
+# se lancent avec l'action « Test de talent » ; les options à coût de stress (Visée précise, Intimidant,
+# Maîtres…) sont des paramètres réservés (`exige`) des actions ; les dégâts et critiques passent par
+# les attributs bonusDegatsMelee / bonusCritique ou l'action « attaque ».
 - id: agile
   sorte: talent
   nom: Agile
@@ -19,7 +22,17 @@
   description: |-
     Améliore une fois par rang la difficulté des tests visant à identifier le personnage.
 
+    Dans l'app : s'applique aux « Tests contre un personnage » dans la circonstance « Identifier quelqu'un ».
+
     VO : Indistinguishable.
+  effets:
+    - {
+        sur: jet,
+        cote: cible,
+        actions: [test-cible],
+        si: circonstance == "identification",
+        ajout: { ameliorer: difficulte, vers: defi, nombre: rang },
+      }
 
 - id: aptitude-technique
   sorte: talent
@@ -50,7 +63,7 @@
   effets:
     - {
         sur: jet,
-        si: 'competence == "pilotage-planetaire" ou competence == "pilotage-spatial"',
+        si: '(competence == "pilotage-planetaire" ou talent.competence == "pilotage-planetaire") ou (competence == "pilotage-spatial" ou talent.competence == "pilotage-spatial")',
         ajout: { retirer: infortune, nombre: rang },
       }
 
@@ -65,7 +78,7 @@
   effets:
     - {
         sur: jet,
-        si: 'circonstance == "peur" et competence == "discipline"',
+        si: 'circonstance == "peur" et (competence == "discipline" ou talent.competence == "discipline")',
         ajout: { retirer: difficulte, nombre: rang },
       }
 
@@ -75,6 +88,8 @@
   etiquettes: [actif]
   description: |-
     Lors d'un test de Mêlée ou de Corps à corps, subit un nombre de points de stress (au plus ses rangs) pour améliorer l'attaque d'autant.
+
+    Dans l'app : option de l'action « Attaque ».
 
     VO : Frenzied Attack.
 
@@ -89,7 +104,7 @@
   effets:
     - {
         sur: jet,
-        si: 'competence == "tromperie" ou competence == "magouilles"',
+        si: '(competence == "tromperie" ou talent.competence == "tromperie") ou (competence == "magouilles" ou talent.competence == "magouilles")',
         ajout: { retirer: infortune, nombre: rang },
       }
 
@@ -102,7 +117,11 @@
 
     VO : Command.
   effets:
-    - { sur: jet, si: competence == "commandement", ajout: { de: fortune, nombre: rang } }
+    - {
+        sur: jet,
+        si: (competence == "commandement" ou talent.competence == "commandement"),
+        ajout: { de: fortune, nombre: rang },
+      }
 
 - id: bagarreur-ne
   sorte: talent
@@ -185,7 +204,16 @@
   description: |-
     Les armes de jet sont traitées comme ayant une bande de portée de plus.
 
+    Dans l'app : armes étiquetées « jet ».
+
     VO : Strong Arm.
+  effets:
+    - {
+        sur: jet,
+        actions: [attaque],
+        si: 'a_etiquette(arme, "jet")',
+        ajout: { variable: porteeMax, ajouter: 1 },
+      }
 
 - id: cache-secrete
   sorte: talent
@@ -205,7 +233,11 @@
 
     VO : Galaxy Mapper.
   effets:
-    - { sur: jet, si: 'competence == "astrogation"', ajout: { retirer: infortune, nombre: rang } }
+    - {
+        sur: jet,
+        si: '(competence == "astrogation" ou talent.competence == "astrogation")',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: casseur-de-codes
   sorte: talent
@@ -281,7 +313,7 @@
   effets:
     - {
         sur: jet,
-        si: 'competence == "connaissance-noyau" ou competence == "connaissance-education" ou competence == "connaissance-traditions" ou competence == "connaissance-bordure" ou competence == "connaissance-pegre" ou competence == "connaissance-xenologie"',
+        si: '(competence == "connaissance-noyau" ou talent.competence == "connaissance-noyau") ou (competence == "connaissance-education" ou talent.competence == "connaissance-education") ou (competence == "connaissance-traditions" ou talent.competence == "connaissance-traditions") ou (competence == "connaissance-bordure" ou talent.competence == "connaissance-bordure") ou (competence == "connaissance-pegre" ou talent.competence == "connaissance-pegre") ou (competence == "connaissance-xenologie" ou talent.competence == "connaissance-xenologie")',
         ajout: { retirer: infortune, nombre: rang },
       }
 
@@ -329,6 +361,8 @@
   description: |-
     Manœuvre Concentration intense : subit 1 point de stress et améliore une fois l'aptitude du prochain test de compétence.
 
+    Dans l'app : option des tests de compétence et de l'attaque.
+
     VO : Intense Focus.
 
 - id: conduite-defensive
@@ -372,11 +406,14 @@
 - id: coup-cible
   sorte: talent
   nom: Coup ciblé
-  etiquettes: [actif]
+  etiquettes: [actif, degats-destin]
   description: |-
     Après une attaque réussie, peut dépenser 1 point de Destin pour ajouter à une touche des dégâts égaux à son Agilité.
 
+    Dans l'app : option « Point de Destin » de l'action « Attaque ».
+
     VO : Targeted Blow.
+  champs: { caracteristique: agilite }
 
 - id: coup-de-genie
   sorte: talent
@@ -384,6 +421,8 @@
   etiquettes: [actif]
   description: |-
     Une fois par séance, effectue un test de compétence avec l'Intellect au lieu de la caractéristique liée.
+
+    Dans l'app : option des actions « Test de compétence » et « Test contre un personnage ».
 
     VO : Stroke of Genius.
 
@@ -393,6 +432,8 @@
   etiquettes: [actif]
   description: |-
     Lors des tests de Mêlée, peut infliger les dégâts sous forme de stress plutôt que de blessures (l'Encaissement s'applique).
+
+    Dans l'app : option de l'action « Attaque ».
 
     VO : Stunning Blow.
 
@@ -411,6 +452,8 @@
   etiquettes: [actif]
   description: |-
     Augmente de 1 la difficulté du prochain test de combat. S'il inflige des dégâts, la cible subit 1 point de stress à chaque déplacement jusqu'à la fin de la rencontre.
+
+    Dans l'app : option de l'action « Attaque » (le stress aux déplacements reste au MJ).
 
     VO : Crippling Blow.
 
@@ -465,7 +508,7 @@
   effets:
     - {
         sur: jet,
-        si: 'competence == "sens-de-la-rue" ou competence == "connaissance-pegre"',
+        si: '(competence == "sens-de-la-rue" ou talent.competence == "sens-de-la-rue") ou (competence == "connaissance-pegre" ou talent.competence == "connaissance-pegre")',
         ajout: { retirer: infortune, nombre: rang },
       }
 
@@ -489,7 +532,7 @@
   effets:
     - {
         sur: jet,
-        si: 'competence == "coercition" ou competence == "tromperie"',
+        si: '(competence == "coercition" ou talent.competence == "coercition") ou (competence == "tromperie" ou talent.competence == "tromperie")',
         ajout: { retirer: infortune, nombre: rang },
       }
 
@@ -511,26 +554,11 @@
 
     VO : Dedication.
   choixAttributs:
-    - id: rang-1
-      nom: 'Dévouement (1er rang) : +1 à une caractéristique'
-      nombre: 1
+    - id: caracteristiques
+      nom: 'Dévouement : +1 à une caractéristique par rang'
+      nombre: rang
       parmi: { groupe: caracteristiques }
       valeur: 1
-    - id: rang-2
-      nom: 'Dévouement (2e rang) : +1 à une caractéristique'
-      nombre: 1
-      parmi: { groupe: caracteristiques }
-      valeur: si(rang >= 2, 1, 0)
-    - id: rang-3
-      nom: 'Dévouement (3e rang) : +1 à une caractéristique'
-      nombre: 1
-      parmi: { groupe: caracteristiques }
-      valeur: si(rang >= 3, 1, 0)
-    - id: rang-4
-      nom: 'Dévouement (4e rang) : +1 à une caractéristique'
-      nombre: 1
-      parmi: { groupe: caracteristiques }
-      valeur: si(rang >= 4, 1, 0)
   effets:
     - { sur: attribut, attribut: vigueur, operation: maximum, valeur: 6 }
     - { sur: attribut, attribut: agilite, operation: maximum, valeur: 6 }
@@ -619,6 +647,8 @@
   description: |-
     Ciblé par un test de combat, peut effectuer l'incident Esquive : subit un nombre de points de stress (au plus ses rangs) et améliore d'autant la difficulté du test.
 
+    Dans l'app : option « Esquive de la cible » de l'action « Attaque », bornée par ses rangs.
+
     VO : Dodge.
 
 - id: evasion-brillante
@@ -648,7 +678,11 @@
 
     VO : Gearhead.
   effets:
-    - { sur: jet, si: 'competence == "mecanique"', ajout: { retirer: infortune, nombre: rang } }
+    - {
+        sur: jet,
+        si: '(competence == "mecanique" ou talent.competence == "mecanique")',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: force-sauvage
   sorte: talent
@@ -687,6 +721,8 @@
   etiquettes: [passif]
   description: |-
     Ajoute 1 dé de Fortune par rang aux tests de combat contre les cibles qui n'ont pas encore agi pendant la rencontre.
+
+    Dans l'app : option de l'action « Attaque ».
 
     VO : Quick Strike.
 
@@ -734,6 +770,8 @@
   description: |-
     Peut subir un nombre de points de stress (au plus ses rangs) pour réduire d'autant la difficulté de ses tests de Coercition, ou améliorer d'autant celle des tests de Coercition qui le visent.
 
+    Dans l'app : option des tests de compétence ; côté visé, option « Intimidant de la cible » du « Test contre un personnage ».
+
     VO : Intimidating.
 
 - id: inventeur
@@ -750,11 +788,14 @@
 - id: lecons-d-anatomie
   sorte: talent
   nom: Leçons d'anatomie
-  etiquettes: [actif]
+  etiquettes: [actif, degats-destin]
   description: |-
     Après une attaque réussie, peut dépenser 1 point de Destin pour ajouter à une touche des dégâts égaux à son Intellect.
 
+    Dans l'app : option « Point de Destin » de l'action « Attaque ».
+
     VO : Anatomy Lessons.
+  champs: { caracteristique: intellect }
 
 - id: maitre-astronavigateur
   sorte: talent
@@ -762,6 +803,8 @@
   etiquettes: [actif]
   description: |-
     Une fois par round, subit 2 points de stress pour réduire de 1 la difficulté du prochain test d'Astrogation (minimum Facile).
+
+    Dans l'app : option « Maître » des tests de compétence.
 
     VO : Master Starhopper.
 
@@ -813,6 +856,8 @@
   description: |-
     Une fois par round, subit 2 points de stress pour réduire de 1 la difficulté du prochain test de Discrétion ou de Magouilles.
 
+    Dans l'app : option « Maître » des tests de compétence.
+
     VO : Master of Shadows.
 
 - id: maitre-marchand
@@ -831,6 +876,8 @@
   description: |-
     Une fois par round, subit 2 points de stress pour réduire de 1 la difficulté d'un test de Médecine.
 
+    Dans l'app : option « Maître » des tests de compétence et des soins.
+
     VO : Master Doctor.
 
 - id: maitre-pilote
@@ -848,6 +895,8 @@
   etiquettes: [actif]
   description: |-
     Une fois par round, incident Maître pirate : subit 2 points de stress pour réduire de 1 la difficulté d'un test d'Informatique ou de piratage (minimum Facile).
+
+    Dans l'app : option « Maître » des tests de compétence.
 
     VO : Master Slicer.
 
@@ -909,11 +958,21 @@
 - id: pas-de-cote
   sorte: talent
   nom: Pas de côté
-  etiquettes: [actif]
+  etiquettes: [actif, defense-active]
   description: |-
     Une fois par round, manœuvre Pas de côté : subit un nombre de points de stress (au plus ses rangs) et améliore d'autant la difficulté de toutes les attaques à distance reçues jusqu'au round suivant.
 
+    Dans l'app : action « Défense active », qui fixe l'attribut « Pas de côté ».
+
     VO : Side Step.
+  effets:
+    - {
+        sur: jet,
+        cote: cible,
+        actions: [attaque],
+        si: non arme.melee,
+        ajout: { ameliorer: difficulte, vers: defi, nombre: '@pasDeCote' },
+      }
 
 - id: pas-ne-d-hier
   sorte: talent
@@ -922,7 +981,17 @@
   description: |-
     Peut améliorer une fois par rang la difficulté des tests de Charme, de Coercition ou de Tromperie qui le visent.
 
+    Dans l'app : s'applique aux « Tests contre un personnage ».
+
     VO : Nobody's Fool.
+  effets:
+    - {
+        sur: jet,
+        cote: cible,
+        actions: [test-cible],
+        si: competence == "charme" ou competence == "coercition" ou competence == "tromperie",
+        ajout: { ameliorer: difficulte, vers: defi, nombre: rang },
+      }
 
 - id: pilote-ne
   sorte: talent
@@ -940,7 +1009,17 @@
   description: |-
     En défendant un système informatique, ajoute 1 dé d'Infortune par rang aux tests des adversaires.
 
+    Dans l'app : « Test contre un personnage » en Informatique visant le défenseur.
+
     VO : Defensive Slicing.
+  effets:
+    - {
+        sur: jet,
+        cote: cible,
+        actions: [test-cible],
+        si: competence == "informatique" et non possede("piratage-defensif-ameliore"),
+        ajout: { de: infortune, nombre: rang },
+      }
 
 - id: piratage-defensif-ameliore
   sorte: talent
@@ -950,6 +1029,14 @@
     Le Piratage défensif améliore désormais la difficulté des adversaires une fois par rang, au lieu de ses effets habituels.
 
     VO : Improved Defensive Slicing.
+  effets:
+    - {
+        sur: jet,
+        cote: cible,
+        actions: [test-cible],
+        si: competence == "informatique",
+        ajout: { ameliorer: difficulte, vers: defi, nombre: rang("piratage-defensif") },
+      }
 
 - id: pirate-habile
   sorte: talent
@@ -1015,16 +1102,21 @@
   description: |-
     Lors d'un test de Corps à corps, au lieu d'infliger des dégâts, peut infliger autant de stress, plus un stress supplémentaire égal à ses rangs en Médecine (ignore l'Encaissement).
 
+    Dans l'app : option de l'action « Attaque ».
+
     VO : Pressure Point.
 
 - id: point-faible
   sorte: talent
   nom: Point faible
-  etiquettes: [actif]
+  etiquettes: [actif, degats-destin]
   description: |-
     Après une attaque réussie, peut dépenser 1 point de Destin pour ajouter à une touche des dégâts égaux à sa Ruse.
 
+    Dans l'app : option « Point de Destin » de l'action « Attaque ».
+
     VO : Soft Spot.
+  champs: { caracteristique: ruse }
 
 - id: polyvalent
   sorte: talent
@@ -1044,11 +1136,21 @@
 - id: posture-defensive
   sorte: talent
   nom: Posture défensive
-  etiquettes: [actif]
+  etiquettes: [actif, defense-active]
   description: |-
     Une fois par round, manœuvre Posture défensive : subit un nombre de points de stress (au plus ses rangs) et améliore d'autant la difficulté de toutes les attaques de mêlée reçues jusqu'au round suivant.
 
+    Dans l'app : action « Défense active », qui fixe l'attribut « Posture défensive ».
+
     VO : Defensive Stance.
+  effets:
+    - {
+        sur: jet,
+        cote: cible,
+        actions: [attaque],
+        si: arme.melee,
+        ajout: { ameliorer: difficulte, vers: defi, nombre: '@postureDefensive' },
+      }
 
 - id: precision-mortelle
   sorte: talent
@@ -1074,6 +1176,8 @@
   description: |-
     Dépense 1 point de Destin pour récupérer un nombre de points de stress égal à sa Présence.
 
+    Dans l'app : action « Présence intense ».
+
     VO : Intense Presence.
 
 - id: programmeur-ne
@@ -1091,6 +1195,8 @@
   etiquettes: [actif]
   description: |-
     Une fois par round, manœuvre Protecteur pour garder un personnage engagé : subit jusqu'à un nombre de points de stress égal à ses rangs, puis jusqu'au début de son prochain tour améliore d'autant la difficulté des tests de combat visant ce personnage.
+
+    Dans l'app : action « Protecteur », qui fixe l'attribut « Protégé » du personnage gardé.
 
     VO : Body Guard.
 
@@ -1120,6 +1226,8 @@
   etiquettes: [actif]
   description: |-
     Subit un nombre de points de stress (au plus ses rangs) pour ajouter autant de dés de Fortune à ses tests d'Initiative.
+
+    Dans l'app : option de l'action « Initiative ».
 
     VO : Rapid Reaction.
 
@@ -1207,6 +1315,8 @@
   description: |-
     Subit 1 point de stress pour effectuer Rhétorique inspirante en tant que manœuvre plutôt qu'action.
 
+    Dans l'app : option du « Test de talent ».
+
     VO : Supreme Inspiring Rhetoric.
 
 - id: sang-epais
@@ -1226,6 +1336,8 @@
   etiquettes: [actif]
   description: |-
     Une fois par rencontre, incident Second souffle : récupère un nombre de points de stress égal à ses rangs.
+
+    Dans l'app : action « Second souffle ».
 
     VO : Second Wind.
 
@@ -1303,11 +1415,19 @@
 - id: tete-dure-amelioree
   sorte: talent
   nom: Tête dure améliorée
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Neutralisé par un stress dépassant son seuil, peut tenter une action Tête dure plus difficile pour ramener son stress à 1 sous son seuil.
 
+    Dans l'app : « Test de talent » Formidable, réduit de 1 par rang de Tête dure ; la réussite ramène le stress à 1 sous le seuil.
+
     VO : Improved Hard Headed.
+  champs:
+    {
+      competence: discipline,
+      caracteristique: volonte,
+      difficulte: 'max(1, 5 - rang("tete-dure"))',
+    }
 
 - id: tir-de-precision
   sorte: talent
@@ -1315,6 +1435,8 @@
   etiquettes: [actif]
   description: |-
     Avant une attaque à distance (hors arme de jet), manœuvre Tir de précision : augmente la portée de l'arme d'une bande par rang, et améliore la difficulté de l'attaque de 1 par bande ajoutée.
+
+    Dans l'app : option de l'action « Attaque ».
 
     VO : Sniper Shot.
 
@@ -1344,6 +1466,8 @@
   description: |-
     Subit 1 point de stress pour effectuer Tirade cinglante en tant que manœuvre plutôt qu'action.
 
+    Dans l'app : option du « Test de talent ».
+
     VO : Supreme Scathing Tirade.
 
 - id: tireur-ne
@@ -1366,7 +1490,7 @@
   effets:
     - {
         sur: jet,
-        si: competence == "discretion" ou competence == "coordination",
+        si: (competence == "discretion" ou talent.competence == "discretion") ou (competence == "coordination" ou talent.competence == "coordination"),
         ajout: { de: fortune, nombre: rang },
       }
 
@@ -1381,7 +1505,7 @@
   effets:
     - {
         sur: jet,
-        si: 'competence == "charme" ou competence == "commandement"',
+        si: '(competence == "charme" ou talent.competence == "charme") ou (competence == "commandement" ou talent.competence == "commandement")',
         ajout: { retirer: infortune, nombre: rang },
       }
 
@@ -1416,6 +1540,8 @@
   description: |-
     Une fois par round, manœuvre Visée parfaite : bénéficie des avantages de la visée et améliore le test de combat une fois par rang.
 
+    Dans l'app : option de l'action « Attaque ».
+
     VO : True Aim.
 
 - id: visee-precise
@@ -1424,5 +1550,7 @@
   etiquettes: [actif]
   description: |-
     Une fois par round, manœuvre Visée précise : subit un nombre de points de stress (au plus ses rangs) et réduit d'autant la Défense de mêlée et à distance de la cible.
+
+    Dans l'app : option de l'action « Attaque ».
 
     VO : Precise Aim.

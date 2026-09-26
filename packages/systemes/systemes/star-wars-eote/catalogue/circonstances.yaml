@@ -1,5 +1,6 @@
-# Circonstances d'un test (action « Test en situation ») : lues par les effets de jet
-# des talents et des capacités d'espèce (`si: circonstance == "pistage"`).
+# Circonstances d'un test (paramètre facultatif des actions « Test de compétence » et « Test contre
+# un personnage ») : lues par les effets de jet des talents et des capacités d'espèce
+# (`si: circonstance == "pistage"`).
 - { id: pistage, sorte: circonstance, nom: Pister une cible ou trouver des traces }
 - { id: securite, sorte: circonstance, nom: Désactiver une sécurité ou ouvrir une serrure }
 - { id: dechiffrement, sorte: circonstance, nom: Casser un code ou déchiffrer des communications }
@@ -14,3 +15,4 @@
 - { id: institutions-savoir, sorte: circonstance, nom: Interagir avec une institution du savoir }
 - { id: obscurite, sorte: circonstance, nom: Obscurité ou faible luminosité }
 - { id: chaleur-aride, sorte: circonstance, nom: Environnement aride ou chaud }
+- { id: identification, sorte: circonstance, nom: Identifier quelqu'un }

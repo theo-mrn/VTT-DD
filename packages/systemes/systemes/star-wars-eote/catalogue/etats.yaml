@@ -11,7 +11,7 @@
   effets:
     - {
         sur: jet,
-        actions: [test, test-situation, attaque, initiative, soins, recuperation, talent],
+        actions: [test, test-cible, attaque, initiative, soins, recuperation, talent],
         ajout: { de: infortune, nombre: 1 },
       }
 - id: immobilise

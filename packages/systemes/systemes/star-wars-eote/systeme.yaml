@@ -111,11 +111,13 @@ entites:
           formule: '@baseSeuilStress + @volonte',
           groupe: seuils,
         }
+      # Non plafonnées : le personnage n'est neutralisé que lorsqu'elles DÉPASSENT le seuil.
       - cle: blessures
         nom: Blessures
         description: Compteur qui monte depuis 0 ; au-delà du seuil, le personnage est neutralisé.
         nature: ressource
         max: '@seuilBlessure'
+        plafonnee: false
         initiale: min
         recuperation: min
         groupe: seuils
@@ -124,17 +126,16 @@ entites:
         description: Compteur qui monte depuis 0 ; au-delà du seuil, le personnage est neutralisé.
         nature: ressource
         max: '@seuilStress'
+        plafonnee: false
         initiale: min
         recuperation: min
         groupe: seuils
       - cle: neutralise
         nom: Neutralisé
-        description: >-
-          Blessures ou stress au-delà de leur seuil (texte « Incapacitation ») ; les jauges étant
-          bornées au seuil, l'atteindre vaut dépassement.
+        description: Blessures ou stress au-delà de leur seuil (texte « Incapacitation »).
         nature: derivee
         type: booleen
-        formule: '@blessures >= @seuilBlessure ou @stress >= @seuilStress'
+        formule: '@blessures > @seuilBlessure ou @stress > @seuilStress'
         groupe: seuils
       - cle: critiquesSubis
         nom: Blessures critiques subies
@@ -211,6 +212,34 @@ entites:
         formule: '0'
         groupe: defense
         visibilite: mj
+      # Défense active : stress dépensé par une manœuvre, remis à 0 quand elle prend fin
+      - cle: pasDeCote
+        nom: Pas de côté
+        description: >-
+          Stress dépensé par la manœuvre Pas de côté : autant d'améliorations de la difficulté des
+          attaques à distance reçues jusqu'au round suivant (action « Défense active », 0 pour finir).
+        nature: base
+        defaut: 0
+        min: 0
+        groupe: defense
+      - cle: postureDefensive
+        nom: Posture défensive
+        description: >-
+          Stress dépensé par la manœuvre Posture défensive : autant d'améliorations de la difficulté
+          des attaques de mêlée reçues jusqu'au round suivant (action « Défense active », 0 pour finir).
+        nature: base
+        defaut: 0
+        min: 0
+        groupe: defense
+      - cle: protection
+        nom: Protégé
+        description: >-
+          Stress dépensé par un allié Protecteur qui garde le personnage : autant d'améliorations de
+          la difficulté des attaques reçues jusqu'à son prochain tour (action « Protecteur », 0 pour finir).
+        nature: base
+        defaut: 0
+        min: 0
+        groupe: defense
 
       # ─── Bonus de combat (talents, espèces) ─────────────────────────────
       - cle: bonusDegatsMelee
@@ -559,8 +588,9 @@ sortes:
     nom: Circonstance
     nomPluriel: Circonstances
     description: >-
-      Situation particulière d'un test (pister, forcer une serrure, résister à la peur…), choisie
-      avec l'action « Test en situation » : certains talents et espèces en dépendent.
+      Situation particulière d'un test (pister, forcer une serrure, résister à la peur…), option
+      facultative des actions « Test de compétence » et « Test contre un personnage » : certains
+      talents et espèces en dépendent.
     pour: [personnage]
   - id: modele
     nom: Modèle de véhicule
@@ -773,10 +803,17 @@ des:
 # Pool : max(caractéristique, rang) dés d'Aptitude, dont min(caractéristique, rang) améliorés en Maîtrise.
 # Une compétence jamais apprise se teste au rang 0 (paramètre `possedee: false`).
 # L'excédent d'encombrement ajoute 1 dé d'Infortune par point aux tests d'Agilité et de Vigueur.
+# Les options des talents (paramètres `exige`) ne sont proposées qu'à qui possède le talent ; leur
+# coût en stress passe par les conséquences, leur plafond (un point par rang) par les vérifications.
 
 actions:
   - id: test
     nom: Test de compétence
+    description: >-
+      Test d'une compétence, éventuellement dans une circonstance particulière (pister, forcer une
+      serrure, résister à la peur, dans l'obscurité…) dont dépendent certains talents et capacités
+      d'espèce. Options de talents : Coup de génie, Concentration intense, Intimidant, Maîtres
+      (2 stress : difficulté réduite de 1).
     pour: [personnage]
     parametres:
       - &competence {
@@ -785,6 +822,14 @@ actions:
           type: entree,
           sorte: competence,
           possedee: false,
+        }
+      - &circonstance {
+          id: circonstance,
+          nom: Circonstance,
+          type: entree,
+          sorte: circonstance,
+          possedee: false,
+          facultatif: true,
         }
       - &difficulte { id: difficulte, nom: Dés de Difficulté, type: nombre, defaut: 2 }
       - &ameliorations {
@@ -795,39 +840,149 @@ actions:
         }
       - &fortune { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
       - &infortune { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
-    variables: &variablesTest
-      - { cle: carac, formule: valeur(competence.caracteristique) }
+      - &coupDeGenie {
+          id: coupDeGenie,
+          nom: "Coup de génie : tester avec l'Intellect (une fois par séance)",
+          type: booleen,
+          exige: possede("coup-de-genie"),
+        }
+      - &concentration {
+          id: concentrationIntense,
+          nom: 'Concentration intense (1 stress) : une amélioration du test',
+          type: booleen,
+          exige: possede("concentration-intense"),
+        }
+      - &intimidant {
+          id: intimidant,
+          nom: "Intimidant : stress subi pour réduire d'autant la difficulté (Coercition)",
+          type: nombre,
+          exige: possede("intimidant"),
+        }
+      - &maitre
+        id: maitre
+        nom: 'Maître (2 stress) : difficulté réduite de 1'
+        type: booleen
+        exige: >-
+          possede("maitre-medecin") ou possede("maitre-des-ombres") ou possede("maitre-pirate")
+          ou possede("maitre-astronavigateur")
+    variables: &variablesTest # Coup de génie : l'Intellect remplace la caractéristique liée
+      - cle: carac
+        formule: 'si(coupDeGenie, @intellect, valeur(competence.caracteristique))'
       - cle: penaliteCharge
         formule: >-
-          si(competence.caracteristique == "agilite" ou competence.caracteristique == "vigueur",
-          @excedentEncombrement, 0)
+          si(non coupDeGenie et (competence.caracteristique == "agilite"
+          ou competence.caracteristique == "vigueur"), @excedentEncombrement, 0)
+      # Maître médecin (Médecine), des ombres (Discrétion, Magouilles), pirate (Informatique),
+      # astronavigateur (Astrogation) ; les deux derniers pas en dessous de Facile (vérification).
+      - cle: maitreApplicable
+        formule: >-
+          (competence == "medecine" et possede("maitre-medecin"))
+          ou ((competence == "discretion" ou competence == "magouilles") et possede("maitre-des-ombres"))
+          ou (competence == "informatique" et possede("maitre-pirate"))
+          ou (competence == "astrogation" et possede("maitre-astronavigateur"))
+      - { cle: difficulteFinale, formule: 'max(0, difficulte - intimidant - si(maitre, 1, 0))' }
+      - cle: stressActeur
+        formule: 'intimidant + si(maitre, 2, 0) + si(concentrationIntense, 1, 0)'
+    verifications:
+      - condition: intimidant >= 0 et intimidant <= rang("intimidant")
+        message: 'Intimidant : au plus un point de stress par rang'
+      - condition: intimidant == 0 ou competence == "coercition"
+        message: Intimidant ne réduit que la difficulté des tests de Coercition
+      - condition: non maitre ou maitreApplicable
+        message: Aucun talent de Maître ne s'applique à cette compétence
+      - condition: >-
+          non maitre ou difficulte > 1
+          ou non (competence == "informatique" ou competence == "astrogation")
+        message: 'Maître pirate, Maître astronavigateur : la difficulté ne descend pas sous Facile'
     jet: &jetTest
       type: symboles
       pool:
         - { de: aptitude, nombre: 'max(carac, competence.rang)' }
-        - { de: difficulte, nombre: difficulte }
+        - { de: difficulte, nombre: difficulteFinale }
         - { de: fortune, nombre: desFortune }
         - { de: infortune, nombre: desInfortune + penaliteCharge }
       ameliorations:
-        - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+        - {
+            de: aptitude,
+            vers: maitrise,
+            nombre: 'min(carac, competence.rang) + si(concentrationIntense, 1, 0)',
+          }
         - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
       reussite: succesNets >= 1
+    consequences:
+      - &stressActeur {
+          condition: stressActeur >= 1,
+          entite: acteur,
+          attribut: stress,
+          operation: ajouter,
+          valeur: stressActeur,
+        }
 
-  - id: test-situation
-    nom: Test en situation
+  - id: test-cible
+    nom: Test contre un personnage
     description: >-
-      Test de compétence dans une circonstance particulière (pister, forcer une serrure, résister à
-      la peur, dans l'obscurité…), dont dépendent certains talents et capacités d'espèce.
+      Test de compétence qui vise un personnage (le tromper, l'intimider, l'identifier, pirater le
+      système qu'il défend…) : ses talents défensifs s'appliquent (Pas né d'hier, Anonyme, Piratage
+      défensif) et il peut subir du stress pour améliorer la difficulté d'une Coercition (Intimidant).
     pour: [personnage]
+    cible: personnage
     parametres:
       - *competence
-      - { id: circonstance, nom: Circonstance, type: entree, sorte: circonstance, possedee: false }
+      - *circonstance
       - *difficulte
       - *ameliorations
       - *fortune
       - *infortune
+      - *coupDeGenie
+      - *concentration
+      - *intimidant
+      - *maitre
+      - {
+          id: intimidantCible,
+          nom: "Intimidant de la cible : stress qu'elle subit pour améliorer la difficulté",
+          type: nombre,
+          defaut: 0,
+        }
     variables: *variablesTest
-    jet: *jetTest
+    verifications:
+      - condition: intimidant >= 0 et intimidant <= rang("intimidant")
+        message: 'Intimidant : au plus un point de stress par rang'
+      - condition: intimidant == 0 ou competence == "coercition"
+        message: Intimidant ne réduit que la difficulté des tests de Coercition
+      - condition: non maitre ou maitreApplicable
+        message: Aucun talent de Maître ne s'applique à cette compétence
+      - condition: >-
+          non maitre ou difficulte > 1
+          ou non (competence == "informatique" ou competence == "astrogation")
+        message: 'Maître pirate, Maître astronavigateur : la difficulté ne descend pas sous Facile'
+      - condition: intimidantCible >= 0 et intimidantCible <= cible_rang("intimidant")
+        message: "Intimidant de la cible : au plus un point de stress par rang d'Intimidant"
+      - condition: intimidantCible == 0 ou competence == "coercition"
+        message: "L'Intimidant de la cible ne s'oppose qu'aux tests de Coercition"
+    jet:
+      type: symboles
+      pool:
+        - { de: aptitude, nombre: 'max(carac, competence.rang)' }
+        - { de: difficulte, nombre: difficulteFinale }
+        - { de: fortune, nombre: desFortune }
+        - { de: infortune, nombre: desInfortune + penaliteCharge }
+      ameliorations:
+        - {
+            de: aptitude,
+            vers: maitrise,
+            nombre: 'min(carac, competence.rang) + si(concentrationIntense, 1, 0)',
+          }
+        - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte + intimidantCible }
+      reussite: succesNets >= 1
+    consequences:
+      - *stressActeur
+      - {
+          condition: intimidantCible >= 1,
+          entite: cible,
+          attribut: stress,
+          operation: ajouter,
+          valeur: intimidantCible,
+        }
 
   - id: attaque
     nom: Attaque
@@ -837,6 +992,7 @@ actions:
       au moins 1 Succès net ; dégâts = dégâts de l'arme + Succès nets − Encaissement (moins
       Perforant). Blessure critique si des dégâts passent et que les Avantages atteignent l'indice
       critique, ou sur un Triomphe ; chaque activation au-delà de la première ajoute +10 au jet.
+      Options : manœuvres Viser, Esquive de la cible, et les talents de combat de l'attaquant.
     pour: [personnage]
     cible: personnage
     parametres:
@@ -851,6 +1007,70 @@ actions:
       - *ameliorations
       - *fortune
       - *infortune
+      - { id: visee, nom: 'Manœuvres Viser (0 à 2) : 1 dé de Fortune chacune', type: nombre }
+      - {
+          id: esquive,
+          nom: "Esquive de la cible : stress qu'elle subit pour améliorer la difficulté",
+          type: nombre,
+        }
+      - {
+          id: frappeRapide,
+          nom: "Frappe rapide : la cible n'a pas encore agi",
+          type: booleen,
+          exige: possede("frappe-rapide"),
+        }
+      - {
+          id: viseePrecise,
+          nom: "Visée précise : stress subi pour réduire d'autant la Défense de la cible",
+          type: nombre,
+          exige: possede("visee-precise"),
+        }
+      - {
+          id: viseeParfaite,
+          nom: 'Visée parfaite : avantages de la visée et une amélioration par rang',
+          type: booleen,
+          exige: possede("visee-parfaite"),
+        }
+      - {
+          id: attaqueFrenetique,
+          nom: "Attaque frénétique : stress subi pour améliorer d'autant l'attaque (contact)",
+          type: nombre,
+          exige: possede("attaque-frenetique"),
+        }
+      - *concentration
+      - {
+          id: tirDePrecision,
+          nom: "Tir de précision : bandes de portée ajoutées (difficulté améliorée d'autant)",
+          type: nombre,
+          exige: possede("tir-de-precision"),
+        }
+      - {
+          id: coupHandicapant,
+          nom: 'Coup handicapant : +1 dé de Difficulté',
+          type: booleen,
+          exige: possede("coup-handicapant"),
+        }
+      - {
+          id: coupEtourdissant,
+          nom: 'Coup étourdissant : dégâts infligés en stress (Mêlée)',
+          type: booleen,
+          exige: possede("coup-etourdissant"),
+        }
+      - {
+          id: pointDePression,
+          nom: 'Point de pression : stress au lieu des dégâts (Corps à corps)',
+          type: booleen,
+          exige: possede("point-de-pression"),
+        }
+      # Coup ciblé, Leçons d'anatomie, Point faible : 1 point de Destin (hors fiche)
+      - {
+          id: degatsDestin,
+          nom: 'Point de Destin : dégâts égaux à une caractéristique',
+          type: entree,
+          sorte: talent,
+          etiquette: degats-destin,
+          facultatif: true,
+        }
     variables:
       # Arme possédée, ou utilisable par tous (mains nues)
       - { cle: armeDisponible, formule: possede(arme) ou arme.toujoursDisponible }
@@ -859,39 +1079,80 @@ actions:
         formule: 'si(arme.competence == "melee" ou arme.competence == "corps-a-corps", "vigueur", "agilite")'
       - { cle: carac, formule: valeur(caracArme) }
       - { cle: rangArme, formule: rang(arme.competence) }
+      - {
+          cle: auContact,
+          formule: arme.competence == "melee" ou arme.competence == "corps-a-corps",
+        }
+      # Bras puissant (armes de jet) s'y ajoute, comme Tir de précision
       - cle: porteeMax
         formule: >-
           si(arme.melee ou arme.portee == "Engagée", 0, si(arme.portee == "Courte", 1,
-          si(arme.portee == "Moyenne", 2, si(arme.portee == "Longue", 3, 4))))
+          si(arme.portee == "Moyenne", 2, si(arme.portee == "Longue", 3, 4)))) + tirDePrecision
       - cle: aPortee
         formule: portee.ordre <= porteeMax et non (portee == "engage" et arme.competence == "artillerie")
       - cle: difficulte
         formule: >-
           si(arme.melee, 2, portee.difficulte + @cible.couvert
           + si(portee == "engage" et arme.competence == "distance-lourde", 1, 0))
-          + difficulteSupplementaire
+          + difficulteSupplementaire + si(coupHandicapant, 1, 0)
+      # Visée précise réduit la Défense de la cible
       - cle: defenseCible
-        formule: 'si(arme.melee, @cible.defenseMelee, @cible.defenseDistance)'
+        formule: 'max(0, si(arme.melee, @cible.defenseMelee, @cible.defenseDistance) - viseePrecise)'
+      - cle: stressActeur
+        formule: 'viseePrecise + attaqueFrenetique + si(concentrationIntense, 1, 0)'
+    verifications:
+      - condition: armeDisponible
+        message: "Arme non possédée (seules les armes toujours disponibles, comme les mains nues, s'en passent)"
+      - condition: aPortee
+        message: Cible hors de portée de l'arme
+      - condition: visee >= 0 et visee <= 2
+        message: 'Viser : deux manœuvres au plus'
+      - condition: esquive >= 0 et esquive <= cible_rang("esquive")
+        message: "Esquive : la cible subit au plus un point de stress par rang d'Esquive"
+      - condition: viseePrecise >= 0 et viseePrecise <= rang("visee-precise")
+        message: 'Visée précise : au plus un point de stress par rang'
+      - condition: attaqueFrenetique >= 0 et attaqueFrenetique <= rang("attaque-frenetique")
+        message: 'Attaque frénétique : au plus un point de stress par rang'
+      - condition: attaqueFrenetique == 0 ou auContact
+        message: 'Attaque frénétique : tests de Mêlée ou de Corps à corps seulement'
+      - condition: tirDePrecision >= 0 et tirDePrecision <= rang("tir-de-precision")
+        message: 'Tir de précision : au plus une bande de portée par rang'
+      - condition: tirDePrecision == 0 ou (non arme.melee et non a_etiquette(arme, "jet"))
+        message: 'Tir de précision : attaques à distance, hors armes de jet'
+      - condition: non coupEtourdissant ou arme.competence == "melee"
+        message: 'Coup étourdissant : tests de Mêlée seulement'
+      - condition: non pointDePression ou arme.competence == "corps-a-corps"
+        message: 'Point de pression : tests de Corps à corps seulement'
     jet:
       type: symboles
       pool:
         - { de: aptitude, nombre: 'max(carac, rangArme)' }
         - { de: difficulte, nombre: difficulte }
-        - {
-            de: fortune,
-            nombre: 'desFortune + arme.precis + si(arme.melee, @cible.vulnerabiliteMelee, 0)',
-          }
+        - de: fortune
+          nombre: >-
+            desFortune + arme.precis + si(arme.melee, @cible.vulnerabiliteMelee, 0) + visee
+            + si(viseeParfaite, 1, 0) + si(frappeRapide, rang("frappe-rapide"), 0)
         # Toutes les compétences de combat sont d'Agilité ou de Vigueur : l'excédent s'applique
         - {
             de: infortune,
             nombre: desInfortune + defenseCible + arme.inexact + @excedentEncombrement,
           }
       ameliorations:
-        - { de: aptitude, vers: maitrise, nombre: 'min(carac, rangArme)' }
-        - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
-      reussite: armeDisponible et aPortee et succesNets >= 1
+        - de: aptitude
+          vers: maitrise
+          nombre: >-
+            min(carac, rangArme) + attaqueFrenetique + si(concentrationIntense, 1, 0)
+            + si(viseeParfaite, rang("visee-parfaite"), 0)
+        # Esquive de la cible, Protecteur d'un allié, Tir de précision (Pas de côté et Posture
+        # défensive sont des effets des talents de la cible)
+        - {
+            de: difficulte,
+            vers: defi,
+            nombre: ameliorationsDifficulte + esquive + @cible.protection + tirDePrecision,
+          }
+      reussite: succesNets >= 1
     apres:
-      # Force sauvage, Rage wookiee, Précision mortelle, Bout portant, Barrage
+      # Force sauvage, Rage wookiee, Précision mortelle, Bout portant, Barrage, point de Destin
       - cle: degatsTalents
         formule: >-
           si(arme.melee, @bonusDegatsMelee, 0)
@@ -900,31 +1161,46 @@ actions:
           et portee.ordre <= 1, rang("bout-portant"), 0)
           + si((arme.competence == "distance-lourde" ou arme.competence == "artillerie")
           et portee.ordre >= 3, rang("barrage"), 0)
+          + si(degatsDestin == "", 0, valeur(degatsDestin.caracteristique))
       - { cle: degatsBruts, formule: arme.degats + succesNets + degatsTalents }
-      - { cle: encaissementCible, formule: 'max(0, @cible.encaissement - arme.perforant)' }
+      # Point de pression ignore l'Encaissement
+      - cle: encaissementCible
+        formule: 'si(pointDePression, 0, max(0, @cible.encaissement - arme.perforant))'
       - { cle: degatsSubis, formule: 'si(reussi, max(0, degatsBruts - encaissementCible), 0)' }
-      # Résolution : 1 stress de moins par rang, minimum 1
+      - { cle: enStress, formule: arme.etourdissant ou coupEtourdissant ou pointDePression }
+      # Résolution : 1 stress de moins par rang, minimum 1 ; Point de pression : + rangs en Médecine
       - cle: stressInflige
-        formule: 'si(arme.etourdissant et degatsSubis >= 1, max(1, degatsSubis - @cible.reductionStress), 0)'
+        formule: >-
+          si(enStress et degatsSubis >= 1, max(1, degatsSubis
+          + si(pointDePression, rang("medecine"), 0) - @cible.reductionStress), 0)
       - cle: activationsCritique
         formule: >-
-          si(non arme.etourdissant et degatsSubis >= 1,
+          si(non enStress et degatsSubis >= 1,
           triomphes + floor(avantagesNets / max(1, arme.critique)), 0)
       - { cle: critiqueDeclenche, formule: activationsCritique >= 1 }
     consequences:
       - {
-          condition: reussi et non arme.etourdissant,
+          condition: reussi et non enStress,
           entite: cible,
           attribut: blessures,
           operation: ajouter,
           valeur: degatsSubis,
         }
       - {
-          condition: reussi et arme.etourdissant,
+          condition: reussi et enStress,
           entite: cible,
           attribut: stress,
           operation: ajouter,
           valeur: stressInflige,
+        }
+      - *stressActeur
+      # Esquive : stress volontaire, subi que l'attaque touche ou non
+      - {
+          condition: esquive >= 1,
+          entite: cible,
+          attribut: stress,
+          operation: ajouter,
+          valeur: esquive,
         }
     tables:
       - table: blessures-critiques
@@ -935,7 +1211,9 @@ actions:
 
   - id: initiative
     nom: Initiative
-    description: Test de Sang-froid (rencontre préparée) ou de Vigilance (surprise), sans dé de Difficulté.
+    description: >-
+      Test de Sang-froid (rencontre préparée) ou de Vigilance (surprise), sans dé de Difficulté.
+      Réaction rapide : stress subi pour autant de dés de Fortune.
     pour: [personnage]
     parametres:
       - {
@@ -948,24 +1226,42 @@ actions:
         }
       - *fortune
       - *infortune
+      - {
+          id: reactionRapide,
+          nom: 'Réaction rapide : stress subi pour autant de dés de Fortune',
+          type: nombre,
+          exige: possede("reaction-rapide"),
+        }
     variables:
       - { cle: carac, formule: valeur(competence.caracteristique) }
+    verifications:
+      - condition: reactionRapide >= 0 et reactionRapide <= rang("reaction-rapide")
+        message: 'Réaction rapide : au plus un point de stress par rang'
     jet:
       type: symboles
       pool:
         - { de: aptitude, nombre: 'max(carac, competence.rang)' }
-        - { de: fortune, nombre: desFortune }
+        - { de: fortune, nombre: desFortune + reactionRapide }
         - { de: infortune, nombre: desInfortune }
       ameliorations:
         - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+    consequences:
+      - {
+          condition: reactionRapide >= 1,
+          entite: acteur,
+          attribut: stress,
+          operation: ajouter,
+          valeur: reactionRapide,
+        }
 
   - id: soins
     nom: Soins
     description: >-
       Test de Médecine (Mécanique pour réparer un droïde), une fois par rencontre : Facile si les
-      blessures de la cible ne dépassent pas la moitié de son seuil, Moyen au-delà, Difficile si le
-      seuil est atteint (+2 dés pour se soigner soi-même). Chaque Succès net soigne 1 blessure
-      (Chirurgien : +1 par rang), chaque Avantage net 1 point de stress.
+      blessures de la cible ne dépassent pas la moitié de son seuil, Moyen au-delà, Difficile si elles
+      dépassent le seuil (+2 dés pour se soigner soi-même). Chaque Succès net soigne 1 blessure
+      (Chirurgien : +1 par rang), chaque Avantage net 1 point de stress. Maître médecin : 2 stress
+      pour réduire la difficulté de 1.
     pour: [personnage]
     cible: personnage
     parametres:
@@ -986,18 +1282,30 @@ actions:
       - *ameliorations
       - *fortune
       - *infortune
+      - {
+          id: maitre,
+          nom: 'Maître médecin (2 stress) : difficulté réduite de 1',
+          type: booleen,
+          exige: possede("maitre-medecin"),
+        }
     variables:
       - { cle: carac, formule: valeur(competence.caracteristique) }
       - cle: penaliteCharge
         formule: >-
           si(competence.caracteristique == "agilite" ou competence.caracteristique == "vigueur",
           @excedentEncombrement, 0)
-      - cle: difficulte
+      - cle: difficulteFinale
         formule: >-
-          si(@cible.blessures >= @cible.seuilBlessure, 3,
+          max(0, si(@cible.blessures > @cible.seuilBlessure, 3,
           si(2 * @cible.blessures > @cible.seuilBlessure, 2, 1)) + difficulteSupplementaire
+          - si(maitre, 1, 0))
+      - { cle: concentrationIntense, formule: faux }
+      - { cle: stressActeur, formule: 'si(maitre, 2, 0)' }
       - cle: soinAdapte
         formule: 'si(@cible.inorganique, competence == "mecanique", competence == "medecine")'
+    verifications:
+      - condition: non maitre ou competence == "medecine"
+        message: 'Maître médecin : tests de Médecine seulement'
     jet: *jetTest
     apres:
       - cle: blessuresSoignees
@@ -1021,6 +1329,7 @@ actions:
           operation: retirer,
           valeur: stressSoigne,
         }
+      - *stressActeur
 
   - id: stimpack
     nom: Stimpack
@@ -1073,8 +1382,9 @@ actions:
         formule: >-
           si(competence.caracteristique == "agilite" ou competence.caracteristique == "vigueur",
           @excedentEncombrement, 0)
-      - { cle: difficulte, formule: '0' }
+      - { cle: difficulteFinale, formule: '0' }
       - { cle: ameliorationsDifficulte, formule: '0' }
+      - { cle: concentrationIntense, formule: faux }
     jet: *jetTest
     apres:
       - { cle: stressRecupere, formule: 'min(@stress, succesNets + rang("recuperation-rapide"))' }
@@ -1092,12 +1402,20 @@ actions:
     description: >-
       Test prévu par un talent actif (Rhétorique inspirante, Système D, Tête dure…) : compétence,
       caractéristique et difficulté sont lues sur le talent ; ses effets restent décrits par le talent.
+      Tête dure améliorée ramène le stress à 1 sous le seuil ; les talents « suprêmes » font de
+      Rhétorique inspirante et de Tirade cinglante une manœuvre pour 1 stress.
     pour: [personnage]
     parametres:
       - { id: talent, nom: Talent, type: entree, sorte: talent, etiquette: test }
       - *ameliorations
       - *fortune
       - *infortune
+      - {
+          id: enManoeuvre,
+          nom: 'Talent suprême (1 stress) : en tant que manœuvre',
+          type: booleen,
+          exige: possede("rhetorique-inspirante-supreme") ou possede("tirade-cinglante-supreme"),
+        }
     variables:
       - { cle: carac, formule: valeur(talent.caracteristique) }
       - { cle: rangCompetence, formule: rang(talent.competence) }
@@ -1105,6 +1423,14 @@ actions:
         formule: >-
           si(talent.caracteristique == "agilite" ou talent.caracteristique == "vigueur",
           @excedentEncombrement, 0)
+    verifications:
+      - condition: >-
+          non enManoeuvre
+          ou (talent == "rhetorique-inspirante" et possede("rhetorique-inspirante-supreme"))
+          ou (talent == "tirade-cinglante" et possede("tirade-cinglante-supreme"))
+        message: Aucun talent suprême ne permet d'effectuer ce talent en manœuvre
+      - condition: talent != "tete-dure-amelioree" ou @stress > @seuilStress
+        message: 'Tête dure améliorée : seulement neutralisé par un stress au-delà du seuil'
     jet:
       type: symboles
       pool:
@@ -1116,6 +1442,103 @@ actions:
         - { de: aptitude, vers: maitrise, nombre: 'min(carac, rangCompetence)' }
         - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
       reussite: succesNets >= 1
+    consequences:
+      - { condition: enManoeuvre, entite: acteur, attribut: stress, operation: ajouter, valeur: 1 }
+      - {
+          condition: reussi et talent == "tete-dure-amelioree",
+          entite: acteur,
+          attribut: stress,
+          operation: fixer,
+          valeur: '@seuilStress - 1',
+        }
+
+  - id: defense-active
+    nom: Défense active
+    description: >-
+      Manœuvre Pas de côté ou Posture défensive, une fois par round : subit un nombre de points de
+      stress (au plus ses rangs) et améliore d'autant la difficulté des attaques à distance (Pas de
+      côté) ou de mêlée (Posture défensive) qui le visent jusqu'au round suivant. Avec 0 point de
+      stress, la manœuvre prend fin.
+    pour: [personnage]
+    parametres:
+      - { id: talent, nom: Talent, type: entree, sorte: talent, etiquette: defense-active }
+      - &stressSubi { id: stressSubi, nom: Points de stress subis, type: nombre, defaut: 1 }
+    verifications:
+      - condition: stressSubi >= 0 et stressSubi <= talent.rang
+        message: Au plus un point de stress par rang du talent
+    jet: { type: symboles, pool: [] }
+    consequences:
+      - &stressSubiActeur {
+          condition: stressSubi >= 1,
+          entite: acteur,
+          attribut: stress,
+          operation: ajouter,
+          valeur: stressSubi,
+        }
+      - {
+          condition: talent == "pas-de-cote",
+          entite: acteur,
+          attribut: pasDeCote,
+          operation: fixer,
+          valeur: stressSubi,
+        }
+      - {
+          condition: talent == "posture-defensive",
+          entite: acteur,
+          attribut: postureDefensive,
+          operation: fixer,
+          valeur: stressSubi,
+        }
+
+  - id: protecteur
+    nom: Protecteur
+    description: >-
+      Manœuvre Protecteur, une fois par round, pour garder un personnage engagé : subit un nombre de
+      points de stress (au plus ses rangs) ; jusqu'au début de son prochain tour, la difficulté des
+      attaques qui visent ce personnage est améliorée d'autant. Avec 0 point de stress, la garde prend fin.
+    pour: [personnage]
+    cible: personnage
+    exige: possede("protecteur")
+    parametres:
+      - *stressSubi
+    verifications:
+      - condition: stressSubi >= 0 et stressSubi <= rang("protecteur")
+        message: 'Protecteur : au plus un point de stress par rang'
+    jet: { type: symboles, pool: [] }
+    consequences:
+      - *stressSubiActeur
+      - { entite: cible, attribut: protection, operation: fixer, valeur: stressSubi }
+
+  - id: second-souffle
+    nom: Second souffle
+    description: >-
+      Incident, une fois par rencontre : récupère un nombre de points de stress égal à ses rangs.
+    pour: [personnage]
+    exige: possede("second-souffle")
+    jet: { type: symboles, pool: [] }
+    apres:
+      - { cle: stressRecupere, formule: 'min(@stress, rang("second-souffle"))' }
+    consequences:
+      - &stressRecupere {
+          condition: stressRecupere >= 1,
+          entite: acteur,
+          attribut: stress,
+          operation: retirer,
+          valeur: stressRecupere,
+        }
+
+  - id: presence-intense
+    nom: Présence intense
+    description: >-
+      Dépense 1 point de Destin (suivi hors fiche) pour récupérer un nombre de points de stress égal
+      à sa Présence.
+    pour: [personnage]
+    exige: possede("presence-intense")
+    jet: { type: symboles, pool: [] }
+    apres:
+      - { cle: stressRecupere, formule: 'min(@stress, @presence)' }
+    consequences:
+      - *stressRecupere
 
 # Ordre décroissant des Succès nets, puis des Avantages nets.
 initiative:

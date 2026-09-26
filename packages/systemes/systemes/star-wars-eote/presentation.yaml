@@ -96,6 +96,11 @@ fiches:
               neutralise,
             ],
         }
+      - {
+          type: attributs,
+          titre: Défense active,
+          attributs: [pasDeCote, postureDefensive, protection],
+        }
       - { type: possessions, titre: Compétences, sorte: competence }
       - { type: arbres, titre: Talents }
       - { type: possessions, titre: Talents acquis, sorte: talent }
