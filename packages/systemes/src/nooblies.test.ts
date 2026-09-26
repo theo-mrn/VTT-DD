@@ -5,8 +5,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   aleatoireGraine,
+  aleatoireImpose,
   calculer,
   EtatEntite,
+  executerAction,
   tirerEtape,
   type EtatEntiteSaisi,
   type SystemeCharge,
@@ -32,14 +34,7 @@ describe('Nooblies Chroniques', () => {
     const parSorte = (s: string) => [...systeme.entrees.values()].filter((e) => e.sorte === s);
     expect(parSorte('race')).toHaveLength(8);
     expect(parSorte('profil')).toHaveLength(11);
-    expect([...systeme.actions.keys()]).toEqual(
-      expect.arrayContaining([
-        'attaque-contact',
-        'attaque-distance',
-        'attaque-magie',
-        'initiative',
-      ]),
-    );
+    expect([...systeme.actions.keys()]).toEqual(['attaque', 'coup-de-corne', 'initiative', 'test']);
     expect(systeme.source.initiative?.action).toBe('initiative');
   });
 
@@ -107,5 +102,60 @@ describe('Nooblies Chroniques', () => {
       expect(v.filter((x) => x % 2 === 0)).toHaveLength(3);
       expect(v.reduce((s, x) => s + Math.floor((x - 10) / 2), 0)).toBe(6);
     }
+  });
+
+  // ─── Actions ──────────────────────────────────────────────────────────────
+
+  const nain = () =>
+    fiche({
+      valeurs: { FOR: 14, DEX: 11, CON: 16, SAG: 9, INT: 12, CHA: 13, jetDeVie: 7 },
+      possessions: [{ entree: 'nain' }, { entree: 'guerrier' }],
+    });
+  const minotaure = () =>
+    fiche({
+      valeurs: { FOR: 15, DEX: 12, CON: 13, SAG: 10, INT: 14, CHA: 12, jetDeVie: 9 },
+      possessions: [{ entree: 'minotaure' }, { entree: 'barbare' }],
+    });
+  const agir = (
+    action: string,
+    acteur: ReturnType<typeof fiche>,
+    des: number[],
+    extra: { cible?: ReturnType<typeof fiche>; parametres?: Record<string, string | number> } = {},
+  ) => executerAction(systeme, { action, acteur, ...extra, aleatoire: aleatoireImpose(des) });
+
+  it('attaque : 1d20 + score choisi contre la Défense', () => {
+    const cible = nain(); // Défense 17
+    const contact = agir('attaque', minotaure(), [12], { cible, parametres: { score: 'Contact' } });
+    expect(contact.ok && [contact.resultat.variables.total, contact.resultat.reussi]).toEqual([
+      12 + 5,
+      true,
+    ]);
+    const magie = agir('attaque', minotaure(), [12], { cible, parametres: { score: 'Magie' } });
+    expect(magie.ok && [magie.resultat.variables.total, magie.resultat.reussi]).toEqual([
+      12 + 1,
+      false,
+    ]);
+    expect(agir('attaque', minotaure(), [12], { cible, parametres: { score: 'PV' } }).ok).toBe(
+      false,
+    );
+  });
+
+  it('test de caractéristique : une action, la caractéristique en paramètre', () => {
+    const r = agir('test', nain(), [8], { parametres: { caracteristique: 'CON', difficulte: 12 } });
+    expect(r.ok && [r.resultat.variables.total, r.resultat.reussi]).toEqual([8 + 4, true]);
+  });
+
+  it('coup de corne : réservé au minotaure, [1d6 + mod. FOR] DM', () => {
+    const refus = agir('coup-de-corne', nain(), [15, 3], { cible: minotaure() });
+    expect(!refus.ok && refus.erreurs[0]!.message).toContain('condition non remplie');
+    const r = agir('coup-de-corne', minotaure(), [15, 3], { cible: nain() });
+    if (!r.ok) throw new Error(r.erreurs[0]!.message);
+    // FOR 15 + 4 = 19 : Contact 1 + 4 ; 15 + 5 = 20 contre Défense 17
+    expect([r.resultat.reussi, r.resultat.variables.degats]).toEqual([true, 3 + 4]);
+    expect(r.resultat.modifications).toEqual([
+      { entite: 'cible', attribut: 'PV', operation: 'retirer', valeur: 7 },
+    ]);
+    const rate = agir('coup-de-corne', minotaure(), [2], { cible: nain() });
+    expect(rate.ok && [rate.resultat.reussi, rate.resultat.modifications]).toEqual([false, []]);
   });
 });

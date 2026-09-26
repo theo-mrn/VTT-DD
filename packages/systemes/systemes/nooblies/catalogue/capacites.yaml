@@ -1,5 +1,6 @@
-# Capacités raciales. Seule « Petite taille » a un effet chiffré exprimable
-# (+1 en Défense) ; les autres restent descriptives (voir le rapport de port).
+# Capacités raciales. « Petite taille » donne +1 en Défense et « Coup de corne »
+# ouvre l'action du même nom ; les autres restent descriptives (bonus à des
+# tests précis, réduction de dégâts conditionnelle).
 - id: instinct-de-survie
   sorte: capacite
   nom: Instinct de survie

@@ -6,6 +6,7 @@
   etiquettes:
     - bouclier
   champs:
+    bouclier: 1
     def: 1
     prix: 2
   effets:
@@ -21,6 +22,7 @@
   etiquettes:
     - bouclier
   champs:
+    bouclier: 1
     def: 3
     prix: 8
   effets:
@@ -64,6 +66,7 @@
   etiquettes:
     - bouclier
   champs:
+    bouclier: 1
     def: 2
     prix: 4
   effets:

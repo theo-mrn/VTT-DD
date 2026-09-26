@@ -1,519 +1,902 @@
-# Voies raciales — généré depuis legacy/public/tabs (contenu D&D classique de l'ancienne app).
+# Voies raciales (contenu D&D classique de l'ancienne app, legacy/public/tabs).
+# Chaque voie accorde sa capacité de rang N quand elle atteint le rang N
+# (effet « rang » conditionné) ; la capacité porte le texte et la mécanique.
+
 - id: race-ame-forgee
   sorte: voie
   nom: Voie de l’âme-forgée
-  etiquettes:
-    - race
-    - ame_forgee
+  etiquettes: [race, ame_forgee]
   description: |-
-    ### Rang 1 — Main lourde (capacité passive)
+    1. Main lourde
+    2. Choc électrique
+    3. Camouflage
+    4. Forgé dans la bataille
+    5. Machine de guerre
+  effets:
+    - { sur: rang, entree: race-ame-forgee-main-lourde, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-ame-forgee-choc-electrique, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-ame-forgee-camouflage, valeur: 1, condition: 'rang >= 3' }
+    - {
+        sur: rang,
+        entree: race-ame-forgee-forge-dans-la-bataille,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - { sur: rang, entree: race-ame-forgee-machine-de-guerre, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive:
+- id: race-ame-forgee-main-lourde
+  sorte: capacite
+  nom: Main lourde
+  champs: { voie: race-ame-forgee, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet: 1d6 DM non temporaire à mains nues.
 
     A mains nues, l'âme-forgée inflige1d6 DM létaux.
 
-    ### Rang 2 — Choc électrique (L) (action limitée)
-
-    Action limitée:
+- id: race-ame-forgee-choc-electrique
+  sorte: capacite
+  nom: Choc électrique
+  champs: { voie: race-ame-forgee, rangVoie: 2, activation: Action limitée }
+  description: |-
     Effet : [rang x 1d6] DM électrique à ma nues.
 
     Sur une attaque à mains nues réussie, l'âme forgée inflige 1d6 DM d'électricité par rang dans cette voie (dégâts de l'attaque à mains nues inclus).
 
-    ### Rang 3 — Camouflage (capacité passive)
-
-    Capacité passive:
+- id: race-ame-forgee-camouflage
+  sorte: capacite
+  nom: Camouflage
+  champs: { voie: race-ame-forgee, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet: humain pour 1 heure, 1 x par jour.
 
     Vous pouvez faire croire à ceux qui vous entourent que vous êtes un humain pendant 1 heure. Vous ne pouvez utiliser cette capacité qu'une fois par jour. Vous ne pouvez pas prendre l'apparence d'une personne en particulier.
 
-    ### Rang 4 — Forgé dans la bataille (capacité passive)
-
-    Capacité passive:
+- id: race-ame-forgee-forge-dans-la-bataille
+  sorte: capacite
+  nom: Forgé dans la bataille
+  champs: { voie: race-ame-forgee, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : ignore les DM subits 1x par combat.
 
     Une fois par combat, l'âme-forgée peut totalement ignorer les dégâts subis par une attaque.
 
-    ### Rang 5 — Machine de guerre (capacité passive)
-
-    Capacité passive:
+- id: race-ame-forgee-machine-de-guerre
+  sorte: capacite
+  nom: Machine de guerre
+  champs: { voie: race-ame-forgee, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 CON, +2 FOR.
 
     L'âme-forgée devient une force impossible à ignorer sur le champ de bataille, elle augmente ses scores de CON et de FOR de +2
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 2 }
+
 - id: race-haut-elfe
   sorte: voie
   nom: Voie du haut elfe
-  etiquettes:
-    - race
-    - elfe
+  etiquettes: [race, elfe]
   description: |-
-    ### Rang 1 — Grâce elfique (capacité passive)
+    1. Grâce elfique
+    2. Talent pour la magie
+    3. Force d’âme
+    4. Immortel
+    5. Supériorité elfique
+  effets:
+    - { sur: rang, entree: race-haut-elfe-grace-elfique, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-haut-elfe-talent-pour-la-magie, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-haut-elfe-force-d-ame, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-haut-elfe-immortel, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-haut-elfe-superiorite-elfique, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-haut-elfe-grace-elfique
+  sorte: capacite
+  nom: Grâce elfique
+  champs: { voie: race-haut-elfe, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet: +5 Init et tous les tests de DEX
 
     L'elfe gagne un bonus de +5 en Initiative et à tous les tests de DEX.
+  effets:
+    - { sur: attribut, attribut: INIT, operation: ajouter, valeur: 5 }
 
-    ### Rang 2 — Talent pour la magie (capacité passive)
-
-    Capacité passive
+- id: race-haut-elfe-talent-pour-la-magie
+  sorte: capacite
+  nom: Talent pour la magie
+  champs: { voie: race-haut-elfe, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +1 capacité rang 1 Magicien ou Ensorceleur.
     Rang 4: +1 sort de rang 2
 
     Le joueur choisit une capacité de rang 1 de n'importe quelle voie de magicien ou d'ensorceleur. Il peut utiliser cette capacité en armure sans pénalité. Au rang 4 de la voie, il pourra choisir un sortsupplémentaire de rang 2.
 
-    ### Rang 3 — Force d’âme (capacité passive)
-
-    Capacité passive
+- id: race-haut-elfe-force-d-ame
+  sorte: capacite
+  nom: Force d’âme
+  champs: { voie: race-haut-elfe, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet: +5 DEF vs magie, +5 SAG aux tests de résist. magie
 
     L'elfe est immunisé à la peur et au sommeil magique. Il obtient un bonus de +5 en DEF contre les attaques magiques et à tous les tests de SAG destinés à résister à la magie.
 
-    ### Rang 4 — Immortel (capacité passive)
-
-    Capacité passive
+- id: race-haut-elfe-immortel
+  sorte: capacite
+  nom: Immortel
+  champs: { voie: race-haut-elfe, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : immunisé contre poison et maladie
 
     L'elfe n'a besoin que de la moitié du repos, de la nourriture ou de la boisson d'un humain normal pour être en pleine forme. Il est immunisé aux effets des poisons et des maladies.
 
-    ### Rang 5 — Supériorité elfique (capacité passive)
-
-    Capacité passive
+- id: race-haut-elfe-superiorite-elfique
+  sorte: capacite
+  nom: Supériorité elfique
+  champs: { voie: race-haut-elfe, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 INT, +2 SAG
 
     L'elfe augmente ses valeurs d'INT et de SAG de +2.
+  effets:
+    - { sur: attribut, attribut: INT, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: SAG, operation: ajouter, valeur: 2 }
+
 - id: race-elfe-noir
   sorte: voie
   nom: Voie de l’elfe noir
-  etiquettes:
-    - race
-    - elfe_noir
+  etiquettes: [race, elfe_noir]
   description: |-
-    ### Rang 1 — Enfant des ténèbres (capacité passive)
+    1. Enfant des ténèbres
+    2. Société de caste
+    3. Maîtrise des arbalètes
+    4. Combat à 2 armes
+    5. Supériorité elfique
+  effets:
+    - { sur: rang, entree: race-elfe-noir-enfant-des-tenebres, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-elfe-noir-societe-de-caste, valeur: 1, condition: 'rang >= 2' }
+    - {
+        sur: rang,
+        entree: race-elfe-noir-maitrise-des-arbaletes,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - { sur: rang, entree: race-elfe-noir-combat-a-2-armes, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-elfe-noir-superiorite-elfique, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive:
+- id: race-elfe-noir-enfant-des-tenebres
+  sorte: capacite
+  nom: Enfant des ténèbres
+  champs: { voie: race-elfe-noir, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : +5 Init, +5 DEX dans le noir.
 
     L'elfe gagne un bonus de +5 en Initiative et aux tests de DEX dans le noir complet ou la pénombre. Il ne subit pas de pénalité d'attaque à distance dans la pénombre.
 
-    ### Rang 2 — Société de caste (capacité passive)
-
-    Capacité passive:
+- id: race-elfe-noir-societe-de-caste
+  sorte: capacite
+  nom: Société de caste
+  champs: { voie: race-elfe-noir, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +1 capacité de rang 1 selon le sexe.
     Rang 4: +1 capacité rang 2
 
     Le joueur choisit une capacité de rang 1 d'une voie de nécromancien ou de guerrier pour un personnage mâle, d'une voie de prêtre ou de guerrier pour une femme. Il peut utiliser cette capacité en armure sans pénalité. Au rang 4 de la voie, il pourra choisir une capacité supplémentaire de rang 2.
 
-    ### Rang 3 — Maîtrise des arbalètes (capacité passive)
-
-    Capacité passive:
+- id: race-elfe-noir-maitrise-des-arbaletes
+  sorte: capacite
+  nom: Maîtrise des arbalètes
+  champs: { voie: race-elfe-noir, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : critique d'arbalète sur 19-20.
 
     Lorsqu'il utilise une arbalète de poing ou légère, l'elfe noir obtient une réussite critique sur un résultat de 19-20. Il sait manier ces arbalètes quel que soit son profil.
 
-    ### Rang 4 — Combat à 2 armes (capacité passive)
-
+- id: race-elfe-noir-combat-a-2-armes
+  sorte: capacite
+  nom: Combat à 2 armes
+  champs: { voie: race-elfe-noir, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Voie de l'elfe noir. Capacité passive. Effet: 2d12 remplace d20, capacité non limitée. Les elfes noirs sont passés maître dans l'art du combat à deux armes. Réaliser une attaque de chaque main (en utilisant 1d12) ne compte plus pour une action limitée. Le personnage peut remplacer ses tests d'attaque au d20 par une attaque au d12 de chacune des mains.
 
-    ### Rang 5 — Supériorité elfique (capacité passive)
+- id: race-elfe-noir-superiorite-elfique
+  sorte: capacite
+  nom: Supériorité elfique
+  champs: { voie: race-elfe-noir, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : +2 INT, +2 SAG L'elfe augmente ses valeurs d'INT et de SAG de +2.
+  effets:
+    - { sur: attribut, attribut: INT, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: SAG, operation: ajouter, valeur: 2 }
 
-    Capacité passive: Effet : +2 INT, +2 SAG L'elfe augmente ses valeurs d'INT et de SAG de +2.
 - id: race-elfe-sylvain
   sorte: voie
   nom: Voie de l’elfe sylvain
-  etiquettes:
-    - race
-    - elfe_sylvain
+  etiquettes: [race, elfe_sylvain]
   description: |-
-    ### Rang 1 — Grâce elfique (capacité passive)
+    1. Grâce elfique
+    2. Enfant de la forêt
+    3. Archer émérite
+    4. Flèche sanglante
+    5. Supériorité elfique
+  effets:
+    - { sur: rang, entree: race-elfe-sylvain-grace-elfique, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-elfe-sylvain-enfant-de-la-foret, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-elfe-sylvain-archer-emerite, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-elfe-sylvain-fleche-sanglante, valeur: 1, condition: 'rang >= 4' }
+    - {
+        sur: rang,
+        entree: race-elfe-sylvain-superiorite-elfique,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
 
-    Capacité passive.
+- id: race-elfe-sylvain-grace-elfique
+  sorte: capacite
+  nom: Grâce elfique
+  champs: { voie: race-elfe-sylvain, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : +5 Init et tous les tests de DEX. L'elfe gagne un bonus de +5 en Initiative et à tous les tests de DEX.
+  effets:
+    - { sur: attribut, attribut: INIT, operation: ajouter, valeur: 5 }
 
-    ### Rang 2 — Enfant de la forêt (capacité passive)
-
-    Capacité passive:
+- id: race-elfe-sylvain-enfant-de-la-foret
+  sorte: capacite
+  nom: Enfant de la forêt
+  champs: { voie: race-elfe-sylvain, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +1 capacité de rang 1 Druide ou Rôdeur. Rang 4: +1 capacité de rang 2. Le joueur choisit une capacité de rang 1 de n'importe quelle voie de druide ou de rôdeur. Il peut utiliser cette capacité en armure sans pénalité. Au rang 4 de la voie, il pourra choisir une capacité supplémentaire de rang
 
-    ### Rang 3 — Archer émérite (capacité passive)
-
-    Capacité passive.
+- id: race-elfe-sylvain-archer-emerite
+  sorte: capacite
+  nom: Archer émérite
+  champs: { voie: race-elfe-sylvain, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet: critique à l'arc sur 19-20 au d20. Lorsqu'il utilise un arc, l'elfe sylvain obtient une réussite critique sur un résultat de 19-20 au d20. Il sait utiliser les arcs quel que soit son profil.
 
-    ### Rang 4 — Flèche sanglante (L) (action limitée)
-
-    Action limitée:
+- id: race-elfe-sylvain-fleche-sanglante
+  sorte: capacite
+  nom: Flèche sanglante
+  champs: { voie: race-elfe-sylvain, rangVoie: 4, activation: Action limitée }
+  description: |-
     Effet : +1d6 DM hémoragique. L'elfe fait une attaque à distance qui provoque une hémorragie. En plus des DM normaux, la flèche produit un effet de saignement qui inflige à la victime + 1d6 DM à chaque tour suivant jusqu'à ce que la cible réussisse un test de CON difficulté [12 + Mod. de DEX] ou qu'elle soit soignée. On ne peut cumuler plusieurs effets de saignement.
 
-    ### Rang 5 — Supériorité elfique
-
-    Capacité passive:
+- id: race-elfe-sylvain-superiorite-elfique
+  sorte: capacite
+  nom: Supériorité elfique
+  champs: { voie: race-elfe-sylvain, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 DEX, +2 SAG. L'elfe augmente ses valeurs de DEX et SAG de +2.
+  effets:
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: SAG, operation: ajouter, valeur: 2 }
+
 - id: race-humain
   sorte: voie
   nom: Voie de l’humain
-  etiquettes:
-    - race
-    - humain
+  etiquettes: [race, humain]
   description: |-
-    ### Rang 1 — Adaptable (capacité passive)
+    1. Adaptable
+    2. Loup parmi les loups
+    3. Versatile
+    4. Increvable
+    5. Polyvalence
+  choixAttributs:
+    - {
+        id: polyvalence-faible,
+        nom: 'Polyvalence : caractéristique la plus faible',
+        nombre: 1,
+        parmi: { groupe: caracteristiques },
+        valeur: 'si(rang >= 5, 2, 0)',
+      }
+    - {
+        id: polyvalence-choix,
+        nom: 'Polyvalence : caractéristique au choix',
+        nombre: 1,
+        parmi: { groupe: caracteristiques },
+        valeur: 'si(rang >= 5, 2, 0)',
+      }
+  effets:
+    - { sur: rang, entree: race-humain-adaptable, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-humain-loup-parmi-les-loups, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-humain-versatile, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-humain-increvable, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-humain-polyvalence, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive, sortilège
+- id: race-humain-adaptable
+  sorte: capacite
+  nom: Adaptable
+  champs: { voie: race-humain, rangVoie: 1, activation: 'Capacité passive, sortilège' }
+  description: |-
     Effet: recommence le test raté avec un bonus de +5 au tour suivant Après avoir raté un test de Carac.,
 
     le personnage obtient un bonus de +5 au test pour recommencer a même action au prochain tour.
 
-    ### Rang 2 — Loup parmi les loups (capacité passive)
-
-    Capacité passive
+- id: race-humain-loup-parmi-les-loups
+  sorte: capacite
+  nom: Loup parmi les loups
+  champs: { voie: race-humain, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +1 DM contre les humanoïdes, rang 4 : +2 DM Le personnage gagne +1 aux DM lorsqu'il combat un adversaire humanoïde.
     Ce bonus passe à +2 au rang 4 de la voie.
 
-    ### Rang 3 — Versatile (capacité passive)
-
-    Capacité passive
+- id: race-humain-versatile
+  sorte: capacite
+  nom: Versatile
+  champs: { voie: race-humain, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet: +1 capacité rang 1 au choix ou rang 2 si profil de même famille
 
     Le personnage obtient une capacité de rang 1 de n'importe quel profil au choix du joueur ou une capacité de rang 2 d'un profil de la même famille que le sien.
 
-    ### Rang 4 — Increvable (capacité passive)
-
-    Capacité passive
+- id: race-humain-increvable
+  sorte: capacite
+  nom: Increvable
+  champs: { voie: race-humain, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : esquive sur coup mortel
 
     Une fois par tour, lorsqu'une attaque fait tomber le personnage à 0 PV, ce dernier peut effectuer un test d'attaque (du même type) opposé à celui de l'adversaire. En cas de réussite, le personnage esquive ou résiste à cette attaqueet ne subit aucun DM.
 
-    ### Rang 5 — Polyvalence (capacité passive)
-
-    Capacité passive
+- id: race-humain-polyvalence
+  sorte: capacite
+  nom: Polyvalence
+  champs: { voie: race-humain, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 carac. la plus faible, +2 carac.
 
     au choix Le personnage augmente de 2 points la valeur de sa caractéristique la plus faible, ainsi que la valeur d'une autre caractéristique au choix.
+
 - id: race-nain
   sorte: voie
   nom: Voie du nain
-  etiquettes:
-    - race
-    - nain
+  etiquettes: [race, nain]
   description: |-
-    ### Rang 1 — Résistance (capacité passive)
+    1. Résistance
+    2. Solide comme un roc
+    3. Haches et marteaux
+    4. Résistance à la magie
+    5. Ténacité
+  effets:
+    - { sur: rang, entree: race-nain-resistance, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-nain-solide-comme-un-roc, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-nain-haches-et-marteaux, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-nain-resistance-a-la-magie, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-nain-tenacite, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-nain-resistance
+  sorte: capacite
+  nom: Résistance
+  champs: { voie: race-nain, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : +5 aux tests de CON.
 
     Le nain gagne un bonus de +5 à tous ses tests de CON.
 
-    ### Rang 2 — Solide comme un roc (capacité passive)
-
-    Capacité passive:
+- id: race-nain-solide-comme-un-roc
+  sorte: capacite
+  nom: Solide comme un roc
+  champs: { voie: race-nain, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet : RD 2 (mini 1 DM subit) cumulable.
     Rang 4 : RD 3.
 
     Le nain réduit tous les DM subis de 2 points (mais il subit toujours au moins 1 point de DM par attaque reçue). Ce bonus est cumulable avec d'autres sources de réduction des DM comme la Peau d'acier du barbare. Au rang 4, la réduction passe à 3 points.
+  effets:
+    - {
+        sur: attribut,
+        attribut: RD,
+        operation: ajouter,
+        valeur: 'si(rang("race-nain") >= 4, 3, 2)',
+      }
 
-    ### Rang 3 — Haches et marteaux (capacité passive)
-
-    Capacité passive.
+- id: race-nain-haches-et-marteaux
+  sorte: capacite
+  nom: Haches et marteaux
+  champs: { voie: race-nain, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet: +1 Contact et + 1 DM avec hache ou marteau de guerre.
 
     Le nain gagne un bonus de + 1 en attaque et aux DM lorsqu'il utilise une hache ou un marteau de guerre. Il sait utiliser ces armes quel que soit son profil.
+  effets:
+    - {
+        sur: jet,
+        si: 'arme == "hache-a-1-main" ou arme == "hache-a-2-mains" ou arme == "hachette"',
+        ajout: { bonus: 1 },
+      }
 
-    ### Rang 4 — Résistance à la magie (capacité passive)
-
-    Capacité passive:
+- id: race-nain-resistance-a-la-magie
+  sorte: capacite
+  nom: Résistance à la magie
+  champs: { voie: race-nain, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : ignore un sort de rang < 1d6
 
     Chaque fois que le personnage est la cible d'un sort (sauf un sort de zone), le joueur lance 1d6° : sur un résultat supérieur au rang du sort, il peut en ignorer les effets.
 
-    ### Rang 5 — Ténacité (capacité passive)
-
-    Capacité passive:
+- id: race-nain-tenacite
+  sorte: capacite
+  nom: Ténacité
+  champs: { voie: race-nain, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 CON, +2 SAG
 
     Le nain augmente ses valeurs de CON et de SAG de +2.
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: SAG, operation: ajouter, valeur: 2 }
+
 - id: race-minotaure
   sorte: voie
   nom: Voie du minotaure
-  etiquettes:
-    - race
-    - minotaure
+  etiquettes: [race, minotaure]
   description: |-
-    ### Rang 1 — Charge (L) (action limitée)
+    1. Charge
+    2. Frénésie
+    3. Orientation infaillible
+    4. Encorner
+    5. Colosse
+  effets:
+    - { sur: rang, entree: race-minotaure-charge, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-minotaure-frenesie, valeur: 1, condition: 'rang >= 2' }
+    - {
+        sur: rang,
+        entree: race-minotaure-orientation-infaillible,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - { sur: rang, entree: race-minotaure-encorner, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-minotaure-colosse, valeur: 1, condition: 'rang >= 5' }
 
-    Action limitée
+- id: race-minotaure-charge
+  sorte: capacite
+  nom: Charge
+  champs: { voie: race-minotaure, rangVoie: 1, activation: Action limitée }
+  description: |-
     Effet : +2 🗡️, +1d6 DM.
 
     Le minotaure se déplace en ligne droite d’au moins 5 mètres (20 mètres au maximum) et il réalise une attaque avec +2 au test et +1d6 DM en cas de réussite. Cette capacité peut se cumuler à la charge du barbare.
 
-    ### Rang 2 — Frénésie (capacité passive)
-
-    Capacité passive
+- id: race-minotaure-frenesie
+  sorte: capacite
+  nom: Frénésie
+  champs: { voie: race-minotaure, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet : frénésie sur blessure : +2 🗡️, +2 DM, -2 🛡️
     Durée : 1d6 tours.
 
     Après avoir reçu une blessure, le minotaure peut entrer en frénésie (action gratuite), il gagne un bonus de +2 en attaque au contact et aux DM, mais subit un malus de -2 en DEF pour 1d6 tours. Ces bonus/malus ne sont pas cumulables à la rage du barbare.
 
-    ### Rang 3 — Orientation infaillible (capacité passive)
-
-    Capacité passive
+- id: race-minotaure-orientation-infaillible
+  sorte: capacite
+  nom: Orientation infaillible
+  champs: { voie: race-minotaure, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : sens de l'orientation.
 
     Désormais, le minotaure ne se perd jamais et il connaît toujours le plus court chemin vers la sortie ou la surface.
 
-    ### Rang 4 — Encorner (capacité passive)
-
-    Capacité passive
+- id: race-minotaure-encorner
+  sorte: capacite
+  nom: Encorner
+  champs: { voie: race-minotaure, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : 🗡️ attaque de corne 1x par tour.
 
     Le minotaure peut désormais réaliser une attaque de corne en action gratuite une fois par tour.
 
-    ### Rang 5 — Colosse (capacité passive)
-
-    Capacité passive
+- id: race-minotaure-colosse
+  sorte: capacite
+  nom: Colosse
+  champs: { voie: race-minotaure, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 CON, +2 FOR.
 
     Le minotaure est une montagne de muscles, il augmente ses valeurs de CON et de FOR de +2.
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 2 }
+
 - id: race-halfelin
   sorte: voie
   nom: Voie du halfelin
-  etiquettes:
-    - race
-    - halfelin
+  etiquettes: [race, halfelin]
   description: |-
-    ### Rang 1 — Petit veinard (capacité passive)
+    1. Petit veinard
+    2. Résistance légendaire
+    3. Bon pour le moral
+    4. Perception
+    5. Lfit et alerte
+  effets:
+    - { sur: rang, entree: race-halfelin-petit-veinard, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-halfelin-resistance-legendaire, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-halfelin-bon-pour-le-moral, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-halfelin-perception, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-halfelin-lfit-et-alerte, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-halfelin-petit-veinard
+  sorte: capacite
+  nom: Petit veinard
+  champs: { voie: race-halfelin, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : relance 1 dé de son choix 1x par combat.
     Rang 3 : esquive gratuite 1x par combat.
 
     Le halfelin peut relancer un dé de son choix une fois par combat. Au rang 3 de la voie, il peut esquiver une attaque de son choix par combat (après avoir pris connaissance des DM).
 
-    ### Rang 2 — Résistance légendaire (capacité passive)
-
-    Capacité passive
+- id: race-halfelin-resistance-legendaire
+  sorte: capacite
+  nom: Résistance légendaire
+  champs: { voie: race-halfelin, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet : +5 tests de CON, +5 🛡️ contre magie.
 
     Le halfelin obtient un bonus de +5 à tous ses tests de CON et un bonus de +5 en DEF contre la magie.
 
-    ### Rang 3 — Bon pour le moral (capacité passive)
-
-    Capacité passive
+- id: race-halfelin-bon-pour-le-moral
+  sorte: capacite
+  nom: Bon pour le moral
+  champs: { voie: race-halfelin, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : régén sur bon repas 1d6 PV ou sieste [2d6 + niveau] PV.
 
     Un halfelin qui mange bien est un halfelin heureux. À chaque repas où le personnage boit ou mange un met de qualité, il récupère 1d6 PV. Une fois par jour, s’il participe à un véritable festin ou s’il fait une bonne sieste (au moins 1 heure en plein après-midi), il récupère [2d6 + niveau] PV !
 
-    ### Rang 4 — Perception (capacité passive)
-
-    Capacité passive
+- id: race-halfelin-perception
+  sorte: capacite
+  nom: Perception
+  champs: { voie: race-halfelin, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : fronde 🗡️ [+ mod. DEX] DM, +5 tests de perception et discrétion.
 
     Le halfelin obtient un bonus de +5 à tous les tests de perception et de discrétion. Il peut ajouter son Mod. de DEX aux DM à la fronde et il sait utiliser cette arme quel que soit son profil.
 
-    ### Rang 5 — Lfit et alerte (capacité passive)
-
-    Capacité passive
+- id: race-halfelin-lfit-et-alerte
+  sorte: capacite
+  nom: Lfit et alerte
+  champs: { voie: race-halfelin, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 DEX, +2 CON.
 
     Le halfelin augmente ses valeurs de DEX et de CON de +2.
+  effets:
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+
 - id: race-orque
   sorte: voie
   nom: Voie de l'orque
-  etiquettes:
-    - race
-    - orque
+  etiquettes: [race, orque]
   description: |-
-    ### Rang 1 — Force de la nature (capacité passive)
+    1. Force de la nature
+    2. Talent pour la violence
+    3. Critique brutal
+    4. Attaque sanglante
+    5. Colosse
+  effets:
+    - { sur: rang, entree: race-orque-force-de-la-nature, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-orque-talent-pour-la-violence, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-orque-critique-brutal, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-orque-attaque-sanglante, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-orque-colosse, valeur: 1, condition: 'rang >= 5' }
 
+- id: race-orque-force-de-la-nature
+  sorte: capacite
+  nom: Force de la nature
+  champs: { voie: race-orque, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : [+ mod. FOR] PV, +5 aux tests de FOR.
 
     Le demiorque gagne un bonus de +5 à tous les tests de FOR et ajoute son [Mod. de FOR] à son score total de PV.
+  effets:
+    - { sur: attribut, attribut: PV_Max, operation: ajouter, valeur: 'mod(@FOR)' }
 
-    ### Rang 2 — Talent pour la violence (capacité passive)
-
-    Capacité passive:
+- id: race-orque-talent-pour-la-violence
+  sorte: capacite
+  nom: Talent pour la violence
+  champs: { voie: race-orque, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +1 capacité de rang 1 barbare, guerrier ou homme.
 
     Le joueur choisit une capacité de rang 1 de n'importe quelle voie de barbare, de guerrier ou de la voie de l'homme. Au rang 4 de la voie, choisissez une capacité supplémentaire de rang 2.
 
-    ### Rang 3 — Critique brutal (capacité passive)
-
-    Capacité passive:
+- id: race-orque-critique-brutal
+  sorte: capacite
+  nom: Critique brutal
+  champs: { voie: race-orque, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet: DM x 3 sur critique.
 
     Les DM du demi- orque sont multipliés par 3 (au lieu de 2) lorsqu'il obtient une réussite critique sur une attaque au contact.
 
-    ### Rang 4 — Attaque sanglante (L) (action limitée)
-
-    Action limitée:
+- id: race-orque-attaque-sanglante
+  sorte: capacite
+  nom: Attaque sanglante
+  champs: { voie: race-orque, rangVoie: 4, activation: Action limitée }
+  description: |-
     Effet: +1d6 DM à chaque tour.
 
     Le demiorque réalise une attaque de contact violente qui provoque une hémorragie. En plus des DM normaux, l'attaque produit un saignement qui inflige à la victime + 1d6 DM à chaque tour suivant jusqu'à ce que la cible réussisse un test de CON difficulté [12 + Mod. de FOR] ou qu'elle soit soignée. On ne peut cumuler plusieurs effets de saignement.
 
-    ### Rang 5 — Colosse (capacité passive)
-
-    Capacité passive:
+- id: race-orque-colosse
+  sorte: capacite
+  nom: Colosse
+  champs: { voie: race-orque, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 FOR, +2 CON.
 
     Le demi-orque augmente ses valeurs de FOR et de CON de +2.
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+
 - id: race-drakonide
   sorte: voie
   nom: Voie du drakonide
-  etiquettes:
-    - race
-    - drakonide
+  etiquettes: [race, drakonide]
   description: |-
-    ### Rang 1 — Souffle (capacité passive)
+    1. Souffle
+    2. Intimidant
+    3. Ecailles robustes
+    4. Fureur drakonide
+    5. Héritage draconique
+  effets:
+    - { sur: rang, entree: race-drakonide-souffle, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-drakonide-intimidant, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-drakonide-ecailles-robustes, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-drakonide-fureur-drakonide, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-drakonide-heritage-draconique, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-drakonide-souffle
+  sorte: capacite
+  nom: Souffle
+  champs: { voie: race-drakonide, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet: souffle (élément au choix), 2d6 DM
 
     Le joueur choisit un type de souffle pour son personnage parmi feu, froid, électricité ou acide. Ce souffle inflige 2d6 DM par rang dans une zone conique de 10 mètres de long sur 5 mètres de large. Toutes les créatures affectées peuvent diviser les DM par 2 si elles réussissent un test de DEX difficulté 12. Après avoir utilisé son souffle, le drakonide doit attendre 1d4 tours avant de pouvoir l'utiliser à nouveau.
 
-    ### Rang 2 — Intimidant (capacité passive)
-
-    Capacité passive
+- id: race-drakonide-intimidant
+  sorte: capacite
+  nom: Intimidant
+  champs: { voie: race-drakonide, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +5 aux tests d'intimisation
 
     Le drakonide reçoit un bonus de +5 à tous les tests d'intimidation.
 
-    ### Rang 3 — Ecailles robustes (capacité passive)
-
-    Capacité passive
+- id: race-drakonide-ecailles-robustes
+  sorte: capacite
+  nom: Ecailles robustes
+  champs: { voie: race-drakonide, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : +1 DEF
 
     Le drakonide reçoit un bonus de +1 en DEF.
+  effets:
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: 1 }
 
-    ### Rang 4 — Fureur drakonide (capacité passive)
-
-    Capacité passive
+- id: race-drakonide-fureur-drakonide
+  sorte: capacite
+  nom: Fureur drakonide
+  champs: { voie: race-drakonide, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet: +1 (contact/distance/magie) et DM si subit un critique ou en dessous de 1/2 PV max
 
     Lorsqu'un adversaire lui inflige une réussite critique en attaque ou lorsqu'il passe sous la moitié de son score de PV max, le drakonide obtient un bonus de +1 en attaque et aux DM.
 
-    ### Rang 5 — Héritage draconique (capacité passive)
-
-    Capacité passive
+- id: race-drakonide-heritage-draconique
+  sorte: capacite
+  nom: Héritage draconique
+  champs: { voie: race-drakonide, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 CON, +2 CHA
 
     Le drakonide augmente ses valeurs de CON et de CHA de +2.
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: CHA, operation: ajouter, valeur: 2 }
+
 - id: race-frouin
   sorte: voie
   nom: Voie du frouin
-  etiquettes:
-    - race
-    - frouin
+  etiquettes: [race, frouin]
   description: |-
-    ### Rang 1 — Se planquer (capacité passive)
+    1. Se planquer
+    2. Petite taille
+    3. Parano
+    4. Attaque simultanée
+    5. Champion de la survie
+  choixAttributs:
+    - {
+        id: champion-de-la-survie,
+        nom: 'Champion de la survie : +2 DEX ou SAG',
+        nombre: 1,
+        parmi: { attributs: [DEX, SAG] },
+        valeur: 'si(rang >= 5, 2, 0)',
+      }
+  effets:
+    - { sur: rang, entree: race-frouin-se-planquer, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-frouin-petite-taille, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-frouin-parano, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-frouin-attaque-simultanee, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-frouin-champion-de-la-survie, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-frouin-se-planquer
+  sorte: capacite
+  nom: Se planquer
+  champs: { voie: race-frouin, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : +5 aux tests de discrétion.
 
     Grâce à sa petite taille et sa discrétion naturelle, le frouin obtient un bonus de +5 à tous les tests de discrétion.
 
-    ### Rang 2 — Petite taille (capacité passive)
-
-    Capacité passive
+- id: race-frouin-petite-taille
+  sorte: capacite
+  nom: Petite taille
+  champs: { voie: race-frouin, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet : +2 🛡️, rang 4 : +3 🛡️.
 
     Sa petite taille et son habitude d’éviter les coups permet au frouin d’obtenir un bonus de +2 en DEF. Ce bonus passe à +3 au rang 4 de la Voie.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 'si(rang("race-frouin") >= 4, 3, 2)',
+      }
 
-    ### Rang 3 — Parano (capacité passive)
-
-    Capacité passive
+- id: race-frouin-parano
+  sorte: capacite
+  nom: Parano
+  champs: { voie: race-frouin, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : +5 Init, +5 aux tests anti-surprise.
 
     Subit 1/2 DM d’attaque sournoise. Un frouin est toujours sur ses gardes, il obtient un bonus de +5 à tous les tests pour éviter d’être surpris et un bonus de +5 en Init. De plus, il ne reçoit que la moitié des DM des attaques sournoises (ou autres bonus de DM de surprise).
+  effets:
+    - { sur: attribut, attribut: INIT, operation: ajouter, valeur: 5 }
 
-    ### Rang 4 — Attaque simultanée (capacité passive)
-
-    Capacité passive
+- id: race-frouin-attaque-simultanee
+  sorte: capacite
+  nom: Attaque simultanée
+  champs: { voie: race-frouin, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet : décale son tour pour attaquer avec un allié, +2 🗡️, +1d6 DM.
 
     Les frouins sont trop timorés pour attaquer seul, mais ils ont développé des tactiques de combat en groupe efficace. Si le frouin décale son initiative pour attaquer en même temps qu’un allié (au contact ou à distance), il obtient un bonus de +2 en attaque et +1d6 aux DM. Ce bonus peut se cumuler à une attaque sournoise.
 
-    ### Rang 5 — Champion de la survie (capacité passive)
-
-    Capacité passive
+- id: race-frouin-champion-de-la-survie
+  sorte: capacite
+  nom: Champion de la survie
+  champs: { voie: race-frouin, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 CON, +2 DEX ou +2 SAG.
 
     Le frouin est expert de la survie, il augmente au choix sa valeur de DEX ou de SAG de +2 et sa valeur de CON de +2.
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+
 - id: race-ogre
   sorte: voie
   nom: Voie de l'ogre
-  etiquettes:
-    - race
-    - ogre
+  etiquettes: [race, ogre]
   description: |-
-    ### Rang 1 — Sang-froid (capacité passive)
+    1. Sang-froid
+    2. Violence ciblée
+    3. Vorace
+    4. Toujours plus gros
+    5. Monumental
+  effets:
+    - { sur: rang, entree: race-ogre-sang-froid, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-ogre-violence-ciblee, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-ogre-vorace, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-ogre-toujours-plus-gros, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-ogre-monumental, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-ogre-sang-froid
+  sorte: capacite
+  nom: Sang-froid
+  champs: { voie: race-ogre, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet: +5 résistance à la réaction violente (RV), atténue les effets.
 
     Le demi-ogre obtient un bonus de +5 aux tests pour garder son sang-froid et notamment pour ré-sister à une réaction violente. La durée de la réaction violente est réduite à 1d4 tours et les DM subis lorsqu'il prend sur lui à 1d4 par tour restant.
 
-    ### Rang 2 — Violence ciblée (capacité passive)
-
-    Capacité passive:
+- id: race-ogre-violence-ciblee
+  sorte: capacite
+  nom: Violence ciblée
+  champs: { voie: race-ogre, rangVoie: 2, activation: Capacité passive }
+  description: |-
     Effet: +1 RV d'action gratuite si résiste une RV
 
     A chaque fois qu'il résiste à une crise de réaction violente, le demi-ogre gagne un point de violence. Il peut dépenser ce point par une action gratuite au moment de son choix dans la même journée pour obtenir les effets d'une réaction violente (1d4 tours) contre une cible de son choix. Il ne gagne aucun point de violence si un allié le provoque délibérément.
 
-    ### Rang 3 — Vorace (capacité passive)
-
-    Capacité passive:
+- id: race-ogre-vorace
+  sorte: capacite
+  nom: Vorace
+  champs: { voie: race-ogre, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : [3d6 + niveau] PV repris avec un festin
 
     Le demi-ogre peut man-ger des quantités astronomiques. Une fois par jour, lors d'un repas, s'il avale à lui seul un sanglier ou l'équi- valent (un chevreuil, un demi-bœuf, etc.), il récupère (3d6 + niveau) PV. Cela correspond à un repas d'auberge d'une valeur en Pa égale au nombre de PV récupérés.
 
-    ### Rang 4 — Toujours plus gros (capacité passive)
-
-    Capacité passive:
+- id: race-ogre-toujours-plus-gros
+  sorte: capacite
+  nom: Toujours plus gros
+  champs: { voie: race-ogre, rangVoie: 4, activation: Capacité passive }
+  description: |-
     Effet: 2d6 DM à 1 main, 3d6 DM à 2 mains, ignore les RD de la Voie du colosse
 
     Désormais, le demi-ogre inflige 2d6 DM avec une arme à deux mains tenue à une main et 3d6 DM avec une arme à deux mains à sa mesure. Lorsqu'il utilise une arme de cette façon, il ignore laréduction des DM (RD) imposéepar la Voie du colosse.
 
-    ### Rang 5 — Monumental (capacité passive)
-
-    Capacité passive:
+- id: race-ogre-monumental
+  sorte: capacite
+  nom: Monumental
+  champs: { voie: race-ogre, rangVoie: 5, activation: Capacité passive }
+  description: |-
     Effet : +2 CON, +2 FOR Le demi-ogre est une montagne de mus-cle, il augmente ses valeurs de CON et de FOR de +2.
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: 2 }
+
 - id: race-wolfer
   sorte: voie
   nom: Voie du wolfer
-  etiquettes:
-    - race
-    - wolfer
+  etiquettes: [race, wolfer]
   description: |-
-    ### Rang 1 — Chasseur né (capacité passive)
+    1. Chasseur né
+    2. Armes naturelles
+    3. Lois de la meute
+    4. Corps de loup
+    5. Garou
+  effets:
+    - { sur: rang, entree: race-wolfer-chasseur-ne, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: race-wolfer-armes-naturelles, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: race-wolfer-lois-de-la-meute, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: race-wolfer-corps-de-loup, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: race-wolfer-garou, valeur: 1, condition: 'rang >= 5' }
 
-    Capacité passive
+- id: race-wolfer-chasseur-ne
+  sorte: capacite
+  nom: Chasseur né
+  champs: { voie: race-wolfer, rangVoie: 1, activation: Capacité passive }
+  description: |-
     Effet : +rang SAG aux tests de pistage, chasse, détecter un piège ou créature.
 
     Le wolfer est un chasseur né. Son odorat et sa vision sont très développés. Il obtient un bonus de +1 par rang à ses tests de SAG pour pister, chasser, détecter une créature ou un piège en pleine nature.
 
-    ### Rang 2 — Armes naturelles (L) (action limitée)
-
-    Action limitée
+- id: race-wolfer-armes-naturelles
+  sorte: capacite
+  nom: Armes naturelles
+  champs: { voie: race-wolfer, rangVoie: 2, activation: Action limitée }
+  description: |-
     Effet : griffe 🗡️ [1d6 + mod. FOR] DM.
 
     Par une action limitée, le wolfer peut se faire pousser griffes et crocs. Il peut utiliser ses armes naturelles avec son score d’attaque au contact (action d’attaque) et il inflige [1d6 + Mod. de FOR] DM. Le wolfer subit un malus de -1 en attaque s’il utilise une arme ordinaire sous cette forme.
 
-    ### Rang 3 — Lois de la meute (capacité passive)
-
-    Capacité passive
+- id: race-wolfer-lois-de-la-meute
+  sorte: capacite
+  nom: Lois de la meute
+  champs: { voie: race-wolfer, rangVoie: 3, activation: Capacité passive }
+  description: |-
     Effet : +1 🗡️/🛡️ par allié, +5 max.
 
     Lorsqu’un wolfer combat le même ennemi que d’autres alliés, il bénéficie d’un bonus de +1 en attaque et en DEF par allié. Ce bonus ne peut dépasser +5 quel que soit le nombre d’alliés.
 
-    ### Rang 4 — Corps de loup (L) (action limitée)
-
-    Action limitée
+- id: race-wolfer-corps-de-loup
+  sorte: capacite
+  nom: Corps de loup
+  champs: { voie: race-wolfer, rangVoie: 4, activation: Action limitée }
+  description: |-
     Effet : transformation Male Alpha Init 17, 🛡️15, DM 1d6+3, FOR+3, DEX+1 capacité : Embuscade - Voie du prédateur.
 
     Une fois par jour, le personnage peut réellement prendre la forme du loup (mâle alpha) pendant une durée maximum de 1 heure par niveau du personnage. Le personnage conserve toutes ses caractéristiques quelles qu’elles soient, ainsi que son score d’attaque au contact habituel. Loup : Init 17, DEF 15, DM 1d6+3, FOR+3, DEX +1. Il peut utiliser la capacité de rang 1 de la voie du prédateur (Embuscade - voir le Bestiaire). Sous cette forme, il peut communiquer avec les autres loups (salves et sur de longues distances par hurlements).
 
-    ### Rang 5 — Garou (L) (action limitée)
-
-    Action limitée
+- id: race-wolfer-garou
+  sorte: capacite
+  nom: Garou
+  champs: { voie: race-wolfer, rangVoie: 5, activation: Action limitée }
+  description: |-
     Effet : transformation Loup-garou DEX+1, Init+2, 🛡️+1, FOR+2, 🛡️+2, DM+2.
 
     Le personnage se transforme maintenant en forme hybride loup-garou sans aucune restriction de temps. Sous cette forme il a les capacités suivantes : En forme hybride, le personnage obtient un bonus de +1 au Mod. de DEX (+1 Init, +1 DEF) et +2 au Mod. de FOR (+2 Att et DM). À chaque tour, par prix d’une action limitée, il peut attaquer avec une arme de taille grande griffes ou crocs. Sous cette forme, le personnage ne peut parler qu’avec grande difficulté, il subit un malus de -10 à tous les tests de CHA, mais un bonus de +50 pour les tentatives d’intimidation.

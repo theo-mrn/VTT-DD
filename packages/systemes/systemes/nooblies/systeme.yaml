@@ -209,65 +209,44 @@ creation:
         attribution: ordre
 
 actions:
-  # Attaques : 1d20 + valeur d'attaque contre la Défense de la cible
-  - id: attaque-contact
-    nom: Attaque au contact
+  # Attaque : 1d20 + score d'attaque choisi contre la Défense de la cible
+  - id: attaque
+    nom: Attaque
     pour: [personnage]
+    cible: personnage
+    parametres:
+      - { id: score, nom: Attaque, type: attribut, attributs: [Contact, Distance, Magie] }
+    jet: { type: numerique, formule: 1d20 + valeur(score), reussite: total >= @cible.Defense }
+
+  # Capacité raciale du minotaure : attaque de corne à la place d'une attaque normale
+  - id: coup-de-corne
+    nom: Coup de corne
+    description: Attaque au contact de corne, [1d6 + mod. FOR] DM si elle touche.
+    pour: [personnage]
+    exige: possede("coup-de-corne")
     cible: personnage
     jet: { type: numerique, formule: 1d20 + @Contact, reussite: total >= @cible.Defense }
-  - id: attaque-distance
-    nom: Attaque à distance
-    pour: [personnage]
-    cible: personnage
-    jet: { type: numerique, formule: 1d20 + @Distance, reussite: total >= @cible.Defense }
-  - id: attaque-magie
-    nom: Attaque magique
-    pour: [personnage]
-    cible: personnage
-    jet: { type: numerique, formule: 1d20 + @Magie, reussite: total >= @cible.Defense }
+    apres:
+      - { cle: degats, formule: 'si(reussi, max(0, 1d6 + mod(@FOR)), 0)' }
+    consequences:
+      - { condition: reussi, entite: cible, attribut: PV, operation: retirer, valeur: degats }
 
   - id: initiative
     nom: Initiative
     pour: [personnage]
     jet: { type: numerique, formule: 1d20 + @INIT }
 
-  # Tests de caractéristique : 1d20 + modificateur
-  - {
-      id: test-FOR,
-      nom: Test de Force,
-      pour: [personnage],
-      jet: { type: numerique, formule: 1d20 + mod(@FOR) },
-    }
-  - {
-      id: test-DEX,
-      nom: Test de Dextérité,
-      pour: [personnage],
-      jet: { type: numerique, formule: 1d20 + mod(@DEX) },
-    }
-  - {
-      id: test-CON,
-      nom: Test de Constitution,
-      pour: [personnage],
-      jet: { type: numerique, formule: 1d20 + mod(@CON) },
-    }
-  - {
-      id: test-SAG,
-      nom: Test de Sagesse,
-      pour: [personnage],
-      jet: { type: numerique, formule: 1d20 + mod(@SAG) },
-    }
-  - {
-      id: test-INT,
-      nom: Test d'Intelligence,
-      pour: [personnage],
-      jet: { type: numerique, formule: 1d20 + mod(@INT) },
-    }
-  - {
-      id: test-CHA,
-      nom: Test de Charisme,
-      pour: [personnage],
-      jet: { type: numerique, formule: 1d20 + mod(@CHA) },
-    }
+  # Test de caractéristique : 1d20 + modificateur de la caractéristique choisie
+  - id: test
+    nom: Test de caractéristique
+    pour: [personnage]
+    parametres:
+      - { id: caracteristique, nom: Caractéristique, type: attribut, groupe: caracteristiques }
+      - { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
+    jet:
+      type: numerique
+      formule: 1d20 + modificateur(caracteristique)
+      reussite: total >= difficulte
 
 initiative:
   action: initiative
