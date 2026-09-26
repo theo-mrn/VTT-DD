@@ -234,3 +234,35 @@ describe('type de dégâts déclaré par l’action', () => {
     expect(mod(true)).toMatchObject({ type: 'froid', valeur: 0 });
   });
 });
+
+describe('entrée donnée calculée', () => {
+  it('la conséquence donne l’entrée désignée par une formule, rien si vide', () => {
+    const s4saisi = structuredClone(saisi);
+    s4saisi.actions![0]!.consequences = [
+      {
+        entite: 'cible',
+        entreeCalculee: 'si(element, "brulure", "")',
+        operation: 'donner',
+        rangs: 1,
+        duree: 2,
+      },
+    ];
+    const r4 = charger(s4saisi);
+    if (!r4.ok) throw new Error(JSON.stringify(r4.erreurs));
+    const f = () => calculer(r4.systeme, fiche().etat);
+    const mods = (element: boolean) => {
+      const res = executerAction(r4.systeme, {
+        action: 'souffle',
+        acteur: f(),
+        cible: f(),
+        parametres: { element },
+        aleatoire: aleatoireImpose([1, 1]),
+      });
+      return res.ok ? res.resultat.modifications : res.erreurs;
+    };
+    expect(mods(true)).toEqual([
+      { entite: 'cible', entree: 'brulure', operation: 'donner', rangs: 1, duree: 2 },
+    ]);
+    expect(mods(false)).toEqual([]);
+  });
+});

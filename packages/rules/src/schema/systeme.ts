@@ -513,7 +513,9 @@ export const ConsequenceAttribut = z.object({
 export const ConsequenceEntree = z.object({
   condition: Formule.optional(),
   entite: z.enum(['acteur', 'cible']),
-  entree: Id,
+  /** Entrée fixe, ou `entreeCalculee` : formule texte (ex. `capacite.etat`) ; vide : rien. */
+  entree: Id.optional(),
+  entreeCalculee: Formule.optional(),
   operation: z.enum(['donner', 'retirer']),
   /** Rangs donnés ou retirés (entrée à rangs). */
   rangs: Formule.default('1'),

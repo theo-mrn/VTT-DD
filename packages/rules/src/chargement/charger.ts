@@ -961,10 +961,14 @@ class Chargeur {
           this.erreur(ou, 'Conséquence sur la cible d’une action sans cible');
         if (c.condition !== undefined)
           this.compiler(`${ou}/condition`, c.condition, opts(), 'booleen');
-        if ('entree' in c) {
-          const entree = this.entrees.get(c.entree);
+        if (!('attribut' in c)) {
+          if ((c.entree === undefined) === (c.entreeCalculee === undefined))
+            this.erreur(ou, 'Préciser entree ou entreeCalculee (un seul des deux)');
+          if (c.entreeCalculee !== undefined)
+            this.compiler(`${ou}/entree`, c.entreeCalculee, opts(), 'texte');
+          const entree = c.entree === undefined ? undefined : this.entrees.get(c.entree);
           const sorte = entree && this.sortes.get(entree.sorte);
-          if (!entree) this.erreur(ou, `Entrée inconnue : ${c.entree}`);
+          if (c.entree !== undefined && !entree) this.erreur(ou, `Entrée inconnue : ${c.entree}`);
           else if (sorte && types.some((t) => !sorte.pour.includes(t)))
             this.erreur(ou, `${sorte.nom} non possédable par ${types.join(', ')}`);
           this.compiler(`${ou}/rangs`, c.rangs, opts(), 'nombre');

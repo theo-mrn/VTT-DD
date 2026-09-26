@@ -623,17 +623,25 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const fiche = c.entite === 'cible' ? cible! : acteur;
     const qui = c.entite === 'cible' ? 'Cible' : 'Acteur';
 
-    if ('entree' in c) {
+    if (!('attribut' in c)) {
+      const id = c.entree ?? String(ev(`${ou}/entree`, ''));
+      if (!id) return;
+      const cible = systeme.entrees.get(id);
+      const sorte = cible && systeme.sortes.get(cible.sorte);
+      if (!cible || !sorte?.pour.includes(fiche.etat.type)) {
+        erreurs.push({ ou: `${ou}/entree`, message: `Entrée impossible à donner : ${id}` });
+        return;
+      }
       const rangs = Number(ev(`${ou}/rangs`, 1));
       const duree = c.duree === undefined ? undefined : Number(ev(`${ou}/duree`, 0));
       modifications.push({
         entite: c.entite,
-        entree: c.entree,
+        entree: id,
         operation: c.operation,
         rangs,
         ...(duree !== undefined ? { duree } : {}),
       });
-      const nomEntree = systeme.entrees.get(c.entree)?.nom ?? c.entree;
+      const nomEntree = cible.nom;
       const pendant = duree !== undefined ? ` pendant ${duree} round(s)` : '';
       explications.push(
         `${qui} : ${c.operation === 'donner' ? 'reçoit' : 'perd'} ${nomEntree}${pendant}`,
