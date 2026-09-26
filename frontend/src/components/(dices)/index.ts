@@ -35,5 +35,7 @@ export {
 export {
   Throw3D as Lancer3D,
   type Die3D as De3D,
+  type Die3DSymbol as SymboleDe3D,
   type Throw3DHandle as Lancer3DHandle,
 } from './throw-3d';
+export { symbolDice3D, numericDice3D } from './dice-3d-input';
