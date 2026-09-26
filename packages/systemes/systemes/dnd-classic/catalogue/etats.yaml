@@ -52,3 +52,31 @@
   description: Le personnage inconscient a Incapacitaté, ne peut pas bouger ou parler, et est inconscient. Il laisse tomber tout ce qu'il tient et tombe à terre (prone). Les jets d'attaque contre le personnage ont l'avantage. Toute attaque qui touche le personnage inconscient est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds). Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité.
   effets:
     - { sur: jet, cote: cible, ajout: { variable: avantages, ajouter: 1 } }
+
+- id: dansant
+  sorte: etat
+  nom: Dansant
+  description: Pris d'une danse irrésistible, le personnage subit −4 en Contact, Distance, Magie et Défense.
+  effets:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: -4 }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: -4 }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: -4 }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: -4 }
+- id: desoriente
+  sorte: etat
+  nom: Désorienté
+  description: Le personnage agit au hasard chaque tour (1d6 pour déterminer son action), comme décrit par le sort qui l'a désorienté.
+- id: affaibli
+  sorte: etat
+  nom: Affaibli
+  description: Le personnage subit −2 en attaque, −2 en FOR et −2 aux DM.
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: -2 }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: -2 }
+    - { sur: jet, ajout: { variable: degats, ajouter: -2 } }
+- id: saignant
+  sorte: etat
+  nom: Saignant
+  description: Le personnage perd du sang chaque tour (action « Saignement ») jusqu'à un test de CON réussi ou des soins.

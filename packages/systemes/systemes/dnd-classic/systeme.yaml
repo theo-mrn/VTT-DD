@@ -261,6 +261,10 @@ sortes:
       - { id: carac, nom: Caractéristique choisie, type: attribut, entite: personnage }
       # Sort d'attaque (action « Sort ») : dés de DM et défense visée
       - { id: typeDegats, nom: Type de dégâts du sort, type: texte, defaut: '' }
+      - { id: etat, nom: État infligé par le sort, type: texte, defaut: '' }
+      - { id: dureeNbDes, nom: Dés de durée de l'état, type: nombre, defaut: 0 }
+      - { id: dureeFaces, nom: Faces des dés de durée, type: nombre, defaut: 1 }
+      - { id: dureeBonus, nom: Bonus de durée de l'état (tours), type: formule, defaut: 0 }
       - { id: nbDes, nom: Dés de DM du sort, type: nombre, defaut: 0 }
       - { id: faces, nom: Faces des dés du sort, type: nombre, defaut: 6 }
       - { id: bonusDegats, nom: Bonus aux DM du sort, type: formule }
@@ -1547,8 +1551,18 @@ actions:
           + bonusDM + si(rituel, 2d6, 0)) + si(desDM > 0, des(desDM, 6), 0), 0)
       - *brut
       - *subis
+      - cle: dureeEtat
+        formule: 'si(reussi et capacite.etat != "", des(capacite.dureeNbDes, max(1, capacite.dureeFaces)) + capacite.dureeBonus, 0)'
     consequences:
       - *retirer-pv
+      # État infligé par le sort (Danse irrésistible, Confusion, Peur…) pour sa durée
+      - {
+          condition: 'reussi',
+          entite: cible,
+          entreeCalculee: capacite.etat,
+          operation: donner,
+          duree: dureeEtat,
+        }
 
   - id: attaque-sonore
     nom: Attaque sonore

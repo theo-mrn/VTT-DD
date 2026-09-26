@@ -15,6 +15,7 @@ import {
   EtatEntite,
   executerAction,
   initiative,
+  reduireDegats,
   tirerEtape,
   type EtatEntiteSaisi,
   type Fiche,
@@ -493,7 +494,14 @@ describe('dnd-classic : actions', () => {
     const touche = agir('attaque', thorin(), [14, 6], cuirasse(), epee); // 14 + 3
     expect([touche.reussi, touche.variables.degats]).toEqual([true, 6]);
     expect(touche.modifications).toEqual([
-      { entite: 'cible', attribut: 'PV', operation: 'retirer', valeur: 6 },
+      {
+        entite: 'cible',
+        attribut: 'PV',
+        operation: 'retirer',
+        valeur: 6,
+        type: 'physique',
+        brut: 6,
+      },
     ]);
     // Ratée : aucun dé de dégâts lancé, aucune modification
     const rate = agir('attaque', thorin(), [13], cuirasse(), epee);
@@ -633,7 +641,14 @@ describe('dnd-classic : actions', () => {
     const mage = (rang: number) => elaria([{ entree: 'magicien-magie-destructrice', rang }]);
     const r1 = agir('projectile-magique', mage(1), [3], grok());
     expect(r1.modifications).toEqual([
-      { entite: 'cible', attribut: 'PV', operation: 'retirer', valeur: 3 },
+      {
+        entite: 'cible',
+        attribut: 'PV',
+        operation: 'retirer',
+        valeur: 3,
+        type: 'magique',
+        brut: 3,
+      },
     ]);
     expect(executer('projectile-magique', mage(4), [5], grok()).ok).toBe(true);
     expect(() => agir('projectile-magique', mage(1), [5], grok())).toThrow();
@@ -1057,5 +1072,51 @@ describe('dnd-classic : toutes les actions', () => {
       reussies++;
     }
     expect(reussies).toBe(systeme.actions.size);
+  });
+});
+
+// ─── Types de dégâts et états infligés ──────────────────────────────────────
+
+describe('dnd-classic : dégâts typés et états', () => {
+  it('résistances et immunités raciales', () => {
+    const ameForgee = fiche({ possessions: [{ entree: 'ame_forgee' }, { entree: 'guerrier' }] });
+    expect(reduireDegats(ameForgee, 12, 'feu', 'PV').valeur).toBe(7);
+    expect(reduireDegats(ameForgee, 12, 'physique', 'PV').valeur).toBe(12);
+    const hautElfe = elaria([{ entree: 'race-haut-elfe', rang: 4 }]);
+    expect(reduireDegats(hautElfe, 8, 'poison', 'PV').valeur).toBe(0);
+  });
+
+  it('une attaque d’arme inflige des dégâts physiques', () => {
+    const r = executerAction(systeme, {
+      action: 'attaque',
+      acteur: thorin(),
+      cible: fiche({ possessions: [{ entree: 'ame_forgee' }, { entree: 'guerrier' }] }),
+      parametres: { arme: 'epee-longue' },
+      aleatoire: aleatoireImpose([19, 6]),
+    });
+    if (!r.ok) throw new Error(r.erreurs.map((e) => e.message).join(', '));
+    expect(r.resultat.modifications[0]).toMatchObject({ attribut: 'PV', type: 'physique' });
+  });
+
+  it('Danse irrésistible pose l’état Dansant pour [1d4 + mod. CHA] tours', () => {
+    const barde = elaria([{ entree: 'barde-musicien', rang: 4 }]);
+    const modCha = barde.valeurs.get('CHA')!.modificateur!;
+    const r = executerAction(systeme, {
+      action: 'sort',
+      acteur: barde,
+      cible: grok(),
+      parametres: { capacite: 'barde-musicien-danse-irresistible' },
+      aleatoire: aleatoireImpose([20, 3]),
+    });
+    if (!r.ok) throw new Error(r.erreurs.map((e) => e.message).join(', '));
+    expect(r.resultat.erreurs).toEqual([]);
+    expect(r.resultat.modifications).toEqual([
+      { entite: 'cible', entree: 'dansant', operation: 'donner', rangs: 1, duree: 3 + modCha },
+    ]);
+    const dansant = calculer(
+      systeme,
+      appliquerModifications(grok(), r.resultat.modifications, 'cible'),
+    );
+    expect(Number(dansant.valeur('Defense'))).toBe(Number(grok().valeur('Defense')) - 4);
   });
 });

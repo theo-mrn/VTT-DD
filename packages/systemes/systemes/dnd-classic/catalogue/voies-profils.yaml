@@ -634,7 +634,17 @@
   sorte: capacite
   nom: Danse irrésistible
   etiquettes: [sort]
-  champs: { voie: barde-musicien, rangVoie: 4, activation: 'Action limitée, sortilège', nbDes: 0 }
+  champs:
+    {
+      etat: dansant,
+      dureeNbDes: 1,
+      dureeFaces: 4,
+      dureeBonus: 'mod(@CHA)',
+      voie: barde-musicien,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      nbDes: 0,
+    }
   description: |-
     Effet : la cible danse et subit -4 Contact, Distance, Magie, Défense.
     Durée : [1d4 + mod. CHA] tours
@@ -1697,6 +1707,7 @@
   etiquettes: [sort]
   champs:
     {
+      typeDegats: electricite,
       voie: ensorceleur-air,
       rangVoie: 2,
       activation: 'Action limitée, sortilège',
@@ -1780,7 +1791,14 @@
   nom: Confusion
   etiquettes: [sort]
   champs:
-    { voie: ensorceleur-envouteur, rangVoie: 3, activation: 'Action limitée, sortilège', nbDes: 0 }
+    {
+      etat: desoriente,
+      dureeBonus: '3 + mod(@CHA)',
+      voie: ensorceleur-envouteur,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      nbDes: 0,
+    }
   description: |-
     Effet : désoriente la cible
     Durée : [3 + mod. CHA] tours.
@@ -2284,7 +2302,14 @@
   sorte: capacite
   nom: Métal brillant
   etiquettes: [sort]
-  champs: { voie: forgesort-metal, rangVoie: 2, activation: 'Action limitée, sortilège', nbDes: 0 }
+  champs:
+    {
+      typeDegats: feu,
+      voie: forgesort-metal,
+      rangVoie: 2,
+      activation: 'Action limitée, sortilège',
+      nbDes: 0,
+    }
   description: |-
     Effet : chauffe une pièce métallique de la cible
     Durée : [5 + mod. d'INT] tours.
@@ -3289,6 +3314,10 @@
   etiquettes: [sort]
   champs:
     {
+      etat: affaibli,
+      dureeNbDes: 1,
+      dureeFaces: 6,
+      dureeBonus: 'mod(@INT)',
       voie: magicien-magie-destructrice,
       rangVoie: 2,
       activation: 'Action limitée, sortilège',
@@ -4251,6 +4280,10 @@
   etiquettes: [sort]
   champs:
     {
+      etat: effraye,
+      dureeNbDes: 1,
+      dureeFaces: 4,
+      dureeBonus: 'rang("necromancien-outre-tombe")',
       voie: necromancien-outre-tombe,
       rangVoie: 1,
       activation: 'Action limitée, sortilège',
@@ -4326,7 +4359,15 @@
   nom: Saignements
   etiquettes: [sort]
   champs:
-    { voie: necromancien-sang, rangVoie: 1, activation: 'Action limitée, sortilège', nbDes: 1 }
+    {
+      etat: saignant,
+      typeDegats: necrotique,
+      dureeBonus: 'rang("necromancien-sang")',
+      voie: necromancien-sang,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      nbDes: 1,
+    }
   description: |-
     Effet : 1d6 DM par tour
     Durée : [rang] tours.
@@ -4366,7 +4407,13 @@
   nom: Hémorragie
   etiquettes: [sort]
   champs:
-    { voie: necromancien-sang, rangVoie: 4, activation: 'Action limitée, sortilège', nbDes: 0 }
+    {
+      typeDegats: necrotique,
+      voie: necromancien-sang,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+      nbDes: 0,
+    }
   description: |-
     Effet : +1d6 DM
     Durée : [5 + mod. d'INT] tours.
@@ -5177,7 +5224,14 @@
   nom: Confusion
   etiquettes: [sort]
   champs:
-    { voie: psionique-envouteur, rangVoie: 3, activation: 'Action limitée, sortilège', nbDes: 0 }
+    {
+      etat: desoriente,
+      dureeBonus: '3 + mod(@CHA)',
+      voie: psionique-envouteur,
+      rangVoie: 3,
+      activation: 'Action limitée, sortilège',
+      nbDes: 0,
+    }
   description: |-
     Effet : désoriente la cible
     Durée : [3 + mod. CHA] tours.
