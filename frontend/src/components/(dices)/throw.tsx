@@ -60,6 +60,12 @@ export interface ThrowResult {
  */
 const WARM_DEADLINE_MS = 4000;
 
+/**
+ * Délai après lequel un dé sans aucune donnée du moteur physique fait relancer
+ * ce moteur (voir `physicsEpoch`).
+ */
+const STALL_TIMEOUT_MS = 1500;
+
 /** Safety net: NEVER hold rolls hostage to a warm-up that hangs or is slow. */
 const WarmDeadline = ({ onExpire }: { onExpire: () => void }) => {
   useEffect(() => {
@@ -79,6 +85,7 @@ const Die = React.forwardRef(
       impulse,
       skin,
       onResult,
+      onStall,
       faces,
     }: {
       type: string;
@@ -86,6 +93,8 @@ const Die = React.forwardRef(
       impulse: [number, number, number];
       skin: DiceSkin;
       onResult: (val: string) => void;
+      /** Le moteur physique n'a rien envoyé à ce dé : il faut le relancer. */
+      onStall?: () => void;
       faces?: Die3DSymbol[][];
     },
     fRef: any,
@@ -212,7 +221,26 @@ const Die = React.forwardRef(
     }, [api, impulse]);
 
     const velocity = useRef([0, 0, 0]);
-    useEffect(() => api.velocity.subscribe((v) => (velocity.current = v)), [api]);
+    // Vrai dès que le moteur physique (worker cannon) a envoyé une donnée pour
+    // ce dé. Sans elle, vitesse et orientation sont celles du départ : lire une
+    // face donnerait toujours la même (le « 20 » en boucle quand le worker est
+    // mort, par exemple après un rechargement à chaud).
+    const physicsAlive = useRef(false);
+    useEffect(
+      () =>
+        api.velocity.subscribe((v) => {
+          velocity.current = v;
+          physicsAlive.current = true;
+        }),
+      [api],
+    );
+    useEffect(() => {
+      if (!onStall) return;
+      const t = setTimeout(() => {
+        if (!physicsAlive.current) onStall();
+      }, STALL_TIMEOUT_MS);
+      return () => clearTimeout(t);
+    }, [api, onStall]);
 
     const angularVelocity = useRef([0, 0, 0]);
     useEffect(() => api.angularVelocity.subscribe((v) => (angularVelocity.current = v)), [api]);
@@ -232,6 +260,8 @@ const Die = React.forwardRef(
       if (!canCheck || stopped) return;
 
       const interval = setInterval(() => {
+        // Aucune donnée physique : le dé n'a pas roulé, rien à lire
+        if (!physicsAlive.current) return;
         const v = velocity.current;
         const av = angularVelocity.current;
 
@@ -332,6 +362,22 @@ export const DiceThrower = ({ onReady }: { onReady?: () => void }) => {
   const warmingRef = useRef<string[] | null>(null);
   const queuedRef = useRef<QueuedThrow[]>([]);
   const pendingSkinsRef = useRef(new Set<string>());
+
+  // Le worker de @react-three/cannon ne survit pas à un remontage de <Physics>
+  // pendant un pas de calcul (rechargement à chaud, remontage React) : ses
+  // tampons partent avec l'ancien worker et le nouveau ne calcule plus rien.
+  // Un dé qui ne reçoit aucune donnée relance le moteur (nouvelle clé) ; les
+  // dés en cours sont alors remontés et relancés depuis leur position de départ.
+  const [physicsEpoch, setPhysicsEpoch] = useState(0);
+  const stalledEpochRef = useRef(-1);
+  const handleStall = useCallback(() => {
+    setPhysicsEpoch((epoch) => {
+      if (stalledEpochRef.current === epoch) return epoch;
+      stalledEpochRef.current = epoch;
+      console.warn('Moteur physique des dés sans réponse : relance');
+      return epoch + 1;
+    });
+  }, []);
 
   const handleResult = (rollId: string, type: string, val: string, tag?: string) => {
     if (type === 'd20' && val === '20') {
@@ -580,6 +626,7 @@ export const DiceThrower = ({ onReady }: { onReady?: () => void }) => {
         )}
 
         <Physics
+          key={physicsEpoch}
           gravity={[0, -60, 0]}
           defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }}
           allowSleep={true}
@@ -597,6 +644,7 @@ export const DiceThrower = ({ onReady }: { onReady?: () => void }) => {
               impulse={d.imp}
               skin={getSkinById(d.skinId)}
               onResult={(val) => handleResult(d.rollId, d.type, val, d.tag)}
+              onStall={handleStall}
               faces={d.faces}
             />
           ))}
