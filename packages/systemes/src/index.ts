@@ -1,7 +1,7 @@
 /**
  * Systèmes de référence assemblés au build (`dist/systemes/<id>.json`).
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { charger, type SystemeCharge } from '@vtt/rules';
 
 /** Document brut d'un système de référence (à stocker ou à envoyer au front). */
@@ -17,4 +17,10 @@ export function systeme(id: string): SystemeCharge {
   if (!r.ok)
     throw new Error(`Système ${id} invalide : ${r.erreurs[0]?.chemin} ${r.erreurs[0]?.message}`);
   return r.systeme;
+}
+
+/** Présentation validée d'un système de référence (skins, couleurs, fiche), si elle existe. */
+export function documentPresentation(id: string): unknown {
+  const url = new URL(`./systemes/${id}.presentation.json`, import.meta.url);
+  return existsSync(url) ? (JSON.parse(readFileSync(url, 'utf8')) as unknown) : undefined;
 }

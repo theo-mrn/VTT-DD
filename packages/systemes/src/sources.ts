@@ -7,6 +7,7 @@
  *   arbres/*.yaml      listes d'arbres    → arbres
  *   tables/*.yaml      listes de tables   → tables
  *   textes/*.md        un texte par fichier (titre = premier titre « # »)
+ *   presentation.yaml  présentation (skins, couleurs, fiche) : document séparé
  *
  * Découper en fichiers ne sert qu'à la lisibilité : le résultat est un seul
  * document, validé par `charger()` de @vtt/rules.
@@ -57,6 +58,12 @@ export function lireSysteme(id: string, racine = RACINE): Record<string, unknown
   concat('tables', lireListes(join(dossier, 'tables')));
   concat('textes', lireTextes(join(dossier, 'textes')));
   return base;
+}
+
+/** Présentation du système (`presentation.yaml`), si elle existe (non validée). */
+export function lirePresentation(id: string, racine = RACINE): unknown {
+  const f = join(racine, id, 'presentation.yaml');
+  return existsSync(f) ? (parse(readFileSync(f, 'utf8')) as unknown) : undefined;
 }
 
 export function idsSystemes(racine = RACINE): string[] {
