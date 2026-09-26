@@ -87,6 +87,8 @@ export const register: Module = async (app, deps) => {
             avatarUrl: z.string().nullable(),
             systeme: z.object({ id: z.string(), version: z.string() }),
             type: z.string(),
+            /** Création non terminée (campaign : `creationPersonnages`). */
+            creation: z.boolean(),
           }),
         },
       },
@@ -100,6 +102,7 @@ export const register: Module = async (app, deps) => {
         avatarUrl: l.avatarUrl,
         systeme: { id: l.systemId, version: l.systemVersion },
         type: l.type,
+        creation: l.etat.creation,
       };
     },
   );
