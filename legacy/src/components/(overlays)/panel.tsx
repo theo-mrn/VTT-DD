@@ -1,0 +1,546 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { db, doc, updateDoc, onSnapshot } from "@/lib/firebase";
+import { getCurrentUser, signOut } from "@/data/identity";
+import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
+import { useGame } from "@/contexts/GameContext";
+import { useGameSystem } from "@/modules/game-system/useGameSystem";
+import ProfileOverlay from "@/components/profile/ProfileOverlay";
+import GlobalSettingsDialog from "@/components/(map)/GlobalSettingsDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileCard } from "@/components/ui/profile-card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Settings2 } from "lucide-react";
+import { collection } from 'firebase/firestore';
+// utils helpers
+
+// Resource components are now on the /ressources page
+import { StoreModal } from "@/components/store/store-modal";
+import { RoomUsersManager } from "@/app/home/components/RoomUsersManager";
+import { RoomSettingsManager } from "@/app/home/components/RoomSettingsManager";
+import { ChallengesButton } from '@/components/(challenges)/challenges-button';
+import { toast } from "sonner";
+import FileLibrary from '@/components/(infos)/FileLibrary';
+import GameSystemManagerPanel from '@/components/(fiches)/game-system/GameSystemManagerPanel';
+import GroupEntityPanel from '@/components/(fiches)/group-entity/GroupEntityPanel';
+import ExportImportPanel from '@/components/(fiches)/export-import/ExportImportPanel';
+import { Dices, Rocket, FileJson } from "lucide-react";
+
+type SidebarProps = {
+  onClose: () => void;
+};
+
+export default function Sidebar({ onClose }: SidebarProps) {
+  const router = useRouter();
+  const { isDialogOpen } = useDialogVisibility();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userTitle, setUserTitle] = useState<string | null>(null);
+  const [userProfilePicture, setUserProfilePicture] = useState<string | null>(null);
+  const [userBanner, setUserBanner] = useState<string | null>(null);
+  const [userTimeSpent, setUserTimeSpent] = useState<number>(0);
+  const [userBio, setUserBio] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
+  const [showPremiumBadge, setShowPremiumBadge] = useState<boolean>(true);
+  const [userBorderType, setUserBorderType] = useState<string>("none");
+  const [showMyProfileCard, setShowMyProfileCard] = useState<boolean>(false);
+  const [roomId, setRoomId] = useState<string | null>("");
+  const [showPopover, setShowPopover] = useState<boolean>(false);
+  const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [openDialog, setOpenDialog] = useState<string | null>(null);
+  const [currentDiceSkinId, setCurrentDiceSkinId] = useState<string>("gold");
+  const [currentTokenSrc, setCurrentTokenSrc] = useState<string>("Token1");
+  const { isMJ, isOwner, user: gameUser } = useGame();
+  const { gameSystem } = useGameSystem(gameUser?.roomId ?? null);
+  const groupEntityLabel = gameSystem.groupEntityLabel || 'Entité de groupe';
+
+  const [hasGroupEntities, setHasGroupEntities] = useState(false);
+
+  // On mobile the panel takes most of the width, so submenus must open downward,
+  // not to the right (where there's no room and they'd overflow off-screen).
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  const submenuSide = isMobile ? 'bottom' : 'right';
+
+  // Watch if there are any groupEntities in Firestore for this room — used to hide the panel/button when empty
+  useEffect(() => {
+    if (!roomId) { setHasGroupEntities(false); return; }
+    const colRef = collection(db, `Salle/${roomId}/groupEntities`);
+    const unsub = onSnapshot(colRef, (snap) => {
+      setHasGroupEntities(snap.size > 0);
+    }, () => setHasGroupEntities(false));
+    return () => unsub();
+  }, [roomId]);
+
+  useEffect(() => {
+    const uid = gameUser?.uid;
+    if (!uid) return;
+
+    const userDocRef = doc(db, "users", uid);
+    const unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserName(data.name || "Utilisateur");
+        setUserTitle(data.titre || "Aucun titre");
+        setUserProfilePicture(data.pp || null);
+        setUserBanner(data.imageURL || null);
+        setUserTimeSpent(data.timeSpent || 0);
+        setUserBio(data.bio || null);
+        setIsPremium(data.premium || false);
+        setShowPremiumBadge(data.showPremiumBadge ?? true);
+        setUserBorderType(data.borderType || "none");
+        setRoomId(data.room_id || "");
+        if (data.dice_skin) setCurrentDiceSkinId(data.dice_skin);
+        if (data.token_skin) setCurrentTokenSrc(data.token_skin);
+      } else {
+        console.error("Utilisateur non trouvé dans Firestore");
+      }
+    }, (error) => {
+      console.error("Erreur lors de l'écoute du profil:", error);
+    });
+
+    return () => {
+      unsubscribeSnapshot();
+    };
+  }, [gameUser?.uid]);
+
+  const handleQuitterLaPartie = async () => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      try {
+        await updateDoc(userDocRef, { room_id: "" });
+        router.push("/home");
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour du room_id :", error);
+      }
+    }
+  };
+
+  const handlechangecharacter = () => {
+    router.push("/personnages");
+  };
+
+  const handleVoirProfil = () => {
+    setShowProfileOverlay(true);
+  };
+
+  const handleCopyRoomId = () => {
+    navigator.clipboard.writeText(roomId || "").then(() => {
+      toast.success("Room ID copié dans le presse-papiers !");
+    });
+    setShowPopover(false); // Close popover after copying
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push("/home");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+    }
+  };
+
+  // Hide sidebar when dialog is open
+  if (isDialogOpen) {
+    return null;
+  }
+
+  return (
+    <div className="fixed left-0 top-0 w-80 max-w-[85vw] z-[1000] bg-[var(--bg-card)] shadow-lg flex text-[var(--text-primary)] flex-col h-screen animate-slideInFromLeft">
+      <button
+        className="absolute top-3 right-3 p-1 text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors"
+        onClick={onClose}
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      <div
+        className="relative p-4 border-b border-[var(--border-color)] w-full text-left overflow-hidden group cursor-pointer hover:bg-white/5 transition-colors duration-300"
+        onClick={() => setShowMyProfileCard(true)}
+      >
+        {/* Banner Background */}
+        {userBanner && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+              style={{ backgroundImage: `url(${userBanner})` }}
+            />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
+          </>
+        )}
+
+        <div className="relative flex items-center gap-3 z-10">
+          <div className="relative">
+            <Avatar className="w-11 h-11 border-2 shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 50%, transparent)' }}>
+              <AvatarImage src={userProfilePicture || ""} alt="Profil" className="object-cover" />
+              <AvatarFallback className="bg-[var(--accent-brown)] text-[var(--bg-dark)] font-bold">
+                {(userName || "U").charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center border-2 border-card shadow-xs">
+              {Math.floor(userTimeSpent / 120) + 1}
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-[var(--accent-brown)] truncate drop-shadow-sm">{userName || "Utilisateur"}</h2>
+            <p className="text-sm text-[var(--text-primary)] truncate drop-shadow-sm">{userTitle || "Aucun titre"}</p>
+            {/* Experience bar */}
+            <div className="mt-1.5 cursor-help" title={`Encore ${120 - (userTimeSpent % 120)} minutes de jeu pour atteindre le niveau ${Math.floor(userTimeSpent / 120) + 2}`}>
+              <div className="flex items-center justify-between mb-1 px-0.5">
+                <span className="text-[9px] text-[var(--text-secondary)] uppercase tracking-widest font-bold">Niv. {Math.floor(userTimeSpent / 120) + 1}</span>
+                <span className="text-[9px] text-[var(--text-secondary)] font-bold">{userTimeSpent % 120} / 120 min</span>
+              </div>
+              <div className="h-1.5 bg-zinc-800/80 rounded-full overflow-hidden border border-[var(--border-color)]">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)] transition-all duration-300 ease-out"
+                  style={{ width: `${Math.floor(((userTimeSpent % 120) / 120) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-grow p-2 overflow-y-auto scrollbar-thin">
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={handleVoirProfil}
+        >
+          <User className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Voir le profil</span>
+        </button>
+
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={handlechangecharacter}
+        >
+          <SquareUserRound className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Changer de personnage</span>
+        </button>
+
+        {/* Separator to differentiate settings from info buttons */}
+        <div className="my-2 border-t border-white/10 mx-2" />
+
+        <div className="w-full">
+          <ChallengesButton variant="sidebar" />
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
+              onClick={() => window.open(gameUser?.roomId ? `/ressources?roomId=${gameUser.roomId}` : '/ressources', '_blank')}
+            >
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
+                <span className="text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors font-bold">Ressources & Hub</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={submenuSide}
+            align="start"
+            sideOffset={10}
+            collisionPadding={12}
+            className="w-56 max-w-[calc(100vw-2rem)] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-1 shadow-xl"
+          >
+            <DropdownMenuItem 
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/bestiaire?roomId=${gameUser.roomId}` : '/ressources/bestiaire', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <Skull className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Bestiaire</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/capacites?roomId=${gameUser.roomId}` : '/ressources/capacites', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <Zap className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Capacités</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => window.open('/ressources/images', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <ImageIcon className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Images</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => window.open(gameUser?.roomId ? `/ressources/marche?roomId=${gameUser.roomId}` : '/ressources/marche', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <Store className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Marché</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {isMJ && (
+          <>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("bibliotheque")}
+            >
+              <Library className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
+            </button>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("regles")}
+            >
+              <Dices className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Règles du jeu</span>
+            </button>
+
+            {hasGroupEntities && (
+              <button
+                className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+                onClick={() => setOpenDialog("groupEntity")}
+              >
+                <Rocket className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+                <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">{groupEntityLabel}</span>
+              </button>
+            )}
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("exportImport")}
+            >
+              <FileJson className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Export/Import</span>
+            </button>
+          </>
+        )}
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("boutique")}
+        >
+          <ShoppingCart className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Boutique</span>
+        </button>
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("joueurs")}
+        >
+          <Users className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Joueurs</span>
+        </button>
+
+        <div className="my-2 border-t border-white/10 mx-2" />
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setShowSettings(true)}
+        >
+          <Settings className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Paramètres du plateau</span>
+        </button>
+
+
+        {/* Invite Button with Inline Room ID and Copy Icon */}
+        <div className="relative">
+          <button
+            className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            onClick={() => setShowPopover(!showPopover)}
+          >
+            <Share2 className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+            <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Inviter dans la partie</span>
+          </button>
+          {showPopover && (
+            <div className="absolute left-0 mt-2 w-full bg-[var(--bg-darker)] border border-[var(--border-color)] p-3 rounded shadow-lg flex items-center justify-between z-[1001]">
+              <span className="text-[var(--text-primary)] opacity-80 text-sm">Code :</span>
+              <p className="text-[var(--text-primary)] text-sm font-semibold">{roomId || "Aucun room_id disponible"}</p>
+              <button onClick={handleCopyRoomId} className="hover:opacity-70 transition-opacity">
+                <Clipboard className="w-5 h-6 text-[var(--accent-brown)]" />
+              </button>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      <div className="shrink-0 p-2 border-t border-[var(--border-color)] space-y-1">
+        <button
+          className="w-full flex items-center justify-center gap-3 p-2 text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
+          onClick={handleSignOut}
+        >
+          <LogOut className="w-5 h-5 text-[var(--text-primary)] group-hover:text-white" />
+          <span className="text-[var(--text-primary)] group-hover:text-white transition-colors">Se déconnecter</span>
+        </button>
+        <button
+          className="w-full flex items-center justify-center gap-3 p-2 hover:bg-red-500/10 rounded-lg transition-colors group"
+          onClick={handleQuitterLaPartie}
+        >
+          <LogOut className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
+          <span className="text-red-500 font-medium">Quitter la partie</span>
+        </button>
+      </div>
+
+      {/* Profile Overlay */}
+      {showProfileOverlay && (
+        <ProfileOverlay onClose={() => setShowProfileOverlay(false)} />
+      )}
+
+      {/* Global Settings Dialog */}
+      <GlobalSettingsDialog
+        isOpen={showSettings}
+        onOpenChange={setShowSettings}
+        isMJ={isOwner}
+      />
+
+      {/* Resources are now on a separate page /ressources */}
+
+      <StoreModal
+        isOpen={openDialog === 'boutique'}
+        onClose={() => setOpenDialog(null)}
+        currentDiceSkinId={currentDiceSkinId}
+        onSelectDiceSkin={(skinId) => setCurrentDiceSkinId(skinId)}
+        currentTokenSrc={currentTokenSrc}
+        onSelectTokenSkin={(src) => setCurrentTokenSrc(src)}
+      />
+
+      {openDialog === 'bibliotheque' && (
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] overflow-hidden w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <FileLibrary />
+        </div>
+      )}
+
+      {openDialog === 'regles' && (
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <div className="flex-1 min-h-0">
+            <GameSystemManagerPanel />
+          </div>
+        </div>
+      )}
+
+      {openDialog === 'groupEntity' && hasGroupEntities && (
+        <div className="fixed inset-0 z-[10050] bg-[var(--bg-dark)] w-screen h-screen flex flex-col slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[10060] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <div className="flex-1 min-h-0">
+            <GroupEntityPanel />
+          </div>
+        </div>
+      )}
+
+      {openDialog === 'exportImport' && (
+        <div
+          className="fixed inset-0 z-[10050] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setOpenDialog(null)}
+        >
+          <div
+            className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border shadow-2xl slide-in-from-bottom-2 animate-in duration-300"
+            style={{ borderColor: 'var(--border-color)', background: 'var(--bg-card)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button onClick={() => setOpenDialog(null)} className="absolute top-3 right-3 z-10 p-2 bg-black/40 hover:bg-red-500/80 text-white rounded-full transition-all group">
+              <X className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            </button>
+            <ExportImportPanel />
+          </div>
+        </div>
+      )}
+
+
+      <Dialog open={openDialog === 'joueurs'} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <DialogContent className="sm:max-w-md bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] shadow-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-[var(--border-color)]" style={{ background: 'color-mix(in srgb, var(--bg-dark) 50%, transparent)' }}>
+            <DialogTitle className="text-xl font-serif text-[var(--accent-brown)] flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Gestion de la salle
+            </DialogTitle>
+            <DialogDescription className="hidden">Gérer les joueurs et les paramètres de la salle</DialogDescription>
+          </DialogHeader>
+          <div className="p-0 max-h-[80vh] overflow-y-auto">
+            {roomId ? (
+              <Tabs defaultValue="players" className="w-full">
+                {isOwner && (
+                  <TabsList className="w-full justify-start rounded-none border-b border-[var(--border-color)] bg-transparent p-0 h-12">
+                    <TabsTrigger
+                      value="players"
+                      className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown)] data-[state=active]:bg-white/5 opacity-70 data-[state=active]:opacity-100 transition-all h-full"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Joueurs
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="settings"
+                      className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown)] data-[state=active]:bg-white/5 opacity-70 data-[state=active]:opacity-100 transition-all h-full"
+                    >
+                      <Settings2 className="h-4 w-4 mr-2" />
+                      Paramètres
+                    </TabsTrigger>
+                  </TabsList>
+                )}
+
+                <TabsContent value="players" className="m-0 focus-visible:outline-none">
+                  <RoomUsersManager roomId={roomId} compact />
+                </TabsContent>
+
+                {isOwner && (
+                  <TabsContent value="settings" className="m-0 focus-visible:outline-none">
+                    <RoomSettingsManager roomId={roomId} />
+                  </TabsContent>
+                )}
+              </Tabs>
+            ) : (
+              <p className="text-muted-foreground italic p-6 text-center">Aucune salle en cours...</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Profile Card Preview Dialog */}
+      <Dialog open={showMyProfileCard} onOpenChange={setShowMyProfileCard}>
+        <DialogContent unstyled className="sm:max-w-md p-0 bg-transparent border-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Mon profil</DialogTitle>
+            <DialogDescription>Aperçu de mon profil</DialogDescription>
+          </DialogHeader>
+          <ProfileCard
+            name={userName || undefined}
+            avatarUrl={userProfilePicture || undefined}
+            backgroundUrl={userBanner || undefined}
+            characterName={userTitle || undefined}
+            bio={userBio || undefined}
+            timeSpent={userTimeSpent}
+            borderType={userBorderType as any}
+            isPremium={isPremium && showPremiumBadge}
+            isInitialFriend={true}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

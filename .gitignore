@@ -1,66 +1,44 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
+# ── Dépendances ────────────────────────────────────────────────────────────────
+node_modules
 .pnpm-store/
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
-
-# playwright
-/test-results/
-/playwright-report/
-/blob-report/
-playwright/.cache/
-src/__tests__/playwright/helpers/.session.json
-# next.js
-/starwars-bundle
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-/document.md
-/documentation.md
-/scripts/
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# env files (can opt-in for commiting if needed)
-.env*
-!.env.example
-
-# vercel
-.vercel
-
-# typescript
+# ── Builds et caches (régénérables) ────────────────────────────────────────────
+dist/
+.next/
+out/
+build/
+.turbo/
 *.tsbuildinfo
 next-env.d.ts
+coverage/
 
+# ── Tests ──────────────────────────────────────────────────────────────────────
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+# Session Playwright enregistrée (jeton de connexion)
+legacy/src/__tests__/playwright/helpers/.session.json
 
-/public/Map/
-/public/Cartes/
-/public/Photos/
-/public/Token/
-/public/items/
-/public/Musics/
+# ── Secrets : jamais dans git ──────────────────────────────────────────────────
+.env*
+!.env.example
+*.pem
+certificates/
 
-firestore-debug.log
+# ── Système et éditeurs ────────────────────────────────────────────────────────
+.DS_Store
+*.log
+.vercel
 
-certificates
-# Bundles de règles générés (npm run bundle:zip)
+# ── Ancienne app (legacy) : médias lourds, servis depuis R2 ───────────────
+legacy/public/Map/
+legacy/public/Cartes/
+legacy/public/Photos/
+legacy/public/Token/
+legacy/public/items/
+legacy/public/Musics/
+# Modèle 3D de 65 Mo : trop lourd pour git sans LFS (hébergé sur R2)
+legacy/starwars-bundle/assets/3d/
+# Bundles générés (pnpm bundle:zip)
 *-bundle.zip

@@ -1,0 +1,66 @@
+{{- /*
+Remplace les crons Vercel (l'ancien vercel.json, supprimé).
+Chaque entrée appelle une route HTTP du service dans le cluster, avec
+Authorization: Bearer $CRON_SECRET — l'en-tête déjà attendu par les routes
+(/api/session-reminder, /api/cron/optimize-images).
+L'appel passe par le Service interne, jamais par l'ingress public.
+*/ -}}
+{{- range $nom, $cron := .Values.cronJobs }}
+{{- /* `default` traiterait `false` comme vide : tester explicitement la présence de la clé */}}
+{{- if or (not (hasKey $cron "enabled")) $cron.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "svc.name" $ }}-{{ $nom }}
+  labels: {{- include "svc.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $cron.schedule | quote }}
+  timeZone: {{ $cron.timeZone | default "Europe/Paris" | quote }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: {{ $cron.timeoutSeconds | default 300 }}
+      template:
+        metadata:
+          labels: {{- include "svc.labels" $ | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: curl
+              image: {{ $.Values.cronImage | default "curlimages/curl:8.11.1" | quote }}
+              # Le secret est passé à curl par stdin (--header @-) : il n'apparaît
+              # ni dans args, ni dans `kubectl describe`, ni dans la liste des processus.
+              command: ['sh', '-c']
+              args:
+                - >-
+                  printf 'Authorization: Bearer %s' "$CRON_SECRET" | curl
+                  --fail-with-body --silent --show-error
+                  --max-time {{ $cron.timeoutSeconds | default 300 }}
+                  --header @-
+                  {{ printf "http://%s:%v%s" (include "svc.name" $) $.Values.containerPort $cron.path | quote }}
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $cron.secretName | default (printf "%s-secrets" (include "svc.name" $)) }}
+                      key: CRON_SECRET
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits: { memory: 64Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+{{- end }}
+{{- end }}

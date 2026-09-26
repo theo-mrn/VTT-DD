@@ -1,0 +1,22 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-gateway
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  CORS_ORIGINS: https://yner.fr
+  REDIS_URL: redis://valkey.messaging.svc:6379
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  JWT_ISSUER: https://api.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
+ingress:
+  enabled: true
+  host: api.yner.fr
+networkPolicy:
+  enabled: true
+autoscaling:
+  enabled: true

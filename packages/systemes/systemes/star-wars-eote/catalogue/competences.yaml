@@ -1,0 +1,199 @@
+# Compétences : caractéristique liée (champ) ; étiquettes generale / combat / connaissance, et les
+# actions qui les proposent : initiative, soins, recuperation.
+- id: athletisme
+  sorte: competence
+  nom: Athlétisme
+  etiquettes: [generale]
+  champs: { caracteristique: vigueur }
+
+- id: coordination
+  sorte: competence
+  nom: Coordination
+  etiquettes: [generale]
+  champs: { caracteristique: agilite }
+
+- id: discipline
+  sorte: competence
+  nom: Discipline
+  etiquettes: [generale, recuperation]
+  champs: { caracteristique: volonte }
+
+- id: perception
+  sorte: competence
+  nom: Perception
+  etiquettes: [generale]
+  champs: { caracteristique: ruse }
+
+- id: resistance
+  sorte: competence
+  nom: Résistance
+  etiquettes: [generale]
+  champs: { caracteristique: vigueur }
+
+- id: sens-de-la-rue
+  sorte: competence
+  nom: Sens de la rue
+  etiquettes: [generale]
+  champs: { caracteristique: ruse }
+
+- id: sang-froid
+  sorte: competence
+  nom: Sang-froid
+  etiquettes: [generale, initiative, recuperation]
+  champs: { caracteristique: presence }
+
+- id: vigilance
+  sorte: competence
+  nom: Vigilance
+  etiquettes: [generale, initiative]
+  champs: { caracteristique: ruse }
+
+- id: tromperie
+  sorte: competence
+  nom: Tromperie
+  etiquettes: [generale]
+  champs: { caracteristique: ruse }
+
+- id: charme
+  sorte: competence
+  nom: Charme
+  etiquettes: [generale]
+  champs: { caracteristique: presence }
+
+- id: negociation
+  sorte: competence
+  nom: Négociation
+  etiquettes: [generale]
+  champs: { caracteristique: presence }
+
+- id: magouilles
+  sorte: competence
+  nom: Magouilles
+  etiquettes: [generale]
+  champs: { caracteristique: agilite }
+
+- id: discretion
+  sorte: competence
+  nom: Discrétion
+  etiquettes: [generale]
+  champs: { caracteristique: agilite }
+
+- id: coercition
+  sorte: competence
+  nom: Coercition
+  etiquettes: [generale]
+  champs: { caracteristique: volonte }
+
+- id: commandement
+  sorte: competence
+  nom: Commandement
+  etiquettes: [generale]
+  champs: { caracteristique: presence }
+
+- id: informatique
+  sorte: competence
+  nom: Informatique
+  etiquettes: [generale]
+  champs: { caracteristique: intellect }
+
+- id: mecanique
+  sorte: competence
+  nom: Mécanique
+  etiquettes: [generale, soins]
+  champs: { caracteristique: intellect }
+
+- id: medecine
+  sorte: competence
+  nom: Médecine
+  etiquettes: [generale, soins]
+  champs: { caracteristique: intellect }
+
+- id: survie
+  sorte: competence
+  nom: Survie
+  etiquettes: [generale]
+  champs: { caracteristique: ruse }
+
+- id: artillerie
+  sorte: competence
+  nom: Artillerie
+  etiquettes: [combat]
+  champs: { caracteristique: agilite }
+
+- id: corps-a-corps
+  sorte: competence
+  nom: Corps à corps
+  etiquettes: [combat]
+  champs: { caracteristique: vigueur }
+
+- id: melee
+  sorte: competence
+  nom: Mêlée
+  etiquettes: [combat]
+  champs: { caracteristique: vigueur }
+
+- id: distance-legere
+  sorte: competence
+  nom: Distance (armes légères)
+  etiquettes: [combat]
+  champs: { caracteristique: agilite }
+
+- id: distance-lourde
+  sorte: competence
+  nom: Distance (armes lourdes)
+  etiquettes: [combat]
+  champs: { caracteristique: agilite }
+
+- id: pilotage-planetaire
+  sorte: competence
+  nom: Pilotage (planétaire)
+  etiquettes: [generale]
+  champs: { caracteristique: agilite }
+
+- id: pilotage-spatial
+  sorte: competence
+  nom: Pilotage (spatial)
+  etiquettes: [generale]
+  champs: { caracteristique: agilite }
+
+- id: astrogation
+  sorte: competence
+  nom: Astrogation
+  etiquettes: [generale]
+  champs: { caracteristique: intellect }
+
+- id: connaissance-noyau
+  sorte: competence
+  nom: Connaissance (Mondes du Noyau)
+  etiquettes: [connaissance]
+  champs: { caracteristique: intellect }
+
+- id: connaissance-education
+  sorte: competence
+  nom: Connaissance (Éducation)
+  etiquettes: [connaissance]
+  champs: { caracteristique: intellect }
+
+- id: connaissance-traditions
+  sorte: competence
+  nom: Connaissance (Traditions)
+  etiquettes: [connaissance]
+  champs: { caracteristique: intellect }
+
+- id: connaissance-bordure
+  sorte: competence
+  nom: Connaissance (Bordure Extérieure)
+  etiquettes: [connaissance]
+  champs: { caracteristique: intellect }
+
+- id: connaissance-pegre
+  sorte: competence
+  nom: Connaissance (Pègre)
+  etiquettes: [connaissance]
+  champs: { caracteristique: intellect }
+
+- id: connaissance-xenologie
+  sorte: competence
+  nom: Connaissance (Xénologie)
+  etiquettes: [connaissance]
+  champs: { caracteristique: intellect }

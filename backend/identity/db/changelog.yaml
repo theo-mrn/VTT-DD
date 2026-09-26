@@ -1,0 +1,12 @@
+# Schéma du service identity, appliqué par Liquibase avec le rôle identity_owner.
+# Un fichier par changement, jamais modifié une fois fusionné : on en ajoute un nouveau.
+databaseChangeLog:
+  - include: { file: changes/0001-comptes.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0002-sessions.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0003-outbox.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0004-securite.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0005-titres.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0006-amis.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0007-cles-api.sql, relativeToChangelogFile: true }
+  # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
+  - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

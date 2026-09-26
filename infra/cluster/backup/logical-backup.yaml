@@ -1,0 +1,115 @@
+# Deuxième ligne de défense, indépendante de CNPG :
+# un pg_dump par schéma chaque nuit, chiffré côté client (rclone crypt),
+# envoyé dans un AUTRE bucket avec d'autres identifiants (idéalement avec
+# verrouillage d'objets activé côté R2). Protège contre une corruption
+# logique répliquée, une erreur de manipulation ou la perte du bucket CNPG.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-logical-backup
+  namespace: data
+spec:
+  schedule: '30 3 * * *'
+  timeZone: Europe/Paris
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 26
+            fsGroup: 26
+            seccompProfile: { type: RuntimeDefault }
+          initContainers:
+            - name: dump
+              image: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
+              command: ['/bin/bash', '-ec']
+              args:
+                - |
+                  stamp=$(date -u +%Y-%m-%dT%H%MZ)
+                  mkdir -p /backup/$stamp
+                  for schema in identity billing campaign characters history; do
+                    pg_dump --format=custom --compress=zstd:6 --schema="$schema" \
+                      --file="/backup/$stamp/$schema.dump" vtt
+                  done
+                  pg_dumpall --globals-only --no-role-passwords > /backup/$stamp/globals.sql
+                  # Contrôle d'intégrité : l'archive doit être lisible
+                  for f in /backup/$stamp/*.dump; do pg_restore --list "$f" > /dev/null; done
+                  (cd /backup/$stamp && sha256sum * > SHA256SUMS)
+                  echo "$stamp" > /backup/LATEST
+              env:
+                - { name: PGHOST, value: vtt-pg-r } # réplica : aucune charge sur le primaire
+                - { name: PGUSER, value: backup_ro }
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: pg-backup-ro, key: password } }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: backup, mountPath: /backup }
+                - { name: tmp, mountPath: /tmp }
+          containers:
+            - name: upload
+              image: rclone/rclone:1.71
+              args: ['copy', '/backup', 'vault:', '--exclude', 'LATEST', '-v']
+              # Secret SOPS logical-backup-rclone : toutes les variables RCLONE_CONFIG_*
+              #   R2 (remote S3 brut) : RCLONE_CONFIG_R2_TYPE=s3, _PROVIDER=Cloudflare, _ENDPOINT,
+              #     _ACCESS_KEY_ID, _SECRET_ACCESS_KEY, _NO_CHECK_BUCKET=true
+              #   VAULT (chiffré, noms compris) : RCLONE_CONFIG_VAULT_TYPE=crypt,
+              #     _REMOTE=r2:vtt-logical-backups/pg, _PASSWORD et _PASSWORD2 (sortie de `rclone obscure`)
+              # La clé de chiffrement est aussi rangée HORS du cluster (gestionnaire de mots de passe) :
+              # sans elle, les dumps sont illisibles, y compris pour nous.
+              envFrom:
+                - secretRef: { name: logical-backup-rclone }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              volumeMounts:
+                - { name: backup, mountPath: /backup, readOnly: true }
+                - { name: tmp, mountPath: /tmp }
+          volumes:
+            - name: backup
+              emptyDir: { sizeLimit: 10Gi }
+            - name: tmp
+              emptyDir: { sizeLimit: 256Mi }
+---
+# Rétention : 30 jours de dumps quotidiens (les suppressions restent bloquées
+# par le verrouillage d'objets du bucket s'il est actif).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-logical-backup-prune
+  namespace: data
+spec:
+  schedule: '0 5 * * 0'
+  timeZone: Europe/Paris
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: prune
+              image: rclone/rclone:1.71
+              args: ['delete', 'r2:vtt-logical-backups/pg', '--min-age', '30d', '-v']
+              envFrom:
+                - secretRef: { name: logical-backup-rclone }
+              securityContext:
+                {
+                  allowPrivilegeEscalation: false,
+                  readOnlyRootFilesystem: true,
+                  capabilities: { drop: [ALL] },
+                }

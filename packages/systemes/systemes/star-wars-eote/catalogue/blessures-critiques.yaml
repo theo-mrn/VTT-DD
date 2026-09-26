@@ -1,0 +1,112 @@
+# Blessures critiques (personnages) et dommages critiques (véhicules), donnés par les tables
+# « blessures-critiques » et « dommages-critiques-vehicule ». Elles se possèdent par rangs (un rang
+# par fois où elles ont été subies) ; la somme des rangs donne « critiquesSubis ».
+- {
+    id: egratignure,
+    sorte: blessureCritique,
+    nom: Égratignure,
+    description: '+1 stress, aucun autre effet.',
+  }
+- {
+    id: contusion,
+    sorte: blessureCritique,
+    nom: Contusion,
+    description: "Gêne narrative, pas d'effet mécanique persistant.",
+  }
+- {
+    id: coupure,
+    sorte: blessureCritique,
+    nom: Coupure,
+    description: '-1 aux jets de Vigilance et de Perception le temps de la scène.',
+  }
+- {
+    id: meurtrissure,
+    sorte: blessureCritique,
+    nom: Meurtrissure,
+    description: "-1 à une caractéristique physique (au choix du MJ selon la zone touchée) jusqu'à soin.",
+  }
+- {
+    id: blessure-ouverte,
+    sorte: blessureCritique,
+    nom: Blessure ouverte modérée,
+    description: '1 blessure supplémentaire immédiate ; test de Résistance Moyen ou étourdi 1 round.',
+  }
+- {
+    id: fracture,
+    sorte: blessureCritique,
+    nom: Fracture,
+    description: "Retire un dé d'Aptitude et ajoute un dé d'Infortune aux actions utilisant le membre touché, jusqu'à soin médical complet.",
+  }
+- {
+    id: blessure-profonde,
+    sorte: blessureCritique,
+    nom: Blessure profonde,
+    description: '1 blessure supplémentaire et étourdi le round suivant.',
+  }
+- {
+    id: hemorragie,
+    sorte: blessureCritique,
+    nom: Hémorragie,
+    description: "1 blessure supplémentaire à chaque round tant qu'aucun soin n'est reçu.",
+  }
+- {
+    id: mutilation,
+    sorte: blessureCritique,
+    nom: Mutilation,
+    description: "Perte fonctionnelle d'un membre (remplaçable par un membre cybernétique) ; -2 aux actions liées jusqu'au remplacement.",
+  }
+- {
+    id: traumatisme-severe,
+    sorte: blessureCritique,
+    nom: Traumatisme sévère,
+    description: 'Neutralisé immédiatement ; test de Résistance Difficile en fin de scène sans soin, échec = mort.',
+  }
+- {
+    id: blessure-mortelle,
+    sorte: blessureCritique,
+    nom: Blessure mortelle,
+    description: "Mort dans 1d5 rounds sauf soin d'urgence réussi (Médecine Difficile, matériel médical requis).",
+  }
+- {
+    id: mort,
+    sorte: blessureCritique,
+    nom: Mort instantanée,
+    description: 'Aucun jet de sauvetage.',
+  }
+
+- {
+    id: dommage-cosmetique,
+    sorte: panneCritique,
+    nom: Dommage cosmétique,
+    description: 'Aucun effet mécanique.',
+  }
+- {
+    id: systeme-secondaire-touche,
+    sorte: panneCritique,
+    nom: Système secondaire touché,
+    description: "Un système non essentiel tombe en panne ; 1 dé d'Infortune aux jets liés à ce système.",
+  }
+- {
+    id: systeme-cle-endommage,
+    sorte: panneCritique,
+    nom: Système clé endommagé,
+    description: "Armement, bouclier ou propulsion secondaire dégradé : pénalité de dé sur les actions liées jusqu'à réparation.",
+  }
+- {
+    id: systeme-critique-en-panne,
+    sorte: panneCritique,
+    nom: Système critique en panne,
+    description: "Moteur ou armement principal hors service jusqu'à réparation d'urgence.",
+  }
+- {
+    id: breche-de-coque,
+    sorte: panneCritique,
+    nom: Brèche de coque,
+    description: 'Dépressurisation ou incendie : blessures aux occupants à chaque round non maîtrisé, en plus de la panne.',
+  }
+- {
+    id: destruction,
+    sorte: panneCritique,
+    nom: Destruction,
+    description: 'Le véhicule est une épave ; les occupants doivent évacuer.',
+  }

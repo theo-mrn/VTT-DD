@@ -1,0 +1,7 @@
+# Revue obligatoire sur les zones sensibles (protection de branche : « Require review from Code Owners »)
+*                       @theo-mrn
+/.github/               @theo-mrn
+/infra/                 @theo-mrn
+/packages/platform/     @theo-mrn
+/backend/billing/      @theo-mrn
+/backend/identity/     @theo-mrn

@@ -1,0 +1,159 @@
+# PostgreSQL HA par CloudNativePG, image PostGIS officielle CNPG.
+# Prérequis : opérateur CNPG + plugin Barman Cloud installés (Argo CD, namespace cnpg-system).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: vtt-pg
+  namespace: data
+spec:
+  # 1 primaire + 2 réplicas dès qu'il y a 3 nœuds ; mettre 1 sur un nœud unique
+  instances: 3
+  # PostgreSQL 17 + PostGIS 3.5, build 177 de CloudNativePG (le tag « 17-3.5 »
+  # seul n'existe pas), épinglé par digest. Image publiée en amd64 uniquement :
+  # les nœuds k3s qui portent Postgres doivent être en x86_64.
+  imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
+  primaryUpdateStrategy: unsupervised
+
+  postgresql:
+    shared_preload_libraries: [pg_stat_statements]
+    parameters:
+      wal_level: logical # permet un CDC (Debezium, pgoutput) plus tard si besoin
+      max_connections: '200'
+      shared_buffers: 512MB
+      log_min_duration_statement: '250ms'
+      pg_stat_statements.track: all
+      idle_in_transaction_session_timeout: '30s'
+
+  bootstrap:
+    initdb:
+      database: vtt
+      owner: vtt_owner
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: vtt-pg-init
+            key: schemas.sql
+
+  # Un rôle par service ; mots de passe générés et stockés dans des Secrets
+  managed:
+    roles:
+      # Propriétaires des schémas : utilisés seulement par les Jobs Liquibase (DDL)
+      - {
+          name: identity_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-identity-owner },
+        }
+      - {
+          name: billing_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-billing-owner },
+        }
+      - {
+          name: campaign_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-campaign-owner },
+        }
+      - {
+          name: characters_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-characters-owner },
+        }
+      - {
+          name: history_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-history-owner },
+        }
+      # Rôles des services : données uniquement (DML)
+      - { name: identity_svc, ensure: present, login: true, passwordSecret: { name: pg-identity } }
+      - { name: billing_svc, ensure: present, login: true, passwordSecret: { name: pg-billing } }
+      - { name: campaign_svc, ensure: present, login: true, passwordSecret: { name: pg-campaign } }
+      - {
+          name: characters_svc,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-characters },
+        }
+      - { name: history_svc, ensure: present, login: true, passwordSecret: { name: pg-history } }
+      - {
+          name: backup_ro,
+          ensure: present,
+          login: true,
+          inRoles: [pg_read_all_data],
+          passwordSecret: { name: pg-backup-ro },
+        }
+
+  storage:
+    size: 20Gi
+    storageClass: local-path # la réplication est assurée par Postgres, pas par le stockage
+  walStorage:
+    size: 5Gi
+    storageClass: local-path
+
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+
+  monitoring:
+    enablePodMonitor: true
+
+  # Sauvegarde physique continue (WAL) + PITR vers R2
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: r2-backups
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: r2-backups
+  namespace: data
+spec:
+  retentionPolicy: '30d'
+  configuration:
+    destinationPath: s3://vtt-pg-backups/vtt-pg
+    endpointURL: https://ACCOUNT_ID.r2.cloudflarestorage.com
+    s3Credentials:
+      accessKeyId: { name: r2-backup-credentials, key: ACCESS_KEY_ID }
+      secretAccessKey: { name: r2-backup-credentials, key: SECRET_ACCESS_KEY }
+    wal:
+      compression: gzip
+      maxParallel: 4
+    data:
+      compression: gzip
+      jobs: 2
+---
+# Sauvegarde complète quotidienne (les WAL couvrent l'intervalle : restauration à la seconde près)
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: vtt-pg-daily
+  namespace: data
+spec:
+  schedule: '0 0 3 * * *' # format cron à 6 champs (secondes)
+  backupOwnerReference: self
+  cluster: { name: vtt-pg }
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+---
+# Les services passent par PgBouncer (mode transaction).
+# Exception : le relais d'outbox fait LISTEN, il se connecte à vtt-pg-rw directement.
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: vtt-pg-pooler
+  namespace: data
+spec:
+  cluster: { name: vtt-pg }
+  instances: 2
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: '1000'
+      default_pool_size: '20'

@@ -1,0 +1,287 @@
+# Nooblies Chroniques — porté depuis legacy/nooblies-chroniques.json.
+# Six caractéristiques tirées (1d15 + 5), modificateurs raciaux en effets,
+# stats de combat dérivées, PV = 1 + mod(CON) + dé de vie du profil.
+format: 1
+id: nooblies
+version: 1.0.0
+nom: Nooblies Chroniques
+description: >-
+  Système classique : 6 caractéristiques tirées au dé (3 paires / 3 impaires,
+  somme des modificateurs = 6), stats de combat dérivées, PV, races et profils
+  avec capacités raciales.
+
+# Modificateur commun à toutes les caractéristiques
+modificateur: floor((valeur - 10) / 2)
+
+entites:
+  - id: personnage
+    nom: Personnage
+    groupes:
+      - { id: caracteristiques, nom: Caractéristiques }
+      - { id: combat, nom: Combat }
+      - { id: vitaux, nom: Vitaux }
+    attributs:
+      # ─── Caractéristiques ───────────────────────────────────────────────
+      - {
+          cle: FOR,
+          nom: Force,
+          abrege: FOR,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: DEX,
+          nom: Dextérité,
+          abrege: DEX,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: CON,
+          nom: Constitution,
+          abrege: CON,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: SAG,
+          nom: Sagesse,
+          abrege: SAG,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: INT,
+          nom: Intelligence,
+          abrege: INT,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: CHA,
+          nom: Charisme,
+          abrege: CHA,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+
+      # ─── Combat ─────────────────────────────────────────────────────────
+      - {
+          cle: Defense,
+          nom: Défense,
+          abrege: Déf,
+          nature: derivee,
+          formule: '18 + mod(@DEX)',
+          groupe: combat,
+        }
+      - {
+          cle: Contact,
+          nom: Contact,
+          abrege: Ctt,
+          nature: derivee,
+          formule: '1 + mod(@FOR)',
+          groupe: combat,
+        }
+      - {
+          cle: Distance,
+          nom: Distance,
+          abrege: Dst,
+          nature: derivee,
+          formule: '1 + mod(@DEX)',
+          groupe: combat,
+        }
+      - {
+          cle: Magie,
+          nom: Magie,
+          abrege: Mag,
+          nature: derivee,
+          formule: '1 + mod(@CHA)',
+          groupe: combat,
+        }
+      - {
+          cle: INIT,
+          nom: Initiative,
+          abrege: INIT,
+          nature: derivee,
+          formule: '@DEX',
+          groupe: combat,
+        }
+
+      # ─── Vitaux ─────────────────────────────────────────────────────────
+      - cle: facesDeVie
+        nom: Dé de vie
+        description: Nombre de faces du dé de vie, donné par le profil.
+        nature: derivee
+        formule: somme("profil", "deVie")
+        groupe: vitaux
+      - cle: jetDeVie
+        nom: Jet de dé de vie
+        description: Résultat du dé de vie, tiré une seule fois à la création puis conservé.
+        nature: base
+        defaut: 0
+        min: 0
+        max: '@facesDeVie'
+        groupe: vitaux
+        visibilite: mj
+      - {
+          cle: PV_Max,
+          nom: PV max,
+          nature: derivee,
+          formule: '1 + mod(@CON) + @jetDeVie',
+          groupe: vitaux,
+        }
+      - {
+          cle: PV,
+          nom: PV,
+          nature: ressource,
+          max: '@PV_Max',
+          min: 0,
+          initiale: max,
+          recuperation: max,
+          groupe: vitaux,
+        }
+
+sortes:
+  - id: race
+    nom: Race
+    nomPluriel: Races
+    pour: [personnage]
+    maximum: 1
+    champs:
+      - { id: tailleMoyenne, nom: Taille moyenne (cm), type: nombre }
+      - { id: poidsMoyen, nom: Poids moyen (kg), type: nombre }
+  - id: profil
+    nom: Profil
+    nomPluriel: Profils
+    pour: [personnage]
+    maximum: 1
+    champs:
+      - { id: deVie, nom: Dé de vie (faces), type: nombre, defaut: 0 }
+  - id: capacite
+    nom: Capacité raciale
+    nomPluriel: Capacités raciales
+    description: >-
+      Capacité accordée par une race (un rang gratuit la fait posséder).
+      Étiquette « test » : bonus situationnel invoqué au test de caractéristique.
+    pour: [personnage]
+    rangs: { max: 1 }
+    champs:
+      - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
+
+creation:
+  - entite: personnage
+    etapes:
+      - { id: race, nom: Race, type: choisir, sorte: race }
+      - { id: profil, nom: Profil, type: choisir, sorte: profil }
+      - id: caracteristiques
+        nom: Caractéristiques
+        description: >-
+          Chaque caractéristique est tirée à 1d15 + 5, dans l'ordre. Le tirage
+          est recommencé tant qu'il n'a pas exactement 3 valeurs paires et 3
+          impaires et une somme des modificateurs égale à 6. Les modificateurs
+          raciaux s'appliquent ensuite (effets de la race).
+        type: tirer
+        groupe: caracteristiques
+        formule: 1d15 + 5
+        attribution: ordre
+        contrainte: pairs == 3 et somme_modificateurs == 6
+        relancer: true
+      - id: de-de-vie
+        nom: Dé de vie
+        description: Le dé de vie du profil est lancé une fois ; PV max = 1 + mod(CON) + ce jet.
+        type: tirer
+        attributs: [jetDeVie]
+        formule: des(1, @facesDeVie)
+        attribution: ordre
+
+actions:
+  # Attaque : 1d20 + score d'attaque choisi contre la Défense de la cible ;
+  # dégâts saisis (aucun par défaut), retirés des PV de la cible si elle touche.
+  # Instinct de survie (cible) : DM qui l'amèneraient à 0 PV divisés par 2.
+  - id: attaque
+    nom: Attaque
+    pour: [personnage]
+    cible: personnage
+    parametres:
+      - { id: score, nom: Attaque, type: attribut, attributs: [Contact, Distance, Magie] }
+      - { id: nbDes, nom: Dés de dégâts, type: nombre, defaut: 0 }
+      - { id: faces, nom: Faces des dés, type: nombre, defaut: 6 }
+      - { id: bonus, nom: Bonus aux dégâts, type: nombre, defaut: 0 }
+    variables: &vars-attaque
+      - { cle: instinct, formule: 0 }
+    jet: { type: numerique, formule: 1d20 + valeur(score), reussite: total >= @cible.Defense }
+    apres:
+      - cle: degats
+        formule: 'si(reussi et (nbDes > 0 ou bonus > 0), max(0, des(nbDes, faces) + bonus), 0)'
+      - &subis
+        cle: subis
+        formule: 'si(degats > 0 et instinct > 0 et degats >= @cible.PV, max(1, floor(degats / 2)), degats)'
+    consequences:
+      - &retirer-pv {
+          condition: 'subis > 0',
+          entite: cible,
+          attribut: PV,
+          operation: retirer,
+          valeur: subis,
+        }
+
+  # Capacité raciale du minotaure : attaque de corne à la place d'une attaque normale
+  - id: coup-de-corne
+    nom: Coup de corne
+    description: Attaque au contact de corne, [1d6 + mod. FOR] DM si elle touche.
+    pour: [personnage]
+    exige: possede("coup-de-corne")
+    cible: personnage
+    variables: *vars-attaque
+    jet: { type: numerique, formule: 1d20 + @Contact, reussite: total >= @cible.Defense }
+    apres:
+      - { cle: degats, formule: 'si(reussi, max(0, 1d6 + mod(@FOR)), 0)' }
+      - *subis
+    consequences:
+      - *retirer-pv
+
+  - id: initiative
+    nom: Initiative
+    pour: [personnage]
+    jet: { type: numerique, formule: 1d20 + @INIT }
+
+  # Test de caractéristique : 1d20 + modificateur de la caractéristique choisie,
+  # + le bonus d'une capacité invoquée (« +5 aux tests d'orientation »)
+  - id: test
+    nom: Test de caractéristique
+    pour: [personnage]
+    parametres:
+      - { id: caracteristique, nom: Caractéristique, type: attribut, groupe: caracteristiques }
+      - { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
+      - id: atout
+        nom: Capacité invoquée
+        type: entree
+        sorte: capacite
+        etiquette: test
+        facultatif: true
+    jet:
+      type: numerique
+      formule: 1d20 + modificateur(caracteristique) + atout.bonusTest
+      reussite: total >= difficulte
+
+initiative:
+  action: initiative
+  tri: [total]

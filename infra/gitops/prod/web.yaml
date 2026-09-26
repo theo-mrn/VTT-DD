@@ -1,0 +1,35 @@
+image:
+  repository: ghcr.io/theo-mrn/vtt-web
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 768Mi }
+env:
+  NODE_ENV: production
+envFromSecrets:
+  - name: web-secrets # SOPS : clés Firebase/Stripe/Resend tant que la migration n'est pas finie
+probes:
+  liveness: /api/healthz
+  readiness: /api/healthz
+writablePaths:
+  - /app/frontend/.next/cache
+# Remplacent les crons de l'ancien vercel.json (supprimé).
+# Horaires laissés en UTC, comme sur Vercel, pour ne rien décaler.
+cronJobs:
+  session-reminder:
+    schedule: '0 8 * * *'
+    timeZone: Etc/UTC
+    path: /api/session-reminder
+    secretName: web-secrets
+  optimize-images:
+    schedule: '0 2 * * *'
+    timeZone: Etc/UTC
+    path: /api/cron/optimize-images
+    # La route se limite déjà à 60 s de traitement par lots
+    timeoutSeconds: 120
+    secretName: web-secrets
+ingress:
+  enabled: true
+  host: www.yner.fr

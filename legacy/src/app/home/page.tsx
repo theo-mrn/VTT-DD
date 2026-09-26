@@ -1,0 +1,480 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Play, Users, ArrowLeft, Settings, Gamepad2, ArrowRight, Globe, Loader2 } from 'lucide-react'
+import { db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
+import { getCurrentUser, getPublicProfile, useSession } from '@/data/identity'
+import { AppNavbar } from '@/components/layout/AppNavbar'
+import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
+import { StoreModal } from '@/components/store/store-modal'
+import { RoomUsersManager } from '@/app/home/components/RoomUsersManager'
+import { RoomChat } from '@/app/home/components/RoomChat'
+import { RoomSessions } from '@/app/home/components/RoomSessions'
+import { AppBackground } from '@/components/ui/background-components'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { Aclonica } from "next/font/google"
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from "@/components/ui/input-otp"
+import { REGEXP_ONLY_DIGITS } from "input-otp"
+
+const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
+
+interface Room {
+  id: string;
+  title: string;
+  description: string;
+  maxPlayers: number;
+  imageUrl?: string;
+  isPublic: boolean;
+  creatorId?: string;
+  allowCharacterCreation?: boolean;
+  bannedUsers?: string[];
+  occupantsCount?: number;
+}
+
+const fetchRoomByCode = async (code: string): Promise<Room | null> => {
+  if (!code || code.trim() === '') return null
+  const roomDoc = await getDoc(doc(db, 'Salle', code))
+  if (roomDoc.exists()) {
+    const data = roomDoc.data()
+    const nomsSnapshot = await getDocs(collection(db, `salles/${code}/Noms`))
+    const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+    return { id: roomDoc.id, ...data, occupantsCount: playersOnly } as Room
+  }
+  return null
+}
+
+// Profil public du créateur, servi par le cache partagé (une lecture par personne)
+const fetchCreatorInfo = async (creatorId: string) => {
+  const profil = await getPublicProfile(creatorId)
+  return profil ? { name: profil.name ?? '', pp: profil.pp ?? '' } : null
+}
+
+export default function RejoindrePageComponent() {
+  const [roomCode, setRoomCode] = useState('')
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
+  const [creatorInfo, setCreatorInfo] = useState<{ name: string; pp: string } | null>(null)
+  const [publicRooms, setPublicRooms] = useState<Room[]>([])
+  // Session partagée : aucune requête ici, le profil est suivi en temps réel par le store
+  const { user: sessionUser, profile } = useSession()
+  const userId = sessionUser?.uid ?? null
+  const userData = profile?.raw ?? null
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isStoreOpen, setIsStoreOpen] = useState(false)
+  const [isFindingRoom, setIsFindingRoom] = useState(false)
+  const [isJoining, setIsJoining] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchPublicRooms = async () => {
+      const roomCollection = collection(db, 'Salle')
+      const roomSnapshot = await getDocs(roomCollection)
+      const publicRoomDocs = roomSnapshot.docs.filter(roomDoc => roomDoc.data().isPublic)
+
+      // Lectures des sous-collections Noms en parallèle plutôt qu'en séquentiel :
+      // ne change pas le nombre de lectures facturées, mais évite d'attendre N allers-retours réseau à la suite.
+      const publicRoomList = await Promise.all(publicRoomDocs.map(async (roomDoc) => {
+        const data = roomDoc.data()
+        const nomsSnapshot = await getDocs(collection(db, `salles/${roomDoc.id}/Noms`))
+        const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+        return { id: roomDoc.id, ...data, occupantsCount: playersOnly } as Room
+      }))
+      setPublicRooms(publicRoomList)
+    }
+
+    fetchPublicRooms()
+  }, [])
+
+  useEffect(() => {
+    if (selectedRoom && selectedRoom.creatorId) {
+      const getCreatorInfo = async () => {
+        const info = await fetchCreatorInfo(selectedRoom.creatorId!)
+        if (info) {
+          setCreatorInfo(info)
+        }
+      }
+      getCreatorInfo()
+    }
+  }, [selectedRoom])
+
+  const handleJoinRoom = async (code: string) => {
+    if (!code || code.trim() === '') {
+      toast.error("Veuillez entrer un code valide")
+      return
+    }
+    if (isFindingRoom) return
+    setIsFindingRoom(true)
+    try {
+      const room = await fetchRoomByCode(code)
+      if (room) {
+        setSelectedRoom(room)
+      } else {
+        toast.error("Aucune salle trouvée avec ce code")
+      }
+    } finally {
+      setIsFindingRoom(false)
+    }
+  }
+
+  const handleJoin = async (room: Room) => {
+    const user = getCurrentUser()
+    if (!user) {
+      toast.error("Vous devez être connecté")
+      return
+    }
+    if (isJoining) return
+    setIsJoining(true)
+
+    try {
+      const roomRef = doc(db, 'Salle', room.id)
+      const roomDoc = await getDoc(roomRef)
+
+      if (roomDoc.exists()) {
+        const roomData = roomDoc.data() as Room
+
+        if (roomData.bannedUsers?.includes(user.uid)) {
+          toast.error("Vous avez été banni de cette salle.")
+          return
+        }
+
+        const isOwner = roomData.creatorId === user.uid
+        const userRoomListRef = doc(db, `users/${user.uid}/rooms`, room.id)
+        const userRoomDoc = await getDoc(userRoomListRef)
+        const alreadyInRoom = userRoomDoc.exists()
+
+        if (!isOwner && !alreadyInRoom) {
+          const nomsSnapshot = await getDocs(collection(db, `salles/${room.id}/Noms`))
+          const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+
+          if (playersOnly >= roomData.maxPlayers) {
+            toast.error("Désolé, cette salle a atteint sa limite de joueurs.")
+            return
+          }
+        }
+      }
+
+      const userRoomListRef = doc(db, `users/${user.uid}/rooms`, room.id)
+      const userRef = doc(db, 'users', user.uid)
+
+      await setDoc(userRoomListRef, { id: room.id }, { merge: true })
+      await setDoc(userRef, { room_id: room.id }, { merge: true })
+
+      router.push(`/personnages`)
+    } catch (error) {
+      console.error("Error joining room:", error)
+      toast.error("Erreur lors de la connexion à la salle")
+      setIsJoining(false)
+    }
+  }
+
+  const availablePublicRooms = publicRooms
+
+  // ─── Detail view (room selected) ───
+  if (selectedRoom) {
+    return (
+      <AppBackground className="text-[var(--text-primary)] font-body">
+        <div
+          className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] z-0"
+          style={{ backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(192,160,128,0.08) 0%, transparent 70%)' }}
+        />
+        <div className="relative z-10">
+          <AppNavbar
+            variant="home"
+            isUserLoggedIn={userId !== null}
+            userData={userData}
+            onOpenAuth={() => router.push('/auth')}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenStore={() => setIsStoreOpen(true)}
+          />
+          {isProfileOpen && <UserProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} userId={userId} />}
+          <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
+
+          {/* Sticky header */}
+          <div className="border-b border-[var(--border-color)] backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg" style={{ background: 'color-mix(in srgb, var(--bg-card) 80%, transparent)' }}>
+            <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedRoom(null)} className="gap-2 shrink-0 text-[var(--text-primary)] hover:bg-white/10">
+                  <ArrowLeft className="h-4 w-4" /> Retour
+                </Button>
+                <div className="h-6 w-px bg-[var(--border-color)] shrink-0" />
+                <h1 className={`text-lg sm:text-2xl font-bold text-[var(--accent-brown)] truncate ${aclonica.className}`}>{selectedRoom.title}</h1>
+              </div>
+            </div>
+          </div>
+
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="lg:col-span-2 space-y-6 lg:space-y-8">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] via-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] to-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
+                  <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border-color)] shadow-2xl bg-[var(--bg-dark)]">
+                    <img src={selectedRoom.imageUrl || '/placeholder.svg'} alt={selectedRoom.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  </div>
+                </div>
+                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
+                  <CardContent className="p-5 sm:p-8">
+                    <h3 className={`text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[var(--accent-brown)] ${aclonica.className}`}>Description</h3>
+                    <p className="text-[var(--text-secondary)] leading-relaxed text-base sm:text-lg">{selectedRoom.description}</p>
+                  </CardContent>
+                </Card>
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+                  <RoomChat roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
+                  <CardHeader>
+                    <CardTitle className={`flex items-center gap-2 text-[var(--accent-brown)] ${aclonica.className}`}>
+                      <Gamepad2 className="h-5 w-5" /> Informations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--text-secondary)] font-medium">Joueurs</span>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-[var(--accent-brown)]" />
+                        <span className={cn("font-bold", (selectedRoom.occupantsCount || 0) >= selectedRoom.maxPlayers ? "text-destructive" : "text-[var(--text-primary)]")}>
+                          {selectedRoom.occupantsCount || 0} / {selectedRoom.maxPlayers}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--text-secondary)] font-medium">Visibilité</span>
+                      <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                        selectedRoom.isPublic ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                      )}>
+                        {selectedRoom.isPublic ? "Publique" : "Privée"}
+                      </span>
+                    </div>
+                    {selectedRoom.creatorId === userId && (
+                      <div className="pt-4 border-t border-[var(--border-color)]">
+                        <p className="text-sm font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-widest">Code de la salle :</p>
+                        <code className="bg-[var(--bg-dark)] px-4 py-3 rounded-lg text-lg font-mono block text-center border border-[var(--border-color)] text-[var(--accent-brown)] font-bold shadow-inner">{selectedRoom.id}</code>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
+                  <CardHeader><CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Actions</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button onClick={() => handleJoin(selectedRoom)} disabled={isJoining} className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold shadow-[0_0_20px_rgba(192,160,128,0.2)] disabled:opacity-60" size="lg">
+                      {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                      {isJoining ? 'Connexion en cours…' : 'Rejoindre la partie'}
+                    </Button>
+                    {selectedRoom.creatorId === userId && (
+                      <Button variant="outline" onClick={() => router.push(`/creer`)} className="w-full h-12 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
+                        <Settings className="h-4 w-4" /> Gérer la salle
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+                  <RoomSessions roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                </div>
+
+                {creatorInfo && (
+                  <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
+                    <CardHeader><CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Créateur</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <img src={creatorInfo.pp} alt={creatorInfo.name} className="w-14 h-14 rounded-full border-2 shadow-md" style={{ borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)' }} />
+                          <div className="absolute -inset-0.5 rounded-full blur-sm -z-10" style={{ background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[var(--text-primary)] text-lg">{creatorInfo.name}</p>
+                          <p className="text-sm text-[var(--accent-brown)] font-medium">Maître de jeu</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+                  <RoomUsersManager roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppBackground>
+    )
+  }
+
+  // ─── Main view (join / browse) ───
+  return (
+    <AppBackground className="text-[var(--text-primary)] font-body">
+      {/* Multiple ambient glows */}
+      <div className="pointer-events-none absolute top-0 left-1/4 w-[800px] h-[600px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse 70% 50% at 30% 0%, rgba(192,160,128,0.1) 0%, transparent 70%)' }} />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse at 100% 100%, rgba(192,160,128,0.04) 0%, transparent 60%)' }} />
+
+      <div className="relative z-10">
+        <AppNavbar
+          variant="home"
+          isUserLoggedIn={userId !== null}
+          userData={userData}
+          onOpenAuth={() => router.push('/auth')}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenStore={() => setIsStoreOpen(true)}
+        />
+        {isProfileOpen && <UserProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} userId={userId} />}
+        <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
+
+        {/* ── Split layout: Code left / Campaigns right ── */}
+        <div className="container mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-24 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-8 lg:gap-10 items-start">
+
+            {/* ── Left panel: Join with code ── */}
+            <div className="lg:sticky lg:top-28 space-y-10">
+              <div className="space-y-6">
+                <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: 'color-mix(in srgb, var(--accent-brown) 70%, transparent)' }}>
+                  Rejoindre une aventure
+                </p>
+                <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
+                  Entrez dans<br />l&apos;arène
+                </h1>
+                <p className="text-[var(--text-secondary)] text-base leading-relaxed">
+                  Saisissez votre code d&apos;invitation pour retrouver vos compagnons d&apos;aventure
+                </p>
+              </div>
+
+              {/* Code input */}
+              <div className="space-y-6 flex flex-col items-center w-full">
+                <InputOTP
+                  maxLength={6}
+                  value={roomCode}
+                  onChange={(value) => setRoomCode(value)}
+                  pattern={REGEXP_ONLY_DIGITS}
+                  onComplete={(val) => handleJoinRoom(val)}
+                >
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2].map((index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                        style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
+                      />
+                    ))}
+                  </InputOTPGroup>
+                  <InputOTPSeparator className="text-[var(--text-secondary)] mx-1 sm:mx-2" />
+                  <InputOTPGroup className="gap-2">
+                    {[3, 4, 5].map((index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                        style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+                <Button
+                  onClick={() => handleJoinRoom(roomCode)}
+                  disabled={isFindingRoom}
+                  size="lg"
+                  className='w-full disabled:opacity-60'
+                >
+                  {isFindingRoom ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Rejoindre <ArrowRight className="h-4 w-4" /></>}
+                </Button>
+              </div>
+
+              {/* Divider ornament */}
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] to-transparent" />
+              </div>
+            </div>
+
+            {/* ── Right panel: Live campaigns grid ── */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl" style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }}>
+                    <Globe className="h-5 w-5 text-[var(--accent-brown)]" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold text-[var(--text-primary)] ${aclonica.className}`}>Campagnes en ligne</h2>
+                    <p className="text-sm text-[var(--text-secondary)]">{availablePublicRooms.length} partie{availablePublicRooms.length !== 1 ? 's' : ''} disponible{availablePublicRooms.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              </div>
+
+              {availablePublicRooms.length > 0 ? (
+                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {availablePublicRooms.map((room) => (
+                    <div
+                      key={room.id}
+                      onClick={() => !isFindingRoom && handleJoinRoom(room.id)}
+                      className={cn(
+                        "group relative rounded-2xl overflow-hidden border border-[var(--border-color)] backdrop-blur-sm hover:border-[color-mix(in_srgb,var(--accent-brown)_40%,transparent)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]",
+                        isFindingRoom ? "cursor-wait opacity-60" : "cursor-pointer"
+                      )}
+                      style={{ background: 'color-mix(in srgb, var(--bg-card) 60%, transparent)' }}
+                    >
+                      {/* Room image */}
+                      <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
+                        {room.imageUrl ? (
+                          <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
+                            <Gamepad2 className="h-12 w-12" style={{ color: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' }} />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        {/* Player count badge */}
+                        <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
+                          <Users className="h-3 w-3" />
+                          {room.occupantsCount || 0}/{room.maxPlayers}
+                        </div>
+                        {/* Live indicator */}
+                        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-green-500/20 backdrop-blur-sm border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                          En ligne
+                        </div>
+                      </div>
+
+                      {/* Room info */}
+                      <div className="p-4 space-y-2">
+                        <h3 className="font-bold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors line-clamp-1">
+                          {room.title}
+                        </h3>
+                        <div className="flex items-center justify-between">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs border-[var(--border-color)] hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)] font-bold transition-all h-8"
+                          >
+                            Rejoindre <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-24 space-y-6 border border-dashed border-[var(--border-color)] rounded-2xl">
+                  <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center" style={{ background: 'color-mix(in srgb, var(--accent-brown) 5%, transparent)', borderWidth: 1, borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}>
+                    <Globe className="h-10 w-10 text-[var(--text-secondary)] opacity-30" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[var(--text-primary)] font-bold text-lg">Aucune campagne publique</p>
+                    <p className="text-[var(--text-secondary)] text-sm max-w-sm mx-auto">
+                      Il n&apos;y a pas de campagne publique pour le moment. Utilisez un code d&apos;invitation pour rejoindre une partie privée.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppBackground>
+  )
+}

@@ -1,0 +1,98 @@
+# Une sauvegarde qui n'a jamais été restaurée n'est pas une sauvegarde.
+# Chaque dimanche : restauration PITR du dernier backup CNPG dans un cluster
+# jetable, vérifications, puis suppression. Échec = Job en erreur = alerte.
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: restore-test, namespace: data }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: restore-test, namespace: data }
+rules:
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, create, delete]
+  - apiGroups: ['']
+    resources: [pods, pods/exec]
+    verbs: [get, list, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: restore-test, namespace: data }
+subjects: [{ kind: ServiceAccount, name: restore-test, namespace: data }]
+roleRef: { kind: Role, name: restore-test, apiGroup: rbac.authorization.k8s.io }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: restore-test, namespace: data }
+data:
+  cluster.yaml: |
+    apiVersion: postgresql.cnpg.io/v1
+    kind: Cluster
+    metadata:
+      name: vtt-pg-restore-test
+      namespace: data
+    spec:
+      instances: 1
+      imageName: ghcr.io/cloudnative-pg/postgis:17-3.5-177@sha256:4db9bca5c2ce024ccf297ce3ce879d1d93a936149badae045c1fd77c7c9adc08
+      storage: { size: 20Gi, storageClass: local-path }
+      bootstrap:
+        recovery:
+          source: origin
+      externalClusters:
+        - name: origin
+          plugin:
+            name: barman-cloud.cloudnative-pg.io
+            parameters:
+              barmanObjectName: r2-backups
+              serverName: vtt-pg
+  run.sh: |
+    set -euo pipefail
+    trap 'kubectl -n data delete cluster vtt-pg-restore-test --ignore-not-found --wait=false' EXIT
+    kubectl -n data apply -f /cfg/cluster.yaml
+    kubectl -n data wait cluster/vtt-pg-restore-test --for=condition=Ready --timeout=40m
+    pod=$(kubectl -n data get pods -l cnpg.io/cluster=vtt-pg-restore-test,cnpg.io/instanceRole=primary -o name | head -1)
+    q() { kubectl -n data exec "$pod" -c postgres -- psql -d vtt -Atc "$1"; }
+    echo "schémas : $(q "select count(*) from pg_namespace where nspname in ('identity','billing','campaign','characters','history')")"
+    test "$(q "select count(*) from pg_namespace where nspname in ('identity','billing','campaign','characters','history')")" = 5
+    q "select postgis_full_version()" > /dev/null
+    # Journal d'historique : la chaîne de hash doit être intacte après restauration
+    if [ "$(q "select to_regproc('history.verify_chain') is not null")" = t ]; then
+      broken=$(q "select count(*) from (select distinct room_id from history.events) r, lateral history.verify_chain(r.room_id)")
+      echo "maillons cassés : $broken"; test "$broken" = 0
+    fi
+    echo "RESTORE TEST OK"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-restore-test
+  namespace: data
+spec:
+  schedule: '0 6 * * 0'
+  timeZone: Europe/Paris
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 5400
+      template:
+        spec:
+          serviceAccountName: restore-test
+          restartPolicy: Never
+          securityContext:
+            { runAsNonRoot: true, runAsUser: 65532, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: restore-test
+              image: alpine/k8s:1.34.1 # kubectl + bash
+              command: ['/bin/bash', '/cfg/run.sh']
+              securityContext:
+                {
+                  allowPrivilegeEscalation: false,
+                  readOnlyRootFilesystem: true,
+                  capabilities: { drop: [ALL] },
+                }
+              volumeMounts: [{ name: cfg, mountPath: /cfg }]
+          volumes:
+            - name: cfg
+              configMap: { name: restore-test }

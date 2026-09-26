@@ -1,0 +1,309 @@
+# Armures : Défense et Encaissement appliqués quand elles sont portées (sorte activable) ; une armure portée
+# compte 3 points d'encombrement de moins.
+- id: combinaison-de-combat
+  sorte: armure
+  nom: Combinaison de combat
+  description: Combat Jumpsuit — légère et discrète.
+  champs: { defense: 0, encaissement: 1, encombrement: 2, prix: 1000, rarete: 3 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: armure-legere
+  sorte: armure
+  nom: Armure légère
+  description: Protection basique portable au quotidien.
+  champs: { defense: 1, encaissement: 1, encombrement: 3, prix: 1000, rarete: 4 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: armure-lourde-de-combat
+  sorte: armure
+  nom: Armure lourde de combat
+  description: Encombrante mais très protectrice.
+  champs: { defense: 2, encaissement: 2, encombrement: 5, prix: 3500, rarete: 6 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: armure-ubese
+  sorte: armure
+  nom: Armure Ubese
+  description: Fait aussi office d'équipement environnemental (masque respiratoire).
+  champs: { defense: 1, encaissement: 1, encombrement: 4, prix: 2200, rarete: 6 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: robe-de-combat-jedi-ancienne
+  sorte: armure
+  nom: Robe de combat Jedi ancienne
+  description: Traitée au cortosis.
+  champs: { defense: 0, encaissement: 1, encombrement: 1, prix: 5000, rarete: 8 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: robes-d-ombre-de-chasseur
+  sorte: armure
+  nom: Robes d'ombre de chasseur
+  description: Améliore les tests de Discrétion d'un cran.
+  champs: { defense: 0, encaissement: 1, encombrement: 1, prix: 1200, rarete: 4 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: combinaison-utilitaire
+  sorte: armure
+  nom: Combinaison utilitaire
+  description: Augmente le seuil d'encombrement de 3.
+  champs: { defense: 0, encaissement: 1, encombrement: 2, prix: 1000, rarete: 2 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: equipement-de-maintenance-de-vaisseau
+  sorte: armure
+  nom: Équipement de maintenance de vaisseau
+  description: Malus aux tests de Volonté et d'Agilité.
+  champs: { defense: 0, encaissement: 3, encombrement: 5, prix: 1100, rarete: 3 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: combinaison-mimetique
+  sorte: armure
+  nom: Combinaison mimétique
+  description: Quasi-invisibilité, consomme des packs d'énergie.
+  champs: { defense: 0, encaissement: 1, encombrement: 2, prix: 6000, rarete: 6 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: combinaison-fine-jawa
+  sorte: armure
+  nom: Combinaison fine Jawa
+  description: Réduit d'1 les évaluations de dangers environnementaux (feu, acide...).
+  champs: { defense: 0, encaissement: 0, encombrement: 1, prix: 1200, rarete: 3 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }
+
+- id: armure-mandalorienne-en-beskar
+  sorte: armure
+  nom: Armure mandalorienne en Beskar
+  description: Armure complète forgée en Beskar, symbole du peuple mandalorien. Confère une Encaissement exceptionnel et résiste aux lames de sabre laser (annule les dégâts d'une attaque au sabre laser au corps-à-corps une fois par round). Transmission traditionnellement réservée aux clans mandaloriens.
+  champs: { defense: 2, encaissement: 3, encombrement: 4, prix: 45000, rarete: 9 }
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: source.defense,
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: encaissementArmure,
+        operation: ajouter,
+        valeur: source.encaissement,
+        famille: armure,
+      }

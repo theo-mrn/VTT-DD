@@ -1,0 +1,135 @@
+# Présentation Star Wars — Aux confins de l'Empire
+#
+# Tout ce que le front affiche sans que ce soit une règle. Valeurs reprises de
+# l'ancienne app (starwars-bundle/styles/theme.css, dice-roller.tsx,
+# symbol-dice-badges.tsx, TalentTreeView.tsx, defaultCharacterLayout) : le
+# nouveau front ne code plus aucune de ces valeurs, il les lit ici.
+
+format: 1
+systeme: star-wars-eote
+
+theme:
+  couleurs:
+    fond: '#0b0b0c'
+    fondProfond: '#030304'
+    carte: '#0a0a0b'
+    canevas: '#060607'
+    bordure: '#232326'
+    accent: '#ffe81f'
+    accentSurvol: '#fff566'
+  polices:
+    corps: Orbitron
+    titres: Orbitron
+    decorative: Aurebesh
+  fond:
+    type: modele3d
+    source: star-wars-eote/3d/holotable.glb
+    echelle: 1
+    rotation: 0.25
+
+des:
+  sortes:
+    fortune: { skin: kyber_bleu, couleur: '#4aa8e0', forme: d6, court: Fortune, original: Boost }
+    infortune:
+      { skin: hyperespace, couleur: '#9a9aa2', forme: d6, court: Infortune, original: Setback }
+    aptitude:
+      { skin: kyber_vert, couleur: '#3fbf6a', forme: d8, court: Aptitude, original: Ability }
+    difficulte:
+      { skin: kyber_violet, couleur: '#a065e0', forme: d8, court: Difficulté, original: Difficulty }
+    maitrise:
+      { skin: kyber_or, couleur: '#f0c419', forme: d12, court: Maîtrise, original: Proficiency }
+    defi: { skin: kyber_rouge, couleur: '#e04b3a', forme: d12, court: Défi, original: Challenge }
+    force: { skin: esprit_force, couleur: '#f2f2f2', forme: d12, court: Force, original: Force }
+  glyphes:
+    base: '●'
+    ameliore: '▲'
+
+# Icônes lucide, par clé (symboles bruts et résultats nets)
+symboles:
+  succes: { icone: check, couleur: '#10b981', court: Succès }
+  echec: { icone: x, couleur: '#ef4444', court: Échec }
+  avantage: { icone: trending-up, couleur: '#38bdf8', court: Avantage }
+  menace: { icone: trending-down, couleur: '#f97316', court: Menace }
+  triomphe: { icone: star, couleur: '#f59e0b', court: Triomphe }
+  desespoir: { icone: skull, couleur: '#8b5cf6', court: Désespoir }
+  lumiere: { icone: sun, couleur: '#f8fafc', court: Lumineux }
+  obscur: { icone: moon, couleur: '#64748b', court: Obscur }
+  succesNets: { icone: check, couleur: '#10b981', court: Succès }
+  echecsNets: { icone: x, couleur: '#ef4444', court: Échecs }
+  avantagesNets: { icone: trending-up, couleur: '#38bdf8', court: Avantages }
+  menacesNettes: { icone: trending-down, couleur: '#f97316', court: Menaces }
+  triomphes: { icone: star, couleur: '#f59e0b', court: Triomphes }
+  desespoirs: { icone: skull, couleur: '#8b5cf6', court: Désespoirs }
+  coteLumineux: { icone: sun, couleur: '#f8fafc', court: Lumineux }
+  coteObscur: { icone: moon, couleur: '#64748b', court: Obscur }
+
+# Les jauges Star Wars se remplissent : 0 = indemne, le seuil = hors de combat
+ressources:
+  blessures: { sens: montant, couleur: '#ef4444' }
+  stress: { sens: montant, couleur: '#a065e0' }
+  coque: { sens: montant, couleur: '#4ade80' }
+  tension: { sens: montant, couleur: '#facc15' }
+
+fiches:
+  personnage:
+    widgets:
+      - {
+          type: details,
+          titre: Profil,
+          sortes: [espece, carriere, specialisation],
+          attributs: [nom, categorie],
+        }
+      - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
+      - { type: ressources, titre: Vitalité, attributs: [blessures, stress] }
+      - { type: possessions, titre: États, sorte: etat }
+      - {
+          type: attributs,
+          titre: Seuils et défense,
+          attributs:
+            [
+              seuilBlessure,
+              seuilStress,
+              encaissement,
+              defenseMelee,
+              defenseDistance,
+              critiquesSubis,
+              neutralise,
+            ],
+        }
+      - {
+          type: attributs,
+          titre: Défense active,
+          attributs: [pasDeCote, postureDefensive, protection],
+        }
+      - { type: possessions, titre: Compétences, sorte: competence }
+      - { type: arbres, titre: Talents }
+      - { type: possessions, titre: Talents acquis, sorte: talent }
+      - { type: monnaies, titre: Expérience }
+      - { type: possessions, titre: Obligation, sorte: obligation }
+      - { type: possessions, titre: Armes, sorte: arme }
+      - { type: possessions, titre: Armures, sorte: armure }
+      - { type: possessions, titre: Objets, sorte: objet }
+      - { type: attributs, titre: Équipement et crédits, groupe: equipement }
+      - { type: attributs, titre: Bonus de combat, groupe: combat }
+      - { type: possessions, titre: Blessures critiques, sorte: blessureCritique }
+      - { type: actions, titre: Actions }
+      - { type: texte, titre: Motivation, attribut: motivation }
+      - { type: texte, titre: Historique, attribut: historique }
+  vehicule:
+    widgets:
+      - { type: details, titre: Modèle, sortes: [modele], attributs: [nom] }
+      - { type: attributs, titre: Profil, groupe: caracteristiques, colonnes: 3 }
+      - { type: attributs, titre: Défense, groupe: defense, colonnes: 5 }
+      - { type: ressources, titre: Structure, attributs: [coque, tension] }
+      - { type: possessions, titre: Dommages critiques, sorte: panneCritique }
+      - { type: attributs, titre: Capacité, groupe: capacite, colonnes: 4 }
+
+# Géométrie de la grille des arbres de talents (px)
+arbres:
+  colonne: 200
+  ligne: 130
+  noeud: { largeur: 176, hauteur: 64 }
+
+bibliotheques:
+  objets: starwars
+  sons: starwars

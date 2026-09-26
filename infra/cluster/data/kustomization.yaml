@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: data
+resources:
+  - postgres-cluster.yaml
+configMapGenerator:
+  - name: vtt-pg-init
+    files:
+      - schemas.sql
+generatorOptions:
+  disableNameSuffixHash: true

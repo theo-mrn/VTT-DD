@@ -1,0 +1,231 @@
+# Armes — généré depuis legacy/public/tabs (contenu D&D classique de l'ancienne app).
+- id: arbalete-de-poing
+  sorte: arme
+  nom: Arbalète de poing
+  etiquettes:
+    - distance
+    - arbalete
+  champs:
+    attaque: Distance
+    nbDes: 1
+    faces: 6
+    portee: 10 m
+    prix: 8
+- id: arbalete-legere
+  sorte: arme
+  nom: Arbalète légère
+  etiquettes:
+    - distance
+    - arbalete
+  champs:
+    attaque: Distance
+    nbDes: 2
+    faces: 4
+    portee: 30 m
+    prix: 10
+- id: arbalete-lourde
+  sorte: arme
+  nom: Arbalète lourde
+  etiquettes:
+    - distance
+    - arbalete
+  champs:
+    attaque: Distance
+    nbDes: 3
+    faces: 4
+    portee: 60 m
+    prix: 12
+- id: arc-court
+  sorte: arme
+  nom: Arc court
+  etiquettes:
+    - distance
+    - arc
+  champs:
+    attaque: Distance
+    nbDes: 1
+    faces: 6
+    portee: 30 m
+    prix: 4
+- id: arc-long
+  sorte: arme
+  nom: Arc long
+  etiquettes:
+    - distance
+    - arc
+  champs:
+    attaque: Distance
+    nbDes: 1
+    faces: 8
+    portee: 50 m
+    prix: 5
+- id: baton
+  sorte: arme
+  nom: Bâton
+  etiquettes:
+    - contact
+    - deux-mains
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 4
+    portee: '-'
+    prix: 1
+- id: baton-ferre
+  sorte: arme
+  nom: Bâton ferré
+  etiquettes:
+    - contact
+    - deux-mains
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 6
+    portee: '-'
+    prix: 2
+- id: dague
+  sorte: arme
+  nom: Dague
+  etiquettes:
+    - contact
+    - legere
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 4
+    portee: 5 m
+    prix: 3
+- id: epee-a-2-mains
+  sorte: arme
+  nom: Épée à 2 mains
+  etiquettes:
+    - contact
+    - epee
+    - deux-mains
+  champs:
+    attaque: Contact
+    nbDes: 2
+    faces: 6
+    portee: '-'
+    prix: 10
+- id: epee-batarde
+  sorte: arme
+  nom: Épée bâtarde
+  description: 'Dégâts : 1d8 à 1 main, 1d12 à 2 mains.'
+  etiquettes:
+    - contact
+    - epee
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 8
+    portee: '-'
+    prix: 9
+- id: epee-courte
+  sorte: arme
+  nom: Épée courte
+  etiquettes:
+    - contact
+    - epee
+    - legere
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 6
+    portee: '-'
+    prix: 5
+- id: epee-longue
+  sorte: arme
+  nom: Épée longue
+  etiquettes:
+    - contact
+    - epee
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 8
+    portee: '-'
+    prix: 6
+- id: fronde
+  sorte: arme
+  nom: Fronde
+  etiquettes:
+    - distance
+  champs:
+    attaque: Distance
+    nbDes: 1
+    faces: 4
+    portee: 20 m
+    prix: 1
+- id: gourdin
+  sorte: arme
+  nom: Gourdin
+  etiquettes:
+    - contact
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 4
+    portee: '-'
+    prix: 1
+- id: hache-a-1-main
+  sorte: arme
+  nom: Hache à 1 main
+  etiquettes:
+    - contact
+    - hache
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 8
+    portee: '-'
+    prix: 6
+- id: hache-a-2-mains
+  sorte: arme
+  nom: Hache à 2 mains
+  etiquettes:
+    - contact
+    - hache
+    - deux-mains
+  champs:
+    attaque: Contact
+    nbDes: 2
+    faces: 6
+    portee: '-'
+    prix: 10
+- id: hachette
+  sorte: arme
+  nom: Hachette
+  etiquettes:
+    - distance
+    - hache
+  champs:
+    attaque: Distance
+    nbDes: 1
+    faces: 6
+    portee: 5 m
+    prix: 2
+- id: javelot
+  sorte: arme
+  nom: Javelot
+  etiquettes:
+    - distance
+  champs:
+    attaque: Distance
+    nbDes: 1
+    faces: 6
+    portee: 20 m
+    prix: 6
+- id: katana
+  sorte: arme
+  nom: Katana
+  etiquettes:
+    - contact
+    - epee
+    - sabre
+  champs:
+    attaque: Contact
+    nbDes: 1
+    faces: 10
+    portee: '-'
+    prix: 12

@@ -1,0 +1,36 @@
+image:
+  repository: ghcr.io/theo-mrn/vtt-web
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 768Mi }
+env:
+  NODE_ENV: production
+envFromSecrets:
+  - name: web-secrets # SOPS : clés Firebase/Stripe/Resend tant que la migration n'est pas finie
+probes:
+  liveness: /api/healthz
+  readiness: /api/healthz
+writablePaths:
+  - /app/frontend/.next/cache
+# Désactivés en staging : session-reminder enverrait de vrais e-mails en double
+# avec la prod, et optimize-images écrirait dans le même bucket R2.
+cronJobs:
+  session-reminder:
+    enabled: false
+    schedule: '0 8 * * *'
+    timeZone: Etc/UTC
+    path: /api/session-reminder
+    secretName: web-secrets
+  optimize-images:
+    enabled: false
+    schedule: '0 2 * * *'
+    timeZone: Etc/UTC
+    path: /api/cron/optimize-images
+    timeoutSeconds: 120
+    secretName: web-secrets
+ingress:
+  enabled: true
+  host: staging.yner.fr

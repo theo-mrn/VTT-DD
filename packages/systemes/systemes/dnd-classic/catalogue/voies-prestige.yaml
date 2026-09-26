@@ -1,0 +1,3118 @@
+# Voies de prestige (contenu D&D classique de l'ancienne app, legacy/public/tabs).
+# Chaque voie accorde sa capacité de rang N quand elle atteint le rang N
+# (effet « rang » conditionné) ; la capacité porte le texte et la mécanique.
+
+- id: prestige-voleur-casse-cou
+  sorte: voie
+  nom: Voie du casse-cou
+  etiquettes: [prestige, voleur]
+  description: |-
+    1. L’amour du risque
+    2. Mouche du coche
+    3. Ça passe ou ça casse
+    4. Poussée d’adrénaline
+    5. Attaque kamikaze
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-voleur-casse-cou-l-amour-du-risque,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-casse-cou-mouche-du-coche,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-casse-cou-ca-passe-ou-ca-casse,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-casse-cou-poussee-d-adrenaline,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-casse-cou-attaque-kamikaze,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-voleur-casse-cou-l-amour-du-risque
+  sorte: capacite_active
+  nom: L’amour du risque
+  champs: { voie: prestige-voleur-casse-cou, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Lorsqu’il réalise une action dans un lieu dangereux (par exemple au bord d’un précipice ou d’un lac de lave)
+    le voleur gagne un bonus de +3 à tous ses tests au d20 (attaque, Caractéristique, etc.).
+
+    Ce bonus s’applique également aux tests réalisés pour résister à la peur.
+  effets:
+    - {
+        sur: jet,
+        actions: [test, exploit, defier-la-mort, blagues-et-cabrioles],
+        ajout: { bonus: '3' },
+      }
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: '3' }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: '3' }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: '3' }
+
+- id: prestige-voleur-casse-cou-mouche-du-coche
+  sorte: capacite_active
+  nom: Mouche du coche
+  champs: { voie: prestige-voleur-casse-cou, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le voleur peut choisir de sacrifier une action de mouvement à ce tour pour gagner +3 en DEF jusqu’au prochain tour.
+
+    S’il sacrifie deux actions de mouvement durant son tour, il gagne +6 en DEF.
+  effets:
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '3' }
+
+- id: prestige-voleur-casse-cou-ca-passe-ou-ca-casse
+  sorte: capacite
+  nom: Ça passe ou ça casse
+  etiquettes: [test]
+  champs:
+    { voie: prestige-voleur-casse-cou, rangVoie: 3, activation: Capacité passive, avantageTest: 1 }
+  description: |-
+    Effet : Lorsque le résultat d’un test de Caractéristique peut avoir une issue fatale pour le personnage (chute mortelle, réveil d’un dragon, etc.),le joueur lance un d20 supplémentaire et peut conserver le résultat qu’il préfère.
+
+- id: prestige-voleur-casse-cou-poussee-d-adrenaline
+  sorte: capacite
+  nom: Poussée d’adrénaline
+  champs: { voie: prestige-voleur-casse-cou, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : En dépensant 1d4 PV, le voleur gagne une action de mouvement supplémentaire à son tour.
+
+    En combinaison avec Mouche du coche, le voleur peut ainsi sacrifier trois actions de mouvement et obtenir un bonus de +10 en DEF !
+
+- id: prestige-voleur-casse-cou-attaque-kamikaze
+  sorte: capacite
+  nom: Attaque kamikaze
+  champs: { voie: prestige-voleur-casse-cou, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Le voleur saute littéralement sur sa cible pour la larder de coups au corps-à-corps.
+
+    Plutôt qu’un test d’attaque, il réalise un test de DEX dont la Difficulté est égale à la moitié de la DEF de la créature. En cas de réussite, il inflige des DM normaux et reçoit un bonus qui dépend de la taille de la créature : moyenne +1d6 DM, grande +2d6, très grande +3d6, gigantesque +4d6 et colossale +5d6. Il ne reçoit aucun bonus aux DM pour les petites créatures. À la suite de cette attaque, il perd 5 points en DEF pour une durée de 1 tour.
+
+- id: prestige-voleur-espion
+  sorte: voie
+  nom: Voie de l’espion
+  etiquettes: [prestige, voleur]
+  description: |-
+    1. Secrets d’Alcôves
+    2. À la garde !
+    3. Mémoire éidétique
+    4. Réseau
+    5. Se fondre dans la foule
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-voleur-espion-secrets-d-alcoves,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - { sur: rang, entree: prestige-voleur-espion-a-la-garde, valeur: 1, condition: 'rang >= 2' }
+    - {
+        sur: rang,
+        entree: prestige-voleur-espion-memoire-eidetique,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - { sur: rang, entree: prestige-voleur-espion-reseau, valeur: 1, condition: 'rang >= 4' }
+    - {
+        sur: rang,
+        entree: prestige-voleur-espion-se-fondre-dans-la-foule,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-voleur-espion-secrets-d-alcoves
+  sorte: capacite
+  nom: Secrets d’Alcôves
+  etiquettes: [test]
+  champs:
+    { voie: prestige-voleur-espion, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le voleur obtient un bonus de +5 pour tous les tests visant à trouver ou obtenir des informations secrètes ou sensibles et +5 à tous les tests de perception auditive (SAG).
+
+    De plus, en réussissant un test de SAG difficulté 12, il est capable de suivre une conversation à distance en lisant sur les lèvres.
+
+- id: prestige-voleur-espion-a-la-garde
+  sorte: capacite
+  nom: À la garde !
+  champs: { voie: prestige-voleur-espion, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le voleur a développé une sorte de 6ème sens qui lui assure un coup d’avance sur les gardes et autres forces armées.
+
+    Le MJ doit prévenir le joueur 1 tour complet avant que des PNJ armés interviennent sur le lieu où il opère. Il doit aussi indiquer la direction d’où provient la menace. Cette capacité n’est d’aucune utilité contre une embuscade.
+
+- id: prestige-voleur-espion-memoire-eidetique
+  sorte: capacite
+  nom: Mémoire éidétique
+  etiquettes: [test]
+  champs:
+    { voie: prestige-voleur-espion, rangVoie: 3, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le voleur a une parfaite mémoire de tout ce qu’il a vu et entendu.
+
+    Si le joueur le demande, le MJ doit lui rappeler tous les détails relatifs à un lieu qu’il a visité ou à une conversation qu’il a entendue. De plus, le voleur gagne un bonus de +5 à tous ses tests de connaissance (INT).
+
+- id: prestige-voleur-espion-reseau
+  sorte: capacite
+  nom: Réseau
+  champs: { voie: prestige-voleur-espion, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Grâce à son réseau de connaissances ou par l’intermédiaire d’autres espions, le personnage peut obtenir de nombreux avantages.
+
+    Un test de CHA difficulté 10 lui suffit pour obtenir une entrevue avec n’importe quel personnage puissant à tout moment. Un test de difficulté 15 peut lui permettre d’obtenir un service, par exemple une recommandation, une escorte armée ou une audience auprès de l’élite, ces billets pouvant même servir à obtenir audience auprès de rois ou de grands seigneurs.
+
+- id: prestige-voleur-espion-se-fondre-dans-la-foule
+  sorte: capacite
+  nom: Se fondre dans la foule
+  etiquettes: [test]
+  champs:
+    { voie: prestige-voleur-espion, rangVoie: 5, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le voleur sait se rendre complètement quelconque.
+
+    Il peut repérer des lieux, suivre des gens, infiltrer des endroits réservés (avec le costume adapté) sans aucun jet de dé tant qu’il n’entreprend aucune action qui pourrait sérieusement attirer l’attention sur lui. S’il se fait repérer mais parvient à prendre la fuite, personne ne sera capable de le décrire correctement. Il gagne +5 à tous ses tests de discrétion et de déguisement, et lorsqu’il réalise une action de fuite dans un lieu bondé, il lui suffit de réussir un test de CHA difficulté 10 pour disparaître.
+
+- id: prestige-voleur-maitre-des-poisons
+  sorte: voie
+  nom: Maître des poisons
+  etiquettes: [prestige, voleur]
+  description: |-
+    1. Connaissance du poison
+    2. Poison rapide
+    3. Poison affaiblissant
+    4. Résistance au poison
+    5. Poisons virulents
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-voleur-maitre-des-poisons-connaissance-du-poison,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-maitre-des-poisons-poison-rapide,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-maitre-des-poisons-poison-affaiblissant,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-maitre-des-poisons-resistance-au-poison,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-voleur-maitre-des-poisons-poisons-virulents,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-voleur-maitre-des-poisons-connaissance-du-poison
+  sorte: capacite
+  nom: Connaissance du poison
+  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le voleur peut effectuer un test d’INT difficulté 10 pour reconnaître, identifier ou détecter un poison.
+
+    Il n’a plus besoin de test d’INT pour réussir à appliquer un poison sur une arme.
+
+- id: prestige-voleur-maitre-des-poisons-poison-rapide
+  sorte: capacite_active
+  nom: Poison rapide
+  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le voleur sait fabriquer du poison « rapide » en petite quantité.
+
+    Avant chaque combat ses armes (trois au maximum) sont enduites de ce poison. La première attaque réussie provoque 2d6 de DM supplémentaires. Si la victime réussit un test de CON difficulté [10 + rang dans la voie], elle ne subit que la moitié des DM poison. Les DM du poison rapide passent à 3d6 au rang 4 de la voie.
+  effets:
+    - {
+        sur: jet,
+        si: 'arme != ""',
+        ajout:
+          { variable: desDM, ajouter: 'si(rang("prestige-voleur-maitre-des-poisons") >= 4, 3, 2)' },
+      }
+
+- id: prestige-voleur-maitre-des-poisons-poison-affaiblissant
+  sorte: capacite
+  nom: Poison affaiblissant
+  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le voleur peut remplacer le poison rapide par un poison affaiblissant, les effets ne sont appliqués que sur la première attaque réussie avec cette arme.
+
+    Si elle ne réussit pas un test de CON difficulté 15, la victime est Affaiblie pour le reste du combat (voir états préjudiciables).
+
+- id: prestige-voleur-maitre-des-poisons-resistance-au-poison
+  sorte: capacite
+  nom: Résistance au poison
+  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : À force de manipuler les poisons, le voleur a développé des immunités.
+
+    Lorsqu’il est empoisonné, faites un test de CON difficulté 10. En cas de succès, il ne subit aucun effet, s’il rate, seulement la moitié.
+  effets:
+    - {
+        sur: degats,
+        types: [poison],
+        operation: annuler,
+        description: 'Résistance au poison : immunisé au poison',
+      }
+
+- id: prestige-voleur-maitre-des-poisons-poisons-virulents
+  sorte: capacite
+  nom: Poisons virulents
+  champs: { voie: prestige-voleur-maitre-des-poisons, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le voleur sait fabriquer en petites quantités les poisons « lent » et « violent », il peut en utiliser [1 + Mod. d’INT] doses par jour (cumul des 2 sortes de poisons).
+
+    La difficulté de résistance à ces poisons est de [12+Mod. d’INT] du voleur.
+
+- id: prestige-rodeur-archer-arcanique
+  sorte: voie
+  nom: Voie de l’archer arcanique
+  etiquettes: [prestige, rodeur]
+  description: |-
+    1. Flèche magique
+    2. Flèche tueuse
+    3. Flèche intangible
+    4. Flèche vivante
+    5. Flèche chercheuse
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-rodeur-archer-arcanique-fleche-magique,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-archer-arcanique-fleche-tueuse,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-archer-arcanique-fleche-intangible,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-archer-arcanique-fleche-vivante,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-archer-arcanique-fleche-chercheuse,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-rodeur-archer-arcanique-fleche-magique
+  sorte: capacite
+  nom: Flèche magique
+  champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur enchante ses flèches.
+    S’il obtient un résultat de « 1 » sur son dé de DM, il relance le dé et garde le second résultat.
+    Les DM de ses flèches sont considérés comme magiques.
+
+- id: prestige-rodeur-archer-arcanique-fleche-tueuse
+  sorte: capacite_active
+  nom: Flèche tueuse
+  champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur fabrique et enchante une flèche particulière pour un ennemi unique qu’il nomme.
+
+    Il lui faut une journée complète pour créer la flèche et il ne peut en posséder plus d’une à un moment donné (ni plus d’une pour la même cible, ni pour une autre). Lorsqu’il utilise sa flèche contre l’ennemi pour lequel elle a été créée, il obtient un bonus de +3 à l’attaque et de +1d6 aux DM par rang atteint dans la Voie. Si la flèche a été créée depuis plus d’un an, ces bonus sont doublés.
+  effets:
+    - { sur: jet, si: 'a_etiquette(arme, "arc")', ajout: { bonus: '3' } }
+    - {
+        sur: jet,
+        si: 'a_etiquette(arme, "arc")',
+        ajout: { variable: desDM, ajouter: 'rang("prestige-rodeur-archer-arcanique")' },
+      }
+
+- id: prestige-rodeur-archer-arcanique-fleche-intangible
+  sorte: capacite
+  nom: Flèche intangible
+  champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 3, activation: Action limitée }
+  description: |-
+    Effet : Le rôdeur enchante sa flèche pour lui permettre de passer au travers des obstacles physiques.
+
+    Le joueur réalise un test d’attaque normal mais remplace la DEF par le score de DEX de la cible pour fixer sa Difficulté. De surcroît, il ignore toutes les pénalités de couverture. S’il sait précisément où se situe sa cible, il peut même tirer à travers un mur ou une porte.
+
+- id: prestige-rodeur-archer-arcanique-fleche-vivante
+  sorte: capacite
+  nom: Flèche vivante
+  champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur enchante ses flèches pour leur donner vie au contact du sang.
+
+    Plantées dans un corps, elles s’y enfoncent et prennent racines. Sur un résultat de 15 à 20 au test d’attaque (ou de 10 à 12 sur un d12), la flèche inflige +2d6 DM supplémentaires et se transforme en arbuste à la mort de la victime.
+
+- id: prestige-rodeur-archer-arcanique-fleche-chercheuse
+  sorte: capacite
+  nom: Flèche chercheuse
+  champs: { voie: prestige-rodeur-archer-arcanique, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Une fois par jour, le rôdeur peut enchanter une flèche afin qu’elle trouve sa cible de façon infaillible.
+
+    Pour utiliser ce pouvoir, le rôdeur doit avoir blessé ou vu directement la créature ciblée il y a moins de 10 tours. Il tire ensuite sa flèche en l’air et celle-ci voyage aussi loin que nécessaire (y compris à travers les plans) jusqu’à toucher sa cible. L’archer arcanique refait un test d’attaque normal et obtient un bonus de +2d6 aux DM.
+
+- id: prestige-rodeur-chasseur-de-corruption
+  sorte: voie
+  nom: Voie du Chasseur de corruption
+  etiquettes: [prestige, rodeur]
+  description: |-
+    1. Sentir la corruption
+    2. Combattre la corruption
+    3. Chasseur de sorcière
+    4. Frappe préventive
+    5. Résister à la corruption
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-rodeur-chasseur-de-corruption-sentir-la-corruption,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-chasseur-de-corruption-combattre-la-corruption,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-chasseur-de-corruption-chasseur-de-sorciere,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-chasseur-de-corruption-frappe-preventive,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-chasseur-de-corruption-resister-a-la-corruption,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-rodeur-chasseur-de-corruption-sentir-la-corruption
+  sorte: capacite
+  nom: Sentir la corruption
+  champs: { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 1, activation: Action limitée }
+  description: |-
+    Effet : Le rôdeur se concentre sur une créature à une portée maximum de 30 mètres.
+
+    Il détecte si celle-ci possède des pouvoirs paranormaux (magie, pouvoirs magiques) s’il réussit un test de SAG difficulté 15. Les créatures humanoïdes ont droit à un test d’INT difficulté 15 pour résister à cette divination. Un seul essai par créature est possible.
+
+- id: prestige-rodeur-chasseur-de-corruption-combattre-la-corruption
+  sorte: capacite
+  nom: Combattre la corruption
+  champs:
+    { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur gagne un bonus de +1 en attaque et aux DM contre les morts-vivants,
+
+    les démons et les animaux corrompus (ceux qui possèdent des pouvoirs paranormaux). Ce bonus passe à +2 au rang 4 de la Voie.
+
+- id: prestige-rodeur-chasseur-de-corruption-chasseur-de-sorciere
+  sorte: capacite
+  nom: Chasseur de sorcière
+  champs:
+    { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur gagne +2 en DEF contre toutes les attaques magiques et +2 aux DM contre les nécromanciens ou les prêtres d’une religion maléfique (et tous ceux qui pratiquent la magie noire).
+  effets:
+    - { sur: attribut, attribut: DefMagie, operation: ajouter, valeur: '2' }
+
+- id: prestige-rodeur-chasseur-de-corruption-frappe-preventive
+  sorte: capacite
+  nom: Frappe préventive
+  champs: { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : En plus d’infliger des DM normaux, cette attaque oblige la cible à faire un test d’INT difficulté 15.
+    En cas d’échec, elle ne peut utiliser aucun pouvoir magique ou extraordinaire à son prochain tour.
+
+- id: prestige-rodeur-chasseur-de-corruption-resister-a-la-corruption
+  sorte: capacite
+  nom: Résister à la corruption
+  champs:
+    { voie: prestige-rodeur-chasseur-de-corruption, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Une fois par combat, le rôdeur résiste totalement à un sort ou un effet magique de son choix.
+    De plus il est immunisé aux effets de corruption : drain, affaiblissement, pourriture, empoisonnement ou maladie provoqués par les morts-vivants, les démons ou les animaux maléfiques ou corrompus.
+
+- id: prestige-rodeur-fusion-lycanthropique
+  sorte: voie
+  nom: Voie de la fusion lycanthropique
+  etiquettes: [prestige, rodeur]
+  description: |-
+    1. Lycanthropie
+    2. Eventration
+    3. Fourrure d’acier
+    4. Odeur du sang
+    5. Furie bestiale
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-rodeur-fusion-lycanthropique-lycanthropie,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-fusion-lycanthropique-eventration,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-fusion-lycanthropique-fourrure-d-acier,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-fusion-lycanthropique-odeur-du-sang,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-rodeur-fusion-lycanthropique-furie-bestiale,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-rodeur-fusion-lycanthropique-lycanthropie
+  sorte: capacite_active
+  nom: Lycanthropie
+  champs: { voie: prestige-rodeur-fusion-lycanthropique, rangVoie: 1, activation: Action limitée }
+  description: |-
+    Effet : Le rôdeur peut fusionner avec son compagnon loup pour se transformer en forme hybride, mi-homme, mi-loup pendant [5 x Mod. de SAG] tours. Sous cette forme,
+    il ne peut plus utiliser d’armes, mais il peut encore utiliser son armure, qui s’adapte à sa taille.
+    Il gagne un bonus de +2 en FOR et obtient les attaques suivantes (elles sont considérées magiques) :
+    Griffes (attaque au contact), DM [2d6 + Mod. de FOR]
+    Morsure (attaque au contact), DM [1d6 + Mod. de FOR].
+
+    Il lui faut seulement une action d’attaque pour utiliser ces deux modes d’attaque au même tour.
+    À partir du rang 3 de la voie, le rôdeur peut utiliser la capacité de druide Attaque bondissante (L).
+  effets:
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: '2' }
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: '3',
+        condition: 'possede("prestige-rodeur-fusion-lycanthropique-fourrure-d-acier")',
+      }
+    - {
+        sur: attribut,
+        attribut: RD,
+        operation: ajouter,
+        valeur: '3',
+        condition: 'possede("prestige-rodeur-fusion-lycanthropique-fourrure-d-acier")',
+      }
+
+- id: prestige-rodeur-fusion-lycanthropique-eventration
+  sorte: capacite
+  nom: Eventration
+  champs: { voie: prestige-rodeur-fusion-lycanthropique, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Si le rôdeur réussit à toucher et à blesser avec ses deux attaques, il éventre sa cible et bénéficie d’un bonus de +2d6 DM sur sa deuxième attaque.
+
+- id: prestige-rodeur-fusion-lycanthropique-fourrure-d-acier
+  sorte: capacite
+  nom: Fourrure d’acier
+  champs: { voie: prestige-rodeur-fusion-lycanthropique, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Les poils de la fourrure du lycanthrope se durcissent tandis que ses os se solidifient pour finir aussi solide que de l’acier.
+
+    Le rôdeur gagne un bonus de +3 en DEF et une RD de 3 tant qu’il est transformé en lycanthrope. Cette protection ne s’applique pas contre les attaques provenant d’armes en argent.
+
+- id: prestige-rodeur-fusion-lycanthropique-odeur-du-sang
+  sorte: capacite
+  nom: Odeur du sang
+  champs: { voie: prestige-rodeur-fusion-lycanthropique, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur gagne un bonus de +1 en attaque et aux DM pour chaque tranche de 10 PV perdus pendant le combat contre la cible qui lui a infligé ces DM (maximum +5).
+
+    Ces bonus restent jusqu’à la fin du combat. Ces bonus sont annulés si la cible meurt.
+
+- id: prestige-rodeur-fusion-lycanthropique-furie-bestiale
+  sorte: capacite
+  nom: Furie bestiale
+  champs: { voie: prestige-rodeur-fusion-lycanthropique, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le rôdeur gagne la capacité Rage ou berserk (L) de la Voie de la rage du barbare.
+
+    Il ne peut pas annuler sa transformation lycanthropique tant qu’il est sous l’influence de la furie bestiale.
+  effets:
+    - { sur: rang, entree: barbare-rage-rage-du-berserk, valeur: 1 }
+
+- id: prestige-pretre-archange
+  sorte: voie
+  nom: Voie de l’archange
+  etiquettes: [prestige, pretre]
+  description: |-
+    1. Forme d’Ange
+    2. Soins améliorés
+    3. Épée céleste
+    4. Protection divine
+    5. Forme d’Archange
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-pretre-archange-forme-d-ange,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-pretre-archange-soins-ameliores,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-pretre-archange-epee-celeste,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-pretre-archange-protection-divine,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-pretre-archange-forme-d-archange,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-pretre-archange-forme-d-ange
+  sorte: capacite_active
+  nom: Forme d’Ange
+  champs: { voie: prestige-pretre-archange, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le prêtre prend la forme d’un ange pour [5 + Mod. SAG] tours.
+
+    Lorsqu’il est en forme d’ange, le prêtre bénéficie automatiquement du sort Ailes célestes pour la même durée. Toutefois, il n’a plus besoin d’utiliser une action de mouvement pour rester en vol stationnaire ce qui lui permet de lancer ses sorts en volant.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: '3',
+        condition: 'possede("prestige-pretre-archange-protection-divine")',
+      }
+
+- id: prestige-pretre-archange-soins-ameliores
+  sorte: capacite
+  nom: Soins améliorés
+  champs: { voie: prestige-pretre-archange, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Quand il est en forme d’ange, si le prêtre obtient un résultat de « 1 » sur son dé de soins, il peut relancer ce dé et conserver le second résultat.
+
+    Sous cette forme, il est aussi immunisé à tous les sorts destinés à restreindre son déplacement.
+
+- id: prestige-pretre-archange-epee-celeste
+  sorte: capacite
+  nom: Épée céleste
+  champs: { voie: prestige-pretre-archange, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Lorsqu’il est en forme d’ange, le prêtre bénéficie automatiquement du sort Arme d’argent pour la même durée.
+
+    Il est aussi immunisé à tous les sorts de drain ou d’affaiblissement des morts-vivants (ombre, vampire, goule, etc.).
+
+- id: prestige-pretre-archange-protection-divine
+  sorte: capacite
+  nom: Protection divine
+  champs: { voie: prestige-pretre-archange, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Sous sa forme d’ange, le prêtre, sous la protection de son dieu, bénéficie d’un bonus de +3 en DEF.
+
+    De plus, une fois par jour, il peut décider que les DM d’une attaque sont absorbés entièrement par la puissance de son dieu, après avoir pris connaissance des DM.
+
+- id: prestige-pretre-archange-forme-d-archange
+  sorte: capacite
+  nom: Forme d’Archange
+  champs: { voie: prestige-pretre-archange, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Cette capacité remplace « Forme d’Ange ».
+
+    Sous cette forme, le prêtre peut désormais relancer les résultats de « 1 » ou « 2 » sur les dés de soins (mais il devra se plier au second résultat) et il obtient une réduction des DM (RD) de 5 points contre les attaques des morts-vivants et des créatures démoniaques.
+
+- id: prestige-pretre-commerce
+  sorte: voie
+  nom: Voie du commerce
+  etiquettes: [prestige, pretre]
+  description: |-
+    1. Sens du commerce
+    2. Or des fous
+    3. Piège
+    4. Luxe et abondance
+    5. Touché d’or
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-pretre-commerce-sens-du-commerce,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - { sur: rang, entree: prestige-pretre-commerce-or-des-fous, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: prestige-pretre-commerce-piege, valeur: 1, condition: 'rang >= 3' }
+    - {
+        sur: rang,
+        entree: prestige-pretre-commerce-luxe-et-abondance,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - { sur: rang, entree: prestige-pretre-commerce-touche-d-or, valeur: 1, condition: 'rang >= 5' }
+
+- id: prestige-pretre-commerce-sens-du-commerce
+  sorte: capacite
+  nom: Sens du commerce
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-pretre-commerce,
+      rangVoie: 1,
+      activation: Capacité passive,
+      bonusTest: '2 * rang("prestige-pretre-commerce")',
+    }
+  description: |-
+    Effet : +2 par rang aux tests de marchandages, d’estimation, recherche d’articles et tout ce qui touche au commerce.
+
+- id: prestige-pretre-commerce-or-des-fous
+  sorte: capacite
+  nom: Or des fous
+  champs: { voie: prestige-pretre-commerce, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le prêtre crée de la monnaie illusoire, jusqu’à 10 pa par rang avec une durée de 1d6 heures ou jusqu’à 10 po par rang pour une durée de 1d6 minutes.
+
+- id: prestige-pretre-commerce-piege
+  sorte: capacite
+  nom: Piège
+  champs: { voie: prestige-pretre-commerce, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Un coffre ou un autre objet (tiroir, bourse, etc.) scellé par ce sort produit une explosion de feu dans un diamètre de 3 mètres
+    s’il est ouvert sans prononcer le mot de commande. Toutes les créatures présentes la zone subissent 6d6 DM de feu, la moitié si elles réussissent un test de DEX difficulté 13.
+
+- id: prestige-pretre-commerce-luxe-et-abondance
+  sorte: capacite
+  nom: Luxe et abondance
+  champs: { voie: prestige-pretre-commerce, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Ce sort nécessite une pièce ou un bâtiment pour être utilisé, il ne fonctionne pas en rase campagne.
+
+    Il garnit l’endroit de meubles de qualité selon le bon vouloir du prêtre : tapis, lit, bureau, table dressée de vaisselle de luxe et même mets de qualités. Le sort a une durée de 12 heures, il affecte une surface totale maximum de 100 m2 (200 m2 au rang 5) quel que soit le nombre de fois où il est lancé. Les aliments ne sont pas réels et ne nourrissent pas ceux qui les mangent, mais ils sont exquis et donnent l’impression d’être rassasié.
+
+- id: prestige-pretre-commerce-touche-d-or
+  sorte: capacite
+  nom: Touché d’or
+  champs: { voie: prestige-pretre-commerce, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Une fois par jour le personnage peut en le touchant transformer un objet ordinaire en objet de qualité exceptionnelle.
+
+    Un vin ordinaire se transforme en grand cru, une épée rouillée en lame damasquinée, une tunique de lin en robe de soie, etc. La transformation est permanente, mais l’objet dégage une aura d’enchantement et un rituel capable de dissiper la magie lui rend sa valeur initiale. Un seul objet d’un poids inférieur à 10kg peut être affecté. L’objet ainsi transformé gagne sa valeur de 10 à 100 po au choix du MJ.
+
+- id: prestige-pretre-guerisseur
+  sorte: voie
+  nom: Voie du guérisseur
+  etiquettes: [prestige, pretre]
+  description: |-
+    1. Premiers soins
+    2. Immunité
+    3. Soins rapides
+    4. Zone de vie
+    5. Phénix
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-pretre-guerisseur-premiers-soins,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - { sur: rang, entree: prestige-pretre-guerisseur-immunite, valeur: 1, condition: 'rang >= 2' }
+    - {
+        sur: rang,
+        entree: prestige-pretre-guerisseur-soins-rapides,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-pretre-guerisseur-zone-de-vie,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - { sur: rang, entree: prestige-pretre-guerisseur-phenix, valeur: 1, condition: 'rang >= 5' }
+
+- id: prestige-pretre-guerisseur-premiers-soins
+  sorte: capacite
+  nom: Premiers soins
+  champs: { voie: prestige-pretre-guerisseur, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Ce sort ne demande qu’une action de mouvement pour être lancé et s’effectue seulement sur un personnage à 0 PV.
+
+    La cible touchée récupère immédiatement [2d6 + Mod. de SAG] PV. Par ailleurs, le prêtre augmente les effets de tous les sorts de la Voie des soins de 1 point par rang atteint dans cette nouvelle Voie.
+
+- id: prestige-pretre-guerisseur-immunite
+  sorte: capacite
+  nom: Immunité
+  champs: { voie: prestige-pretre-guerisseur, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le personnage touché devient immunisé aux poisons et aux maladies pour une durée de [1d6 + Mod. de SAG] tours.
+
+    Si le personnage est déjà malade ou empoisonné, le sort soulage la victime et annule les effets de l’affliction pendant toute sa durée : il agit même sur les maladies magiques, incurables et sur les malédictions divines.
+
+- id: prestige-pretre-guerisseur-soins-rapides
+  sorte: capacite
+  nom: Soins rapides
+  champs: { voie: prestige-pretre-guerisseur, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Tous les sorts de la Voie des soins sont à présent lancés par une simple action de mouvement au lieu d’une action limitée.
+
+    Durant son tour, le prêtre peut donc opter pour le lancement d’un sort de soins et, au choix, une action d’attaque ou de mouvement.
+
+- id: prestige-pretre-guerisseur-zone-de-vie
+  sorte: capacite
+  nom: Zone de vie
+  champs: { voie: prestige-pretre-guerisseur, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Trois fois par jour, le prêtre peut enchanter une surface de 10 mètres de rayon autour de lui pour une durée de [1d6 + Mod. de SAG] tours.
+
+    La zone est illuminée par une lumière bienfaitrice et l’air comme l’eau y sont purifiés. Les alliés du prêtre présents dans la zone récupèrent 1d6 PV à chaque tour de jeu (à la fin du tour du prêtre).
+
+- id: prestige-pretre-guerisseur-phenix
+  sorte: capacite
+  nom: Phénix
+  champs: { voie: prestige-pretre-guerisseur, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Une fois par combat, lorsque le prêtre tombe à 0 PV, il se relève imbibé d’une aura de lumière et feu prenant la forme d’un phénix.
+
+    Il produit alors une onde d’énergie positive qui restitue [3d6 + Mod. de SAG] PV à tous ses alliés dans un rayon de 30 mètres et double pour lui-même.
+
+- id: prestige-moine-armure-sainte
+  sorte: voie
+  nom: Voie de l’armure sainte
+  etiquettes: [prestige, moine]
+  description: |-
+    1. Armure sainte de bronze
+    2. Projection puissante
+    3. Armure sainte d’argent
+    4. Régénération
+    5. Armure sainte d’or
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-moine-armure-sainte-armure-sainte-de-bronze,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-armure-sainte-projection-puissante,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-armure-sainte-armure-sainte-d-argent,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-armure-sainte-regeneration,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-armure-sainte-armure-sainte-d-or,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-moine-armure-sainte-armure-sainte-de-bronze
+  sorte: capacite_active
+  nom: Armure sainte de bronze
+  champs: { voie: prestige-moine-armure-sainte, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le moine acquiert son armure sainte.
+
+    Celle-ci se présente sous la forme d’un cube de métal d’environ 50 cm d’arête pour 10 kg, portant son symbole. Sur un simple mot de commande (action limitée), l’armure se déploie et recouvre le corps du moine. Elle lui octroie un bonus de DEF de +4 et ne lui inflige aucune pénalité d’encombrement. Ce bonus ne se cumule pas à la capacité de Peau de Fer.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 'si(possede("prestige-moine-armure-sainte-armure-sainte-d-or"), 8, si(possede("prestige-moine-armure-sainte-armure-sainte-d-argent"), 6, 4)) - si(possede("moine-poing-peau-de-fer"), 2, 0)',
+        famille: armure,
+      }
+    - {
+        sur: attribut,
+        attribut: RD,
+        operation: ajouter,
+        valeur: 'si(possede("prestige-moine-armure-sainte-armure-sainte-d-or"), 5, si(possede("prestige-moine-armure-sainte-armure-sainte-d-argent"), 2, 0))',
+      }
+
+- id: prestige-moine-armure-sainte-projection-puissante
+  sorte: capacite
+  nom: Projection puissante
+  champs: { voie: prestige-moine-armure-sainte, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : Le moine peut doubler les DM infligés par sa capacité de Projection du Ki.
+
+    Après un tel exploit, il lui faut attendre 1d4 tours pour pouvoir à nouveau utiliser Projection du Ki.
+
+- id: prestige-moine-armure-sainte-armure-sainte-d-argent
+  sorte: capacite
+  nom: Armure sainte d’argent
+  champs: { voie: prestige-moine-armure-sainte, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : L’armure acquiert la couleur de l’argent et son Mod. de DEF passe à +6.
+    De plus, elle lui octroie une résistance au DM de 2 points (RD 2).
+
+- id: prestige-moine-armure-sainte-regeneration
+  sorte: capacite
+  nom: Régénération
+  champs: { voie: prestige-moine-armure-sainte, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le moine considère tous les DM subis par des attaques à mains nues (même les attaques à mains nues des autres moines) comme des DM temporaires.
+    C’est-à-dire qu’il les guérit au rythme de 1 point par minute.
+
+- id: prestige-moine-armure-sainte-armure-sainte-d-or
+  sorte: capacite
+  nom: Armure sainte d’or
+  champs: { voie: prestige-moine-armure-sainte, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : L’armure acquiert la couleur de l’or et son Mod. de DEF passe à +8. De plus, elle lui octroie une résistance au DM de 5 points (RD 5).
+
+- id: prestige-moine-contact-mortel
+  sorte: voie
+  nom: Voie du contact mortel
+  etiquettes: [prestige, moine]
+  description: |-
+    1. Attaque étourdissante
+    2. Pression destructrice
+    3. Frappe de l’enclume
+    4. Paume mortelle
+    5. Main du tout puissant
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-moine-contact-mortel-attaque-etourdissante,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-contact-mortel-pression-destructrice,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-contact-mortel-frappe-de-l-enclume,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-contact-mortel-paume-mortelle,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-contact-mortel-main-du-tout-puissant,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-moine-contact-mortel-attaque-etourdissante
+  sorte: capacite
+  nom: Attaque étourdissante
+  champs: { voie: prestige-moine-contact-mortel, rangVoie: 1, activation: Action limitée }
+  description: |-
+    Effet : Le moine réalise une attaque à mains nues contre une cible humanoïde (de grande taille au maximum).
+
+    Si l’attaque est réussie, il n’inflige pas de DM mais la victime doit réussir un test de CON de difficulté [10 + Mod. de SAG] ou sombrer dans l’inconscience pour [1d6 + Mod. de SAG] minutes. Si le niveau de la cible est supérieur à celui du moine, la cible est seulement paralysée pour un tour. Dans tous les cas, elle ne peut plus être affectée par cette capacité pour 24 heures si elle y a résisté.
+
+- id: prestige-moine-contact-mortel-pression-destructrice
+  sorte: capacite
+  nom: Pression destructrice
+  champs: { voie: prestige-moine-contact-mortel, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Cette capacité s’utilise en combinaison avec Pression mortelle.
+
+    Le moine ajoute un bonus de +1d6 aux DM de chaque attaque dont il n’inflige pas immédiatement les effets, attendant de les libérer plus tard par une Pression mortelle.
+
+- id: prestige-moine-contact-mortel-frappe-de-l-enclume
+  sorte: capacite
+  nom: Frappe de l’enclume
+  champs: { voie: prestige-moine-contact-mortel, rangVoie: 3, activation: Action limitée }
+  description: |-
+    Effet : Le moine se concentre pendant 1d4 tours pendant lesquels il ne peut ni attaquer ni se déplacer mais bénéficie d’une réduction des DM de 5 points (RD 5).
+
+    Au tour suivant, il réalise une attaque limitée, il peut réaliser une attaque dévastatrice : il bénéficie d’un bonus de +10 en attaque et il triple ses DM. S’il cesse sa concentration prématurément, le moine ne profite d’aucun bénéfice.
+
+- id: prestige-moine-contact-mortel-paume-mortelle
+  sorte: capacite
+  nom: Paume mortelle
+  champs: { voie: prestige-moine-contact-mortel, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : Une fois par jour, le moine peut porter une attaque capable de tuer net un adversaire.
+
+    Pour survivre, la victime doit réussir un test de CON ou de SAG (au choix) dont la difficulté est égale au niveau du moine. En cas d’échec, elle meurt sur le coup…
+
+- id: prestige-moine-contact-mortel-main-du-tout-puissant
+  sorte: capacite
+  nom: Main du tout puissant
+  champs: { voie: prestige-moine-contact-mortel, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Le poing du moine se matérialise partout à la fois.
+
+    Il réalise une attaque qui affecte toutes les créatures dans un rayon de 10 mètres autour de lui et inflige les DM normaux d’attaque à mains nues pour chaque attaque réussie. Cette attaque particulièrement éprouvante coûte 2d6 PV au moine à chaque fois qu’elle est employée.
+
+- id: prestige-moine-pierre
+  sorte: voie
+  nom: Voie de la pierre
+  etiquettes: [prestige, moine]
+  description: |-
+    1. Indéracinable
+    2. Sens de la pierre
+    3. Poings de pierre
+    4. Attaque pétrifiante
+    5. Corps de pierre
+  effets:
+    - { sur: rang, entree: prestige-moine-pierre-inderacinable, valeur: 1, condition: 'rang >= 1' }
+    - {
+        sur: rang,
+        entree: prestige-moine-pierre-sens-de-la-pierre,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-pierre-poings-de-pierre,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-pierre-attaque-petrifiante,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-moine-pierre-corps-de-pierre,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-moine-pierre-inderacinable
+  sorte: capacite
+  nom: Indéracinable
+  champs: { voie: prestige-moine-pierre, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage ne peut plus être renversé ou projeter contre son gré, il semble peser plusieurs tonnes ! De plus il gagne + 1 en DEF et ce bonus passe à +2 au rang 3 de la voie.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 'si(rang("prestige-moine-pierre") >= 3, 2, 1)',
+      }
+
+- id: prestige-moine-pierre-sens-de-la-pierre
+  sorte: capacite
+  nom: Sens de la pierre
+  champs: { voie: prestige-moine-pierre, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Le personnage sent la présence de toutes les créatures en contact avec la pierre (le sol ou les murs) dans un rayon de 20 mètres. Il peut définir précisément leur position que ce soit dans le noir ou s'il s'agit d'adversaires invisibles. Il ne peut plus être approché par surprise par un adversaire en contact avec le sol.
+
+- id: prestige-moine-pierre-poings-de-pierre
+  sorte: capacite
+  nom: Poings de pierre
+  champs: { voie: prestige-moine-pierre, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage donne à ses coups le poids et l'impact du roc. Lorsqu'il obtient un résultat de 1 sur le dé de DM d'une attaque à mains nues, ce résultat est remplacé par le score maximum possible du dé utilisé (par exemple 6 pour un d6). Cette capacité crée des effets dévastateurs lorsqu'elle est associée à Griffes du tigre. De plus le personnage double ses DM lorsqu'il frappe des structures de bois ou de pierre (porte, mur, etc.).
+
+- id: prestige-moine-pierre-attaque-petrifiante
+  sorte: capacite
+  nom: Attaque pétrifiante
+  champs: { voie: prestige-moine-pierre, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : Sur un test réussi d'attaque au contact à main nue, le moine paralyse sa cible. Elle doit réussir un test de CON difficulté [10 + Mod. de SAG] ou être incapable d'agir pendant 1d6 minutes. Tant qu'elle est paralysée son corps devient extrêmement dur et elle retranche 5 points à tous les DM subits. Si la victime perd plus de 5 PV pendant qu'elle est paralysée, l'effet prend fin. Une créature ne peut être la cible de cette capacité qu'une seule fois parcombat.
+
+- id: prestige-moine-pierre-corps-de-pierre
+  sorte: capacite_active
+  nom: Corps de pierre
+  champs: { voie: prestige-moine-pierre, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Le moine donne à son corps la texture de la pierre pendant [1d6 + Mod. de SAG] tours. Dans cet état, il retranche 5 points à tous les DM subits par des armes. Les créatures qui l'attaquent avec des armes naturelles subissent 1 point DM par attaque et celles qui utilisent des armes manufacturées voient leur arme se briser s'ils obtiennent un résultat de 1 au dé de DM. Les armes magiques ne risquent pas de se briser. Le personnage peut utiliser cette capacité pour mettre fin à tout effet de pétrification qui l'affecte en 1d6 tours.
+  effets:
+    - { sur: attribut, attribut: RDArmes, operation: ajouter, valeur: '5' }
+
+- id: prestige-guerrier-armes-a-2-mains
+  sorte: voie
+  nom: Voie des armes à 2 mains
+  etiquettes: [prestige, guerrier]
+  description: |-
+    1. Allonge
+    2. Gros Monstre, grosse arme
+    3. Tenir à distance
+    4. Attaque à outrance
+    5. Critique destructeur
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-guerrier-armes-a-2-mains-allonge,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-armes-a-2-mains-gros-monstre-grosse-arme,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-armes-a-2-mains-tenir-a-distance,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-armes-a-2-mains-attaque-a-outrance,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-armes-a-2-mains-critique-destructeur,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-guerrier-armes-a-2-mains-allonge
+  sorte: capacite
+  nom: Allonge
+  champs: { voie: prestige-guerrier-armes-a-2-mains, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le guerrier obtient un bonus de +1 en attaque et +2 en Init lorsqu’il utilise une arme à 2 mains.
+  effets:
+    - { sur: jet, si: 'a_etiquette(arme, "deux-mains")', ajout: { bonus: '1' } }
+- id: prestige-guerrier-armes-a-2-mains-gros-monstre-grosse-arme
+  sorte: capacite
+  nom: Gros Monstre, grosse arme
+  champs: { voie: prestige-guerrier-armes-a-2-mains, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Contre les créatures de taille grande et supérieure, les DM de l’arme à deux mains passent de 2d6 à 2d8 (de 1d10 à 2d6).
+
+- id: prestige-guerrier-armes-a-2-mains-tenir-a-distance
+  sorte: capacite_active
+  nom: Tenir à distance
+  champs: { voie: prestige-guerrier-armes-a-2-mains, rangVoie: 3, activation: Action limitée }
+  description: |-
+    Effet : À ce tour, le guerrier réalise une action d’attaque et il utilise son allonge pour maintenir ses adversaires à distance.
+    Il gagne un bonus de +5 en DEF contre les attaques de contact.
+  effets:
+    - { sur: attribut, attribut: DefContact, operation: ajouter, valeur: '5' }
+
+- id: prestige-guerrier-armes-a-2-mains-attaque-a-outrance
+  sorte: capacite
+  nom: Attaque à outrance
+  champs: { voie: prestige-guerrier-armes-a-2-mains, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le guerrier peut choisir une pénalité en -2 DEF pour gagner un bonus de +1d6 aux DM ou un bonus de -5 en DEF pour gagner un bonus de +2d6 aux DM.
+    Ce bonus n’est pas multiplié en cas de critique.
+
+- id: prestige-guerrier-armes-a-2-mains-critique-destructeur
+  sorte: capacite
+  nom: Critique destructeur
+  champs: { voie: prestige-guerrier-armes-a-2-mains, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Lorsqu’il obtient un critique avec une arme à 2 mains, le Guerrier obtient +2d6 aux DM en plus des effets du critique.
+  effets:
+    - {
+        sur: jet,
+        si: 'a_etiquette(arme, "deux-mains")',
+        ajout: { variable: desCritique, ajouter: '2' },
+      }
+
+- id: prestige-guerrier-danseur-de-guerre
+  sorte: voie
+  nom: Voie du danseur de guerre
+  etiquettes: [prestige, guerrier]
+  description: |-
+    1. Pirouettes
+    2. Lent des lames
+    3. Attaque en mouvement
+    4. Danse des lames
+    5. Volte face
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-guerrier-danseur-de-guerre-pirouettes,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-danseur-de-guerre-lent-des-lames,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-danseur-de-guerre-attaque-en-mouvement,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-danseur-de-guerre-danse-des-lames,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-guerrier-danseur-de-guerre-volte-face,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-guerrier-danseur-de-guerre-pirouettes
+  sorte: capacite
+  nom: Pirouettes
+  champs: { voie: prestige-guerrier-danseur-de-guerre, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Les pas de danse rendent le personnage insaisissable
+    il gagne +1 en DEF par rang atteint dans la Voie.
+    Il gagne un bonus de +5 à tous les tests de danse et d’acrobatie.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 'rang("prestige-guerrier-danseur-de-guerre")',
+      }
+
+- id: prestige-guerrier-danseur-de-guerre-lent-des-lames
+  sorte: capacite
+  nom: Lent des lames
+  champs: { voie: prestige-guerrier-danseur-de-guerre, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage peut utiliser son Mod. de DEX au choix en attaque au contact ou aux DM (mais pas les deux) au lieu du Mod. de FOR lorsqu’il utilise une épée ou une lance.
+  effets:
+    - {
+        sur: jet,
+        si: 'arme.attaque == "Contact" et a_etiquette(arme, "epee")',
+        ajout: { bonus: 'max(0, mod(@DEX) - mod(@FOR))' },
+      }
+
+- id: prestige-guerrier-danseur-de-guerre-attaque-en-mouvement
+  sorte: capacite
+  nom: Attaque en mouvement
+  champs: { voie: prestige-guerrier-danseur-de-guerre, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : À chaque fois qu’il réalise une action limitée, le guerrier peut en plus se déplacer de 10 mètres avant ou après.
+
+- id: prestige-guerrier-danseur-de-guerre-danse-des-lames
+  sorte: capacite_active
+  nom: Danse des lames
+  champs: { voie: prestige-guerrier-danseur-de-guerre, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : Le personnage entre en transe pour le reste du combat.
+
+    Pendant la Danse des lames, il gagne +2 en attaque et en DEF et peut réaliser une attaque supplémentaire en utilisant un d12 au lieu d’un d20 à chaque tour. Le personnage peut mettre fin à la transe au moment où il le veut, mais ne peut recommencer avant le prochain combat. Toutefois, s’il reçoit les DM d’une attaque critique, la transe est stoppée net.
+  effets:
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: '2' }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '2' }
+
+- id: prestige-guerrier-danseur-de-guerre-volte-face
+  sorte: capacite
+  nom: Volte face
+  champs: { voie: prestige-guerrier-danseur-de-guerre, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : À chaque tour où le guerrier attaque une cible différente du tour précédent, il obtient un bonus de +2 en attaque et de +1d6 aux DM.
+
+- id: prestige-forgesort-cristaux
+  sorte: voie
+  nom: Voie des cristaux
+  etiquettes: [prestige, forgesort]
+  description: |-
+    1. Premier cristal
+    2. Second cristal
+    3. Troisième cristal
+    4. Quatrième cristal
+    5. Cinquième cristal
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-forgesort-cristaux-premier-cristal,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-cristaux-second-cristal,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-cristaux-troisieme-cristal,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-cristaux-quatrieme-cristal,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-cristaux-cinquieme-cristal,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-forgesort-cristaux-premier-cristal
+  sorte: capacite
+  nom: Premier cristal
+  champs: { voie: prestige-forgesort-cristaux, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort apprend à créer un cristal de son choix.
+
+    Il peut fabriquer chaque cristal en dépensant 200 pièces d’argent.
+
+- id: prestige-forgesort-cristaux-second-cristal
+  sorte: capacite
+  nom: Second cristal
+  champs: { voie: prestige-forgesort-cristaux, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort apprend à créer un cristal de son choix.
+
+    Il peut bénéficier des effets de 2 cristaux simultanément, mais pas deux fois le même.
+
+- id: prestige-forgesort-cristaux-troisieme-cristal
+  sorte: capacite
+  nom: Troisième cristal
+  champs: { voie: prestige-forgesort-cristaux, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort apprend à créer deux nouveaux cristaux de son choix.
+
+    Il peut bénéficier au maximum des effets de 3 cristaux simultanément, mais pas deux fois le même. Changer de cristal correspond à une action limitée.
+
+- id: prestige-forgesort-cristaux-quatrieme-cristal
+  sorte: capacite
+  nom: Quatrième cristal
+  champs: { voie: prestige-forgesort-cristaux, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort apprend à créer deux nouveaux cristaux de son choix.
+
+    Il peut bénéficier au maximum des effets de 4 cristaux simultanément, mais pas deux fois le même.
+
+- id: prestige-forgesort-cristaux-cinquieme-cristal
+  sorte: capacite
+  nom: Cinquième cristal
+  champs: { voie: prestige-forgesort-cristaux, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort apprend à créer deux nouveaux cristaux de son choix.
+
+    Il peut bénéficier au maximum des effets de 5 cristaux simultanément, dont un maximum de deux fois le même.
+
+- id: prestige-forgesort-enchanteur
+  sorte: voie
+  nom: Voie de l’enchanteur
+  etiquettes: [prestige, forgesort]
+  description: |-
+    1. Parchemins
+    2. Grimoires
+    3. Propriétés étranges
+    4. Objet de puissance
+    5. Artefacts d'exception
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-forgesort-enchanteur-parchemins,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-enchanteur-grimoires,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-enchanteur-proprietes-etranges,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-enchanteur-objet-de-puissance,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-enchanteur-artefacts-d-exception,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-forgesort-enchanteur-parchemins
+  sorte: capacite
+  nom: Parchemins
+  champs: { voie: prestige-forgesort-enchanteur, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort devient capable de créer des parchemins et peut inscrire un sort au prix d’un jour de travail et de 5 pa par rang du sort.
+
+    S’il ne connaît pas lui-même le sort, il doit se faire aider par un personnage capable de le lancer puis doit réussir un test d’INT difficulté [10 + 2 x rang du sort]. En cas d’échec, le parchemin est inutilisable. En cas de réussite ou d’échec critique, le MJ est libre de préparer une petite surprise de son cru…
+
+- id: prestige-forgesort-enchanteur-grimoires
+  sorte: capacite
+  nom: Grimoires
+  champs: { voie: prestige-forgesort-enchanteur, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage peut créer des grimoires (cf. objets magiques). Il peut y inscrire un nombre de rangs de sort maximum égal à son niveau au prix de 50 pa par sort et d’une semaine de travail par rang.
+
+    S’il ne connaît pas lui-même un des sorts inscrits, il peut se faire aider par un personnage qui le lancera. À la fin du processus, il doit réussir un test d’INT difficulté [10 + 2 x rang du sort le plus puissant inscrit]. En cas de succès, le forgesort doit insuffler un peu d’énergie vitale dans l’objet : il sacrifie à cette fin 1 PV qu’il perd définitivement.
+
+- id: prestige-forgesort-enchanteur-proprietes-etranges
+  sorte: capacite
+  nom: Propriétés étranges
+  champs: { voie: prestige-forgesort-enchanteur, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort est dorénavant capable d’apporter une propriété spéciale (comme celles décrites au chapitre Objets magiques page 14) au-delà de sa création.
+
+    Cela lui prend un minimum de deux mois de travail et la demande d’un composant très rare ou de fabrication de l’objet (au choix). Si l’objet fabriqué est déjà puissant, il s’agira d’un cristal rare et précieux en rapport avec l’objet (de l’éclat d’étoile pour une épée de feu par exemple). À partir du rang 5, il peut ajouter 2 propriétés spéciales à un objet.
+
+- id: prestige-forgesort-enchanteur-objet-de-puissance
+  sorte: capacite
+  nom: Objet de puissance
+  champs: { voie: prestige-forgesort-enchanteur, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort est capable de créer des objet qui octroient des bonus aux Mod. de Carac.
+
+    au prix de 2 mois de travail et de 200 pa par point de bonus. Un tel objet nécessite le sacrifice de 1 PV (permanent). Le bonus maximum que peut obtenir le forgesort est égal à son niveau divisé par 5 (arrondi à l’inférieur).
+
+- id: prestige-forgesort-enchanteur-artefacts-d-exception
+  sorte: capacite
+  nom: Artefacts d'exception
+  champs: { voie: prestige-forgesort-enchanteur, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Les voies de forgesort ne permettent pas de créer d’objet avec un niveau de magie supérieur à 5.
+
+    Désormais, le personnage peut cumuler sur un même objet les effets des capacités Artefact majeur, Rune de pouvoir ou encore Propriétés étranges avec un niveau de magie total égal au maximum à son niveau divisé par 2.
+
+- id: prestige-forgesort-mecanicien
+  sorte: voie
+  nom: Voie du mécanicien
+  etiquettes: [prestige, forgesort]
+  description: |-
+    1. Familier mécanique
+    2. Arbalète automatique
+    3. Serviteur mécanique
+    4. Exosquelette
+    5. Exosquelette supérieur
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-forgesort-mecanicien-familier-mecanique,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-mecanicien-arbalete-automatique,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-mecanicien-serviteur-mecanique,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-mecanicien-exosquelette,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-forgesort-mecanicien-exosquelette-superieur,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-forgesort-mecanicien-familier-mecanique
+  sorte: capacite
+  nom: Familier mécanique
+  champs: { voie: prestige-forgesort-mecanicien, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort fabrique un familier mécanique (chouette, chat, etc.).
+    Il peut utiliser les sens de son familier et communiquer avec lui à distance illimitée.
+    Il gagne +2 en INIT lorsque son familier est en vue.
+    Familier mécanique : DEF 15, init [forgesort], PV [2 x niveau], FOR -4, DEX +3, CON -5, INT -2, SAG +0, CHA -2.
+    Le familier mécanique possède une réduction des DM de 2 points par rang dans la Voie (RD = rang x2).
+    Si le familier tombe à 0 PV, il est hors fonction, mais le forgesort peut le réparer au rythme de 1d6 PV par heure.
+    En temps que créature non-vivante, le familier mécanique possède certaines immunités (voir p. 212).
+
+- id: prestige-forgesort-mecanicien-arbalete-automatique
+  sorte: capacite
+  nom: Arbalète automatique
+  champs: { voie: prestige-forgesort-mecanicien, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le forgesort fabrique une arbalète complexe qu’il est seul à pouvoir utiliser.
+    Elle est dotée d’un chargeur de 10 carreaux et permet de tirer un carreau au prix d’une action de mouvement (il est donc possible de tirer plusieurs carreaux par tour).
+    Elle inflige [2d4+Mod. de DEX] DM à une portée de 50 mètres.
+    Il faut un tour complet pour la recharger.
+
+- id: prestige-forgesort-mecanicien-serviteur-mecanique
+  sorte: capacite
+  nom: Serviteur mécanique
+  champs: { voie: prestige-forgesort-mecanicien, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le serviteur mécanique ressemble à un humanoïde, il obéit aux ordres de son maître sans faillir au mieux de ses possibilités.
+    Il est capable de porter de lourdes charges et de manier certaines armes ordinaires de mêlée (uniquement pour se défendre).
+    Serviteur mécanique : DEF 14, INIT [du PV x niveau], FOR +2, DEX +0, CON +5, INT +0, SAG +0, CHA +0. Le serviteur mécanique possède une réduction des DM de 5 points (RD = 5).
+    S’il est endommagé, le forgesort peut le réparer au rythme de 1d6 PV par heure.
+
+- id: prestige-forgesort-mecanicien-exosquelette
+  sorte: capacite
+  nom: Exosquelette
+  champs: { voie: prestige-forgesort-mecanicien, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le mécanicien fabrique un exosquelette qui lui permet d’augmenter son Mod.
+    de FOR et sa DEF de +2.
+    De plus cela lui permet de porter un chargeur à bande : l’arbalète automatique n’a plus besoin d’être rechargée, vous pouvez considérer les munitions illimitées.
+  effets:
+    - {
+        sur: attribut,
+        attribut: FOR,
+        operation: ajouter,
+        valeur: 'si(possede("prestige-forgesort-mecanicien-exosquelette-superieur"), 6, 4)',
+      }
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 'si(possede("prestige-forgesort-mecanicien-exosquelette-superieur"), 3, 2)',
+      }
+
+- id: prestige-forgesort-mecanicien-exosquelette-superieur
+  sorte: capacite
+  nom: Exosquelette supérieur
+  champs: { voie: prestige-forgesort-mecanicien, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le mécanicien améliore son exosquelette, il le dote d’un jet-pack qui lui permet de voler pendant [1d6 + Mod. d’INT] tours et de respirer en autonomie (sous l’eau par exemple) pendant [1d6 + Mod. d’INT] heures.
+
+    Après une telle utilisation, l’exosquelette nécessite dix jours de maintenance pour pouvoir assurer à nouveau la même fonction. Le Mod. de DEF et de FOR passe à +3.
+
+- id: prestige-ensorceleur-sang-dragon
+  sorte: voie
+  nom: Voie du sang-dragon
+  etiquettes: [prestige, ensorceleur]
+  description: |-
+    1. Ascendance draconique
+    2. Férocité
+    3. Souffle du dragon
+    4. Armure naturelle
+    5. Ailes de dragon
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-sang-dragon-ascendance-draconique,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-sang-dragon-ferocite,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-sang-dragon-souffle-du-dragon,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-sang-dragon-armure-naturelle,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-sang-dragon-ailes-de-dragon,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-ensorceleur-sang-dragon-ascendance-draconique
+  sorte: capacite
+  nom: Ascendance draconique
+  champs: { voie: prestige-ensorceleur-sang-dragon, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Choisissez une couleur de dragon pour l’ascendance de votre personnage.
+
+    L’ensorceleur obtient une réduction des DM de 5 points correspondant au type d’énergie utilisé par le souffle du dragon. Cette résistance passe à 10 au rang 4 de la voie.
+
+- id: prestige-ensorceleur-sang-dragon-ferocite
+  sorte: capacite_active
+  nom: Férocité
+  champs: { voie: prestige-ensorceleur-sang-dragon, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : L’ensorceleur voit ses muscles se développer de façon spectaculaire pendant [1d6 + Mod. de CHA] tours tandis que d’énormes griffes poussent subitement au bout de ses doigts.
+
+    Pendant toute la durée de la transformation, il ne peut plus lancer de sort. Par contre, son score de FOR passe à 18 (+4) et il obtient une attaque de contact de griffes infligeant [1d6+4] DM.
+  effets:
+    - { sur: attribut, attribut: FOR, operation: minimum, valeur: 18 }
+
+- id: prestige-ensorceleur-sang-dragon-souffle-du-dragon
+  sorte: capacite
+  nom: Souffle du dragon
+  champs: { voie: prestige-ensorceleur-sang-dragon, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Une fois par combat, par une action d’attaque, l’ensorceleur peut produire un souffle létal correspondant à son ascendance.
+
+    Ce souffle couvre une zone conique de 5 mètres de long sur 5 mètres de large à son extrémité et inflige 2d6 DM par rang atteint dans cette voie. Les victimes dans le cône d’effet peuvent diviser les DM infligés par 2 à condition de réussir un test de DEX difficulté [10 + rang].
+
+- id: prestige-ensorceleur-sang-dragon-armure-naturelle
+  sorte: capacite
+  nom: Armure naturelle
+  champs: { voie: prestige-ensorceleur-sang-dragon, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le corps de l’ensorceleur se renforce et se couvre d’écailles lorsqu’il reçoit des blessures graves.
+
+    Lorsque le personnage passe sous la moitié de ses PV, il gagne une réduction des DM de 5 points face à tous les types de dégâts.
+  effets:
+    - { sur: attribut, attribut: RD, operation: ajouter, valeur: 5, condition: '@PV < @PV_Max / 2' }
+
+- id: prestige-ensorceleur-sang-dragon-ailes-de-dragon
+  sorte: capacite
+  nom: Ailes de dragon
+  champs:
+    { voie: prestige-ensorceleur-sang-dragon, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : L’ensorceleur déploie des ailes de dragon pendant [1d6 + Mod. de CHA] minutes.
+
+    Ces ailes lui permettent de se déplacer en vol à une vitesse de 30 mètres par action de mouvement. Faire du surplace est une action gratuite.
+
+- id: prestige-ensorceleur-gel
+  sorte: voie
+  nom: Voie du gel
+  etiquettes: [prestige, ensorceleur]
+  description: |-
+    1. Verglas
+    2. Fils des Glaces
+    3. Cône de Froid
+    4. Présence Glaciale
+    5. Cryogénisation
+  effets:
+    - { sur: rang, entree: prestige-ensorceleur-gel-verglas, valeur: 1, condition: 'rang >= 1' }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-gel-fils-des-glaces,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-gel-cone-de-froid,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-gel-presence-glaciale,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-ensorceleur-gel-cryogenisation,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-ensorceleur-gel-verglas
+  sorte: capacite
+  nom: Verglas
+  champs: { voie: prestige-ensorceleur-gel, rangVoie: 1, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Un verglas glissant recouvre le sol sur une surface de 10m de diamètre pour le reste du combat (vous pouvez stopper le sort plus tôt).
+
+    Dans cette zone les personnages doivent à chaque tour faire un test de Dextérité de difficulté 10, s’y déplacer ou combattre est aussi difficile (test de difficulté 15). Un échec signifie que la créature est au sol, se relever nécessite un nouveau test de Dextérité 15 et prend un tour. Ramper en dehors de la zone demande un tour complet.
+
+- id: prestige-ensorceleur-gel-fils-des-glaces
+  sorte: capacite
+  nom: Fils des Glaces
+  champs: { voie: prestige-ensorceleur-gel, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : Vous divisez par 2 tous les DM de Froid subis par le personnage pour le reste du combat (10 tours hors combat).
+
+- id: prestige-ensorceleur-gel-cone-de-froid
+  sorte: capacite
+  nom: Cône de Froid
+  champs: { voie: prestige-ensorceleur-gel, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le sort affecte toutes les créatures dans un cône approximatif de 20 mètres de long sur 10 mètres de large à son extrémité.
+
+    Les victimes subissent [2d6+Mod d'INT] DM et sont Ralenties pour 1 tour si elles ratent un test de CON difficulté 13. Sinon, elles subissent seulement la moitié des DM et ne sont pas ralenties.
+
+- id: prestige-ensorceleur-gel-presence-glaciale
+  sorte: capacite_active
+  nom: Présence Glaciale
+  champs: { voie: prestige-ensorceleur-gel, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : L’ensorceleur transforme son corps en glace vivante, il gagne +4 en DEF, et est immunisé au froid et divise les DM de feu par 2.
+
+    Les créatures qui le touchent ou l'attaquent avec des armes métalliques subissent 1d6 DM. Lorsqu'il marche, le sol se gèle et il peut se déplacer sur l'eau en la transformant en glace. Le sort a une durée de [1d6 + Mod. d'INT] minutes.
+  effets:
+    - {
+        sur: degats,
+        types: [froid],
+        operation: annuler,
+        description: 'Présence glaciale : immunisé au froid',
+      }
+    - {
+        sur: degats,
+        types: [feu],
+        operation: multiplier,
+        valeur: 0.5,
+        famille: resistance-feu,
+        description: 'Présence glaciale : DM de feu divisés par 2',
+      }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '4' }
+
+- id: prestige-ensorceleur-gel-cryogenisation
+  sorte: capacite
+  nom: Cryogénisation
+  champs: { voie: prestige-ensorceleur-gel, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : L’ensorceleur peut utiliser cette capacité sur lui-même ou sur toute créature volontaire ou inconsciente de taille moyenne ou inférieure.
+
+    La créature est congelée et son métabolisme stoppé. Elle ne vieillit plus et n’a besoin ni de manger ni de boire. Le sort peut être maintenu pour cesser après une durée fixe ou si la créature est touchée par un autre effet magique de taille petite ou plus. La durée maximum est fixée à 1 an par niveau du personnage mais certains rituels et composants légendaires permettent d’augmenter considérablement cette période.
+
+- id: prestige-druide-elements
+  sorte: voie
+  nom: Voie des éléments
+  etiquettes: [prestige, druide]
+  description: |-
+    1. Terre
+    2. Eau
+    3. Air
+    4. Feu
+    5. Forme élémentaire
+  effets:
+    - { sur: rang, entree: prestige-druide-elements-terre, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: prestige-druide-elements-eau, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: prestige-druide-elements-air, valeur: 1, condition: 'rang >= 3' }
+    - { sur: rang, entree: prestige-druide-elements-feu, valeur: 1, condition: 'rang >= 4' }
+    - {
+        sur: rang,
+        entree: prestige-druide-elements-forme-elementaire,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-druide-elements-terre
+  sorte: capacite
+  nom: Terre
+  etiquettes: [test]
+  champs:
+    { voie: prestige-druide-elements, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le druide ne fait qu’un avec la terre.Il ne peut plus être renversé et détecte automatiquement tous les pièges creusés dans le sol (trappes, fosses).
+
+    Il gagne un bonus de +5 à tous les tests pour détecter des pièges ou des passages secrets dissimulés dans les murs de pierre ou au sol.
+
+- id: prestige-druide-elements-eau
+  sorte: capacite
+  nom: Eau
+  champs: { voie: prestige-druide-elements, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le druide peut marcher sur l’eau à sa guise (comme s’il s’agissait d’un sol stable).
+
+    Il peut utiliser cette capacité pour en faire profiter autrui au prix d’une action limitée en touchant sa cible. Il peut ainsi affecter un nombre maximum de cibles égal au rang atteint dans la voie pour une durée de [1d6 + Mod. de SAG] minutes.
+
+- id: prestige-druide-elements-air
+  sorte: capacite
+  nom: Air
+  champs: { voie: prestige-druide-elements, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le druide peut respirer dans n’importe quel milieu hostile, sous l’eau comme dans un milieu empoisonné ou dénué d’air.
+
+    Il peut utiliser cette capacité sur autrui au prix d’une action limitée en touchant sa cible. Il peut ainsi affecter un nombre maximum de cibles égal au rang atteint dans la voie pour une durée de [1d6 + Mod. de SAG] minutes.
+
+- id: prestige-druide-elements-feu
+  sorte: capacite
+  nom: Feu
+  champs: { voie: prestige-druide-elements, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le druide devient immunisé aux DM de feu et il ne reçoit plus que la moitié des DM de froid.
+  effets:
+    - {
+        sur: degats,
+        types: [feu],
+        operation: annuler,
+        description: 'Élément feu : immunisé au feu',
+      }
+    - {
+        sur: degats,
+        types: [froid],
+        operation: multiplier,
+        valeur: 0.5,
+        famille: resistance-froid,
+        description: 'Élément feu : DM de froid divisés par 2',
+      }
+
+- id: prestige-druide-elements-forme-elementaire
+  sorte: capacite_active
+  nom: Forme élémentaire
+  champs: { voie: prestige-druide-elements, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le druide peut transformer son corps en chacun des différents éléments une fois par jour pendant [5 + Mod. de SAG] minutes.
+
+    Chaque forme élémentaire lui permet de retrancher 5 points à tous les DM subis (RD 5) et lui octroie les capacités suivantes. Feu : le personnage gagne +2d6 DM de feu à toutes ses attaques au contact. Eau : la créature qu’il attaque à la hache ou aux armes naturelles subit 1d6 DM pour chaque attaque réussie. Eau : le personnage guérit toutes ses blessures au rythme de 3 PV par tour et il peut étendre son corps pour passer dans un endroit infranchissable. Terre : le personnage gagne un bonus de +6 en FOR (+3 attaque, DM et test de jet) ou en DEF. Air : le personnage peut voler à une vitesse de 30 mètres par seconde. Ses DM physiques qu’il subit sont infligés à tous ceux qui l’attaquent.
+  effets:
+    - { sur: attribut, attribut: RD, operation: ajouter, valeur: '5' }
+
+- id: prestige-druide-vermines
+  sorte: voie
+  nom: Voie des vermines
+  etiquettes: [prestige, druide]
+  description: |-
+    1. Nuées de Criquets
+    2. Compagnon Vermine
+    3. Affinité au poison
+    4. Vermine supérieure
+    5. Maître vermine
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-druide-vermines-nuees-de-criquets,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-druide-vermines-compagnon-vermine,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-druide-vermines-affinite-au-poison,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-druide-vermines-vermine-superieure,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-druide-vermines-maitre-vermine,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-druide-vermines-nuees-de-criquets
+  sorte: capacite
+  nom: Nuées de Criquets
+  etiquettes: [sort]
+  champs:
+    {
+      voie: prestige-druide-vermines,
+      rangVoie: 1,
+      activation: 'Action limitée, sortilège',
+      nbDes: 0,
+      bonusDegats: '2',
+    }
+  description: |-
+    Effet : Cette capacité remplace la capacité «Nuée d’insectes».
+
+    En réussissant un test d’attaque magique (portée 20 m), le druide libère sur sa cible une nuée de criquets affamés qui la dévorent à petit feu pendant [5 + Mod de SAG] tours. La victime subit 2 points de DM par tour et un malus de -3 à toutes ses actions. Les DM de zone détruisent la nuée.
+
+- id: prestige-druide-vermines-compagnon-vermine
+  sorte: capacite
+  nom: Compagnon Vermine
+  champs: { voie: prestige-druide-vermines, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le druide adopte un scorpion ou une araignée (au choix du joueur).
+
+    Scorpion géant : INIT 12, DEF 16, PV [4x niveau du druide], Attaque au contact = [Niveau du druide +3], DM 1d6+3 [poison 2d6 DM, Test CON 13 = DM / 2], FOR +3, DEX +1, CON +2, INT -3, SAG +3, CHA -3. Araignée géante : INIT 13, DEF 15, PV [4x niveau du druide], Attaque au contact = [Niveau du druide +3], DM 1d6+1 [poison 3d6 DM, Test CON 13 = DM / 2], FOR +1, DEX +3, CON +2, INT -3, SAG +4, CHA -3.
+
+- id: prestige-druide-vermines-affinite-au-poison
+  sorte: capacite
+  nom: Affinité au poison
+  champs: { voie: prestige-druide-vermines, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Après des années passées en compagnie des êtres qui rampent ou qui piquent, le druide a développé une aptitude à maîtriser le poison de ces derniers.
+
+    S’il utilise une arme tranchante, comme une dague ou un sabre, il peut enduire de poison. Pour chaque attaque au contact réussie, le druide inflige 1d6 DM supplémentaires au début de chaque tour de la cible affectée. À chaque fois que la créature souffre du poison, elle peut faire un test de CON difficulté [10 + Mod de SAG du druide] pour stopper les effets du poison, tant que le test n’est pas réussi l’effet continue au tour suivant. L’enduit de poison n’est pas cumulable. En plus des effets décrits ci-dessus, le druide gagne désormais un bonus de +3 à tous les tests de CON destinés à résister au poison.
+
+- id: prestige-druide-vermines-vermine-superieure
+  sorte: capacite
+  nom: Vermine supérieure
+  champs: { voie: prestige-druide-vermines, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le compagnon vermine du druide gagne une des capacités suivantes, au choix de la nature (tertre écopique) : le scorpion peut désormais tenter d’attraper une créature entre ses pinces, sur un test de FOR difficulté 12.
+
+    Lorsqu’il réussit ce test, la victime ne peut plus bouger et subit un malus de -2 à ses actions de résistance.
+    Au début de son tour, la victime doit faire un test de FOR ou de DEX difficulté 12 pour tenter de se libérer.
+    L’araignée géante, quant à elle, développe la capacité de lancer une toile sur une cible.
+    Cette toile mesure 10 mètres de large et immobilise la victime lorsqu’elle touche (test de DEX difficulté 12 pour l’éviter).
+    La victime immobilisée par la toile doit réussir un test de FOR difficulté 15 pour s’en libérer, et en attendant elle subit un malus de -4 à toutes ses actions.
+    Si la victime ne se libère pas au bout de 3 tours, elle est complètement immobilisée (pas de mouvement possible) et doit réussir un test de FOR difficulté 18 pour se libérer. Sinon, elle reste immobile.
+
+- id: prestige-druide-vermines-maitre-vermine
+  sorte: capacite
+  nom: Maître vermine
+  champs: { voie: prestige-druide-vermines, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le druide obtient le titre de « Maître Vermine ».
+
+    Il peut désormais communiquer avec les vermines de tout genre et celles-ci le considèrent plutôt comme une créature amicale, sauf si elles sont sous l’emprise d’un autre druide plus puissant ou sont corrompues par la magie.
+
+    En plus de cette capacité de communication, le druide peut désormais commander son compagnon animal.
+    La vermine gagne +2 aux jets de sauvegarde (défensifs et aux attaques) et le druide peut désormais lancer Vermine supérieure comme une action limitée ou action d’attaque.
+
+- id: prestige-chevalier-chevalier-dragon
+  sorte: voie
+  nom: Voie du chevalier dragon
+  etiquettes: [prestige, chevalier]
+  description: |-
+    1. Ordre du chevalier dragon
+    2. Épée de feu
+    3. Résistance au feu
+    4. Monture puissante
+    5. Souffle enflammé
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-chevalier-chevalier-dragon-ordre-du-chevalier-dragon,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-chevalier-dragon-epee-de-feu,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-chevalier-dragon-resistance-au-feu,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-chevalier-dragon-monture-puissante,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-chevalier-dragon-souffle-enflamme,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-chevalier-chevalier-dragon-ordre-du-chevalier-dragon
+  sorte: capacite
+  nom: Ordre du chevalier dragon
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-chevalier-chevalier-dragon,
+      rangVoie: 1,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : Le chevalier rejoint l’ordre des chevaliers dragons avec le grade d’apprenti.
+
+    Il reçoit des vêtements associés à son ordre (un énorme dragon rouge peint sur son armure et sur son bouclier) et il obtient une garde d’épée prenant la forme d’une gueule de dragon. Aussi longtemps qu’il porte ces vêtements, il gagne un bonus de +5 pour tous les tests de persuasion et d’intimidation. Ce bonus passe à +10 s’il chevauche son drake.
+
+- id: prestige-chevalier-chevalier-dragon-epee-de-feu
+  sorte: capacite_active
+  nom: Épée de feu
+  champs: { voie: prestige-chevalier-chevalier-dragon, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : Le chevalier peut enflammer son épée pour [5 + Mod. de CHA] tours. Elle inflige des lots +1d6 DM de feu.
+  effets:
+    - { sur: jet, si: 'a_etiquette(arme, "epee")', ajout: { variable: desDM, ajouter: '1' } }
+
+- id: prestige-chevalier-chevalier-dragon-resistance-au-feu
+  sorte: capacite
+  nom: Résistance au feu
+  champs: { voie: prestige-chevalier-chevalier-dragon, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le chevalier est désormais un membre à part entière de l’ordre des chevaliers dragons.
+
+    Il a appris à résister aux flammes les plus féroces et il retranche 5 points à tous les DM de feu subis (RD feu 5). Cette réduction passe à 10 une fois atteint le rang 5.
+  effets:
+    - {
+        sur: degats,
+        types: [feu],
+        operation: reduire,
+        valeur: 'si(rang("prestige-chevalier-chevalier-dragon") >= 5, 10, 5)',
+        description: 'Résistance au feu : RD feu 5 (10 au rang 5)',
+      }
+
+- id: prestige-chevalier-chevalier-dragon-monture-puissante
+  sorte: capacite
+  nom: Monture puissante
+  champs: { voie: prestige-chevalier-chevalier-dragon, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le drake monté par le chevalier atteint sa pleine maturité, il augmente ses capacités offensives : Init 15, DEF 18, PV 20 + [5 x niveau], Att +12, DM 2d6+7 (FOR et CON +7).
+
+- id: prestige-chevalier-chevalier-dragon-souffle-enflamme
+  sorte: capacite
+  nom: Souffle enflammé
+  champs: { voie: prestige-chevalier-chevalier-dragon, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le drake du Chevalier est désormais capable de cracher du feu au prix d’une action d’attaque.
+
+    S’il réussit un test d’attaque, il inflige 4d6 DM de feu à sa cible, ainsi que 2d6 DM de feu à toutes les cibles à moins de 3 mètres de sa cible initiale. En cas d’échec, l’ensemble des cibles subit seulement 1d6 DM. Ce crachat inflamme à une portée de 40 m.
+
+- id: prestige-chevalier-grand-veneur
+  sorte: voie
+  nom: Voie du grand veneur
+  etiquettes: [prestige, chevalier]
+  description: |-
+    1. Meute de chasse
+    2. Harcèlement
+    3. Meute fabuleuse
+    4. Mise à mort
+    5. Gibier royal
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-chevalier-grand-veneur-meute-de-chasse,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-grand-veneur-harcelement,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-grand-veneur-meute-fabuleuse,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-grand-veneur-mise-a-mort,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-grand-veneur-gibier-royal,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-chevalier-grand-veneur-meute-de-chasse
+  sorte: capacite
+  nom: Meute de chasse
+  champs: { voie: prestige-chevalier-grand-veneur, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le chevalier fait l’acquisition d’une meute de chiens de chasse (environ 5 chiens plus 2 par rang).
+
+    Ces chiens n’ont pas de caractéristiques individuelles mais des scores qui correspondent à tout le groupe. Init 15, DEF 15, PV [15 + 5 par rang], Att [niveau + Mod. de CHA], DM : [2d6 + rang]. La meute récupère 1d6 PV par jour par rang et de plus, en ville, le chevalier peut acheter de nouveaux chiens, la meute récupère alors 1d6 PV par pièce d’argent investie.
+
+- id: prestige-chevalier-grand-veneur-harcelement
+  sorte: capacite
+  nom: Harcèlement
+  champs: { voie: prestige-chevalier-grand-veneur, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : La meute harcèle une créature et essaie de l’obliger à se déplacer tout en restant hors de portée des attaques de celle-ci.
+
+    Cela nécessite de la meute que le groupe gagne +2 DEF par rang dans la voie et le joueur doit faire un test de commandement dans laquelle il pousse la créature ciblée. Si la cible suit cette direction d’au moins 10 mètres par tour, elle ne subit que la moitié des DM de la meute en cas d’attaque réussie. Si elle s’y refuse, elle subit des dégâts normaux.
+
+- id: prestige-chevalier-grand-veneur-meute-fabuleuse
+  sorte: capacite
+  nom: Meute fabuleuse
+  champs: { voie: prestige-chevalier-grand-veneur, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Les créatures qui composent la meute du chevalier sont magiques et elles répondent à son appel depuis un autre monde (par un sifflet ou un cor par exemple).
+
+    Il peut l’appeler à tout moment et elle surgit pour se mettre à son service instantanément. La meute apparaît dans un lieu, alors lorsqu’il dégage des chiens il reste au moins une minute, ce qui en fait un obstacle durable et il adapte la composition de ses chiens en fonction de ses besoins. Rapide (Félin) : +10 mètres de déplacement, +5 en Initiative, Capacité de Vol (Chiens ailés, marche sur l’air…) Férocité : +3 en attaque, Puissant (gueule Géantesque, attaque griffée…), +1d6 DM, Résistant (grande taille, régénération…) : +10 PV.
+
+- id: prestige-chevalier-grand-veneur-mise-a-mort
+  sorte: capacite
+  nom: Mise à mort
+  champs: { voie: prestige-chevalier-grand-veneur, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : Après une attaque réussie de sa meute de chiens, le chevalier peut exécuter une attaque contre la victime acculée.
+
+    Il double les DM de cette attaque et, si elle est effectuée à l’épée, il obtient en plus un bonus de +5 en attaque. Toutefois si la cible n’est pas tuée par cette attaque, elle gagne immédiatement une action d’attaque gratuite contre le chevalier.
+
+- id: prestige-chevalier-grand-veneur-gibier-royal
+  sorte: capacite
+  nom: Gibier royal
+  champs: { voie: prestige-chevalier-grand-veneur, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le chevalier met un point d’honneur à traquer et tuer les créatures les plus dangereuses.
+
+    Il gagne un bonus de +1d6 aux DM à ses attaques contre les prédateurs (ours, lion, prédateurs fantastiques comme les animaux préhistoriques) et gagne +2d6 aux DM du gibier le plus noble qui soit : les dragons !
+
+- id: prestige-chevalier-tournoi
+  sorte: voie
+  nom: Voie du tournoi
+  etiquettes: [prestige, chevalier]
+  description: |-
+    1. Héraldique
+    2. Désarçonner
+    3. Armure de tournoi
+    4. Amour courtois
+    5. Briser l’armure
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-chevalier-tournoi-heraldique,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-tournoi-desarconner,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-tournoi-armure-de-tournoi,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-tournoi-amour-courtois,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-chevalier-tournoi-briser-l-armure,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-chevalier-tournoi-heraldique
+  sorte: capacite
+  nom: Héraldique
+  etiquettes: [test]
+  champs:
+    { voie: prestige-chevalier-tournoi, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le chevalier obtient un bonus de +5 pour reconnaître un chevalier à ses armoiries et un bonus de +5 à tous les tests d’interactions sociales avec la noblesse.
+
+- id: prestige-chevalier-tournoi-desarconner
+  sorte: capacite
+  nom: Désarçonner
+  champs: { voie: prestige-chevalier-tournoi, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Lors d’une attaque montée à la lance contre un cavalier, si le joueur obtient un résultat de 15 à 20 au test d’attaque, le chevalier peut faire un test de FOR opposé à son adversaire.
+
+    En cas de réussite, il le désarçonne en plus de lui infliger des DM normaux. Si l’attaque est réalisée contre un piéton, il peut choisir de le renverser et il obtient un bonus de +5 à son test de FOR.
+
+- id: prestige-chevalier-tournoi-armure-de-tournoi
+  sorte: capacite_active
+  nom: Armure de tournoi
+  champs: { voie: prestige-chevalier-tournoi, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le chevalier obtient une armure particulière qui ne peut être utilisée qu’en champ clos.
+
+    Elle confère un bonus de +10 en DEF et une réduction des DM de 3 points (RD 3, cumul possible avec encaisser un coup). Lorsqu’il porte cette armure, le chevalier ne peut effectuer qu’une seule action par tour : une action d’attaque ou une action de mouvement ou une action limitée. S’il tombe au sol, il lui faut réussir un test de FOR difficulté 15 pour se relever.
+  effets:
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '10' }
+    - { sur: attribut, attribut: RD, operation: ajouter, valeur: '3' }
+
+- id: prestige-chevalier-tournoi-amour-courtois
+  sorte: capacite
+  nom: Amour courtois
+  etiquettes: [test]
+  champs:
+    { voie: prestige-chevalier-tournoi, rangVoie: 4, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le chevalier obtient un bonus de +5 pour les tests de séduction et d’interaction sociale auprès du sexe faible.
+
+    De plus s’il combat pour une noble dame et porte son gage (un objet qu’elle lui a offert), il obtient un bonus de +2 en attaque et aux DM.
+
+- id: prestige-chevalier-tournoi-briser-l-armure
+  sorte: capacite
+  nom: Briser l’armure
+  champs: { voie: prestige-chevalier-tournoi, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Habitué à affronter des chevaliers presque invulnérables dans leurs armures de tournoi, le chevalier a appris à saper progressivement la défense de ses adversaires pour y créer une brèche.
+
+    Cette attaque n’inflige que 1d6 DM mais si elle est réussie, elle réduit la DEF et la RD éventuelle de sa cible de 3 points pour le reste du combat. Si elle est ratée (sauf échec critique), elle réduit malgré tout la DEF de l’adversaire de 1 point.
+
+- id: prestige-barde-bouffon
+  sorte: voie
+  nom: Voie du bouffon
+  etiquettes: [prestige, barde]
+  description: |-
+    1. Ça pique les yeux
+    2. Blagues et cabrioles
+    3. Corps élastique
+    4. Mort de rire
+    5. Blague mortelle
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-barde-bouffon-ca-pique-les-yeux,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barde-bouffon-blagues-et-cabrioles,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barde-bouffon-corps-elastique,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - { sur: rang, entree: prestige-barde-bouffon-mort-de-rire, valeur: 1, condition: 'rang >= 4' }
+    - {
+        sur: rang,
+        entree: prestige-barde-bouffon-blague-mortelle,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-barde-bouffon-ca-pique-les-yeux
+  sorte: capacite
+  nom: Ça pique les yeux
+  champs: { voie: prestige-barde-bouffon, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage porte un costume chamarré aux motifs complexes (Arlequin, bouffon…) qui attire l’attention et distrait les regards.
+
+    Associé à des postures étranges et imprévisibles, il masque efficacement ses mouvements et obtient un bonus de +1 en DEF par rang dans cette voie.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 'rang("prestige-barde-bouffon")',
+      }
+
+- id: prestige-barde-bouffon-blagues-et-cabrioles
+  sorte: capacite
+  nom: Blagues et cabrioles
+  champs: { voie: prestige-barde-bouffon, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : Le personnage réalise un test de CHA de difficulté égale au score d’INT de sa cible (en cas de cibles multiples, le résultat d’un unique test est comparé au score de chacun des observateurs).
+
+    En cas de réussite, la cible est victime de distraction et subit une pénalité de 5 à tous les tests de SAG et d’INT pendant toute la durée des blagues et cabrioles. La victime perd 10 en Initiative si un combat survient.
+
+- id: prestige-barde-bouffon-corps-elastique
+  sorte: capacite
+  nom: Corps élastique
+  champs: { voie: prestige-barde-bouffon, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le barde sait accompagner les coups et les chutes, il obtient une réduction des DM de 3 contre toutes les sources de DM physique (armes, chutes mais pas énergie ou magie).
+  effets:
+    - { sur: attribut, attribut: RDArmes, operation: ajouter, valeur: '3' }
+
+- id: prestige-barde-bouffon-mort-de-rire
+  sorte: capacite
+  nom: Mort de rire
+  etiquettes: [sort]
+  champs:
+    { voie: prestige-barde-bouffon, rangVoie: 4, activation: 'Action limitée, sortilège', nbDes: 1 }
+  description: |-
+    Effet : Si le barde réussit un test d’attaque magique (portée de 10 mètres), la victime est prise d’un fou rire incontrôlable qui lui tord l’abdomen et la fait s’étouffer progressivement.
+
+    Elle subit d’abord une -2 en attaque et en DEF et subit 1d6 DM par tour jusqu’à ce qu’elle réussisse un test de SAG difficulté [12 + Mod. CHA] pour mettre fin au sort (un essai à la fin de chaque tour du barde) ou en mourir ! Ce sort n’affecte que les créatures humanoïdes.
+
+- id: prestige-barde-bouffon-blague-mortelle
+  sorte: capacite
+  nom: Blague mortelle
+  champs: { voie: prestige-barde-bouffon, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Après avoir réussi à distraire sa victime avec « Blagues et cabrioles », si le barde attaque au tour suivant et emporte l’initiative, il obtient un bonus de +5 en attaque et +2d6 aux DM.
+
+- id: prestige-barde-conteur
+  sorte: voie
+  nom: Voie du conteur
+  etiquettes: [prestige, barde]
+  description: |-
+    1. Orateur hors pair
+    2. Créature de rêve
+    3. Le poids des mots
+    4. Histoire à dormir debout
+    5. Souhait
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-barde-conteur-orateur-hors-pair,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barde-conteur-creature-de-reve,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barde-conteur-le-poids-des-mots,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barde-conteur-histoire-a-dormir-debout,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - { sur: rang, entree: prestige-barde-conteur-souhait, valeur: 1, condition: 'rang >= 5' }
+
+- id: prestige-barde-conteur-orateur-hors-pair
+  sorte: capacite
+  nom: Orateur hors pair
+  etiquettes: [test]
+  champs:
+    { voie: prestige-barde-conteur, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le barde obtient un bonus de +5 à tous les tests pour discourir, convaincre ou pour conter.
+
+    Il connaît tous les contes et légendes célèbres et, dans le doute, un test d’INT difficulté 10 permet de confirmer sa connaissance d’une légende plus confidentielle.
+
+- id: prestige-barde-conteur-creature-de-reve
+  sorte: capacite
+  nom: Créature de rêve
+  champs: { voie: prestige-barde-conteur, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le barde décrit et fait apparaître une étrange créature, de taille Très petite jusqu’à Grande, qu’il invente ou qui ressemble à une créature existante.
+
+    Dans tous les cas, la créature possède des teintes étranges qui floutent sur tout ou presque de l’arc-en-ciel. Lorsque l’[j’invoque, le barde] lui assigne des DM et un rôle précis ainsi qu’une illusion de vie. Si personne n’essaie de contester sa présence par des moyens magiques ou scientifiques, la créature est réelle pour tous et sa mission l’est aussi. PV de la créature = [Mod. CHA] x5 et ses DM selon l'échelle de force : FOR +2, DEX +2, CON +2, INT 0, SAG 0, CHA 0. La taille et la forme de la créature sont à définir librement. Cette illusion est limitée à 20 mètres par action de mouvement.
+
+- id: prestige-barde-conteur-le-poids-des-mots
+  sorte: capacite
+  nom: Le poids des mots
+  champs: { voie: prestige-barde-conteur, rangVoie: 3, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le barde déforme la réalité et la plie à sa volonté par la force de sa parole. Par exemple, une réalité s’inverse : tout devient son contraire ou improbable.
+
+    Cela dure [Mod. CHA] x tours et touche les personnes ciblées ou présentes à moins de 10 mètres. La personne affectée doit réussir un test de SAG difficulté 15 pour contester cette réalité, sinon elle subit le contrecoup des changements induits.
+
+- id: prestige-barde-conteur-histoire-a-dormir-debout
+  sorte: capacite
+  nom: Histoire à dormir debout
+  champs: { voie: prestige-barde-conteur, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le barde touche une cible et lui raconte des événements fictifs, des souvenirs inventés ou des mensonges auxquels elle croit et se persuade d’avoir réellement vécus.
+
+    Si elle échoue à son test de SAG difficulté 15, elle ne pourra jamais distinguer ce qui est inventé ou réel. En cas de réussite, elle comprend que c’est un mensonge mais subit des pertes de mémoire.
+
+- id: prestige-barde-conteur-souhait
+  sorte: capacite
+  nom: Souhait
+  champs: { voie: prestige-barde-conteur, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le barde modifie la réalité par la force de ses mots et émet un souhait qui est exécuté.
+
+    Une fois par jour, il peut dupliquer les effets d’un sort mineur ou complexe (jusqu’au rang 5). Le barde ne peut pas utiliser cette capacité s’il est sous l’influence d’un autre sort de manipulation de la réalité.
+
+- id: prestige-barde-voix
+  sorte: voie
+  nom: Voie des voix
+  etiquettes: [prestige, barde]
+  description: |-
+    1. Imitateur
+    2. Ventriloquie
+    3. Hourras
+    4. Chant des sirènes
+    5. Cri de la banshee
+  effets:
+    - { sur: rang, entree: prestige-barde-voix-imitateur, valeur: 1, condition: 'rang >= 1' }
+    - { sur: rang, entree: prestige-barde-voix-ventriloquie, valeur: 1, condition: 'rang >= 2' }
+    - { sur: rang, entree: prestige-barde-voix-hourras, valeur: 1, condition: 'rang >= 3' }
+    - {
+        sur: rang,
+        entree: prestige-barde-voix-chant-des-sirenes,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barde-voix-cri-de-la-banshee,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-barde-voix-imitateur
+  sorte: capacite
+  nom: Imitateur
+  champs: { voie: prestige-barde-voix, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    apacité passive
+    Effet : Cette capacité permet au barde d’imiter parfaitement la voix d’une créature qu’il a précédemment entendue.
+    Il peut également imiter différents cris d’animaux.
+
+- id: prestige-barde-voix-ventriloquie
+  sorte: capacite
+  nom: Ventriloquie
+  champs: { voie: prestige-barde-voix, rangVoie: 2, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le barde peut projeter sa voix et la faire surgir d’un point de son choix situé à moins de 20 mètres de lui pour une durée de [1d6 + Mod. de CHA] tours.
+
+- id: prestige-barde-voix-hourras
+  sorte: capacite
+  nom: Hourras
+  champs: { voie: prestige-barde-voix, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le barde peut utiliser cette capacité une fois par tour lorsqu’un événement positif pour lui et ses alliés se produit.
+
+    Tous les alliés à portée de voix profitent alors d’un bonus de +3 pour leur prochaine action similaire. Si le groupe doit par exemple franchir une crevasse, lorsqu’un premier personnage a réussi, le barde encourage ses alliés par ses hourras et ils obtiennent un bonus de +3 à son test. En combat, pour chaque ennemi neutralisé, le barde peut utiliser cette capacité et donner un bonus de +3 (non-cumulable) au prochain test d’attaque de chacun de ses alliés.
+
+- id: prestige-barde-voix-chant-des-sirenes
+  sorte: capacite
+  nom: Chant des sirènes
+  champs: { voie: prestige-barde-voix, rangVoie: 4, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Le barde entonne un chant en adoptant une voix si merveilleuse qu’il parvient à fasciner toutes les créatures humanoïdes à portée d’ouïe (environ 10 mètres de rayon).
+
+    Tant que le barde chante, elles cessent immédiatement toute activité et restent immobiles et vulnérables à moins de réussir un test de SAG difficulté [10 + Mod. de CHA du barde] à chaque tour. Les créatures affectées reçoivent une pénalité de 1 en DEF et subissent automatiquement des DM critiques (multipliés par 2) en cas d’attaque. Se boucher les oreilles apporte un nouveau jet de test de SAG mais limite les attaques aux seuls cas de mouvement si l’ennemi sans mains pour le faire.
+
+- id: prestige-barde-voix-cri-de-la-banshee
+  sorte: capacite
+  nom: Cri de la banshee
+  champs: { voie: prestige-barde-voix, rangVoie: 5, activation: 'Action limitée, sortilège' }
+  description: |-
+    Effet : Toutes les créatures vivantes dans un rayon de 30 mètres autour du barde doivent réussir un test de CON difficulté [10 + Mod. de CHA] ou subir 6d6 DM.
+
+    Les alliés du barde ont un bonus de +5 à ce test (s’ils en sont prévenus et que ceux-ci sont prévenus et peuvent se boucher les oreilles). Les cheveux du barde blanchissent pour une durée de 24 heures après avoir poussé le cri de la banshee, il ne peut pas pousser à nouveau le cri mortel tant que ses cheveux n’ont pas repris leur teinte normale.
+
+- id: prestige-barbare-glaces
+  sorte: voie
+  nom: Voie des glaces
+  etiquettes: [prestige, barbare]
+  description: |-
+    1. Ni chaud ni froid
+    2. Déplacement en milieu hostile
+    3. Tueur de géants
+    4. Rage froide
+    5. Assaut final
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-barbare-glaces-ni-chaud-ni-froid,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barbare-glaces-deplacement-en-milieu-hostile,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barbare-glaces-tueur-de-geants,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - { sur: rang, entree: prestige-barbare-glaces-rage-froide, valeur: 1, condition: 'rang >= 4' }
+    - { sur: rang, entree: prestige-barbare-glaces-assaut-final, valeur: 1, condition: 'rang >= 5' }
+
+- id: prestige-barbare-glaces-ni-chaud-ni-froid
+  sorte: capacite
+  nom: Ni chaud ni froid
+  etiquettes: [test]
+  champs:
+    { voie: prestige-barbare-glaces, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le personnage est habitué aux températures froides, il obtient un bonus de +5 à tous les tests de survie en milieu froid et aux tests pour résister au froid.
+
+    Il peut supporter des températures de 0°C en étant habillé d’un simple pagne et il retranche 5 points à tous les DM de froid subits (RD 5).
+  effets:
+    - {
+        sur: degats,
+        types: [froid],
+        operation: reduire,
+        valeur: 5,
+        description: 'Ni chaud ni froid : RD 5 froid',
+      }
+
+- id: prestige-barbare-glaces-deplacement-en-milieu-hostile
+  sorte: capacite
+  nom: Déplacement en milieu hostile
+  etiquettes: [test]
+  champs:
+    { voie: prestige-barbare-glaces, rangVoie: 2, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le barbare augmente tout ses déplacements en milieu naturel de 10 mètres par action de mouvement.
+
+    Il n’est pas ralenti par la neige ou la glace et il gagne un bonus de +5 aux tests d’escalade.
+
+- id: prestige-barbare-glaces-tueur-de-geants
+  sorte: capacite
+  nom: Tueur de géants
+  champs: { voie: prestige-barbare-glaces, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage est habitué à combattre les géants et les créatures de grandes tailles qui peuplent les montagnes et les régions froides.
+
+    Il obtient un bonus de +1d6 aux DM contre les créatures de taille Enorme et +2d6 aux DM contre celles de taille Colossale.
+
+- id: prestige-barbare-glaces-rage-froide
+  sorte: capacite
+  nom: Rage froide
+  champs: { voie: prestige-barbare-glaces, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le barbare est capable de garder toute sa lucidité alors qu’il entre en rage (Voie de la rage).
+
+    Il ne subit aucune pénalité de DEF et peut utiliser les armes de jet. Il ne peut toutefois pas utiliser d’arme de trait (arc, arbalète), ni tenter de négocier dans cet état.
+
+- id: prestige-barbare-glaces-assaut-final
+  sorte: capacite
+  nom: Assaut final
+  champs: { voie: prestige-barbare-glaces, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Lorsqu’il est sous les effets de la rage depuis au moins 3 tours, le joueur peut choisir de doubler les DM* d’une attaque, cela met immédiatement fin à la rage.
+
+    Le personnage ne peut pas à nouveau entrer en rage lors du même combat.
+
+- id: prestige-barbare-beornide
+  sorte: voie
+  nom: Voie du béornide
+  etiquettes: [prestige, barbare]
+  description: |-
+    1. Caractère d’ours
+    2. Hibernation
+    3. Métamorphose
+    4. Étreinte de l’ours
+    5. Métamorphose supérieure
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-barbare-beornide-caractere-d-ours,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barbare-beornide-hibernation,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barbare-beornide-metamorphose,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barbare-beornide-etreinte-de-l-ours,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-barbare-beornide-metamorphose-superieure,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-barbare-beornide-caractere-d-ours
+  sorte: capacite
+  nom: Caractère d’ours
+  etiquettes: [test]
+  champs:
+    { voie: prestige-barbare-beornide, rangVoie: 1, activation: Capacité passive, bonusTest: '5' }
+  description: |-
+    Effet : Le personnage gagne un bonus de +5 à tous les tests d’intimidation et, s’il possède la capacité Cri de guerre, il peut ajouter ce bonus à sa FOR
+
+    lors de l’estimation des ennemis affectés par le cri. Désormais, il peut également utiliser la capacité Cri de guerre en utilisant seulement une action de mouvement.
+
+- id: prestige-barbare-beornide-hibernation
+  sorte: capacite
+  nom: Hibernation
+  champs: { voie: prestige-barbare-beornide, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage peut dormir sans interruption jusqu’à 2 jours par rang.
+
+    Durant cette période, il n’a besoin ni d’eau, ni de nourriture et ne souffre ni du froid ni de la chaleur. Il récupère normalement de ses blessures. Après avoir dormi plusieurs jours de suite, le barbare est capable de rester ce même nombre de jours sans dormir.
+
+- id: prestige-barbare-beornide-metamorphose
+  sorte: capacite
+  nom: Métamorphose
+  champs: { voie: prestige-barbare-beornide, rangVoie: 3, activation: Action limitée }
+  description: |-
+    Effet : Une fois par jour, le barbare peut dorénavant prendre la forme de son totem pendant [1d6 + Mod. de CON] minutes.
+
+    Une action limitée lui est nécessaire pour passer de la forme humaine à celle d’ours et réciproquement mais s’il sombre dans l’inconscience, il reprend forme humaine immédiatement. Les caractéristiques du personnage deviennent celles de l’ours brun dont le profil est détaillé en p. 220 et en image ci-contre. Le personnage conserve toutefois ses propres PV et son score d’INT. Sous sa forme d’ours, le personnage a tendance à réagir comme l’animal qu’il est devenu et il ne peut plus utiliser ses capacités de profil.
+
+- id: prestige-barbare-beornide-etreinte-de-l-ours
+  sorte: capacite
+  nom: Étreinte de l’ours
+  champs: { voie: prestige-barbare-beornide, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : Une fois par combat, le personnage peut se saisir d’un adversaire au score de FOR inférieur et l’écraser entre ses bras puissants.
+
+    Sur un test d’attaque au contact réussi, le barbare inflige [2d6 + Mod. de FOR] DM à sa cible (plus un test éventuel bonus de rage) et l’immobilise entre ses bras, causant à son adversaire une pénalité de -5 en DEF. À son tour, la victime peut tenter de se libérer avec un test de FOR en opposition, auquel cas, elle ne peut faire aucune action. À chaque fin des tours suivants, tant que l’étreinte est maintenue, le barbare inflige à nouveau des DM sans avoir à refaire son test d’attaque. Cette capacité peut être utilisée sous forme d’ours.
+
+- id: prestige-barbare-beornide-metamorphose-superieure
+  sorte: capacite
+  nom: Métamorphose supérieure
+  champs: { voie: prestige-barbare-beornide, rangVoie: 5, activation: Action limitée }
+  description: |-
+    Effet : Les plus puissants guerriers-ours peuvent prendre la forme de leur totem jusqu’à 3 fois par jour.
+
+    Ces métamorphoses durent jusqu’à [1d6 + Mod. de CON] heures à chaque fois. De plus, lorsqu’ils combattent sous cette forme, les barbares peuvent utiliser toutes les capacités de la voie de la rage.
+
+- id: prestige-arquebusier-flibustier
+  sorte: voie
+  nom: Voie du flibustier
+  etiquettes: [prestige, arquebusier]
+  description: |-
+    1. Pied marin
+    2. Coup de crosse
+    3. À l’abordage !
+    4. Sabre au poing
+    5. Pas de quartier
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-flibustier-pied-marin,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-flibustier-coup-de-crosse,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-flibustier-a-l-abordage,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-flibustier-sabre-au-poing,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-flibustier-pas-de-quartier,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-arquebusier-flibustier-pied-marin
+  sorte: capacite
+  nom: Pied marin
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-arquebusier-flibustier,
+      rangVoie: 1,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : Le personnage gagne un bonus de +5 sur tous les tests de DEX réalisés sur un bateau ou sur d’autres supports mobiles (ce qui comprend les chariots, les cordages, les ponts de corde).
+
+    Il gagne un bonus de +5 sur tous les tests relatifs à la natation et à la navigation.
+
+- id: prestige-arquebusier-flibustier-coup-de-crosse
+  sorte: capacite
+  nom: Coup de crosse
+  champs: { voie: prestige-arquebusier-flibustier, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Une fois par tour, le personnage peut, au moment de son choix, accomplir une attaque gratuite avec la crosse d’une pétoire qu’il a utilisée précédemment lors du tour pour une attaque à distance.
+
+    Il utilise un d12 pour le test d’attaque et inflige [1d4 + Mod. de FOR] DM.
+
+- id: prestige-arquebusier-flibustier-a-l-abordage
+  sorte: capacite
+  nom: À l’abordage !
+  champs: { voie: prestige-arquebusier-flibustier, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le personnage sait s’élancer vers ses ennemis et mettre du cœur dans sa première attaque au contact lors d’un combat. Lors de cette première attaque, il obtient un bonus de +5 en attaque et de +1d6 aux DM.
+
+- id: prestige-arquebusier-flibustier-sabre-au-poing
+  sorte: capacite
+  nom: Sabre au poing
+  champs: { voie: prestige-arquebusier-flibustier, rangVoie: 4, activation: Action limitée }
+  description: |-
+    Effet : À ce tour, le personnage peut tirer avec une arme à poudre d’une main et porter une attaque de contact sans pénalité avec une seconde arme (tenue dans son autre main).
+
+- id: prestige-arquebusier-flibustier-pas-de-quartier
+  sorte: capacite
+  nom: Pas de quartier
+  champs: { voie: prestige-arquebusier-flibustier, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Pour le flibustier, il s’agit de vaincre ou mourir.
+
+    Sa férocité est légendaire : il peut tenter une action d’attaque gratuite contre toute créature à son contact qui utilise une action de mouvement dans le but de s’éloigner de lui. Pour cette attaque, il obtient un bonus de +5 en attaque et de +1d6 aux DM.
+
+- id: prestige-arquebusier-messager
+  sorte: voie
+  nom: Voie du messager
+  etiquettes: [prestige, arquebusier]
+  description: |-
+    1. Muet comme une tombe
+    2. Jusqu’à bon port
+    3. Conducteur de diligence
+    4. Sens du devoir
+    5. Attaque en mouvement
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-messager-muet-comme-une-tombe,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-messager-jusqu-a-bon-port,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-messager-conducteur-de-diligence,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-messager-sens-du-devoir,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-messager-attaque-en-mouvement,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-arquebusier-messager-muet-comme-une-tombe
+  sorte: capacite
+  nom: Muet comme une tombe
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-arquebusier-messager,
+      rangVoie: 1,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : Le messager sait garder un secret, il bénéficie d’un bonus de +5 pour résister à toute tentative d’extorsion d’information que cela soit par l’intimidation, la torture, la ruse ou la magie…
+
+    Il obtient le même bonus pour résister à tout sort de contrôle mental.
+
+- id: prestige-arquebusier-messager-jusqu-a-bon-port
+  sorte: capacite
+  nom: Jusqu’à bon port
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-arquebusier-messager,
+      rangVoie: 2,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : Le messager peut voyager deux fois plus longtemps qu’un autre personnage sans fatigue et il bénéficie d’un bonus de +5 aux tests d’équitation.
+
+    Il obtient aussi un bonus de +5 aux tests destinés à détecter les embuscades et les pièges sur son chemin.
+
+- id: prestige-arquebusier-messager-conducteur-de-diligence
+  sorte: capacite
+  nom: Conducteur de diligence
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-arquebusier-messager,
+      rangVoie: 3,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : L’arquebusier obtient un bonus de +5 à tous les tests pour conduire un attelage, un chariot ou tout autre véhicule tracté par des animaux, cela lui demande une action limitée pour manœuvrer par tour.
+
+    Il obtient aussi un bonus de +5 à tous les tests pour éviter un accident à bord d’un véhicule en mouvement. Il obtient un bonus de +2 en attaque contre toutes les cibles se trouvant au sol ou sur le même véhicule en mouvement.
+
+- id: prestige-arquebusier-messager-sens-du-devoir
+  sorte: capacite_active
+  nom: Sens du devoir
+  champs: { voie: prestige-arquebusier-messager, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Lorsqu’il défend une missive, un colis ou un individu qu’il escorte, le messager obtient un bonus de +2 en DEF et à tous les tests (actions, attaques).
+  effets:
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: '2' }
+    - {
+        sur: jet,
+        actions: [test, exploit, defier-la-mort, blagues-et-cabrioles],
+        ajout: { bonus: '2' },
+      }
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: '2' }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: '2' }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: '2' }
+
+- id: prestige-arquebusier-messager-attaque-en-mouvement
+  sorte: capacite
+  nom: Attaque en mouvement
+  champs: { voie: prestige-arquebusier-messager, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Lorsqu’il réalise une action limitée, le messager peut utiliser une action de mouvement dans le même tour pour effectuer un déplacement.
+
+- id: prestige-arquebusier-chasseur-de-gros-gibier
+  sorte: voie
+  nom: Voie du chasseur de gros gibier
+  etiquettes: [prestige, arquebusier]
+  description: |-
+    1. Traqueur
+    2. Tueur d’animaux
+    3. Gros calibre
+    4. Tueur d'animaux fantastiques
+    5. Expert en survie
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-chasseur-de-gros-gibier-traqueur,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-chasseur-de-gros-gibier-gros-calibre,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux-fantastiques,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-arquebusier-chasseur-de-gros-gibier-expert-en-survie,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-arquebusier-chasseur-de-gros-gibier-traqueur
+  sorte: capacite
+  nom: Traqueur
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-arquebusier-chasseur-de-gros-gibier,
+      rangVoie: 1,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : L'arquebusier obtient un bonus de +5 aux tests de SAG pour pister les gros animaux (taille grande et supérieure).
+
+- id: prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux
+  sorte: capacite
+  nom: Tueur d’animaux
+  champs:
+    {
+      voie: prestige-arquebusier-chasseur-de-gros-gibier,
+      rangVoie: 2,
+      activation: Capacité passive,
+    }
+  description: |-
+    Effet : L'arquebusier obtient un bonus de +2 en attaque et aux DM lorsqu'il emploie une arme à distance contre les animaux de taille grande ou énorme (ours, tigre, éléphant, etc).
+
+- id: prestige-arquebusier-chasseur-de-gros-gibier-gros-calibre
+  sorte: capacite
+  nom: Gros calibre
+  champs:
+    { voie: prestige-arquebusier-chasseur-de-gros-gibier, rangVoie: 3, activation: Action limitée }
+  description: |-
+    Effet : L'arquebusier a mis au point une variante de très gros calibre du mousquet qui inflige 3d6 DM et nécessite une action limitée pour tirer.
+
+    Si l'arquebusier n’a pas au moins 12 en FOR, il subit un malus de -2 en attaque avec cette arme.
+
+- id: prestige-arquebusier-chasseur-de-gros-gibier-tueur-d-animaux-fantastiques
+  sorte: capacite
+  nom: Tueur d'animaux fantastiques
+  champs:
+    {
+      voie: prestige-arquebusier-chasseur-de-gros-gibier,
+      rangVoie: 4,
+      activation: Capacité passive,
+    }
+  description: |-
+    Effet : L'arquebusier obtient un bonus de +2 en attaque et aux DM lorsqu'il emploie une arme à distance contre les monstres non-humanoïdes de taille grande ou énorme (griffon, dragon, ours-hiboux, etc).
+
+- id: prestige-arquebusier-chasseur-de-gros-gibier-expert-en-survie
+  sorte: capacite
+  nom: Expert en survie
+  etiquettes: [test]
+  champs:
+    {
+      voie: prestige-arquebusier-chasseur-de-gros-gibier,
+      rangVoie: 5,
+      activation: Capacité passive,
+      bonusTest: '5',
+    }
+  description: |-
+    Effet : L'arquebusier augmente son score de CON de +2 et obtient un bonus de +5 à tous les tests de survie en nature.
+  effets:
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: 2 }
+
+- id: prestige-necromancien-golem-de-chair
+  sorte: voie
+  nom: Voie du golem de chair
+  etiquettes: [prestige, necromancien]
+  description: |-
+    1. Golem de chair
+    2. Résistance et régénération
+    3. Balayage
+    4. Égratignure
+    5. Puissance colossale
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-necromancien-golem-de-chair-golem-de-chair,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-golem-de-chair-resistance-et-regeneration,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-golem-de-chair-balayage,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-golem-de-chair-egratignure,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-golem-de-chair-puissance-colossale,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-necromancien-golem-de-chair-golem-de-chair
+  sorte: capacite
+  nom: Golem de chair
+  champs: { voie: prestige-necromancien-golem-de-chair, rangVoie: 1, activation: Capacité passive }
+  description: |-
+    Effet : Le nécromancien obtient un golem de chair qui agit en tant que garde du corps.
+
+    Il est entièrement fabriqué par le nécromancien et lui obéit au doigt et à l’œil. Il n’est pas doué de parole.
+
+    Golem de chair : Init (nécromancien), 16 PV, PV à vie, Neutre (n’a pas de Mod. de Force), Poings DM [1d6+3], FOR +3, DEX -1, CON +10, INT -4, SAG -3, CHA -4. Le nécromancien peut réparer son golem s’il dispose de corps frais au rythme d’1d6 PV par heure. Les golems sont des créatures non-vivantes dépourvues d’esprit et ce qui les immunise à toute magie qui affecte la volonté ou les émotions.
+
+- id: prestige-necromancien-golem-de-chair-resistance-et-regeneration
+  sorte: capacite
+  nom: Résistance et régénération
+  champs: { voie: prestige-necromancien-golem-de-chair, rangVoie: 2, activation: Capacité passive }
+  description: |-
+    Effet : Le golem divise par 2 tous les DM élémentaires (feu, froid, acide) et absorbe l’électricité.
+
+    Non seulement le golem de chair est immunisé à l’électricité mais en plus les DM de ce type lui permettent de guérir de ses blessures. Il régénère 1 PV pour 3 points de DM d’électricité qui lui sont infligés.
+
+- id: prestige-necromancien-golem-de-chair-balayage
+  sorte: capacite
+  nom: Balayage
+  champs: { voie: prestige-necromancien-golem-de-chair, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : Le golem utilise sa grande taille pour attaquer plusieurs créatures devant lui.
+
+    Il peut attaquer jusqu’à 2 créatures de taille moyenne ou trois de petite taille dans le même tour. Ne faites qu’un seul jet d’attaque, que vous comparerez à la défense de chaque créature. Faites de même pour les dommages.
+
+- id: prestige-necromancien-golem-de-chair-egratignure
+  sorte: capacite
+  nom: Égratignure
+  champs: { voie: prestige-necromancien-golem-de-chair, rangVoie: 4, activation: Capacité passive }
+  description: |-
+    Effet : Le golem gagne une réduction des DM de 5 points (RD 5).
+
+    Cette RD ne s’applique pas contre la magie et les armes magiques.
+
+- id: prestige-necromancien-golem-de-chair-puissance-colossale
+  sorte: capacite
+  nom: Puissance colossale
+  champs: { voie: prestige-necromancien-golem-de-chair, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Le golem gagne +2 en Mod de FOR, ce qui passe ses DM à [1d6+5].
+
+    Il gagne aussi une attaque supplémentaire par tour lorsqu’il utilise une action limitée.
+
+- id: prestige-necromancien-magie-primitive
+  sorte: voie
+  nom: Voie de la magie primitive
+  etiquettes: [prestige, necromancien]
+  description: |-
+    1. Gris-gris
+    2. Rituel primitif
+    3. Magie du sang
+    4. Dents des âmes
+    5. Mauvais œil
+  effets:
+    - {
+        sur: rang,
+        entree: prestige-necromancien-magie-primitive-gris-gris,
+        valeur: 1,
+        condition: 'rang >= 1',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-magie-primitive-rituel-primitif,
+        valeur: 1,
+        condition: 'rang >= 2',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-magie-primitive-magie-du-sang,
+        valeur: 1,
+        condition: 'rang >= 3',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-magie-primitive-dents-des-ames,
+        valeur: 1,
+        condition: 'rang >= 4',
+      }
+    - {
+        sur: rang,
+        entree: prestige-necromancien-magie-primitive-mauvais-il,
+        valeur: 1,
+        condition: 'rang >= 5',
+      }
+
+- id: prestige-necromancien-magie-primitive-gris-gris
+  sorte: capacite
+  nom: Gris-gris
+  champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 1, activation: Action limitée }
+  description: |-
+    Effet : Le nécromancien utilise un petit fétiche (crâne d’oiseau, petite pierre, statuette) sur lequel il fait couler un peu de son sang afin de lui conférer du pouvoir.
+
+    Ce rituel se traduit par le sacrifice de 1 PV. Le fétiche permet au nécromancien ou à une personne tenant le gris-gris de relancer 1d20 une fois par jour pour les tests ou les attaques. S’il est détruit, le nécromancien récupère son PV. Le nécromancien peut créer ainsi plusieurs gris-gris.
+
+- id: prestige-necromancien-magie-primitive-rituel-primitif
+  sorte: capacite
+  nom: Rituel primitif
+  champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 2, activation: Action limitée }
+  description: |-
+    Effet : Après avoir consacré 10 minutes à psalmodier, danser et préparer des ingrédients occultes
+
+    le nécromancien choisit un sort parmi ceux de sa liste de sorts primitifs. Lors de sa prochaine utilisation de ce sort, il double un paramètre : la portée, les DM ou le nombre de cibles affectées. Au rang 2, le nécromancien peut préparer un sort à la fois par ce biais, à partir du rang 4, il peut préparer jusqu’à 2 sorts différents (par deux rituels distincts) en utilisant cette capacité.
+
+- id: prestige-necromancien-magie-primitive-magie-du-sang
+  sorte: capacite
+  nom: Magie du sang
+  champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 3, activation: Capacité passive }
+  description: |-
+    Effet : En sacrifiant 1d4 PV, le nécromancien obtient la possibilité de lancer un sort en une action d'attaque à ce tour-là en lieu et place d'une action limitée.
+
+    En sacrifiant 2d4 PV, il obtient la possibilité de lancer un sort en action d’attaque même si le sort est une action d’attaque et en une action limitée. A partir du rang 4, le nécromancien peut lancer deux sorts différents le même tour en sacrifiant au total 3d4 PV. Les sorts affectés par cette capacité sont limités au rang 3.
+
+- id: prestige-necromancien-magie-primitive-dents-des-ames
+  sorte: capacite
+  nom: Dents des âmes
+  champs:
+    {
+      voie: prestige-necromancien-magie-primitive,
+      rangVoie: 4,
+      activation: 'Action limitée, sortilège',
+    }
+  description: |-
+    Effet : Le nécromancien invoque des esprits torturés qui hurlent et tourmentent un ennemi pendant un nombre de tours égal à son Mod. d’INT.
+
+    Pendant la durée du sort, la cible peine à se concentrer et ne peut réaliser aucune incantation ni réussir un test de SAG difficulté 12 à chaque tour. De plus, cette créature bloquée ne peut être soignée tant qu’elle est possédée par l’effet (elle ne peut pas se régénérer ou être soignée).
+
+- id: prestige-necromancien-magie-primitive-mauvais-il
+  sorte: capacite
+  nom: Mauvais œil
+  champs: { voie: prestige-necromancien-magie-primitive, rangVoie: 5, activation: Capacité passive }
+  description: |-
+    Effet : Tant que le nécromancien regarde sa cible avec le mauvais œil, celle-ci est accablée de malchance.
+
+    Une fois ses actions terminées, le personnage peut poser le mauvais œil sur la cible de son choix à chaque tour (avec une portée de 20 mètres). La victime choisie subit une pénalité de -2 à tous les tests. Si elle obtient un résultat de 1 ou 2 au test, le joueur peut décider de lui infliger une condition critique à son test ou à son action. Il s’agit d’une créature ou d’un PNJ allié, la condition est généralement une blessure ou une défaillance spécifique (ex: une arme cassée ou une armure brisée).

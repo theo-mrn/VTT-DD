@@ -1,0 +1,56 @@
+{{- if .Values.networkPolicy.enabled }}
+# Entrées : uniquement Traefik (si exposé), Prometheus, et les appelants listés.
+# Sorties : DNS, Postgres, NATS, Valkey, collecteur OTLP, et HTTPS externe (Stripe, R2, ...).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "svc.name" . }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "svc.selector" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- if .Values.ingress.enabled }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+        {{- end }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+        {{- if .Values.cronJobs }}
+        # CronJobs du service (mêmes labels) : ils appellent leurs routes en interne
+        - podSelector:
+            matchLabels: {{- include "svc.selector" . | nindent 14 }}
+        {{- end }}
+        {{- with .Values.networkPolicy.allowFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - port: http
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: data } }
+      ports: [{ port: 5432 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: messaging } }
+      ports: [{ port: 4222 }, { port: 6379 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: observability } }
+      ports: [{ port: 4317 }, { port: 4318 }]
+    - to:
+        - podSelector: {}
+      ports: [{ port: http }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - { port: 443 }
+        {{- range .Values.networkPolicy.extraEgressPorts }}
+        - { port: {{ . }} }
+        {{- end }}
+{{- end }}

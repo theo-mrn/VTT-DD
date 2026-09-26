@@ -1,0 +1,11 @@
+# Dommages critiques de véhicule : 1d100 + 10 par dommage critique déjà subi.
+- id: dommages-critiques-vehicule
+  nom: Dommages critiques de véhicule
+  jet: 1d100 + modificateur
+  lignes:
+    - { min: -1000, max: 30, nom: Dommage cosmétique, entree: dommage-cosmetique }
+    - { min: 31, max: 50, nom: Système secondaire touché, entree: systeme-secondaire-touche }
+    - { min: 51, max: 70, nom: Système clé endommagé, entree: systeme-cle-endommage }
+    - { min: 71, max: 85, nom: Système critique en panne, entree: systeme-critique-en-panne }
+    - { min: 86, max: 100, nom: Brèche de coque, entree: breche-de-coque }
+    - { min: 101, max: 100000, nom: Destruction, entree: destruction }
