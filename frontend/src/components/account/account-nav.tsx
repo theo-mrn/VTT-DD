@@ -3,7 +3,10 @@
 import {
   Home,
   KeyRound,
+  LayoutDashboard,
+  LogIn,
   LogOut,
+  PlusCircle,
   ScrollText,
   Shield,
   User,
@@ -42,32 +45,47 @@ export const ACCOUNT_LINKS: AccountLink[] = [
   { href: '/profile/api-keys', label: "Clés d'API", icon: KeyRound },
 ];
 
+/** Campagnes, comme la barre de l'ancienne app (Mes campagnes, Rejoindre, Créer). */
+export const CAMPAIGN_LINKS: AccountLink[] = [
+  { href: '/campaigns', label: 'Mes campagnes', icon: LayoutDashboard },
+  { href: '/join', label: 'Rejoindre', icon: LogIn },
+  { href: '/campaigns/new', label: 'Créer', icon: PlusCircle, exact: true },
+];
+
 const NAV_LINKS: AccountLink[] = [
   { href: '/', label: 'Accueil', icon: Home, exact: true },
+  ...CAMPAIGN_LINKS,
   { href: '/characters', label: 'Personnages', icon: ScrollText },
   ...ACCOUNT_LINKS,
 ];
 
-function isActive(link: AccountLink, path: string) {
+function matches(link: AccountLink, path: string) {
   return link.exact ? path === link.href : path === link.href || path.startsWith(`${link.href}/`);
+}
+
+/** Onglet actif : le lien le plus précis qui correspond (/campaigns/new plutôt que /campaigns). */
+function activeHref(path: string): string | undefined {
+  return NAV_LINKS.filter((l) => matches(l, path)).sort((a, b) => b.href.length - a.href.length)[0]
+    ?.href;
 }
 
 /** En-tête commun aux pages de compte : logo, onglets, menu utilisateur. */
 export function AccountNav() {
   const path = usePathname();
+  const active = activeHref(path);
   const { profile, signOut } = useSession();
   const [leaving, setLeaving] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-[#0c0c0e]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className={cn(aclonica, 'text-2xl tracking-wider text-white')}>
           YNER
         </Link>
 
-        <nav aria-label="Compte" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Compte" className="hidden items-center gap-1 xl:flex">
           {NAV_LINKS.map((link) => (
-            <NavTab key={link.href} link={link} active={isActive(link, path)} />
+            <NavTab key={link.href} link={link} active={link.href === active} />
           ))}
         </nav>
 
@@ -109,10 +127,10 @@ export function AccountNav() {
       {/* Mobile : onglets défilants sous l'en-tête */}
       <nav
         aria-label="Compte"
-        className="flex gap-1 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:hidden"
+        className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:px-6 xl:hidden"
       >
         {NAV_LINKS.map((link) => (
-          <NavTab key={link.href} link={link} active={isActive(link, path)} />
+          <NavTab key={link.href} link={link} active={link.href === active} />
         ))}
       </nav>
     </header>

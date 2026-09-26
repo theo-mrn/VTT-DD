@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, User } from 'lucide-react';
+import { LayoutDashboard, LogOut, PlusCircle, User, Users } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -209,6 +209,27 @@ const HeroHeader = ({
                         <User className="w-4 h-4" />
                         <span>Voir mon profil</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push('/campaigns')}
+                        className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+                      >
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span>Mes campagnes</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push('/join')}
+                        className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>Rejoindre</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push('/campaigns/new')}
+                        className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        <span>Créer</span>
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-white/10" />
                       <DropdownMenuItem
                         onClick={() => onSignOut().then(() => router.push('/'))}
@@ -266,7 +287,7 @@ export function HeroSection() {
 
   const handleStartAdventure = () => {
     if (isUserLoggedIn) {
-      router.push('/home');
+      router.push('/join');
     } else {
       setIsAuthModalOpen(true);
     }
