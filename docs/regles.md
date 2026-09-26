@@ -184,3 +184,71 @@ Chaque système est un dossier versionné de `packages/systemes/systemes/<id>/` 
 - **campaign** exécute le combat et l'initiative à partir des actions du système.
 - **Le front** affiche une fiche générée depuis le système (attributs, groupes, ressources), sans nom de stat en dur, avec les explications au survol.
 - **L'historique** enregistre des événements riches (« jet d'attaque : 2 succès nets, dégâts 7 − encaissement 3 »), rejouables grâce au déterminisme.
+
+## Référence rapide
+
+Ces notions sont implémentées dans `packages/rules`. Les systèmes de `packages/systemes` en donnent des exemples complets.
+
+### Formules
+
+| Écriture                                                             | Sens                                                                           |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@FOR`, `@cible.Defense`                                             | Attribut de l'entité courante, ou de la cible d'une action                     |
+| `mod(@DEX)`                                                          | Modificateur d'un attribut (formule commune du système ou propre à l'attribut) |
+| `2d6`, `d20`, `4d6k3`, `2d20kl1`, `1d6!`                             | Dés : garder les meilleurs (`k`) ou les pires (`kl`) ; dé explosif (`!`)       |
+| `des(n, faces)`, `des(n, faces, garder, "haut"\|"bas")`              | Dés en nombre variable                                                         |
+| `si(condition, alors, sinon)`                                        | Condition                                                                      |
+| `floor`, `ceil`, `round`, `abs`, `min`, `max`, `clamp`               | Calcul                                                                         |
+| `et`, `ou`, `non`, `==`, `!=`, `<`, `<=`, `>`, `>=`                  | Logique et comparaisons                                                        |
+| `rang("athletisme")`, `possede("elfe")`                              | Rang total d'une entrée ; possession (rang 1 minimum pour une entrée à rangs)  |
+| `compte("sorte")`, `somme("sorte", "champ")`, `somme_rangs("sorte")` | Agrégats sur les possessions                                                   |
+| `compte_actifs(…)`, `somme_actifs(…)`                                | Les mêmes agrégats, restreints aux entrées équipées ou actives                 |
+| `marquee("entree", "marque")`, `a_etiquette(entree, "etiquette")`    | Marque posée par un effet ; étiquette d'une entrée du catalogue                |
+| `valeur(x)`, `modificateur(x)`, `rang(x)` avec `x` calculé           | Lecture dynamique, dans les actions uniquement                                 |
+| `cible_possede("id")`, `cible_rang("id")`                            | Possessions de la cible, dans une action qui en a une                          |
+
+### Variables selon l'endroit
+
+- **Effet** : `rang` et `actif` de la source, `source.<champ>`.
+- **Condition d'un effet de jet** : en plus, `action`, et pour chaque paramètre son identifiant, son `.rang` et ses `.<champ>`.
+- **Achat** : `actuel`, `calcule` (valeur avec les effets), `cible`, `nombre`, `creation`, `entree.<champ>`, et `marque("m")`.
+- **Action**, dans cet ordre :
+  1. les paramètres ;
+  2. les `variables` ;
+  3. `total` et `naturel` (jet numérique) ou les résultats nets (dés à symboles), puis `critique` et `fumble` ;
+  4. `reussi` ;
+  5. les valeurs d'`apres`.
+- **Arbre** : `x`, `y` du nœud.
+- **Contrainte de tirage** : `total`, `min`, `max`, `nombre`, `pairs`, `impairs`, `somme_modificateurs`.
+
+### Briques d'une action
+
+- `exige` : l'action est réservée à qui remplit la condition.
+- Paramètres :
+  - types `nombre`, `booleen`, `attribut` (choisi dans un groupe) et `entree` ;
+  - pour une `entree` : `possedee: false` accepte une entrée non possédée, au rang 0 ; `facultatif: true` permet de l'omettre ;
+  - `exige` sur un paramètre : c'est une option réservée, par exemple le talent qui l'accorde.
+- `verifications` : refus avec un message clair, une fois les paramètres lus.
+- Jet :
+  - numérique, avec `reussite`, `critique` et `fumble` ;
+  - ou à symboles, avec `pool` et `ameliorations`.
+- Effets de jet des possessions :
+  - côté acteur, ou côté cible (défense active) ;
+  - ils ajoutent, améliorent, rétrogradent ou retirent des dés ;
+  - ils donnent un bonus au total, ou modifient une variable (avantage, dégâts).
+- `apres` (les dés y sont permis), puis :
+  - `consequences`, qui sont des modifications proposées, appliquées par `appliquerModifications` ;
+  - `tables`, tirées par `tirerTable` et appliquées par `appliquerTirage`.
+
+### Présentation
+
+Le fichier `presentation.yaml` de chaque système décrit :
+
+- le thème (couleurs, polices, fond) ;
+- l'apparence de chaque dé (skin, couleur, forme) ;
+- l'icône et la couleur de chaque symbole ;
+- le sens des jauges ;
+- les blocs de chaque fiche (`attributs`, `ressources`, `possessions`, `arbres`, `monnaies`, `details`, `actions`, `texte`) ;
+- la géométrie des arbres, les images et les bibliothèques.
+
+Ce fichier est validé contre les règles au build. Le front n'y ajoute aucune valeur propre à un jeu.
