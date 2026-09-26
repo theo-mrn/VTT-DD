@@ -11,6 +11,7 @@ export const GatewayConfig = BaseConfig.extend({
   UPSTREAM_BILLING_URL: z.string().url().optional(),
   UPSTREAM_CAMPAIGN_URL: z.string().url().optional(),
   UPSTREAM_CHARACTER_URL: z.string().url().optional(),
+  UPSTREAM_DICE_URL: z.string().url().optional(),
   UPSTREAM_HISTORY_URL: z.string().url().optional(),
   /**
    * Secret partagé avec identity pour échanger les clés d'API (en-tête
@@ -34,6 +35,8 @@ export const ROUTES = {
   '/v1/campaigns': 'UPSTREAM_CAMPAIGN_URL',
   '/v1/systems': 'UPSTREAM_CHARACTER_URL',
   '/v1/characters': 'UPSTREAM_CHARACTER_URL',
+  // Jets de dés (remplace /api/roll-dice) : jeton ou clé d'API
+  '/v1/dice': 'UPSTREAM_DICE_URL',
   '/v1/history': 'UPSTREAM_HISTORY_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
 

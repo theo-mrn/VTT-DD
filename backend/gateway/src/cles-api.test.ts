@@ -73,6 +73,7 @@ async function gateway(env: Record<string, string> = { INTERNAL_API_SECRET: SECR
     JWT_AUDIENCE: 'vtt-api',
     UPSTREAM_IDENTITY_URL: identityUrl,
     UPSTREAM_CAMPAIGN_URL: identityUrl,
+    UPSTREAM_DICE_URL: identityUrl,
     ...env,
   });
   return buildGateway(config, { authKeyResolver: async () => publicKey });
@@ -98,6 +99,31 @@ describe("gateway : clés d'API", () => {
       headers: { authorization: `ApiKey ${CLE_VALIDE}` },
     });
     expect(moi.json()).toEqual({ userId: 'user-api', roles: ['user', 'api'] });
+    await app.close();
+  });
+
+  it('jets de dés par clé d’API (remplace /api/roll-dice) : POST /v1/dice/rolls', async () => {
+    const app = await gateway();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/dice/rolls',
+      headers: { authorization: `ApiKey ${CLE_VALIDE}` },
+      payload: { notation: '1d20+FOR' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(relaye!.url).toBe('/v1/dice/rolls');
+    expect(relaye!.headers.authorization).toMatch(/^Bearer ey/);
+    expect(relaye!.headers['x-forwarded-user']).toBe('user-api');
+    // Sans clé ni jeton : 401 ; route interne de dice jamais relayée
+    expect(
+      (await app.inject({ method: 'POST', url: '/v1/dice/rolls', payload: {} })).statusCode,
+    ).toBe(401);
+    const interne = await app.inject({
+      method: 'POST',
+      url: '/internal/rolls',
+      headers: { authorization: `ApiKey ${CLE_VALIDE}` },
+    });
+    expect(interne.statusCode).toBe(404);
     await app.close();
   });
 
