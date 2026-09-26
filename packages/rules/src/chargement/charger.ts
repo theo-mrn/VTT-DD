@@ -973,6 +973,11 @@ class Chargeur {
           }
         }
         this.compiler(`${ou}/valeur`, c.valeur, opts(), 'nombre');
+        if (c.minimum !== undefined) {
+          if (c.type === undefined)
+            this.erreur(ou, 'Un minimum de dégâts demande un type de dégâts');
+          this.compiler(`${ou}/minimum`, c.minimum, opts(), 'nombre');
+        }
       });
 
       a.tables.forEach((t, i) => {

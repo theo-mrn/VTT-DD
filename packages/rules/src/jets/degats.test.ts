@@ -160,3 +160,12 @@ describe('types de dégâts et résistances', () => {
     expect(!r2.ok && r2.erreurs.map((e) => e.message)).toEqual(['Type de dégâts inconnu : acide']);
   });
 });
+
+describe('minimum de dégâts', () => {
+  it('au moins N dégâts si le coup porte, sauf immunité', () => {
+    const f = fiche({ possessions: [{ entree: 'ecailles' }] });
+    expect(reduireDegats(f, 2, 'tranchant', 'PV', 1).valeur).toBe(1);
+    expect(reduireDegats(f, 0, 'tranchant', 'PV', 1).valeur).toBe(0);
+    expect(reduireDegats(f, 9, 'froid', 'PV', 1).valeur).toBe(0);
+  });
+});

@@ -498,6 +498,11 @@ export const ConsequenceAttribut = z.object({
   valeur: Formule,
   /** Type de dégâts : la valeur passe par les résistances (`sur: degats`) de l'entité touchée. */
   type: Id.optional(),
+  /**
+   * Dégâts minimaux après résistances quand les dégâts bruts sont positifs
+   * (« au moins 1 DM ») ; une immunité donne toujours 0.
+   */
+  minimum: Formule.optional(),
 });
 
 /** Donne ou retire une entrée (état, blessure, affaiblissement…) à l'entité touchée. */

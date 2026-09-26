@@ -645,7 +645,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
     if (c.type !== undefined) {
       // Dégâts typés : résistances, immunités et vulnérabilités de l'entité touchée
-      const recus = reduireDegats(fiche, valeur, c.type, c.attribut);
+      const minimum = c.minimum === undefined ? 0 : Number(ev(`${ou}/minimum`, 0));
+      const recus = reduireDegats(fiche, valeur, c.type, c.attribut, minimum);
       const typeNom = systeme.source.typesDegats.find((t) => t.id === c.type)?.nom ?? c.type;
       for (const l of recus.lignes) {
         const effet =

@@ -55,6 +55,7 @@ export function reduireDegats(
   montant: number,
   type: string | undefined,
   attribut: string,
+  minimum = 0,
 ): DegatsRecus {
   const candidates: LigneResistance[] = [];
   for (const p of fiche.possessions.values()) {
@@ -104,5 +105,7 @@ export function reduireDegats(
   for (const l of actives) if (l.operation === 'multiplier') v *= l.valeur;
   for (const l of actives) if (l.operation === 'reduire') v -= l.valeur;
 
-  return { brut: montant, valeur: Math.max(0, Math.floor(v)), lignes: candidates };
+  const immunise = actives.some((l) => l.operation === 'annuler');
+  const plancher = !immunise && montant > 0 ? Math.max(0, minimum) : 0;
+  return { brut: montant, valeur: Math.max(plancher, Math.floor(v)), lignes: candidates };
 }
