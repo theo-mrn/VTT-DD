@@ -107,6 +107,11 @@ const ROLL_SHORTCUTS: Record<string, string> = {
 };
 
 /** Formes lancées en 3D ; les autres dés (d100…) sont tirés aussitôt, comme dans l'ancienne app. */
+/** Délai de chargement de la 3D avant le lancer (téléchargement, shaders). */
+const LOAD_TIMEOUT_MS = 30_000;
+/** Délai une fois les dés lancés, avant le repli aléatoire (comme l'ancienne app). */
+const SETTLE_TIMEOUT_MS = 10_000;
+
 const SUPPORTED_3D_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
 
 /** `2d20kh1`, `d6`, `1D8` : groupes de dés numériques de la notation (forme et nombre). */
@@ -487,7 +492,12 @@ export const DiceRoller = ({
     }
     const rollId = crypto.randomUUID();
     return new Promise((resolve) => {
-      const timeoutId = setTimeout(() => {
+      // Deux délais : le chargement de la 3D (téléchargement, préchauffage des
+      // shaders) peut être long au premier jet, puis 10 s une fois les dés
+      // réellement lancés (`vtt-3d-roll-started`). Le repli aléatoire ne doit
+      // jamais remplacer un lancer qui a bien lieu à l'écran.
+      const fallback = () => {
+        window.removeEventListener('vtt-3d-roll-started', onStarted);
         if (pendingRollsRef.current.has(rollId)) {
           console.warn('Roll timed out, generating fallback values');
           const fallbackResults: ThrowResult[] = [];
@@ -505,10 +515,19 @@ export const DiceRoller = ({
           pendingRollsRef.current.delete(rollId);
           resolve([...fallbackResults, ...instantResults]);
         }
-      }, 10000);
+      };
+      let timeoutId = setTimeout(fallback, LOAD_TIMEOUT_MS);
+      const onStarted = (e: Event) => {
+        if ((e as CustomEvent<{ rollId?: string }>).detail?.rollId !== rollId) return;
+        window.removeEventListener('vtt-3d-roll-started', onStarted);
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(fallback, SETTLE_TIMEOUT_MS);
+      };
+      window.addEventListener('vtt-3d-roll-started', onStarted);
 
       pendingRollsRef.current.set(rollId, (results3D) => {
         clearTimeout(timeoutId);
+        window.removeEventListener('vtt-3d-roll-started', onStarted);
         resolve([...results3D, ...instantResults]);
       });
 

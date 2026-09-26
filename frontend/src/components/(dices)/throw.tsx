@@ -455,6 +455,9 @@ export const DiceThrower = ({ onReady }: { onReady?: () => void }) => {
     if (totalDiceCount > 0) {
       activeRollsRef.current.set(rollId, { expected: totalDiceCount, results: [] });
       setDice((prev) => [...prev, ...newDice]);
+      // Les dés partent vraiment maintenant (après chargement et préchauffage) :
+      // le panneau ne fait courir son délai de repli qu'à partir d'ici.
+      window.dispatchEvent(new CustomEvent('vtt-3d-roll-started', { detail: { rollId } }));
       setTimeout(() => {
         setDice((prev) => prev.filter((d) => !newDice.find((nd) => nd.id === d.id)));
       }, 8000);
