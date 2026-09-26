@@ -4,13 +4,17 @@
  * Table de jeu d'une campagne, en attendant la carte : emplacement de la
  * carte, panneau d'actions et fiche du personnage incarné. Le MJ sans
  * personnage retrouve les fiches des personnages de la campagne.
+ *
+ * Panneau de dés de l'ancienne app (lanceur, historique de la salle,
+ * statistiques) : flottant à gauche sur grand écran, plein écran sur mobile.
  */
-import { Crown, Eye, Map as MapIcon, Swords, Users } from 'lucide-react';
+import { Crown, Dices, Eye, Map as MapIcon, Swords, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActionsPanel, type ActionTarget } from '@/components/(dices)/actions-panel';
 import { Loading } from '@/components/account/elements';
+import { DiceRoller, type DiceRollerCharacter } from '@/components/dice-roller';
 import { aclonica, Notice, CampaignImage } from '@/components/campaigns/elements';
 import { CampaignHeaderBar } from '@/components/campaigns/campaign-panels';
 import { CharacterPage } from '@/components/sheet/character-page';
@@ -20,7 +24,7 @@ import { ActionTargetsProvider, blockActions } from '@/components/sheet/widget-a
 import { useResource } from '@/lib/resource';
 import { getCampaign, listCampaignCharacters, type CampaignCharacter } from '@/lib/campaigns';
 import { useProfile } from '@/lib/session';
-import { sheetWidgets } from '@/lib/systems';
+import { sheetWidgets, useSystem } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 
 const same = (a: string | null | undefined, b: string | null | undefined) =>
@@ -32,6 +36,13 @@ export default function PlayPage() {
   const profile = useProfile();
   const campaign = useResource(`campagne:${id}`, () => getCampaign(id));
   const characters = useResource(`campagne:${id}:personnages`, () => listCampaignCharacters(id));
+  const ready = useSystem(campaign.data?.system.id ?? null);
+  const [diceOpen, setDiceOpen] = useState(false);
+  const [rolling, setRolling] = useState<DiceRollerCharacter | null>(null);
+  const avatars = useMemo(
+    () => Object.fromEntries((characters.data ?? []).map((c) => [c.characterId, c.avatarUrl])),
+    [characters.data],
+  );
 
   if (campaign.error && !campaign.data)
     return (
@@ -82,7 +93,7 @@ export default function PlayPage() {
 
         {mine ? (
           <CharacterPage id={mine.characterId} gm={isGm}>
-            <IncarnatedSheet campaignCharacters={list} />
+            <IncarnatedSheet campaignId={id} campaignCharacters={list} onRolling={setRolling} />
           </CharacterPage>
         ) : isGm ? (
           <GmCharacters campaignId={id} characters={list} />
@@ -95,6 +106,39 @@ export default function PlayPage() {
           </Notice>
         )}
       </div>
+
+      {/* Panneau de dés de l'ancienne app : bouton d'ouverture, panneau flottant, raccourcis */}
+      <button
+        id="vtt-sidebar-dice"
+        type="button"
+        onClick={() => setDiceOpen((o) => !o)}
+        aria-expanded={diceOpen}
+        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-bold shadow-2xl lg:bottom-auto lg:left-4 lg:right-auto lg:top-1/2 lg:-translate-y-1/2 lg:rounded-xl lg:p-3"
+        style={{ background: 'var(--accent-brown)', color: 'var(--bg-dark)' }}
+        title="Dés"
+      >
+        <Dices className="h-5 w-5" />
+        <span className="lg:hidden">Dés</span>
+      </button>
+      {ready.data ? (
+        <DiceRoller
+          isOpen={diceOpen}
+          onClose={() => setDiceOpen(false)}
+          system={ready.data.system}
+          presentation={ready.data.presentation}
+          campaignId={id}
+          isMJ={isGm}
+          character={mine ? rolling : null}
+          avatars={avatars}
+          shortcuts
+        />
+      ) : (
+        diceOpen && (
+          <div className="fixed bottom-20 right-4 z-50 max-w-xs lg:bottom-auto lg:left-20 lg:top-1/2">
+            {ready.error ? <Notice>{ready.error}</Notice> : <Loading text="Chargement des dés…" />}
+          </div>
+        )
+      )}
     </>
   );
 }
@@ -140,9 +184,24 @@ function MapPlaceholder({
  * personnages de la campagne. Le panneau est celui de la fiche quand la
  * présentation en a un ; sinon il est posé au-dessus de la fiche.
  */
-function IncarnatedSheet({ campaignCharacters }: { campaignCharacters: CampaignCharacter[] }) {
+function IncarnatedSheet({
+  campaignId,
+  campaignCharacters,
+  onRolling,
+}: {
+  campaignId: string;
+  campaignCharacters: CampaignCharacter[];
+  /** Personnage au nom duquel le panneau de dés lance (`@ATTR`, compétences). */
+  onRolling(character: DiceRollerCharacter | null): void;
+}) {
   const s = useSheet();
   const selfId = s.character.id;
+  const name = s.character.nom;
+  const sheet = s.sheet;
+  useEffect(() => {
+    onRolling({ id: selfId, name, sheet });
+  }, [onRolling, selfId, name, sheet]);
+  useEffect(() => () => onRolling(null), [onRolling]);
   const targets = useMemo<ActionTarget[]>(
     () =>
       campaignCharacters
@@ -154,7 +213,7 @@ function IncarnatedSheet({ campaignCharacters }: { campaignCharacters: CampaignC
   const hasActions = blockActions(s.system.actions, s.state.type).length > 0;
 
   return (
-    <ActionTargetsProvider targets={targets}>
+    <ActionTargetsProvider targets={targets} campaignId={campaignId}>
       <div className="space-y-6">
         {hasActions && !inSheet && (
           <ThemeFrame className="mx-auto max-w-5xl">
@@ -166,6 +225,7 @@ function IncarnatedSheet({ campaignCharacters }: { campaignCharacters: CampaignC
               name={s.character.nom}
               targets={targets}
               onApplied={() => s.reload()}
+              campaignId={campaignId}
             />
           </ThemeFrame>
         )}
