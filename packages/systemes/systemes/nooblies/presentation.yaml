@@ -1,0 +1,42 @@
+# Présentation Nooblies Chroniques : même habillage que D&D classique,
+# dont Nooblies reprend la structure (caractéristiques, combat, vitalité).
+
+format: 1
+systeme: nooblies
+
+theme:
+  couleurs:
+    fond: '#141110'
+    fondProfond: '#0a0807'
+    carte: '#1c1614'
+    canevas: '#0c0908'
+    bordure: '#28211c'
+    texte: '#e3dad4'
+    texteSecondaire: '#7a706a'
+    accent: '#c2956a'
+    accentSurvol: '#d0ad8b'
+
+des:
+  sortes:
+    d6: { couleur: '#c2956a', forme: d6 }
+    d12: { couleur: '#c2956a', forme: d12 }
+    d20: { couleur: '#d0ad8b', forme: d20 }
+
+ressources:
+  PV: { sens: descendant, couleur: '#dc2626' }
+
+fiches:
+  personnage:
+    widgets:
+      - { type: details, titre: Profil, sortes: [race, profil], attributs: [] }
+      - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
+      - { type: ressources, titre: Vitalité, attributs: [PV] }
+      - { type: attributs, titre: Combat, groupe: combat, colonnes: 5 }
+      - {
+          type: attributs,
+          titre: Dé de vie,
+          attributs: [facesDeVie, jetDeVie, PV_Max],
+          colonnes: 3,
+        }
+      - { type: possessions, titre: Capacités, sorte: capacite }
+      - { type: actions, titre: Actions }

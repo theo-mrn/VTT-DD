@@ -1,0 +1,57 @@
+# Présentation D&D classique
+#
+# Reprise du thème par défaut de l'ancienne app (legacy/src/modules/builtin/
+# dnd-classic/theme.ts : bruns très sombres, accent ambre/pêche) et de sa
+# fiche (caractéristiques, combat, vitalité, voies, équipement).
+
+format: 1
+systeme: dnd-classic
+
+theme:
+  couleurs:
+    fond: '#141110'
+    fondProfond: '#0a0807'
+    carte: '#1c1614'
+    canevas: '#0c0908'
+    bordure: '#28211c'
+    texte: '#e3dad4'
+    texteSecondaire: '#7a706a'
+    accent: '#c2956a'
+    accentSurvol: '#d0ad8b'
+
+des:
+  sortes:
+    d4: { couleur: '#c2956a', forme: d4 }
+    d6: { couleur: '#c2956a', forme: d6 }
+    d8: { couleur: '#c2956a', forme: d8 }
+    d10: { couleur: '#c2956a', forme: d10 }
+    d12: { couleur: '#c2956a', forme: d12 }
+    d20: { couleur: '#d0ad8b', forme: d20 }
+
+# Les PV partent du maximum et descendent
+ressources:
+  PV: { sens: descendant, couleur: '#dc2626' }
+
+fiches:
+  personnage:
+    widgets:
+      - { type: details, titre: Profil, sortes: [race, profil], attributs: [] }
+      - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
+      - { type: ressources, titre: Vitalité, attributs: [PV] }
+      - {
+          type: attributs,
+          titre: Combat,
+          attributs: [Defense, Contact, Distance, Magie, INIT, Critique, RD],
+          colonnes: 4,
+        }
+      - { type: attributs, titre: Progression, groupe: progression, colonnes: 3 }
+      - { type: possessions, titre: Voies, sorte: voie }
+      - { type: monnaies, titre: Points de capacité }
+      - { type: possessions, titre: Capacités, sorte: capacite }
+      - { type: possessions, titre: Capacités à activer, sorte: capacite_active }
+      - { type: possessions, titre: Armes, sorte: arme }
+      - { type: possessions, titre: Armures, sorte: armure }
+      - { type: possessions, titre: Bonus, sorte: bonus }
+      - { type: possessions, titre: États, sorte: etat }
+      - { type: attributs, titre: Bourse, attributs: [bourse] }
+      - { type: actions, titre: Actions }
