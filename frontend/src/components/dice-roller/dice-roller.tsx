@@ -135,7 +135,6 @@ export const DiceRoller = ({
   const roomId = campaignId;
 
   const [input, setInput] = useState('');
-  const [label, setLabel] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const show3DAnimations = prefs.animation3d;
   const setShow3DAnimations = (v: boolean) => void updatePrefs({ animation3d: v });
@@ -234,7 +233,6 @@ export const DiceRoller = ({
       return;
     }
     setInput(pool.notation);
-    setLabel(skill.label);
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -298,7 +296,7 @@ export const DiceRoller = ({
           toast.info(`${rollData.userName} : ${totalDisplay}`, {
             description: rollData.masked
               ? (rollData.notation ?? '')
-              : `${rollData.notation ?? rollData.label ?? ''} : ${details}${rollData.symbolResult ? '' : `=${rollData.total}`}`,
+              : `${rollData.notation ?? ''} : ${details}${rollData.symbolResult ? '' : `=${rollData.total}`}`,
             duration: 5000,
           });
         }
@@ -414,7 +412,6 @@ export const DiceRoller = ({
         systemId: system.source.id,
         ...(roomId ? { campaignId: roomId, isPrivate, isBlind } : {}),
         ...(rollCharacter ? { characterId: rollCharacter.id } : {}),
-        ...(label.trim() ? { label: label.trim() } : {}),
       });
       history.push(roll);
       await perform3DRoll(roll);
@@ -437,7 +434,6 @@ export const DiceRoller = ({
       });
 
       setInput('');
-      setLabel('');
       setSelectedSkillKey('');
     } catch (e) {
       console.error(e);
@@ -792,11 +788,6 @@ export const DiceRoller = ({
                                 )}
                               </div>
                             </div>
-                            {roll.label && roll.label !== roll.notation && (
-                              <div className="text-[11px] font-medium text-zinc-300 truncate">
-                                {roll.label}
-                              </div>
-                            )}
                             <div className="text-[11px] font-mono text-zinc-500 truncate">
                               {roll.notation}
                             </div>
@@ -1000,20 +991,6 @@ export const DiceRoller = ({
                     </button>
                   </div>
 
-                  {/* Étiquette du jet */}
-                  <input
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    maxLength={120}
-                    placeholder="Étiquette (facultatif)"
-                    className="w-full h-9 px-3 rounded-xl border text-xs bg-transparent outline-none"
-                    style={{
-                      borderColor: 'var(--border-color)',
-                      color: 'var(--text-primary)',
-                      background: 'var(--bg-card)',
-                    }}
-                  />
-
                   {/* Action bar */}
                   <div className="flex items-center gap-2 pt-1">
                     <button
@@ -1024,7 +1001,7 @@ export const DiceRoller = ({
                         color: 'var(--text-secondary)',
                         background: 'var(--bg-card)',
                       }}
-                      aria-label="Mes dés"
+                      aria-label="Boutique"
                     >
                       <Store className="w-5 h-5" />
                     </button>
@@ -1383,11 +1360,9 @@ export const DiceRoller = ({
                                       <Store className="w-4 h-4 text-zinc-300 flex-shrink-0" />
                                       <div className="flex flex-col gap-0.5">
                                         <strong className="text-zinc-200 font-medium">
-                                          Mes dés
+                                          Boutique
                                         </strong>
-                                        <span className="text-[9px] opacity-60">
-                                          Skin, 3D et son
-                                        </span>
+                                        <span className="text-[9px] opacity-60">Skins de dés</span>
                                       </div>
                                     </div>
                                   </div>
@@ -1626,7 +1601,7 @@ export const DiceRoller = ({
                               </div>
                             )}
 
-                            {/* Avantage / désavantage et étiquette */}
+                            {/* Avantage / désavantage */}
                             <div className="flex items-center gap-1.5">
                               {(
                                 [
@@ -1647,17 +1622,6 @@ export const DiceRoller = ({
                                   {text}
                                 </button>
                               ))}
-                              <input
-                                value={label}
-                                onChange={(e) => setLabel(e.target.value)}
-                                maxLength={120}
-                                placeholder="Étiquette (facultatif)"
-                                className="flex-1 min-w-0 h-7 px-2 rounded-lg text-[11px] bg-transparent outline-none focus:border-[var(--accent-brown)]"
-                                style={{
-                                  border: '1px solid var(--border-color)',
-                                  color: 'var(--text-primary)',
-                                }}
-                              />
                             </div>
 
                             <div className="flex items-center justify-between pt-1">
@@ -1683,7 +1647,7 @@ export const DiceRoller = ({
                                     (e.currentTarget as HTMLElement).style.borderColor =
                                       'var(--border-color)';
                                   }}
-                                  title="Mes dés : skin, animation, son"
+                                  title="Boutique de dés"
                                 >
                                   <Store className="w-4 h-4" />
                                 </button>
@@ -1980,11 +1944,6 @@ export const DiceRoller = ({
                                           </span>
                                         </div>
                                       </div>
-                                      {roll.label && roll.label !== roll.notation && (
-                                        <div className="text-[11px] font-medium text-zinc-300 truncate">
-                                          {roll.label}
-                                        </div>
-                                      )}
                                       <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">
                                         {roll.notation}
                                       </div>

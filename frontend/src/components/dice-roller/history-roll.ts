@@ -2,8 +2,8 @@
  * Jet de l'historique sous la forme qu'affichaient le panneau et les
  * statistiques de l'ancienne app (document Firestore `rolls/{salle}/rolls`).
  * Le service des dés renvoie déjà ces champs (`userName`, `output`,
- * `symbolResult`…) ; s'y ajoutent le masquage des jets cachés, l'étiquette,
- * les critiques et la réussite d'une action.
+ * `symbolResult`…) ; s'y ajoutent le masquage des jets cachés, les critiques
+ * et la réussite d'une action.
  */
 import type { Roll } from '@/lib/dice';
 
@@ -26,7 +26,6 @@ export interface HistoryRoll {
   uid?: string;
   symbolResult?: string;
   // Ajouts du service des dés
-  label?: string;
   /** Résultat masqué pour l'appelant (jet caché vu par son auteur). */
   masked?: boolean;
   critical?: boolean;
@@ -41,7 +40,7 @@ export function toHistoryRoll(roll: Roll, avatars?: Record<string, string | null
   const avatar = roll.userAvatar ?? (roll.persoId ? avatars?.[roll.persoId] : null) ?? undefined;
   const pool = new Map<string, number>();
   for (const d of roll.symbols?.dice ?? []) pool.set(d.die, (pool.get(d.die) ?? 0) + 1);
-  const notation = roll.notation ?? roll.label ?? '';
+  const notation = roll.notation ?? '';
 
   return {
     id: roll.id,
@@ -61,7 +60,6 @@ export function toHistoryRoll(roll: Roll, avatars?: Record<string, string | null
     ...(roll.persoId ? { persoId: roll.persoId } : {}),
     ...(roll.uid ? { uid: roll.uid } : {}),
     ...(roll.symbolResult ? { symbolResult: roll.symbolResult } : {}),
-    ...(roll.label ? { label: roll.label } : {}),
     masked: roll.hidden,
     ...(roll.outcome?.critical ? { critical: true } : {}),
     ...(roll.outcome?.fumble ? { fumble: true } : {}),
