@@ -33,24 +33,26 @@ Un personnage renvoyé par l'API a cette forme :
 
 Une écriture qui envoie une `version` périmée reçoit **409** (problem+json). Le client relit alors le personnage et réessaie.
 
-| Méthode | Route                                    | Corps                                                      | Réponse                                                                                           |
-| ------- | ---------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/characters`                         | —                                                          | `[{ id, nom, avatarUrl, systeme: { id, version }, type, creation, updatedAt }]` : mes personnages |
-| POST    | `/v1/characters`                         | `{ systemeId, type, nom }`                                 | 201 et le personnage (`etat.creation = true`)                                                     |
-| GET     | `/v1/characters/:id`                     | —                                                          | le personnage                                                                                     |
-| PATCH   | `/v1/characters/:id`                     | `{ version, nom?, avatarUrl? }`                            | le personnage                                                                                     |
-| DELETE  | `/v1/characters/:id`                     | —                                                          | 204                                                                                               |
-| PUT     | `/v1/characters/:id/valeurs`             | `{ version, valeurs: { [cle]: valeur } }`                  | le personnage. Seuls les attributs saisissables sont acceptés (voir « Saisie des valeurs »)       |
-| GET     | `/v1/characters/:id/creation`            | —                                                          | `etapesCreation()` : état de chaque étape                                                         |
-| POST    | `/v1/characters/:id/creation/:etape`     | `{ version, ... }` selon le type d'étape (voir ci-dessous) | le personnage                                                                                     |
-| POST    | `/v1/characters/:id/creation/terminer`   | `{ version }`                                              | le personnage                                                                                     |
-| GET     | `/v1/characters/:id/achats`              | —                                                          | `achatsPossibles()`                                                                               |
-| POST    | `/v1/characters/:id/achats`              | `{ version, achat, objet }`                                | le personnage                                                                                     |
-| POST    | `/v1/characters/:id/achats/rembourser`   | `{ version, index }`                                       | le personnage                                                                                     |
-| POST    | `/v1/characters/:id/possessions`         | voir « Possessions » ci-dessous                            | le personnage (ajout ou mise à jour d'un exemplaire)                                              |
-| DELETE  | `/v1/characters/:id/possessions/:entree` | `?version=&exemplaire=`                                    | le personnage (retrait d'un exemplaire précis)                                                    |
-| POST    | `/v1/characters/:id/repos`               | `{ version, attributs? }`                                  | le personnage (`recuperer()`)                                                                     |
-| POST    | `/v1/characters/:id/actions/:action`     | `{ parametres?, cibleId?, appliquer? }`                    | `{ resultat, personnage?, cible? }`                                                               |
+| Méthode | Route                                    | Corps                                                             | Réponse                                                                                           |
+| ------- | ---------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/characters`                         | —                                                                 | `[{ id, nom, avatarUrl, systeme: { id, version }, type, creation, updatedAt }]` : mes personnages |
+| POST    | `/v1/characters`                         | `{ systemeId, type, nom }`                                        | 201 et le personnage (`etat.creation = true`)                                                     |
+| GET     | `/v1/characters/:id`                     | —                                                                 | le personnage                                                                                     |
+| PATCH   | `/v1/characters/:id`                     | `{ version, nom?, avatarUrl? }`                                   | le personnage                                                                                     |
+| DELETE  | `/v1/characters/:id`                     | —                                                                 | 204                                                                                               |
+| PUT     | `/v1/characters/:id/valeurs`             | `{ version, valeurs: { [cle]: valeur } }`                         | le personnage. Seuls les attributs saisissables sont acceptés (voir « Saisie des valeurs »)       |
+| GET     | `/v1/characters/:id/creation`            | —                                                                 | `etapesCreation()` : état de chaque étape                                                         |
+| POST    | `/v1/characters/:id/creation/:etape`     | `{ version, ... }` selon le type d'étape (voir ci-dessous)        | le personnage                                                                                     |
+| POST    | `/v1/characters/:id/creation/terminer`   | `{ version }`                                                     | le personnage                                                                                     |
+| GET     | `/v1/characters/:id/achats`              | —                                                                 | `achatsPossibles()`                                                                               |
+| POST    | `/v1/characters/:id/achats`              | `{ version, achat, objet }`                                       | le personnage                                                                                     |
+| POST    | `/v1/characters/:id/achats/rembourser`   | `{ version, index }`                                              | le personnage                                                                                     |
+| POST    | `/v1/characters/:id/possessions`         | voir « Possessions » ci-dessous                                   | le personnage (ajout ou mise à jour d'un exemplaire)                                              |
+| DELETE  | `/v1/characters/:id/possessions/:entree` | `?version=&exemplaire=`                                           | le personnage (retrait d'un exemplaire précis)                                                    |
+| POST    | `/v1/characters/:id/repos`               | `{ version, attributs? }`                                         | le personnage (`recuperer()`)                                                                     |
+| POST    | `/v1/characters/:id/actions/:action`     | `{ parametres?, cibleId?, appliquer?, campaignId?, visibility? }` | `{ resultat, personnage?, cible? }`                                                               |
+
+Après chaque action, character transmet le jet au service dice (`POST /internal/rolls`, variable `DICE_URL`), sans bloquer l'action si dice est indisponible. `campaignId` range le jet dans l'historique de cette campagne, et `visibility` (`public`, `private`, `gm`, `self`) règle qui le voit (voir [api-dice.md](api-dice.md)).
 
 Corps des étapes de création, selon leur type :
 
