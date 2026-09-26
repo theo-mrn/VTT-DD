@@ -112,6 +112,7 @@ fiches:
       - { type: attributs, titre: Équipement et crédits, groupe: equipement }
       - { type: attributs, titre: Bonus de combat, groupe: combat }
       - { type: possessions, titre: Blessures critiques, sorte: blessureCritique }
+      - { type: bonus, titre: Bonus }
       - { type: actions, titre: Actions }
       - { type: texte, titre: Motivation, attribut: motivation }
       - { type: texte, titre: Historique, attribut: historique }

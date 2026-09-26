@@ -221,9 +221,3 @@ export const PIECES: Readonly<Record<string, number>> = {
   'piece-de-cuivre': 0.1,
   'pieces-de-cuivre': 0.1,
 };
-
-/** Catégorie legacy d'un bonus (`category`) → entrée de sorte `bonus`. */
-export const BONUS: Readonly<Record<string, string>> = {
-  Inventaire: 'bonus-inventaire',
-  Competence: 'bonus-capacites',
-};

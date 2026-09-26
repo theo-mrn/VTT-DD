@@ -309,25 +309,6 @@ sortes:
       - { id: lourde, nom: Armure lourde (demi-plaque ou plus), type: booleen, defaut: false }
       - { id: metallique, nom: Armure métallique, type: booleen, defaut: false }
       - { id: prix, nom: Prix (pa), type: nombre }
-  - id: bonus
-    nom: Bonus
-    nomPluriel: Bonus
-    description: Bonus libres saisis sur la fiche (ancienne collection « Bonus »), actifs ou non.
-    pour: [personnage]
-    activable: true
-    champs:
-      - { id: FOR, nom: FOR, type: nombre, defaut: 0 }
-      - { id: DEX, nom: DEX, type: nombre, defaut: 0 }
-      - { id: CON, nom: CON, type: nombre, defaut: 0 }
-      - { id: SAG, nom: SAG, type: nombre, defaut: 0 }
-      - { id: INT, nom: INT, type: nombre, defaut: 0 }
-      - { id: CHA, nom: CHA, type: nombre, defaut: 0 }
-      - { id: Defense, nom: Défense, type: nombre, defaut: 0 }
-      - { id: Contact, nom: Contact, type: nombre, defaut: 0 }
-      - { id: Distance, nom: Distance, type: nombre, defaut: 0 }
-      - { id: Magie, nom: Magie, type: nombre, defaut: 0 }
-      - { id: INIT, nom: Initiative, type: nombre, defaut: 0 }
-      - { id: PV_Max, nom: PV max, type: nombre, defaut: 0 }
   - id: etat
     nom: État
     pour: [personnage]

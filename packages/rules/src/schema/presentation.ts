@@ -62,6 +62,12 @@ export const Widget = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('actions'), titre: Libelle, actions: z.array(Id).optional() }),
   z.object({ type: z.literal('texte'), titre: Libelle, attribut: Cle }),
+  /**
+   * Bonus actifs de toute provenance (bonus libres, effets propres aux
+   * exemplaires) : liste, activation, ajout d'un bonus libre ciblant un
+   * attribut, une entrée à rangs ou les jets qui impliquent une entrée ou un attribut.
+   */
+  z.object({ type: z.literal('bonus'), titre: Libelle }),
 ]);
 export type Widget = z.output<typeof Widget>;
 

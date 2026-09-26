@@ -22,6 +22,8 @@ import {
   nombreChoix,
   noeudsIsoles,
   nouvellePossession,
+  type BonusLibre,
+  type Effet,
   type Entree,
   type Fiche,
   type LigneJournal,
@@ -131,6 +133,7 @@ class Brouillon {
   possessions: Possession[] = [];
   noeuds: Record<string, string[]> = {};
   journal: LigneJournal[] = [];
+  bonus: BonusLibre[] = [];
 
   constructor(
     readonly systeme: SystemeCharge,
@@ -145,6 +148,7 @@ class Brouillon {
       possessions: this.possessions,
       noeuds: this.noeuds,
       journal: this.journal,
+      bonus: this.bonus,
       creation: false,
     });
   }
@@ -345,12 +349,15 @@ interface RegleInventaire {
  * ids des objets devenus des entrées à effets, dont les bonus saisis à la
  * main feraient double emploi.
  */
+/** Objets migrés : id du document legacy → entrée possédée, et si elle porte des effets. */
+type ObjetsMigres = Map<string, { entree: string; avecEffets: boolean }>;
+
 function migrerInventaire(
   b: Brouillon,
   objets: readonly DocFirestore<ObjetInventaireLegacy>[],
   regle: RegleInventaire | undefined,
-): Set<string> {
-  const avecEffets = new Set<string>();
+): ObjetsMigres {
+  const migres: ObjetsMigres = new Map();
   let monnaie = 0;
   let monnaieTrouvee = false;
   const parNom = new Map<string, Entree>();
@@ -392,62 +399,77 @@ function migrerInventaire(
     b.posseder(e.id);
     if (quantite > 1)
       b.avertir(`Objet « ${nom} » : ${quantite} exemplaires, un seul migré (${e.nom})`);
-    if (e.effets.length) avecEffets.add(doc.id);
+    migres.set(doc.id, { entree: e.id, avecEffets: e.effets.length > 0 });
   }
   if (regle?.monnaie && monnaieTrouvee) b.valeurs[regle.monnaie.attribut] = Math.floor(monnaie);
-  return avecEffets;
+  return migres;
 }
 
 /**
- * Bonus saisis à la main. Les bonus actifs d'une même catégorie sont cumulés
- * dans une seule possession de la sorte `bonus` (une entrée ne se possède
- * qu'une fois) ; les bonus inactifs sont perdus.
+ * Bonus saisis à la main (`Bonus/{room}/{Nomperso}/{id}`), dans tous les
+ * systèmes : chaque stat numérique devient un effet « ajouter » sur l'attribut
+ * du même nom. Le bonus d'un objet migré devient un effet propre à cet
+ * exemplaire ; les autres (capacités, objets absents du catalogue) deviennent
+ * des bonus libres nommés. Un bonus inactif est gardé, inactif.
  */
 function migrerBonus(
   b: Brouillon,
   docs: readonly DocFirestore<BonusLegacy>[],
-  entrees: Readonly<Record<string, string>> | undefined,
-  objetsAvecEffets: Set<string>,
+  objets: ObjetsMigres,
 ): void {
-  const valeurs = (d: BonusLegacy) =>
-    Object.entries(d).filter(
-      ([k, v]) => !['active', 'category', 'name', 'diceSelection'].includes(k) && nombre(v),
-    ) as [string, unknown][];
-  const cumuls = new Map<string, Record<string, number>>();
+  const attributs = b.systeme.entites.get('personnage')?.attributs;
+  const ids = new Set<string>();
   for (const doc of docs) {
     const d = doc.data;
     const nom = texte(d.name) ?? doc.id;
-    const bonus = valeurs(d);
-    if (!bonus.length) continue;
-    const detail = bonus
-      .map(([k, v]) => `${k} ${nombre(v)! > 0 ? '+' : ''}${nombre(v)}`)
-      .join(', ');
-    const id = entrees?.[String(d.category)];
-    const entree = b.entree(id);
-    if (!entree) {
-      b.avertir(`Bonus « ${nom} » (${detail}) non migré : pas de bonus libres dans ce système`);
-      continue;
+    const effets: Effet[] = [];
+    for (const [k, v] of Object.entries(d)) {
+      if (['active', 'category', 'name', 'diceSelection'].includes(k)) continue;
+      const n = nombre(v);
+      if (n === undefined || n === 0) continue;
+      const a = attributs?.get(k);
+      if (!a || (a.nature !== 'base' && a.nature !== 'derivee' && a.nature !== 'ressource')) {
+        b.avertir(
+          `Bonus « ${nom} » : ${k} ${n > 0 ? '+' : ''}${n} non migré (stat inconnue du système)`,
+        );
+        continue;
+      }
+      effets.push({
+        sur: 'attribut',
+        attribut: k,
+        operation: 'ajouter',
+        valeur: String(n),
+        description: nom,
+      });
     }
-    if (objetsAvecEffets.has(doc.id)) {
-      b.avertir(
-        `Bonus « ${nom} » (${detail}) non migré : l'objet porte ses effets dans le catalogue`,
-      );
-      continue;
+    if (!effets.length) continue;
+
+    const actif = d.active !== false;
+    const objet = objets.get(doc.id);
+    if (objet && actif) {
+      if (objet.avecEffets) {
+        b.avertir(
+          `Bonus « ${nom} » non migré : l'objet porte déjà ses effets dans le catalogue (évite de les compter deux fois)`,
+        );
+        continue;
+      }
+      const possession = b.possession(objet.entree);
+      if (possession) {
+        possession.effets = [...possession.effets, ...effets];
+        continue;
+      }
     }
-    if (!d.active) {
-      b.avertir(`Bonus inactif « ${nom} » (${detail}) non migré`);
-      continue;
-    }
-    const champs = new Set(b.systeme.sortes.get(entree.sorte)?.champs.map((c) => c.id));
-    const cumul = cumuls.get(entree.id) ?? {};
-    for (const [k, v] of bonus) {
-      if (champs.has(k)) cumul[k] = (cumul[k] ?? 0) + nombre(v)!;
-      else b.avertir(`Bonus « ${nom} » : ${k} ${nombre(v)} non migré (stat sans bonus libre)`);
-    }
-    cumuls.set(entree.id, cumul);
+    let id = slug(nom).slice(0, 40) || 'bonus';
+    for (let n = 2; ids.has(id); n++) id = `${slug(nom).slice(0, 36) || 'bonus'}-${n}`;
+    ids.add(id);
+    const source =
+      d.category === 'Competence'
+        ? 'Capacité'
+        : d.category === 'Inventaire'
+          ? 'Inventaire'
+          : undefined;
+    b.bonus.push({ id, nom, ...(source ? { source } : {}), effets, actif });
   }
-  for (const [id, champs] of cumuls)
-    if (Object.keys(champs).length) b.posseder(id, { actif: true, champs });
 }
 
 // ─── Star Wars ───────────────────────────────────────────────────────────────
@@ -602,7 +624,7 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
     );
 
   // Équipement et crédits
-  const avecEffets = migrerInventaire(b, options.inventaire ?? [], {
+  const objets = migrerInventaire(b, options.inventaire ?? [], {
     sortes: ['arme', 'armure', 'objet', 'accessoire', 'devise'],
     alias: sw.EQUIPEMENT,
     monnaie: {
@@ -612,7 +634,6 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
     },
   });
   if (!b.valeurs.credits) b.valeurs.credits = 0;
-  migrerBonus(b, options.bonus ?? [], undefined, avecEffets);
 
   // Caractéristiques (espèce comprise dans l'ancienne fiche) et rangs de compétence
   const caracs: Record<string, number> = {};
@@ -688,6 +709,9 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
     b.avertir(
       'PNJ : catégorie (sbire, rival, némésis) à choisir, « personnage joueur » par défaut',
     );
+
+  // Bonus saisis à la main : ajoutés après l'ajustement des bases (l'ancienne fiche les ajoutait à l'affichage)
+  migrerBonus(b, options.bonus ?? [], objets);
 }
 
 // ─── D&D classique ───────────────────────────────────────────────────────────
@@ -771,7 +795,7 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
     );
   }
 
-  const avecEffets = migrerInventaire(b, options.inventaire ?? [], {
+  const objets = migrerInventaire(b, options.inventaire ?? [], {
     sortes: ['arme', 'armure'],
     alias: dnd.EQUIPEMENT,
     monnaie: { attribut: 'bourse', valeur: (nom) => dnd.PIECES[nom] },
@@ -782,7 +806,7 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
   b.ajusterBases(caracteristiquesLegacy(p));
   const pvMax = entier(p.PV_Max);
   if (pvMax !== undefined) b.ajusterPar('jetsDeVie', 'PV_Max', pvMax);
-  migrerBonus(b, options.bonus ?? [], dnd.BONUS, avecEffets);
+  migrerBonus(b, options.bonus ?? [], objets);
   pvLegacy(b, p, options);
 
   const pc = detailSolde(b.fiche(), 'pointsCapacite');
@@ -805,12 +829,13 @@ function migrerNooblies(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
 
   for (const { fichier, rang } of voiesLegacy(p))
     b.avertir(`Voie « ${fichier} » (rang ${rang}) non migrée : pas de voies dans ce système`);
-  migrerInventaire(b, options.inventaire ?? [], undefined);
-  migrerBonus(b, options.bonus ?? [], undefined, new Set());
+  const objets = migrerInventaire(b, options.inventaire ?? [], undefined);
 
+  // Bases et PV max sans les bonus saisis à la main, ajoutés ensuite comme à l'affichage
   b.ajusterBases(caracteristiquesLegacy(p));
   const pvMax = entier(p.PV_Max);
   if (pvMax !== undefined) b.ajusterPar('jetDeVie', 'PV_Max', pvMax);
+  migrerBonus(b, options.bonus ?? [], objets);
   pvLegacy(b, p, options);
   const niveau = entier(p.niveau);
   if (niveau !== undefined && niveau > 1)

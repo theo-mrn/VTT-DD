@@ -167,9 +167,10 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
   });
 
   it('caractéristiques : l’espèce vient des règles, seuls les achats sont enregistrés', () => {
+    // Vigueur 2 + bonus « Stim » +1, ajouté comme l'ancienne fiche le faisait à l'affichage
     expect(
       ['vigueur', 'agilite', 'intellect', 'ruse', 'volonte', 'presence'].map((k) => f.valeur(k)),
-    ).toEqual([2, 3, 2, 3, 2, 2]);
+    ).toEqual([3, 3, 2, 3, 2, 2]);
     expect(r.etat.valeurs).toMatchObject({
       vigueur: 1,
       agilite: 1,
@@ -204,10 +205,10 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
   });
 
   it('seuils, encaissement et défense recalculés ; Cran relève le seuil de stress', () => {
-    expect(f.valeur('seuilBlessure')).toBe(12);
+    expect(f.valeur('seuilBlessure')).toBe(13); // 10 + Vigueur 3 (dont Stim +1)
     expect(f.valeur('seuilStress')).toBe(13);
     avertit(r, /Seuil de stress : 12 dans l'ancienne fiche, 13 recalculé/);
-    expect(f.valeur('encaissement')).toBe(3); // Vigueur 2 + armure légère 1
+    expect(f.valeur('encaissement')).toBe(4); // Vigueur 3 + armure légère 1
     expect(f.valeur('defenseMelee')).toBe(1);
     expect(f.valeur('defenseDistance')).toBe(1);
   });
@@ -240,7 +241,24 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
     expect(f.valeur('credits')).toBe(250);
     avertit(r, /Sabre laser de famille.*absent du catalogue/);
     avertit(r, /Stimpack.*3 exemplaires/);
-    avertit(r, /Bonus « Stim » \(vigueur \+1\) non migré/);
+    // Bonus saisi à la main : devenu un bonus libre, sans système dédié
+    expect(r.etat.bonus).toEqual([
+      {
+        id: 'stim',
+        nom: 'Stim',
+        source: 'Inventaire',
+        actif: true,
+        effets: [
+          {
+            sur: 'attribut',
+            attribut: 'vigueur',
+            operation: 'ajouter',
+            valeur: '1',
+            description: 'Stim',
+          },
+        ],
+      },
+    ]);
     avertit(r, /Champ personnalisé « Réputation » \(3\) non migré/);
   });
 });
@@ -441,15 +459,21 @@ describe('D&D : nain guerrier niveau 3', () => {
   it('PV : PV max legacy conservé par les jets de dés de vie, bonus saisi en plus', () => {
     expect(f.valeur('PV_Max')).toBe(24); // 21 + bonus Robustesse saisi à la main
     expect(f.valeur('PV')).toBe(15);
-    expect(r.etat.possessions.find((p) => p.entree === 'bonus-capacites')?.champs).toEqual({
-      PV_Max: 3,
-    });
+    expect(
+      r.etat.bonus.map((b) => [
+        b.nom,
+        b.effets.map((e) => e.sur === 'attribut' && [e.attribut, e.valeur]),
+      ]),
+    ).toEqual([['Robustesse', [['PV_Max', '3']]]]);
   });
 
   it('défense et attaques recalculées ; le bonus manuel de l’armure est remplacé par ses effets', () => {
     expect(f.valeur('Defense')).toBe(13); // 10 − 1 (DEX) + cuir 2 + armure naturelle 2
     expect(f.valeur('Contact')).toBe(5); // mod FOR 2 + niveau 3
-    avertit(r, /Bonus « Armure de cuir » \(Defense \+2\) non migré : l'objet porte ses effets/);
+    avertit(
+      r,
+      /Bonus « Armure de cuir » non migré : l'objet porte déjà ses effets dans le catalogue/,
+    );
   });
 
   it('équipement, bourse et objets sans équivalent', () => {
@@ -533,20 +557,21 @@ describe('D&D : wolfer nécromancien, données partielles', () => {
     expect(detailSolde(f, 'pointsCapacite')).toMatchObject({ total: 4, depense: 3 });
   });
 
-  it('voie et capacité personnalisées, bonus inactif : avertissements', () => {
+  it('voie et capacité personnalisées, bonus inactif gardé inactif', () => {
     avertit(r, /Voie personnalisée « Voie du chaos » \(rang 1\) non migrée/);
     avertit(r, /Capacité personnalisée « Frappe du chaos »/);
-    avertit(r, /Bonus inactif « Bottes » \(DEX \+2\) non migré/);
+    expect(r.etat.bonus.find((b) => b.nom === 'Bottes')).toMatchObject({ actif: false });
     avertit(r, /Grimoire relié de peau.*absent du catalogue/);
     expect(f.possessions.has('baton')).toBe(true);
   });
 
-  it('bonus actif cumulé dans « Bonus de capacités »', () => {
+  it('bonus actif devenu bonus libre', () => {
     expect(f.valeur('FOR')).toBe(12);
-    expect(r.etat.possessions.find((p) => p.entree === 'bonus-capacites')).toMatchObject({
-      actif: true,
-      champs: { FOR: 1 },
-    });
+    expect(
+      r.etat.bonus
+        .filter((b) => b.actif)
+        .map((b) => b.effets.map((e) => e.sur === 'attribut' && e.attribut)),
+    ).toEqual([['FOR']]);
   });
 });
 
@@ -580,12 +605,13 @@ describe('Noobliés : minotaure barbare', () => {
   });
 
   it('caractéristiques, défense et attaques', () => {
+    // FOR 14 + 4 (minotaure) + 2 (bonus « Ceinture » saisi à la main)
     expect(['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((k) => f.valeur(k))).toEqual([
-      18, 13, 12, 10, 6, 9,
+      20, 13, 12, 10, 6, 9,
     ]);
     expect(r.etat.valeurs).toMatchObject({ FOR: 14, INT: 10, CHA: 11 });
     expect(f.valeur('Defense')).toBe(19); // 18 + mod DEX 1
-    expect(f.valeur('Contact')).toBe(5); // 1 + mod FOR 4
+    expect(f.valeur('Contact')).toBe(6); // 1 + mod FOR 5
   });
 
   it('PV : jet de dé de vie retrouvé', () => {
@@ -594,11 +620,11 @@ describe('Noobliés : minotaure barbare', () => {
     expect(f.valeur('PV')).toBe(7);
   });
 
-  it('capacités raciales ; voies, équipement et bonus signalés', () => {
+  it('capacités raciales ; voies et équipement signalés, bonus gardé en bonus libre', () => {
     expect(rang(f, 'coup-de-corne')).toBe(1);
     avertit(r, /Voie « Barbare1 » \(rang 1\) non migrée : pas de voies/);
     avertit(r, /Objet « Hache » non migré : le système n'a pas d'équipement/);
-    avertit(r, /Bonus « Ceinture » \(FOR \+2\) non migré/);
+    expect(r.etat.bonus.map((b) => b.nom)).toEqual(['Ceinture']);
   });
 });
 

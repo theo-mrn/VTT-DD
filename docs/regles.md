@@ -86,6 +86,35 @@ C'est le **mécanisme unique** de tous les bonus. Il remplace les modificateurs 
 
 Le calcul suit un **ordre fixe et documenté** : valeurs de base, puis effets par phase (fixer, ajouter, multiplier, bornes), puis dérivées dans l'ordre du graphe de dépendances. Les cycles sont refusés au chargement. Chaque effet garde sa source (objet, talent, état), ce qui alimente les explications affichées sur la fiche.
 
+### 4 bis. Bonus : une seule mécanique, trois sources
+
+Tout bonus est un **effet**, du même schéma que ceux du catalogue. Il vient de l'une de trois sources, que le moteur traite toutes pareil (`fiche.sources`) :
+
+| Source              | Où elle vit                                                   | Exemples                                          |
+| ------------------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| Entrée du catalogue | `catalogue[].effets` du système                               | race, talent, armure de cuir, état « étourdi »    |
+| Exemplaire possédé  | `possessions[].effets` de l'état du personnage                | épée +1, objet enchanté, bonus saisi sur un objet |
+| Bonus libre         | `bonus[]` de l'état du personnage : nom, source, actif, durée | potion, bénédiction, décision du MJ               |
+
+Un bonus s'applique quand sa source est active : l'objet équipé, le bonus libre activé, l'entrée possédée (rang 1 au moins pour une entrée à rangs).
+
+Les bonus posés sur un personnage sont vérifiés comme le catalogue, par `compilerEffets` : cible existante, formule bien typée. Le service refuse à l'écriture un bonus invalide, avec le détail de chaque erreur. Si un tel bonus existe déjà dans un état, le calcul l'ignore et le signale.
+
+Un bonus posé sur un personnage ne peut lire que des attributs calculés avant sa cible, pour ne jamais créer de cycle.
+
+Les bonus libres à durée perdent un round en fin de round, comme les états, et disparaissent à 0.
+
+Pour les jets, `implique` cible un jet sans formule : « +2 aux tests de Discrétion » (`implique: { entree: discretion }`), ou « +1 dé aux tests de Vigueur » (`implique: { attribut: vigueur }`).
+
+Le jet est concerné quand :
+
+- un paramètre de l'action désigne cette entrée ou cet attribut ;
+- ou un champ de l'entrée choisie y renvoie (compétence d'une arme, caractéristique liée d'une compétence).
+
+La règle est la même dans tous les systèmes.
+
+Chaque ligne d'explication de la fiche porte l'identifiant de sa source : `armure-cuir`, `armure-cuir#exemplaire`, `bonus:potion`.
+
 ### 5. Progression et achats
 
 Les points dépensables (XP, points de création, points de compétence…) sont des **monnaies** déclarées par le système. Chaque **achat** décrit :

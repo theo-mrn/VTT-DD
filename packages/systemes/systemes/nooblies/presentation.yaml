@@ -39,4 +39,5 @@ fiches:
           colonnes: 3,
         }
       - { type: possessions, titre: Capacités, sorte: capacite }
+      - { type: bonus, titre: Bonus }
       - { type: actions, titre: Actions }

@@ -51,7 +51,7 @@ fiches:
       - { type: possessions, titre: Capacités à activer, sorte: capacite_active }
       - { type: possessions, titre: Armes, sorte: arme }
       - { type: possessions, titre: Armures, sorte: armure }
-      - { type: possessions, titre: Bonus, sorte: bonus }
+      - { type: bonus, titre: Bonus }
       - { type: possessions, titre: États, sorte: etat }
       - { type: attributs, titre: Bourse, attributs: [bourse] }
       - { type: actions, titre: Actions }

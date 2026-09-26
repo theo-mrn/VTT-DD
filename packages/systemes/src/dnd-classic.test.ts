@@ -28,6 +28,27 @@ const systeme = chargerSource('dnd-classic');
 
 const mod = (v: number) => Math.floor((v - 10) / 2);
 
+/** Bonus libre saisi à la main : chaque stat reçoit un effet « ajouter ». */
+function bonusLibre(stats: Record<string, number>, actif = true) {
+  return {
+    id: 'bonus',
+    nom: 'Bonus saisi',
+    actif,
+    effets: Object.entries(stats).map(([attribut, v]) => ({
+      sur: 'attribut' as const,
+      attribut,
+      operation: 'ajouter' as const,
+      valeur: String(v),
+    })),
+  };
+}
+
+/** Même fiche, avec un bonus libre en plus. */
+function avecBonus(f: Fiche, stats: Record<string, number>, actif = true): Fiche {
+  const { type: _type, systeme: _systeme, ...reste } = f.etat;
+  return fiche({ ...reste, bonus: [...f.etat.bonus, bonusLibre(stats, actif)] });
+}
+
 function fiche(saisi: Omit<EtatEntiteSaisi, 'type' | 'systeme'>): Fiche {
   const etat = EtatEntite.parse({
     type: 'personnage',
@@ -197,7 +218,7 @@ describe('dnd-classic : parité avec legacy dnd-classic', () => {
   it('bonus actif ajouté aux stats dérivées de combat', () => {
     const f = fiche({
       valeurs: base,
-      possessions: [{ entree: 'bonus-inventaire', champs: { Contact: 3 } }],
+      bonus: [bonusLibre({ Contact: 3 })],
     });
     expect(val(f, 'Contact')).toBe(1 + mod(14) + 3);
   });
@@ -272,12 +293,10 @@ describe('dnd-classic : personnages de référence', () => {
   });
 
   it('bonus libres saisis, actifs ou non', () => {
-    const actif = elaria([{ entree: 'bonus-inventaire', champs: { Contact: 3, PV_Max: 2 } }]);
+    const actif = avecBonus(elaria(), { Contact: 3, PV_Max: 2 });
     expect(val(actif, 'Contact')).toBe(5);
     expect(val(actif, 'PV_Max')).toBe(17);
-    const inactif = elaria([
-      { entree: 'bonus-inventaire', actif: false, champs: { Contact: 3, PV_Max: 2 } },
-    ]);
+    const inactif = avecBonus(elaria(), { Contact: 3, PV_Max: 2 }, false);
     expect(val(inactif, 'Contact')).toBe(2);
   });
 
@@ -518,20 +537,17 @@ describe('dnd-classic : actions', () => {
   });
 
   it('20 naturel touche toujours et double les dés, 1 naturel rate toujours', () => {
-    const imprenable = elaria([{ entree: 'bonus-inventaire', champs: { Defense: 20 } }]);
+    const imprenable = avecBonus(elaria(), { Defense: 20 });
     const crit = agir('attaque', thorin(), [20, 6, 3], imprenable, epee);
     expect([crit.reussi, crit.jet.type === 'numerique' && crit.jet.critique]).toEqual([true, true]);
     expect(crit.variables.degats).toBe(9);
-    const brute = grok([
-      { entree: 'bonus-inventaire', champs: { Contact: 20 } },
-      { entree: 'epee-longue' },
-    ]);
+    const brute = avecBonus(grok([{ entree: 'epee-longue' }]), { Contact: 20 });
     const rate = agir('attaque', brute, [1], thorin(), epee);
     expect([rate.reussi, rate.jet.type === 'numerique' && rate.jet.fumble]).toEqual([false, true]);
   });
 
   it('Science du critique : critique dès 19', () => {
-    const imprenable = elaria([{ entree: 'bonus-inventaire', champs: { Defense: 30 } }]);
+    const imprenable = avecBonus(elaria(), { Defense: 30 });
     const maitre = fiche({
       ...thorin().etat,
       possessions: [...thorin().etat.possessions, { entree: 'guerrier-maitre-d-armes', rang: 2 }],
@@ -831,7 +847,7 @@ describe('dnd-classic : capacités codées', () => {
       { entree: 'arbalete-legere' },
       { entree: 'arc-court' },
     ]);
-    const imprenable = nu([{ entree: 'bonus-inventaire', champs: { Defense: 30 } }]);
+    const imprenable = avecBonus(nu(), { Defense: 30 });
     const carreau = agir('attaque', elfe, [19, 2, 3, 1, 4], imprenable, arme('arbalete-legere'));
     expect([carreau.reussi, carreau.variables.degats]).toEqual([true, 10]);
     expect(agir('attaque', elfe, [19], imprenable, arme('arc-court')).reussi).toBe(false);
@@ -949,7 +965,7 @@ describe('dnd-classic : capacités codées', () => {
     );
     // Suggestion : contre les PV max de la cible (10), pas sa Défense (30)
     const barde = nu([{ entree: 'barde-seduction', rang: 4 }]);
-    const cible = nu([{ entree: 'bonus-inventaire', champs: { Defense: 20 } }]);
+    const cible = avecBonus(nu(), { Defense: 20 });
     const suggestion = agir('sort', barde, [9], cible, { capacite: 'barde-seduction-suggestion' });
     expect([suggestion.reussi, suggestion.modifications]).toEqual([true, []]);
 
@@ -973,7 +989,7 @@ describe('dnd-classic : capacités codées', () => {
     const kiai = agir('attaque', samourai, [10], nu(), { ...arme('epee-longue'), degatsMax: true });
     expect(kiai.variables.degats).toBe(8);
     const assassin = nu([{ entree: 'voleur-assassin', rang: 5 }, { entree: 'epee-longue' }]);
-    const imprenable = nu([{ entree: 'bonus-inventaire', champs: { Defense: 30 } }]);
+    const imprenable = avecBonus(nu(), { Defense: 30 });
     const ouverture = agir('attaque-sournoise', assassin, [2, 1, 1, 1, 1, 1], imprenable, {
       ...arme('epee-longue'),
       ouvertureMortelle: true,
