@@ -304,6 +304,31 @@ FunDie.displayName = 'FunDie';
 // skins at a time, yielding a frame between batches.
 const WARM_BATCH_SIZE = 4;
 
+/**
+ * Attend que les programmes des matériaux soient liés (extension
+ * KHR_parallel_shader_compile), sans jamais lever d'erreur : un matériau
+ * libéré ou sans programme compte comme prêt, et l'attente s'arrête sur
+ * annulation ou au bout de `timeoutMs` (certains pilotes ne progressent pas).
+ */
+async function waitProgramsReady(
+  gl: THREE.WebGLRenderer,
+  materials: Set<THREE.Material>,
+  isCancelled: () => boolean,
+  timeoutMs: number,
+): Promise<void> {
+  if (!gl.extensions.get('KHR_parallel_shader_compile')) return;
+  const deadline = performance.now() + timeoutMs;
+  const pending = new Set(materials);
+  while (pending.size && !isCancelled() && performance.now() < deadline) {
+    for (const material of pending) {
+      const program = (gl.properties.get(material) as { currentProgram?: { isReady?(): boolean } })
+        .currentProgram;
+      if (!program?.isReady || program.isReady()) pending.delete(material);
+    }
+    if (pending.size) await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
 const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => void }) => {
   const { gl, scene, camera } = useThree();
   const groupRef = useRef<THREE.Group>(null);
@@ -325,19 +350,12 @@ const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => vo
         await new Promise((r) => requestAnimationFrame(r));
         if (cancelled) return;
         try {
-          const anyGl = gl as any;
-          if (typeof anyGl.compileAsync === 'function') {
-            // compileAsync polls KHR_parallel_shader_compile, and
-            // some drivers only progress that status while the
-            // context is doing work — never let one stuck batch
-            // hang the whole warm-up (and with it the roll queue).
-            await Promise.race([
-              anyGl.compileAsync(scene, camera),
-              new Promise((r) => setTimeout(r, 1200)),
-            ]);
-          } else {
-            gl.compile(scene, camera);
-          }
+          // Pas de `gl.compileAsync()` : sa boucle interne (setTimeout
+          // toutes les 10 ms) continue après notre délai et plante hors de
+          // ce try (`program.isReady` d'un matériau libéré entre-temps).
+          // On compile le lot puis on attend nous-mêmes, arrêt garanti.
+          const materials = gl.compile(scene, camera);
+          await waitProgramsReady(gl, materials, () => cancelled, 1200);
         } catch {
           // best-effort warmup — ignore failures
         }
