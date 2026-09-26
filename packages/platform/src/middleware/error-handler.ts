@@ -7,6 +7,34 @@ import {
 } from 'fastify-type-provider-zod';
 import { currentTraceId } from '../tracing.js';
 
+/**
+ * Erreur prête à journaliser, sans données de la requête SQL : les erreurs de
+ * Drizzle portent les paramètres (hash de mot de passe, empreinte de jeton…)
+ * dans `params` et dans leur message (« params: … »). On garde le type, le code
+ * SQL, la contrainte et la pile, jamais les valeurs.
+ */
+export function erreurJournalisable(err: unknown): Record<string, unknown> {
+  if (!(err instanceof Error)) return { message: String(err) };
+  const cause = (err as { cause?: unknown }).cause as
+    { code?: string; constraint?: string; table?: string; message?: string } | undefined;
+  const sansParams = (m: string) => m.replace(/\nparams:[\s\S]*$/, '');
+  return {
+    type: err.name,
+    message: sansParams(err.message),
+    stack: err.stack ? sansParams(err.stack) : undefined,
+    ...(cause && typeof cause === 'object'
+      ? {
+          cause: {
+            code: cause.code,
+            constraint: cause.constraint,
+            table: cause.table,
+            message: cause.message ? sansParams(cause.message) : undefined,
+          },
+        }
+      : {}),
+  };
+}
+
 /** Erreur métier à lever dans les handlers : elle devient un problem+json propre. */
 export class HttpError extends Error {
   constructor(
@@ -90,7 +118,7 @@ export const errorHandler = fp(
       body.requestId = req.id;
       if (traceId) body.traceId = traceId;
 
-      if (body.status >= 500) req.log.error({ error: err }, 'request failed');
+      if (body.status >= 500) req.log.error({ error: erreurJournalisable(err) }, 'request failed');
       else req.log.info({ status: body.status, code: body.code }, 'request rejected');
 
       reply.code(body.status).type(PROBLEM_CONTENT_TYPE).send(body);

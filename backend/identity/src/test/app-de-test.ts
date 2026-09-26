@@ -16,6 +16,12 @@ import { generateSigningJwk } from '../tokens/jwt.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
+/** Adresse de la plage de documentation 198.18.0.0/15, différente à chaque appel. */
+export function ipAleatoire(): string {
+  const o = crypto.getRandomValues(new Uint8Array(2));
+  return `198.18.${o[0]}.${o[1]}`;
+}
+
 export async function appDeTest(surcharges: Record<string, string> = {}) {
   const { db, pool } = createDb(TEST_DATABASE_URL!);
   const mailer = mailerDeTest();
@@ -43,6 +49,9 @@ export async function appDeTest(surcharges: Record<string, string> = {}) {
       method: 'POST',
       url: '/v1/auth/register',
       payload: { email, password: motDePasse, name: nom },
+      // Une IP par inscription : la limite de 10 inscriptions/min/IP ne doit pas
+      // faire échouer les tests qui créent beaucoup de comptes
+      remoteAddress: ipAleatoire(),
     });
     if (res.statusCode !== 201) throw new Error(`inscription : ${res.statusCode} ${res.body}`);
     const corps = res.json() as { accessToken: string; user: { id: string } };

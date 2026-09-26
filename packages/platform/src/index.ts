@@ -1,3 +1,5 @@
+/// <reference types="@fastify/rate-limit" />
+// Expose aux services le typage `config.rateLimit` des routes (augmentation de Fastify).
 export * from './cache.js';
 export * from './config.js';
 export * from './health.js';

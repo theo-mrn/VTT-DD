@@ -92,3 +92,12 @@ export async function loadImportedAccounts(
   }
   return rapport;
 }
+
+/** Correspondance uid Firebase -> UUID identity, depuis legacy_ids. */
+export async function lireUuidParUid(db: Db): Promise<Map<string, string>> {
+  const lignes = await db
+    .select({ uid: legacyIds.legacyId, id: legacyIds.id })
+    .from(legacyIds)
+    .where(eq(legacyIds.kind, LEGACY_KIND));
+  return new Map(lignes.map((l) => [l.uid, l.id]));
+}

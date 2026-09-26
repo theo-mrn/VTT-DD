@@ -21,9 +21,11 @@ if ! docker info >/dev/null 2>&1; then
   docker info >/dev/null 2>&1 || { echo "Docker ne répond pas. Démarre-le puis relance pnpm dev." >&2; exit 1; }
 fi
 
-# Services optionnels : --stockage (S3), --mails (Mailpit), --observabilite (Grafana), --tout
+# Toujours démarrés : Postgres, NATS, Valkey, stockage S3 (avatars), Mailpit (e-mails).
+# Option : --observabilite (Grafana), --tout
 # --preparer : infra, migrations et .env seulement, sans lancer les apps (CI, vérification)
-PROFILS=()
+# Stockage (avatars) et mails (identity) par défaut ; Grafana à la demande
+PROFILS=(--profile stockage --profile mails)
 PREPARER_SEULEMENT=0
 for arg in "$@"; do
   case "$arg" in
@@ -38,6 +40,11 @@ done
 
 etape "Infrastructure"
 $COMPOSE ${PROFILS[@]+"${PROFILS[@]}"} up -d --wait
+
+etape "Stockage S3 local"
+# Bucket des avatars et bannières (rejouable)
+$COMPOSE exec -T s3 sh -c "echo 's3.bucket.create -name vtt-dev' | weed shell" >/dev/null 2>&1 \
+  && echo "bucket vtt-dev prêt" || echo "bucket vtt-dev : création impossible (envoi d'images indisponible)"
 
 etape "Rôles et schémas SQL"
 for f in infra/postgres/init/*.sql; do
@@ -66,6 +73,20 @@ for dossier in backend/*/; do
   elif [ -f "$dossier/.env.example" ] && [ ! -f "$dossier/.env" ]; then
     cp "$dossier/.env.example" "$dossier/.env" && echo "backend/$service/.env créé"
   fi
+  # Complète un .env existant avec les variables apparues depuis dans .env.example,
+  # sans jamais modifier une valeur déjà présente
+  if [ -f "$dossier/.env.example" ] && [ -f "$dossier/.env" ]; then
+    ajoutees=0
+    while IFS= read -r ligne; do
+      case "$ligne" in ''|\#*) continue ;; esac
+      cle=${ligne%%=*}
+      if ! grep -qE "^#? ?$cle=" "$dossier/.env"; then
+        printf '%s\n' "$ligne" >> "$dossier/.env"
+        ajoutees=$((ajoutees + 1))
+      fi
+    done < "$dossier/.env.example"
+    [ "$ajoutees" -gt 0 ] && echo "backend/$service/.env : $ajoutees variable(s) ajoutée(s)"
+  fi
 done
 
 if [ "$PREPARER_SEULEMENT" = 1 ]; then
@@ -76,4 +97,5 @@ fi
 etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"
 echo "  gateway  http://localhost:8080"
+echo "  e-mails  http://localhost:8025"
 exec pnpm turbo run dev --filter='./backend/*' --filter=@vtt/web

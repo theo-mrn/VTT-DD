@@ -24,10 +24,8 @@ export function createMailer(opts: {
   if (!opts.smtpUrl) {
     return {
       async envoyer(mail) {
-        opts.log.info(
-          { to: mail.to, subject: mail.subject },
-          'e-mail non envoyé (SMTP_URL absent)',
-        );
+        // Jamais l'adresse du destinataire dans les journaux
+        opts.log.info({ subject: mail.subject }, 'e-mail non envoyé (SMTP_URL absent)');
       },
     };
   }

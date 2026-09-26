@@ -69,6 +69,24 @@ async function exporterCollection(
   ecrire: (ligne: string) => Promise<void>,
 ): Promise<number> {
   let total = 0;
+
+  if (values.recursive) {
+    // listDocuments() renvoie aussi les documents « fantômes » : parents qui
+    // n'existent pas mais portent des sous-collections (ex. friendships/{uid},
+    // requests/{uid} dans l'ancienne app). Une requête ne les verrait pas.
+    for (const ref of await col.listDocuments()) {
+      const snap = await ref.get();
+      if (snap.exists) {
+        await ecrire(JSON.stringify({ path: ref.path, id: ref.id, data: normaliser(snap.data()) }));
+        total++;
+      }
+      for (const sous of await ref.listCollections()) {
+        total += await exporterCollection(sous, ecrire);
+      }
+    }
+    return total;
+  }
+
   let dernier: string | undefined;
   // Pagination par identifiant : mémoire constante quelle que soit la taille
   for (;;) {
@@ -76,17 +94,11 @@ async function exporterCollection(
     if (dernier) requete = requete.startAfter(dernier);
     const page = await requete.get();
     if (page.empty) break;
-
     for (const doc of page.docs) {
       await ecrire(
         JSON.stringify({ path: doc.ref.path, id: doc.id, data: normaliser(doc.data()) }),
       );
       total++;
-      if (values.recursive) {
-        for (const sous of await doc.ref.listCollections()) {
-          total += await exporterCollection(sous, ecrire);
-        }
-      }
     }
     dernier = page.docs[page.docs.length - 1]!.id;
     if (page.size < PAGE) break;

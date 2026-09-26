@@ -1,6 +1,6 @@
 /**
  * Routes d'authentification : inscription, connexion, renouvellement,
- * déconnexion, JWKS et profil courant.
+ * déconnexion et JWKS (le profil courant est dans src/modules/profil).
  *
  * - Jeton d'accès (15 min) dans le corps de la réponse : le front le garde en
  *   mémoire, jamais dans le localStorage.
@@ -17,7 +17,6 @@ import {
   createPasswordAccount,
   EmailAlreadyUsed,
   findLoginByEmail,
-  getProfile,
   replacePassword,
 } from '../db/accounts.js';
 import type { Db } from '../db/client.js';
@@ -244,33 +243,4 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
     effacerCookie(reply);
     reply.code(204);
   });
-
-  r.get(
-    '/v1/users/me',
-    {
-      preHandler: app.authenticate,
-      schema: {
-        response: {
-          200: z.object({
-            id: z.string(),
-            email: z.string().nullable(),
-            name: z.string(),
-            avatarUrl: z.string().nullable(),
-            title: z.string().nullable(),
-            bio: z.string().nullable(),
-            bannerUrl: z.string().nullable(),
-            borderType: z.string(),
-            showPremiumBadge: z.boolean(),
-            timeSpentMinutes: z.number(),
-          }),
-        },
-      },
-    },
-    async (req) => {
-      const profil = await getProfile(deps.db, req.user!.userId);
-      if (!profil) throw HttpError.notFound('Profil introuvable');
-      const { userId, ...reste } = profil;
-      return { id: userId, ...reste };
-    },
-  );
 }
