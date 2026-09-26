@@ -5,7 +5,7 @@ Le service **dice** (`backend/dice`, port 3004) gère tout ce qui touche aux dé
 - les **jets** : notation libre (`2d6+3`, `4d6kh3`, `1d20!`), variables du personnage (`1d20+FOR`), dés à symboles du système (`2aptitude 1difficulte`), jets d'action transmis par character ;
 - l'**historique des jets** d'une campagne, avec les jets privés (`isPrivate`) et cachés au MJ (`isBlind`) ;
 - les **statistiques** de jets, avec les calculs de l'ancien composant ;
-- les **préférences de dés** d'un utilisateur : skin choisi, inventaire de skins, animation 3D, son.
+- les **préférences de dés** d'un utilisateur : skin choisi, inventaire de skins, accès à tous les skins (ancien premium), animation 3D, son.
 
 Les jets sont tirés côté serveur par `aleatoireCrypto` de `@vtt/rules`, et calculés par son moteur de formules (jamais d'`eval`). Le client anime ensuite le résultat reçu, sans jamais le décider : un joueur ne peut pas tricher en relançant côté navigateur.
 
@@ -188,15 +188,33 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 
 ## Préférences
 
-| Méthode | Route                     | Corps                               | Réponse                                               |
-| ------- | ------------------------- | ----------------------------------- | ----------------------------------------------------- |
-| GET     | `/v1/dice/me/preferences` | —                                   | `{ skinId, animation3d, sound, inventory: [skinId] }` |
-| PATCH   | `/v1/dice/me/preferences` | `{ skinId?, animation3d?, sound? }` | les préférences mises à jour                          |
+| Méthode | Route                     | Corps                               | Réponse                                                         |
+| ------- | ------------------------- | ----------------------------------- | --------------------------------------------------------------- |
+| GET     | `/v1/dice/me/preferences` | —                                   | `{ skinId, animation3d, sound, allSkins, inventory: [skinId] }` |
+| PATCH   | `/v1/dice/me/preferences` | `{ skinId?, animation3d?, sound? }` | les préférences mises à jour (même forme)                       |
 
-- Par défaut : `skinId: "gold"` (skin par défaut de l'ancienne app), `animation3d: true`, `sound: true`.
-- `inventory` : skins utilisables, dans l'ordre du catalogue — les skins **gratuits** (prix 0 dans l'ancienne app : `gold`, `silver`, `pierre_donjon`, et `steampunk_copper` qu'elle donnait à tous) et ceux débloqués (import de l'ancien `dice_inventory`, plus tard boutique du service billing et défis).
-- PATCH : 422 `unknown_skin` (hors catalogue), 403 `skin_not_owned` (hors inventaire), 400 si le corps est vide. Un skin retiré de l'inventaire redevient `gold`.
+```json
+{
+  "skinId": "bismuth",
+  "animation3d": true,
+  "sound": true,
+  "allSkins": true,
+  "inventory": ["magma", "gold", "silver", "steampunk_copper", "pierre_donjon"]
+}
+```
+
+- Par défaut : `skinId: "gold"` (skin par défaut de l'ancienne app), `animation3d: true`, `sound: true`, `allSkins: false`.
+- `inventory` : skins possédés **en propre**, dans l'ordre du catalogue — les skins **gratuits** (prix 0 dans l'ancienne app : `gold`, `silver`, `pierre_donjon`, et `steampunk_copper` qu'elle donnait à tous) et ceux débloqués (import de l'ancien `dice_inventory`, plus tard boutique du service billing et défis). Ils restent acquis quand `allSkins` repasse à `false`.
+- `allSkins` : accès à **tous** les skins du catalogue — l'ancien premium (`ownsDice = isPremium || dice_inventory.includes(id)` de la boutique), plus tard l'abonnement du service billing. Il s'ajoute à `inventory` sans le remplacer : `inventory` ne liste pas les skins obtenus par cet accès.
+- **Un skin est possédé si `allSkins` est vrai ou s'il figure dans `inventory`** : c'est la règle à appliquer côté front (boutique, sélecteur) et celle de PATCH.
+- PATCH : 422 `unknown_skin` (hors catalogue), 403 `skin_not_owned` (skin non possédé), 400 si le corps est vide. Un skin qui n'est plus possédé (retiré de l'inventaire, fin de l'accès à tous les skins) redevient `gold` ; le choix est conservé et revient si l'accès est rendu.
 - `GET /v1/dice/skins` : les 71 skins de `dice-definitions.ts`, `[{ id, free }]` ; leur rendu (couleurs, matériaux) reste au front.
+
+### Accès à tous les skins (route interne)
+
+- `PUT /internal/users/:userId/all-skins` (en-tête `x-internal-secret`, jamais relayée par la gateway) : `{ allSkins: boolean }` → 200, les préférences de l'utilisateur (forme de `GET /v1/dice/me/preferences`). 401 sans le bon secret, 400 pour un `userId` qui n'est pas un UUID ou un corps invalide.
+- Destinée au service **billing**, qui la pilotera selon les événements d'abonnement (activation, fin de période, résiliation). Idempotente : sans changement, rien n'est écrit ni publié ; sinon `dice.preferences_updated` (acteur `system`). Un utilisateur sans préférences les reçoit avec les valeurs par défaut.
+- En attendant billing, seul l'import Firebase pose ce drapeau (premium de l'ancienne app).
 
 ## Événements
 
@@ -206,7 +224,7 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 | -------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `dice.rolled`              | le jet complet (sans masquage), `results`, `output`, `userName`, `authorId`… | `public` ; `private` et `gm` → `gm_only` (l'auteur est `actor.userId`) ; `self` et jet personnel → `owner` |
 | `dice.roll_deleted`        | `{ id, campaignId, authorId }`                                               | celle du jet                                                                                               |
-| `dice.preferences_updated` | `{ userId, skinId, animation3d, sound }`                                     | `owner`                                                                                                    |
+| `dice.preferences_updated` | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (route interne all-skins, `actor.userId` null)                 |
 
 `roomId` de l'enveloppe = la campagne (sujet `vtt.<campagne>.dice.rolled`). Les titres de l'ancienne app débloqués par un 1 ou un 20 naturel (« Maudit des dés », « Béni des Dieux ») seront attribués par identity en écoutant `dice.rolled` (dés et `outcome` dans la charge utile).
 
@@ -216,4 +234,6 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 
 - `rolls/{code}/rolls/{id}` devient un jet `source: import`, daté et ordonné comme à l'origine (UUIDv7 à la date du jet), avec tous ses champs d'origine (`isPrivate`, `isBlind`, `results`, `output`, `symbolResult`, `type`…) ; il est rattaché à la campagne importée (`campaign.legacy_ids`, `Salle/{code}`), à l'auteur (`identity.legacy_ids` par `uid`, ou par le nom affiché de `salles/{code}/Noms` pour les vieux jets) et au personnage (`characters.legacy_ids`). Un auteur introuvable : jet importé sans compte, sous son ancien nom. Les jets d'une campagne non importée sont ignorés. Pas d'événement : l'ancien journal est importé par history.
 - `users/{uid}.dice_skin` et `dice_inventory` deviennent les préférences et l'inventaire (skins inconnus écartés), sans jamais écraser des préférences déjà présentes.
+- Premium : `premium: true` avec `premiumEndDate` absent, `null`, `0` ou dans le futur (secondes Unix, le `cancelAt` de Stripe d'un abonnement résilié en fin de période) donne `allSkins: true` ; son `dice_skin` est repris même s'il n'est pas dans `dice_inventory`, sans y être ajouté (il était possédé par le premium). Sur des préférences déjà présentes, l'import ajoute l'accès sans toucher au reste ; il ne le retire jamais. Premium échu ou échéance illisible : avertissement, pas d'accès. Sans premium en cours, un skin payant choisi hors `dice_inventory` est ajouté à l'inventaire (l'ancienne app l'affichait).
+- `dice_trail` (traînée des dés) : pas de champ dans les préférences (traînées en pause), ignoré avec un avertissement dans le rapport.
 - Rejouable (`legacy_ids`), rapport NDJSON dans `~/vtt-export/rapport-des.ndjson`.
