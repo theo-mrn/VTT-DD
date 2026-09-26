@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { loadConfig } from '@vtt/platform';
 import { generateKeyPair, SignJWT, type CryptoKey } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildGateway, GatewayConfig } from './app.js';
+import { buildGateway, estPublique, GatewayConfig } from './app.js';
 
 let upstream: Server;
 let upstreamUrl: string;
@@ -31,6 +31,7 @@ async function gateway() {
     JWT_AUDIENCE: 'vtt-api',
     UPSTREAM_CAMPAIGN_URL: upstreamUrl,
     UPSTREAM_IDENTITY_URL: upstreamUrl,
+    UPSTREAM_CHARACTER_URL: upstreamUrl,
   });
   return buildGateway(config, { authKeyResolver: async () => publicKey });
 }
@@ -86,5 +87,37 @@ describe('gateway', () => {
       headers: { authorization: `Bearer ${await token()}` },
     });
     expect(res.json()).toEqual({ userId: 'user-1', roles: ['user'] });
+  });
+
+  it('character : systèmes publics en lecture, personnages protégés', async () => {
+    const app = await gateway();
+    const liste = await app.inject({ url: '/v1/systems' });
+    expect(liste.statusCode).toBe(200);
+    expect(liste.json()).toEqual({ path: '/v1/systems' });
+    const doc = await app.inject({ url: '/v1/systems/dnd-classic' });
+    expect(doc.json()).toEqual({ path: '/v1/systems/dnd-classic' });
+
+    expect((await app.inject({ method: 'POST', url: '/v1/systems', payload: {} })).statusCode).toBe(
+      401,
+    );
+    expect((await app.inject({ url: '/v1/characters' })).statusCode).toBe(401);
+    const perso = await app.inject({
+      url: '/v1/characters/c1/creation',
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(perso.json()).toEqual({ path: '/v1/characters/c1/creation' });
+    expect(lastHeaders['x-forwarded-user']).toBe('user-1');
+  });
+});
+
+describe('estPublique', () => {
+  it('ouvre la lecture des systèmes seulement', () => {
+    expect(estPublique('GET', '/v1/systems')).toBe(true);
+    expect(estPublique('GET', '/v1/systems?x=1')).toBe(true);
+    expect(estPublique('HEAD', '/v1/systems/star-wars-eote')).toBe(true);
+    expect(estPublique('POST', '/v1/systems')).toBe(false);
+    expect(estPublique('GET', '/v1/systemsx')).toBe(false);
+    expect(estPublique('GET', '/v1/characters')).toBe(false);
+    expect(estPublique('POST', '/v1/auth/login')).toBe(true);
   });
 });
