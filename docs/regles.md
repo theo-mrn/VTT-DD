@@ -252,3 +252,18 @@ Le fichier `presentation.yaml` de chaque système décrit :
 - la géométrie des arbres, les images et les bibliothèques.
 
 Ce fichier est validé contre les règles au build. Le front n'y ajoute aucune valeur propre à un jeu.
+
+## Ce qui relève de l'état de partie (services campaign et character)
+
+Le portage complet de D&D et de Star Wars a fait apparaître des besoins qui ne sont pas des règles de fiche : ils dépendent du déroulement de la partie. Ils seront portés par les services, avec les règles comme source de vérité.
+
+| Besoin                   | Exemples                                                    | Approche prévue                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Durées                   | Pas de côté jusqu'au round suivant, Rage, sorts actifs      | Un état est une possession activable ; l'état de combat enregistre son expiration (fin de round, de tour, de rencontre) et le désactive. |
+| Usages limités           | Talents « une fois par séance », relances                   | Un compteur d'usage par possession et par période, remis à zéro par la séance ou la rencontre.                                           |
+| Ressources de groupe     | Points de Destin, total d'Obligation du groupe              | Des ressources et des agrégats au niveau de la campagne, calculés sur les fiches des personnages joueurs.                                |
+| Dépenses après le jet    | Avantages et Triomphes dépensés (Désorientation, Renverser) | Des options proposées après le jet ; chacune consomme des résultats et produit des conséquences.                                         |
+| Cibles multiples, alliés | Commandant de terrain, attaques de zone                     | Une action exécutée pour chaque cible, avec un résultat groupé dans l'historique.                                                        |
+| Initiative par camp      | Créneaux joueurs et PNJ (Star Wars)                         | Camps et créneaux dans l'état de combat ; le tri reste celui du système.                                                                 |
+| Lien pilote et véhicule  | Talents de pilotage                                         | Une relation entre entités dans la campagne ; les effets s'appliquent à l'entité liée.                                                   |
+| Exemplaires multiples    | Deux dagues, consommables                                   | À trancher avec le modèle de stockage des personnages (quantité ou identifiant par exemplaire).                                          |
