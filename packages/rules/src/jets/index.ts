@@ -13,3 +13,4 @@ export * from './initiative.js';
 export * from './modifications.js';
 export * from './symboles.js';
 export * from './tables.js';
+export * from './degats.js';

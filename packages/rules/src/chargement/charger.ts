@@ -117,6 +117,7 @@ class Chargeur {
   private marques = new Set<string>();
   private symboles = new Set<string>();
   private sortesDes = new Set<string>();
+  private typesDegats = new Set<string>();
 
   constructor(private s: Systeme) {}
 
@@ -269,6 +270,9 @@ class Chargeur {
     this.tables = this.unique(s.tables, (x) => x.id, 'tables', 'Table');
     this.monnaies = this.unique(s.monnaies, (x) => x.id, 'monnaies', 'Monnaie');
     this.unique(s.textes, (x) => x.id, 'textes', 'Texte');
+    this.typesDegats = new Set(
+      this.unique(s.typesDegats, (x) => x.id, 'typesDegats', 'Type de dégâts').keys(),
+    );
     this.unique(s.creation, (x) => x.entite, 'creation', 'Création');
 
     // Les marques sont déclarées par leur usage : un effet ou un choix qui les pose
@@ -480,6 +484,17 @@ class Chargeur {
               'La condition d’un rang gratuit ne peut pas lire d’attribut',
             );
           }
+          break;
+        }
+        case 'degats': {
+          for (const t of f.types ?? []) {
+            if (!this.typesDegats.has(t)) this.erreur(ch('types'), `Type de dégâts inconnu : ${t}`);
+          }
+          for (const cle of f.attributs ?? []) {
+            if (porteurs.some((p) => !p.get(cle)))
+              this.erreur(ch('attributs'), `Attribut inconnu du porteur : ${cle}`);
+          }
+          this.compiler(ch('valeur'), f.valeur, oEffet, 'nombre');
           break;
         }
         case 'marque':
@@ -937,14 +952,26 @@ class Chargeur {
         const types = c.entite === 'acteur' ? a.pour : (a.cible ?? []);
         if (c.entite === 'cible' && !a.cible)
           this.erreur(ou, 'Conséquence sur la cible d’une action sans cible');
+        if (c.condition !== undefined)
+          this.compiler(`${ou}/condition`, c.condition, opts(), 'booleen');
+        if ('entree' in c) {
+          const entree = this.entrees.get(c.entree);
+          const sorte = entree && this.sortes.get(entree.sorte);
+          if (!entree) this.erreur(ou, `Entrée inconnue : ${c.entree}`);
+          else if (sorte && types.some((t) => !sorte.pour.includes(t)))
+            this.erreur(ou, `${sorte.nom} non possédable par ${types.join(', ')}`);
+          this.compiler(`${ou}/rangs`, c.rangs, opts(), 'nombre');
+          if (c.duree !== undefined) this.compiler(`${ou}/duree`, c.duree, opts(), 'nombre');
+          return;
+        }
+        if (c.type !== undefined && !this.typesDegats.has(c.type))
+          this.erreur(ou, `Type de dégâts inconnu : ${c.type}`);
         for (const t of this.attributsDe(types)) {
           const attr = t.get(c.attribut);
           if (!attr || (attr.nature !== 'base' && attr.nature !== 'ressource')) {
             this.erreur(ou, `Attribut de base ou ressource attendu : ${c.attribut}`);
           }
         }
-        if (c.condition !== undefined)
-          this.compiler(`${ou}/condition`, c.condition, opts(), 'booleen');
         this.compiler(`${ou}/valeur`, c.valeur, opts(), 'nombre');
       });
 

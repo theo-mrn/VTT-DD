@@ -8,14 +8,29 @@ import type { Fiche } from '../calcul/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
 import type { EtatEntite } from '../schema/index.js';
 
-export interface Modification {
+export interface ModificationAttribut {
   /** Entité touchée : l'acteur ou la cible de l'action. */
   entite: 'acteur' | 'cible';
   /** Attribut de base ou ressource. */
   attribut: string;
   operation: 'ajouter' | 'retirer' | 'fixer';
+  /** Valeur appliquée (après résistances pour des dégâts typés). */
   valeur: number;
+  /** Type de dégâts, et dégâts avant résistances. */
+  type?: string;
+  brut?: number;
 }
+
+/** Entrée donnée ou retirée (état, blessure…), avec une durée éventuelle en rounds. */
+export interface ModificationEntree {
+  entite: 'acteur' | 'cible';
+  entree: string;
+  operation: 'donner' | 'retirer';
+  rangs: number;
+  duree?: number;
+}
+
+export type Modification = ModificationAttribut | ModificationEntree;
 
 /**
  * Applique des modifications à l'état d'une fiche et renvoie un nouvel état
@@ -36,9 +51,14 @@ export function appliquerModifications(
   entite?: Modification['entite'],
 ): EtatEntite {
   const valeurs = { ...fiche.etat.valeurs };
+  let possessions = fiche.etat.possessions;
 
   for (const m of modifications) {
     if (entite !== undefined && m.entite !== entite) continue;
+    if ('entree' in m) {
+      possessions = modifierPossession(fiche.systeme, possessions, m);
+      continue;
+    }
     const a = fiche.entite.attributs.get(m.attribut);
     if (!a || (a.nature !== 'base' && a.nature !== 'ressource')) {
       throw new Error(
@@ -63,7 +83,46 @@ export function appliquerModifications(
           : depart - m.valeur;
   }
 
-  return { ...fiche.etat, valeurs };
+  return { ...fiche.etat, valeurs, possessions };
+}
+
+/** Donne (possession ou rangs) ou retire (rangs, puis possession) une entrée. */
+function modifierPossession(
+  systeme: SystemeCharge,
+  possessions: EtatEntite['possessions'],
+  m: ModificationEntree,
+): EtatEntite['possessions'] {
+  const entree = systeme.entrees.get(m.entree);
+  if (!entree) throw new Error(`Entrée inconnue : ${m.entree}`);
+  const aRangs = !!systeme.sortes.get(entree.sorte)?.rangs;
+  const liste = possessions.map((p) => ({ ...p }));
+  const existante = liste.find((p) => p.entree === m.entree);
+  const rangs = Math.max(0, Math.floor(m.rangs));
+
+  if (m.operation === 'donner') {
+    if (existante) {
+      if (aRangs) existante.rang += rangs;
+      existante.actif = true;
+      if (m.duree !== undefined) existante.duree = Math.max(existante.duree ?? 0, m.duree);
+      return liste;
+    }
+    liste.push({
+      entree: m.entree,
+      rang: aRangs ? rangs : 0,
+      actif: true,
+      choix: {},
+      champs: {},
+      ...(m.duree !== undefined ? { duree: m.duree } : {}),
+    });
+    return liste;
+  }
+
+  if (!existante) return liste;
+  if (aRangs && existante.rang > rangs) {
+    existante.rang -= rangs;
+    return liste;
+  }
+  return liste.filter((p) => p !== existante);
 }
 
 /**

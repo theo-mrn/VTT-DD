@@ -14,6 +14,7 @@
  * entités, paramètres) sont refusées.
  */
 import { estEffective, type Fiche, type PossessionEffective } from '../calcul/index.js';
+import { reduireDegats } from './degats.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
 import {
   ErreurEvaluation,
@@ -619,11 +620,60 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   action.consequences.forEach((c, i) => {
     const ou = ch(`consequences/${i}`);
     if (c.condition !== undefined && ev(`${ou}/condition`, false) !== true) return;
-    const valeur = Number(ev(`${ou}/valeur`, 0));
-    modifications.push({ entite: c.entite, attribut: c.attribut, operation: c.operation, valeur });
     const fiche = c.entite === 'cible' ? cible! : acteur;
-    const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
     const qui = c.entite === 'cible' ? 'Cible' : 'Acteur';
+
+    if ('entree' in c) {
+      const rangs = Number(ev(`${ou}/rangs`, 1));
+      const duree = c.duree === undefined ? undefined : Number(ev(`${ou}/duree`, 0));
+      modifications.push({
+        entite: c.entite,
+        entree: c.entree,
+        operation: c.operation,
+        rangs,
+        ...(duree !== undefined ? { duree } : {}),
+      });
+      const nomEntree = systeme.entrees.get(c.entree)?.nom ?? c.entree;
+      const pendant = duree !== undefined ? ` pendant ${duree} round(s)` : '';
+      explications.push(
+        `${qui} : ${c.operation === 'donner' ? 'reçoit' : 'perd'} ${nomEntree}${pendant}`,
+      );
+      return;
+    }
+
+    let valeur = Number(ev(`${ou}/valeur`, 0));
+    const nom = fiche.entite.attributs.get(c.attribut)?.nom ?? c.attribut;
+    if (c.type !== undefined) {
+      // Dégâts typés : résistances, immunités et vulnérabilités de l'entité touchée
+      const recus = reduireDegats(fiche, valeur, c.type, c.attribut);
+      const typeNom = systeme.source.typesDegats.find((t) => t.id === c.type)?.nom ?? c.type;
+      for (const l of recus.lignes) {
+        const effet =
+          l.operation === 'annuler'
+            ? 'immunité'
+            : l.operation === 'multiplier'
+              ? `×${l.valeur}`
+              : `−${l.valeur}`;
+        explications.push(`${l.nom} : ${effet}${l.ignore ? ' (ignoré)' : ''}`);
+      }
+      explications.push(`Dégâts (${typeNom}) : ${recus.brut} → ${recus.valeur}`);
+      modifications.push({
+        entite: c.entite,
+        attribut: c.attribut,
+        operation: c.operation,
+        valeur: recus.valeur,
+        type: c.type,
+        brut: recus.brut,
+      });
+      valeur = recus.valeur;
+    } else {
+      modifications.push({
+        entite: c.entite,
+        attribut: c.attribut,
+        operation: c.operation,
+        valeur,
+      });
+    }
     const op =
       c.operation === 'fixer'
         ? `fixé à ${valeur}`

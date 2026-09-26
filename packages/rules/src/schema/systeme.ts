@@ -112,6 +112,24 @@ const EffetCommun = {
   description: z.string().max(500).optional(),
 };
 
+/**
+ * Résistance aux dégâts, portée par l'entité qui les reçoit : réduction (RD 2),
+ * multiplication (×0,5 résistance, ×2 vulnérabilité) ou annulation (immunité).
+ * Ordre : annulation, multiplications, puis réductions ; résultat arrondi à
+ * l'entier inférieur et jamais négatif.
+ */
+export const EffetDegats = z.object({
+  ...EffetCommun,
+  sur: z.literal('degats'),
+  /** Types concernés ; absent : tous les dégâts, typés ou non. */
+  types: z.array(Id).optional(),
+  /** Attributs concernés (PV, blessures…) ; absent : tous. */
+  attributs: z.array(Cle).optional(),
+  operation: z.enum(['reduire', 'multiplier', 'annuler']),
+  valeur: Formule.default('0'),
+});
+export type EffetDegats = z.output<typeof EffetDegats>;
+
 export const Effet = z.discriminatedUnion('sur', [
   z.object({
     ...EffetCommun,
@@ -162,6 +180,7 @@ export const Effet = z.discriminatedUnion('sur', [
       ])
       .optional(),
   }),
+  EffetDegats,
 ]);
 export type Effet = z.output<typeof Effet>;
 
@@ -470,14 +489,31 @@ export const Jet = z.discriminatedUnion('type', [
 ]);
 export type Jet = z.output<typeof Jet>;
 
-export const Consequence = z.object({
+export const ConsequenceAttribut = z.object({
   condition: Formule.optional(),
   /** Entité touchée : l'acteur ou la cible de l'action. */
   entite: z.enum(['acteur', 'cible']),
   attribut: Cle,
   operation: z.enum(['ajouter', 'retirer', 'fixer']),
   valeur: Formule,
+  /** Type de dégâts : la valeur passe par les résistances (`sur: degats`) de l'entité touchée. */
+  type: Id.optional(),
 });
+
+/** Donne ou retire une entrée (état, blessure, affaiblissement…) à l'entité touchée. */
+export const ConsequenceEntree = z.object({
+  condition: Formule.optional(),
+  entite: z.enum(['acteur', 'cible']),
+  entree: Id,
+  operation: z.enum(['donner', 'retirer']),
+  /** Rangs donnés ou retirés (entrée à rangs). */
+  rangs: Formule.default('1'),
+  /** Durée en rounds, décomptée par l'état de combat ; absente : permanente. */
+  duree: Formule.optional(),
+});
+
+export const Consequence = z.union([ConsequenceAttribut, ConsequenceEntree]);
+export type Consequence = z.output<typeof Consequence>;
 
 export const Action = z.object({
   id: Id,
@@ -554,6 +590,8 @@ export const Systeme = z.object({
   actions: z.array(Action).default([]),
   initiative: Initiative.optional(),
   tables: z.array(Table).default([]),
+  /** Types de dégâts (feu, froid, perforant…), lus par les conséquences et les résistances. */
+  typesDegats: z.array(z.object({ id: Id, nom: Libelle, description: Description })).default([]),
   textes: z.array(z.object({ id: Id, titre: Libelle, contenu: z.string() })).default([]),
 });
 export type Systeme = z.output<typeof Systeme>;

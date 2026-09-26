@@ -13,6 +13,8 @@ export const Possession = z.object({
   actif: z.boolean().default(true),
   /** Entrées retenues pour chaque choix de l'entrée. */
   choix: z.record(z.string(), z.array(Id)).default({}),
+  /** Rounds restants pour un état temporaire (décomptés par l'état de combat). */
+  duree: z.number().int().nonnegative().optional(),
   /** Valeurs propres à cet exemplaire (points d'Obligation, munitions…). */
   champs: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).default({}),
 });
