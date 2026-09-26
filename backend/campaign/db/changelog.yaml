@@ -1,0 +1,9 @@
+# Schéma du service campaign (schéma SQL « campaign »), appliqué par Liquibase
+# avec le rôle campaign_owner.
+# Un fichier par changement, jamais modifié une fois fusionné : on en ajoute un nouveau.
+databaseChangeLog:
+  - include: { file: changes/0001-salles.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0002-combat.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0003-outbox.sql, relativeToChangelogFile: true }
+  # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
+  - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

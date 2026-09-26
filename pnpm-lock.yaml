@@ -37,6 +37,49 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  backend/campaign:
+    dependencies:
+      '@vtt/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@vtt/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      '@vtt/systemes':
+        specifier: workspace:*
+        version: link:../../packages/systemes
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(pg@8.23.0)
+      fastify:
+        specifier: ^5.12.5
+        version: 5.12.5
+      fastify-type-provider-zod:
+        specifier: ^7.0.0
+        version: 7.0.0(@fastify/swagger@9.9.0)(fastify@5.12.5)(openapi-types@12.1.3)(zod@4.6.5)
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.4
+        version: 22.20.4
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/node@22.20.4)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1)
+
   backend/character:
     dependencies:
       '@vtt/contracts':
