@@ -1,4 +1,9 @@
-import { getAssetUrl } from '@/lib/asset-loader';
+// Same URLs as `getAssetUrl` of `@/lib/asset-loader`, without shipping its
+// 1.1 MB mapping table in the 3D chunk: every texture below is mapped to the
+// R2 bucket at the same path, the orb models are not mapped (local path).
+const R2_ASSETS = 'https://assets.yner.fr';
+const getAssetUrl = (localPath: string): string =>
+  localPath.startsWith('/textures/') ? `${R2_ASSETS}${localPath}` : localPath;
 
 export type SkinEffectType =
   | 'metallic'
