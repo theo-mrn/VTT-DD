@@ -17,7 +17,8 @@
     "import:firebase": "bash infra/local/import-firebase.sh",
     "prepare": "husky || true",
     "dev:down": "docker compose -f infra/local/docker-compose.yml --profile \"*\" down",
-    "dev:legacy": "pnpm --filter @vtt/legacy dev"
+    "dev:legacy": "pnpm --filter @vtt/legacy dev",
+    "import:personnages": "bash infra/local/import-personnages.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
