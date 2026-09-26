@@ -100,6 +100,8 @@ export const preferences = diceSchema.table('preferences', {
   skinId: text('skin_id').notNull(),
   animation3d: boolean('animation_3d').notNull().default(true),
   sound: boolean('sound').notNull().default(true),
+  /** Tous les skins possédés (ancien premium ; plus tard abonnement billing). */
+  allSkins: boolean('all_skins').notNull().default(false),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
 });
 

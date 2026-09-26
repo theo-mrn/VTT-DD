@@ -1,36 +1,48 @@
 /**
  * Module « preferences » : préférences de dés de l'utilisateur connecté.
  *
- *   GET   /v1/dice/me/preferences   { skinId, animation3d, sound, inventory }
+ *   GET   /v1/dice/me/preferences   { skinId, animation3d, sound, allSkins, inventory }
  *   PATCH /v1/dice/me/preferences   { skinId?, animation3d?, sound? }
  *
- * `inventory` : skins utilisables, c'est-à-dire les skins gratuits du
+ * `inventory` : skins possédés en propre, c'est-à-dire les skins gratuits du
  * catalogue et ceux débloqués (import de l'ancienne app, plus tard boutique et
- * défis), dans l'ordre du catalogue. Un skin choisi doit en faire partie.
+ * défis), dans l'ordre du catalogue. `allSkins` : accès à tous les skins
+ * (ancien premium, plus tard abonnement du service billing), qui s'ajoute à
+ * l'inventaire sans le remplacer. Un skin est possédé si `allSkins` est vrai
+ * ou s'il est dans `inventory` (comme `ownsDice = isPremium || inventaire` de
+ * l'ancienne boutique) ; un skin choisi doit être possédé.
  */
 import { HttpError } from '@vtt/platform';
 import { eq, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
-import { appendEvent } from '../../db/outbox.js';
+import { appendEvent, type EventContext } from '../../db/outbox.js';
 import { inventory, preferences } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { DEFAULT_SKIN, SKINS, skin } from '../../skins/catalog.js';
 import { currentUser, eventContext } from '../schemas.js';
 
-const Preferences = z.object({
+export const Preferences = z.object({
   skinId: z.string(),
   animation3d: z.boolean(),
   sound: z.boolean(),
+  allSkins: z.boolean(),
   inventory: z.array(z.string()),
 });
 type Preferences = z.output<typeof Preferences>;
 
 const SkinId = z.string().regex(/^[a-z0-9_]{1,64}$/, 'Identifiant de skin invalide');
 
-/** Skins utilisables par `userId` : gratuits et débloqués, dans l'ordre du catalogue. */
-async function usableSkins(db: Db, userId: string): Promise<string[]> {
+/** Base ou transaction en cours (lecture). */
+type Reader = Pick<Db, 'select'>;
+
+/** Un skin est possédé : accès à tous les skins, ou skin gratuit ou débloqué. */
+export const ownsSkin = (p: Pick<Preferences, 'allSkins' | 'inventory'>, skinId: string) =>
+  !!skin(skinId) && (p.allSkins || p.inventory.includes(skinId));
+
+/** Skins possédés en propre par `userId` : gratuits et débloqués, dans l'ordre du catalogue. */
+async function ownedSkins(db: Reader, userId: string): Promise<string[]> {
   const owned = new Set(
     (
       await db
@@ -42,19 +54,69 @@ async function usableSkins(db: Db, userId: string): Promise<string[]> {
   return SKINS.filter((s) => s.free || owned.has(s.id)).map((s) => s.id);
 }
 
-export async function preferencesOf(db: Db, userId: string): Promise<Preferences> {
-  const [[row], usable] = await Promise.all([
+export async function preferencesOf(db: Reader, userId: string): Promise<Preferences> {
+  const [[row], owned] = await Promise.all([
     db.select().from(preferences).where(eq(preferences.userId, userId)),
-    usableSkins(db, userId),
+    ownedSkins(db, userId),
   ]);
-  // Skin retiré de l'inventaire (remboursement…) : retour au skin par défaut
-  const skinId = row && usable.includes(row.skinId) ? row.skinId : DEFAULT_SKIN;
+  const access = { allSkins: row?.allSkins ?? false, inventory: owned };
+  // Skin plus possédé (remboursement, fin d'abonnement…) : retour au skin par défaut
+  const skinId = row && ownsSkin(access, row.skinId) ? row.skinId : DEFAULT_SKIN;
   return {
     skinId,
     animation3d: row?.animation3d ?? true,
     sound: row?.sound ?? true,
-    inventory: usable,
+    ...access,
   };
+}
+
+/** Charge utile de `dice.preferences_updated`. */
+const eventPayload = (userId: string, p: Preferences) => ({
+  userId,
+  skinId: p.skinId,
+  animation3d: p.animation3d,
+  sound: p.sound,
+  allSkins: p.allSkins,
+});
+
+/**
+ * Accorde ou retire l'accès à tous les skins (route interne, plus tard
+ * événements d'abonnement de billing). Idempotent : sans changement, aucune
+ * écriture ni événement. Le skin choisi est conservé ; s'il n'est plus
+ * possédé, les préférences renvoient le skin par défaut.
+ */
+export async function setAllSkins(
+  db: Db,
+  ctx: EventContext,
+  userId: string,
+  allSkins: boolean,
+): Promise<Preferences> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ allSkins: preferences.allSkins })
+      .from(preferences)
+      .where(eq(preferences.userId, userId))
+      .for('update');
+    if ((row?.allSkins ?? false) !== allSkins) {
+      await tx
+        .insert(preferences)
+        .values({ userId, skinId: DEFAULT_SKIN, allSkins })
+        .onConflictDoUpdate({
+          target: preferences.userId,
+          set: { allSkins, updatedAt: sql`now()` },
+        });
+      const next = await preferencesOf(tx, userId);
+      await appendEvent(tx, ctx, {
+        type: 'dice.preferences_updated',
+        actor: { userId: null, role: 'system', characterId: null },
+        aggregate: { type: 'dice_preferences', id: userId },
+        payload: eventPayload(userId, next),
+        visibility: 'owner',
+      });
+      return next;
+    }
+    return preferencesOf(tx, userId);
+  });
 }
 
 export const register: Module = async (app, deps) => {
@@ -90,7 +152,7 @@ export const register: Module = async (app, deps) => {
       if (skinId !== undefined) {
         if (!skin(skinId))
           throw new HttpError(422, 'Skin inconnu', 'unknown_skin', `Skin ${skinId}`);
-        if (!current.inventory.includes(skinId))
+        if (!ownsSkin(current, skinId))
           throw new HttpError(
             403,
             'Accès refusé',
@@ -103,6 +165,7 @@ export const register: Module = async (app, deps) => {
         animation3d: animation3d ?? current.animation3d,
         sound: sound ?? current.sound,
       };
+      const result = { ...current, ...next };
       await db.transaction(async (tx) => {
         await tx
           .insert(preferences)
@@ -115,11 +178,11 @@ export const register: Module = async (app, deps) => {
           type: 'dice.preferences_updated',
           actor: { userId, role: 'user', characterId: null },
           aggregate: { type: 'dice_preferences', id: userId },
-          payload: { userId, ...next },
+          payload: eventPayload(userId, result),
           visibility: 'owner',
         });
       });
-      return { ...next, inventory: current.inventory };
+      return result;
     },
   );
 };

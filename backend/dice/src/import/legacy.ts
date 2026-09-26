@@ -12,6 +12,10 @@
  *  - préférences : `users/{uid}.dice_skin` (skin choisi) et
  *    `users/{uid}.dice_inventory` (skins achetés ou gagnés ; absent :
  *    l'inventaire par défaut gold, silver, steampunk_copper) ;
+ *  - premium : `users/{uid}.premium` et `premiumEndDate` (secondes Unix, le
+ *    `cancelAt` de Stripe d'un abonnement résilié en fin de période ; 0 ou
+ *    absent : sans échéance). Un premium possédait tous les dés
+ *    (components/store/store-modal.tsx : `ownsDice = isPremium || inventaire`) ;
  *  - nom affiché : `salles/{code}/Noms/{uid}.nom` (« MJ » ou nom du personnage),
  *    qui permet de retrouver l'auteur des anciens jets sans `uid`.
  */
@@ -47,10 +51,15 @@ export interface LegacyRoll {
   [key: string]: unknown;
 }
 
-/** `users/{uid}` (seuls les champs de dés). */
+/** `users/{uid}` (seuls les champs de dés et du premium). */
 export interface LegacyUser {
   dice_skin?: unknown;
   dice_inventory?: unknown;
+  /** Traînée des dés choisie (traînées en pause : pas reprise). */
+  dice_trail?: unknown;
+  premium?: unknown;
+  /** Fin de l'abonnement résilié, en secondes Unix ; 0, null ou absent : sans échéance. */
+  premiumEndDate?: unknown;
   [key: string]: unknown;
 }
 

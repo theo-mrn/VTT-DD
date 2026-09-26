@@ -80,14 +80,66 @@ describe.skipIf(!TEST_DATABASE_URL)('chargement de l’import', () => {
   });
 
   it('préférences : jamais écrasées, inventaire enrichi', async () => {
-    const p = { uid: 'uid-1', skinId: 'kyber_or', inventory: ['kyber_or', 'magma'], warnings: [] };
-    expect(await loadPreferences(db!, userId, p)).toEqual({ preferences: true, skins: 2 });
+    const p = {
+      uid: 'uid-1',
+      skinId: 'kyber_or',
+      inventory: ['kyber_or', 'magma'],
+      allSkins: false,
+      warnings: [],
+    };
+    expect(await loadPreferences(db!, userId, p)).toEqual({
+      preferences: true,
+      allSkins: false,
+      skins: 2,
+    });
     await db!.update(preferences).set({ skinId: 'magma' }).where(eq(preferences.userId, userId));
     expect(await loadPreferences(db!, userId, { ...p, inventory: ['kyber_or', 'prism'] })).toEqual({
       preferences: false,
+      allSkins: false,
       skins: 1,
     });
     const [pref] = await db!.select().from(preferences).where(eq(preferences.userId, userId));
     expect(pref!.skinId).toBe('magma');
+    expect(pref!.allSkins).toBe(false);
+  });
+
+  it('premium : tous les skins, skin hors inventaire ; accès ajouté à des préférences existantes', async () => {
+    const premium = crypto.randomUUID();
+    const late = crypto.randomUUID();
+    try {
+      const owner = {
+        uid: 'uid-p',
+        skinId: 'bismuth',
+        inventory: [],
+        allSkins: true,
+        warnings: [],
+      };
+      expect(await loadPreferences(db!, premium, owner)).toEqual({
+        preferences: true,
+        allSkins: true,
+        skins: 0,
+      });
+      // Rejoué : rien ne change
+      expect(await loadPreferences(db!, premium, owner)).toEqual({
+        preferences: false,
+        allSkins: false,
+        skins: 0,
+      });
+      const [row] = await db!.select().from(preferences).where(eq(preferences.userId, premium));
+      expect(row).toMatchObject({ skinId: 'bismuth', allSkins: true });
+      expect(await db!.select().from(inventory).where(eq(inventory.userId, premium))).toEqual([]);
+
+      // Préférences déjà choisies (import précédent) : seul l'accès est ajouté ; sans skin : gold
+      await db!.insert(preferences).values({ userId: late, skinId: 'silver' });
+      expect(await loadPreferences(db!, late, { ...owner, uid: 'uid-l', skinId: null })).toEqual({
+        preferences: false,
+        allSkins: true,
+        skins: 0,
+      });
+      const [after] = await db!.select().from(preferences).where(eq(preferences.userId, late));
+      expect(after).toMatchObject({ skinId: 'silver', allSkins: true });
+    } finally {
+      await db!.delete(preferences).where(inArray(preferences.userId, [premium, late]));
+    }
   });
 });

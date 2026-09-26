@@ -148,18 +148,50 @@ export interface ImportedPreferences {
   skinId: string | null;
   /** Skins payants débloqués (les gratuits sont toujours disponibles). */
   inventory: string[];
+  /** Premium en cours dans l'ancienne app : accès à tous les skins. */
+  allSkins: boolean;
   warnings: string[];
 }
 
-/** `users/{uid}.dice_skin` et `dice_inventory` ; `null` si l'utilisateur n'a rien choisi. */
-export function transformPreferences(doc: FirestoreDoc<LegacyUser>): ImportedPreferences | null {
+/**
+ * Fin du premium en millisecondes : `premiumEndDate` en secondes Unix (le
+ * `cancelAt` de Stripe), tolère des millisecondes ou une date Firestore.
+ * `null` : sans échéance (absent, null ou 0) ; `undefined` : illisible.
+ */
+function premiumEnd(v: unknown): number | null | undefined {
+  if (v === undefined || v === null || v === 0) return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? (v < 1e12 ? v * 1000 : v) : undefined;
+  return toDate(v)?.getTime();
+}
+
+/**
+ * `users/{uid}.dice_skin`, `dice_inventory` et le premium ; `null` si
+ * l'utilisateur n'a rien de tout cela. Premium en cours (`premium: true`,
+ * échéance absente, 0 ou future) : accès à tous les skins, et le skin choisi
+ * est repris sans entrer dans l'inventaire (il était possédé par le premium).
+ */
+export function transformPreferences(
+  doc: FirestoreDoc<LegacyUser>,
+  now = Date.now(),
+): ImportedPreferences | null {
   const d = doc.data ?? {};
   const chosen = toText(d.dice_skin);
+  const trail = toText(d.dice_trail);
   const owned = Array.isArray(d.dice_inventory)
     ? d.dice_inventory.filter((s): s is string => typeof s === 'string')
     : [];
-  if (!chosen && owned.length === 0) return null;
   const warnings: string[] = [];
+  let allSkins = false;
+  if (d.premium === true) {
+    const end = premiumEnd(d.premiumEndDate);
+    if (end === undefined) warnings.push('Échéance du premium illisible : premium ignoré');
+    else if (end !== null && end <= now)
+      warnings.push(`Premium échu le ${new Date(end).toISOString()} : premium ignoré`);
+    else allSkins = true;
+  }
+  if (!chosen && owned.length === 0 && !allSkins && !trail) return null;
+  // Pas de champ de traînée dans les préférences : les traînées sont en pause
+  if (trail) warnings.push(`Traînée ignorée : ${trail} (traînées en pause)`);
   const inventory = new Set<string>();
   for (const id of owned) {
     const s = skin(id);
@@ -172,9 +204,9 @@ export function transformPreferences(doc: FirestoreDoc<LegacyUser>): ImportedPre
     if (!s) warnings.push(`Skin choisi inconnu : ${chosen} (skin par défaut)`);
     else {
       skinId = chosen;
-      // Skin payant choisi mais absent de l'inventaire enregistré : on le garde
-      if (!s.free) inventory.add(chosen);
+      // Skin payant choisi, absent de l'inventaire et sans premium en cours : on le garde
+      if (!s.free && !allSkins) inventory.add(chosen);
     }
   }
-  return { uid: doc.id, skinId, inventory: [...inventory], warnings };
+  return { uid: doc.id, skinId, inventory: [...inventory], allSkins, warnings };
 }

@@ -112,14 +112,14 @@ export async function testApp(overrides: Record<string, string> = {}) {
       await db.delete(rolls).where(inArray(rolls.authorId, users));
       await db.delete(preferences).where(inArray(preferences.userId, users));
       await db.delete(inventory).where(inArray(inventory.userId, users));
-      await db
-        .delete(outbox)
-        .where(
-          or(
-            inArray(sql`${outbox.envelope}->'actor'->>'userId'`, users),
-            inArray(sql`${outbox.envelope}->'payload'->>'authorId'`, users),
-          ),
-        );
+      await db.delete(outbox).where(
+        or(
+          inArray(sql`${outbox.envelope}->'actor'->>'userId'`, users),
+          inArray(sql`${outbox.envelope}->'payload'->>'authorId'`, users),
+          // Événements système (route interne all-skins) : l'utilisateur est dans la charge utile
+          inArray(sql`${outbox.envelope}->'payload'->>'userId'`, users),
+        ),
+      );
     }
     await connection?.pool.end();
   }

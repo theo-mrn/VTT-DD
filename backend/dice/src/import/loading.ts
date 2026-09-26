@@ -2,15 +2,17 @@
  * Rattachement des jets et préférences importés aux comptes (identity), aux
  * campagnes (campaign) et aux personnages (character) déjà migrés, puis
  * chargement en base. Rejouable : un jet déjà importé (legacy_ids) est ignoré,
- * des préférences déjà présentes ne sont jamais écrasées.
+ * des préférences déjà présentes ne sont jamais écrasées (seul l'accès à tous
+ * les skins d'un premium leur est ajouté).
  *
  * Les jets importés ne produisent pas d'événement : ils sont déjà de
  * l'historique (l'ancien journal est importé à part par le service history).
  */
 import { uuidv7 } from '@vtt/contracts';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { inventory, legacyIds, preferences, rolls } from '../db/schema.js';
+import { DEFAULT_SKIN } from '../skins/catalog.js';
 import type { ImportedPreferences, ImportedRoll } from './transform.js';
 
 export const LEGACY_SOURCE = 'firebase';
@@ -114,24 +116,36 @@ export async function loadRolls(
 }
 
 /**
- * Préférences et inventaire d'un compte. Des préférences déjà présentes
- * (choisies dans la nouvelle app, ou import précédent) ne sont pas écrasées ;
- * l'inventaire ne fait que s'enrichir.
+ * Préférences, inventaire et accès à tous les skins d'un compte. Des
+ * préférences déjà présentes (choisies dans la nouvelle app, ou import
+ * précédent) ne sont pas écrasées ; l'inventaire ne fait que s'enrichir ;
+ * l'accès à tous les skins d'un premium est accordé, jamais retiré.
+ * `allSkins` : accès accordé par cet appel.
  */
 export async function loadPreferences(
   db: Db,
   userId: string,
   p: ImportedPreferences,
-): Promise<{ preferences: boolean; skins: number }> {
+): Promise<{ preferences: boolean; allSkins: boolean; skins: number }> {
   return db.transaction(async (tx) => {
     let written = false;
-    if (p.skinId) {
+    if (p.skinId || p.allSkins) {
       const r = await tx
         .insert(preferences)
-        .values({ userId, skinId: p.skinId })
+        .values({ userId, skinId: p.skinId ?? DEFAULT_SKIN, allSkins: p.allSkins })
         .onConflictDoNothing()
         .returning({ userId: preferences.userId });
       written = r.length > 0;
+    }
+    let allSkins = written && p.allSkins;
+    if (p.allSkins && !written) {
+      // Préférences déjà présentes : seul l'accès est ajouté
+      const r = await tx
+        .update(preferences)
+        .set({ allSkins: true, updatedAt: sql`now()` })
+        .where(and(eq(preferences.userId, userId), eq(preferences.allSkins, false)))
+        .returning({ userId: preferences.userId });
+      allSkins = r.length > 0;
     }
     let skins = 0;
     if (p.inventory.length) {
@@ -142,6 +156,6 @@ export async function loadPreferences(
         .returning({ skinId: inventory.skinId });
       skins = r.length;
     }
-    return { preferences: written, skins };
+    return { preferences: written, allSkins, skins };
   });
 }

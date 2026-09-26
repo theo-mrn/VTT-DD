@@ -157,6 +157,8 @@ describe('prepareRoll', () => {
 
 describe('transformPreferences', () => {
   const user = (data: Record<string, unknown>) => ({ path: 'users/u1', id: 'u1', data });
+  const now = Date.UTC(2026, 8, 26);
+
   it('skin choisi et inventaire payant ; gratuits et inconnus écartés', () => {
     expect(
       transformPreferences(
@@ -166,6 +168,7 @@ describe('transformPreferences', () => {
       uid: 'u1',
       skinId: 'kyber_or',
       inventory: ['magma', 'kyber_or'],
+      allSkins: false,
       warnings: ['Skin inconnu ignoré : licorne'],
     });
     expect(transformPreferences(user({ dice_skin: 'licorne' }))).toMatchObject({
@@ -173,5 +176,59 @@ describe('transformPreferences', () => {
       warnings: ['Skin choisi inconnu : licorne (skin par défaut)'],
     });
     expect(transformPreferences(user({ name: 'Sans dés' }))).toBeNull();
+  });
+
+  it('premium en cours : tous les skins, skin choisi repris hors inventaire', () => {
+    // Le propriétaire : abonnement Stripe actif, premiumEndDate à 0, bismuth possédé par le premium
+    const owner = user({
+      premium: true,
+      premiumEndDate: 0,
+      dice_skin: 'bismuth',
+      dice_inventory: ['gold', 'magma'],
+    });
+    expect(transformPreferences(owner, now)).toEqual({
+      uid: 'u1',
+      skinId: 'bismuth',
+      inventory: ['magma'],
+      allSkins: true,
+      warnings: [],
+    });
+    // Échéance absente, nulle ou future (secondes Unix, cancelAt de Stripe) : premium en cours
+    for (const premiumEndDate of [undefined, null, now / 1000 + 3600, now + 3600_000])
+      expect(transformPreferences(user({ premium: true, premiumEndDate }), now)).toEqual({
+        uid: 'u1',
+        skinId: null,
+        inventory: [],
+        allSkins: true,
+        warnings: [],
+      });
+  });
+
+  it('premium échu ou faux : pas d’accès ; traînée ignorée avec avertissement', () => {
+    const expired = transformPreferences(
+      user({ premium: true, premiumEndDate: now / 1000 - 60, dice_skin: 'bismuth' }),
+      now,
+    );
+    expect(expired).toMatchObject({
+      skinId: 'bismuth',
+      inventory: ['bismuth'],
+      allSkins: false,
+      warnings: [`Premium échu le ${new Date(now - 60_000).toISOString()} : premium ignoré`],
+    });
+    expect(transformPreferences(user({ premium: false }), now)).toBeNull();
+    expect(transformPreferences(user({ premium: 'oui' }), now)).toBeNull();
+    expect(
+      transformPreferences(
+        user({ premium: true, premiumEndDate: 'demain', dice_skin: 'gold' }),
+        now,
+      )!.warnings,
+    ).toEqual(['Échéance du premium illisible : premium ignoré']);
+    expect(transformPreferences(user({ dice_trail: 'comete' }), now)).toEqual({
+      uid: 'u1',
+      skinId: null,
+      inventory: [],
+      allSkins: false,
+      warnings: ['Traînée ignorée : comete (traînées en pause)'],
+    });
   });
 });

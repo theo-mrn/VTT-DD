@@ -10,6 +10,10 @@
  *       enregistré tel quel dans l'historique (source `action`), sous le nom
  *       du personnage. L'auteur doit être membre (non spectateur) de la
  *       campagne indiquée ; sans campagne, le jet est personnel.
+ *
+ *   PUT /internal/users/:userId/all-skins   { allSkins }
+ *       accès à tous les skins (ancien premium) : destiné au service billing,
+ *       qui le pilotera selon les événements d'abonnement. Idempotent.
  */
 import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig } from 'fastify';
@@ -18,6 +22,7 @@ import { z } from 'zod';
 import type { Module } from '../../deps.js';
 import { requireInternalSecret } from '../../internal/secret.js';
 import { firstGroup, formatDice, formatSymbolResult } from '../../engine/roll.js';
+import { Preferences, setAllSkins } from '../preferences/index.js';
 import { memberRole } from '../rolls/index.js';
 import { actorRole, insertRoll, type Viewer } from '../rolls/repository.js';
 import {
@@ -37,7 +42,7 @@ import {
 export const register: Module = async (app, deps) => {
   const secret = deps.config.INTERNAL_API_SECRET;
   if (!secret) {
-    app.log.warn('INTERNAL_API_SECRET absent : route interne (jets de character) désactivée');
+    app.log.warn('INTERNAL_API_SECRET absent : routes internes (character, billing) désactivées');
     return;
   }
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -135,5 +140,20 @@ export const register: Module = async (app, deps) => {
       reply.code(201);
       return { id: row.id };
     },
+  );
+
+  r.put(
+    '/internal/users/:userId/all-skins',
+    {
+      preValidation: requireInternalSecret(secret),
+      config: { rateLimit: { max: 6000, timeWindow: '1 minute' } } as FastifyContextConfig,
+      schema: {
+        hide: true,
+        params: z.object({ userId: UserId }),
+        body: z.object({ allSkins: z.boolean() }),
+        response: { 200: Preferences },
+      },
+    },
+    async (req) => setAllSkins(db, eventContext(req), req.params.userId, req.body.allSkins),
   );
 };

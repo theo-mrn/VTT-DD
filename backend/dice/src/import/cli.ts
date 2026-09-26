@@ -256,18 +256,21 @@ for (const l of byCampaign.values()) {
 // ─── Préférences ─────────────────────────────────────────────────────────────
 
 console.log('Lecture des préférences…');
-const prefs = { users: 0, imported: 0, noAccount: 0, skins: 0 };
+// premium : premium en cours dans l'ancienne app ; allSkins : accès accordé par cet import
+const prefs = { users: 0, imported: 0, noAccount: 0, skins: 0, premium: 0, allSkins: 0 };
 for await (const doc of read('users')) {
   if (!/^users\/[^/]+$/.test(doc.path)) continue;
   const p = transformPreferences(doc as FirestoreDoc<LegacyUser>);
   if (!p) continue;
   prefs.users++;
+  if (p.allSkins) prefs.premium++;
   const userId = accounts.get(p.uid);
   const out: Record<string, unknown> = {
     kind: 'preferences',
     uid: p.uid,
     skinId: p.skinId,
     inventory: p.inventory,
+    allSkins: p.allSkins,
     warnings: p.warnings,
   };
   if (!userId) {
@@ -277,9 +280,16 @@ for await (const doc of read('users')) {
     out.status = 'dry-run';
   } else {
     const r = await loadPreferences(base!.db, userId, p);
-    Object.assign(out, { status: 'imported', userId, ...r });
-    if (r.preferences || r.skins) prefs.imported++;
+    Object.assign(out, {
+      status: 'imported',
+      userId,
+      preferences: r.preferences,
+      allSkinsGranted: r.allSkins,
+      skins: r.skins,
+    });
+    if (r.preferences || r.allSkins || r.skins) prefs.imported++;
     prefs.skins += r.skins;
+    if (r.allSkins) prefs.allSkins++;
   }
   write(out);
 }
@@ -292,11 +302,13 @@ console.log(
     ? `Simulation : rien n'a été écrit. ${total} jet(s) lus, déjà importés : ` +
         `${totals.alreadyImported}, sans campagne importée : ${totals.noCampaign}, ` +
         `sans auteur retrouvé : ${totals.noAuthor}, erreurs : ${totals.errors}. ` +
-        `Préférences : ${prefs.users} utilisateur(s), sans compte migré : ${prefs.noAccount}.`
+        `Préférences : ${prefs.users} utilisateur(s) dont ${prefs.premium} premium (tous les ` +
+        `skins), sans compte migré : ${prefs.noAccount}.`
     : `Jets importés : ${totals.imported}, déjà importés : ${totals.alreadyImported}, ` +
         `sans campagne importée : ${totals.noCampaign}, sans auteur retrouvé ` +
         `(importés sans compte) : ${totals.noAuthor}, erreurs : ${totals.errors}. ` +
-        `Préférences importées : ${prefs.imported}/${prefs.users} (${prefs.skins} skin(s)), ` +
+        `Préférences importées : ${prefs.imported}/${prefs.users} (${prefs.skins} skin(s), ` +
+        `accès à tous les skins accordé : ${prefs.allSkins}/${prefs.premium} premium), ` +
         `sans compte migré : ${prefs.noAccount}.`,
 );
 console.log(`Rapport : ${values.report}`);
