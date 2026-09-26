@@ -148,4 +148,23 @@ En mode `creneaux` (Star Wars), l'ordre est une suite de créneaux par camp. Pen
 
 ## Migration
 
-Les anciennes salles Firebase (`Salle`, `salles`, `rooms`, fusionnées) et leurs membres sont importées. Les personnages de `cartes/{roomId}/characters` sont engagés dans leur salle d'origine. La correspondance des identifiants passe par `legacy_ids`.
+Import des salles Firebase : `backend/campaign/src/import/`, lancé par `pnpm import:salles` (simulation par défaut, `--importer` pour écrire, `--sans-export` pour réutiliser l'export). Il passe **après** les comptes (`pnpm import:firebase`) et les personnages (`pnpm import:personnages --importer`) : il réutilise leurs exports (`Salle`, `users`, `cartes`, `gameSystems`) et n'exporte que `salles` (membres). Exports et rapport NDJSON (`rapport-salles.ndjson`) dans `~/vtt-export`, hors du dépôt.
+
+| Ancien (Firestore)                                                            | Nouveau                                                                                                       |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Salle/{code}` (id du document)                                               | `rooms.code` : le code à 6 chiffres est gardé (nouveau code s'il est pris ou invalide)                        |
+| `title`, `description`                                                        | `nom` (« Salle {code} » à défaut), `description` (bornés à 100 et 2 000 caractères)                           |
+| `maxPlayers`, `isPublic`, `allowCharacterCreation`                            | `maxJoueurs` (ramené entre 1 et 50, 4 à défaut), `publique`, `creationPersonnages`                            |
+| `imageUrl`                                                                    | `imageUrl` tel quel : le fichier reste sur Firebase Storage (avertissement)                                   |
+| `gameSystemId` (+ `gameSystems/{id}.name`)                                    | `systemId` : `dnd-classic`, Star Wars ou Noobliés d'après le nom, sinon d'après les personnages, D&D à défaut |
+| `creatorId`                                                                   | `ownerId`, membre `mj`                                                                                        |
+| `users/{uid}/rooms/{code}`, `users/{uid}.room_id`, `salles/{code}/Noms/{uid}` | `room_members` : `mj` si `Noms.nom` vaut « MJ » (co-MJ de l'ancienne app), `joueur` sinon                     |
+| `bannedUsers`                                                                 | `room_bans` (banni par le propriétaire) ; un banni n'est pas membre                                           |
+| `cartes/{code}/characters/{id}`                                               | `room_characters` : camp `joueurs` si `type` vaut « joueurs », `adversaires` sinon                            |
+| `users/{uid}.persoId` (salle active), sinon `Noms.nom` = `Nomperso`           | `incarne_par` (un joueur n'incarne que son propre personnage)                                                 |
+| `Salle/{code}/sessions` (`date`)                                              | `room_sessions` (créées par le propriétaire, sans titre)                                                      |
+| `Salle/{code}/chat` (`uid`, `text`, `timestamp`)                              | `room_messages` (id UUIDv7 à la date d'envoi, texte borné à 1 000 caractères)                                 |
+
+Correspondances : UID Firebase → compte par `identity.legacy_ids` (lecture, rôle `identity_svc`), chemin du personnage → personnage par `characters.legacy_ids` (lecture, rôle `characters_svc`). Un membre, banni ou auteur sans compte migré est ignoré, un personnage non importé ou d'un autre système n'est pas engagé : chaque cas est un avertissement du rapport. Une salle dont le créateur n'a pas de compte migré est confiée à un autre MJ, sinon ignorée (`sans-compte`).
+
+Chaque salle est écrite dans une transaction avec son événement `room.created` (acteur `system`, `payload.importe: true`) et son lien `legacy_ids` (`firebase`, `Salle/{code}`). Rejouable : une salle déjà importée est ignorée en entier (les membres arrivés depuis ne sont pas ajoutés). La discussion de la carte (`rooms/{code}/chat`) n'est pas importée ici.
