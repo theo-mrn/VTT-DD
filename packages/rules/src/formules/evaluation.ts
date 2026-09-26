@@ -165,6 +165,12 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
         if (typeof v !== 'number') throw new ErreurEvaluation(`@${cle} n’est pas un nombre`, n.pos);
         return v;
       }
+      case 'modificateur': {
+        const cle = ev(n.args[0]!);
+        if (typeof cle !== 'string')
+          throw new ErreurEvaluation('modificateur() attend un texte', n.pos);
+        return ctx.modificateur(cle);
+      }
     }
     const f = ctx.fonctions?.[n.fn];
     if (!f) throw new ErreurEvaluation(`Fonction inconnue : ${n.fn}()`, n.pos);

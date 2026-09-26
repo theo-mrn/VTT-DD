@@ -117,8 +117,9 @@ class Chargeur {
   charger(): ResultatChargement {
     this.indexer();
     this.verifierEntites();
-    this.verifierSortesEtCatalogue();
+    // Les dés d'abord : les effets de jet du catalogue y font référence
     this.verifierDes();
+    this.verifierSortesEtCatalogue();
     this.verifierProgression();
     this.verifierArbres();
     this.verifierActions();
@@ -423,6 +424,13 @@ class Chargeur {
       }
     }
 
+    // Défaut d'un champ formule de la sorte : compilé pour chaque entrée qui ne le redéfinit pas
+    for (const c of sorte.champs) {
+      if (c.type === 'formule' && c.defaut !== undefined && !(c.id in e.champs)) {
+        this.compiler(chemins.champ(e.id, c.id), c.defaut, { entite: porteurs }, 'nombre');
+      }
+    }
+
     // Variables disponibles dans les effets : rang et état de la source, ses champs
     const variables: Record<string, TypeValeur> = { rang: 'nombre', actif: 'booleen' };
     for (const c of sorte.champs) {
@@ -662,7 +670,17 @@ class Chargeur {
               this.compiler(
                 ch('contrainte'),
                 et.contrainte,
-                { variables: { total: 'nombre', min: 'nombre', max: 'nombre' } },
+                {
+                  variables: {
+                    total: 'nombre',
+                    min: 'nombre',
+                    max: 'nombre',
+                    nombre: 'nombre',
+                    pairs: 'nombre',
+                    impairs: 'nombre',
+                    somme_modificateurs: 'nombre',
+                  },
+                },
                 'booleen',
               );
             }
@@ -723,6 +741,24 @@ class Chargeur {
 
       for (const p of a.parametres) {
         const ou = `${chemin}/parametres/${p.id}`;
+        if (p.type === 'attribut') {
+          declarer(p.id, 'texte', ou);
+          if (!p.attributs && !p.groupe)
+            this.erreur(ou, 'Préciser les attributs ou le groupe proposés');
+          for (const t of a.pour) {
+            const e = this.entites.get(t);
+            if (!e) continue;
+            if (p.groupe && !e.type.groupes.some((g) => g.id === p.groupe)) {
+              this.erreur(ou, `Groupe inconnu de ${t} : ${p.groupe}`);
+            }
+            for (const cle of p.attributs ?? []) {
+              const attr = e.attributs.get(cle);
+              if (!attr || typeAttribut(attr) !== 'nombre')
+                this.erreur(ou, `Attribut numérique inconnu de ${t} : ${cle}`);
+            }
+          }
+          continue;
+        }
         if (p.type !== 'entree') {
           declarer(p.id, p.type, ou);
           continue;
@@ -747,6 +783,10 @@ class Chargeur {
         dynamique: true,
       });
 
+      if (a.exige !== undefined) {
+        this.compiler(ch('exige'), a.exige, { entite: this.attributsDe(a.pour) }, 'booleen');
+      }
+
       for (const v of a.variables) {
         const f = this.compiler(ch(`variables/${v.cle}`), v.formule, opts());
         declarer(v.cle, f?.type ?? 'nombre', `${chemin}/variables/${v.cle}`);
@@ -761,6 +801,7 @@ class Chargeur {
           if (jet[k] !== undefined) this.compiler(ch(`jet/${k}`), jet[k], opts(), 'booleen');
         }
         if (jet.critique !== undefined) declarer('critique', 'booleen', ch('jet'));
+        if (jet.fumble !== undefined) declarer('fumble', 'booleen', ch('jet'));
       } else {
         if (!this.s.des)
           this.erreur(ch('jet'), 'Jet à symboles sans dés à symboles dans le système');

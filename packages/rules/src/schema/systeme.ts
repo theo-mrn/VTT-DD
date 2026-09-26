@@ -297,8 +297,14 @@ export const EtapeCreation = z.discriminatedUnion('type', [
     formule: Formule,
     /** Nombre de tirages complets autorisés. */
     essais: z.number().int().positive().default(1),
-    /** Contrainte sur un tirage complet (variables `total`, `min`, `max`). */
+    /**
+     * Contrainte sur un tirage complet. Variables : `total`, `min`, `max`,
+     * `nombre`, `pairs`, `impairs`, `somme_modificateurs` (modificateur commun
+     * du système appliqué à chaque valeur).
+     */
     contrainte: Formule.optional(),
+    /** Relancer automatiquement tant que la contrainte n'est pas respectée (sans compter d'essai). */
+    relancer: z.boolean().default(false),
     /** `ordre` : valeurs attribuées dans l'ordre ; `libre` : le joueur les répartit. */
     attribution: z.enum(['ordre', 'libre']).default('libre'),
   }),
@@ -387,6 +393,16 @@ const Parametre = z.discriminatedUnion('type', [
     type: z.literal('entree'),
     sorte: Cle,
     etiquette: Id.optional(),
+    /** Faux : toute entrée de la sorte est acceptée, au rang 0 si l'acteur ne la possède pas. */
+    possedee: z.boolean().default(true),
+  }),
+  /** Un attribut numérique de l'acteur (« quelle caractéristique ? ») : lu par `valeur(p)` et `modificateur(p)`. */
+  z.object({
+    id: Cle,
+    nom: Libelle,
+    type: z.literal('attribut'),
+    attributs: z.array(Cle).optional(),
+    groupe: Id.optional(),
   }),
 ]);
 
@@ -423,6 +439,8 @@ export const Action = z.object({
   nom: Libelle,
   description: Description,
   pour: z.array(Id).min(1),
+  /** Condition pour que l'acteur puisse utiliser l'action (`possede("minotaure")`). */
+  exige: Formule.optional(),
   /** Type d'entité visé, si l'action a une cible. */
   cible: Id.optional(),
   parametres: z.array(Parametre).default([]),

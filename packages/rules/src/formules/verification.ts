@@ -72,6 +72,7 @@ const NOMS_RESERVES = new Set([
   'rang',
   'possede',
   'valeur',
+  'modificateur',
   ...Object.keys(FONCTIONS),
 ]);
 
@@ -213,11 +214,12 @@ export function verifier(
         }
         return n.fn === 'rang' ? 'nombre' : 'booleen';
       }
-      case 'valeur': {
-        if (!env.dynamique) erreur('valeur() n’est pas permis ici', n.pos);
+      case 'valeur':
+      case 'modificateur': {
+        if (!env.dynamique) erreur(`${n.fn}() n’est pas permis ici`, n.pos);
         dynamique = true;
-        if (n.args.length !== 1) erreur('valeur() attend un argument', n.pos);
-        else attendre(n.args[0]!, 'texte', 'valeur()');
+        if (n.args.length !== 1) erreur(`${n.fn}() attend un argument`, n.pos);
+        else attendre(n.args[0]!, 'texte', `${n.fn}()`);
         return 'nombre';
       }
     }
