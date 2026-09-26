@@ -352,12 +352,22 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
             (c.parmi.groupe !== undefined && a.groupe === c.parmi.groupe))
         );
       };
-      if (retenus.length > c.nombre)
+      const nombre = Math.max(
+        0,
+        Math.floor(
+          Number(
+            evaluerSur(systeme.formule(chemins.choixAttributNombre(p.entree.id, c.id)), {
+              variable: variablesSource(p),
+            }),
+          ),
+        ),
+      );
+      if (retenus.length > nombre)
         erreurs.push({
           ou: `possessions/${p.entree.id}/${c.id}`,
-          message: `${c.nom} : ${c.nombre} choix au plus`,
+          message: `${c.nom} : ${nombre} choix au plus`,
         });
-      for (const cle of retenus.slice(0, c.nombre)) {
+      for (const cle of retenus.slice(0, nombre)) {
         if (!proposes(cle)) {
           erreurs.push({
             ou: `possessions/${p.entree.id}/${c.id}`,
@@ -494,7 +504,12 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
               : Number(evaluerSur(formuleDe(a, 'initiale')!, {}, 0, cle));
         const courante = typeof stocke === 'number' ? stocke : initiale;
         detail.push(...lignesMax);
-        calcule.valeur = borner(courante, min, Math.max(min, max), detail);
+        calcule.valeur = borner(
+          courante,
+          min,
+          a.plafonnee ? Math.max(min, max) : undefined,
+          detail,
+        );
         break;
       }
       case 'texte':

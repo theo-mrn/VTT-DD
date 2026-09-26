@@ -174,8 +174,27 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       refus.push({ parametre: cle, message: `Paramètre inconnu : ${cle}` });
   }
   for (const p of action.parametres) {
-    const v = fournis[p.id];
+    let v = fournis[p.id];
     const refuser = (message: string) => refus.push({ parametre: p.id, message });
+    // Paramètre réservé (option d'un talent) : ignoré s'il n'est pas proposé à l'acteur
+    const exige = systeme.formules.get(chemins.action(action.id, `parametres/${p.id}/exige`));
+    if (exige && acteur.evaluer(exige, {}, false) !== true) {
+      if (v !== undefined && !(p.type !== 'entree' && p.type !== 'attribut' && v === p.defaut))
+        refuser(`${p.nom} : option non disponible (${exige.texte})`);
+      v = undefined;
+      if (p.type === 'nombre' || p.type === 'booleen') {
+        parametres[p.id] = p.defaut;
+        continue;
+      }
+      if (p.type === 'entree') {
+        parametres[p.id] = '';
+        continue;
+      }
+    }
+    if (p.type === 'entree' && p.facultatif && (v === undefined || v === '')) {
+      parametres[p.id] = '';
+      continue;
+    }
     switch (p.type) {
       case 'nombre':
         if (v === undefined) parametres[p.id] = p.defaut;
@@ -306,6 +325,10 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       e === undefined ? moi.modificateur(cle) : entite(e).contexte().modificateur(cle),
     variable: lireVariable,
     aleatoire,
+    fonctions: {
+      cible_possede: (id) => (cible ? cible.contexte().possede!(String(id)) : false),
+      cible_rang: (id) => (cible ? cible.contexte().rang!(String(id)) : 0),
+    },
   });
   const ev = (chemin: string, defaut: Valeur): Valeur =>
     calculerFormule(chemin, defaut, ctx).valeur;
@@ -318,6 +341,21 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     variables.set(p.id, v);
     const possession = choisies.get(p.id);
     if (!possession) {
+      if (p.type === 'entree') {
+        // Entrée facultative omise : rang 0 et champs à leur valeur neutre
+        variables.set(`${p.id}.rang`, 0);
+        for (const c of systeme.sortes.get(p.sorte)?.champs ?? []) {
+          if (c.type === 'entrees') continue;
+          const def = 'defaut' in c && c.defaut !== undefined ? c.defaut : undefined;
+          variables.set(
+            `${p.id}.${c.id}`,
+            def ??
+              (c.type === 'nombre' || c.type === 'formule' ? 0 : c.type === 'booleen' ? false : ''),
+          );
+        }
+        explications.push(`${p.nom} : aucun`);
+        continue;
+      }
       explications.push(`${p.nom} : ${String(v)}`);
       continue;
     }
@@ -327,12 +365,6 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       variables.set(`${p.id}.${c.id}`, lireChamp(possession, c.id));
     }
     explications.push(`${p.nom} : ${possession.entree.nom} (rang ${possession.rang})`);
-  }
-
-  for (const v of action.variables) {
-    const valeur = evType(ch(`variables/${v.cle}`));
-    variables.set(v.cle, valeur);
-    explications.push(`${v.cle} = ${String(valeur)}`);
   }
 
   // ─── Effets de jet des possessions actives ────────────────────────────────
@@ -350,29 +382,57 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       if (nom === 'actif') return p.actif;
       if (nom.startsWith('source.')) return lireChamp(p, nom.slice('source.'.length));
       if (nom === 'action') return action.id;
-      // Paramètre « entrée » d'une autre action : absent ici, vaut le texte vide
       // Paramètre « entrée » ou « attribut » : sa valeur si l'action l'a, sinon le texte vide
       if (idsEntree.has(nom)) return typeof parametres[nom] === 'string' ? parametres[nom] : '';
+      // Rang et champs d'un paramètre entrée (`arme.competence`) ; neutres si l'action ne l'a pas
+      const lu = variables.get(nom);
+      if (lu !== undefined) return lu;
+      if (nom.includes('.')) return nom.endsWith('.rang') ? 0 : '';
       throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
     };
 
   type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
   const effets: { p: PossessionEffective; ajout: AjoutJet; valeur: number; nom: string }[] = [];
-  for (const p of acteur.possessions.values()) {
-    if (!p.actif || !estEffective(p)) continue;
-    const ctxEffet = acteur.contexte({ variable: variablesEffet(p) });
-    p.entree.effets.forEach((f, i) => {
-      if (f.sur !== 'jet' || !f.ajout) return;
-      if (f.actions && !f.actions.includes(action.id)) return;
-      const chemin = (x: string) => chemins.effet(p.entree.id, i, x);
-      for (const x of ['condition', 'si']) {
-        if (!systeme.formules.has(chemin(x))) continue;
-        if (calculerFormule(chemin(x), false, ctxEffet).valeur !== true) return;
-      }
-      const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
-      const valeur = Number(calculerFormule(chemin(cle), 0, ctxEffet).valeur);
-      effets.push({ p, ajout: f.ajout, valeur, nom: f.description ?? p.entree.nom });
-    });
+  // Effets de l'acteur, puis effets défensifs de la cible (`cote: cible`)
+  const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
+  if (cible) porteurs.push([cible, 'cible']);
+  for (const [fiche, cote] of porteurs)
+    for (const p of fiche.possessions.values()) {
+      if (!p.actif || !estEffective(p)) continue;
+      const ctxEffet = fiche.contexte({ variable: variablesEffet(p) });
+      p.entree.effets.forEach((f, i) => {
+        if (f.sur !== 'jet' || !f.ajout) return;
+        if (f.cote !== cote) return;
+        if (f.actions && !f.actions.includes(action.id)) return;
+        const chemin = (x: string) => chemins.effet(p.entree.id, i, x);
+        for (const x of ['condition', 'si']) {
+          if (!systeme.formules.has(chemin(x))) continue;
+          if (calculerFormule(chemin(x), false, ctxEffet).valeur !== true) return;
+        }
+        const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
+        const valeur = Number(calculerFormule(chemin(cle), 0, ctxEffet).valeur);
+        effets.push({ p, ajout: f.ajout, valeur, nom: f.description ?? p.entree.nom });
+      });
+    }
+
+  // ─── Variables de l'action (avec les effets qui s'y ajoutent), vérifications ─
+
+  for (const v of action.variables) {
+    let valeur = evType(ch(`variables/${v.cle}`));
+    for (const e of effets) {
+      if (!('variable' in e.ajout) || e.ajout.variable !== v.cle || typeof valeur !== 'number')
+        continue;
+      valeur += e.valeur;
+      explications.push(`${e.nom} : ${signe(e.valeur)} → ${v.cle}`);
+    }
+    variables.set(v.cle, valeur);
+    explications.push(`${v.cle} = ${String(valeur)}`);
+  }
+
+  for (const [i, v] of action.verifications.entries()) {
+    if (ev(ch(`verifications/${i}`), false) !== true) {
+      return { ok: false, erreurs: [{ message: v.message }] };
+    }
   }
 
   // ─── Jet ──────────────────────────────────────────────────────────────────

@@ -70,6 +70,8 @@ export const Attribut = z.discriminatedUnion('nature', [
     initiale: z.union([z.enum(['max', 'min']), Formule]).default('max'),
     /** Borne vers laquelle le repos ramène la ressource. */
     recuperation: z.enum(['max', 'min']).default('max'),
+    /** Faux : la valeur peut dépasser le maximum (blessures au-delà du seuil). */
+    plafonnee: z.boolean().default(true),
   }),
   z.object({
     ...AttributCommun,
@@ -140,6 +142,8 @@ export const Effet = z.discriminatedUnion('sur', [
      * total. Ordre d'application : ajouts, améliorations, rétrogradations, retraits.
      */
     sur: z.literal('jet'),
+    /** `cible` : l'effet s'applique quand le porteur est la cible de l'action (défense active). */
+    cote: z.enum(['acteur', 'cible']).default('acteur'),
     /** Actions concernées (toutes si absent). */
     actions: z.array(Id).optional(),
     /** Condition sur le jet lui-même, par exemple `competence == "perception"`. */
@@ -152,7 +156,7 @@ export const Effet = z.discriminatedUnion('sur', [
         z.object({ retrograder: Id, vers: Id, nombre: Formule }),
         /** Retire des dés du pool (jamais en dessous de zéro). */
         z.object({ retirer: Id, nombre: Formule }),
-        /** Ajoute une valeur à une variable calculée après le jet (`apres`), ex. les dégâts. */
+        /** Ajoute une valeur à une variable de l'action (`variables` ou `apres`) : avantage, dégâts… */
         z.object({ variable: Cle, ajouter: Formule }),
         z.object({ bonus: Formule }),
       ])
@@ -221,7 +225,8 @@ export type Choix = z.output<typeof Choix>;
 export const ChoixAttribut = z.object({
   id: Id,
   nom: Libelle,
-  nombre: z.number().int().positive(),
+  /** Formule avec la variable `rang` (rang de l'entrée qui porte le choix). */
+  nombre: Formule,
   parmi: z.object({ attributs: z.array(Cle).optional(), groupe: Id.optional() }),
   operation: z.enum(['ajouter', 'minimum', 'maximum']).default('ajouter'),
   /** Variable `rang` : rang de l'entrée qui porte le choix. */
@@ -403,28 +408,34 @@ export const DesSymboles = z.object({
 });
 export type DesSymboles = z.output<typeof DesSymboles>;
 
+/**
+ * `exige` : le paramètre n'est proposé que si la condition est vraie pour
+ * l'acteur (option d'un talent possédé : « subir 2 stress pour… ») ; sinon
+ * il garde sa valeur par défaut.
+ */
+const ParametreCommun = { id: Cle, nom: Libelle, exige: Formule.optional() };
+
 const Parametre = z.discriminatedUnion('type', [
-  z.object({ id: Cle, nom: Libelle, type: z.literal('nombre'), defaut: z.number().default(0) }),
+  z.object({ ...ParametreCommun, type: z.literal('nombre'), defaut: z.number().default(0) }),
   z.object({
-    id: Cle,
-    nom: Libelle,
+    ...ParametreCommun,
     type: z.literal('booleen'),
     defaut: z.boolean().default(false),
   }),
   /** Une entrée possédée par l'acteur (compétence, arme…) ; ses champs deviennent `id.champ`. */
   z.object({
-    id: Cle,
-    nom: Libelle,
+    ...ParametreCommun,
     type: z.literal('entree'),
     sorte: Cle,
     etiquette: Id.optional(),
     /** Faux : toute entrée de la sorte est acceptée, au rang 0 si l'acteur ne la possède pas. */
     possedee: z.boolean().default(true),
+    /** Vrai : le paramètre peut être omis (valeur `""`, rang 0, champs par défaut). */
+    facultatif: z.boolean().default(false),
   }),
   /** Un attribut numérique de l'acteur (« quelle caractéristique ? ») : lu par `valeur(p)` et `modificateur(p)`. */
   z.object({
-    id: Cle,
-    nom: Libelle,
+    ...ParametreCommun,
     type: z.literal('attribut'),
     attributs: z.array(Cle).optional(),
     groupe: Id.optional(),
@@ -474,6 +485,8 @@ export const Action = z.object({
   parametres: z.array(Parametre).default([]),
   /** Valeurs intermédiaires calculées avant le jet, utilisables ensuite par leur clé. */
   variables: z.array(z.object({ cle: Cle, formule: Formule })).default([]),
+  /** Refus de l'action après lecture des paramètres et variables (arme non possédée…). */
+  verifications: z.array(z.object({ condition: Formule, message: Libelle })).default([]),
   jet: Jet,
   /** Valeurs calculées après le jet (dégâts…), avec `total`/résultats et `reussi`. */
   apres: z.array(z.object({ cle: Cle, formule: Formule })).default([]),

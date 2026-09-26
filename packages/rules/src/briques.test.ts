@@ -455,3 +455,176 @@ describe('briques génériques (3)', () => {
     expect(degats(frapper('epee'))).toBe(6);
   });
 });
+
+// ─── Quatrième série : défense active, options, vérifications, tables ──────
+
+import { appliquerTirage, tirerTable } from './jets/index.js';
+
+describe('briques génériques (4)', () => {
+  const s4saisi: SystemeSaisi = {
+    ...miniD20,
+    entites: [
+      {
+        ...miniD20.entites[0]!,
+        attributs: [
+          ...miniD20.entites[0]!.attributs,
+          {
+            cle: 'Blessures',
+            nom: 'Blessures',
+            nature: 'ressource',
+            max: 10,
+            initiale: 'min',
+            plafonnee: false,
+          },
+          { cle: 'Stress', nom: 'Stress', nature: 'ressource', max: 5 },
+        ],
+      },
+    ],
+    sortes: [
+      ...miniD20.sortes!,
+      { id: 'talent', nom: 'Talent', pour: ['personnage'], rangs: { max: 3 } },
+      {
+        id: 'arme',
+        nom: 'Arme',
+        pour: ['personnage'],
+        champs: [{ id: 'degats', nom: 'Dégâts', type: 'nombre' }],
+      },
+      { id: 'blessure', nom: 'Blessure', pour: ['personnage'], rangs: { max: 5 } },
+      { id: 'type', nom: 'Type', pour: ['personnage'] },
+    ],
+    catalogue: [
+      ...miniD20.catalogue!,
+      {
+        id: 'esquive',
+        sorte: 'talent',
+        nom: 'Esquive',
+        effets: [
+          { sur: 'jet', cote: 'cible', actions: ['frapper'], ajout: { bonus: '-2 * rang' } },
+        ],
+      },
+      {
+        id: 'inspire',
+        sorte: 'talent',
+        nom: 'Inspiré',
+        effets: [{ sur: 'jet', actions: ['frapper'], ajout: { variable: 'avantage', ajouter: 1 } }],
+      },
+      {
+        id: 'visee',
+        sorte: 'talent',
+        nom: 'Visée',
+        choixAttributs: [
+          { id: 'carac', nom: 'Caractéristique', nombre: 'rang', parmi: { groupe: 'carac' } },
+        ],
+      },
+      { id: 'mort-vivant', sorte: 'type', nom: 'Mort-vivant' },
+      { id: 'dague', sorte: 'arme', nom: 'Dague', champs: { degats: 4 } },
+      { id: 'coupure', sorte: 'blessure', nom: 'Coupure' },
+    ],
+    tables: [
+      {
+        id: 'critiques',
+        nom: 'Critiques',
+        jet: '1d10',
+        lignes: [{ min: 1, max: 10, nom: 'Coupure', entree: 'coupure' }],
+      },
+    ],
+    actions: [
+      {
+        id: 'frapper',
+        nom: 'Frapper',
+        pour: ['personnage'],
+        cible: 'personnage',
+        parametres: [
+          { id: 'arme', nom: 'Arme', type: 'entree', sorte: 'arme', facultatif: true },
+          { id: 'visee', nom: 'Visée précise', type: 'booleen', exige: 'possede("visee")' },
+        ],
+        variables: [{ cle: 'avantage', formule: 0 }],
+        verifications: [
+          {
+            condition: 'non cible_possede("mort-vivant") ou arme != ""',
+            message: 'Il faut une arme contre un mort-vivant',
+          },
+        ],
+        jet: { type: 'numerique', formule: 'des(1 + avantage, 20, 1) + si(visee, 2, 0)' },
+        apres: [{ cle: 'degats', formule: 'max(1, arme.degats)' }],
+      },
+    ],
+  };
+  const r4 = charger(s4saisi);
+  if (!r4.ok) throw new Error(JSON.stringify(r4.erreurs));
+  const s4 = r4.systeme;
+  const f4 = (e: Partial<EtatEntiteSaisi> = {}) =>
+    calculer(
+      s4,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: s4.source.id, version: '1.0.0' },
+        ...e,
+      }),
+    );
+  const frapper = (
+    acteur: ReturnType<typeof f4>,
+    cible: ReturnType<typeof f4>,
+    parametres: Record<string, string | boolean>,
+    des: number[],
+  ) =>
+    executerAction(s4, {
+      action: 'frapper',
+      acteur,
+      cible,
+      parametres,
+      aleatoire: aleatoireImpose(des),
+    });
+  const total = (r: ReturnType<typeof frapper>) =>
+    r.ok && r.resultat.jet.type === 'numerique' ? r.resultat.jet.total : r;
+
+  it('paramètre facultatif et défense active de la cible', () => {
+    const r = frapper(f4(), f4({ possessions: [{ entree: 'esquive', rang: 2 }] }), {}, [15]);
+    expect(total(r)).toBe(11);
+    expect(r.ok && r.resultat.variables.degats).toBe(1);
+  });
+
+  it('un effet modifie une variable avant le jet (avantage)', () => {
+    const r = frapper(f4({ possessions: [{ entree: 'inspire', rang: 1 }] }), f4(), {}, [5, 18]);
+    expect(total(r)).toBe(18);
+  });
+
+  it('option réservée par « exige »', () => {
+    const sans = frapper(f4(), f4(), { visee: true }, [10]);
+    expect(!sans.ok && sans.erreurs[0]!.message).toBe(
+      'Visée précise : option non disponible (possede("visee"))',
+    );
+    const avec = frapper(
+      f4({ possessions: [{ entree: 'visee', rang: 1 }] }),
+      f4(),
+      { visee: true },
+      [10],
+    );
+    expect(total(avec)).toBe(12);
+  });
+
+  it('vérification après les paramètres, lisant les possessions de la cible', () => {
+    const cible = f4({ possessions: [{ entree: 'mort-vivant' }] });
+    const r = frapper(f4(), cible, {}, [10]);
+    expect(!r.ok && r.erreurs[0]!.message).toBe('Il faut une arme contre un mort-vivant');
+    expect(
+      frapper(f4({ possessions: [{ entree: 'dague' }] }), cible, { arme: 'dague' }, [10]).ok,
+    ).toBe(true);
+  });
+
+  it('ressource non plafonnée, nombre de choix selon le rang', () => {
+    expect(f4({ valeurs: { Blessures: 14, Stress: 9 } }).valeur('Blessures')).toBe(14);
+    expect(f4({ valeurs: { Stress: 9 } }).valeur('Stress')).toBe(5);
+    const f = f4({ possessions: [{ entree: 'visee', rang: 1, choix: { carac: ['FOR', 'DEX'] } }] });
+    expect(f.erreurs.map((e) => e.message)).toEqual(['Caractéristique : 1 choix au plus']);
+  });
+
+  it('une ligne de table donne une entrée, puis un rang de plus', () => {
+    let etat = f4().etat;
+    for (let i = 0; i < 2; i++)
+      etat = appliquerTirage(s4, etat, tirerTable(s4, 'critiques', 0, aleatoireImpose([3])));
+    expect(etat.possessions).toEqual([
+      { entree: 'coupure', rang: 2, actif: true, choix: {}, champs: {} },
+    ]);
+  });
+});

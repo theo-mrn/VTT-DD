@@ -76,6 +76,8 @@ export const chemins = {
   choixNombre: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/nombre`,
   choixAttribut: (entree: string, choix: string) =>
     `catalogue/${entree}/choixAttributs/${choix}/valeur`,
+  choixAttributNombre: (entree: string, choix: string) =>
+    `catalogue/${entree}/choixAttributs/${choix}/nombre`,
   achat: (id: string, champ: 'cout' | 'plafond' | 'condition') => `achats/${id}/${champ}`,
   monnaie: (id: string) => `monnaies/${id}/total`,
   etape: (entite: string, etape: string, champ: string) => `creation/${entite}/${etape}/${champ}`,
@@ -491,9 +493,18 @@ class Chargeur {
           for (const a of f.actions ?? [])
             if (!this.actions.has(a)) this.erreur(ch('actions'), `Action inconnue : ${a}`);
           const vars: Record<string, TypeValeur> = { ...variables, action: 'texte' };
+          // Paramètres des actions : identifiant, et pour une entrée son rang et ses champs
           for (const act of this.actions.values()) {
-            for (const p of act.parametres)
-              if (p.type === 'entree' || p.type === 'attribut') vars[p.id] = 'texte';
+            for (const p of act.parametres) {
+              if (p.type !== 'entree' && p.type !== 'attribut') continue;
+              vars[p.id] = 'texte';
+              if (p.type !== 'entree') continue;
+              vars[`${p.id}.rang`] = 'nombre';
+              for (const c of this.sortes.get(p.sorte)?.champs ?? []) {
+                const t = typeChamp(c);
+                if (t && !vars[`${p.id}.${c.id}`]) vars[`${p.id}.${c.id}`] = t;
+              }
+            }
           }
           if (f.si !== undefined)
             this.compiler(ch('si'), f.si, { ...oEffet, variables: vars }, 'booleen');
@@ -511,10 +522,11 @@ class Chargeur {
             this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
           } else if (aj && 'variable' in aj) {
             const visees = f.actions?.length ? f.actions : [...this.actions.keys()];
-            const connue = visees.some((id) =>
-              this.actions.get(id)?.apres.some((x) => x.cle === aj.variable),
-            );
-            if (!connue) this.erreur(ch('ajout'), `Variable « après » inconnue : ${aj.variable}`);
+            const connue = visees.some((id) => {
+              const act = this.actions.get(id);
+              return !!act && [...act.variables, ...act.apres].some((x) => x.cle === aj.variable);
+            });
+            if (!connue) this.erreur(ch('ajout'), `Variable d’action inconnue : ${aj.variable}`);
             this.compiler(ch('ajouter'), aj.ajouter, oEffet, 'nombre');
           } else if (aj && 'retirer' in aj) {
             this.verifierDe(ch('ajout'), aj.retirer);
@@ -545,6 +557,12 @@ class Chargeur {
             this.erreur(ch, `Attribut numérique inconnu de ${t} : ${cle}`);
         }
       }
+      this.compiler(
+        chemins.choixAttributNombre(e.id, c.id),
+        c.nombre,
+        { variables: { rang: 'nombre' } },
+        'nombre',
+      );
       this.compiler(
         chemins.choixAttribut(e.id, c.id),
         c.valeur,
@@ -840,7 +858,25 @@ class Chargeur {
         externes: a.cible ? { cible: this.attributsDe(a.cible) } : {},
         variables: { ...variables },
         dynamique: true,
+        // Possessions de la cible : `cible_possede("mort-vivant")`, `cible_rang("esquive")`
+        fonctions: a.cible
+          ? {
+              cible_possede: { args: ['texte'], retour: 'booleen' },
+              cible_rang: { args: ['texte'], retour: 'nombre' },
+            }
+          : {},
       });
+
+      for (const p of a.parametres) {
+        if (p.exige !== undefined) {
+          this.compiler(
+            ch(`parametres/${p.id}/exige`),
+            p.exige,
+            { entite: this.attributsDe(a.pour) },
+            'booleen',
+          );
+        }
+      }
 
       if (a.exige !== undefined) {
         this.compiler(ch('exige'), a.exige, { entite: this.attributsDe(a.pour) }, 'booleen');
@@ -850,6 +886,10 @@ class Chargeur {
         const f = this.compiler(ch(`variables/${v.cle}`), v.formule, opts());
         declarer(v.cle, f?.type ?? 'nombre', `${chemin}/variables/${v.cle}`);
       }
+
+      a.verifications.forEach((v, i) =>
+        this.compiler(ch(`verifications/${i}`), v.condition, opts(), 'booleen'),
+      );
 
       const jet = a.jet;
       if (jet.type === 'numerique') {

@@ -5,6 +5,7 @@
  * `appliquerModifications`.
  */
 import type { Fiche } from '../calcul/index.js';
+import type { SystemeCharge } from '../chargement/index.js';
 import type { EtatEntite } from '../schema/index.js';
 
 export interface Modification {
@@ -63,4 +64,28 @@ export function appliquerModifications(
   }
 
   return { ...fiche.etat, valeurs };
+}
+
+/**
+ * Applique le résultat d'une table à un état : l'entrée de la ligne (blessure
+ * critique, état…) est ajoutée, ou gagne un rang si elle se possède par rangs
+ * et est déjà possédée. Renvoie un nouvel état ; sans entrée, l'état est rendu tel quel.
+ */
+export function appliquerTirage(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  tirage: { ligne: { entree?: string | undefined } | null },
+): EtatEntite {
+  const id = tirage.ligne?.entree;
+  const entree = id ? systeme.entrees.get(id) : undefined;
+  if (!id || !entree) return etat;
+  const aRangs = !!systeme.sortes.get(entree.sorte)?.rangs;
+  const possessions = etat.possessions.map((p) => ({ ...p }));
+  const existante = possessions.find((p) => p.entree === id);
+  if (existante) {
+    if (aRangs) existante.rang += 1;
+  } else {
+    possessions.push({ entree: id, rang: aRangs ? 1 : 0, actif: true, choix: {}, champs: {} });
+  }
+  return { ...etat, possessions };
 }
