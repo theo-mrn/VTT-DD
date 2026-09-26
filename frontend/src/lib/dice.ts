@@ -1,10 +1,12 @@
 /**
- * Service des dés (docs/api-dice.md), par la gateway `/v1/dice/*` : jets tirés
- * côté serveur, historique d'une campagne, statistiques et préférences de dés.
+ * Service des dés (docs/api-dice.md), par la gateway `/v1/dice/*` : jets,
+ * historique d'une campagne, statistiques et préférences de dés.
  *
- * Le navigateur ne tire jamais un résultat : il envoie la demande, le serveur
- * lance les dés (générateur cryptographique) et renvoie le jet enregistré, que
- * le front se contente d'afficher ou d'animer.
+ * Comme dans l'ancienne app, l'animation 3D fait foi pour le panneau de dés :
+ * les dés roulent, la face du dessus de chacun est lue à l'arrêt, puis ces
+ * faces (`physicalResults`) partent au serveur, qui calcule le jet avec elles
+ * (total, symboles, critiques) et l'enregistre. Sans faces fournies (ou pour
+ * les dés qui en manquent), le serveur tire lui-même.
  */
 import { api } from './api';
 
@@ -16,7 +18,12 @@ import { api } from './api';
  */
 export type RollVisibility = 'public' | 'private' | 'gm' | 'self';
 
-export type RollSource = 'free' | 'action' | 'api' | 'import';
+/**
+ * `3d` : faces lues sur les dés 3D du client ; `mixed` : dés 3D complétés par
+ * le serveur (explosion, d100…) ; `free` / `api` : tiré par le serveur ;
+ * `action` : transmis par character ; `import` : ancienne app.
+ */
+export type RollSource = '3d' | 'mixed' | 'free' | 'action' | 'api' | 'import';
 
 export interface RollDieValue {
   value: number;
@@ -103,6 +110,18 @@ export interface Roll {
   createdAt: string;
 }
 
+/**
+ * Face lue sur un dé 3D arrêté (`throw.tsx`) : `type` `d4`…`d100` pour un dé
+ * numérique, ou la sorte d'un dé à symboles du système (`aptitude`) ; `value`
+ * le nombre lu, ou le numéro de la face déclarée (1 = première) d'un dé à
+ * symboles. `tag` : sorte du dé à symboles quand `type` est sa forme (`d8`).
+ */
+export interface PhysicalResult {
+  type: string;
+  value: number;
+  tag?: string;
+}
+
 /** `notation` OU `pool`, jamais les deux. */
 export interface RollRequest {
   /**
@@ -113,6 +132,13 @@ export interface RollRequest {
   notation?: string;
   /** Dés à symboles du système `systemId`. */
   pool?: { de: string; nombre: number }[];
+  /**
+   * Faces lues sur les dés 3D, dans l'ordre où ils se sont arrêtés : le
+   * serveur calcule le jet avec elles. Les dés manquants (explosion, d100…)
+   * sont tirés par le serveur ; une valeur inutilisée ou hors des faces : 400
+   * `invalid_physical_result`.
+   */
+  physicalResults?: PhysicalResult[];
   systemId?: string;
   /** Sans campagne, le jet est personnel (visible par son auteur seul). */
   campaignId?: string;
@@ -194,8 +220,9 @@ function newIdempotencyKey(): string {
 }
 
 /**
- * POST /v1/dice/rolls : le serveur tire le jet. La clé d'idempotence rend la
- * requête rejouable sans relance (réseau coupé, double clic).
+ * POST /v1/dice/rolls : le serveur calcule le jet avec les faces lues sur les
+ * dés (`physicalResults`), sinon le tire, et l'enregistre. La clé
+ * d'idempotence rend la requête rejouable sans relance (réseau coupé, double clic).
  */
 export function createRoll(body: RollRequest, idempotencyKey = newIdempotencyKey()) {
   return api<Roll>('/v1/dice/rolls', {

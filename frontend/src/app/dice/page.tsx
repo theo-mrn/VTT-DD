@@ -2,12 +2,13 @@
 
 /**
  * Jets personnels, hors campagne : le panneau de dés de l'ancienne app avec
- * les dés du système choisi. Les jets sont tirés par le service des dés et
- * visibles par leur seul auteur.
+ * les dés du système choisi. Les dés roulent en 3D, leurs faces font le jet,
+ * enregistré par le service des dés et visible par son seul auteur.
  */
 import { useEffect, useState } from 'react';
 import { Loading, Message, PageTitle } from '@/components/account/elements';
 import { AccountNav } from '@/components/account/account-nav';
+import { DiceThrowerHost } from '@/components/(dices)/throw-host';
 import { DiceRoller } from '@/components/dice-roller';
 import { errorMessage } from '@/lib/api';
 import {
@@ -105,6 +106,9 @@ export default function DicePage() {
           <DiceRoller inline system={playable.system} presentation={playable.presentation} />
         ) : null}
       </main>
+
+      {/* Lanceur 3D des jets (dés qui roulent sur la page, face lue à l'arrêt) */}
+      <DiceThrowerHost />
     </div>
   );
 }

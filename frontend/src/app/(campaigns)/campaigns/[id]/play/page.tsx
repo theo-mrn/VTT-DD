@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ActionsPanel, type ActionTarget } from '@/components/(dices)/actions-panel';
+import { DiceThrowerHost } from '@/components/(dices)/throw-host';
 import { Loading } from '@/components/account/elements';
 import { DiceRoller, type DiceRollerCharacter } from '@/components/dice-roller';
 import { aclonica, Notice, CampaignImage } from '@/components/campaigns/elements';
@@ -139,6 +140,9 @@ export default function PlayPage() {
           </div>
         )
       )}
+
+      {/* Lanceur 3D des jets (dés qui roulent sur la table, face lue à l'arrêt) */}
+      <DiceThrowerHost />
     </>
   );
 }

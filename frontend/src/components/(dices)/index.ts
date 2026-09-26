@@ -38,4 +38,4 @@ export {
   type Die3DSymbol as SymboleDe3D,
   type Throw3DHandle as Lancer3DHandle,
 } from './throw-3d';
-export { symbolDice3D, numericDice3D } from './dice-3d-input';
+export { symbolFaces3D } from './dice-3d-input';

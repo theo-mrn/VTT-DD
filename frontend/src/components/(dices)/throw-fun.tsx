@@ -8,15 +8,14 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
-import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
-import { getCachedGeometry, getDieValue } from './geometry';
+import { createBeveledGeometry, getCachedGeometry } from './geometry';
 import { getAudioContext, getMasterGain, playOneShotForSkin } from './audio';
-import type { Die3DSymbol } from './throw-3d';
+import { ShaderWarmer } from './shader-warmer';
 
 // Skins eligible for the random "for fun" roll. Orb skins use a heavier
 // transmission + GLTF-core path, so we keep the random pool to the procedural
@@ -94,60 +93,7 @@ const Table = () => {
 };
 
 // ============================================================================
-// IMPOSED RESULT — the result comes from the server; the die must show it.
-// ----------------------------------------------------------------------------
-// Same mechanism as the old app's lanceur (legacy `throw.tsx`): once the die
-// has almost stopped, it is tipped onto the requested face (velocities
-// zeroed). Every shape here has parallel opposite faces at the same distance
-// from the centre, so the die ends flat on the table at the same height. The
-// tip is applied RELATIVE to the current orientation (shortest rotation), so
-// the die does not also spin around the vertical axis as the legacy did.
-// ============================================================================
-
-export interface DieTarget {
-  /** Numeric die: value to show on top. Symbol die: declared face, 1-based. */
-  value?: number;
-  /** Symbol die: symbols of each declared face (index 0 = face 1). */
-  faces?: Die3DSymbol[][];
-}
-
-interface ResolvedTarget {
-  /** Physical face (index in `trueFaces`) to bring on top; `null` = free landing. */
-  face: number | null;
-  /** Symbols per physical face, when it is a symbol die. */
-  symbols?: Die3DSymbol[][];
-}
-
-const resolveTarget = (type: string, target?: DieTarget): ResolvedTarget | undefined => {
-  if (!target || (target.value == null && !target.faces?.length)) return undefined;
-  const count = getCachedGeometry(type).trueFaces.length;
-  const declared = target.faces;
-  if (declared?.length) {
-    // Declared faces spread over the physical ones (repeated if the shape has more).
-    const symbols = Array.from({ length: count }, (_, j) => declared[j % declared.length]!);
-    const k = target.value != null ? Math.round(target.value) - 1 : -1;
-    if (k < 0 || k >= declared.length) return { face: null, symbols };
-    // More declared faces than physical ones: show the drawn face on its slot.
-    const face = k % count;
-    symbols[face] = declared[k]!;
-    return { face, symbols };
-  }
-  const wanted = String(target.value);
-  const face = Array.from({ length: count }, (_, i) => i).find(
-    (i) => getDieValue(type, i) === wanted,
-  );
-  return { face: face ?? null };
-};
-
-// Settle detection, as in the legacy lanceur.
-const SETTLE_DELAY_MS = 400;
-const SETTLE_CHECK_MS = 80;
-// After the tip, the visual group only follows the physics body a frame or
-// two later (worker round trip): the number fade is frozen after this delay.
-const FREEZE_FADE_DELAY_MS = 250;
-
-// ============================================================================
-// FUN DIE COMPONENT (physics; lands on the imposed face when there is one)
+// FUN DIE COMPONENT (Physics only, no target/result logic)
 // ============================================================================
 
 const FunDie = React.forwardRef(
@@ -158,20 +104,17 @@ const FunDie = React.forwardRef(
       impulse,
       angularVelocity,
       skin,
-      target,
     }: {
       type: string;
       position: [number, number, number];
       impulse: [number, number, number];
       angularVelocity: [number, number, number];
       skin: DiceSkin;
-      target?: ResolvedTarget;
     },
     fRef: any,
   ) => {
-    const { vertices, faces, trueFaces } = getCachedGeometry(type);
+    const { vertices, faces } = getCachedGeometry(type);
     const lastImpactTime = useRef(0);
-    const [stopped, setStopped] = useState(false);
 
     const playClick = useCallback((vel: number) => {
       const ctx = getAudioContext();
@@ -224,173 +167,14 @@ const FunDie = React.forwardRef(
       playOneShotForSkin(skin);
     }, [skin]);
 
-    // Imposed face: watch the body (only for dice that have a target) and tip
-    // it onto the face once it has almost stopped.
-    const targetFace = target?.face ?? null;
-    useEffect(() => {
-      if (targetFace === null || !trueFaces[targetFace]) return;
-      const velocity = [0, 0, 0];
-      const spin = [0, 0, 0];
-      const quaternion = [0, 0, 0, 1];
-      const unsubscribe = [
-        api.velocity.subscribe((v) => velocity.splice(0, 3, ...v)),
-        api.angularVelocity.subscribe((v) => spin.splice(0, 3, ...v)),
-        api.quaternion.subscribe((q) => quaternion.splice(0, 4, ...q)),
-      ];
-      let interval = 0;
-      let freeze = 0;
-      const start = window.setTimeout(() => {
-        interval = window.setInterval(() => {
-          const speed = Math.abs(velocity[0]!) + Math.abs(velocity[1]!) + Math.abs(velocity[2]!);
-          const turn = Math.abs(spin[0]!) + Math.abs(spin[1]!) + Math.abs(spin[2]!);
-          if (speed >= 0.5 || turn >= 1.0) return;
-          window.clearInterval(interval);
-          const q = new THREE.Quaternion(
-            quaternion[0],
-            quaternion[1],
-            quaternion[2],
-            quaternion[3],
-          );
-          const worldNormal = trueFaces[targetFace]!.norm.clone().applyQuaternion(q);
-          const tipped = new THREE.Quaternion()
-            .setFromUnitVectors(worldNormal, new THREE.Vector3(0, 1, 0))
-            .multiply(q);
-          api.velocity.set(0, 0, 0);
-          api.angularVelocity.set(0, 0, 0);
-          api.quaternion.set(tipped.x, tipped.y, tipped.z, tipped.w);
-          freeze = window.setTimeout(() => setStopped(true), FREEZE_FADE_DELAY_MS);
-        }, SETTLE_CHECK_MS);
-      }, SETTLE_DELAY_MS);
-      return () => {
-        unsubscribe.forEach((u) => u());
-        window.clearTimeout(start);
-        window.clearInterval(interval);
-        window.clearTimeout(freeze);
-      };
-    }, [api, targetFace, trueFaces]);
-
     return (
       <group ref={ref as any}>
-        <VisualDie
-          type={type}
-          skin={skin}
-          isShattered={false}
-          critType={null}
-          stopped={stopped}
-          faceSymbols={target?.symbols}
-          ref={null}
-        />
+        <VisualDie type={type} skin={skin} isShattered={false} critType={null} ref={null} />
       </group>
     );
   },
 );
 FunDie.displayName = 'FunDie';
-
-// ============================================================================
-// SHADER WARMER
-// ----------------------------------------------------------------------------
-// Renders every pooled skin once, far off-screen, and asks the renderer to
-// compile their shader programs asynchronously. This moves the (synchronous,
-// frame-blocking) shader compilation off the click path, so throwing dice no
-// longer freezes the page the first time a given skin appears.
-// ============================================================================
-
-// Each skin's onBeforeCompile injects distinct GLSL, so ~50 pooled skins mean
-// ~50 separate shader programs. `gl.compile()` (even via `compileAsync`,
-// which runs it synchronously under the hood) issues every compile/link call
-// for the whole scene in a single JS tick — a one-shot GPU burst big enough
-// to trip Windows' driver-timeout watchdog (TDR) on some machines: Chrome's
-// GPU process dies instantly with no JS error. So the pool is warmed a few
-// skins at a time, yielding a frame between batches.
-const WARM_BATCH_SIZE = 4;
-
-/**
- * Attend que les programmes des matériaux soient liés (extension
- * KHR_parallel_shader_compile), sans jamais lever d'erreur : un matériau
- * libéré ou sans programme compte comme prêt, et l'attente s'arrête sur
- * annulation ou au bout de `timeoutMs` (certains pilotes ne progressent pas).
- */
-async function waitProgramsReady(
-  gl: THREE.WebGLRenderer,
-  materials: Set<THREE.Material>,
-  isCancelled: () => boolean,
-  timeoutMs: number,
-): Promise<void> {
-  if (!gl.extensions.get('KHR_parallel_shader_compile')) return;
-  const deadline = performance.now() + timeoutMs;
-  const pending = new Set(materials);
-  while (pending.size && !isCancelled() && performance.now() < deadline) {
-    for (const material of pending) {
-      const program = (gl.properties.get(material) as { currentProgram?: { isReady?(): boolean } })
-        .currentProgram;
-      if (!program?.isReady || program.isReady()) pending.delete(material);
-    }
-    if (pending.size) await new Promise((r) => setTimeout(r, 10));
-  }
-}
-
-const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => void }) => {
-  const { gl, scene, camera } = useThree();
-  const groupRef = useRef<THREE.Group>(null);
-  const [batchEnd, setBatchEnd] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      for (
-        let end = WARM_BATCH_SIZE;
-        end < WARM_SKIN_POOL.length + WARM_BATCH_SIZE;
-        end += WARM_BATCH_SIZE
-      ) {
-        if (cancelled) return;
-        // Let the new batch's meshes mount before compiling them.
-        await new Promise((r) => requestAnimationFrame(r));
-        if (cancelled) return;
-        setBatchEnd(Math.min(end, WARM_SKIN_POOL.length));
-        await new Promise((r) => requestAnimationFrame(r));
-        if (cancelled) return;
-        try {
-          // Pas de `gl.compileAsync()` : sa boucle interne (setTimeout
-          // toutes les 10 ms) continue après notre délai et plante hors de
-          // ce try (`program.isReady` d'un matériau libéré entre-temps).
-          // On compile le lot puis on attend nous-mêmes, arrêt garanti.
-          const materials = gl.compile(scene, camera);
-          await waitProgramsReady(gl, materials, () => cancelled, 1200);
-        } catch {
-          // best-effort warmup — ignore failures
-        }
-      }
-      if (!cancelled) onDone();
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [gl, scene, camera, onDone]);
-
-  return (
-    // Pushed far away + tiny so it never shows; only there to exist in the
-    // scene graph long enough for the programs to compile.
-    <group ref={groupRef} position={[0, -1000, 0]} scale={0.001}>
-      {/* Full-fidelity die mounted for the WHOLE warm-up (not batched):
-                compiles the face-number text + rim programs, and keeps the
-                scene's light count constant across batches (its innerGlow
-                point light would otherwise invalidate previously-warmed
-                programs mid-run). */}
-      <VisualDie type={diceType} skin={FULL_WARM_SKIN} isShattered={false} critType={null} />
-      {WARM_SKIN_POOL.slice(0, batchEnd).map((skinId) => (
-        <VisualDie
-          key={skinId}
-          type={diceType}
-          skin={getSkinById(skinId)}
-          isShattered={false}
-          critType={null}
-          simple
-        />
-      ))}
-    </group>
-  );
-};
 
 // ============================================================================
 // FUN DICE THROWER (No DB, no result tracking, just visual)
@@ -407,11 +191,8 @@ interface FunDiceProps {
 }
 
 export interface FunDiceHandle {
-  /**
-   * Roll a die with a specific skin (falls back to a random skin). `target`
-   * makes it land on an imposed face and/or draws symbols on its faces.
-   */
-  roll: (skinId?: string, diceType?: string, target?: DieTarget) => void;
+  /** Roll a die with a specific skin (falls back to a random skin) */
+  roll: (skinId?: string, diceType?: string) => void;
 }
 
 export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
@@ -433,7 +214,6 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
         imp: [number, number, number];
         ang: [number, number, number];
         skinId: string;
-        target?: ResolvedTarget;
       }[]
     >([]);
     // Pre-warm shaders once per INSTANCE (i.e. per WebGL context — see note
@@ -448,7 +228,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
     // invalidates every already-warmed program in the scene — one giant
     // recompile burst, the exact thing that crashes Windows GPU drivers. So
     // early rolls wait here and fire as soon as the warm-up finishes.
-    const pendingRolls = useRef<{ skinId?: string; diceType?: string; target?: DieTarget }[]>([]);
+    const pendingRolls = useRef<{ skinId?: string; diceType?: string }[]>([]);
 
     useEffect(() => {
       const id = window.setTimeout(() => setStartWarm(true), 600);
@@ -456,7 +236,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
     }, []);
 
     const spawnDie = useCallback(
-      (skinId?: string, diceType?: string, target?: DieTarget) => {
+      (skinId?: string, diceType?: string) => {
         // Pick a random skin (from the pre-warmed pool) when none is requested.
         const resolvedSkinId =
           skinId || FUN_SKIN_POOL[Math.floor(Math.random() * FUN_SKIN_POOL.length)];
@@ -483,7 +263,6 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
           imp: [forceX, forceY, forceZ] as [number, number, number],
           ang: [angX, angY, angZ] as [number, number, number],
           skinId: resolvedSkinId,
-          target: resolveTarget(diceType || defaultDiceType, target),
         };
 
         setDice((prev) => [...prev, newDie]);
@@ -503,9 +282,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
       // Fire the rolls that were requested during warm-up, slightly
       // staggered so several queued dice don't all mount in one frame.
       const pending = pendingRolls.current.splice(0);
-      pending.forEach((p, i) =>
-        setTimeout(() => spawnDie(p.skinId, p.diceType, p.target), i * 150),
-      );
+      pending.forEach((p, i) => setTimeout(() => spawnDie(p.skinId, p.diceType), i * 150));
     }, [spawnDie]);
 
     // Safety net: NEVER hold rolls hostage to a warm-up that hangs or is slow
@@ -519,13 +296,13 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
     }, [startWarm, warmDone, handleWarmed]);
 
     const rollDie = useCallback(
-      (skinId?: string, diceType?: string, target?: DieTarget) => {
+      (skinId?: string, diceType?: string) => {
         if (!warmDoneRef.current) {
-          pendingRolls.current.push({ skinId, diceType, target });
+          pendingRolls.current.push({ skinId, diceType });
           setStartWarm(true); // mount the canvas + warmer right away
           return;
         }
-        spawnDie(skinId, diceType, target);
+        spawnDie(skinId, diceType);
       },
       [spawnDie],
     );
@@ -579,7 +356,15 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
               <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
               <Environment preset="city" />
 
-              {!warmDone && <ShaderWarmer diceType={defaultDiceType} onDone={handleWarmed} />}
+              {!warmDone && (
+                <ShaderWarmer
+                  diceType={defaultDiceType}
+                  skins={WARM_SKIN_POOL}
+                  fullSkin={FULL_WARM_SKIN}
+                  simple
+                  onDone={handleWarmed}
+                />
+              )}
 
               {dice.length > 0 && (
                 <Physics
@@ -597,7 +382,6 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
                       impulse={d.imp}
                       angularVelocity={d.ang}
                       skin={getSkinById(d.skinId)}
-                      target={d.target}
                     />
                   ))}
                 </Physics>

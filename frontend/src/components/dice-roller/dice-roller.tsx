@@ -4,16 +4,21 @@
  * Panneau de dés repris de l'ancienne app (`legacy/src/components/(dices)/dice-roller.tsx`) :
  * même structure, même rendu, mêmes raccourcis. Seuls changent :
  *
- * - le tirage : le service des dés tire chaque jet (`POST /v1/dice/rolls`,
- *   docs/api-dice.md) ; l'animation 3D (`Throw3D`) n'est plus qu'un visuel ;
+ * - l'enregistrement : comme dans l'ancienne app, l'animation 3D fait foi —
+ *   `perform3DRoll` lance les dés (`vtt-trigger-3d-roll`, lanceur `throw.tsx`
+ *   monté par la page), lit leurs faces à l'arrêt (`vtt-3d-roll-complete`),
+ *   puis le service calcule et enregistre le jet avec ces faces
+ *   (`POST /v1/dice/rolls`, `physicalResults`, docs/api-dice.md) au lieu de
+ *   Firestore ; repli aléatoire local sans 3D, jet caché, plus de 15 dés ou
+ *   au bout de 10 s ;
  * - l'historique de la salle : polling du service (`useRollHistory`) au lieu
  *   de Firestore `rolls/{salle}/rolls` ; suppression par l'auteur ou le MJ ;
  * - skin, animation 3D et son : préférences du service (`useDicePreferences`) ;
  * - système, personnage et MJ : props (plus de contextes Firebase), dés à
  *   symboles, couleurs et libellés lus dans le système et sa présentation ;
  * - notation envoyée telle quelle : le serveur lit les noms nus (`+ FOR`) sur
- *   le personnage et les dés à symboles en `N<dé>` (`2aptitude`) ; l'animation
- *   3D atterrit sur les faces qu'il a tirées ;
+ *   le personnage et les dés à symboles en `N<dé>` (`2aptitude`), et calcule
+ *   total, symboles et critiques à partir des faces lues ;
  * - titres « Maudit des dés » / « Béni des Dieux », e-mails et défis : retirés
  *   du client (événement `dice.rolled` côté service).
  */
@@ -50,10 +55,10 @@ import { DiceStats } from './dice-stats';
 import { StoreModal } from './store-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 import { kindAppearance, upgradedKinds } from '@/components/(dices)/appearance';
-import { symbolDice3D } from '@/components/(dices)/dice-3d-input';
-import { Throw3D, type Die3D, type Throw3DHandle } from '@/components/(dices)/throw-3d';
+import { symbolFaces3D } from '@/components/(dices)/dice-3d-input';
+import type { ThrowRequest, ThrowResult } from '@/components/(dices)/throw';
 import { errorMessage } from '@/lib/api';
-import { createRoll, isMasked, sameId, type Roll } from '@/lib/dice';
+import { createRoll, sameId, type PhysicalResult } from '@/lib/dice';
 import { useSession } from '@/lib/session';
 import { skillPools, statShortcuts, type SkillPool } from './character-rolls';
 import { toHistoryRoll, type HistoryRoll } from './history-roll';
@@ -101,8 +106,18 @@ const ROLL_SHORTCUTS: Record<string, string> = {
   Digit7: '1d100',
 };
 
-/** Durée laissée à l'animation 3D avant d'afficher le résultat tiré par le serveur. */
-const ANIMATION_MS = 1800;
+/** Formes lancées en 3D ; les autres dés (d100…) sont tirés aussitôt, comme dans l'ancienne app. */
+const SUPPORTED_3D_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+
+/** `2d20kh1`, `d6`, `1D8` : groupes de dés numériques de la notation (forme et nombre). */
+const DICE_REGEX = /(?<![\w@])(\d*)d(\d+)/gi;
+
+/** Sans accents ni casse, comme le service lit les dés à symboles (`1 Maîtrise` = `1maitrise`). */
+const simplify = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 
 /** Avantage / désavantage sur le premier groupe de dés : `1d20` → `2d20kh1` / `2d20kl1`. */
 function applyAdvantage(notation: string, keep: 'kh' | 'kl'): string {
@@ -237,7 +252,8 @@ export const DiceRoller = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const thrower = useRef<Throw3DHandle>(null);
+  // Jets 3D en cours : rollId → résolution avec les faces lues sur les dés.
+  const pendingRollsRef = useRef(new Map<string, (results: ThrowResult[]) => void>());
 
   // History State
   const [showHistory, setShowHistory] = useState(false);
@@ -371,26 +387,189 @@ export const DiceRoller = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [inline, isOpen, onClose, isSkinDialogOpen, isSkillSelectOpen]);
 
-  // Animation 3D d'un jet déjà tiré par le serveur (visuel seulement). Pas d'animation pour un
-  // jet caché, sans dés, ou de plus de 15 dés (comme l'ancienne app).
-  const perform3DRoll = async (roll: Roll) => {
-    if (typeof window === 'undefined' || !show3DAnimations || isMasked(roll)) return;
-    // Dés numériques avec le skin choisi, dés à symboles avec celui de la présentation ;
-    // chaque dé atterrit sur la face tirée par le serveur.
-    const dice: Die3D[] = [
-      ...roll.dice.flatMap((g) => {
-        const shape = kindAppearance(`d${g.faces}`, system, presentation).shape;
-        return g.values.map((v) => ({ skin: selectedSkinId, shape, value: v.value }));
-      }),
-      ...symbolDice3D(
-        (roll.symbols?.dice ?? []).map((d) => ({ de: d.die, face: d.face, symboles: d.symbols })),
-        system,
-        presentation,
-      ),
+  // Listen for 3D roll completion
+  useEffect(() => {
+    const handleRollComplete = (e: Event) => {
+      const { rollId, results } = (e as CustomEvent<{ rollId: string; results: ThrowResult[] }>)
+        .detail;
+      const resolve = pendingRollsRef.current.get(rollId);
+      if (resolve) {
+        resolve(results);
+        pendingRollsRef.current.delete(rollId);
+      }
+    };
+
+    window.addEventListener('vtt-3d-roll-complete', handleRollComplete);
+    return () => window.removeEventListener('vtt-3d-roll-complete', handleRollComplete);
+  }, []);
+
+  // Lanceur 3D préparé dès l'ouverture du panneau : module chargé et shaders des skins du
+  // prochain jet (skin choisi, dés à symboles) préchauffés avant le premier lancer.
+  const panelVisible = isOpen || inline;
+  useEffect(() => {
+    if (!panelVisible || !show3DAnimations) return;
+    const skinIds = [
+      ...new Set([selectedSkinId, ...symbolDice.map((d) => d.skinId).filter(Boolean)]),
     ];
-    if (dice.length === 0 || dice.length > 15) return;
-    thrower.current?.roll(dice);
-    await new Promise((resolve) => setTimeout(resolve, ANIMATION_MS));
+    window.dispatchEvent(new CustomEvent('vtt-prepare-3d-roll', { detail: { skinIds } }));
+  }, [panelVisible, show3DAnimations, selectedSkinId, symbolDice]);
+
+  const parseDiceRequests = (notation: string) => {
+    const requests: { type: string; count: number }[] = [];
+    for (const match of notation.matchAll(DICE_REGEX)) {
+      const count = match[1] ? parseInt(match[1]) : 1;
+      const faces = parseInt(match[2]!);
+      requests.push({ type: `d${faces}`, count });
+    }
+    return requests;
+  };
+
+  // Dés à symboles : notation "N<dé>" (ex "2aptitude", "1 Maîtrise") — identifiant ou nom de la
+  // sorte, sans accents ni casse, comme le service. Regex construite à partir des dés du système
+  // (aucun nom en dur).
+  const parseSymbolDiceRequests = (
+    notation: string,
+  ): { die: SymbolDieDefinition; count: number }[] => {
+    if (symbolDice.length === 0) return [];
+    const byName = new Map<string, SymbolDieDefinition>();
+    for (const d of symbolDice) {
+      byName.set(simplify(d.key), d);
+      if (d.label) byName.set(simplify(d.label), d);
+    }
+    const names = [...byName.keys()]
+      .sort((a, b) => b.length - a.length)
+      .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`(\\d+)\\s*(${names.join('|')})(?![\\w])`, 'g');
+    const requests: { die: SymbolDieDefinition; count: number }[] = [];
+    for (const match of simplify(notation).matchAll(regex)) {
+      const die = byName.get(match[2]!);
+      if (die) requests.push({ die, count: parseInt(match[1]!) });
+    }
+    return requests;
+  };
+
+  // skinId/tag/faces optionnels par requête : skin 3D spécifique (ex couleur d'un dé à
+  // symboles), identifiant echoé dans chaque résultat pour réassocier les dés quand deux types
+  // partagent la même forme physique (ex Aptitude et Difficulté, tous deux d8), symboles dessinés
+  // sur les faces — cf DiceThrower (throw.tsx).
+  const perform3DRoll = async (requests: ThrowRequest[]): Promise<ThrowResult[]> => {
+    if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
+
+    const requests3D = requests.filter((req) => SUPPORTED_3D_DICE.includes(req.type));
+    const requestsInstant = requests.filter((req) => !SUPPORTED_3D_DICE.includes(req.type));
+
+    const instantResults: ThrowResult[] = [];
+    requestsInstant.forEach((req) => {
+      const faces = parseInt(req.type.substring(1));
+      for (let i = 0; i < req.count; i++) {
+        instantResults.push({
+          type: req.type,
+          value: Math.floor(Math.random() * faces) + 1,
+          ...(req.tag ? { tag: req.tag } : {}),
+        });
+      }
+    });
+
+    const total3DDice = requests3D.reduce((sum, r) => sum + r.count, 0);
+
+    if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 15) {
+      const simulatedResults: ThrowResult[] = [];
+      requests3D.forEach((req) => {
+        for (let i = 0; i < req.count; i++) {
+          simulatedResults.push({
+            type: req.type,
+            value: Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1,
+            ...(req.tag ? { tag: req.tag } : {}),
+          });
+        }
+      });
+      return Promise.resolve([...simulatedResults, ...instantResults]);
+    }
+    const rollId = crypto.randomUUID();
+    return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => {
+        if (pendingRollsRef.current.has(rollId)) {
+          console.warn('Roll timed out, generating fallback values');
+          const fallbackResults: ThrowResult[] = [];
+
+          requests3D.forEach((req) => {
+            const faces = parseInt(req.type.substring(1));
+            for (let i = 0; i < req.count; i++) {
+              fallbackResults.push({
+                type: req.type,
+                value: Math.floor(Math.random() * faces) + 1,
+                ...(req.tag ? { tag: req.tag } : {}),
+              });
+            }
+          });
+          pendingRollsRef.current.delete(rollId);
+          resolve([...fallbackResults, ...instantResults]);
+        }
+      }, 10000);
+
+      pendingRollsRef.current.set(rollId, (results3D) => {
+        clearTimeout(timeoutId);
+        resolve([...results3D, ...instantResults]);
+      });
+
+      window.dispatchEvent(
+        new CustomEvent('vtt-trigger-3d-roll', {
+          detail: {
+            rollId,
+            requests: requests3D,
+            skinId: selectedSkinId,
+          },
+        }),
+      );
+    });
+  };
+
+  // Jet de dés à SYMBOLES : une requête 3D PAR TYPE de dé (pas par forme), chacune avec son skin,
+  // ses symboles de faces et un tag echoé dans chaque résultat pour réassocier les valeurs au bon
+  // type même quand deux types partagent la même forme physique (ex Aptitude et Difficulté, tous
+  // deux d8). Le numéro sur lequel le dé atterrit EST le numéro de face du dé à symboles (jamais de
+  // résultat pré-tiré "corrigé" à l'atterrissage). Le calcul (annulations, nets...) est fait par
+  // le service avec ces faces.
+  const rollSymbolDiceNotation = async (
+    symbolRequests: { die: SymbolDieDefinition; count: number }[],
+  ): Promise<PhysicalResult[]> => {
+    // Une entrée par dé à lancer, avec sa forme physique numérique (d<nb de faces> : Aptitude →
+    // d8, Maîtrise → d12, Fortune → d6...).
+    const entries: { die: SymbolDieDefinition; shape: string }[] = [];
+    for (const { die, count } of symbolRequests) {
+      for (let i = 0; i < count; i++) entries.push({ die, shape: `d${die.faces.length}` });
+    }
+
+    const requestsByKind = new Map<string, ThrowRequest & { tag: string }>();
+    entries.forEach((e) => {
+      const existing = requestsByKind.get(e.die.key);
+      if (existing) existing.count += 1;
+      else {
+        const faces = symbolFaces3D(e.die.key, system, presentation);
+        requestsByKind.set(e.die.key, {
+          type: e.shape,
+          count: 1,
+          ...(e.die.skinId ? { skinId: e.die.skinId } : {}),
+          tag: e.die.key,
+          ...(faces ? { faces } : {}),
+        });
+      }
+    });
+    const physical = await perform3DRoll([...requestsByKind.values()]);
+
+    const byTag = new Map<string, number[]>();
+    physical.forEach((r) => {
+      const key = r.tag ?? r.type;
+      if (!byTag.has(key)) byTag.set(key, []);
+      byTag.get(key)!.push(r.value);
+    });
+    return entries.map((e) => {
+      const value =
+        byTag.get(e.die.key)?.shift() ??
+        byTag.get(e.shape)?.shift() ??
+        Math.floor(Math.random() * e.die.faces.length) + 1;
+      return { type: e.die.key, value };
+    });
   };
 
   const handleRoll = async (notationOverride?: string) => {
@@ -404,17 +583,25 @@ export const DiceRoller = ({
 
     setIsLoading(true);
     try {
-      // Le serveur tire le jet (aléatoire cryptographique) et l'enregistre dans l'historique :
-      // il remplace les caractéristiques (`+ FOR`) par celles du personnage et lit les dés à
-      // symboles (`2aptitude`) du système.
+      const symbolRequests = parseSymbolDiceRequests(notation);
+      const requests = symbolRequests.length === 0 ? parseDiceRequests(notation) : [];
+
+      // Les dés roulent d'abord : leurs faces, lues à l'arrêt, font le jet.
+      const physicalResults: PhysicalResult[] =
+        symbolRequests.length > 0
+          ? await rollSymbolDiceNotation(symbolRequests)
+          : (await perform3DRoll(requests)).map((r) => ({ type: r.type, value: r.value }));
+
+      // Puis le service calcule le jet avec ces faces (caractéristiques `+ FOR` du personnage,
+      // dés à symboles du système, critiques) et l'enregistre dans l'historique.
       const roll = await createRoll({
         notation,
         systemId: system.source.id,
+        physicalResults,
         ...(roomId ? { campaignId: roomId, isPrivate, isBlind } : {}),
         ...(rollCharacter ? { characterId: rollCharacter.id } : {}),
       });
       history.push(roll);
-      await perform3DRoll(roll);
       const rolled = toHistoryRoll(roll, avatars);
 
       // Notifications
@@ -609,8 +796,6 @@ export const DiceRoller = ({
 
   return (
     <>
-      {/* Animation 3D (visuel seulement : le résultat vient du serveur) */}
-      {show3DAnimations && <Throw3D ref={thrower} />}
       <Toaster />
       <div
         className={
