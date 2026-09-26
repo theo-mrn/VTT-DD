@@ -1,10 +1,10 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { CreationAssistant } from '@/components/sheet/creation/assistant';
+import { CreationWizard } from '@/components/creation/wizard';
+import { CharacterPage } from '@/components/sheet/character-page';
 import { SheetHeader } from '@/components/sheet/header';
 import { ThemeFrame } from '@/components/sheet/sheet';
-import { CharacterPage } from '@/components/sheet/character-page';
 
 export default function CreationPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,8 +12,9 @@ export default function CreationPage() {
     <CharacterPage id={id}>
       <div className="space-y-6">
         <SheetHeader page="creation" />
-        <ThemeFrame>
-          <CreationAssistant />
+        {/* Plus large que la page (grille des entrées et aperçu côte à côte), comme l'ancienne création */}
+        <ThemeFrame className="p-3 sm:p-6 lg:mx-[calc(50%_-_min(47.5vw,50rem))]">
+          <CreationWizard />
         </ThemeFrame>
       </div>
     </CharacterPage>
