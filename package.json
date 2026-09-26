@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "bash infra/postgres/liquibase/migrate.sh",
+    "import:firebase": "bash infra/local/import-firebase.sh",
     "prepare": "husky || true",
     "dev:down": "docker compose -f infra/local/docker-compose.yml --profile \"*\" down",
     "dev:legacy": "pnpm --filter @vtt/legacy dev"
