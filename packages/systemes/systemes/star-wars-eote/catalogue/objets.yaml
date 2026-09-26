@@ -208,5 +208,13 @@
   nom: Stimpack
   description: >-
     Injection médicale : soigne 5 blessures, 1 de moins par stimpack déjà reçu dans la journée
-    (action « Stimpack »). Sans effet sur un droïde.
+    (action « Stimpack », qui en consomme un). Sans effet sur un droïde. Se possède en quantité.
   champs: { encombrement: 0, prix: 25, rarete: 1 }
+
+- id: recharge
+  sorte: objet
+  nom: Recharge supplémentaire
+  description: >-
+    Cellule d'énergie ou chargeur de rechange : annule un « à court de munitions » (Désespoir ou
+    Menaces dépensées). Se possède en quantité.
+  champs: { encombrement: 1, prix: 25, rarete: 1 }

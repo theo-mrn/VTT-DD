@@ -89,9 +89,11 @@ entites:
       # ─── Progression ───
       - cle: niveau
         nom: Niveau
+        description: Fixé par le MJ au passage de niveau.
         nature: base
         defaut: 1
         min: 1
+        saisie: mj
         groupe: progression
       - cle: deVie
         nom: Dé de vie
@@ -102,10 +104,12 @@ entites:
       - cle: jetsDeVie
         nom: Jets de dés de vie
         description: >-
-          Somme des dés de vie tirés : un à la création, puis un à chaque passage de niveau.
+          Somme des dés de vie tirés : un à la création, puis un à chaque passage de niveau (saisi
+          par le MJ).
         nature: base
         defaut: 0
         min: 0
+        saisie: mj
         groupe: progression
 
       # ─── Combat ───
@@ -204,11 +208,13 @@ entites:
       - cle: bourse
         nom: Pièces reçues (pa)
         description: >-
-          Total des pièces d'argent reçues depuis la création. Les achats
-          d'équipement sont décomptés au journal : le reste est la monnaie « pa ».
+          Total des pièces d'argent reçues depuis la création, saisi en jeu par le
+          joueur ou le MJ. Les achats d'équipement sont décomptés au journal : le
+          reste est la monnaie « pa ».
         nature: base
         defaut: 0
         min: 0
+        saisie: jeu
         groupe: equipement
       - cle: ArmurePortee
         nom: Armures portées
@@ -288,8 +294,13 @@ sortes:
     champs: *champs-capacite
   - id: arme
     nom: Arme
+    description: >-
+      Se possède en quantité (dagues, javelots) ; une arme à part (dague +1)
+      est un exemplaire distinct, avec ses effets et son état propres.
     pour: [personnage]
     activable: true
+    exemplaires: true
+    quantites: true
     champs:
       - { id: attaque, nom: Attaque utilisée, type: attribut, entite: personnage }
       - { id: nbDes, nom: Nombre de dés de dégâts, type: nombre, defaut: 1 }
@@ -300,9 +311,13 @@ sortes:
       - { id: prix, nom: Prix (pa), type: nombre }
   - id: armure
     nom: Armure ou bouclier
-    description: Les armures ne se cumulent pas entre elles, les boucliers non plus ; un bouclier s'ajoute à l'armure.
+    description: >-
+      Les armures ne se cumulent pas entre elles, les boucliers non plus ; un
+      bouclier s'ajoute à l'armure. Deux exemplaires d'une même protection sont
+      possibles (une portée, une de rechange).
     pour: [personnage]
     activable: true
+    exemplaires: true
     champs:
       - { id: def, nom: Bonus de DEF, type: nombre, defaut: 0 }
       - { id: bouclier, nom: Bouclier, type: booleen, defaut: false }

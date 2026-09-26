@@ -109,7 +109,7 @@ describe('Star Wars — Aux confins de l’Empire : chargement', () => {
     expect(parSorte('talent')).toHaveLength(138);
     expect(parSorte('arme')).toHaveLength(30); // 29 du bundle + mains nues
     expect(parSorte('armure')).toHaveLength(11);
-    expect(parSorte('objet')).toHaveLength(18); // 17 du bundle + stimpack
+    expect(parSorte('objet')).toHaveLength(19); // 17 du bundle + stimpack + recharge
     expect(parSorte('accessoire')).toHaveLength(11);
     expect(parSorte('devise')).toHaveLength(6);
     expect(parSorte('modele')).toHaveLength(34);
@@ -1038,7 +1038,19 @@ describe('Soins et récupération', () => {
     expect(r.modifications).toEqual([
       { entite: 'cible', attribut: 'blessures', operation: 'retirer', valeur: 4 },
       { entite: 'cible', attribut: 'stimpacksDuJour', operation: 'ajouter', valeur: 1 },
+      { entite: 'acteur', entree: 'stimpack', operation: 'retirer', rangs: 1 },
     ]);
+    // Le stimpack injecté est consommé : une unité de moins, plus rien à la dernière
+    const trois = fiche(
+      etat({ possessions: [{ entree: 'bothan' }, { entree: 'stimpack', quantite: 3 }] }),
+    );
+    const apres = appliquerModifications(trois, r.modifications, 'acteur');
+    expect(apres.possessions.find((p) => p.entree === 'stimpack')?.quantite).toBe(2);
+    expect(
+      appliquerModifications(medecin, r.modifications, 'acteur').possessions.some(
+        (p) => p.entree === 'stimpack',
+      ),
+    ).toBe(false);
     const sans = executerAction(systeme, {
       action: 'stimpack',
       acteur: fiche(wookiee()),
@@ -1610,5 +1622,67 @@ describe('Véhicules', () => {
     expect(
       ['defenseAvant', 'defenseBabord', 'defenseTribord', 'defenseArriere'].map((k) => f.valeur(k)),
     ).toEqual([2, 1, 1, 2]);
+  });
+});
+
+describe('Équipement : crédits, exemplaires et quantités', () => {
+  it('achat au prix en crédits ; une arme rachetée est un second exemplaire', () => {
+    const depart = etat({ possessions: [{ entree: 'bothan' }], valeurs: { credits: 1000 } });
+    const e = acheterTout(depart, [
+      ['acheter-arme', 'pistolet-blaster'],
+      ['acheter-arme', 'pistolet-blaster'],
+      ['acheter-objet', 'stimpack'],
+      ['acheter-objet', 'stimpack'],
+    ]);
+    expect(
+      e.possessions.filter((p) => p.entree === 'pistolet-blaster').map((p) => p.exemplaire),
+    ).toEqual([undefined, '2']);
+    expect(e.possessions.find((p) => p.entree === 'stimpack')?.quantite).toBe(2);
+    const f = fiche(e);
+    expect(solde(f, 'credits')).toBe(1000 - 2 * 400 - 2 * 25);
+    expect(f.valeur('encombrement')).toBe(2);
+    const trop = acheter(systeme, e, { achat: 'acheter-arme', objet: 'pistolet-blaster' });
+    expect(trop.ok).toBe(false);
+  });
+
+  it('encombrement : objets portés multipliés par leur quantité, objets rangés exclus', () => {
+    const f = fiche(
+      etat({
+        possessions: [
+          { entree: 'bothan' },
+          { entree: 'recharge', quantite: 3 },
+          { entree: 'recharge', exemplaire: 'vaisseau', quantite: 10, actif: false },
+        ],
+      }),
+    );
+    expect(f.valeur('encombrement')).toBe(3);
+    expect(f.possessions.get('recharge')?.quantite).toBe(13);
+  });
+
+  it('deux Obligations du même type s’additionnent ; les critiques restent à rangs', () => {
+    const f = fiche(
+      etat({
+        possessions: [
+          { entree: 'dette', champs: { valeur: 10 } },
+          { entree: 'dette', exemplaire: 'jabba', champs: { valeur: 5 } },
+          { entree: 'egratignure', rang: 2 },
+        ],
+      }),
+    );
+    expect(f.valeur('obligation')).toBe(15);
+    expect(f.valeur('critiquesSubis')).toBe(2);
+    expect(f.erreurs).toEqual([]);
+    expect(systeme.sortes.get('blessureCritique')?.exemplaires).toBe(false);
+  });
+
+  it('XP gagnée saisie par le MJ, crédits par le joueur', () => {
+    const attributs = systeme.entites.get('personnage')!.attributs;
+    const saisie = (cle: string) => {
+      const a = attributs.get(cle);
+      return a?.nature === 'base' ? a.saisie : undefined;
+    };
+    expect(saisie('xpGagne')).toBe('mj');
+    expect(saisie('credits')).toBe('jeu');
+    expect(saisie('vigueur')).toBe('creation');
   });
 });

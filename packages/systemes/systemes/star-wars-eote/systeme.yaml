@@ -266,11 +266,11 @@ entites:
       - cle: encombrement
         nom: Encombrement porté
         description: >-
-          Armes et armures équipées (actives), plus tous les objets. Une armure portée compte 3 points
-          d'encombrement de moins.
+          Armes, armures et objets portés (actifs), chacun multiplié par sa quantité. Une armure portée
+          compte 3 points d'encombrement de moins.
         nature: derivee
         formule: >-
-          somme_actifs("arme", "encombrement") + somme("objet", "encombrement")
+          somme_actifs("arme", "encombrement") + somme_actifs("objet", "encombrement")
           + max(0, somme_actifs("armure", "encombrement") - 3 * compte_actifs("armure"))
         groupe: equipement
       - cle: excedentEncombrement
@@ -285,16 +285,27 @@ entites:
         type: booleen
         formule: '@excedentEncombrement > 0'
         groupe: equipement
-      - { cle: credits, nom: Crédits, nature: base, defaut: 500, min: 0, groupe: equipement }
+      - cle: credits
+        nom: Crédits reçus
+        description: >-
+          Total des crédits reçus depuis la création, saisi en jeu par le joueur ou le MJ. Les achats
+          d'équipement sont décomptés au journal : le reste est la monnaie « Crédits ».
+        nature: base
+        defaut: 500
+        min: 0
+        saisie: jeu
+        groupe: equipement
 
       # ─── Expérience et Obligation ───────────────────────────────────────
       - { cle: xpDepart, nom: XP de départ, nature: base, defaut: 110, groupe: progression }
       - {
           cle: xpGagne,
           nom: XP gagnée en jeu,
+          description: Attribuée par le MJ au fil des séances.,
           nature: base,
           defaut: 0,
           min: 0,
+          saisie: mj,
           groupe: progression,
         }
       - cle: obligation
@@ -484,8 +495,11 @@ sortes:
   - id: obligation
     nom: Obligation
     nomPluriel: Obligations
-    description: Dette ou engagement qui ancre le personnage dans la galaxie (valeur propre à chaque personnage).
+    description: >-
+      Dette ou engagement qui ancre le personnage dans la galaxie (valeur propre à chaque personnage) ;
+      deux Obligations du même type sont deux exemplaires.
     pour: [personnage]
+    exemplaires: true
     champs:
       - { id: valeur, nom: Valeur, type: nombre, defaut: 10 }
       - { id: detail, nom: Détail, type: texte, defaut: '' }
@@ -510,8 +524,10 @@ sortes:
   - id: arme
     nom: Arme
     nomPluriel: Armes
+    description: Chaque exemplaire a son état (dégainée), ses champs et ses modifications.
     pour: [personnage]
     activable: true
+    exemplaires: true
     champs:
       - { id: competence, nom: Compétence, type: entree, sorte: competence }
       - { id: degats, nom: Dégâts, type: formule, defaut: '0' }
@@ -545,6 +561,7 @@ sortes:
     nomPluriel: Armures
     pour: [personnage]
     activable: true
+    exemplaires: true
     champs:
       - { id: defense, nom: Défense, type: nombre, defaut: 0 }
       - { id: encaissement, nom: Encaissement, type: nombre, defaut: 0 }
@@ -554,7 +571,13 @@ sortes:
   - id: objet
     nom: Objet
     nomPluriel: Équipement
+    description: >-
+      Porté (actif) ou rangé ; seuls les objets portés comptent dans l'encombrement. Les consommables
+      (stimpacks, recharges) se possèdent en quantité.
     pour: [personnage]
+    activable: true
+    exemplaires: true
+    quantites: true
     champs:
       - { id: encombrement, nom: Encombrement, type: nombre, defaut: 0 }
       - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
@@ -562,8 +585,11 @@ sortes:
   - id: accessoire
     nom: Accessoire
     nomPluriel: Accessoires
-    description: Modification installée sur une arme ou une armure, qui occupe des points de fixation.
+    description: >-
+      Modification installée (active) sur une arme ou une armure, qui occupe des points de fixation.
     pour: [personnage]
+    activable: true
+    exemplaires: true
     champs:
       - { id: pourType, nom: S'installe sur, type: texte }
       - { id: pointsFixation, nom: Points de fixation, type: nombre, defaut: 1 }
@@ -572,7 +598,9 @@ sortes:
   - id: devise
     nom: Devise
     nomPluriel: Devises
+    description: Monnaie locale, possédée en quantité ; les crédits galactiques sont la monnaie « Crédits ».
     pour: [personnage]
+    quantites: true
     champs:
       - { id: valeurCredits, nom: Valeur en crédits, type: nombre, defaut: 1 }
       - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
@@ -614,6 +642,7 @@ monnaies:
       total: '@xpDepart + @xpGagne + somme("obligation", "supplement")',
       pour: [personnage],
     }
+  - { id: credits, nom: Crédits, total: '@credits', pour: [personnage] }
 
 achats:
   - id: caracteristique
@@ -643,6 +672,32 @@ achats:
     obtient: { type: noeud }
     monnaie: xp
     cout: '0'
+  # Équipement au prix du catalogue, en crédits. Racheter une arme ou une armure donne un
+  # exemplaire de plus ; racheter un objet déjà possédé, une unité de plus.
+  - id: acheter-arme
+    nom: Acheter une arme
+    description: Au prix de l'arme, en crédits.
+    obtient: { type: entree, sorte: arme }
+    monnaie: credits
+    cout: entree.prix
+  - id: acheter-armure
+    nom: Acheter une armure
+    description: Au prix de l'armure, en crédits.
+    obtient: { type: entree, sorte: armure }
+    monnaie: credits
+    cout: entree.prix
+  - id: acheter-objet
+    nom: Acheter un objet
+    description: Au prix de l'objet, en crédits ; un consommable déjà possédé gagne une unité.
+    obtient: { type: entree, sorte: objet }
+    monnaie: credits
+    cout: entree.prix
+  - id: acheter-accessoire
+    nom: Acheter un accessoire
+    description: Au prix de l'accessoire, en crédits.
+    obtient: { type: entree, sorte: accessoire }
+    monnaie: credits
+    cout: entree.prix
 
 creation:
   - entite: personnage
@@ -1333,11 +1388,11 @@ actions:
 
   - id: stimpack
     nom: Stimpack
-    description: >-
-      Injection sans jet : soigne 5 blessures, 1 de moins par stimpack déjà reçu par la cible dans la
-      journée. Sans effet sur un droïde.
     pour: [personnage]
     cible: personnage
+    description: >-
+      Injection sans jet : soigne 5 blessures, 1 de moins par stimpack déjà reçu par la cible dans la
+      journée. Sans effet sur un droïde. Consomme un stimpack de l'acteur.
     exige: possede("stimpack")
     jet: { type: symboles, pool: [] }
     apres:
@@ -1358,6 +1413,7 @@ actions:
           operation: ajouter,
           valeur: 1,
         }
+      - { condition: non @cible.inorganique, entite: acteur, entree: stimpack, operation: retirer }
 
   - id: recuperation
     nom: Récupération de stress

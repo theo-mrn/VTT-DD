@@ -109,11 +109,13 @@ fiches:
       - { type: possessions, titre: Compétences, sorte: competence }
       - { type: arbres, titre: Talents }
       - { type: possessions, titre: Talents acquis, sorte: talent }
-      - { type: monnaies, titre: Expérience }
+      - { type: monnaies, titre: Expérience et crédits }
       - { type: possessions, titre: Obligation, sorte: obligation }
       - { type: possessions, titre: Armes, sorte: arme }
       - { type: possessions, titre: Armures, sorte: armure }
       - { type: possessions, titre: Objets, sorte: objet }
+      - { type: possessions, titre: Accessoires, sorte: accessoire }
+      - { type: possessions, titre: Devises, sorte: devise }
       - { type: attributs, titre: Équipement et crédits, groupe: equipement }
       - { type: attributs, titre: Bonus de combat, groupe: combat }
       - { type: possessions, titre: Blessures critiques, sorte: blessureCritique }

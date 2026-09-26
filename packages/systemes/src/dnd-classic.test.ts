@@ -1136,3 +1136,51 @@ describe('dnd-classic : dégâts typés et états', () => {
     expect(Number(dansant.valeur('Defense'))).toBe(Number(grok().valeur('Defense')) - 4);
   });
 });
+
+describe('dnd-classic : exemplaires et quantités', () => {
+  it('dagues en quantité, une dague +1 à part ; bourse et niveau saisis en jeu', () => {
+    const e = EtatEntite.parse({
+      type: 'personnage',
+      systeme: { id: 'dnd-classic', version: '1.0.0' },
+      valeurs: { bourse: 20 },
+    });
+    let suivant = e;
+    for (let i = 0; i < 3; i++) {
+      const r = acheter(systeme, suivant, { achat: 'acheter-arme', objet: 'dague' });
+      if (!r.ok) throw new Error(r.erreur);
+      suivant = r.etat;
+    }
+    expect(suivant.possessions.map((p) => [p.entree, p.quantite])).toEqual([['dague', 3]]);
+    const plus1 = {
+      ...suivant,
+      possessions: [
+        ...suivant.possessions,
+        {
+          entree: 'dague',
+          exemplaire: 'plus1',
+          rang: 0,
+          actif: true,
+          choix: {},
+          champs: {},
+          effets: [
+            {
+              sur: 'attribut' as const,
+              attribut: 'Contact',
+              operation: 'ajouter' as const,
+              valeur: '1',
+            },
+          ],
+        },
+      ],
+    };
+    const f = calculer(systeme, plus1);
+    expect(f.erreurs).toEqual([]);
+    expect(f.sources.map((s) => s.id)).toContain('dague#plus1');
+    const attributs = systeme.entites.get('personnage')!.attributs;
+    const saisie = (cle: string) => {
+      const a = attributs.get(cle);
+      return a?.nature === 'base' ? a.saisie : undefined;
+    };
+    expect([saisie('bourse'), saisie('niveau'), saisie('jetsDeVie')]).toEqual(['jeu', 'mj', 'mj']);
+  });
+});
