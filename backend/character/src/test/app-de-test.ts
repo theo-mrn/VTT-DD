@@ -1,0 +1,101 @@
+/**
+ * Service character complet pour les tests, avec des jetons signés par une
+ * clé générée pour le test (comme ceux d'identity). Branché sur le PostgreSQL
+ * de TEST_DATABASE_URL (rôle characters_svc) pour les tests d'intégration.
+ * Chaque test utilise des utilisateurs neufs et supprime ensuite leurs
+ * personnages : les tests peuvent tourner en même temps sur la même base.
+ */
+import { loadConfig } from '@vtt/platform';
+import { aleatoireCrypto, type Generateur } from '@vtt/rules';
+import { inArray, sql } from 'drizzle-orm';
+import { generateKeyPair, SignJWT } from 'jose';
+import { buildCharacter } from '../app.js';
+import { CharacterConfig } from '../config.js';
+import { createDb } from '../db/client.js';
+import { characters, outbox } from '../db/schema.js';
+
+export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
+
+const ISSUER = 'https://auth.test.local';
+const AUDIENCE = 'vtt-api';
+
+/**
+ * Générateur de test : rejoue les résultats imposés (`imposer`), puis tire au
+ * hasard. Les résultats imposés hors des faces du dé sont ignorés.
+ */
+export function aleatoirePilote() {
+  const file: number[] = [];
+  const hasard = aleatoireCrypto();
+  const generateur: Generateur = {
+    entier: (max) => {
+      while (file.length) {
+        const r = file.shift()!;
+        if (r >= 1 && r <= max) return r;
+      }
+      return hasard.entier(max);
+    },
+  };
+  /** Remplace les résultats imposés restants (ceux d'un jet précédent ne débordent pas). */
+  const imposer = (...des: number[]) => {
+    file.length = 0;
+    file.push(...des);
+  };
+  return { generateur, imposer };
+}
+
+export async function appDeTest(surcharges: Record<string, string> = {}) {
+  const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
+  const connexion = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
+  const des = aleatoirePilote();
+  const app = await buildCharacter(
+    loadConfig(CharacterConfig, {
+      NODE_ENV: 'test',
+      LOG_LEVEL: 'silent',
+      DATABASE_URL: TEST_DATABASE_URL ?? 'postgres://absent@localhost:1/aucune',
+      JWT_ISSUER: ISSUER,
+      JWT_AUDIENCE: AUDIENCE,
+      ...surcharges,
+    }),
+    {
+      authKeyResolver: async () => publicKey,
+      aleatoire: () => des.generateur,
+      ...(connexion ? { db: connexion.db } : {}),
+    },
+  );
+
+  const utilisateurs: string[] = [];
+
+  /** Nouvel utilisateur (identifiant aléatoire) et son en-tête d'autorisation. */
+  async function utilisateur() {
+    const id = crypto.randomUUID();
+    utilisateurs.push(id);
+    const jeton = await new SignJWT({ roles: ['user'] })
+      .setProtectedHeader({ alg: 'EdDSA' })
+      .setSubject(id)
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setExpirationTime('5m')
+      .sign(privateKey);
+    return { id, auth: { authorization: `Bearer ${jeton}` } };
+  }
+
+  async function fermer() {
+    await app.close();
+    if (connexion && utilisateurs.length) {
+      const db = connexion.db;
+      const ids = (
+        await db
+          .select({ id: characters.id })
+          .from(characters)
+          .where(inArray(characters.ownerId, utilisateurs))
+      ).map((l) => l.id);
+      if (ids.length) {
+        await db.delete(outbox).where(inArray(sql`${outbox.envelope}->'aggregate'->>'id'`, ids));
+        await db.delete(characters).where(inArray(characters.id, ids));
+      }
+    }
+    await connexion?.pool.end();
+  }
+
+  return { app, db: connexion?.db, des, utilisateur, fermer };
+}
