@@ -2,11 +2,16 @@
  * Action d'un personnage (jets tirés par le serveur), partagée par la route
  * publique et la route interne appelée par campaign (initiative). Les droits
  * sont vérifiés par l'appelant avant.
+ *
+ * Une fois l'action enregistrée, son jet est transmis au service dice pour
+ * l'historique des jets (campagne `campaignId`, sinon jet personnel), sans
+ * attendre ni échouer si dice ne répond pas.
  */
 import { HttpError } from '@vtt/platform';
 import type { Valeur } from '@vtt/rules';
 import type { EventContext } from '../../db/outbox.js';
 import type { Deps } from '../../deps.js';
+import { jetPourDes, type VisibiliteJet } from '../../des/dice.js';
 import { resoudreAction, verifierEtat } from '../../regles/operations.js';
 import {
   enregistrer,
@@ -25,6 +30,9 @@ export interface DemandeAction {
   parametres?: Record<string, Valeur>;
   cibleId?: string;
   appliquer: boolean;
+  /** Historique des jets : campagne où le jet apparaît, et sa visibilité. */
+  campaignId?: string;
+  visibility?: VisibiliteJet;
 }
 
 export interface ActionJouee {
@@ -36,7 +44,7 @@ export interface ActionJouee {
 }
 
 export async function jouerAction(
-  deps: Pick<Deps, 'db' | 'catalogue' | 'aleatoire'>,
+  deps: Pick<Deps, 'db' | 'catalogue' | 'aleatoire' | 'des'>,
   ctx: EventContext,
   appelant: Appelant,
   demande: DemandeAction,
@@ -46,7 +54,8 @@ export async function jouerAction(
   const memeEntite = cibleId === id;
   const ids = cibleId && !memeEntite ? [id, cibleId] : [id];
 
-  return db.transaction(async (tx) => {
+  let jet: Parameters<typeof jetPourDes> | undefined;
+  const joue = await db.transaction(async (tx): Promise<ActionJouee> => {
     // En lecture seule, pas de verrou ; pour appliquer, acteur et cible sont
     // verrouillés ensemble jusqu'à la fin de la transaction
     const lignes = appliquer
@@ -111,6 +120,19 @@ export async function jouerAction(
       ...(r.cles ? { cles: r.cles } : {}),
     });
 
+    // Auteur du jet : l'utilisateur qui agit (pas de jet transmis pour un appel du système)
+    if (appelant.userId)
+      jet = [
+        systeme,
+        acteur,
+        r.resultat,
+        {
+          authorId: appelant.userId,
+          ...(demande.campaignId ? { campaignId: demande.campaignId } : {}),
+          ...(demande.visibility ? { visibility: demande.visibility } : {}),
+        },
+      ];
+
     const base = { resultat: r.resultat, ...(r.cles ? { cles: r.cles } : {}) };
     if (!appliquer) return base;
     return {
@@ -119,4 +141,8 @@ export async function jouerAction(
       ...(cibleFinale ? { cible: versApi(catalogue, memeEntite ? acteurFinal : cibleFinale) } : {}),
     };
   });
+
+  // Après validation de la transaction : un jet d'une action annulée n'est jamais transmis
+  if (jet) void deps.des.transmettre(jetPourDes(...jet), ctx.correlationId);
+  return joue;
 }

@@ -501,6 +501,12 @@ export const register: Module = async (app, deps) => {
             parametres: Valeurs.optional(),
             cibleId: IdPersonnage.optional(),
             appliquer: z.boolean().optional(),
+            /** Historique des jets (service dice) : campagne du jet et visibilité. */
+            campaignId: z
+              .uuid('Identifiant de campagne invalide')
+              .transform((s) => s.toLowerCase())
+              .optional(),
+            visibility: z.enum(['public', 'private', 'gm', 'self']).optional(),
           })
           .default({}),
         response: {
@@ -516,7 +522,7 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { id, action } = req.params;
-      const { parametres, cibleId, appliquer = false } = req.body;
+      const { parametres, cibleId, appliquer = false, campaignId, visibility } = req.body;
       // Agir avec un personnage demande de pouvoir le modifier ; la cible doit
       // être lisible, et modifiable si les conséquences lui sont appliquées
       const demandes: { id: string; mode: Mode }[] = [{ id, mode: 'ecriture' }];
@@ -533,6 +539,8 @@ export const register: Module = async (app, deps) => {
           ...(parametres ? { parametres } : {}),
           ...(cibleId ? { cibleId } : {}),
           appliquer,
+          ...(campaignId ? { campaignId } : {}),
+          ...(visibility ? { visibility } : {}),
         },
       );
     },

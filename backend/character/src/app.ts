@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import type { CharacterConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
+import { journalDes, sansDes } from './des/dice.js';
 import { droitsCampaign, sansCampagnes } from './droits/campaign.js';
 import { register as interne } from './modules/interne/index.js';
 import { register as personnages } from './modules/personnages/index.js';
@@ -13,7 +14,7 @@ import { catalogueReference, type Catalogue } from './regles/catalogue.js';
 export async function buildCharacter(
   config: CharacterConfig,
   extra: Omit<ServiceOptions, 'config'> &
-    Partial<Pick<Deps, 'aleatoire' | 'maintenant' | 'droits'>> & {
+    Partial<Pick<Deps, 'aleatoire' | 'maintenant' | 'droits' | 'des'>> & {
       db?: Db;
       catalogue?: Catalogue;
     } = {},
@@ -24,6 +25,7 @@ export async function buildCharacter(
     aleatoire,
     maintenant,
     droits,
+    des,
     ...options
   } = extra;
   if (!config.JWKS_URL && !options.authKeyResolver) {
@@ -52,6 +54,7 @@ export async function buildCharacter(
     aleatoire: aleatoire ?? aleatoireCrypto,
     maintenant: maintenant ?? (() => new Date()),
     droits: droits ?? droitsDesCampagnes(config, app.log),
+    des: des ?? journalDesJets(config, app.log),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
@@ -80,5 +83,22 @@ function droitsDesCampagnes(
     cacheMs: config.DROITS_CACHE_MS,
     signaler: (erreur) =>
       log.warn({ erreur: (erreur as Error).message }, 'campaign injoignable : droits refusés'),
+  });
+}
+
+/** Jets d'action transmis à dice s'il est configuré ; un échec est journalisé, jamais bloquant. */
+function journalDesJets(config: CharacterConfig, log: { warn: (o: object, m: string) => void }) {
+  if (!config.DICE_URL || !config.INTERNAL_API_SECRET) {
+    log.warn({}, "DICE_URL ou INTERNAL_API_SECRET absent : jets d'action absents de l'historique");
+    return sansDes;
+  }
+  return journalDes({
+    url: config.DICE_URL,
+    secret: config.INTERNAL_API_SECRET,
+    signaler: (erreur, jet) =>
+      log.warn(
+        { erreur: (erreur as Error).message, ...jet },
+        "dice injoignable : jet d'action absent de l'historique",
+      ),
   });
 }

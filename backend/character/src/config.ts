@@ -32,6 +32,11 @@ export const CharacterConfig = BaseConfig.extend({
    * propriétaire accède à ses personnages.
    */
   CAMPAIGN_URL: facultatif(z.string().url()),
+  /**
+   * Service dice : chaque jet d'action lui est transmis (POST /internal/rolls)
+   * pour l'historique des jets. Absent : les jets d'action n'y apparaissent pas.
+   */
+  DICE_URL: facultatif(z.string().url()),
   /** Durée de vie en mémoire des droits renvoyés par campaign, en millisecondes. */
   DROITS_CACHE_MS: z.coerce.number().int().nonnegative().default(5_000),
 });

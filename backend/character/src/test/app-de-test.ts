@@ -13,6 +13,7 @@ import { buildCharacter } from '../app.js';
 import { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { characters, outbox } from '../db/schema.js';
+import type { JetAction, JournalDes } from '../des/dice.js';
 import type { Droits, DroitsCampagnes } from '../droits/campaign.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -62,8 +63,15 @@ export function droitsSimules() {
 
 export async function appDeTest(
   surcharges: Record<string, string> = {},
-  options: { droits?: DroitsCampagnes } = {},
+  options: { droits?: DroitsCampagnes; des?: JournalDes } = {},
 ) {
+  // Jets d'action transmis à dice : gardés pour les vérifier
+  const jets: JetAction[] = [];
+  const journal: JournalDes = {
+    transmettre: async (jet) => {
+      jets.push(jet);
+    },
+  };
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connexion = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
   const des = aleatoirePilote();
@@ -81,6 +89,7 @@ export async function appDeTest(
       aleatoire: () => des.generateur,
       ...(connexion ? { db: connexion.db } : {}),
       ...(options.droits ? { droits: options.droits } : {}),
+      des: options.des ?? journal,
     },
   );
 
@@ -118,5 +127,5 @@ export async function appDeTest(
     await connexion?.pool.end();
   }
 
-  return { app, db: connexion?.db, des, utilisateur, fermer };
+  return { app, db: connexion?.db, des, jets, utilisateur, fermer };
 }
