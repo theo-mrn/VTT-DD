@@ -1,4 +1,5 @@
-# Armures : Défense et Encaissement appliqués quand elles sont équipées (sorte activable).
+# Armures : Défense et Encaissement appliqués quand elles sont portées (sorte activable) ; une armure portée
+# compte 3 points d'encombrement de moins.
 - id: combinaison-de-combat
   sorte: armure
   nom: Combinaison de combat
@@ -21,7 +22,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -49,7 +50,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -77,7 +78,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -105,7 +106,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -133,7 +134,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -161,7 +162,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -189,7 +190,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -217,7 +218,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -245,7 +246,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -273,7 +274,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,
@@ -301,7 +302,7 @@
       }
     - {
         sur: attribut,
-        attribut: encaissement,
+        attribut: encaissementArmure,
         operation: ajouter,
         valeur: source.encaissement,
         famille: armure,

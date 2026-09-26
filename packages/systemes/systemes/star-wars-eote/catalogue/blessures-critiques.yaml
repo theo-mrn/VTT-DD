@@ -1,5 +1,6 @@
 # Blessures critiques (personnages) et dommages critiques (véhicules), donnés par les tables
-# « blessures-critiques » et « dommages-critiques-vehicule ». Chacune compte dans « critiquesSubis ».
+# « blessures-critiques » et « dommages-critiques-vehicule ». Elles se possèdent par rangs (un rang
+# par fois où elles ont été subies) ; la somme des rangs donne « critiquesSubis ».
 - {
     id: egratignure,
     sorte: blessureCritique,

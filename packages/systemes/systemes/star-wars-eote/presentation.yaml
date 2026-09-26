@@ -77,10 +77,11 @@ fiches:
           type: details,
           titre: Profil,
           sortes: [espece, carriere, specialisation],
-          attributs: [nom],
+          attributs: [nom, categorie],
         }
       - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
       - { type: ressources, titre: Vitalité, attributs: [blessures, stress] }
+      - { type: possessions, titre: États, sorte: etat }
       - {
           type: attributs,
           titre: Seuils et défense,
@@ -92,6 +93,7 @@ fiches:
               defenseMelee,
               defenseDistance,
               critiquesSubis,
+              neutralise,
             ],
         }
       - { type: possessions, titre: Compétences, sorte: competence }
@@ -102,7 +104,8 @@ fiches:
       - { type: possessions, titre: Armes, sorte: arme }
       - { type: possessions, titre: Armures, sorte: armure }
       - { type: possessions, titre: Objets, sorte: objet }
-      - { type: attributs, titre: Encombrement, groupe: equipement }
+      - { type: attributs, titre: Équipement et crédits, groupe: equipement }
+      - { type: attributs, titre: Bonus de combat, groupe: combat }
       - { type: possessions, titre: Blessures critiques, sorte: blessureCritique }
       - { type: actions, titre: Actions }
       - { type: texte, titre: Motivation, attribut: motivation }

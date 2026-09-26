@@ -516,3 +516,23 @@
     perforant: 5
     qualites: [degats-etourdissants, defensif, desorientant, perforant]
     detailQualites: Dégâts étourdissants, Défensif 1, Désorientant 2, Perforant 5
+
+# Toujours utilisable sans être possédée (champ « toujoursDisponible »).
+- id: mains-nues
+  sorte: arme
+  nom: Mains nues
+  etiquettes: [melee]
+  description: Pugilat (Corps à corps). Dégâts égaux à la Vigueur. Désorientant 1, Renversement.
+  champs:
+    competence: corps-a-corps
+    degats: '@vigueur'
+    critique: 5
+    portee: Engagée
+    melee: true
+    encombrement: 0
+    prix: 0
+    rarete: 0
+    pointsFixation: 0
+    qualites: [desorientant, renversement]
+    detailQualites: Désorientant 1, Renversement
+    toujoursDisponible: true

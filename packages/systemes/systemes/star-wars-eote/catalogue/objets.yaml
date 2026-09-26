@@ -202,3 +202,11 @@
   nom: Jeton Hutt
   description: Jeton de crédit émis par les clans Hutts pour leurs transactions internes (jeu, contrebande, dettes) — accepté principalement sur Nal Hutta et dans les territoires sous influence hutte.
   champs: { valeurCredits: 5, rarete: 4 }
+
+- id: stimpack
+  sorte: objet
+  nom: Stimpack
+  description: >-
+    Injection médicale : soigne 5 blessures, 1 de moins par stimpack déjà reçu dans la journée
+    (action « Stimpack »). Sans effet sur un droïde.
+  champs: { encombrement: 0, prix: 25, rarete: 1 }

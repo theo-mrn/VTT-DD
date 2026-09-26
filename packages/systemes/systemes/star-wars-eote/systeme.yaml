@@ -18,7 +18,8 @@ entites:
       - { id: caracteristiques, nom: Caractéristiques }
       - { id: seuils, nom: Seuils }
       - { id: defense, nom: Encaissement et Défense }
-      - { id: equipement, nom: Encombrement }
+      - { id: combat, nom: Bonus de combat }
+      - { id: equipement, nom: Équipement }
       - { id: progression, nom: Expérience et Obligation }
       - { id: profil, nom: Profil }
     attributs:
@@ -126,11 +127,22 @@ entites:
         initiale: min
         recuperation: min
         groupe: seuils
+      - cle: neutralise
+        nom: Neutralisé
+        description: >-
+          Blessures ou stress au-delà de leur seuil (texte « Incapacitation ») ; les jauges étant
+          bornées au seuil, l'atteindre vaut dépassement.
+        nature: derivee
+        type: booleen
+        formule: '@blessures >= @seuilBlessure ou @stress >= @seuilStress'
+        groupe: seuils
       - cle: critiquesSubis
         nom: Blessures critiques subies
-        description: Chaque blessure critique subie ajoute +10 au prochain jet sur la table.
+        description: >-
+          Chaque blessure critique subie ajoute +10 au prochain jet sur la table. Une blessure critique
+          se possède par rangs : un rang par fois où elle a été subie.
         nature: derivee
-        formule: compte("blessureCritique")
+        formule: somme_rangs("blessureCritique")
         groupe: seuils
       - cle: resistanceCritique
         nom: Réduction des blessures critiques subies
@@ -139,14 +151,37 @@ entites:
         formule: '0'
         groupe: seuils
         visibilite: mj
+      - cle: reductionStress
+        nom: Réduction du stress subi
+        description: Retranchée au stress subi involontairement, minimum 1 (talent Résolution).
+        nature: derivee
+        formule: '0'
+        groupe: seuils
+        visibilite: mj
+      - cle: stimpacksDuJour
+        nom: Stimpacks reçus aujourd'hui
+        description: Chaque stimpack de la journée soigne 1 blessure de moins ; remis à 0 par le repos.
+        nature: ressource
+        max: '5'
+        initiale: min
+        recuperation: min
+        groupe: seuils
 
       # ─── Encaissement et Défense ────────────────────────────────────────
+      - {
+          cle: encaissementArmure,
+          nom: Encaissement de l'armure portée,
+          nature: derivee,
+          formule: '0',
+          groupe: defense,
+          visibilite: mj,
+        }
       - {
           cle: encaissement,
           nom: Encaissement,
           abrege: ENC,
           nature: derivee,
-          formule: '@vigueur',
+          formule: '@vigueur + @encaissementArmure',
           groupe: defense,
         }
       - {
@@ -163,8 +198,35 @@ entites:
           formule: '0',
           groupe: defense,
         }
+      - cle: couvert
+        nom: Couvert
+        description: Dés de Difficulté ajoutés aux attaques à distance qui visent le personnage.
+        nature: derivee
+        formule: '0'
+        groupe: defense
+      - cle: vulnerabiliteMelee
+        nom: Vulnérabilité au corps à corps
+        description: Dés de Fortune ajoutés aux attaques de mêlée qui visent le personnage (à terre).
+        nature: derivee
+        formule: '0'
+        groupe: defense
+        visibilite: mj
 
-      # ─── Encombrement ───────────────────────────────────────────────────
+      # ─── Bonus de combat (talents, espèces) ─────────────────────────────
+      - cle: bonusDegatsMelee
+        nom: Dégâts supplémentaires en Corps à corps et Mêlée
+        description: Force sauvage, Rage wookiee.
+        nature: derivee
+        formule: '0'
+        groupe: combat
+      - cle: bonusCritique
+        nom: Bonus aux blessures critiques infligées
+        description: Coups mortels (+10 par rang).
+        nature: derivee
+        formule: '0'
+        groupe: combat
+
+      # ─── Équipement ─────────────────────────────────────────────────────
       - {
           cle: seuilEncombrement,
           nom: Seuil d'encombrement,
@@ -174,16 +236,27 @@ entites:
         }
       - cle: encombrement
         nom: Encombrement porté
+        description: >-
+          Armes et armures équipées (actives), plus tous les objets. Une armure portée compte 3 points
+          d'encombrement de moins.
         nature: derivee
-        formule: somme("arme", "encombrement") + somme("armure", "encombrement") + somme("objet", "encombrement")
+        formule: >-
+          somme_actifs("arme", "encombrement") + somme("objet", "encombrement")
+          + max(0, somme_actifs("armure", "encombrement") - 3 * compte_actifs("armure"))
+        groupe: equipement
+      - cle: excedentEncombrement
+        nom: Excédent d'encombrement
+        description: 1 dé d'Infortune par point d'excédent aux tests d'Agilité et de Vigueur.
+        nature: derivee
+        formule: max(0, @encombrement - @seuilEncombrement)
         groupe: equipement
       - cle: surcharge
         nom: Surchargé
-        description: Au-delà du seuil, 1 dé d'Infortune par point d'excédent aux tests d'Agilité et de Vigueur.
         nature: derivee
         type: booleen
-        formule: '@encombrement > @seuilEncombrement'
+        formule: '@excedentEncombrement > 0'
         groupe: equipement
+      - { cle: credits, nom: Crédits, nature: base, defaut: 500, min: 0, groupe: equipement }
 
       # ─── Expérience et Obligation ───────────────────────────────────────
       - { cle: xpDepart, nom: XP de départ, nature: base, defaut: 110, groupe: progression }
@@ -201,9 +274,40 @@ entites:
         nature: derivee
         formule: somme("obligation", "valeur")
         groupe: progression
+      - cle: bonusChoixCarriere
+        nom: Rangs gratuits de carrière supplémentaires
+        description: 'Compétences de carrière supplémentaires à la création (Droïde : +2).'
+        nature: derivee
+        formule: '0'
+        groupe: progression
+        visibilite: mj
+      - cle: bonusChoixSpecialisation
+        nom: Rangs gratuits de spécialisation supplémentaires
+        description: 'Compétences de spécialisation supplémentaires à la création (Droïde : +1).'
+        nature: derivee
+        formule: '0'
+        groupe: progression
+        visibilite: mj
 
       # ─── Profil ─────────────────────────────────────────────────────────
       - { cle: nom, nom: Nom, nature: texte, groupe: profil }
+      - cle: categorie
+        nom: Catégorie
+        nature: choix
+        options:
+          - { valeur: pj, nom: Personnage joueur }
+          - { valeur: sbire, nom: Sbire }
+          - { valeur: rival, nom: Rival }
+          - { valeur: nemesis, nom: Némésis }
+        defaut: pj
+        groupe: profil
+      - cle: inorganique
+        nom: Inorganique
+        description: Droïde - ni Médecine ni stimpack, se répare avec Mécanique.
+        nature: derivee
+        type: booleen
+        formule: faux
+        groupe: profil
       - { cle: motivation, nom: Motivation, nature: texte, groupe: profil }
       - { cle: historique, nom: Historique, nature: texte, multiligne: true, groupe: profil }
 
@@ -291,7 +395,7 @@ entites:
           cle: critiquesSubis,
           nom: Dommages critiques subis,
           nature: derivee,
-          formule: compte("panneCritique"),
+          formule: somme_rangs("panneCritique"),
           groupe: structure,
         }
       - { cle: equipage, nom: Équipage, nature: base, defaut: 1, min: 0, groupe: capacite }
@@ -338,9 +442,16 @@ sortes:
   - id: talent
     nom: Talent
     nomPluriel: Talents
-    description: Obtenu par les nœuds des arbres de spécialisation ; chaque nœud donne un rang.
+    description: >-
+      Obtenu par les nœuds des arbres de spécialisation ; chaque nœud donne un rang. Un talent
+      étiqueté « test » se lance avec l'action « Test de talent » (compétence, caractéristique et
+      difficulté lues sur le talent).
     pour: [personnage]
     rangs: { max: 10 }
+    champs:
+      - { id: competence, nom: Compétence testée, type: entree, sorte: competence }
+      - { id: caracteristique, nom: Caractéristique testée, type: attribut, entite: personnage }
+      - { id: difficulte, nom: Dés de Difficulté, type: formule, defaut: '2' }
   - id: obligation
     nom: Obligation
     nomPluriel: Obligations
@@ -348,10 +459,25 @@ sortes:
     pour: [personnage]
     champs:
       - { id: valeur, nom: Valeur, type: nombre, defaut: 10 }
+      - { id: detail, nom: Détail, type: texte, defaut: '' }
+      - {
+          id: supplement,
+          nom: Obligation supplémentaire prise à la création (autant d'XP de départ),
+          type: nombre,
+          defaut: 0,
+        }
   - id: blessureCritique
     nom: Blessure critique
     nomPluriel: Blessures critiques
+    description: Un rang par fois où la blessure a été subie.
     pour: [personnage]
+    rangs: { max: 10 }
+  - id: etat
+    nom: État
+    nomPluriel: États
+    description: Situation temporaire (désorienté, à terre, à couvert…) ; active tant qu'elle dure.
+    pour: [personnage]
+    activable: true
   - id: arme
     nom: Arme
     nomPluriel: Armes
@@ -374,6 +500,12 @@ sortes:
       - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
       - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
       - { id: pointsFixation, nom: Points de fixation, type: nombre, defaut: 0 }
+      - {
+          id: toujoursDisponible,
+          nom: Toujours utilisable sans être possédée (mains nues),
+          type: booleen,
+          defaut: false,
+        }
   - id: qualite
     nom: Qualité d'arme
     nomPluriel: Qualités d'arme
@@ -415,6 +547,21 @@ sortes:
     champs:
       - { id: valeurCredits, nom: Valeur en crédits, type: nombre, defaut: 1 }
       - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+  - id: portee
+    nom: Bande de portée
+    nomPluriel: Bandes de portée
+    description: Choisie au moment d'une attaque ; fixe la difficulté des tirs.
+    pour: [personnage]
+    champs:
+      - { id: ordre, nom: Rang de la bande (0 = engagé), type: nombre, defaut: 0 }
+      - { id: difficulte, nom: Dés de Difficulté d'un tir, type: nombre, defaut: 2 }
+  - id: circonstance
+    nom: Circonstance
+    nomPluriel: Circonstances
+    description: >-
+      Situation particulière d'un test (pister, forcer une serrure, résister à la peur…), choisie
+      avec l'action « Test en situation » : certains talents et espèces en dépendent.
+    pour: [personnage]
   - id: modele
     nom: Modèle de véhicule
     nomPluriel: Modèles de véhicule
@@ -423,69 +570,30 @@ sortes:
   - id: panneCritique
     nom: Dommage critique de véhicule
     nomPluriel: Dommages critiques de véhicule
+    description: Un rang par fois où le dommage a été subi.
     pour: [vehicule]
+    rangs: { max: 10 }
 
 # ─── Progression ───────────────────────────────────────────────────────────
 
 monnaies:
-  - { id: xp, nom: Expérience, total: '@xpDepart + @xpGagne', pour: [personnage] }
+  # L'Obligation supplémentaire prise à la création rapporte autant d'XP (+5 ou +10).
+  - {
+      id: xp,
+      nom: Expérience,
+      total: '@xpDepart + @xpGagne + somme("obligation", "supplement")',
+      pour: [personnage],
+    }
 
 achats:
-  # Caractéristiques : 10 × la nouvelle valeur (espèce comprise), jusqu'à 5, à la création seulement.
-  - {
-      id: caracteristique-vigueur,
-      nom: Vigueur,
-      obtient: { type: attribut, entite: personnage, attributs: [vigueur] },
-      monnaie: xp,
-      cout: '10 * (@vigueur + 1)',
-      condition: '@vigueur < 5',
-      moment: creation,
-    }
-  - {
-      id: caracteristique-agilite,
-      nom: Agilité,
-      obtient: { type: attribut, entite: personnage, attributs: [agilite] },
-      monnaie: xp,
-      cout: '10 * (@agilite + 1)',
-      condition: '@agilite < 5',
-      moment: creation,
-    }
-  - {
-      id: caracteristique-intellect,
-      nom: Intellect,
-      obtient: { type: attribut, entite: personnage, attributs: [intellect] },
-      monnaie: xp,
-      cout: '10 * (@intellect + 1)',
-      condition: '@intellect < 5',
-      moment: creation,
-    }
-  - {
-      id: caracteristique-ruse,
-      nom: Ruse,
-      obtient: { type: attribut, entite: personnage, attributs: [ruse] },
-      monnaie: xp,
-      cout: '10 * (@ruse + 1)',
-      condition: '@ruse < 5',
-      moment: creation,
-    }
-  - {
-      id: caracteristique-volonte,
-      nom: Volonté,
-      obtient: { type: attribut, entite: personnage, attributs: [volonte] },
-      monnaie: xp,
-      cout: '10 * (@volonte + 1)',
-      condition: '@volonte < 5',
-      moment: creation,
-    }
-  - {
-      id: caracteristique-presence,
-      nom: Présence,
-      obtient: { type: attribut, entite: personnage, attributs: [presence] },
-      monnaie: xp,
-      cout: '10 * (@presence + 1)',
-      condition: '@presence < 5',
-      moment: creation,
-    }
+  - id: caracteristique
+    nom: Caractéristique
+    description: 10 × la nouvelle valeur (espèce comprise), jusqu'à 5, à la création seulement.
+    obtient: { type: attribut, entite: personnage, groupe: caracteristiques }
+    monnaie: xp
+    cout: 10 * (calcule + 1)
+    condition: calcule < 5
+    moment: creation
   - id: rang-competence
     nom: Rang de compétence
     description: 5 × le rang visé, +5 hors carrière ; rang 2 au plus à la création.
@@ -513,42 +621,36 @@ creation:
       - {
           id: carriere,
           nom: Carrière,
-          description: Choisir aussi 4 compétences de carrière qui reçoivent un rang gratuit.,
+          description: Choisir aussi 4 compétences de carrière qui reçoivent un rang gratuit (6 pour un droïde).,
           type: choisir,
           sorte: carriere,
         }
       - {
           id: specialisation,
           nom: Spécialisation,
-          description: Choisir aussi 2 de ses compétences qui reçoivent un rang gratuit.,
+          description: Choisir aussi 2 de ses compétences qui reçoivent un rang gratuit (3 pour un droïde).,
           type: choisir,
           sorte: specialisation,
         }
       - {
           id: obligation,
           nom: Obligation,
-          description: Une ou plusieurs Obligations et leur valeur (10 par défaut).,
+          description: Obligations facultatives et leur valeur (10 par défaut) ; l'Obligation supplémentaire rapporte autant d'XP.,
           type: choisir,
           sorte: obligation,
-          min: 1,
+          min: 0,
           max: 3,
         }
       - id: experience
         nom: Dépense de l'XP de départ
         type: acheter
-        achats:
-          [
-            caracteristique-vigueur,
-            caracteristique-agilite,
-            caracteristique-intellect,
-            caracteristique-ruse,
-            caracteristique-volonte,
-            caracteristique-presence,
-            rang-competence,
-            specialisation,
-            talent,
-          ]
-      - { id: profil, nom: Profil, type: saisir, attributs: [nom, motivation, historique] }
+        achats: [caracteristique, rang-competence, specialisation, talent]
+      - {
+          id: profil,
+          nom: Profil,
+          type: saisir,
+          attributs: [nom, categorie, motivation, historique, credits],
+        }
   - entite: vehicule
     etapes:
       - { id: modele, nom: Modèle, type: choisir, sorte: modele, min: 0, max: 1 }
@@ -669,92 +771,146 @@ des:
 
 # ─── Actions ───────────────────────────────────────────────────────────────
 # Pool : max(caractéristique, rang) dés d'Aptitude, dont min(caractéristique, rang) améliorés en Maîtrise.
+# Une compétence jamais apprise se teste au rang 0 (paramètre `possedee: false`).
+# L'excédent d'encombrement ajoute 1 dé d'Infortune par point aux tests d'Agilité et de Vigueur.
 
 actions:
   - id: test
     nom: Test de compétence
     pour: [personnage]
     parametres:
-      - { id: competence, nom: Compétence, type: entree, sorte: competence }
-      - { id: difficulte, nom: Dés de Difficulté, type: nombre, defaut: 2 }
-      - {
+      - &competence {
+          id: competence,
+          nom: Compétence,
+          type: entree,
+          sorte: competence,
+          possedee: false,
+        }
+      - &difficulte { id: difficulte, nom: Dés de Difficulté, type: nombre, defaut: 2 }
+      - &ameliorations {
           id: ameliorationsDifficulte,
           nom: Dés de Difficulté améliorés en Défi,
           type: nombre,
           defaut: 0,
         }
-      - { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
-      - { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
-    variables:
+      - &fortune { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
+      - &infortune { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
+    variables: &variablesTest
       - { cle: carac, formule: valeur(competence.caracteristique) }
-    jet:
+      - cle: penaliteCharge
+        formule: >-
+          si(competence.caracteristique == "agilite" ou competence.caracteristique == "vigueur",
+          @excedentEncombrement, 0)
+    jet: &jetTest
       type: symboles
       pool:
         - { de: aptitude, nombre: 'max(carac, competence.rang)' }
         - { de: difficulte, nombre: difficulte }
         - { de: fortune, nombre: desFortune }
-        - { de: infortune, nombre: desInfortune }
+        - { de: infortune, nombre: desInfortune + penaliteCharge }
       ameliorations:
         - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
         - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
       reussite: succesNets >= 1
 
+  - id: test-situation
+    nom: Test en situation
+    description: >-
+      Test de compétence dans une circonstance particulière (pister, forcer une serrure, résister à
+      la peur, dans l'obscurité…), dont dépendent certains talents et capacités d'espèce.
+    pour: [personnage]
+    parametres:
+      - *competence
+      - { id: circonstance, nom: Circonstance, type: entree, sorte: circonstance, possedee: false }
+      - *difficulte
+      - *ameliorations
+      - *fortune
+      - *infortune
+    variables: *variablesTest
+    jet: *jetTest
+
   - id: attaque
     nom: Attaque
     description: >-
-      Test de la compétence de l'arme ; la Défense de la cible ajoute des dés d'Infortune. Touche avec
-      au moins 1 Succès net ; dégâts = dégâts de l'arme + Succès nets − Encaissement (moins Perforant).
-      Blessure critique si des dégâts passent et que les Avantages atteignent l'indice critique, ou sur
-      un Triomphe.
+      Test de la compétence de l'arme ; la difficulté dépend de la bande de portée (Moyenne en mêlée),
+      la Défense de la cible ajoute des dés d'Infortune, son couvert des dés de Difficulté. Touche avec
+      au moins 1 Succès net ; dégâts = dégâts de l'arme + Succès nets − Encaissement (moins
+      Perforant). Blessure critique si des dégâts passent et que les Avantages atteignent l'indice
+      critique, ou sur un Triomphe ; chaque activation au-delà de la première ajoute +10 au jet.
     pour: [personnage]
     cible: personnage
     parametres:
-      - { id: arme, nom: Arme, type: entree, sorte: arme }
+      - { id: arme, nom: Arme, type: entree, sorte: arme, possedee: false }
+      - { id: portee, nom: Portée, type: entree, sorte: portee, possedee: false }
       - {
-          id: competence,
-          nom: Compétence de l'arme,
-          type: entree,
-          sorte: competence,
-          etiquette: combat,
-        }
-      - { id: difficulte, nom: Dés de Difficulté (portée), type: nombre, defaut: 2 }
-      - {
-          id: ameliorationsDifficulte,
-          nom: Dés de Difficulté améliorés en Défi,
+          id: difficulteSupplementaire,
+          nom: Dés de Difficulté supplémentaires,
           type: nombre,
           defaut: 0,
         }
-      - { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
-      - { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
+      - *ameliorations
+      - *fortune
+      - *infortune
     variables:
-      - { cle: carac, formule: valeur(competence.caracteristique) }
-      - { cle: competenceDeLArme, formule: competence == arme.competence }
-      - {
-          cle: defenseCible,
-          formule: 'si(arme.melee, @cible.defenseMelee, @cible.defenseDistance)',
-        }
+      # Arme possédée, ou utilisable par tous (mains nues)
+      - { cle: armeDisponible, formule: possede(arme) ou arme.toujoursDisponible }
+      # Caractéristique des compétences de combat : Vigueur au contact, Agilité sinon
+      - cle: caracArme
+        formule: 'si(arme.competence == "melee" ou arme.competence == "corps-a-corps", "vigueur", "agilite")'
+      - { cle: carac, formule: valeur(caracArme) }
+      - { cle: rangArme, formule: rang(arme.competence) }
+      - cle: porteeMax
+        formule: >-
+          si(arme.melee ou arme.portee == "Engagée", 0, si(arme.portee == "Courte", 1,
+          si(arme.portee == "Moyenne", 2, si(arme.portee == "Longue", 3, 4))))
+      - cle: aPortee
+        formule: portee.ordre <= porteeMax et non (portee == "engage" et arme.competence == "artillerie")
+      - cle: difficulte
+        formule: >-
+          si(arme.melee, 2, portee.difficulte + @cible.couvert
+          + si(portee == "engage" et arme.competence == "distance-lourde", 1, 0))
+          + difficulteSupplementaire
+      - cle: defenseCible
+        formule: 'si(arme.melee, @cible.defenseMelee, @cible.defenseDistance)'
     jet:
       type: symboles
       pool:
-        - { de: aptitude, nombre: 'max(carac, competence.rang)' }
+        - { de: aptitude, nombre: 'max(carac, rangArme)' }
         - { de: difficulte, nombre: difficulte }
-        - { de: fortune, nombre: desFortune + arme.precis }
-        - { de: infortune, nombre: desInfortune + defenseCible + arme.inexact }
+        - {
+            de: fortune,
+            nombre: 'desFortune + arme.precis + si(arme.melee, @cible.vulnerabiliteMelee, 0)',
+          }
+        # Toutes les compétences de combat sont d'Agilité ou de Vigueur : l'excédent s'applique
+        - {
+            de: infortune,
+            nombre: desInfortune + defenseCible + arme.inexact + @excedentEncombrement,
+          }
       ameliorations:
-        - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+        - { de: aptitude, vers: maitrise, nombre: 'min(carac, rangArme)' }
         - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
-      reussite: competenceDeLArme et succesNets >= 1
+      reussite: armeDisponible et aPortee et succesNets >= 1
     apres:
-      - {
-          cle: degatsBruts,
-          formule: 'arme.degats + succesNets + si(arme.melee, rang("force-sauvage"), 0)',
-        }
+      # Force sauvage, Rage wookiee, Précision mortelle, Bout portant, Barrage
+      - cle: degatsTalents
+        formule: >-
+          si(arme.melee, @bonusDegatsMelee, 0)
+          + si(marquee(arme.competence, "precisionMortelle"), rangArme, 0)
+          + si((arme.competence == "distance-legere" ou arme.competence == "distance-lourde")
+          et portee.ordre <= 1, rang("bout-portant"), 0)
+          + si((arme.competence == "distance-lourde" ou arme.competence == "artillerie")
+          et portee.ordre >= 3, rang("barrage"), 0)
+      - { cle: degatsBruts, formule: arme.degats + succesNets + degatsTalents }
       - { cle: encaissementCible, formule: 'max(0, @cible.encaissement - arme.perforant)' }
       - { cle: degatsSubis, formule: 'si(reussi, max(0, degatsBruts - encaissementCible), 0)' }
-      - {
-          cle: critiqueDeclenche,
-          formule: 'non arme.etourdissant et degatsSubis >= 1 et (avantagesNets >= arme.critique ou triomphes >= 1)',
-        }
+      # Résolution : 1 stress de moins par rang, minimum 1
+      - cle: stressInflige
+        formule: 'si(arme.etourdissant et degatsSubis >= 1, max(1, degatsSubis - @cible.reductionStress), 0)'
+      - cle: activationsCritique
+        formule: >-
+          si(non arme.etourdissant et degatsSubis >= 1,
+          triomphes + floor(avantagesNets / max(1, arme.critique)), 0)
+      - { cle: critiqueDeclenche, formule: activationsCritique >= 1 }
     consequences:
       - {
           condition: reussi et non arme.etourdissant,
@@ -768,12 +924,14 @@ actions:
           entite: cible,
           attribut: stress,
           operation: ajouter,
-          valeur: degatsSubis,
+          valeur: stressInflige,
         }
     tables:
       - table: blessures-critiques
         condition: critiqueDeclenche
-        modificateur: 10 * @cible.critiquesSubis + 10 * arme.vicieux + 10 * rang("coups-mortels") - @cible.resistanceCritique
+        modificateur: >-
+          10 * @cible.critiquesSubis + 10 * arme.vicieux + @bonusCritique
+          + 10 * max(0, activationsCritique - 1) - @cible.resistanceCritique
 
   - id: initiative
     nom: Initiative
@@ -786,9 +944,10 @@ actions:
           type: entree,
           sorte: competence,
           etiquette: initiative,
+          possedee: false,
         }
-      - { id: desFortune, nom: Dés de Fortune, type: nombre, defaut: 0 }
-      - { id: desInfortune, nom: Dés d'Infortune, type: nombre, defaut: 0 }
+      - *fortune
+      - *infortune
     variables:
       - { cle: carac, formule: valeur(competence.caracteristique) }
     jet:
@@ -799,6 +958,164 @@ actions:
         - { de: infortune, nombre: desInfortune }
       ameliorations:
         - { de: aptitude, vers: maitrise, nombre: 'min(carac, competence.rang)' }
+
+  - id: soins
+    nom: Soins
+    description: >-
+      Test de Médecine (Mécanique pour réparer un droïde), une fois par rencontre : Facile si les
+      blessures de la cible ne dépassent pas la moitié de son seuil, Moyen au-delà, Difficile si le
+      seuil est atteint (+2 dés pour se soigner soi-même). Chaque Succès net soigne 1 blessure
+      (Chirurgien : +1 par rang), chaque Avantage net 1 point de stress.
+    pour: [personnage]
+    cible: personnage
+    parametres:
+      - {
+          id: competence,
+          nom: Médecine ou Mécanique,
+          type: entree,
+          sorte: competence,
+          etiquette: soins,
+          possedee: false,
+        }
+      - {
+          id: difficulteSupplementaire,
+          nom: Dés de Difficulté supplémentaires,
+          type: nombre,
+          defaut: 0,
+        }
+      - *ameliorations
+      - *fortune
+      - *infortune
+    variables:
+      - { cle: carac, formule: valeur(competence.caracteristique) }
+      - cle: penaliteCharge
+        formule: >-
+          si(competence.caracteristique == "agilite" ou competence.caracteristique == "vigueur",
+          @excedentEncombrement, 0)
+      - cle: difficulte
+        formule: >-
+          si(@cible.blessures >= @cible.seuilBlessure, 3,
+          si(2 * @cible.blessures > @cible.seuilBlessure, 2, 1)) + difficulteSupplementaire
+      - cle: soinAdapte
+        formule: 'si(@cible.inorganique, competence == "mecanique", competence == "medecine")'
+    jet: *jetTest
+    apres:
+      - cle: blessuresSoignees
+        formule: >-
+          si(reussi et soinAdapte, min(@cible.blessures,
+          succesNets + si(competence == "medecine", rang("chirurgien"), 0)), 0)
+      - cle: stressSoigne
+        formule: 'si(reussi et soinAdapte, min(@cible.stress, avantagesNets), 0)'
+    consequences:
+      - {
+          condition: blessuresSoignees >= 1,
+          entite: cible,
+          attribut: blessures,
+          operation: retirer,
+          valeur: blessuresSoignees,
+        }
+      - {
+          condition: stressSoigne >= 1,
+          entite: cible,
+          attribut: stress,
+          operation: retirer,
+          valeur: stressSoigne,
+        }
+
+  - id: stimpack
+    nom: Stimpack
+    description: >-
+      Injection sans jet : soigne 5 blessures, 1 de moins par stimpack déjà reçu par la cible dans la
+      journée. Sans effet sur un droïde.
+    pour: [personnage]
+    cible: personnage
+    exige: possede("stimpack")
+    jet: { type: symboles, pool: [] }
+    apres:
+      - cle: blessuresSoignees
+        formule: 'si(@cible.inorganique, 0, min(@cible.blessures, max(0, 5 - @cible.stimpacksDuJour)))'
+    consequences:
+      - {
+          condition: blessuresSoignees >= 1,
+          entite: cible,
+          attribut: blessures,
+          operation: retirer,
+          valeur: blessuresSoignees,
+        }
+      - {
+          condition: non @cible.inorganique,
+          entite: cible,
+          attribut: stimpacksDuJour,
+          operation: ajouter,
+          valeur: 1,
+        }
+
+  - id: recuperation
+    nom: Récupération de stress
+    description: >-
+      En fin de rencontre, test Simple (sans dé de Difficulté) de Discipline ou de Sang-froid : chaque
+      Succès net fait récupérer 1 point de stress (Récupération rapide : +1 par rang).
+    pour: [personnage]
+    parametres:
+      - {
+          id: competence,
+          nom: Discipline ou Sang-froid,
+          type: entree,
+          sorte: competence,
+          etiquette: recuperation,
+          possedee: false,
+        }
+      - *fortune
+      - *infortune
+    variables:
+      - { cle: carac, formule: valeur(competence.caracteristique) }
+      - cle: penaliteCharge
+        formule: >-
+          si(competence.caracteristique == "agilite" ou competence.caracteristique == "vigueur",
+          @excedentEncombrement, 0)
+      - { cle: difficulte, formule: '0' }
+      - { cle: ameliorationsDifficulte, formule: '0' }
+    jet: *jetTest
+    apres:
+      - { cle: stressRecupere, formule: 'min(@stress, succesNets + rang("recuperation-rapide"))' }
+    consequences:
+      - {
+          condition: stressRecupere >= 1,
+          entite: acteur,
+          attribut: stress,
+          operation: retirer,
+          valeur: stressRecupere,
+        }
+
+  - id: talent
+    nom: Test de talent
+    description: >-
+      Test prévu par un talent actif (Rhétorique inspirante, Système D, Tête dure…) : compétence,
+      caractéristique et difficulté sont lues sur le talent ; ses effets restent décrits par le talent.
+    pour: [personnage]
+    parametres:
+      - { id: talent, nom: Talent, type: entree, sorte: talent, etiquette: test }
+      - *ameliorations
+      - *fortune
+      - *infortune
+    variables:
+      - { cle: carac, formule: valeur(talent.caracteristique) }
+      - { cle: rangCompetence, formule: rang(talent.competence) }
+      - cle: penaliteCharge
+        formule: >-
+          si(talent.caracteristique == "agilite" ou talent.caracteristique == "vigueur",
+          @excedentEncombrement, 0)
+    jet:
+      type: symboles
+      pool:
+        - { de: aptitude, nombre: 'max(carac, rangCompetence)' }
+        - { de: difficulte, nombre: talent.difficulte }
+        - { de: fortune, nombre: desFortune }
+        - { de: infortune, nombre: desInfortune + penaliteCharge }
+      ameliorations:
+        - { de: aptitude, vers: maitrise, nombre: 'min(carac, rangCompetence)' }
+        - { de: difficulte, vers: defi, nombre: ameliorationsDifficulte }
+      reussite: succesNets >= 1
 
 # Ordre décroissant des Succès nets, puis des Avantages nets.
 initiative:

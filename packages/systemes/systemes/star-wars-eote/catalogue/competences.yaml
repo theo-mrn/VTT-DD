@@ -1,4 +1,5 @@
-# Compétences : caractéristique liée (champ) ; étiquettes generale / combat / connaissance, initiative.
+# Compétences : caractéristique liée (champ) ; étiquettes generale / combat / connaissance, et les
+# actions qui les proposent : initiative, soins, recuperation.
 - id: athletisme
   sorte: competence
   nom: Athlétisme
@@ -14,7 +15,7 @@
 - id: discipline
   sorte: competence
   nom: Discipline
-  etiquettes: [generale]
+  etiquettes: [generale, recuperation]
   champs: { caracteristique: volonte }
 
 - id: perception
@@ -38,7 +39,7 @@
 - id: sang-froid
   sorte: competence
   nom: Sang-froid
-  etiquettes: [generale, initiative]
+  etiquettes: [generale, initiative, recuperation]
   champs: { caracteristique: presence }
 
 - id: vigilance
@@ -98,13 +99,13 @@
 - id: mecanique
   sorte: competence
   nom: Mécanique
-  etiquettes: [generale]
+  etiquettes: [generale, soins]
   champs: { caracteristique: intellect }
 
 - id: medecine
   sorte: competence
   nom: Médecine
-  etiquettes: [generale]
+  etiquettes: [generale, soins]
   champs: { caracteristique: intellect }
 
 - id: survie

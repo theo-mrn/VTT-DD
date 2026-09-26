@@ -1,5 +1,8 @@
 # Talents (138) : obtenus par les nœuds des arbres, chaque nœud donne un rang.
-# Seuls les effets exprimables en données sont codés ; le reste est décrit.
+# Seuls les effets exprimables en données sont codés ; le reste est décrit. Les effets de jet lisent
+# la compétence testée (`competence`) ou la circonstance d'un « Test en situation » (`circonstance`) ;
+# les talents étiquetés « test » se lancent avec l'action « Test de talent » (champs du talent) ;
+# les dégâts et critiques passent par les attributs bonusDegatsMelee / bonusCritique ou l'action « attaque ».
 - id: agile
   sorte: talent
   nom: Agile
@@ -44,6 +47,12 @@
     Retire 1 dé d'Infortune par rang de tous les tests de Pilotage (planétaire) et (spatial).
 
     VO : Skilled Jockey.
+  effets:
+    - {
+        sur: jet,
+        si: 'competence == "pilotage-planetaire" ou competence == "pilotage-spatial"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: assurance
   sorte: talent
@@ -53,6 +62,12 @@
     Peut réduire de 1 par rang la difficulté des tests de Discipline pour résister à la peur.
 
     VO : Confidence.
+  effets:
+    - {
+        sur: jet,
+        si: 'circonstance == "peur" et competence == "discipline"',
+        ajout: { retirer: difficulte, nombre: rang },
+      }
 
 - id: attaque-frenetique
   sorte: talent
@@ -71,6 +86,12 @@
     Retire 1 dé d'Infortune par rang des tests de Tromperie ou de Magouilles.
 
     VO : Convincing Demeanor.
+  effets:
+    - {
+        sur: jet,
+        si: 'competence == "tromperie" ou competence == "magouilles"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: autorite
   sorte: talent
@@ -100,6 +121,8 @@
     Retire 1 dé d'Infortune par rang des tests pour traverser un terrain ou gérer les effets de l'environnement. Les voyages terrestres prennent deux fois moins de temps.
 
     VO : Outdoorsman.
+  effets:
+    - { sur: jet, si: 'circonstance == "terrain"', ajout: { retirer: infortune, nombre: rang } }
 
 - id: baroudeur-ne
   sorte: talent
@@ -149,7 +172,7 @@
 - id: bout-portant
   sorte: talent
   nom: Bout portant
-  etiquettes: [actif]
+  etiquettes: [passif]
   description: |-
     Ajoute 1 dégât par rang à une touche d'une attaque réussie en Distance (armes légères ou lourdes) à portée courte ou engagée.
 
@@ -181,6 +204,8 @@
     Retire 1 dé d'Infortune par rang des tests d'Astrogation, qui prennent deux fois moins de temps.
 
     VO : Galaxy Mapper.
+  effets:
+    - { sur: jet, si: 'competence == "astrogation"', ajout: { retirer: infortune, nombre: rang } }
 
 - id: casseur-de-codes
   sorte: talent
@@ -190,6 +215,13 @@
     Retire 1 dé d'Infortune par rang des tests pour casser un code ou déchiffrer des communications, et réduit leur difficulté de 1.
 
     VO : Codebreaker.
+  effets:
+    - {
+        sur: jet,
+        si: 'circonstance == "dechiffrement"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
+    - { sur: jet, si: 'circonstance == "dechiffrement"', ajout: { retirer: difficulte, nombre: 1 } }
 
 - id: ceinture-utilitaire
   sorte: talent
@@ -226,6 +258,8 @@
     Ajoute 1 dé de Fortune par rang à tous les tests impliquant des bêtes ou des animaux (tests de combat compris). Ajoute +10 par rang aux Blessures critiques infligées aux bêtes et animaux.
 
     VO : Hunter.
+  effets:
+    - { sur: jet, si: 'circonstance == "betes"', ajout: { de: fortune, nombre: rang } }
 
 - id: chasseur-ne
   sorte: talent
@@ -244,6 +278,12 @@
     Retire 1 dé d'Infortune par rang de tous les tests de Connaissance. Les recherches prennent deux fois moins de temps.
 
     VO : Researcher.
+  effets:
+    - {
+        sur: jet,
+        si: 'competence == "connaissance-noyau" ou competence == "connaissance-education" ou competence == "connaissance-traditions" ou competence == "connaissance-bordure" ou competence == "connaissance-pegre" ou competence == "connaissance-xenologie"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: chirurgien
   sorte: talent
@@ -266,11 +306,12 @@
 - id: commandant-de-terrain
   sorte: talent
   nom: Commandant de terrain
-  etiquettes: [passif]
+  etiquettes: [actif, test]
   description: |-
     Action Commandant de terrain : test de Commandement Moyen. Un nombre d'alliés égal à sa Présence peut subir 1 point de stress pour effectuer immédiatement une manœuvre gratuite.
 
     VO : Field Commander.
+  champs: { competence: commandement, caracteristique: presence, difficulte: '2' }
 
 - id: commandant-de-terrain-ameliore
   sorte: talent
@@ -325,6 +366,8 @@
     Retire 1 dé d'Infortune par rang des tests pour désactiver un dispositif de sécurité ou ouvrir une porte verrouillée.
 
     VO : Bypass Security.
+  effets:
+    - { sur: jet, si: 'circonstance == "securite"', ajout: { retirer: infortune, nombre: rang } }
 
 - id: coup-cible
   sorte: talent
@@ -379,6 +422,8 @@
     Ajoute +10 par rang aux Blessures critiques infligées aux adversaires.
 
     VO : Lethal Blows.
+  effets:
+    - { sur: attribut, attribut: bonusCritique, operation: ajouter, valeur: 10 * rang }
 
 - id: courage-heroique
   sorte: talent
@@ -417,6 +462,12 @@
     Retire 1 dé d'Infortune par rang des tests de Sens de la rue ou de Connaissance (Pègre).
 
     VO : Street Smarts.
+  effets:
+    - {
+        sur: jet,
+        si: 'competence == "sens-de-la-rue" ou competence == "connaissance-pegre"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: degainer-rapide
   sorte: talent
@@ -435,6 +486,12 @@
     Retire 1 dé d'Infortune par rang de tous les tests de Coercition et de Tromperie.
 
     VO : Plausible Deniability.
+  effets:
+    - {
+        sur: jet,
+        si: 'competence == "coercition" ou competence == "tromperie"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: desorientation
   sorte: talent
@@ -453,6 +510,34 @@
     Gagne +1 dans une caractéristique au choix, sans pouvoir dépasser 6.
 
     VO : Dedication.
+  choixAttributs:
+    - id: rang-1
+      nom: 'Dévouement (1er rang) : +1 à une caractéristique'
+      nombre: 1
+      parmi: { groupe: caracteristiques }
+      valeur: 1
+    - id: rang-2
+      nom: 'Dévouement (2e rang) : +1 à une caractéristique'
+      nombre: 1
+      parmi: { groupe: caracteristiques }
+      valeur: si(rang >= 2, 1, 0)
+    - id: rang-3
+      nom: 'Dévouement (3e rang) : +1 à une caractéristique'
+      nombre: 1
+      parmi: { groupe: caracteristiques }
+      valeur: si(rang >= 3, 1, 0)
+    - id: rang-4
+      nom: 'Dévouement (4e rang) : +1 à une caractéristique'
+      nombre: 1
+      parmi: { groupe: caracteristiques }
+      valeur: si(rang >= 4, 1, 0)
+  effets:
+    - { sur: attribut, attribut: vigueur, operation: maximum, valeur: 6 }
+    - { sur: attribut, attribut: agilite, operation: maximum, valeur: 6 }
+    - { sur: attribut, attribut: intellect, operation: maximum, valeur: 6 }
+    - { sur: attribut, attribut: ruse, operation: maximum, valeur: 6 }
+    - { sur: attribut, attribut: volonte, operation: maximum, valeur: 6 }
+    - { sur: attribut, attribut: presence, operation: maximum, valeur: 6 }
 
 - id: en-plein-dans-le-mille
   sorte: talent
@@ -520,6 +605,12 @@
     Peut réduire d'un niveau par rang la difficulté des tests d'interaction avec les institutions du savoir.
 
     VO : Respected Scholar.
+  effets:
+    - {
+        sur: jet,
+        si: 'circonstance == "institutions-savoir"',
+        ajout: { retirer: difficulte, nombre: rang },
+      }
 
 - id: esquive
   sorte: talent
@@ -556,6 +647,8 @@
     Retire 1 dé d'Infortune par rang des tests de Mécanique. Le coût en crédits des modifications d'accessoires est divisé par deux.
 
     VO : Gearhead.
+  effets:
+    - { sur: jet, si: 'competence == "mecanique"', ajout: { retirer: infortune, nombre: rang } }
 
 - id: force-sauvage
   sorte: talent
@@ -565,6 +658,8 @@
     Ajoute 1 dégât par rang à une touche des attaques réussies en Corps à corps ou en Mêlée.
 
     VO : Feral Strength.
+  effets:
+    - { sur: attribut, attribut: bonusDegatsMelee, operation: ajouter, valeur: rang }
 
 - id: forteresse-mentale
   sorte: talent
@@ -583,6 +678,8 @@
     Retire jusqu'à 2 dés d'Infortune des tests pour trouver nourriture, eau ou abri. Les tests de Survie pour fourrager prennent deux fois moins de temps.
 
     VO : Forager.
+  effets:
+    - { sur: jet, si: 'circonstance == "ressources"', ajout: { retirer: infortune, nombre: 2 } }
 
 - id: frappe-rapide
   sorte: talent
@@ -605,11 +702,12 @@
 - id: injection-de-stimulant
   sorte: talent
   nom: Injection de stimulant
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Action Injection de stimulant : test de Médecine Moyen. En cas de réussite, un allié engagé augmente une caractéristique de 1 jusqu'à la fin de la rencontre et subit 4 points de stress.
 
     VO : Stim Application.
+  champs: { competence: medecine, caracteristique: intellect, difficulte: '2' }
 
 - id: injection-de-stimulant-amelioree
   sorte: talent
@@ -646,6 +744,8 @@
     En construisant un objet ou en modifiant un accessoire, ajoute 1 dé de Fortune ou retire 1 dé d'Infortune par rang.
 
     VO : Inventor.
+  effets:
+    - { sur: jet, si: 'circonstance == "fabrication"', ajout: { de: fortune, nombre: rang } }
 
 - id: lecons-d-anatomie
   sorte: talent
@@ -673,6 +773,14 @@
     En portant une armure, augmente de 1 sa valeur d'Encaissement totale.
 
     VO : Armor Master.
+  effets:
+    - {
+        sur: attribut,
+        attribut: encaissement,
+        operation: ajouter,
+        valeur: 1,
+        condition: 'compte_actifs("armure") >= 1',
+      }
 
 - id: maitre-des-armures-ameliore
   sorte: talent
@@ -682,6 +790,21 @@
     En portant une armure d'Encaissement 2 ou plus, augmente sa Défense de 1.
 
     VO : Improved Armor Master.
+  effets:
+    - {
+        sur: attribut,
+        attribut: defenseMelee,
+        operation: ajouter,
+        valeur: 1,
+        condition: '@encaissementArmure >= 2',
+      }
+    - {
+        sur: attribut,
+        attribut: defenseDistance,
+        operation: ajouter,
+        valeur: 1,
+        condition: '@encaissementArmure >= 2',
+      }
 
 - id: maitre-des-ombres
   sorte: talent
@@ -740,11 +863,12 @@
 - id: mauvais-moteur
   sorte: talent
   nom: Mauvais moteur
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Une fois par séance, action Mauvais moteur : test de Mécanique Difficile pour provoquer la panne spontanée d'un appareil ciblé.
 
     VO : Bad Motivator.
+  champs: { competence: mecanique, caracteristique: intellect, difficulte: '3' }
 
 - id: medecin-ne
   sorte: talent
@@ -844,15 +968,18 @@
     Retire 1 dé d'Infortune par rang des tests pour trouver des traces ou pister une cible. Le temps de pistage est divisé par deux.
 
     VO : Expert Tracker.
+  effets:
+    - { sur: jet, si: 'circonstance == "pistage"', ajout: { retirer: infortune, nombre: rang } }
 
 - id: plans-connus
   sorte: talent
   nom: Plans connus
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Une fois par séance, manœuvre Plans connus : test Difficile de Connaissance (Éducation). En cas de réussite, connaît les plans d'un bâtiment ou d'un vaisseau.
 
     VO : Known Schematic.
+  champs: { competence: connaissance-education, caracteristique: intellect, difficulte: '3' }
 
 - id: plein-gaz
   sorte: talent
@@ -909,8 +1036,8 @@
     VO : Well Rounded.
   choix:
     - id: competences
-      nom: Deux compétences qui deviennent de carrière
-      nombre: 2
+      nom: Deux compétences par rang qui deviennent de carrière
+      nombre: 2 * rang("polyvalent")
       parmi: { sorte: competence }
       donne: { type: marque, marque: carriere }
 
@@ -926,11 +1053,19 @@
 - id: precision-mortelle
   sorte: talent
   nom: Précision mortelle
-  etiquettes: [actif]
+  etiquettes: [passif]
   description: |-
     À l'acquisition, choisir une compétence de combat. Ajoute à une touche d'une attaque réussie avec cette compétence des dégâts égaux à ses rangs dans celle-ci.
 
     VO : Deadly Accuracy.
+  choix:
+    - id: competences
+      nom: Compétence de combat choisie (une par rang)
+      nombre: rang("precision-mortelle")
+      parmi:
+        sorte: competence
+        entrees: [artillerie, corps-a-corps, melee, distance-legere, distance-lourde]
+      donne: { type: marque, marque: precisionMortelle }
 
 - id: presence-intense
   sorte: talent
@@ -967,6 +1102,8 @@
     Pendant une poursuite, ajoute 1 dé de Fortune par rang aux tests pour rattraper ou semer un adversaire.
 
     VO : Shortcut.
+  effets:
+    - { sur: jet, si: 'circonstance == "poursuite"', ajout: { de: fortune, nombre: rang } }
 
 - id: rafistolage
   sorte: talent
@@ -1041,15 +1178,18 @@
     Lorsqu'il subit du stress involontairement, en subit 1 de moins par rang (minimum 1).
 
     VO : Resolve.
+  effets:
+    - { sur: attribut, attribut: reductionStress, operation: ajouter, valeur: rang }
 
 - id: rhetorique-inspirante
   sorte: talent
   nom: Rhétorique inspirante
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Action Rhétorique inspirante : test de Commandement Moyen. Chaque succès fait récupérer 1 point de stress à un allié à portée courte ; un Triomphe fait récupérer 1 point de plus à un allié affecté.
 
     VO : Inspiring Rhetoric.
+  champs: { competence: commandement, caracteristique: presence, difficulte: '2' }
 
 - id: rhetorique-inspirante-amelioree
   sorte: talent
@@ -1077,6 +1217,8 @@
     Ajoute 1 dé de Fortune par rang aux tests pour résister ou se remettre des poisons, venins et toxines. Réduit de 1 round par rang la durée des poisons en cours (minimum 1).
 
     VO : Blooded.
+  effets:
+    - { sur: jet, si: 'circonstance == "poison"', ajout: { de: fortune, nombre: rang } }
 
 - id: second-souffle
   sorte: talent
@@ -1117,20 +1259,22 @@
 - id: systeme-d
   sorte: talent
   nom: Système D
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Une fois par séance, action Système D : test de Mécanique Difficile pour fabriquer, avec les outils et pièces à portée de main, un appareil qui résout le problème du moment.
 
     VO : Contraption.
+  champs: { competence: mecanique, caracteristique: intellect, difficulte: '3' }
 
 - id: systemes-redondants
   sorte: talent
   nom: Systèmes redondants
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Une fois par séance, action Systèmes redondants : test de Mécanique Facile pour récupérer des composants d'un appareil fonctionnel et réparer un appareil en panne sans casser le premier.
 
     VO : Redundant Systems.
+  champs: { competence: mecanique, caracteristique: intellect, difficulte: '1' }
 
 - id: tenir-le-coup
   sorte: talent
@@ -1144,11 +1288,17 @@
 - id: tete-dure
   sorte: talent
   nom: Tête dure
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Chancelant ou désorienté, action Tête dure : test de Discipline Intimidant pour se débarrasser de l'état. La difficulté diminue de 1 par rang.
 
     VO : Hard Headed.
+  champs:
+    {
+      competence: discipline,
+      caracteristique: volonte,
+      difficulte: 'max(1, 4 - rang("tete-dure"))',
+    }
 
 - id: tete-dure-amelioree
   sorte: talent
@@ -1171,11 +1321,12 @@
 - id: tirade-cinglante
   sorte: talent
   nom: Tirade cinglante
-  etiquettes: [actif]
+  etiquettes: [actif, test]
   description: |-
     Action Tirade cinglante : test de Coercition Moyen. Chaque succès inflige 1 point de stress à un ennemi à portée courte ; une Menace inflige 1 point de plus à un ennemi affecté.
 
     VO : Scathing Tirade.
+  champs: { competence: coercition, caracteristique: volonte, difficulte: '2' }
 
 - id: tirade-cinglante-amelioree
   sorte: talent
@@ -1227,6 +1378,12 @@
     Retire 1 dé d'Infortune par rang de tous les tests de Charme et de Commandement.
 
     VO : Kill with Kindness.
+  effets:
+    - {
+        sur: jet,
+        si: 'competence == "charme" ou competence == "commandement"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: utinni
   sorte: talent
@@ -1236,6 +1393,12 @@
     Retire 1 dé d'Infortune par rang des tests pour trouver ou récupérer objets et matériel, qui prennent deux fois moins de temps.
 
     VO : Utinni!.
+  effets:
+    - {
+        sur: jet,
+        si: 'circonstance == "recuperation-materiel"',
+        ajout: { retirer: infortune, nombre: rang },
+      }
 
 - id: vigilance-accrue
   sorte: talent

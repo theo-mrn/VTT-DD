@@ -1,5 +1,5 @@
 # Carrières : marquent « carriere » leurs 8 compétences et leurs 3 spécialisations ;
-# 4 rangs gratuits dans les compétences de carrière à la création.
+# 4 rangs gratuits dans les compétences de carrière à la création (6 pour un droïde : @bonusChoixCarriere).
 - id: chasseur-de-primes
   sorte: carriere
   nom: Chasseur de primes
@@ -22,7 +22,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de carrière (création)
-      nombre: 4
+      nombre: 4 + @bonusChoixCarriere
       parmi:
         sorte: competence
         entrees:
@@ -58,7 +58,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de carrière (création)
-      nombre: 4
+      nombre: 4 + @bonusChoixCarriere
       parmi:
         sorte: competence
         entrees:
@@ -94,7 +94,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de carrière (création)
-      nombre: 4
+      nombre: 4 + @bonusChoixCarriere
       parmi:
         sorte: competence
         entrees:
@@ -130,7 +130,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de carrière (création)
-      nombre: 4
+      nombre: 4 + @bonusChoixCarriere
       parmi:
         sorte: competence
         entrees:
@@ -166,7 +166,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de carrière (création)
-      nombre: 4
+      nombre: 4 + @bonusChoixCarriere
       parmi:
         sorte: competence
         entrees:
@@ -202,7 +202,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de carrière (création)
-      nombre: 4
+      nombre: 4 + @bonusChoixCarriere
       parmi:
         sorte: competence
         entrees:

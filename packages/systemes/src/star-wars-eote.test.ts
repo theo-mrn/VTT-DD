@@ -12,10 +12,12 @@ import {
   examinerAchat,
   executerAction,
   initiative,
+  nombreChoix,
   solde,
   tirerTable,
   type EtatEntiteSaisi,
   type Fiche,
+  type ResultatAction,
   type SystemeCharge,
 } from '@vtt/rules';
 import { chargerSource } from './test-utils.js';
@@ -29,6 +31,15 @@ function etat(saisi: Omit<EtatEntiteSaisi, 'type' | 'systeme'>, type = 'personna
 const fiche = (e: EtatEntite): Fiche => calculer(systeme, e);
 const parSorte = (s: string) => [...systeme.entrees.values()].filter((e) => e.sorte === s);
 const rang = (f: Fiche, id: string) => f.possessions.get(id)?.rang ?? 0;
+
+/** Exécute une action et renvoie son résultat, en échouant si elle est refusée. */
+function agir(demande: Omit<Parameters<typeof executerAction>[1], 'aleatoire'>, des: number[]) {
+  const r = executerAction(systeme, { ...demande, aleatoire: aleatoireImpose(des) });
+  if (!r.ok) throw new Error(JSON.stringify(r.erreurs));
+  expect(r.resultat.erreurs).toEqual([]);
+  return r.resultat;
+}
+const pool = (r: ResultatAction) => (r.jet.type === 'symboles' ? r.jet.pool : []);
 
 /** Achète une suite d'objets à la suite, en échouant au premier refus. */
 function acheterTout(depart: EtatEntite, achats: [string, string][]): EtatEntite {
@@ -62,8 +73,8 @@ function bothanChasseur(): EtatEntite {
     ],
   });
   return acheterTout(depart, [
-    ['caracteristique-agilite', 'agilite'], // 2 → 3 : 30 XP
-    ['caracteristique-vigueur', 'vigueur'], // 1 → 2 : 20 XP
+    ['caracteristique', 'agilite'], // 2 → 3 : 30 XP
+    ['caracteristique', 'vigueur'], // 1 → 2 : 20 XP
     ['rang-competence', 'distance-lourde'], // 1 → 2, carrière : 10 XP
     ['rang-competence', 'charme'], // 0 → 1, hors carrière : 10 XP
     ['talent', 'arbre-assassin/l1c1'], // Cran : 5 XP
@@ -94,14 +105,17 @@ describe('Star Wars — Aux confins de l’Empire : chargement', () => {
     expect(parSorte('carriere')).toHaveLength(6);
     expect(parSorte('specialisation')).toHaveLength(18);
     expect(parSorte('talent')).toHaveLength(138);
-    expect(parSorte('arme')).toHaveLength(29);
+    expect(parSorte('arme')).toHaveLength(30); // 29 du bundle + mains nues
     expect(parSorte('armure')).toHaveLength(11);
-    expect(parSorte('objet')).toHaveLength(17);
+    expect(parSorte('objet')).toHaveLength(18); // 17 du bundle + stimpack
     expect(parSorte('accessoire')).toHaveLength(11);
     expect(parSorte('devise')).toHaveLength(6);
     expect(parSorte('modele')).toHaveLength(34);
     expect(parSorte('obligation')).toHaveLength(12);
     expect(parSorte('blessureCritique')).toHaveLength(12);
+    expect(parSorte('portee')).toHaveLength(5);
+    expect(parSorte('circonstance')).toHaveLength(14);
+    expect(parSorte('etat')).toHaveLength(9);
     expect(systeme.arbres.size).toBe(18);
     expect(systeme.source.textes).toHaveLength(27);
     expect(systeme.source.des?.sortes.map((d) => d.id)).toEqual([
@@ -113,7 +127,16 @@ describe('Star Wars — Aux confins de l’Empire : chargement', () => {
       'defi',
       'force',
     ]);
-    expect([...systeme.actions.keys()]).toEqual(['test', 'attaque', 'initiative']);
+    expect([...systeme.actions.keys()]).toEqual([
+      'test',
+      'test-situation',
+      'attaque',
+      'initiative',
+      'soins',
+      'stimpack',
+      'recuperation',
+      'talent',
+    ]);
     expect(systeme.source.initiative).toEqual({
       action: 'initiative',
       tri: ['succesNets', 'avantagesNets'],
@@ -173,12 +196,22 @@ describe('Bothan chasseur de primes (Assassin)', () => {
     expect(f.valeurs.get('blessures')).toMatchObject({ valeur: 0, min: 0, max: 12 });
     expect(f.valeurs.get('stress')).toMatchObject({ valeur: 0, min: 0, max: 13 });
     // Vigueur 2 + armure légère 1 (la combinaison, de même famille, ne se cumule pas)
+    expect(f.valeur('encaissementArmure')).toBe(1);
     expect(f.valeur('encaissement')).toBe(3);
     expect(f.valeur('defenseDistance')).toBe(1);
     expect(f.valeur('defenseMelee')).toBe(1);
-    expect(f.valeur('encombrement')).toBe(8); // fusil 3 + armure 3 + combinaison 2
+    // Fusil 3 ; armures portées 3 + 2, moins 3 chacune (jamais en dessous de 0)
+    expect(f.valeur('encombrement')).toBe(3);
     expect(f.valeur('seuilEncombrement')).toBe(7);
-    expect(f.valeur('surcharge')).toBe(true);
+    expect(f.valeur('excedentEncombrement')).toBe(0);
+    expect(f.valeur('surcharge')).toBe(false);
+    expect(f.valeur('neutralise')).toBe(false);
+  });
+
+  it('profil : catégorie, crédits de départ, Obligation avec détail', () => {
+    expect(f.valeur('categorie')).toBe('pj');
+    expect(f.valeur('credits')).toBe(500);
+    expect(f.valeur('inorganique')).toBe(false);
   });
 
   it('rangs gratuits (espèce, carrière, spécialisation), rangs achetés et talents', () => {
@@ -229,9 +262,10 @@ describe('Bothan chasseur de primes (Assassin)', () => {
     expect(bloque.blocages.map((b) => b.code)).toContain('plafond');
     const enJeu = fiche({ ...e, creation: false });
     expect(cout(enJeu, 'rang-competence', 'distance-lourde').cout).toBe(15);
-    // Caractéristique : 10 × la nouvelle valeur (espèce comprise), jusqu'à 5
-    expect(cout(f, 'caracteristique-ruse', 'ruse').cout).toBe(40);
-    expect(cout(f, 'caracteristique-vigueur', 'vigueur').cout).toBe(30);
+    // Caractéristique : un seul achat, 10 × la nouvelle valeur (espèce comprise), jusqu'à 5
+    expect(cout(f, 'caracteristique', 'ruse').cout).toBe(40);
+    expect(cout(f, 'caracteristique', 'vigueur').cout).toBe(30);
+    expect(cout(f, 'caracteristique', 'presence').cout).toBe(30);
     // Spécialisation : 10 × (nombre + 1), +10 hors carrière
     expect(cout(enJeu, 'specialisation', 'survivaliste').cout).toBe(20);
     expect(cout(enJeu, 'specialisation', 'pilote').cout).toBe(30);
@@ -248,14 +282,29 @@ describe('Bothan chasseur de primes (Assassin)', () => {
   it('une caractéristique ne dépasse pas 5 à la création', () => {
     const riche = { ...e, valeurs: { ...e.valeurs, xpGagne: 200 } };
     const r = acheterTout(riche, [
-      ['caracteristique-ruse', 'ruse'], // 3 → 4 : 40 XP
-      ['caracteristique-ruse', 'ruse'], // 4 → 5 : 50 XP
+      ['caracteristique', 'ruse'], // 3 → 4 : 40 XP
+      ['caracteristique', 'ruse'], // 4 → 5 : 50 XP
     ]);
     const f5 = fiche(r);
     expect(f5.valeur('ruse')).toBe(5);
     expect(solde(f5, 'xp')).toBe(120); // 300 − 90 − 40 − 50
-    const r6 = examinerAchat(f5, 'caracteristique-ruse', 'ruse');
+    const r6 = examinerAchat(f5, 'caracteristique', 'ruse');
     expect(r6.ok && r6.objet.blocages.map((b) => b.code)).toEqual(['condition']);
+  });
+
+  it('le coût d’une caractéristique suit sa valeur calculée (Dévouement compris)', () => {
+    const avec = fiche(
+      EtatEntite.parse({
+        ...e,
+        possessions: [
+          ...e.possessions,
+          { entree: 'devouement', rang: 1, choix: { 'rang-1': ['presence'] } },
+        ],
+      }),
+    );
+    expect(avec.valeur('presence')).toBe(3);
+    const r = examinerAchat(avec, 'caracteristique', 'presence');
+    expect(r.ok && r.objet.cout).toBe(40);
   });
 });
 
@@ -298,6 +347,24 @@ describe('Espèces : effets et choix', () => {
     expect(droide.valeur('encaissement')).toBe(2); // Vigueur 1 + Endurant 1
   });
 
+  it('Droïde : 6 rangs gratuits de carrière et 3 de spécialisation ; inorganique', () => {
+    const choixCarriere = systeme.entrees.get('chasseur-de-primes')!.choix[0]!;
+    const choixSpe = systeme.entrees.get('assassin')!.choix[0]!;
+    const droide = fiche(etat({ possessions: [{ entree: 'droide' }] }));
+    const humain = fiche(etat({ possessions: [{ entree: 'humain' }] }));
+    expect(nombreChoix(droide, 'chasseur-de-primes', choixCarriere)).toBe(6);
+    expect(nombreChoix(droide, 'assassin', choixSpe)).toBe(3);
+    expect(nombreChoix(humain, 'chasseur-de-primes', choixCarriere)).toBe(4);
+    expect(nombreChoix(humain, 'assassin', choixSpe)).toBe(2);
+    expect(droide.valeur('inorganique')).toBe(true);
+  });
+
+  it('étiquettes de vision pour l’interface', () => {
+    expect(systeme.entrees.get('chiss')!.etiquettes).toEqual(['vision-infrarouge']);
+    for (const id of ['advozse', 'ongree', 'gotal', 'lannik', 'balosar'])
+      expect(systeme.entrees.get(id)!.etiquettes, id).toEqual(['vision-augmentee']);
+  });
+
   it('talents Endurci et Résistant', () => {
     const f = fiche(
       wookiee([
@@ -321,7 +388,7 @@ describe('Combat', () => {
       action: 'attaque',
       acteur: chasseur,
       cible,
-      parametres: { arme: 'fusil-blaster', competence: 'distance-lourde', difficulte: 2 },
+      parametres: { arme: 'fusil-blaster', portee: 'moyenne' },
       // Fortune (Précis 1), Infortune (Défense 1), 1 Aptitude, 2 Difficulté, 2 Maîtrise, puis d100
       aleatoire: aleatoireImpose([4, 1, 4, 2, 1, 4, 12, 45]),
     });
@@ -342,7 +409,8 @@ describe('Combat', () => {
       triomphes: 1,
       degatsBruts: 14, // 9 + 5
       degatsSubis: 10, // 14 − Encaissement 4
-      critiqueDeclenche: true, // Triomphe
+      activationsCritique: 1, // Triomphe ; 1 Avantage < indice 3
+      critiqueDeclenche: true,
     });
     expect(res.modifications).toEqual([
       { entite: 'cible', attribut: 'blessures', operation: 'ajouter', valeur: 10 },
@@ -352,15 +420,242 @@ describe('Combat', () => {
     expect(res.tables[0]!.ligne?.entree).toBe('blessure-ouverte');
   });
 
-  it('l’attaque exige une compétence de combat (étiquette « combat »)', () => {
+  it('critiques multiples : +10 par activation au-delà de la première (et Coups mortels)', () => {
+    const base = bothanChasseur();
+    const tueur = fiche(
+      EtatEntite.parse({
+        ...base,
+        creation: false,
+        possessions: [...base.possessions, { entree: 'coups-mortels', rang: 1 }],
+      }),
+    );
+    expect(tueur.valeur('bonusCritique')).toBe(10);
+    // Fortune (2 Avantages), Infortune vide, Aptitude (2 Avantages), 2 Difficulté vides,
+    // Maîtrise (2 Succès) et Maîtrise (Triomphe), puis d100 = 45
+    const r = agir(
+      {
+        action: 'attaque',
+        acteur: tueur,
+        cible,
+        parametres: { arme: 'fusil-blaster', portee: 'moyenne' },
+      },
+      [5, 1, 8, 1, 1, 4, 12, 45],
+    );
+    expect(r.variables).toMatchObject({
+      succesNets: 3,
+      avantagesNets: 4,
+      degatsSubis: 8, // 9 + 3 − 4
+      activationsCritique: 2, // Triomphe + 4 Avantages / indice 3
+    });
+    // 45 + 10 (seconde activation) + 10 (Coups mortels) = 65
+    expect(r.tables[0]).toMatchObject({ modificateur: 20, valeur: 65 });
+    expect(r.tables[0]!.ligne?.entree).toBe('blessure-profonde');
+  });
+
+  it('la portée fixe la difficulté ; hors de portée ou arme non possédée, l’attaque échoue', () => {
+    const longue = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible,
+        parametres: { arme: 'fusil-blaster', portee: 'longue' },
+      },
+      [4, 1, 4, 1, 1, 1, 4, 12, 45],
+    );
+    expect(pool(longue)).toContainEqual({ de: 'difficulte', nombre: 3 });
+    expect(longue.reussi).toBe(true);
+    // Le fusil blaster porte à Longue, pas à Extrême
+    const extreme = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible,
+        parametres: { arme: 'fusil-blaster', portee: 'extreme' },
+      },
+      [4, 1, 4, 1, 1, 1, 1, 4, 12],
+    );
+    expect(extreme.variables.aPortee).toBe(false);
+    expect(extreme.reussi).toBe(false);
+    expect(extreme.modifications).toEqual([]);
+    // Arme du catalogue que le chasseur ne possède pas
+    const emprunt = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible,
+        parametres: { arme: 'pistolet-blaster', portee: 'courte' },
+      },
+      [1, 4, 4, 4, 1], // Agilité 3, Distance (armes légères) 0 : 3 Aptitude
+    );
+    expect(emprunt.variables.armeDisponible).toBe(false);
+    expect(emprunt.reussi).toBe(false);
+    // Paramètre de compétence supprimé : l'arme suffit
     const r = executerAction(systeme, {
       action: 'attaque',
       acteur: chasseur,
       cible,
-      parametres: { arme: 'fusil-blaster', competence: 'athletisme' },
+      parametres: { arme: 'fusil-blaster', portee: 'moyenne', competence: 'athletisme' },
       aleatoire: aleatoireImpose([]),
     });
     expect(r.ok).toBe(false);
+  });
+
+  it('mains nues : toujours utilisable, Corps à corps, dégâts = Vigueur', () => {
+    // Vigueur 2, Corps à corps 0 : 2 Aptitude ; mêlée : 2 Difficulté ; Défense de mêlée 1
+    const r = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible,
+        parametres: { arme: 'mains-nues', portee: 'engage' },
+      },
+      [1, 4, 4, 1, 1],
+    );
+    expect(pool(r)).toEqual([
+      { de: 'infortune', nombre: 1 },
+      { de: 'aptitude', nombre: 2 },
+      { de: 'difficulte', nombre: 2 },
+    ]);
+    expect(r.variables).toMatchObject({ armeDisponible: true, succesNets: 4, degatsBruts: 6 });
+    expect(r.modifications).toEqual([
+      { entite: 'cible', attribut: 'blessures', operation: 'ajouter', valeur: 2 },
+    ]);
+    // Au contact seulement
+    const loin = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible,
+        parametres: { arme: 'mains-nues', portee: 'courte' },
+      },
+      [1, 4, 4, 1, 1],
+    );
+    expect(loin.reussi).toBe(false);
+  });
+
+  it('Rage wookiee, Force sauvage et Précision mortelle en mêlée', () => {
+    const wook = fiche(
+      EtatEntite.parse({
+        ...wookiee([
+          { entree: 'vibromachette' },
+          { entree: 'melee', rang: 2 },
+          { entree: 'force-sauvage', rang: 1 },
+          { entree: 'precision-mortelle', rang: 1, choix: { competences: ['melee'] } },
+        ]),
+        valeurs: { blessures: 3 },
+      }),
+    );
+    expect(wook.valeur('bonusDegatsMelee')).toBe(2); // Rage 1 (blessé) + Force sauvage 1
+    expect(
+      nombreChoix(wook, 'precision-mortelle', systeme.entrees.get('precision-mortelle')!.choix[0]!),
+    ).toBe(1);
+    // Vigueur 3, Mêlée 2 : 1 Aptitude, 2 Maîtrises ; Défense de mêlée du Bothan 1
+    const r = agir(
+      {
+        action: 'attaque',
+        acteur: wook,
+        cible: chasseur,
+        parametres: { arme: 'vibromachette', portee: 'engage' },
+      },
+      [1, 2, 1, 1, 4, 1],
+    );
+    expect(r.variables).toMatchObject({
+      succesNets: 3,
+      degatsTalents: 4, // 2 + Précision mortelle (Mêlée 2)
+      degatsBruts: 13, // Vigueur 3 + 3, + 3 Succès, + 4
+      degatsSubis: 12, // − Encaissement 3, moins Perforant 2
+    });
+    // Blessure critique : la Rage passe à +2
+    const grave = fiche(
+      EtatEntite.parse({
+        ...wookiee([{ entree: 'fracture', rang: 1 }]),
+        valeurs: { blessures: 3 },
+      }),
+    );
+    expect(grave.valeur('bonusDegatsMelee')).toBe(2);
+    expect(fiche(wookiee()).valeur('bonusDegatsMelee')).toBe(0);
+  });
+
+  it('Bout portant et Barrage selon la bande de portée', () => {
+    const base = bothanChasseur();
+    const tireur = fiche(
+      EtatEntite.parse({
+        ...base,
+        creation: false,
+        possessions: [
+          ...base.possessions,
+          { entree: 'bout-portant', rang: 1 },
+          { entree: 'barrage', rang: 2 },
+        ],
+      }),
+    );
+    const des = [1, 1, 1, 1, 1, 1, 1, 1, 1];
+    const court = agir(
+      {
+        action: 'attaque',
+        acteur: tireur,
+        cible,
+        parametres: { arme: 'fusil-blaster', portee: 'courte' },
+      },
+      des,
+    );
+    const loin = agir(
+      {
+        action: 'attaque',
+        acteur: tireur,
+        cible,
+        parametres: { arme: 'fusil-blaster', portee: 'longue' },
+      },
+      des,
+    );
+    const moyen = agir(
+      {
+        action: 'attaque',
+        acteur: tireur,
+        cible,
+        parametres: { arme: 'fusil-blaster', portee: 'moyenne' },
+      },
+      des,
+    );
+    expect([court, moyen, loin].map((r) => r.variables.degatsTalents)).toEqual([1, 0, 2]);
+  });
+
+  it('couvert et cible à terre', () => {
+    const abritee = fiche(wookiee([{ entree: 'couvert-partiel' }, { entree: 'a-terre' }]));
+    expect(abritee.valeur('couvert')).toBe(1);
+    expect(abritee.valeur('defenseDistance')).toBe(2); // armure 1 + à terre
+    const tir = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible: abritee,
+        parametres: { arme: 'fusil-blaster', portee: 'moyenne' },
+      },
+      [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    );
+    expect(pool(tir)).toEqual([
+      { de: 'fortune', nombre: 1 },
+      { de: 'infortune', nombre: 2 },
+      { de: 'aptitude', nombre: 1 },
+      { de: 'difficulte', nombre: 3 },
+      { de: 'maitrise', nombre: 2 },
+    ]);
+    // Au contact, la cible à terre donne un dé de Fortune et le couvert ne compte pas
+    const coup = agir(
+      {
+        action: 'attaque',
+        acteur: chasseur,
+        cible: abritee,
+        parametres: { arme: 'mains-nues', portee: 'engage' },
+      },
+      [1, 1, 1, 1, 1, 1],
+    );
+    expect(pool(coup)).toEqual([
+      { de: 'fortune', nombre: 1 },
+      { de: 'infortune', nombre: 1 },
+      { de: 'aptitude', nombre: 2 },
+      { de: 'difficulte', nombre: 2 },
+    ]);
   });
 
   it('une arme étourdissante inflige du stress et jamais de critique', () => {
@@ -376,7 +671,7 @@ describe('Combat', () => {
       action: 'attaque',
       acteur: tireur,
       cible,
-      parametres: { arme: 'canon-a-impulsion-etourdissante', competence: 'distance-lourde' },
+      parametres: { arme: 'canon-a-impulsion-etourdissante', portee: 'moyenne' },
       // Infortune ×2 (Défense 1 + Inexact 1), 1 Aptitude, 2 Difficulté, 2 Maîtrise
       aleatoire: aleatoireImpose([1, 1, 4, 1, 1, 4, 12]),
     });
@@ -391,11 +686,28 @@ describe('Combat', () => {
       { entite: 'cible', attribut: 'stress', operation: 'ajouter', valeur: 10 },
     ]);
     expect(r.resultat.tables).toEqual([]);
+    // Résolution : 1 stress de moins par rang
+    const resolu = fiche(wookiee([{ entree: 'resolution', rang: 2 }]));
+    const r2 = agir(
+      {
+        action: 'attaque',
+        acteur: tireur,
+        cible: resolu,
+        parametres: { arme: 'canon-a-impulsion-etourdissante', portee: 'moyenne' },
+      },
+      [1, 1, 4, 1, 1, 4, 12],
+    );
+    expect(r2.variables.stressInflige).toBe(8);
   });
 
-  it('blessures critiques : +10 par critique déjà subie', () => {
-    const blesse = fiche(wookiee([{ entree: 'coupure' }, { entree: 'fracture' }]));
-    expect(blesse.valeur('critiquesSubis')).toBe(2);
+  it('blessures critiques : +10 par critique déjà subie, une même blessure pouvant revenir', () => {
+    const blesse = fiche(
+      wookiee([
+        { entree: 'coupure', rang: 1 },
+        { entree: 'fracture', rang: 2 },
+      ]),
+    );
+    expect(blesse.valeur('critiquesSubis')).toBe(3);
     const t = tirerTable(systeme, 'blessures-critiques', 20, aleatoireImpose([85]));
     expect(t.valeur).toBe(105);
     expect(t.ligne?.entree).toBe('blessure-mortelle');
@@ -435,6 +747,338 @@ describe('Combat', () => {
       ['bothan', 1, 1],
       ['wookiee', 1, 0],
     ]);
+    // Sang-froid jamais appris : Présence 2, rang 0
+    const sf = agir(
+      { action: 'initiative', acteur: chasseur, parametres: { competence: 'sang-froid' } },
+      [1, 1],
+    );
+    expect(pool(sf)).toEqual([{ de: 'aptitude', nombre: 2 }]);
+  });
+});
+
+describe('Tests de compétence et talents', () => {
+  const chasseur = fiche({ ...bothanChasseur(), creation: false });
+
+  it('compétence jamais apprise : testée au rang 0', () => {
+    const r = agir(
+      { action: 'test', acteur: chasseur, parametres: { competence: 'medecine', difficulte: 1 } },
+      [1, 1, 1],
+    );
+    expect(pool(r)).toEqual([
+      { de: 'aptitude', nombre: 2 },
+      { de: 'difficulte', nombre: 1 },
+    ]);
+  });
+
+  it('Attitude convaincante (espèce) retire des dés d’Infortune en Tromperie seulement', () => {
+    const trompe = agir(
+      {
+        action: 'test',
+        acteur: chasseur,
+        parametres: { competence: 'tromperie', difficulte: 2, desInfortune: 2 },
+      },
+      [1, 1, 1, 1, 1, 1],
+    );
+    expect(pool(trompe)).toContainEqual({ de: 'infortune', nombre: 1 });
+    const percoit = agir(
+      {
+        action: 'test',
+        acteur: chasseur,
+        parametres: { competence: 'perception', difficulte: 2, desInfortune: 2 },
+      },
+      [1, 1, 1, 1, 1, 1, 1],
+    );
+    expect(pool(percoit)).toContainEqual({ de: 'infortune', nombre: 2 });
+  });
+
+  it('Chercheur : toutes les Connaissances ; Débrouillard : Connaissance (Pègre)', () => {
+    const erudit = fiche(
+      wookiee([
+        { entree: 'chercheur', rang: 1 },
+        { entree: 'debrouillard', rang: 1 },
+      ]),
+    );
+    const infortune = (competence: string) =>
+      pool(
+        agir(
+          {
+            action: 'test',
+            acteur: erudit,
+            parametres: { competence, difficulte: 0, desInfortune: 3 },
+          },
+          [1, 1, 1, 1, 1],
+        ),
+      ).find((d) => d.de === 'infortune')?.nombre;
+    expect(infortune('connaissance-xenologie')).toBe(2);
+    expect(infortune('connaissance-pegre')).toBe(1);
+    expect(infortune('sens-de-la-rue')).toBe(2);
+    expect(infortune('survie')).toBe(3);
+  });
+
+  it('test en situation : Pisteur expert, Casseur de codes, Assurance, vision du Chiss', () => {
+    const pisteur = fiche(
+      wookiee([
+        { entree: 'pisteur-expert', rang: 2 },
+        { entree: 'casseur-de-codes', rang: 1 },
+        { entree: 'assurance', rang: 1 },
+      ]),
+    );
+    const situation = (acteur: Fiche, parametres: Record<string, string | number>) =>
+      pool(agir({ action: 'test-situation', acteur, parametres }, Array(12).fill(1)));
+    // Pister : 2 dés d'Infortune retirés sur 3 ; sans la circonstance, rien
+    expect(
+      situation(pisteur, { competence: 'survie', circonstance: 'pistage', desInfortune: 3 }),
+    ).toContainEqual({ de: 'infortune', nombre: 1 });
+    expect(
+      situation(pisteur, { competence: 'survie', circonstance: 'terrain', desInfortune: 3 }),
+    ).toContainEqual({ de: 'infortune', nombre: 3 });
+    // Déchiffrer : difficulté réduite de 1
+    expect(
+      situation(pisteur, { competence: 'informatique', circonstance: 'dechiffrement' }),
+    ).toContainEqual({ de: 'difficulte', nombre: 1 });
+    // Peur : seulement en Discipline
+    expect(
+      situation(pisteur, { competence: 'discipline', circonstance: 'peur', difficulte: 3 }),
+    ).toContainEqual({ de: 'difficulte', nombre: 2 });
+    expect(
+      situation(pisteur, { competence: 'coercition', circonstance: 'peur', difficulte: 3 }),
+    ).toContainEqual({ de: 'difficulte', nombre: 3 });
+    const chiss = fiche(etat({ possessions: [{ entree: 'chiss' }] }));
+    expect(
+      situation(chiss, { competence: 'perception', circonstance: 'obscurite', desInfortune: 1 }),
+    ).not.toContainEqual(expect.objectContaining({ de: 'infortune' }));
+  });
+
+  it('excédent d’encombrement : Infortune aux tests d’Agilité et de Vigueur seulement', () => {
+    const base = bothanChasseur();
+    const charge = fiche(
+      EtatEntite.parse({
+        ...base,
+        creation: false,
+        possessions: [
+          ...base.possessions,
+          { entree: 'fusil-blaster-lourd' },
+          { entree: 'vibromachette' },
+          { entree: 'lance-grenades', actif: false }, // laissé au vaisseau
+        ],
+      }),
+    );
+    expect(charge.valeur('encombrement')).toBe(12); // 3 + 5 + 4
+    expect(charge.valeur('excedentEncombrement')).toBe(5);
+    expect(charge.valeur('surcharge')).toBe(true);
+    const test = (competence: string) =>
+      pool(
+        agir(
+          { action: 'test', acteur: charge, parametres: { competence, difficulte: 0 } },
+          Array(10).fill(1),
+        ),
+      ).find((d) => d.de === 'infortune')?.nombre;
+    expect(test('coordination')).toBe(5);
+    expect(test('perception')).toBeUndefined();
+  });
+
+  it('Dévouement : +1 par rang à une caractéristique choisie, 6 au plus', () => {
+    const w = (rang: number, valeurs = {}) =>
+      fiche(
+        EtatEntite.parse({
+          ...wookiee([
+            { entree: 'devouement', rang, choix: { 'rang-1': ['volonte'], 'rang-2': ['vigueur'] } },
+          ]),
+          valeurs,
+        }),
+      );
+    expect([w(1).valeur('volonte'), w(1).valeur('vigueur')]).toEqual([2, 3]);
+    expect([w(2).valeur('volonte'), w(2).valeur('vigueur')]).toEqual([2, 4]);
+    expect(w(2, { vigueur: 3 }).valeur('vigueur')).toBe(6); // 3 + 3 + 1, plafonné
+  });
+
+  it('Maître des armures (armure portée) et Maître des armures amélioré (Encaissement 2+)', () => {
+    const maitre = (armure: string, actif = true) =>
+      fiche(
+        etat({
+          possessions: [
+            { entree: 'wookiee' },
+            { entree: armure, actif },
+            { entree: 'maitre-des-armures', rang: 1 },
+            { entree: 'maitre-des-armures-ameliore', rang: 1 },
+          ],
+        }),
+      );
+    expect(maitre('armure-legere').valeur('encaissement')).toBe(5); // 3 + 1 + 1
+    expect(maitre('armure-legere').valeur('defenseDistance')).toBe(1);
+    expect(maitre('armure-legere', false).valeur('encaissement')).toBe(3);
+    expect(maitre('armure-lourde-de-combat').valeur('defenseMelee')).toBe(3); // 2 + 1
+  });
+
+  it('état Désorienté : 1 dé d’Infortune tant qu’il est actif', () => {
+    const r = (actif: boolean) =>
+      pool(
+        agir(
+          {
+            action: 'test',
+            acteur: fiche(wookiee([{ entree: 'desoriente', actif }])),
+            parametres: { competence: 'athletisme', difficulte: 0 },
+          },
+          Array(6).fill(1),
+        ),
+      ).find((d) => d.de === 'infortune')?.nombre;
+    expect(r(true)).toBe(1);
+    expect(r(false)).toBeUndefined();
+  });
+
+  it('Obligation déclenchée : seuil de stress −1, −2 pour le personnage concerné', () => {
+    expect(fiche(wookiee()).valeur('seuilStress')).toBe(11);
+    expect(fiche(wookiee([{ entree: 'obligation-declenchee' }])).valeur('seuilStress')).toBe(10);
+    expect(
+      fiche(
+        wookiee([
+          { entree: 'obligation-declenchee' },
+          { entree: 'obligation-personnelle-declenchee' },
+        ]),
+      ).valeur('seuilStress'),
+    ).toBe(9);
+  });
+
+  it('Test de talent : Tête dure (Discipline, Intimidant − 1 par rang)', () => {
+    const tetu = fiche(wookiee([{ entree: 'tete-dure', rang: 2 }]));
+    const r = agir(
+      { action: 'talent', acteur: tetu, parametres: { talent: 'tete-dure' } },
+      [1, 1, 1],
+    );
+    expect(pool(r)).toEqual([
+      { de: 'aptitude', nombre: 1 }, // Volonté 1, Discipline 0
+      { de: 'difficulte', nombre: 2 },
+    ]);
+    // Un talent sans test n'est pas proposé
+    const cran = executerAction(systeme, {
+      action: 'talent',
+      acteur: fiche(wookiee([{ entree: 'cran', rang: 1 }])),
+      parametres: { talent: 'cran' },
+      aleatoire: aleatoireImpose([]),
+    });
+    expect(cran.ok).toBe(false);
+  });
+
+  it('Polyvalent : deux compétences de carrière par rang', () => {
+    const f = fiche(wookiee([{ entree: 'polyvalent', rang: 2 }]));
+    expect(nombreChoix(f, 'polyvalent', systeme.entrees.get('polyvalent')!.choix[0]!)).toBe(4);
+  });
+});
+
+describe('Soins et récupération', () => {
+  const medecin = fiche(
+    etat({
+      possessions: [
+        { entree: 'bothan' },
+        { entree: 'chirurgien', rang: 1 },
+        { entree: 'stimpack' },
+      ],
+    }),
+  );
+  const blesse = fiche(
+    etat({ possessions: [{ entree: 'wookiee' }], valeurs: { blessures: 10, stress: 2 } }),
+  );
+
+  it('Médecine : difficulté selon les blessures, Chirurgien, stress soigné par les Avantages', () => {
+    expect(blesse.valeur('seuilBlessure')).toBe(13);
+    // Intellect 2 : 2 Aptitude (2 Succès ; 1 Succès 1 Avantage) ; 10 > 13 / 2 : Moyen
+    const r = agir(
+      { action: 'soins', acteur: medecin, cible: blesse, parametres: { competence: 'medecine' } },
+      [4, 7, 1, 1],
+    );
+    expect(pool(r)).toEqual([
+      { de: 'aptitude', nombre: 2 },
+      { de: 'difficulte', nombre: 2 },
+    ]);
+    expect(r.variables).toMatchObject({ blessuresSoignees: 4, stressSoigne: 1 });
+    expect(r.modifications).toEqual([
+      { entite: 'cible', attribut: 'blessures', operation: 'retirer', valeur: 4 },
+      { entite: 'cible', attribut: 'stress', operation: 'retirer', valeur: 1 },
+    ]);
+    // Neutralisé : Difficile
+    const ko = fiche(etat({ possessions: [{ entree: 'wookiee' }], valeurs: { blessures: 13 } }));
+    expect(ko.valeur('neutralise')).toBe(true);
+    const r2 = agir(
+      { action: 'soins', acteur: medecin, cible: ko, parametres: { competence: 'medecine' } },
+      [1, 1, 1, 1, 1],
+    );
+    expect(pool(r2)).toContainEqual({ de: 'difficulte', nombre: 3 });
+  });
+
+  it('un droïde se répare avec Mécanique, pas avec Médecine ni stimpack', () => {
+    const droide = fiche(etat({ possessions: [{ entree: 'droide' }], valeurs: { blessures: 3 } }));
+    const med = agir(
+      { action: 'soins', acteur: medecin, cible: droide, parametres: { competence: 'medecine' } },
+      [4, 4, 1],
+    );
+    expect(med.reussi).toBe(true);
+    expect(med.modifications).toEqual([]);
+    const meca = agir(
+      { action: 'soins', acteur: medecin, cible: droide, parametres: { competence: 'mecanique' } },
+      [4, 4, 1],
+    );
+    expect(meca.variables.blessuresSoignees).toBe(3); // Chirurgien ne s'applique qu'à Médecine
+    const stim = agir({ action: 'stimpack', acteur: medecin, cible: droide }, []);
+    expect(stim.modifications).toEqual([]);
+  });
+
+  it('stimpack : 5 blessures, 1 de moins par stimpack du jour ; il faut en posséder un', () => {
+    const deja = fiche(
+      etat({
+        possessions: [{ entree: 'wookiee' }],
+        valeurs: { blessures: 10, stimpacksDuJour: 1 },
+      }),
+    );
+    const r = agir({ action: 'stimpack', acteur: medecin, cible: deja }, []);
+    expect(r.modifications).toEqual([
+      { entite: 'cible', attribut: 'blessures', operation: 'retirer', valeur: 4 },
+      { entite: 'cible', attribut: 'stimpacksDuJour', operation: 'ajouter', valeur: 1 },
+    ]);
+    const sans = executerAction(systeme, {
+      action: 'stimpack',
+      acteur: fiche(wookiee()),
+      cible: deja,
+      aleatoire: aleatoireImpose([]),
+    });
+    expect(sans.ok).toBe(false);
+  });
+
+  it('récupération de stress : Succès nets + Récupération rapide', () => {
+    const fatigue = fiche(
+      etat({
+        possessions: [{ entree: 'wookiee' }, { entree: 'recuperation-rapide', rang: 1 }],
+        valeurs: { stress: 6 },
+      }),
+    );
+    // Volonté 1 : 1 Aptitude (2 Succès), sans dé de Difficulté
+    const r = agir(
+      { action: 'recuperation', acteur: fatigue, parametres: { competence: 'discipline' } },
+      [4],
+    );
+    expect(r.modifications).toEqual([
+      { entite: 'acteur', attribut: 'stress', operation: 'retirer', valeur: 3 },
+    ]);
+  });
+});
+
+describe('Obligation', () => {
+  it('détail libre, étape facultative, Obligation supplémentaire payée en XP', () => {
+    const f = fiche(
+      etat({
+        creation: true,
+        possessions: [
+          { entree: 'humain' },
+          {
+            entree: 'dette',
+            champs: { valeur: 15, supplement: 5, detail: 'Doit 20 000 crédits à Jabba' },
+          },
+        ],
+      }),
+    );
+    expect(f.valeur('obligation')).toBe(15);
+    expect(solde(f, 'xp')).toBe(115); // 110 + 5
+    const etape = systeme.source.creation[0]!.etapes.find((x) => x.id === 'obligation');
+    expect(etape).toMatchObject({ min: 0 });
   });
 });
 
@@ -450,6 +1094,21 @@ describe('Véhicules', () => {
     expect(f.valeur('blindage')).toBe(3);
     expect(f.valeurs.get('coque')).toMatchObject({ valeur: 0, max: 22 });
     expect(f.valeurs.get('tension')).toMatchObject({ valeur: 0, max: 15 });
+  });
+
+  it('dommages critiques à rangs', () => {
+    const f = fiche(
+      etat(
+        {
+          possessions: [
+            { entree: 'cargo-leger-yt-1300' },
+            { entree: 'dommage-cosmetique', rang: 2 },
+          ],
+        },
+        'vehicule',
+      ),
+    );
+    expect(f.valeur('critiquesSubis')).toBe(2);
   });
 
   it('défense à quatre arcs (Av/Bâ/Tr/Ar)', () => {

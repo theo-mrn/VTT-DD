@@ -1,0 +1,16 @@
+# Circonstances d'un test (action « Test en situation ») : lues par les effets de jet
+# des talents et des capacités d'espèce (`si: circonstance == "pistage"`).
+- { id: pistage, sorte: circonstance, nom: Pister une cible ou trouver des traces }
+- { id: securite, sorte: circonstance, nom: Désactiver une sécurité ou ouvrir une serrure }
+- { id: dechiffrement, sorte: circonstance, nom: Casser un code ou déchiffrer des communications }
+- { id: terrain, sorte: circonstance, nom: Traverser un terrain ou affronter l'environnement }
+- { id: ressources, sorte: circonstance, nom: 'Trouver nourriture, eau ou abri' }
+- { id: recuperation-materiel, sorte: circonstance, nom: Trouver ou récupérer objets et matériel }
+- { id: fabrication, sorte: circonstance, nom: Construire un objet ou modifier un accessoire }
+- { id: poison, sorte: circonstance, nom: 'Résister aux poisons, venins et toxines' }
+- { id: poursuite, sorte: circonstance, nom: Rattraper ou semer un adversaire (poursuite) }
+- { id: betes, sorte: circonstance, nom: Test impliquant des bêtes ou des animaux }
+- { id: peur, sorte: circonstance, nom: Résister à la peur }
+- { id: institutions-savoir, sorte: circonstance, nom: Interagir avec une institution du savoir }
+- { id: obscurite, sorte: circonstance, nom: Obscurité ou faible luminosité }
+- { id: chaleur-aride, sorte: circonstance, nom: Environnement aride ou chaud }

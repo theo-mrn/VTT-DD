@@ -44,6 +44,9 @@
     - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
     - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 175 }
     - { sur: rang, entree: endurant, valeur: 1 }
+    - { sur: attribut, attribut: inorganique, operation: fixer, valeur: vrai }
+    - { sur: attribut, attribut: bonusChoixCarriere, operation: ajouter, valeur: 2 }
+    - { sur: attribut, attribut: bonusChoixSpecialisation, operation: ajouter, valeur: 1 }
 
 - id: gand
   sorte: espece
@@ -160,6 +163,7 @@
     - { sur: attribut, attribut: baseSeuilBlessure, operation: fixer, valeur: 10 }
     - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
     - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
+    - { sur: jet, si: circonstance == "chaleur-aride", ajout: { retirer: infortune, nombre: 1 } }
   choix:
     - id: charme-ou-tromperie
       nom: Charme ou Tromperie
@@ -187,6 +191,11 @@
     - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
     - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 90 }
     - { sur: rang, entree: corps-a-corps, valeur: 1 }
+    - sur: attribut
+      attribut: bonusDegatsMelee
+      operation: ajouter
+      description: Rage wookiee
+      valeur: si(@critiquesSubis >= 1, 2, si(@blessures >= 1, 1, 0))
 
 - id: miraluka
   sorte: espece
@@ -211,6 +220,7 @@
 - id: lannik
   sorte: espece
   nom: Lannik
+  etiquettes: [vision-augmentee]
   description: |-
     Petite espèce humanoïde à la longue histoire guerrière, les Lannik sont de féroces guerriers aux compétences aiguisées, malgré leur taille réduite. Leur peau varie du rouge foncé à l'orange, en passant par le violet et le bleu foncé, et leurs oreilles larges et pointues captent les sons lointains. Leur culture valorise fortement le service militaire obligatoire et une intrépidité naturelle leur permettant de garder les idées claires dans les situations les plus dangereuses.
 
@@ -436,6 +446,7 @@
 - id: chiss
   sorte: espece
   nom: Chiss
+  etiquettes: [vision-infrarouge]
   description: |-
     Humanoïdes à la peau bleue, aux cheveux longs, fins et noirs, et aux yeux rouges leur conférant une acuité visuelle accrue. Plus résistants que la moyenne des humains, ils forment une société très hiérarchisée organisée autour de familles aristocratiques, intelligente mais réservée, maintenant son isolement depuis des millénaires. Extrêmement pacifiques malgré leur nature guerrière, ils prônent une attitude défensive et ont historiquement interdit l'usage de la Force, la jugeant menaçante pour la stabilité sociale.
 
@@ -453,6 +464,7 @@
     - { sur: attribut, attribut: baseSeuilStress, operation: fixer, valeur: 10 }
     - { sur: attribut, attribut: xpDepart, operation: fixer, valeur: 100 }
     - { sur: rang, entree: vigilance, valeur: 1 }
+    - { sur: jet, si: circonstance == "obscurite", ajout: { retirer: infortune, nombre: 1 } }
 
 - id: yuuzhan-vong
   sorte: espece
@@ -717,6 +729,7 @@
 - id: gotal
   sorte: espece
   nom: Gotal
+  etiquettes: [vision-augmentee]
   description: |-
     Humanoïdes pacifiques à la peau gris-vert couverte de fourrure, dotés de deux cornes crâniennes abritant un système de détection électromagnétique compensant une vue et une ouïe faibles. Ce sens leur permet de percevoir les émotions d'autrui et de détecter proies ou sources d'énergie à distance. Société non hiérarchique fondée sur l'empathie naturelle ; plusieurs Gotals ont servi dans l'Ordre Jedi ou comme Rangers Antariens.
 
@@ -1057,6 +1070,7 @@
 - id: advozse
   sorte: espece
   nom: Advozse
+  etiquettes: [vision-augmentee]
   description: |-
     Petits humanoïdes d'environ 1,50 m, à la peau jaune-marron et aux grands yeux noirs offrant une bonne vision nocturne. Peuple pessimiste et méfiant, mais réputé pour ses talents d'ingénieurs en matériaux et en construction.
 
@@ -1767,6 +1781,7 @@
 - id: balosar
   sorte: espece
   nom: Balosar
+  etiquettes: [vision-augmentee]
   description: |-
     Humanoïdes proches des humains, dotés de deux antennes crâniennes rétractables offrant une audition subsonique améliorée et une intuition proche de celle des Jedi, ainsi qu'une extrême résistance aux toxines. Société minée par une démocratie corrompue et le crime organisé, ils dominent le marché galactique des Bâtons de la Mort, une drogue tirée d'un champignon local.
 
@@ -1952,6 +1967,7 @@
 - id: ongree
   sorte: espece
   nom: Ongree
+  etiquettes: [vision-augmentee]
   description: |-
     Humanoïdes à la peau jaunâtre tirant sur le marron, dotés d'yeux rouges et noirs disproportionnés pouvant effectuer une rotation complète, offrant une vision panoramique, ainsi que quatre narines permettant de traquer à des centaines de kilomètres. Amicaux et pacifistes, ils excellent dans les rôles diplomatiques et commerciaux au sein de la République Galactique.
 

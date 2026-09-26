@@ -1,5 +1,5 @@
 # Spécialisations : ouvrent leur arbre de talents, marquent « carriere » 4 compétences ;
-# 2 rangs gratuits pour la première spécialisation.
+# 2 rangs gratuits pour la première spécialisation (3 pour un droïde : @bonusChoixSpecialisation).
 - id: assassin
   sorte: specialisation
   nom: Assassin
@@ -10,7 +10,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [melee, distance-lourde, magouilles, discretion] }
       donne: { type: rang, valeur: 1 }
 
@@ -28,7 +28,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [corps-a-corps, coercition, mecanique, distance-legere] }
       donne: { type: rang, valeur: 1 }
 
@@ -46,7 +46,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         { sorte: competence, entrees: [connaissance-xenologie, perception, resistance, survie] }
       donne: { type: rang, valeur: 1 }
@@ -65,7 +65,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         { sorte: competence, entrees: [sang-froid, connaissance-education, medecine, resistance] }
       donne: { type: rang, valeur: 1 }
@@ -84,7 +84,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [charme, coercition, tromperie, connaissance-noyau] }
       donne: { type: rang, valeur: 1 }
 
@@ -100,7 +100,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         {
           sorte: competence,
@@ -122,7 +122,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         { sorte: competence, entrees: [astrogation, coordination, negociation, sens-de-la-rue] }
       donne: { type: rang, valeur: 1 }
@@ -141,7 +141,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [athletisme, medecine, pilotage-planetaire, survie] }
       donne: { type: rang, valeur: 1 }
 
@@ -159,7 +159,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         {
           sorte: competence,
@@ -181,7 +181,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         {
           sorte: competence,
@@ -199,7 +199,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [coercition, melee, resistance, survie] }
       donne: { type: rang, valeur: 1 }
 
@@ -217,7 +217,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [discipline, artillerie, commandement, distance-lourde] }
       donne: { type: rang, valeur: 1 }
 
@@ -235,7 +235,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         {
           sorte: competence,
@@ -253,7 +253,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [charme, sang-froid, tromperie, distance-legere] }
       donne: { type: rang, valeur: 1 }
 
@@ -267,7 +267,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi: { sorte: competence, entrees: [informatique, magouilles, discretion, vigilance] }
       donne: { type: rang, valeur: 1 }
 
@@ -285,7 +285,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         { sorte: competence, entrees: [corps-a-corps, mecanique, pilotage-spatial, magouilles] }
       donne: { type: rang, valeur: 1 }
@@ -304,7 +304,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         {
           sorte: competence,
@@ -326,7 +326,7 @@
   choix:
     - id: rangs-de-depart
       nom: Rangs gratuits de spécialisation (première spécialisation, création)
-      nombre: 2
+      nombre: 2 + @bonusChoixSpecialisation
       parmi:
         {
           sorte: competence,
