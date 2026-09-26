@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import type { CharacterConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
-import { droitsCampaign, sansSalles } from './droits/campaign.js';
+import { droitsCampaign, sansCampagnes } from './droits/campaign.js';
 import { register as interne } from './modules/interne/index.js';
 import { register as personnages } from './modules/personnages/index.js';
 import { register as systemes } from './modules/systemes/index.js';
@@ -51,7 +51,7 @@ export async function buildCharacter(
     catalogue: catalogueFourni ?? catalogueReference(),
     aleatoire: aleatoire ?? aleatoireCrypto,
     maintenant: maintenant ?? (() => new Date()),
-    droits: droits ?? droitsDesSalles(config, app.log),
+    droits: droits ?? droitsDesCampagnes(config, app.log),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
@@ -62,14 +62,17 @@ export async function buildCharacter(
   return app;
 }
 
-/** Droits des MJ et joueurs des salles : campaign s'il est configuré, sinon propriétaire seul. */
-function droitsDesSalles(config: CharacterConfig, log: { warn: (o: object, m: string) => void }) {
+/** Droits des MJ et joueurs des campagnes : campaign s'il est configuré, sinon propriétaire seul. */
+function droitsDesCampagnes(
+  config: CharacterConfig,
+  log: { warn: (o: object, m: string) => void },
+) {
   if (!config.CAMPAIGN_URL || !config.INTERNAL_API_SECRET) {
     log.warn(
       {},
       'CAMPAIGN_URL ou INTERNAL_API_SECRET absent : seul le propriétaire accède à un personnage',
     );
-    return sansSalles;
+    return sansCampagnes;
   }
   return droitsCampaign({
     url: config.CAMPAIGN_URL,

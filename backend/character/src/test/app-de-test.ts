@@ -13,7 +13,7 @@ import { buildCharacter } from '../app.js';
 import { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { characters, outbox } from '../db/schema.js';
-import type { Droits, DroitsSalles } from '../droits/campaign.js';
+import type { Droits, DroitsCampagnes } from '../droits/campaign.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -51,7 +51,7 @@ export function aleatoirePilote() {
  */
 export function droitsSimules() {
   const table = new Map<string, Droits>();
-  const droits: DroitsSalles = {
+  const droits: DroitsCampagnes = {
     de: async (characterId, userId) =>
       table.get(`${characterId}:${userId}`) ?? { lecture: false, ecriture: false },
   };
@@ -62,7 +62,7 @@ export function droitsSimules() {
 
 export async function appDeTest(
   surcharges: Record<string, string> = {},
-  options: { droits?: DroitsSalles } = {},
+  options: { droits?: DroitsCampagnes } = {},
 ) {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connexion = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;

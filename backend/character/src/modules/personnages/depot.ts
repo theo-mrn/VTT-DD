@@ -13,7 +13,7 @@ import { HttpError } from '@vtt/platform';
 import { ficheJson, type EtatEntite, type FicheJson, type SystemeCharge } from '@vtt/rules';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
-import type { DroitsSalles } from '../../droits/campaign.js';
+import type { DroitsCampagnes } from '../../droits/campaign.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
 import { characters } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
@@ -75,7 +75,7 @@ export type Mode = 'lecture' | 'ecriture' | 'proprietaire';
  */
 export async function autoriser(
   db: Db | Tx,
-  droits: DroitsSalles,
+  droits: DroitsCampagnes,
   userId: string,
   demandes: { id: string; mode: Mode }[],
 ): Promise<ActorRole> {

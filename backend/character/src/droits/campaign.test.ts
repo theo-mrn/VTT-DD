@@ -14,7 +14,7 @@ describe('droits décidés par campaign', () => {
   it('interroge campaign avec le secret interne puis garde la réponse en cache', async () => {
     let maintenant = 1_000;
     const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) =>
-      reponse({ lecture: true, ecriture: false, salles: [] }),
+      reponse({ read: true, write: false, campaigns: [] }),
     );
     const droits = droitsCampaign({
       url: 'http://campaign.local',
@@ -27,7 +27,7 @@ describe('droits décidés par campaign', () => {
     expect(await droits.de('perso-1', 'user-1')).toEqual({ lecture: true, ecriture: false });
     const [url, init] = fetch.mock.calls[0]!;
     expect(String(url)).toBe(
-      'http://campaign.local/internal/characters/perso-1/salles-de?userId=user-1',
+      'http://campaign.local/internal/characters/perso-1/campaigns-of?userId=user-1',
     );
     expect((init!.headers as Record<string, string>)['x-internal-secret']).toBe(SECRET);
 
@@ -44,7 +44,7 @@ describe('droits décidés par campaign', () => {
       .fn()
       .mockResolvedValueOnce(reponse({ title: 'Erreur' }, 503))
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-      .mockResolvedValueOnce(reponse({ lecture: true, ecriture: true }));
+      .mockResolvedValueOnce(reponse({ read: true, write: true, campaigns: [] }));
     const droits = droitsCampaign({
       url: 'http://campaign.local',
       secret: SECRET,

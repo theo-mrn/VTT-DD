@@ -1,10 +1,10 @@
 /**
  * Droits d'un utilisateur sur un personnage qu'il ne possède pas, décidés par
- * les salles du service campaign :
- *  - lecture : l'utilisateur est membre d'une salle où le personnage est engagé ;
+ * les campagnes du service campaign :
+ *  - lecture : l'utilisateur est membre d'une campagne où le personnage est engagé ;
  *  - écriture : il y est MJ.
  *
- * character interroge campaign (GET /internal/characters/:id/salles-de?userId=)
+ * character interroge campaign (GET /internal/characters/:id/campaigns-of?userId=)
  * et garde la réponse quelques secondes en mémoire. Une panne de campaign
  * n'ouvre aucun droit : seul le propriétaire garde l'accès.
  */
@@ -16,7 +16,7 @@ export interface Droits {
   ecriture: boolean;
 }
 
-export interface DroitsSalles {
+export interface DroitsCampagnes {
   /** Droits de `userId` sur le personnage `characterId`, qu'il ne possède pas. */
   de(characterId: string, userId: string): Promise<Droits>;
 }
@@ -24,9 +24,10 @@ export interface DroitsSalles {
 export const AUCUN_DROIT: Droits = Object.freeze({ lecture: false, ecriture: false });
 
 /** Sans campaign configuré : aucun droit en dehors du propriétaire. */
-export const sansSalles: DroitsSalles = { de: async () => AUCUN_DROIT };
+export const sansCampagnes: DroitsCampagnes = { de: async () => AUCUN_DROIT };
 
-const Reponse = z.object({ lecture: z.boolean(), ecriture: z.boolean() });
+/** Réponse de campaign (contrat en anglais : read, write, campaigns). */
+const Reponse = z.object({ read: z.boolean(), write: z.boolean() });
 
 /** Borne du cache : au-delà, les entrées les plus anciennes sont évincées. */
 const TAILLE_MAX_CACHE = 10_000;
@@ -43,7 +44,7 @@ export interface OptionsCampaign {
   signaler?: (erreur: unknown) => void;
 }
 
-export function droitsCampaign(o: OptionsCampaign): DroitsSalles {
+export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
   const appel = o.fetch ?? globalThis.fetch;
   const maintenant = o.maintenant ?? Date.now;
   const cache = new Map<string, { droits: Droits; jusqua: number }>();
@@ -58,7 +59,7 @@ export function droitsCampaign(o: OptionsCampaign): DroitsSalles {
       let droits: Droits;
       try {
         const url = new URL(
-          `/internal/characters/${encodeURIComponent(characterId)}/salles-de`,
+          `/internal/characters/${encodeURIComponent(characterId)}/campaigns-of`,
           o.url,
         );
         url.searchParams.set('userId', userId);
@@ -67,7 +68,8 @@ export function droitsCampaign(o: OptionsCampaign): DroitsSalles {
           signal: AbortSignal.timeout(DELAI_MS),
         });
         if (!res.ok) throw new Error(`campaign a répondu ${res.status}`);
-        droits = Reponse.parse(await res.json());
+        const r = Reponse.parse(await res.json());
+        droits = { lecture: r.read, ecriture: r.write };
       } catch (erreur) {
         // Pas de mise en cache d'une panne : la prochaine requête réessaie
         o.signaler?.(erreur);
