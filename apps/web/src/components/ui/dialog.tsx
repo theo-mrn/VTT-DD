@@ -1,0 +1,165 @@
+'use client';
+
+import * as React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { XIcon } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+import { BorderTrail } from '@/components/motion-primitives/border-trail';
+
+function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+}
+
+function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
+}
+
+function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
+}
+
+function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
+}
+
+function DialogOverlay({
+  className = '',
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  return (
+    <DialogPrimitive.Overlay
+      data-slot="dialog-overlay"
+      className={cn(
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function DialogContent({
+  className = '',
+  children,
+  showCloseButton = true,
+  unstyled = false,
+  borderTrail = false,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean;
+  unstyled?: boolean;
+  /** Affiche un BorderTrail animé (accent doré) tout autour du modal. */
+  borderTrail?: boolean;
+}) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        data-slot="dialog-content"
+        className={cn(
+          'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] duration-200 sm:max-w-lg transition-all !p-0 !bg-transparent !border-none !shadow-none outline-none',
+          className,
+        )}
+        {...props}
+      >
+        {unstyled ? (
+          <>
+            {children}
+            {showCloseButton && (
+              <DialogPrimitive.Close
+                data-slot="dialog-close"
+                className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-20"
+              >
+                <XIcon className="w-5 h-5" />
+                <span className="sr-only">Close</span>
+              </DialogPrimitive.Close>
+            )}
+          </>
+        ) : (
+          <div className="w-full rounded-2xl relative isolate bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
+            {borderTrail && (
+              <BorderTrail
+                className="bg-[#f5d491]"
+                size={260}
+                transition={{ repeat: Infinity, duration: 9, ease: 'linear' }}
+                style={{
+                  boxShadow:
+                    '0 0 12px 4px #f5d491, 0 0 28px 10px #e0b765, 0 0 55px 18px color-mix(in srgb, #e0b765 70%, transparent)',
+                }}
+              />
+            )}
+            <div className="w-full p-6 rounded-2xl relative overflow-hidden bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+              {children}
+              {showCloseButton && (
+                <DialogPrimitive.Close
+                  data-slot="dialog-close"
+                  className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+                >
+                  <XIcon />
+                  <span className="sr-only">Close</span>
+                </DialogPrimitive.Close>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn('flex flex-col gap-2 text-center sm:text-left', className || '')}
+      {...props}
+    />
+  );
+}
+
+function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className || '')}
+      {...props}
+    />
+  );
+}
+
+function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn('text-lg leading-none font-semibold', className || '')}
+      {...props}
+    />
+  );
+}
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn('text-muted-foreground text-sm', className || '')}
+      {...props}
+    />
+  );
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+};

@@ -1,17 +1,9 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { useSession } from '@/lib/session';
+import { HeroSection } from '@/components/blocks/hero-section-5';
 
 export default function Accueil() {
-  const { statut } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (statut === 'connecte') router.replace('/profil');
-    if (statut === 'anonyme') router.replace('/connexion');
-  }, [statut, router]);
-
-  return <p className="p-8 text-texte-doux">Chargement…</p>;
+  return (
+    <div className="relative">
+      <HeroSection />
+    </div>
+  );
 }

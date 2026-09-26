@@ -35,6 +35,9 @@
         "METERED_*",
         "NO_PROJECT"
       ]
+    },
+    "@vtt/web#build": {
+      "dependsOn": ["^build", "@vtt/web#typecheck"]
     }
   }
 }
