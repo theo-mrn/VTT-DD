@@ -18,6 +18,12 @@ const Resume = z.object({
   avatarUrl: z.string().nullable(),
   systeme: z.object({ id: z.string(), version: z.string() }),
   type: z.string(),
+  /**
+   * Création en cours (`etat.creation` de character) : le personnage vient
+   * d'être créé et sa fiche n'est pas terminée. Absent des anciennes versions
+   * de character : vaut alors false.
+   */
+  creation: z.boolean().default(false),
 });
 export type ResumePersonnage = z.infer<typeof Resume>;
 

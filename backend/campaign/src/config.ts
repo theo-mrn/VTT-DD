@@ -32,5 +32,16 @@ export const CampaignConfig = BaseConfig.extend({
   APP_URL: z.string().url().default('http://localhost:3000'),
   /** Tentatives pour rejoindre une salle, par minute et par IP (codes devinés). */
   RATE_LIMIT_REJOINDRE_MAX: z.coerce.number().int().positive().default(20),
+  /** Messages de discussion par minute, par membre et par salle. */
+  RATE_LIMIT_MESSAGES_MAX: z.coerce.number().int().positive().default(20),
+
+  /** Stockage des images de salle (R2 en prod, SeaweedFS en dev), comme les avatars d'identity. */
+  S3_ENDPOINT: facultatif(z.string().url()),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: facultatif(z.string()),
+  S3_ACCESS_KEY_ID: facultatif(z.string()),
+  S3_SECRET_ACCESS_KEY: facultatif(z.string()),
+  /** URL publique des fichiers envoyés (CDN R2, ou S3_ENDPOINT/bucket en dev). */
+  S3_PUBLIC_URL: facultatif(z.string().url()),
 });
 export type CampaignConfig = z.infer<typeof CampaignConfig>;

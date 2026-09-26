@@ -8,19 +8,22 @@ import type { Deps } from './deps.js';
 import { register as combat } from './modules/combat/index.js';
 import { register as interne } from './modules/interne/index.js';
 import { register as invitations } from './modules/invitations/index.js';
+import { register as messages } from './modules/messages/index.js';
 import { register as personnages } from './modules/personnages/index.js';
 import { register as salles } from './modules/salles/index.js';
+import { register as sessions } from './modules/sessions/index.js';
+import { creerSignataireS3 } from './stockage/images.js';
 import { catalogueReference, type Catalogue } from './systemes/catalogue.js';
 
 export async function buildCampaign(
   config: CampaignConfig,
   extra: Omit<ServiceOptions, 'config'> &
-    Partial<Pick<Deps, 'maintenant' | 'character' | 'profils'>> & {
+    Partial<Pick<Deps, 'maintenant' | 'character' | 'profils' | 'signataire'>> & {
       db?: Db;
       catalogue?: Catalogue;
     } = {},
 ) {
-  const { db: dbFourni, catalogue, maintenant, character, profils, ...options } = extra;
+  const { db: dbFourni, catalogue, maintenant, character, profils, signataire, ...options } = extra;
   if (!config.JWKS_URL && !options.authKeyResolver) {
     throw new Error('Configuration invalide : JWKS_URL est requis pour vérifier les jetons');
   }
@@ -55,10 +58,11 @@ export async function buildCampaign(
           })
         : sansProfils),
     maintenant: maintenant ?? (() => new Date()),
+    signataire: signataire ?? creerSignataireS3(config),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [salles, invitations, personnages, combat, interne]) {
+  for (const module of [salles, invitations, personnages, combat, sessions, messages, interne]) {
     await module(app, deps);
   }
 

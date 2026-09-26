@@ -17,6 +17,41 @@ export const ModeCombat = z.enum(MODES);
 
 export const Nom = z.string().trim().min(1, 'Nom requis').max(100, '100 caractères au plus');
 export const Description = z.string().trim().max(2000, '2000 caractères au plus');
+/** Joueurs au plus, MJ non compris (4 par défaut, comme l'ancienne app). */
+export const MaxJoueurs = z.number().int().min(1).max(50);
+export const MAX_JOUEURS_DEFAUT = 4;
+
+/** Utilisateur affiché (propriétaire, auteur) : profil public d'identity. */
+export const Utilisateur = z.object({
+  id: z.string(),
+  nom: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+/** Champs d'une salle communs à la liste, aux campagnes publiques et au détail. */
+const ChampsSalle = {
+  id: z.string(),
+  nom: z.string(),
+  description: z.string(),
+  systeme: z.object({ id: z.string(), version: z.string() }),
+  code: z.string(),
+  imageUrl: z.string().nullable(),
+  maxJoueurs: z.number().int(),
+  publique: z.boolean(),
+  creationPersonnages: z.boolean(),
+  /** Membres qui ne sont pas MJ (spectateurs compris) : les places occupées. */
+  joueurs: z.number().int(),
+  complete: z.boolean(),
+  proprietaire: Utilisateur,
+  updatedAt: z.string(),
+};
+
+/** Salle dans une liste ; `role` vaut null si l'appelant n'en est pas membre. */
+export const ResumeSalle = z.object({
+  ...ChampsSalle,
+  role: Role.nullable(),
+  membres: z.number().int(),
+});
 
 export const Membre = z.object({
   userId: z.string(),
@@ -39,20 +74,24 @@ export const CombatReponse = z.object({
 });
 
 export const SalleReponse = z.object({
-  id: z.string(),
-  nom: z.string(),
-  description: z.string(),
-  systeme: z.object({ id: z.string(), version: z.string() }),
+  ...ChampsSalle,
   proprietaireId: z.string(),
   role: Role,
+  /** Personnage incarné par l'appelant dans cette salle. */
+  personnageIncarne: z.string().nullable(),
   membres: z.array(Membre),
   personnages: z.array(
-    z.object({ characterId: z.string(), ownerId: z.string(), camp: Camp, ajoutePar: z.string() }),
+    z.object({
+      characterId: z.string(),
+      ownerId: z.string(),
+      camp: Camp,
+      ajoutePar: z.string(),
+      incarnePar: z.string().nullable(),
+    }),
   ),
   combat: CombatReponse.optional(),
   version: z.number().int(),
   createdAt: z.string(),
-  updatedAt: z.string(),
 });
 
 /** Contexte des événements écrits par la requête. */

@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -37,6 +38,13 @@ export const rooms = schemaCampaign.table('rooms', {
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
+  /** Code court de la salle (6 caractères), unique. */
+  code: text('code').notNull().unique(),
+  imageUrl: text('image_url'),
+  /** Joueurs au plus, MJ non compris. */
+  maxJoueurs: integer('max_joueurs').notNull().default(4),
+  publique: boolean('publique').notNull().default(false),
+  creationPersonnages: boolean('creation_personnages').notNull().default(true),
 });
 
 export const roomMembers = schemaCampaign.table(
@@ -76,9 +84,51 @@ export const roomCharacters = schemaCampaign.table(
     camp: text('camp').$type<Camp>().notNull(),
     ajoutePar: uuid('ajoute_par').notNull(),
     ajouteLe: horodatage('ajoute_le').notNull().defaultNow(),
+    /** Membre qui incarne ce personnage (un seul par salle et par membre). */
+    incarnePar: uuid('incarne_par'),
   },
-  (t) => [primaryKey({ columns: [t.roomId, t.characterId] })],
+  (t) => [
+    primaryKey({ columns: [t.roomId, t.characterId] }),
+    unique('room_characters_incarne_par').on(t.roomId, t.incarnePar),
+  ],
 );
+
+/** Utilisateurs bannis d'une salle. */
+export const roomBans = schemaCampaign.table(
+  'room_bans',
+  {
+    roomId: uuid('room_id')
+      .notNull()
+      .references(() => rooms.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull(),
+    banniPar: uuid('banni_par').notNull(),
+    banniLe: horodatage('banni_le').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.roomId, t.userId] })],
+);
+
+/** Sessions de jeu prévues. */
+export const roomSessions = schemaCampaign.table('room_sessions', {
+  id: uuid('id').primaryKey(),
+  roomId: uuid('room_id')
+    .notNull()
+    .references(() => rooms.id, { onDelete: 'cascade' }),
+  prevueLe: horodatage('prevue_le').notNull(),
+  titre: text('titre'),
+  creePar: uuid('cree_par').notNull(),
+  createdAt: horodatage('created_at').notNull().defaultNow(),
+});
+
+/** Messages de discussion (id UUIDv7 : ordre chronologique). */
+export const roomMessages = schemaCampaign.table('room_messages', {
+  id: uuid('id').primaryKey(),
+  roomId: uuid('room_id')
+    .notNull()
+    .references(() => rooms.id, { onDelete: 'cascade' }),
+  auteurId: uuid('auteur_id').notNull(),
+  texte: text('texte').notNull(),
+  createdAt: horodatage('created_at').notNull().defaultNow(),
+});
 
 /** Anciens identifiants Firebase → salles (imports rejouables). */
 export const legacyIds = schemaCampaign.table(

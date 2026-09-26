@@ -7,6 +7,7 @@ import type { ClientCharacter } from './clients/character.js';
 import type { ClientProfils } from './clients/profils.js';
 import type { CampaignConfig } from './config.js';
 import type { Db } from './db/client.js';
+import type { Signataire } from './stockage/images.js';
 import type { Catalogue } from './systemes/catalogue.js';
 
 /** Instance renvoyée par createService (logger pino, fournisseur de types Zod). */
@@ -21,8 +22,10 @@ export interface Deps {
   character: ClientCharacter;
   /** Noms et avatars des membres (identity). */
   profils: ClientProfils;
-  /** Horloge (expiration des invitations). */
+  /** Horloge (expiration des invitations, sessions à venir). */
   maintenant: () => Date;
+  /** URL d'envoi des images de salle ; absent si le stockage n'est pas configuré. */
+  signataire: Signataire | undefined;
 }
 
 export type Module = (app: ServiceApp, deps: Deps) => Promise<void>;

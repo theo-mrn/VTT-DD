@@ -14,6 +14,7 @@ import type { ClientProfils } from '../clients/profils.js';
 import { CampaignConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { outbox, rooms } from '../db/schema.js';
+import type { DemandeSignature } from '../stockage/images.js';
 import { fauxCharacter } from './faux-character.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -33,6 +34,12 @@ export async function appDeTest(surcharges: Record<string, string> = {}) {
     profils: async (ids) =>
       new Map(ids.map((id) => [id, { nom: noms.get(id) ?? null, avatarUrl: null }])),
   };
+  // Faux stockage : URL d'envoi « signée » sans appel réseau, demandes gardées
+  const envois: DemandeSignature[] = [];
+  const signataire = async (d: DemandeSignature) => {
+    envois.push(d);
+    return `https://s3.test.local/vtt/${d.cle}?X-Amz-Signature=faux`;
+  };
 
   const app = await buildCampaign(
     loadConfig(CampaignConfig, {
@@ -44,12 +51,14 @@ export async function appDeTest(surcharges: Record<string, string> = {}) {
       INTERNAL_API_SECRET: SECRET,
       CHARACTER_URL: character.url,
       APP_URL: 'https://jeu.test.local',
+      S3_PUBLIC_URL: 'https://cdn.test.local/vtt/',
       ...surcharges,
     }),
     {
       authKeyResolver: async () => publicKey,
       maintenant: () => new Date(Date.now() + decalageMs),
       profils,
+      signataire,
       ...(connexion ? { db: connexion.db } : {}),
     },
   );
@@ -92,7 +101,7 @@ export async function appDeTest(surcharges: Record<string, string> = {}) {
     await connexion?.pool.end();
   }
 
-  return { app, db: connexion?.db, character, utilisateur, avancer, fermer };
+  return { app, db: connexion?.db, character, envois, utilisateur, avancer, fermer };
 }
 
 export type Contexte = Awaited<ReturnType<typeof appDeTest>>;

@@ -4,6 +4,10 @@
  *   POST /v1/rooms/:id/invitations   { expireDans?, utilisations? } → { code, url, expireLe } (MJ)
  *   POST /v1/rooms/rejoindre         { code } → la salle ; l'appelant devient joueur
  *
+ * `code` est un code d'invitation (« inv_… ») ou le code court de la salle,
+ * publique ou privée. Refus : 404 `salle_introuvable`, 403 `banni`,
+ * 410 invitation périmée, 409 `salle_complete` (joueurs max atteint).
+ *
  * `expireDans` est en secondes (7 jours par défaut, 30 jours au plus) ;
  * `utilisations` est le nombre d'adhésions permises (10 par défaut, 100 au plus).
  */
@@ -13,10 +17,11 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { invitations, roomMembers, rooms } from '../../db/schema.js';
+import { invitations, roomBans, roomMembers, rooms } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { contexte, IdSalle, moi, SalleReponse } from '../schemas.js';
-import { accesMj, detailSalle, evenementSalle } from '../salles/depot.js';
+import { FORME_CODE_SALLE, normaliserCodeSalle } from '../salles/code.js';
+import { accesMj, detailSalle, evenementSalle, joueursDe } from '../salles/depot.js';
 import { empreinte, FORME_CODE, nouveauCode } from './codes.js';
 
 const JOUR = 24 * 3600;
@@ -25,6 +30,14 @@ export const UTILISATIONS_DEFAUT = 10;
 
 const perimee = (detail: string, code: string) =>
   new HttpError(410, 'Invitation périmée', code, detail);
+
+const introuvable = () =>
+  new HttpError(
+    404,
+    'Ressource introuvable',
+    'salle_introuvable',
+    'Aucune salle ni invitation ne correspond à ce code',
+  );
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -89,7 +102,7 @@ export const register: Module = async (app, deps) => {
     '/v1/rooms/rejoindre',
     {
       ...auth,
-      // Limite par IP : les codes sont longs, mais on ne laisse pas les deviner en boucle
+      // Limite par IP : les codes de salle sont courts, on ne les laisse pas deviner en boucle
       config: {
         rateLimit: { max: deps.config.RATE_LIMIT_REJOINDRE_MAX, timeWindow: '1 minute' },
       } as FastifyContextConfig,
@@ -101,46 +114,85 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const userId = moi(req);
       const code = req.body.code;
-      if (!FORME_CODE.test(code)) throw HttpError.notFound('Invitation introuvable');
-      const salle = await db.transaction(async (tx) => {
-        const [invitation] = await tx
-          .select()
-          .from(invitations)
-          .where(eq(invitations.codeHash, empreinte(code)))
-          .for('update');
-        if (!invitation) throw HttpError.notFound('Invitation introuvable');
+      const parInvitation = FORME_CODE.test(code);
+      const codeSalle = normaliserCodeSalle(code);
+      if (!parInvitation && !FORME_CODE_SALLE.test(codeSalle)) throw introuvable();
 
-        const [salle] = await tx.select().from(rooms).where(eq(rooms.id, invitation.roomId));
+      const salle = await db.transaction(async (tx) => {
+        let invitation: typeof invitations.$inferSelect | undefined;
+        let roomId: string | undefined;
+        if (parInvitation) {
+          [invitation] = await tx
+            .select()
+            .from(invitations)
+            .where(eq(invitations.codeHash, empreinte(code)));
+          roomId = invitation?.roomId;
+        } else {
+          [{ id: roomId } = { id: undefined }] = await tx
+            .select({ id: rooms.id })
+            .from(rooms)
+            .where(eq(rooms.code, codeSalle));
+        }
+        if (!roomId) throw introuvable();
+
+        // Salle verrouillée (toujours avant l'invitation, comme les autres routes) : deux
+        // adhésions simultanées ne dépassent ni la limite de joueurs ni les utilisations
+        const [salle] = await tx.select().from(rooms).where(eq(rooms.id, roomId)).for('update');
+        if (!salle) throw introuvable();
+        if (invitation) {
+          [invitation] = await tx
+            .select()
+            .from(invitations)
+            .where(eq(invitations.id, invitation.id))
+            .for('update');
+          if (!invitation) throw introuvable();
+        }
         const [deja] = await tx
           .select()
           .from(roomMembers)
-          .where(and(eq(roomMembers.roomId, invitation.roomId), eq(roomMembers.userId, userId)));
+          .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)));
         // Déjà membre : rien à consommer, on renvoie la salle
-        if (deja) return { salle: salle!, role: deja.role };
+        if (deja) return { salle, role: deja.role };
 
-        if (invitation.expireLe.getTime() <= deps.maintenant().getTime())
-          throw perimee('Cette invitation a expiré', 'invitation_expiree');
-        if (invitation.utilisations >= invitation.utilisationsMax)
-          throw perimee(
-            'Cette invitation a atteint son nombre d’utilisations',
-            'invitation_epuisee',
-          );
+        const [banni] = await tx
+          .select()
+          .from(roomBans)
+          .where(and(eq(roomBans.roomId, roomId), eq(roomBans.userId, userId)));
+        if (banni)
+          throw new HttpError(403, 'Accès refusé', 'banni', 'Vous avez été banni de cette salle');
 
-        await tx
-          .update(invitations)
-          .set({ utilisations: sql`${invitations.utilisations} + 1` })
-          .where(eq(invitations.id, invitation.id));
-        await tx.insert(roomMembers).values({ roomId: invitation.roomId, userId, role: 'joueur' });
+        if (invitation) {
+          if (invitation.expireLe.getTime() <= deps.maintenant().getTime())
+            throw perimee('Cette invitation a expiré', 'invitation_expiree');
+          if (invitation.utilisations >= invitation.utilisationsMax)
+            throw perimee(
+              'Cette invitation a atteint son nombre d’utilisations',
+              'invitation_epuisee',
+            );
+        }
+        if ((await joueursDe(tx, roomId)) >= salle.maxJoueurs)
+          throw HttpError.conflict('Cette salle a atteint sa limite de joueurs', 'salle_complete');
+
+        if (invitation)
+          await tx
+            .update(invitations)
+            .set({ utilisations: sql`${invitations.utilisations} + 1` })
+            .where(eq(invitations.id, invitation.id));
+        await tx.insert(roomMembers).values({ roomId, userId, role: 'joueur' });
         await evenementSalle(tx, contexte(req), {
           type: 'room.member_joined',
-          roomId: invitation.roomId,
+          roomId,
           userId,
           role: 'joueur',
-          payload: { userId, role: 'joueur', invitationId: invitation.id },
+          payload: {
+            userId,
+            role: 'joueur',
+            ...(invitation ? { invitationId: invitation.id } : { parCodeSalle: true }),
+          },
         });
-        return { salle: salle!, role: 'joueur' as const };
+        return { salle, role: 'joueur' as const };
       });
-      return detailSalle(deps, salle, req.headers.authorization);
+      return detailSalle(deps, salle, req);
     },
   );
 };

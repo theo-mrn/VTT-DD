@@ -59,8 +59,14 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages engagés', () => {
     const pnj = perso(mj);
     const s = await o.ok<Salle>(mj, 'POST', `/v1/rooms/${id}/personnages`, { characterId: pnj });
     expect(s.personnages).toEqual([
-      { characterId: heros, ownerId: alice.id, camp: 'joueurs', ajoutePar: alice.id },
-      { characterId: pnj, ownerId: mj.id, camp: 'adversaires', ajoutePar: mj.id },
+      {
+        characterId: heros,
+        ownerId: alice.id,
+        camp: 'joueurs',
+        ajoutePar: alice.id,
+        incarnePar: null,
+      },
+      { characterId: pnj, ownerId: mj.id, camp: 'adversaires', ajoutePar: mj.id, incarnePar: null },
     ]);
     // Le MJ choisit le camp de ses PNJ, un joueur peut engager un allié
     await o.ok(mj, 'POST', `/v1/rooms/${id}/personnages`, {

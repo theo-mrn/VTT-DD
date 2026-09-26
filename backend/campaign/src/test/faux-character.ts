@@ -16,6 +16,10 @@ export interface FauxPersonnage {
   refus?: string;
   /** États temporaires : rounds restants par entrée. */
   durees?: Record<string, number>;
+  /** Création en cours (fiche pas encore terminée). */
+  creation?: boolean;
+  type?: string;
+  avatarUrl?: string | null;
 }
 
 export interface Appel {
@@ -63,9 +67,10 @@ export async function fauxCharacter(secret: string) {
         id,
         ownerId: p.ownerId,
         nom: p.nom ?? 'Héros',
-        avatarUrl: null,
+        avatarUrl: p.avatarUrl ?? null,
         systeme: { id: p.systemeId, version: '1.0.0' },
-        type: 'personnage',
+        type: p.type ?? 'personnage',
+        creation: p.creation ?? false,
       });
     }
     if (req.method === 'POST' && suite.startsWith('/actions/')) {
