@@ -1,0 +1,266 @@
+# Armures et boucliers — généré depuis legacy/public/tabs (contenu D&D classique de l'ancienne app).
+- id: petit-bouclier
+  sorte: armure
+  nom: Petit bouclier
+  description: La DEF s'additionne à celle de l'armure.
+  etiquettes:
+    - bouclier
+  champs:
+    def: 1
+    prix: 2
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: bouclier
+- id: grand-bouclier-magique
+  sorte: armure
+  nom: Grand bouclier magique
+  description: Bouclier magique qui repousse les projectiles et les attaques magiques.
+  etiquettes:
+    - bouclier
+  champs:
+    def: 3
+    prix: 8
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: bouclier
+- id: tissu-matelasse
+  sorte: armure
+  nom: Tissu matelassé
+  etiquettes:
+    - armure
+  champs:
+    def: 1
+    prix: 2
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: cuir
+  sorte: armure
+  nom: Cuir
+  etiquettes:
+    - armure
+  champs:
+    def: 2
+    prix: 4
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: grand-bouclier
+  sorte: armure
+  nom: Grand bouclier
+  description: La DEF s'additionne à celle de l'armure.
+  etiquettes:
+    - bouclier
+  champs:
+    def: 2
+    prix: 4
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: bouclier
+- id: cuir-renforce
+  sorte: armure
+  nom: Cuir renforcé
+  etiquettes:
+    - armure
+  champs:
+    def: 3
+    prix: 8
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: chemise-de-mailles
+  sorte: armure
+  nom: Chemise de mailles
+  etiquettes:
+    - armure
+  champs:
+    def: 4
+    prix: 15
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: cotte-de-mailles
+  sorte: armure
+  nom: Cotte de mailles
+  etiquettes:
+    - armure
+  champs:
+    def: 5
+    prix: 20
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: demi-plaque
+  sorte: armure
+  nom: Demi-plaque
+  description: Très rare.
+  etiquettes:
+    - armure
+  champs:
+    def: 6
+    prix: 50
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: plaque-complete
+  sorte: armure
+  nom: Plaque complète
+  description: Très rare. Fabriquée sur mesure, seul le profil de Chevalier est formé au port de cette armure au niveau 1.
+  etiquettes:
+    - armure
+  champs:
+    def: 8
+    prix: 200
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-de-cuir-cloutee
+  sorte: armure
+  nom: Armure de cuir cloutée
+  description: Armure légère mais offrant une meilleure protection grâce aux clous.
+  etiquettes:
+    - armure
+  champs:
+    def: 3
+    prix: 10
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-de-cuir-de-dragon
+  sorte: armure
+  nom: Armure de cuir de dragon
+  description: Fabriquée à partir de l'écaille d'un dragon mineur. Très rare et très résistante.
+  etiquettes:
+    - armure
+  champs:
+    def: 4
+    prix: 50
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-de-plaques-legeres
+  sorte: armure
+  nom: Armure de plaques légères
+  description: Conçue pour offrir de la mobilité avec une protection correcte.
+  etiquettes:
+    - armure
+  champs:
+    def: 5
+    prix: 25
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-lamellaire
+  sorte: armure
+  nom: Armure lamellaire
+  description: Armure constituée de plaques de métal attachées à une base en cuir, populaire dans les cultures orientales.
+  etiquettes:
+    - armure
+  champs:
+    def: 4
+    prix: 18
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-de-brigandine
+  sorte: armure
+  nom: Armure de brigandine
+  description: Armure composée de petites plaques de métal entre deux couches de tissu ou de cuir.
+  etiquettes:
+    - armure
+  champs:
+    def: 5
+    prix: 30
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-lourde-en-ecailles
+  sorte: armure
+  nom: Armure lourde en écailles
+  description: Fournit une défense accrue au détriment de la mobilité.
+  etiquettes:
+    - armure
+  champs:
+    def: 6
+    prix: 45
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-de-plaques-d-adamantine
+  sorte: armure
+  nom: Armure de plaques d'adamantine
+  description: Très rare, faite d'adamantine, un métal presque indestructible. Offerte uniquement aux héros ou aux nobles.
+  etiquettes:
+    - armure
+  champs:
+    def: 7
+    prix: 100
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure
+- id: armure-runique
+  sorte: armure
+  nom: Armure runique
+  description: Armure enchantée avec des runes magiques, augmente la résistance à la magie.
+  etiquettes:
+    - armure
+  champs:
+    def: 6
+    prix: 120
+  effets:
+    - sur: attribut
+      attribut: Defense
+      operation: ajouter
+      valeur: source.def
+      famille: armure

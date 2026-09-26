@@ -1,0 +1,44 @@
+# Capacités raciales. Seule « Petite taille » a un effet chiffré exprimable
+# (+1 en Défense) ; les autres restent descriptives (voir le rapport de port).
+- id: instinct-de-survie
+  sorte: capacite
+  nom: Instinct de survie
+  description: Lorsqu'une attaque devrait amener le personnage à 0 PV, les DM qu'elle inflige sont divisés par 2 (minimum 1).
+
+- id: lumiere-des-etoiles
+  sorte: capacite
+  nom: Lumière des étoiles
+  description: Pour un haut elfe, l'obscurité de la nuit sous la lumière des étoiles n'est que de la pénombre, où seuls les petits détails lui échappent.
+
+- id: vision-dans-le-noir
+  sorte: capacite
+  nom: Vision dans le noir
+  description: Dans le noir total, le personnage voit comme dans la pénombre jusqu'à 30 m.
+
+- id: petite-taille
+  sorte: capacite
+  nom: Petite taille
+  description: Le halfelin obtient un bonus de +1 en DEF et de +2 à tous les tests de discrétion. En revanche, il ne peut utiliser à une main qu'une arme dont les DM sont au maximum de 1d6, et doit utiliser 2 mains pour une arme à 1d8-1d10. Il lui est interdit d'utiliser une arme infligeant plus de 1d10 DM.
+  effets:
+    - {
+        sur: attribut,
+        attribut: Defense,
+        operation: ajouter,
+        valeur: 1,
+        description: Petite taille,
+      }
+
+- id: coup-de-corne
+  sorte: capacite
+  nom: Coup de corne
+  description: Un minotaure peut réaliser une attaque de corne qui inflige [1d6 + Mod. de FOR] DM à la place d'une attaque normale. Au prix d'une action limitée, il peut faire une attaque normale avec une arme de contact plus une attaque de corne.
+
+- id: sens-de-l-orientation
+  sorte: capacite
+  nom: Sens de l'orientation
+  description: Le minotaure reçoit un bonus de +5 à tous les tests d'orientation.
+
+- id: voie-raciale
+  sorte: capacite
+  nom: Voie raciale de base
+  description: Le personnage remplace une Voie de son profil par sa Voie raciale dès le premier niveau.

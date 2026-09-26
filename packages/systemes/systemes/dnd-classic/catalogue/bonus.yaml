@@ -1,0 +1,25 @@
+# Bonus libres (ancienne collection Firestore « Bonus ») : le joueur saisit les
+# valeurs sur sa possession (champs), et peut les activer ou les désactiver.
+# Deux entrées, comme les deux catégories de l'ancienne app.
+- id: bonus-inventaire
+  sorte: bonus
+  nom: Bonus d'inventaire
+  description: Bonus apportés par l'équipement, saisis à la main.
+  effets: &effets-bonus
+    - { sur: attribut, attribut: FOR, operation: ajouter, valeur: source.FOR }
+    - { sur: attribut, attribut: DEX, operation: ajouter, valeur: source.DEX }
+    - { sur: attribut, attribut: CON, operation: ajouter, valeur: source.CON }
+    - { sur: attribut, attribut: SAG, operation: ajouter, valeur: source.SAG }
+    - { sur: attribut, attribut: INT, operation: ajouter, valeur: source.INT }
+    - { sur: attribut, attribut: CHA, operation: ajouter, valeur: source.CHA }
+    - { sur: attribut, attribut: Defense, operation: ajouter, valeur: source.Defense }
+    - { sur: attribut, attribut: Contact, operation: ajouter, valeur: source.Contact }
+    - { sur: attribut, attribut: Distance, operation: ajouter, valeur: source.Distance }
+    - { sur: attribut, attribut: Magie, operation: ajouter, valeur: source.Magie }
+    - { sur: attribut, attribut: INIT, operation: ajouter, valeur: source.INIT }
+    - { sur: attribut, attribut: PV_Max, operation: ajouter, valeur: source.PV_Max }
+- id: bonus-capacites
+  sorte: bonus
+  nom: Bonus de capacités
+  description: Bonus apportés par les capacités des voies, saisis à la main.
+  effets: *effets-bonus

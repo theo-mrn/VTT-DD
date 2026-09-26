@@ -76,6 +76,7 @@ export const chemins = {
   achat: (id: string, champ: 'cout' | 'plafond' | 'condition') => `achats/${id}/${champ}`,
   monnaie: (id: string) => `monnaies/${id}/total`,
   etape: (entite: string, etape: string, champ: string) => `creation/${entite}/${etape}/${champ}`,
+  rangsMax: (sorte: string) => `sortes/${sorte}/rangs/max`,
   noeud: (arbre: string, noeud: string) => `arbres/${arbre}/${noeud}/cout`,
   resultat: (cle: string) => `des/resultats/${cle}`,
   action: (id: string, champ: string) => `actions/${id}/${champ}`,
@@ -368,7 +369,7 @@ class Chargeur {
       }
       if (sorte.rangs)
         this.compiler(
-          `${chemin}/rangs/max`,
+          chemins.rangsMax(sorte.id),
           sorte.rangs.max,
           { entite: this.attributsDe(sorte.pour) },
           'nombre',

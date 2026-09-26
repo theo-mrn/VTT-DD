@@ -1,0 +1,244 @@
+# Races — généré depuis legacy/public/tabs (contenu D&D classique de l'ancienne app).
+- id: ame_forgee
+  sorte: race
+  nom: Âme forgée
+  description: |-
+    Les âmes forgées sont des êtres artificiels créés par des artisans habiles dans l'art de la magie et de la mécanique. Ils sont souvent vus comme des gardiens imperturbables et stoïques, dotés d'une force surhumaine et d'une résistance inébranlable.
+
+    **Capacités raciales**
+
+    - Créature artificielle : Une âme-forgée n’a pas besoin de boire ni de se nourrir, ni même de respirer ! Elle a toutefois besoin de rêver quatre heures par jour (sans quoi elle subit un malus de -2 à ses tests de SAG, ce malus est cumulatif). Elle est naturellement immunisée aux poisons et aux maladies. Les âmes-forgées sont incapables de nager mais elles peuvent marcher au fond de l’eau (considéré comme un terrain difficile).
+    - Créature de métal : Les parties métalliques d’une âme-forgée lui offrent une protection naturelle qui lui accorde un bonus de +1 en DEF. De plus, l’âme-forgée retranche 5 points (RD 5) à tous les DM de feu, de froid et aux drains de vie (pouvoir de vampire par exemple). Enfin, elle est immunisée aux effets de saignement.
+  champs:
+    voie: race-ame-forgee
+    tailleMoyenne: 185
+    poidsMoyen: 120
+  effets:
+    - sur: attribut
+      attribut: CON
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Âme forgée)
+    - sur: attribut
+      attribut: CHA
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Âme forgée)
+- id: elfe
+  sorte: race
+  nom: Elfe
+  description: |-
+    Les elfes sont des créatures élégantes et gracieuses, vivant en harmonie avec la nature. Ils sont connus pour leur agilité et leur maîtrise de la magie, ainsi que pour leur longévité et leur sagesse.
+
+    **Capacités raciales**
+
+    - Lumière des étoiles : pour un haut elfe, l’obscurité de la nuit sous la lumière des étoiles n’est que de la pénombre, où seuls les petits détails lui échappent.
+  champs:
+    voie: race-haut-elfe
+    tailleMoyenne: 175
+    poidsMoyen: 60
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Elfe)
+    - sur: attribut
+      attribut: CHA
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Elfe)
+- id: elfe_noir
+  sorte: race
+  nom: Elfe noir
+  description: |-
+    Les elfes noirs, ou drows, vivent dans les profondeurs souterraines et sont souvent associés à la magie noire et à la cruauté.
+
+    **Capacités raciales**
+
+    - Vision dans le noir : dans le noir total, l’elfe noir voit comme dans la pénombre jusqu’à 30 m.
+  champs:
+    voie: race-elfe-noir
+    tailleMoyenne: 170
+    poidsMoyen: 55
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Elfe noir)
+    - sur: attribut
+      attribut: DEX
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Elfe noir)
+- id: elfe_sylvain
+  sorte: race
+  nom: Elfe sylvain
+  description: |-
+    Les elfes sylvains sont des habitants des forêts, en harmonie avec la nature. Ils sont agiles et se déplacent silencieusement dans les bois.
+
+    **Capacités raciales**
+
+    - Lumière des étoiles : pour un elfe sylvain, l’obscurité de la nuit sous la lumière des étoiles n’est que de la pénombre, où seuls les petits détails lui échappent.
+  champs:
+    voie: race-elfe-sylvain
+    tailleMoyenne: 170
+    poidsMoyen: 58
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Elfe sylvain)
+    - sur: attribut
+      attribut: DEX
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Elfe sylvain)
+- id: humain
+  sorte: race
+  nom: Humain
+  description: |-
+    Les humains sont des êtres polyvalents et adaptables, présents dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter en font des individus remarquables.
+
+    **Capacités raciales**
+
+    - Instinct de survie : Lorsqu’une attaque devrait amener le personnage à 0 PV, les DM qu’elle inflige sont divisés par 2 (minimum 1).
+  champs:
+    voie: race-humain
+    tailleMoyenne: 175
+    poidsMoyen: 75
+  effets: []
+- id: nain
+  sorte: race
+  nom: Nain
+  description: |-
+    Les nains sont des mineurs et forgerons habiles, vivant dans des citadelles souterraines. Ils sont robustes et endurants.
+
+    **Capacités raciales**
+
+    - Vision dans le noir : dans le noir total, le nain voit comme dans la pénombre jusqu’à 30 m.
+  champs:
+    voie: race-nain
+    tailleMoyenne: 135
+    poidsMoyen: 70
+  effets:
+    - sur: attribut
+      attribut: DEX
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Nain)
+    - sur: attribut
+      attribut: CON
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Nain)
+- id: minotaure
+  sorte: race
+  nom: Minotaure
+  description: |-
+    Le minotaure est une créature mi-homme mi-taureau. Il est connu pour son sens de l’orientation et ses explosions de rage. Les minotaures, les mâles en particuliers, sont des solitaires. Ils chassent dans les grandes plaines désertiques et vivent dans des grottes ou des souterrains.
+
+    **Capacités raciales**
+
+    - Coup de corne : Un minotaure peut réaliser une attaque de corne qui inflige [1d6 + Mod. de FOR] DM à la place d’une attaque normale. Au prix d’une action limitée, il peut faire une attaque normale avec une arme de contact plus une attaque de corne.
+    - Sens de l’orientation : Le minotaure reçoit un test de +5 à tous les tests d’orientation.
+    - Vision dans le noir : dans le noir total, le minotaure voit comme dans la pénombre jusqu’à 30 m.
+  champs:
+    voie: race-minotaure
+    tailleMoyenne: 210
+    poidsMoyen: 150
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: 4
+      description: Modificateur racial (Minotaure)
+    - sur: attribut
+      attribut: INT
+      operation: ajouter
+      valeur: -4
+      description: Modificateur racial (Minotaure)
+    - sur: attribut
+      attribut: CHA
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Minotaure)
+- id: halfelin
+  sorte: race
+  nom: Halfelin
+  description: |-
+    Les halfelins sont une race de petite taille, souvent joyeux et farceurs. Ce sont des individus curieux et sociables.
+
+    **Capacités raciales**
+
+    - Petite taille : Le halfelin obtient un bonus de +1 en DEF et de +2 à tous les tests de discrétion. En revanche, un halfelin peut seulement utiliser à une main une arme dont les DM sont au maximum égaux à 1d6 (épée courte, masse, etc.). Il lui faut utiliser les 2 mains pour les armes qui infligent 1d8 à 1d10 de DM (épée longue). Enfin il lui est interdit d’utiliser les armes qui infligent plus de 1d10 DM.
+  champs:
+    voie: race-halfelin
+    tailleMoyenne: 90
+    poidsMoyen: 15
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Halfelin)
+    - sur: attribut
+      attribut: DEX
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Halfelin)
+- id: orque
+  sorte: race
+  nom: Orque
+  description: |-
+    Les orques sont des guerriers puissants et belliqueux, vivant en tribus ou en sociétés militaires organisées.
+
+    **Capacités raciales**
+
+    - Vision dans le noir : dans le noir total, le demi-orque voit comme dans la pénombre jusqu’à 30 m.
+  champs:
+    voie: race-orque
+    tailleMoyenne: 190
+    poidsMoyen: 100
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Orque)
+    - sur: attribut
+      attribut: INT
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Orque)
+    - sur: attribut
+      attribut: CHA
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Orque)
+- id: drakonide
+  sorte: race
+  nom: Drakonide
+  description: |-
+    Les drakonides possèdent des traits reptiliens et des ailes puissantes. Ils sont souvent vus comme des gardiens des anciennes connaissances des dragons.
+
+    **Capacités raciales**
+
+    - Voie raciale de base : le personnage remplace une Voie de son profil par sa Voie raciale dès le premier niveau.
+  champs:
+    voie: race-drakonide
+    tailleMoyenne: 195
+    poidsMoyen: 110
+  effets:
+    - sur: attribut
+      attribut: FOR
+      operation: ajouter
+      valeur: 2
+      description: Modificateur racial (Drakonide)
+    - sur: attribut
+      attribut: SAG
+      operation: ajouter
+      valeur: -2
+      description: Modificateur racial (Drakonide)

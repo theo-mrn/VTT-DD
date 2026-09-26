@@ -1,0 +1,432 @@
+# D&D classique : port en données du module legacy `dnd-classic`
+# (legacy/src/modules/builtin/dnd-classic) et des règles codées en dur dans
+# l'ancienne interface (création, montée de niveau, voies, combat, initiative).
+format: 1
+id: dnd-classic
+version: 1.0.0
+nom: D&D classique
+description: >-
+  Système par défaut du VTT : six caractéristiques (FOR, DEX, CON, SAG, INT, CHA)
+  à modificateur floor((valeur − 10) / 2), Défense, attaques au Contact, à Distance
+  et Magiques, points de vie tirés au dé de vie du profil, voies de capacités à
+  5 rangs achetées avec 2 points par niveau.
+
+# Modificateur commun des caractéristiques
+modificateur: floor((valeur - 10) / 2)
+
+entites:
+  - id: personnage
+    nom: Personnage
+    groupes:
+      - { id: caracteristiques, nom: Caractéristiques }
+      - { id: combat, nom: Combat }
+      - { id: vitalite, nom: Vitalité }
+      - { id: progression, nom: Progression }
+    attributs:
+      # ─── Caractéristiques (tirées à 3d6, bonus raciaux en effets de la race) ───
+      - {
+          cle: FOR,
+          nom: Force,
+          abrege: FOR,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: DEX,
+          nom: Dextérité,
+          abrege: DEX,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: CON,
+          nom: Constitution,
+          abrege: CON,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: SAG,
+          nom: Sagesse,
+          abrege: SAG,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: INT,
+          nom: Intelligence,
+          abrege: INT,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+      - {
+          cle: CHA,
+          nom: Charisme,
+          abrege: CHA,
+          nature: base,
+          defaut: 10,
+          min: 1,
+          modificateur: true,
+          groupe: caracteristiques,
+        }
+
+      # ─── Progression ───
+      - cle: niveau
+        nom: Niveau
+        nature: base
+        defaut: 1
+        min: 1
+        groupe: progression
+      - cle: deVie
+        nom: Dé de vie
+        description: Nombre de faces du dé de vie du profil (d8 sans profil).
+        nature: derivee
+        formule: 'si(compte("profil") > 0, somme("profil", "deVie"), 8)'
+        groupe: progression
+      - cle: jetsDeVie
+        nom: Jets de dés de vie
+        description: >-
+          Somme des dés de vie tirés : un à la création, puis un à chaque passage de niveau.
+        nature: base
+        defaut: 0
+        min: 0
+        groupe: progression
+
+      # ─── Combat ───
+      - cle: Defense
+        nom: Défense
+        abrege: DEF
+        nature: derivee
+        formule: 10 + mod(@DEX)
+        groupe: combat
+      - cle: Contact
+        nom: Contact
+        abrege: Ctt
+        description: Attaque au corps à corps (1 de base + mod. FOR + niveau − 1).
+        nature: derivee
+        formule: mod(@FOR) + @niveau
+        groupe: combat
+      - cle: Distance
+        nom: Distance
+        abrege: Dst
+        description: Attaque à distance (1 de base + mod. DEX + niveau − 1).
+        nature: derivee
+        formule: mod(@DEX) + @niveau
+        groupe: combat
+      - cle: Magie
+        nom: Magie
+        abrege: Mag
+        description: Attaque magique, avec la meilleure des caractéristiques mentales (INT, SAG ou CHA).
+        nature: derivee
+        formule: max(mod(@INT), mod(@SAG), mod(@CHA)) + @niveau
+        groupe: combat
+      - cle: INIT
+        nom: Initiative
+        abrege: INIT
+        description: Valeur brute de DEX (sans modificateur), ajoutée au d20 d'initiative.
+        nature: derivee
+        formule: '@DEX'
+        groupe: combat
+
+      # ─── Vitalité ───
+      - cle: PV_Max
+        nom: PV max
+        description: >-
+          1 + mod. CON + dé de vie à la création, puis dé de vie + mod. CON à chaque niveau.
+        nature: derivee
+        formule: 1 + @niveau * mod(@CON) + @jetsDeVie
+        groupe: vitalite
+      - cle: PV
+        nom: Points de vie
+        abrege: PV
+        nature: ressource
+        max: '@PV_Max'
+        min: 0
+        initiale: max
+        recuperation: max
+        groupe: vitalite
+
+sortes:
+  - id: race
+    nom: Race
+    pour: [personnage]
+    maximum: 1
+    champs:
+      - { id: voie, nom: Voie raciale, type: entree, sorte: voie }
+      - { id: tailleMoyenne, nom: Taille moyenne (cm), type: nombre }
+      - { id: poidsMoyen, nom: Poids moyen (kg), type: nombre }
+  - id: profil
+    nom: Profil
+    pour: [personnage]
+    maximum: 1
+    champs:
+      - { id: deVie, nom: Dé de vie (faces), type: nombre }
+      - { id: voies, nom: Voies du profil, type: entrees, sorte: voie }
+  - id: voie
+    nom: Voie
+    description: Cinq capacités, une par rang ; le rang atteint donne accès aux capacités jusqu'à ce rang.
+    pour: [personnage]
+    rangs: { max: 5 }
+  - id: arme
+    nom: Arme
+    pour: [personnage]
+    activable: true
+    champs:
+      - { id: attaque, nom: Attaque utilisée, type: attribut, entite: personnage }
+      - { id: nbDes, nom: Nombre de dés de dégâts, type: nombre, defaut: 1 }
+      - { id: faces, nom: Faces des dés de dégâts, type: nombre, defaut: 4 }
+      - { id: bonusDegats, nom: Bonus aux dégâts, type: formule, defaut: 0 }
+      - { id: portee, nom: Portée, type: texte }
+      - { id: prix, nom: Prix (pa), type: nombre }
+  - id: armure
+    nom: Armure ou bouclier
+    description: Les armures ne se cumulent pas entre elles, les boucliers non plus ; un bouclier s'ajoute à l'armure.
+    pour: [personnage]
+    activable: true
+    champs:
+      - { id: def, nom: Bonus de DEF, type: nombre, defaut: 0 }
+      - { id: prix, nom: Prix (pa), type: nombre }
+  - id: bonus
+    nom: Bonus
+    nomPluriel: Bonus
+    description: Bonus libres saisis sur la fiche (ancienne collection « Bonus »), actifs ou non.
+    pour: [personnage]
+    activable: true
+    champs:
+      - { id: FOR, nom: FOR, type: nombre, defaut: 0 }
+      - { id: DEX, nom: DEX, type: nombre, defaut: 0 }
+      - { id: CON, nom: CON, type: nombre, defaut: 0 }
+      - { id: SAG, nom: SAG, type: nombre, defaut: 0 }
+      - { id: INT, nom: INT, type: nombre, defaut: 0 }
+      - { id: CHA, nom: CHA, type: nombre, defaut: 0 }
+      - { id: Defense, nom: Défense, type: nombre, defaut: 0 }
+      - { id: Contact, nom: Contact, type: nombre, defaut: 0 }
+      - { id: Distance, nom: Distance, type: nombre, defaut: 0 }
+      - { id: Magie, nom: Magie, type: nombre, defaut: 0 }
+      - { id: INIT, nom: Initiative, type: nombre, defaut: 0 }
+      - { id: PV_Max, nom: PV max, type: nombre, defaut: 0 }
+  - id: etat
+    nom: État
+    pour: [personnage]
+
+# ─── Progression : les voies ────────────────────────────────────────────────
+monnaies:
+  - id: pointsCapacite
+    nom: Points de capacité
+    total: 2 * @niveau
+    pour: [personnage]
+
+achats:
+  - id: rang-voie
+    nom: Rang de voie
+    description: Rangs 1 et 2 à 1 point, rangs 3 à 5 à 2 points (1, 2, 4, 6, 8 points cumulés).
+    obtient: { type: rang, sorte: voie }
+    monnaie: pointsCapacite
+    cout: si(cible <= 2, 1, 2)
+
+creation:
+  - entite: personnage
+    etapes:
+      - id: race
+        nom: Race
+        type: choisir
+        sorte: race
+      - id: profil
+        nom: Profil
+        type: choisir
+        sorte: profil
+      - id: voies
+        nom: Voies
+        description: >-
+          Par défaut les 5 voies du profil et la voie raciale ; chacune peut être
+          remplacée par une autre voie (profil, race ou prestige). Rangs à 0.
+        type: choisir
+        sorte: voie
+        min: 1
+        max: 10
+      - id: caracteristiques
+        nom: Caractéristiques
+        description: >-
+          3d6 par caractéristique, dans l'ordre. Règle de l'ancienne app : exactement
+          3 valeurs paires et somme des modificateurs = +6, ce qui impose un total de 75
+          (seule cette condition nécessaire est exprimable ici).
+        type: tirer
+        groupe: caracteristiques
+        formule: 3d6
+        attribution: ordre
+        contrainte: total == 75
+      - id: de-de-vie
+        nom: Dé de vie
+        description: PV max de départ = 1 + mod. CON + ce jet.
+        type: tirer
+        attributs: [jetsDeVie]
+        formule: des(1, @deVie)
+
+# ─── Jets et actions ────────────────────────────────────────────────────────
+# Avantage : 2d20 garder le meilleur ; désavantage : le pire ; les deux s'annulent.
+actions:
+  - id: attaque-contact
+    nom: Attaque au contact
+    description: 1d20 + Contact contre la Défense de la cible ; 20 naturel touche toujours (critique), 1 naturel rate toujours.
+    pour: [personnage]
+    cible: personnage
+    parametres: &parametres-d20
+      - { id: avantage, nom: Avantage, type: booleen }
+      - { id: desavantage, nom: Désavantage, type: booleen }
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Contact
+      reussite: &touche naturel == 20 ou (naturel != 1 et total >= @cible.Defense)
+      critique: &critique naturel == 20
+      fumble: &fumble naturel == 1
+  - id: attaque-distance
+    nom: Attaque à distance
+    description: 1d20 + Distance contre la Défense de la cible.
+    pour: [personnage]
+    cible: personnage
+    parametres: *parametres-d20
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Distance
+      reussite: *touche
+      critique: *critique
+      fumble: *fumble
+  - id: attaque-magique
+    nom: Attaque magique
+    description: 1d20 + Magie contre la Défense de la cible.
+    pour: [personnage]
+    cible: personnage
+    parametres: *parametres-d20
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + @Magie
+      reussite: *touche
+      critique: *critique
+      fumble: *fumble
+
+  - id: degats
+    nom: Dégâts d'arme
+    description: Dés de l'arme (doublés sur un coup critique) + bonus aux dégâts, retirés des PV de la cible.
+    pour: [personnage]
+    cible: personnage
+    parametres:
+      - { id: arme, nom: Arme, type: entree, sorte: arme }
+      - { id: coupCritique, nom: Coup critique, type: booleen }
+    jet:
+      type: numerique
+      formule: des(si(coupCritique, 2, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+    apres:
+      - { cle: degats, formule: 'max(0, total)' }
+    consequences:
+      - { entite: cible, attribut: PV, operation: retirer, valeur: degats }
+  - id: degats-libres
+    nom: Dégâts libres
+    description: Jet de dégâts saisi à la main (sans arme).
+    pour: [personnage]
+    cible: personnage
+    parametres:
+      - { id: nbDes, nom: Nombre de dés, type: nombre, defaut: 1 }
+      - { id: faces, nom: Faces, type: nombre, defaut: 6 }
+      - { id: bonus, nom: Bonus, type: nombre, defaut: 0 }
+      - { id: coupCritique, nom: Coup critique, type: booleen }
+    jet:
+      type: numerique
+      formule: des(si(coupCritique, 2, 1) * nbDes, faces) + bonus
+    apres:
+      - { cle: degats, formule: 'max(0, total)' }
+    consequences:
+      - { entite: cible, attribut: PV, operation: retirer, valeur: degats }
+
+  # Tests de caractéristique (et jets de sauvegarde) : 1d20 + modificateur
+  - id: test-for
+    nom: Test de Force
+    pour: [personnage]
+    parametres: &parametres-test
+      - { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
+      - { id: avantage, nom: Avantage, type: booleen }
+      - { id: desavantage, nom: Désavantage, type: booleen }
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + mod(@FOR)
+      reussite: &reussite-test total >= difficulte
+  - id: test-dex
+    nom: Test de Dextérité
+    pour: [personnage]
+    parametres: *parametres-test
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + mod(@DEX)
+      reussite: *reussite-test
+  - id: test-con
+    nom: Test de Constitution
+    pour: [personnage]
+    parametres: *parametres-test
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + mod(@CON)
+      reussite: *reussite-test
+  - id: test-sag
+    nom: Test de Sagesse
+    pour: [personnage]
+    parametres: *parametres-test
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + mod(@SAG)
+      reussite: *reussite-test
+  - id: test-int
+    nom: Test d'Intelligence
+    pour: [personnage]
+    parametres: *parametres-test
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + mod(@INT)
+      reussite: *reussite-test
+  - id: test-cha
+    nom: Test de Charisme
+    pour: [personnage]
+    parametres: *parametres-test
+    jet:
+      type: numerique
+      formule: si(avantage et non desavantage, 2d20k1, si(desavantage et non avantage, 2d20kl1, 1d20)) + mod(@CHA)
+      reussite: *reussite-test
+
+  - id: initiative
+    nom: Initiative
+    description: 1d20 + Initiative (valeur de DEX).
+    pour: [personnage]
+    jet:
+      type: numerique
+      formule: 1d20 + @INIT
+
+  - id: monter-niveau
+    nom: Passage de niveau
+    description: >-
+      Lance le dé de vie : le niveau augmente de 1, les PV max du jet + mod. CON,
+      et les PV remontent au nouveau maximum.
+    pour: [personnage]
+    jet:
+      type: numerique
+      formule: des(1, @deVie)
+    consequences:
+      - { entite: acteur, attribut: niveau, operation: ajouter, valeur: 1 }
+      - { entite: acteur, attribut: jetsDeVie, operation: ajouter, valeur: total }
+      - { entite: acteur, attribut: PV, operation: fixer, valeur: '@PV_Max + total + mod(@CON)' }
+
+initiative:
+  action: initiative
+  tri: [total]
