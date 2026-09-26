@@ -170,8 +170,16 @@ export interface DicePreferences {
   skinId: string;
   animation3d: boolean;
   sound: boolean;
-  /** Skins débloqués (boutique, défis) ; les skins gratuits s'y ajoutent toujours. */
+  /**
+   * Skins possédés en propre, dans l'ordre du catalogue : les gratuits et ceux
+   * débloqués (boutique, défis). Ceux ouverts par `allSkins` n'y figurent pas.
+   */
   inventory: string[];
+  /**
+   * Accès à tous les skins du catalogue (premium de l'ancienne app, plus tard
+   * l'abonnement billing). Un skin est possédé si `allSkins` ou s'il est dans `inventory`.
+   */
+  allSkins: boolean;
 }
 
 export type DicePreferencesUpdate = Partial<
@@ -235,7 +243,7 @@ export function getDicePreferences() {
   return api<DicePreferences>('/v1/dice/me/preferences');
 }
 
-/** Le skin choisi doit être dans l'inventaire (ou gratuit). */
+/** Le skin choisi doit être possédé (`allSkins` ou `inventory`), sinon 403 `skin_not_owned`. */
 export function updateDicePreferences(body: DicePreferencesUpdate) {
   return api<DicePreferences>('/v1/dice/me/preferences', {
     method: 'PATCH',

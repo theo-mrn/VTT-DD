@@ -15,6 +15,8 @@ interface DiceDetailProps {
   onBuy: () => void;
   onEquip: () => void;
   onTry: () => void;
+  /** Achat pas encore ouvert (service billing à venir) : bouton désactivé. */
+  comingSoon?: boolean;
 }
 
 const RARITY_STYLE: Record<string, { label: string; className: string }> = {
@@ -53,6 +55,7 @@ export function DiceDetail({
   onBuy,
   onEquip,
   onTry,
+  comingSoon = false,
 }: DiceDetailProps) {
   const rarity = RARITY_STYLE[skin.rarity || 'common'] ?? RARITY_STYLE.common;
 
@@ -128,13 +131,16 @@ export function DiceDetail({
             ) : (
               <button
                 onClick={onBuy}
-                disabled={!canAfford}
+                disabled={!canAfford || comingSoon}
+                title={comingSoon ? `Acheter — ${(skin.price / 100).toFixed(2)} €` : undefined}
                 className="w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 border border-[var(--border-color)] bg-[var(--bg-darker)] text-[var(--text-primary)] hover:bg-[var(--bg-dark)] hover:border-[color-mix(in_srgb,var(--text-primary)_20%,transparent)] active:scale-95 disabled:opacity-50"
               >
                 <ShoppingCart className="w-4 h-4" />
-                {skin.price === 0
-                  ? 'Obtenir gratuitement'
-                  : `Acheter — ${(skin.price / 100).toFixed(2)} €`}
+                {comingSoon
+                  ? 'Bientôt disponible'
+                  : skin.price === 0
+                    ? 'Obtenir gratuitement'
+                    : `Acheter — ${(skin.price / 100).toFixed(2)} €`}
               </button>
             )}
 

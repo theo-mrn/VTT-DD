@@ -15,6 +15,8 @@ interface DiceCardProps {
   onEquip: () => void;
   /** Ouvre la page de détail du dé — le SEUL endroit où un canvas 3D est monté. */
   onOpen: () => void;
+  /** Achat pas encore ouvert (service billing à venir) : bouton désactivé. */
+  comingSoon?: boolean;
 }
 
 // Carte 100% statique : vignette PNG pré-bakée, zéro WebGL, zéro animation de
@@ -28,6 +30,7 @@ export function DiceCard({
   onBuy,
   onEquip,
   onOpen,
+  comingSoon = false,
 }: DiceCardProps) {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
@@ -123,7 +126,8 @@ export function DiceCard({
                 e.stopPropagation();
                 onBuy();
               }}
-              disabled={!canAfford}
+              disabled={!canAfford || comingSoon}
+              title={comingSoon ? `${(skin.price / 100).toFixed(2)} €` : undefined}
               className={cn(
                 'w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors duration-300',
                 'flex items-center justify-center gap-2',
@@ -131,7 +135,11 @@ export function DiceCard({
               )}
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              {skin.price === 0 ? 'Gratuit' : `${(skin.price / 100).toFixed(2)} €`}
+              {comingSoon
+                ? 'Bientôt disponible'
+                : skin.price === 0
+                  ? 'Gratuit'
+                  : `${(skin.price / 100).toFixed(2)} €`}
             </button>
           )}
         </div>

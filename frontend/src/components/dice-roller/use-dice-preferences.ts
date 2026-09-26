@@ -21,6 +21,7 @@ const FALLBACK: DicePreferences = {
   animation3d: false,
   sound: true,
   inventory: [],
+  allSkins: false,
 };
 
 interface State {
@@ -55,8 +56,9 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
-/** Skins utilisables : l'inventaire et les skins gratuits du catalogue. */
+/** Skins utilisables : tout le catalogue avec `allSkins`, sinon l'inventaire et les skins gratuits. */
 export function ownedSkins(prefs: DicePreferences): string[] {
+  if (prefs.allSkins) return Object.keys(DICE_SKINS);
   const owned = new Set(prefs.inventory);
   for (const s of Object.values(DICE_SKINS)) if (s.price === 0) owned.add(s.id);
   return Object.keys(DICE_SKINS).filter((id) => owned.has(id));
@@ -77,14 +79,17 @@ export function useDicePreferences() {
     if (current.loaded) applyDiceSound(current.prefs.sound);
   }, [current.loaded, current.prefs.sound]);
 
-  const update = useCallback(async (patch: DicePreferencesUpdate) => {
+  /** Mise à jour optimiste ; faux (et préférences d'avant) si le service refuse. */
+  const update = useCallback(async (patch: DicePreferencesUpdate): Promise<boolean> => {
     const previous = state.prefs;
     set({ prefs: { ...previous, ...patch }, error: null });
     try {
       const saved = await updateDicePreferences(patch);
       set({ prefs: { ...FALLBACK, ...saved } });
+      return true;
     } catch (e) {
       set({ prefs: previous, error: errorMessage(e) });
+      return false;
     }
   }, []);
 

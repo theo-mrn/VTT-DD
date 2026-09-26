@@ -1,10 +1,20 @@
 'use client';
 
 /**
- * Choix du skin de dés, repris de la boutique de l'ancienne app (store-modal)
- * SANS la boutique : seulement « Mon Sac » (skins de l'inventaire du service
- * des dés et skins gratuits), recherche, rareté, page de détail 3D et essai.
- * L'achat et l'abonnement arriveront avec le service billing.
+ * Boutique de l'ancienne app (`legacy/src/components/store/store-modal.tsx`) :
+ * même structure, même rendu (Catalogue, Mon Sac, Premium ; recherche,
+ * rareté, pagination, page de détail 3D, « Essayer »). Seuls changent :
+ *
+ * - inventaire, skin équipé et premium : préférences du service des dés
+ *   (`useDicePreferences`, docs/api-dice.md) au lieu du document Firestore
+ *   `users/{uid}` ; un dé est possédé avec `allSkins` (premium de l'ancienne
+ *   app), s'il est dans l'inventaire ou s'il est gratuit ;
+ * - achat, abonnement et portail Stripe : pas encore de service billing, les
+ *   boutons restent affichés, désactivés (« Bientôt disponible ») ;
+ * - cadres de jetons (onglet « Cadres ») : masqués, leur inventaire et le cadre
+ *   équipé n'ont pas encore de service ;
+ * - commandes de développement `give_dice` / `give_token` : retirées (écriture
+ *   directe dans Firestore).
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,7 +23,20 @@ import { DICE_SKINS, type DiceSkin } from '@/components/(dices)/dice-definitions
 import type { FunDiceHandle } from '@/components/(dices)/throw-fun';
 import { DiceCard } from './dice-card';
 import { DiceDetail } from './dice-detail';
-import { Backpack, X, Loader2, Package, Search, ChevronDown, Check } from 'lucide-react';
+import {
+  Store,
+  Backpack,
+  X,
+  Loader2,
+  Crown,
+  Dice5,
+  Package,
+  Settings,
+  Sparkles,
+  Search,
+  ChevronDown,
+  Check,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from './toast';
 import { ownedSkins, useDicePreferences } from './use-dice-preferences';
@@ -21,7 +44,7 @@ import { ownedSkins, useDicePreferences } from './use-dice-preferences';
 // Canevas WebGL chargé seulement au premier « Essayer » (sans rendu serveur)
 const FunDiceThrower = dynamic(() => import('@/components/(dices)/throw-fun'), { ssr: false });
 
-type TabId = 'inventory';
+type TabId = 'catalog' | 'inventory' | 'premium';
 type RarityFilter = 'all' | 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 const RARITY_OPTIONS: { id: RarityFilter; label: string; color: string }[] = [
@@ -40,6 +63,9 @@ const RARITY_ORDER: Record<string, number> = {
   legendary: 4,
 };
 
+/** Achat et abonnement : en attente du service billing. */
+const COMING_SOON = 'Bientôt disponible';
+
 interface StoreModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -54,15 +80,16 @@ export function StoreModal({
   onSelectDiceSkin,
 }: StoreModalProps) {
   // --- View state ---
-  const activeTab: TabId = 'inventory';
+  const [activeTab, setActiveTab] = useState<TabId>('catalog');
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // --- User state : préférences du service des dés (inventaire, skin) ---
+  // --- User state : préférences du service des dés (inventaire, premium, skin) ---
   const { prefs, loaded, update } = useDicePreferences();
-  const diceInventory = useMemo(() => ownedSkins(prefs), [prefs]);
+  const isPremium = prefs.allSkins;
+  const diceInventory = useMemo(() => new Set(ownedSkins(prefs)), [prefs]);
 
   // --- UI state ---
   const [mounted, setMounted] = useState(false);
@@ -148,27 +175,33 @@ export function StoreModal({
   }, [rarityOpen]);
 
   // --- Actions ---
+  // Achat : pas encore de service billing (les boutons sont désactivés).
+  const handleBuyItem = () => {
+    toast.info(`Achat : ${COMING_SOON.toLowerCase()}`);
+  };
+
   const handleEquipDice = async (skinId: string) => {
     if (onSelectDiceSkin) onSelectDiceSkin(skinId);
-    await update({ skinId });
-    toast.success('Dés équipés');
+    if (await update({ skinId })) toast.success('Dés équipés');
+    else toast.error("Impossible d'équiper ces dés");
   };
 
   // --- Data ---
   const allDiceSkins = useMemo(() => Object.values(DICE_SKINS), []);
 
-  const ownsDice = (id: string) => diceInventory.includes(id);
+  // Ownership helpers (premium owns everything).
+  const ownsDice = (id: string) => diceInventory.has(id);
 
   type StoreItem = { type: 'dice'; data: DiceSkin };
 
-  // Build the visible item list : « Mon Sac » seulement (pas de boutique).
-  const buildItems = (): StoreItem[] => {
+  // Build the visible item list. `ownedOnly` = the "Mon Sac" tab.
+  const buildItems = (ownedOnly: boolean): StoreItem[] => {
     const q = searchQuery.trim().toLowerCase();
     const rarityOk = (r?: string) => rarityFilter === 'all' || (r || 'common') === rarityFilter;
     const items: StoreItem[] = [];
 
     allDiceSkins.forEach((s) => {
-      if (!ownsDice(s.id)) return;
+      if (ownedOnly && !ownsDice(s.id)) return;
       if (!rarityOk(s.rarity)) return;
       if (q && !s.name.toLowerCase().includes(q)) return;
       items.push({ type: 'dice', data: s });
@@ -182,10 +215,10 @@ export function StoreModal({
   };
 
   const displayItems = useMemo(
-    () => buildItems(),
+    () => (activeTab === 'premium' ? [] : buildItems(activeTab === 'inventory')),
     // buildItems est une closure recréée à chaque render ; ses entrées réelles sont listées ici.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rarityFilter, searchQuery, allDiceSkins, diceInventory],
+    [activeTab, rarityFilter, searchQuery, allDiceSkins, diceInventory],
   );
   const totalPages = Math.ceil(displayItems.length / itemsPerPage);
   const paginatedItems = displayItems.slice(
@@ -196,7 +229,7 @@ export function StoreModal({
   useEffect(() => {
     setCurrentPage(1);
     document.getElementById('store-modal-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [rarityFilter, searchQuery]);
+  }, [activeTab, rarityFilter, searchQuery]);
 
   const handlePageChange = (p: number) => {
     setCurrentPage(p);
@@ -214,7 +247,8 @@ export function StoreModal({
       isOwned={ownsDice(item.data.id)}
       isEquipped={equippedId === item.data.id}
       canAfford={false}
-      onBuy={() => {}}
+      comingSoon
+      onBuy={handleBuyItem}
       onEquip={() => handleEquipDice(item.data.id)}
       onOpen={() => setDetailSkin(item.data)}
     />
@@ -250,17 +284,61 @@ export function StoreModal({
             className="w-10 h-10 shrink-0 rounded-xl border border-[var(--border-color)] flex items-center justify-center"
             style={{ background: 'color-mix(in srgb, var(--accent-brown) 10%, transparent)' }}
           >
-            <Backpack className="w-5 h-5 text-[var(--accent-brown)]" />
+            <Store className="w-5 h-5 text-[var(--accent-brown)]" />
           </div>
           <div className="min-w-0 mr-auto">
             <div className="flex items-center gap-2">
               <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] truncate">
-                Mon Sac
+                Boutique
               </h2>
+              {isPremium && (
+                <span
+                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-[var(--accent-brown)]"
+                  style={{
+                    background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)',
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)',
+                  }}
+                >
+                  <Crown className="w-3 h-3" /> Premium
+                </span>
+              )}
             </div>
             <p className="hidden sm:block text-sm text-[var(--text-secondary)]">
-              Choisissez le skin de vos dés
+              {isPremium ? 'Accès total débloqué' : 'Personnalisez vos dés'}
             </p>
+          </div>
+
+          {/* Tabs */}
+          <div
+            className="flex items-center gap-1 p-1 rounded-xl border border-[var(--border-color)]"
+            style={{ background: 'color-mix(in srgb, var(--bg-darker) 60%, transparent)' }}
+          >
+            {(
+              [
+                { id: 'catalog', label: 'Catalogue', Icon: Store },
+                { id: 'inventory', label: 'Mon Sac', Icon: Backpack },
+                { id: 'premium', label: 'Premium', Icon: Crown },
+              ] as const
+            ).map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  setDetailSkin(null);
+                  setActiveTab(id);
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-colors',
+                  activeTab === id
+                    ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                )}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
           </div>
 
           <button
@@ -272,7 +350,7 @@ export function StoreModal({
         </div>
 
         {/* ===== TOOLBAR (search + filters) — hidden on Premium tab & detail page ===== */}
-        {!detailSkin && (
+        {activeTab !== 'premium' && !detailSkin && (
           <div
             className="shrink-0 flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-3 border-b border-[var(--border-color)]"
             style={{ background: 'color-mix(in srgb, var(--bg-darker) 40%, transparent)' }}
@@ -371,21 +449,34 @@ export function StoreModal({
               style={{ touchAction: 'pan-y' }}
             >
               <div className="p-4 sm:p-6">
-                {detailSkin ? (
+                {activeTab === 'premium' ? (
+                  <PremiumPanel isPremium={isPremium} />
+                ) : detailSkin ? (
                   <DiceDetail
                     skin={detailSkin}
                     isOwned={ownsDice(detailSkin.id)}
                     isEquipped={equippedId === detailSkin.id}
                     canAfford={false}
+                    comingSoon
                     onBack={() => setDetailSkin(null)}
-                    onBuy={() => {}}
+                    onBuy={handleBuyItem}
                     onEquip={() => handleEquipDice(detailSkin.id)}
                     onTry={() => tryDice(detailSkin.id)}
                   />
                 ) : (
                   <>
+                    {/* Hero (Catalogue only, not the bag) */}
+                    {activeTab === 'catalog' && !searchQuery && rarityFilter === 'all' && (
+                      <CatalogHero
+                        isPremium={isPremium}
+                        onCta={() =>
+                          isPremium ? setActiveTab('inventory') : setActiveTab('premium')
+                        }
+                      />
+                    )}
+
                     {paginatedItems.length === 0 ? (
-                      <EmptyState tab={activeTab} />
+                      <EmptyState tab={activeTab} isPremium={isPremium} />
                     ) : (
                       <>
                         {/* Pas d'animation de montage sur les cartes : la double couche
@@ -424,11 +515,59 @@ export function StoreModal({
 // Sub-components
 // ────────────────────────────────────────────────────────────────────────────
 
-function EmptyState({ tab }: { tab: TabId }) {
+function CatalogHero({ isPremium, onCta }: { isPremium: boolean; onCta: () => void }) {
+  return (
+    <div className="relative mb-6 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent-brown)_20%,transparent)] via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-8">
+      <div className="absolute -top-6 -right-6 opacity-[0.06] rotate-12">
+        <Crown className="w-56 h-56 text-[var(--accent-brown)]" />
+      </div>
+      <div className="relative z-10 flex flex-col items-start gap-4 max-w-lg">
+        <span
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold text-[var(--accent-brown)]"
+          style={{
+            background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)',
+            borderWidth: 1,
+            borderStyle: 'solid',
+            borderColor: 'color-mix(in srgb, var(--accent-brown) 30%, transparent)',
+          }}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {isPremium ? 'Membre Premium' : 'Collection légendaire'}
+        </span>
+        <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+          {isPremium ? 'Tous les trésors sont à vous' : 'Équipez des dés uniques'}
+        </h3>
+        <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+          {isPremium
+            ? 'Équipez librement tout le catalogue, présent et à venir.'
+            : 'Des dés 3D animés — trouvez la pièce qui vous ressemble, ou débloquez tout avec Premium.'}
+        </p>
+        <button
+          onClick={onCta}
+          className="mt-1 px-6 py-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-xl text-sm font-bold hover:bg-[var(--accent-brown-hover)] active:scale-95 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(192,160,128,0.2)]"
+        >
+          {isPremium ? (
+            <>
+              <Backpack className="w-4 h-4" /> Voir mon sac
+            </>
+          ) : (
+            <>
+              <Crown className="w-4 h-4" /> Découvrir Premium
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ tab, isPremium }: { tab: TabId; isPremium: boolean }) {
   const message =
     tab === 'inventory'
-      ? 'Aucun dé ne correspond à votre recherche.'
-      : 'Aucun objet ne correspond à votre recherche.';
+      ? 'Votre sac est vide. Débloquez des dés pour les retrouver ici.'
+      : isPremium
+        ? 'Aucun objet ne correspond à ces filtres.'
+        : 'Aucun objet ne correspond à votre recherche.';
   return (
     <div className="py-24 flex flex-col items-center gap-4 text-center opacity-50">
       <Package className="w-14 h-14 text-[var(--text-secondary)]" />
@@ -483,6 +622,89 @@ function Pagination({
         <span className="hidden sm:inline">Suivant</span>
         <span className="sm:hidden">›</span>
       </button>
+    </div>
+  );
+}
+
+/** Abonnement : pas encore de service billing, boutons désactivés. */
+function PremiumPanel({ isPremium }: { isPremium: boolean }) {
+  const benefits = [
+    { Icon: Dice5, text: 'Tous les dés 3D animés débloqués' },
+    { Icon: Package, text: 'Accès aux futurs contenus' },
+    { Icon: Sparkles, text: 'Soutenez le développement' },
+  ];
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="relative rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent-brown)_30%,transparent)] bg-gradient-to-br from-[color-mix(in_srgb,var(--accent-brown)_15%,transparent)] via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-10 text-center">
+        <div className="absolute -top-8 -right-8 opacity-[0.08] rotate-12">
+          <Crown className="w-64 h-64 text-[var(--accent-brown)]" />
+        </div>
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)',
+              borderWidth: 1,
+              borderStyle: 'solid',
+              borderColor: 'color-mix(in srgb, var(--accent-brown) 25%, transparent)',
+            }}
+          >
+            <Crown className="w-8 h-8 text-[var(--accent-brown)]" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+              Abonnement Premium
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              L&apos;expérience complète, sans limites
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
+            {benefits.map(({ Icon, text }, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)]"
+              >
+                <Icon className="w-5 h-5 text-[var(--accent-brown)] shrink-0" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">{text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-4 mt-2">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-4xl font-bold text-[var(--text-primary)]">4,99 €</span>
+              <span className="text-sm text-[var(--text-secondary)]">/ mois</span>
+            </div>
+            {isPremium ? (
+              <button
+                disabled
+                title={COMING_SOON}
+                className="px-8 py-3.5 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-xl text-sm font-bold hover:bg-[var(--accent-brown-hover)] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--accent-brown)] disabled:active:scale-100"
+              >
+                <Settings className="w-5 h-5" />
+                Gérer l&apos;abonnement
+              </button>
+            ) : (
+              <button
+                disabled
+                title={COMING_SOON}
+                className="px-8 py-3.5 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-xl text-sm font-bold hover:bg-[var(--accent-brown-hover)] active:scale-95 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(192,160,128,0.2)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--accent-brown)] disabled:active:scale-100"
+              >
+                <Sparkles className="w-5 h-5" />
+                Devenir Premium
+              </button>
+            )}
+            <p className="-mt-2 text-xs font-bold uppercase tracking-widest text-[var(--accent-brown)]">
+              {COMING_SOON}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] opacity-60">
+              Annulation à tout moment via Stripe
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
