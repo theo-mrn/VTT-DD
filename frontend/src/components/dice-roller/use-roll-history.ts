@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, errorMessage } from '@/lib/api';
-import { deleteRoll, listRolls, onRollsChanged, type Roll } from '@/lib/dice';
+import { clearRolls, deleteRoll, listRolls, onRollsChanged, type Roll } from '@/lib/dice';
 
 const POLL_MS = 3000;
 /** Toutes les 10 relèves (30 s), la dernière page est relue en entier (suppressions). */
@@ -26,6 +26,8 @@ export interface RollHistory {
   /** Ajoute un jet qui vient d'être enregistré (sans attendre le polling). */
   push(roll: Roll): void;
   remove(id: string): Promise<void>;
+  /** Vide l'historique de la campagne (MJ) ; le polling repart de la dernière page. */
+  clear(): Promise<void>;
   refresh(): void;
 }
 
@@ -184,7 +186,19 @@ export function useRollHistory({
     }
   }, []);
 
+  const clear = useCallback(async () => {
+    if (!campaignId) return;
+    await clearRolls(campaignId);
+    // Liste vidée et curseur remis à zéro : le prochain passage relit la dernière page.
+    generation.current += 1;
+    ticks.current = 0;
+    rollsRef.current = [];
+    setRolls([]);
+    setHasMore(false);
+    setError(null);
+  }, [campaignId]);
+
   const refresh = useCallback(() => void poll(), [poll]);
 
-  return { rolls, loading, error, hasMore, loadingOlder, loadOlder, push, remove, refresh };
+  return { rolls, loading, error, hasMore, loadingOlder, loadOlder, push, remove, clear, refresh };
 }

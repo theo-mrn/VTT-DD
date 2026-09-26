@@ -252,6 +252,17 @@ export function deleteRoll(id: string) {
   return api<void>(`/v1/dice/rolls/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+/**
+ * DELETE /v1/dice/rolls?campaignId= : vide l'historique des jets de la
+ * campagne (jets importés et d'action compris). MJ seulement (403 `gm_required`) ;
+ * renvoie le nombre de jets supprimés.
+ */
+export function clearRolls(campaignId: string) {
+  return api<{ deleted: number }>(`/v1/dice/rolls?campaignId=${encodeURIComponent(campaignId)}`, {
+    method: 'DELETE',
+  });
+}
+
 // ─── Statistiques ────────────────────────────────────────────────────────────
 
 export function getRollStats(query: RollStatsQuery = {}) {

@@ -630,6 +630,21 @@ export const DiceRoller = ({
     }
   };
 
+  // MJ : vide l'historique des jets de la campagne (action irréversible, confirmée).
+  const clearHistory = async () => {
+    if (!roomId || !isMJ) return;
+    if (
+      !window.confirm("Supprimer tout l'historique des dés de la campagne ? Action irréversible.")
+    )
+      return;
+    try {
+      await history.clear();
+      toast.success('Historique des dés vidé');
+    } catch (e) {
+      toast.error(errorMessage(e, "Impossible de vider l'historique"));
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -939,6 +954,18 @@ export const DiceRoller = ({
 
                   {mobileView === 'history' && (
                     <div className="p-3 space-y-2">
+                      {isMJ && roomId && (
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => void clearHistory()}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] text-zinc-500 hover:text-red-300 hover:bg-white/5 transition-colors"
+                            title="Vider l'historique"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Vider l&apos;historique
+                          </button>
+                        </div>
+                      )}
                       {roomRolls.filter(canDisplayRoll).length === 0 ? (
                         <div className="text-center text-zinc-500 py-10 text-sm italic">
                           {history.loading ? 'Chargement des jets...' : 'Aucun lancer récent...'}
@@ -2061,6 +2088,16 @@ export const DiceRoller = ({
                                 {player}
                               </button>
                             ))}
+                            {isMJ && roomId && (
+                              <button
+                                onClick={() => void clearHistory()}
+                                className="ml-auto flex-shrink-0 p-1 rounded text-zinc-500 hover:text-red-300 transition-colors"
+                                title="Vider l'historique"
+                                aria-label="Vider l'historique"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
 
                           {roomRolls
