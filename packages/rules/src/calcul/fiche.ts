@@ -102,7 +102,11 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         : 0;
   };
 
-  const possede = (id: string) => possessions.has(id);
+  // Une entrée à rangs n'est réellement possédée qu'à partir du rang 1
+  const possede = (id: string) => {
+    const p = possessions.get(id);
+    return !!p && estEffective(p);
+  };
   const rang = (id: string) => possessions.get(id)?.rang ?? 0;
   const champ = (p: PossessionEffective, c: string): Valeur | undefined => {
     const v = p.possession?.champs[c] ?? p.entree.champs[c];
@@ -112,21 +116,26 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
   };
 
   const fonctions: Record<string, (...args: Valeur[]) => Valeur> = {
-    compte: (sorte) => [...possessions.values()].filter((p) => p.sorte.id === sorte).length,
+    compte: (sorte) => effectives().filter((p) => p.sorte.id === sorte).length,
     somme: (sorte, c) =>
-      [...possessions.values()]
+      effectives()
         .filter((p) => p.sorte.id === sorte)
         .reduce((s, p) => s + (Number(champ(p, String(c))) || 0), 0),
-    compte_actifs: (sorte) =>
-      [...possessions.values()].filter((p) => p.sorte.id === sorte && p.actif).length,
+    compte_actifs: (sorte) => effectives().filter((p) => p.sorte.id === sorte && p.actif).length,
     somme_actifs: (sorte, c) =>
-      [...possessions.values()]
+      effectives()
         .filter((p) => p.sorte.id === sorte && p.actif)
         .reduce((s, p) => s + (Number(champ(p, String(c))) || 0), 0),
     somme_rangs: (sorte) =>
       [...possessions.values()].filter((p) => p.sorte.id === sorte).reduce((s, p) => s + p.rang, 0),
     marquee: (id, m) => marques.get(String(id))?.has(String(m)) ?? false,
+    /** Étiquette d'une entrée du catalogue : `a_etiquette(arme, "hache")`. */
+    a_etiquette: (id, e) =>
+      systeme.entrees.get(String(id))?.etiquettes.includes(String(e)) ?? false,
   };
+  function effectives(): PossessionEffective[] {
+    return [...possessions.values()].filter(estEffective);
+  }
 
   const contexte = (extra: Partial<ContexteEvaluation> = {}): ContexteEvaluation => ({
     attribut: (cle, e) => {
@@ -218,7 +227,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       sorte,
       rang: rangs + (possession?.rang ?? 0),
       achete: possession?.rang ?? 0,
-      actif: sorte.activable ? (possession?.actif ?? true) : true,
+      actif: sorte.activable ? (possession?.actif ?? sorte.actifParDefaut) : true,
       ...(possession ? { possession } : {}),
       sources: [source],
     });
@@ -273,7 +282,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     };
 
     for (const p of possessions.values()) {
-      if (!p.actif) continue;
+      if (!p.actif || !estEffective(p)) continue;
       const vars = { variable: variablesSource(p) };
       p.entree.effets.forEach((f, i) => {
         if (f.sur !== 'rang' && f.sur !== 'marque') return;
@@ -320,7 +329,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     effetsPar.set(cle, l);
   };
   for (const p of possessions.values()) {
-    if (!p.actif) continue;
+    if (!p.actif || !estEffective(p)) continue;
     p.entree.effets.forEach((f, i) => {
       if (f.sur !== 'attribut') return;
       pousser(f.attribut, {
@@ -551,4 +560,9 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     contexte,
     evaluer: (f, extra, defaut) => evaluerSur(f, extra, defaut),
   };
+}
+
+/** Possession qui compte : entrée sans rangs, ou entrée à rangs au rang 1 au moins. */
+export function estEffective(p: PossessionEffective): boolean {
+  return !p.sorte.rangs || p.rang > 0;
 }

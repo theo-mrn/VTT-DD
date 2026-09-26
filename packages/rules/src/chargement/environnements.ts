@@ -57,6 +57,8 @@ export const FONCTIONS_ENTITE: Record<string, SignatureFonction> = {
   somme_actifs: { args: ['texte', 'texte'], retour: 'nombre' },
   /** Somme des rangs des entrées possédées d'une sorte : `somme_rangs("blessure_critique")`. */
   somme_rangs: { args: ['texte'], retour: 'nombre' },
+  /** Étiquette d'une entrée du catalogue : `a_etiquette(arme, "hache")`. */
+  a_etiquette: { args: ['texte', 'texte'], retour: 'booleen' },
   /** Marque posée sur une entrée : `marquee("athletisme", "carriere")`. */
   marquee: { args: ['texte', 'texte'], retour: 'booleen' },
 };

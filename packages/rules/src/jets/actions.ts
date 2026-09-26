@@ -13,7 +13,7 @@
  * listée dans `erreurs`. Seules les données fournies par l'appelant (action,
  * entités, paramètres) sont refusées.
  */
-import type { Fiche, PossessionEffective } from '../calcul/index.js';
+import { estEffective, type Fiche, type PossessionEffective } from '../calcul/index.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
 import {
   ErreurEvaluation,
@@ -339,7 +339,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
   const idsEntree = new Set<string>();
   for (const a of systeme.actions.values())
-    for (const p of a.parametres) if (p.type === 'entree') idsEntree.add(p.id);
+    for (const p of a.parametres)
+      if (p.type === 'entree' || p.type === 'attribut') idsEntree.add(p.id);
 
   /** Variables d'un effet : sa source (`rang`, `actif`, `source.x`), l'action et ses entrées. */
   const variablesEffet =
@@ -350,14 +351,15 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       if (nom.startsWith('source.')) return lireChamp(p, nom.slice('source.'.length));
       if (nom === 'action') return action.id;
       // Paramètre « entrée » d'une autre action : absent ici, vaut le texte vide
-      if (idsEntree.has(nom)) return choisies.has(nom) ? String(parametres[nom]) : '';
+      // Paramètre « entrée » ou « attribut » : sa valeur si l'action l'a, sinon le texte vide
+      if (idsEntree.has(nom)) return typeof parametres[nom] === 'string' ? parametres[nom] : '';
       throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
     };
 
   type AjoutJet = NonNullable<Extract<Effet, { sur: 'jet' }>['ajout']>;
   const effets: { p: PossessionEffective; ajout: AjoutJet; valeur: number; nom: string }[] = [];
   for (const p of acteur.possessions.values()) {
-    if (!p.actif) continue;
+    if (!p.actif || !estEffective(p)) continue;
     const ctxEffet = acteur.contexte({ variable: variablesEffet(p) });
     p.entree.effets.forEach((f, i) => {
       if (f.sur !== 'jet' || !f.ajout) return;
@@ -367,7 +369,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         if (!systeme.formules.has(chemin(x))) continue;
         if (calculerFormule(chemin(x), false, ctxEffet).valeur !== true) return;
       }
-      const cle = 'bonus' in f.ajout ? 'bonus' : 'nombre';
+      const cle = 'bonus' in f.ajout ? 'bonus' : 'variable' in f.ajout ? 'ajouter' : 'nombre';
       const valeur = Number(calculerFormule(chemin(cle), 0, ctxEffet).valeur);
       effets.push({ p, ajout: f.ajout, valeur, nom: f.description ?? p.entree.nom });
     });
@@ -385,7 +387,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const bonus: BonusJet[] = [];
     for (const e of effets) {
       if ('bonus' in e.ajout) bonus.push({ source: e.p.entree.id, nom: e.nom, valeur: e.valeur });
-      else explications.push(`${e.nom} : ignoré (dés à symboles sur un jet numérique)`);
+      else if (!('variable' in e.ajout))
+        explications.push(`${e.nom} : ignoré (dés à symboles sur un jet numérique)`);
     }
     const total = valeur + bonus.reduce((s, b) => s + b.valeur, 0);
     const naturel = r.jets.reduce((s, j) => s + j.total, 0);
@@ -536,9 +539,17 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   for (const v of action.apres) {
     const chemin = ch(`apres/${v.cle}`);
     const r = calculerFormule(chemin, defautDe(systeme.formule(chemin).type), ctx);
-    variables.set(v.cle, r.valeur);
     const des = r.jets.length ? ` [${r.jets.map(decrireJet).join(' ; ')}]` : '';
     explications.push(`${v.cle} = ${String(r.valeur)}${des}`);
+    // Effets de jet qui s'ajoutent à cette valeur (bonus aux dégâts…)
+    let valeur = r.valeur;
+    for (const e of effets) {
+      if (!('variable' in e.ajout) || e.ajout.variable !== v.cle || typeof valeur !== 'number')
+        continue;
+      valeur += e.valeur;
+      explications.push(`${e.nom} : ${signe(e.valeur)} → ${v.cle} = ${valeur}`);
+    }
+    variables.set(v.cle, valeur);
   }
 
   const modifications: Modification[] = [];

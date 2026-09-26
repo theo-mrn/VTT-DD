@@ -280,7 +280,7 @@ describe('briques génériques (2)', () => {
   it('choix d’attribut et coût d’achat sur la valeur calculée', () => {
     const f = ficheSw({
       valeurs: { vigueur: 2 },
-      possessions: [{ entree: 'devouement', choix: { carac: ['vigueur'] } }],
+      possessions: [{ entree: 'devouement', rang: 1, choix: { carac: ['vigueur'] } }],
     });
     expect(f.valeur('vigueur')).toBe(3);
     const vigueur = achatsPossibles(f, ['carac-calculee'])[0]!.objets.find(
@@ -288,7 +288,7 @@ describe('briques génériques (2)', () => {
     );
     expect(vigueur?.cout).toBe(40);
     const faux = ficheSw({
-      possessions: [{ entree: 'devouement', choix: { carac: ['Encaissement'] } }],
+      possessions: [{ entree: 'devouement', rang: 1, choix: { carac: ['Encaissement'] } }],
     });
     expect(faux.erreurs.map((e) => e.message)).toEqual([
       '+1 à une caractéristique : « Encaissement » n’est pas proposé',
@@ -322,5 +322,136 @@ describe('nombre de choix en formule', () => {
     expect(erreursChoix(f(10), 'humain', c, ['distance', 'discretion', 'athletisme'])).toContain(
       'Deux compétences hors carrière : 2 choix au plus',
     );
+  });
+});
+
+// ─── Troisième série : manques relevés par le portage D&D ──────────────────
+
+describe('briques génériques (3)', () => {
+  const s3saisi: SystemeSaisi = {
+    ...miniD20,
+    sortes: [
+      ...miniD20.sortes!,
+      {
+        id: 'capacite',
+        nom: 'Capacité',
+        pour: ['personnage'],
+        rangs: { max: 1 },
+        activable: true,
+        actifParDefaut: false,
+      },
+      {
+        id: 'arme',
+        nom: 'Arme',
+        pour: ['personnage'],
+        champs: [{ id: 'degats', nom: 'Dégâts', type: 'nombre' }],
+      },
+    ],
+    catalogue: [
+      ...miniD20.catalogue!,
+      {
+        id: 'rage',
+        sorte: 'capacite',
+        nom: 'Rage',
+        effets: [{ sur: 'attribut', attribut: 'FOR', operation: 'ajouter', valeur: 4 }],
+      },
+      {
+        id: 'force-brute',
+        sorte: 'don',
+        nom: 'Force brute',
+        effets: [
+          { sur: 'rang', entree: 'rage', valeur: 1, condition: 'rang >= 2' },
+          { sur: 'jet', actions: ['test'], si: 'carac == "FOR"', ajout: { bonus: 5 } },
+          {
+            sur: 'jet',
+            actions: ['frapper'],
+            si: 'a_etiquette(arme, "hache")',
+            ajout: { variable: 'degats', ajouter: 2 },
+          },
+        ],
+      },
+      { id: 'hache', sorte: 'arme', nom: 'Hache', etiquettes: ['hache'], champs: { degats: 6 } },
+      { id: 'epee', sorte: 'arme', nom: 'Épée', champs: { degats: 6 } },
+    ],
+    actions: [
+      {
+        id: 'test',
+        nom: 'Test',
+        pour: ['personnage'],
+        parametres: [{ id: 'carac', nom: 'Caractéristique', type: 'attribut', groupe: 'carac' }],
+        jet: { type: 'numerique', formule: '1d20 + modificateur(carac)' },
+      },
+      {
+        id: 'frapper',
+        nom: 'Frapper',
+        pour: ['personnage'],
+        parametres: [{ id: 'arme', nom: 'Arme', type: 'entree', sorte: 'arme' }],
+        jet: { type: 'numerique', formule: '1d20' },
+        apres: [{ cle: 'degats', formule: 'arme.degats' }],
+      },
+    ],
+  };
+  const r3 = charger(s3saisi);
+  if (!r3.ok) throw new Error(JSON.stringify(r3.erreurs));
+  const s3 = r3.systeme;
+  const f3 = (e: Partial<EtatEntiteSaisi> = {}) =>
+    calculer(
+      s3,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: s3.source.id, version: '1.0.0' },
+        ...e,
+      }),
+    );
+
+  it('une entrée à rangs au rang 0 n’est pas possédée et n’a pas d’effet', () => {
+    const f = f3({
+      possessions: [
+        { entree: 'force-brute', rang: 1 },
+        { entree: 'rage', actif: true },
+      ],
+    });
+    expect(f.contexte().possede!('rage')).toBe(false);
+    expect(f.valeur('FOR')).toBe(10);
+  });
+
+  it('une capacité obtenue est inactive par défaut, puis activable', () => {
+    const sans = f3({ possessions: [{ entree: 'force-brute', rang: 2 }] });
+    expect(sans.possessions.get('rage')?.actif).toBe(false);
+    expect(sans.valeur('FOR')).toBe(10);
+    const avec = f3({
+      possessions: [
+        { entree: 'force-brute', rang: 2 },
+        { entree: 'rage', actif: true },
+      ],
+    });
+    expect(avec.valeur('FOR')).toBe(14);
+  });
+
+  it('un effet de jet lit le paramètre attribut et les étiquettes, et s’ajoute aux dégâts', () => {
+    const acteur = f3({
+      possessions: [{ entree: 'force-brute', rang: 1 }, { entree: 'hache' }, { entree: 'epee' }],
+    });
+    const test = (carac: string) =>
+      executerAction(s3, {
+        action: 'test',
+        acteur,
+        parametres: { carac },
+        aleatoire: aleatoireImpose([10]),
+      });
+    const total = (r: ReturnType<typeof test>) =>
+      r.ok && r.resultat.jet.type === 'numerique' ? r.resultat.jet.total : null;
+    expect(total(test('FOR'))).toBe(15);
+    expect(total(test('DEX'))).toBe(10);
+    const frapper = (arme: string) =>
+      executerAction(s3, {
+        action: 'frapper',
+        acteur,
+        parametres: { arme },
+        aleatoire: aleatoireImpose([10]),
+      });
+    const degats = (r: ReturnType<typeof frapper>) => (r.ok ? r.resultat.variables.degats : null);
+    expect(degats(frapper('hache'))).toBe(8);
+    expect(degats(frapper('epee'))).toBe(6);
   });
 });

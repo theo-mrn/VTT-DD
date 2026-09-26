@@ -152,6 +152,8 @@ export const Effet = z.discriminatedUnion('sur', [
         z.object({ retrograder: Id, vers: Id, nombre: Formule }),
         /** Retire des dés du pool (jamais en dessous de zéro). */
         z.object({ retirer: Id, nombre: Formule }),
+        /** Ajoute une valeur à une variable calculée après le jet (`apres`), ex. les dégâts. */
+        z.object({ variable: Cle, ajouter: Formule }),
         z.object({ bonus: Formule }),
       ])
       .optional(),
@@ -188,6 +190,8 @@ export const Sorte = z.object({
   maximum: z.number().int().positive().optional(),
   /** Les entrées de cette sorte peuvent être équipées / activées (variable `actif`). */
   activable: z.boolean().default(false),
+  /** État d'une entrée activable obtenue sans possession explicite (capacité à activer : Rage…). */
+  actifParDefaut: z.boolean().default(true),
   champs: z.array(Champ).default([]),
 });
 export type Sorte = z.output<typeof Sorte>;

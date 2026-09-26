@@ -189,7 +189,7 @@ class Chargeur {
             if (lit[0] != null && !sorte) this.erreur(chemin, `Sorte inconnue : ${lit[0]}`, x.pos);
             if ((x.fn === 'somme' || x.fn === 'somme_actifs') && sorte && lit[1] != null) {
               const champ = sorte.champs.find((c) => c.id === lit[1]);
-              if (!champ || champ.type !== 'nombre') {
+              if (!champ || (champ.type !== 'nombre' && champ.type !== 'booleen')) {
                 this.erreur(chemin, `Champ numérique inconnu sur ${sorte.id} : ${lit[1]}`, x.pos);
               }
             }
@@ -492,7 +492,8 @@ class Chargeur {
             if (!this.actions.has(a)) this.erreur(ch('actions'), `Action inconnue : ${a}`);
           const vars: Record<string, TypeValeur> = { ...variables, action: 'texte' };
           for (const act of this.actions.values()) {
-            for (const p of act.parametres) if (p.type === 'entree') vars[p.id] = 'texte';
+            for (const p of act.parametres)
+              if (p.type === 'entree' || p.type === 'attribut') vars[p.id] = 'texte';
           }
           if (f.si !== undefined)
             this.compiler(ch('si'), f.si, { ...oEffet, variables: vars }, 'booleen');
@@ -508,6 +509,13 @@ class Chargeur {
             this.verifierDe(ch('ajout'), aj.retrograder);
             this.verifierDe(ch('ajout'), aj.vers);
             this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
+          } else if (aj && 'variable' in aj) {
+            const visees = f.actions?.length ? f.actions : [...this.actions.keys()];
+            const connue = visees.some((id) =>
+              this.actions.get(id)?.apres.some((x) => x.cle === aj.variable),
+            );
+            if (!connue) this.erreur(ch('ajout'), `Variable « après » inconnue : ${aj.variable}`);
+            this.compiler(ch('ajouter'), aj.ajouter, oEffet, 'nombre');
           } else if (aj && 'retirer' in aj) {
             this.verifierDe(ch('ajout'), aj.retirer);
             this.compiler(ch('nombre'), aj.nombre, oEffet, 'nombre');
