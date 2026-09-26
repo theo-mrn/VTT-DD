@@ -81,6 +81,13 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
     return r;
   };
 
+  const toutesSpecialisations: Record<string, SpecialisationLegacy> = {};
+  for (const d of [...e.systemes, ...e.salles]) {
+    const data = (d.data ?? {}) as Record<string, unknown>;
+    if (d.path.includes('/content/') && data.kind === 'specialization')
+      toutesSpecialisations[d.id] = data as SpecialisationLegacy;
+  }
+
   // Joueurs : personnage actif, copies de leurs personnages
   const persoIdDe = new Map<string, string>(); // persoId → uid
   const copies: DocFirestore<PersonnageLegacy>[] = [];
@@ -133,12 +140,19 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
     }
 
     const cle = nom ?? '';
-    const specialisations = gameSystemId
-      ? {
-          ...specialisationsDe(`gameSystems/${gameSystemId}`),
-          ...specialisationsDe(`Salle/${roomId}/gameSystemOverrides/${gameSystemId}`),
-        }
-      : {};
+    // Un personnage peut référencer une spécialisation d'un ancien système de
+    // la salle (overrides `custom_…` successifs) : les ids Firestore étant
+    // uniques, on cherche dans tout le contenu exporté, le système courant
+    // de la salle ayant priorité.
+    const specialisations = {
+      ...toutesSpecialisations,
+      ...(gameSystemId
+        ? {
+            ...specialisationsDe(`gameSystems/${gameSystemId}`),
+            ...specialisationsDe(`Salle/${roomId}/gameSystemOverrides/${gameSystemId}`),
+          }
+        : {}),
+    };
     const stats = Array.isArray(systeme?.stats)
       ? (systeme.stats as { key: string; recoversToZero?: boolean }[])
       : undefined;

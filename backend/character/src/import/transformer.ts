@@ -756,6 +756,12 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
   migrerBonus(b, options.bonus ?? [], objets);
 }
 
+/** Voie legacy (`Chevalier1`, `chevalier1`…) → id du catalogue, sans tenir compte de la casse. */
+const VOIES_MINUSCULES = new Map(Object.entries(dnd.VOIES).map(([k, v]) => [k.toLowerCase(), v]));
+function voieLegacy(fichier: string): string | undefined {
+  return dnd.VOIES[fichier] ?? VOIES_MINUSCULES.get(fichier.toLowerCase());
+}
+
 // ─── D&D classique ───────────────────────────────────────────────────────────
 
 const CARACTERISTIQUES = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'];
@@ -811,7 +817,7 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
     ? Number(b.fiche().evaluer(b.systeme.formule(chemins.rangsMax('voie')), {}, 0))
     : 0;
   for (const { fichier, rang } of voiesLegacy(p)) {
-    const id = b.entree(dnd.VOIES[fichier], 'voie')?.id;
+    const id = b.entree(voieLegacy(fichier), 'voie')?.id;
     if (!id) {
       b.avertir(
         fichier.startsWith('custom:')
@@ -831,7 +837,7 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
   for (const doc of options.competencesPersonnalisees ?? []) {
     const c = doc.data;
     const voie = texte(p[`Voie${(c.voieIndex ?? 0) + 1}`])?.replace(/\.json$/, '');
-    const origine = voie && b.entree(dnd.VOIES[voie], 'voie');
+    const origine = voie && b.entree(voieLegacy(voie), 'voie');
     b.avertir(
       `Capacité personnalisée « ${texte(c.competenceName) ?? doc.id} » (voie ${(c.voieIndex ?? 0) + 1}, rang ${(c.slotIndex ?? 0) + 1}) non migrée${origine ? ` : la capacité d'origine de ${origine.nom} s'applique` : ''}`,
     );
