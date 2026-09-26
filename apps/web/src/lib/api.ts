@@ -1,5 +1,5 @@
 /**
- * Client HTTP de l'API (identity aujourd'hui, la gateway demain).
+ * Client HTTP de l'API : tous les appels passent par la gateway (/v1/*), qui route vers les services.
  *
  * - Jeton d'accès gardé en mémoire uniquement (jamais localStorage).
  * - Refresh token dans un cookie httpOnly posé par identity : invisible ici.
