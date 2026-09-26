@@ -17,9 +17,6 @@ export const CombatMode = z.enum(COMBAT_MODES);
 
 export const Name = z.string().trim().min(1, 'Nom requis').max(100, '100 caractères au plus');
 export const Description = z.string().trim().max(2000, '2000 caractères au plus');
-/** Joueurs au plus, MJ non compris (4 par défaut, comme l'ancienne app). */
-export const MaxPlayers = z.number().int().min(1).max(50);
-export const DEFAULT_MAX_PLAYERS = 4;
 
 /** Utilisateur affiché (propriétaire, auteur) : profil public d'identity. */
 export const UserRef = z.object({
@@ -36,12 +33,10 @@ const CampaignFields = {
   system: z.object({ id: z.string(), version: z.string() }),
   code: z.string(),
   imageUrl: z.string().nullable(),
-  maxPlayers: z.number().int(),
   isPublic: z.boolean(),
   characterCreation: z.boolean(),
-  /** Membres qui ne sont pas MJ (spectateurs compris) : les places occupées. */
+  /** Membres qui ne sont pas MJ (spectateurs compris). */
   playerCount: z.number().int(),
-  isFull: z.boolean(),
   owner: UserRef,
   updatedAt: z.string(),
 };

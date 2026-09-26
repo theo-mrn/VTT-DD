@@ -112,12 +112,7 @@ export default function CampaignPage() {
         }
         side={
           <>
-            <InfoCard
-              players={players}
-              max={c.maxPlayers}
-              isPublic={c.isPublic}
-              system={systemName}
-            >
+            <InfoCard players={players} isPublic={c.isPublic} system={systemName}>
               {isGm && c.code && (
                 <div className="border-t border-[var(--border-color)] pt-4">
                   <p className="mb-2 text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)]">
@@ -213,7 +208,6 @@ export default function CampaignPage() {
           <div className="max-h-[80vh] overflow-y-auto">
             <CampaignSettingsManager
               campaign={c}
-              players={players}
               isOwner={isOwner}
               onSaved={() => void campaign.reload()}
             />

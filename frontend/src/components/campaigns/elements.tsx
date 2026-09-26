@@ -230,11 +230,11 @@ export function CampaignImage({
 }
 
 /** Pastille « joueurs / max » en haut à droite des tuiles. */
-export function PlayersBadge({ count, max }: { count: number; max?: number }) {
+export function PlayersBadge({ count }: { count: number }) {
   return (
     <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
       <Users className="h-3 w-3" />
-      {count}/{max ?? '—'}
+      {count}
     </div>
   );
 }
@@ -268,7 +268,7 @@ export function CampaignTile({
       <div className="relative aspect-[16/10] overflow-hidden bg-[var(--bg-dark)]">
         <CampaignImage url={campaign.imageUrl} alt={campaign.name} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <PlayersBadge count={campaign.playerCount} max={campaign.maxPlayers} />
+        <PlayersBadge count={campaign.playerCount} />
         {variant === 'created' && (
           <div
             className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-[var(--accent-brown)] backdrop-blur-sm"
@@ -278,17 +278,12 @@ export function CampaignTile({
             MJ
           </div>
         )}
-        {variant === 'public' &&
-          (campaign.isFull ? (
-            <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/20 px-2.5 py-1 text-xs font-bold text-red-400 backdrop-blur-sm">
-              Complète
-            </div>
-          ) : (
-            <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/20 px-2.5 py-1 text-xs font-bold text-green-400 backdrop-blur-sm">
-              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
-              En ligne
-            </div>
-          ))}
+        {variant === 'public' && (
+          <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/20 px-2.5 py-1 text-xs font-bold text-green-400 backdrop-blur-sm">
+            <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
+            En ligne
+          </div>
+        )}
       </div>
       <div className="space-y-2 p-4">
         <h3 className="line-clamp-1 text-base font-bold text-[var(--text-primary)] transition-colors group-hover:text-[var(--accent-brown)]">

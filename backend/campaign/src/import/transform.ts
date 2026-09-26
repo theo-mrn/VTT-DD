@@ -24,7 +24,6 @@ import {
   slug,
   toBoolean,
   toIsoDate,
-  toNumber,
   toText,
   type FirestoreDoc,
   type LegacyCharacter,
@@ -37,7 +36,6 @@ export type MigratedSystemId = (typeof MIGRATED_SYSTEMS)[number];
 export const LIMITS = {
   name: 100,
   description: 2000,
-  maxPlayers: { min: 1, max: 50, default: 4 },
   imageUrl: 2048,
   message: 1000,
 } as const;
@@ -56,7 +54,6 @@ export interface MigratedCampaign {
   description: string;
   systemId: MigratedSystemId;
   imageUrl: string | null;
-  maxPlayers: number;
   isPublic: boolean;
   characterCreation: boolean;
   /** UID Firebase du créateur. */
@@ -178,16 +175,6 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
     warn('Image sur Firebase Storage : recopiée dans le stockage à l’import');
   }
 
-  // Joueurs au plus
-  const raw = toNumber(s.maxPlayers);
-  let maxPlayers: number = LIMITS.maxPlayers.default;
-  if (raw === undefined) {
-    if (s.maxPlayers !== undefined) warn(`maxPlayers illisible (${String(s.maxPlayers)}) : 4`);
-  } else {
-    maxPlayers = Math.min(LIMITS.maxPlayers.max, Math.max(LIMITS.maxPlayers.min, Math.trunc(raw)));
-    if (maxPlayers !== raw) warn(`maxPlayers ${raw} ramené à ${maxPlayers}`);
-  }
-
   // Bannis, membres et rôles
   const ownerUid = toText(s.creatorId);
   if (!ownerUid) warn('Campagne sans créateur');
@@ -289,7 +276,6 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
     description,
     systemId: system.id,
     imageUrl,
-    maxPlayers,
     isPublic: toBoolean(s.isPublic) ?? false,
     characterCreation: toBoolean(s.allowCharacterCreation) ?? true,
     ...(ownerUid ? { ownerUid } : {}),

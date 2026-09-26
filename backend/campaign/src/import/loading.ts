@@ -165,7 +165,6 @@ export function prepareCampaign(
         ownerId: owner,
         code: m.code,
         imageUrl: m.imageUrl,
-        maxPlayers: m.maxPlayers,
         isPublic: m.isPublic,
         characterCreation: m.characterCreation,
       },

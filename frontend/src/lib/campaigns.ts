@@ -24,13 +24,10 @@ export interface CampaignFields {
   system: { id: string; version: string };
   code: string;
   imageUrl: string | null;
-  maxPlayers: number;
   isPublic: boolean;
   characterCreation: boolean;
-  /** Places occupées : membres qui ne sont pas MJ (spectateurs compris). */
+  /** Joueurs : membres qui ne sont pas MJ (spectateurs compris). */
   playerCount: number;
-  /** Joueurs max atteint. */
-  isFull: boolean;
   owner: UserRef;
   updatedAt: string;
 }
@@ -113,13 +110,12 @@ export interface CampaignCreation {
   name: string;
   systemId: string;
   description?: string;
-  maxPlayers?: number;
   isPublic?: boolean;
   characterCreation?: boolean;
 }
 
 export type CampaignUpdate = Partial<
-  Pick<CampaignCreation, 'name' | 'description' | 'maxPlayers' | 'isPublic' | 'characterCreation'>
+  Pick<CampaignCreation, 'name' | 'description' | 'isPublic' | 'characterCreation'>
 > & { imageUrl?: string | null };
 
 const campaignPath = (id: string, suffix = '') =>
@@ -175,8 +171,6 @@ export function joinErrorMessage(err: unknown): string {
     switch (err.problem.code) {
       case 'banned':
         return 'Vous avez été banni de cette campagne.';
-      case 'campaign_full':
-        return 'Désolé, cette campagne a atteint sa limite de joueurs.';
       case 'campaign_not_found':
         return 'Aucune campagne trouvée avec ce code';
       case 'invitation_expired':

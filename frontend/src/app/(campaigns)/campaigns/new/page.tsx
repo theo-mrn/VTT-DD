@@ -30,15 +30,12 @@ import { createCampaign, uploadCampaignImage } from '@/lib/campaigns';
 import { listSystems } from '@/lib/systems';
 import { cn } from '@/lib/utils';
 
-const MAX_PLAYERS = 12;
-
 export default function NewCampaignPage() {
   const router = useRouter();
   const systems = useResource('systemes', listSystems);
   const [form, setForm] = useState({
     name: '',
     description: '',
-    maxPlayers: 4,
     isPublic: false,
     characterCreation: true,
     systemId: '',
@@ -85,7 +82,6 @@ export default function NewCampaignPage() {
         name: form.name.trim(),
         systemId: form.systemId,
         description: form.description.trim(),
-        maxPlayers: form.maxPlayers,
         isPublic: form.isPublic,
         characterCreation: form.characterCreation,
       });
@@ -128,8 +124,7 @@ export default function NewCampaignPage() {
               <CampaignImage url={imagePreview} alt="Aperçu" zoom={false} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-xs font-bold text-white backdrop-blur-sm">
-                <Users className="h-3 w-3" />
-                0/{form.maxPlayers}
+                <Users className="h-3 w-3" />0
               </div>
               {form.isPublic && (
                 <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-green-500/30 bg-green-500/20 px-2.5 py-1 text-xs font-bold text-green-400 backdrop-blur-sm">
@@ -163,40 +158,20 @@ export default function NewCampaignPage() {
         </div>
 
         <form onSubmit={handleCreate} className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="title" className={fieldLabel}>
-                Titre *
-              </label>
-              <Input
-                id="title"
-                value={form.name}
-                onChange={(e) => set('name', e.target.value)}
-                placeholder="Le Secret des Anciens"
-                maxLength={100}
-                required
-                className={fieldInput}
-                style={glass()}
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="maxPlayers" className={fieldLabel}>
-                Joueurs max *
-              </label>
-              <Input
-                type="number"
-                id="maxPlayers"
-                value={form.maxPlayers}
-                onChange={(e) =>
-                  set('maxPlayers', Math.max(1, Math.min(MAX_PLAYERS, Number(e.target.value) || 1)))
-                }
-                min={1}
-                max={MAX_PLAYERS}
-                required
-                className={fieldInput}
-                style={glass()}
-              />
-            </div>
+          <div className="space-y-2">
+            <label htmlFor="title" className={fieldLabel}>
+              Titre *
+            </label>
+            <Input
+              id="title"
+              value={form.name}
+              onChange={(e) => set('name', e.target.value)}
+              placeholder="Le Secret des Anciens"
+              maxLength={100}
+              required
+              className={fieldInput}
+              style={glass()}
+            />
           </div>
 
           <div className="space-y-2">

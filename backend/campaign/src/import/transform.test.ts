@@ -17,7 +17,6 @@ const campaign = (extra: Partial<CampaignToImport> = {}, data: Record<string, un
     doc: doc('Salle/123456', {
       title: 'Les Mines',
       description: 'Une campagne',
-      maxPlayers: 5,
       imageUrl: 'https://firebasestorage.googleapis.com/v0/b/x.appspot.com/o/Salle%2F123456',
       isPublic: true,
       allowCharacterCreation: false,
@@ -73,7 +72,6 @@ describe('migration d’une campagne', () => {
       name: 'Les Mines',
       description: 'Une campagne',
       systemId: 'dnd-classic',
-      maxPlayers: 5,
       isPublic: true,
       characterCreation: false,
       ownerUid: 'uidMJ',
@@ -144,12 +142,11 @@ describe('migration d’une campagne', () => {
 
   it('valeurs hors bornes ou absentes', () => {
     const m = transformCampaign(
-      campaign({ code: 'abc' }, { title: '', maxPlayers: 80, imageUrl: '', isPublic: 'x' }),
+      campaign({ code: 'abc' }, { title: '', imageUrl: '', isPublic: 'x' }),
     );
     expect(m).toMatchObject({
       code: null,
       name: 'Campagne abc',
-      maxPlayers: 50,
       imageUrl: null,
       isPublic: false,
     });
@@ -157,10 +154,8 @@ describe('migration d’une campagne', () => {
       expect.arrayContaining([
         'Code « abc » hors forme : un nouveau code sera tiré',
         'Campagne sans titre : nommée « Campagne abc »',
-        'maxPlayers 80 ramené à 50',
       ]),
     );
-    expect(transformCampaign(campaign({}, { maxPlayers: undefined })).maxPlayers).toBe(4);
   });
 });
 

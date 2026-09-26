@@ -10,7 +10,6 @@ const migrated = (extra: Partial<MigratedCampaign> = {}): MigratedCampaign => ({
   description: '',
   systemId: 'dnd-classic',
   imageUrl: null,
-  maxPlayers: 4,
   isPublic: false,
   characterCreation: true,
   ownerUid: 'uidMJ',

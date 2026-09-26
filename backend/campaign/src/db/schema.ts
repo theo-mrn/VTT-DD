@@ -41,8 +41,6 @@ export const campaigns = campaignSchema.table('campaigns', {
   /** Code court de la campagne (6 caractères), unique. */
   code: text('code').notNull().unique(),
   imageUrl: text('image_url'),
-  /** Joueurs au plus, MJ non compris. */
-  maxPlayers: integer('max_players').notNull().default(4),
   isPublic: boolean('is_public').notNull().default(false),
   characterCreation: boolean('character_creation').notNull().default(true),
 });

@@ -9,7 +9,6 @@ import { Loader2, Save, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, type ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { GuestSelector } from '@/components/ui/guest-selector';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -24,17 +23,12 @@ import {
 } from '@/lib/campaigns';
 import { Notice } from './elements';
 
-const MAX_PLAYERS = 12;
-
 export function CampaignSettingsManager({
   campaign,
-  players,
   isOwner,
   onSaved,
 }: {
   campaign: CampaignDetail;
-  /** Joueurs actuellement dans la campagne (le maximum ne descend pas en dessous). */
-  players: number;
   isOwner: boolean;
   onSaved(): void;
 }) {
@@ -42,7 +36,6 @@ export function CampaignSettingsManager({
   const [data, setData] = useState({
     name: campaign.name,
     description: campaign.description ?? '',
-    maxPlayers: campaign.maxPlayers ?? 4,
     isPublic: campaign.isPublic ?? false,
     characterCreation: campaign.characterCreation !== false,
   });
@@ -114,25 +107,6 @@ export function CampaignSettingsManager({
             maxLength={2000}
             onChange={(e) => setData({ ...data, description: e.target.value })}
             className="min-h-[100px] border-[var(--border-color)] bg-[var(--bg-card)]"
-          />
-        </div>
-
-        <div
-          className="space-y-4 border-y py-2"
-          style={{ borderColor: 'color-mix(in srgb, var(--border-color) 30%, transparent)' }}
-        >
-          <GuestSelector
-            title="Nombre de joueurs max"
-            description={
-              players > 0
-                ? `Il y a actuellement ${players} joueur${players > 1 ? 's' : ''} dans la campagne`
-                : 'Définit la limite de places dans la campagne'
-            }
-            maxGuests={Math.max(MAX_PLAYERS, campaign.maxPlayers ?? 0)}
-            minGuests={Math.max(1, players)}
-            initialValue={data.maxPlayers}
-            onValueChange={(val) => setData((d) => ({ ...d, maxPlayers: val }))}
-            className="max-w-none p-0"
           />
         </div>
 

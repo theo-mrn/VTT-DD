@@ -71,8 +71,6 @@ r=$(svc "INSERT INTO campaigns (id, name, system_id, system_version, owner_id, c
 echo "$r" | grep -q campaigns_code_unique && echo "  code de campagne unique" || ko "code unique : $r"
 r=$(svc "UPDATE campaigns SET code = 'abc-12' WHERE id = '$campagne';")
 echo "$r" | grep -q campaigns_code_format && echo "  code de campagne : 6 majuscules ou chiffres" || ko "forme du code : $r"
-r=$(svc "UPDATE campaigns SET max_players = 0 WHERE id = '$campagne';")
-echo "$r" | grep -q campaigns_max_players && echo "  joueurs max bornés" || ko "max_players : $r"
 r=$(svc "INSERT INTO campaign_messages (id, campaign_id, author_id, body) VALUES (gen_random_uuid(), '$campagne', '$mj', repeat('x', 1001));")
 echo "$r" | grep -q campaign_messages_body && echo "  message : 1 000 caractères au plus" || ko "body : $r"
 r=$(svc "INSERT INTO campaign_sessions (id, campaign_id, scheduled_at, title, created_by) VALUES (gen_random_uuid(), '$campagne', now(), '', '$mj');")

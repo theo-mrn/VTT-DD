@@ -149,7 +149,6 @@ function Join() {
             <>
               <InfoCard
                 players={selected.playerCount}
-                max={selected.maxPlayers}
                 isPublic={selected.isPublic}
                 system={systemName}
               />
@@ -157,7 +156,7 @@ function Join() {
                 <div className="space-y-3">
                   <Button
                     onClick={() => void join(selected.code)}
-                    disabled={joining || selected.isFull}
+                    disabled={joining}
                     size="lg"
                     className={cn(
                       primaryButton,
@@ -169,11 +168,7 @@ function Join() {
                     ) : (
                       <Play className="h-4 w-4" />
                     )}
-                    {joining
-                      ? 'Connexion en cours…'
-                      : selected.isFull
-                        ? 'Campagne complète'
-                        : 'Rejoindre la partie'}
+                    {joining ? 'Connexion en cours…' : 'Rejoindre la partie'}
                   </Button>
                   {error && <Notice>{error}</Notice>}
                 </div>

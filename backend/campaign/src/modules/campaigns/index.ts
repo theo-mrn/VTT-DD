@@ -36,10 +36,8 @@ import {
   CampaignResponse,
   CampaignSummary,
   currentUser,
-  DEFAULT_MAX_PLAYERS,
   Description,
   eventContext,
-  MaxPlayers,
   Name,
   Role,
   SystemId,
@@ -199,7 +197,6 @@ export const register: Module = async (app, deps) => {
           name: Name,
           systemId: SystemId,
           description: Description.optional(),
-          maxPlayers: MaxPlayers.optional(),
           isPublic: z.boolean().optional(),
           characterCreation: z.boolean().optional(),
         }),
@@ -224,7 +221,6 @@ export const register: Module = async (app, deps) => {
               systemVersion: system.version,
               ownerId: userId,
               code: newCampaignCode(),
-              maxPlayers: req.body.maxPlayers ?? DEFAULT_MAX_PLAYERS,
               isPublic: req.body.isPublic ?? false,
               characterCreation: req.body.characterCreation ?? true,
             })
@@ -268,7 +264,6 @@ export const register: Module = async (app, deps) => {
           name: Name.optional(),
           description: Description.optional(),
           systemId: SystemId.optional(),
-          maxPlayers: MaxPlayers.optional(),
           isPublic: z.boolean().optional(),
           characterCreation: z.boolean().optional(),
           // Vérifiée ensuite contre le dossier de la campagne sur le stockage
@@ -279,8 +274,7 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const userId = currentUser(req);
-      const { name, description, systemId, imageUrl, maxPlayers, isPublic, characterCreation } =
-        req.body;
+      const { name, description, systemId, imageUrl, isPublic, characterCreation } = req.body;
       const campaign = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await gmAccess(tx, req.params.id, userId);
@@ -310,7 +304,6 @@ export const register: Module = async (app, deps) => {
           ...(description !== undefined ? { description } : {}),
           ...(system ? { systemId: system.id, systemVersion: system.version } : {}),
           ...(imageUrl !== undefined ? { imageUrl } : {}),
-          ...(maxPlayers !== undefined ? { maxPlayers } : {}),
           ...(isPublic !== undefined ? { isPublic } : {}),
           ...(characterCreation !== undefined ? { characterCreation } : {}),
         };

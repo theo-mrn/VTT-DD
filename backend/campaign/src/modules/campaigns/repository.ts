@@ -6,7 +6,7 @@
  */
 import type { ActorRole, Visibility } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, sql } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { Profile } from '../../clients/profiles.js';
 import type { Db } from '../../db/client.js';
@@ -114,11 +114,9 @@ export interface CampaignFieldsApi {
   system: { id: string; version: string };
   code: string;
   imageUrl: string | null;
-  maxPlayers: number;
   isPublic: boolean;
   characterCreation: boolean;
   playerCount: number;
-  isFull: boolean;
   owner: UserApi;
   updatedAt: string;
 }
@@ -165,17 +163,15 @@ function campaignFields(
     system: { id: c.systemId, version: c.systemVersion },
     code: c.code,
     imageUrl: c.imageUrl,
-    maxPlayers: c.maxPlayers,
     isPublic: c.isPublic,
     characterCreation: c.characterCreation,
     playerCount,
-    isFull: playerCount >= c.maxPlayers,
     owner: userApi(c.ownerId, profiles),
     updatedAt: c.updatedAt.toISOString(),
   };
 }
 
-/** Effectif des campagnes : membres, et places occupées (membres qui ne sont pas MJ). */
+/** Effectif des campagnes : membres, et joueurs (membres qui ne sont pas MJ). */
 export function headcounts(db: Db | Tx) {
   return db
     .select({
@@ -188,15 +184,6 @@ export function headcounts(db: Db | Tx) {
     .from(campaignMembers)
     .groupBy(campaignMembers.campaignId)
     .as('headcount');
-}
-
-/** Places occupées d'une campagne (membres qui ne sont pas MJ). */
-export async function playerCountOf(db: Db | Tx, campaignId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(campaignMembers)
-    .where(and(eq(campaignMembers.campaignId, campaignId), ne(campaignMembers.role, 'gm')));
-  return row!.n;
 }
 
 /** Campagnes d'une liste, avec le profil de leur propriétaire. */

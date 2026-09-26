@@ -31,7 +31,6 @@ export interface FirestoreDoc<T = Record<string, unknown>> {
 export interface LegacyCampaign {
   title?: string;
   description?: string;
-  maxPlayers?: number | string;
   /** URL Firebase Storage (`Salle/{code}/room-image`), vide pour les salles Discord. */
   imageUrl?: string;
   isPublic?: boolean;
@@ -82,20 +81,6 @@ export interface LegacyCharacter {
 export const GM_NAME = 'MJ';
 
 // ─── Lectures tolérantes ─────────────────────────────────────────────────────
-
-/** Nombre fini, y compris écrit en chaîne ("12") ; `undefined` sinon. */
-export function toNumber(v: unknown): number | undefined {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
-  if (typeof v === 'string' && v.trim() !== '') {
-    const n = Number(v.replace(',', '.'));
-    return Number.isFinite(n) ? n : undefined;
-  }
-  if (v && typeof v === 'object' && '$number' in v) {
-    const n = Number((v as { $number: unknown }).$number);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  return undefined;
-}
 
 /** Chaîne non vide (espaces retirés), ou `undefined`. */
 export function toText(v: unknown): string | undefined {

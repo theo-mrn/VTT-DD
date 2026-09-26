@@ -6,7 +6,7 @@
  *
  * `code` est un code d'invitation (« inv_… ») ou le code court de la
  * campagne, publique ou privée. Refus : 404 `campaign_not_found`, 403 `banned`,
- * 410 invitation périmée, 409 `campaign_full` (joueurs max atteint).
+ * 410 invitation périmée. Pas de limite de joueurs.
  *
  * `expiresIn` est en secondes (7 jours par défaut, 30 jours au plus) ;
  * `maxUses` est le nombre d'adhésions permises (10 par défaut, 100 au plus).
@@ -20,7 +20,7 @@ import { z } from 'zod';
 import { campaignBans, campaignInvitations, campaignMembers, campaigns } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { CAMPAIGN_CODE_FORMAT, normalizeCampaignCode } from '../campaigns/code.js';
-import { campaignDetail, campaignEvent, gmAccess, playerCountOf } from '../campaigns/repository.js';
+import { campaignDetail, campaignEvent, gmAccess } from '../campaigns/repository.js';
 import { CampaignId, CampaignResponse, currentUser, eventContext } from '../schemas.js';
 import { hashCode, INVITATION_CODE_FORMAT, newInvitationCode } from './codes.js';
 
@@ -136,7 +136,7 @@ export const register: Module = async (app, deps) => {
         if (!campaignId) throw notFound();
 
         // Campagne verrouillée (toujours avant l'invitation, comme les autres routes) : deux
-        // adhésions simultanées ne dépassent ni la limite de joueurs ni les utilisations
+        // adhésions simultanées ne dépassent pas les utilisations de l'invitation
         const [campaign] = await tx
           .select()
           .from(campaigns)
@@ -181,12 +181,6 @@ export const register: Module = async (app, deps) => {
               'invitation_exhausted',
             );
         }
-        if ((await playerCountOf(tx, campaignId)) >= campaign.maxPlayers)
-          throw HttpError.conflict(
-            'Cette campagne a atteint sa limite de joueurs',
-            'campaign_full',
-          );
-
         if (invitation)
           await tx
             .update(campaignInvitations)

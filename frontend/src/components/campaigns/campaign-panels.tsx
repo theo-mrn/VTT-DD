@@ -139,26 +139,21 @@ export function DescriptionCard({ text }: { text: string | undefined }) {
 /** Informations : joueurs, visibilité, système, puis ce que la page ajoute (code…). */
 export function InfoCard({
   players,
-  max,
   isPublic,
   system,
   children,
 }: {
   players: number;
-  max: number | undefined;
   isPublic: boolean | undefined;
   system?: string;
   children?: ReactNode;
 }) {
-  const full = max !== undefined && players >= max;
   return (
     <CampaignCard title="Informations" icon={<Gamepad2 className="h-5 w-5" />}>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <span className="font-medium text-[var(--text-secondary)]">Joueurs</span>
-          <span className={cn('font-bold', full ? 'text-red-400' : 'text-[var(--text-primary)]')}>
-            {players} / {max ?? '—'}
-          </span>
+          <span className="font-bold text-[var(--text-primary)]">{players}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="font-medium text-[var(--text-secondary)]">Visibilité</span>

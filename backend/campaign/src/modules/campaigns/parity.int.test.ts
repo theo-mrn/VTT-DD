@@ -1,7 +1,7 @@
 /**
- * Parité avec l'ancienne app : code de campagne, options (joueurs max,
- * publique, création de fiches), image, campagnes publiques, adhésion par
- * code de campagne, campagne complète, bannissements.
+ * Parité avec l'ancienne app : code de campagne, options (publique, création
+ * de fiches), image, campagnes publiques, adhésion par code de campagne,
+ * nombre de joueurs illimité, bannissements.
  */
 import { eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -18,11 +18,9 @@ interface Campaign {
   id: string;
   code: string;
   imageUrl: string | null;
-  maxPlayers: number;
   isPublic: boolean;
   characterCreation: boolean;
   playerCount: number;
-  isFull: boolean;
   role: string | null;
   owner: { id: string; name: string | null };
   memberCount?: number;
@@ -75,18 +73,16 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
     expect(byDefault).toMatchObject({
       code: expect.stringMatching(/^[2-9A-HJ-NP-Z]{6}$/),
       imageUrl: null,
-      maxPlayers: 4,
       isPublic: false,
       characterCreation: true,
       playerCount: 0,
-      isFull: false,
       owner: { id: gm.id, name: 'Maître' },
     });
-    const chosen = await create(gm, { maxPlayers: 6, isPublic: true, characterCreation: false });
-    expect(chosen).toMatchObject({ maxPlayers: 6, isPublic: true, characterCreation: false });
+    const chosen = await create(gm, { isPublic: true, characterCreation: false });
+    expect(chosen).toMatchObject({ isPublic: true, characterCreation: false });
     expect(chosen.code).not.toBe(byDefault.code);
 
-    for (const body of [{ maxPlayers: 0 }, { maxPlayers: 51 }, { isPublic: 'oui' }]) {
+    for (const body of [{ isPublic: 'oui' }, { characterCreation: 1 }]) {
       const res = await h.request(gm, 'POST', '/v1/campaigns', {
         name: 'X',
         systemId: 'dnd-classic',
@@ -96,23 +92,22 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
     }
 
     const updated = await h.ok<Campaign>(gm, 'PATCH', `/v1/campaigns/${byDefault.id}`, {
-      maxPlayers: 2,
       isPublic: true,
       characterCreation: false,
     });
-    expect(updated).toMatchObject({ maxPlayers: 2, isPublic: true, characterCreation: false });
+    expect(updated).toMatchObject({ isPublic: true, characterCreation: false });
     expect(updated.code).toBe(byDefault.code);
     expect(await types(byDefault.id)).toEqual(['campaign.created', 'campaign.updated']);
   });
 
   it('mes campagnes : champs de la liste et filtre par rôle', async () => {
-    const mine = await create(gm, { maxPlayers: 1 });
+    const mine = await create(gm);
     const other = await h.campaign(alice, 'dnd-classic', [gm]);
 
     const all = await h.ok<Campaign[]>(gm, 'GET', '/v1/campaigns');
     expect(all.map((c) => c.id).sort()).toEqual([mine.id, other].sort());
     const [asGm] = await h.ok<Campaign[]>(gm, 'GET', '/v1/campaigns?role=gm');
-    expect(asGm).toMatchObject({ id: mine.id, role: 'gm', playerCount: 0, isFull: false });
+    expect(asGm).toMatchObject({ id: mine.id, role: 'gm', playerCount: 0 });
     const asPlayer = await h.ok<Campaign[]>(gm, 'GET', '/v1/campaigns?role=player');
     expect(asPlayer).toMatchObject([
       { id: other, role: 'player', playerCount: 1, memberCount: 2, owner: { id: alice.id } },
@@ -120,10 +115,10 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
     expect((await h.request(gm, 'GET', '/v1/campaigns?role=mj')).statusCode).toBe(400);
   });
 
-  it('campagnes publiques : privées absentes, recherche, pages, campagnes complètes', async () => {
+  it('campagnes publiques : privées absentes, recherche, pages, rôle de l’appelant', async () => {
     // Nom unique au test : la base est partagée avec les autres tests
     const mark = `Quête-${crypto.randomUUID().slice(0, 8)}`;
-    const open = await create(gm, { name: `${mark} du dragon`, isPublic: true, maxPlayers: 1 });
+    const open = await create(gm, { name: `${mark} du dragon`, isPublic: true });
     await create(gm, { name: `${mark} secrète` });
     const described = await create(bob, {
       name: 'Autre table',
@@ -138,7 +133,6 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
       role: null,
       code: open.code,
       playerCount: 0,
-      isFull: false,
       owner: { id: gm.id, name: 'Maître' },
     });
 
@@ -153,13 +147,12 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
       0,
     );
 
-    // Complète une fois le joueur entré ; l'appelant voit son rôle
+    // Une fois entré, l'appelant voit son rôle et le joueur est compté
     await h.ok(alice, 'POST', '/v1/campaigns/join', { code: open.code });
     const after = await h.ok<Page>(alice, 'GET', `/v1/campaigns/public?search=${mark}`);
     expect(after.campaigns.find((c) => c.id === open.id)).toMatchObject({
       role: 'player',
       playerCount: 1,
-      isFull: true,
     });
 
     // Pagination : page vide au-delà du total, bornes validées
@@ -285,36 +278,29 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
     }
   });
 
-  it('campagne complète : 409 au-delà des joueurs max, par code comme par invitation', async () => {
-    const c = await create(gm, { maxPlayers: 1 });
+  it('pas de limite de joueurs : tout le monde entre, par code comme par invitation', async () => {
+    const c = await create(gm);
     const { code } = await h.ok<{ code: string }>(
       gm,
       'POST',
       `/v1/campaigns/${c.id}/invitations`,
       {},
     );
-    expect((await join(alice, c.code)).statusCode).toBe(200);
-    for (const x of [c.code, code]) {
-      expect((await join(bob, x)).json()).toMatchObject({
-        status: 409,
-        code: 'campaign_full',
-      });
-    }
-    // L'invitation n'a pas été consommée par le refus
-    const detail = await h.ok<Campaign>(gm, 'GET', `/v1/campaigns/${c.id}`);
-    expect(detail).toMatchObject({ playerCount: 1, isFull: true });
-
-    // Le MJ agrandit la campagne : Bob entre
-    await h.ok(gm, 'PATCH', `/v1/campaigns/${c.id}`, { maxPlayers: 2 });
-    expect((await join(bob, code)).statusCode).toBe(200);
-  });
-
-  it('deux adhésions simultanées ne dépassent pas les joueurs max', async () => {
-    const c = await create(gm, { maxPlayers: 1 });
-    const statuses = (await Promise.all([join(alice, c.code), join(bob, c.code)]))
-      .map((r) => r.statusCode)
-      .sort();
-    expect(statuses).toEqual([200, 409]);
+    const others = await Promise.all(['Carol', 'Dan', 'Eve', 'Fred'].map((n) => t.user(n)));
+    // Adhésions simultanées : aucune n'est refusée
+    const statuses = await Promise.all([
+      join(alice, c.code),
+      join(bob, code),
+      ...others.map((u, i) => join(u, i % 2 ? c.code : code)),
+    ]);
+    expect(statuses.map((r) => r.statusCode)).toEqual([200, 200, 200, 200, 200, 200]);
+    const detail = await h.ok<Campaign & { members: unknown[] }>(
+      gm,
+      'GET',
+      `/v1/campaigns/${c.id}`,
+    );
+    expect(detail.playerCount).toBe(6);
+    expect(detail.members).toHaveLength(7);
   });
 
   it('bannir : exclu, ne revient ni par code ni par invitation, jusqu’à la levée', async () => {

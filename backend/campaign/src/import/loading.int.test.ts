@@ -39,7 +39,6 @@ function legacyCampaign(code: string): CampaignToImport {
     legacyId: `Salle/${code}`,
     doc: doc(`Salle/${code}`, {
       title: 'Les Mines de la Moria',
-      maxPlayers: 3,
       isPublic: true,
       creatorId: 'uidMJ',
       bannedUsers: ['uidBanni'],
@@ -145,7 +144,6 @@ describe.skipIf(!URL)('import des campagnes en base', () => {
       code,
       ownerId: accounts.gm,
       systemId: 'dnd-classic',
-      maxPlayers: 3,
       isPublic: true,
       characterCreation: true,
     });
