@@ -3,12 +3,7 @@ import dynamic from 'next/dynamic';
 import React from 'react';
 import type { FunDiceHandle } from '@/components/(dices)/throw-fun';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
+import { aclonica } from '@/app/fonts';
 
 const SKIN = 'marbre_blanc';
 const STILL = `/dice/${SKIN}.png`;

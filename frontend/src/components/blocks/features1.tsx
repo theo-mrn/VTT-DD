@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Aclonica } from 'next/font/google';
+import { aclonica } from '@/app/fonts';
 import { cn } from '@/lib/utils';
 import { mapImagePath } from '@/utils/imagePathMapper';
 import {
@@ -16,11 +16,6 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { AmbiancePlayerCard } from '@/components/blocks/ambiance-widget';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 interface BentoCardProps {
   icon: React.ReactNode;

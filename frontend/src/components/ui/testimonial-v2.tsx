@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
+import { aclonica } from '@/app/fonts';
 
 interface Testimonial {
   text: string;

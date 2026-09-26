@@ -1,37 +1,11 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Aclonica, Caveat, Cinzel, IM_Fell_English, Inter, MedievalSharp } from 'next/font/google';
+import { aclonica, caveat, cinzel, imFellEnglish, inter, medieval } from './fonts';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SessionProvider } from '@/lib/session';
 import './globals.css';
 
 // Mêmes polices que l'ancienne app : le thème (globals.css) s'appuie sur ces variables
-const imFellEnglish = IM_Fell_English({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-body',
-  display: 'swap',
-});
-const aclonica = Aclonica({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-aclonica',
-  display: 'swap',
-});
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-title',
-  display: 'swap',
-});
-const caveat = Caveat({ subsets: ['latin'], variable: '--font-hand', display: 'swap' });
-const medieval = MedievalSharp({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-medieval',
-  display: 'swap',
-});
-const inter = Inter({ subsets: ['latin'], variable: '--font-modern', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Yner',

@@ -3,7 +3,7 @@ import React from 'react';
 import YouTube, { YouTubeEvent } from 'react-youtube';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
+import { aclonica } from '@/app/fonts';
 import { Music, Play, Pause, Upload, Youtube, FileAudio, Library, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,11 +12,6 @@ import {
   SUGGESTED_MUSICS,
   MUSIC_CATEGORIES,
 } from '@/lib/suggested-sounds';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 function extractVideoId(url: string): string | null {
   const patterns = [

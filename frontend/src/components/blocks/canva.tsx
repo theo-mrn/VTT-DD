@@ -2,15 +2,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Aclonica } from 'next/font/google';
+import { aclonica } from '@/app/fonts';
 import { ChevronDown } from 'lucide-react';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { mapImagePath } from '@/utils/imagePathMapper';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 interface DemoCharacter {
   id: string;

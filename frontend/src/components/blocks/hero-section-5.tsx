@@ -6,7 +6,7 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { cn } from '@/lib/utils';
 import { Menu, X, Mail, ChevronDown, Send } from 'lucide-react';
 import { useScroll, motion, useTransform } from 'framer-motion';
-import { Aclonica } from 'next/font/google';
+import { aclonica } from '@/app/fonts';
 import { LoginForm } from '@/components/auth/login-form';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/lib/session';
@@ -38,11 +38,6 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-
-const aclonica = Aclonica({
-  weight: '400',
-  subsets: ['latin'],
-});
 
 const HERO_PORTRAITS = [
   {
