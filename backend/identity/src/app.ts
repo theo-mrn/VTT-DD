@@ -13,14 +13,20 @@ import { register as profil } from './modules/profil/index.js';
 import { register as securite } from './modules/securite/index.js';
 import { register as titres } from './modules/titres/index.js';
 import { pgSessionStore } from './db/session-store.js';
+import { creerClientFirebase, type ClientFirebase } from './import/firebase-jit.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { createJwtSigner } from './tokens/jwt.js';
 
 export async function buildIdentity(
   config: IdentityConfig,
-  extra: Omit<ServiceOptions, 'config' | 'authKeyResolver'> & { db?: Db; mailer?: Mailer } = {},
+  extra: Omit<ServiceOptions, 'config' | 'authKeyResolver'> & {
+    db?: Db;
+    mailer?: Mailer;
+    /** Client Firebase simulé (tests) pour la migration à la connexion. */
+    migrationFirebase?: ClientFirebase;
+  } = {},
 ) {
-  const { db: dbFourni, mailer: mailerFourni, ...options } = extra;
+  const { db: dbFourni, mailer: mailerFourni, migrationFirebase, ...options } = extra;
   const connexion = dbFourni ? null : createDb(config.DATABASE_URL);
   const db = dbFourni ?? connexion!.db;
 
@@ -71,6 +77,14 @@ export async function buildIdentity(
     signer,
     firebase,
     cookieSecure: config.COOKIE_SECURE,
+    migrationFirebase:
+      migrationFirebase ??
+      (config.FIREBASE_WEB_API_KEY && config.FIREBASE_PROJECT_ID
+        ? creerClientFirebase({
+            apiKey: config.FIREBASE_WEB_API_KEY,
+            projectId: config.FIREBASE_PROJECT_ID,
+          })
+        : undefined),
   });
 
   // Un module par domaine fonctionnel (src/modules/<nom>)

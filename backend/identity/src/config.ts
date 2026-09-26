@@ -62,6 +62,14 @@ export const IdentityConfig = BaseConfig.extend({
   /** Secret partagé avec la gateway pour les routes /internal (vérification des clés d'API). */
   INTERNAL_API_SECRET: facultatif(z.string().min(32)),
 
+  /**
+   * Migration à la première connexion : clé web PUBLIQUE de Firebase (celle
+   * envoyée aux navigateurs par l'ancienne app) et identifiant du projet.
+   * Un compte inconnu d'identity est vérifié auprès de Firebase puis créé.
+   */
+  FIREBASE_WEB_API_KEY: facultatif(z.string()),
+  FIREBASE_PROJECT_ID: facultatif(z.string()),
+
   /** Cookie du refresh token en Secure (désactivable en dev HTTP local uniquement). */
   COOKIE_SECURE: z
     .enum(['true', 'false'])

@@ -21,6 +21,8 @@ import {
 } from '../db/accounts.js';
 import type { Db } from '../db/client.js';
 import { appendEvent } from '../db/outbox.js';
+import type { ClientFirebase } from '../import/firebase-jit.js';
+import { migrerALaConnexion } from '../import/jit.js';
 import type { FirebaseScryptParams } from '../passwords/firebase-scrypt.js';
 import { hashPassword, verifyPassword } from '../passwords/passwords.js';
 import { ACCESS_TOKEN_TTL_SECONDS, type JwtSigner } from '../tokens/jwt.js';
@@ -42,6 +44,8 @@ export interface AuthDeps {
   signer: JwtSigner;
   firebase: FirebaseScryptParams | undefined;
   cookieSecure: boolean;
+  /** Migration à la première connexion d'un compte encore dans Firebase (facultatif). */
+  migrationFirebase?: ClientFirebase;
 }
 
 const Email = z
@@ -167,6 +171,36 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
     },
     async (req, reply) => {
       const compte = await findLoginByEmail(deps.db, req.body.email);
+
+      // Compte inconnu : peut-être un joueur pas encore migré depuis Firebase.
+      // Firebase vérifie e-mail et mot de passe ; le compte est alors créé ici.
+      if (!compte && deps.migrationFirebase) {
+        let migre: string | null = null;
+        try {
+          migre = await migrerALaConnexion(
+            deps.db,
+            contexte(req),
+            deps.migrationFirebase,
+            req.body.email,
+            req.body.password,
+          );
+        } catch (err) {
+          req.log.error({ err }, 'migration Firebase à la connexion impossible');
+        }
+        if (migre) {
+          req.log.info({ userId: migre }, 'compte migré depuis Firebase à la connexion');
+          await deps.db.transaction((tx) =>
+            appendEvent(tx, contexte(req), {
+              type: 'identity.user_logged_in',
+              actor: { userId: migre, role: 'user', characterId: null },
+              aggregate: { type: 'user', id: migre },
+              payload: { method: 'password', migratedFromFirebase: true },
+            }),
+          );
+          return ouvrirSession(req, reply, migre);
+        }
+        throw HttpError.unauthorized(MESSAGE_ECHEC);
+      }
 
       if (!compte?.password) {
         await verifyPassword(await hashFactice, req.body.password, undefined);
