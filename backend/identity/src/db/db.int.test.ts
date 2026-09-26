@@ -73,7 +73,10 @@ describe.skipIf(!URL)('identity sur Postgres', () => {
         password: await hashPassword('x'),
       }),
     );
-    const avant = await db.select({ n: sql<number>`count(*)::int` }).from(outbox);
+    const avant = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(outbox)
+      .where(sql`${outbox.envelope}->>'correlationId' = ${ctx.correlationId}`);
     await expect(
       createPasswordAccount(db, ctx, {
         email: adresse.toUpperCase(),
@@ -81,7 +84,10 @@ describe.skipIf(!URL)('identity sur Postgres', () => {
         password: await hashPassword('y'),
       }),
     ).rejects.toBeInstanceOf(EmailAlreadyUsed);
-    const apres = await db.select({ n: sql<number>`count(*)::int` }).from(outbox);
+    const apres = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(outbox)
+      .where(sql`${outbox.envelope}->>'correlationId' = ${ctx.correlationId}`);
     expect(apres[0]!.n).toBe(avant[0]!.n);
   });
 
