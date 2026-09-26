@@ -13,7 +13,8 @@
  * `1d20+3 = [17]+3 = 20`, dés écartés préfixés par « r » (`[5, r2]`), et
  * `Aptitude [3, 5], Difficulté [2] = 1 Succès` pour les symboles.
  *
- * Le générateur est injecté : cryptographique en service, imposé en test.
+ * Le générateur est injecté : cryptographique en service, imposé en test, ou
+ * rejouant les faces lues sur les dés 3D du client (physical.ts).
  */
 import { HttpError } from '@vtt/platform';
 import {
@@ -203,7 +204,8 @@ export function rollNotation(
 /** Composition d'un pool de dés à symboles : sorte de dé du système et nombre. */
 export type Pool = { de: string; nombre: number }[];
 
-const simplify = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+/** Identifiant ou nom d'une sorte de dé, sans accents ni casse. */
+export const simplify = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /**
  * Pool écrit en notation `N<dé>` (`2aptitude 1difficulte`, `1 Maîtrise`) :
@@ -271,6 +273,7 @@ export function rollPool(system: SystemeCharge, pool: Pool, generator: Generateu
   try {
     r = lancerSymboles(system, pool, generator);
   } catch (e) {
+    if (e instanceof HttpError) throw e;
     throw new HttpError(400, 'Requête invalide', 'invalid_pool', (e as Error).message);
   }
 

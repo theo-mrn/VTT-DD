@@ -56,7 +56,8 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
       notation: '1d20+3',
       output: '1d20+3 = [17]+3 = 20',
       symbolResult: null,
-      type: 'Dice Roller',
+      // Tiré par le serveur, sans animation qui fasse foi (ancienne app : « Dice Roller/API »)
+      type: 'Dice Roller/API',
       source: 'free',
       visibility: 'public',
       hidden: false,
@@ -207,6 +208,128 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
     });
     expect(p.symbols.dice).toHaveLength(2);
     expect(p.notation).toBe('2fortune');
+  });
+
+  it('dés 3D (physicalResults) : les faces lues font foi, source 3d, type « Dice Roller »', async () => {
+    t.dice.force(1, 1, 1);
+    const r = await h.roll(alice, {
+      notation: '2d6+1d20+3',
+      campaignId,
+      physicalResults: [
+        { type: 'd20', value: 17 },
+        { type: 'd6', value: 4 },
+        { type: 'd6', value: 5 },
+      ],
+    });
+    expect(r).toMatchObject({
+      results: [4, 5, 17],
+      total: 29,
+      output: '2d6+1d20+3 = [4, 5]+[17]+3 = 29',
+      diceCount: 2,
+      diceFaces: 6,
+      source: '3d',
+      type: 'Dice Roller',
+      rolls: [
+        { type: 'd6', value: 4 },
+        { type: 'd6', value: 5 },
+        { type: 'd20', value: 17 },
+      ],
+    });
+    const [event] = await t
+      .db!.select()
+      .from(outbox)
+      .where(eq(sql`${outbox.envelope}->'aggregate'->>'id'`, r.id));
+    expect(event!.envelope).toMatchObject({ payload: { source: '3d', results: [4, 5, 17] } });
+    expect((await h.ok<RollBody>(bob, 'GET', `/v1/dice/rolls/${r.id}`)).type).toBe('Dice Roller');
+
+    // Relance d'explosion et d100 non lancés en 3D : complétés par le serveur (mixed)
+    t.dice.force(3, 42);
+    const m = await h.roll(alice, {
+      notation: '1d6!+1d100',
+      campaignId,
+      physicalResults: [{ type: 'd6', value: 6 }],
+    });
+    expect(m).toMatchObject({
+      results: [6, 3, 42],
+      total: 51,
+      source: 'mixed',
+      type: 'Dice Roller',
+    });
+
+    // Vide : tirage serveur, comme sans physicalResults
+    const e = await h.roll(alice, { notation: '1d6', campaignId, physicalResults: [] });
+    expect([e.source, e.type]).toEqual(['free', 'Dice Roller/API']);
+  });
+
+  it('dés 3D à symboles : tag = sorte du dé (Aptitude et Difficulté, deux d8)', async () => {
+    t.services.setSystem(campaignId, 'star-wars-eote');
+    t.dice.force(1, 1, 1);
+    const r = await h.roll(alice, {
+      notation: '2aptitude 1difficulte',
+      campaignId,
+      physicalResults: [
+        { type: 'd8', value: 2, tag: 'difficulte' },
+        { type: 'd8', value: 4, tag: 'aptitude' },
+        { type: 'd8', value: 2, tag: 'aptitude' },
+      ],
+    });
+    expect(r).toMatchObject({
+      symbolResult: '2 Succès',
+      output: 'Aptitude [4, 2], Difficulté [2] = 2 Succès',
+      results: [4, 2, 2],
+      total: 0,
+      source: '3d',
+      type: 'Dice Roller',
+    });
+    expect(r.symbols.results.succesNets).toBe(2);
+    expect(r.symbols.dice.map((x: RollBody) => x.die)).toEqual([
+      'aptitude',
+      'aptitude',
+      'difficulte',
+    ]);
+
+    const p = await h.roll(bob, {
+      pool: [{ de: 'fortune', nombre: 1 }],
+      systemId: 'star-wars-eote',
+      physicalResults: [{ type: 'fortune', value: 3 }],
+    });
+    expect(p.symbols.dice).toEqual([{ die: 'fortune', face: 3, symbols: { succes: 1 } }]);
+    expect(p.source).toBe('3d');
+  });
+
+  it('dés 3D : valeur hors bornes, type inconnu, valeur en trop → 400 invalid_physical_result', async () => {
+    const cases: Record<string, unknown>[] = [
+      { notation: '1d6', physicalResults: [{ type: 'd6', value: 7 }] },
+      { notation: '1d6', physicalResults: [{ type: 'd6', value: 0 }] },
+      { notation: '1d6', physicalResults: [{ type: 'licorne', value: 1 }] },
+      {
+        notation: '1d6',
+        physicalResults: [
+          { type: 'd6', value: 1 },
+          { type: 'd6', value: 2 },
+        ],
+      },
+      { notation: '1d6', physicalResults: [{ type: 'd8', value: 2 }] },
+      {
+        pool: [{ de: 'aptitude', nombre: 1 }],
+        systemId: 'star-wars-eote',
+        physicalResults: [{ type: 'd8', value: 9, tag: 'aptitude' }],
+      },
+    ];
+    for (const body of cases) {
+      const res = await h.request(alice, 'POST', '/v1/dice/rolls', { ...body, campaignId });
+      expect(res.statusCode, JSON.stringify(body)).toBe(400);
+      expect(res.json().code, JSON.stringify(body)).toBe('invalid_physical_result');
+    }
+    // Plus de 100 valeurs : 400 validation_failed
+    const many = Array.from({ length: 101 }, () => ({ type: 'd6', value: 1 }));
+    const res = await h.request(alice, 'POST', '/v1/dice/rolls', {
+      notation: '101d6',
+      physicalResults: many,
+    });
+    expect([res.statusCode, res.json().code]).toEqual([400, 'validation_failed']);
+    // Aucun jet enregistré
+    expect(await history(alice)).toEqual([]);
   });
 
   it('visibilité : public, privé (isPrivate), caché au MJ (isBlind), personnel', async () => {

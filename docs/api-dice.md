@@ -7,7 +7,7 @@ Le service **dice** (`backend/dice`, port 3004) gère tout ce qui touche aux dé
 - les **statistiques** de jets, avec les calculs de l'ancien composant ;
 - les **préférences de dés** d'un utilisateur : skin choisi, inventaire de skins, accès à tous les skins (ancien premium), animation 3D, son.
 
-Les jets sont tirés côté serveur par `aleatoireCrypto` de `@vtt/rules`, et calculés par son moteur de formules (jamais d'`eval`). Le client anime ensuite le résultat reçu, sans jamais le décider : un joueur ne peut pas tricher en relançant côté navigateur.
+Comme dans l'ancienne app, **l'animation 3D des dés fait foi** : le client lit la face du dessus de chaque dé à l'arrêt et l'envoie (`physicalResults`) ; le serveur calcule le jet avec ces valeurs, par le moteur de formules de `@vtt/rules` (jamais d'`eval`). Sans animation (clé d'API, Discord, 3D coupée, repli), le serveur tire lui-même les dés avec `aleatoireCrypto`.
 
 Toutes les routes passent par la gateway (`/v1/dice/*`). Elles demandent un jeton d'accès ou une clé d'API (`Authorization: ApiKey …`, échangée par la gateway), qui remplace l'ancienne route `/api/roll-dice`.
 
@@ -32,7 +32,8 @@ Toutes les routes passent par la gateway (`/v1/dice/*`). Elles demandent un jeto
   "characterId": "…",
   "isPrivate": false,
   "isBlind": false,
-  "label": "Jet de Force"
+  "label": "Jet de Force",
+  "physicalResults": [{ "type": "d20", "value": 17 }]
 }
 ```
 
@@ -47,10 +48,42 @@ Toutes les routes passent par la gateway (`/v1/dice/*`). Elles demandent un jeto
 | `isPrivate`, `isBlind`    | Ancienne visibilité : privé (auteur et MJ) ; caché au MJ (l'emporte sur `isPrivate`).                                                                                                                                                                                                                                                                                                                               |
 | `visibility`              | Forme structurée, prioritaire : `public` (défaut), `private` (= `isPrivate`), `gm` (= `isBlind`), `self` (auteur seul, MJ compris).                                                                                                                                                                                                                                                                                 |
 | `label`                   | Titre du jet (200 caractères au plus).                                                                                                                                                                                                                                                                                                                                                                              |
+| `physicalResults`         | Faces lues sur les dés 3D, 100 au plus : `[{ type, value, tag? }]` (voir ci-dessous). Absent ou vide : le serveur tire les dés.                                                                                                                                                                                                                                                                                     |
 
 Variables du personnage, comme `applyVariablesToNotation` de l'ancienne app : un **nom nu** (`FOR`, `for`, `NIV`) est remplacé par le **modificateur** de l'attribut s'il en a un, sinon par sa valeur. La syntaxe du moteur de règles marche aussi : `@FOR` (valeur), `mod(@FOR)` (modificateur).
 
-Erreurs : 400 `notation_required`, `notation_too_long`, `notation_and_pool`, `invalid_notation` (détail : message et position), `invalid_pool`, `system_required`, `validation_failed` ; 422 `unknown_system` ; 404 `campaign_not_found` (campagne inexistante ou appelant non membre) ; 403 `spectator_cannot_roll` ; 429 `too_many_rolls` (60 jets par minute et par utilisateur, `retry-after: 60`) ou 429 de la limite par IP (120 par minute) ; 503 `campaign_unavailable` / `character_unavailable`.
+Erreurs : 400 `notation_required`, `notation_too_long`, `notation_and_pool`, `invalid_notation` (détail : message et position), `invalid_pool`, `invalid_physical_result`, `system_required`, `validation_failed` ; 422 `unknown_system` ; 404 `campaign_not_found` (campagne inexistante ou appelant non membre) ; 403 `spectator_cannot_roll` ; 429 `too_many_rolls` (60 jets par minute et par utilisateur, `retry-after: 60`) ou 429 de la limite par IP (120 par minute) ; 503 `campaign_unavailable` / `character_unavailable`.
+
+### Dés 3D : l'animation fait foi
+
+Reprise de `perform3DRoll`, `calculateFinalResult` et `rollSymbolDiceNotation` de l'ancienne app : le client lance les dés en 3D, lit la face du dessus de chaque dé à l'arrêt et envoie ces valeurs avec le jet ; il ne corrige jamais l'animation.
+
+```json
+{
+  "notation": "2d6+1d20+3",
+  "campaignId": "…",
+  "physicalResults": [
+    { "type": "d6", "value": 4 },
+    { "type": "d6", "value": 5 },
+    { "type": "d20", "value": 17 }
+  ]
+}
+```
+
+| Champ   | Rôle                                                                                                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`  | Dé numérique : `d4`, `d6`, `d8`, `d10`, `d12`, `d20`, `d100`… (`dN`, casse indifférente). Dé à symboles : sa sorte dans le système (`aptitude`), ou sa forme (`d8`) avec `tag`. |
+| `value` | Face lue, entier de 1 au nombre de faces du dé (face d'un dé à symboles : son numéro dans l'ordre déclaré par le système).                                                      |
+| `tag`   | Sorte du dé à symboles quand `type` est sa forme, comme l'ancienne app : `{ "type": "d8", "value": 4, "tag": "aptitude" }`. Ignoré pour une notation numérique.                 |
+
+Le serveur évalue la notation ou le pool avec un générateur qui rejoue ces valeurs : chaque dé demandé par le jet prend la **prochaine valeur de sa file**.
+
+- **Notation numérique** : une file par nombre de faces. L'ordre entre types de dés est libre (`d20` avant les `d6` ci-dessus), l'ordre dans une même file est celui des dés de la notation. `results` garde l'ordre de la notation : `[4, 5, 17]`, total 29.
+- **Dés à symboles** (notation `N<dé>` ou `pool`) : une file par sorte, désignée par `tag`, sinon par `type` (identifiant ou nom, sans accents ni casse) — Aptitude et Difficulté, deux d8, ne se mélangent pas. Une valeur `dN` sans sorte sert au premier dé à N faces dont la file est vide.
+- **Valeurs manquantes** (relance d'un dé explosif, d100, dé non lancé en 3D) : tirées par le serveur (`aleatoireCrypto`).
+- `source` du jet : `3d` si toutes les valeurs viennent du client, `mixed` si le serveur en a complété ; ancien `type` : `Dice Roller`.
+
+Erreurs, 400 `invalid_physical_result` (aucun jet enregistré) : valeur hors de 1..faces (`{ "type": "d6", "value": 7 }`) ou non entière, type de dé inconnu, sorte à symboles inconnue du système, forme incohérente avec la sorte (`d6` pour une Aptitude), **valeur en trop** (dé absent du jet, ou plus de valeurs que de dés). Plus de 100 valeurs : 400 `validation_failed`.
 
 `Idempotency-Key` : une requête rejouée par le même utilisateur (même clé, même avec un autre jeton) renvoie le jet d'origine (201, en-tête `idempotent-replayed: true`) ; elle ne relance jamais les dés.
 
@@ -82,7 +115,7 @@ Les premiers champs sont ceux du document `FirebaseRoll` de l'ancienne app (`rol
   "type": "Dice Roller",
   "timestamp": 1790000000000,
 
-  "source": "free",
+  "source": "3d",
   "visibility": "public",
   "hidden": false,
   "label": "Jet de Force",
@@ -96,26 +129,26 @@ Les premiers champs sont ceux du document `FirebaseRoll` de l'ancienne app (`rol
 }
 ```
 
-| Champ                    | Contenu                                                                                                                                                                                                                 |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `uid`                    | Auteur (compte identity) ; `null` pour un jet importé dont l'auteur n'a pas été retrouvé.                                                                                                                               |
-| `userName`, `userAvatar` | Nom affiché au moment du jet : le personnage, sinon « MJ » pour le MJ de la campagne, sinon le nom du profil (« Aventurier » à défaut).                                                                                 |
-| `persoId`                | Personnage du jet, ou `null`.                                                                                                                                                                                           |
-| `isPrivate`, `isBlind`   | `isPrivate` : visibilité `private` ou `self` ; `isBlind` : visibilité `gm`.                                                                                                                                             |
-| `diceCount`, `diceFaces` | Premier groupe de dés (`4d6kh3` → 4 et 6), comme l'ancienne app ; pour des dés à symboles : nombre de dés et faces du premier.                                                                                          |
-| `modifier`               | Toujours 0 (champ de l'ancienne app).                                                                                                                                                                                   |
-| `results`                | Valeur de chaque dé, écartés et explosions compris ; face de chaque dé à symboles.                                                                                                                                      |
-| `total`                  | Arrondi à l'entier inférieur ; 0 pour des dés à symboles ; `null` si `hidden`.                                                                                                                                          |
-| `notation`               | Notation saisie (avant substitution des variables).                                                                                                                                                                     |
-| `output`                 | Détail lisible de l'ancienne app : `1d20+3 = [17]+3 = 20`, dés écartés préfixés par « r » (`[r2, 6, 3, 5]`), `Aptitude [4, 2], Difficulté [2] = 2 Succès` pour des symboles ; déroulé de l'action pour un jet d'action. |
-| `symbolResult`           | Résultats non nuls des dés à symboles (`2 Succès + 1 Avantages`, « Aucun effet »), sinon `null`.                                                                                                                        |
-| `type`                   | Ancien champ : `Dice Roller` (jet libre), `Dice Roller/API` (clé d'API), `Action` (jet d'action) ; valeur d'origine pour un jet importé.                                                                                |
-| `timestamp`              | Date du jet en millisecondes.                                                                                                                                                                                           |
-| `source`                 | `free`, `api` (jeton issu d'une clé d'API), `action` (transmis par character), `import`.                                                                                                                                |
-| `hidden`                 | Jet caché au MJ vu par son auteur : `results`, `dice`, `explanations` vides, `total`, `symbols`, `outcome`, `symbolResult` à `null`, `output` vide.                                                                     |
-| `dice`                   | Groupes de dés numériques : `faces`, et pour chaque dé `value`, `kept` (faux pour un dé écarté), `exploded` (dé relancé par explosion).                                                                                 |
-| `symbols`                | Dés à symboles : `dice: [{ die, face, symbols }]`, `totals` (par symbole), `results` (résultats du système, `succesNets`…).                                                                                             |
-| `outcome`                | `success` : réussite d'un jet d'action (`null` pour un jet libre) ; `critical` / `fumble` : un seul dé gardé à sa valeur maximale / à 1 (jet libre), critique du système (action).                                      |
+| Champ                    | Contenu                                                                                                                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `uid`                    | Auteur (compte identity) ; `null` pour un jet importé dont l'auteur n'a pas été retrouvé.                                                                                                                                  |
+| `userName`, `userAvatar` | Nom affiché au moment du jet : le personnage, sinon « MJ » pour le MJ de la campagne, sinon le nom du profil (« Aventurier » à défaut).                                                                                    |
+| `persoId`                | Personnage du jet, ou `null`.                                                                                                                                                                                              |
+| `isPrivate`, `isBlind`   | `isPrivate` : visibilité `private` ou `self` ; `isBlind` : visibilité `gm`.                                                                                                                                                |
+| `diceCount`, `diceFaces` | Premier groupe de dés (`4d6kh3` → 4 et 6), comme l'ancienne app ; pour des dés à symboles : nombre de dés et faces du premier.                                                                                             |
+| `modifier`               | Toujours 0 (champ de l'ancienne app).                                                                                                                                                                                      |
+| `results`                | Valeur de chaque dé, écartés et explosions compris ; face de chaque dé à symboles.                                                                                                                                         |
+| `total`                  | Arrondi à l'entier inférieur ; 0 pour des dés à symboles ; `null` si `hidden`.                                                                                                                                             |
+| `notation`               | Notation saisie (avant substitution des variables).                                                                                                                                                                        |
+| `output`                 | Détail lisible de l'ancienne app : `1d20+3 = [17]+3 = 20`, dés écartés préfixés par « r » (`[r2, 6, 3, 5]`), `Aptitude [4, 2], Difficulté [2] = 2 Succès` pour des symboles ; déroulé de l'action pour un jet d'action.    |
+| `symbolResult`           | Résultats non nuls des dés à symboles (`2 Succès + 1 Avantages`, « Aucun effet »), sinon `null`.                                                                                                                           |
+| `type`                   | Ancien champ : `Dice Roller` (l'animation 3D a fait foi : `3d`, `mixed`), `Dice Roller/API` (tiré par le serveur : `free`, `api`), `Action` (jet d'action) ; valeur d'origine pour un jet importé.                         |
+| `timestamp`              | Date du jet en millisecondes.                                                                                                                                                                                              |
+| `source`                 | `3d` (faces lues sur les dés 3D du client), `mixed` (dés 3D complétés par le serveur), `free` (tiré par le serveur), `api` (tiré par le serveur, jeton issu d'une clé d'API), `action` (transmis par character), `import`. |
+| `hidden`                 | Jet caché au MJ vu par son auteur : `results`, `dice`, `explanations` vides, `total`, `symbols`, `outcome`, `symbolResult` à `null`, `output` vide.                                                                        |
+| `dice`                   | Groupes de dés numériques : `faces`, et pour chaque dé `value`, `kept` (faux pour un dé écarté), `exploded` (dé relancé par explosion).                                                                                    |
+| `symbols`                | Dés à symboles : `dice: [{ die, face, symbols }]`, `totals` (par symbole), `results` (résultats du système, `succesNets`…).                                                                                                |
+| `outcome`                | `success` : réussite d'un jet d'action (`null` pour un jet libre) ; `critical` / `fumble` : un seul dé gardé à sa valeur maximale / à 1 (jet libre), critique du système (action).                                         |
 
 ### Visibilité
 

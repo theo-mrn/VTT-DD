@@ -19,7 +19,12 @@ export const diceSchema = pgSchema('dice');
 
 const timestampTz = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 
-export const SOURCES = ['free', 'action', 'api', 'import'] as const;
+/**
+ * Origine d'un jet : `free` (tiré par le serveur), `api` (tiré par le serveur,
+ * clé d'API), `action` (character), `import`, `3d` (toutes les valeurs lues
+ * sur les dés 3D du client) ou `mixed` (valeurs 3D complétées par le serveur).
+ */
+export const SOURCES = ['free', 'action', 'api', 'import', '3d', 'mixed'] as const;
 export type Source = (typeof SOURCES)[number];
 
 export const VISIBILITIES = ['public', 'private', 'gm', 'self'] as const;

@@ -5,6 +5,12 @@
  * même comportement : variables du personnage, jets privés (isPrivate) et
  * cachés au MJ (isBlind), détail `output`, dés à symboles.
  *
+ * Comme dans l'ancienne app, l'animation 3D des dés fait foi : le client
+ * envoie les faces lues sur ses dés (`physicalResults`) et le serveur calcule
+ * le jet avec elles (source `3d`, ou `mixed` si des valeurs manquantes ont été
+ * tirées par le serveur). Sans elles (clé d'API, Discord, animation coupée),
+ * le serveur tire lui-même les dés.
+ *
  * Toutes les routes demandent un jeton d'accès (ou une clé d'API échangée par
  * la gateway, `Authorization: ApiKey …`).
  *
@@ -25,8 +31,9 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { CampaignRole } from '../../clients/campaign.js';
 import type { CharacterSheet } from '../../clients/character.js';
-import { rolls, type RollRow, type RollVisibility } from '../../db/schema.js';
+import { rolls, type RollRow, type RollVisibility, type Source } from '../../db/schema.js';
 import type { Deps, Module } from '../../deps.js';
+import { notationGenerator, poolGenerator, type PhysicalGenerator } from '../../engine/physical.js';
 import {
   MAX_NOTATION,
   rollNotation,
@@ -42,6 +49,7 @@ import {
   currentUser,
   eventContext,
   Label,
+  PhysicalResults,
   Pool,
   Roll,
   RollId,
@@ -111,6 +119,8 @@ const RollRequest = z.object({
     .refine((v) => Object.keys(v).length <= 200, '200 variables au plus')
     .optional(),
   label: Label.optional(),
+  /** Faces lues sur les dés 3D : l'animation fait foi (absent ou vide : tirage serveur). */
+  physicalResults: PhysicalResults.optional(),
 });
 
 /** Réponse d'un jet : le jet enregistré, plus les champs de l'ancienne API /api/roll-dice. */
@@ -238,7 +248,10 @@ export const register: Module = async (app, deps) => {
         }
       }
 
-      const generator = deps.random();
+      // Tirages du serveur ; avec des faces lues sur les dés 3D, seulement pour les manquantes
+      const random = deps.random();
+      const physical = body.physicalResults?.length ? body.physicalResults : undefined;
+      let replayed: PhysicalGenerator | undefined;
       const systemId = body.systemId ?? sheet?.systemId ?? campaignSystem;
       const system = systemId ? deps.catalog.system(systemId) : undefined;
       if (body.systemId && !system)
@@ -249,15 +262,20 @@ export const register: Module = async (app, deps) => {
       if (pool) {
         if (!system)
           throw HttpError.badRequest('systemId requis pour des dés à symboles', 'system_required');
-        rolled = rollPool(system, pool, generator);
+        // Sans dés à symboles dans le système, rollPool répond invalid_pool
+        if (physical && system.source.des) replayed = poolGenerator(system, pool, physical, random);
+        rolled = rollPool(system, pool, replayed ?? random);
         usedSystem = system.source.id;
       } else {
+        if (physical) replayed = notationGenerator(physical, random);
         rolled = rollNotation(
           notation!,
           { variables: body.variables ?? sheetVariables(sheet?.values), sheet: sheet?.values },
-          generator,
+          replayed ?? random,
         );
       }
+      // Faces fournies pour des dés absents du jet : 400
+      replayed?.finish();
 
       // Nom affiché (ancien userName) : personnage, « MJ », ou profil du compte
       let userName = sheet?.name;
@@ -269,7 +287,13 @@ export const register: Module = async (app, deps) => {
         userAvatar = p?.avatarUrl ?? null;
       }
 
-      const source = req.user!.roles.includes('api') ? 'api' : 'free';
+      const source: Source = replayed
+        ? replayed.completed > 0
+          ? 'mixed'
+          : '3d'
+        : req.user!.roles.includes('api')
+          ? 'api'
+          : 'free';
       let row: RollRow;
       try {
         row = await db.transaction((tx) =>

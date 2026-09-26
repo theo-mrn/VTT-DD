@@ -1,7 +1,8 @@
 /** Schémas Zod partagés par les routes du service. */
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { VISIBILITIES } from '../db/schema.js';
+import { SOURCES, VISIBILITIES } from '../db/schema.js';
+import { MAX_PHYSICAL_RESULTS } from '../engine/physical.js';
 import { MAX_NOTATION } from '../engine/roll.js';
 
 export const Uuid = (message: string) => z.uuid(message).transform((s) => s.toLowerCase());
@@ -31,6 +32,22 @@ export const Pool = z
   )
   .min(1, 'Pool vide')
   .max(20);
+
+/**
+ * Faces lues sur les dés 3D (l'animation fait foi) : `type` `d4`…`d100` ou
+ * sorte d'un dé à symboles, `tag` sorte du dé à symboles quand `type` est sa
+ * forme (`{ type: 'd8', tag: 'aptitude' }`). Les bornes sont vérifiées au
+ * lancer (400 invalid_physical_result).
+ */
+export const PhysicalResults = z
+  .array(
+    z.object({
+      type: z.string().min(1).max(64),
+      value: z.number(),
+      tag: z.string().max(64).nullish(),
+    }),
+  )
+  .max(MAX_PHYSICAL_RESULTS, `${MAX_PHYSICAL_RESULTS} valeurs au plus`);
 
 export const DiceGroup = z.object({
   faces: z.number().int().min(1).max(10_000),
@@ -91,7 +108,7 @@ export const Roll = z.object({
   /** Date du jet en millisecondes (Date.now()). */
   timestamp: z.number(),
   // ─── Détail du service ───
-  source: z.enum(['free', 'action', 'api', 'import']),
+  source: z.enum(SOURCES),
   visibility: Visibility,
   hidden: z.boolean(),
   label: z.string().nullable(),

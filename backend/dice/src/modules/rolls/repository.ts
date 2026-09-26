@@ -50,9 +50,16 @@ export function canSee(row: RollRow, viewer: Viewer): boolean {
 export const isHidden = (row: RollRow, viewer: Viewer) =>
   row.visibility === 'gm' && viewer.role !== 'gm';
 
-/** Ancien champ `type` : conservé pour les jets importés, sinon déduit de la source. */
+/**
+ * Ancien champ `type` : conservé pour les jets importés, sinon déduit de la
+ * source. Comme l'ancienne app (`show3DAnimations ? 'Dice Roller' : 'Dice
+ * Roller/API'`) : « Dice Roller » quand l'animation 3D a fait foi, « Dice
+ * Roller/API » pour un jet tiré sans elle (par le serveur).
+ */
 const LEGACY_TYPES: Record<RollRow['source'], string> = {
-  free: 'Dice Roller',
+  '3d': 'Dice Roller',
+  mixed: 'Dice Roller',
+  free: 'Dice Roller/API',
   api: 'Dice Roller/API',
   action: 'Action',
   import: 'Dice Roller',
