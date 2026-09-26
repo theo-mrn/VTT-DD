@@ -13,6 +13,7 @@ env:
   JWT_ISSUER: https://api.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
   JWKS_URL: http://identity.vtt-prod.svc/.well-known/jwks.json
+  UPSTREAM_IDENTITY_URL: http://identity.vtt-prod.svc
   UPSTREAM_CHARACTER_URL: http://character.vtt-prod.svc
 ingress:
   enabled: true
