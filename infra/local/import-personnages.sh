@@ -37,6 +37,9 @@ fi
 IDENTITY_DATABASE_URL="$(grep -E '^DATABASE_URL=' backend/identity/.env | cut -d= -f2-)"
 export IDENTITY_DATABASE_URL
 
+# Stockage S3 (mêmes réglages qu'identity) : avatars embarqués dans les anciennes fiches
+while IFS= read -r ligne; do export "$ligne"; done < <(grep -E '^S3_[A-Z_]+=' backend/identity/.env || true)
+
 if [ "$IMPORTER" = 1 ]; then
   etape "Import des personnages"
   node --env-file=backend/character/.env backend/character/dist/import/cli.js \

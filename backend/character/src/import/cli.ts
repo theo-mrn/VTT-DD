@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { uuidv7 } from '@vtt/contracts';
 import { systeme } from '@vtt/systemes';
+import { envoyeurImages } from './images.js';
 import pg from 'pg';
 import { createDb } from '../db/client.js';
 import { chargerPersonnage } from './chargement.js';
@@ -95,6 +96,7 @@ async function compteDe(uid: string): Promise<string | null> {
 const base = values.simulation ? null : createDb(process.env.DATABASE_URL!);
 const rapport = createWriteStream(values.rapport, { mode: 0o600 });
 const correlationId = uuidv7();
+const envoyer = envoyeurImages();
 const bilan = { importes: 0, dejaImportes: 0, sansCompte: 0, erreurs: 0, avertissements: 0 };
 const parSysteme: Record<string, number> = {};
 
@@ -118,6 +120,18 @@ for (const a of aImporter) {
     });
     bilan.avertissements += migre.avertissements.length;
     parSysteme[detection.id] = (parSysteme[detection.id] ?? 0) + 1;
+
+    // Avatar embarqué dans la fiche : envoyé au stockage, remplacé par son adresse
+    if (migre.avatarUrl?.startsWith('data:')) {
+      if (values.simulation) {
+        migre.avertissements.push('Avatar embarqué : sera envoyé au stockage à l’import');
+      } else if (envoyer) {
+        migre.avatarUrl = await envoyer(migre.avatarUrl);
+      } else {
+        migre.avatarUrl = null;
+        migre.avertissements.push('Avatar embarqué non migré : stockage S3 non configuré');
+      }
+    }
 
     if (values.simulation) {
       ligne.statut = a.ownerUid ? 'simule' : 'sans-proprietaire';
