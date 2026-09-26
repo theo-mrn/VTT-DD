@@ -15,10 +15,10 @@ import { AttributesWidget } from './widget-attributes';
 import { BonusWidget } from './widget-bonus';
 import { CurrenciesWidget } from './widget-currencies';
 import { DetailsWidget } from './widget-details';
-import { PossessionsWidget } from './widget-possessions';
+import { PossessionsDispatch } from './widget-possessions-dispatch';
 import { ResourcesWidget } from './widget-resources';
 import { TextWidget } from './widget-text';
-import { TreesWidget } from './widget-trees';
+import { TreesWidget } from './talents';
 
 export type WidgetType = Widget['type'];
 export type WidgetOf<T extends WidgetType> = Extract<Widget, { type: T }>;
@@ -35,10 +35,7 @@ export type WidgetComponent<T extends WidgetType = WidgetType> = ComponentType<
 
 type Registry = { [T in WidgetType]: WidgetComponent<T> };
 
-/**
- * Composants par défaut. `possessions` (compétences, talents, équipement),
- * `arbres` et `actions` gardent ici une version simple, en attendant les leurs.
- */
+/** Composant de chaque type de bloc. */
 export const widgetRegistry: Registry = {
   attributs: AttributesWidget,
   ressources: ResourcesWidget,
@@ -46,7 +43,7 @@ export const widgetRegistry: Registry = {
   monnaies: CurrenciesWidget,
   texte: TextWidget,
   bonus: BonusWidget,
-  possessions: PossessionsWidget,
+  possessions: PossessionsDispatch,
   arbres: TreesWidget,
   actions: ActionsWidget,
 };

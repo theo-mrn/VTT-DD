@@ -72,6 +72,8 @@ export interface SheetContextValue {
   /** Active ou désactive un bonus libre existant. */
   setBonusActive(id: string, active: boolean): Promise<boolean>;
   removeBonus(id: string): Promise<boolean>;
+  /** Relit le personnage depuis le serveur (après un jet appliqué par le serveur). */
+  reload(): void;
 }
 
 /** État avec ce bonus libre posé (à la place de celui qui a le même identifiant). */
@@ -120,7 +122,7 @@ export function SheetProvider({
   /** Affiché si le personnage ne se calcule pas avec ce système. */
   fallback: ReactNode;
 }) {
-  const { personnage: character, etat: state, write, pending } = tracker;
+  const { personnage: character, etat: state, write, pending, reload } = tracker;
   const { system, presentation } = ready;
   const sheet = useMemo(() => (state ? computeOn(system, state) : null), [system, state]);
   const serverPurchases = useVersionedRead('achats', character, pending, getPurchases);
@@ -237,6 +239,7 @@ export function SheetProvider({
           writes.removeBonus(id),
           attempt((e) => ({ ...copier(e), bonus: e.bonus.filter((b) => b.id !== id) })),
         ),
+      reload: () => void reload(),
     };
   }, [
     ready,
@@ -251,6 +254,7 @@ export function SheetProvider({
     pending,
     variables,
     write,
+    reload,
   ]);
 
   if (!value) return <>{fallback}</>;

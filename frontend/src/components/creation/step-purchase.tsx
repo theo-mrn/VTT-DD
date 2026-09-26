@@ -22,7 +22,7 @@ import { normalize, SheetEmpty } from '../sheet/elements';
 import { formatNumber, tagName } from '../sheet/format';
 import { lastLine, maxRank, readableField } from '../sheet/possessions';
 import { field, iconButton, secondaryButton, text, textAccent, textMuted } from '../sheet/styles';
-import { TreesWidget } from '../sheet/widget-trees';
+import { TreesWidget } from '../sheet/talents';
 import type { DraftTracker } from './draft';
 import { plainSummary, mutedChip, panel, StepFooter, SubStepTrail, type TabNav } from './ui';
 import { cardButton, statGrid, StatCard } from './stat-card';
