@@ -1,0 +1,60 @@
+import { describe, expect, it, vi } from 'vitest';
+import { droitsCampaign } from './campaign.js';
+
+const SECRET = 'secret-interne-de-test-0123456789abcdef';
+
+function reponse(corps: unknown, status = 200) {
+  return new Response(JSON.stringify(corps), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+describe('droits décidés par campaign', () => {
+  it('interroge campaign avec le secret interne puis garde la réponse en cache', async () => {
+    let maintenant = 1_000;
+    const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) =>
+      reponse({ lecture: true, ecriture: false, salles: [] }),
+    );
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 5_000,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      maintenant: () => maintenant,
+    });
+
+    expect(await droits.de('perso-1', 'user-1')).toEqual({ lecture: true, ecriture: false });
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(String(url)).toBe(
+      'http://campaign.local/internal/characters/perso-1/salles-de?userId=user-1',
+    );
+    expect((init!.headers as Record<string, string>)['x-internal-secret']).toBe(SECRET);
+
+    await droits.de('perso-1', 'user-1');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    maintenant += 5_001;
+    await droits.de('perso-1', 'user-1');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('une panne de campaign n’ouvre aucun droit et n’est pas mise en cache', async () => {
+    const signaler = vi.fn();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(reponse({ title: 'Erreur' }, 503))
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValueOnce(reponse({ lecture: true, ecriture: true }));
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 5_000,
+      fetch,
+      signaler,
+    });
+    expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
+    expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
+    expect(await droits.de('p', 'u')).toEqual({ lecture: true, ecriture: true });
+    expect(signaler).toHaveBeenCalledTimes(2);
+  });
+});

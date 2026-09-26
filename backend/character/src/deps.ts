@@ -6,6 +6,7 @@ import type { Generateur } from '@vtt/rules';
 import type { createService } from '@vtt/platform';
 import type { CharacterConfig } from './config.js';
 import type { Db } from './db/client.js';
+import type { DroitsSalles } from './droits/campaign.js';
 import type { Catalogue } from './regles/catalogue.js';
 
 /** Instance renvoyée par createService (logger pino, fournisseur de types Zod). */
@@ -20,6 +21,8 @@ export interface Deps {
   aleatoire: () => Generateur;
   /** Horloge (date inscrite au journal des achats). */
   maintenant: () => Date;
+  /** Droits sur les personnages des autres, décidés par les salles de campaign. */
+  droits: DroitsSalles;
 }
 
 export type Module = (app: ServiceApp, deps: Deps) => Promise<void>;

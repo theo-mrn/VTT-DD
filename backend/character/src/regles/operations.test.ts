@@ -17,6 +17,7 @@ import { catalogueReference } from './catalogue.js';
 import {
   acheterObjet,
   appliquerEtape,
+  decompterDurees,
   etatInitial,
   modifierValeurs,
   poserPossession,
@@ -280,5 +281,50 @@ describe('actions', () => {
       resoudreAction(dnd, { action, acteur, appliquer: false, aleatoire: aleatoireImpose([10]) });
     expect(erreur(essai('inconnue'))).toMatchObject({ status: 422, code: 'action_refusee' });
     expect(erreur(essai('attaque'))).toMatchObject({ status: 422, code: 'action_refusee' });
+  });
+
+  it('initiative : clés de tri du système en plus du résultat', () => {
+    const r = resoudreAction(dnd, {
+      action: 'initiative',
+      acteur: nain(),
+      appliquer: false,
+      aleatoire: aleatoireImpose([14]),
+    });
+    expect(r.cles).toEqual([(r.resultat.jet as { total: number }).total]);
+    expect(r.cles![0]).toBeGreaterThanOrEqual(14);
+    // Une autre action n'a pas de clés
+    const test = resoudreAction(dnd, {
+      action: 'attaque',
+      acteur: nain(),
+      cible: nain(),
+      parametres: { arme: 'epee-longue' },
+      appliquer: false,
+      aleatoire: aleatoireImpose([10, 1]),
+    });
+    expect(test.cles).toBeUndefined();
+  });
+});
+
+describe('durées', () => {
+  it('fin de round : -1 round, retrait à 0, possessions sans durée intactes', () => {
+    const etat = verifierEtat(dnd, {
+      type: 'personnage',
+      systeme: { id: 'dnd-classic', version: dnd.source.version },
+      possessions: [
+        { entree: 'nain' },
+        { entree: 'aveugle', duree: 1 },
+        { entree: 'effraye', duree: 3 },
+      ],
+    }).etat;
+    const r = decompterDurees(etat);
+    expect(r.retirees).toEqual(['aveugle']);
+    expect(r.etat!.possessions.map((p) => [p.entree, p.duree])).toEqual([
+      ['nain', undefined],
+      ['effraye', 2],
+    ]);
+    expect(etat.possessions).toHaveLength(3);
+    expect(decompterDurees(verifierEtat(dnd, { ...etat, possessions: [] }).etat)).toEqual({
+      retirees: [],
+    });
   });
 });

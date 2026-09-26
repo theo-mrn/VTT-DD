@@ -14,6 +14,7 @@ import {
   creationDe,
   EtatEntite,
   executerAction,
+  initiative,
   recuperer,
   rembourser,
   repartirEtape,
@@ -351,15 +352,27 @@ export function reposer(fiche: Fiche, attributs?: string[]): EtatEntite {
 
 export interface ActionResolue {
   resultat: ResultatAction;
+  /**
+   * Clés de tri de l'initiative (`initiative.tri` du système, dans l'ordre),
+   * seulement pour l'action d'initiative du système lancée sans cible.
+   */
+  cles?: number[];
   /** Nouveaux états, seulement s'ils ont été modifiés (avec `appliquer`). */
   acteur?: EtatEntite;
   cible?: EtatEntite;
 }
 
+const messageErreurs = (erreurs: { parametre?: string; message: string }[]) =>
+  erreurs.map((e) => (e.parametre ? `${e.parametre} : ${e.message}` : e.message)).join(' ; ');
+
 /**
  * Exécute une action (jets tirés par `aleatoire`) et, avec `appliquer`, calcule
  * les nouveaux états de l'acteur et de la cible. Une cible identique à
  * l'acteur reçoit toutes les modifications sur le même état.
+ *
+ * L'action d'initiative du système, sans cible, passe par `initiative` de
+ * @vtt/rules : le résultat porte en plus les clés de tri (`cles`), que le
+ * service campaign utilise pour ordonner les participants d'un combat.
  */
 export function resoudreAction(
   systeme: SystemeCharge,
@@ -373,21 +386,31 @@ export function resoudreAction(
     aleatoire: Generateur;
   },
 ): ActionResolue {
-  const r = executerAction(systeme, {
-    action: demande.action,
-    acteur: demande.acteur,
-    ...(demande.cible ? { cible: demande.cible } : {}),
-    ...(demande.parametres ? { parametres: demande.parametres } : {}),
-    aleatoire: demande.aleatoire,
-  });
-  if (!r.ok) {
-    throw refus(
-      r.erreurs.map((e) => (e.parametre ? `${e.parametre} : ${e.message}` : e.message)).join(' ; '),
-      'action_refusee',
+  let resultat: ResultatAction;
+  let cles: number[] | undefined;
+  const ini = systeme.source.initiative;
+  if (ini && demande.action === ini.action && !demande.cible) {
+    const r = initiative(
+      systeme,
+      [{ id: 'acteur', fiche: demande.acteur, parametres: demande.parametres ?? {} }],
+      demande.aleatoire,
     );
+    if (!r.ok) throw refus(messageErreurs(r.erreurs), 'action_refusee');
+    resultat = r.ordre[0]!.resultat;
+    cles = r.ordre[0]!.cles;
+  } else {
+    const r = executerAction(systeme, {
+      action: demande.action,
+      acteur: demande.acteur,
+      ...(demande.cible ? { cible: demande.cible } : {}),
+      ...(demande.parametres ? { parametres: demande.parametres } : {}),
+      aleatoire: demande.aleatoire,
+    });
+    if (!r.ok) throw refus(messageErreurs(r.erreurs), 'action_refusee');
+    resultat = r.resultat;
   }
-  const resultat = r.resultat;
-  if (!demande.appliquer) return { resultat };
+  const base = { resultat, ...(cles ? { cles } : {}) };
+  if (!demande.appliquer) return base;
 
   const mods = resultat.modifications;
   const touche = (entite: 'acteur' | 'cible') => mods.some((m) => m.entite === entite);
@@ -400,11 +423,33 @@ export function resoudreAction(
   };
 
   if (demande.memeEntite) {
-    return mods.length ? { resultat, acteur: appliquer(demande.acteur) } : { resultat };
+    return mods.length ? { ...base, acteur: appliquer(demande.acteur) } : base;
   }
   return {
-    resultat,
+    ...base,
     ...(touche('acteur') ? { acteur: appliquer(demande.acteur, 'acteur') } : {}),
     ...(demande.cible && touche('cible') ? { cible: appliquer(demande.cible, 'cible') } : {}),
   };
+}
+
+// ─── Durées ───────────────────────────────────────────────────────────────────
+
+/**
+ * Fin de round d'un combat : chaque possession à durée (état temporaire) perd
+ * un round ; celles arrivées à 0 sont retirées. `etat` vaut `undefined` si
+ * aucune possession n'a de durée (rien à enregistrer).
+ */
+export function decompterDurees(etat: EtatEntite): { etat?: EtatEntite; retirees: string[] } {
+  if (!etat.possessions.some((p) => p.duree !== undefined)) return { retirees: [] };
+  const retirees: string[] = [];
+  const possessions = etat.possessions.flatMap((p) => {
+    if (p.duree === undefined) return [p];
+    const duree = p.duree - 1;
+    if (duree <= 0) {
+      retirees.push(p.entree);
+      return [];
+    }
+    return [{ ...p, duree }];
+  });
+  return { etat: { ...etat, possessions }, retirees };
 }

@@ -1,8 +1,9 @@
 /**
  * Module « personnages » : CRUD du propriétaire, saisie des valeurs, création
  * par étapes, achats, possessions, repos et actions (contrat :
- * docs/api-character.md). Toutes les routes demandent un jeton d'accès ;
- * seul le propriétaire voit et modifie ses personnages.
+ * docs/api-character.md). Toutes les routes demandent un jeton d'accès.
+ * Le propriétaire a tous les droits ; les membres d'une salle où le
+ * personnage est engagé le lisent, son MJ le modifie (voir `autoriser`).
  */
 import { HttpError } from '@vtt/platform';
 import { achatsPossibles, etapesCreation } from '@vtt/rules';
@@ -19,24 +20,23 @@ import {
   poserPossession,
   rembourserLigne,
   reposer,
-  resoudreAction,
   retirerPossession,
   terminer,
   Valeurs,
   verifierEtat,
 } from '../../regles/operations.js';
+import { jouerAction } from './actions.js';
 import {
+  autoriser,
   creer,
-  enregistrer,
-  journaliserAction,
   lire,
   lister,
   modifier,
   supprimer,
   systemeDe,
-  verrouiller,
   versApi,
   type Ligne,
+  type Mode,
 } from './depot.js';
 
 const IdPersonnage = z.uuid('Identifiant de personnage invalide').transform((s) => s.toLowerCase());
@@ -74,6 +74,22 @@ export const register: Module = async (app, deps) => {
   const auth = { preValidation: app.authenticate };
   const api = (ligne: Ligne) => versApi(catalogue, ligne);
   const date = () => deps.maintenant().toISOString();
+
+  /** Personnage lisible par l'appelant (propriétaire, membre de sa salle). */
+  const lecture = async (req: FastifyRequest, id: string) => {
+    await autoriser(db, deps.droits, moi(req), [{ id, mode: 'lecture' }]);
+    return lire(db, id);
+  };
+  /** Modification par le propriétaire ou le MJ d'une salle où le personnage est engagé. */
+  const modifierPour = async (
+    req: FastifyRequest,
+    id: string,
+    version: number | undefined,
+    calcul: Parameters<typeof modifier>[6],
+  ) => {
+    const role = await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
+    return modifier(db, contexte(req), catalogue, { userId: moi(req), role }, id, version, calcul);
+  };
 
   /**
    * Limite des actions (jets de dés tirés par le serveur), par IP comme la
@@ -131,7 +147,7 @@ export const register: Module = async (app, deps) => {
   r.get(
     '/v1/characters/:id',
     { ...auth, schema: { params: Params, response: { 200: Personnage } } },
-    async (req) => api(await lire(db, moi(req), req.params.id)),
+    async (req) => api(await lecture(req, req.params.id)),
   );
 
   r.patch(
@@ -150,31 +166,24 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, nom, avatarUrl } = req.body;
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        version,
-        () => ({
-          changement: {
-            ...(nom !== undefined ? { nom } : {}),
-            ...(avatarUrl !== undefined ? { avatarUrl } : {}),
-          },
-          operation: 'profil',
-          details: {
-            ...(nom !== undefined ? { nom } : {}),
-            ...(avatarUrl !== undefined ? { avatarUrl } : {}),
-          },
-        }),
-      );
+      const ligne = await modifierPour(req, req.params.id, version, () => ({
+        changement: {
+          ...(nom !== undefined ? { nom } : {}),
+          ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        },
+        operation: 'profil',
+        details: {
+          ...(nom !== undefined ? { nom } : {}),
+          ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        },
+      }));
       return api(ligne);
     },
   );
 
   r.delete('/v1/characters/:id', { ...auth, schema: { params: Params } }, async (req, reply) => {
-    await supprimer(db, contexte(req), moi(req), req.params.id);
+    await autoriser(db, deps.droits, moi(req), [{ id: req.params.id, mode: 'proprietaire' }]);
+    await supprimer(db, contexte(req), { userId: moi(req), role: 'user' }, req.params.id);
     reply.code(204);
   });
 
@@ -192,19 +201,11 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, valeurs } = req.body;
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        version,
-        (l, systeme) => ({
-          changement: { etat: modifierValeurs(systeme, l.etat, valeurs) },
-          operation: 'valeurs',
-          details: { valeurs },
-        }),
-      );
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
+        changement: { etat: modifierValeurs(systeme, l.etat, valeurs) },
+        operation: 'valeurs',
+        details: { valeurs },
+      }));
       return api(ligne);
     },
   );
@@ -231,7 +232,7 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const ligne = await lire(db, moi(req), req.params.id);
+      const ligne = await lecture(req, req.params.id);
       const systeme = systemeDe(catalogue, ligne);
       return etapesCreation(systeme, verifierEtat(systeme, ligne.etat).etat);
     },
@@ -249,18 +250,10 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        req.body.version,
-        (l, systeme) => ({
-          changement: { etat: terminer(systeme, l.etat) },
-          operation: 'creation.terminer',
-        }),
-      );
+      const ligne = await modifierPour(req, req.params.id, req.body.version, (l, systeme) => ({
+        changement: { etat: terminer(systeme, l.etat) },
+        operation: 'creation.terminer',
+      }));
       return api(ligne);
     },
   );
@@ -277,29 +270,21 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        req.body.version,
-        (l, systeme) => {
-          const r = appliquerEtape(
-            systeme,
-            l.etat,
-            req.params.etape,
-            req.body,
-            deps.aleatoire(),
-            date(),
-          );
-          return {
-            changement: { etat: r.etat },
-            operation: `creation.${req.params.etape}`,
-            details: r.details,
-          };
-        },
-      );
+      const ligne = await modifierPour(req, req.params.id, req.body.version, (l, systeme) => {
+        const r = appliquerEtape(
+          systeme,
+          l.etat,
+          req.params.etape,
+          req.body,
+          deps.aleatoire(),
+          date(),
+        );
+        return {
+          changement: { etat: r.etat },
+          operation: `creation.${req.params.etape}`,
+          details: r.details,
+        };
+      });
       return api(ligne);
     },
   );
@@ -310,7 +295,7 @@ export const register: Module = async (app, deps) => {
     '/v1/characters/:id/achats',
     { ...auth, schema: { params: Params, response: { 200: z.array(z.unknown()) } } },
     async (req) => {
-      const ligne = await lire(db, moi(req), req.params.id);
+      const ligne = await lecture(req, req.params.id);
       return achatsPossibles(verifierEtat(systemeDe(catalogue, ligne), ligne.etat).fiche);
     },
   );
@@ -327,18 +312,10 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, achat, objet } = req.body;
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        version,
-        (l, systeme) => {
-          const r = acheterObjet(systeme, l.etat, { achat, objet }, date());
-          return { changement: { etat: r.etat }, operation: 'achat', details: r.details };
-        },
-      );
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => {
+        const r = acheterObjet(systeme, l.etat, { achat, objet }, date());
+        return { changement: { etat: r.etat }, operation: 'achat', details: r.details };
+      });
       return api(ligne);
     },
   );
@@ -355,18 +332,10 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, index } = req.body;
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        version,
-        (l, systeme) => {
-          const r = rembourserLigne(systeme, l.etat, index);
-          return { changement: { etat: r.etat }, operation: 'remboursement', details: r.details };
-        },
-      );
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => {
+        const r = rembourserLigne(systeme, l.etat, index);
+        return { changement: { etat: r.etat }, operation: 'remboursement', details: r.details };
+      });
       return api(ligne);
     },
   );
@@ -385,19 +354,11 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, ...demande } = req.body;
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        version,
-        (l, systeme) => ({
-          changement: { etat: poserPossession(systeme, l.etat, demande) },
-          operation: 'possession',
-          details: { possession: demande },
-        }),
-      );
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
+        changement: { etat: poserPossession(systeme, l.etat, demande) },
+        operation: 'possession',
+        details: { possession: demande },
+      }));
       return api(ligne);
     },
   );
@@ -413,19 +374,11 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        req.query.version,
-        (l, systeme) => ({
-          changement: { etat: retirerPossession(systeme, l.etat, req.params.entree) },
-          operation: 'possession.retrait',
-          details: { entree: req.params.entree },
-        }),
-      );
+      const ligne = await modifierPour(req, req.params.id, req.query.version, (l, systeme) => ({
+        changement: { etat: retirerPossession(systeme, l.etat, req.params.entree) },
+        operation: 'possession.retrait',
+        details: { entree: req.params.entree },
+      }));
       return api(ligne);
     },
   );
@@ -444,19 +397,11 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { version, attributs } = req.body;
-      const ligne = await modifier(
-        db,
-        contexte(req),
-        catalogue,
-        moi(req),
-        req.params.id,
-        version,
-        (l, systeme) => ({
-          changement: { etat: reposer(verifierEtat(systeme, l.etat).fiche, attributs) },
-          operation: 'repos',
-          ...(attributs ? { details: { attributs } } : {}),
-        }),
-      );
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => ({
+        changement: { etat: reposer(verifierEtat(systeme, l.etat).fiche, attributs) },
+        operation: 'repos',
+        ...(attributs ? { details: { attributs } } : {}),
+      }));
       return api(ligne);
     },
   );
@@ -480,6 +425,8 @@ export const register: Module = async (app, deps) => {
         response: {
           200: z.object({
             resultat: z.unknown(),
+            /** Clés de tri, pour l'action d'initiative du système. */
+            cles: z.array(z.number()).optional(),
             personnage: Personnage.optional(),
             cible: Personnage.optional(),
           }),
@@ -487,84 +434,26 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const owner = moi(req);
       const { id, action } = req.params;
       const { parametres, cibleId, appliquer = false } = req.body;
-      const memeEntite = cibleId === id;
-      const ids = cibleId && !memeEntite ? [id, cibleId] : [id];
-      const ctx = contexte(req);
-
-      return db.transaction(async (tx) => {
-        // En lecture seule, pas de verrou ; pour appliquer, acteur et cible sont
-        // verrouillés ensemble jusqu'à la fin de la transaction
-        const lignes = appliquer
-          ? await verrouiller(tx, owner, ids)
-          : await Promise.all(ids.map((i) => lire(tx, owner, i)));
-        const acteur = lignes[0]!;
-        const cible = cibleId ? (memeEntite ? acteur : lignes[1]!) : undefined;
-
-        const systeme = systemeDe(catalogue, acteur);
-        if (cible && cible.systemId !== acteur.systemId)
-          throw HttpError.badRequest(
-            'La cible appartient à un autre système de jeu',
-            'systeme_different',
-          );
-        const ficheActeur = verifierEtat(systeme, acteur.etat).fiche;
-        const ficheCible = cible
-          ? memeEntite
-            ? ficheActeur
-            : verifierEtat(systeme, cible.etat).fiche
-          : undefined;
-
-        const r = resoudreAction(systeme, {
+      // Agir avec un personnage demande de pouvoir le modifier ; la cible doit
+      // être lisible, et modifiable si les conséquences lui sont appliquées
+      const demandes: { id: string; mode: Mode }[] = [{ id, mode: 'ecriture' }];
+      if (cibleId && cibleId !== id)
+        demandes.push({ id: cibleId, mode: appliquer ? 'ecriture' : 'lecture' });
+      const role = await autoriser(db, deps.droits, moi(req), demandes);
+      return jouerAction(
+        deps,
+        contexte(req),
+        { userId: moi(req), role },
+        {
+          id,
           action,
-          acteur: ficheActeur,
-          ...(ficheCible ? { cible: ficheCible } : {}),
-          memeEntite,
           ...(parametres ? { parametres } : {}),
+          ...(cibleId ? { cibleId } : {}),
           appliquer,
-          aleatoire: deps.aleatoire(),
-        });
-
-        const details = { details: { action, cibleId: cibleId ?? null } };
-        const acteurFinal = r.acteur
-          ? await enregistrer(
-              tx,
-              ctx,
-              catalogue,
-              owner,
-              acteur,
-              { etat: r.acteur },
-              { operation: 'action', ...details },
-            )
-          : acteur;
-        const cibleFinale =
-          r.cible && cible
-            ? await enregistrer(
-                tx,
-                ctx,
-                catalogue,
-                owner,
-                cible,
-                { etat: r.cible },
-                { operation: 'action.cible', ...details },
-              )
-            : cible;
-
-        await journaliserAction(tx, ctx, owner, id, {
-          action,
-          cibleId: cibleId ?? null,
-          applique: appliquer,
-          resultat: r.resultat,
-        });
-
-        if (!appliquer) return { resultat: r.resultat };
-        return {
-          resultat: r.resultat,
-          personnage: api(acteurFinal),
-          ...(cibleFinale ? { cible: api(memeEntite ? acteurFinal : cibleFinale) } : {}),
-        };
-      });
+        },
+      );
     },
   );
 };

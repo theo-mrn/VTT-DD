@@ -13,6 +13,7 @@ import { buildCharacter } from '../app.js';
 import { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { characters, outbox } from '../db/schema.js';
+import type { Droits, DroitsSalles } from '../droits/campaign.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -43,7 +44,26 @@ export function aleatoirePilote() {
   return { generateur, imposer };
 }
 
-export async function appDeTest(surcharges: Record<string, string> = {}) {
+/**
+ * Droits de salle simulés (à la place de campaign) : `accorder(characterId,
+ * userId, droits)` ouvre la lecture ou l'écriture d'un personnage à un
+ * utilisateur qui ne le possède pas.
+ */
+export function droitsSimules() {
+  const table = new Map<string, Droits>();
+  const droits: DroitsSalles = {
+    de: async (characterId, userId) =>
+      table.get(`${characterId}:${userId}`) ?? { lecture: false, ecriture: false },
+  };
+  const accorder = (characterId: string, userId: string, d: Droits) =>
+    table.set(`${characterId}:${userId}`, d);
+  return { droits, accorder };
+}
+
+export async function appDeTest(
+  surcharges: Record<string, string> = {},
+  options: { droits?: DroitsSalles } = {},
+) {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connexion = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
   const des = aleatoirePilote();
@@ -60,6 +80,7 @@ export async function appDeTest(surcharges: Record<string, string> = {}) {
       authKeyResolver: async () => publicKey,
       aleatoire: () => des.generateur,
       ...(connexion ? { db: connexion.db } : {}),
+      ...(options.droits ? { droits: options.droits } : {}),
     },
   );
 
