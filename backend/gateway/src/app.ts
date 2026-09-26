@@ -31,7 +31,7 @@ export const ROUTES = {
   '/v1/friends': 'UPSTREAM_IDENTITY_URL',
   '/v1/titles': 'UPSTREAM_IDENTITY_URL',
   '/v1/billing': 'UPSTREAM_BILLING_URL',
-  '/v1/rooms': 'UPSTREAM_CAMPAIGN_URL',
+  '/v1/campaigns': 'UPSTREAM_CAMPAIGN_URL',
   '/v1/systems': 'UPSTREAM_CHARACTER_URL',
   '/v1/characters': 'UPSTREAM_CHARACTER_URL',
   '/v1/history': 'UPSTREAM_HISTORY_URL',

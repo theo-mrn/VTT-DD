@@ -48,21 +48,30 @@ const token = () =>
 describe('gateway', () => {
   it('protège les routes proxifiées', async () => {
     const app = await gateway();
-    const res = await app.inject({ url: '/v1/rooms/r1' });
+    const res = await app.inject({ url: '/v1/campaigns/c1' });
     expect(res.statusCode).toBe(401);
   });
 
   it('proxifie avec jeton et propage la corrélation', async () => {
     const app = await gateway();
     const res = await app.inject({
-      url: '/v1/rooms/r1',
+      url: '/v1/campaigns/c1',
       headers: { authorization: `Bearer ${await token()}`, 'x-correlation-id': 'corr-42' },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ path: '/v1/rooms/r1' });
+    expect(res.json()).toEqual({ path: '/v1/campaigns/c1' });
     expect(lastHeaders['x-correlation-id']).toBe('corr-42');
     expect(lastHeaders['x-forwarded-user']).toBe('user-1');
     expect(lastHeaders['x-request-id']).toBeDefined();
+  });
+
+  it("ne relaie plus l'ancien préfixe /v1/rooms", async () => {
+    const app = await gateway();
+    const res = await app.inject({
+      url: '/v1/rooms/r1',
+      headers: { authorization: `Bearer ${await token()}` },
+    });
+    expect(res.statusCode).toBe(404);
   });
 
   it("laisse passer l'authentification sans jeton", async () => {

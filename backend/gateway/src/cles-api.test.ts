@@ -82,12 +82,12 @@ describe("gateway : clés d'API", () => {
   it('échange « ApiKey » contre « Bearer » et relaie vers le service', async () => {
     const app = await gateway();
     const res = await app.inject({
-      url: '/v1/rooms/r1',
+      url: '/v1/campaigns/c1',
       headers: { authorization: `ApiKey ${CLE_VALIDE}`, 'x-internal-secret': 'forge' },
     });
     expect(res.statusCode).toBe(200);
     expect(echanges).toEqual([{ secret: SECRET, key: CLE_VALIDE }]);
-    expect(relaye!.url).toBe('/v1/rooms/r1');
+    expect(relaye!.url).toBe('/v1/campaigns/c1');
     expect(relaye!.headers.authorization).toMatch(/^Bearer ey/);
     expect(relaye!.headers['x-forwarded-user']).toBe('user-api');
     // Le secret envoyé par le client n'est jamais relayé
@@ -105,7 +105,7 @@ describe("gateway : clés d'API", () => {
     const app = await gateway();
     const requetes = await Promise.all(
       Array.from({ length: 5 }, () =>
-        app.inject({ url: '/v1/rooms/r1', headers: { authorization: `ApiKey ${CLE_VALIDE}` } }),
+        app.inject({ url: '/v1/campaigns/c1', headers: { authorization: `ApiKey ${CLE_VALIDE}` } }),
       ),
     );
     expect(requetes.map((r) => r.statusCode)).toEqual([200, 200, 200, 200, 200]);
@@ -118,12 +118,12 @@ describe("gateway : clés d'API", () => {
   it('refuse une clé révoquée ou mal formée', async () => {
     const app = await gateway();
     const revoquee = await app.inject({
-      url: '/v1/rooms/r1',
+      url: '/v1/campaigns/c1',
       headers: { authorization: `ApiKey ${CLE_REVOQUEE}` },
     });
     expect(revoquee.statusCode).toBe(401);
     const malFormee = await app.inject({
-      url: '/v1/rooms/r1',
+      url: '/v1/campaigns/c1',
       headers: { authorization: 'ApiKey pas une clé' },
     });
     expect(malFormee.statusCode).toBe(401);
@@ -136,14 +136,14 @@ describe("gateway : clés d'API", () => {
   it('refuse les clés d’API sans INTERNAL_API_SECRET', async () => {
     const app = await gateway({});
     const res = await app.inject({
-      url: '/v1/rooms/r1',
+      url: '/v1/campaigns/c1',
       headers: { authorization: `ApiKey ${CLE_VALIDE}` },
     });
     expect(res.statusCode).toBe(401);
     expect(echanges).toHaveLength(0);
     // Le Bearer reste accepté
     const bearer = await app.inject({
-      url: '/v1/rooms/r1',
+      url: '/v1/campaigns/c1',
       headers: { authorization: `Bearer ${await jeton('u1', ['user'])}` },
     });
     expect(bearer.statusCode).toBe(200);
@@ -226,7 +226,7 @@ describe('cache des jetons', () => {
 
 describe('détection des routes internes', () => {
   it('laisse passer les routes publiques ordinaires', () => {
-    expect(estInterne('/v1/rooms/internal')).toBe(false);
+    expect(estInterne('/v1/campaigns/internal')).toBe(false);
     expect(estInterne('/v1/api-keys?x=/internal')).toBe(false);
     expect(estInterne('/internal')).toBe(true);
     expect(estInterne('//internal/x')).toBe(true);
