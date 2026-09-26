@@ -19,7 +19,8 @@
     "dev:down": "docker compose -f infra/local/docker-compose.yml --profile \"*\" down",
     "dev:legacy": "pnpm --filter @vtt/legacy dev",
     "import:personnages": "bash infra/local/import-personnages.sh",
-    "import:campaigns": "bash infra/local/import-campaigns.sh"
+    "import:campaigns": "bash infra/local/import-campaigns.sh",
+    "import:dice": "bash infra/local/import-dice.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
