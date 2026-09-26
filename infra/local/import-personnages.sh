@@ -44,6 +44,8 @@ if [ "$IMPORTER" = 1 ]; then
   etape "Import des personnages"
   node --env-file=backend/character/.env backend/character/dist/import/cli.js \
     --export "$EXPORT" --rapport "$RAPPORT"
+  etape "Avatars encore sur Firebase Storage : rapatriés dans le stockage"
+  node --env-file=backend/character/.env backend/character/dist/import/rapatrier-images.js
 else
   etape "Simulation (rien n'est écrit) — relance avec --importer pour importer"
   node --env-file=backend/character/.env backend/character/dist/import/cli.js \

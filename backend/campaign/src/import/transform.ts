@@ -169,13 +169,13 @@ export function transformCampaign(a: CampaignToImport): MigratedCampaign {
     warn(`Système deviné (${source}) : ${system.id}`);
   }
 
-  // Image : l'URL Firebase Storage est gardée, le fichier n'est pas recopié
+  // Image : l'URL Firebase Storage est recopiée dans le stockage par l'import (cli.ts)
   let imageUrl = toText(s.imageUrl) ?? null;
   if (imageUrl && imageUrl.length > LIMITS.imageUrl) {
     warn(`Image ignorée : URL de plus de ${LIMITS.imageUrl} caractères`);
     imageUrl = null;
   } else if (imageUrl && FIREBASE_HOSTING.test(imageUrl)) {
-    warn('Image conservée sur Firebase Storage : à recopier avant la fermeture du projet');
+    warn('Image sur Firebase Storage : recopiée dans le stockage à l’import');
   }
 
   // Joueurs au plus

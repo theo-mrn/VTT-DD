@@ -36,6 +36,7 @@ import {
   type Mappings,
 } from './loading.js';
 import { transformCampaign } from './transform.js';
+import { imageRehoster, isFirebaseStorage } from './images.js';
 
 const { values } = parseArgs({
   options: {
@@ -49,6 +50,7 @@ if (!values.export || !values.report) {
   process.exit(2);
 }
 const dryRun = values['dry-run'];
+const rehost = dryRun ? undefined : imageRehoster();
 const env = {
   campaign: process.env.DATABASE_URL || undefined,
   identity: process.env.IDENTITY_DATABASE_URL || undefined,
@@ -213,6 +215,24 @@ for (const c of campaigns) {
         });
         if (dryRun) line.status = 'dry-run';
         else {
+          // Image encore sur Firebase Storage : copiée dans notre stockage
+          if (isFirebaseStorage(prep.campaign.campaign.imageUrl)) {
+            if (!rehost)
+              warnings = [
+                ...warnings,
+                'Image laissée sur Firebase Storage : stockage S3 non configuré',
+              ];
+            else
+              try {
+                prep.campaign.campaign.imageUrl = await rehost(prep.campaign.campaign.imageUrl);
+                warnings = warnings.filter((w) => !w.includes('Firebase Storage'));
+              } catch (err) {
+                warnings = [
+                  ...warnings,
+                  `Image non rapatriée (${err instanceof Error ? err.message : String(err)})`,
+                ];
+              }
+          }
           const r = await loadCampaign(base!.db, prep.campaign, c.legacyId, correlationId);
           Object.assign(line, { status: r.status, id: r.id });
           if (r.status === 'imported') {

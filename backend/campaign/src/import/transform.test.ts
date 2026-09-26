@@ -81,7 +81,7 @@ describe('migration d’une campagne', () => {
     });
     expect(m.imageUrl).toMatch(/^https:\/\/firebasestorage/);
     expect(m.warnings).toContain(
-      'Image conservée sur Firebase Storage : à recopier avant la fermeture du projet',
+      'Image sur Firebase Storage : recopiée dans le stockage à l’import',
     );
   });
 
