@@ -628,3 +628,87 @@ describe('briques génériques (4)', () => {
     ]);
   });
 });
+
+describe('briques génériques (5)', () => {
+  const s5saisi: SystemeSaisi = {
+    ...miniD20,
+    sortes: [
+      ...miniD20.sortes!,
+      { id: 'talent', nom: 'Talent', pour: ['personnage'], rangs: { max: 3 } },
+    ],
+    catalogue: [
+      ...miniD20.catalogue!,
+      {
+        id: 'frappe-rapide',
+        sorte: 'talent',
+        nom: 'Frappe rapide',
+        effets: [{ sur: 'jet', si: 'rapide > 0', ajout: { bonus: 'rapide' } }],
+      },
+      { id: 'esquive', sorte: 'talent', nom: 'Esquive' },
+    ],
+    actions: [
+      {
+        id: 'frapper',
+        nom: 'Frapper',
+        pour: ['personnage'],
+        cible: 'personnage',
+        parametres: [
+          { id: 'rapide', nom: 'Frappe rapide', type: 'nombre' },
+          {
+            id: 'esquive',
+            nom: 'Esquive',
+            type: 'booleen',
+            par: 'cible',
+            exige: 'possede("esquive")',
+          },
+        ],
+        jet: { type: 'numerique', formule: '1d20 - si(esquive, 3, 0)' },
+      },
+    ],
+  };
+  const r5 = charger(s5saisi);
+  if (!r5.ok) throw new Error(JSON.stringify(r5.erreurs));
+  const s5 = r5.systeme;
+  const f5 = (e: Partial<EtatEntiteSaisi> = {}) =>
+    calculer(
+      s5,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: s5.source.id, version: '1.0.0' },
+        ...e,
+      }),
+    );
+  const total = (
+    acteur: ReturnType<typeof f5>,
+    cible: ReturnType<typeof f5>,
+    parametres: Record<string, number | boolean>,
+  ) => {
+    const r = executerAction(s5, {
+      action: 'frapper',
+      acteur,
+      cible,
+      parametres,
+      aleatoire: aleatoireImpose([10]),
+    });
+    return r.ok && r.resultat.jet.type === 'numerique'
+      ? r.resultat.jet.total
+      : r.ok
+        ? null
+        : r.erreurs[0]!.message;
+  };
+
+  it('un effet de jet lit un paramètre nombre', () => {
+    const acteur = f5({ possessions: [{ entree: 'frappe-rapide', rang: 1 }] });
+    expect(total(acteur, f5(), { rapide: 2 })).toBe(12);
+    expect(total(acteur, f5(), {})).toBe(10);
+  });
+
+  it('une réaction de la cible dépend des possessions de la cible', () => {
+    expect(
+      total(f5(), f5({ possessions: [{ entree: 'esquive', rang: 1 }] }), { esquive: true }),
+    ).toBe(7);
+    expect(
+      total(f5({ possessions: [{ entree: 'esquive', rang: 1 }] }), f5(), { esquive: true }),
+    ).toBe('Esquive : option non disponible (possede("esquive"))');
+  });
+});

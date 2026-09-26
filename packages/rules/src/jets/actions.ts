@@ -178,7 +178,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const refuser = (message: string) => refus.push({ parametre: p.id, message });
     // Paramètre réservé (option d'un talent) : ignoré s'il n'est pas proposé à l'acteur
     const exige = systeme.formules.get(chemins.action(action.id, `parametres/${p.id}/exige`));
-    if (exige && acteur.evaluer(exige, {}, false) !== true) {
+    const decideur = p.par === 'cible' ? cible : acteur;
+    if (exige && decideur?.evaluer(exige, {}, false) !== true) {
       if (v !== undefined && !(p.type !== 'entree' && p.type !== 'attribut' && v === p.defaut))
         refuser(`${p.nom} : option non disponible (${exige.texte})`);
       v = undefined;
@@ -369,10 +370,12 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
 
   // ─── Effets de jet des possessions actives ────────────────────────────────
 
-  const idsEntree = new Set<string>();
+  /** Paramètres de toutes les actions, avec leur valeur neutre quand l'action courante ne les a pas. */
+  const neutres = new Map<string, Valeur>();
   for (const a of systeme.actions.values())
     for (const p of a.parametres)
-      if (p.type === 'entree' || p.type === 'attribut') idsEntree.add(p.id);
+      if (!neutres.has(p.id))
+        neutres.set(p.id, p.type === 'nombre' ? 0 : p.type === 'booleen' ? false : '');
 
   /** Variables d'un effet : sa source (`rang`, `actif`, `source.x`), l'action et ses entrées. */
   const variablesEffet =
@@ -382,8 +385,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       if (nom === 'actif') return p.actif;
       if (nom.startsWith('source.')) return lireChamp(p, nom.slice('source.'.length));
       if (nom === 'action') return action.id;
-      // Paramètre « entrée » ou « attribut » : sa valeur si l'action l'a, sinon le texte vide
-      if (idsEntree.has(nom)) return typeof parametres[nom] === 'string' ? parametres[nom] : '';
+      // Paramètre de l’action : sa valeur, ou sa valeur neutre si l’action ne l’a pas
+      if (neutres.has(nom)) return parametres[nom] ?? neutres.get(nom)!;
       // Rang et champs d'un paramètre entrée (`arme.competence`) ; neutres si l'action ne l'a pas
       const lu = variables.get(nom);
       if (lu !== undefined) return lu;

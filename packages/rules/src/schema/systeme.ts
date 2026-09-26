@@ -413,7 +413,16 @@ export type DesSymboles = z.output<typeof DesSymboles>;
  * l'acteur (option d'un talent possédé : « subir 2 stress pour… ») ; sinon
  * il garde sa valeur par défaut.
  */
-const ParametreCommun = { id: Cle, nom: Libelle, exige: Formule.optional() };
+const ParametreCommun = {
+  id: Cle,
+  nom: Libelle,
+  exige: Formule.optional(),
+  /**
+   * `cible` : réaction choisie par la cible (Esquive…) ; `exige` est alors
+   * évalué sur la cible. La valeur est fournie avec l'action.
+   */
+  par: z.enum(['acteur', 'cible']).default('acteur'),
+};
 
 const Parametre = z.discriminatedUnion('type', [
   z.object({ ...ParametreCommun, type: z.literal('nombre'), defaut: z.number().default(0) }),

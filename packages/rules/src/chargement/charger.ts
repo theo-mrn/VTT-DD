@@ -496,7 +496,11 @@ class Chargeur {
           // Paramètres des actions : identifiant, et pour une entrée son rang et ses champs
           for (const act of this.actions.values()) {
             for (const p of act.parametres) {
-              if (p.type !== 'entree' && p.type !== 'attribut') continue;
+              // Tout paramètre est lisible ; valeur neutre si l'action n'a pas ce paramètre
+              if (p.type === 'nombre' || p.type === 'booleen') {
+                vars[p.id] ??= p.type;
+                continue;
+              }
               vars[p.id] = 'texte';
               if (p.type !== 'entree') continue;
               vars[`${p.id}.rang`] = 'nombre';
@@ -868,11 +872,14 @@ class Chargeur {
       });
 
       for (const p of a.parametres) {
+        if (p.par === 'cible' && !a.cible) {
+          this.erreur(ch(`parametres/${p.id}`), 'Paramètre de la cible dans une action sans cible');
+        }
         if (p.exige !== undefined) {
           this.compiler(
             ch(`parametres/${p.id}/exige`),
             p.exige,
-            { entite: this.attributsDe(a.pour) },
+            { entite: this.attributsDe(p.par === 'cible' ? (a.cible ?? []) : a.pour) },
             'booleen',
           );
         }
