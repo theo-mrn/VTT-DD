@@ -1,17 +1,21 @@
 'use client';
 
 import { soldes, type Widget } from '@vtt/rules';
-import { ChevronDown, Undo2 } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, Coins, Undo2 } from 'lucide-react';
+import { Fragment, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useSheet } from './context';
-import { Block, SheetEmpty } from './elements';
 import { formatNumber, itemName } from './format';
-import { iconButton, valueBox, focus, text, textAccent, textMuted } from './styles';
+import { WidgetCard } from './frame';
+import { iconButton, focus, text, textAccent, textMuted } from './styles';
 
 type CurrenciesWidget = Extract<Widget, { type: 'monnaies' }>;
 
-/** Soldes des monnaies (total gagné − dépenses du journal) et historique des achats. */
+/**
+ * Soldes des monnaies, repris du bloc « Bourse » de l'ancienne fiche : les
+ * montants en grand, côte à côte, séparés d'un filet ; puis l'historique des
+ * achats (total gagné − dépenses du journal), avec annulation.
+ */
 export function CurrenciesWidget({ widget }: { widget: CurrenciesWidget }) {
   const { system, sheet, state, readOnly, refund } = useSheet();
   const [log, setLog] = useState(false);
@@ -19,34 +23,45 @@ export function CurrenciesWidget({ widget }: { widget: CurrenciesWidget }) {
   const lines = state.journal.map((l, i) => ({ l, i })).reverse();
 
   return (
-    <Block title={widget.titre}>
+    <WidgetCard title={widget.titre} icon={<Coins size={12} aria-hidden />}>
       {list.length ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {list.map((s) => (
-            <div key={s.monnaie.id} className={cn(valueBox, 'px-3 py-2.5')}>
-              <p className={cn(textMuted, 'text-xs uppercase tracking-wide')}>{s.monnaie.nom}</p>
-              <p
-                className={cn(
-                  'text-2xl font-semibold tabular-nums',
-                  s.solde < 0 ? 'text-red-400' : textAccent,
-                )}
+        <div className="flex flex-row items-center justify-around gap-4 overflow-x-auto px-1 py-1">
+          {list.map((s, idx) => (
+            <Fragment key={s.monnaie.id}>
+              {idx > 0 && (
+                <div aria-hidden className="h-8 w-px shrink-0 bg-[color:var(--fiche-bordure)]" />
+              )}
+              <div
+                className="flex min-w-[3rem] flex-col items-center justify-center"
+                title={`${formatNumber(s.total)} gagné${s.total > 1 ? 's' : ''} · ${formatNumber(s.depense)} dépensé${s.depense > 1 ? 's' : ''}`}
               >
-                {formatNumber(s.solde)}
-              </p>
-              <p className={cn(textMuted, 'text-xs tabular-nums')}>
-                {formatNumber(s.total)} gagné{s.total > 1 ? 's' : ''} · {formatNumber(s.depense)}{' '}
-                dépensé{s.depense > 1 ? 's' : ''}
-              </p>
-              {s.erreur && <p className="mt-1 text-xs text-red-300">{s.erreur}</p>}
-            </div>
+                <span
+                  className={cn(
+                    'font-mono text-2xl font-bold leading-none tabular-nums drop-shadow-sm',
+                    s.solde < 0 ? 'text-red-400' : textAccent,
+                  )}
+                >
+                  {formatNumber(s.solde)}
+                </span>
+                <span
+                  className={cn(
+                    textMuted,
+                    'mt-1 whitespace-nowrap text-center text-[10px] font-bold uppercase tracking-wide',
+                  )}
+                >
+                  {s.monnaie.nom}
+                </span>
+                {s.erreur && <span className="mt-1 text-xs text-red-300">{s.erreur}</span>}
+              </div>
+            </Fragment>
           ))}
         </div>
       ) : (
-        <SheetEmpty>Aucune monnaie pour ce type d&apos;entité.</SheetEmpty>
+        <p className={cn(textMuted, 'w-full py-2 text-center text-xs italic opacity-60')}>Vide</p>
       )}
 
       {lines.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-2 border-t border-[color:var(--fiche-bordure)] pt-2">
           <button
             type="button"
             aria-expanded={log}
@@ -95,6 +110,6 @@ export function CurrenciesWidget({ widget }: { widget: CurrenciesWidget }) {
           )}
         </div>
       )}
-    </Block>
+    </WidgetCard>
   );
 }

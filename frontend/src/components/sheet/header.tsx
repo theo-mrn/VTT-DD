@@ -109,7 +109,7 @@ export function SheetHeader({ page }: { page: 'fiche' | 'creation' }) {
   );
 }
 
-function RenameDialog({ open, onClose }: { open: boolean; onClose(): void }) {
+export function RenameDialog({ open, onClose }: { open: boolean; onClose(): void }) {
   const { character, write } = useSheet();
   const [name, setName] = useState(character.nom);
   const [sending, setSending] = useState(false);
@@ -160,7 +160,7 @@ function RenameDialog({ open, onClose }: { open: boolean; onClose(): void }) {
   );
 }
 
-function DeleteDialog({ open, onClose }: { open: boolean; onClose(): void }) {
+export function DeleteDialog({ open, onClose }: { open: boolean; onClose(): void }) {
   const { character } = useSheet();
   const router = useRouter();
   const [sending, setSending] = useState(false);

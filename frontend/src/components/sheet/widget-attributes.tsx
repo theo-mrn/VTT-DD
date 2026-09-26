@@ -3,9 +3,11 @@
 import type { Attribut, Widget } from '@vtt/rules';
 import { cn } from '@/lib/utils';
 import { useSheet } from './context';
-import { Block, Explanation, SheetEmpty } from './elements';
+import { DetailPopover } from './detail-popover';
+import { SheetEmpty } from './elements';
 import { formatSign, formatValue } from './format';
-import { valueBox, field, COLUMNS, focus, text, textAccent, textMuted } from './styles';
+import { WidgetCard } from './frame';
+import { panel, field, COLUMNS, focus, negative, text, textMuted } from './styles';
 
 type AttributesWidget = Extract<Widget, { type: 'attributs' }>;
 
@@ -39,9 +41,9 @@ export function AttributesWidget({ widget }: { widget: AttributesWidget }) {
   const columns = widget.colonnes ?? Math.min(4, Math.max(2, attributes.length));
 
   return (
-    <Block title={widget.titre}>
+    <WidgetCard title={widget.titre} bare>
       {attributes.length ? (
-        <div className={cn('grid gap-2', COLUMNS[columns] ?? COLUMNS[4])}>
+        <div className={cn('grid gap-1 md:gap-2', COLUMNS[columns] ?? COLUMNS[4])}>
           {attributes.map((a) => (
             <AttributeBox key={a.cle} attribute={a} />
           ))}
@@ -49,10 +51,15 @@ export function AttributesWidget({ widget }: { widget: AttributesWidget }) {
       ) : (
         <SheetEmpty>Aucun attribut à afficher.</SheetEmpty>
       )}
-    </Block>
+    </WidgetCard>
   );
 }
 
+/**
+ * Case d'un attribut, comme les caractéristiques de l'ancienne fiche : le
+ * modificateur en grand (s'il existe) et la valeur en petit dessous, sinon la
+ * valeur seule. Le détail du calcul s'ouvre au survol.
+ */
 function AttributeBox({ attribute: a }: { attribute: Attribut }) {
   const { json, readOnly } = useSheet();
   const v = json.valeurs[a.cle];
@@ -65,26 +72,46 @@ function AttributeBox({ attribute: a }: { attribute: Attribut }) {
     a.nature === 'ressource' && v?.max !== undefined
       ? `${formatValue(a, v.valeur)} / ${formatValue(a, v.max)}`
       : formatValue(a, v?.valeur);
+  const mod = v?.modificateur;
 
   return (
-    <Explanation title={a.nom} detail={v?.detail} className="block h-full rounded-xl">
-      <span className={cn(valueBox, 'flex h-full flex-col items-center px-2 py-2.5 text-center')}>
+    <DetailPopover title={a.nom} detail={v?.detail} className="rounded-lg">
+      <span
+        className={cn(
+          panel,
+          'flex h-full min-h-[50px] flex-col items-center justify-center overflow-hidden p-1 text-center',
+        )}
+      >
         <span
-          className={cn(textMuted, 'line-clamp-2 text-[11px] uppercase tracking-wide')}
+          className={cn(textMuted, 'w-full truncate text-xs font-semibold sm:text-sm')}
           title={a.description ?? a.nom}
         >
           {a.abrege ?? a.nom}
         </span>
-        <span className={cn(text, 'mt-1 text-xl font-semibold tabular-nums sm:text-2xl')}>
-          {value}
-        </span>
-        {v?.modificateur !== undefined && (
-          <span className={cn(textAccent, 'text-xs font-medium tabular-nums')}>
-            {formatSign(v.modificateur)}
+        {mod !== undefined ? (
+          <>
+            <span
+              className={cn(
+                'text-lg font-bold leading-none tabular-nums sm:text-xl md:text-2xl',
+                mod < 0 ? negative : text,
+              )}
+            >
+              {formatSign(mod)}
+            </span>
+            <span className={cn(textMuted, 'text-[10px] tabular-nums sm:text-xs')}>{value}</span>
+          </>
+        ) : (
+          <span
+            className={cn(
+              text,
+              'mt-1 text-sm font-bold leading-none tabular-nums sm:text-base md:text-xl',
+            )}
+          >
+            {value}
           </span>
         )}
       </span>
-    </Explanation>
+    </DetailPopover>
   );
 }
 
@@ -94,10 +121,10 @@ function AttributeInput({ attribute: a }: { attribute: Attribut }) {
   const id = `attribut-${a.cle}`;
 
   return (
-    <div className={cn(valueBox, 'flex flex-col items-center gap-1.5 px-2 py-2.5 text-center')}>
+    <div className={cn(panel, 'flex min-h-[50px] flex-col items-center gap-1 p-1 text-center')}>
       <label
         htmlFor={id}
-        className={cn(textMuted, 'text-[11px] uppercase tracking-wide')}
+        className={cn(textMuted, 'text-xs font-semibold sm:text-sm')}
         title={a.description ?? a.nom}
       >
         {a.abrege ?? a.nom}

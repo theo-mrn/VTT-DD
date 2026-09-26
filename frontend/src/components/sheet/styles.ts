@@ -52,3 +52,16 @@ export const COLUMNS: Record<number, string> = {
   5: 'grid-cols-3 sm:grid-cols-5',
   6: 'grid-cols-3 sm:grid-cols-6',
 };
+
+// ─── Reprise de l'ancienne fiche ─────────────────────────────────────────────
+
+/** Case de l'ancienne fiche (caractéristique, jauge, carte) : fond de carte, bordure fine. */
+export const panel =
+  'rounded-lg border border-[color:var(--fiche-bordure)] bg-[color:var(--fiche-carte)]';
+
+/** Petit titre de bloc de l'ancienne fiche (« Bourse », « Effets actifs »). */
+export const widgetLabel =
+  'flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[color:var(--fiche-texte-secondaire)]';
+
+/** Couleur des valeurs négatives (modificateur, solde). */
+export const negative = 'text-red-500';
