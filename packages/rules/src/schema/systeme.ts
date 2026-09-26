@@ -51,6 +51,13 @@ export const Attribut = z.discriminatedUnion('nature', [
     min: Formule.optional(),
     max: Formule.optional(),
     modificateur: Modificateur,
+    /**
+     * Qui saisit librement la valeur une fois la création terminée :
+     * `creation` personne (elle s'achète ensuite), `jeu` le propriétaire ou le
+     * MJ (crédits, bourse), `mj` le MJ seul (XP gagnée, niveau). Pendant la
+     * création, le propriétaire la saisit toujours.
+     */
+    saisie: z.enum(['creation', 'jeu', 'mj']).default('creation'),
   }),
   z.object({
     ...AttributCommun,
@@ -222,6 +229,17 @@ export const Sorte = z.object({
   activable: z.boolean().default(false),
   /** État d'une entrée activable obtenue sans possession explicite (capacité à activer : Rage…). */
   actifParDefaut: z.boolean().default(true),
+  /**
+   * Une même entrée peut être possédée plusieurs fois (deux dagues, deux
+   * Obligations du même type) : chaque possession est un exemplaire, avec son
+   * état actif, ses champs, ses effets et sa durée. Interdit avec `rangs`.
+   */
+  exemplaires: z.boolean().default(false),
+  /**
+   * Une possession porte une quantité (munitions, stimpacks) : `somme` la
+   * multiplie par le champ, `quantite("sorte")` l'additionne. Interdit avec `rangs`.
+   */
+  quantites: z.boolean().default(false),
   champs: z.array(Champ).default([]),
 });
 export type Sorte = z.output<typeof Sorte>;

@@ -23,6 +23,10 @@ export interface PossessionJson {
   actif: boolean;
   /** Possédée au sens des règles (rang 1 minimum pour une entrée à rangs). */
   effective: boolean;
+  /** Nombre d'exemplaires (possessions explicites ; 1 pour une entrée obtenue par effet). */
+  exemplaires: number;
+  /** Somme des quantités des exemplaires. */
+  quantite: number;
   sources: string[];
   marques: string[];
 }
@@ -60,6 +64,8 @@ export function ficheJson(fiche: Fiche): FicheJson {
       achete: p.achete,
       actif: p.actif,
       effective: !p.sorte.rangs || p.rang > 0,
+      exemplaires: Math.max(1, p.exemplaires.length),
+      quantite: p.quantite,
       sources: p.sources,
       marques: [...(fiche.marques.get(p.entree.id) ?? [])],
     })),

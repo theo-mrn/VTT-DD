@@ -74,3 +74,30 @@ export function attributsVises(
     .map((c) => entite.attributs.get(c))
     .filter((a): a is Attribut => a !== undefined);
 }
+
+/** Qui demande une saisie libre : le propriétaire de l'entité, le MJ, ou les deux. */
+export interface Saisisseur {
+  proprietaire: boolean;
+  mj: boolean;
+}
+
+/**
+ * Raison pour laquelle un attribut ne se saisit pas librement, `undefined` s'il
+ * se saisit. Texte, choix, booléen et ressource se saisissent toujours ; une
+ * dérivée jamais. Un attribut de base se saisit pendant la création, puis
+ * selon sa `saisie` : `jeu` (propriétaire ou MJ), `mj` (MJ seul), `creation`
+ * (plus du tout : il s'achète).
+ */
+export function refusSaisie(a: Attribut, creation: boolean, qui: Saisisseur): string | undefined {
+  if (!qui.proprietaire && !qui.mj) return `${a.nom} : saisie non autorisée`;
+  if (a.nature === 'derivee') return `${a.nom} est calculé, il ne se saisit pas`;
+  if (a.nature !== 'base' || creation) return undefined;
+  switch (a.saisie) {
+    case 'jeu':
+      return undefined;
+    case 'mj':
+      return qui.mj ? undefined : `${a.nom} ne se saisit en jeu que par le MJ`;
+    case 'creation':
+      return `${a.nom} ne se saisit que pendant la création (ensuite, il s’achète)`;
+  }
+}

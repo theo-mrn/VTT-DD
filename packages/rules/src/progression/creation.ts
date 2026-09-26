@@ -19,7 +19,7 @@ import type {
   EtatEntite,
 } from '../schema/index.js';
 import { acheter, type DemandeAchat, type ResultatAchat } from './achats.js';
-import { nouvellePossession } from '../schema/index.js';
+import { estExemplaire, nouvellePossession, nouvelExemplaire } from '../schema/index.js';
 import { detailSolde } from './monnaies.js';
 import {
   attributsVises,
@@ -55,6 +55,11 @@ interface Examen {
 /** Entrée retenue à une étape « choisir », avec ses choix éventuels. */
 export interface Selection {
   entree: string;
+  /**
+   * Exemplaire (sorte `exemplaires` : deux Obligations du même type). Une
+   * même entrée choisie plusieurs fois sans identifiant reçoit `2`, `3`…
+   */
+  exemplaire?: string;
   /** Entrées retenues pour chaque choix de l'entrée (par identifiant de choix). */
   choix?: Record<string, string[]>;
 }
@@ -402,7 +407,21 @@ export function choisirEtape(
     );
   }
   const ids = selection.map((s) => s.entree);
-  if (new Set(ids).size !== ids.length) erreurs.push(`${et.nom} : entrée choisie deux fois`);
+  const multiples = systeme.sortes.get(et.sorte)?.exemplaires ?? false;
+  if (!multiples && new Set(ids).size !== ids.length)
+    erreurs.push(`${et.nom} : entrée choisie deux fois`);
+  // Exemplaires : un identifiant généré pour chaque doublon qui n'en donne pas
+  const retenus: Selection[] = [];
+  for (const s of selection) {
+    const exemplaire =
+      s.exemplaire ??
+      (retenus.some((r) => estExemplaire(r, s.entree, undefined))
+        ? nouvelExemplaire([...retenus, ...selection], s.entree)
+        : undefined);
+    if (retenus.some((r) => estExemplaire(r, s.entree, exemplaire)))
+      erreurs.push(`${et.nom} : exemplaire « ${exemplaire} » choisi deux fois`);
+    retenus.push({ ...s, ...(exemplaire !== undefined ? { exemplaire } : {}) });
+  }
   for (const s of selection) {
     const e = systeme.entrees.get(s.entree);
     if (!e) erreurs.push(`Entrée inconnue : ${s.entree}`);
@@ -427,9 +446,15 @@ export function choisirEtape(
   suivant.possessions = suivant.possessions.filter(
     (q) => systeme.entrees.get(q.entree)?.sorte !== et.sorte,
   );
-  for (const s of selection) {
-    const existante = etat.possessions.find((q) => q.entree === s.entree);
-    const poss = existante ? copierPossession(existante) : nouvellePossession(s.entree);
+  for (const s of retenus) {
+    const existante = etat.possessions.find((q) => estExemplaire(q, s.entree, s.exemplaire));
+    const poss = existante
+      ? copierPossession(existante)
+      : nouvellePossession(
+          s.entree,
+          0,
+          s.exemplaire !== undefined ? { exemplaire: s.exemplaire } : {},
+        );
     if (s.choix)
       poss.choix = Object.fromEntries(Object.entries(s.choix).map(([k, v]) => [k, [...v]]));
     suivant.possessions.push(poss);

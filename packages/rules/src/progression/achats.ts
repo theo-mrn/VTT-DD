@@ -9,16 +9,22 @@
  *   (rangs achetés + rangs gratuits d'effets, de choix ou de nœuds) ; pour une
  *   nouvelle entrée, 0 ;
  * - `cible` : `actuel + 1` ;
- * - `nombre` : nombre d'entrées de la sorte visée déjà possédées (0 pour un
- *   attribut) ;
+ * - `nombre` : nombre d'exemplaires de la sorte visée déjà possédés (0 pour
+ *   un attribut) ;
  * - `creation` : vrai tant que la création n'est pas terminée ;
  * - `marque("m")` : vrai si l'entrée visée porte la marque `m`.
  *
  * Le plafond borne `cible` ; pour l'achat d'une nouvelle entrée, il borne le
  * nombre d'entrées de la sorte après achat (`nombre + 1`). Le coût d'un nœud
  * est la formule du nœud (variables `x`, `y`) plus le coût de l'achat.
+ *
+ * Achat d'une entrée déjà possédée (`obtient: entree`) : une unité de plus sur
+ * le dernier exemplaire pour une sorte `quantites`, sinon un nouvel exemplaire
+ * pour une sorte `exemplaires` ; sinon l'achat est bloqué (`deja`). Le
+ * `maximum` de la sorte compte les exemplaires.
  */
-import { calculer, type Fiche } from '../calcul/index.js';
+import { calculer, type Fiche, type PossessionEffective } from '../calcul/index.js';
+import { donnerEntree, retirerEntree } from '../jets/modifications.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
 import type { FormuleVerifiee, Valeur } from '../formules/index.js';
 import type {
@@ -74,9 +80,16 @@ export interface ObjetAchetable {
   blocages: Blocage[];
   /** Entrée obtenue (rang, entrée ou nœud). */
   entree?: string;
+  /**
+   * Achat d'une entrée : nouvelle possession, nouvel exemplaire d'une entrée
+   * déjà possédée (sorte `exemplaires`), ou une unité de plus (sorte `quantites`).
+   */
+  mode?: ModeAchatEntree;
   arbre?: string;
   noeud?: string;
 }
+
+export type ModeAchatEntree = 'nouvelle' | 'exemplaire' | 'quantite';
 
 export interface AchatDisponible {
   achat: Achat;
@@ -110,6 +123,7 @@ interface Candidat {
   nombre: number;
   /** Déjà possédé (entrée) ou acquis (nœud). */
   deja: boolean;
+  mode?: ModeAchatEntree;
   attribut?: Attribut;
   entree?: Entree;
   sorte?: Sorte;
@@ -126,10 +140,20 @@ function monnaieValide(fiche: Fiche, achat: Achat): boolean {
   return !!fiche.systeme.monnaies.get(achat.monnaie)?.pour.includes(fiche.etat.type);
 }
 
+/** Exemplaires possédés d'une sorte (une entrée obtenue par effet compte pour un). */
 function compteSorte(fiche: Fiche, sorte: string): number {
   let n = 0;
-  for (const p of fiche.possessions.values()) if (p.sorte.id === sorte) n++;
+  for (const p of fiche.possessions.values())
+    if (p.sorte.id === sorte) n += Math.max(1, p.exemplaires.length);
   return n;
+}
+
+/** Ce que donnerait l'achat d'une entrée, selon ce qui est déjà possédé ; `undefined` : rien. */
+function modeEntree(p: PossessionEffective | undefined, sorte: Sorte): ModeAchatEntree | undefined {
+  if (!p) return 'nouvelle';
+  if (sorte.quantites && p.exemplaires.length) return 'quantite';
+  if (sorte.exemplaires || sorte.quantites) return 'exemplaire';
+  return undefined;
 }
 
 function candidats(fiche: Fiche, achat: Achat): Candidat[] {
@@ -167,13 +191,15 @@ function candidats(fiche: Fiche, achat: Achat): Candidat[] {
         .filter((e) => e.sorte === sorte.id)
         .map((e) => {
           const p = fiche.possessions.get(e.id);
+          const mode = o.type === 'entree' ? modeEntree(p, sorte) : undefined;
           return {
             type: o.type,
             objet: e.id,
             nom: e.nom,
             actuel: o.type === 'rang' ? (p?.rang ?? 0) : 0,
             nombre,
-            deja: o.type === 'entree' && !!p,
+            deja: o.type === 'entree' && !mode,
+            ...(mode ? { mode } : {}),
             entree: e,
             sorte,
           };
@@ -250,7 +276,8 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
     if (exige && vrai(exige, 'Prérequis') === false)
       bloquer('exige', `Prérequis non rempli pour ${c.entree.nom} : ${exige.texte}`);
     const maximum = c.sorte.maximum;
-    if (!fiche.possessions.has(c.entree.id) && maximum !== undefined && c.nombre >= maximum)
+    const nouvelle = !fiche.possessions.has(c.entree.id) || c.mode === 'exemplaire';
+    if (nouvelle && maximum !== undefined && c.nombre >= maximum)
       bloquer(
         'maximum',
         `Maximum de ${maximum} ${c.sorte.nomPluriel ?? c.sorte.nom} atteint (${c.nombre})`,
@@ -315,6 +342,7 @@ function examiner(fiche: Fiche, achat: Achat, c: Candidat, disponible: number): 
     possible: blocages.length === 0,
     blocages,
     ...(c.entree ? { entree: c.entree.id } : {}),
+    ...(c.mode ? { mode: c.mode } : {}),
     ...(c.arbre && c.noeud ? { arbre: c.arbre.id, noeud: c.noeud.id } : {}),
   };
 }
@@ -386,11 +414,10 @@ export function acheter(
       else suivant.possessions.push(nouvellePossession(o.objet, 1));
       break;
     }
-    case 'entree': {
-      const sorte = systeme.sortes.get(systeme.entrees.get(o.objet)!.sorte)!;
-      suivant.possessions.push(nouvellePossession(o.objet, sorte.rangs ? 1 : 0));
+    case 'entree':
+      // Nouvelle possession, nouvel exemplaire ou une unité de plus
+      suivant.possessions = donnerEntree(systeme, suivant.possessions, o.objet, { rangs: 1 });
       break;
-    }
     case 'noeud':
       suivant.noeuds[o.arbre!] = [...(suivant.noeuds[o.arbre!] ?? []), o.noeud!];
       break;
@@ -471,8 +498,11 @@ export function rembourser(
       break;
     }
     case 'entree': {
-      const i = suivant.possessions.map((p) => p.entree).lastIndexOf(ligne.objet);
-      if (i < 0) return { ok: false, erreur: `${ligne.objet} n’est pas possédé` };
+      if (!suivant.possessions.some((p) => p.entree === ligne.objet))
+        return { ok: false, erreur: `${ligne.objet} n’est pas possédé` };
+      // Une unité de moins, ou le dernier exemplaire retiré
+      suivant.possessions = retirerEntree(systeme, suivant.possessions, ligne.objet, { rangs: 1 });
+      if (suivant.possessions.some((p) => p.entree === ligne.objet)) break;
       for (const arbre of systeme.arbres.values()) {
         if (arbre.ouvertPar === ligne.objet && suivant.noeuds[arbre.id]?.length)
           return {
@@ -480,7 +510,6 @@ export function rembourser(
             erreur: `Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${ligne.objet}`,
           };
       }
-      suivant.possessions.splice(i, 1);
       break;
     }
     case 'noeud': {

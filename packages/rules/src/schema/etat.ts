@@ -5,8 +5,22 @@
 import { z } from 'zod';
 import { Cle, Effet, Id } from './systeme.js';
 
+/**
+ * Possession d'une entrée par l'entité. Une entrée d'une sorte sans rangs
+ * déclarée `exemplaires` peut être possédée plusieurs fois : chaque
+ * possession est alors un exemplaire, distingué par `exemplaire` (unique par
+ * entrée ; absent : l'exemplaire historique, unique). Une entrée à rangs n'a
+ * qu'une possession, dont les rangs s'additionnent.
+ */
 export const Possession = z.object({
   entree: Id,
+  /** Identifiant de l'exemplaire, unique par entrée ; absent : exemplaire unique historique. */
+  exemplaire: Id.optional(),
+  /**
+   * Nombre d'unités de l'exemplaire (munitions, stimpacks) pour une sorte
+   * `quantites` ; absent : 1. `somme` et `somme_actifs` multiplient le champ par la quantité.
+   */
+  quantite: z.number().int().positive().optional(),
   /** Rangs achetés (hors rangs gratuits donnés par des effets). */
   rang: z.number().int().nonnegative().default(0),
   /** Équipée / active (sortes `activable`). */
@@ -32,6 +46,39 @@ export function nouvellePossession(
   extra: Partial<Possession> = {},
 ): Possession {
   return { entree, rang, actif: true, choix: {}, champs: {}, effets: [], ...extra };
+}
+
+/** Quantité d'une possession (1 si elle n'en déclare pas). */
+export function quantiteDe(p: Pick<Possession, 'quantite'>): number {
+  return p.quantite ?? 1;
+}
+
+/** Même entrée et même exemplaire (absent désigne l'exemplaire sans identifiant). */
+export function estExemplaire(
+  p: Pick<Possession, 'entree' | 'exemplaire'>,
+  entree: string,
+  exemplaire?: string,
+): boolean {
+  return p.entree === entree && p.exemplaire === exemplaire;
+}
+
+/**
+ * Identifiant libre pour un nouvel exemplaire d'une entrée : `2`, `3`… (le
+ * premier exemplaire, sans identifiant, compte pour 1).
+ */
+export function nouvelExemplaire(
+  possessions: readonly Pick<Possession, 'entree' | 'exemplaire'>[],
+  entree: string,
+): string {
+  const pris = new Set(possessions.filter((p) => p.entree === entree).map((p) => p.exemplaire));
+  let n = 2;
+  while (pris.has(String(n))) n++;
+  return String(n);
+}
+
+/** Identifiant de source des effets propres d'un exemplaire : `entree#exemplaire` ou `entree#<id>`. */
+export function sourceExemplaire(p: Pick<Possession, 'entree' | 'exemplaire'>): string {
+  return `${p.entree}#${p.exemplaire ?? 'exemplaire'}`;
 }
 
 /**

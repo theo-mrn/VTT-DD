@@ -252,6 +252,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
               rang: 0,
               achete: 0,
               actif: true,
+              exemplaires: [],
+              quantite: 1,
               sources: [],
             },
           );

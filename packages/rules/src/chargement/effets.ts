@@ -13,7 +13,14 @@ import {
 } from '../formules/index.js';
 import { Effet, type Action, type Entree, type Sorte } from '../schema/index.js';
 import type { SystemeCharge } from './charger.js';
-import { env, typeAttribut, typeChamp, type Attributs, type OptionsEnv } from './environnements.js';
+import {
+  AGREGATS,
+  env,
+  typeAttribut,
+  typeChamp,
+  type Attributs,
+  type OptionsEnv,
+} from './environnements.js';
 
 export interface ContexteEffets {
   compiler(
@@ -33,7 +40,11 @@ export interface ContexteEffets {
 
 /** Variables d'un effet porté par une entrée : son rang, son état et ses champs. */
 export function variablesSource(sorte: Sorte | undefined): Record<string, TypeValeur> {
-  const variables: Record<string, TypeValeur> = { rang: 'nombre', actif: 'booleen' };
+  const variables: Record<string, TypeValeur> = {
+    rang: 'nombre',
+    actif: 'booleen',
+    quantite: 'nombre',
+  };
   for (const c of sorte?.champs ?? []) {
     const t = typeChamp(c);
     if (t) variables[`source.${c.id}`] = t;
@@ -222,9 +233,7 @@ export function compilerEffets(
       // Arguments littéraux des agrégats : sorte, entrée et marque existantes
       for (const appel of appelsLitteraux(r.formule.noeud)) {
         const [a, b] = appel.args;
-        if (
-          ['compte', 'somme', 'compte_actifs', 'somme_actifs', 'somme_rangs'].includes(appel.fn)
-        ) {
+        if (AGREGATS.includes(appel.fn)) {
           if (a !== undefined && !systeme.sortes.has(a))
             erreurs.push({ chemin: ch, message: `Sorte inconnue : ${a}` });
         }

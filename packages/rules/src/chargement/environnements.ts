@@ -46,15 +46,24 @@ export function typeChamp(c: Champ): TypeValeur | undefined {
   }
 }
 
-/** Fonctions d'agrégat sur les possessions de l'entité, disponibles partout où une entité est lue. */
+/**
+ * Fonctions d'agrégat sur les possessions de l'entité, disponibles partout où une entité est lue.
+ * Chaque exemplaire d'une entrée compte ; une entrée possédée sans possession
+ * explicite (rang gratuit, choix) compte comme un exemplaire de quantité 1.
+ */
 export const FONCTIONS_ENTITE: Record<string, SignatureFonction> = {
-  /** Nombre d'entrées possédées d'une sorte : `compte("specialisation")`. */
+  /** Nombre d'exemplaires possédés d'une sorte : `compte("specialisation")`. */
   compte: { args: ['texte'], retour: 'nombre' },
-  /** Somme d'un champ numérique sur les entrées possédées : `somme("obligation", "valeur")`. */
+  /**
+   * Somme d'un champ numérique sur les exemplaires possédés, chacun multiplié
+   * par sa quantité : `somme("obligation", "valeur")`, `somme("objet", "encombrement")`.
+   */
   somme: { args: ['texte', 'texte'], retour: 'nombre' },
-  /** Variantes limitées aux entrées actives (équipées) : `compte_actifs("armure")`. */
+  /** Variantes limitées aux exemplaires actifs (équipés) : `compte_actifs("armure")`. */
   compte_actifs: { args: ['texte'], retour: 'nombre' },
   somme_actifs: { args: ['texte', 'texte'], retour: 'nombre' },
+  /** Somme des quantités des exemplaires possédés d'une sorte : `quantite("munition")`. */
+  quantite: { args: ['texte'], retour: 'nombre' },
   /** Somme des rangs des entrées possédées d'une sorte : `somme_rangs("blessure_critique")`. */
   somme_rangs: { args: ['texte'], retour: 'nombre' },
   /** Étiquette d'une entrée du catalogue : `a_etiquette(arme, "hache")`. */
@@ -62,6 +71,16 @@ export const FONCTIONS_ENTITE: Record<string, SignatureFonction> = {
   /** Marque posée sur une entrée : `marquee("athletisme", "carriere")`. */
   marquee: { args: ['texte', 'texte'], retour: 'booleen' },
 };
+
+/** Agrégats dont le premier argument littéral est une sorte (vérifiée au chargement). */
+export const AGREGATS = [
+  'compte',
+  'somme',
+  'compte_actifs',
+  'somme_actifs',
+  'somme_rangs',
+  'quantite',
+];
 
 /** Table d'attributs (un ou plusieurs types d'entité, qui doivent alors s'accorder). */
 export type Attributs = Map<string, Attribut>;

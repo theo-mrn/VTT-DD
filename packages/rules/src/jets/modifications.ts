@@ -6,7 +6,13 @@
  */
 import type { Fiche } from '../calcul/index.js';
 import type { SystemeCharge } from '../chargement/index.js';
-import { nouvellePossession, type EtatEntite } from '../schema/index.js';
+import {
+  estExemplaire,
+  nouvellePossession,
+  nouvelExemplaire,
+  quantiteDe,
+  type EtatEntite,
+} from '../schema/index.js';
 
 export interface ModificationAttribut {
   /** Entité touchée : l'acteur ou la cible de l'action. */
@@ -21,13 +27,19 @@ export interface ModificationAttribut {
   brut?: number;
 }
 
-/** Entrée donnée ou retirée (état, blessure…), avec une durée éventuelle en rounds. */
+/**
+ * Entrée donnée ou retirée (état, blessure…), avec une durée éventuelle en rounds.
+ * `rangs` : rangs d'une entrée à rangs, unités d'une sorte à quantités ;
+ * ignoré sinon (un exemplaire à la fois).
+ */
 export interface ModificationEntree {
   entite: 'acteur' | 'cible';
   entree: string;
   operation: 'donner' | 'retirer';
   rangs: number;
   duree?: number;
+  /** Exemplaire visé (sorte `exemplaires`) ; absent : le dernier (retrait) ou un nouveau (don). */
+  exemplaire?: string;
 }
 
 export type Modification = ModificationAttribut | ModificationEntree;
@@ -86,48 +98,114 @@ export function appliquerModifications(
   return { ...fiche.etat, valeurs, possessions };
 }
 
-/** Donne (possession ou rangs) ou retire (rangs, puis possession) une entrée. */
 function modifierPossession(
   systeme: SystemeCharge,
   possessions: EtatEntite['possessions'],
   m: ModificationEntree,
 ): EtatEntite['possessions'] {
-  const entree = systeme.entrees.get(m.entree);
-  if (!entree) throw new Error(`Entrée inconnue : ${m.entree}`);
-  const aRangs = !!systeme.sortes.get(entree.sorte)?.rangs;
+  const o = { rangs: m.rangs, ...(m.duree !== undefined ? { duree: m.duree } : {}) };
+  const x = m.exemplaire !== undefined ? { exemplaire: m.exemplaire } : {};
+  return m.operation === 'donner'
+    ? donnerEntree(systeme, possessions, m.entree, { ...o, ...x })
+    : retirerEntree(systeme, possessions, m.entree, { rangs: m.rangs, ...x });
+}
+
+/**
+ * Donne une entrée et renvoie la nouvelle liste de possessions (l'ancienne
+ * n'est pas touchée). Entrée non possédée : nouvelle possession. Déjà possédée :
+ * - à rangs : `rangs` rangs de plus (une seule possession par entrée) ;
+ * - sorte `quantites` : `rangs` unités de plus sur le dernier exemplaire (ou celui visé) ;
+ * - sorte `exemplaires` : un nouvel exemplaire (identifiant `exemplaire`, ou généré) ;
+ * - sinon : la possession est réactivée et sa durée prolongée.
+ */
+export function donnerEntree(
+  systeme: SystemeCharge,
+  possessions: EtatEntite['possessions'],
+  id: string,
+  o: { rangs?: number; duree?: number; exemplaire?: string } = {},
+): EtatEntite['possessions'] {
+  const entree = systeme.entrees.get(id);
+  if (!entree) throw new Error(`Entrée inconnue : ${id}`);
+  const sorte = systeme.sortes.get(entree.sorte);
+  const aRangs = !!sorte?.rangs;
+  const n = Math.max(0, Math.floor(o.rangs ?? 1));
+  const unites = Math.max(1, n);
   const liste = possessions.map((p) => ({ ...p }));
-  const existante = liste.find((p) => p.entree === m.entree);
-  const rangs = Math.max(0, Math.floor(m.rangs));
+  const siens = liste.filter((p) => p.entree === id);
+  const visee =
+    o.exemplaire !== undefined
+      ? siens.find((p) => estExemplaire(p, id, o.exemplaire))
+      : siens[siens.length - 1];
+  const extra = o.duree !== undefined ? { duree: o.duree } : {};
 
-  if (m.operation === 'donner') {
-    if (existante) {
-      if (aRangs) existante.rang += rangs;
-      existante.actif = true;
-      if (m.duree !== undefined) existante.duree = Math.max(existante.duree ?? 0, m.duree);
-      return liste;
-    }
+  const creer = (exemplaire: string | undefined) =>
     liste.push(
-      nouvellePossession(
-        m.entree,
-        aRangs ? rangs : 0,
-        m.duree !== undefined ? { duree: m.duree } : {},
-      ),
+      nouvellePossession(id, aRangs ? n : 0, {
+        ...extra,
+        ...(exemplaire !== undefined ? { exemplaire } : {}),
+        ...(sorte?.quantites && unites > 1 ? { quantite: unites } : {}),
+      }),
     );
-    return liste;
-  }
 
-  if (!existante) return liste;
-  if (aRangs && existante.rang > rangs) {
-    existante.rang -= rangs;
+  if (!siens.length) {
+    creer(o.exemplaire);
     return liste;
   }
-  return liste.filter((p) => p !== existante);
+  if (!aRangs && sorte?.quantites && visee) {
+    visee.quantite = quantiteDe(visee) + unites;
+    return liste;
+  }
+  // Exemplaire visé absent : il est créé ; aucun visé : un nouveau, identifiant généré
+  if (!aRangs && sorte?.exemplaires && (!visee || o.exemplaire === undefined)) {
+    creer(visee ? nouvelExemplaire(liste, id) : o.exemplaire);
+    return liste;
+  }
+  const cible = aRangs ? siens[0]! : (visee ?? siens[0]!);
+  if (aRangs) cible.rang += n;
+  cible.actif = true;
+  if (o.duree !== undefined) cible.duree = Math.max(cible.duree ?? 0, o.duree);
+  return liste;
+}
+
+/**
+ * Retire une entrée : des rangs (la possession disparaît à 0), des unités
+ * d'une sorte `quantites` (l'exemplaire disparaît à 0), sinon un exemplaire
+ * (celui visé, ou le dernier). Renvoie la nouvelle liste de possessions.
+ */
+export function retirerEntree(
+  systeme: SystemeCharge,
+  possessions: EtatEntite['possessions'],
+  id: string,
+  o: { rangs?: number; exemplaire?: string } = {},
+): EtatEntite['possessions'] {
+  const entree = systeme.entrees.get(id);
+  if (!entree) throw new Error(`Entrée inconnue : ${id}`);
+  const sorte = systeme.sortes.get(entree.sorte);
+  const n = Math.max(0, Math.floor(o.rangs ?? 1));
+  const liste = possessions.map((p) => ({ ...p }));
+  const siens = liste.filter((p) => p.entree === id);
+  const visee =
+    o.exemplaire !== undefined
+      ? siens.find((p) => estExemplaire(p, id, o.exemplaire))
+      : siens[siens.length - 1];
+  if (!visee) return liste;
+  if (sorte?.rangs && visee.rang > n) {
+    visee.rang -= n;
+    return liste;
+  }
+  if (sorte?.quantites && quantiteDe(visee) > Math.max(1, n)) {
+    visee.quantite = quantiteDe(visee) - Math.max(1, n);
+    return liste;
+  }
+  return liste.filter((p) => p !== visee);
 }
 
 /**
  * Applique le résultat d'une table à un état : l'entrée de la ligne (blessure
- * critique, état…) est ajoutée, ou gagne un rang si elle se possède par rangs
- * et est déjà possédée. Renvoie un nouvel état ; sans entrée, l'état est rendu tel quel.
+ * critique, état…) est donnée comme par une conséquence (`donnerEntree`) :
+ * un rang de plus pour une entrée à rangs déjà possédée, une unité ou un
+ * nouvel exemplaire si la sorte l'autorise. Renvoie un nouvel état ; sans
+ * entrée, l'état est rendu tel quel.
  */
 export function appliquerTirage(
   systeme: SystemeCharge,
@@ -135,15 +213,6 @@ export function appliquerTirage(
   tirage: { ligne: { entree?: string | undefined } | null },
 ): EtatEntite {
   const id = tirage.ligne?.entree;
-  const entree = id ? systeme.entrees.get(id) : undefined;
-  if (!id || !entree) return etat;
-  const aRangs = !!systeme.sortes.get(entree.sorte)?.rangs;
-  const possessions = etat.possessions.map((p) => ({ ...p }));
-  const existante = possessions.find((p) => p.entree === id);
-  if (existante) {
-    if (aRangs) existante.rang += 1;
-  } else {
-    possessions.push(nouvellePossession(id, aRangs ? 1 : 0));
-  }
-  return { ...etat, possessions };
+  if (!id || !systeme.entrees.has(id)) return etat;
+  return { ...etat, possessions: donnerEntree(systeme, etat.possessions, id, { rangs: 1 }) };
 }

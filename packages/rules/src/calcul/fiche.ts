@@ -19,14 +19,16 @@ import {
   type FormuleVerifiee,
   type Valeur,
 } from '../formules/index.js';
-import type {
-  Attribut,
-  BonusLibre,
-  Effet,
-  Entree,
-  EtatEntite,
-  Possession,
-  Sorte,
+import {
+  quantiteDe,
+  sourceExemplaire,
+  type Attribut,
+  type BonusLibre,
+  type Effet,
+  type Entree,
+  type EtatEntite,
+  type Possession,
+  type Sorte,
 } from '../schema/index.js';
 
 export type Operation =
@@ -59,11 +61,39 @@ export interface PossessionEffective {
   rang: number;
   /** Rangs achetés (enregistrés dans l'état). */
   achete: number;
+  /** Au moins un exemplaire actif (ou l'état par défaut d'une entrée sans possession explicite). */
   actif: boolean;
-  /** Possession explicite de l'état, si elle existe. */
+  /** Première possession explicite de l'état, si elle existe (ses choix font foi). */
   possession?: Possession;
+  /**
+   * Possessions explicites de l'état pour cette entrée, une par exemplaire
+   * (vide si l'entrée n'est obtenue que par effet, choix ou nœud d'arbre).
+   */
+  exemplaires: Possession[];
+  /** Somme des quantités des exemplaires (1 pour une entrée sans possession explicite). */
+  quantite: number;
   /** D'où vient la possession ou ses rangs gratuits. */
   sources: string[];
+}
+
+/** Un exemplaire tel que le lisent les agrégats : ses champs, son état, sa quantité. */
+export interface ExemplaireEffectif {
+  possession?: Possession;
+  actif: boolean;
+  quantite: number;
+}
+
+/**
+ * Exemplaires d'une possession effective : un par possession explicite, ou un
+ * seul (quantité 1) pour une entrée obtenue par effet, choix ou nœud d'arbre.
+ */
+export function exemplairesDe(p: PossessionEffective): ExemplaireEffectif[] {
+  if (!p.exemplaires.length) return [{ actif: p.actif, quantite: 1 }];
+  return p.exemplaires.map((x) => ({
+    possession: x,
+    actif: p.sorte.activable ? x.actif : true,
+    quantite: quantiteDe(x),
+  }));
 }
 
 /**
@@ -80,9 +110,11 @@ export interface SourceEffets {
   effets: readonly Effet[];
   /** Formule compilée d'un effet (`undefined` si l'effet est invalide et ignoré). */
   formule(i: number, champ: string): FormuleVerifiee | undefined;
-  /** Variables de la source : `rang`, `actif`, `source.<champ>`. */
+  /** Variables de la source : `rang`, `actif`, `quantite`, `source.<champ>`. */
   variable(nom: string): Valeur;
   possession?: PossessionEffective;
+  /** Exemplaire qui porte les effets (genre `exemplaire`). */
+  exemplaire?: Possession;
   bonus?: BonusLibre;
 }
 
@@ -166,24 +198,36 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     return !!p && estEffective(p);
   };
   const rang = (id: string) => possessions.get(id)?.rang ?? 0;
-  const champ = (p: PossessionEffective, c: string): Valeur | undefined => {
-    const v = p.possession?.champs[c] ?? p.entree.champs[c];
+  /** Champ d'un exemplaire (par défaut, la première possession) : exemplaire, entrée, défaut. */
+  const champ = (
+    p: PossessionEffective,
+    c: string,
+    ex: Possession | undefined = p.possession,
+  ): Valeur | undefined => {
+    const v = ex?.champs[c] ?? p.entree.champs[c];
     if (v !== undefined && !Array.isArray(v)) return v;
     const def = p.sorte.champs.find((x) => x.id === c);
     return def && 'defaut' in def && def.defaut !== undefined ? def.defaut : undefined;
   };
 
+  /** Exemplaires des possessions effectives d'une sorte (tous, ou les seuls actifs). */
+  const exemplairesSorte = (sorte: Valeur, actifs: boolean) =>
+    effectives()
+      .filter((p) => p.sorte.id === sorte)
+      .flatMap((p) => exemplairesDe(p).map((x) => ({ p, x })))
+      .filter(({ x }) => !actifs || x.actif);
+  const sommeChamp = (sorte: Valeur, c: Valeur, actifs: boolean) =>
+    exemplairesSorte(sorte, actifs).reduce(
+      (s, { p, x }) => s + (Number(champ(p, String(c), x.possession)) || 0) * x.quantite,
+      0,
+    );
+
   const fonctions: Record<string, (...args: Valeur[]) => Valeur> = {
-    compte: (sorte) => effectives().filter((p) => p.sorte.id === sorte).length,
-    somme: (sorte, c) =>
-      effectives()
-        .filter((p) => p.sorte.id === sorte)
-        .reduce((s, p) => s + (Number(champ(p, String(c))) || 0), 0),
-    compte_actifs: (sorte) => effectives().filter((p) => p.sorte.id === sorte && p.actif).length,
-    somme_actifs: (sorte, c) =>
-      effectives()
-        .filter((p) => p.sorte.id === sorte && p.actif)
-        .reduce((s, p) => s + (Number(champ(p, String(c))) || 0), 0),
+    compte: (sorte) => exemplairesSorte(sorte, false).length,
+    somme: (sorte, c) => sommeChamp(sorte, c, false),
+    compte_actifs: (sorte) => exemplairesSorte(sorte, true).length,
+    somme_actifs: (sorte, c) => sommeChamp(sorte, c, true),
+    quantite: (sorte) => exemplairesSorte(sorte, false).reduce((s, { x }) => s + x.quantite, 0),
     somme_rangs: (sorte) =>
       [...possessions.values()].filter((p) => p.sorte.id === sorte).reduce((s, p) => s + p.rang, 0),
     marquee: (id, m) => marques.get(String(id))?.has(String(m)) ?? false,
@@ -229,15 +273,19 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     }
   };
 
-  /** Variables d'un effet : rang et état de sa source, champs de la source. */
+  /**
+   * Variables d'un effet : rang, état et quantité de sa source, champs de la
+   * source (ceux de l'exemplaire pour des effets propres à un exemplaire).
+   */
   const variablesSource =
-    (p: PossessionEffective) =>
+    (p: PossessionEffective, ex?: Possession) =>
     (nom: string): Valeur => {
       if (nom === 'rang') return p.rang;
-      if (nom === 'actif') return p.actif;
+      if (nom === 'actif') return ex ? !p.sorte.activable || ex.actif : p.actif;
+      if (nom === 'quantite') return ex ? quantiteDe(ex) : p.quantite;
       if (nom.startsWith('source.')) {
         const c = nom.slice('source.'.length);
-        const v = champ(p, c);
+        const v = champ(p, c, ex ?? p.possession);
         const def = p.sorte.champs.find((x) => x.id === c);
         if (def?.type === 'formule') {
           const f = systeme.formules.get(chemins.champ(p.entree.id, c));
@@ -270,19 +318,21 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         possession: p,
       });
     }
-    const propres = p.possession?.effets ?? [];
-    if (propres.length) {
-      const prefixe = `possessions/${p.entree.id}`;
-      const c = effetsCompiles(systeme, etat.type, prefixe, propres, variablesDeSorte(p.sorte));
+    // Effets propres : une source par exemplaire actif qui en porte
+    for (const ex of p.exemplaires) {
+      if (!ex.effets.length || (p.sorte.activable && !ex.actif)) continue;
+      const prefixe = prefixeExemplaire(ex);
+      const c = effetsCompiles(systeme, etat.type, prefixe, ex.effets, variablesDeSorte(p.sorte));
       signaler(c);
       r.push({
-        id: `${p.entree.id}#exemplaire`,
-        nom: p.entree.nom,
+        id: sourceExemplaire(ex),
+        nom: ex.exemplaire ? `${p.entree.nom} (${ex.exemplaire})` : p.entree.nom,
         genre: 'exemplaire',
-        effets: propres,
+        effets: ex.effets,
         formule: (i, x) => c.formules.get(`${prefixe}/effets/${i}/${x}`),
-        variable,
+        variable: variablesSource(p, ex),
         possession: p,
+        exemplaire: ex,
       });
     }
     return r;
@@ -345,9 +395,15 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     if (existante) {
       existante.rang += rangs + (possession?.rang ?? 0);
       if (possession) {
-        existante.possession = possession;
+        // Le premier exemplaire explicite remplace l'état par défaut ; les suivants s'y ajoutent
+        const actif = sorte.activable ? possession.actif : true;
+        existante.actif = existante.exemplaires.length ? existante.actif || actif : actif;
+        existante.quantite = existante.exemplaires.length
+          ? existante.quantite + quantiteDe(possession)
+          : quantiteDe(possession);
+        existante.possession ??= possession;
+        existante.exemplaires.push(possession);
         existante.achete += possession.rang;
-        existante.actif = sorte.activable ? possession.actif : true;
       }
       if (!existante.sources.includes(source)) existante.sources.push(source);
       return;
@@ -359,6 +415,8 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       achete: possession?.rang ?? 0,
       actif: sorte.activable ? (possession?.actif ?? sorte.actifParDefaut) : true,
       ...(possession ? { possession } : {}),
+      exemplaires: possession ? [possession] : [],
+      quantite: possession ? quantiteDe(possession) : 1,
       sources: [source],
     });
   };
@@ -393,6 +451,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
 
   // Rangs gratuits et marques : peuvent donner de nouvelles possessions, qui ont
   // elles-mêmes des effets. On itère jusqu'à stabilité (borné).
+  erreurs.push(...erreursPossessions(systeme, etat));
   let bonus = new Map<string, { rangs: number; sources: string[] }>();
   for (let tour = 0; tour < 10; tour++) {
     construirePossessions();
@@ -734,6 +793,63 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     evaluer: (f, extra, defaut) => evaluerSur(f, extra, defaut),
     sources,
   };
+}
+
+/** Préfixe des chemins d'erreur des effets propres d'un exemplaire. */
+export function prefixeExemplaire(p: Pick<Possession, 'entree' | 'exemplaire'>): string {
+  return p.exemplaire ? `possessions/${p.entree}#${p.exemplaire}` : `possessions/${p.entree}`;
+}
+
+/**
+ * Erreurs de forme des possessions de l'état, au regard des sortes :
+ * - un exemplaire (entrée, identifiant) n'apparaît qu'une fois ;
+ * - plusieurs possessions d'une même entrée demandent une sorte `exemplaires`
+ *   (jamais une sorte à rangs) ;
+ * - une quantité demande une sorte `quantites` ;
+ * - le `maximum` d'une sorte compte les exemplaires.
+ *
+ * Le calcul les liste dans `fiche.erreurs` sans s'arrêter ; le service
+ * character refuse d'enregistrer un état qui en ajoute.
+ */
+export function erreursPossessions(systeme: SystemeCharge, etat: EtatEntite): ErreurCalcul[] {
+  const erreurs: ErreurCalcul[] = [];
+  const vus = new Set<string>();
+  const parEntree = new Map<string, number>();
+  const parSorte = new Map<string, number>();
+  for (const p of etat.possessions) {
+    const entree = systeme.entrees.get(p.entree);
+    const sorte = entree && systeme.sortes.get(entree.sorte);
+    if (!entree || !sorte) continue;
+    const ou = `possessions/${p.entree}${p.exemplaire ? `#${p.exemplaire}` : ''}`;
+    const cle = `${p.entree}#${p.exemplaire ?? ''}`;
+    if (sorte.exemplaires && vus.has(cle))
+      erreurs.push({
+        ou,
+        message: p.exemplaire
+          ? `${entree.nom} : exemplaire « ${p.exemplaire} » en double`
+          : `${entree.nom} : deux exemplaires sans identifiant`,
+      });
+    vus.add(cle);
+    const n = (parEntree.get(p.entree) ?? 0) + 1;
+    parEntree.set(p.entree, n);
+    if (n === 2 && !sorte.exemplaires)
+      erreurs.push({
+        ou,
+        message: sorte.rangs
+          ? `${entree.nom} se possède une seule fois : ses rangs s’additionnent`
+          : `${entree.nom} se possède une seule fois (${sorte.nom} sans exemplaires multiples)`,
+      });
+    if (p.quantite !== undefined && !sorte.quantites)
+      erreurs.push({ ou, message: `${entree.nom} : pas de quantité pour la sorte ${sorte.nom}` });
+    const m = (parSorte.get(sorte.id) ?? 0) + 1;
+    parSorte.set(sorte.id, m);
+    if (sorte.maximum !== undefined && m === sorte.maximum + 1)
+      erreurs.push({
+        ou,
+        message: `Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} dépassé`,
+      });
+  }
+  return erreurs;
 }
 
 /** Possession qui compte : entrée sans rangs, ou entrée à rangs au rang 1 au moins. */

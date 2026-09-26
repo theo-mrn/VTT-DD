@@ -23,7 +23,14 @@ import {
   type TypeEntite,
 } from '../schema/index.js';
 import { verifierEffets, variablesSource, type ContexteEffets } from './effets.js';
-import { env, typeAttribut, typeChamp, type Attributs, type OptionsEnv } from './environnements.js';
+import {
+  AGREGATS,
+  env,
+  typeAttribut,
+  typeChamp,
+  type Attributs,
+  type OptionsEnv,
+} from './environnements.js';
 
 export interface ErreurChargement {
   chemin: string;
@@ -188,7 +195,7 @@ class Chargeur {
       switch (x.t) {
         case 'appel': {
           const lit = x.args.map((a) => (a.t === 'texte' ? a.v : null));
-          if (['compte', 'somme', 'compte_actifs', 'somme_actifs', 'somme_rangs'].includes(x.fn)) {
+          if (AGREGATS.includes(x.fn)) {
             const sorte = lit[0] != null ? this.sortes.get(lit[0]) : undefined;
             if (lit[0] != null && !sorte) this.erreur(chemin, `Sorte inconnue : ${lit[0]}`, x.pos);
             if ((x.fn === 'somme' || x.fn === 'somme_actifs') && sorte && lit[1] != null) {
@@ -377,6 +384,13 @@ class Chargeur {
           this.erreur(`${chemin}/${c.id}`, `Type d’entité inconnu : ${c.entite}`);
         }
       }
+      if (sorte.rangs && sorte.exemplaires)
+        this.erreur(
+          `${chemin}/exemplaires`,
+          'Une entrée à rangs ne se possède qu’une fois : ses rangs s’additionnent',
+        );
+      if (sorte.rangs && sorte.quantites)
+        this.erreur(`${chemin}/quantites`, 'Une entrée à rangs n’a pas de quantité');
       if (sorte.rangs)
         this.compiler(
           chemins.rangsMax(sorte.id),
