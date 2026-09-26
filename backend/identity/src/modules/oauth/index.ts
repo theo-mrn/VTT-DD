@@ -10,7 +10,7 @@
  *   vtt_refresh, comme /v1/auth/login) puis 302 vers le front. Le front obtient
  *   ensuite son jeton d'accès par POST /v1/auth/refresh.
  *
- * Tout échec renvoie vers {APP_URL}/connexion?erreur=oauth, sans détail ; la
+ * Tout échec renvoie vers {APP_URL}/login?erreur=oauth, sans détail ; la
  * cause est journalisée sans code, jeton ni e-mail.
  */
 import { HttpError } from '@vtt/platform';
@@ -46,7 +46,7 @@ export type { ClientFournisseur, ClientsFournisseurs, ProfilFournisseur } from '
 
 /** Identique à routes/auth.ts : le cookie de session n'est lu que sous /v1/auth. */
 const REFRESH_COOKIE_PATH = '/v1/auth';
-export const CHEMIN_ERREUR = '/connexion?erreur=oauth';
+export const CHEMIN_ERREUR = '/login?erreur=oauth';
 
 /** Assez large pour quelques essais, assez serré contre l'abus des échanges de code. */
 const LIMITE_OAUTH = { rateLimit: { max: 30, timeWindow: '1 minute' } };

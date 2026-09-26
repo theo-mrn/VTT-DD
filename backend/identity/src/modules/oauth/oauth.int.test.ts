@@ -22,7 +22,7 @@ import { fauxFournisseurs, type IdentiteDiscord, type IdentiteGoogle } from './s
 const GOOGLE_IDS = { clientId: 'google-client-test', clientSecret: 'google-secret-test' };
 const DISCORD_IDS = { clientId: 'discord-client-test', clientSecret: 'discord-secret-test' };
 const FRONT = 'http://front.test';
-const ERREUR = `${FRONT}/connexion?erreur=oauth`;
+const ERREUR = `${FRONT}/login?erreur=oauth`;
 
 type Base = Awaited<ReturnType<typeof appDeTest>>;
 type Reponse = Awaited<ReturnType<ServiceApp['inject']>>;

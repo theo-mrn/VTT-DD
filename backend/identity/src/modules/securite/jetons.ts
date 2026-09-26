@@ -20,8 +20,8 @@ export const DUREE_JETON_MS: Record<ObjetJeton, number> = {
 
 /** Page du front qui reçoit le jeton. */
 const PAGE: Record<ObjetJeton, string> = {
-  password_reset: '/reinitialisation',
-  email_verification: '/verification-email',
+  password_reset: '/reset-password',
+  email_verification: '/verify-email',
 };
 
 export function empreinteJeton(jeton: string): Buffer {

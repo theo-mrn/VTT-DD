@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Menu, X, Mail, ChevronDown, Send } from 'lucide-react';
 import { useScroll, motion, useTransform } from 'framer-motion';
 import { Aclonica } from 'next/font/google';
-import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
+import { FormulaireConnexion } from '@/components/auth/login-form';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/lib/session';
 import { Features1 } from '@/components/blocks/features1';
@@ -276,7 +276,7 @@ export function HeroSection() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
         isUserLoggedIn={isUserLoggedIn}
         userData={userData}
-        onOpenProfile={() => router.push('/profil')}
+        onOpenProfile={() => router.push('/profile')}
         onSignOut={seDeconnecter}
         router={router}
       />

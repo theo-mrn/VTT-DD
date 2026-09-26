@@ -30,10 +30,10 @@ describe('jetons envoyés par e-mail', () => {
 
   it('construit les liens du front, avec ou sans barre finale dans APP_URL', () => {
     expect(lienJeton('https://yner.fr', 'password_reset', 'abc_-')).toBe(
-      'https://yner.fr/reinitialisation?jeton=abc_-',
+      'https://yner.fr/reset-password?jeton=abc_-',
     );
     expect(lienJeton('https://yner.fr/', 'email_verification', 'xyz')).toBe(
-      'https://yner.fr/verification-email?jeton=xyz',
+      'https://yner.fr/verify-email?jeton=xyz',
     );
   });
 
@@ -80,7 +80,7 @@ describe('jetons envoyés par e-mail', () => {
 
 describe('e-mails de sécurité', () => {
   it('le mail de réinitialisation est en français et contient le lien', () => {
-    const lien = 'https://yner.fr/reinitialisation?jeton=abc';
+    const lien = 'https://yner.fr/reset-password?jeton=abc';
     const mail = mailReinitialisation('alice@exemple.fr', lien);
     expect(mail.to).toBe('alice@exemple.fr');
     expect(mail.subject).toBe('Réinitialisation de votre mot de passe');

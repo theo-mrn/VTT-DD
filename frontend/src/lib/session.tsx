@@ -11,10 +11,10 @@ import {
   type ReactNode,
 } from 'react';
 import { connexion, deconnexion, inscription, refreshSession, setAccessToken } from './api';
-import { lireMonProfil, type Profil } from './profil';
-import { urlConnexion } from './redirection';
+import { lireMonProfil, type Profil } from './profile';
+import { urlConnexion } from './redirect';
 
-export type { Profil } from './profil';
+export type { Profil } from './profile';
 
 interface Session {
   statut: 'chargement' | 'connecte' | 'anonyme';

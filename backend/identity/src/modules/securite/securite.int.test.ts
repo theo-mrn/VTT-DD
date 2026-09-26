@@ -304,7 +304,7 @@ describe.skipIf(!TEST_DATABASE_URL)('mot de passe', () => {
     expect(t.mailer.envoyes.some((m) => m.to === inconnue)).toBe(false);
     const mail = t.mailer.envoyes.filter((m) => m.to === u.email).at(-1)!;
     expect(mail.subject).toBe('Réinitialisation de votre mot de passe');
-    const jeton = jetonRecu(t, u.email, '/reinitialisation');
+    const jeton = jetonRecu(t, u.email, '/reset-password');
 
     // Seule l'empreinte est stockée, valable une heure
     const [ligne] = await t.db
@@ -325,7 +325,7 @@ describe.skipIf(!TEST_DATABASE_URL)('mot de passe', () => {
   it('réinitialise avec un jeton à usage unique et révoque toutes les sessions', async () => {
     const u = await t.inscrire();
     expect((await oublier(u.email)).statusCode).toBe(202);
-    const jeton = jetonRecu(t, u.email, '/reinitialisation');
+    const jeton = jetonRecu(t, u.email, '/reset-password');
 
     const res = await reinitialiser(jeton);
     expect(res.statusCode).toBe(204);
@@ -343,9 +343,9 @@ describe.skipIf(!TEST_DATABASE_URL)('mot de passe', () => {
   it('refuse un jeton expiré ou remplacé par une demande plus récente', async () => {
     const u = await t.inscrire();
     await oublier(u.email);
-    const premier = jetonRecu(t, u.email, '/reinitialisation');
+    const premier = jetonRecu(t, u.email, '/reset-password');
     await oublier(u.email);
-    const second = jetonRecu(t, u.email, '/reinitialisation');
+    const second = jetonRecu(t, u.email, '/reset-password');
     expect(second).not.toBe(premier);
     expect((await reinitialiser(premier)).statusCode).toBe(400);
 
@@ -361,7 +361,7 @@ describe.skipIf(!TEST_DATABASE_URL)('mot de passe', () => {
     const u = await t.inscrire();
     await t.db.delete(credentials).where(eq(credentials.userId, u.id));
     await oublier(u.email);
-    const res = await reinitialiser(jetonRecu(t, u.email, '/reinitialisation'), 'tout-neuf-123');
+    const res = await reinitialiser(jetonRecu(t, u.email, '/reset-password'), 'tout-neuf-123');
     expect(res.statusCode).toBe(204);
     expect((await connecter(t, u.email, 'tout-neuf-123')).statut).toBe(200);
   });
@@ -392,7 +392,7 @@ describe.skipIf(!TEST_DATABASE_URL)('vérification de l’adresse e-mail', () =>
   it('envoie un lien valable 24 h, vérifie l’adresse une seule fois, puis 409', async () => {
     const u = await t.inscrire();
     expect((await demander(u.auth)).statusCode).toBe(202);
-    const jeton = jetonRecu(t, u.email, '/verification-email');
+    const jeton = jetonRecu(t, u.email, '/verify-email');
 
     const [ligne] = await t.db
       .select()
@@ -419,7 +419,7 @@ describe.skipIf(!TEST_DATABASE_URL)('vérification de l’adresse e-mail', () =>
   it('refuse un jeton expiré', async () => {
     const u = await t.inscrire();
     await demander(u.auth);
-    const jeton = jetonRecu(t, u.email, '/verification-email');
+    const jeton = jetonRecu(t, u.email, '/verify-email');
     await t.db
       .update(emailTokens)
       .set({ expiresAt: new Date(Date.now() - 1000) })
@@ -431,7 +431,7 @@ describe.skipIf(!TEST_DATABASE_URL)('vérification de l’adresse e-mail', () =>
   it('refuse le jeton si l’adresse du compte a changé depuis l’envoi', async () => {
     const u = await t.inscrire();
     await demander(u.auth);
-    const jeton = jetonRecu(t, u.email, '/verification-email');
+    const jeton = jetonRecu(t, u.email, '/verify-email');
     await t.db
       .update(users)
       .set({ email: `change-${crypto.randomUUID()}@exemple.fr` })
@@ -503,7 +503,7 @@ describe.skipIf(!TEST_DATABASE_URL)('suppression du compte', () => {
       url: '/v1/auth/password/forgot',
       payload: { email: u.email },
     });
-    const jeton = jetonRecu(t, u.email, '/reinitialisation');
+    const jeton = jetonRecu(t, u.email, '/reset-password');
     await t.app.inject({
       method: 'DELETE',
       url: '/v1/users/me',
