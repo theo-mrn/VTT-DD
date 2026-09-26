@@ -192,7 +192,8 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
       ownerUid: segments(c.path)[1]!,
       origineProprietaire: 'compte',
       salle: {},
-      options: {},
+      // Salle disparue : spécialisations retrouvées dans tout le contenu exporté
+      options: { specialisations: toutesSpecialisations },
     });
   }
 
