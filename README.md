@@ -41,7 +41,7 @@ backend/              un dossier par service : chacun est un pod indépendant,
                       (src/, db/ = migrations Liquibase, .env.example)
   character/          personnages et systèmes de jeu, règles recalculées côté
                       serveur (contrat : docs/api-character.md)
-  campaign/           salles, membres, invitations, personnages engagés et combat
+  campaign/           campagnes, membres, invitations, personnages engagés et combat
                       (contrat : docs/api-campaign.md)
 packages/
   contracts/          schémas partagés front/back (événements, erreurs, identifiants)

@@ -22,7 +22,7 @@ Firebase est partout : 156 fichiers sur \~140 000 lignes TS/TSX l'importent. Le 
 Points de dette à régler au passage :
 
 - Trois collections pour la même notion : `Salle`, `salles`, `rooms`.
-- Le rôle est porté par `users.perso == "MJ"` et `users.room_id` : un utilisateur ne peut être que dans une salle. En Postgres ça devient une table `room_members(room_id, user_id, role)`.
+- Le rôle est porté par `users.perso == "MJ"` et `users.room_id` : un utilisateur ne peut être que dans une salle. En Postgres ça devient une table `campaign_members(campaign_id, user_id, role)`.
 - Fichiers géants : `[roomid]/map/page.tsx` (4 176 lignes), `MJcombat.tsx` (2 160), `fiche.tsx` (2 255). L'accès Firebase y est mélangé à l'UI : il faut d'abord l'extraire dans une couche d'accès.
 - 38 routes `/api/*` dans Next (Stripe, Discord, LiveKit, IA, e-mails, crons Vercel) : elles migreront vers les services.
 - Le hook husky `pre-commit` lance les tests e2e sur l'émulateur Firebase à chaque commit : trop lent, à déplacer en CI.
@@ -48,16 +48,16 @@ flowchart LR
   ID & BI & CA & CH & HI --> PG[(Postgres)]
 ```
 
-| Service   | Responsabilité                                                                                                                     | Reprend de Firebase / Next                                                                                   |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| gateway   | Point d'entrée unique : vérif JWT, rate limit, CORS, routage, OpenAPI agrégé                                                       | `api-auth.ts`, les routes `/api/*` exposées                                                                  |
-| identity  | Comptes, sessions, OAuth Google + Discord, profils, amis, titres, clés d'API                                                       | Firebase Auth, `users`, `friendships`, `titles`, `/api/login`, `/api/discord/*`                              |
-| billing   | Stripe checkout, webhook, portail, factures, droits (plan actif)                                                                   | `/api/checkout`, `/api/stripe-*`, `/api/invoices`, `/api/subscribe`                                          |
-| campaign  | Salles, membres et rôles (MJ/joueur), invitations, notes, systèmes de jeu, carte (fog, lumières, objets, villes, portails, combat) | `Salle`/`salles`/`rooms`, `cartes/*`, `Notes`, `SharedNotes`, `requests`, `gameSystems`                      |
-| character | Personnages, fiches, inventaire, bonus, compétences, modèles de PNJ/objets, jets de dés                                            | `cartes/*/characters`, `Inventaire`, `Bonus`, `npc_templates`, `object_templates`, `rolls`, `/api/roll-dice` |
-| history   | Journal d'actions append-only + requêtes (timeline, filtre par perso, résumé IA)                                                   | `Historique`, `historiqueTrackerService.ts`, `/api/summarize-history`                                        |
-| realtime  | WebSocket par salle : diffuse les événements du bus, gère l'éphémère (curseurs, positions en drag, bulles)                         | `onSnapshot`, Realtime Database                                                                              |
-| worker    | Asynchrone : e-mails Resend, rappels de session, optimisation d'images, IA (Gemini, DeepL), upload R2 présigné                     | crons Vercel, `/api/send*`, `/api/generate-creature`, Firebase Storage                                       |
+| Service   | Responsabilité                                                                                                                                                       | Reprend de Firebase / Next                                                                                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| gateway   | Point d'entrée unique : vérif JWT, rate limit, CORS, routage, OpenAPI agrégé                                                                                         | `api-auth.ts`, les routes `/api/*` exposées                                                                  |
+| identity  | Comptes, sessions, OAuth Google + Discord, profils, amis, titres, clés d'API                                                                                         | Firebase Auth, `users`, `friendships`, `titles`, `/api/login`, `/api/discord/*`                              |
+| billing   | Stripe checkout, webhook, portail, factures, droits (plan actif)                                                                                                     | `/api/checkout`, `/api/stripe-*`, `/api/invoices`, `/api/subscribe`                                          |
+| campaign  | Campagnes (les salles de l'ancienne app), membres et rôles (MJ/joueur), invitations, notes, systèmes de jeu, carte (fog, lumières, objets, villes, portails, combat) | `Salle`/`salles`/`rooms`, `cartes/*`, `Notes`, `SharedNotes`, `requests`, `gameSystems`                      |
+| character | Personnages, fiches, inventaire, bonus, compétences, modèles de PNJ/objets, jets de dés                                                                              | `cartes/*/characters`, `Inventaire`, `Bonus`, `npc_templates`, `object_templates`, `rolls`, `/api/roll-dice` |
+| history   | Journal d'actions append-only + requêtes (timeline, filtre par perso, résumé IA)                                                                                     | `Historique`, `historiqueTrackerService.ts`, `/api/summarize-history`                                        |
+| realtime  | WebSocket par campagne : diffuse les événements du bus, gère l'éphémère (curseurs, positions en drag, bulles)                                                        | `onSnapshot`, Realtime Database                                                                              |
+| worker    | Asynchrone : e-mails Resend, rappels de session, optimisation d'images, IA (Gemini, DeepL), upload R2 présigné                                                       | crons Vercel, `/api/send*`, `/api/generate-creature`, Firebase Storage                                       |
 
 Choix techniques :
 
@@ -67,7 +67,7 @@ Choix techniques :
 - **Paquet `packages/rules`** : le moteur de règles et les systèmes de jeu (aujourd'hui `legacy/src/lib/rules-engine` et `legacy/src/modules`, testés) deviennent un paquet partagé par le front et le service character, qui recalcule les stats dérivées côté serveur.
 - **Nouveau front** : une nouvelle app Next dans le monorepo, construite par tranche dans `frontend` ; l'ancienne app, déplacée dans `legacy`, reste lançable comme référence jusqu'à la parité, puis est supprimée.
 - **Sync vs async** : lecture/écriture en REST via la gateway ; tout effet de bord inter-services passe par un événement, jamais par un appel direct service → service.
-- **Carte dans campaign** : `cartes` est le cœur (415 références) et vit toujours avec la salle ; la séparer ferait un service très bavard avec campaign. On pourra l'extraire plus tard si elle grossit.
+- **Carte dans campaign** : `cartes` est le cœur (415 références) et vit toujours avec la campagne ; la séparer ferait un service très bavard avec campaign. On pourra l'extraire plus tard si elle grossit.
 
 Garde-fou : pour un projet solo ou petite équipe, 8 déploiements (gateway incluse) à maintenir. Un cluster Postgres unique (un schéma et un rôle SQL par service, aucun accès croisé) garde l'isolation sans multiplier les bases.
 
@@ -116,7 +116,7 @@ Chaque changement d'état devient un événement écrit dans la même transactio
 1. Le service métier fait `UPDATE characters …` **et** `INSERT INTO outbox …` dans une seule transaction.
 2. Un relais (dans chaque service) publie les lignes d'outbox sur `vtt.<roomId>.<domaine>.<type>` puis les marque publiées. Livraison au moins une fois.
 3. history consomme en durable, dédoublonne par `event_id`, et insère dans `history.events`.
-4. realtime consomme les mêmes sujets et pousse aux clients de la salle : l'historique et le live sont le même flux.
+4. realtime consomme les mêmes sujets et pousse aux clients de la campagne : l'historique et le live sont le même flux.
 
 Enveloppe commune (schéma Zod dans `packages/contracts`, versionné) :
 
@@ -159,7 +159,7 @@ REVOKE UPDATE, DELETE, TRUNCATE ON history.events FROM history_svc;
 
 Règles :
 
-- **Append-only vérifiable** : pas de droit UPDATE/DELETE, et un chaînage de hash par salle (`hash = sha256(prev_hash || event)`) rend toute altération détectable.
+- **Append-only vérifiable** : pas de droit UPDATE/DELETE, et un chaînage de hash par campagne (`hash = sha256(prev_hash || event)`) rend toute altération détectable.
 - **Visibilité** : `public`, `gm_only` (jets secrets, PNJ cachés), `owner` ; filtrée côté history et realtime, en reprenant la logique de `visibility.ts`.
 - **Haute fréquence** : un drag de token n'émet qu'un `token.moved` final (from/to), pas chaque position ; les positions intermédiaires restent dans realtime/Redis.
 - **Rétention** : 7 jours dans JetStream (rejeu en cas de panne), indéfini en Postgres, partitions de plus de 12 mois exportées vers R2 si besoin.
@@ -167,7 +167,7 @@ Règles :
 
 ## Temps réel
 
-Le service realtime (Socket.IO + adaptateur Redis) remplace à la fois `onSnapshot` et Realtime Database, avec deux canaux par salle : un canal durable nourri par le bus, un canal éphémère qui ne touche jamais Postgres.
+Le service realtime (Socket.IO + adaptateur Redis) remplace à la fois `onSnapshot` et Realtime Database, avec deux canaux par campagne : un canal durable nourri par le bus, un canal éphémère qui ne touche jamais Postgres.
 
 | Canal    | Contenu                                                  | Source                        | Garantie                                     |
 | -------- | -------------------------------------------------------- | ----------------------------- | -------------------------------------------- |
@@ -178,7 +178,7 @@ Côté front :
 
 - Chargement initial en REST (snapshot + `seq`), puis application des événements reçus ; à la reconnexion, le client envoie son dernier `seq` et reçoit le delta.
 - TanStack Query pour le cache ; un événement WS patche ou invalide la clé concernée. Mises à jour optimistes pour le drag et les PV.
-- Handshake WS authentifié par le JWT ; l'abonnement à une salle vérifie l'appartenance auprès de campaign (mis en cache Redis) et applique la visibilité `gm_only`.
+- Handshake WS authentifié par le JWT ; l'abonnement à une campagne vérifie l'appartenance auprès de campaign (mis en cache Redis) et applique la visibilité `gm_only`.
 - Le nouveau front n'accède aux données que par des hooks de domaine (`useRoomCharacters`, `useCursors`…) : aucun composant ne parle directement à l'API ni au WebSocket. C'est le modèle déjà posé dans l'ancien front avec `useSession` et `usePublicProfile`.
 
 ### Côté base : ce qui alimente le WebSocket
@@ -187,7 +187,7 @@ Postgres ne pousse pas directement vers les navigateurs : `NOTIFY` limite le mes
 
 1. Le service écrit la donnée et la ligne d'`outbox` dans la même transaction.
 2. Un trigger fait `pg_notify('<schéma>_outbox', id)` ; le relais du service (connexion directe, hors PgBouncer) se réveille aussitôt, lit par lots en `FOR UPDATE SKIP LOCKED` et publie sur NATS. Relecture toutes les 5 s en filet de sécurité.
-3. history attribue un `seq` par salle ; realtime diffuse avec ce `seq`, et un client qui se reconnecte demande tout ce qui suit son dernier `seq`.
+3. history attribue un `seq` par campagne ; realtime diffuse avec ce `seq`, et un client qui se reconnecte demande tout ce qui suit son dernier `seq`.
 
 `wal_level=logical` est activé dès maintenant : si un jour l'outbox ne suffit plus, on pourra passer en CDC (pgoutput/Debezium) sans migration de la base.
 
@@ -206,25 +206,25 @@ La visibilité `gm_only` et le brouillard sont appliqués côté serveur avant l
 
 ## Données
 
-Relationnel pour ce qui est stable (comptes, salles, membres, abonnements), `jsonb` pour ce qui dépend du système de jeu (fiche, stats, compétences), avec colonnes générées indexées sur les champs chauds.
+Relationnel pour ce qui est stable (comptes, campagnes, membres, abonnements), `jsonb` pour ce qui dépend du système de jeu (fiche, stats, compétences), avec colonnes générées indexées sur les champs chauds.
 
-| Schéma         | Tables principales                                                                                                                                                                           |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| identity       | `users`, `credentials` (hash argon2id), `oauth_accounts` (google, discord), `sessions`, `friendships`, `api_keys`, `user_titles`                                                             |
-| billing        | `customers` (stripe\_customer\_id), `subscriptions`, `invoices`, `entitlements`, `stripe_events` (idempotence du webhook)                                                                    |
-| campaign       | `rooms`, `room_members (room_id, user_id, role)`, `invitations`, `notes`, `game_systems`, `maps`, `map_layers` (fog, lights, objects, cities, portals, music\_zones, drawings), `encounters` |
-| character      | `characters` (sheet jsonb), `inventory_items`, `bonuses`, `skills`, `npc_templates`, `object_templates`, `rolls`                                                                             |
-| history        | `events` (partitionnée), `projections` (résumés, compteurs)                                                                                                                                  |
-| chaque service | `outbox`, `inbox` (dédoublonnage des événements consommés)                                                                                                                                   |
+| Schéma         | Tables principales                                                                                                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| identity       | `users`, `credentials` (hash argon2id), `oauth_accounts` (google, discord), `sessions`, `friendships`, `api_keys`, `user_titles`                                                                                  |
+| billing        | `customers` (stripe\_customer\_id), `subscriptions`, `invoices`, `entitlements`, `stripe_events` (idempotence du webhook)                                                                                         |
+| campaign       | `campaigns`, `campaign_members (campaign_id, user_id, role)`, `campaign_invitations`, `notes`, `game_systems`, `maps`, `map_layers` (fog, lights, objects, cities, portals, music\_zones, drawings), `encounters` |
+| character      | `characters` (sheet jsonb), `inventory_items`, `bonuses`, `skills`, `npc_templates`, `object_templates`, `rolls`                                                                                                  |
+| history        | `events` (partitionnée), `projections` (résumés, compteurs)                                                                                                                                                       |
+| chaque service | `outbox`, `inbox` (dédoublonnage des événements consommés)                                                                                                                                                        |
 
 Migration des données Firestore :
 
 1. Script d'export avec `firebase-admin` (déjà en dépendance) → NDJSON par collection, sous-collections `cartes/*` incluses.
-2. Transformation typée (Zod) : IDs Firestore → UUID avec table `legacy_ids`, fusion de `Salle`/`salles`/`rooms`, `users.room_id` + `perso` → `room_members`.
+2. Transformation typée (Zod) : IDs Firestore → UUID avec table `legacy_ids`, fusion de `Salle`/`salles`/`rooms`, `users.room_id` + `perso` → `campaign_members`.
 3. Chargement par `COPY`, puis vérification des comptes (lignes et échantillons) en CI sur une copie anonymisée.
 4. Comptes : `firebase auth:export` fournit les hash scrypt Firebase et leurs paramètres (clé de signature, séparateur de sel, rounds, coût mémoire, dans la console Firebase). À la première connexion, identity vérifie le mot de passe contre ce hash, puis le re-hashe en argon2id. Personne n'a à réinitialiser son mot de passe ni à recréer de compte ; les comptes Google se relient par e-mail vérifié.
 5. `Historique/*/events` est importé dans `history.events` avec `type = legacy.<type>` pour garder l'historique existant.
-6. Chaque ancien identifiant Firebase (uid, id de salle, de personnage…) est conservé dans `legacy_ids` de son service : les imports suivants s'en servent pour rattacher chaque personnage, salle et événement d'historique à son propriétaire.
+6. Chaque ancien identifiant Firebase (uid, id de salle, de personnage…) est conservé dans `legacy_ids` de son service : les imports suivants s'en servent pour rattacher chaque personnage, campagne et événement d'historique à son propriétaire.
 
 ### Sauvegardes
 
@@ -275,7 +275,7 @@ Reconstruction par tranches verticales : chaque tranche livre un service, ses é
 | 0 bis. Nettoyage            | Retrait de Vercel (crons en `CronJob`), correctifs SSRF, session partagée dans l'ancien front                                                                                                                                                                                                                                | **Fait**                                                                         |
 | 1. Socle données + identity | Liquibase (rôles `_owner`/`_svc`, Job PreSync, CI), service identity (e-mail/mot de passe, Google, Discord, JWT EdDSA + JWKS, refresh tokens à rotation, argon2id), import des comptes Firebase avec vérification des hash scrypt à la première connexion, gateway branchée ; nouveau front : connexion, inscription, profil | Un compte existant se connecte avec son mot de passe actuel sur le nouveau front |
 | 2. packages/rules           | Moteur de règles et systèmes de jeu extraits d'`legacy` avec leurs tests                                                                                                                                                                                                                                                     | Tests verts dans le paquet, `frontend` l'importe                                 |
-| 3. campaign                 | Salles, membres et rôles (`room_members`), invitations, systèmes de jeu d'une salle ; import de `Salle`/`salles`/`rooms` fusionnées                                                                                                                                                                                          | Créer, rejoindre et administrer une salle sur le nouveau front                   |
+| 3. campaign                 | Campagnes, membres et rôles (`campaign_members`), invitations, systèmes de jeu d'une campagne ; import de `Salle`/`salles`/`rooms` fusionnées                                                                                                                                                                                | Créer, rejoindre et administrer une campagne sur le nouveau front                |
 | 4. character                | Personnages, fiches, inventaire, bonus, compétences, modèles, jets de dés (stats recalculées côté serveur via `packages/rules`) ; import rattaché aux comptes via `legacy_ids`                                                                                                                                               | Chaque joueur retrouve ses personnages                                           |
 | 5. Bus + history            | NATS, outbox, service history, import de `Historique`                                                                                                                                                                                                                                                                        | Timeline servie par history, chaîne de hash vérifiée                             |
 | 6. realtime + carte         | WebSocket durable/éphémère, carte PostGIS (fog, lumières, murs, villes, portails), combat                                                                                                                                                                                                                                    | Une partie complète jouable sur le nouveau front                                 |
@@ -290,7 +290,7 @@ La carte (tranche 6) reste la plus lourde : `map/page.tsx` (4 183 lignes) et les
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Stratégie           | **Décidé** : réécriture par tranches sur la cible, reprise du cœur sain (règles, systèmes de jeu, UI)                                         | Strangler avec isolation de Firebase dans l'ancien front |
 | Front               | **Décidé** : nouvelle app `frontend` à côté de l'ancienne (`legacy`), supprimée à la parité                                                   | Réécriture dans `frontend`                               |
-| Données             | **Décidé** : tout migrer (comptes avec leurs mots de passe, salles, personnages, historique)                                                  | Repartir d'une base vide                                 |
+| Données             | **Décidé** : tout migrer (comptes avec leurs mots de passe, campagnes, personnages, historique)                                               | Repartir d'une base vide                                 |
 | Hébergement         | **Décidé** : tout sur le cluster k3s (front, back, données, outillage), Argo CD, nœuds ajoutés au besoin                                      | —                                                        |
 | Postgres            | **Décidé** : CloudNativePG dans le cluster, sauvegardes et PITR vers R2                                                                       | Postgres managé hors cluster                             |
 | Migrations          | **Décidé** : Liquibase (SQL formaté, Job PreSync, rôles DDL/DML séparés), Drizzle comme requêteur                                             | Migrations Drizzle (`drizzle-kit`)                       |
