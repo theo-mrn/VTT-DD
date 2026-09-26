@@ -37,6 +37,11 @@ export interface Exports {
   inventaire: readonly DocFirestore[];
   /** `Bonus` exporté récursivement. */
   bonus: readonly DocFirestore[];
+  /**
+   * `salles` exporté récursivement : `salles/{code}/Noms/{uid}.nom` est le
+   * personnage que joue actuellement le membre (ou « MJ »). Facultatif.
+   */
+  noms?: readonly DocFirestore[];
 }
 
 export interface PersonnageAImporter {
@@ -46,7 +51,7 @@ export interface PersonnageAImporter {
   roomId?: string;
   /** UID Firebase du propriétaire, et comment il a été trouvé. */
   ownerUid?: string;
-  origineProprietaire: 'persoId' | 'copie' | 'createur-salle' | 'compte' | 'inconnu';
+  origineProprietaire: 'persoId' | 'noms' | 'copie' | 'createur-salle' | 'compte' | 'inconnu';
   /** Options du transformateur, sans les systèmes chargés. */
   options: Omit<OptionsTransformation, 'systemes'>;
   /** Système de la salle, pour `detecterSysteme`. */
@@ -109,6 +114,20 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
     uidDesCopies.set(nom, uids);
   }
 
+  // Personnage joué par chaque membre d'une salle : code → Nomperso → uids
+  const joueursParNom = new Map<string, Map<string, Set<string>>>();
+  for (const d of e.noms ?? []) {
+    const s = segments(d.path);
+    if (s.length !== 4 || s[0] !== 'salles' || s[2] !== 'Noms') continue;
+    const nom = texte((d.data ?? {}).nom);
+    if (!nom || nom === 'MJ') continue;
+    const parNom = joueursParNom.get(s[1]!) ?? new Map<string, Set<string>>();
+    const uids = parNom.get(nom) ?? new Set<string>();
+    uids.add(s[3]!);
+    parNom.set(nom, uids);
+    joueursParNom.set(s[1]!, parNom);
+  }
+
   const resultat: PersonnageAImporter[] = [];
   const nomsEnSalle = new Set<string>();
 
@@ -127,6 +146,12 @@ export function regrouperPersonnages(e: Exports): PersonnageAImporter[] {
 
     let ownerUid: string | undefined = persoIdDe.get(doc.id);
     let origine: PersonnageAImporter['origineProprietaire'] = ownerUid ? 'persoId' : 'inconnu';
+    // Liste des membres de la salle : le joueur qui joue ce personnage (un seul)
+    const joueurs = nom ? joueursParNom.get(roomId)?.get(nom) : undefined;
+    if (!ownerUid && joueurs?.size === 1) {
+      ownerUid = [...joueurs][0];
+      origine = 'noms';
+    }
     if (!ownerUid && nom && uidDesCopies.get(nom)?.size === 1) {
       ownerUid = [...uidDesCopies.get(nom)!][0];
       origine = 'copie';

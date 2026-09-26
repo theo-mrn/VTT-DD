@@ -80,4 +80,18 @@ describe('regroupement des exports par personnage', () => {
     expect(a.salle).toEqual({ gameSystemId: 'gs1', nomSysteme: 'Star Wars EotE' });
     expect(par('p2').options.inventaire!.map((d) => d.id)).toEqual(['o2']);
   });
+
+  it('la liste des membres de la salle désigne le joueur du personnage', () => {
+    const e = exports();
+    e.cartes = [
+      ...e.cartes,
+      doc('cartes/salle1/characters/p9', { Nomperso: 'Zora', type: 'joueurs' }),
+    ];
+    e.noms = [
+      doc('salles/salle1/Noms/uidZ', { nom: 'Zora' }),
+      doc('salles/salle1/Noms/uidMJ', { nom: 'MJ' }),
+    ];
+    const zora = regrouperPersonnages(e).find((x) => x.legacyId.endsWith('p9'))!;
+    expect([zora.ownerUid, zora.origineProprietaire]).toEqual(['uidZ', 'noms']);
+  });
 });

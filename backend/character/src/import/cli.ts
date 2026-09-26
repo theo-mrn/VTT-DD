@@ -66,6 +66,7 @@ const exports: Exports = {
   systemes: await lire('gameSystems'),
   inventaire: await lire('Inventaire'),
   bonus: await lire('Bonus'),
+  noms: await lire('salles'),
 };
 const aImporter = regrouperPersonnages(exports);
 console.log(`${aImporter.length} personnage(s) trouvé(s)`);
