@@ -1,6 +1,6 @@
 'use client';
 
-import type { Champ, Sorte } from '@vtt/rules';
+import { estExemplaire, type Champ, type Sorte } from '@vtt/rules';
 import { Trash2, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,16 @@ import { useSheet } from './context';
 import { ChoiceEditor, hasChoices, type Choice } from './choice-editor';
 import { SheetDialog } from './elements';
 import { tagName, itemName } from './format';
-import { nextRankPurchase, readableField, lastLine, freeKind, fieldValue } from './possessions';
+import {
+  copyName,
+  copyTarget,
+  fieldValue,
+  freeKind,
+  lastCopy,
+  lastLine,
+  nextRankPurchase,
+  readableField,
+} from './possessions';
 import { PurchaseButton } from './purchase-button';
 import {
   accentButton,
@@ -25,13 +34,16 @@ type FieldValue = number | string | boolean;
 /** Champs propres à chaque exemplaire, modifiables sur la fiche (valeur, détail…). */
 const isEditable = (c: Champ) => c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen';
 
-/** Détail d'une possession : description, champs, choix, achats et retrait. */
+/** Détail d'un exemplaire possédé : description, champs, choix, achats et retrait. */
 export function PossessionDialog({
   entry: id,
+  copy,
   kind,
   onClose,
 }: {
   entry: string;
+  /** Identifiant de l'exemplaire (absent : l'exemplaire sans identifiant). */
+  copy?: string;
   kind: Sorte;
   onClose(): void;
 }) {
@@ -49,14 +61,17 @@ export function PossessionDialog({
   } = useSheet();
   const entry = system.entrees.get(id);
   const p = json.possessions.find((x) => x.entree === id);
-  const explicit = state.possessions.find((x) => x.entree === id);
+  const explicit = state.possessions.find((x) => estExemplaire(x, id, copy));
+  const effective = sheet.possessions.get(id);
   const [fields, setFields] = useState<Record<string, FieldValue>>({});
   const [choices, setChoices] = useState<Choice>(() => ({ ...(explicit?.choix ?? {}) }));
   const [sending, setSending] = useState(false);
   if (!entry) return null;
 
   const next = nextRankPurchase(purchases, id);
-  const line = lastLine(state, id);
+  // L'annulation du dernier achat rend le dernier exemplaire : proposée sur celui-là seulement
+  const line = !explicit || lastCopy(state, id) === explicit ? lastLine(state, id) : -1;
+  const target = copyTarget(id, copy);
   const free = freeKind(system, kind.id);
   const editableKeys = explicit ? kind.champs.filter(isEditable) : [];
   const changedFields = Object.keys(fields).length > 0;
@@ -71,7 +86,13 @@ export function PossessionDialog({
   };
 
   return (
-    <SheetDialog open onClose={onClose} title={entry.nom} description={kind.nom} large>
+    <SheetDialog
+      open
+      onClose={onClose}
+      title={effective ? copyName(effective, explicit) : entry.nom}
+      description={kind.nom}
+      large
+    >
       {entry.description && (
         <p className={cn(text, 'whitespace-pre-line text-sm leading-relaxed')}>
           {entry.description}
@@ -108,7 +129,7 @@ export function PossessionDialog({
       {kind.champs.length > 0 && (
         <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
           {kind.champs.map((c) => {
-            const v = fieldValue(state, entry, c);
+            const v = fieldValue(entry, c, explicit);
             const editable = !readOnly && editableKeys.some((m) => m.id === c.id);
             return (
               <div key={c.id} className="min-w-0">
@@ -139,7 +160,7 @@ export function PossessionDialog({
           disabled={sending}
           onClick={() =>
             run(async () => {
-              const ok = await updatePossession({ entree: id, champs: fields });
+              const ok = await updatePossession({ ...target, champs: fields });
               if (ok) setFields({});
               return ok;
             })
@@ -163,7 +184,7 @@ export function PossessionDialog({
               type="button"
               className={accentButton}
               disabled={sending}
-              onClick={() => run(() => updatePossession({ entree: id, choix: choices }))}
+              onClick={() => run(() => updatePossession({ ...target, choix: choices }))}
             >
               Enregistrer les choix
             </button>
@@ -199,7 +220,7 @@ export function PossessionDialog({
               type="button"
               className={cn(secondaryButton, 'text-red-400 hover:border-red-400')}
               disabled={sending}
-              onClick={() => run(() => removePossession(id), true)}
+              onClick={() => run(() => removePossession(id, copy), true)}
             >
               <Trash2 />
               Retirer

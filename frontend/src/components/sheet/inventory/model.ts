@@ -9,7 +9,10 @@ import {
   compilerEffets,
   copier,
   detailSolde,
+  estExemplaire,
   nouvellePossession,
+  prefixeExemplaire,
+  sourceExemplaire,
   typeAttribut,
   variablesSource,
   type Achat,
@@ -20,10 +23,14 @@ import {
   type EtatEntite,
   type Fiche,
   type Noeud,
+  type Possession,
   type SoldeMonnaie,
   type Sorte,
   type SystemeCharge,
 } from '@vtt/rules';
+import { fieldValue } from '../possessions';
+
+export { fieldValue };
 
 export type FieldValue = number | string | boolean | string[] | undefined;
 
@@ -124,14 +131,6 @@ export function purseLines(sheet: Fiche, kinds: Sorte[]): PurseLine[] {
 
 // ─── Champs ──────────────────────────────────────────────────────────────────
 
-/** Valeur d'un champ : celle de l'exemplaire, de l'entrée, sinon le défaut de la sorte. */
-export function fieldValue(state: EtatEntite, entry: Entree, field: Champ): FieldValue {
-  const p = state.possessions.find((x) => x.entree === entry.id);
-  const v = p?.champs[field.id] ?? entry.champs[field.id];
-  if (v !== undefined) return v;
-  return 'defaut' in field ? field.defaut : undefined;
-}
-
 /** Valeur lisible d'un champ (noms d'attribut ou d'entrée résolus). */
 export function readableField(
   system: SystemeCharge,
@@ -153,16 +152,17 @@ export function readableField(
 export const shortName = (field: Champ) => field.nom.replace(/\s*\([^)]*\)\s*$/, '') || field.nom;
 
 /**
- * Résumé d'un objet, à la manière de « Dégâts 7 · Crit 3 · Fixation 2 » :
- * les premiers champs renseignés de la sorte, hors prix et listes.
- * Un booléen vrai n'affiche que le nom du champ.
+ * Résumé d'un exemplaire (ou de l'entrée du catalogue, sans `own`), à la
+ * manière de « Dégâts 7 · Crit 3 · Fixation 2 » : les premiers champs
+ * renseignés de la sorte, hors prix et listes. Un booléen vrai n'affiche que
+ * le nom du champ.
  */
 export function fieldSummary(
   system: SystemeCharge,
   type: string,
-  state: EtatEntite,
   entry: Entree,
   kind: Sorte,
+  own?: Possession,
   max = 3,
 ): string[] {
   const prices = priceFields(system, kind.id);
@@ -170,7 +170,7 @@ export function fieldSummary(
   for (const c of kind.champs) {
     if (parts.length >= max) break;
     if (prices.has(c.id) || c.type === 'entrees') continue;
-    const v = fieldValue(state, entry, c);
+    const v = fieldValue(entry, c, own);
     if (v === undefined || v === '' || v === 0 || v === '0' || v === false) continue;
     if (v === true) parts.push(shortName(c));
     else parts.push(`${shortName(c)} ${readableField(system, type, c, v)}`);
@@ -321,10 +321,12 @@ export function checkItemEffects(
   system: SystemeCharge,
   state: EtatEntite,
   entry: string,
+  copy: string | undefined,
   effects: readonly Effet[],
 ): EffectError[] {
   const kind = system.sortes.get(system.entrees.get(entry)?.sorte ?? '');
-  const prefix = `possessions/${entry}`;
+  const target = { entree: entry, ...(copy !== undefined ? { exemplaire: copy } : {}) };
+  const prefix = prefixeExemplaire(target);
   const r = compilerEffets(
     system,
     state.type,
@@ -344,13 +346,14 @@ export function checkItemEffects(
 
   try {
     const next = copier(state);
-    let p = next.possessions.find((x) => x.entree === entry);
-    if (!p) next.possessions.push((p = nouvellePossession(entry)));
+    let p = next.possessions.find((x) => estExemplaire(x, entry, copy));
+    if (!p) next.possessions.push((p = nouvellePossession(entry, 0, target)));
     // Équipé le temps de la vérification : un effet d'objet rangé n'est pas calculé
     p.actif = true;
     p.effets = [...effects];
+    const source = sourceExemplaire(target);
     return calculer(system, next)
-      .erreurs.filter((e) => e.ou === `${entry}#exemplaire` || e.ou.startsWith(`${prefix}/`))
+      .erreurs.filter((e) => e.ou === source || e.ou.startsWith(`${prefix}/`))
       .map((e) => {
         const index = indexOf(e.ou);
         return { ...(index !== undefined ? { index } : {}), message: e.message };
@@ -360,15 +363,27 @@ export function checkItemEffects(
   }
 }
 
-/** Erreurs de la fiche calculée qui portent sur cet objet (effet ignoré…). */
-export function itemErrors(sheet: Fiche, entry: string): string[] {
+/**
+ * Erreurs de la fiche calculée qui portent sur un objet (effet ignoré…) :
+ * celles de l'entrée du catalogue, et celles des effets propres de cet
+ * exemplaire (sans `own` : celles de tous ses exemplaires).
+ */
+export function itemErrors(
+  sheet: Fiche,
+  entry: string,
+  own?: Pick<Possession, 'entree' | 'exemplaire'>,
+): string[] {
+  const mine = (ou: string) => {
+    if (!own)
+      return (
+        ou.startsWith(`possessions/${entry}/`) ||
+        ou.startsWith(`possessions/${entry}#`) ||
+        ou.startsWith(`${entry}#`)
+      );
+    const prefix = prefixeExemplaire(own);
+    return ou === sourceExemplaire(own) || ou.startsWith(`${prefix}/`);
+  };
   return sheet.erreurs
-    .filter(
-      (e) =>
-        e.ou === entry ||
-        e.ou === `${entry}#exemplaire` ||
-        e.ou.startsWith(`possessions/${entry}/`) ||
-        e.ou.startsWith(`catalogue/${entry}/`),
-    )
+    .filter((e) => e.ou === entry || e.ou.startsWith(`catalogue/${entry}/`) || mine(e.ou))
     .map((e) => e.message);
 }

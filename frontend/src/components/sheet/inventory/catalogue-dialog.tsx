@@ -5,11 +5,12 @@
  * de l'entrée (champs et effets), puis achat par la bourse s'il existe un
  * achat pour cette sorte, ou ajout direct (butin, don du MJ).
  */
-import type { Entree, ObjetAchetable, Sorte } from '@vtt/rules';
+import { quantiteDe, type Entree, type ObjetAchetable, type Sorte } from '@vtt/rules';
 import { ArrowLeft, Check, Coins, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { formatNumber, tagName } from '../format';
+import { copiesOfKind, copyTarget } from '../possessions';
 import {
   accentButton,
   chip,
@@ -194,9 +195,12 @@ export function KindFilter({
 
 function CatalogueCard({ entry, kind, onOpen }: { entry: Entree; kind: Sorte; onOpen(): void }) {
   const { system, state, sheet } = useInventory();
-  const owned = sheet.possessions.has(entry.id);
+  const p = sheet.possessions.get(entry.id);
+  const owned = !!p;
+  // Unités d'une sorte `quantites`, sinon nombre d'exemplaires
+  const count = p ? (kind.quantites ? p.quantite : Math.max(1, p.exemplaires.length)) : 0;
   const price = entryPrice(system, entry, kind);
-  const summary = fieldSummary(system, state.type, { ...state, possessions: [] }, entry, kind, 3);
+  const summary = fieldSummary(system, state.type, entry, kind);
   return (
     <li>
       <button
@@ -219,7 +223,7 @@ function CatalogueCard({ entry, kind, onOpen }: { entry: Entree; kind: Sorte; on
           {owned ? (
             <span className={cn(chip, textAccent)}>
               <Check className="h-3 w-3" />
-              Possédé
+              Possédé{count > 1 ? ` ×${count}` : ''}
             </span>
           ) : price !== undefined ? (
             <span className={cn(chip, 'tabular-nums')}>
@@ -247,16 +251,37 @@ function EntryDetail({ entry, onBack, onDone }: { entry: Entree; onBack(): void;
   const { system, state, sheet, purchases, readOnly, onUpdateItem, onBuy } = useInventory();
   const [sending, run] = useSending();
   const kind = system.sortes.get(entry.sorte)!;
-  const owned = sheet.possessions.has(entry.id);
   const prices = priceFields(system, kind.id);
-  const blank = { ...state, possessions: [] };
-  const purchase: ObjetAchetable | undefined = onBuy
+  // Exemplaires explicites (une entrée obtenue par effet s'ajoute encore une fois)
+  const copies = sheet.possessions.get(entry.id)?.exemplaires ?? [];
+  const last = copies.at(-1);
+  const owned = copies.length > 0;
+  // Une unité de plus va sur le dernier exemplaire, comme le fait un achat
+  const addUnit = kind.quantites ? last : undefined;
+  const full = kind.maximum !== undefined && copiesOfKind(sheet, kind.id) >= kind.maximum;
+  const addCopy = (!owned || kind.exemplaires) && !full;
+  const found: ObjetAchetable | undefined = onBuy
     ? purchases.flatMap((a) => a.objets).find((o) => o.type === 'entree' && o.objet === entry.id)
     : undefined;
+  // Achat d'une entrée déjà possédée : seulement s'il donne un exemplaire ou une unité
+  const purchase =
+    found && (!owned || found.mode === 'exemplaire' || found.mode === 'quantite')
+      ? found
+      : undefined;
   const currency = purchase ? (system.monnaies.get(purchase.monnaie)?.nom ?? purchase.monnaie) : '';
-  const full =
-    kind.maximum !== undefined &&
-    [...sheet.possessions.values()].filter((p) => p.sorte.id === kind.id).length >= kind.maximum;
+  const purchaseLabel =
+    purchase?.mode === 'quantite'
+      ? 'Acheter une unité'
+      : purchase?.mode === 'exemplaire'
+        ? 'Acheter un exemplaire'
+        : 'Acheter';
+  const units = copies.reduce((n, p) => n + quantiteDe(p), 0);
+  const add = (update: Parameters<typeof onUpdateItem>[0]) =>
+    run(async () => {
+      const ok = await onUpdateItem(update);
+      if (ok) onDone();
+      return ok;
+    });
 
   return (
     <div className="space-y-4">
@@ -294,7 +319,7 @@ function EntryDetail({ entry, onBack, onDone }: { entry: Entree; onBack(): void;
       {kind.champs.length > 0 && (
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
           {kind.champs.map((c) => {
-            const v = fieldValue(blank, entry, c);
+            const v = fieldValue(entry, c);
             if (v === undefined || v === '') return null;
             return (
               <div key={c.id} className="min-w-0">
@@ -321,57 +346,85 @@ function EntryDetail({ entry, onBack, onDone }: { entry: Entree; onBack(): void;
 
       {!readOnly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--fiche-bordure)] pt-4">
-          {owned ? (
-            <p className={cn(textMuted, 'text-sm')}>Déjà dans l&apos;inventaire.</p>
-          ) : full ? (
-            <p className={cn(textMuted, 'text-sm')}>
+          {owned && (
+            <p className={cn(textMuted, 'w-full text-sm')}>
+              Déjà dans l&apos;inventaire
+              {kind.quantites
+                ? ` : ${units} unité${units > 1 ? 's' : ''}`
+                : copies.length > 1
+                  ? ` : ${copies.length} exemplaires`
+                  : ''}
+              {!addUnit && !kind.exemplaires
+                ? ` (${kind.nom.toLowerCase()} ne se possède qu’une fois).`
+                : '.'}
+            </p>
+          )}
+          {!addUnit && !addCopy && full && (
+            <p className={cn(textMuted, 'w-full text-sm')}>
               Maximum de {kind.maximum} {(kind.nomPluriel ?? kind.nom).toLowerCase()} atteint.
             </p>
-          ) : (
-            <>
-              {purchase && (
-                <button
-                  type="button"
-                  className={accentButton}
-                  disabled={sending || !purchase.possible}
-                  title={
-                    purchase.possible
-                      ? undefined
-                      : purchase.blocages.map((b) => b.message).join(' ; ')
-                  }
-                  onClick={() =>
-                    run(async () => {
-                      const ok = await onBuy!(purchase.achat, purchase.objet);
-                      if (ok) onDone();
-                      return ok;
-                    })
-                  }
-                >
-                  <Coins />
-                  Acheter · {formatNumber(purchase.cout)} {currency}
-                </button>
-              )}
-              <button
-                type="button"
-                className={purchase ? secondaryButton : accentButton}
-                disabled={sending}
-                onClick={() =>
-                  run(async () => {
-                    const ok = await onUpdateItem({ entree: entry.id });
-                    if (ok) onDone();
-                    return ok;
-                  })
-                }
-              >
-                <Plus />
-                {purchase ? 'Ajouter sans payer' : 'Ajouter à l’inventaire'}
-              </button>
-              {purchase && !purchase.possible && (
-                <p className="w-full text-xs text-red-300">
-                  {purchase.blocages.map((b) => b.message).join(' ; ')}
-                </p>
-              )}
-            </>
+          )}
+          {purchase && (addUnit || addCopy) && (
+            <button
+              type="button"
+              className={accentButton}
+              disabled={sending || !purchase.possible}
+              title={
+                purchase.possible ? undefined : purchase.blocages.map((b) => b.message).join(' ; ')
+              }
+              onClick={() =>
+                run(async () => {
+                  const ok = await onBuy!(purchase.achat, purchase.objet);
+                  if (ok) onDone();
+                  return ok;
+                })
+              }
+            >
+              <Coins />
+              {purchaseLabel} · {formatNumber(purchase.cout)} {currency}
+            </button>
+          )}
+          {addUnit && (
+            <button
+              type="button"
+              className={purchase ? secondaryButton : accentButton}
+              disabled={sending}
+              onClick={() =>
+                add({
+                  ...copyTarget(entry.id, addUnit.exemplaire),
+                  quantite: quantiteDe(addUnit) + 1,
+                })
+              }
+            >
+              <Plus />
+              {purchase ? 'Une unité sans payer' : 'Ajouter une unité'}
+            </button>
+          )}
+          {addCopy && (
+            <button
+              type="button"
+              className={purchase || addUnit ? secondaryButton : accentButton}
+              disabled={sending}
+              onClick={() =>
+                add(owned ? { entree: entry.id, nouveau: true } : { entree: entry.id })
+              }
+            >
+              <Plus />
+              {owned
+                ? addUnit
+                  ? 'Nouvel exemplaire séparé'
+                  : purchase
+                    ? 'Exemplaire sans payer'
+                    : 'Ajouter un exemplaire'
+                : purchase
+                  ? 'Ajouter sans payer'
+                  : 'Ajouter à l’inventaire'}
+            </button>
+          )}
+          {purchase && !purchase.possible && (addUnit || addCopy) && (
+            <p className="w-full text-xs text-red-300">
+              {purchase.blocages.map((b) => b.message).join(' ; ')}
+            </p>
           )}
         </div>
       )}

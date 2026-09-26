@@ -5,5 +5,4 @@
 export { InventoryWidget } from './inventory-widget';
 export { ConnectedInventoryWidget } from './connected';
 export type { InventoryWidgetProps } from './types';
-export { itemPreview, itemWrite, type ItemUpdate } from './api';
 export { equipmentKinds, purseLines, checkItemEffects, describeEffect } from './model';

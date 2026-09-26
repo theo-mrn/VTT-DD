@@ -7,7 +7,7 @@
  * (spécialisations) se listent dans une fenêtre ; une sorte à valeur
  * chiffrée (obligation) affiche son total. « Infos » ouvre les textes longs.
  */
-import type { Attribut, PossessionJson, Sorte, Widget } from '@vtt/rules';
+import type { Attribut, Possession, PossessionEffective, Sorte, Widget } from '@vtt/rules';
 import { Check, Info, Pencil, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
@@ -17,7 +17,7 @@ import { SheetDialog } from './elements';
 import { formatNumber, formatValue } from './format';
 import { WidgetCard } from './frame';
 import { PossessionDialog } from './possession-dialog';
-import { fieldValue, readableField } from './possessions';
+import { copiesOf, copyKey, copyName, fieldValue, readableField } from './possessions';
 import { iconButton, field, focus, panel, text, textAccent, textMuted } from './styles';
 
 type DetailsWidgetProps = Extract<Widget, { type: 'details' }>;
@@ -51,8 +51,8 @@ export function DetailsPanel({
   infos?: boolean;
   className?: string;
 }) {
-  const { system, sheet, json } = useSheet();
-  const [opened, setOpened] = useState<{ entry: string; kind: Sorte } | null>(null);
+  const { system, sheet } = useSheet();
+  const [opened, setOpened] = useState<{ entry: string; copy?: string; kind: Sorte } | null>(null);
   const [listed, setListed] = useState<Sorte | null>(null);
   const [showInfos, setShowInfos] = useState(false);
   const kinds = (widget?.sortes ?? []).flatMap((id) => {
@@ -89,8 +89,8 @@ export function DetailsPanel({
           <KindRow
             key={s.id}
             kind={s}
-            owned={json.possessions.filter((p) => p.sorte === s.id)}
-            onOpen={(entry) => setOpened({ entry, kind: s })}
+            owned={ownedCopies(sheet.possessions.values(), s.id)}
+            onOpen={(entry, copy) => setOpened({ entry, copy, kind: s })}
             onList={() => setListed(s)}
           />
         ))}
@@ -114,21 +114,39 @@ export function DetailsPanel({
       )}
 
       {opened && (
-        <PossessionDialog entry={opened.entry} kind={opened.kind} onClose={() => setOpened(null)} />
+        <PossessionDialog
+          key={copyKey(opened.entry, opened.copy)}
+          entry={opened.entry}
+          copy={opened.copy}
+          kind={opened.kind}
+          onClose={() => setOpened(null)}
+        />
       )}
       {listed && (
         <KindListDialog
           kind={listed}
           onClose={() => setListed(null)}
-          onOpen={(entry) => {
+          onOpen={(entry, copy) => {
             setListed(null);
-            setOpened({ entry, kind: listed });
+            setOpened({ entry, copy, kind: listed });
           }}
         />
       )}
       {showInfos && <InfosDialog attributes={longTexts} onClose={() => setShowInfos(false)} />}
     </div>
   );
+}
+
+/** Exemplaire possédé d'une sorte : deux Obligations du même type sont deux lignes. */
+interface OwnedCopy {
+  p: PossessionEffective;
+  own?: Possession;
+}
+
+function ownedCopies(possessions: Iterable<PossessionEffective>, kind: string): OwnedCopy[] {
+  return [...possessions]
+    .filter((p) => p.sorte.id === kind)
+    .flatMap((p) => copiesOf(p).map((own) => ({ p, own })));
 }
 
 /** Premier champ chiffré d'une sorte (valeur d'une obligation…), dont la ligne affiche le total. */
@@ -141,11 +159,11 @@ function KindRow({
   onList,
 }: {
   kind: Sorte;
-  owned: PossessionJson[];
-  onOpen(entry: string): void;
+  owned: OwnedCopy[];
+  onOpen(entry: string, copy?: string): void;
   onList(): void;
 }) {
-  const { system, state, character } = useSheet();
+  const { character } = useSheet();
   const numeric = numericField(kind);
   const label = owned.length > 1 && !numeric ? (kind.nomPluriel ?? kind.nom) : kind.nom;
 
@@ -162,9 +180,8 @@ function KindRow({
       <span className={textMuted}>—</span>
     );
   } else if (numeric) {
-    const total = owned.reduce((sum, p) => {
-      const e = system.entrees.get(p.entree);
-      const v = e ? fieldValue(state, e, numeric) : undefined;
+    const total = owned.reduce((sum, { p, own }) => {
+      const v = fieldValue(p.entree, numeric, own);
       return sum + (typeof v === 'number' ? v : 0);
     }, 0);
     value = (
@@ -179,8 +196,12 @@ function KindRow({
     );
   } else if (owned.length === 1) {
     value = (
-      <button type="button" className={valueLink} onClick={() => onOpen(owned[0]!.entree)}>
-        {owned[0]!.nom}
+      <button
+        type="button"
+        className={valueLink}
+        onClick={() => onOpen(owned[0]!.p.entree.id, owned[0]!.own?.exemplaire)}
+      >
+        {owned[0]!.p.entree.nom}
       </button>
     );
   } else {
@@ -207,23 +228,23 @@ function KindListDialog({
 }: {
   kind: Sorte;
   onClose(): void;
-  onOpen(entry: string): void;
+  onOpen(entry: string, copy?: string): void;
 }) {
-  const { system, state, json, presentation } = useSheet();
-  const owned = json.possessions.filter((p) => p.sorte === kind.id);
+  const { system, state, sheet, presentation } = useSheet();
+  const owned = ownedCopies(sheet.possessions.values(), kind.id);
   const shownFields = kind.champs.filter((c) => c.type === 'nombre' || c.type === 'texte');
 
   return (
     <SheetDialog open onClose={onClose} title={kind.nomPluriel ?? kind.nom} large>
       <ul className="space-y-3">
-        {owned.map((p) => {
-          const e = system.entrees.get(p.entree);
-          const image = presentation.images[p.entree];
+        {owned.map(({ p, own }) => {
+          const e = p.entree;
+          const image = presentation.images[e.id];
           return (
-            <li key={p.entree}>
+            <li key={copyKey(e.id, own?.exemplaire)}>
               <button
                 type="button"
-                onClick={() => onOpen(p.entree)}
+                onClick={() => onOpen(e.id, own?.exemplaire)}
                 className={cn(
                   panel,
                   'flex w-full gap-3 bg-[color:var(--fiche-canevas)] p-3 text-left hover:border-[color:var(--fiche-accent)]',
@@ -235,8 +256,10 @@ function KindListDialog({
                   <img src={image} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
                 )}
                 <span className="min-w-0">
-                  <span className={cn(textMuted, 'block text-sm font-bold')}>{p.nom}</span>
-                  {e?.description && (
+                  <span className={cn(textMuted, 'block text-sm font-bold')}>
+                    {copyName(p, own)}
+                  </span>
+                  {e.description && (
                     <span
                       className={cn(
                         textMuted,
@@ -246,17 +269,16 @@ function KindListDialog({
                       {e.description}
                     </span>
                   )}
-                  {e &&
-                    shownFields.map((c) => {
-                      const v = fieldValue(state, e, c);
-                      if (v === undefined || v === '') return null;
-                      return (
-                        <span key={c.id} className={cn(text, 'mt-0.5 block text-xs')}>
-                          <span className={textMuted}>{c.nom} : </span>
-                          {readableField(system, state.type, c, v)}
-                        </span>
-                      );
-                    })}
+                  {shownFields.map((c) => {
+                    const v = fieldValue(e, c, own);
+                    if (v === undefined || v === '') return null;
+                    return (
+                      <span key={c.id} className={cn(text, 'mt-0.5 block text-xs')}>
+                        <span className={textMuted}>{c.nom} : </span>
+                        {readableField(system, state.type, c, v)}
+                      </span>
+                    );
+                  })}
                 </span>
               </button>
             </li>

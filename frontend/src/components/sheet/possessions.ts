@@ -8,9 +8,63 @@ import {
   type EtatEntite,
   type Fiche,
   type ObjetAchetable,
+  type Possession,
+  type PossessionEffective,
   type Sorte,
   type SystemeCharge,
 } from '@vtt/rules';
+
+// ─── Exemplaires ─────────────────────────────────────────────────────────────
+
+/**
+ * Exemplaires affichés d'une possession : un par possession explicite de
+ * l'état, sinon un seul, sans possession (entrée obtenue par un effet, un
+ * choix ou un nœud d'arbre).
+ */
+export function copiesOf(p: PossessionEffective): (Possession | undefined)[] {
+  return p.exemplaires.length ? p.exemplaires : [undefined];
+}
+
+/** Clé d'un exemplaire (`entree` ou `entree#exemplaire`), pour React et les sélections. */
+export const copyKey = (entry: string, copy?: string) =>
+  copy === undefined ? entry : `${entry}#${copy}`;
+
+/** Cible d'une écriture sur cet exemplaire : `{ entree, exemplaire? }`. */
+export const copyTarget = (entry: string, copy?: string) => ({
+  entree: entry,
+  ...(copy !== undefined ? { exemplaire: copy } : {}),
+});
+
+/** Numéro affiché d'un exemplaire quand l'entrée en a plusieurs (« 1 », « 2 »…), sinon rien. */
+export function copyNumber(p: PossessionEffective, own?: Possession): string | undefined {
+  if (p.exemplaires.length < 2 || !own) return undefined;
+  return own.exemplaire ?? '1';
+}
+
+/** Nom d'un exemplaire : celui de l'entrée, numéroté s'il y en a plusieurs. */
+export function copyName(p: PossessionEffective, own?: Possession): string {
+  const n = copyNumber(p, own);
+  return n ? `${p.entree.nom} (n° ${n})` : p.entree.nom;
+}
+
+/** Exemplaire actif : son propre état pour une sorte activable, sinon celui de l'entrée. */
+export function copyActive(p: PossessionEffective, own?: Possession): boolean {
+  if (!own) return p.actif;
+  return !p.sorte.activable || own.actif;
+}
+
+/** Dernier exemplaire d'une entrée : celui que retire l'annulation de son dernier achat. */
+export function lastCopy(state: EtatEntite, entry: string): Possession | undefined {
+  return state.possessions.filter((x) => x.entree === entry).at(-1);
+}
+
+/** Nombre d'exemplaires d'une sorte, tel que le compte son `maximum`. */
+export function copiesOfKind(sheet: Fiche, kind: string): number {
+  let n = 0;
+  for (const p of sheet.possessions.values())
+    if (p.sorte.id === kind) n += Math.max(1, p.exemplaires.length);
+  return n;
+}
 
 /** Un achat du système vise-t-il les entrées de cette sorte (rang ou nouvelle entrée) ? */
 export function purchasableKind(system: SystemeCharge, kind: string): boolean {
@@ -60,14 +114,13 @@ export function lastLine(state: EtatEntite, item: string): number {
   return -1;
 }
 
-/** Valeur d'un champ pour une possession : celle de l'exemplaire, de l'entrée, sinon le défaut. */
+/** Valeur d'un champ pour un exemplaire : la sienne, celle de l'entrée, sinon le défaut. */
 export function fieldValue(
-  state: EtatEntite,
   entry: Entree,
   field: Champ,
+  own?: Pick<Possession, 'champs'>,
 ): number | string | boolean | string[] | undefined {
-  const p = state.possessions.find((x) => x.entree === entry.id);
-  const v = p?.champs[field.id] ?? entry.champs[field.id];
+  const v = own?.champs[field.id] ?? entry.champs[field.id];
   if (v !== undefined) return v;
   return 'defaut' in field ? field.defaut : undefined;
 }

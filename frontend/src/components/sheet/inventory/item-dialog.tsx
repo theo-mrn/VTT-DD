@@ -1,7 +1,10 @@
 'use client';
 
-/** Fiche d'un objet possédé : caractéristiques, équipement, bonus de l'objet, retrait. */
-import type { Champ, Sorte } from '@vtt/rules';
+/**
+ * Fiche d'un exemplaire possédé : caractéristiques, équipement, quantité,
+ * bonus propres à cet exemplaire, annulation d'achat et retrait.
+ */
+import { estExemplaire, quantiteDe, type Champ, type Sorte } from '@vtt/rules';
 import { AlertTriangle, Trash2, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -15,8 +18,9 @@ import {
   textAccent,
   textMuted,
 } from '../styles';
+import { copyActive, copyName, copyTarget, lastCopy } from '../possessions';
 import { ItemEffects } from './effect-editor';
-import { EquipToggle } from './item-card';
+import { EquipToggle, QuantityStepper } from './item-card';
 import { describeEffect, fieldValue, itemErrors, readableField } from './model';
 import { InventoryDialog, useInventory, useSending } from './ui';
 
@@ -33,10 +37,13 @@ function lastLine(journal: { objet: string }[], item: string): number {
 
 export function ItemDialog({
   entry: id,
+  copy,
   kind,
   onClose,
 }: {
   entry: string;
+  /** Identifiant de l'exemplaire (absent : l'exemplaire sans identifiant, ou obtenu par effet). */
+  copy?: string;
   kind: Sorte;
   onClose(): void;
 }) {
@@ -45,23 +52,50 @@ export function ItemDialog({
   const [sending, run] = useSending();
   const entry = system.entrees.get(id);
   const p = sheet.possessions.get(id);
-  if (!entry || !p) return null;
+  const own = state.possessions.find((x) => estExemplaire(x, id, copy));
+  // Exemplaire retiré entre-temps (sans possession explicite, seul un objet obtenu par effet s'affiche)
+  if (!entry || !p || (!own && p.exemplaires.length)) return null;
 
-  const explicit = state.possessions.some((x) => x.entree === id);
+  const explicit = !!own;
+  const target = copyTarget(id, copy);
   const line = onRefund ? lastLine(state.journal, id) : -1;
-  // Un achat fait pendant la création ne s'annule plus une fois celle-ci terminée
+  // Seul le dernier exemplaire est rendu par l'annulation ; un achat fait
+  // pendant la création ne s'annule plus une fois celle-ci terminée
   const refundLine =
-    line >= 0 && (state.creation || !state.journal[line]!.creation)
+    line >= 0 &&
+    !!own &&
+    lastCopy(state, id) === own &&
+    (state.creation || !state.journal[line]!.creation)
       ? state.journal[line]
       : undefined;
   const marks = [...(sheet.marques.get(id) ?? [])];
-  const errors = itemErrors(sheet, id);
+  const errors = itemErrors(sheet, id, own);
   const canEdit = !readOnly && explicit;
+  const active = copyActive(p, own);
+  const quantity = own ? quantiteDe(own) : 1;
 
   return (
-    <InventoryDialog open onClose={onClose} title={entry.nom} description={kind.nom} size="lg">
+    <InventoryDialog
+      open
+      onClose={onClose}
+      title={copyName(p, own)}
+      description={kind.nom}
+      size="lg"
+    >
       <div className="flex flex-wrap items-center gap-1.5">
-        <EquipToggle entry={id} name={entry.nom} active={p.actif} explicit={explicit} />
+        <EquipToggle entry={id} copy={copy} name={entry.nom} active={active} explicit={explicit} />
+        {kind.quantites && (
+          <span className="ml-auto flex items-center gap-2">
+            <span className={cn(textMuted, 'text-xs')}>Quantité</span>
+            {canEdit && own ? (
+              <QuantityStepper possession={own} name={entry.nom} />
+            ) : (
+              <span className={cn(textAccent, 'font-mono text-sm font-bold tabular-nums')}>
+                ×{quantity}
+              </span>
+            )}
+          </span>
+        )}
         {marks.map((m) => (
           <span key={m} className={cn(chip, textAccent)}>
             {tagName(m)}
@@ -85,14 +119,14 @@ export function ItemDialog({
           <h3 className={cn(textMuted, 'text-xs uppercase tracking-wide')}>Caractéristiques</h3>
           <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
             {kind.champs.map((c) => {
-              const v = fieldValue(state, entry, c);
+              const v = fieldValue(entry, c, own);
               const editable = canEdit && isEditable(c);
-              const own = state.possessions.find((x) => x.entree === id)?.champs[c.id];
+              const mine = own?.champs[c.id];
               return (
                 <div key={c.id} className="min-w-0">
                   <dt className={cn(textMuted, 'text-xs')}>
                     {editable ? <label htmlFor={`item-field-${c.id}`}>{c.nom}</label> : c.nom}
-                    {own !== undefined && own !== entry.champs[c.id] && (
+                    {mine !== undefined && mine !== entry.champs[c.id] && (
                       <span
                         className={cn(textAccent, 'ml-1')}
                         title="Valeur propre à cet exemplaire"
@@ -125,7 +159,7 @@ export function ItemDialog({
                 disabled={sending}
                 onClick={() =>
                   run(async () => {
-                    const ok = await onUpdateItem({ entree: id, champs: edits });
+                    const ok = await onUpdateItem({ ...target, champs: edits });
                     if (ok) setEdits({});
                     return ok;
                   })
@@ -159,7 +193,7 @@ export function ItemDialog({
         </section>
       )}
 
-      {explicit && <ItemEffects entry={id} equipped={p.actif} />}
+      {explicit && <ItemEffects entry={id} copy={copy} equipped={active} />}
 
       {errors.length > 0 && (
         <ul className="space-y-1 rounded-lg border border-amber-400/40 bg-amber-500/10 p-2 text-xs text-amber-200">
@@ -205,14 +239,18 @@ export function ItemDialog({
               disabled={sending}
               onClick={() =>
                 run(async () => {
-                  const ok = await onRemoveItem(id);
+                  const ok = await onRemoveItem(id, copy);
                   if (ok) onClose();
                   return ok;
                 })
               }
             >
               <Trash2 />
-              Retirer de l&apos;inventaire
+              {kind.quantites && quantity > 1
+                ? `Retirer les ${quantity} unités`
+                : p.exemplaires.length > 1
+                  ? 'Retirer cet exemplaire'
+                  : 'Retirer de l’inventaire'}
             </button>
           )}
         </div>

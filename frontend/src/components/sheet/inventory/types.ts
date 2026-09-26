@@ -1,13 +1,13 @@
 import type {
   AchatDisponible,
+  Attribut,
   EtatEntite,
   Fiche,
   Presentation,
   SystemeCharge,
   Valeur,
 } from '@vtt/rules';
-import type { Character } from '@/lib/characters';
-import type { ItemUpdate } from './api';
+import type { Character, PossessionUpdate } from '@/lib/characters';
 
 /**
  * Props de l'inventaire. Le composant ne lit aucun contexte : tout arrive
@@ -41,14 +41,22 @@ export interface InventoryWidgetProps {
   showPurse?: boolean;
 
   // ─── Écritures : chacune renvoie vrai si le serveur l'a acceptée ───────────
-  /** Ajout, équipement, champs de l'exemplaire, bonus de l'objet (`effets`). */
-  onUpdateItem(update: ItemUpdate): Promise<boolean>;
-  /** Retire la possession (DELETE /possessions/:entree). */
-  onRemoveItem(entry: string): Promise<boolean>;
+  /**
+   * Ajout ou mise à jour d'un exemplaire (`POST /possessions`) : équipement,
+   * quantité, champs, bonus de l'objet (`effets`), nouvel exemplaire (`nouveau`).
+   */
+  onUpdateItem(update: PossessionUpdate): Promise<boolean>;
+  /** Retire un exemplaire (`DELETE /possessions/:entree?exemplaire=`). */
+  onRemoveItem(entry: string, copy?: string): Promise<boolean>;
   /** Achat d'une entrée par la bourse (absent : pas d'achat proposé). */
   onBuy?(purchase: string, item: string): Promise<boolean>;
   /** Annulation d'une ligne du journal (absent : pas d'annulation proposée). */
   onRefund?(index: number): Promise<boolean>;
-  /** Saisie de valeurs : le montant de la bourse, pendant la création seulement. */
+  /** Saisie de valeurs : le montant de la bourse, selon la `saisie` de son attribut. */
   onSetValues?(values: Record<string, Valeur>): Promise<boolean>;
+  /**
+   * L'attribut se saisit-il maintenant (voir `saisie` : création, jeu, MJ) ?
+   * Absent : seulement pendant la création, hors lecture seule.
+   */
+  canSetValue?(attribute: Attribut): boolean;
 }

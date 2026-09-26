@@ -19,6 +19,7 @@ import {
   textMuted,
   titleFont,
 } from '../styles';
+import { copiesOf, copyActive, copyKey } from '../possessions';
 import { themeVariables } from '../theme';
 import { CatalogueDialog, KindFilter } from './catalogue-dialog';
 import { ItemCard } from './item-card';
@@ -53,30 +54,34 @@ function Inventory() {
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState('');
   const [equippedOnly, setEquippedOnly] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ entry: string; copy?: string } | null>(null);
   const [adding, setAdding] = useState<{ kind?: string } | null>(null);
 
+  // Une carte par exemplaire : deux dagues sont deux objets, chacun équipé ou non
   const kindIds = new Set(kinds.map((k) => k.id));
   const owned = [...sheet.possessions.values()]
     .filter((p) => kindIds.has(p.sorte.id))
-    .sort((a, b) => a.entree.nom.localeCompare(b.entree.nom, 'fr'));
-  const equipped = owned.filter((p) => p.actif).length;
+    .sort((a, b) => a.entree.nom.localeCompare(b.entree.nom, 'fr'))
+    .flatMap((p) => copiesOf(p).map((own) => ({ p, own, active: copyActive(p, own) })));
+  const equipped = owned.filter((x) => x.active).length;
   const counts = new Map<string, number>();
-  for (const p of owned) counts.set(p.sorte.id, (counts.get(p.sorte.id) ?? 0) + 1);
+  for (const { p } of owned) counts.set(p.sorte.id, (counts.get(p.sorte.id) ?? 0) + 1);
 
   // La recherche porte aussi sur le résumé des champs (« Crit 3 », une compétence…)
   const query = normalize(search.trim());
   const visible = owned.filter(
-    (p) =>
+    ({ p, own, active }) =>
       (!kindFilter || p.sorte.id === kindFilter) &&
-      (!equippedOnly || p.actif) &&
+      (!equippedOnly || active) &&
       (!query ||
         normalize(p.entree.nom).includes(query) ||
-        normalize(
-          fieldSummary(system, state.type, state, p.entree, p.sorte, 20).join(' '),
-        ).includes(query)),
+        normalize(fieldSummary(system, state.type, p.entree, p.sorte, own, 20).join(' ')).includes(
+          query,
+        )),
   );
-  const openKind = open ? system.sortes.get(system.entrees.get(open)?.sorte ?? '') : undefined;
+  const openKind = open
+    ? system.sortes.get(system.entrees.get(open.entry)?.sorte ?? '')
+    : undefined;
 
   return (
     <section aria-labelledby={titleId} className={cn(card, 'space-y-3')}>
@@ -163,7 +168,7 @@ function Inventory() {
           {visible.length ? (
             <div className="space-y-4">
               {kinds.map((k) => {
-                const list = visible.filter((p) => p.sorte.id === k.id);
+                const list = visible.filter(({ p }) => p.sorte.id === k.id);
                 if (!list.length) return null;
                 return (
                   <section key={k.id} aria-label={k.nomPluriel ?? k.nom}>
@@ -186,12 +191,17 @@ function Inventory() {
                       )}
                     </div>
                     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))]">
-                      {list.map((p) => (
+                      {list.map(({ p, own }) => (
                         <ItemCard
-                          key={p.entree.id}
-                          entry={p.entree}
-                          kind={p.sorte}
-                          onOpen={() => setOpen(p.entree.id)}
+                          key={copyKey(p.entree.id, own?.exemplaire)}
+                          possession={p}
+                          own={own}
+                          onOpen={() =>
+                            setOpen({
+                              entry: p.entree.id,
+                              ...(own?.exemplaire !== undefined ? { copy: own.exemplaire } : {}),
+                            })
+                          }
                         />
                       ))}
                     </ul>
@@ -206,7 +216,13 @@ function Inventory() {
       )}
 
       {open && openKind && (
-        <ItemDialog entry={open} kind={openKind} onClose={() => setOpen(null)} />
+        <ItemDialog
+          key={copyKey(open.entry, open.copy)}
+          entry={open.entry}
+          copy={open.copy}
+          kind={openKind}
+          onClose={() => setOpen(null)}
+        />
       )}
       {adding && <CatalogueDialog initialKind={adding.kind} onClose={() => setAdding(null)} />}
     </section>

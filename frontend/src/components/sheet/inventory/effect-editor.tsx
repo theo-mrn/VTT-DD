@@ -7,7 +7,7 @@
  * le moteur (`compilerEffets`, puis un calcul de la fiche) avant l'envoi,
  * et le serveur refait la même vérification.
  */
-import type { Effet } from '@vtt/rules';
+import { estExemplaire, type Effet } from '@vtt/rules';
 import { AlertTriangle, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ import {
   textAccent,
   textMuted,
 } from '../styles';
+import { copyTarget } from '../possessions';
 import {
   checkItemEffects,
   damageTypes,
@@ -115,11 +116,20 @@ function buildEffect(d: Draft): Effet {
 }
 
 /** Bonus propres à un exemplaire : liste, retrait, ajout vérifié. */
-export function ItemEffects({ entry, equipped }: { entry: string; equipped: boolean }) {
+export function ItemEffects({
+  entry,
+  copy,
+  equipped,
+}: {
+  entry: string;
+  /** Identifiant de l'exemplaire (absent : l'exemplaire sans identifiant). */
+  copy?: string;
+  equipped: boolean;
+}) {
   const { system, state, readOnly, onUpdateItem } = useInventory();
   const effects = useMemo(
-    () => state.possessions.find((p) => p.entree === entry)?.effets ?? [],
-    [state, entry],
+    () => state.possessions.find((p) => estExemplaire(p, entry, copy))?.effets ?? [],
+    [state, entry, copy],
   );
   const [adding, setAdding] = useState(false);
   const [errors, setErrors] = useState<EffectError[]>([]);
@@ -127,10 +137,10 @@ export function ItemEffects({ entry, equipped }: { entry: string; equipped: bool
 
   const save = (next: Effet[]) =>
     run(async () => {
-      const found = checkItemEffects(system, state, entry, next);
+      const found = checkItemEffects(system, state, entry, copy, next);
       setErrors(found);
       if (found.length) return false;
-      return onUpdateItem({ entree: entry, effets: next });
+      return onUpdateItem({ ...copyTarget(entry, copy), effets: next });
     });
 
   return (

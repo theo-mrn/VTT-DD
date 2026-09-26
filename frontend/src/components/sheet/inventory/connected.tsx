@@ -6,7 +6,6 @@
  * ce contexte ; à ajuster si la fiche principale change d'API.
  */
 import { useSheet } from '../context';
-import { itemPreview, itemWrite, type ItemUpdate } from './api';
 import { InventoryWidget } from './inventory-widget';
 import type { InventoryWidgetProps } from './types';
 
@@ -24,11 +23,12 @@ export function ConnectedInventoryWidget(
       sheet={s.sheet}
       purchases={s.purchases}
       readOnly={s.readOnly}
-      onUpdateItem={(u: ItemUpdate) => s.write(itemWrite(u), itemPreview(u))}
+      onUpdateItem={s.updatePossession}
       onRemoveItem={s.removePossession}
       onBuy={s.buy}
       onRefund={s.refund}
       onSetValues={s.setValues}
+      canSetValue={s.canSetValue}
     />
   );
 }
