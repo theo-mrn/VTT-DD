@@ -10,7 +10,7 @@
  * Chaque effet sur un attribut affiche la valeur réellement appliquée, lue
  * dans le détail du calcul de la fiche.
  */
-import type { Effet, Widget } from '@vtt/rules';
+import { estExemplaire, sourceExemplaire, type Effet, type Widget } from '@vtt/rules';
 import { Check, ChevronDown, Clock, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ import { BonusForm } from './bonus-form';
 import { useSheet } from './context';
 import { formatValue } from './format';
 import { WidgetCard } from './frame';
+import { copyName, copyTarget } from './possessions';
 import { focus, secondaryButton, text, textMuted, widgetLabel } from './styles';
 
 type BonusWidgetProps = Extract<Widget, { type: 'bonus' }>;
@@ -67,7 +68,12 @@ export function BonusWidget({ widget }: { widget: BonusWidgetProps }) {
         {copies.length > 0 && (
           <Section title="Exemplaires">
             {copies.map((p) => (
-              <CopyCard key={p.entree} entry={p.entree} names={names} />
+              <CopyCard
+                key={sourceExemplaire(p)}
+                entry={p.entree}
+                copy={p.exemplaire}
+                names={names}
+              />
             ))}
           </Section>
         )}
@@ -299,45 +305,48 @@ function FreeBonusCard({ id, names }: { id: string; names: Names }) {
 }
 
 /** Effets propres à un exemplaire possédé (épée +1, bonus saisi sur un objet). */
-function CopyCard({ entry, names }: { entry: string; names: Names }) {
-  const { system, state, json, readOnly, pending, updatePossession } = useSheet();
-  const p = state.possessions.find((x) => x.entree === entry);
+function CopyCard({ entry, copy, names }: { entry: string; copy?: string; names: Names }) {
+  const { system, state, sheet, json, readOnly, pending, updatePossession } = useSheet();
+  const p = state.possessions.find((x) => estExemplaire(x, entry, copy));
   const e = system.entrees.get(entry);
   if (!p || !e) return null;
   const kind = system.sortes.get(e.sorte);
   const effective = json.possessions.find((x) => x.entree === entry)?.effective ?? true;
-  const active = p.actif && effective;
+  const active = (!kind?.activable || p.actif) && effective;
+  const owned = sheet.possessions.get(entry);
+  const name = owned ? copyName(owned, p) : e.nom;
+  const target = copyTarget(entry, copy);
   return (
     <Card active={active}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">
           <StatusToggle
             active={active}
-            label={e.nom}
+            label={name}
             onToggle={
               !readOnly && kind?.activable
-                ? () => void updatePossession({ entree: entry, actif: !p.actif })
+                ? () => void updatePossession({ ...target, actif: !p.actif })
                 : undefined
             }
             disabled={pending > 0}
           />
           <span className={cn(text, 'truncate text-[11px] font-bold uppercase tracking-wide')}>
-            {e.nom}
+            {name}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {kind && <span className={cn(textMuted, 'text-[10px]')}>{kind.nom}</span>}
           {!readOnly && (
             <RemoveButton
-              label={`Retirer les effets propres à ${e.nom}`}
-              onRemove={() => void updatePossession({ entree: entry, effets: [] })}
+              label={`Retirer les effets propres à ${name}`}
+              onRemove={() => void updatePossession({ ...target, effets: [] })}
             />
           )}
         </span>
       </div>
       <EffectLines
         effects={shown(p.effets)}
-        source={`${entry}#exemplaire`}
+        source={sourceExemplaire(p)}
         names={names}
         active={active}
       />

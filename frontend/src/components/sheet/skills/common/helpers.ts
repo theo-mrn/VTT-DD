@@ -14,10 +14,12 @@ import {
   type EtatEntite,
   type Fiche,
   type ObjetAchetable,
+  type Possession,
   type Sorte,
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
+import { fieldValue } from '../../possessions';
 
 /** Normalise un texte pour la recherche (casse et accents ignorés). */
 export function normalize(s: string) {
@@ -189,22 +191,13 @@ export function groupFieldOf(kind: Sorte, requested?: string): Champ | undefined
   return kind.champs.find((c) => c.id === 'groupe' && c.type === 'texte');
 }
 
-/** Valeur d'un champ pour une entrée : celle de l'exemplaire possédé, de l'entrée, sinon le défaut. */
-export function rawField(
-  state: EtatEntite,
-  entry: Entree,
-  field: Champ,
-): number | string | boolean | string[] | undefined {
-  const p = state.possessions.find((x) => x.entree === entry.id);
-  const v = p?.champs[field.id] ?? entry.champs[field.id];
-  if (v !== undefined) return v;
-  return 'defaut' in field ? field.defaut : undefined;
-}
-
-/** Valeur d'un champ, lisible (noms d'attribut ou d'entrée résolus) ; '' si vide. */
-export function readableField(sheet: Fiche, entry: Entree, field: Champ): string {
+/**
+ * Valeur d'un champ, lisible (noms d'attribut ou d'entrée résolus) ; '' si
+ * vide. Celle de l'exemplaire `own`, sinon de l'entrée, sinon le défaut.
+ */
+export function readableField(sheet: Fiche, entry: Entree, field: Champ, own?: Possession): string {
   const system = sheet.systeme;
-  const v = rawField(sheet.etat, entry, field);
+  const v = fieldValue(entry, field, own);
   if (v === undefined || v === '') return '';
   if (Array.isArray(v)) return v.map((id) => system.entrees.get(id)?.nom ?? id).join(', ');
   if (typeof v === 'boolean') return v ? 'Oui' : 'Non';

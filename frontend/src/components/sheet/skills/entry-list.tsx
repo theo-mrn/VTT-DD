@@ -4,12 +4,21 @@
  * Entrées possédées d'une sorte SANS rangs (capacités, talents acquis,
  * équipement…), dans l'esprit de la liste de capacités de l'ancienne fiche :
  * cartes avec description, détail, activation, ajout (achat ou ajout libre)
- * et retrait (remboursement de l'achat, ou retrait de la possession).
+ * et retrait (remboursement de l'achat, ou retrait de la possession). Une
+ * sorte `exemplaires` affiche une carte par exemplaire (deux Obligations du
+ * même type), chacune activée, détaillée et retirée à part.
  */
-import type { PossessionEffective, Sorte } from '@vtt/rules';
+import {
+  estExemplaire,
+  quantiteDe,
+  type Possession,
+  type PossessionEffective,
+  type Sorte,
+} from '@vtt/rules';
 import { Plus, Star, Trash2, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { copiesOf, copyActive, copyKey, copyName, copyTarget, lastCopy } from '../possessions';
 import type { SheetBindings } from './common/bindings';
 import { SearchField, WriteButton } from './common/controls';
 import { EntryDialog } from './common/entry-dialog';
@@ -55,16 +64,18 @@ export function EntryList(props: EntryListProps) {
   const { system, sheet, purchases, readOnly, gm, kind: kindId, title, className } = props;
   const kind = system.sortes.get(kindId);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<{ entry: string; copy?: string } | null>(null);
   const [adding, setAdding] = useState(false);
 
   if (!kind || !kind.pour.includes(sheet.etat.type)) return null;
 
+  // Une carte par exemplaire ; chacun compte dans le maximum de la sorte
   const owned = [...sheet.possessions.values()]
     .filter((p) => p.sorte.id === kind.id && (!kind.rangs || p.rang > 0))
-    .sort((a, b) => byName(a.entree, b.entree));
+    .sort((a, b) => byName(a.entree, b.entree))
+    .flatMap((p) => copiesOf(p).map((own) => ({ p, own })));
   const query = normalize(search.trim());
-  const shown = owned.filter((p) => !query || normalize(p.entree.nom).includes(query));
+  const shown = owned.filter(({ p }) => !query || normalize(p.entree.nom).includes(query));
   const full = kind.maximum !== undefined && owned.length >= kind.maximum;
   const purchasable = purchases.some((a) =>
     a.objets.some(
@@ -74,7 +85,10 @@ export function EntryList(props: EntryListProps) {
     ),
   );
   const canAdd = !readOnly && !full && (purchasable || gm || freelyAddable(system, kind.id));
-  const current = selected ? sheet.possessions.get(selected) : undefined;
+  const current = selected ? sheet.possessions.get(selected.entry) : undefined;
+  const currentOwn = selected
+    ? sheet.etat.possessions.find((x) => estExemplaire(x, selected.entry, selected.copy))
+    : undefined;
 
   return (
     <>
@@ -105,16 +119,25 @@ export function EntryList(props: EntryListProps) {
             </p>
           ) : (
             <ul className={autoGrid}>
-              {shown.map((p) => (
-                <li key={p.entree.id}>
+              {shown.map(({ p, own }) => (
+                <li key={copyKey(p.entree.id, own?.exemplaire)}>
                   <EntryCard
                     possession={p}
+                    own={own}
                     marks={marksOf(sheet, p.entree.id)}
-                    canToggle={!readOnly && kind.activable && !!p.possession}
+                    canToggle={!readOnly && kind.activable && !!own}
                     onToggle={() =>
-                      props.onUpdatePossession({ entree: p.entree.id, actif: !p.actif })
+                      props.onUpdatePossession({
+                        ...copyTarget(p.entree.id, own?.exemplaire),
+                        actif: !copyActive(p, own),
+                      })
                     }
-                    onOpen={() => setSelected(p.entree.id)}
+                    onOpen={() =>
+                      setSelected({
+                        entry: p.entree.id,
+                        ...(own?.exemplaire !== undefined ? { copy: own.exemplaire } : {}),
+                      })
+                    }
                   />
                 </li>
               ))}
@@ -123,11 +146,12 @@ export function EntryList(props: EntryListProps) {
         </div>
       </section>
 
-      {current && (
+      {current && (currentOwn || !current.exemplaires.length) && (
         <EntryDetailDialog
           {...props}
           kind={kind}
           possession={current}
+          own={currentOwn}
           onClose={() => setSelected(null)}
         />
       )}
@@ -138,18 +162,23 @@ export function EntryList(props: EntryListProps) {
 
 function EntryCard({
   possession: p,
+  own,
   marks,
   canToggle,
   onToggle,
   onOpen,
 }: {
   possession: PossessionEffective;
+  /** Exemplaire affiché ; absent : entrée obtenue par un effet, un choix ou un nœud. */
+  own?: Possession;
   marks: string[];
   canToggle: boolean;
   onToggle(): Promise<boolean>;
   onOpen(): void;
 }) {
-  const inactive = p.sorte.activable && !p.actif;
+  const active = copyActive(p, own);
+  const inactive = p.sorte.activable && !active;
+  const name = copyName(p, own);
   return (
     <div
       className={cn(
@@ -169,26 +198,31 @@ function EntryCard({
             focus,
           )}
         >
-          {p.entree.nom}
+          {name}
         </button>
         {marks.length > 0 && <Star aria-hidden className={cn(textAccent, 'h-3 w-3 shrink-0')} />}
         {p.sorte.rangs && p.rang > 1 && (
           <span className={cn(textMuted, 'shrink-0 font-mono text-xs')}>×{p.rang}</span>
         )}
+        {p.sorte.quantites && own && quantiteDe(own) > 1 && (
+          <span className={cn(textMuted, 'shrink-0 font-mono text-xs')} title="Quantité">
+            ×{quantiteDe(own)}
+          </span>
+        )}
         {p.sorte.activable && (
           <WriteButton
             className={cn(
               'shrink-0 rounded-full border px-2 py-0.5 text-[11px] leading-none transition-colors disabled:cursor-not-allowed',
-              p.actif
+              active
                 ? 'border-[color:var(--fiche-accent)] bg-[color:color-mix(in_srgb,var(--fiche-accent)_14%,transparent)] text-[color:var(--fiche-texte)]'
                 : 'border-[color:var(--fiche-bordure)] text-[color:var(--fiche-texte-secondaire)]',
               focus,
             )}
             disabled={!canToggle}
-            label={`${p.entree.nom} : ${p.actif ? 'actif' : 'inactif'}`}
+            label={`${name} : ${active ? 'actif' : 'inactif'}`}
             onClick={onToggle}
           >
-            {p.actif ? 'Actif' : 'Inactif'}
+            {active ? 'Actif' : 'Inactif'}
           </WriteButton>
         )}
       </div>
@@ -207,12 +241,15 @@ function EntryDetailDialog({
   themeVariables,
   kind,
   possession: p,
+  own,
   onRefund,
   onRemovePossession,
   onClose,
 }: Omit<EntryListProps, 'kind'> & {
   kind: Sorte;
   possession: PossessionEffective;
+  /** Exemplaire affiché (absent : entrée obtenue sans possession explicite). */
+  own?: Possession;
   onClose(): void;
 }) {
   const state = sheet.etat;
@@ -220,20 +257,20 @@ function EntryDetailDialog({
   const marks = marksOf(sheet, entry.id);
   const from = sourceNames(system, p.sources);
   const fields = kind.champs
-    .map((c) => ({ c, v: readableField(sheet, entry, c) }))
+    .map((c) => ({ c, v: readableField(sheet, entry, c, own) }))
     .filter(({ v }) => v !== '');
   const lines = journalLines(state, entry.id);
-  const last = lines.at(-1);
+  // L'annulation du dernier achat rend le dernier exemplaire : proposée sur celui-là seulement
+  const last = !own || lastCopy(state, entry.id) === own ? lines.at(-1) : undefined;
   const lastLine = last !== undefined ? state.journal[last] : undefined;
   const lastError = last !== undefined ? refundError(system, state, last) : null;
-  const removable =
-    !readOnly && !lines.length && !!p.possession && (gm || freelyAddable(system, kind.id));
+  const removable = !readOnly && !lines.length && !!own && (gm || freelyAddable(system, kind.id));
 
   return (
     <EntryDialog
       open
       onClose={onClose}
-      title={entry.nom}
+      title={copyName(p, own)}
       description={kind.nom}
       themeVariables={themeVariables}
       badges={marks.map((m) => (
@@ -248,7 +285,7 @@ function EntryDetailDialog({
             <WriteButton
               className={dangerButton}
               onClick={async () => {
-                if (await onRemovePossession(entry.id)) onClose();
+                if (await onRemovePossession(entry.id, own?.exemplaire)) onClose();
               }}
             >
               <Trash2 />
@@ -283,6 +320,11 @@ function EntryDetailDialog({
         {kind.rangs && (
           <p>
             Rang : <strong>{p.rang}</strong>
+          </p>
+        )}
+        {kind.quantites && own && (
+          <p>
+            Quantité : <strong>{quantiteDe(own)}</strong>
           </p>
         )}
         {fields.map(({ c, v }) => (

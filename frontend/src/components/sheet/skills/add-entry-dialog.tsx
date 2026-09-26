@@ -52,6 +52,8 @@ export function AddEntryDialog({
   const match = (name: string) => !query || normalize(name).includes(query);
   const owned = (id: string) =>
     (sheet.possessions.get(id)?.rang ?? 0) > 0 || (!kind.rangs && sheet.possessions.has(id));
+  // Une sorte `exemplaires` se reprend : l'ajout crée un nouvel exemplaire
+  const addable = (id: string) => !owned(id) || (!kind.rangs && kind.exemplaires);
 
   const items: ObjetAchetable[] = freeOnly
     ? []
@@ -67,7 +69,7 @@ export function AddEntryDialog({
   const allowFree = freeOnly || gm || freelyAddable(system, kind.id);
   const free = allowFree
     ? entriesOfKind(system, kind.id)
-        .filter((e) => !owned(e.id) && match(e.nom) && !items.some((o) => o.objet === e.id))
+        .filter((e) => addable(e.id) && match(e.nom) && !items.some((o) => o.objet === e.id))
         .sort(byName)
     : [];
 
@@ -110,30 +112,37 @@ export function AddEntryDialog({
               </li>
             );
           })}
-          {free.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 py-2">
-              <span className="min-w-0 flex-1">
-                <span className={cn(text, 'block truncate text-sm')}>{e.nom}</span>
-                {e.description && (
-                  <span className={cn(textMuted, 'line-clamp-1 block text-xs')}>
-                    {e.description}
-                  </span>
-                )}
-              </span>
-              <WriteButton
-                className={softAccentButton}
-                label={`Ajouter ${e.nom}`}
-                onClick={async () =>
-                  done(
-                    await onUpdatePossession({ entree: e.id, ...(kind.rangs ? { rang: 1 } : {}) }),
-                  )
-                }
-              >
-                <Plus />
-                Ajouter
-              </WriteButton>
-            </li>
-          ))}
+          {free.map((e) => {
+            const again = owned(e.id);
+            return (
+              <li key={e.id} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className={cn(text, 'block truncate text-sm')}>{e.nom}</span>
+                  {e.description && (
+                    <span className={cn(textMuted, 'line-clamp-1 block text-xs')}>
+                      {e.description}
+                    </span>
+                  )}
+                </span>
+                <WriteButton
+                  className={softAccentButton}
+                  label={again ? `Ajouter un autre exemplaire : ${e.nom}` : `Ajouter ${e.nom}`}
+                  onClick={async () =>
+                    done(
+                      await onUpdatePossession(
+                        again
+                          ? { entree: e.id, nouveau: true }
+                          : { entree: e.id, ...(kind.rangs ? { rang: 1 } : {}) },
+                      ),
+                    )
+                  }
+                >
+                  <Plus />
+                  {again ? 'Un autre' : 'Ajouter'}
+                </WriteButton>
+              </li>
+            );
+          })}
         </ul>
         {!items.length && !free.length && (
           <p className={cn(textMuted, 'py-6 text-center text-sm')}>Rien à ajouter.</p>

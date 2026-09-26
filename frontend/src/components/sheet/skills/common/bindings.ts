@@ -30,6 +30,6 @@ export interface SheetBindings {
   onRefund(index: number): Promise<boolean>;
   /** `POST /possessions` (ajout ou mise à jour, sans dépense) */
   onUpdatePossession(update: PossessionUpdate): Promise<boolean>;
-  /** `DELETE /possessions/:entree` */
-  onRemovePossession(entry: string): Promise<boolean>;
+  /** `DELETE /possessions/:entree?exemplaire=` (absent : l'exemplaire sans identifiant) */
+  onRemovePossession(entry: string, copy?: string): Promise<boolean>;
 }
