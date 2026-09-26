@@ -61,6 +61,7 @@ spec:
           login: true,
           passwordSecret: { name: pg-characters-owner },
         }
+      - { name: dice_owner, ensure: present, login: true, passwordSecret: { name: pg-dice-owner } }
       - {
           name: history_owner,
           ensure: present,
@@ -77,6 +78,7 @@ spec:
           login: true,
           passwordSecret: { name: pg-characters },
         }
+      - { name: dice_svc, ensure: present, login: true, passwordSecret: { name: pg-dice } }
       - { name: history_svc, ensure: present, login: true, passwordSecret: { name: pg-history } }
       - {
           name: backup_ro,

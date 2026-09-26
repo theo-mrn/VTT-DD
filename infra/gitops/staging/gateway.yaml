@@ -16,6 +16,7 @@ env:
   UPSTREAM_IDENTITY_URL: http://identity.vtt-staging.svc
   UPSTREAM_CHARACTER_URL: http://character.vtt-staging.svc
   UPSTREAM_CAMPAIGN_URL: http://campaign.vtt-staging.svc
+  UPSTREAM_DICE_URL: http://dice.vtt-staging.svc
 ingress:
   enabled: true
   host: api.staging.yner.fr

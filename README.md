@@ -21,6 +21,7 @@ pnpm dev          # toute la stack : infra, migrations, services et front
 | http://localhost:3001  | identity                              |
 | http://localhost:3002  | character                             |
 | http://localhost:3003  | campaign                              |
+| http://localhost:3004  | dice                                  |
 | localhost:5432         | PostgreSQL (`vtt` / `vtt`)            |
 
 Par défaut, seuls PostgreSQL, NATS et Valkey démarrent. Services optionnels :
@@ -43,6 +44,8 @@ backend/              un dossier par service : chacun est un pod indépendant,
                       serveur (contrat : docs/api-character.md)
   campaign/           campagnes, membres, invitations, personnages engagés et combat
                       (contrat : docs/api-campaign.md)
+  dice/               jets de dés tirés par le serveur, historique, statistiques et
+                      préférences de dés (contrat : docs/api-dice.md)
 packages/
   contracts/          schémas partagés front/back (événements, erreurs, identifiants)
   platform/           socle des services (sécurité, logs, traces, cache, santé)

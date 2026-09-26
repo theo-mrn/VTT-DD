@@ -33,6 +33,8 @@ networkPolicy:
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
     # campaign lit aussi les profils publics des membres (noms, avatars)
     - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
+    # dice : JWKS et profils publics des lanceurs
+    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
   # SMTP (Resend) en plus du HTTPS
   extraEgressPorts: [587]
 migrations:

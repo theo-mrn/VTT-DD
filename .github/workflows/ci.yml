@@ -77,7 +77,7 @@ jobs:
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
-          for svc in identity character campaign; do
+          for svc in identity character campaign dice; do
             infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
@@ -86,6 +86,8 @@ jobs:
         run: bash infra/postgres/tests/character-droits.sh
       - name: Droits et contraintes du schéma campaign
         run: bash infra/postgres/tests/campaign-droits.sh
+      - name: Droits et contraintes du schéma dice
+        run: bash infra/postgres/tests/dice-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -93,7 +95,7 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: >-
           pnpm install --frozen-lockfile --filter '@vtt/identity...' --filter '@vtt/character...'
-          --filter '@vtt/campaign...'
+          --filter '@vtt/campaign...' --filter '@vtt/dice...'
       - name: Tests d'intégration identity (Postgres réel)
         env:
           TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
@@ -112,6 +114,12 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/campaign^...'
           pnpm --filter @vtt/campaign test
+      - name: Tests d'intégration dice (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://dice_svc:dice-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/dice^...'
+          pnpm --filter @vtt/dice test
 
   security:
     name: Secrets et dépendances
@@ -214,6 +222,12 @@ jobs:
               image: campaign-migrations,
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=campaign',
+            }
+          - { image: dice, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=dice' }
+          - {
+              image: dice-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=dice',
             }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

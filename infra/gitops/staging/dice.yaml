@@ -1,0 +1,48 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-dice
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://valkey.messaging.svc:6379
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
+  # Rôle de l'appelant, système et personnage incarné (campaign), fiche des personnages
+  # (character), noms et avatars des lanceurs sans personnage (identity)
+  CAMPAIGN_URL: http://campaign.vtt-staging.svc
+  CHARACTER_URL: http://character.vtt-staging.svc
+  IDENTITY_URL: http://identity.vtt-staging.svc
+  # Jets par minute : par IP, et par utilisateur (compté en base)
+  RATE_LIMIT_ROLLS_MAX: '120'
+  RATE_LIMIT_ROLLS_PER_USER: '60'
+# Secret dice-secrets (SOPS) : DATABASE_URL (rôle dice_svc), INTERNAL_API_SECRET (même valeur
+# que campaign et character)
+envFromSecrets:
+  - name: dice-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : dice n'est joignable que par la gateway (et character en interne)
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    # character transmet les jets d'action (/internal/rolls, secret partagé)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-dice-migrations
+    digest: ''
+    tag: 'main'
+  schema: dice
+  # Secret généré par CloudNativePG pour le rôle dice_owner
+  secretName: pg-dice-owner

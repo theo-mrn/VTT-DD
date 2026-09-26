@@ -38,6 +38,8 @@ networkPolicy:
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
     # character demande les droits des campagnes (/internal, secret partagé)
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    # dice demande le rôle de l'appelant (/internal) et le détail d'une campagne
+    - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
 migrations:
   enabled: true
   image:

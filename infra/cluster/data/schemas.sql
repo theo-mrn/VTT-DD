@@ -16,7 +16,7 @@ DECLARE
   proprietaire text;
   service text;
 BEGIN
-  FOREACH svc IN ARRAY ARRAY['identity','billing','campaign','characters','history'] LOOP
+  FOREACH svc IN ARRAY ARRAY['identity','billing','campaign','characters','dice','history'] LOOP
     proprietaire := svc || '_owner';
     service := svc || '_svc';
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = proprietaire) THEN
