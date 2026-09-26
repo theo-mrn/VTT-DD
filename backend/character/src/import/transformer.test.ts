@@ -240,7 +240,9 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
       expect(f.possessions.has(id), id).toBe(true);
     expect(f.valeur('credits')).toBe(250);
     avertit(r, /Sabre laser de famille.*absent du catalogue/);
-    avertit(r, /Stimpack.*3 exemplaires/);
+    // Quantité legacy migrée sur l'exemplaire, sans avertissement
+    expect(r.etat.possessions.find((p) => p.entree === 'stimpack')?.quantite).toBe(3);
+    expect(r.avertissements.filter((a) => /Stimpack/.test(a))).toEqual([]);
     // Bonus saisi à la main : devenu un bonus libre, sans système dédié
     expect(r.etat.bonus).toEqual([
       {
@@ -260,6 +262,75 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
       },
     ]);
     avertit(r, /Champ personnalisé « Réputation » \(3\) non migré/);
+  });
+});
+
+describe('Star Wars : objets identiques, quantités et Obligations du même type', () => {
+  const second = objet('Fusil blaster', { category: 'armes_distance_standard' });
+  const { r, f } = migrer(
+    {
+      ...bothan,
+      data: {
+        ...bothan.data,
+        Obligations: [
+          { value: 10, text: 'Prime sur ma tête posée par Jabba' },
+          { value: 5, text: 'Mise à prix impériale' },
+        ],
+      },
+    },
+    {
+      systemeId: 'star-wars-eote',
+      systemes,
+      inventaire: [
+        objet('Fusil blaster', { category: 'armes_distance_standard' }),
+        second,
+        objet('Stimpack', { category: 'equipement_general', quantity: 3 }),
+        objet('Stimpack', { category: 'equipement_general', quantity: 2 }),
+        objet('Armure légère', { category: 'armures', quantity: 2 }),
+      ],
+      bonus: [
+        bonus(second.id, { presence: 1, active: true, category: 'Inventaire', name: 'Viseur' }),
+      ],
+    },
+  );
+  const exemplaires = (id: string) =>
+    r.etat.possessions
+      .filter((p) => p.entree === id)
+      .map((p) => [p.exemplaire, p.quantite, p.effets.length]);
+
+  it('deux objets identiques : deux exemplaires, le bonus sur le bon', () => {
+    expect(exemplaires('fusil-blaster')).toEqual([
+      [undefined, undefined, 0],
+      ['2', undefined, 1],
+    ]);
+    expect(f.sources.map((s) => s.id)).toContain('fusil-blaster#2');
+    expect(r.etat.bonus).toEqual([]);
+  });
+
+  it('quantités gardées par objet ; un objet ×2 sans quantités donne deux exemplaires', () => {
+    expect(exemplaires('stimpack')).toEqual([
+      [undefined, 3, 0],
+      ['2', 2, 0],
+    ]);
+    expect(f.possessions.get('stimpack')?.quantite).toBe(5);
+    expect(exemplaires('armure-legere')).toEqual([
+      [undefined, undefined, 0],
+      ['2', undefined, 0],
+    ]);
+  });
+
+  it('deux Obligations du même type : deux exemplaires, valeurs additionnées', () => {
+    expect(
+      r.etat.possessions.filter((p) => p.entree === 'prime').map((p) => [p.exemplaire, p.champs]),
+    ).toEqual([
+      [undefined, { valeur: 10, detail: 'Prime sur ma tête posée par Jabba' }],
+      ['2', { valeur: 5, detail: 'Mise à prix impériale' }],
+    ]);
+    expect(f.valeur('obligation')).toBe(15);
+  });
+
+  it('plus d’avertissement d’exemplaire non migré ni d’Obligations cumulées', () => {
+    expect(r.avertissements.filter((a) => /exemplaire|un seul migré|cumulées/.test(a))).toEqual([]);
   });
 });
 
@@ -410,6 +481,7 @@ const inventaireNain = [
   objet("pièce d'OR", { category: 'bourse', quantity: 3 }),
   objet("pièce d'argent", { category: 'bourse', quantity: 5 }),
   objet('Petite potion de vie', { category: 'potions', quantity: 2 }),
+  objet('Dague', { category: 'armes-contact', quantity: 3 }),
 ];
 
 describe('D&D : nain guerrier niveau 3', () => {
@@ -479,6 +551,10 @@ describe('D&D : nain guerrier niveau 3', () => {
   it('équipement, bourse et objets sans équivalent', () => {
     expect(f.possessions.has('epee-longue') && f.possessions.has('cuir')).toBe(true);
     expect(f.valeur('bourse')).toBe(35);
+    // Dagues en quantité : une seule possession ×3
+    expect(r.etat.possessions.filter((p) => p.entree === 'dague').map((p) => p.quantite)).toEqual([
+      3,
+    ]);
     avertit(r, /Petite potion de vie.*absent du catalogue/);
     expect(r.details).toEqual({
       Background: 'Forgeron exilé de Khaz Morn.',

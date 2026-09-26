@@ -18,10 +18,13 @@ import {
   detailSolde,
   EtatEntite,
   erreursChoix,
+  estExemplaire,
   examinerAchat,
   nombreChoix,
   noeudsIsoles,
   nouvellePossession,
+  nouvelExemplaire,
+  quantiteDe,
   type BonusLibre,
   type Effet,
   type Entree,
@@ -173,6 +176,26 @@ class Brouillon {
     const deja = this.possession(id);
     if (deja) return deja;
     const p = nouvellePossession(id, init.rang ?? 0, init);
+    this.possessions.push(p);
+    return p;
+  }
+
+  /**
+   * Ajoute un exemplaire de plus d'une entrée : sans identifiant si elle
+   * n'est pas encore possédée, sinon identifiant généré (`2`, `3`…) si sa
+   * sorte admet des exemplaires. `undefined` si l'entrée ne se possède qu'une fois.
+   */
+  ajouterExemplaire(
+    id: string,
+    init: Partial<Omit<Possession, 'entree'>> = {},
+  ): Possession | undefined {
+    if (!this.possession(id)) return this.posseder(id, init);
+    const entree = this.systeme.entrees.get(id);
+    if (!entree || !this.systeme.sortes.get(entree.sorte)?.exemplaires) return undefined;
+    const p = nouvellePossession(id, init.rang ?? 0, {
+      ...init,
+      exemplaire: nouvelExemplaire(this.possessions, id),
+    });
     this.possessions.push(p);
     return p;
   }
@@ -345,13 +368,18 @@ interface RegleInventaire {
 }
 
 /**
- * Objets d'inventaire → possessions (une par entrée) ou monnaie. Renvoie les
- * ids des objets devenus des entrées à effets, dont les bonus saisis à la
- * main feraient double emploi.
+ * Objets migrés : id du document legacy → exemplaire possédé (celui qui
+ * reçoit le bonus saisi sur l'objet), et si son entrée porte des effets.
  */
-/** Objets migrés : id du document legacy → entrée possédée, et si elle porte des effets. */
-type ObjetsMigres = Map<string, { entree: string; avecEffets: boolean }>;
+type ObjetsMigres = Map<string, { entree: string; exemplaire?: string; avecEffets: boolean }>;
 
+/**
+ * Objets d'inventaire → possessions ou monnaie. Chaque objet legacy devient
+ * son propre exemplaire (sorte `exemplaires`), avec sa quantité (sorte
+ * `quantites`) ; sans quantités, un objet ×3 donne trois exemplaires. Une
+ * sorte à quantités sans exemplaires cumule les quantités sur sa seule
+ * possession. Renvoie l'exemplaire de chaque objet migré, pour ses bonus.
+ */
 function migrerInventaire(
   b: Brouillon,
   objets: readonly DocFirestore<ObjetInventaireLegacy>[],
@@ -392,14 +420,30 @@ function migrerInventaire(
       );
       continue;
     }
-    if (b.possession(e.id)) {
-      b.avertir(`Objet « ${nom} » : ${e.nom} déjà possédé, exemplaire supplémentaire non migré`);
-      continue;
+    const sorte = b.systeme.sortes.get(e.sorte);
+    const deja = b.possession(e.id);
+    let premier: Possession | undefined;
+    if (sorte?.quantites && !sorte.exemplaires && deja) {
+      deja.quantite = quantiteDe(deja) + quantite;
+      premier = deja;
+    } else {
+      const quantites = sorte?.quantites && quantite > 1 ? { quantite } : {};
+      premier = b.ajouterExemplaire(e.id, quantites);
+      if (!premier) {
+        b.avertir(`Objet « ${nom} » : ${e.nom} déjà possédé, exemplaire supplémentaire non migré`);
+        continue;
+      }
+      // Sans quantités : un exemplaire par unité (armes, armures)
+      if (!sorte?.quantites && quantite > 1) {
+        if (sorte?.exemplaires) for (let i = 1; i < quantite; i++) b.ajouterExemplaire(e.id);
+        else b.avertir(`Objet « ${nom} » : ${quantite} exemplaires, un seul migré (${e.nom})`);
+      }
     }
-    b.posseder(e.id);
-    if (quantite > 1)
-      b.avertir(`Objet « ${nom} » : ${quantite} exemplaires, un seul migré (${e.nom})`);
-    migres.set(doc.id, { entree: e.id, avecEffets: e.effets.length > 0 });
+    migres.set(doc.id, {
+      entree: e.id,
+      ...(premier.exemplaire !== undefined ? { exemplaire: premier.exemplaire } : {}),
+      avecEffets: e.effets.length > 0,
+    });
   }
   if (regle?.monnaie && monnaieTrouvee) b.valeurs[regle.monnaie.attribut] = Math.floor(monnaie);
   return migres;
@@ -453,7 +497,9 @@ function migrerBonus(
         );
         continue;
       }
-      const possession = b.possession(objet.entree);
+      const possession = b.possessions.find((p) =>
+        estExemplaire(p, objet.entree, objet.exemplaire),
+      );
       if (possession) {
         possession.effets = [...possession.effets, ...effets];
         continue;
@@ -596,7 +642,7 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
     }
   }
 
-  // Obligations : une possession par type (valeurs cumulées si deux textes tombent sur le même)
+  // Obligations : un exemplaire par Obligation legacy, même si deux sont du même type
   for (const o of Array.isArray(p.Obligations) ? p.Obligations : []) {
     const valeur = entier(o?.value) ?? 0;
     const detail = texte(o?.text) ?? '';
@@ -610,12 +656,8 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
       );
     }
     if (!b.entree(type, 'obligation')) continue;
-    const deja = b.possession(type);
-    if (deja) {
-      deja.champs.valeur = Number(deja.champs.valeur ?? 0) + valeur;
-      deja.champs.detail = [deja.champs.detail, detail].filter(Boolean).join(' ; ');
-      b.avertir(`Obligations cumulées sur ${b.nom(type)} : « ${deja.champs.detail} »`);
-    } else b.posseder(type, { champs: { valeur, detail } });
+    if (!b.ajouterExemplaire(type, { champs: { valeur, detail } }))
+      b.avertir(`Obligation « ${detail} » non migrée : ${b.nom(type)} déjà possédée`);
   }
   const critiques = entier(p.BlessuresCritiques) ?? 0;
   if (critiques > 0)
