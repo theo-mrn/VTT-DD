@@ -141,7 +141,8 @@ Le mode vaut `individual` par défaut ; le MJ passe `mode: 'slots'` pour Star Wa
 
 Écrits dans l'outbox du service, dans la transaction de la donnée. Sujet NATS `vtt.<campaignId>.<domaine>.<action>` (champ `roomId` de l'enveloppe commune), agrégat `campaign` ou `combat`.
 
-- `campaign.created`, `campaign.updated`, `campaign.deleted`
+- `campaign.created`, `campaign.updated` (champs envoyés, et diff avant/après `changes`, voir [bus.md](bus.md#diff-avantaprès-changes)), `campaign.deleted`
+- `campaign.invitation_created` (visible du MJ seulement : `invitationId`, `expiresAt`, jamais le code)
 - `campaign.member_joined`, `campaign.member_left` (`kicked`, `banned`), `campaign.member_role_changed` (`previousRole`)
 - `campaign.member_unbanned` (visible du MJ seulement)
 - `campaign.character_added`, `campaign.character_removed` (`reason: 'member_left'` au départ d'un membre), `campaign.character_played` (`previousCharacterId`)

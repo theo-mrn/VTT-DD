@@ -108,3 +108,5 @@ Sans `appliquer`, le résultat est seulement renvoyé.
 ## Événements (outbox)
 
 Chaque écriture publie un événement : `character.created`, `character.updated` (avec la version), `character.deleted`, et `character.action_resolved` (avec le résultat complet, pour l'historique).
+
+`character.updated` porte l'opération (`operation`), ses détails, et le diff avant/après de l'état, du nom et de l'avatar : `changes: [{ path, before, after }]` (ex. `{ "path": "etat.valeurs.PV", "before": 24, "after": 17 }`, possessions désignées par `entree#exemplaire`). Format et bornes : [bus.md](bus.md#diff-avantaprès-changes).

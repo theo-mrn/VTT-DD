@@ -87,6 +87,64 @@ TEST_DATABASE_URL=postgres://dice_svc:dice-dev@127.0.0.1:5432/vtt NATS_URL=nats:
   pnpm --filter @vtt/platform test
 ```
 
+## Diff avant/après (`changes`)
+
+Les événements de mise à jour portent, en plus de leurs champs propres, le diff de ce qui a changé :
+`character.updated` (état, nom, avatar : `enregistrer()` de character) et `campaign.updated` (nom,
+description, système, image, options). Utilitaire générique : `changesPayload` / `diffValues` de
+`@vtt/contracts` (`changes.ts`), sans clé propre à un système de jeu.
+
+```json
+{
+  "version": 9,
+  "operation": "valeurs",
+  "valeurs": { "PV": 2 },
+  "changes": [{ "path": "etat.valeurs.PV", "before": 9, "after": 2 }]
+}
+```
+
+- `changes` : liste de `{ path, before?, after?, truncated? }`, dans l'ordre des clés (triées) puis
+  des éléments. Liste vide si rien n'a bougé. `before` absent : ajout ; `after` absent : retrait ;
+  `null` est une vraie valeur (ex. `avatarUrl` retiré : `after: null`).
+- `path` : clés séparées par des points (`etat.valeurs.PV`), entre `["…"]` si ce ne sont pas des
+  identifiants simples. Dans un tableau d'objets, l'élément est désigné par son identité, pas par
+  son index : `id`, ou pour les possessions `entree#exemplaire` (`etat.possessions[fleche#2].quantite`,
+  `etat.possessions[epee-longue]` pour l'exemplaire sans identifiant). Une identité purement
+  numérique est entre guillemets (`["12"]`) pour ne pas passer pour un index.
+- Tableau sans identité (journal, effets) : par index, après avoir retiré le début et la fin communs
+  (retirer la ligne 1 d'un journal donne un seul changement `journal[1]`). Tableau de valeurs simples
+  (nœuds acquis) : rapporté en entier. L'ordre des éléments identifiés n'est pas suivi.
+- Ajout, retrait ou changement de nature (objet ↔ tableau ↔ valeur) : la valeur entière.
+- Bornes (défauts de `DIFF_DEFAULTS`) : profondeur 8 (au-delà, la valeur entière du niveau atteint),
+  50 changements, textes de 1 000 caractères, objets de 2 000 caractères de JSON (au-delà, aperçu de
+  leur JSON), 64 000 caractères pour toute la liste : l'enveloppe reste loin de `max_payload` (1 Mo,
+  voir « Ligne bloquante »). Une valeur raccourcie porte `truncated: true` ; le payload porte
+  `truncated: true` dès que quelque chose a été coupé ou omis (sinon la clé est absente).
+- État de character comparé après normalisation (valeurs par défaut du schéma) : un état importé
+  qui omet un champ par défaut ne produit pas de faux ajout.
+- Les champs existants restent (`valeurs`, `possession`, `details` des étapes…) : `changes` s'ajoute.
+
+## Garde-fou : chaque route d'écriture émet un événement
+
+`src/event-guard.test.ts` dans character, campaign, identity et dice (sans base de données) : il
+échoue si une route publique `POST`, `PUT`, `PATCH` ou `DELETE` (hors `/internal/`) n'a aucun chemin
+vers `appendEvent` et ne figure pas dans ses `EXCEPTIONS` commentées.
+
+- Analyse statique par le vérificateur de types de TypeScript (`findWriteRoutes` de
+  `@vtt/platform/testing`) : les routes sont les appels `.post/.put/.patch/.delete` sur une instance
+  Fastify reconnue par son type ; depuis le handler, chaque identifiant est résolu vers sa
+  déclaration et parcouru (imports et alias, fonctions locales comme `modifierPour` → `modifier` →
+  `enregistrer`, rappels, méthodes, fonctions renvoyées par une fabrique). Le chemin trouvé est
+  vérifié sur une route connue de chaque service, et chaque exception doit désigner une route
+  existante qui n'émet rien (une exception périmée fait échouer le test).
+- Limites : l'analyse prouve qu'un chemin vers l'émetteur existe, pas qu'il est pris à chaque appel
+  réussi (une branche sans événement passe, ex. un changement de rôle identique, volontairement
+  muet) ; un appel à travers une interface (dépendance injectée) n'est pas suivi.
+- Exceptions actuelles : `POST /v1/campaigns/:id/image` et `POST /v1/users/me/uploads` (URL d'envoi
+  signée, rien d'écrit ; l'image est enregistrée ensuite par `PATCH`, tracé), `POST /v1/auth/refresh`
+  (rotation technique du jeton). Manque connu : `POST /v1/auth/logout` (pas d'événement de
+  déconnexion, alors que la connexion émet `identity.user_logged_in`).
+
 ## Consommateur des titres (identity)
 
 identity consomme le bus pour débloquer les titres « événement », que l'ancienne app attribuait
