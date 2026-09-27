@@ -112,6 +112,13 @@ export const outbox = identity.table('outbox', {
   lastError: text('last_error'),
 });
 
+/** Événements du bus déjà traités, par consommateur (dédoublonnage « au moins une fois »). */
+export const inbox = identity.table('inbox', {
+  eventId: uuid('event_id').primaryKey(),
+  consumer: text('consumer').notNull(),
+  processedAt: horodatage('processed_at').notNull().defaultNow(),
+});
+
 export const emailTokens = identity.table('email_tokens', {
   tokenHash: bytea('token_hash').primaryKey(),
   userId: uuid('user_id')
@@ -147,6 +154,20 @@ export const userTitles = identity.table(
     unlockedAt: horodatage('unlocked_at').notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.slug] })],
+);
+
+/** Compteurs des titres à paliers (jets, critiques, messages), tenus par identity-titles. */
+export const titleProgress = identity.table(
+  'title_progress',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    counter: text('counter').notNull(),
+    value: bigint('value', { mode: 'number' }).notNull().default(0),
+    updatedAt: horodatage('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.counter] })],
 );
 
 export const friendRequests = identity.table(
