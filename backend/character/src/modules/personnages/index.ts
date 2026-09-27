@@ -14,8 +14,12 @@ import type { Module } from '../../deps.js';
 import {
   acheterObjet,
   appliquerEtape,
+  changerDossiers,
   DemandeBonus,
+  DemandeDon,
+  DemandeDossiers,
   DemandePossession,
+  donnerObjet,
   etatInitial,
   modifierValeurs,
   poserBonus,
@@ -28,6 +32,7 @@ import {
   terminer,
   Valeurs,
   verifierEtat,
+  vuePublique,
 } from '../../regles/operations.js';
 import { CharacterSummary } from '../../regles/summary.js';
 import { jouerAction } from './actions.js';
@@ -39,6 +44,7 @@ import {
   lire,
   lister,
   modifier,
+  modifierPaire,
   supprimer,
   systemeDe,
   versApi,
@@ -201,7 +207,8 @@ export const register: Module = async (app, deps) => {
               write: d.ecriture,
               layout: d.ecriture,
             }));
-      return { ...api(ligne), permissions };
+      // Un joueur qui ne peut pas écrire ne voit pas les objets cachés (propriétaire, MJ : si)
+      return { ...versApi(catalogue, ligne, { publique: !permissions.write }), permissions };
     },
   );
 
@@ -421,7 +428,12 @@ export const register: Module = async (app, deps) => {
     { ...auth, schema: { params: Params, response: { 200: z.array(z.unknown()) } } },
     async (req) => {
       const ligne = await lecture(req, req.params.id);
-      return achatsPossibles(verifierEtat(systemeDe(catalogue, ligne), ligne.etat).fiche);
+      const systeme = systemeDe(catalogue, ligne);
+      const etat = verifierEtat(systeme, ligne.etat).etat;
+      // Lecteur sans droit d'écriture : sans les objets cachés
+      const ecrit =
+        ligne.ownerId === moi(req) || (await deps.droits.de(ligne.id, moi(req))).ecriture;
+      return achatsPossibles(verifierEtat(systeme, ecrit ? etat : vuePublique(etat)).fiche);
     },
   );
 
@@ -519,6 +531,91 @@ export const register: Module = async (app, deps) => {
         operation: 'possession.retrait',
         details: { entree, ...(exemplaire !== undefined ? { exemplaire } : {}) },
       }));
+      return api(ligne);
+    },
+  );
+
+  // ─── Inventaire : dossiers et dons ─────────────────────────────────────────
+
+  r.put(
+    '/v1/characters/:id/folders',
+    {
+      ...auth,
+      schema: {
+        params: Params,
+        body: z.object({ version: Version, folders: DemandeDossiers }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { version, folders } = req.body;
+      const ligne = await modifierPour(req, req.params.id, version, (l) => {
+        const r = changerDossiers(l.etat, folders);
+        return { changement: { etat: r.etat }, operation: 'dossiers', details: r.details };
+      });
+      return api(ligne);
+    },
+  );
+
+  r.post(
+    '/v1/characters/:id/possessions/give',
+    {
+      ...auth,
+      schema: {
+        params: Params,
+        body: DemandeDon.extend({ version: Version, to: IdPersonnage }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { id } = req.params;
+      const { version, to, ...don } = req.body;
+      if (to === id)
+        throw HttpError.badRequest('Un personnage ne se donne pas un objet', 'don_a_soi_meme');
+      // Le donneur : son propriétaire ou le MJ ; le receveur doit être lisible par l'appelant
+      const role = await autoriser(db, deps.droits, moi(req), [
+        { id, mode: 'ecriture' },
+        { id: to, mode: 'lecture' },
+      ]);
+      // Campagne où les deux sont engagés et où l'appelant siège (réponses de campaign en cache)
+      const [de, vers] = await Promise.all([
+        deps.droits.de(id, moi(req)),
+        deps.droits.de(to, moi(req)),
+      ]);
+      const commune = (de.campagnes ?? []).find((c) => (vers.campagnes ?? []).includes(c));
+      if (!commune)
+        throw new HttpError(
+          403,
+          'Accès refusé',
+          'hors_campagne',
+          'Le receveur doit être engagé dans la même campagne que le donneur',
+        );
+      const roomId = await salleDuMj(req, id, role);
+      const ligne = await modifierPaire(
+        db,
+        contexte(req),
+        catalogue,
+        { userId: moi(req), role, roomId },
+        commune,
+        [id, to],
+        version,
+        (donneur, receveur, systeme) => {
+          const r = donnerObjet(systeme, donneur.etat, receveur.etat, don);
+          const details = {
+            don: {
+              ...don,
+              quantity: r.quantite,
+              from: donneur.id,
+              to: receveur.id,
+              ...(r.recu !== undefined ? { received: r.recu } : {}),
+            },
+          };
+          return {
+            a: { etat: r.donneur, operation: 'possession.don', details },
+            b: { etat: r.receveur, operation: 'possession.recue', details },
+          };
+        },
+      );
       return api(ligne);
     },
   );

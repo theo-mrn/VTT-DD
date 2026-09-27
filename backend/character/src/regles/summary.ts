@@ -41,8 +41,12 @@ export function summarize(fiche: Fiche, presentation: Presentation | null): Char
           .filter((s) => s.maximum === 1 && s.pour.includes(fiche.etat.type))
           .map((s) => s.id);
   const names: string[] = [];
+  // Un objet caché aux autres joueurs n'apparaît pas dans le résumé (listes de la table)
+  const cache = (p: { exemplaires: { hidden?: boolean | undefined }[] }) =>
+    p.exemplaires.length > 0 && p.exemplaires.every((x) => x.hidden === true);
   for (const kind of kinds)
-    for (const p of fiche.possessions.values()) if (p.sorte.id === kind) names.push(p.entree.nom);
+    for (const p of fiche.possessions.values())
+      if (p.sorte.id === kind && !cache(p)) names.push(p.entree.nom);
 
   const highlights: CharacterSummary['highlights'] = [];
   if (details?.type === 'details') {

@@ -17,7 +17,7 @@ import type { DroitsCampagnes } from '../../droits/campaign.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
 import { characters, type CharacterDetails, type PendingRoll } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
-import { verifierEtat } from '../../regles/operations.js';
+import { verifierEtat, verifierInventaire, vuePublique } from '../../regles/operations.js';
 import { summaryOf, type CharacterSummary } from '../../regles/summary.js';
 import type { Permissions, SheetLayout } from './layout.js';
 
@@ -140,9 +140,19 @@ export function resumeDe(
   );
 }
 
-/** Forme renvoyée par l'API : état enregistré, fiche recalculée, présentation et résumé. */
-export function versApi(catalogue: Catalogue, ligne: Ligne): Personnage {
-  const { etat, fiche } = verifierEtat(systemeDe(catalogue, ligne), ligne.etat);
+/**
+ * Forme renvoyée par l'API : état enregistré, fiche recalculée, présentation et résumé.
+ * `publique` : vue d'un joueur qui ne peut pas écrire sur le personnage, sans les
+ * exemplaires cachés (la fiche est recalculée sans eux).
+ */
+export function versApi(
+  catalogue: Catalogue,
+  ligne: Ligne,
+  o: { publique?: boolean } = {},
+): Personnage {
+  const systeme = systemeDe(catalogue, ligne);
+  const complet = verifierEtat(systeme, ligne.etat);
+  const { etat, fiche } = o.publique ? verifierEtat(systeme, vuePublique(complet.etat)) : complet;
   return {
     id: ligne.id,
     ownerId: ligne.ownerId,
@@ -151,7 +161,7 @@ export function versApi(catalogue: Catalogue, ligne: Ligne): Personnage {
     etat,
     fiche: ficheJson(fiche),
     details: detailsApi(ligne.details),
-    summary: summaryOf(catalogue, ligne, () => fiche),
+    summary: summaryOf(catalogue, ligne, () => complet.fiche),
     sheetLayout: ligne.sheetLayout ?? null,
     version: ligne.version,
     createdAt: ligne.createdAt.toISOString(),
@@ -320,6 +330,7 @@ export async function enregistrer(
   const etat = changement.etat
     ? verifierEtat(systemeDe(catalogue, ligne), changement.etat).etat
     : undefined;
+  if (etat) verifierInventaire(etat);
   const [suivante] = await tx
     .update(characters)
     .set({
@@ -388,6 +399,66 @@ export async function modifier(
       operation,
       ...(details ? { details } : {}),
     });
+  });
+}
+
+/**
+ * Écriture sur deux personnages dans une transaction (don d'un objet) : les deux lignes
+ * sont verrouillées (ordre des identifiants), la version du premier est vérifiée, chacune
+ * est enregistrée avec son événement `character.updated`. Le second est annoncé dans
+ * `roomId` (campagne commune), à son propriétaire et aux MJ.
+ */
+export async function modifierPaire(
+  db: Db,
+  ctx: EventContext,
+  catalogue: Catalogue,
+  appelant: Appelant,
+  roomId: string,
+  ids: [string, string],
+  version: number,
+  calcul: (
+    a: Ligne,
+    b: Ligne,
+    systeme: SystemeCharge,
+  ) => {
+    a: { etat: EtatEntite; operation: string; details?: Record<string, unknown> };
+    b: { etat: EtatEntite; operation: string; details?: Record<string, unknown> };
+  },
+): Promise<Ligne> {
+  return db.transaction(async (tx) => {
+    const [a, b] = await verrouiller(tx, ids);
+    verifierVersion(a!, version);
+    if (a!.systemId !== b!.systemId)
+      throw HttpError.badRequest(
+        'Les deux personnages ont des systèmes différents',
+        'systeme_different',
+      );
+    const r = calcul(a!, b!, systemeDe(catalogue, a!));
+    const suivante = await enregistrer(
+      tx,
+      ctx,
+      catalogue,
+      appelant,
+      a!,
+      { etat: r.a.etat },
+      {
+        operation: r.a.operation,
+        ...(r.a.details ? { details: r.a.details } : {}),
+      },
+    );
+    await enregistrer(
+      tx,
+      ctx,
+      catalogue,
+      { ...appelant, roomId },
+      b!,
+      { etat: r.b.etat },
+      {
+        operation: r.b.operation,
+        ...(r.b.details ? { details: r.b.details } : {}),
+      },
+    );
+    return suivante;
   });
 }
 

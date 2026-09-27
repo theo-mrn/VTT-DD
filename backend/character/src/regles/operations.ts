@@ -17,12 +17,14 @@ import {
   prefixeExemplaire,
   refusSaisie,
   variablesSource,
+  verifierChampsExemplaire,
   appliquerModifications,
   calculer,
   choisirEtape,
   creationDe,
   EtatEntite,
   executerAction,
+  MAX_INVENTORY_FOLDERS,
   initiative,
   recuperer,
   rembourser,
@@ -348,6 +350,10 @@ export const DemandePossession = z.object({
     .optional(),
   /** Effets propres à l'exemplaire (épée +1, bonus saisi sur un objet) : remplacent les précédents. */
   effets: z.array(Effet).max(20).optional(),
+  /** Caché aux autres joueurs (le propriétaire et le MJ le voient). */
+  hidden: z.boolean().optional(),
+  /** Dossier d'inventaire (`folders` de l'état) ; null : retour à la racine. */
+  folder: Id.nullable().optional(),
 });
 export type DemandePossession = z.output<typeof DemandePossession>;
 
@@ -469,14 +475,35 @@ export function poserPossession(
       prefixeExemplaire({ entree: d.entree, ...(exemplaire !== undefined ? { exemplaire } : {}) }),
       variablesSource(sorte),
     );
+  // Valeurs propres : champ connu, type, option, formule compilable (écriture simple normalisée)
+  let champs = d.champs;
+  if (champs !== undefined) {
+    const v = verifierChampsExemplaire(systeme, entree, champs);
+    if (v.erreurs.length) throw refus(v.erreurs.join(' ; '), 'champs_invalides');
+    champs = v.champs;
+  }
+  if (d.folder != null && !etat.folders.some((f) => f.id === d.folder))
+    throw refus(`Dossier d’inventaire inconnu : ${d.folder}`, 'dossier_inconnu');
+  /** Dossier et masquage : `folder: null` range l'exemplaire à la racine. */
+  const rangement = (p: Possession) => {
+    if (d.hidden !== undefined) {
+      if (d.hidden) p.hidden = true;
+      else delete p.hidden;
+    }
+    if (d.folder !== undefined) {
+      if (d.folder === null) delete p.folder;
+      else p.folder = d.folder;
+    }
+  };
 
   if (existante) {
     if (d.effets !== undefined) existante.effets = d.effets;
     if (d.rang !== undefined) existante.rang = d.rang;
     if (d.actif !== undefined) existante.actif = d.actif;
     if (d.choix !== undefined) existante.choix = d.choix;
-    if (d.champs !== undefined) existante.champs = { ...existante.champs, ...d.champs };
+    if (champs !== undefined) existante.champs = { ...existante.champs, ...champs };
     if (d.quantite !== undefined) existante.quantite = d.quantite;
+    rangement(existante);
     return {
       etat: { ...etat, possessions },
       ...(exemplaire !== undefined ? { exemplaire } : {}),
@@ -490,16 +517,16 @@ export function poserPossession(
   ).length;
   if (sorte.maximum !== undefined && nombre >= sorte.maximum)
     throw refus(`Maximum de ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom} atteint`);
-  possessions.push(
-    nouvellePossession(d.entree, d.rang ?? 0, {
-      actif: d.actif ?? true,
-      choix: d.choix ?? {},
-      champs: d.champs ?? {},
-      effets: d.effets ?? [],
-      ...(exemplaire !== undefined ? { exemplaire } : {}),
-      ...(d.quantite !== undefined ? { quantite: d.quantite } : {}),
-    }),
-  );
+  const nouvelle = nouvellePossession(d.entree, d.rang ?? 0, {
+    actif: d.actif ?? true,
+    choix: d.choix ?? {},
+    champs: champs ?? {},
+    effets: d.effets ?? [],
+    ...(exemplaire !== undefined ? { exemplaire } : {}),
+    ...(d.quantite !== undefined ? { quantite: d.quantite } : {}),
+  });
+  rangement(nouvelle);
+  possessions.push(nouvelle);
   return {
     etat: { ...etat, possessions },
     ...(exemplaire !== undefined ? { exemplaire } : {}),
@@ -524,13 +551,193 @@ export function retirerPossession(
   const nom = systeme.entrees.get(entree)?.nom ?? entree;
   const cible = siens.find((p) => estExemplaire(p, entree, exemplaire));
   if (!cible) throw exemplaireIntrouvable(nom, exemplaire, siens);
-  if (siens.length === 1) {
-    for (const arbre of systeme.arbres.values()) {
-      if (arbre.ouvertPar === entree && etat.noeuds[arbre.id]?.length)
-        throw refus(`Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${entree}`);
-    }
-  }
+  verifierArbres(systeme, etat, entree);
   return { ...etat, possessions: etat.possessions.filter((p) => p !== cible) };
+}
+
+// ─── Inventaire : dossiers, dons, objets cachés ───────────────────────────────
+
+/** Dossiers envoyés par le client : `id` absent pour un nouveau dossier (identifiant généré). */
+export const DemandeDossiers = z
+  .array(z.object({ id: Id.optional(), name: z.string().trim().min(1).max(60) }))
+  .max(MAX_INVENTORY_FOLDERS);
+export type DemandeDossiers = z.output<typeof DemandeDossiers>;
+
+/**
+ * Remplace les dossiers d'inventaire (création, renommage, ordre, suppression en une
+ * écriture). Les exemplaires d'un dossier supprimé reviennent à la racine.
+ */
+export function changerDossiers(
+  etat: EtatEntite,
+  demandes: DemandeDossiers,
+): { etat: EtatEntite; details: Record<string, unknown> } {
+  const pris = new Set(demandes.flatMap((d) => (d.id ? [d.id] : [])));
+  if (pris.size !== demandes.filter((d) => d.id).length)
+    throw refus('Deux dossiers ont le même identifiant', 'dossier_en_double');
+  // Un nouvel identifiant ne reprend jamais celui d'un dossier existant, même supprimé ici :
+  // ses objets en sortent, ils ne passent pas dans le nouveau
+  const occupes = new Set([...pris, ...etat.folders.map((f) => f.id)]);
+  let n = 1;
+  const folders = demandes.map((d) => {
+    if (d.id) return { id: d.id, name: d.name };
+    while (occupes.has(`dossier-${n}`)) n++;
+    const id = `dossier-${n}`;
+    occupes.add(id);
+    pris.add(id);
+    return { id, name: d.name };
+  });
+  const retires = etat.folders.filter((f) => !pris.has(f.id)).map((f) => f.id);
+  const possessions = etat.possessions.map((p) => {
+    if (p.folder === undefined || pris.has(p.folder)) return p;
+    const { folder: _, ...reste } = p;
+    return reste;
+  });
+  return {
+    etat: { ...etat, folders, possessions },
+    details: { folders: folders.map((f) => f.id), removed: retires },
+  };
+}
+
+/** Refus de retirer le dernier exemplaire d'une entrée qui ouvre un arbre aux nœuds acquis. */
+function verifierArbres(systeme: SystemeCharge, etat: EtatEntite, entree: string) {
+  if (etat.possessions.filter((p) => p.entree === entree).length > 1) return;
+  for (const arbre of systeme.arbres.values()) {
+    if (arbre.ouvertPar === entree && etat.noeuds[arbre.id]?.length)
+      throw refus(`Des nœuds de l’arbre « ${arbre.nom} » dépendent de ${entree}`);
+  }
+}
+
+export const DemandeDon = z.object({
+  entree: Id,
+  /** Exemplaire donné ; absent : l'exemplaire sans identifiant. */
+  exemplaire: Id.optional(),
+  /** Unités données (sorte `quantites`) ; absent : tout l'exemplaire. */
+  quantity: z.number().int().positive().max(1_000_000).optional(),
+});
+export type DemandeDon = z.output<typeof DemandeDon>;
+
+/** Même objet : même entrée, mêmes valeurs et effets propres (les unités s'y ajoutent). */
+function memeObjet(a: Possession, b: Possession): boolean {
+  return (
+    a.entree === b.entree &&
+    JSON.stringify(a.champs) === JSON.stringify(b.champs) &&
+    JSON.stringify(a.effets) === JSON.stringify(b.effets) &&
+    JSON.stringify(a.choix) === JSON.stringify(b.choix)
+  );
+}
+
+export interface DonCalcule {
+  donneur: EtatEntite;
+  receveur: EtatEntite;
+  /** Unités données. */
+  quantite: number;
+  /** Exemplaire reçu (identifiant chez le receveur, s'il en a un). */
+  recu?: string;
+}
+
+/**
+ * Don d'un objet d'une entité à une autre du même système : une partie des unités d'un
+ * exemplaire (sorte `quantites`), ou tout l'exemplaire. Le receveur l'ajoute à un
+ * exemplaire identique (sorte à quantités), sinon en crée un, rangé et visible, équipé
+ * seulement si la sorte ne s'équipe pas ; ses valeurs et effets propres le suivent.
+ */
+export function donnerObjet(
+  systeme: SystemeCharge,
+  donneur: EtatEntite,
+  receveur: EtatEntite,
+  d: DemandeDon,
+): DonCalcule {
+  const entree = systeme.entrees.get(d.entree);
+  if (!entree) throw refus(`Entrée inconnue : ${d.entree}`, 'entree_inconnue');
+  const sorte = systeme.sortes.get(entree.sorte)!;
+  const siens = donneur.possessions.filter((p) => p.entree === d.entree);
+  const objet = siens.find((p) => estExemplaire(p, d.entree, d.exemplaire));
+  if (!objet) throw exemplaireIntrouvable(entree.nom, d.exemplaire, siens);
+  if (!sorte.pour.includes(receveur.type)) {
+    const type = systeme.entites.get(receveur.type)?.type.nom ?? receveur.type;
+    throw refus(`${sorte.nom} non possédable par ${type}`, 'don_impossible');
+  }
+  const dispo = objet.quantite ?? 1;
+  const quantite = d.quantity ?? dispo;
+  if (quantite > dispo)
+    throw refus(
+      `${entree.nom} : ${quantite} demandé(s), ${dispo} possédé(s)`,
+      'quantite_insuffisante',
+    );
+  if (quantite < dispo && !sorte.quantites)
+    throw refus(`${entree.nom} ne se possède pas en quantité`, 'quantite_refusee');
+
+  // Donneur : unités retirées, ou l'exemplaire entier
+  const partiel = quantite < dispo;
+  if (!partiel) verifierArbres(systeme, donneur, d.entree);
+  const suivantDonneur: EtatEntite = {
+    ...donneur,
+    possessions: partiel
+      ? donneur.possessions.map((p) => (p === objet ? { ...p, quantite: dispo - quantite } : p))
+      : donneur.possessions.filter((p) => p !== objet),
+  };
+
+  // Receveur : même objet (unités ajoutées), sinon un nouvel exemplaire
+  const chezLui = receveur.possessions.filter((p) => p.entree === d.entree);
+  const identique = sorte.quantites ? chezLui.find((p) => memeObjet(p, objet)) : undefined;
+  if (identique) {
+    return {
+      donneur: suivantDonneur,
+      receveur: {
+        ...receveur,
+        possessions: receveur.possessions.map((p) =>
+          p === identique ? { ...p, quantite: (p.quantite ?? 1) + quantite } : p,
+        ),
+      },
+      quantite,
+      ...(identique.exemplaire !== undefined ? { recu: identique.exemplaire } : {}),
+    };
+  }
+  if (chezLui.length && !sorte.exemplaires)
+    throw refus(`${entree.nom} est déjà possédé par le receveur`, 'deja_possede');
+  const nombre = receveur.possessions.filter(
+    (p) => systeme.entrees.get(p.entree)?.sorte === sorte.id,
+  ).length;
+  if (sorte.maximum !== undefined && nombre >= sorte.maximum)
+    throw refus(`Le receveur a déjà ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom}`);
+  const recu = chezLui.length ? nouvelExemplaire(receveur.possessions, d.entree) : undefined;
+  const nouvelle = nouvellePossession(d.entree, objet.rang, {
+    actif: !sorte.activable,
+    choix: objet.choix,
+    champs: objet.champs,
+    effets: objet.effets,
+    ...(recu !== undefined ? { exemplaire: recu } : {}),
+    ...(sorte.quantites && quantite > 1 ? { quantite } : {}),
+  });
+  return {
+    donneur: suivantDonneur,
+    receveur: { ...receveur, possessions: [...receveur.possessions, nouvelle] },
+    quantite,
+    ...(recu !== undefined ? { recu } : {}),
+  };
+}
+
+/** Un exemplaire caché aux autres joueurs. */
+export const estCache = (p: Pick<Possession, 'hidden'>) => p.hidden === true;
+
+/**
+ * État tel que le voit un joueur qui n'a pas le droit d'écrire sur le personnage : sans les
+ * exemplaires cachés (ni leurs effets, recalculés sans eux).
+ */
+export function vuePublique(etat: EtatEntite): EtatEntite {
+  return etat.possessions.some(estCache)
+    ? { ...etat, possessions: etat.possessions.filter((p) => !estCache(p)) }
+    : etat;
+}
+
+/** Cohérence de l'inventaire avant enregistrement : chaque dossier désigné existe. */
+export function verifierInventaire(etat: EtatEntite): void {
+  const ids = new Set(etat.folders.map((f) => f.id));
+  if (ids.size !== etat.folders.length)
+    throw refus('Deux dossiers ont le même identifiant', 'dossier_en_double');
+  for (const p of etat.possessions)
+    if (p.folder !== undefined && !ids.has(p.folder))
+      throw refus(`Dossier d’inventaire inconnu : ${p.folder}`, 'dossier_inconnu');
 }
 
 // ─── Bonus libres ─────────────────────────────────────────────────────────────
