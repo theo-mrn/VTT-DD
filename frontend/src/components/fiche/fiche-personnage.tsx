@@ -42,6 +42,7 @@ import {
   useSupprimerPersonnage,
   type FichePersonnage as Fiche,
 } from '@/lib/personnages';
+import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
 import {
@@ -70,6 +71,8 @@ export function FichePersonnage({ id }: { id: string }) {
   const sys = useSysteme(perso.data?.system.id);
   const campagne = useCampagne(perso.data?.roomId);
   const ecritures = useOperationsPersonnage(id);
+  // Le MJ modifie la fiche (ou le joueur, vu du MJ) : elle change en direct
+  useSynchroCampagne(perso.data?.roomId, { personnage: id });
   const fiche = useMemo(
     () => (sys.data && perso.data ? calculer(sys.data.systeme, perso.data.state) : null),
     [sys.data, perso.data],

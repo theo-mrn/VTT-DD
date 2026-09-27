@@ -61,6 +61,7 @@ import {
 } from '@/lib/campagnes';
 import { iconeNote, useNotes } from '@/lib/notes';
 import { usePersonnagesCampagne, type Personnage } from '@/lib/personnages';
+import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { useNomSysteme } from './carte-campagne';
@@ -72,6 +73,8 @@ export function SalonCampagne({ id }: { id: string }) {
   const profil = useProfil();
   const campagne = useCampagne(id);
   const personnages = usePersonnagesCampagne(id);
+  // Table, réglages, sessions et héros mis à jour en direct
+  useSynchroCampagne(id);
 
   if (campagne.isLoading) return <SalonSquelette />;
   if (campagne.isError || !campagne.data)

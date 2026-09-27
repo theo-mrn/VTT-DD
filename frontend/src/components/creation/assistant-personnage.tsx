@@ -44,6 +44,7 @@ import {
   type DetailsPersonnage,
   type OperationCreation,
 } from '@/lib/personnages';
+import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
@@ -99,6 +100,8 @@ export function AssistantPersonnage({
   const [id, setId] = useState<string | null>(personnageId);
   const perso = usePersonnage(id);
   const ops = useOperationsPersonnage(id ?? '');
+  // Réglages de la campagne (création permise…) et fiche suivis en direct
+  useSynchroCampagne(campagneId, { personnage: id });
 
   // Le système est celui de la campagne : jamais demandé au joueur
   const sys = useSysteme(campagne.data?.system);

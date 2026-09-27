@@ -25,6 +25,7 @@ import {
   usePersonnagesCampagne,
   type Personnage,
 } from '@/lib/personnages';
+import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,8 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
   const engages = usePersonnagesCampagne(campagneId);
   const miens = usePersonnages();
   const jouerPersonnage = useJouerPersonnage(campagneId);
+  // Un héros pris ou libéré par un autre joueur se voit tout de suite
+  useSynchroCampagne(campagneId);
   const [choisi, setChoisi] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const nomSysteme = useNomSysteme(campagne.data?.system);
