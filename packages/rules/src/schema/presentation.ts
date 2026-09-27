@@ -43,7 +43,16 @@ export const Widget = z.discriminatedUnion('type', [
     ...CiblesAttributs,
     colonnes: z.number().int().min(1).max(6).optional(),
   }),
-  z.object({ type: z.literal('ressources'), titre: Libelle, attributs: z.array(Cle).min(1) }),
+  /**
+   * Ressources : `jauge` (défaut) une jauge par ressource ; `valeur` la valeur en chiffres
+   * (« PV / PV max » pour une ressource), et les autres attributs (Défense) en valeur simple.
+   */
+  z.object({
+    type: z.literal('ressources'),
+    titre: Libelle,
+    attributs: z.array(Cle).min(1),
+    affichage: z.enum(['jauge', 'valeur']).optional(),
+  }),
   /** Entrées possédées d'une sorte (compétences, talents, équipement…), avec achat si un achat les vise. */
   z.object({
     type: z.literal('possessions'),
@@ -71,13 +80,16 @@ export const Widget = z.discriminatedUnion('type', [
   /**
    * Inventaire : possessions de une ou plusieurs sortes (objets, armes, armures…), avec
    * quantités, exemplaires, état équipé ou actif, bonus des effets. Les catégories sont
-   * les sortes elles-mêmes, ou les valeurs d'un champ (`groupeChamp`) commun aux sortes.
+   * les sortes elles-mêmes, ou les valeurs d'un champ (`groupeChamp`). Plusieurs champs
+   * possibles quand les sortes n'ont pas le même (`[attaque, categorie]`) : pour chaque
+   * objet, le premier que déclare sa sorte ; une sorte qui n'en a aucun regroupe ses
+   * objets sous son nom.
    */
   z.object({
     type: z.literal('inventaire'),
     titre: Libelle,
     sortes: z.array(Cle).min(1),
-    groupeChamp: Cle.optional(),
+    groupeChamp: z.union([Cle, z.array(Cle).min(1)]).optional(),
   }),
   /**
    * Compétences en cartes : entrées d'une sorte (capacités, talents, compétences) en grille,
@@ -92,6 +104,15 @@ export const Widget = z.discriminatedUnion('type', [
   }),
 ]);
 export type Widget = z.output<typeof Widget>;
+
+/** Champs de regroupement d'un widget inventaire, dans l'ordre de préférence. */
+export function champsGroupe(w: Extract<Widget, { type: 'inventaire' }>): string[] {
+  return w.groupeChamp === undefined
+    ? []
+    : typeof w.groupeChamp === 'string'
+      ? [w.groupeChamp]
+      : w.groupeChamp;
+}
 
 export const Presentation = z.object({
   format: z.literal(1),
@@ -210,58 +231,12 @@ export function verifierPresentation(
   }
 
   for (const [entite, fiche] of Object.entries(p.fiches)) {
-    const e = systeme.entites.get(entite);
-    if (!e) {
+    if (!systeme.entites.has(entite)) {
       erreur(`fiches/${entite}`, `Type d’entité inconnu : ${entite}`);
       continue;
     }
     fiche.widgets.forEach((w, i) => {
-      const ch = `fiches/${entite}/${i}`;
-      const attrs = 'attributs' in w ? (w.attributs ?? []) : 'attribut' in w ? [w.attribut] : [];
-      for (const a of attrs)
-        if (!e.attributs.has(a)) erreur(ch, `Attribut inconnu de ${entite} : ${a}`);
-      if ('groupe' in w && w.groupe && !e.type.groupes.some((g) => g.id === w.groupe))
-        erreur(ch, `Groupe inconnu : ${w.groupe}`);
-      if (w.type === 'attributs' && !w.groupe && !w.attributs?.length)
-        erreur(ch, 'Préciser le groupe ou les attributs');
-      if (w.type === 'ressources') {
-        for (const a of w.attributs)
-          if (e.attributs.get(a) && e.attributs.get(a)!.nature !== 'ressource')
-            erreur(ch, `${a} n’est pas une ressource`);
-      }
-      const sortes =
-        w.type === 'possessions' || w.type === 'competences'
-          ? [w.sorte]
-          : w.type === 'details' || w.type === 'inventaire'
-            ? w.sortes
-            : [];
-      for (const so of sortes) {
-        const sorte = systeme.sortes.get(so);
-        if (!sorte) erreur(ch, `Sorte inconnue : ${so}`);
-        else if (!sorte.pour.includes(entite))
-          erreur(ch, `${so} n’est pas possédable par ${entite}`);
-      }
-      if (
-        w.type === 'possessions' &&
-        w.groupeChamp &&
-        !systeme.sortes.get(w.sorte)?.champs.some((c) => c.id === w.groupeChamp)
-      ) {
-        erreur(ch, `Champ inconnu sur ${w.sorte} : ${w.groupeChamp}`);
-      }
-      if (w.type === 'inventaire' && w.groupeChamp)
-        for (const so of w.sortes)
-          if (!systeme.sortes.get(so)?.champs.some((c) => c.id === w.groupeChamp))
-            erreur(ch, `Champ inconnu sur ${so} : ${w.groupeChamp}`);
-      if (
-        w.type === 'competences' &&
-        w.filtreChamp &&
-        !systeme.sortes.get(w.sorte)?.champs.some((c) => c.id === w.filtreChamp)
-      ) {
-        erreur(ch, `Champ inconnu sur ${w.sorte} : ${w.filtreChamp}`);
-      }
-      if (w.type === 'actions')
-        for (const a of w.actions ?? [])
-          if (!systeme.actions.has(a)) erreur(ch, `Action inconnue : ${a}`);
+      for (const m of erreursWidget(systeme, entite, w)) erreur(`fiches/${entite}/${i}`, m);
     });
   }
 
@@ -271,4 +246,57 @@ export function verifierPresentation(
   }
 
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
+}
+
+/**
+ * Références d'un bloc de fiche vérifiées contre le système : attributs, groupes, sortes,
+ * champs et actions. Sert au build (présentation) et au front, pour écarter un bloc
+ * enregistré que le système ne sait plus afficher (attribut retiré…).
+ */
+export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget): string[] {
+  const e = systeme.entites.get(entite);
+  if (!e) return [`Type d’entité inconnu : ${entite}`];
+  const erreurs: string[] = [];
+  const attrs = 'attributs' in w ? (w.attributs ?? []) : 'attribut' in w ? [w.attribut] : [];
+  for (const a of attrs)
+    if (!e.attributs.has(a)) erreurs.push(`Attribut inconnu de ${entite} : ${a}`);
+  if ('groupe' in w && w.groupe && !e.type.groupes.some((g) => g.id === w.groupe))
+    erreurs.push(`Groupe inconnu : ${w.groupe}`);
+  if (w.type === 'attributs' && !w.groupe && !w.attributs?.length)
+    erreurs.push('Préciser le groupe ou les attributs');
+  if (w.type === 'ressources') {
+    for (const a of w.attributs) {
+      const nature = e.attributs.get(a)?.nature;
+      if (!nature) continue;
+      // En jauge, des ressources seulement ; en valeur, tout attribut sauf un texte
+      if ((w.affichage ?? 'jauge') === 'jauge' && nature !== 'ressource')
+        erreurs.push(`${a} n’est pas une ressource (affichage « valeur » pour une valeur simple)`);
+      else if (nature === 'texte') erreurs.push(`${a} est un texte : bloc « texte » attendu`);
+    }
+  }
+  const sortes =
+    w.type === 'possessions' || w.type === 'competences'
+      ? [w.sorte]
+      : w.type === 'details' || w.type === 'inventaire'
+        ? w.sortes
+        : [];
+  for (const so of sortes) {
+    const sorte = systeme.sortes.get(so);
+    if (!sorte) erreurs.push(`Sorte inconnue : ${so}`);
+    else if (!sorte.pour.includes(entite)) erreurs.push(`${so} n’est pas possédable par ${entite}`);
+  }
+  const champDe = (sorte: string, champ: string) =>
+    systeme.sortes.get(sorte)?.champs.some((c) => c.id === champ) === true;
+  if (w.type === 'possessions' && w.groupeChamp && !champDe(w.sorte, w.groupeChamp))
+    erreurs.push(`Champ inconnu sur ${w.sorte} : ${w.groupeChamp}`);
+  if (w.type === 'inventaire')
+    for (const c of champsGroupe(w))
+      if (!w.sortes.some((so) => champDe(so, c)))
+        erreurs.push(`Champ inconnu des sortes ${w.sortes.join(', ')} : ${c}`);
+  if (w.type === 'competences' && w.filtreChamp && !champDe(w.sorte, w.filtreChamp))
+    erreurs.push(`Champ inconnu sur ${w.sorte} : ${w.filtreChamp}`);
+  if (w.type === 'actions')
+    for (const a of w.actions ?? [])
+      if (!systeme.actions.has(a)) erreurs.push(`Action inconnue : ${a}`);
+  return erreurs;
 }

@@ -383,6 +383,19 @@ class Chargeur {
         if (c.type === 'attribut' && !this.entites.has(c.entite)) {
           this.erreur(`${chemin}/${c.id}`, `Type d’entité inconnu : ${c.entite}`);
         }
+        if (c.type === 'choix') {
+          this.unique(c.options, (o) => o.valeur, `${chemin}/${c.id}`, 'Option');
+          if (c.defaut !== undefined && !c.options.some((o) => o.valeur === c.defaut))
+            this.erreur(`${chemin}/${c.id}`, `Option par défaut inconnue : ${c.defaut}`);
+        }
+      }
+      // Nom et description propres d'un exemplaire : champs texte de la sorte
+      for (const [cle, id] of [
+        ['nomExemplaire', sorte.nomExemplaire],
+        ['descriptionExemplaire', sorte.descriptionExemplaire],
+      ] as const) {
+        if (id !== undefined && sorte.champs.find((c) => c.id === id)?.type !== 'texte')
+          this.erreur(`${chemin}/${cle}`, `Champ texte attendu : ${id}`);
       }
       if (sorte.rangs && sorte.exemplaires)
         this.erreur(
@@ -439,6 +452,13 @@ class Chargeur {
             this.erreur(ch, `Entrée de sorte ${c.sorte} attendue : ${String(v)}`);
           }
           break;
+        case 'choix':
+          if (typeof v !== 'string' || !c.options.some((o) => o.valeur === v))
+            this.erreur(
+              ch,
+              `Option attendue (${c.options.map((o) => o.valeur).join(', ')}) : ${String(v)}`,
+            );
+          break;
         case 'entrees':
           if (!Array.isArray(v)) this.erreur(ch, 'Liste d’entrées attendue');
           else
@@ -447,6 +467,14 @@ class Chargeur {
                 this.erreur(ch, `Entrée de sorte ${c.sorte} attendue : ${x}`);
           break;
       }
+    }
+
+    // Entrée générique d'objets hors catalogue : chaque exemplaire se nomme lui-même
+    if (e.libre) {
+      if (!sorte.exemplaires)
+        this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} n’admet pas d’exemplaires`);
+      if (!sorte.nomExemplaire)
+        this.erreur(`${chemin}/libre`, `La sorte ${sorte.id} ne déclare pas nomExemplaire`);
     }
 
     // Défaut d'un champ formule de la sorte : compilé pour chaque entrée qui ne le redéfinit pas

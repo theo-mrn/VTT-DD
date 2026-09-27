@@ -20,6 +20,7 @@ import {
   type Valeur,
 } from '../formules/index.js';
 import {
+  nomPossession,
   quantiteDe,
   sourceExemplaire,
   type Attribut,
@@ -324,9 +325,16 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       const prefixe = prefixeExemplaire(ex);
       const c = effetsCompiles(systeme, etat.type, prefixe, ex.effets, variablesDeSorte(p.sorte));
       signaler(c);
+      // Nom propre de l'exemplaire s'il en a un (objet personnalisé), sinon son identifiant
+      const propre = nomPossession(p.entree, p.sorte, ex);
       r.push({
         id: sourceExemplaire(ex),
-        nom: ex.exemplaire ? `${p.entree.nom} (${ex.exemplaire})` : p.entree.nom,
+        nom:
+          propre !== p.entree.nom
+            ? propre
+            : ex.exemplaire
+              ? `${p.entree.nom} (${ex.exemplaire})`
+              : p.entree.nom,
         genre: 'exemplaire',
         effets: ex.effets,
         formule: (i, x) => c.formules.get(`${prefixe}/effets/${i}/${x}`),

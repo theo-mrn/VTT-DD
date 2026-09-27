@@ -211,6 +211,17 @@ export const Champ = z.discriminatedUnion('type', [
   /** Référence vers une autre entrée (compétence utilisée par une arme). */
   z.object({ id: Cle, nom: Libelle, type: z.literal('entree'), sorte: Id }),
   z.object({ id: Cle, nom: Libelle, type: z.literal('entrees'), sorte: Id }),
+  /**
+   * Valeur prise dans une liste déclarée par le système (catégorie d'objet : potions,
+   * nourriture…). Lue comme un texte (la `valeur` de l'option) dans les formules.
+   */
+  z.object({
+    id: Cle,
+    nom: Libelle,
+    type: z.literal('choix'),
+    options: z.array(z.object({ valeur: Cle, nom: Libelle })).min(1),
+    defaut: Cle.optional(),
+  }),
 ]);
 export type Champ = z.output<typeof Champ>;
 
@@ -240,6 +251,13 @@ export const Sorte = z.object({
    * multiplie par le champ, `quantite("sorte")` l'additionne. Interdit avec `rangs`.
    */
   quantites: z.boolean().default(false),
+  /**
+   * Champ `texte` qui donne son nom propre à un exemplaire (objet personnalisé, arme
+   * renommée) : affiché à la place du nom de l'entrée quand l'exemplaire le renseigne.
+   */
+  nomExemplaire: Cle.optional(),
+  /** Champ `texte` qui décrit un exemplaire, affiché à la place de la description de l'entrée. */
+  descriptionExemplaire: Cle.optional(),
   champs: z.array(Champ).default([]),
 });
 export type Sorte = z.output<typeof Sorte>;
@@ -284,6 +302,12 @@ export const Entree = z.object({
   nom: Libelle,
   description: Description,
   etiquettes: z.array(Id).default([]),
+  /**
+   * Entrée générique des objets hors catalogue (« Objet personnalisé ») : chaque exemplaire
+   * porte son nom, sa description et ses valeurs dans ses champs propres (`nomExemplaire`
+   * de la sorte). Sa sorte admet des exemplaires et déclare `nomExemplaire`.
+   */
+  libre: z.boolean().default(false),
   /** Valeurs des champs déclarés par la sorte. */
   champs: z
     .record(z.string(), z.union([z.number(), z.string(), z.boolean(), z.array(Id)]))

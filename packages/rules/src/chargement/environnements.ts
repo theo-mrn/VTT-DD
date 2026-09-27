@@ -40,6 +40,7 @@ export function typeChamp(c: Champ): TypeValeur | undefined {
     case 'texte':
     case 'attribut':
     case 'entree':
+    case 'choix':
       return 'texte';
     case 'entrees':
       return undefined;

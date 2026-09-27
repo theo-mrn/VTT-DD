@@ -3,7 +3,7 @@
  * a saisi, acheté ou tiré. Tout le reste est recalculé par le moteur.
  */
 import { z } from 'zod';
-import { Cle, Effet, Id } from './systeme.js';
+import { Cle, Effet, Id, type Entree, type Sorte } from './systeme.js';
 
 /**
  * Possession d'une entrée par l'entité. Une entrée d'une sorte sans rangs
@@ -79,6 +79,33 @@ export function nouvelExemplaire(
 /** Identifiant de source des effets propres d'un exemplaire : `entree#exemplaire` ou `entree#<id>`. */
 export function sourceExemplaire(p: Pick<Possession, 'entree' | 'exemplaire'>): string {
   return `${p.entree}#${p.exemplaire ?? 'exemplaire'}`;
+}
+
+/** Valeur texte non vide d'un champ propre de l'exemplaire, désigné par la sorte. */
+function champTexte(p: Pick<Possession, 'champs'> | undefined, champ: string | undefined) {
+  const v = champ !== undefined ? p?.champs[champ] : undefined;
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+/**
+ * Nom affiché d'une possession : le nom propre de l'exemplaire (champ `nomExemplaire` de
+ * la sorte : objet personnalisé, arme renommée), sinon celui de l'entrée.
+ */
+export function nomPossession(
+  entree: Pick<Entree, 'nom'>,
+  sorte: Pick<Sorte, 'nomExemplaire'>,
+  p?: Pick<Possession, 'champs'>,
+): string {
+  return champTexte(p, sorte.nomExemplaire) ?? entree.nom;
+}
+
+/** Description affichée d'une possession : celle de l'exemplaire, sinon celle de l'entrée. */
+export function descriptionPossession(
+  entree: Pick<Entree, 'description'>,
+  sorte: Pick<Sorte, 'descriptionExemplaire'>,
+  p?: Pick<Possession, 'champs'>,
+): string | undefined {
+  return champTexte(p, sorte.descriptionExemplaire) ?? entree.description;
 }
 
 /**
