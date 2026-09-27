@@ -1,0 +1,130 @@
+# Namespace messaging : NATS JetStream (un serveur, un compte par environnement) et Valkey (une
+# instance par environnement), charts officiels épinglés. Valeurs dans infra/messaging/,
+# namespace et NetworkPolicies dans infra/cluster/messaging/. Les secrets doivent exister avant
+# la première synchronisation : « Déploiement » dans docs/bus.md.
+# Monter de version : changer targetRevision ici seulement ; le job helm de la CI lit ces
+# Applications pour rendre et valider les charts.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: messaging
+  namespace: argocd
+spec:
+  description: NATS JetStream et Valkey (namespace messaging)
+  sourceRepos:
+    - https://github.com/theo-mrn/VTT-DD.git
+    - https://nats-io.github.io/k8s/helm/charts/
+    - https://valkey.io/valkey-helm/
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: messaging
+  clusterResourceWhitelist:
+    - { group: '', kind: Namespace }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: messaging-base
+  namespace: argocd
+spec:
+  project: messaging
+  source:
+    repoURL: https://github.com/theo-mrn/VTT-DD.git
+    targetRevision: main
+    path: infra/cluster/messaging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: messaging-nats
+  namespace: argocd
+spec:
+  project: messaging
+  sources:
+    - repoURL: https://nats-io.github.io/k8s/helm/charts/
+      chart: nats
+      targetRevision: 2.15.0
+      helm:
+        # Nom du Service : nats.messaging.svc
+        releaseName: nats
+        skipTests: true
+        valueFiles:
+          - $values/infra/messaging/nats.yaml
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ServerSideApply=true]
+    # Le namespace vient de messaging-base : on réessaie tant qu'il n'existe pas
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: messaging-valkey-staging
+  namespace: argocd
+spec:
+  project: messaging
+  sources:
+    - repoURL: https://valkey.io/valkey-helm/
+      chart: valkey
+      targetRevision: 0.12.0
+      helm:
+        # Nom du Service (valkey-staging.messaging.svc) et du secret valkey-staging-users
+        releaseName: valkey-staging
+        skipTests: true
+        valueFiles:
+          - $values/infra/messaging/valkey.yaml
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ServerSideApply=true]
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: messaging-valkey-prod
+  namespace: argocd
+spec:
+  project: messaging
+  sources:
+    - repoURL: https://valkey.io/valkey-helm/
+      chart: valkey
+      targetRevision: 0.12.0
+      helm:
+        # Nom du Service (valkey-prod.messaging.svc) et du secret valkey-prod-users
+        releaseName: valkey-prod
+        skipTests: true
+        valueFiles:
+          - $values/infra/messaging/valkey.yaml
+    - repoURL: https://github.com/theo-mrn/VTT-DD.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ServerSideApply=true]
+    retry:
+      limit: 10
+      backoff: { duration: 10s, factor: 2, maxDuration: 5m }

@@ -1,0 +1,12 @@
+# NATS JetStream et Valkey. Les pods des charts (infra/messaging/) respectent le profil
+# Pod Security « restricted » : non-root, sans escalade, capacités retirées, seccomp.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: messaging
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    # Jamais supprimé par Argo CD : il emporterait NATS, ses volumes et les secrets
+    argocd.argoproj.io/sync-options: Prune=false

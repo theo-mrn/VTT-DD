@@ -1,0 +1,31 @@
+# Valkey, chart officiel valkey (version épinglée dans infra/argocd/messaging.yaml).
+# Une instance par environnement (releases valkey-staging et valkey-prod) : le code n'a pas de
+# préfixe par environnement (cache <service>:…, adaptateur Socket.IO vtt-realtime#…), donc une
+# base logique ou des ACL à préfixe ne sépareraient ni le pub/sub ni la mémoire (éviction).
+# Cache, limites de débit et pub/sub seulement : rien à sauvegarder (docs/refacto.md).
+# Image : celle du chart (valkey 9.1.2 pour le chart 0.12.0).
+
+auth:
+  enabled: true
+  # Secret <release>-users (valkey-staging-users, valkey-prod-users), clé « default »
+  usersExistingSecret: '{{ .Release.Name }}-users'
+  aclUsers:
+    default:
+      # Tout sauf les commandes dangereuses (FLUSHALL, KEYS, CONFIG, DEBUG…) ; INFO reste permis
+      # (vérification de connexion d'ioredis)
+      permissions: '~* &* +@all -@dangerous +info'
+
+valkeyConfig: |
+  save ""
+  appendonly no
+  maxmemory 200mb
+  maxmemory-policy allkeys-lru
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { memory: 256Mi }
+
+# La sonde valkey-cli ping sans mot de passe reçoit NOAUTH : preuve suffisante que le serveur
+# répond (valkey-cli sort en 0)
+readinessProbe:
+  enabled: true
