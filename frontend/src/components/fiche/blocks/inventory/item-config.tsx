@@ -7,14 +7,8 @@
  * les champs proposés sont ceux de la sorte. Seul ce qui diffère de l'entrée part au
  * service, en une seule demande (`ajouterLibre`).
  */
-import {
-  quantiteDe,
-  type Effet,
-  type Fiche,
-  type InventoryFolder,
-  type Presentation,
-} from '@vtt/rules';
-import { ArrowLeft, Eye, EyeOff, Layers, Minus, Plus, ShieldCheck } from 'lucide-react';
+import { type Effet, type Fiche, type InventoryFolder, type Presentation } from '@vtt/rules';
+import { ArrowLeft, Eye, EyeOff, Minus, Plus, ShieldCheck } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -33,7 +27,6 @@ import {
   cleExemple,
   formulesObjet,
   modesAjout,
-  pileDe,
   verifierFormuleObjet,
   type ChampFormule,
   type FormuleVerifiee,
@@ -77,6 +70,7 @@ export function ItemConfig({
 }) {
   const [sorte, setSorte] = useState(cible.modeles[0]?.sorte.id ?? '');
   const modele = cible.modeles.find((m) => m.sorte.id === sorte) ?? cible.modeles[0];
+  const [categorie, setCategorie] = useState(defautCategorie(cible.modeles[0]));
   // Nom et description survivent au changement de sorte d'un objet personnalisé
   const [nom, setNom] = useState(cible.libre ? (cible.nom ?? '') : (modele?.entree.nom ?? ''));
   const [description, setDescription] = useState(
@@ -85,7 +79,7 @@ export function ItemConfig({
   if (!modele) return null;
   return (
     <Formulaire
-      key={modele.sorte.id}
+      key={`${modele.sorte.id}::${categorie}`}
       fiche={fiche}
       cible={cible}
       modele={modele}
@@ -94,8 +88,18 @@ export function ItemConfig({
       onNom={setNom}
       description={description}
       onDescription={setDescription}
-      choixSorte={
-        cible.modeles.length > 1 ? { valeur: modele.sorte.id, onChange: setSorte } : undefined
+      categorieInitiale={categorie}
+      choixCategorie={
+        cible.modeles.length > 1
+          ? {
+              valeur: `${modele.sorte.id}::${categorie}`,
+              onChange: (v: string) => {
+                const [so = '', ca = ''] = v.split('::');
+                setSorte(so);
+                setCategorie(ca);
+              },
+            }
+          : undefined
       }
       onRetour={onRetour}
       onAjouter={onAjouter}
@@ -103,6 +107,10 @@ export function ItemConfig({
       mj={mj}
     />
   );
+}
+
+function defautCategorie(m: ModeleLibre | undefined): string {
+  return m?.categorie?.defaut ?? m?.categorie?.options[0]?.valeur ?? '';
 }
 
 function Formulaire({
@@ -114,7 +122,8 @@ function Formulaire({
   onNom,
   description,
   onDescription,
-  choixSorte,
+  choixCategorie,
+  categorieInitiale,
   onRetour,
   onAjouter,
   dossierOuvert,
@@ -130,21 +139,21 @@ function Formulaire({
   onNom(nom: string): void;
   description: string;
   onDescription(d: string): void;
-  choixSorte?: { valeur: string; onChange(sorte: string): void } | undefined;
+  /**
+   * Sélecteur combiné « sorte et catégorie » d'un objet personnalisé (plusieurs sortes) :
+   * valeur `sorte::catégorie`, options groupées par sorte (Arme · Contact, Objet · Potions…).
+   */
+  choixCategorie?: { valeur: string; onChange(v: string): void } | undefined;
+  categorieInitiale: string;
   onRetour(): void;
   onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
 }) {
   const id = useId();
   const { entree, sorte } = modele;
-  const modes = useMemo(() => modesAjout(fiche, entree, sorte), [fiche, entree, sorte]);
-  const pile = modes.empiler ? pileDe(fiche.etat, entree.id) : undefined;
   const folders: InventoryFolder[] = fiche.etat.folders;
 
-  const [empiler, setEmpiler] = useState(modes.empiler);
   const [quantite, setQuantite] = useState('1');
-  const [categorie, setCategorie] = useState(
-    modele.categorie?.defaut ?? modele.categorie?.options[0]?.valeur ?? '',
-  );
+  const [categorie, setCategorie] = useState(categorieInitiale || defautCategorie(modele));
   const [actif, setActif] = useState(true);
   const [visible, setVisible] = useState(true);
   const [dossier, setDossier] = useState(dossierOuvert ?? RACINE);
@@ -158,7 +167,11 @@ function Formulaire({
   const q = Number(quantite);
   const quantiteOk = Number.isInteger(q) && q >= 1 && q <= QUANTITE_MAX;
   const nomOk = !cible.libre || nom.trim().length > 0;
-  const seulementUnites = empiler && modes.empiler;
+  // Un ajout crée toujours un exemplaire distinct (plus de choix « à la pile ») ; seule
+  // exception, imposée par la sorte : une entrée à quantités sans exemplaires, déjà possédée,
+  // ne peut que recevoir des unités.
+  const modes = useMemo(() => modesAjout(fiche, entree, sorte), [fiche, entree, sorte]);
+  const seulementUnites = !modes.nouveau && modes.empiler;
 
   // Champs propres proposés : ceux de la sorte, hors identité, catégorie et formules
   const exclus = new Set(
@@ -272,50 +285,31 @@ function Formulaire({
       </DialogHeader>
 
       <div className="-mx-2 min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-2 [scrollbar-width:thin]">
-        {modes.empiler && (
-          <fieldset className="space-y-2">
-            <legend className="sr-only">Mode d’ajout</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Mode
-                name={`${id}-mode`}
-                checked={empiler}
-                onChange={() => setEmpiler(true)}
-                icone={<Layers />}
-                titre="Ajouter à la pile"
-                detail={`Déjà possédé ×${pile ? quantiteDe(pile) : 1} : les unités s’y ajoutent`}
-              />
-              <Mode
-                name={`${id}-mode`}
-                checked={!empiler}
-                disabled={!modes.nouveau}
-                onChange={() => setEmpiler(false)}
-                icone={<Plus />}
-                titre="Exemplaire distinct"
-                detail={
-                  modes.nouveau
-                    ? 'Avec son nom, ses valeurs et ses bonus'
-                    : 'Cette sorte ne se possède qu’une fois'
-                }
-              />
-            </div>
-          </fieldset>
-        )}
-
         {!seulementUnites && (
           <section aria-label="Identité" className="space-y-4">
-            {choixSorte && (
-              <Champ label="Sorte" htmlFor={`${id}-sorte`}>
+            {choixCategorie && (
+              <Champ label="Catégorie" htmlFor={`${id}-categorie-combinee`}>
                 <select
-                  id={`${id}-sorte`}
-                  value={choixSorte.valeur}
-                  onChange={(e) => choixSorte.onChange(e.target.value)}
+                  id={`${id}-categorie-combinee`}
+                  value={choixCategorie.valeur}
+                  onChange={(e) => choixCategorie.onChange(e.target.value)}
                   className={cn(styleChampBase, 'h-10 px-3')}
                 >
-                  {cible.modeles.map((m) => (
-                    <option key={m.sorte.id} value={m.sorte.id}>
-                      {m.sorte.nom}
-                    </option>
-                  ))}
+                  {cible.modeles.map((m) =>
+                    m.categorie && m.categorie.options.length > 0 ? (
+                      <optgroup key={m.sorte.id} label={m.sorte.nom}>
+                        {m.categorie.options.map((o) => (
+                          <option key={o.valeur} value={`${m.sorte.id}::${o.valeur}`}>
+                            {o.nom}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : (
+                      <option key={m.sorte.id} value={`${m.sorte.id}::`}>
+                        {m.sorte.nom}
+                      </option>
+                    ),
+                  )}
                 </select>
               </Champ>
             )}
@@ -353,7 +347,7 @@ function Formulaire({
                 />
               </Champ>
             )}
-            {modele.categorie && options.length > 0 && (
+            {!choixCategorie && modele.categorie && options.length > 0 && (
               <Champ label={modele.categorie.champ.nom} htmlFor={`${id}-categorie`}>
                 <select
                   id={`${id}-categorie`}
@@ -651,56 +645,5 @@ function Case({
       </label>
       {children}
     </div>
-  );
-}
-
-function Mode({
-  name,
-  checked,
-  disabled,
-  onChange,
-  icone,
-  titre,
-  detail,
-}: {
-  name: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange(): void;
-  icone: ReactNode;
-  titre: string;
-  detail: string;
-}) {
-  return (
-    <label
-      className={cn(
-        'flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors',
-        'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50',
-        checked ? 'border-primary/40 bg-primary/10' : 'border-border hover:bg-surface-2/60',
-        disabled && 'cursor-not-allowed opacity-50',
-      )}
-    >
-      <input
-        type="radio"
-        name={name}
-        checked={checked}
-        disabled={disabled}
-        onChange={onChange}
-        className="sr-only"
-      />
-      <span
-        aria-hidden
-        className={cn(
-          'mt-0.5 [&_svg]:size-4',
-          checked ? 'text-primary-strong' : 'text-muted-foreground',
-        )}
-      >
-        {icone}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium">{titre}</span>
-        <span className="block text-xs text-muted-foreground">{detail}</span>
-      </span>
-    </label>
   );
 }
