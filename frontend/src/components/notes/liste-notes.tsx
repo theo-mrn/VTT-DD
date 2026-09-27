@@ -85,6 +85,7 @@ export function ListeNotes({
   onOuvrir,
   onNouvelle,
   creationEnCours,
+  bandeau,
   className,
 }: {
   chargement: boolean;
@@ -112,6 +113,8 @@ export function ListeNotes({
   onOuvrir: (id: string) => void;
   onNouvelle: (modele?: ModeleNote) => void;
   creationEnCours: boolean;
+  /** Message affiché sous les filtres (import des notes de ce navigateur). */
+  bandeau?: ReactNode;
   className?: string;
 }) {
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
@@ -222,6 +225,7 @@ export function ListeNotes({
           facettes={facettes}
           campagnes={campagnes}
         />
+        {bandeau}
       </div>
 
       <motion.div

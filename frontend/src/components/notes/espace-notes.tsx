@@ -31,6 +31,7 @@ import {
   SqueletteEspace,
 } from './etats-notes';
 import { FILTRE_VIDE, filtreActif, ListeNotes, type FiltreNotes } from './liste-notes';
+import { ImportNotesLocales } from './local-import';
 import { depuisModele, type ModeleNote } from './modeles';
 import { SynchroNotes } from './notes-sync';
 import { grouper, indexer, termes } from './outils';
@@ -332,6 +333,9 @@ export function EspaceNotes() {
     return (
       <div className="lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto">
         {synchro}
+        <div className="mx-auto max-w-md px-4 pt-6 empty:hidden">
+          <ImportNotesLocales moi={moi} campagnes={campagnes} />
+        </div>
         <GrimoireVide onNouvelle={(modele) => creerNote({ modele })} enCours={creer.isPending} />
       </div>
     );
@@ -386,6 +390,7 @@ export function EspaceNotes() {
           }}
           onNouvelle={(modele) => creerNote({ modele })}
           creationEnCours={creer.isPending}
+          bandeau={<ImportNotesLocales moi={moi} campagnes={campagnes} />}
         />
       </div>
 
