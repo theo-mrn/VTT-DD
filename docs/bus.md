@@ -87,6 +87,116 @@ TEST_DATABASE_URL=postgres://dice_svc:dice-dev@127.0.0.1:5432/vtt NATS_URL=nats:
   pnpm --filter @vtt/platform test
 ```
 
+## Déploiement
+
+Namespace `messaging`, synchronisé par Argo CD (`infra/argocd/messaging.yaml`, projet
+`messaging`) ; charts officiels à version épinglée, valeurs dans `infra/messaging/`.
+
+| Application Argo CD        | Contenu                                                                            | Adresse                        |
+| -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------ |
+| `messaging-base`           | namespace (Pod Security `restricted`), NetworkPolicies (`infra/cluster/messaging`) | —                              |
+| `messaging-nats`           | chart `nats` 2.15.0, `infra/messaging/nats.yaml`                                   | `nats.messaging.svc:4222`      |
+| `messaging-valkey-staging` | chart `valkey` 0.12.0, `infra/messaging/valkey.yaml`                               | `valkey-staging.messaging.svc` |
+| `messaging-valkey-prod`    | idem                                                                               | `valkey-prod.messaging.svc`    |
+
+### Isolement staging / prod
+
+- **NATS : un serveur, un compte par environnement.** `STAGING` (utilisateur `vtt-staging`) et
+  `PROD` (`vtt-prod`) ont chacun leur JetStream : même flux `VTT_EVENTS`, mêmes consommateurs
+  (`history`, `identity-titles`), mais données séparées ; rien n'est exporté d'un compte à
+  l'autre et une connexion sans utilisateur est refusée. `SYS` sert seulement à l'administration.
+  Limites : 2 Gio de disque pour `STAGING`, 6 Gio pour `PROD` (volume de 10 Gio), 8 flux, 1 000
+  et 2 000 consommateurs, pas de stockage mémoire ; `max_payload` 1 Mo.
+- **Valkey : une instance par environnement.** Le code ne préfixe ni les clés (`<service>:…`) ni
+  les canaux (`vtt-realtime#…`) par environnement : une base logique ne sépare pas le pub/sub, et
+  des ACL à préfixe demanderaient de changer le code. Deux instances séparent aussi la mémoire (une
+  charge de staging n'évince rien en prod). Utilisateur `default` avec mot de passe, commandes
+  `@dangerous` refusées sauf `INFO` (FLUSHALL, KEYS, CONFIG…), pas de persistance, 200 Mo en
+  `allkeys-lru`.
+- **Réseau** : tout est refusé dans `messaging`, sauf NATS (4222) depuis les pods `vtt` de
+  `vtt-staging` et `vtt-prod`, `valkey-staging` (6379) depuis `vtt-staging` seulement,
+  `valkey-prod` depuis `vtt-prod` seulement, et les routes entre serveurs NATS (6222). Côté
+  services, le chart commun ouvre déjà la sortie vers `messaging` sur 4222 et 6379.
+
+### Secrets
+
+Aucun mot de passe dans le dépôt. `infra/messaging/generate-secrets.sh` est le gabarit : il
+écrit les cinq Secrets avec des mots de passe aléatoires, identiques côté serveur et côté client.
+
+| Namespace     | Secret                  | Clés                                                | Lu par                    |
+| ------------- | ----------------------- | --------------------------------------------------- | ------------------------- |
+| `messaging`   | `nats-accounts`         | `SYS_PASSWORD`, `STAGING_PASSWORD`, `PROD_PASSWORD` | NATS (`$NATS_…_PASSWORD`) |
+| `messaging`   | `valkey-staging-users`  | `default`                                           | valkey-staging (ACL)      |
+| `messaging`   | `valkey-prod-users`     | `default`                                           | valkey-prod (ACL)         |
+| `vtt-staging` | `messaging-credentials` | `NATS_PASSWORD`, `REDIS_PASSWORD`                   | services de staging       |
+| `vtt-prod`    | `messaging-credentials` | `NATS_PASSWORD`, `REDIS_PASSWORD`                   | services de prod          |
+
+```sh
+# Avant la première synchronisation (sinon les pods attendent leurs secrets)
+kubectl create namespace messaging; kubectl create namespace vtt-staging; kubectl create namespace vtt-prod
+bash infra/messaging/generate-secrets.sh > ~/vtt-messaging-secrets.yaml   # HORS du dépôt
+kubectl apply -f ~/vtt-messaging-secrets.yaml && rm ~/vtt-messaging-secrets.yaml
+```
+
+- Format : `p` + 64 caractères hexadécimaux (`openssl rand -hex 32`). Hexadécimal pour aller tel
+  quel dans une URL ; la lettre en tête parce que NATS lit `$NATS_…_PASSWORD` comme une valeur de
+  sa configuration, où un mot de passe commençant par un chiffre serait lu comme un nombre.
+- Pour versionner les secrets, les chiffrer avec SOPS (age) avant tout commit ; ils ne sont
+  jamais écrits en clair dans le dépôt.
+- Rotation : changer la valeur des deux côtés (ex. `STAGING_PASSWORD` et le `NATS_PASSWORD` de
+  `vtt-staging`), puis `kubectl -n messaging rollout restart statefulset/nats` (le serveur lit ses
+  variables au démarrage) et `kubectl -n vtt-staging rollout restart deployment`. Pour Valkey :
+  `kubectl -n messaging rollout restart deployment/valkey-staging` (ACL générée au démarrage).
+
+### Connexion des services
+
+Dans `infra/gitops/<env>/*.yaml`, `secretEnv` (chart `infra/helm/service`) déclare
+`NATS_PASSWORD` et `REDIS_PASSWORD` depuis `messaging-credentials` avant les autres variables, et
+Kubernetes les substitue dans les URL :
+
+```yaml
+NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
+REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
+```
+
+ioredis lit l'utilisateur et le mot de passe de `REDIS_URL`. **À faire côté code** : nats.js
+ignore ceux d'une URL, et `connectBus` lui passe l'URL telle quelle. Tant que `connectBus` ne les
+extrait pas (options `user` et `pass`), le serveur répond `Authorization Violation` : history et
+realtime refusent de démarrer, les relais d'outbox gardent les événements en attente.
+
+### Haute disponibilité (3 nœuds)
+
+- `config.cluster.enabled: true` dans `infra/messaging/nats.yaml` : 3 serveurs, un par nœud
+  (volume `local-path` lié au nœud), routes sur 6222 déjà permises.
+- `VTT_EVENTS` resterait sur un seul serveur : `ensureEventStream` ne fixe pas `num_replicas`,
+  et sa mise à jour au démarrage de chaque service le ramènerait à 1. Il faut d'abord le rendre
+  configurable dans le code. En R3, chaque message compte trois fois dans `max_file` : revoir les
+  limites des comptes et la taille des volumes.
+
+### Vérification
+
+```sh
+kubectl -n messaging get pods,pvc,networkpolicy
+# Flux par compte, sans identifiants (port de monitoring, hors Service)
+kubectl -n messaging port-forward pod/nats-0 8222 &
+curl -s 'http://127.0.0.1:8222/jsz?accounts=true&streams=true'   # STAGING et PROD, chacun son VTT_EVENTS
+# Avec la CLI nats en local
+kubectl -n messaging port-forward svc/nats 4222 &
+export NATS_URL=nats://127.0.0.1:4222 NATS_USER=vtt-staging
+export NATS_PASSWORD=$(kubectl -n messaging get secret nats-accounts -o jsonpath='{.data.STAGING_PASSWORD}' | base64 -d)
+nats stream info VTT_EVENTS; nats account info   # limites du compte STAGING
+NATS_USER= NATS_PASSWORD= nats stream ls          # anonyme : Authorization Violation
+# Valkey (mot de passe par l'entrée standard, jamais dans la ligne de commande)
+kubectl -n messaging get secret valkey-staging-users -o jsonpath='{.data.default}' | base64 -d |
+  kubectl -n messaging exec -i deploy/valkey-staging -- sh -c 'read -r p; VALKEYCLI_AUTH="$p" valkey-cli info memory'
+```
+
+Vérifié sur un NATS 2.15 jetable avec la configuration rendue par le chart : deux comptes, deux
+`VTT_EVENTS` indépendants (3 messages d'un côté, 1 de l'autre), durable `history` invisible de
+l'autre compte, consommateur ordonné accepté sans stockage mémoire, anonyme et mot de passe de
+l'autre compte refusés. Valkey 9.1 avec l'ACL du chart : cache, script Lua du rate limit et
+pub/sub de l'adaptateur passent ; FLUSHALL, KEYS et CONFIG sont refusés.
+
 ## Diff avant/après (`changes`)
 
 Les événements de mise à jour portent, en plus de leurs champs propres, le diff de ce qui a changé :
