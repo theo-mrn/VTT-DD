@@ -298,6 +298,13 @@ sortes:
       - { id: nbDes, nom: Nombre de dés de dégâts, type: nombre, defaut: 1 }
       - { id: faces, nom: Faces des dés de dégâts, type: nombre, defaut: 4 }
       - { id: bonusDegats, nom: Bonus aux dégâts, type: formule, defaut: 0 }
+      # Dés de dégâts de l'arme, tirés par l'attaque : nbDes d faces par défaut ; un exemplaire
+      # peut se donner sa propre formule (1d6 + @FOR + 2). Le critique en multiplie les dés.
+      - id: degats
+        nom: Dés de dégâts
+        type: formule
+        des: true
+        defaut: 'des(source.nbDes, source.faces)'
       - { id: critique, nom: Critique à partir de (d20 naturel), type: nombre, defaut: 20 }
       - { id: portee, nom: Portée, type: texte }
       - { id: prix, nom: Prix (pa), type: nombre }
@@ -573,8 +580,8 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, si(assautFinal, 2, 1) * (max(0, si(degatsMax, si(critique, multCritique, 1) * arme.nbDes * arme.faces,
-          des(si(critique, multCritique, 1) * arme.nbDes, arme.faces))
+          si(reussi, si(assautFinal, 2, 1) * (max(0, si(degatsMax, maximum_des(multiplier_des(si(critique, multCritique, 1), arme.degats)),
+          multiplier_des(si(critique, multCritique, 1), arme.degats))
           + arme.bonusDegats + bonusDM + si(cibleDefiee, rang("samourai-honneur"), 0) + si(gage, 2, 0)
           + si(possede("barde-escrime-botte-mortelle") et arme.attaque == "Contact"
           et total >= @cible.Defense + 10, 2d6, 0)
@@ -840,7 +847,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + 1d6) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -872,7 +879,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + si(puissante et rang("barbare-brute") >= 5, 2d6, 1d6))
           + si(desDM > 0, des(desDM, 6), 0) + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -906,7 +913,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + si(feinteReussie, 2d6, 0)) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -933,7 +940,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + mod(@CHA)) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -960,7 +967,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + mod(@SAG)) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -996,7 +1003,7 @@ actions:
       - &degats-arme-2d6
         cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + 2d6) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - cle: brut
@@ -1046,7 +1053,7 @@ actions:
       - &degats-arme-1d6
         cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + 1d6) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -1123,7 +1130,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM + des(2 + si(rang("voleur-assassin") >= 4, 1, 0) + si(rang("voleur-aventurier") >= 4, 1, 0)
           + si(rang("voleur-deplacement") >= 4, 1, 0) + si(rang("voleur-roublard") >= 4, 1, 0)
           + si(rang("voleur-spadassin") >= 4, 1, 0), 6)) + si(desDM > 0, des(desDM, 6), 0)
@@ -1163,7 +1170,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM) + si(desDM + max(0, taille) > 0, des(desDM + max(0, taille), 6), 0), 0)
       - *brut-arme
       - *subis
@@ -1189,7 +1196,7 @@ actions:
       - &degats-arme
         cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1), arme.degats) + arme.bonusDegats
           + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -1218,7 +1225,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * 3 * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1) * 3, arme.degats) + arme.bonusDegats
           + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme
@@ -1248,7 +1255,7 @@ actions:
     apres:
       - cle: degats
         formule: >-
-          si(reussi, max(0, des(si(critique, multCritique, 1) * 2 * arme.nbDes, arme.faces) + arme.bonusDegats
+          si(reussi, max(0, multiplier_des(si(critique, multCritique, 1) * 2, arme.degats) + arme.bonusDegats
           + bonusDM) + si(desDM > 0, des(desDM, 6), 0)
           + si(critique et desCritique > 0, des(desCritique, 6), 0), 0)
       - *brut-arme

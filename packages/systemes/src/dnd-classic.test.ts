@@ -572,6 +572,25 @@ describe('dnd-classic : actions', () => {
     expect([rate.reussi, rate.jet.type === 'numerique' && rate.jet.fumble]).toEqual([false, true]);
   });
 
+  it('formule de dégâts propre à un exemplaire : ses dés, doublés au critique', () => {
+    // Second exemplaire d'épée longue : 1d6 − CON + 20 (écriture simple)
+    const avecLame = fiche({
+      ...thorin().etat,
+      possessions: [
+        ...thorin().etat.possessions,
+        { entree: 'epee-longue', exemplaire: '2', champs: { degats: '1d6-CON+20' } },
+      ],
+    });
+    const con = Number(avecLame.valeur('CON'));
+    const imprenable = avecBonus(elaria(), { Defense: 20 });
+    const r = agir('attaque', avecLame, [14, 4], cuirasse(), { arme: 'epee-longue#2' });
+    expect(r.variables.degats).toBe(4 - con + 20);
+    const crit = agir('attaque', avecLame, [20, 4, 5], imprenable, { arme: 'epee-longue#2' });
+    expect(crit.variables.degats).toBe(4 + 5 - con + 20);
+    // Le premier exemplaire garde les dés du catalogue
+    expect(agir('attaque', avecLame, [14, 6], cuirasse(), epee).variables.degats).toBe(6);
+  });
+
   it('Science du critique : critique dès 19', () => {
     const imprenable = avecBonus(elaria(), { Defense: 30 });
     const maitre = fiche({
