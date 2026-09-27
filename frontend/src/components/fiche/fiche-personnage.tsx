@@ -1,7 +1,7 @@
 'use client';
 
 import { calculer } from '@vtt/rules';
-import { MoreHorizontal, Pencil, Swords, Trash2, UserRound } from 'lucide-react';
+import { Hammer, MoreHorizontal, Pencil, Swords, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -35,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
 import { useCampagne } from '@/lib/campagnes';
 import {
+  lienPersonnage,
   useModifierPersonnage,
   useOperationsPersonnage,
   usePersonnage,
@@ -208,6 +209,14 @@ function EnTeteFiche({
         </div>
         {proprietaire && (
           <div className="flex shrink-0 gap-2">
+            {p.inCreation && p.roomId && (
+              <Button asChild>
+                <Link href={lienPersonnage(p)}>
+                  <Hammer />
+                  Reprendre la création
+                </Link>
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => setEdition(true)}>
               <Pencil />
               Modifier

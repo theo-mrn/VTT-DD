@@ -486,7 +486,17 @@ function SiegeMembre({
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
           {m.role === 'gm' && <Crown className="size-3.5 shrink-0 text-primary" />}
-          {perso ? perso.name : m.name}
+          {perso && !perso.inCreation ? (
+            // Fiche lisible par toute la table, modifiable par son joueur et le MJ
+            <Link
+              href={`/personnages/${perso.id}`}
+              className="truncate transition-colors hover:text-primary"
+            >
+              {perso.name}
+            </Link>
+          ) : (
+            (perso?.name ?? m.name)
+          )}
         </p>
         <p className="truncate text-xs text-muted-foreground">
           {m.role === 'gm'
