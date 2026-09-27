@@ -26,7 +26,7 @@ export const GLISSER_OBJET = 'application/x-vtt-inventaire';
 const TUILE = cn(
   'group relative isolate flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2/70',
   'transition-colors duration-150 motion-reduce:transition-none',
-  'hover:border-primary/40 hover:bg-surface-2 hover:shadow-[0_0_18px_-6px_hsl(var(--primary)/0.55)]',
+  'hover:border-primary/40 hover:bg-surface-2',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
 );
 
@@ -168,9 +168,7 @@ export function ItemTile({
         onKeyDown={clavier}
         className={cn(
           TUILE,
-          equipe
-            ? 'border-primary/50 shadow-[0_0_16px_-6px_hsl(var(--primary)/0.6)]'
-            : 'border-border',
+          equipe ? 'border-primary/50' : 'border-border',
           deplacable && 'cursor-grab active:cursor-grabbing',
         )}
       >
