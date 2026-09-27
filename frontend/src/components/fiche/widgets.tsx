@@ -12,6 +12,7 @@ import {
   type Presentation,
   type SystemeCharge,
   type Widget,
+  nouvellePossession,
 } from '@vtt/rules';
 import { ChevronRight, Coins, Dices, GitBranch, Minus, Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -309,7 +310,7 @@ export function BlocPossessions({
       ...etat,
       possessions: existe
         ? etat.possessions.map((p) => (p.entree === id ? { ...p, actif } : p))
-        : [...etat.possessions, { entree: id, rang: 0, actif, choix: {}, champs: {} }],
+        : [...etat.possessions, nouvellePossession(id, 0, { actif })],
     });
   }
 
