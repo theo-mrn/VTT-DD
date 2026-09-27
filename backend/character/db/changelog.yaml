@@ -11,5 +11,7 @@ databaseChangeLog:
   - include: { file: changes/0005-pending-roll.sql, relativeToChangelogFile: true }
   # Joueur ou PNJ ; « mes personnages » ne liste que les joueurs
   - include: { file: changes/0006-character-kind.sql, relativeToChangelogFile: true }
+  # Mise en page de la fiche (blocs et positions), NULL : disposition par défaut
+  - include: { file: changes/0007-character-sheet-layout.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

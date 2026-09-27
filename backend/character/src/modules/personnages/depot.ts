@@ -19,6 +19,7 @@ import { characters, type CharacterDetails, type PendingRoll } from '../../db/sc
 import type { Catalogue } from '../../regles/catalogue.js';
 import { verifierEtat } from '../../regles/operations.js';
 import { summaryOf, type CharacterSummary } from '../../regles/summary.js';
+import type { Permissions, SheetLayout } from './layout.js';
 
 export type Ligne = typeof characters.$inferSelect;
 
@@ -40,6 +41,10 @@ export interface Personnage {
   fiche: FicheJson;
   details: Details;
   summary: CharacterSummary;
+  /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
+  sheetLayout: SheetLayout | null;
+  /** Droits de l'appelant (lecture d'un personnage : `GET /v1/characters/:id`). */
+  permissions?: Permissions;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -147,6 +152,7 @@ export function versApi(catalogue: Catalogue, ligne: Ligne): Personnage {
     fiche: ficheJson(fiche),
     details: detailsApi(ligne.details),
     summary: summaryOf(catalogue, ligne, () => fiche),
+    sheetLayout: ligne.sheetLayout ?? null,
     version: ligne.version,
     createdAt: ligne.createdAt.toISOString(),
     updatedAt: ligne.updatedAt.toISOString(),
@@ -382,6 +388,50 @@ export async function modifier(
       operation,
       ...(details ? { details } : {}),
     });
+  });
+}
+
+/**
+ * Change la mise en page de la fiche (null : retour à la disposition par défaut), avec
+ * la version connue, et annonce `character.layout_changed` à chaque table où le personnage
+ * est engagé (`campagnes`, publique : la table voit la même fiche) ; hors campagne,
+ * à l'auteur seul. La mise en page appartient au personnage : sa version est incrémentée
+ * comme pour toute écriture.
+ */
+export async function changerMiseEnPage(
+  db: Db,
+  ctx: EventContext,
+  appelant: Appelant,
+  campagnes: readonly string[],
+  id: string,
+  version: number,
+  layout: SheetLayout | null,
+): Promise<Ligne> {
+  return db.transaction(async (tx) => {
+    const [ligne] = await verrouiller(tx, [id]);
+    verifierVersion(ligne!, version);
+    const [suivante] = await tx
+      .update(characters)
+      .set({ sheetLayout: layout, version: ligne!.version + 1, updatedAt: sql`now()` })
+      .where(and(eq(characters.id, id), eq(characters.version, ligne!.version)))
+      .returning();
+    if (!suivante)
+      throw HttpError.conflict('Le personnage a été modifié entre-temps', 'version_perimee');
+    const salles = campagnes.length ? [...new Set(campagnes)] : [null];
+    for (const roomId of salles)
+      await appendEvent(tx, ctx, {
+        type: 'character.layout_changed',
+        roomId,
+        visibility: roomId ? 'public' : 'owner',
+        actor: acteur(appelant, id),
+        aggregate: { type: 'character', id },
+        payload: {
+          version: suivante.version,
+          reset: layout === null,
+          blocks: layout?.blocks.length ?? 0,
+        },
+      });
+    return suivante;
   });
 }
 

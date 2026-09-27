@@ -33,6 +33,7 @@ import { CharacterSummary } from '../../regles/summary.js';
 import { jouerAction } from './actions.js';
 import {
   autoriser,
+  changerMiseEnPage,
   creer,
   detailsApi,
   lire,
@@ -44,6 +45,7 @@ import {
   type Ligne,
   type Mode,
 } from './depot.js';
+import { MAX_LAYOUT_BYTES, Permissions, SheetLayout } from './layout.js';
 
 const IdPersonnage = z.uuid('Identifiant de personnage invalide').transform((s) => s.toLowerCase());
 const Id = z.string().min(1).max(200);
@@ -62,10 +64,17 @@ const Personnage = z.object({
   fiche: z.unknown(),
   details: Details,
   summary: CharacterSummary,
+  /** Mise en page de la fiche (forme : ./layout.ts) ; null : disposition par défaut. */
+  sheetLayout: z.unknown().nullable(),
+  /** Droits de l'appelant : renvoyés par la lecture et par le changement de mise en page. */
+  permissions: Permissions.optional(),
   version: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+
+/** Tous les droits : le propriétaire, ou le MJ d'une campagne où le personnage est engagé. */
+const TOUS_DROITS: Permissions = { write: true, layout: true };
 
 /** Présentation libre modifiable : seuls les champs envoyés changent. */
 const DetailsModifies = z.object({
@@ -182,7 +191,50 @@ export const register: Module = async (app, deps) => {
   r.get(
     '/v1/characters/:id',
     { ...auth, schema: { params: Params, response: { 200: Personnage } } },
-    async (req) => api(await lecture(req, req.params.id)),
+    async (req) => {
+      const ligne = await lecture(req, req.params.id);
+      // Le front se fie à ces droits : il n'a pas à les recalculer (réponse de campaign en cache)
+      const permissions: Permissions =
+        ligne.ownerId === moi(req)
+          ? TOUS_DROITS
+          : await deps.droits.de(ligne.id, moi(req)).then((d) => ({
+              write: d.ecriture,
+              layout: d.ecriture,
+            }));
+      return { ...api(ligne), permissions };
+    },
+  );
+
+  // ─── Mise en page de la fiche ──────────────────────────────────────────────
+
+  r.put(
+    '/v1/characters/:id/layout',
+    {
+      ...auth,
+      // Au-delà, 413 avant toute validation (la mise en page elle-même est bornée plus bas)
+      bodyLimit: 2 * MAX_LAYOUT_BYTES,
+      schema: {
+        params: Params,
+        body: z.strictObject({ version: Version, layout: SheetLayout.nullable() }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { id } = req.params;
+      const role = await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
+      // Tables où le personnage est engagé et où l'appelant siège (réponse de campaign en cache)
+      const campagnes = (await deps.droits.de(id, moi(req))).campagnes ?? [];
+      const ligne = await changerMiseEnPage(
+        db,
+        contexte(req),
+        { userId: moi(req), role },
+        campagnes,
+        id,
+        req.body.version,
+        req.body.layout,
+      );
+      return { ...api(ligne), permissions: TOUS_DROITS };
+    },
   );
 
   r.patch(

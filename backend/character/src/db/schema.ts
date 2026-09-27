@@ -5,6 +5,7 @@
  * « characters » (CHARACTER est un mot réservé).
  */
 import type { EtatEntite } from '@vtt/rules';
+import type { SheetLayout } from '../modules/personnages/layout.js';
 import {
   foreignKey,
   integer,
@@ -47,6 +48,8 @@ export const characters = schemaCharacters.table('characters', {
   pendingRoll: jsonb('pending_roll').$type<PendingRoll>(),
   /** `pc` personnage joueur, `npc` PNJ (les PNJ importés de l'ancienne app). */
   kind: text('kind').$type<'pc' | 'npc'>().notNull().default('pc'),
+  /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
+  sheetLayout: jsonb('sheet_layout').$type<SheetLayout>(),
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),

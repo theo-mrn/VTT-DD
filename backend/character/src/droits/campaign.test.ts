@@ -31,11 +31,13 @@ describe('droits décidés par campaign', () => {
       maintenant: () => maintenant,
     });
 
-    // Campagnes où il est MJ : ses écritures y sont annoncées en direct
+    // Campagnes où il est MJ : ses écritures y sont annoncées en direct ; toutes ses
+    // campagnes : la mise en page de la fiche y est annoncée
     expect(await droits.de('perso-1', 'user-1')).toEqual({
       lecture: true,
       ecriture: false,
       campagnesMj: ['camp-2'],
+      campagnes: ['camp-1', 'camp-2'],
     });
     const [url, init] = fetch.mock.calls[0]!;
     expect(String(url)).toBe(
@@ -66,7 +68,12 @@ describe('droits décidés par campaign', () => {
     });
     expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
     expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
-    expect(await droits.de('p', 'u')).toEqual({ lecture: true, ecriture: true, campagnesMj: [] });
+    expect(await droits.de('p', 'u')).toEqual({
+      lecture: true,
+      ecriture: true,
+      campagnesMj: [],
+      campagnes: [],
+    });
     expect(signaler).toHaveBeenCalledTimes(2);
   });
 });

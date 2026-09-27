@@ -24,6 +24,11 @@ export interface Droits {
    * sont annoncées en direct (événement de la campagne, voir `enregistrer`).
    */
   campagnesMj?: string[];
+  /**
+   * Toutes les campagnes où l'utilisateur est membre et le personnage engagé (le
+   * propriétaire y joue) : la mise en page de la fiche y est annoncée à la table.
+   */
+  campagnes?: string[];
 }
 
 /** Rôle dans une campagne (contrat de campaign). */
@@ -145,6 +150,7 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
           lecture: r.read,
           ecriture: r.write,
           campagnesMj: r.campaigns.filter((c) => c.role === 'gm').map((c) => c.campaignId),
+          campagnes: r.campaigns.map((c) => c.campaignId),
         };
       } catch (erreur) {
         // Pas de mise en cache d'une panne : la prochaine requête réessaie
