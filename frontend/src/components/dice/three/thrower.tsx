@@ -41,7 +41,6 @@ import {
   type Die3DSymbol,
   type QueuedThrow,
   type ThrowRequest,
-  type ThrowResult,
 } from '@/lib/dice-throw';
 
 /**

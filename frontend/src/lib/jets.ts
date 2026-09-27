@@ -42,7 +42,7 @@ import {
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { api } from './api';
-import { roll3D, type ThrowRequest } from './dice-throw';
+import { roll3D, setDiceSound, type ThrowRequest } from './dice-throw';
 import {
   DEFAULT_DICE_PREFERENCES,
   dicePreferencesKey,
@@ -379,6 +379,8 @@ export function useLancer() {
         .ensureQueryData(dicePreferencesQuery)
         // Préférences illisibles : pas de 3D, le serveur tire (le canevas est coûteux)
         .catch(() => ({ ...DEFAULT_DICE_PREFERENCES, animation3d: false }));
+      // Lancer depuis un écran sans réglages de dés (palette) : le son suit quand même la préférence
+      setDiceSound(prefs.sound);
       const faces = await roll3D(desDeFormule(formula, d.fiche), {
         enabled: prefs.animation3d,
         blind: visibility === 'gm',
