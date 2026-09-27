@@ -497,17 +497,17 @@ const tsvector = customType<{ data: string; driverData: string }>({
 });
 
 /**
- * Notes : personnelles (`campaignId` null, l'auteur seul), ou d'une campagne,
- * privées (`shared` faux : l'auteur seul) ou partagées (`sharedWith` null :
- * tous les membres ; sinon les joueurs de ces personnages, et les MJ si
- * `sharedWithGm`). Voir docs/api-notes.md.
+ * Notes d'une campagne : privées (`shared` faux : l'auteur seul) ou partagées
+ * (`sharedWith` null : tous les membres ; sinon les joueurs de ces personnages,
+ * et les MJ si `sharedWithGm`). Voir docs/api-notes.md.
  */
 export const notes = campaignSchema.table(
   'notes',
   {
     id: uuid('id').primaryKey(),
-    /** Null : note personnelle, hors campagne. */
-    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
     ownerUserId: uuid('owner_user_id').notNull(),
     /** Personnage incarné par l'auteur quand il l'a écrite. */
     characterId: uuid('character_id'),

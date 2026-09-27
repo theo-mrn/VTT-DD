@@ -1,10 +1,11 @@
 /**
- * Notes : droits repris de l'ancienne app (privées, partagées avec tous ou avec
- * des personnages), notes personnelles, partage avec les MJ, épingles par
- * lecteur, spectateurs en lecture, assainissement, recherche, pagination,
- * conflits de version et événements de l'outbox (visibilité, jamais de texte).
+ * Notes des campagnes : droits repris de l'ancienne app (privées, partagées
+ * avec tous ou avec des personnages), partage avec les MJ, épingles par
+ * lecteur, spectateurs en lecture, toutes mes notes (toutes campagnes),
+ * changement de campagne, assainissement, recherche, pagination, conflits de
+ * version et événements de l'outbox (visibilité, jamais de texte).
  */
-import { inArray, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { notes, outbox } from '../../db/schema.js';
 import {
@@ -63,7 +64,6 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
   let alice: TestUser;
   let bob: TestUser;
   let carol: TestUser;
-  let users: TestUser[];
   let campaignId: string;
   let aliceHero: string;
   let bobHero: string;
@@ -75,7 +75,6 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     alice = await t.user('Alice');
     bob = await t.user('Bob');
     carol = await t.user('Carol');
-    users = [gm, alice, bob, carol];
     campaignId = await h.campaign(gm, 'dnd-classic', [alice, bob, carol]);
     aliceHero = await h.engage(campaignId, alice, { name: 'Aria' });
     bobHero = await h.engage(campaignId, bob, { name: 'Brom' });
@@ -86,13 +85,7 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
   });
 
   afterEach(async () => {
-    // Notes personnelles (sans campagne) : la suppression des campagnes ne les emporte pas
-    await t.db?.delete(notes).where(
-      inArray(
-        notes.ownerUserId,
-        users.map((u) => u.id),
-      ),
-    );
+    // Les notes partent avec les campagnes des utilisateurs du test
     await t.close();
   });
 
@@ -101,8 +94,6 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     (await h.ok<Page>(u, 'GET', `${url()}${query}`)).items;
   const create = (u: TestUser, body: Record<string, unknown>) => h.ok<Note>(u, 'POST', url(), body);
   const mine = (u: TestUser, query = '') => h.ok<Page>(u, 'GET', `/v1/notes${query}`);
-  const createPersonal = (u: TestUser, body: Record<string, unknown>) =>
-    h.ok<Note>(u, 'POST', '/v1/notes', body);
 
   async function events(noteId: string): Promise<Event[]> {
     const rows = await t
@@ -340,7 +331,6 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
       ['PATCH', url(`/${note.id}`), { title: 'X' }],
       ['DELETE', url(`/${note.id}`), undefined],
       ['POST', url('/upload'), { contentType: 'image/png', size: 10 }],
-      ['POST', '/v1/notes', { title: 'X', campaignId }],
       ['PATCH', `/v1/notes/${note.id}`, { title: 'X' }],
     ] as const) {
       const res = await h.request(carol, method, path, payload);
@@ -363,14 +353,13 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     expect(withImage).toMatchObject({ imageUrl: res.publicUrl });
 
     const stranger = await t.user();
-    users.push(stranger);
     expect((await h.request(stranger, 'GET', url())).statusCode).toBe(404);
     expect(
       (await h.request(stranger, 'POST', url('/upload'), { contentType: 'image/png', size: 1 }))
         .statusCode,
     ).toBe(404);
-    const elsewhere = await h.request(stranger, 'POST', '/v1/notes', { campaignId, title: 'X' });
-    expect(elsewhere.json()).toMatchObject({ code: 'campaign_not_found' });
+    const elsewhere = await h.request(stranger, 'GET', `/v1/notes/${withImage.id}`);
+    expect(elsewhere.json()).toMatchObject({ code: 'note_not_found' });
   });
 
   it('validation : type, étapes, icône, champs inconnus', async () => {
@@ -398,43 +387,24 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     expect((await create(alice, { icon: '🗺️' })).icon).toBe('🗺️');
   });
 
-  describe('notes personnelles et liste de toutes mes notes', () => {
-    it('une note personnelle : sans campagne, son auteur seul, événement hors campagne', async () => {
-      const note = await createPersonal(alice, {
-        title: 'Idées de personnage',
-        content: `<p>${SECRET}</p>`,
-        icon: '🧙',
-      });
-      expect(note).toMatchObject({
-        campaignId: null,
-        characterId: null,
-        shared: false,
-        icon: '🧙',
-        permissions: { edit: true, delete: true, share: false, move: true },
-      });
-      for (const other of [gm, bob]) {
-        expect((await h.request(other, 'GET', `/v1/notes/${note.id}`)).statusCode).toBe(404);
-        expect((await mine(other)).items.map((n) => n.id)).not.toContain(note.id);
-      }
-      const refused = await h.request(alice, 'PATCH', `/v1/notes/${note.id}`, { shared: true });
-      expect(refused.json()).toMatchObject({ code: 'personal_note_not_shareable' });
-      const direct = await h.request(alice, 'POST', '/v1/notes', { shared: true });
-      expect(direct.json()).toMatchObject({ code: 'personal_note_not_shareable' });
-
+  describe('toutes mes notes et changement de campagne', () => {
+    it('une note n’existe que dans une campagne', async () => {
+      const note = await create(alice, { title: 'Dans la campagne' });
+      // Pas de création hors campagne : on crée par la route de la campagne
+      const direct = await h.request(alice, 'POST', '/v1/notes', { title: 'Sans campagne' });
+      expect(direct.statusCode).toBe(404);
+      const detach = await h.request(alice, 'PATCH', `/v1/notes/${note.id}`, { campaignId: null });
+      expect(detach.statusCode).toBe(400);
       const [created] = await events(note.id);
-      expect(created).toMatchObject({
-        type: 'note.created',
-        roomId: null,
-        visibility: 'owner',
-        actor: { userId: alice.id, role: 'user', characterId: null },
-        payload: { id: note.id, campaignId: null },
-      });
-      expect(JSON.stringify(created)).not.toContain('trésor');
-      expect(JSON.stringify(created)).not.toContain('Idées');
+      expect(created).toMatchObject({ roomId: campaignId, visibility: 'owner' });
     });
 
-    it('toutes mes notes : personnelles et de campagne, filtres et facettes', async () => {
-      const personal = await createPersonal(alice, { title: 'Perso', type: 'character' });
+    it('toutes mes notes : toutes campagnes confondues, filtres et facettes', async () => {
+      const other = await h.campaign(alice, 'dnd-classic');
+      const elsewhere = await h.ok<Note>(alice, 'POST', `/v1/campaigns/${other}/notes`, {
+        title: 'Ailleurs',
+        type: 'character',
+      });
       const campaignNote = await create(alice, {
         title: 'Campagne',
         tags: [{ id: 't1', label: 'Indice' }],
@@ -445,21 +415,25 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
       const all = await mine(alice);
       expect(all.total).toBe(3);
       expect(all.items.map((n) => n.id).sort()).toEqual(
-        [personal.id, campaignNote.id, sharedByBob.id].sort(),
+        [elsewhere.id, campaignNote.id, sharedByBob.id].sort(),
       );
-      expect((await mine(alice, '?campaignId=none')).items.map((n) => n.id)).toEqual([personal.id]);
+      expect(all.items.every((n) => typeof n.campaignId === 'string')).toBe(true);
+      expect((await mine(alice, `?campaignId=${other}`)).items.map((n) => n.id)).toEqual([
+        elsewhere.id,
+      ]);
       expect(
         (await mine(alice, `?campaignId=${campaignId}`)).items.map((n) => n.id).sort(),
       ).toEqual([campaignNote.id, sharedByBob.id].sort());
       expect((await mine(alice, '?type=location')).items.map((n) => n.id)).toEqual([
         sharedByBob.id,
       ]);
+      expect((await h.request(alice, 'GET', '/v1/notes?campaignId=none')).statusCode).toBe(400);
 
       const facets = await h.ok<{
         total: number;
         pinned: number;
         types: Record<string, number>;
-        campaigns: { campaignId: string | null; count: number }[];
+        campaigns: { campaignId: string; count: number }[];
         tags: { label: string; count: number }[];
       }>(alice, 'GET', '/v1/notes/facets');
       expect(facets).toMatchObject({
@@ -470,7 +444,7 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
       });
       expect(facets.campaigns).toEqual(
         expect.arrayContaining([
-          { campaignId: null, count: 1 },
+          { campaignId: other, count: 1 },
           { campaignId, count: 2 },
         ]),
       );
@@ -507,45 +481,57 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
     });
 
     it('changer de campagne : l’auteur seul ; la note repart privée', async () => {
-      const note = await createPersonal(alice, { title: 'À partager', content: '<p>x</p>' });
-      const moved = await h.ok<Note>(alice, 'PATCH', `/v1/notes/${note.id}`, {
-        campaignId,
-        shared: true,
-        version: note.version,
-      });
-      expect(moved).toMatchObject({
-        campaignId,
-        characterId: aliceHero,
-        shared: true,
-        sharedWith: 'all',
-        version: 2,
-      });
+      const other = await h.campaign(alice, 'dnd-classic');
+      const note = await create(alice, { title: 'À déplacer', content: '<p>x</p>', shared: true });
       expect((await list(bob)).map((n) => n.id)).toEqual([note.id]);
 
-      const notOwner = await h.request(bob, 'PATCH', `/v1/notes/${note.id}`, { campaignId: null });
+      const notOwner = await h.request(bob, 'PATCH', `/v1/notes/${note.id}`, { campaignId: other });
       expect(notOwner.json()).toMatchObject({ code: 'not_note_owner' });
+      const notMember = await h.request(alice, 'PATCH', `/v1/notes/${note.id}`, {
+        campaignId: crypto.randomUUID(),
+      });
+      expect(notMember.json()).toMatchObject({ code: 'campaign_not_found' });
 
-      const back = await h.ok<Note>(alice, 'PATCH', `/v1/notes/${note.id}`, { campaignId: null });
-      expect(back).toMatchObject({ campaignId: null, characterId: null, shared: false });
+      const moved = await h.ok<Note>(alice, 'PATCH', `/v1/notes/${note.id}`, {
+        campaignId: other,
+        version: note.version,
+      });
+      // Alice n'incarne personne dans l'autre campagne (elle en est la MJ)
+      expect(moved).toMatchObject({
+        campaignId: other,
+        characterId: null,
+        shared: false,
+        sharedWith: null,
+        version: 2,
+      });
       expect(await list(bob)).toEqual([]);
+
+      const back = await h.ok<Note>(alice, 'PATCH', `/v1/notes/${note.id}`, {
+        campaignId,
+        shared: true,
+      });
+      expect(back).toMatchObject({ campaignId, characterId: aliceHero, sharedWith: 'all' });
+      expect((await list(bob)).map((n) => n.id)).toEqual([note.id]);
 
       const updates = (await events(note.id)).filter((e) => e.type === 'note.updated');
       expect(updates).toHaveLength(4);
-      // Personnelle → campagne, puis campagne → personnelle : un événement de chaque côté
-      // (écrits dans la même transaction, leur ordre relatif n'est pas garanti)
-      const side = (list: Event[], room: string | null) => list.find((e) => e.roomId === room)!;
-      const [toCampaign, toPersonal] = [updates.slice(0, 2), updates.slice(2)];
-      for (const pair of [toCampaign, toPersonal]) {
-        expect(side(pair, null)).toMatchObject({ visibility: 'owner' });
-        expect(side(pair, campaignId)).toMatchObject({ visibility: 'public' });
-      }
-      expect(side(toCampaign, null).payload).toMatchObject({ changed: ['campaignId', 'shared'] });
-      // La note quitte la table : la campagne l'apprend, sans son titre
-      expect(side(toPersonal, campaignId).payload).not.toHaveProperty('title');
+      // Un événement dans chaque campagne (écrits dans la même transaction, ordre non garanti)
+      const side = (list: Event[], room: string) => list.find((e) => e.roomId === room)!;
+      const [away, home] = [updates.slice(0, 2), updates.slice(2)];
+      // Départ : la table perd la note (public, sans titre) ; arrivée privée : l'auteur seul
+      expect(side(away, campaignId)).toMatchObject({ visibility: 'public' });
+      expect(side(away, campaignId).payload).not.toHaveProperty('title');
+      expect(side(away, other)).toMatchObject({ visibility: 'owner' });
+      expect(side(away, other).payload).toMatchObject({ changed: ['campaignId', 'shared'] });
+      expect(side(home, campaignId)).toMatchObject({
+        visibility: 'public',
+        payload: { title: 'À déplacer' },
+      });
+      expect(side(home, other)).toMatchObject({ visibility: 'owner' });
     });
 
     it('une modification sans changement n’écrit rien', async () => {
-      const note = await createPersonal(alice, { title: 'Stable', content: '<p>x</p>' });
+      const note = await create(alice, { title: 'Stable', content: '<p>x</p>' });
       const same = await h.ok<Note>(alice, 'PATCH', `/v1/notes/${note.id}`, {
         title: 'Stable',
         content: '<p>x</p>',
@@ -558,7 +544,7 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
 
   describe('contenu, recherche et pages', () => {
     it('assainit le HTML à l’écriture ; trop long une fois réécrit : 400', async () => {
-      const note = await createPersonal(alice, {
+      const note = await create(alice, {
         content:
           '<p onclick="alert(1)">Bonjour <img src=x onerror=alert(1)>' +
           '<a href="javascript:alert(1)">lien</a></p><script>alert(1)</script>',
@@ -569,18 +555,18 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
       });
       expect(patched.content).toBe('<h2 style="text-align: center">T</h2>');
 
-      const tooLong = await h.request(alice, 'POST', '/v1/notes', {
+      const tooLong = await h.request(alice, 'POST', url(), {
         content: `<p>${'<'.repeat(199_000)}</p>`,
       });
       expect(tooLong.json()).toMatchObject({ code: 'content_too_long' });
     });
 
     it('recherche plein texte : sans accents, par préfixe, racines, titre et étiquettes', async () => {
-      const sword = await createPersonal(alice, {
+      const sword = await create(alice, {
         title: 'Armurerie',
         content: `<h2>Stock</h2><p>${'Du blabla. '.repeat(30)}Une Épée longue et des chevaux.</p>`,
       });
-      const tagged = await createPersonal(alice, {
+      const tagged = await create(alice, {
         title: 'Taverne',
         tags: [{ id: 'x', label: 'Légende' }],
       });
@@ -607,7 +593,7 @@ describe.skipIf(!TEST_DATABASE_URL)('notes', () => {
 
     it('pages : curseur stable, sans doublon, total sur la première', async () => {
       const ids: string[] = [];
-      for (let i = 0; i < 5; i++) ids.push((await createPersonal(alice, { title: `N${i}` })).id);
+      for (let i = 0; i < 5; i++) ids.push((await create(alice, { title: `N${i}` })).id);
       await h.ok(alice, 'PUT', `/v1/notes/${ids[1]}/pin`);
 
       const seen: string[] = [];

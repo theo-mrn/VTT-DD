@@ -1,13 +1,13 @@
 /**
  * Socle du module « notes » : qui lit quoi, ce qu'on peut en faire,
- * représentation API, champs calculés et événements.
+ * représentation API, champs calculés et événements. Une note appartient
+ * toujours à une campagne.
  *
- * Lecture (reprise de loadNotes, legacy/src/components/Notes.tsx) :
- *  - ses notes personnelles (sans campagne) : l'auteur seul ;
- *  - dans une campagne dont on est membre : ses propres notes, privées ou
- *    partagées, les notes partagées avec tous (`sharedWith` null, legacy
- *    `'all'`), celles partagées avec un de ses personnages (propriétaire ou
- *    incarné), et, pour un MJ, celles partagées avec les MJ (`sharedWithGm`).
+ * Lecture (reprise de loadNotes, legacy/src/components/Notes.tsx), dans une
+ * campagne dont on est membre : ses propres notes, privées ou partagées, les
+ * notes partagées avec tous (`sharedWith` null, legacy `'all'`), celles
+ * partagées avec un de ses personnages (propriétaire ou incarné), et, pour un
+ * MJ, celles partagées avec les MJ (`sharedWithGm`).
  * Le MJ n'a aucun autre droit : l'ancienne app ne lui montrait ni les notes
  * privées des joueurs, ni les notes partagées avec d'autres personnages que les
  * siens. Une note qu'on ne peut pas lire est introuvable (404).
@@ -74,8 +74,8 @@ export async function campaignReader(
   return { userId, campaigns: new Map([[a.campaign.id, a.role]]) };
 }
 
-export const roleIn = (r: NoteReader, campaignId: string | null) =>
-  campaignId ? (r.campaigns.get(campaignId) ?? null) : null;
+/** Rôle de l'appelant dans la campagne, null s'il n'en est pas membre. */
+export const roleIn = (r: NoteReader, campaignId: string) => r.campaigns.get(campaignId) ?? null;
 
 export const noteNotFound = () =>
   new HttpError(404, 'Ressource introuvable', 'note_not_found', 'Note introuvable');
@@ -89,11 +89,10 @@ export const notNoteOwner = (detail: string) =>
 /** Tableau d'uuid pour `&&` et `= any(…)`. */
 const sqlUuids = (ids: string[]) => sql`${`{${ids.join(',')}}`}::uuid[]`;
 
-/** Condition SQL : notes lisibles par l'appelant (personnelles, et de ses campagnes). */
+/** Condition SQL : notes de ses campagnes lisibles par l'appelant. */
 export function readableBy(r: NoteReader): SQL {
-  const personal = and(isNull(notes.campaignId), eq(notes.ownerUserId, r.userId))!;
   const ids = [...r.campaigns.keys()];
-  if (!ids.length) return personal;
+  if (!ids.length) return sql`false`;
   const gm = ids.filter((id) => r.campaigns.get(id) === 'gm');
   const sharedToMe = or(
     isNull(notes.sharedWith),
@@ -104,12 +103,9 @@ export function readableBy(r: NoteReader): SQL {
       and cc.character_id = any(${notes.sharedWith})
       and (cc.owner_id = ${r.userId} or cc.played_by = ${r.userId}))`,
   );
-  return or(
-    personal,
-    and(
-      sql`${notes.campaignId} = any(${sqlUuids(ids)})`,
-      or(eq(notes.ownerUserId, r.userId), and(eq(notes.shared, true), sharedToMe)),
-    ),
+  return and(
+    sql`${notes.campaignId} = any(${sqlUuids(ids)})`,
+    or(eq(notes.ownerUserId, r.userId), and(eq(notes.shared, true), sharedToMe)),
   )!;
 }
 
@@ -155,24 +151,18 @@ export interface NotePermissions {
 export function permissionsOf(n: NoteRow, r: NoteReader): NotePermissions {
   const mine = n.ownerUserId === r.userId;
   const role = roleIn(r, n.campaignId);
-  const writer = n.campaignId ? role !== null && role !== 'spectator' : mine;
-  return {
-    edit: writer,
-    delete: writer,
-    share: writer && mine && !!n.campaignId,
-    move: writer && mine,
-  };
+  const writer = role !== null && role !== 'spectator';
+  return { edit: writer, delete: writer, share: writer && mine, move: writer && mine };
 }
 
-/** Écrire dans la note (ou dans la campagne) : 403 pour un spectateur. */
-export function requireWriter(r: NoteReader, campaignId: string | null) {
+/** Écrire dans la campagne (ses notes) : 403 pour un spectateur. */
+export function requireWriter(r: NoteReader, campaignId: string) {
   if (roleIn(r, campaignId) === 'spectator')
     throw HttpError.forbidden('Un spectateur n’écrit pas de notes');
 }
 
 /** Personnage incarné par l'appelant dans la campagne (legacy persoId), ou null. */
-export async function playedCharacter(db: Db | Tx, campaignId: string | null, userId: string) {
-  if (!campaignId) return null;
+export async function playedCharacter(db: Db | Tx, campaignId: string, userId: string) {
   const [row] = await db
     .select({ id: campaignCharacters.characterId })
     .from(campaignCharacters)
@@ -372,7 +362,7 @@ export const changedFields = (before: NoteRow, after: NoteRow): string[] =>
 /** Qui lit la note : l'auteur seul, des personnages ou les MJ choisis, ou toute la campagne. */
 type Audience = 'owner' | 'targeted' | 'all';
 const audienceOf = (n: NoteRow): Audience =>
-  !n.campaignId || !n.shared ? 'owner' : n.sharedWith === null ? 'all' : 'targeted';
+  !n.shared ? 'owner' : n.sharedWith === null ? 'all' : 'targeted';
 
 /** Utilisateurs (propriétaires ou incarnateurs) des personnages donnés : même règle que `readableBy`. */
 async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: string[]) {
@@ -392,8 +382,7 @@ async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: strin
 /**
  * Événement de note, dans la transaction de la donnée, pour la campagne
  * `room` (celle de la note ; les deux, l'une après l'autre, quand elle change
- * de campagne) ou hors campagne (`room` null : note personnelle, `roomId` null
- * et visibilité `owner`). Le payload ne porte jamais le texte (`content`) ni
+ * de campagne). Le payload ne porte jamais le texte (`content`) ni
  * les étapes : l'id, l'auteur, la campagne, le partage, la version, les noms
  * des champs modifiés (`changed`, sans valeurs), et le titre quand la note est
  * partagée avec toute cette campagne. Visibilité, calculée sur l'état avant ET
@@ -403,7 +392,7 @@ async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: strin
  *    `visibleToUsers` (leurs joueurs, l'auteur et l'acteur) : seul moyen de
  *    toucher ces joueurs en temps réel ; le MJ reçoit l'id et le partage,
  *    jamais le titre ;
- *  - sinon privée ou personnelle → `owner` (l'auteur, seul à agir dessus).
+ *  - sinon privée → `owner` (l'auteur, seul à agir dessus).
  */
 export async function noteEvent(
   tx: Tx,
@@ -411,7 +400,7 @@ export async function noteEvent(
   r: NoteReader,
   e: {
     type: 'note.created' | 'note.updated' | 'note.deleted';
-    room: string | null;
+    room: string;
     before?: NoteRow;
     after?: NoteRow;
     changed?: string[];
@@ -436,7 +425,7 @@ export async function noteEvent(
   };
   let visibility: Visibility = 'owner';
   if (audiences.includes('all')) visibility = 'public';
-  else if (e.room && audiences.includes('targeted')) {
+  else if (audiences.includes('targeted')) {
     visibility = 'gm_only';
     const characterIds = [...new Set(states.flatMap((s) => s.sharedWith ?? []))];
     const users = await usersOfCharacters(tx, e.room, characterIds);

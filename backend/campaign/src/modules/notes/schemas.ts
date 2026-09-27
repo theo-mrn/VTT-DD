@@ -122,14 +122,13 @@ export const Permissions = z.object({
   delete: z.boolean(),
   /** Changer la visibilité (dont la rendre privée) : l'auteur seul. */
   share: z.boolean(),
-  /** Changer de campagne (ou en faire une note personnelle) : l'auteur seul. */
+  /** Changer la note de campagne : l'auteur seul. */
   move: z.boolean(),
 });
 
 const common = {
   id: z.string(),
-  /** Null : note personnelle. */
-  campaignId: z.string().nullable(),
+  campaignId: z.string(),
   owner: UserRef,
   characterId: z.string().nullable(),
   shared: z.boolean(),
@@ -182,16 +181,16 @@ export const NoteFacets = z.object({
   total: z.number().int(),
   pinned: z.number().int(),
   types: z.record(z.enum(NOTE_TYPES), z.number().int()),
-  /** Par campagne ; `campaignId` null : notes personnelles. */
-  campaigns: z.array(z.object({ campaignId: z.string().nullable(), count: z.number().int() })),
+  /** Par campagne. */
+  campaigns: z.array(z.object({ campaignId: z.string(), count: z.number().int() })),
   /** Étiquettes les plus utilisées d'abord. */
   tags: z.array(z.object({ label: z.string(), count: z.number().int() })),
 });
 
 /** Filtres et pagination des listes. */
 export const ListQuery = z.object({
-  /** Campagne, ou `none` pour les notes personnelles (liste de toutes mes notes seulement). */
-  campaignId: z.union([z.literal('none'), CampaignId]).optional(),
+  /** Une campagne (liste de toutes mes notes seulement). */
+  campaignId: CampaignId.optional(),
   type: z.enum(NOTE_TYPES).optional(),
   pinned: z
     .enum(['true', 'false'])

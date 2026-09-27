@@ -11,7 +11,7 @@
  * « cheval », `la` trouve « la légende » dès la frappe.
  */
 import { HttpError } from '@vtt/platform';
-import { and, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { NOTE_TYPES, notePins, notes, type NoteType } from '../../db/schema.js';
 import { NOTE_COLUMNS, readableBy, type NoteReader, type NoteRow } from './common.js';
@@ -125,11 +125,7 @@ function searchCondition(terms: string[]): SQL | undefined {
 function filters(r: NoteReader, q: ListQuery, terms: string[]): SQL {
   return and(
     readableBy(r),
-    q.campaignId === 'none'
-      ? isNull(notes.campaignId)
-      : q.campaignId
-        ? eq(notes.campaignId, q.campaignId)
-        : undefined,
+    q.campaignId ? eq(notes.campaignId, q.campaignId) : undefined,
     q.type ? eq(notes.type, q.type) : undefined,
     q.pinned === undefined ? undefined : sql`${pinnedFlag} = ${q.pinned ? 1 : 0}`,
     searchCondition(terms),
@@ -240,7 +236,7 @@ export async function noteFacets(db: Db, r: NoteReader) {
     .groupBy(notes.type, notes.campaignId, pinnedFlag);
 
   const types = Object.fromEntries(NOTE_TYPES.map((t) => [t, 0])) as Record<NoteType, number>;
-  const campaigns = new Map<string | null, number>();
+  const campaigns = new Map<string, number>();
   let total = 0;
   let pinned = 0;
   for (const g of groups) {
