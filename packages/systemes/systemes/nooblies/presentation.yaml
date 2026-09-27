@@ -70,3 +70,7 @@ fiches:
       - { type: inventaire, titre: Inventaire, sortes: [objet] }
       - { type: bonus, titre: Bonus }
       - { type: actions, titre: Actions }
+
+# Icônes des objets de l'inventaire.
+iconesObjets:
+  - { sorte: objet, icone: sac }

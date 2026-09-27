@@ -101,3 +101,13 @@ fiches:
       - { type: bonus, titre: Bonus }
       - { type: possessions, titre: États, sorte: etat }
       - { type: actions, titre: Actions }
+
+# Icônes des objets de l'inventaire : les règles les plus précises d'abord.
+iconesObjets:
+  - { champ: attaque, valeur: Distance, icone: cible }
+  - { sorte: arme, icone: epee }
+  - { sorte: armure, icone: bouclier }
+  - { champ: categorie, valeur: potions, icone: fiole }
+  - { champ: categorie, valeur: nourriture, icone: nourriture }
+  - { champ: categorie, valeur: bourse, icone: pieces }
+  - { sorte: objet, icone: sac }

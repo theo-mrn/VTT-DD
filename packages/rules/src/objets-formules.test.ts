@@ -18,6 +18,7 @@ import { executerAction, type ResultatAction } from './jets/index.js';
 import {
   EtatEntite,
   nouvellePossession,
+  verifierPresentation,
   type EtatEntiteSaisi,
   type SystemeSaisi,
 } from './schema/index.js';
@@ -258,5 +259,29 @@ describe('dossiers et objets cachés', () => {
     expect(e.folders).toEqual([{ id: 'sac', name: 'Sac à dos' }]);
     expect(e.possessions[0]).toMatchObject({ folder: 'sac', hidden: true });
     expect(EtatEntite.parse({ ...e, folders: undefined }).folders).toEqual([]);
+  });
+});
+
+describe('icônes des objets de la présentation', () => {
+  const presentation = (iconesObjets: unknown[]) =>
+    verifierPresentation({ format: 1, systeme: sys.source.id, iconesObjets }, sys);
+
+  it('accepte une sorte, ou la valeur possible d’un champ', () => {
+    const r = presentation([
+      { champ: 'categorie', valeur: 'distance', icone: 'cible' },
+      { sorte: 'arme', icone: 'epee' },
+    ]);
+    expect(r.ok && r.presentation.iconesObjets).toHaveLength(2);
+  });
+
+  it('refuse une sorte, un champ, une valeur ou une icône inconnus', () => {
+    for (const regle of [
+      { sorte: 'potion', icone: 'fiole' },
+      { champ: 'couleur', valeur: 'rouge', icone: 'fiole' },
+      { champ: 'categorie', valeur: 'magie', icone: 'baguette' },
+      { sorte: 'arme', icone: 'licorne' },
+      { champ: 'categorie', icone: 'cible' },
+    ])
+      expect(presentation([regle]).ok, JSON.stringify(regle)).toBe(false);
   });
 });

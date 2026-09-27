@@ -123,6 +123,62 @@ export function champsGroupe(w: Extract<Widget, { type: 'inventaire' }>): string
       : w.groupeChamp;
 }
 
+/**
+ * Icônes génériques des objets de l'inventaire : le front les dessine, le système choisit
+ * lesquelles pour ses sortes et ses catégories (`iconesObjets`).
+ */
+export const IconeObjet = z.enum([
+  'epee',
+  'hache',
+  'marteau',
+  'cible',
+  'bombe',
+  'bouclier',
+  'vetement',
+  'fiole',
+  'pilule',
+  'seringue',
+  'pieces',
+  'gemme',
+  'couronne',
+  'sac',
+  'paquet',
+  'livre',
+  'parchemin',
+  'carte',
+  'boussole',
+  'nourriture',
+  'boisson',
+  'outil',
+  'cle',
+  'flamme',
+  'baguette',
+  'electronique',
+  'plume',
+  'os',
+  'objet',
+]);
+export type IconeObjet = z.output<typeof IconeObjet>;
+
+/**
+ * Icône des objets d'une sorte, ou de ceux dont un champ vaut `valeur` (catégorie
+ * « potions », attaque « Distance », arme de mêlée). La première règle qui convient
+ * l'emporte : les plus précises d'abord.
+ */
+export const RegleIconeObjet = z
+  .object({
+    sorte: Cle.optional(),
+    champ: Cle.optional(),
+    valeur: z.union([z.string(), z.number(), z.boolean()]).optional(),
+    icone: IconeObjet,
+  })
+  .refine((r) => r.sorte !== undefined || r.champ !== undefined, 'Préciser la sorte ou le champ')
+  .refine(
+    (r) => (r.champ === undefined) === (r.valeur === undefined),
+    'Champ et valeur vont ensemble',
+  );
+export type RegleIconeObjet = z.output<typeof RegleIconeObjet>;
+
 export const Presentation = z.object({
   format: z.literal(1),
   systeme: Id,
@@ -190,6 +246,8 @@ export const Presentation = z.object({
     .optional(),
   /** Images par identifiant d'entrée ou de type d'entité. */
   images: z.record(z.string(), Url).default({}),
+  /** Icônes des objets de l'inventaire, par sorte ou par valeur d'un champ. */
+  iconesObjets: z.array(RegleIconeObjet).default([]),
   /** Bibliothèques de contenus suggérés (objets de carte, sons). */
   bibliotheques: z
     .object({ objets: z.string().optional(), sons: z.string().optional() })
@@ -271,7 +329,43 @@ export function verifierPresentation(
       erreur(`images/${id}`, `Entrée ou type d’entité inconnu : ${id}`);
   }
 
+  p.iconesObjets.forEach((r, i) => {
+    for (const m of erreursRegleIcone(systeme, r)) erreur(`iconesObjets/${i}`, m);
+  });
+
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
+}
+
+/** Règle d'icône vérifiée : sorte connue, champ déclaré par la sorte (ou une sorte), valeur possible. */
+export function erreursRegleIcone(systeme: SystemeCharge, r: RegleIconeObjet): string[] {
+  const erreurs: string[] = [];
+  if (r.sorte !== undefined && !systeme.sortes.has(r.sorte))
+    erreurs.push(`Sorte inconnue : ${r.sorte}`);
+  if (r.champ === undefined) return erreurs;
+  const sortes =
+    r.sorte !== undefined ? [systeme.sortes.get(r.sorte)] : [...systeme.sortes.values()];
+  const champs = sortes.flatMap((so) => so?.champs.filter((c) => c.id === r.champ) ?? []);
+  if (!champs.length) return [...erreurs, `Champ inconnu : ${r.champ}`];
+  const possible = champs.some((c) => {
+    switch (c.type) {
+      case 'choix':
+        return c.options.some((o) => o.valeur === r.valeur);
+      case 'booleen':
+        return typeof r.valeur === 'boolean';
+      case 'nombre':
+        return typeof r.valeur === 'number';
+      case 'attribut':
+        return systeme.entites.get(c.entite)?.attributs.has(String(r.valeur)) === true;
+      case 'entree':
+        return systeme.entrees.get(String(r.valeur))?.sorte === c.sorte;
+      case 'texte':
+        return typeof r.valeur === 'string';
+      default:
+        return false;
+    }
+  });
+  if (!possible) erreurs.push(`Valeur impossible pour ${r.champ} : ${String(r.valeur)}`);
+  return erreurs;
 }
 
 /**

@@ -138,3 +138,12 @@ arbres:
 bibliotheques:
   objets: starwars
   sons: starwars
+
+# Icônes des objets de l'inventaire : les règles les plus précises d'abord.
+iconesObjets:
+  - { champ: melee, valeur: true, icone: epee }
+  - { sorte: arme, icone: cible }
+  - { sorte: armure, icone: bouclier }
+  - { sorte: accessoire, icone: outil }
+  - { sorte: devise, icone: pieces }
+  - { sorte: objet, icone: paquet }
