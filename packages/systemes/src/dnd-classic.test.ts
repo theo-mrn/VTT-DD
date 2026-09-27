@@ -119,8 +119,9 @@ describe('dnd-classic : chargement', () => {
     expect([...parSorte('capacite'), ...parSorte('capacite_active')]).toHaveLength(
       (80 + 13 + 34) * 5 + 13,
     );
-    expect(parSorte('arme')).toHaveLength(19);
-    expect(parSorte('armure')).toHaveLength(18);
+    expect(parSorte('arme')).toHaveLength(20); // 19 + arme personnalisée
+    expect(parSorte('armure')).toHaveLength(19); // 18 + protection personnalisée
+    expect(parSorte('objet')).toHaveLength(47); // potions, nourriture, pièces, matériel, objet libre
     expect(systeme.source.textes.map((t) => t.titre)).toContain('Glossaire des règles');
   });
 
@@ -419,21 +420,46 @@ describe('dnd-classic : capacités des voies', () => {
 
 // ─── Équipement ─────────────────────────────────────────────────────────────
 
-describe('dnd-classic : achat d’équipement', () => {
-  it('au prix de l’entrée, en pièces d’argent', () => {
-    const f = thorin();
-    const bourse = (n: number) =>
-      calculer(systeme, { ...f.etat, valeurs: { ...f.etat.valeurs, bourse: n } });
-    const armes = achatsPossibles(bourse(10), ['acheter-arme'])[0]!.objets;
-    const prix = (id: string) => armes.find((o) => o.objet === id);
-    expect([prix('dague')?.cout, prix('dague')?.possible]).toEqual([3, true]);
-    expect([prix('katana')?.cout, prix('katana')?.possible]).toEqual([12, false]);
+describe('dnd-classic : inventaire', () => {
+  it('l’équipement ne s’achète plus : pas de pièces d’argent en monnaie', () => {
+    expect([...systeme.monnaies.keys()]).toEqual(['pointsCapacite']);
+    expect([...systeme.achats.values()].some((a) => a.obtient.type === 'entree')).toBe(false);
+    expect(systeme.entites.get('personnage')!.attributs.has('bourse')).toBe(false);
+  });
 
-    const r = acheter(systeme, bourse(10).etat, { achat: 'acheter-armure', objet: 'cuir' });
-    if (!r.ok) throw new Error(r.erreur);
-    const apres = calculer(systeme, r.etat);
-    expect(achatsPossibles(apres, ['acheter-armure'])[0]!.solde).toBe(10 - 4);
-    expect(apres.possessions.has('cuir')).toBe(true);
+  it('pièces, potions et objets libres dans l’inventaire, par catégorie', () => {
+    const f = fiche({
+      possessions: [
+        { entree: 'piece-d-or', quantite: 3 },
+        { entree: 'petite-potion-de-vie', quantite: 2 },
+        {
+          entree: 'objet-libre',
+          quantite: 7,
+          champs: { nom: 'Ration journalière', categorie: 'nourriture' },
+        },
+        {
+          entree: 'arme-libre',
+          champs: { nom: 'Rapière (DM 1d6)', faces: 6 },
+          effets: [{ sur: 'attribut', attribut: 'Contact', operation: 'ajouter', valeur: '1' }],
+        },
+      ],
+    });
+    expect(f.possessions.get('piece-d-or')!.quantite).toBe(3);
+    const categorie = systeme.sortes.get('objet')!.champs.find((c) => c.id === 'categorie');
+    expect(categorie?.type === 'choix' && categorie.options.map((o) => o.valeur)).toEqual([
+      'potions',
+      'nourriture',
+      'bourse',
+      'autre',
+    ]);
+    expect(f.valeurs.get('Contact')!.detail.map((l) => l.nom)).toContain('Rapière (DM 1d6)');
+    expect(
+      [...systeme.entrees.values()].filter((e) => e.libre).map((e) => [e.id, e.sorte]),
+    ).toEqual([
+      ['objet-libre', 'objet'],
+      ['arme-libre', 'arme'],
+      ['armure-libre', 'armure'],
+    ]);
   });
 });
 
@@ -1138,18 +1164,12 @@ describe('dnd-classic : dégâts typés et états', () => {
 });
 
 describe('dnd-classic : exemplaires et quantités', () => {
-  it('dagues en quantité, une dague +1 à part ; bourse et niveau saisis en jeu', () => {
-    const e = EtatEntite.parse({
+  it('dagues en quantité, une dague +1 à part ; niveau saisi par le MJ', () => {
+    const suivant = EtatEntite.parse({
       type: 'personnage',
       systeme: { id: 'dnd-classic', version: '1.0.0' },
-      valeurs: { bourse: 20 },
+      possessions: [{ entree: 'dague', quantite: 3 }],
     });
-    let suivant = e;
-    for (let i = 0; i < 3; i++) {
-      const r = acheter(systeme, suivant, { achat: 'acheter-arme', objet: 'dague' });
-      if (!r.ok) throw new Error(r.erreur);
-      suivant = r.etat;
-    }
     expect(suivant.possessions.map((p) => [p.entree, p.quantite])).toEqual([['dague', 3]]);
     const plus1 = {
       ...suivant,
@@ -1181,6 +1201,6 @@ describe('dnd-classic : exemplaires et quantités', () => {
       const a = attributs.get(cle);
       return a?.nature === 'base' ? a.saisie : undefined;
     };
-    expect([saisie('bourse'), saisie('niveau'), saisie('jetsDeVie')]).toEqual(['jeu', 'mj', 'mj']);
+    expect([saisie('niveau'), saisie('jetsDeVie')]).toEqual(['mj', 'mj']);
   });
 });

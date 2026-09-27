@@ -185,6 +185,20 @@ sortes:
     rangs: { max: 1 }
     champs:
       - { id: bonusTest, nom: Bonus au test invoqué, type: formule }
+  - id: objet
+    nom: Objet
+    nomPluriel: Objets
+    description: >-
+      Objet de l'inventaire, possédé en quantité. Sans catalogue d'équipement :
+      chaque objet est un « Objet personnalisé » qui porte son nom et sa description.
+    pour: [personnage]
+    exemplaires: true
+    quantites: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
+    champs:
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
 
 creation:
   - entite: personnage

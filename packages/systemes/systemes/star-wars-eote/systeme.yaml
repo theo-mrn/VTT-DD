@@ -524,10 +524,12 @@ sortes:
   - id: arme
     nom: Arme
     nomPluriel: Armes
-    description: Chaque exemplaire a son état (dégainée), ses champs et ses modifications.
+    description: Chaque exemplaire a son état (dégainée), ses champs, son nom et ses modifications.
     pour: [personnage]
     activable: true
     exemplaires: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
     champs:
       - { id: competence, nom: Compétence, type: entree, sorte: competence }
       - { id: degats, nom: Dégâts, type: formule, defaut: '0' }
@@ -551,6 +553,8 @@ sortes:
           type: booleen,
           defaut: false,
         }
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
   - id: qualite
     nom: Qualité d'arme
     nomPluriel: Qualités d'arme
@@ -562,26 +566,35 @@ sortes:
     pour: [personnage]
     activable: true
     exemplaires: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
     champs:
       - { id: defense, nom: Défense, type: nombre, defaut: 0 }
       - { id: encaissement, nom: Encaissement, type: nombre, defaut: 0 }
       - { id: encombrement, nom: Encombrement, type: nombre, defaut: 0 }
       - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
       - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
   - id: objet
     nom: Objet
     nomPluriel: Équipement
     description: >-
       Porté (actif) ou rangé ; seuls les objets portés comptent dans l'encombrement. Les consommables
-      (stimpacks, recharges) se possèdent en quantité.
+      (stimpacks, recharges) se possèdent en quantité. Un objet hors catalogue (« Objet
+      personnalisé ») porte son propre nom et sa description.
     pour: [personnage]
     activable: true
     exemplaires: true
     quantites: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
     champs:
       - { id: encombrement, nom: Encombrement, type: nombre, defaut: 0 }
       - { id: prix, nom: Prix (crédits), type: nombre, defaut: 0 }
       - { id: rarete, nom: Rareté, type: nombre, defaut: 0 }
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
   - id: accessoire
     nom: Accessoire
     nomPluriel: Accessoires

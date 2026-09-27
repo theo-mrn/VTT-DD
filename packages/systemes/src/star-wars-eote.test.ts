@@ -109,7 +109,7 @@ describe('Star Wars — Aux confins de l’Empire : chargement', () => {
     expect(parSorte('talent')).toHaveLength(138);
     expect(parSorte('arme')).toHaveLength(30); // 29 du bundle + mains nues
     expect(parSorte('armure')).toHaveLength(11);
-    expect(parSorte('objet')).toHaveLength(19); // 17 du bundle + stimpack + recharge
+    expect(parSorte('objet')).toHaveLength(20); // 17 du bundle + stimpack + recharge + objet libre
     expect(parSorte('accessoire')).toHaveLength(11);
     expect(parSorte('devise')).toHaveLength(6);
     expect(parSorte('modele')).toHaveLength(34);

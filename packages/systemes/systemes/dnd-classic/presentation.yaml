@@ -2,7 +2,7 @@
 #
 # Reprise du thème par défaut de l'ancienne app (legacy/src/modules/builtin/
 # dnd-classic/theme.ts : bruns très sombres, accent ambre/pêche) et de sa
-# fiche (caractéristiques, combat, vitalité, voies, équipement).
+# fiche (caractéristiques, combat, vitalité, voies, inventaire).
 
 format: 1
 systeme: dnd-classic
@@ -73,21 +73,27 @@ fiches:
     widgets:
       - { type: details, titre: Profil, sortes: [race, profil], attributs: [] }
       - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
-      - { type: ressources, titre: Vitalité, attributs: [PV] }
+      # PV en chiffres (« PV / PV max »), puis la Défense
+      - { type: ressources, titre: Vitalité, attributs: [PV, Defense], affichage: valeur }
+      - { type: attributs, titre: Combat, attributs: [Contact, Distance, Magie], colonnes: 3 }
       - {
           type: attributs,
-          titre: Combat,
-          attributs: [Defense, Contact, Distance, Magie, INIT, Critique, RD],
+          titre: Progression,
+          attributs: [niveau, deVie, jetsDeVie, INIT],
           colonnes: 4,
         }
-      - { type: attributs, titre: Progression, groupe: progression, colonnes: 3 }
       - { type: possessions, titre: Voies, sorte: voie }
       - { type: monnaies, titre: Points de capacité }
       - { type: possessions, titre: Capacités, sorte: capacite }
       - { type: possessions, titre: Capacités à activer, sorte: capacite_active }
-      - { type: possessions, titre: Armes, sorte: arme }
-      - { type: possessions, titre: Armures, sorte: armure }
+      # Source unique de l'équipement : armes (contact, distance), protections, objets
+      # (potions, nourriture, bourse, autre)
+      - {
+          type: inventaire,
+          titre: Inventaire,
+          sortes: [arme, armure, objet],
+          groupeChamp: [attaque, categorie],
+        }
       - { type: bonus, titre: Bonus }
       - { type: possessions, titre: États, sorte: etat }
-      - { type: attributs, titre: Bourse, attributs: [bourse] }
       - { type: actions, titre: Actions }

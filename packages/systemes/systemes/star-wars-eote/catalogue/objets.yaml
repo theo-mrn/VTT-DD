@@ -1,4 +1,11 @@
 # Équipement général, accessoires (attachments) et devises.
+
+# Objet hors catalogue : chaque exemplaire porte son nom et sa description (champs propres).
+- id: objet-libre
+  sorte: objet
+  nom: Objet personnalisé
+  description: Objet hors catalogue, nommé et décrit par le joueur.
+  libre: true
 - id: oreillette-comlink
   sorte: objet
   nom: Oreillette comlink

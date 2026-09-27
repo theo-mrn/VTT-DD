@@ -1,0 +1,7 @@
+# Objets : pas de catalogue d'équipement dans ce système, seulement l'objet hors
+# catalogue, dont chaque exemplaire porte son nom et sa description (champs propres).
+- id: objet-libre
+  sorte: objet
+  nom: Objet personnalisé
+  description: Objet hors catalogue, nommé et décrit par le joueur.
+  libre: true

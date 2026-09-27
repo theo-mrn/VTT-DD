@@ -204,18 +204,7 @@ entites:
         recuperation: max
         groupe: vitalite
 
-      # ─── Équipement ───
-      - cle: bourse
-        nom: Pièces reçues (pa)
-        description: >-
-          Total des pièces d'argent reçues depuis la création, saisi en jeu par le
-          joueur ou le MJ. Les achats d'équipement sont décomptés au journal : le
-          reste est la monnaie « pa ».
-        nature: base
-        defaut: 0
-        min: 0
-        saisie: jeu
-        groupe: equipement
+      # ─── Équipement (les pièces sont des objets de l'inventaire, catégorie « bourse ») ───
       - cle: ArmurePortee
         nom: Armures portées
         description: Nombre d'armures équipées, boucliers exclus (0 = sans armure).
@@ -294,13 +283,16 @@ sortes:
     champs: *champs-capacite
   - id: arme
     nom: Arme
+    nomPluriel: Armes
     description: >-
       Se possède en quantité (dagues, javelots) ; une arme à part (dague +1)
-      est un exemplaire distinct, avec ses effets et son état propres.
+      est un exemplaire distinct, avec ses effets, son état et son nom propres.
     pour: [personnage]
     activable: true
     exemplaires: true
     quantites: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
     champs:
       - { id: attaque, nom: Attaque utilisée, type: attribut, entite: personnage }
       - { id: nbDes, nom: Nombre de dés de dégâts, type: nombre, defaut: 1 }
@@ -309,8 +301,11 @@ sortes:
       - { id: critique, nom: Critique à partir de (d20 naturel), type: nombre, defaut: 20 }
       - { id: portee, nom: Portée, type: texte }
       - { id: prix, nom: Prix (pa), type: nombre }
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
   - id: armure
     nom: Armure ou bouclier
+    nomPluriel: Armures et boucliers
     description: >-
       Les armures ne se cumulent pas entre elles, les boucliers non plus ; un
       bouclier s'ajoute à l'armure. Deux exemplaires d'une même protection sont
@@ -318,12 +313,41 @@ sortes:
     pour: [personnage]
     activable: true
     exemplaires: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
     champs:
       - { id: def, nom: Bonus de DEF, type: nombre, defaut: 0 }
       - { id: bouclier, nom: Bouclier, type: booleen, defaut: false }
       - { id: lourde, nom: Armure lourde (demi-plaque ou plus), type: booleen, defaut: false }
       - { id: metallique, nom: Armure métallique, type: booleen, defaut: false }
       - { id: prix, nom: Prix (pa), type: nombre }
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
+  - id: objet
+    nom: Objet
+    nomPluriel: Objets
+    description: >-
+      Tout ce qui n'est ni une arme ni une protection : potions, nourriture,
+      pièces de la bourse, matériel. Se possède en quantité ; un objet hors
+      catalogue (« Objet personnalisé ») porte son propre nom, sa description
+      et sa catégorie.
+    pour: [personnage]
+    exemplaires: true
+    quantites: true
+    nomExemplaire: nom
+    descriptionExemplaire: description
+    champs:
+      - id: categorie
+        nom: Catégorie
+        type: choix
+        options:
+          - { valeur: potions, nom: Potions }
+          - { valeur: nourriture, nom: Nourriture }
+          - { valeur: bourse, nom: Bourse }
+          - { valeur: autre, nom: Autre }
+        defaut: autre
+      - { id: nom, nom: Nom propre, type: texte }
+      - { id: description, nom: Description propre, type: texte }
   - id: etat
     nom: État
     pour: [personnage]
@@ -336,15 +360,12 @@ sortes:
       la cible (cible_possede).
     pour: [personnage]
 
-# ─── Progression : voies et équipement ──────────────────────────────────────
+# ─── Progression : voies ────────────────────────────────────────────────────
+# L'équipement ne s'achète pas : les pièces sont des objets de l'inventaire.
 monnaies:
   - id: pointsCapacite
     nom: Points de capacité
     total: 2 * @niveau
-    pour: [personnage]
-  - id: pa
-    nom: Pièces d'argent
-    total: '@bourse'
     pour: [personnage]
 
 achats:
@@ -354,18 +375,6 @@ achats:
     obtient: { type: rang, sorte: voie }
     monnaie: pointsCapacite
     cout: si(cible <= 2, 1, 2)
-  - id: acheter-arme
-    nom: Acheter une arme
-    description: Au prix de l'arme, en pièces d'argent.
-    obtient: { type: entree, sorte: arme }
-    monnaie: pa
-    cout: entree.prix
-  - id: acheter-armure
-    nom: Acheter une armure ou un bouclier
-    description: Au prix de la protection, en pièces d'argent.
-    obtient: { type: entree, sorte: armure }
-    monnaie: pa
-    cout: entree.prix
 
 creation:
   - entite: personnage
