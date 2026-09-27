@@ -75,7 +75,7 @@ describe('gateway', () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it('relaie /v1/notes (notes personnelles, toutes mes notes) vers campaign, avec jeton', async () => {
+  it('relaie /v1/notes (toutes mes notes, toutes campagnes) vers campaign, avec jeton', async () => {
     const campaign = createServer((req, res) => {
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ service: 'campaign', method: req.method, path: req.url }));
@@ -99,7 +99,6 @@ describe('gateway', () => {
       for (const [method, path] of [
         ['GET', '/v1/notes?q=%C3%A9p%C3%A9e&limit=20'],
         ['GET', '/v1/notes/facets'],
-        ['POST', '/v1/notes'],
         ['PATCH', '/v1/notes/n1'],
         ['PUT', '/v1/notes/n1/pin'],
         ['DELETE', '/v1/notes/n1'],
@@ -108,7 +107,7 @@ describe('gateway', () => {
           method,
           url: path,
           headers: auth,
-          ...(method === 'POST' || method === 'PATCH' ? { payload: {} } : {}),
+          ...(method === 'PATCH' ? { payload: {} } : {}),
         });
         expect(r.json(), `${method} ${path}`).toEqual({ service: 'campaign', method, path });
       }
