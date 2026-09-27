@@ -1,6 +1,6 @@
 'use client';
 
-import { Crown, Globe, Lock, UserRound } from 'lucide-react';
+import { Crown, Eye, Globe, Lock, UserRound } from 'lucide-react';
 import { AvatarJoueur } from '@/components/compte/elements';
 import { Badge } from '@/components/ui/badge';
 import { Info } from '@/components/ui/tooltip';
@@ -78,15 +78,18 @@ export const ETIQUETTES = [
 /** Avatars empilés des membres (les premiers), avec le reste en « +n ». */
 export function PileAvatars({
   membres,
+  total = membres.length,
   max = 4,
   taille = 'xs',
 }: {
   membres: Pick<Membre, 'userId' | 'name' | 'avatarUrl' | 'role'>[];
+  /** Nombre total de membres, quand `membres` n'est qu'un aperçu. */
+  total?: number;
   max?: number;
   taille?: 'xs' | 'sm';
 }) {
   const visibles = membres.slice(0, max);
-  const reste = membres.length - visibles.length;
+  const reste = Math.max(0, total - visibles.length);
   return (
     <div className="flex items-center -space-x-1.5">
       {visibles.map((m) => (
@@ -112,15 +115,17 @@ export function PileAvatars({
 
 export function BadgeRole({ role }: { role: RoleCampagne | null }) {
   if (!role) return null;
-  return role === 'gm' ? (
-    <Badge ton="verre" className="border-primary/40 text-primary-strong">
-      <Crown />
-      MJ
-    </Badge>
-  ) : (
+  if (role === 'gm')
+    return (
+      <Badge ton="verre" className="border-primary/40 text-primary-strong">
+        <Crown />
+        MJ
+      </Badge>
+    );
+  return (
     <Badge ton="verre">
-      <UserRound />
-      Joueur
+      {role === 'spectator' ? <Eye /> : <UserRound />}
+      {role === 'spectator' ? 'Spectateur' : 'Joueur'}
     </Badge>
   );
 }

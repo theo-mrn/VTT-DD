@@ -7,13 +7,13 @@ import {
   Check,
   Globe,
   ImageOff,
+  ImagePlus,
   Info as IconeInfo,
-  Link2,
   Lock,
   Sparkles,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { CarteChoix } from '@/components/commun/carte-choix';
 import { Illustration } from '@/components/commun/illustration';
@@ -21,13 +21,19 @@ import { AvatarJoueur, Interrupteur, Message } from '@/components/compte/element
 import { EnTeteFocus, ProgressionEtapes } from '@/components/shell/cadre-focus';
 import { CarteSysteme, CarteSystemeSquelette } from '@/components/systemes/carte-systeme';
 import { Button } from '@/components/ui/button';
-import { Input, InputGroup } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { useAmis } from '@/lib/amis';
 import { messageErreur } from '@/lib/api';
-import { JOUEURS_MAX, useCreerCampagne, type NouvelleCampagne } from '@/lib/campagnes';
+import {
+  LONGUEUR_ACCROCHE,
+  LONGUEUR_DESCRIPTION,
+  useCreerCampagne,
+  type Campagne,
+  type NouvelleCampagne,
+} from '@/lib/campagnes';
+import { TYPES_IMAGE, verifierImage } from '@/lib/profil';
 import { onboardingFini, onboardingTermine, RETOUR_ONBOARDING } from '@/lib/onboarding';
 import { useProfil, useSession } from '@/lib/session';
 import { useSystemes } from '@/lib/systemes';
@@ -42,7 +48,6 @@ const ETAPES = [
   { id: 'table', nom: 'La table' },
 ];
 
-const LONGUEUR_ACCROCHE = 140;
 const ETIQUETTES_MAX = 4;
 
 /** Assistant de création d'une campagne, avec l'aperçu de la carte en direct. */
@@ -60,10 +65,10 @@ export function AssistantCampagne() {
     pitch: '',
     description: '',
     coverUrl: COUVERTURES[0]!.url,
+    couverture: null,
     system: '',
     ambiance: 'or',
     visibility: 'private',
-    maxPlayers: 4,
     freeCreation: true,
     tags: [],
     invite: [],
@@ -89,24 +94,40 @@ export function AssistantCampagne() {
     }
   }
 
+  const apercuImage = useApercuFichier(b.couverture);
+
   // Aperçu : la carte telle qu'elle apparaîtra, avec le créateur comme MJ
-  const apercu = {
+  const apercu: Pick<
+    Campagne,
+    | 'id'
+    | 'name'
+    | 'pitch'
+    | 'coverUrl'
+    | 'system'
+    | 'ambiance'
+    | 'members'
+    | 'memberCount'
+    | 'playerCount'
+    | 'nextSession'
+    | 'role'
+  > = {
     id: 'apercu',
     name: b.name,
     pitch: b.pitch,
-    coverUrl: b.coverUrl,
+    coverUrl: apercuImage ?? b.coverUrl,
     system: b.system,
     ambiance: b.ambiance,
-    maxPlayers: b.maxPlayers,
-    sessions: [],
+    role: 'gm',
+    memberCount: 1,
+    playerCount: 0,
+    nextSession: null,
     members: [
       {
         userId: profil.id,
         name: profil.name,
         avatarUrl: profil.avatarUrl,
-        role: 'gm' as const,
+        role: 'gm',
         characterId: null,
-        joinedAt: '',
       },
     ],
   };
@@ -173,7 +194,11 @@ export function AssistantCampagne() {
               <ul className="space-y-2 rounded-2xl border border-border bg-card p-4 text-[13px] shadow-surface">
                 <Recap ok={valide[0]!} label="Un titre d'au moins 3 lettres" />
                 <Recap ok={valide[1]!} label="Un système de jeu" />
-                <Recap ok={b.coverUrl !== null} label="Une couverture" facultatif />
+                <Recap
+                  ok={b.coverUrl !== null || b.couverture !== null}
+                  label="Une couverture"
+                  facultatif
+                />
                 <Recap ok={b.invite.length > 0} label="Des joueurs invités" facultatif />
               </ul>
             </div>
@@ -182,6 +207,21 @@ export function AssistantCampagne() {
       </div>
     </div>
   );
+}
+
+/** URL locale d'aperçu d'un fichier choisi (libérée quand il change). */
+function useApercuFichier(fichier: File | null): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fichier) {
+      setUrl(null);
+      return;
+    }
+    const u = URL.createObjectURL(fichier);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [fichier]);
+  return url;
 }
 
 function Recap({ ok, label, facultatif }: { ok: boolean; label: string; facultatif?: boolean }) {
@@ -276,7 +316,7 @@ function EtapeHistoire({ b, maj }: PropsEtape) {
           <Label htmlFor="c-description">Présentation</Label>
           <Textarea
             id="c-description"
-            maxLength={4000}
+            maxLength={LONGUEUR_DESCRIPTION}
             value={b.description}
             onChange={(e) => maj({ description: e.target.value })}
             placeholder="Le contexte, le ton, ce que les joueurs doivent savoir avant la première session…"
@@ -353,9 +393,19 @@ function EtapeRegles({ b, maj }: PropsEtape) {
 // ─── 3. L'ambiance ───────────────────────────────────────────────────────────
 
 function EtapeAmbiance({ b, maj }: PropsEtape) {
-  const personnalisee = b.coverUrl !== null && !COUVERTURES.some((c) => c.url === b.coverUrl);
-  const [url, setUrl] = useState(personnalisee ? (b.coverUrl ?? '') : '');
-  const urlValide = /^https:\/\/\S+$/i.test(url.trim());
+  const champ = useRef<HTMLInputElement>(null);
+  const [erreurImage, setErreurImage] = useState<string | null>(null);
+  const apercuImport = useApercuFichier(b.couverture);
+
+  // Envoyée au stockage une fois la campagne créée (l'envoi demande la campagne)
+  function importer(e: ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0];
+    e.target.value = '';
+    if (!fichier) return;
+    const probleme = verifierImage(fichier);
+    setErreurImage(probleme);
+    if (!probleme) maj({ couverture: fichier, coverUrl: null });
+  }
 
   return (
     <>
@@ -381,7 +431,7 @@ function EtapeAmbiance({ b, maj }: PropsEtape) {
                   role="radio"
                   aria-checked={choisie}
                   aria-label={c.nom}
-                  onClick={() => maj({ coverUrl: c.url })}
+                  onClick={() => maj({ coverUrl: c.url, couverture: null })}
                   className={cn(
                     'group relative overflow-hidden rounded-xl border-2 transition-all',
                     choisie
@@ -411,11 +461,44 @@ function EtapeAmbiance({ b, maj }: PropsEtape) {
             <button
               type="button"
               role="radio"
-              aria-checked={b.coverUrl === null}
-              onClick={() => maj({ coverUrl: null })}
+              aria-checked={b.couverture !== null}
+              onClick={() => champ.current?.click()}
+              className={cn(
+                'group relative flex aspect-[16/10] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border-2 border-dashed text-xs text-muted-foreground transition-colors',
+                b.couverture !== null
+                  ? 'border-primary text-primary'
+                  : 'border-border-strong hover:text-foreground',
+              )}
+            >
+              {apercuImport ? (
+                <Illustration
+                  src={apercuImport}
+                  graine="Couverture importée"
+                  className="absolute inset-0"
+                  voile
+                >
+                  <span className="absolute bottom-1.5 left-2.5 text-[11px] font-medium text-white/85">
+                    Votre image
+                  </span>
+                  <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                </Illustration>
+              ) : (
+                <>
+                  <ImagePlus className="size-4" />
+                  Importer une image
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={b.coverUrl === null && b.couverture === null}
+              onClick={() => maj({ coverUrl: null, couverture: null })}
               className={cn(
                 'flex aspect-[16/10] flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed text-xs text-muted-foreground transition-colors',
-                b.coverUrl === null
+                b.coverUrl === null && b.couverture === null
                   ? 'border-primary text-primary'
                   : 'border-border-strong hover:text-foreground',
               )}
@@ -423,24 +506,18 @@ function EtapeAmbiance({ b, maj }: PropsEtape) {
               <ImageOff className="size-4" />
               Sans image
             </button>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <InputGroup
-              avant={<Link2 />}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="Ou collez l'adresse https:// d'une image"
-              aria-label="Adresse d'une image de couverture"
+            <input
+              ref={champ}
+              type="file"
+              accept={TYPES_IMAGE.join(',')}
+              className="hidden"
+              onChange={importer}
             />
-            <Button
-              variant="secondary"
-              className="h-10"
-              disabled={!urlValide}
-              onClick={() => maj({ coverUrl: url.trim() })}
-            >
-              Utiliser
-            </Button>
           </div>
+          {erreurImage && <Message className="mt-3">{erreurImage}</Message>}
+          <p className="mt-3 text-xs text-subtle">
+            PNG, JPEG, WebP ou GIF, 5 Mo au plus : l&apos;image est envoyée à la création.
+          </p>
         </div>
 
         <div>
@@ -487,48 +564,16 @@ function EtapeAmbiance({ b, maj }: PropsEtape) {
 
 function EtapeTable({ b, maj }: PropsEtape) {
   const amis = useAmis();
-  const invite = (id: string) => b.invite.some((i) => i.userId === id);
+  const invite = (id: string) => b.invite.some((i) => i.id === id);
 
   return (
     <>
       <TitreEtape
         surtitre="La table"
         titre="Qui s'assoit autour de la table ?"
-        description="Le nombre de places, qui peut entrer, et les amis à inviter tout de suite."
+        description="Qui peut entrer, comment naissent les héros, et les amis à inviter tout de suite."
       />
       <div className="space-y-8">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-surface">
-          <div className="flex items-baseline justify-between">
-            <Label>Joueurs</Label>
-            <span className="font-mono text-2xl font-semibold tabular text-primary">
-              {b.maxPlayers}
-            </span>
-          </div>
-          <Slider
-            className="mt-3"
-            min={1}
-            max={JOUEURS_MAX}
-            step={1}
-            value={[b.maxPlayers]}
-            onValueChange={([v]) => maj({ maxPlayers: v ?? 4 })}
-            aria-label="Nombre maximal de joueurs"
-          />
-          <div className="mt-3 flex flex-wrap gap-1.5" aria-hidden>
-            {Array.from({ length: JOUEURS_MAX }, (_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  'h-2 flex-1 rounded-full transition-colors duration-300',
-                  i < b.maxPlayers ? 'bg-primary/70' : 'bg-surface-3',
-                )}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-subtle">
-            Le maître du jeu ne compte pas dans les places.
-          </p>
-        </div>
-
         <div role="radiogroup" aria-label="Visibilité" className="grid gap-3 sm:grid-cols-2">
           <CarteChoix
             choisie={b.visibility === 'private'}
@@ -542,7 +587,7 @@ function EtapeTable({ b, maj }: PropsEtape) {
             onChoisir={() => maj({ visibility: 'public' })}
             icone={Globe}
             titre="Publique"
-            description="Visible par tous les joueurs de Yner, qui peuvent demander à rejoindre."
+            description="Visible par tous les joueurs de Yner, qui peuvent la rejoindre sans code."
           />
         </div>
 
@@ -582,8 +627,8 @@ function EtapeTable({ b, maj }: PropsEtape) {
                       onClick={() =>
                         maj({
                           invite: coche
-                            ? b.invite.filter((i) => i.userId !== a.id)
-                            : [...b.invite, { userId: a.id, name: a.name, avatarUrl: a.avatarUrl }],
+                            ? b.invite.filter((i) => i.id !== a.id)
+                            : [...b.invite, { id: a.id, name: a.name, avatarUrl: a.avatarUrl }],
                         })
                       }
                       className={cn(

@@ -1,39 +1,148 @@
 /**
- * Campagnes (salles) : service campaign, `/v1/rooms`. Tant qu'il n'est pas
- * déployé, le dépôt local du navigateur sert les mêmes fonctions.
- *
- * Les champs suivent la convention des API existantes (JSON en anglais) : ce
- * fichier fixe le contrat que le service implémentera.
+ * Campagnes : service campaign derrière la gateway (`/v1/campaigns/**`,
+ * contrat dans docs/api-campaign.md). Toutes les données viennent du service ;
+ * les réponses passent par un adaptateur explicite vers les types de l'UI
+ * (couleur d'accent, visibilité, rôle, personnage incarné par chaque membre).
  */
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './api';
-import {
-  erreurLocale,
-  lireCollection,
-  maintenant,
-  modifierCollection,
-  nouvelId,
-  serviceActif,
-  utilisateurLocal,
-} from './depot-local';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, ApiError } from './api';
 
-export type RoleCampagne = 'gm' | 'player';
+// ─── Contrat de l'API (schémas Zod de backend/campaign/src/modules/schemas.ts) ─
+
+type RoleApi = 'gm' | 'player' | 'spectator';
+type AccentApi = 'gold' | 'ember' | 'arcane' | 'sylvan' | 'frost' | 'blood';
+type CampApi = 'players' | 'enemies' | 'allies';
+
+interface UserRefApi {
+  id: string;
+  name: string | null;
+  avatarUrl: string | null;
+}
+
+interface MemberApi {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  role: RoleApi;
+}
+
+interface SessionApi {
+  id: string;
+  date: string;
+  title: string | null;
+}
+
+interface CampaignFieldsApi {
+  id: string;
+  name: string;
+  description: string;
+  system: { id: string; version: string };
+  code: string;
+  imageUrl: string | null;
+  isPublic: boolean;
+  characterCreation: boolean;
+  pitch: string;
+  accent: AccentApi;
+  tags: string[];
+  playerCount: number;
+  owner: UserRefApi;
+  updatedAt: string;
+}
+
+/** DetailCampagne publique ou invitation reçue. */
+interface CampaignSummaryApi extends CampaignFieldsApi {
+  role: RoleApi | null;
+  memberCount: number;
+}
+
+/** Une de mes campagnes (GET /v1/campaigns). */
+interface MyCampaignSummaryApi extends CampaignSummaryApi {
+  role: RoleApi;
+  members: MemberApi[];
+  nextSession: SessionApi | null;
+  playedCharacterId: string | null;
+  characterIds: string[];
+}
+
+interface InvitedCampaignApi extends CampaignSummaryApi {
+  invitedBy: UserRefApi;
+  invitedAt: string;
+}
+
+interface InviteeApi {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  invitedBy: string;
+  invitedAt: string;
+}
+
+interface EngagementApi {
+  characterId: string;
+  ownerId: string;
+  side: CampApi;
+  addedBy: string;
+  playedBy: string | null;
+}
+
+/** Détail (GET /v1/campaigns/:id et réponses des routes qui modifient la campagne). */
+interface CampaignApi extends CampaignFieldsApi {
+  ownerId: string;
+  role: RoleApi;
+  playedCharacterId: string | null;
+  members: MemberApi[];
+  characters: EngagementApi[];
+  invitees: InviteeApi[];
+  version: number;
+  createdAt: string;
+}
+
+interface PublicPageApi {
+  campaigns: CampaignSummaryApi[];
+  page: number;
+  perPage: number;
+  total: number;
+}
+
+/** Personnage engagé (GET /v1/campaigns/:id/characters), lu par le domaine personnages. */
+export interface CampaignCharacterApi {
+  characterId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  type: string | null;
+  side: CampApi;
+  ownerId: string;
+  playedBy: string | null;
+  inCreation: boolean;
+  summary: { tagline: string; highlights: { label: string; value: string }[] } | null;
+}
+
+// ─── Types de l'UI ───────────────────────────────────────────────────────────
+
+export type RoleCampagne = RoleApi;
 export type Visibilite = 'public' | 'private';
+export type Camp = CampApi;
 /** Couleur d'accent de la campagne (voir globals.css, [data-ambiance]). */
 export type Ambiance = 'or' | 'braise' | 'arcane' | 'sylve' | 'givre' | 'sang';
+
+export interface Personne {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
 
 export interface Membre {
   userId: string;
   name: string;
   avatarUrl: string | null;
   role: RoleCampagne;
-  /** Personnage joué dans cette campagne (null : pas encore choisi, ou MJ). */
+  /** Personnage incarné dans cette campagne (null : pas encore choisi, ou MJ). */
   characterId: string | null;
-  joinedAt: string;
 }
 
+/** Invitation nominative en attente (visible du MJ). */
 export interface Invitation {
   userId: string;
   name: string;
@@ -47,394 +156,545 @@ export interface SessionPrevue {
   title: string | null;
 }
 
-export interface Campagne {
+/** Personnage engagé dans la campagne, et le membre qui l'incarne. */
+export interface Engagement {
+  characterId: string;
+  ownerId: string;
+  side: Camp;
+  playedBy: string | null;
+}
+
+/** Champs communs aux listes et au détail. */
+interface BaseCampagne {
   id: string;
   name: string;
   /** Accroche d'une ligne, affichée sur les cartes. */
   pitch: string;
   description: string;
   coverUrl: string | null;
-  /** Identifiant du système de jeu (définitif). */
+  /** Identifiant du système de jeu (définitif une fois des personnages engagés). */
   system: string;
+  systemVersion: string;
   ambiance: Ambiance;
   visibility: Visibilite;
-  maxPlayers: number;
   /** Les joueurs peuvent créer leur personnage eux-mêmes. */
   freeCreation: boolean;
   tags: string[];
   /** Code à 6 caractères pour rejoindre. */
   code: string;
-  ownerId: string;
-  members: Membre[];
-  invitations: Invitation[];
-  sessions: SessionPrevue[];
-  createdAt: string;
+  owner: Personne;
+  /** Membres qui ne sont pas MJ (spectateurs compris). */
+  playerCount: number;
   updatedAt: string;
 }
 
-export type NouvelleCampagne = Pick<
-  Campagne,
-  | 'name'
-  | 'pitch'
-  | 'description'
-  | 'coverUrl'
-  | 'system'
-  | 'ambiance'
-  | 'visibility'
-  | 'maxPlayers'
-  | 'freeCreation'
-  | 'tags'
-> & { invite: { userId: string; name: string; avatarUrl: string | null }[] };
+/** DetailCampagne dans une liste : mes campagnes, campagnes publiques, invitations reçues. */
+export interface Campagne extends BaseCampagne {
+  /** Mon rôle ; null si je n'en suis pas membre (campagne publique, invitation). */
+  role: RoleCampagne | null;
+  memberCount: number;
+  /** Premiers membres, MJ d'abord (mes campagnes seulement) ; `memberCount` donne le total. */
+  members: Membre[];
+  nextSession: SessionPrevue | null;
+  /** Personnage que j'incarne. */
+  playedCharacterId: string | null;
+  /** Tous les personnages engagés. */
+  characterIds: string[];
+}
+
+export interface InvitationRecue extends Campagne {
+  invitedBy: Personne;
+  invitedAt: string;
+}
+
+/** Détail d'une campagne dont je suis membre. */
+export interface DetailCampagne extends BaseCampagne {
+  ownerId: string;
+  role: RoleCampagne;
+  members: Membre[];
+  memberCount: number;
+  /** Invitations nominatives en attente (MJ seulement, vide sinon). */
+  invitations: Invitation[];
+  characters: Engagement[];
+  playedCharacterId: string | null;
+  version: number;
+  createdAt: string;
+}
+
+export interface PageCampagnesPubliques {
+  campagnes: Campagne[];
+  page: number;
+  parPage: number;
+  total: number;
+}
+
+export interface NouvelleCampagne {
+  name: string;
+  pitch: string;
+  description: string;
+  /** Couverture de la bibliothèque (ou null) ; une image importée passe par `couverture`. */
+  coverUrl: string | null;
+  /** Image importée, envoyée au stockage une fois la campagne créée. */
+  couverture: File | null;
+  system: string;
+  ambiance: Ambiance;
+  visibility: Visibilite;
+  freeCreation: boolean;
+  tags: string[];
+  /** Amis invités nominativement dès la création. */
+  invite: Personne[];
+}
 
 export type ModificationCampagne = Partial<
   Pick<
-    Campagne,
+    DetailCampagne,
     | 'name'
     | 'pitch'
     | 'description'
     | 'coverUrl'
     | 'ambiance'
     | 'visibility'
-    | 'maxPlayers'
     | 'freeCreation'
     | 'tags'
   >
 >;
 
-export const JOUEURS_MAX = 12;
 export const LONGUEUR_CODE = 6;
+export const LONGUEUR_ACCROCHE = 140;
+export const LONGUEUR_DESCRIPTION = 2000;
+export const PAR_PAGE_PUBLIQUES = 20;
 
-/** Rôle de l'utilisateur dans la campagne, ou null s'il n'en est pas membre. */
-export function monRole(c: Campagne, userId: string): RoleCampagne | null {
-  return c.members.find((m) => m.userId === userId)?.role ?? null;
-}
+// ─── Adaptateur API → UI ─────────────────────────────────────────────────────
 
-export function nombreJoueurs(c: Campagne) {
-  return c.members.filter((m) => m.role === 'player').length;
-}
-
-export function prochaineSession(c: Campagne): SessionPrevue | null {
-  const now = Date.now();
-  return (
-    [...c.sessions]
-      .filter((s) => new Date(s.startsAt).getTime() > now)
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null
-  );
-}
-
-// ─── Dépôt local ─────────────────────────────────────────────────────────────
-
-const COLLECTION = 'campagnes';
-// Sans I, O, 0, 1 : un code se dicte sans ambiguïté
-const ALPHABET_CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function nouveauCode(existants: Set<string>): string {
-  for (;;) {
-    const octets = crypto.getRandomValues(new Uint8Array(LONGUEUR_CODE));
-    const code = Array.from(octets, (o) => ALPHABET_CODE[o % ALPHABET_CODE.length]).join('');
-    if (!existants.has(code)) return code;
-  }
-}
-
-function membreOuErreur(c: Campagne | undefined, userId: string): Campagne {
-  if (!c || !c.members.some((m) => m.userId === userId))
-    throw erreurLocale('Campagne introuvable', 404);
-  return c;
-}
-
-function exigerMj(c: Campagne, userId: string) {
-  if (monRole(c, userId) !== 'gm')
-    throw erreurLocale('Réservé au maître du jeu de la campagne', 403);
-}
-
-function majCampagne(id: string, maj: (c: Campagne, moi: string) => Campagne): Campagne {
-  const moi = utilisateurLocal().id;
-  return modifierCollection<Campagne, Campagne>(COLLECTION, (toutes) => {
-    const i = toutes.findIndex((c) => c.id === id);
-    const suivante = { ...maj(membreOuErreur(toutes[i], moi), moi), updatedAt: maintenant() };
-    const elements = [...toutes];
-    elements[i] = suivante;
-    return { elements, resultat: suivante };
-  });
-}
-
-const local = {
-  lister(): Campagne[] {
-    const moi = utilisateurLocal().id;
-    return lireCollection<Campagne>(COLLECTION)
-      .filter((c) => c.members.some((m) => m.userId === moi))
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  },
-
-  lire(id: string): Campagne {
-    const moi = utilisateurLocal().id;
-    return membreOuErreur(
-      lireCollection<Campagne>(COLLECTION).find((c) => c.id === id),
-      moi,
-    );
-  },
-
-  creer(n: NouvelleCampagne): Campagne {
-    const moi = utilisateurLocal();
-    const date = maintenant();
-    return modifierCollection<Campagne, Campagne>(COLLECTION, (toutes) => {
-      const { invite, ...champs } = n;
-      const campagne: Campagne = {
-        ...champs,
-        id: nouvelId(),
-        code: nouveauCode(new Set(toutes.map((c) => c.code))),
-        ownerId: moi.id,
-        members: [
-          {
-            userId: moi.id,
-            name: moi.name,
-            avatarUrl: moi.avatarUrl,
-            role: 'gm',
-            characterId: null,
-            joinedAt: date,
-          },
-        ],
-        invitations: invite
-          .filter((i) => i.userId !== moi.id)
-          .map((i) => ({ ...i, invitedAt: date })),
-        sessions: [],
-        createdAt: date,
-        updatedAt: date,
-      };
-      return { elements: [...toutes, campagne], resultat: campagne };
-    });
-  },
-
-  modifier(id: string, modif: ModificationCampagne): Campagne {
-    return majCampagne(id, (c, moi) => {
-      exigerMj(c, moi);
-      return { ...c, ...modif };
-    });
-  },
-
-  supprimer(id: string): void {
-    const moi = utilisateurLocal().id;
-    modifierCollection<Campagne, void>(COLLECTION, (toutes) => {
-      const c = membreOuErreur(
-        toutes.find((x) => x.id === id),
-        moi,
-      );
-      if (c.ownerId !== moi) throw erreurLocale('Seul le créateur peut supprimer la campagne', 403);
-      return { elements: toutes.filter((x) => x.id !== id), resultat: undefined };
-    });
-  },
-
-  rejoindre(code: string): Campagne {
-    const moi = utilisateurLocal();
-    const cherche = code.trim().toUpperCase();
-    return modifierCollection<Campagne, Campagne>(COLLECTION, (toutes) => {
-      const i = toutes.findIndex((c) => c.code === cherche);
-      const c = toutes[i];
-      if (!c) throw erreurLocale('Aucune campagne ne correspond à ce code', 404);
-      if (c.members.some((m) => m.userId === moi.id)) return { elements: toutes, resultat: c };
-      if (nombreJoueurs(c) >= c.maxPlayers) throw erreurLocale('Cette campagne est complète', 409);
-      const suivante: Campagne = {
-        ...c,
-        members: [
-          ...c.members,
-          {
-            userId: moi.id,
-            name: moi.name,
-            avatarUrl: moi.avatarUrl,
-            role: 'player',
-            characterId: null,
-            joinedAt: maintenant(),
-          },
-        ],
-        invitations: c.invitations.filter((x) => x.userId !== moi.id),
-        updatedAt: maintenant(),
-      };
-      const elements = [...toutes];
-      elements[i] = suivante;
-      return { elements, resultat: suivante };
-    });
-  },
-
-  quitter(id: string): void {
-    const moi = utilisateurLocal().id;
-    modifierCollection<Campagne, void>(COLLECTION, (toutes) => {
-      const c = membreOuErreur(
-        toutes.find((x) => x.id === id),
-        moi,
-      );
-      if (c.ownerId === moi)
-        throw erreurLocale('Le créateur ne peut pas quitter sa campagne : supprimez-la', 409);
-      return {
-        elements: toutes.map((x) =>
-          x.id === id ? { ...x, members: x.members.filter((m) => m.userId !== moi) } : x,
-        ),
-        resultat: undefined,
-      };
-    });
-  },
-
-  /** Choisit le personnage joué (null : jouer en MJ, réservé au MJ). */
-  incarner(id: string, characterId: string | null): Campagne {
-    return majCampagne(id, (c, moi) => ({
-      ...c,
-      members: c.members.map((m) => (m.userId === moi ? { ...m, characterId } : m)),
-    }));
-  },
-
-  retirerMembre(id: string, userId: string): Campagne {
-    return majCampagne(id, (c, moi) => {
-      exigerMj(c, moi);
-      if (userId === c.ownerId) throw erreurLocale('Le créateur ne peut pas être retiré', 409);
-      return { ...c, members: c.members.filter((m) => m.userId !== userId) };
-    });
-  },
-
-  nouveauCode(id: string): Campagne {
-    const codes = new Set(lireCollection<Campagne>(COLLECTION).map((c) => c.code));
-    return majCampagne(id, (c, moi) => {
-      exigerMj(c, moi);
-      return { ...c, code: nouveauCode(codes) };
-    });
-  },
-
-  planifier(id: string, startsAt: string, title: string | null): Campagne {
-    return majCampagne(id, (c, moi) => {
-      exigerMj(c, moi);
-      return { ...c, sessions: [...c.sessions, { id: nouvelId(), startsAt, title }] };
-    });
-  },
-
-  deplanifier(id: string, sessionId: string): Campagne {
-    return majCampagne(id, (c, moi) => {
-      exigerMj(c, moi);
-      return { ...c, sessions: c.sessions.filter((s) => s.id !== sessionId) };
-    });
-  },
+const AMBIANCE_DE: Record<AccentApi, Ambiance> = {
+  gold: 'or',
+  ember: 'braise',
+  arcane: 'arcane',
+  sylvan: 'sylve',
+  frost: 'givre',
+  blood: 'sang',
 };
 
-// ─── Accès (API ou dépôt local) ──────────────────────────────────────────────
+const ACCENT_DE: Record<Ambiance, AccentApi> = {
+  or: 'gold',
+  braise: 'ember',
+  arcane: 'arcane',
+  sylve: 'sylvan',
+  givre: 'frost',
+  sang: 'blood',
+};
 
-const distant = () => serviceActif('campaign');
+/** Nom affiché d'un utilisateur dont identity n'a pas donné le profil. */
+const NOM_INCONNU = 'Joueur';
+
+function versPersonne(u: UserRefApi): Personne {
+  return { id: u.id, name: u.name ?? NOM_INCONNU, avatarUrl: u.avatarUrl };
+}
+
+function versMembre(m: MemberApi, engagements: EngagementApi[] = []): Membre {
+  return {
+    userId: m.userId,
+    name: m.name ?? NOM_INCONNU,
+    avatarUrl: m.avatarUrl,
+    role: m.role,
+    characterId: engagements.find((e) => e.playedBy === m.userId)?.characterId ?? null,
+  };
+}
+
+function versSession(s: SessionApi): SessionPrevue {
+  return { id: s.id, startsAt: s.date, title: s.title };
+}
+
+function versBase(c: CampaignFieldsApi): BaseCampagne {
+  return {
+    id: c.id,
+    name: c.name,
+    pitch: c.pitch,
+    description: c.description,
+    coverUrl: c.imageUrl,
+    system: c.system.id,
+    systemVersion: c.system.version,
+    ambiance: AMBIANCE_DE[c.accent] ?? 'or',
+    visibility: c.isPublic ? 'public' : 'private',
+    freeCreation: c.characterCreation,
+    tags: c.tags,
+    code: c.code,
+    owner: versPersonne(c.owner),
+    playerCount: c.playerCount,
+    updatedAt: c.updatedAt,
+  };
+}
+
+function versCampagne(c: CampaignSummaryApi | MyCampaignSummaryApi): Campagne {
+  const mienne = 'characterIds' in c;
+  return {
+    ...versBase(c),
+    role: c.role,
+    memberCount: c.memberCount,
+    // Aperçu : le personnage incarné n'est connu que pour moi (playedCharacterId)
+    members: mienne ? c.members.map((m) => versMembre(m)) : [],
+    nextSession: mienne && c.nextSession ? versSession(c.nextSession) : null,
+    playedCharacterId: mienne ? c.playedCharacterId : null,
+    characterIds: mienne ? c.characterIds : [],
+  };
+}
+
+function versInvitation(c: InvitedCampaignApi): InvitationRecue {
+  return { ...versCampagne(c), invitedBy: versPersonne(c.invitedBy), invitedAt: c.invitedAt };
+}
+
+function versDetail(c: CampaignApi): DetailCampagne {
+  return {
+    ...versBase(c),
+    ownerId: c.ownerId,
+    role: c.role,
+    members: c.members.map((m) => versMembre(m, c.characters)),
+    memberCount: c.members.length,
+    invitations: c.invitees.map((i) => ({
+      userId: i.userId,
+      name: i.name ?? NOM_INCONNU,
+      avatarUrl: i.avatarUrl,
+      invitedAt: i.invitedAt,
+    })),
+    characters: c.characters.map((e) => ({
+      characterId: e.characterId,
+      ownerId: e.ownerId,
+      side: e.side,
+      playedBy: e.playedBy,
+    })),
+    playedCharacterId: c.playedCharacterId,
+    version: c.version,
+    createdAt: c.createdAt,
+  };
+}
+
+/** Corps de POST/PATCH : champs de l'UI traduits dans le contrat de l'API. */
+function versCorps(m: ModificationCampagne): Record<string, unknown> {
+  return {
+    ...(m.name !== undefined ? { name: m.name.trim() } : {}),
+    ...(m.pitch !== undefined ? { pitch: m.pitch.trim() } : {}),
+    ...(m.description !== undefined ? { description: m.description.trim() } : {}),
+    ...(m.coverUrl !== undefined ? { imageUrl: m.coverUrl } : {}),
+    ...(m.ambiance !== undefined ? { accent: ACCENT_DE[m.ambiance] } : {}),
+    ...(m.visibility !== undefined ? { isPublic: m.visibility === 'public' } : {}),
+    ...(m.freeCreation !== undefined ? { characterCreation: m.freeCreation } : {}),
+    ...(m.tags !== undefined ? { tags: m.tags } : {}),
+  };
+}
+
+// ─── Accès au service ────────────────────────────────────────────────────────
+
+const url = (id: string, suite = '') => `/v1/campaigns/${encodeURIComponent(id)}${suite}`;
 const json = (corps: unknown) => ({ body: JSON.stringify(corps) });
 
+interface UrlEnvoi {
+  uploadUrl: string;
+  publicUrl: string;
+}
+
 export const campagnes = {
-  lister: () => (distant() ? api<Campagne[]>('/v1/rooms?member=me') : local.lister()),
-  lire: (id: string) =>
-    distant() ? api<Campagne>(`/v1/rooms/${encodeURIComponent(id)}`) : local.lire(id),
-  creer: (n: NouvelleCampagne) =>
-    distant() ? api<Campagne>('/v1/rooms', { method: 'POST', ...json(n) }) : local.creer(n),
-  modifier: (id: string, m: ModificationCampagne) =>
-    distant()
-      ? api<Campagne>(`/v1/rooms/${encodeURIComponent(id)}`, { method: 'PATCH', ...json(m) })
-      : local.modifier(id, m),
-  supprimer: (id: string) =>
-    distant()
-      ? api<void>(`/v1/rooms/${encodeURIComponent(id)}`, { method: 'DELETE' })
-      : local.supprimer(id),
-  rejoindre: (code: string) =>
-    distant()
-      ? api<Campagne>('/v1/rooms/join', { method: 'POST', ...json({ code }) })
-      : local.rejoindre(code),
-  quitter: (id: string) =>
-    distant()
-      ? api<void>(`/v1/rooms/${encodeURIComponent(id)}/members/me`, { method: 'DELETE' })
-      : local.quitter(id),
-  incarner: (id: string, characterId: string | null) =>
-    distant()
-      ? api<Campagne>(`/v1/rooms/${encodeURIComponent(id)}/members/me`, {
-          method: 'PATCH',
-          ...json({ characterId }),
-        })
-      : local.incarner(id, characterId),
+  lister: async () => (await api<MyCampaignSummaryApi[]>('/v1/campaigns')).map(versCampagne),
+
+  lire: async (id: string) => versDetail(await api<CampaignApi>(url(id))),
+
+  publiques: async (recherche: string, page: number): Promise<PageCampagnesPubliques> => {
+    const params = new URLSearchParams({ page: String(page) });
+    if (recherche.trim()) params.set('search', recherche.trim());
+    const r = await api<PublicPageApi>(`/v1/campaigns/public?${params}`);
+    return {
+      campagnes: r.campaigns.map(versCampagne),
+      page: r.page,
+      parPage: r.perPage,
+      total: r.total,
+    };
+  },
+
+  invitations: async () =>
+    (await api<InvitedCampaignApi[]>('/v1/campaigns/invited')).map(versInvitation),
+
+  sessions: async (id: string) => (await api<SessionApi[]>(url(id, '/sessions'))).map(versSession),
+
+  /**
+   * Crée la campagne (couverture de la bibliothèque comprise), puis envoie la
+   * couverture importée et invite les amis choisis.
+   */
+  async creer(n: NouvelleCampagne): Promise<DetailCampagne> {
+    let c = versDetail(
+      await api<CampaignApi>('/v1/campaigns', {
+        method: 'POST',
+        ...json({
+          systemId: n.system,
+          ...versCorps({
+            name: n.name,
+            pitch: n.pitch,
+            description: n.description,
+            coverUrl: n.couverture ? null : n.coverUrl,
+            ambiance: n.ambiance,
+            visibility: n.visibility,
+            freeCreation: n.freeCreation,
+            tags: n.tags,
+          }),
+        }),
+      }),
+    );
+    if (n.couverture) c = await campagnes.envoyerCouverture(c.id, n.couverture);
+    if (n.invite.length)
+      c = await campagnes.inviter(
+        c.id,
+        n.invite.map((i) => i.id),
+      );
+    return c;
+  },
+
+  modifier: async (id: string, m: ModificationCampagne) =>
+    versDetail(await api<CampaignApi>(url(id), { method: 'PATCH', ...json(versCorps(m)) })),
+
+  /** Envoie une image de couverture sur le stockage, puis l'enregistre. */
+  async envoyerCouverture(id: string, fichier: File): Promise<DetailCampagne> {
+    const { uploadUrl, publicUrl } = await api<UrlEnvoi>(url(id, '/image'), {
+      method: 'POST',
+      ...json({ contentType: fichier.type, size: fichier.size }),
+    });
+    let depot: Response;
+    try {
+      depot = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'content-type': fichier.type },
+        body: fichier,
+      });
+    } catch {
+      throw new ApiError({ status: 0, title: "L'envoi de l'image vers le stockage a échoué." });
+    }
+    if (!depot.ok)
+      throw new ApiError({
+        status: depot.status,
+        title: "Le stockage a refusé l'image (format ou taille).",
+      });
+    return campagnes.modifier(id, { coverUrl: publicUrl });
+  },
+
+  supprimer: (id: string) => api<void>(url(id), { method: 'DELETE' }),
+
+  /** Rejoindre par code de campagne ou code d'invitation (`inv_…`). */
+  rejoindre: async (code: string) =>
+    versDetail(await api<CampaignApi>('/v1/campaigns/join', { method: 'POST', ...json({ code }) })),
+
+  /** Rejoindre sans code : campagne publique, ou invitation nominative. */
+  rejoindreSansCode: async (id: string) =>
+    versDetail(await api<CampaignApi>(url(id, '/join'), { method: 'POST' })),
+
+  inviter: async (id: string, userIds: string[]) =>
+    versDetail(
+      await api<CampaignApi>(url(id, '/invitees'), { method: 'POST', ...json({ userIds }) }),
+    ),
+
+  /** Le MJ annule une invitation, ou l'invité la décline (`userId` = lui-même). */
+  retirerInvitation: (id: string, userId: string) =>
+    api<void>(url(id, `/invitees/${encodeURIComponent(userId)}`), { method: 'DELETE' }),
+
+  /** Quitter (soi-même) ou exclure un membre (MJ). */
   retirerMembre: (id: string, userId: string) =>
-    distant()
-      ? api<Campagne>(`/v1/rooms/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`, {
-          method: 'DELETE',
-        })
-      : local.retirerMembre(id, userId),
-  nouveauCode: (id: string) =>
-    distant()
-      ? api<Campagne>(`/v1/rooms/${encodeURIComponent(id)}/code`, { method: 'POST' })
-      : local.nouveauCode(id),
-  planifier: (id: string, startsAt: string, title: string | null) =>
-    distant()
-      ? api<Campagne>(`/v1/rooms/${encodeURIComponent(id)}/sessions`, {
-          method: 'POST',
-          ...json({ startsAt, title }),
-        })
-      : local.planifier(id, startsAt, title),
+    api<void>(url(id, `/members/${encodeURIComponent(userId)}`), { method: 'DELETE' }),
+
+  /** Personnage incarné (null : jouer en MJ) ; renvoie les personnages engagés. */
+  incarner: (id: string, characterId: string | null) =>
+    api<CampaignCharacterApi[]>(url(id, '/me/character'), {
+      method: 'PUT',
+      ...json({ characterId }),
+    }),
+
+  /** Engage un de mes personnages dans la campagne (du système de la campagne). */
+  engager: async (id: string, characterId: string) =>
+    versDetail(
+      await api<CampaignApi>(url(id, '/characters'), {
+        method: 'POST',
+        ...json({ characterId }),
+      }),
+    ),
+
+  desengager: (id: string, characterId: string) =>
+    api<void>(url(id, `/characters/${encodeURIComponent(characterId)}`), { method: 'DELETE' }),
+
+  personnages: (id: string) => api<CampaignCharacterApi[]>(url(id, '/characters')),
+
+  nouveauCode: async (id: string) =>
+    versDetail(await api<CampaignApi>(url(id, '/code'), { method: 'POST' })),
+
+  planifier: async (id: string, startsAt: string, title: string | null) =>
+    versSession(
+      await api<SessionApi>(url(id, '/sessions'), {
+        method: 'POST',
+        ...json({ date: startsAt, title }),
+      }),
+    ),
+
   deplanifier: (id: string, sessionId: string) =>
-    distant()
-      ? api<Campagne>(
-          `/v1/rooms/${encodeURIComponent(id)}/sessions/${encodeURIComponent(sessionId)}`,
-          { method: 'DELETE' },
-        )
-      : local.deplanifier(id, sessionId),
+    api<void>(url(id, `/sessions/${encodeURIComponent(sessionId)}`), { method: 'DELETE' }),
 };
 
 // ─── Hooks de domaine ────────────────────────────────────────────────────────
 
 export const clesCampagnes = {
-  toutes: ['campagnes'] as const,
-  une: (id: string) => ['campagnes', id] as const,
+  racine: ['campagnes'] as const,
+  miennes: ['campagnes', 'miennes'] as const,
+  une: (id: string) => ['campagnes', 'une', id] as const,
+  sessions: (id: string) => ['campagnes', 'une', id, 'sessions'] as const,
+  publiques: (recherche: string, page: number) =>
+    ['campagnes', 'publiques', recherche.trim(), page] as const,
+  toutesPubliques: ['campagnes', 'publiques'] as const,
+  invitations: ['campagnes', 'invitations'] as const,
 };
 
+/** Clé des personnages engagés d'une campagne (domaine personnages, rafraîchie d'ici). */
+export const clePersonnagesCampagne = (id: string) => ['personnages', 'campagne', id] as const;
+
+/** Mes campagnes, les plus récemment modifiées d'abord. */
 export function useCampagnes() {
-  return useQuery({
-    queryKey: clesCampagnes.toutes,
-    queryFn: async () => campagnes.lister(),
-  });
+  return useQuery({ queryKey: clesCampagnes.miennes, queryFn: campagnes.lister });
 }
 
 export function useCampagne(id: string | null | undefined) {
   return useQuery({
     queryKey: clesCampagnes.une(id ?? ''),
-    queryFn: async () => campagnes.lire(id!),
+    queryFn: () => campagnes.lire(id!),
     enabled: Boolean(id),
   });
 }
 
-/**
- * Mutation qui renvoie la campagne à jour : le cache de la campagne est
- * remplacé, la liste rechargée.
- */
-function useMutationCampagne<A>(action: (args: A) => Campagne | Promise<Campagne>) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (args: A) => action(args),
-    onSuccess: (c) => {
-      client.setQueryData(clesCampagnes.une(c.id), c);
-      void client.invalidateQueries({ queryKey: clesCampagnes.toutes, exact: true });
-    },
+/** Sessions à venir, par date croissante. */
+export function useSessionsCampagne(id: string | null | undefined) {
+  return useQuery({
+    queryKey: clesCampagnes.sessions(id ?? ''),
+    queryFn: () => campagnes.sessions(id!),
+    enabled: Boolean(id),
   });
+}
+
+/** Campagnes publiques : recherche (nom, description ou code) et pages de 20. */
+export function useCampagnesPubliques(recherche: string, page: number, actif = true) {
+  return useQuery({
+    queryKey: clesCampagnes.publiques(recherche, page),
+    queryFn: () => campagnes.publiques(recherche, page),
+    placeholderData: keepPreviousData,
+    enabled: actif,
+  });
+}
+
+/** Invitations nominatives reçues, en attente. */
+export function useInvitationsRecues() {
+  return useQuery({ queryKey: clesCampagnes.invitations, queryFn: campagnes.invitations });
+}
+
+/** Après une écriture : le détail est remplacé, les listes rechargées. */
+function useApresEcriture() {
+  const client = useQueryClient();
+  return (c: DetailCampagne | null, id?: string) => {
+    if (c) client.setQueryData(clesCampagnes.une(c.id), c);
+    else if (id) void client.invalidateQueries({ queryKey: clesCampagnes.une(id) });
+    void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+    void client.invalidateQueries({ queryKey: clesCampagnes.toutesPubliques });
+    void client.invalidateQueries({ queryKey: clesCampagnes.invitations });
+  };
+}
+
+function useMutationCampagne<A>(action: (args: A) => Promise<DetailCampagne>) {
+  const apres = useApresEcriture();
+  return useMutation({ mutationFn: action, onSuccess: (c) => apres(c) });
 }
 
 export const useCreerCampagne = () => useMutationCampagne(campagnes.creer);
 export const useRejoindreCampagne = () => useMutationCampagne(campagnes.rejoindre);
+/** Rejoindre une campagne publique, ou accepter une invitation nominative. */
+export const useRejoindreSansCode = () => useMutationCampagne(campagnes.rejoindreSansCode);
 export const useModifierCampagne = (id: string) =>
   useMutationCampagne((m: ModificationCampagne) => campagnes.modifier(id, m));
-export const useIncarner = (id: string) =>
-  useMutationCampagne((characterId: string | null) => campagnes.incarner(id, characterId));
-export const useRetirerMembre = (id: string) =>
-  useMutationCampagne((userId: string) => campagnes.retirerMembre(id, userId));
+export const useEnvoyerCouverture = (id: string) =>
+  useMutationCampagne((f: File) => campagnes.envoyerCouverture(id, f));
 export const useNouveauCode = (id: string) =>
   useMutationCampagne<void>(() => campagnes.nouveauCode(id));
-export const usePlanifier = (id: string) =>
-  useMutationCampagne((s: { startsAt: string; title: string | null }) =>
-    campagnes.planifier(id, s.startsAt, s.title),
-  );
-export const useDeplanifier = (id: string) =>
-  useMutationCampagne((sessionId: string) => campagnes.deplanifier(id, sessionId));
+export const useInviter = (id: string) =>
+  useMutationCampagne((userIds: string[]) => campagnes.inviter(id, userIds));
 
-/** Supprimer ou quitter : la campagne disparaît du cache. */
-export function useSortirCampagne(id: string) {
+/** Le MJ annule une invitation nominative. */
+export function useAnnulerInvitation(id: string) {
+  const apres = useApresEcriture();
+  return useMutation({
+    mutationFn: (userId: string) => campagnes.retirerInvitation(id, userId),
+    onSuccess: () => apres(null, id),
+  });
+}
+
+/** L'invité décline une invitation nominative. */
+export function useDeclinerInvitation(moi: string) {
+  const apres = useApresEcriture();
+  return useMutation({
+    mutationFn: (campagneId: string) => campagnes.retirerInvitation(campagneId, moi),
+    onSuccess: () => apres(null),
+  });
+}
+
+/** Le MJ exclut un membre (ses personnages quittent la campagne). */
+export function useRetirerMembre(id: string) {
+  const client = useQueryClient();
+  const apres = useApresEcriture();
+  return useMutation({
+    mutationFn: (userId: string) => campagnes.retirerMembre(id, userId),
+    onSuccess: () => {
+      apres(null, id);
+      void client.invalidateQueries({ queryKey: clePersonnagesCampagne(id) });
+    },
+  });
+}
+
+/** Choisit le personnage incarné (null : jouer en MJ). */
+export function useIncarner(id: string) {
+  const client = useQueryClient();
+  const apres = useApresEcriture();
+  return useMutation({
+    mutationFn: (characterId: string | null) => campagnes.incarner(id, characterId),
+    onSuccess: (engages) => {
+      client.setQueryData(clePersonnagesCampagne(id), engages);
+      apres(null, id);
+    },
+  });
+}
+
+export function usePlanifier(id: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (mode: 'supprimer' | 'quitter') =>
-      mode === 'supprimer' ? campagnes.supprimer(id) : campagnes.quitter(id),
+    mutationFn: (s: { startsAt: string; title: string | null }) =>
+      campagnes.planifier(id, s.startsAt, s.title),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: clesCampagnes.sessions(id) });
+      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+    },
+  });
+}
+
+export function useDeplanifier(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => campagnes.deplanifier(id, sessionId),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: clesCampagnes.sessions(id) });
+      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+    },
+  });
+}
+
+/** Supprimer (propriétaire) ou quitter : la campagne disparaît du cache. */
+export function useSortirCampagne(id: string, moi: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (mode: 'supprimer' | 'quitter') =>
+      mode === 'supprimer' ? campagnes.supprimer(id) : campagnes.retirerMembre(id, moi),
     onSuccess: () => {
       client.removeQueries({ queryKey: clesCampagnes.une(id) });
-      void client.invalidateQueries({ queryKey: clesCampagnes.toutes, exact: true });
+      client.removeQueries({ queryKey: clePersonnagesCampagne(id) });
+      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+      void client.invalidateQueries({ queryKey: clesCampagnes.toutesPubliques });
+      // Mes personnages engagés redeviennent libres
+      void client.invalidateQueries({ queryKey: ['personnages'] });
     },
   });
 }

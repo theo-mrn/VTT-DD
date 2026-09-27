@@ -5,13 +5,7 @@ import Link from 'next/link';
 import { Illustration } from '@/components/commun/illustration';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  monRole,
-  nombreJoueurs,
-  prochaineSession,
-  type Campagne,
-  type RoleCampagne,
-} from '@/lib/campagnes';
+import type { Campagne, RoleCampagne } from '@/lib/campagnes';
 import { useSystemes } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { BadgeRole, formaterDans, PileAvatars } from './elements';
@@ -31,8 +25,10 @@ type DonneesCarte = Pick<
   | 'system'
   | 'ambiance'
   | 'members'
-  | 'maxPlayers'
-  | 'sessions'
+  | 'memberCount'
+  | 'playerCount'
+  | 'nextSession'
+  | 'role'
 >;
 
 /**
@@ -53,10 +49,8 @@ export function CarteCampagne({
   grande?: boolean;
 }) {
   const nomSysteme = useNomSysteme(campagne.system);
-  const role =
-    roleImpose !== undefined ? roleImpose : userId ? monRole(campagne as Campagne, userId) : null;
-  const joueurs = nombreJoueurs(campagne as Campagne);
-  const session = prochaineSession(campagne as Campagne);
+  const role = roleImpose !== undefined ? roleImpose : campagne.role;
+  const session = campagne.nextSession;
 
   const contenu = (
     <>
@@ -102,10 +96,10 @@ export function CarteCampagne({
       </Illustration>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <PileAvatars membres={campagne.members} />
+          <PileAvatars membres={campagne.members} total={campagne.memberCount} />
           <span className="flex items-center gap-1 text-xs text-subtle">
             <Users className="size-3.5" />
-            {joueurs}/{campagne.maxPlayers}
+            {campagne.playerCount} {campagne.playerCount > 1 ? 'joueurs' : 'joueur'}
           </span>
         </div>
         {session ? (

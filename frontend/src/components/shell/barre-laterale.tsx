@@ -180,8 +180,7 @@ export function BarreLaterale({
             <FlaskConical className="size-3.5 text-arcane" />
             Aperçu local
           </span>
-          Campagnes, personnages, notes et jets sont gardés dans ce navigateur en attendant leurs
-          services.
+          Notes et historique des jets sont gardés dans ce navigateur en attendant leurs services.
         </div>
       )}
 

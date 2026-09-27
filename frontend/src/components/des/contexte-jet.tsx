@@ -14,31 +14,36 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
-import type { Personnage } from '@/lib/personnages';
+import { usePersonnage, type Personnage } from '@/lib/personnages';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 
 // ─── Fiche du personnage ─────────────────────────────────────────────────────
 
 /**
- * Fiche calculée d'un personnage (son système chargé à la demande) : c'est
- * elle qui donne un sens à `@FOR` ou `mod(@FOR)` dans une formule.
+ * Fiche calculée d'un personnage (sa fiche complète et son système chargés à
+ * la demande) : c'est elle qui donne un sens à `@FOR` ou `mod(@FOR)` dans une
+ * formule.
  */
 export function useFichePersonnage(personnage: Personnage | null) {
+  const complet = usePersonnage(personnage?.id);
   const systeme = useSysteme(personnage?.system.id);
+  const etat = complet.data?.state;
   const calcul = useMemo((): { fiche: Fiche | null; erreur: string | null } => {
-    if (!personnage || !systeme.data) return { fiche: null, erreur: null };
+    if (!etat || !systeme.data) return { fiche: null, erreur: null };
     try {
-      return { fiche: calculer(systeme.data.systeme, personnage.state), erreur: null };
+      return { fiche: calculer(systeme.data.systeme, etat), erreur: null };
     } catch (e) {
       return { fiche: null, erreur: e instanceof Error ? e.message : 'Fiche illisible' };
     }
-  }, [personnage, systeme.data]);
+  }, [etat, systeme.data]);
 
   return {
     ...calcul,
-    chargement: Boolean(personnage) && systeme.isPending,
-    erreur: calcul.erreur ?? (systeme.error ? systeme.error.message : null),
+    chargement: Boolean(personnage) && (systeme.isPending || complet.isPending),
+    erreur:
+      calcul.erreur ??
+      (systeme.error ? systeme.error.message : complet.error ? complet.error.message : null),
   };
 }
 

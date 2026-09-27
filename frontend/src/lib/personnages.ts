@@ -1,28 +1,87 @@
 /**
- * Personnages : service character, `/v1/characters`. Un personnage appartient
- * à un joueur et porte l'état saisi (`EtatEntite` de @vtt/rules) : toutes les
- * valeurs dérivées sont recalculées par le moteur, dans le front pour
- * l'aperçu, dans le service pour faire autorité.
+ * Personnages : service character derrière la gateway (`/v1/characters/**`,
+ * contrat dans docs/api-character.md). Le service fait autorité : chaque
+ * écriture passe par sa route (valeurs, étapes de création, achats,
+ * possessions, actions) avec la `version` connue, et la réponse remplace le
+ * cache. Le front calcule seulement un aperçu immédiat avec le même moteur.
+ *
+ * Un héros appartient à une campagne : il y est engagé par campaign
+ * (`POST /v1/campaigns/:id/characters`), qui sait aussi qui l'incarne.
+ * `roomId` est donc lu dans mes campagnes (`characterIds`).
+ *
+ * Concurrence : les écritures d'un même personnage partent l'une après
+ * l'autre. Un 409 (le MJ a modifié la fiche entre-temps) recharge la fiche,
+ * annule les écritures en attente et prévient l'utilisateur : rien n'est
+ * écrasé en silence.
  */
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { EtatEntite } from '@vtt/rules';
-import { api } from './api';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { EtatEntite, type ResultatAction, type Tirage, type Valeur } from '@vtt/rules';
+import { useMemo } from 'react';
+import { api, ApiError } from './api';
 import {
-  erreurLocale,
-  lireCollection,
-  maintenant,
-  modifierCollection,
-  nouvelId,
-  serviceActif,
-  utilisateurLocal,
-} from './depot-local';
+  campagnes,
+  clePersonnagesCampagne,
+  clesCampagnes,
+  useCampagne,
+  useCampagnes,
+  type Campagne,
+  type CampaignCharacterApi,
+} from './campagnes';
+import { useProfil } from './session';
 
-/**
- * Résumé dénormalisé, recalculé à chaque enregistrement : les listes
- * l'affichent sans charger le système ni recalculer la fiche.
- */
+// ─── Contrat de l'API (schémas Zod de backend/character/src/modules/personnages) ─
+
+interface SummaryApi {
+  tagline: string;
+  highlights: { label: string; value: string }[];
+}
+
+interface DetailsApi {
+  concept: string;
+  appearance: string;
+  backstory: string;
+}
+
+/** Élément de GET /v1/characters. */
+interface CharacterListItemApi {
+  id: string;
+  nom: string;
+  avatarUrl: string | null;
+  systeme: { id: string; version: string };
+  type: string;
+  creation: boolean;
+  concept: string;
+  summary: SummaryApi;
+  updatedAt: string;
+}
+
+/** Personnage complet (GET /v1/characters/:id et réponse des écritures). */
+interface CharacterApi {
+  id: string;
+  ownerId: string;
+  nom: string;
+  avatarUrl: string | null;
+  etat: unknown;
+  fiche: unknown;
+  details: DetailsApi;
+  summary: SummaryApi;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  /** Étape « tirer » de la création : le tirage retenu. */
+  tirage?: TirageCreation;
+}
+
+interface ActionApi {
+  resultat: ResultatAction;
+  personnage?: CharacterApi;
+}
+
+// ─── Types de l'UI ───────────────────────────────────────────────────────────
+
+/** Résumé calculé par le service : les listes l'affichent sans charger le système. */
 export interface ResumePersonnage {
   /** « Elfe · Magicien » : entrées uniques (race, profil, carrière…). */
   tagline: string;
@@ -36,175 +95,531 @@ export interface DetailsPersonnage {
   backstory: string;
 }
 
+/** Personnage dans une liste (les miens, ceux d'une campagne). */
 export interface Personnage {
   id: string;
   name: string;
   portraitUrl: string | null;
   system: { id: string; version: string };
-  state: EtatEntite;
-  /** Campagne où le personnage est engagé. */
+  type: string;
+  /** Création pas encore terminée : la fiche se reprend dans l'assistant. */
+  inCreation: boolean;
+  /** Campagne où le personnage est engagé (null : libre, par exemple importé sans campagne). */
   roomId: string | null;
   ownerId: string;
-  ownerName: string;
   summary: ResumePersonnage;
-  details: DetailsPersonnage;
-  createdAt: string;
+  /** Concept du joueur (vide pour les personnages des autres). */
+  concept: string;
   updatedAt: string;
 }
 
-export type NouveauPersonnage = Pick<
-  Personnage,
-  'name' | 'portraitUrl' | 'system' | 'state' | 'roomId' | 'summary' | 'details'
->;
-
-export type ModificationPersonnage = Partial<
-  Pick<Personnage, 'name' | 'portraitUrl' | 'state' | 'roomId' | 'summary' | 'details'>
->;
-
-// ─── Dépôt local ─────────────────────────────────────────────────────────────
-
-const COLLECTION = 'personnages';
-
-function aMoi(p: Personnage | undefined, moi: string): Personnage {
-  if (!p || p.ownerId !== moi) throw erreurLocale('Personnage introuvable', 404);
-  return p;
+/** Personnage complet : état saisi (calculé par le moteur), présentation, version. */
+export interface FichePersonnage extends Personnage {
+  state: EtatEntite;
+  details: DetailsPersonnage;
+  version: number;
+  createdAt: string;
 }
 
-const local = {
-  lister(): Personnage[] {
-    const moi = utilisateurLocal().id;
-    return lireCollection<Personnage>(COLLECTION)
-      .filter((p) => p.ownerId === moi)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  },
+/** Tirage de l'étape « tirer », fait par le service. */
+export interface TirageCreation {
+  attributs: string[];
+  retenu: Tirage;
+  essais: number;
+}
 
-  /** Personnages engagés dans une campagne (tous joueurs confondus). */
-  listerCampagne(roomId: string): Personnage[] {
-    return lireCollection<Personnage>(COLLECTION)
-      .filter((p) => p.roomId === roomId)
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  },
+/** Changement du profil : seuls les champs fournis changent. */
+export interface ModificationProfil {
+  name?: string;
+  portraitUrl?: string | null;
+  details?: Partial<DetailsPersonnage>;
+}
 
-  lire(id: string): Personnage {
-    const p = lireCollection<Personnage>(COLLECTION).find((x) => x.id === id);
-    if (!p) throw erreurLocale('Personnage introuvable', 404);
-    return p;
-  },
+/** Demande de possession (docs/api-character.md, « Possessions »). */
+export interface DemandePossession {
+  entree: string;
+  exemplaire?: string;
+  nouveau?: boolean;
+  quantite?: number;
+  rang?: number;
+  actif?: boolean;
+  choix?: Record<string, string[]>;
+}
 
-  creer(n: NouveauPersonnage): Personnage {
-    const moi = utilisateurLocal();
-    const date = maintenant();
-    const p: Personnage = {
-      ...n,
-      id: nouvelId(),
-      ownerId: moi.id,
-      ownerName: moi.name,
-      createdAt: date,
-      updatedAt: date,
-    };
-    return modifierCollection<Personnage, Personnage>(COLLECTION, (tous) => ({
-      elements: [...tous, p],
-      resultat: p,
-    }));
-  },
+/** Corps d'une étape de création, selon son type. */
+export type CorpsEtape =
+  | { entrees: { entree: string; choix?: Record<string, string[]> }[] }
+  | { valeurs: Record<string, Valeur> }
+  | { affectation?: Record<string, number> }
+  | { achat: string; objet: string };
 
-  modifier(id: string, modif: ModificationPersonnage): Personnage {
-    const moi = utilisateurLocal().id;
-    return modifierCollection<Personnage, Personnage>(COLLECTION, (tous) => {
-      const i = tous.findIndex((p) => p.id === id);
-      const suivant = { ...aMoi(tous[i], moi), ...modif, updatedAt: maintenant() };
-      const elements = [...tous];
-      elements[i] = suivant;
-      return { elements, resultat: suivant };
-    });
-  },
+/** Écriture faite par une étape de l'assistant de création, envoyée au service. */
+export type OperationCreation =
+  { type: 'etape'; etape: string; corps: CorpsEtape } | { type: 'rembourser'; index: number };
 
-  supprimer(id: string): void {
-    const moi = utilisateurLocal().id;
-    modifierCollection<Personnage, void>(COLLECTION, (tous) => {
-      aMoi(
-        tous.find((p) => p.id === id),
-        moi,
-      );
-      return { elements: tous.filter((p) => p.id !== id), resultat: undefined };
-    });
-  },
-};
+// ─── Adaptateur API → UI ─────────────────────────────────────────────────────
 
-// ─── Accès (API ou dépôt local) ──────────────────────────────────────────────
+const RESUME_VIDE: ResumePersonnage = { tagline: '', highlights: [] };
 
-const distant = () => serviceActif('character');
-const url = (id: string) => `/v1/characters/${encodeURIComponent(id)}`;
+function versPersonnage(p: CharacterListItemApi, ownerId: string): Personnage {
+  return {
+    id: p.id,
+    name: p.nom,
+    portraitUrl: p.avatarUrl,
+    system: p.systeme,
+    type: p.type,
+    inCreation: p.creation,
+    roomId: null,
+    ownerId,
+    summary: p.summary,
+    concept: p.concept,
+    updatedAt: p.updatedAt,
+  };
+}
+
+function versFiche(p: CharacterApi): FichePersonnage {
+  const state = EtatEntite.parse(p.etat);
+  return {
+    id: p.id,
+    name: p.nom,
+    portraitUrl: p.avatarUrl,
+    system: state.systeme,
+    type: state.type,
+    inCreation: state.creation,
+    roomId: null,
+    ownerId: p.ownerId,
+    summary: p.summary,
+    concept: p.details.concept,
+    updatedAt: p.updatedAt,
+    state,
+    details: p.details,
+    version: p.version,
+    createdAt: p.createdAt,
+  };
+}
+
+/** Personnage engagé dans une campagne, vu par les autres membres. */
+function versEngage(
+  e: CampaignCharacterApi,
+  campagne: { id: string; system: string; systemVersion: string },
+): Personnage {
+  return {
+    id: e.characterId,
+    name: e.name ?? 'Personnage indisponible',
+    portraitUrl: e.avatarUrl,
+    system: { id: campagne.system, version: campagne.systemVersion },
+    type: e.type ?? 'personnage',
+    inCreation: e.inCreation,
+    roomId: campagne.id,
+    ownerId: e.ownerId,
+    summary: e.summary ?? RESUME_VIDE,
+    concept: '',
+    updatedAt: '',
+  };
+}
+
+/**
+ * Adresse d'un personnage : sa fiche, ou l'assistant pour reprendre une
+ * création pas terminée dans sa campagne.
+ */
+export function lienPersonnage(p: Pick<Personnage, 'id' | 'inCreation' | 'roomId'>): string {
+  return p.inCreation && p.roomId
+    ? `/personnages/nouveau?${new URLSearchParams({ campagne: p.roomId, personnage: p.id })}`
+    : `/personnages/${p.id}`;
+}
+
+/** Campagne où le personnage est engagé, d'après mes campagnes. */
+export function campagneDe(id: string, campagnes: Campagne[] | undefined): string | null {
+  return campagnes?.find((c) => c.characterIds.includes(id))?.id ?? null;
+}
+
+function versCorpsProfil(m: ModificationProfil) {
+  return {
+    ...(m.name !== undefined ? { nom: m.name.trim() } : {}),
+    ...(m.portraitUrl !== undefined ? { avatarUrl: m.portraitUrl } : {}),
+    ...(m.details !== undefined ? { details: m.details } : {}),
+  };
+}
+
+// ─── Accès au service ────────────────────────────────────────────────────────
+
+const url = (id: string, suite = '') => `/v1/characters/${encodeURIComponent(id)}${suite}`;
+const json = (corps: unknown) => ({ body: JSON.stringify(corps) });
+
+/** Type d'entité des héros créés par l'assistant. */
+export const TYPE_HEROS = 'personnage';
 
 export const personnages = {
-  lister: () => (distant() ? api<Personnage[]>('/v1/characters?owner=me') : local.lister()),
-  listerCampagne: (roomId: string) =>
-    distant()
-      ? api<Personnage[]>(`/v1/characters?${new URLSearchParams({ room: roomId })}`)
-      : local.listerCampagne(roomId),
-  lire: (id: string) => (distant() ? api<Personnage>(url(id)) : local.lire(id)),
-  creer: (n: NouveauPersonnage) =>
-    distant()
-      ? api<Personnage>('/v1/characters', { method: 'POST', body: JSON.stringify(n) })
-      : local.creer(n),
-  modifier: (id: string, m: ModificationPersonnage) =>
-    distant()
-      ? api<Personnage>(url(id), { method: 'PATCH', body: JSON.stringify(m) })
-      : local.modifier(id, m),
-  supprimer: (id: string) =>
-    distant() ? api<void>(url(id), { method: 'DELETE' }) : local.supprimer(id),
+  lister: () => api<CharacterListItemApi[]>('/v1/characters'),
+  lire: async (id: string) => versFiche(await api<CharacterApi>(url(id))),
+  supprimer: (id: string) => api<void>(url(id), { method: 'DELETE' }),
 };
 
-// ─── Hooks de domaine ────────────────────────────────────────────────────────
+// ─── Écritures : file par personnage, version, conflits ──────────────────────
+
+/** Erreur montrée quand la fiche a changé ailleurs (le MJ, un autre onglet). */
+export function conflitVersion(): ApiError {
+  return new ApiError({
+    status: 409,
+    code: 'version_perimee',
+    title: 'Fiche modifiée entre-temps',
+    detail:
+      "Cette fiche vient d'être modifiée ailleurs (par le MJ ou dans un autre onglet) : elle a été rechargée. Refaites votre modification.",
+  });
+}
+
+const files = new Map<string, Promise<unknown>>();
+const enAttente = new Map<string, number>();
+/** Incrémentée à chaque conflit : les écritures mises en file avant sont abandonnées. */
+const generations = new Map<string, number>();
+
+function enFile<T>(id: string, tache: () => Promise<T>): Promise<T> {
+  const suivante = (files.get(id) ?? Promise.resolve()).catch(() => undefined).then(tache);
+  files.set(id, suivante);
+  void suivante
+    .catch(() => undefined)
+    .finally(() => {
+      if (files.get(id) === suivante) files.delete(id);
+    });
+  return suivante;
+}
 
 export const clesPersonnages = {
+  racine: ['personnages'] as const,
   miens: ['personnages', 'miens'] as const,
-  campagne: (roomId: string) => ['personnages', 'campagne', roomId] as const,
+  campagne: clePersonnagesCampagne,
   un: (id: string) => ['personnages', 'un', id] as const,
 };
 
-export function usePersonnages() {
-  return useQuery({ queryKey: clesPersonnages.miens, queryFn: async () => personnages.lister() });
+/** Listes à recharger après une écriture (les fiches complètes sont à jour dans le cache). */
+function invaliderListes(client: QueryClient) {
+  void client.invalidateQueries({
+    queryKey: clesPersonnages.racine,
+    predicate: (q) => q.queryKey[1] !== 'un',
+  });
 }
 
+/**
+ * Écrit sur un personnage : `requete` reçoit la version à envoyer. `apercu`
+ * (calculé par le moteur local) est montré tout de suite ; la réponse du
+ * service le remplace. Sur un refus, la fiche du service est relue.
+ */
+function ecrire(
+  client: QueryClient,
+  id: string,
+  requete: (version: number) => Promise<CharacterApi>,
+  apercu?: EtatEntite,
+): Promise<{ fiche: FichePersonnage; brut: CharacterApi }> {
+  const cle = clesPersonnages.un(id);
+  const generation = generations.get(id) ?? 0;
+  if (apercu) client.setQueryData<FichePersonnage>(cle, (p) => (p ? { ...p, state: apercu } : p));
+  enAttente.set(id, (enAttente.get(id) ?? 0) + 1);
+
+  const recharger = async () => {
+    const frais = await personnages.lire(id).catch(() => null);
+    if (frais) client.setQueryData(cle, frais);
+    else void client.invalidateQueries({ queryKey: cle });
+  };
+
+  return enFile(id, async () => {
+    try {
+      if ((generations.get(id) ?? 0) !== generation) throw conflitVersion();
+      const connue: FichePersonnage =
+        client.getQueryData<FichePersonnage>(cle) ??
+        (await client.fetchQuery<FichePersonnage>({
+          queryKey: cle,
+          queryFn: () => personnages.lire(id),
+        }));
+      const brut = await requete(connue.version);
+      const fiche = versFiche(brut);
+      const reste = (enAttente.get(id) ?? 1) - 1;
+      // D'autres écritures attendent : on garde leur aperçu, avec la nouvelle version
+      client.setQueryData<FichePersonnage>(cle, (p) =>
+        reste > 0 && p ? { ...fiche, state: p.state } : fiche,
+      );
+      invaliderListes(client);
+      return { fiche, brut };
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        generations.set(id, generation + 1);
+        await recharger();
+        throw conflitVersion();
+      }
+      await recharger();
+      throw err;
+    } finally {
+      enAttente.set(id, (enAttente.get(id) ?? 1) - 1);
+    }
+  });
+}
+
+export interface OperationsPersonnage {
+  profil(m: ModificationProfil): Promise<FichePersonnage>;
+  /** Valeurs saisies (ressources à tout moment, attributs de base pendant la création…). */
+  valeurs(valeurs: Record<string, Valeur>, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /** Étape de création ; l'étape « tirer » renvoie aussi le tirage fait par le service. */
+  etape(
+    etape: string,
+    corps: CorpsEtape,
+    apercu?: EtatEntite,
+  ): Promise<{ fiche: FichePersonnage; tirage: TirageCreation | null }>;
+  terminer(): Promise<FichePersonnage>;
+  acheter(achat: string, objet: string, apercu?: EtatEntite): Promise<FichePersonnage>;
+  rembourser(index: number, apercu?: EtatEntite): Promise<FichePersonnage>;
+  possession(d: DemandePossession, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /**
+   * Action du système (jet tiré par le service, transmis à l'historique des dés).
+   * `appliquer` : les conséquences sur le personnage sont enregistrées avec le jet.
+   */
+  action(
+    action: string,
+    o: {
+      parametres?: Record<string, Valeur>;
+      appliquer?: boolean;
+      campaignId?: string | null;
+      visibility?: 'public' | 'private' | 'gm' | 'self';
+    },
+  ): Promise<{ resultat: ResultatAction; fiche: FichePersonnage | null }>;
+}
+
+/** Écritures sur un personnage, par les routes du service character. */
+export function useOperationsPersonnage(id: string): OperationsPersonnage {
+  const client = useQueryClient();
+  return useMemo(() => {
+    const w = (requete: (version: number) => Promise<CharacterApi>, apercu?: EtatEntite) =>
+      ecrire(client, id, requete, apercu);
+    const post = (suite: string, corps: object) =>
+      api<CharacterApi>(url(id, suite), { method: 'POST', ...json(corps) });
+    return {
+      profil: async (m) =>
+        (
+          await w((version) =>
+            api<CharacterApi>(url(id), {
+              method: 'PATCH',
+              ...json({ version, ...versCorpsProfil(m) }),
+            }),
+          )
+        ).fiche,
+      valeurs: async (valeurs, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(url(id, '/valeurs'), {
+                method: 'PUT',
+                ...json({ version, valeurs }),
+              }),
+            apercu,
+          )
+        ).fiche,
+      etape: async (etape, corps, apercu) => {
+        const r = await w(
+          (version) => post(`/creation/${encodeURIComponent(etape)}`, { version, ...corps }),
+          apercu,
+        );
+        return { fiche: r.fiche, tirage: r.brut.tirage ?? null };
+      },
+      terminer: async () => (await w((version) => post('/creation/terminer', { version }))).fiche,
+      acheter: async (achat, objet, apercu) =>
+        (await w((version) => post('/achats', { version, achat, objet }), apercu)).fiche,
+      rembourser: async (index, apercu) =>
+        (await w((version) => post('/achats/rembourser', { version, index }), apercu)).fiche,
+      possession: async (d, apercu) =>
+        (await w((version) => post('/possessions', { version, ...d }), apercu)).fiche,
+      action: (action, o) =>
+        // Pas de version : le service verrouille le personnage ; la file garde l'ordre
+        enFile(id, async () => {
+          const r = await api<ActionApi>(url(id, `/actions/${encodeURIComponent(action)}`), {
+            method: 'POST',
+            ...json({
+              ...(o.parametres ? { parametres: o.parametres } : {}),
+              ...(o.appliquer ? { appliquer: true } : {}),
+              ...(o.campaignId ? { campaignId: o.campaignId } : {}),
+              ...(o.visibility ? { visibility: o.visibility } : {}),
+            }),
+          });
+          const fiche = r.personnage ? versFiche(r.personnage) : null;
+          if (fiche) {
+            client.setQueryData(clesPersonnages.un(id), fiche);
+            invaliderListes(client);
+          }
+          return { resultat: r.resultat, fiche };
+        }),
+    };
+  }, [client, id]);
+}
+
+// ─── Lectures ────────────────────────────────────────────────────────────────
+
+/** Mes personnages, avec la campagne où chacun est engagé. */
+export function usePersonnages() {
+  const moi = useProfil().id;
+  const liste = useQuery({ queryKey: clesPersonnages.miens, queryFn: personnages.lister });
+  const mesCampagnes = useCampagnes();
+  const data = useMemo(
+    () =>
+      liste.data && mesCampagnes.data
+        ? liste.data.map((p) => ({
+            ...versPersonnage(p, moi),
+            roomId: campagneDe(p.id, mesCampagnes.data),
+          }))
+        : undefined,
+    [liste.data, mesCampagnes.data, moi],
+  );
+  const erreur = liste.error ?? mesCampagnes.error;
+  return {
+    data,
+    isPending: data === undefined && !erreur,
+    isLoading: data === undefined && !erreur,
+    isSuccess: data !== undefined,
+    isError: Boolean(erreur),
+    error: erreur,
+  };
+}
+
+/** Personnages engagés dans une campagne (tous joueurs confondus, PNJ du MJ compris). */
 export function usePersonnagesCampagne(roomId: string | null | undefined) {
-  return useQuery({
+  const engages = useQuery({
     queryKey: clesPersonnages.campagne(roomId ?? ''),
-    queryFn: async () => personnages.listerCampagne(roomId!),
+    queryFn: () => campagnes.personnages(roomId!),
     enabled: Boolean(roomId),
   });
+  const campagne = useCampagne(roomId);
+  const data = useMemo(
+    () =>
+      engages.data && campagne.data
+        ? engages.data.map((e) => versEngage(e, campagne.data))
+        : undefined,
+    [engages.data, campagne.data],
+  );
+  const erreur = engages.error ?? campagne.error;
+  return {
+    data,
+    isLoading: Boolean(roomId) && data === undefined && !erreur,
+    isError: Boolean(erreur),
+    error: erreur,
+  };
 }
 
+/** Fiche complète d'un personnage (le mien, ou un personnage d'une de mes campagnes). */
 export function usePersonnage(id: string | null | undefined) {
-  return useQuery({
+  const fiche = useQuery({
     queryKey: clesPersonnages.un(id ?? ''),
-    queryFn: async () => personnages.lire(id!),
+    queryFn: () => personnages.lire(id!),
     enabled: Boolean(id),
   });
+  const mesCampagnes = useCampagnes();
+  const data = useMemo(
+    () =>
+      fiche.data
+        ? { ...fiche.data, roomId: campagneDe(fiche.data.id, mesCampagnes.data) }
+        : undefined,
+    [fiche.data, mesCampagnes.data],
+  );
+  return { ...fiche, data };
 }
 
-function useMutationPersonnage<A>(action: (args: A) => Personnage | Promise<Personnage>) {
+// ─── Création, profil, choix du héros, suppression ───────────────────────────
+
+/**
+ * Crée un héros dans une campagne, comme le décrit docs/api-campaign.md : le
+ * personnage naît dans character (système de la campagne, création en cours),
+ * est engagé dans la campagne, puis incarné par son créateur. Si la campagne
+ * le refuse (création non autorisée…), il est supprimé : pas de héros orphelin.
+ */
+export function useCreerPersonnage() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (args: A) => action(args),
-    onSuccess: (p) => {
+    mutationFn: async (n: {
+      campagneId: string;
+      systemId: string;
+      name: string;
+      details: DetailsPersonnage;
+    }): Promise<FichePersonnage> => {
+      let p = versFiche(
+        await api<CharacterApi>('/v1/characters', {
+          method: 'POST',
+          ...json({ systemeId: n.systemId, type: TYPE_HEROS, nom: n.name.trim() }),
+        }),
+      );
+      try {
+        const details = {
+          concept: n.details.concept.trim(),
+          appearance: n.details.appearance.trim(),
+          backstory: n.details.backstory.trim(),
+        };
+        if (details.concept || details.appearance || details.backstory)
+          p = versFiche(
+            await api<CharacterApi>(url(p.id), {
+              method: 'PATCH',
+              ...json({ version: p.version, details }),
+            }),
+          );
+        await campagnes.engager(n.campagneId, p.id);
+        const engages = await campagnes.incarner(n.campagneId, p.id);
+        client.setQueryData(clesPersonnages.campagne(n.campagneId), engages);
+      } catch (err) {
+        await personnages.supprimer(p.id).catch(() => undefined);
+        throw err;
+      }
+      return p;
+    },
+    onSuccess: (p, n) => {
       client.setQueryData(clesPersonnages.un(p.id), p);
-      void client.invalidateQueries({ queryKey: ['personnages'] });
+      invaliderListes(client);
+      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+      void client.invalidateQueries({ queryKey: clesCampagnes.une(n.campagneId) });
     },
   });
 }
 
-export const useCreerPersonnage = () => useMutationPersonnage(personnages.creer);
-export const useModifierPersonnage = (id: string) =>
-  useMutationPersonnage((m: ModificationPersonnage) => personnages.modifier(id, m));
+/** Nom, portrait et présentation (dialogue de la fiche). */
+export function useModifierPersonnage(id: string) {
+  const ops = useOperationsPersonnage(id);
+  return useMutation({ mutationFn: (m: ModificationProfil) => ops.profil(m) });
+}
 
+/**
+ * Joue un personnage dans une campagne : un héros libre y est d'abord engagé,
+ * puis incarné ; `null` : jouer en MJ.
+ */
+export function useJouerPersonnage(campagneId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: Pick<Personnage, 'id' | 'roomId'> | null) => {
+      if (p && p.roomId !== campagneId) await campagnes.engager(campagneId, p.id);
+      return campagnes.incarner(campagneId, p?.id ?? null);
+    },
+    onSuccess: (engages) => {
+      client.setQueryData(clesPersonnages.campagne(campagneId), engages);
+      invaliderListes(client);
+      void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
+      void client.invalidateQueries({ queryKey: clesCampagnes.une(campagneId) });
+    },
+  });
+}
+
+/**
+ * Supprime un personnage (son propriétaire) : il quitte d'abord les campagnes
+ * où il est engagé, puis disparaît de character.
+ */
 export function useSupprimerPersonnage() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => personnages.supprimer(id),
+    mutationFn: async (id: string) => {
+      const miennes = await client.ensureQueryData({
+        queryKey: clesCampagnes.miennes,
+        queryFn: campagnes.lister,
+      });
+      for (const c of miennes.filter((x) => x.characterIds.includes(id)))
+        await campagnes.desengager(c.id, id).catch((err: unknown) => {
+          if (!(err instanceof ApiError && err.status === 404)) throw err;
+        });
+      await personnages.supprimer(id);
+    },
     onSuccess: (_, id) => {
       client.removeQueries({ queryKey: clesPersonnages.un(id) });
-      void client.invalidateQueries({ queryKey: ['personnages'] });
+      invaliderListes(client);
+      void client.invalidateQueries({ queryKey: clesCampagnes.racine });
     },
   });
 }

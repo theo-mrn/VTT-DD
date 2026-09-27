@@ -48,15 +48,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import {
-  monRole,
-  nombreJoueurs,
+  useAnnulerInvitation,
   useCampagne,
   useDeplanifier,
   useNouveauCode,
   usePlanifier,
   useRetirerMembre,
+  useSessionsCampagne,
   useSortirCampagne,
-  type Campagne,
+  type DetailCampagne,
   type Membre,
 } from '@/lib/campagnes';
 import { iconeNote, useNotes } from '@/lib/notes';
@@ -91,7 +91,7 @@ export function SalonCampagne({ id }: { id: string }) {
     );
 
   const c = campagne.data;
-  const role = monRole(c, profil.id);
+  const role = c.role;
   const moi = c.members.find((m) => m.userId === profil.id);
   const monPerso = personnages.data?.find((p) => p.id === moi?.characterId) ?? null;
 
@@ -119,22 +119,45 @@ export function SalonCampagne({ id }: { id: string }) {
         <aside className="space-y-6">
           <CarteInvitation campagne={c} gm={role === 'gm'} />
           <Sessions campagne={c} gm={role === 'gm'} />
-          {c.invitations.length > 0 && (
-            <Panneau titre="Invitations en attente" corps={false}>
-              <ul className="divide-y divide-border">
-                {c.invitations.map((i) => (
-                  <li key={i.userId} className="flex items-center gap-3 px-5 py-3">
-                    <AvatarJoueur nom={i.name} url={i.avatarUrl} taille="sm" />
-                    <span className="min-w-0 flex-1 truncate text-sm">{i.name}</span>
-                    <span className="text-xs text-subtle">{formaterDepuis(i.invitedAt)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Panneau>
-          )}
+          {c.invitations.length > 0 && <InvitationsEnAttente campagne={c} />}
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Invitations nominatives en attente (MJ) : l'invité voit l'invitation et rejoint sans code. */
+function InvitationsEnAttente({ campagne: c }: { campagne: DetailCampagne }) {
+  const annuler = useAnnulerInvitation(c.id);
+  return (
+    <Panneau titre="Invitations en attente" corps={false}>
+      <ul className="divide-y divide-border">
+        {c.invitations.map((i) => (
+          <li key={i.userId} className="group flex items-center gap-3 px-5 py-3">
+            <AvatarJoueur nom={i.name} url={i.avatarUrl} taille="sm" />
+            <span className="min-w-0 flex-1 truncate text-sm">{i.name}</span>
+            <span className="text-xs text-subtle">{formaterDepuis(i.invitedAt)}</span>
+            <Info texte="Annuler l'invitation">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Annuler l'invitation de ${i.name}`}
+                className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                disabled={annuler.isPending}
+                onClick={() =>
+                  annuler.mutate(i.userId, {
+                    onSuccess: () => toast.success(`Invitation de ${i.name} annulée`),
+                    onError: (e) => toast.error(messageErreur(e)),
+                  })
+                }
+              >
+                <X />
+              </Button>
+            </Info>
+          </li>
+        ))}
+      </ul>
+    </Panneau>
   );
 }
 
@@ -145,7 +168,7 @@ function Banniere({
   role,
   monPerso,
 }: {
-  campagne: Campagne;
+  campagne: DetailCampagne;
   role: Membre['role'] | null;
   monPerso: Personnage | null;
 }) {
@@ -258,12 +281,13 @@ function DialogueSortie({
   mode,
   onFerme,
 }: {
-  campagne: Campagne;
+  campagne: DetailCampagne;
   mode: 'supprimer' | 'quitter' | null;
   onFerme: () => void;
 }) {
   const router = useRouter();
-  const sortir = useSortirCampagne(campagne.id);
+  const profil = useProfil();
+  const sortir = useSortirCampagne(campagne.id, profil.id);
   const [confirmation, setConfirmation] = useState('');
   const supprimer = mode === 'supprimer';
 
@@ -288,7 +312,7 @@ function DialogueSortie({
           <DialogDescription>
             {supprimer
               ? 'Les joueurs perdront l’accès au salon, aux notes et à l’historique. Cette action est définitive.'
-              : 'Vous pourrez revenir avec le code de la campagne, si une place est libre.'}
+              : 'Vous pourrez revenir avec le code de la campagne.'}
           </DialogDescription>
         </DialogHeader>
         {supprimer && (
@@ -324,7 +348,7 @@ function DialogueSortie({
 
 // ─── Bandeau après création ──────────────────────────────────────────────────
 
-function BandeauBienvenue({ campagne }: { campagne: Campagne }) {
+function BandeauBienvenue({ campagne }: { campagne: DetailCampagne }) {
   const router = useRouter();
   const nouvelle = useSearchParams().get('bienvenue') === '1';
   if (!nouvelle) return null;
@@ -367,7 +391,7 @@ function Table({
   moi,
   gm,
 }: {
-  campagne: Campagne;
+  campagne: DetailCampagne;
   personnages: Personnage[];
   moi: string;
   gm: boolean;
@@ -375,7 +399,7 @@ function Table({
   const retirer = useRetirerMembre(c.id);
   const mj = c.members.filter((m) => m.role === 'gm');
   const joueurs = c.members.filter((m) => m.role === 'player');
-  const placesLibres = Math.max(0, c.maxPlayers - joueurs.length);
+  const spectateurs = c.members.filter((m) => m.role === 'spectator');
 
   return (
     <Panneau
@@ -384,13 +408,13 @@ function Table({
           <Users className="size-4 text-primary" />
           La table
           <span className="text-[13px] font-normal text-subtle">
-            {nombreJoueurs(c)}/{c.maxPlayers} joueurs
+            {joueurs.length} {joueurs.length > 1 ? 'joueurs' : 'joueur'}
           </span>
         </span>
       }
     >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {[...mj, ...joueurs].map((m) => {
+        {[...mj, ...joueurs, ...spectateurs].map((m) => {
           const perso = personnages.find((p) => p.id === m.characterId) ?? null;
           return (
             <SiegeMembre
@@ -426,14 +450,6 @@ function Table({
             />
           );
         })}
-        {Array.from({ length: Math.min(placesLibres, 3) }, (_, i) => (
-          <div
-            key={`libre-${i}`}
-            className="flex min-h-[88px] items-center justify-center rounded-xl border border-dashed border-border-strong text-xs text-subtle"
-          >
-            Place libre
-          </div>
-        ))}
       </div>
     </Panneau>
   );
@@ -475,9 +491,13 @@ function SiegeMembre({
         <p className="truncate text-xs text-muted-foreground">
           {m.role === 'gm'
             ? 'Maître du jeu'
-            : perso
-              ? perso.summary.tagline || 'Aventurier'
-              : 'Héros à choisir'}
+            : m.role === 'spectator'
+              ? 'Spectateur'
+              : perso
+                ? perso.inCreation
+                  ? 'Héros en création'
+                  : perso.summary.tagline || 'Aventurier'
+                : 'Héros à choisir'}
         </p>
         {perso && (
           <p className="mt-0.5 truncate text-[11px] text-subtle">
@@ -498,7 +518,7 @@ function SiegeMembre({
 
 // ─── Invitation ──────────────────────────────────────────────────────────────
 
-function CarteInvitation({ campagne: c, gm }: { campagne: Campagne; gm: boolean }) {
+function CarteInvitation({ campagne: c, gm }: { campagne: DetailCampagne; gm: boolean }) {
   const [copie, setCopie] = useState<'code' | 'lien' | null>(null);
   const nouveauCode = useNouveauCode(c.id);
 
@@ -566,16 +586,15 @@ function CarteInvitation({ campagne: c, gm }: { campagne: Campagne; gm: boolean 
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
-function Sessions({ campagne: c, gm }: { campagne: Campagne; gm: boolean }) {
+function Sessions({ campagne: c, gm }: { campagne: DetailCampagne; gm: boolean }) {
   const planifier = usePlanifier(c.id);
   const deplanifier = useDeplanifier(c.id);
+  const sessions = useSessionsCampagne(c.id);
   const [date, setDate] = useState('');
   const [titre, setTitre] = useState('');
   const [ajout, setAjout] = useState(false);
-  const maintenant = Date.now();
-  const aVenir = [...c.sessions]
-    .filter((s) => new Date(s.startsAt).getTime() > maintenant)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  // Le service ne liste que les sessions à venir, par date croissante
+  const aVenir = sessions.data ?? [];
 
   async function valider(e: FormEvent) {
     e.preventDefault();
@@ -675,7 +694,9 @@ function Sessions({ campagne: c, gm }: { campagne: Campagne; gm: boolean }) {
                     size="icon-xs"
                     className="opacity-0 transition-opacity group-hover:opacity-100"
                     aria-label="Annuler la session"
-                    onClick={() => deplanifier.mutate(s.id)}
+                    onClick={() =>
+                      deplanifier.mutate(s.id, { onError: (e) => toast.error(messageErreur(e)) })
+                    }
                   >
                     <X />
                   </Button>

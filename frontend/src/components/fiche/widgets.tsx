@@ -11,6 +11,7 @@ import {
   type Fiche,
   type Presentation,
   type SystemeCharge,
+  type Valeur,
   type Widget,
   nouvellePossession,
 } from '@vtt/rules';
@@ -23,16 +24,30 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { Info } from '@/components/ui/tooltip';
 import { champsLisibles, groupesAttributs, texteEffet } from '@/lib/creation';
+import type { DemandePossession, OperationsPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { LanceurAction } from './lanceur-action';
+
+/**
+ * Écritures de la fiche, enregistrées par le service character. `apercu` est
+ * l'état calculé localement par le moteur, montré aussitôt ; la réponse du
+ * service le remplace (ou le corrige en cas de refus).
+ */
+export interface OperationsFiche {
+  valeurs(valeurs: Record<string, Valeur>, apercu: EtatEntite): void;
+  acheter(achat: string, objet: string, apercu: EtatEntite): void;
+  possession(d: DemandePossession, apercu: EtatEntite): void;
+  /** Action du système : jet tiré par le service, conséquences appliquées s'il le faut. */
+  action: OperationsPersonnage['action'];
+}
 
 export interface ContexteFiche {
   systeme: SystemeCharge;
   presentation: Presentation | null;
   fiche: Fiche;
   personnage: { id: string; name: string; roomId: string | null };
-  /** Absent : fiche en lecture seule (personnage d'un autre joueur). */
-  onEtat?: (e: EtatEntite) => void;
+  /** Absent : fiche en lecture seule (ni propriétaire, ni MJ de sa campagne). */
+  operations?: OperationsFiche;
 }
 
 /**
@@ -135,14 +150,18 @@ export function BlocRessources({
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'ressources' }>;
 }) {
-  const { fiche, onEtat } = ctx;
+  const { fiche, operations: ecritures } = ctx;
   function ajuster(cle: string, delta: number) {
     const v = fiche.valeurs.get(cle);
-    if (!onEtat || !v || typeof v.valeur !== 'number') return;
+    if (!ecritures || !v || typeof v.valeur !== 'number') return;
     const min = v.min ?? Number.NEGATIVE_INFINITY;
     const max = v.max ?? Number.POSITIVE_INFINITY;
     const suivante = Math.max(min, Math.min(max, v.valeur + delta));
-    onEtat({ ...fiche.etat, valeurs: { ...fiche.etat.valeurs, [cle]: suivante } });
+    if (suivante === v.valeur) return;
+    ecritures.valeurs(
+      { [cle]: suivante },
+      { ...fiche.etat, valeurs: { ...fiche.etat.valeurs, [cle]: suivante } },
+    );
   }
   return (
     <Bloc titre={widget.titre}>
@@ -152,7 +171,7 @@ export function BlocRessources({
             <div className="min-w-0 flex-1">
               <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
             </div>
-            {onEtat && (
+            {ecritures && (
               <div className="flex gap-1">
                 <Button
                   variant="secondary"
@@ -282,7 +301,7 @@ export function BlocPossessions({
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'possessions' }>;
 }) {
-  const { fiche, onEtat } = ctx;
+  const { fiche, operations: ecritures } = ctx;
   const sorte = ctx.systeme.sortes.get(widget.sorte);
   // Une entrée à rangs n'apparaît qu'avec un rang, sauf si elle est prise explicitement (voie au rang 0)
   const liste = [...fiche.possessions.values()]
@@ -297,21 +316,24 @@ export function BlocPossessions({
   if (!sorte || liste.length === 0) return null;
 
   function monter(achat: string, objet: string) {
-    if (!onEtat) return;
+    if (!ecritures) return;
     const r = acheter(ctx.systeme, fiche.etat, { achat, objet, date: new Date().toISOString() });
-    if (r.ok) onEtat(r.etat);
+    if (r.ok) ecritures.acheter(achat, objet, r.etat);
   }
 
   function basculer(id: string, actif: boolean) {
-    if (!onEtat) return;
+    if (!ecritures) return;
     const etat = fiche.etat;
     const existe = etat.possessions.some((p) => p.entree === id);
-    onEtat({
-      ...etat,
-      possessions: existe
-        ? etat.possessions.map((p) => (p.entree === id ? { ...p, actif } : p))
-        : [...etat.possessions, nouvellePossession(id, 0, { actif })],
-    });
+    ecritures.possession(
+      { entree: id, actif },
+      {
+        ...etat,
+        possessions: existe
+          ? etat.possessions.map((p) => (p.entree === id ? { ...p, actif } : p))
+          : [...etat.possessions, nouvellePossession(id, 0, { actif })],
+      },
+    );
   }
 
   // Regroupement éventuel par un champ (compétences par caractéristique…)
@@ -362,7 +384,7 @@ export function BlocPossessions({
                       </span>
                     </span>
                   )}
-                  {onEtat && achats.get(p.entree.id) && (
+                  {ecritures && achats.get(p.entree.id) && (
                     <Info
                       texte={
                         achats.get(p.entree.id)!.possible
@@ -389,7 +411,7 @@ export function BlocPossessions({
                   {p.sorte.activable && (
                     <button
                       type="button"
-                      disabled={!onEtat}
+                      disabled={!ecritures}
                       onClick={() => basculer(p.entree.id, !p.actif)}
                       className={cn(
                         'rounded-full border px-2 py-0.5 text-[11px] transition-colors disabled:cursor-default',
@@ -512,7 +534,9 @@ export function BlocActions({
 }) {
   const actions = actionsDisponibles(ctx, widget.actions);
   const [ouverte, setOuverte] = useState<string | null>(null);
-  if (actions.length === 0) return null;
+  // Le service tire les jets d'action pour qui peut modifier le personnage
+  if (actions.length === 0 || !ctx.operations) return null;
+  const operations = ctx.operations;
   const choisie = actions.find((a) => a.id === ouverte);
   return (
     <Bloc titre={widget.titre}>
@@ -541,7 +565,7 @@ export function BlocActions({
           personnage={ctx.personnage}
           ouvert
           onOuvert={(v) => !v && setOuverte(null)}
-          onEtat={(e) => ctx.onEtat?.(e)}
+          onAction={operations.action}
         />
       )}
     </Bloc>

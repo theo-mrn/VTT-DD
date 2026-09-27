@@ -1,10 +1,10 @@
 'use client';
 
-import { calculer, type EtatEntite } from '@vtt/rules';
+import { calculer } from '@vtt/rules';
 import { MoreHorizontal, Pencil, Swords, Trash2, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
@@ -34,12 +34,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
 import { useCampagne } from '@/lib/campagnes';
-import { resumer } from '@/lib/creation';
 import {
   useModifierPersonnage,
+  useOperationsPersonnage,
   usePersonnage,
   useSupprimerPersonnage,
-  type Personnage,
+  type FichePersonnage as Fiche,
 } from '@/lib/personnages';
 import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
@@ -54,22 +54,35 @@ import {
   ChipsDetails,
   widgetsDe,
   type ContexteFiche,
+  type OperationsFiche,
 } from './widgets';
 
 /**
  * Fiche d'un personnage, générée depuis la présentation de son système. Les
  * valeurs viennent de @vtt/rules ; les changements (PV, états activés,
- * conséquences d'une action) sont enregistrés avec un résumé recalculé.
+ * conséquences d'une action) sont enregistrés par le service character, qui
+ * recalcule la fiche. Le propriétaire et le MJ de sa campagne la modifient.
  */
 export function FichePersonnage({ id }: { id: string }) {
   const profil = useProfil();
   const perso = usePersonnage(id);
   const sys = useSysteme(perso.data?.system.id);
-  const modifier = useModifierPersonnage(id);
+  const campagne = useCampagne(perso.data?.roomId);
+  const ecritures = useOperationsPersonnage(id);
   const fiche = useMemo(
     () => (sys.data && perso.data ? calculer(sys.data.systeme, perso.data.state) : null),
     [sys.data, perso.data],
   );
+  const operations = useMemo<OperationsFiche>(() => {
+    const signaler = (e: unknown) => toast.error(messageErreur(e));
+    return {
+      valeurs: (v, apercu) => void ecritures.valeurs(v, apercu).catch(signaler),
+      acheter: (achat, objet, apercu) =>
+        void ecritures.acheter(achat, objet, apercu).catch(signaler),
+      possession: (d, apercu) => void ecritures.possession(d, apercu).catch(signaler),
+      action: ecritures.action,
+    };
+  }, [ecritures]);
 
   if (perso.isLoading) return <SqueletteFiche />;
   if (perso.isError || !perso.data)
@@ -90,14 +103,8 @@ export function FichePersonnage({ id }: { id: string }) {
 
   const p = perso.data;
   const proprietaire = p.ownerId === profil.id;
-
-  function enregistrerEtat(etat: EtatEntite) {
-    if (!sys.data) return;
-    modifier.mutate(
-      { state: etat, summary: resumer(calculer(sys.data.systeme, etat), sys.data.presentation) },
-      { onError: (e) => toast.error(messageErreur(e)) },
-    );
-  }
+  // Le MJ de la campagne où le personnage est engagé le modifie aussi
+  const peutModifier = proprietaire || campagne.data?.role === 'gm';
 
   const ctx: ContexteFiche | null =
     sys.data && fiche
@@ -106,7 +113,7 @@ export function FichePersonnage({ id }: { id: string }) {
           presentation: sys.data.presentation,
           fiche,
           personnage: { id: p.id, name: p.name, roomId: p.roomId },
-          onEtat: proprietaire ? enregistrerEtat : undefined,
+          operations: peutModifier ? operations : undefined,
         }
       : null;
 
@@ -137,7 +144,7 @@ function EnTeteFiche({
   ctx,
   proprietaire,
 }: {
-  personnage: Personnage;
+  personnage: Fiche;
   ctx: ContexteFiche | null;
   proprietaire: boolean;
 }) {
@@ -269,7 +276,7 @@ function CorpsFiche({ ctx }: { ctx: ContexteFiche }) {
   );
 }
 
-function Histoire({ personnage: p }: { personnage: Personnage }) {
+function Histoire({ personnage: p }: { personnage: Fiche }) {
   const vide = !p.details.appearance && !p.details.backstory;
   if (vide)
     return (
@@ -304,7 +311,7 @@ function EditionIdentite({
   ouvert,
   onOuvert,
 }: {
-  personnage: Personnage;
+  personnage: Fiche;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }) {
@@ -312,6 +319,14 @@ function EditionIdentite({
   const [nom, setNom] = useState(p.name);
   const [portrait, setPortrait] = useState(p.portraitUrl ?? '');
   const [details, setDetails] = useState(p.details);
+
+  // Repart de la fiche enregistrée à chaque ouverture (elle a pu changer entre-temps)
+  useEffect(() => {
+    if (!ouvert) return;
+    setNom(p.name);
+    setPortrait(p.portraitUrl ?? '');
+    setDetails(p.details);
+  }, [ouvert]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function enregistrer() {
     try {
@@ -406,7 +421,7 @@ function DialogueSuppression({
   ouvert,
   onOuvert,
 }: {
-  personnage: Personnage;
+  personnage: Fiche;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }) {

@@ -11,8 +11,7 @@ import { EtatVide } from '@/components/commun/page';
 import { EnTeteFocus } from '@/components/shell/cadre-focus';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type Campagne, monRole, useCampagnes } from '@/lib/campagnes';
-import { useProfil } from '@/lib/session';
+import { type Campagne, useCampagnes } from '@/lib/campagnes';
 
 /**
  * Premier écran de la création d'un personnage : un héros appartient toujours à
@@ -60,14 +59,14 @@ export function ChoixCampagnePersonnage() {
           <EtatVide
             icone={Swords}
             titre="Aucune campagne pour l'instant"
-            description="Rejoignez la campagne de votre MJ avec son code, ou créez la vôtre."
+            description="Rejoignez la campagne de votre MJ avec son code, une campagne ouverte, ou créez la vôtre."
           />
         )}
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Button variant="secondary" onClick={() => setRejoindre(true)}>
             <KeyRound />
-            Rejoindre avec un code
+            Rejoindre une campagne
           </Button>
           <Button variant="ghost" asChild>
             <Link href="/campagnes/nouvelle">
@@ -83,7 +82,6 @@ export function ChoixCampagnePersonnage() {
 }
 
 function CarteChoix({ campagne }: { campagne: Campagne }) {
-  const profil = useProfil();
   const nomSysteme = useNomSysteme(campagne.system);
   return (
     <Link
@@ -99,7 +97,7 @@ function CarteChoix({ campagne }: { campagne: Campagne }) {
         voile
       >
         <div className="absolute left-3 top-3">
-          <BadgeRole role={monRole(campagne, profil.id)} />
+          <BadgeRole role={campagne.role} />
         </div>
       </Illustration>
       <div className="flex items-center justify-between gap-3 p-4">

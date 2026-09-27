@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { afficherModificateur } from '@/lib/creation';
+import type { OperationCreation } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 
 type EtapeSaisir = Extract<EtapeCreation, { type: 'saisir' }>;
@@ -52,7 +53,8 @@ export function EtapeSaisir({
   etat: EtatEntite;
   fiche: Fiche;
   etape: EtapeSaisir;
-  onEtat: (e: EtatEntite) => void;
+  /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
+  onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }) {
   const attributs = vises(fiche, etape, (a) => a.nature !== 'derivee');
   const [local, setLocal] = useState<Record<string, string>>({});
@@ -62,7 +64,7 @@ export function EtapeSaisir({
     const r = saisirEtape(systeme, etat, etape.id, { [a.cle]: v });
     if (r.ok) {
       setErreurs(({ [a.cle]: _, ...reste }) => reste);
-      onEtat(r.etat);
+      onEtat(r.etat, { type: 'etape', etape: etape.id, corps: { valeurs: { [a.cle]: v } } });
     } else setErreurs((x) => ({ ...x, [a.cle]: r.erreur }));
   }
 
@@ -152,7 +154,8 @@ export function EtapeRepartir({
   fiche: Fiche;
   etape: EtapeRepartir;
   statut: EtatEtape | undefined;
-  onEtat: (e: EtatEntite) => void;
+  /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
+  onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }) {
   const [erreur, setErreur] = useState<string | null>(null);
   const attributs = vises(fiche, etape, (a) => a.nature === 'base');
@@ -162,10 +165,11 @@ export function EtapeRepartir({
   function changer(a: Attribut & { nature: 'base' }, delta: number) {
     const actuel =
       typeof etat.valeurs[a.cle] === 'number' ? (etat.valeurs[a.cle] as number) : a.defaut;
-    const r = repartirEtape(systeme, etat, etape.id, { [a.cle]: actuel + delta });
+    const valeurs = { [a.cle]: actuel + delta };
+    const r = repartirEtape(systeme, etat, etape.id, valeurs);
     if (r.ok) {
       setErreur(null);
-      onEtat(r.etat);
+      onEtat(r.etat, { type: 'etape', etape: etape.id, corps: { valeurs } });
     } else setErreur(r.erreur);
   }
 

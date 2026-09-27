@@ -1,11 +1,7 @@
 'use client';
 
 import {
-  aleatoireCrypto,
-  appliquerModifications,
-  executerAction,
   type Action,
-  type EtatEntite,
   type Fiche,
   type Presentation,
   type ResultatAction,
@@ -30,8 +26,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { messageErreur } from '@/lib/api';
 import { libelleAttribut } from '@/lib/creation';
 import { useLancer, type Critique } from '@/lib/jets';
+import type { OperationsPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { DesSymboles, ResultatsSymboles } from './symboles';
 
@@ -72,8 +70,9 @@ function optionsEntree(fiche: Fiche, p: Extract<Parametre, { type: 'entree' }>) 
 
 /**
  * Exécute une action du système (test, initiative…) depuis la fiche :
- * paramètres, jet calculé par le moteur, explications, et conséquences sur
- * le personnage à appliquer d'un clic.
+ * paramètres, jet tiré par le service character (qui le transmet à
+ * l'historique des dés de la campagne), explications, et conséquences sur le
+ * personnage, enregistrées avec le jet si « Appliquer » est coché.
  */
 export function LanceurAction({
   systeme,
@@ -83,7 +82,7 @@ export function LanceurAction({
   personnage,
   ouvert,
   onOuvert,
-  onEtat,
+  onAction,
 }: {
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -92,8 +91,8 @@ export function LanceurAction({
   personnage: { id: string; name: string; roomId: string | null };
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
-  /** Applique un nouvel état au personnage (conséquences acceptées). */
-  onEtat: (etat: EtatEntite) => void;
+  /** Jet tiré par le service (voir useOperationsPersonnage). */
+  onAction: OperationsPersonnage['action'];
 }) {
   const [valeurs, setValeurs] = useState<Record<string, Valeur>>(() =>
     Object.fromEntries(action.parametres.map((p) => [p.id, defaut(fiche, p)])),
@@ -101,30 +100,39 @@ export function LanceurAction({
   const [resultat, setResultat] = useState<ResultatAction | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
+  const [appliquer, setAppliquer] = useState(true);
   const [applique, setApplique] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
   const [numero, setNumero] = useState(0);
   const historique = useLancer();
 
-  function lancer() {
+  async function lancer() {
     const parametres = Object.fromEntries(
       Object.entries(valeurs).filter(([, v]) => v !== ''),
     ) as Record<string, Valeur>;
-    const r = executerAction(systeme, {
-      action: action.id,
-      acteur: fiche,
-      parametres,
-      aleatoire: aleatoireCrypto(),
-    });
-    if (!r.ok) {
-      setErreur(r.erreurs.map((e) => e.message).join(' · '));
+    setEnvoi(true);
+    let r: Awaited<ReturnType<typeof onAction>>;
+    try {
+      r = await onAction(action.id, {
+        parametres,
+        appliquer,
+        campaignId: personnage.roomId,
+      });
+    } catch (err) {
+      setErreur(messageErreur(err));
       setResultat(null);
       return;
+    } finally {
+      setEnvoi(false);
     }
     setErreur(null);
     setResultat(r.resultat);
-    setApplique(false);
+    // Conséquences enregistrées par le service avec le jet
+    const aDesConsequences = r.resultat.modifications.some((m) => m.entite === 'acteur');
+    setApplique(Boolean(r.fiche) && aDesConsequences);
+    if (r.fiche && aDesConsequences) toast.success('Fiche mise à jour');
     setNumero((n) => n + 1);
-    // Les jets numériques rejoignent l'historique des dés
+    // Les jets numériques rejoignent l'historique des dés de cet appareil
     const jet = r.resultat.jet;
     if (jet.type === 'numerique') {
       const critical: Critique = jet.critique ? 'success' : jet.fumble ? 'failure' : null;
@@ -149,13 +157,6 @@ export function LanceurAction({
   }
 
   const modifs = resultat?.modifications.filter((m) => m.entite === 'acteur') ?? [];
-
-  function appliquer() {
-    if (!resultat) return;
-    onEtat(appliquerModifications(fiche, modifs, 'acteur'));
-    setApplique(true);
-    toast.success('Fiche mise à jour');
-  }
 
   return (
     <Dialog open={ouvert} onOpenChange={onOuvert}>
@@ -182,10 +183,17 @@ export function LanceurAction({
           </div>
         )}
 
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
+          <Label htmlFor="appliquer-consequences" className="text-[13px] font-normal">
+            Appliquer les conséquences à la fiche
+          </Label>
+          <Switch id="appliquer-consequences" checked={appliquer} onCheckedChange={setAppliquer} />
+        </div>
+
         {erreur && <Message>{erreur}</Message>}
 
-        <Button size="lg" onClick={lancer} className="w-full">
-          <Dices />
+        <Button size="lg" onClick={() => void lancer()} className="w-full" loading={envoi}>
+          {!envoi && <Dices />}
           {resultat ? 'Relancer' : 'Lancer'}
         </Button>
 
@@ -260,15 +268,13 @@ export function LanceurAction({
                       )
                       .join(' · ')}
                   </p>
-                  <Button
-                    size="sm"
-                    variant={applique ? 'ghost' : 'secondary'}
-                    onClick={appliquer}
-                    disabled={applique}
-                  >
-                    {applique ? <Check /> : null}
-                    {applique ? 'Appliqué' : 'Appliquer à la fiche'}
-                  </Button>
+                  {applique ? (
+                    <Badge ton="succes" taille="md">
+                      <Check /> Appliqué à la fiche
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-subtle">Non appliqué</span>
+                  )}
                 </div>
               )}
 

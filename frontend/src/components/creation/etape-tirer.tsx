@@ -1,22 +1,15 @@
 'use client';
 
-import {
-  aleatoireCrypto,
-  aleatoireImpose,
-  tirerEtape,
-  type EtapeCreation,
-  type EtatEntite,
-  type Fiche,
-  type SystemeCharge,
-  type Tirage,
-} from '@vtt/rules';
+import { type EtapeCreation, type EtatEntite, type Fiche, type Tirage } from '@vtt/rules';
 import { motion } from 'framer-motion';
 import { Dices, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Message } from '@/components/compte/elements';
 import { DeVisuel } from '@/components/des/de-visuel';
 import { Button } from '@/components/ui/button';
+import { messageErreur } from '@/lib/api';
 import { afficherModificateur } from '@/lib/creation';
+import type { TirageCreation } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 
 type Etape = Extract<EtapeCreation, { type: 'tirer' }>;
@@ -32,61 +25,57 @@ function cibles(fiche: Fiche, etape: Etape) {
 }
 
 /**
- * Étape « tirer » : le moteur lance la formule pour chaque attribut (avec
- * contrainte et relances éventuelles). En attribution libre, le joueur répartit
- * les valeurs obtenues.
+ * Étape « tirer » : le service character lance la formule pour chaque attribut
+ * (avec contrainte et relances éventuelles) et enregistre le résultat ; le
+ * tirage retenu est affiché, dés compris. En attribution libre, le joueur
+ * répartit ensuite les valeurs obtenues : le service rejoue ce même tirage.
  */
 export function EtapeTirer({
-  systeme,
   etat,
   fiche,
   etape,
-  onEtat,
+  onTirer,
 }: {
-  systeme: SystemeCharge;
   etat: EtatEntite;
   fiche: Fiche;
   etape: Etape;
-  onEtat: (e: EtatEntite) => void;
+  /** Tirage par le service (sans affectation), ou répartition du tirage en attente. */
+  onTirer: (affectation?: Record<string, number>) => Promise<TirageCreation | null>;
 }) {
   const [tirage, setTirage] = useState<Tirage | null>(null);
   const [nombre, setNombre] = useState(0);
   const [affectation, setAffectation] = useState<Record<string, number>>({});
   const [erreur, setErreur] = useState<string | null>(null);
+  const [envoi, setEnvoi] = useState(false);
   const attributs = cibles(fiche, etape);
   const libre = etape.attribution === 'libre' && attributs.length > 1;
   const dejaTire = attributs.every((a) => typeof etat.valeurs[a.cle] === 'number');
 
-  function lancer() {
-    const r = tirerEtape(systeme, etat, etape.id, aleatoireCrypto());
-    setNombre((n) => n + 1);
-    if (!r.ok) {
-      setErreur(r.erreur);
-      setTirage(r.tirages.at(-1) ?? null);
-      return;
-    }
-    setErreur(null);
-    setTirage(r.retenu);
-    if (libre) {
+  async function lancer() {
+    setEnvoi(true);
+    try {
+      const r = await onTirer();
+      setNombre((n) => n + 1);
+      setErreur(null);
+      setTirage(r?.retenu ?? null);
       setAffectation({});
-      return;
+    } catch (err) {
+      setErreur(messageErreur(err));
+    } finally {
+      setEnvoi(false);
     }
-    // Ordre imposé, ou un seul attribut : la valeur va directement à sa place
-    const a = r.attribuer(r.attribution === 'libre' ? { [r.attributs[0]!]: 0 } : undefined);
-    if (a.ok) onEtat(a.etat);
-    else setErreur(a.erreur);
   }
 
-  function repartir() {
-    // Rejoue exactement le tirage affiché (mêmes dés, même ordre) : le moteur valide l'affectation
-    const des = tirage!.jets.flatMap((j) => j.flatMap((x) => x.des.map((d) => d.valeur)));
-    const r = tirerEtape(systeme, etat, etape.id, aleatoireImpose(des));
-    if (!r.ok) return setErreur(r.erreur);
-    const a = r.attribuer(affectation);
-    if (a.ok) {
+  async function repartir() {
+    setEnvoi(true);
+    try {
+      await onTirer(affectation);
       setErreur(null);
-      onEtat(a.etat);
-    } else setErreur(a.erreur);
+    } catch (err) {
+      setErreur(messageErreur(err));
+    } finally {
+      setEnvoi(false);
+    }
   }
 
   const utilisees = new Set(Object.values(affectation));
@@ -116,8 +105,8 @@ export function EtapeTirer({
             )}
           </p>
         </div>
-        <Button size="lg" onClick={lancer} className="shrink-0">
-          {nombre > 0 || dejaTire ? <RefreshCw /> : <Dices />}
+        <Button size="lg" onClick={() => void lancer()} className="shrink-0" loading={envoi}>
+          {!envoi && (nombre > 0 || dejaTire ? <RefreshCw /> : <Dices />)}
           {nombre > 0 || dejaTire ? 'Relancer' : 'Lancer les dés'}
         </Button>
       </div>
@@ -230,7 +219,8 @@ export function EtapeTirer({
           </div>
           <Button
             size="sm"
-            onClick={repartir}
+            onClick={() => void repartir()}
+            loading={envoi}
             disabled={Object.keys(affectation).length !== attributs.length}
           >
             Valider la répartition

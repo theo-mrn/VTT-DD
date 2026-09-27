@@ -4,7 +4,6 @@ import {
   calculer,
   creationDe,
   etapesCreation,
-  terminerCreation,
   type EtapeCreation,
   type EtatEntite,
   type StatutEtape,
@@ -16,9 +15,12 @@ import {
   ArrowRight,
   Check,
   Circle,
+  Hammer,
+  Lock,
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -30,9 +32,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
-import { campagnes, useCampagne } from '@/lib/campagnes';
-import { etatInitial, resumer } from '@/lib/creation';
-import { useCreerPersonnage, type DetailsPersonnage } from '@/lib/personnages';
+import { useCampagne } from '@/lib/campagnes';
+import { etatInitial } from '@/lib/creation';
+import {
+  TYPE_HEROS,
+  useCreerPersonnage,
+  useOperationsPersonnage,
+  usePersonnage,
+  usePersonnagesCampagne,
+  useSupprimerPersonnage,
+  type DetailsPersonnage,
+  type OperationCreation,
+} from '@/lib/personnages';
+import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { ApercuFiche } from './apercu-fiche';
@@ -42,124 +54,77 @@ import { EtapePortrait } from './etape-portrait';
 import { EtapeRepartir, EtapeSaisir } from './etape-saisir';
 import { EtapeTirer } from './etape-tirer';
 
-const CLE_BROUILLON = 'yner:v1:brouillon-personnage';
-
-interface Brouillon {
-  v: 1;
-  systemeId: string;
-  campagneId: string | null;
-  etat: EtatEntite;
-  nom: string;
-  details: DetailsPersonnage;
-  portraitUrl: string | null;
-  etape: string;
-}
-
 type EtapeUI =
   | { id: 'identite' | 'portrait' | 'recap'; nom: string }
   | { id: string; nom: string; regle: EtapeCreation };
 
-function lireBrouillon(): Brouillon | null {
+const DETAILS_VIDES: DetailsPersonnage = { concept: '', appearance: '', backstory: '' };
+
+/** Adresse absolue d'une image (le service n'accepte que des URL http(s) complètes). */
+function adresseAbsolue(url: string | null): string | null {
+  if (!url) return null;
   try {
-    const b = JSON.parse(localStorage.getItem(CLE_BROUILLON) ?? 'null') as Brouillon | null;
-    return b?.v === 1 ? b : null;
+    return new URL(url, window.location.origin).toString();
   } catch {
     return null;
   }
 }
 
-function ecrireBrouillon(b: Brouillon | null) {
-  try {
-    if (b) localStorage.setItem(CLE_BROUILLON, JSON.stringify(b));
-    else localStorage.removeItem(CLE_BROUILLON);
-  } catch {
-    // Stockage indisponible : le brouillon ne survivra pas au rechargement
-  }
-}
-
-const DETAILS_VIDES: DetailsPersonnage = { concept: '', appearance: '', backstory: '' };
-
 /**
  * Assistant de création de personnage, généré depuis les étapes déclarées par
- * le système (`creation`) : aucune règle de jeu ici, chaque action passe par
- * @vtt/rules. Le brouillon est gardé dans le navigateur à chaque changement.
+ * le système (`creation`) : aucune règle de jeu ici.
+ *
+ * Le héros naît dans le service character dès l'identité validée : il est
+ * engagé dans la campagne et incarné, en création. Chaque étape est ensuite
+ * enregistrée par le service (choix, répartitions, achats ; les dés sont tirés
+ * par le serveur), qui fait autorité ; le moteur local n'affiche qu'un aperçu
+ * immédiat. Quitter l'assistant garde le héros en création : on le reprend
+ * depuis « Qui joue ? » ou par `?personnage=`.
  */
-export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
+export function AssistantPersonnage({
+  campagneId,
+  personnageId = null,
+}: {
+  campagneId: string;
+  personnageId?: string | null;
+}) {
   const router = useRouter();
+  const profil = useProfil();
   const campagne = useCampagne(campagneId);
+  const engages = usePersonnagesCampagne(campagneId);
   const creer = useCreerPersonnage();
+  const supprimer = useSupprimerPersonnage();
+
+  // Personnage en création dans le service (null tant que l'identité n'est pas validée)
+  const [id, setId] = useState<string | null>(personnageId);
+  const perso = usePersonnage(id);
+  const ops = useOperationsPersonnage(id ?? '');
 
   // Le système est celui de la campagne : jamais demandé au joueur
-  const [systemeId, setSystemeId] = useState<string | null>(null);
-  const [etat, setEtat] = useState<EtatEntite | null>(null);
+  const sys = useSysteme(campagne.data?.system);
+  const systeme = sys.data?.systeme ?? null;
+  const presentation = sys.data?.presentation ?? null;
+
   const [nom, setNom] = useState('');
   const [details, setDetails] = useState<DetailsPersonnage>(DETAILS_VIDES);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
   const [courant, setCourant] = useState<string>('identite');
   const [sens, setSens] = useState(1);
-  const [pret, setPret] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const repris = useRef(false);
 
-  // Le système d'une campagne est imposé
-  useEffect(() => {
-    if (campagne.data) setSystemeId(campagne.data.system);
-  }, [campagne.data]);
-
-  const sys = useSysteme(systemeId);
-  const systeme = sys.data?.systeme ?? null;
-  const presentation = sys.data?.presentation ?? null;
-
-  // Reprise du brouillon (une fois), s'il correspond à la même campagne
-  useEffect(() => {
-    if (repris.current) return;
-    repris.current = true;
-    const b = lireBrouillon();
-    if (b && b.campagneId === campagneId) {
-      setSystemeId(b.systemeId);
-      setEtat(b.etat);
-      setNom(b.nom);
-      setDetails(b.details);
-      setPortraitUrl(b.portraitUrl);
-      setCourant(b.etape);
-      toast('Brouillon repris', { description: 'Vous reprenez là où vous vous étiez arrêté.' });
-    }
-    setPret(true);
-  }, [campagneId]);
-
-  // Un nouveau système repart d'un état vierge
-  useEffect(() => {
-    if (!systeme) return;
-    setEtat((e) => (e && e.systeme.id === systeme.source.id ? e : etatInitial(systeme)));
-  }, [systeme]);
-
-  useEffect(() => {
-    if (!pret || !etat || !systemeId) return;
-    const id = window.setTimeout(
-      () =>
-        ecrireBrouillon({
-          v: 1,
-          systemeId,
-          campagneId,
-          etat,
-          nom,
-          details,
-          portraitUrl,
-          etape: courant,
-        }),
-      400,
-    );
-    return () => window.clearTimeout(id);
-  }, [pret, etat, systemeId, campagneId, nom, details, portraitUrl, courant]);
+  // État enregistré par le service ; avant sa naissance, un état vierge pour l'aperçu
+  const vierge = useMemo(() => (systeme ? etatInitial(systeme, TYPE_HEROS) : null), [systeme]);
+  const etat: EtatEntite | null = perso.data?.state ?? (id ? null : vierge);
 
   const fiche = useMemo(() => (systeme && etat ? calculer(systeme, etat) : null), [systeme, etat]);
   const statuts = useMemo(
     () => (systeme && etat ? etapesCreation(systeme, etat) : []),
     [systeme, etat],
   );
-  const statut = (id: string) => statuts.find((s) => s.etape.id === id);
+  const statut = (etapeId: string) => statuts.find((s) => s.etape.id === etapeId);
 
-  const regles = systeme ? (creationDe(systeme, 'personnage')?.etapes ?? []) : [];
+  const regles = systeme ? (creationDe(systeme, TYPE_HEROS)?.etapes ?? []) : [];
   const etapes: EtapeUI[] = [
     { id: 'identite' as const, nom: 'Identité' },
     ...regles.map((r) => ({ id: `regle:${r.id}`, nom: r.nom, regle: r })),
@@ -172,6 +137,22 @@ export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
   );
   const etape = etapes[index]!;
   const regle = 'regle' in etape ? etape.regle : null;
+
+  // Reprise d'un héros en création : identité, portrait, et première étape à faire
+  useEffect(() => {
+    if (repris.current || !perso.data || !systeme) return;
+    repris.current = true;
+    const p = perso.data;
+    if (!p.inCreation) {
+      router.replace(`/personnages/${p.id}`);
+      return;
+    }
+    setNom(p.name);
+    setDetails(p.details);
+    setPortraitUrl(p.portraitUrl);
+    const aFaire = etapesCreation(systeme, p.state).find((s) => s.statut !== 'faite');
+    setCourant(aFaire ? `regle:${aFaire.etape.id}` : 'portrait');
+  }, [perso.data, systeme, router]);
 
   const valide = (e: EtapeUI): boolean => {
     if (e.id === 'identite') return nom.trim().length >= 2;
@@ -188,9 +169,94 @@ export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function recommencer() {
-    ecrireBrouillon(null);
-    if (systeme) setEtat(etatInitial(systeme));
+  /**
+   * Quitte l'identité : le héros naît dans le service (engagé et incarné dans
+   * la campagne), ou son profil est mis à jour.
+   */
+  async function validerIdentite(): Promise<boolean> {
+    if (!campagne.data) return false;
+    setEnvoi(true);
+    try {
+      if (!id) {
+        const p = await creer.mutateAsync({
+          campagneId,
+          systemId: campagne.data.system,
+          name: nom,
+          details,
+        });
+        repris.current = true;
+        setId(p.id);
+        // L'adresse permet de reprendre la création après un rechargement
+        router.replace(
+          `/personnages/nouveau?${new URLSearchParams({ campagne: campagneId, personnage: p.id })}`,
+          { scroll: false },
+        );
+      } else if (
+        perso.data &&
+        (nom.trim() !== perso.data.name ||
+          (Object.keys(details) as (keyof DetailsPersonnage)[]).some(
+            (k) => details[k].trim() !== perso.data!.details[k],
+          ))
+      ) {
+        await ops.profil({ name: nom, details });
+      }
+      return true;
+    } catch (err) {
+      toast.error(messageErreur(err));
+      return false;
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  async function validerPortrait(): Promise<boolean> {
+    const url = adresseAbsolue(portraitUrl);
+    if (!id || url === (perso.data?.portraitUrl ?? null)) return true;
+    setEnvoi(true);
+    try {
+      await ops.profil({ portraitUrl: url });
+      return true;
+    } catch (err) {
+      toast.error(messageErreur(err));
+      return false;
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  async function avancer(i: number) {
+    if (i > index && etape.id === 'identite' && !(await validerIdentite())) return;
+    if (i > index && etape.id === 'portrait' && !(await validerPortrait())) return;
+    aller(i);
+  }
+
+  /** Écriture d'une étape : aperçu local tout de suite, puis réponse du service. */
+  function enregistrer(apercu: EtatEntite, op: OperationCreation) {
+    const envoiOp =
+      op.type === 'rembourser'
+        ? ops.rembourser(op.index, apercu)
+        : ops.etape(op.etape, op.corps, apercu);
+    void envoiOp.catch((err: unknown) => toast.error(messageErreur(err)));
+  }
+
+  async function tirer(etapeId: string, affectation?: Record<string, number>) {
+    const r = await ops.etape(etapeId, affectation ? { affectation } : {});
+    return r.tirage;
+  }
+
+  async function recommencer() {
+    if (id) {
+      try {
+        await supprimer.mutateAsync(id);
+      } catch (err) {
+        toast.error(messageErreur(err));
+        return;
+      }
+      setId(null);
+      router.replace(`/personnages/nouveau?${new URLSearchParams({ campagne: campagneId })}`, {
+        scroll: false,
+      });
+    }
     setNom('');
     setDetails(DETAILS_VIDES);
     setPortraitUrl(null);
@@ -198,49 +264,41 @@ export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
   }
 
   async function terminer() {
-    if (!systeme || !etat) return;
-    const fin = terminerCreation(systeme, etat);
-    if (!fin.ok) {
-      toast.error(fin.erreur);
-      return;
-    }
+    if (!id || !(await validerPortrait())) return;
     setEnvoi(true);
     try {
-      const p = await creer.mutateAsync({
-        name: nom.trim(),
-        portraitUrl,
-        system: { id: systeme.source.id, version: systeme.source.version },
-        state: fin.etat,
-        roomId: campagneId,
-        summary: resumer(calculer(systeme, fin.etat), presentation),
-        details: {
-          concept: details.concept.trim(),
-          appearance: details.appearance.trim(),
-          backstory: details.backstory.trim(),
-        },
-      });
-      if (campagneId) await campagnes.incarner(campagneId, p.id);
-      ecrireBrouillon(null);
+      const p = await ops.terminer();
       toast.success(`${p.name} est prêt pour l'aventure !`);
-      router.replace(campagneId ? `/campagnes/${campagneId}` : `/personnages/${p.id}`);
+      router.replace(`/campagnes/${campagneId}`);
     } catch (err) {
       toast.error(messageErreur(err));
       setEnvoi(false);
     }
   }
 
-  if (campagneId && campagne.isError)
+  if (campagne.isError || (id && perso.isError))
     return (
       <div className="px-4 py-20">
         <EtatVide
           icone={AlertTriangle}
-          titre="Campagne introuvable"
-          description="Impossible de créer un héros pour cette campagne."
+          titre={campagne.isError ? 'Campagne introuvable' : 'Héros introuvable'}
+          description={
+            campagne.isError
+              ? 'Impossible de créer un héros pour cette campagne.'
+              : 'Ce héros a peut-être été supprimé.'
+          }
         />
       </div>
     );
 
-  const quitter = campagneId ? `/campagnes/${campagneId}/personnage` : '/personnages';
+  const quitter = `/campagnes/${campagneId}/personnage`;
+  // Le MJ réserve la création des héros : le joueur engage un personnage terminé
+  const creationFermee =
+    !id && campagne.data && !campagne.data.freeCreation && campagne.data.role !== 'gm';
+  // Héros déjà en création dans cette campagne (proposé avant d'en commencer un autre)
+  const enCours = id
+    ? []
+    : (engages.data ?? []).filter((p) => p.ownerId === profil.id && p.inCreation);
 
   return (
     <div className="flex min-h-dvh flex-col" data-ambiance={campagne.data?.ambiance}>
@@ -254,7 +312,7 @@ export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
               faite: e.id === 'portrait' || e.id === 'recap' ? false : valide(e),
             }))}
             courante={index}
-            onAller={(i) => (i <= index || etapes.slice(0, i).every(valide)) && aller(i)}
+            onAller={(i) => (i <= index || etapes.slice(0, i).every(valide)) && void avancer(i)}
           />
         }
         quitter={{ href: quitter }}
@@ -278,145 +336,192 @@ export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
                   </p>
                 )}
               </div>
-              {etat && etat.possessions.length + Object.keys(etat.valeurs).length > 0 && (
-                <Button variant="ghost" size="sm" onClick={recommencer} className="shrink-0">
-                  <RotateCcw />
+              {id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void recommencer()}
+                  loading={supprimer.isPending}
+                  className="shrink-0"
+                >
+                  {!supprimer.isPending && <RotateCcw />}
                   <span className="hidden sm:inline">Recommencer</span>
                 </Button>
               )}
             </div>
 
-            <AnimatePresence mode="wait" custom={sens}>
-              <motion.section
-                key={etape.id}
-                custom={sens}
-                initial={{ opacity: 0, x: sens * 28 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: sens * -28 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {etape.id === 'identite' && (
-                  <Identite nom={nom} setNom={setNom} details={details} setDetails={setDetails} />
-                )}
-
-                {regle && (!systeme || !etat || !fiche) && (
-                  <Chargement texte="Chargement des règles…" />
-                )}
-                {regle && systeme && etat && fiche && (
-                  <>
-                    {regle.type === 'choisir' && (
-                      <EtapeChoisir
-                        systeme={systeme}
-                        presentation={presentation}
-                        etat={etat}
-                        fiche={fiche}
-                        etape={regle}
-                        onEtat={setEtat}
-                      />
-                    )}
-                    {regle.type === 'tirer' && (
-                      <EtapeTirer
-                        systeme={systeme}
-                        etat={etat}
-                        fiche={fiche}
-                        etape={regle}
-                        onEtat={setEtat}
-                      />
-                    )}
-                    {regle.type === 'saisir' && (
-                      <EtapeSaisir
-                        systeme={systeme}
-                        etat={etat}
-                        fiche={fiche}
-                        etape={regle}
-                        onEtat={setEtat}
-                      />
-                    )}
-                    {regle.type === 'repartir' && (
-                      <EtapeRepartir
-                        systeme={systeme}
-                        etat={etat}
-                        fiche={fiche}
-                        etape={regle}
-                        statut={statut(regle.id)}
-                        onEtat={setEtat}
-                      />
-                    )}
-                    {regle.type === 'acheter' && (
-                      <EtapeAcheter
-                        systeme={systeme}
-                        etat={etat}
-                        fiche={fiche}
-                        etape={regle}
-                        onEtat={setEtat}
-                      />
-                    )}
-                    <RaisonsEtape statut={statut(regle.id)} />
-                  </>
-                )}
-
-                {etape.id === 'portrait' && fiche && (
-                  <EtapePortrait
-                    fiche={fiche}
-                    presentation={presentation}
-                    portrait={portraitUrl}
-                    onPortrait={setPortraitUrl}
-                    nom={nom}
-                  />
-                )}
-
-                {etape.id === 'recap' && fiche && (
-                  <>
-                    <Recapitulatif
-                      statuts={statuts.map((s) => ({
-                        nom: s.etape.nom,
-                        statut: s.statut,
-                        raisons: s.raisons,
-                      }))}
-                      identiteOk={nom.trim().length >= 2}
-                      details={details}
-                    />
-                    {/* Sur petit écran, l'aperçu de la colonne de droite vient ici */}
-                    <div className="mt-5 lg:hidden">
-                      <ApercuFiche
-                        fiche={fiche}
-                        presentation={presentation}
-                        nom={nom}
-                        portraitUrl={portraitUrl}
-                        complet
-                      />
-                    </div>
-                  </>
-                )}
-              </motion.section>
-            </AnimatePresence>
-
-            <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
-              <Button
-                variant="ghost"
-                onClick={() => aller(index - 1)}
-                className={cn(index === 0 && 'invisible')}
-              >
-                <ArrowLeft />
-                Retour
-              </Button>
-              {etape.id === 'recap' ? (
-                <Button
-                  size="lg"
-                  onClick={() => void terminer()}
-                  loading={envoi}
-                  disabled={!toutesValides}
+            {creationFermee ? (
+              <EtatVide
+                icone={Lock}
+                titre="Création réservée au MJ"
+                description="Le maître du jeu attribue les personnages de cette campagne : choisissez un héros terminé."
+                action={
+                  <Button asChild variant="secondary">
+                    <Link href={quitter}>Retour au choix du héros</Link>
+                  </Button>
+                }
+              />
+            ) : (
+              <AnimatePresence mode="wait" custom={sens}>
+                <motion.section
+                  key={etape.id}
+                  custom={sens}
+                  initial={{ opacity: 0, x: sens * 28 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: sens * -28 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <Sparkles />
-                  Créer le personnage
+                  {etape.id === 'identite' && enCours.length > 0 && (
+                    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4 sm:flex-row sm:items-center">
+                      <Hammer className="size-5 shrink-0 text-primary" />
+                      <p className="min-w-0 flex-1 text-sm">
+                        {enCours.length > 1
+                          ? `${enCours.length} héros sont déjà en création dans cette campagne.`
+                          : `${enCours[0]!.name} est déjà en création dans cette campagne.`}
+                      </p>
+                      <Button size="sm" variant="secondary" asChild>
+                        <Link
+                          href={`/personnages/nouveau?${new URLSearchParams({ campagne: campagneId, personnage: enCours[0]!.id })}`}
+                          onClick={() => {
+                            repris.current = false;
+                            setId(enCours[0]!.id);
+                          }}
+                        >
+                          Reprendre {enCours[0]!.name}
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+
+                  {etape.id === 'identite' && (
+                    <Identite nom={nom} setNom={setNom} details={details} setDetails={setDetails} />
+                  )}
+
+                  {regle && (!systeme || !etat || !fiche) && (
+                    <Chargement texte="Chargement des règles…" />
+                  )}
+                  {regle && systeme && etat && fiche && (
+                    <>
+                      {regle.type === 'choisir' && (
+                        <EtapeChoisir
+                          systeme={systeme}
+                          presentation={presentation}
+                          etat={etat}
+                          fiche={fiche}
+                          etape={regle}
+                          onEtat={enregistrer}
+                        />
+                      )}
+                      {regle.type === 'tirer' && (
+                        <EtapeTirer
+                          etat={etat}
+                          fiche={fiche}
+                          etape={regle}
+                          onTirer={(affectation) => tirer(regle.id, affectation)}
+                        />
+                      )}
+                      {regle.type === 'saisir' && (
+                        <EtapeSaisir
+                          systeme={systeme}
+                          etat={etat}
+                          fiche={fiche}
+                          etape={regle}
+                          onEtat={enregistrer}
+                        />
+                      )}
+                      {regle.type === 'repartir' && (
+                        <EtapeRepartir
+                          systeme={systeme}
+                          etat={etat}
+                          fiche={fiche}
+                          etape={regle}
+                          statut={statut(regle.id)}
+                          onEtat={enregistrer}
+                        />
+                      )}
+                      {regle.type === 'acheter' && (
+                        <EtapeAcheter
+                          systeme={systeme}
+                          etat={etat}
+                          fiche={fiche}
+                          etape={regle}
+                          onEtat={enregistrer}
+                        />
+                      )}
+                      <RaisonsEtape statut={statut(regle.id)} />
+                    </>
+                  )}
+
+                  {etape.id === 'portrait' && fiche && (
+                    <EtapePortrait
+                      fiche={fiche}
+                      presentation={presentation}
+                      portrait={portraitUrl}
+                      onPortrait={setPortraitUrl}
+                      nom={nom}
+                    />
+                  )}
+
+                  {etape.id === 'recap' && fiche && (
+                    <>
+                      <Recapitulatif
+                        statuts={statuts.map((s) => ({
+                          nom: s.etape.nom,
+                          statut: s.statut,
+                          raisons: s.raisons,
+                        }))}
+                        identiteOk={nom.trim().length >= 2}
+                        details={details}
+                      />
+                      {/* Sur petit écran, l'aperçu de la colonne de droite vient ici */}
+                      <div className="mt-5 lg:hidden">
+                        <ApercuFiche
+                          fiche={fiche}
+                          presentation={presentation}
+                          nom={nom}
+                          portraitUrl={portraitUrl}
+                          complet
+                        />
+                      </div>
+                    </>
+                  )}
+                </motion.section>
+              </AnimatePresence>
+            )}
+
+            {!creationFermee && (
+              <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => aller(index - 1)}
+                  className={cn(index === 0 && 'invisible')}
+                >
+                  <ArrowLeft />
+                  Retour
                 </Button>
-              ) : (
-                <Button size="lg" onClick={() => aller(index + 1)} disabled={!valide(etape)}>
-                  Continuer
-                  <ArrowRight />
-                </Button>
-              )}
-            </div>
+                {etape.id === 'recap' ? (
+                  <Button
+                    size="lg"
+                    onClick={() => void terminer()}
+                    loading={envoi}
+                    disabled={!toutesValides || !id}
+                  >
+                    <Sparkles />
+                    Créer le personnage
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    onClick={() => void avancer(index + 1)}
+                    loading={envoi}
+                    disabled={!valide(etape) || !campagne.data}
+                  >
+                    Continuer
+                    <ArrowRight />
+                  </Button>
+                )}
+              </div>
+            )}
           </main>
 
           <aside className="hidden lg:block">
@@ -433,7 +538,7 @@ export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
                 />
               ) : (
                 <div className="rounded-2xl border border-dashed border-border-strong p-8 text-center text-sm text-subtle">
-                  Choisissez un système pour voir votre fiche prendre forme.
+                  Chargement des règles de la campagne…
                 </div>
               )}
               {statuts.length > 0 && (
@@ -558,7 +663,10 @@ function Identite({
           />
         </div>
       </div>
-      <p className="text-xs text-subtle">Seul le nom est requis ; le reste peut attendre.</p>
+      <p className="text-xs text-subtle">
+        Seul le nom est requis ; le reste peut attendre. Votre héros est enregistré dès cette étape
+        : vous pourrez reprendre sa création plus tard.
+      </p>
     </div>
   );
 }

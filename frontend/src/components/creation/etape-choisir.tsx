@@ -27,6 +27,7 @@ import {
   suggestions,
   texteEffet,
 } from '@/lib/creation';
+import type { OperationCreation } from '@/lib/personnages';
 import { imageEntree } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +51,8 @@ export function EtapeChoisir({
   etat: EtatEntite;
   fiche: Fiche;
   etape: Etape;
-  onEtat: (e: EtatEntite) => void;
+  /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
+  onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }) {
   const [recherche, setRecherche] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export function EtapeChoisir({
     const r = choisirEtape(systeme, etat, etape.id, suivante);
     if (r.ok) {
       setErreur(null);
-      onEtat(r.etat);
+      onEtat(r.etat, { type: 'etape', etape: etape.id, corps: { entrees: suivante } });
     } else setErreur(r.erreur);
   }
 

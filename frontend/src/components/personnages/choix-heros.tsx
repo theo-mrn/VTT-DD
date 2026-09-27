@@ -2,7 +2,7 @@
 
 import { calculer } from '@vtt/rules';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Crown, Play, Plus, UserRound, Wand2 } from 'lucide-react';
+import { Crown, Hammer, Play, Plus, UserRound, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -16,10 +16,11 @@ import { EnTeteFocus } from '@/components/shell/cadre-focus';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { messageErreur } from '@/lib/api';
-import { monRole, useCampagne, useIncarner } from '@/lib/campagnes';
+import { useCampagne } from '@/lib/campagnes';
 import { widgetsFiche } from '@/lib/creation';
 import {
-  personnages as apiPersonnages,
+  useJouerPersonnage,
+  usePersonnage,
   usePersonnages,
   usePersonnagesCampagne,
   type Personnage,
@@ -33,7 +34,8 @@ import { CartePersonnage } from './carte-personnage';
 /**
  * « Qui joue ? » : le joueur choisit le héros qu'il incarne dans la campagne
  * (un des siens déjà engagé, un héros libre du même système, ou un nouveau) ;
- * le MJ peut aussi entrer en tant que maître du jeu.
+ * le MJ peut aussi entrer en tant que maître du jeu. Un héros dont la création
+ * n'est pas terminée se reprend dans l'assistant.
  */
 export function ChoixHeros({ campagneId }: { campagneId: string }) {
   const profil = useProfil();
@@ -41,7 +43,7 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
   const campagne = useCampagne(campagneId);
   const engages = usePersonnagesCampagne(campagneId);
   const miens = usePersonnages();
-  const incarner = useIncarner(campagneId);
+  const jouerPersonnage = useJouerPersonnage(campagneId);
   const [choisi, setChoisi] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const nomSysteme = useNomSysteme(campagne.data?.system);
@@ -55,13 +57,14 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
     );
 
   const c = campagne.data;
-  const role = monRole(c, profil.id);
+  const role = c.role;
   const moi = c.members.find((m) => m.userId === profil.id);
   const occupants = new Map(
     c.members
       .filter((m) => m.characterId && m.userId !== profil.id)
       .map((m) => [m.characterId!, m.name]),
   );
+  const nomMembre = (userId: string) => c.members.find((m) => m.userId === userId)?.name ?? '';
   const mesEngages = (engages.data ?? []).filter((p) => p.ownerId === profil.id);
   const autres = (engages.data ?? []).filter((p) => p.ownerId !== profil.id);
   const libres = (miens.data ?? []).filter((p) => p.roomId === null && p.system.id === c.system);
@@ -69,11 +72,17 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
   const selection = [...mesEngages, ...libres].find((p) => p.id === choisi) ?? null;
 
   async function jouer(p: Personnage | null) {
+    // Création pas terminée : on la reprend là où elle s'est arrêtée
+    if (p?.inCreation) {
+      router.push(
+        `/personnages/nouveau?${new URLSearchParams({ campagne: campagneId, personnage: p.id })}`,
+      );
+      return;
+    }
     setEnvoi(true);
     try {
-      // Un héros libre est d'abord engagé dans la campagne
-      if (p && p.roomId !== campagneId) await apiPersonnages.modifier(p.id, { roomId: campagneId });
-      await incarner.mutateAsync(p?.id ?? null);
+      // Un héros libre est d'abord engagé dans la campagne, puis incarné
+      await jouerPersonnage.mutateAsync(p);
       toast.success(p ? `Vous incarnez ${p.name}` : 'Vous entrez en maître du jeu');
       router.push(`/campagnes/${campagneId}`);
     } catch (err) {
@@ -157,7 +166,11 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
                     choisie={choisi === p.id}
                     onClick={() => setChoisi(p.id)}
                     haut={
-                      moi?.characterId === p.id ? (
+                      p.inCreation ? (
+                        <Badge ton="verre">
+                          <Hammer /> En création
+                        </Badge>
+                      ) : moi?.characterId === p.id ? (
                         <Badge ton="primaire" className="bg-primary/80 text-primary-foreground">
                           <Play /> Incarné
                         </Badge>
@@ -199,7 +212,9 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
                   <div key={p.id} className="relative opacity-60 grayscale-[40%]">
                     <CartePersonnage personnage={p} />
                     <span className="absolute inset-x-2 bottom-2 truncate rounded-lg bg-black/60 px-2 py-1 text-center text-[11px] text-white backdrop-blur">
-                      {occupants.get(p.id) ? `Joué par ${occupants.get(p.id)}` : `À ${p.ownerName}`}
+                      {occupants.get(p.id)
+                        ? `Joué par ${occupants.get(p.id)}`
+                        : `À ${nomMembre(p.ownerId)}`}
                     </span>
                   </div>
                 ))}
@@ -254,12 +269,14 @@ function ApercuHeros({
   envoi: boolean;
   onJouer: () => void;
 }) {
+  const complet = usePersonnage(p.id);
   const sys = useSysteme(p.system.id);
+  const etat = complet.data?.state;
   const fiche = useMemo(
-    () => (sys.data ? calculer(sys.data.systeme, p.state) : null),
-    [sys.data, p.state],
+    () => (sys.data && etat ? calculer(sys.data.systeme, etat) : null),
+    [sys.data, etat],
   );
-  const widgets = widgetsFiche(sys.data?.presentation, p.state.type);
+  const widgets = widgetsFiche(sys.data?.presentation, p.type);
   const attributs = widgets.find((w) => w.type === 'attributs');
   const ressources = widgets.find((w) => w.type === 'ressources');
   const cles =
@@ -287,9 +304,7 @@ function ApercuHeros({
         </div>
       </Illustration>
       <div className="space-y-5 p-5">
-        {p.details.concept && (
-          <p className="text-sm italic text-muted-foreground">« {p.details.concept} »</p>
-        )}
+        {p.concept && <p className="text-sm italic text-muted-foreground">« {p.concept} »</p>}
         {fiche && ressources?.type === 'ressources' && (
           <div className="space-y-2">
             {ressources.attributs.map((c) => (
@@ -319,8 +334,8 @@ function ApercuHeros({
             aria-hidden
             className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full"
           />
-          <Play />
-          Jouer {p.name}
+          {p.inCreation ? <Hammer /> : <Play />}
+          {p.inCreation ? 'Reprendre la création' : `Jouer ${p.name}`}
         </Button>
       </div>
     </div>

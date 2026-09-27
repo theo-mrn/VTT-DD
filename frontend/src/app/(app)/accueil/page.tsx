@@ -33,10 +33,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { monRole, prochaineSession, useCampagnes, type Campagne } from '@/lib/campagnes';
+import { useCampagnes, type Campagne } from '@/lib/campagnes';
 import { useJets } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
-import { usePersonnages } from '@/lib/personnages';
+import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
@@ -133,7 +133,7 @@ export default function PageAccueil() {
           {personnages.isLoading &&
             Array.from({ length: 3 }, (_, i) => <CartePersonnageSquelette key={i} />)}
           {personnages.data?.slice(0, 5).map((p) => (
-            <CartePersonnage key={p.id} personnage={p} href={`/personnages/${p.id}`} />
+            <CartePersonnage key={p.id} personnage={p} href={lienPersonnage(p)} />
           ))}
           <Link
             href="/personnages/nouveau"
@@ -158,12 +158,10 @@ export default function PageAccueil() {
 // ─── Reprendre ───────────────────────────────────────────────────────────────
 
 function Reprendre({ campagne: c }: { campagne: Campagne }) {
-  const profil = useProfil();
   const personnages = usePersonnages();
-  const role = monRole(c, profil.id);
-  const moi = c.members.find((m) => m.userId === profil.id);
-  const perso = personnages.data?.find((p) => p.id === moi?.characterId);
-  const session = prochaineSession(c);
+  const role = c.role;
+  const perso = personnages.data?.find((p) => p.id === c.playedCharacterId);
+  const session = c.nextSession;
   const nomSysteme = useNomSysteme(c.system);
 
   return (
@@ -254,10 +252,7 @@ function InviteCampagne() {
 
 function AVenir({ campagnes }: { campagnes: Campagne[] }) {
   const sessions = campagnes
-    .flatMap((c) => {
-      const s = prochaineSession(c);
-      return s ? [{ c, s }] : [];
-    })
+    .flatMap((c) => (c.nextSession ? [{ c, s: c.nextSession }] : []))
     .sort((a, b) => a.s.startsAt.localeCompare(b.s.startsAt))
     .slice(0, 4);
 

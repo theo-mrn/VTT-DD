@@ -19,7 +19,7 @@ import { Kbd } from '@/components/ui/kbd';
 import { useCampagnes } from '@/lib/campagnes';
 import { calculerJet, useLancer, verifierFormule } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
-import { usePersonnages } from '@/lib/personnages';
+import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE } from './navigation';
 
 /** Palette ⌘K : aller partout, créer, et lancer une formule de dés directement. */
@@ -146,7 +146,7 @@ export function PaletteCommandes({
                   <CommandItem
                     key={p.id}
                     value={`personnage ${p.name} ${p.id}`}
-                    onSelect={() => aller(`/personnages/${p.id}`)}
+                    onSelect={() => aller(lienPersonnage(p))}
                   >
                     <Illustration
                       src={p.portraitUrl}

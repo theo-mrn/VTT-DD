@@ -81,11 +81,11 @@ l'assistant de création et les jets lisent le système (`@vtt/rules`) et sa
 présentation (`packages/systemes/systemes/<id>/presentation.yaml`) : aucune
 clé de jeu n'est codée dans le front.
 
-Tant que les services campaign et character n'existent pas, leurs domaines
-(campagnes, personnages, notes, jets) sont servis par un dépôt local au
-navigateur, avec le même contrat que la future API (`lib/campagnes.ts`,
-`lib/personnages.ts`…). Un service passe sur la gateway en l'ajoutant à
-`NEXT_PUBLIC_SERVICES` (`campaign,character`) au build du front.
+Campagnes et personnages passent par leurs services (`lib/campagnes.ts`,
+`lib/personnages.ts`, adaptateurs explicites vers les types de l'UI). Seuls les
+notes et l'historique des jets restent dans un dépôt local au navigateur
+(`lib/depot-local.ts`) en attendant leur branchement : ne pas activer
+`NEXT_PUBLIC_SERVICES` d'ici là.
 
 ### Ajouter un service
 

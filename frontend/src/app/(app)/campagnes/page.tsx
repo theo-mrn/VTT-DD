@@ -6,12 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState } from 'react';
 import { CarteCampagne, CarteCampagneSquelette } from '@/components/campagnes/carte-campagne';
 import { DialogueRejoindre } from '@/components/campagnes/dialogue-rejoindre';
+import { CampagnesOuvertes } from '@/components/campagnes/public-campaigns';
+import { InvitationsRecues } from '@/components/campagnes/received-invitations';
 import { Message } from '@/components/compte/elements';
-import { EnTetePage, EtatVide, Page } from '@/components/commun/page';
+import { EnTetePage, EtatVide, Page, TitreSection } from '@/components/commun/page';
 import { Button } from '@/components/ui/button';
 import { InputGroup } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { monRole, useCampagnes } from '@/lib/campagnes';
+import { messageErreur } from '@/lib/api';
+import { useCampagnes } from '@/lib/campagnes';
 import { useProfil } from '@/lib/session';
 
 type Filtre = 'toutes' | 'gm' | 'player';
@@ -29,13 +32,13 @@ function ListeCampagnes() {
     const t = recherche.trim().toLowerCase();
     return (campagnes.data ?? []).filter(
       (c) =>
-        (filtre === 'toutes' || monRole(c, profil.id) === filtre) &&
+        (filtre === 'toutes' || c.role === filtre) &&
         (!t || `${c.name} ${c.pitch} ${c.tags.join(' ')}`.toLowerCase().includes(t)),
     );
-  }, [campagnes.data, filtre, recherche, profil.id]);
+  }, [campagnes.data, filtre, recherche]);
 
   const nombre = (f: Filtre) =>
-    (campagnes.data ?? []).filter((c) => f === 'toutes' || monRole(c, profil.id) === f).length;
+    (campagnes.data ?? []).filter((c) => f === 'toutes' || c.role === f).length;
 
   function ouvrirRejoindre(v: boolean) {
     router.replace(v ? '/campagnes?rejoindre=1' : '/campagnes', { scroll: false });
@@ -85,7 +88,9 @@ function ListeCampagnes() {
         </div>
       )}
 
-      {campagnes.isError && <Message>{campagnes.error.message}</Message>}
+      <InvitationsRecues className="mb-8" />
+
+      {campagnes.isError && <Message>{messageErreur(campagnes.error)}</Message>}
 
       {campagnes.isLoading ? (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -124,6 +129,14 @@ function ListeCampagnes() {
           ))}
         </div>
       )}
+
+      <section className="mt-12">
+        <TitreSection>Campagnes ouvertes</TitreSection>
+        <p className="-mt-2 mb-5 text-[13px] text-muted-foreground">
+          Des tables publiques qui accueillent de nouveaux joueurs, sans code.
+        </p>
+        <CampagnesOuvertes />
+      </section>
 
       <DialogueRejoindre
         ouvert={rejoindre}

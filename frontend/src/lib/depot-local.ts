@@ -1,11 +1,12 @@
 /**
- * Dépôt local : sert les domaines dont le service n'est pas encore déployé
- * (campaign, character), avec les mêmes fonctions que l'API. Les données
- * restent dans ce navigateur (localStorage) ; les hooks de domaine ne voient
- * pas la différence.
+ * Dépôt local : ne sert plus que les notes (lib/notes.ts) et l'historique des
+ * jets (lib/jets.ts), en attendant leur branchement sur les services notes
+ * (campaign) et dice. Les données restent dans ce navigateur (localStorage).
+ * Campagnes et personnages passent toujours par leurs services.
  *
- * Un service passe en production en l'ajoutant à NEXT_PUBLIC_SERVICES
- * (« campaign,character ») : ses fonctions appellent alors la gateway.
+ * NEXT_PUBLIC_SERVICES ne concerne donc plus que ces deux domaines
+ * (« campaign » : notes, « character » : jets) ; leurs routes distantes ne
+ * sont pas encore celles des services : ne pas l'activer d'ici là.
  */
 import { ApiError } from './api';
 
@@ -23,7 +24,7 @@ export function serviceActif(service: Service): boolean {
   return ACTIFS.has(service);
 }
 
-/** Vrai si au moins un domaine est servi localement (affiché discrètement dans l'app). */
+/** Vrai si notes ou jets sont servis localement (affiché discrètement dans l'app). */
 export const APERCU_LOCAL = !serviceActif('campaign') || !serviceActif('character');
 
 // ─── Utilisateur courant ─────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
+import type { OperationCreation } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 
 type Etape = Extract<EtapeCreation, { type: 'acheter' }>;
@@ -41,7 +42,8 @@ export function EtapeAcheter({
   etat: EtatEntite;
   fiche: Fiche;
   etape: Etape;
-  onEtat: (e: EtatEntite) => void;
+  /** Nouvel état calculé localement (aperçu) et l'écriture à envoyer au service. */
+  onEtat: (e: EtatEntite, op: OperationCreation) => void;
 }) {
   const [recherche, setRecherche] = useState('');
   const [tous, setTous] = useState(false);
@@ -62,7 +64,7 @@ export function EtapeAcheter({
     });
     if (r.ok) {
       setErreur(null);
-      onEtat(r.etat);
+      onEtat(r.etat, { type: 'etape', etape: etape.id, corps: { achat, objet } });
     } else setErreur(r.erreur);
   }
 
@@ -70,7 +72,7 @@ export function EtapeAcheter({
     const r = rembourser(systeme, etat, index);
     if (r.ok) {
       setErreur(null);
-      onEtat(r.etat);
+      onEtat(r.etat, { type: 'rembourser', index });
     } else setErreur(r.erreur);
   }
 

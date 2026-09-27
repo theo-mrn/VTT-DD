@@ -1,7 +1,7 @@
 'use client';
 
-import { Check, Globe, Lock } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, Globe, ImagePlus, Lock } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { Interrupteur } from '@/components/compte/elements';
@@ -9,16 +9,17 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogTitle, SheetContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import { messageErreur } from '@/lib/api';
+import { ApiError, messageErreur } from '@/lib/api';
 import {
-  JOUEURS_MAX,
-  nombreJoueurs,
+  LONGUEUR_ACCROCHE,
+  LONGUEUR_DESCRIPTION,
+  useEnvoyerCouverture,
   useModifierCampagne,
-  type Campagne,
+  type DetailCampagne,
   type ModificationCampagne,
 } from '@/lib/campagnes';
+import { TYPES_IMAGE, verifierImage } from '@/lib/profil';
 import { cn } from '@/lib/utils';
 import { AMBIANCES, COUVERTURES } from './elements';
 
@@ -28,11 +29,13 @@ export function ReglagesCampagne({
   ouvert,
   onOuvert,
 }: {
-  campagne: Campagne;
+  campagne: DetailCampagne;
   ouvert: boolean;
   onOuvert: (v: boolean) => void;
 }) {
   const modifier = useModifierCampagne(c.id);
+  const envoi = useEnvoyerCouverture(c.id);
+  const champFichier = useRef<HTMLInputElement>(null);
   const initial = (): Required<ModificationCampagne> => ({
     name: c.name,
     pitch: c.pitch,
@@ -40,7 +43,6 @@ export function ReglagesCampagne({
     coverUrl: c.coverUrl,
     ambiance: c.ambiance,
     visibility: c.visibility,
-    maxPlayers: c.maxPlayers,
     freeCreation: c.freeCreation,
     tags: c.tags,
   });
@@ -52,7 +54,26 @@ export function ReglagesCampagne({
     if (ouvert) setF(initial());
   }, [ouvert]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const minJoueurs = Math.max(1, nombreJoueurs(c));
+  // Image importée : envoyée tout de suite, elle devient la couverture enregistrée
+  async function importer(e: ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0];
+    e.target.value = '';
+    if (!fichier) return;
+    const probleme = verifierImage(fichier);
+    if (probleme) return void toast.error(probleme);
+    try {
+      const suivante = await envoi.mutateAsync(fichier);
+      maj({ coverUrl: suivante.coverUrl });
+      toast.success('Couverture importée');
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError && err.status === 503
+          ? "L'envoi d'images n'est pas disponible sur ce serveur."
+          : messageErreur(err),
+      );
+    }
+  }
+  const importee = f.coverUrl !== null && !COUVERTURES.some((cv) => cv.url === f.coverUrl);
 
   async function enregistrer() {
     try {
@@ -88,7 +109,7 @@ export function ReglagesCampagne({
             <Input
               id="r-accroche"
               value={f.pitch}
-              maxLength={140}
+              maxLength={LONGUEUR_ACCROCHE}
               onChange={(e) => maj({ pitch: e.target.value })}
             />
           </div>
@@ -97,7 +118,7 @@ export function ReglagesCampagne({
             <Textarea
               id="r-description"
               value={f.description}
-              maxLength={4000}
+              maxLength={LONGUEUR_DESCRIPTION}
               onChange={(e) => maj({ description: e.target.value })}
               className="min-h-[120px]"
             />
@@ -128,6 +149,32 @@ export function ReglagesCampagne({
                   />
                 </button>
               ))}
+              {importee && (
+                <span className="overflow-hidden rounded-lg border-2 border-primary">
+                  <Illustration
+                    src={f.coverUrl}
+                    graine={c.name}
+                    initiale={false}
+                    className="aspect-[16/10]"
+                  />
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => champFichier.current?.click()}
+                disabled={envoi.isPending}
+                className="flex aspect-[16/10] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border-strong text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+              >
+                <ImagePlus className="size-4" />
+                {envoi.isPending ? 'Envoi…' : 'Importer'}
+              </button>
+              <input
+                ref={champFichier}
+                type="file"
+                accept={TYPES_IMAGE.join(',')}
+                className="hidden"
+                onChange={(e) => void importer(e)}
+              />
             </div>
           </div>
 
@@ -154,21 +201,6 @@ export function ReglagesCampagne({
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-baseline justify-between">
-              <Label>Joueurs</Label>
-              <span className="font-mono text-lg font-semibold text-primary">{f.maxPlayers}</span>
-            </div>
-            <Slider
-              min={minJoueurs}
-              max={JOUEURS_MAX}
-              step={1}
-              value={[f.maxPlayers]}
-              onValueChange={([v]) => maj({ maxPlayers: v ?? f.maxPlayers })}
-              aria-label="Nombre maximal de joueurs"
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-2">

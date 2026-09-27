@@ -1,10 +1,21 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Camera, LogIn, Sparkles, Swords } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  ChevronDown,
+  Globe,
+  LogIn,
+  Sparkles,
+  Swords,
+} from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { CampagnesOuvertes } from '@/components/campagnes/public-campaigns';
+import { InvitationsRecues } from '@/components/campagnes/received-invitations';
 import { AvatarJoueur, Message } from '@/components/compte/elements';
 import { useEnvoiImage } from '@/components/compte/envoi-image';
 import { EnTeteFocus, ProgressionEtapes } from '@/components/shell/cadre-focus';
@@ -19,6 +30,7 @@ import { onboardingFini } from '@/lib/onboarding';
 import { modifierMonProfil } from '@/lib/profil';
 import { cheminInterne } from '@/lib/redirection';
 import { useProfil, useSession } from '@/lib/session';
+import { cn } from '@/lib/utils';
 
 const ETAPES = [
   { id: 'bienvenue', nom: 'Bienvenue' },
@@ -298,6 +310,7 @@ function EtapeDepart({
 }) {
   const router = useRouter();
   const [code, setCode] = useState('');
+  const [ouvertes, setOuvertes] = useState(false);
   const rejoindre = useRejoindreCampagne();
 
   // Un héros naît dans une campagne : après avoir rejoint, on le choisit ou on le crée
@@ -316,7 +329,13 @@ function EtapeDepart({
       <TitreEtape
         surtitre="Premier pas"
         titre="Par où commence l'aventure ?"
-        description="Rejoignez la table de votre MJ, ou ouvrez la vôtre. Votre héros se crée ensuite dans la campagne, avec son système de jeu."
+        description="Rejoignez la table de votre MJ, une campagne ouverte, ou ouvrez la vôtre. Votre héros se crée ensuite dans la campagne, avec son système de jeu."
+      />
+
+      {/* Un ami m'a invité : on entre sans code, puis on choisit son héros */}
+      <InvitationsRecues
+        className="mb-4"
+        onRejointe={(c) => onTerminer(`/campagnes/${c.id}/personnage`)}
       />
 
       <div className="rounded-2xl border border-primary/50 bg-primary/[0.06] p-5 shadow-glow">
@@ -365,6 +384,39 @@ function EtapeDepart({
             </Button>
           </form>
         </div>
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-surface">
+        <button
+          type="button"
+          aria-expanded={ouvertes}
+          onClick={() => setOuvertes((v) => !v)}
+          className="group flex w-full items-center gap-4 p-5 text-left"
+        >
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-primary">
+            <Globe className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-semibold">Campagnes ouvertes</span>
+            <span className="mt-1 block text-[13px] text-muted-foreground">
+              Pas de code ? Ces tables publiques accueillent de nouveaux joueurs.
+            </span>
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-subtle transition-transform',
+              ouvertes && 'rotate-180',
+            )}
+          />
+        </button>
+        {ouvertes && (
+          <div className="border-t border-border p-5">
+            <CampagnesOuvertes
+              compacte
+              onRejointe={(c) => onTerminer(`/campagnes/${c.id}/personnage`)}
+            />
+          </div>
+        )}
       </div>
 
       <button

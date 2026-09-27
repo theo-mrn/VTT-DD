@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Info } from '@/components/ui/tooltip';
-import { monRole, type Campagne } from '@/lib/campagnes';
+import type { Campagne } from '@/lib/campagnes';
 import { TYPES_NOTE, type TypeNote, type VisibiliteNote } from '@/lib/notes';
 import { cn } from '@/lib/utils';
 import { ChampEtiquettes } from './champ-etiquettes';
@@ -93,7 +93,8 @@ export function ProprietesNote({
 }) {
   const type = typeNote(kind);
   const campagne = roomId ? campagnes.find((c) => c.id === roomId) : undefined;
-  const jeSuisMj = campagne ? monRole(campagne, auteurId) === 'gm' : false;
+  // Mon rôle, donné par le service (l'auteur des propriétés est l'utilisateur connecté)
+  const jeSuisMj = campagne ? campagne.role === 'gm' : false;
 
   return (
     <div className="space-y-px">
@@ -160,7 +161,7 @@ export function ProprietesNote({
                   className="size-5 shrink-0 rounded-[5px] ring-1 ring-white/10"
                 />
                 <span className="flex-1 truncate">{c.name}</span>
-                {monRole(c, auteurId) === 'gm' && (
+                {c.role === 'gm' && (
                   <span className="text-[10px] font-medium uppercase tracking-wide text-subtle">
                     MJ
                   </span>

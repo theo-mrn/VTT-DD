@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InputGroup } from '@/components/ui/input';
 import { useCampagnes } from '@/lib/campagnes';
-import { usePersonnages } from '@/lib/personnages';
+import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { useSystemes } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +34,7 @@ export default function PagePersonnages() {
     return (personnages.data ?? []).filter(
       (p) =>
         (!systeme || p.system.id === systeme) &&
-        (!t || `${p.name} ${p.summary.tagline} ${p.details.concept}`.toLowerCase().includes(t)),
+        (!t || `${p.name} ${p.summary.tagline} ${p.concept}`.toLowerCase().includes(t)),
     );
   }, [personnages.data, systeme, recherche]);
 
@@ -87,7 +87,7 @@ export default function PagePersonnages() {
         </div>
       )}
 
-      {personnages.isError && <Message>{personnages.error.message}</Message>}
+      {personnages.isError && <Message>{personnages.error?.message}</Message>}
 
       {personnages.isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -117,8 +117,13 @@ export default function PagePersonnages() {
               <div key={p.id} className="animate-fade-up" style={{ animationDelay: `${i * 30}ms` }}>
                 <CartePersonnage
                   personnage={p}
-                  href={`/personnages/${p.id}`}
-                  haut={<Badge ton="verre">{nomSysteme(p.system.id)}</Badge>}
+                  href={lienPersonnage(p)}
+                  haut={
+                    <>
+                      <Badge ton="verre">{nomSysteme(p.system.id)}</Badge>
+                      {p.inCreation && <Badge ton="verre">En création</Badge>}
+                    </>
+                  }
                   bas={
                     campagne && (
                       <p className="mt-1.5 flex items-center gap-1 truncate text-[11px] text-primary-strong">
