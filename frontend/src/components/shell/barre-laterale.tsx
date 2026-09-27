@@ -3,7 +3,6 @@
 import {
   ChevronsLeft,
   ChevronsUpDown,
-  FlaskConical,
   LogOut,
   NotebookPen,
   Plus,
@@ -27,7 +26,6 @@ import { Kbd } from '@/components/ui/kbd';
 import { Info } from '@/components/ui/tooltip';
 import { useDemandesAmis } from '@/lib/amis';
 import { useCampagnes } from '@/lib/campagnes';
-import { APERCU_LOCAL } from '@/lib/depot-local';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { estActif, LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE, type LienNav } from './navigation';
@@ -173,16 +171,6 @@ export function BarreLaterale({
           ))}
         </GroupeNav>
       </nav>
-
-      {APERCU_LOCAL && !repliee && (
-        <div className="mx-3 mb-1 rounded-lg border border-dashed border-border-strong px-3 py-2 text-[11px] leading-relaxed text-subtle">
-          <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
-            <FlaskConical className="size-3.5 text-arcane" />
-            Aperçu local
-          </span>
-          Les notes sont gardées dans ce navigateur en attendant leur service.
-        </div>
-      )}
 
       <div className={cn('shrink-0 border-t border-border py-2', repliee ? 'px-2' : 'px-3')}>
         <MenuUtilisateur repliee={repliee} onNavigue={onNavigue} />

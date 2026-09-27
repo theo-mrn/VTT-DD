@@ -13,7 +13,6 @@ import {
   type ReactNode,
 } from 'react';
 import { connexion, deconnexion, inscription, refreshSession, setAccessToken } from './api';
-import { definirUtilisateurLocal } from './depot-local';
 import { lireMonProfil, modifierMonProfil, type Profil } from './profil';
 import { urlConnexion } from './redirection';
 
@@ -51,11 +50,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const dernierProfil = useRef(profil);
   dernierProfil.current = profil;
-  // Le dépôt local (domaines sans service) attribue les données à l'utilisateur
-  // connecté ; posé pendant le rendu, avant que les requêtes des pages ne partent
-  definirUtilisateurLocal(
-    profil ? { id: profil.id, name: profil.name, avatarUrl: profil.avatarUrl } : null,
-  );
 
   const chargerProfil = useCallback(async () => {
     setProfil(await lireMonProfil());
