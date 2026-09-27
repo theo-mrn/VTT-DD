@@ -31,7 +31,7 @@ import { messageErreur } from '@/lib/api';
 import { normaliserFormule, type Macro } from '@/lib/jets';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
-import { LIGNE_DEFILANTE, PUCE } from './contexte-jet';
+import { PUCE } from './contexte-jet';
 
 export const MACROS_MAX = 24;
 
@@ -94,7 +94,7 @@ export function useMacros() {
   };
 }
 
-type Edition = { mode: 'creer' } | { mode: 'renommer'; macro: Macro };
+export type EditionMacro = { mode: 'creer' } | { mode: 'renommer'; macro: Macro };
 
 /**
  * Macros en puces sur une ligne qui défile : un clic lance le jet (touches 1
@@ -102,27 +102,25 @@ type Edition = { mode: 'creer' } | { mode: 'renommer'; macro: Macro };
  * le menu « Gérer » charge, renomme ou supprime.
  */
 export function PucesMacros({
-  formule,
-  libelle,
   formuleValide,
   onLancer,
   onCharger,
+  onEditer,
 }: {
-  formule: string;
-  libelle: string;
   formuleValide: boolean;
   onLancer: (m: Macro) => void;
   onCharger: (m: Macro) => void;
+  /** Ouvre la fenêtre de nom (création ou renommage), rendue par l'appelant. */
+  onEditer: (e: EditionMacro) => void;
 }) {
-  const { macros, ajouter, renommer, supprimer } = useMacros();
-  const [edition, setEdition] = useState<Edition | null>(null);
+  const { macros, supprimer } = useMacros();
   const plein = macros.length >= MACROS_MAX;
   // « Charger » attend la fermeture du menu : sinon Radix rend le focus à son bouton
   const aCharger = useRef<Macro | null>(null);
 
   return (
     <>
-      <ul className={LIGNE_DEFILANTE} aria-label="Macros">
+      <ul className="flex flex-wrap items-center gap-1.5" aria-label="Macros">
         {macros.map((m, i) => (
           <li key={m.id} className="shrink-0">
             <button
@@ -151,7 +149,7 @@ export function PucesMacros({
           <button
             type="button"
             disabled={!formuleValide || plein}
-            onClick={() => setEdition({ mode: 'creer' })}
+            onClick={() => onEditer({ mode: 'creer' })}
             title={plein ? `${MACROS_MAX} macros au plus` : 'Enregistrer la formule comme macro'}
             className={cn(
               PUCE,
@@ -206,7 +204,7 @@ export function PucesMacros({
                         <Upload aria-hidden />
                         Charger dans le lanceur
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => setEdition({ mode: 'renommer', macro: m })}>
+                      <DropdownMenuItem onSelect={() => onEditer({ mode: 'renommer', macro: m })}>
                         <PencilLine aria-hidden />
                         Renommer…
                       </DropdownMenuItem>
@@ -226,22 +224,38 @@ export function PucesMacros({
           </li>
         )}
       </ul>
-
-      <DialogueMacro
-        edition={edition}
-        formule={formule}
-        libelleParDefaut={libelle}
-        onFermer={() => setEdition(null)}
-        onValider={async (nom) => {
-          if (!edition) return;
-          const ok =
-            edition.mode === 'creer'
-              ? await ajouter(nom, formule)
-              : await renommer(edition.macro.id, nom);
-          if (ok) setEdition(null);
-        }}
-      />
     </>
+  );
+}
+
+/** Fenêtre de nom d'une macro, branchée sur le profil (création ou renommage). */
+export function EditionMacroDialogue({
+  edition,
+  formule,
+  libelle,
+  onFermer,
+}: {
+  edition: EditionMacro | null;
+  formule: string;
+  libelle: string;
+  onFermer: () => void;
+}) {
+  const { ajouter, renommer } = useMacros();
+  return (
+    <DialogueMacro
+      edition={edition}
+      formule={formule}
+      libelleParDefaut={libelle}
+      onFermer={onFermer}
+      onValider={async (nom) => {
+        if (!edition) return;
+        const ok =
+          edition.mode === 'creer'
+            ? await ajouter(nom, formule)
+            : await renommer(edition.macro.id, nom);
+        if (ok) onFermer();
+      }}
+    />
   );
 }
 
@@ -253,7 +267,7 @@ function DialogueMacro({
   onFermer,
   onValider,
 }: {
-  edition: Edition | null;
+  edition: EditionMacro | null;
   formule: string;
   libelleParDefaut: string;
   onFermer: () => void;
@@ -261,7 +275,7 @@ function DialogueMacro({
 }) {
   const [nom, setNom] = useState('');
   const [enCours, setEnCours] = useState(false);
-  const [ouvertPour, setOuvertPour] = useState<Edition | null>(null);
+  const [ouvertPour, setOuvertPour] = useState<EditionMacro | null>(null);
 
   // Nom prérempli à chaque ouverture (libellé du plateau, ou nom actuel)
   if (edition !== ouvertPour) {

@@ -1,29 +1,26 @@
 'use client';
 
-import { Eraser } from 'lucide-react';
 import { useId, useRef, type KeyboardEvent, type PointerEvent } from 'react';
-import { DES_RAPIDES } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { FOCUS, TACTILE } from './tactile';
 
 const APPUI_LONG_MS = 450;
 
+/** Dés de la grille ; le d100 passe par le menu « + » ou la formule. */
+export const DES_GRILLE = [4, 6, 8, 10, 12, 20] as const;
+
 /**
- * Rangée des dés : un clic ajoute le dé à la formule ; un clic droit, un
- * appui long ou Retour arrière en retire un. Le compteur est sur le bouton.
+ * Grille des dés (2 × 3) : un clic ajoute le dé à la formule ; un clic droit,
+ * un appui long ou Retour arrière en retire un. Le compteur est sur le bouton.
  */
-export function RangeeDes({
+export function GrilleDes({
   compte,
   onAjouter,
   onRetirer,
-  onVider,
-  vide,
 }: {
   compte: Map<number, number>;
   onAjouter: (faces: number) => void;
   onRetirer: (faces: number) => void;
-  onVider: () => void;
-  vide: boolean;
 }) {
   const aide = useId();
   return (
@@ -31,12 +28,8 @@ export function RangeeDes({
       <p id={aide} className="sr-only">
         Clic droit, appui long ou touche Retour arrière pour retirer un dé.
       </p>
-      <div
-        role="group"
-        aria-label="Dés à ajouter"
-        className="grid grid-cols-4 gap-1.5 [@container(min-width:22rem)]:grid-cols-8"
-      >
-        {DES_RAPIDES.map((faces) => (
+      <div role="group" aria-label="Dés à ajouter" className="grid grid-cols-2 gap-1.5">
+        {DES_GRILLE.map((faces) => (
           <BoutonDe
             key={faces}
             faces={faces}
@@ -46,27 +39,12 @@ export function RangeeDes({
             onRetirer={() => onRetirer(faces)}
           />
         ))}
-        <button
-          type="button"
-          onClick={onVider}
-          disabled={vide}
-          aria-label="Vider la formule"
-          title="Vider la formule"
-          className={cn(
-            'flex h-10 items-center justify-center rounded-lg border border-dashed border-border-strong text-subtle transition-colors',
-            'hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
-            FOCUS,
-            TACTILE,
-          )}
-        >
-          <Eraser className="size-4" aria-hidden />
-        </button>
       </div>
     </div>
   );
 }
 
-function BoutonDe({
+export function BoutonDe({
   faces,
   n,
   aide,
@@ -140,7 +118,7 @@ function BoutonDe({
       aria-label={`Ajouter un d${faces}${n ? `, ${n} dans la formule` : ''}`}
       aria-describedby={aide}
       className={cn(
-        'relative flex h-10 touch-manipulation select-none items-center justify-center rounded-lg border font-mono text-[13px] font-semibold tabular transition-[background-color,border-color,color,transform] duration-150 [-webkit-touch-callout:none]',
+        'relative flex aspect-square w-full touch-manipulation select-none items-center justify-center rounded-lg border font-mono text-[13px] font-semibold tabular transition-[background-color,border-color,color,transform] duration-150 [-webkit-touch-callout:none]',
         'active:scale-95 motion-reduce:active:scale-100',
         n
           ? 'border-primary/45 bg-primary/10 text-primary-strong'

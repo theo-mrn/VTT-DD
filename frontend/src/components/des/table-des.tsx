@@ -8,7 +8,6 @@ import { useFichePersonnage } from '@/components/des/contexte-jet';
 import { Lanceur, type EtatPlateau } from '@/components/des/lanceur';
 import { useMacros } from '@/components/des/macros';
 import { PanneauJets } from '@/components/des/panneau-jets';
-import { ResultatCompact } from '@/components/des/resultat-compact';
 import { visibiliteDuBrouillon } from '@/components/des/visibilite';
 import { Kbd } from '@/components/ui/kbd';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -18,7 +17,6 @@ import { prepareDice3D } from '@/lib/dice-throw';
 import { useJets, useLancer, useSynchroJets, verifierFormule, type Jet } from '@/lib/jets';
 import { usePersonnages, type Personnage } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
-import { useSession } from '@/lib/session';
 
 const PLATEAU_INITIAL: EtatPlateau = {
   formule: '1d20',
@@ -65,7 +63,6 @@ export function TableDes({
   /** Raccourcis clavier actifs (faux quand l'écran est monté mais masqué, panneau fermé). */
   raccourcis?: boolean;
 }) {
-  const { profil } = useSession();
   const [enregistre, setEtat] = usePreferenceLocale<EtatPlateau>(
     contexte ? `des:table:${contexte.campagneId}` : 'des:plateau',
     PLATEAU_INITIAL,
@@ -86,7 +83,7 @@ export function TableDes({
   );
   const [dernier, setDernier] = useState<Jet | null>(null);
   const refFormule = useRef<HTMLInputElement>(null);
-  const refResultat = useRef<HTMLElement>(null);
+  const refResultat = useRef<HTMLDivElement>(null);
   const enCours = useRef(false);
 
   const campagnes = useCampagnes();
@@ -208,7 +205,6 @@ export function TableDes({
       jets={jets.data ?? []}
       chargement={jets.isPending}
       erreur={jets.error}
-      moi={profil?.id ?? null}
       roomId={roomId}
       campagne={contexte ? contexte.campagneNom : (campagne?.name ?? null)}
       peutEffacer={contexte ? contexte.gm : !campagne || campagne.role === 'gm'}
@@ -220,21 +216,13 @@ export function TableDes({
       }}
       onRelancer={(j) => void lancerFormule(j.formula, j.label)}
       onEfface={() => setDernier(null)}
-      colonne={!contexte}
     />
   );
 
   const table = (
     <div className="[container-type:inline-size]">
-      <div className="grid items-start gap-3 [@container(min-width:52rem)]:grid-cols-[minmax(0,1fr)_22rem] [@container(min-width:52rem)]:gap-4">
-        <div className="min-w-0 rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]">
-          <ResultatCompact
-            ref={refResultat}
-            jet={affiche}
-            anime={dernier !== null && affiche === dernier}
-            onRelancer={() => void relancer()}
-            enCours={lancer.isPending}
-          />
+      <div className="mx-auto grid w-full max-w-[34rem] items-start gap-3 [@container(min-width:56rem)]:max-w-none [@container(min-width:56rem)]:grid-cols-2">
+        <div ref={refResultat} className="min-w-0 scroll-mt-20">
           <Lanceur
             ref={refFormule}
             etat={etat}
@@ -242,6 +230,13 @@ export function TableDes({
             verification={verification}
             fiche={fiche}
             contexteFixe={Boolean(contexte)}
+            sousTitre={
+              contexte
+                ? (contexte.personnage?.name ?? contexte.campagneNom)
+                : [campagne?.name ?? 'Jets personnels', personnage?.name]
+                    .filter(Boolean)
+                    .join(' · ')
+            }
             campagnes={{
               liste: campagnes.data ?? [],
               chargement: campagnes.isPending,
@@ -258,6 +253,9 @@ export function TableDes({
               modifier({ formule: m.formula, libelle: m.name });
               refFormule.current?.focus();
             }}
+            jet={affiche}
+            anime={dernier !== null && affiche === dernier}
+            onRelancer={() => void relancer()}
           />
         </div>
         {journal}

@@ -73,7 +73,7 @@ export function attributsJetables(fiche: Fiche): AttributJetable[] {
 export const signe = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
 /**
- * Puces des modificateurs, sur une ligne qui défile : un clic ajoute
+ * Puces des modificateurs : un clic ajoute
  * `+ mod(@CLE)` à la formule.
  */
 export function PastillesAttributs({
@@ -110,7 +110,7 @@ export function PastillesAttributs({
       </p>
     );
   return (
-    <ul className={LIGNE_DEFILANTE} aria-label={`Modificateurs de ${nomPersonnage}`}>
+    <ul className={LIGNE_PUCES} aria-label={`Modificateurs de ${nomPersonnage}`}>
       {attributs.map((a) => (
         <li key={a.cle} className="shrink-0">
           <Info texte={`${a.nom} : ajoute + mod(@${a.cle})`}>
@@ -142,9 +142,8 @@ export function PastillesAttributs({
   );
 }
 
-/** Ligne de puces qui défile à l'horizontale (fine barre de défilement). */
-export const LIGNE_DEFILANTE =
-  'flex min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain py-0.5 [scrollbar-width:thin]';
+/** Puces qui passent à la ligne. */
+export const LIGNE_PUCES = 'flex flex-wrap items-center gap-1.5';
 
 /** Puce du lanceur (modificateur, macro) : 32 px, 44 px au doigt. */
 export const PUCE =

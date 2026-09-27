@@ -1,6 +1,6 @@
 'use client';
 
-import { EyeOff, History, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { EyeOff, Filter, History, RotateCcw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -18,28 +18,11 @@ import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import { useEffacerJets, type Jet } from '@/lib/jets';
 import { cn } from '@/lib/utils';
-import { cleJour, depuis, heureDe, libelleJour, useMaintenant } from './temps';
-import { TACTILE } from './tactile';
+import { depuis, useMaintenant } from './temps';
+import { FOCUS, TACTILE } from './tactile';
 import { infoVisibilite } from './visibilite';
 
 const PAR_PAGE = 20;
-
-/** Jets regroupés par jour, du plus récent au plus ancien (la liste arrive déjà triée). */
-function parJour(jets: Jet[], maintenant: number) {
-  const groupes: { cle: string; libelle: string; jets: Jet[] }[] = [];
-  for (const j of jets) {
-    const cle = cleJour(j.createdAt);
-    const dernier = groupes.at(-1);
-    if (dernier?.cle === cle) dernier.jets.push(j);
-    else
-      groupes.push({
-        cle,
-        libelle: libelleJour(j.createdAt, maintenant),
-        jets: [j],
-      });
-  }
-  return groupes;
-}
 
 export interface PlusAnciens {
   /** Le service a encore des jets plus anciens. */
@@ -48,42 +31,42 @@ export interface PlusAnciens {
   charger: () => void;
 }
 
-/** Historique des jets : un clic sur une ligne relance la même formule. */
+/**
+ * Historique des jets, en cartes denses comme l'ancien lanceur : avatar, nom,
+ * heure, formule, détail du service et total. Un filtre en puces garde les
+ * jets d'un seul lanceur ; le bouton ⟲ relance la même formule.
+ */
 export function HistoriqueJets({
   jets,
   chargement,
   erreur,
-  moi,
   onRelancer,
   plusAnciens,
 }: {
   jets: Jet[];
   chargement: boolean;
   erreur: unknown;
-  /** Identifiant de l'utilisateur : les jets des autres joueurs montrent leur auteur. */
-  moi: string | null;
   onRelancer: (jet: Jet) => void;
   /** Pages suivantes du service, une fois les jets chargés tous affichés. */
   plusAnciens?: PlusAnciens;
 }) {
   const maintenant = useMaintenant();
   const [limite, setLimite] = useState(PAR_PAGE);
-  const groupes = useMemo(
-    () => parJour(jets.slice(0, limite), maintenant),
-    [jets, limite, maintenant],
+  const [joueur, setJoueur] = useState<string | null>(null);
+  const joueurs = useMemo(
+    () => [...new Set(jets.map((j) => j.userName))].sort((a, b) => a.localeCompare(b, 'fr')),
+    [jets],
+  );
+  const filtres = useMemo(
+    () => (joueur ? jets.filter((j) => j.userName === joueur) : jets),
+    [jets, joueur],
   );
 
   if (chargement)
     return (
-      <div className="space-y-1 p-2" aria-label="Chargement de l’historique">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
-            <Skeleton className="h-8 w-9 rounded-md" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-3 w-2/3" />
-              <Skeleton className="h-3 w-1/3" />
-            </div>
-          </div>
+      <div className="space-y-2 p-3" aria-label="Chargement de l’historique">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-[84px] rounded-xl" />
         ))}
       </div>
     );
@@ -99,190 +82,177 @@ export function HistoriqueJets({
     return (
       <div className="flex flex-col items-center px-6 py-8 text-center">
         <History className="mb-2 size-5 text-subtle" aria-hidden />
-        <p className="text-sm font-medium">Aucun jet pour l’instant</p>
-        <p className="mt-1 max-w-[240px] text-xs text-muted-foreground">
-          Vos lancers s’afficheront ici, du plus récent au plus ancien.
-        </p>
+        <p className="text-xs italic text-subtle">Aucun lancer récent…</p>
       </div>
     );
 
   return (
-    <div className="pb-2">
-      {groupes.map((g) => (
-        <section key={g.cle} aria-label={g.libelle}>
-          <h3 className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-card/90 px-4 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-subtle backdrop-blur-md">
-            {g.libelle}
-            <span className="font-mono tabular normal-case tracking-normal">{g.jets.length}</span>
-          </h3>
-          <ul className="px-1.5 py-1">
-            {g.jets.map((j) => (
-              <li key={j.id}>
-                <LigneJet
-                  jet={j}
-                  auteur={moi && j.userId !== moi ? j.userName : null}
-                  quand={
-                    g.libelle === 'Aujourd’hui'
-                      ? depuis(j.createdAt, maintenant)
-                      : heureDe(j.createdAt)
-                  }
-                  onRelancer={() => onRelancer(j)}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-      {jets.length > limite ? (
-        <div className="px-4 pt-1">
+    <div className="space-y-2 p-3">
+      {joueurs.length > 1 && (
+        <div
+          role="group"
+          aria-label="Filtrer par lanceur"
+          className="flex items-center gap-1 overflow-x-auto border-b border-border pb-2 [scrollbar-width:thin]"
+        >
+          <Filter className="mr-0.5 size-3 shrink-0 text-subtle" aria-hidden />
+          {[null, ...joueurs].map((j) => (
+            <button
+              key={j ?? 'tous'}
+              type="button"
+              aria-pressed={joueur === j}
+              onClick={() => {
+                setJoueur(j);
+                setLimite(PAR_PAGE);
+              }}
+              className={cn(
+                'h-6 shrink-0 whitespace-nowrap rounded-md px-2 text-[11px] transition-colors',
+                joueur === j
+                  ? 'bg-surface-3 font-medium text-foreground'
+                  : 'text-subtle hover:text-foreground',
+                FOCUS,
+                TACTILE,
+              )}
+            >
+              {j ?? 'Tous'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filtres.length ? (
+        <ul className="space-y-1.5">
+          {filtres.slice(0, limite).map((j) => (
+            <li key={j.id}>
+              <CarteJet
+                jet={j}
+                quand={depuis(j.createdAt, maintenant)}
+                onRelancer={() => onRelancer(j)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="py-6 text-center text-xs italic text-subtle">Aucun lancer récent…</p>
+      )}
+
+      {filtres.length > limite ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          onClick={() => setLimite((l) => l + PAR_PAGE)}
+        >
+          Afficher {Math.min(PAR_PAGE, filtres.length - limite)} jets de plus
+        </Button>
+      ) : (
+        plusAnciens?.possible && (
           <Button
             variant="ghost"
             size="sm"
             className="w-full"
-            onClick={() => setLimite((l) => l + PAR_PAGE)}
+            loading={plusAnciens.enCours}
+            onClick={() => {
+              setLimite((l) => l + PAR_PAGE);
+              plusAnciens.charger();
+            }}
           >
-            Afficher {Math.min(PAR_PAGE, jets.length - limite)} jets de plus
+            Charger des jets plus anciens
           </Button>
-        </div>
-      ) : (
-        plusAnciens?.possible && (
-          <div className="px-4 pt-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              loading={plusAnciens.enCours}
-              onClick={() => {
-                setLimite((l) => l + PAR_PAGE);
-                plusAnciens.charger();
-              }}
-            >
-              Charger des jets plus anciens
-            </Button>
-          </div>
         )
       )}
     </div>
   );
 }
 
-/** Valeurs des dés en texte court (« 18 · 7 »), le dé écarté barré. */
-function ValeursTexte({ jet }: { jet: Jet }) {
-  const des = jet.groups.flatMap((g, i) => g.dice.map((d, j) => ({ d, cle: `${i}-${j}` })));
-  if (!des.length || jet.hidden) return null;
-  const max = 8;
+function Avatar({ nom, url }: { nom: string; url: string | null }) {
+  if (url)
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img src={url} alt="" className="size-8 rounded-full border border-border object-cover" />
+    );
   return (
-    <span className="truncate font-mono tabular" aria-hidden>
-      [
-      {des.slice(0, max).map(({ d, cle }, k) => (
-        <span key={cle}>
-          {k > 0 && ' '}
-          {d.kept ? d.value : <s className="opacity-60">{d.value}</s>}
-        </span>
-      ))}
-      {des.length > max && ' …'}]
+    <span
+      aria-hidden
+      className="flex size-8 items-center justify-center rounded-full border border-border bg-surface-3 text-[11px] font-bold uppercase text-muted-foreground"
+    >
+      {nom.trim().slice(0, 2)}
     </span>
   );
 }
 
-function LigneJet({
-  jet,
-  auteur,
-  quand,
-  onRelancer,
-}: {
-  jet: Jet;
-  auteur: string | null;
-  quand: string;
-  onRelancer: () => void;
-}) {
+function CarteJet({ jet, quand, onRelancer }: { jet: Jet; quand: string; onRelancer: () => void }) {
   const vis = infoVisibilite(jet.visibility);
-  const Icone = vis.icone;
-  const resultat = jet.hidden ? 'caché' : (jet.symbolResult ?? String(jet.total));
-  // Nom affiché du jet (personnage, « MJ » ou profil), sans le répéter
-  const noms = [...new Set([auteur, jet.characterName].filter(Boolean))];
-
+  const cache = jet.hidden || jet.total === null;
   return (
-    <button
-      type="button"
-      onClick={onRelancer}
-      aria-label={`Relancer ${jet.label ? `« ${jet.label} » ` : ''}${jet.formula} (résultat précédent : ${resultat}${jet.critical === 'success' ? ', critique' : jet.critical === 'failure' ? ', échec critique' : ''}, ${vis.libelle.toLowerCase()})`}
-      className={cn(
-        'group relative flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors',
-        'hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-      )}
+    <article
+      aria-label={`${jet.userName}, ${jet.label ? `${jet.label}, ` : ''}${jet.formula} : ${cache ? 'résultat caché' : (jet.symbolResult ?? jet.total)}`}
+      className="group relative flex items-start gap-3 rounded-xl border border-border/60 bg-surface-2/40 p-2.5 transition-colors hover:border-border hover:bg-surface-2"
     >
-      <span
-        className={cn(
-          'flex h-8 min-w-9 shrink-0 items-center justify-center rounded-md border px-1 font-mono text-[15px] font-semibold tabular',
-          jet.critical === 'success' && 'border-primary/40 bg-primary/10 text-primary-strong',
-          jet.critical === 'failure' && 'border-destructive/35 bg-destructive/10 text-destructive',
-          !jet.critical && 'border-border bg-surface-2 text-foreground',
-        )}
-      >
-        {jet.hidden ? (
-          <EyeOff className="size-3.5 text-subtle" aria-hidden />
-        ) : jet.symbolResult ? (
-          <Sparkles className="size-3.5 text-primary" aria-hidden />
-        ) : (
-          jet.total
-        )}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span
-            className={cn(
-              'truncate text-[13px] font-medium leading-5 text-foreground',
-              !jet.label && 'font-mono',
+      <Avatar nom={jet.userName} url={jet.userAvatar} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-xs font-bold text-foreground">{jet.userName}</span>
+          <span className="flex shrink-0 items-center gap-1 text-[10px] text-subtle">
+            {jet.visibility !== 'public' && (
+              <vis.icone
+                className={cn(
+                  'size-3',
+                  jet.visibility === 'gm' ? 'text-destructive' : 'text-primary',
+                )}
+                aria-label={vis.libelle}
+              />
             )}
-          >
-            {jet.label || jet.formula}
+            {quand}
           </span>
-          {jet.critical && (
+        </div>
+        <p className="truncate font-mono text-[11px] text-subtle">
+          {jet.label && <span className="font-sans text-muted-foreground">{jet.label} · </span>}
+          {jet.formula}
+        </p>
+        {!cache && jet.output && (
+          <p className="truncate font-mono text-[10px] text-subtle/80">{jet.output}</p>
+        )}
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          {cache ? (
+            <span className="flex items-center gap-1.5 text-xs text-subtle">
+              <EyeOff className="size-3.5" aria-hidden />
+              Résultat masqué
+            </span>
+          ) : (
             <span
               className={cn(
-                'shrink-0 rounded-full px-1.5 text-[10px] font-semibold uppercase leading-4 tracking-wider',
-                jet.critical === 'success'
-                  ? 'bg-primary/15 text-primary-strong'
-                  : 'bg-destructive/15 text-destructive',
+                'text-sm font-bold',
+                jet.symbolResult && 'text-primary-strong',
+                !jet.symbolResult && jet.critical === 'success' && 'text-primary-strong',
+                !jet.symbolResult && jet.critical === 'failure' && 'text-destructive',
+                !jet.symbolResult && !jet.critical && 'text-foreground',
               )}
             >
-              {jet.critical === 'success' ? 'Crit.' : 'Échec'}
+              {jet.symbolResult ?? `Total : ${jet.total}`}
+              {jet.critical && (
+                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider">
+                  {jet.critical === 'success' ? 'critique' : 'échec critique'}
+                </span>
+              )}
             </span>
           )}
-        </span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-subtle">
-          {jet.symbolResult && !jet.hidden ? (
-            <span className="truncate text-muted-foreground">{jet.symbolResult}</span>
-          ) : (
-            <>
-              {jet.label && <span className="truncate font-mono">{jet.formula}</span>}
-              <ValeursTexte jet={jet} />
-            </>
-          )}
-          {noms.length > 0 && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="truncate">{noms.join(' · ')}</span>
-            </>
-          )}
-        </span>
-      </span>
-
-      <span className="flex shrink-0 items-center gap-1.5">
-        <span className="text-[11px] text-subtle tabular">{quand}</span>
-        <span className="relative flex size-4 items-center justify-center">
-          <Icone
-            className="size-3.5 text-subtle transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
-            aria-hidden
-          />
-          <RotateCcw
-            className="absolute size-3.5 text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-            aria-hidden
-          />
-        </span>
-      </span>
-    </button>
+          <button
+            type="button"
+            onClick={onRelancer}
+            aria-label={`Relancer ${jet.label ? `« ${jet.label} » ` : ''}${jet.formula}`}
+            title="Relancer"
+            className={cn(
+              'flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-3/60 text-muted-foreground transition-[opacity,color] hover:text-foreground',
+              'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100',
+              FOCUS,
+              TACTILE,
+            )}
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 
