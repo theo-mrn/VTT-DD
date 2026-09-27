@@ -376,7 +376,7 @@ class Chargeur {
 
   /**
    * Apport d'un attribut aux jets libres : son modificateur (il doit en avoir un), sa valeur
-   * (numérique) ou une formule numérique sans dé, qui lit l'entité comme les autres formules.
+   * (numérique) ou une formule numérique sans dé qui ne lit que les attributs de l'entité.
    */
   private verifierJet(entite: string, a: Attribut, jet: JetAttribut, moi: OptionsEnv): void {
     const chemin = `entites/${entite}/${a.cle}/jet`;
@@ -388,7 +388,12 @@ class Chargeur {
       if (typeAttribut(a) !== 'nombre')
         this.erreur(chemin, 'Apport « valeur » sur un attribut non numérique');
     } else {
-      this.compiler(chemins.attribut(entite, a.cle, 'jet'), apport, moi, 'nombre');
+      // Le terme est repris tel quel dans les formules du lanceur, que le service de dés
+      // évalue avec les seules valeurs et modificateurs : ni possessions, ni agrégats
+      const cheminFormule = chemins.attribut(entite, a.cle, 'jet');
+      const f = this.compiler(cheminFormule, apport, { ...moi, sansAgregats: true }, 'nombre');
+      if (f?.entrees.size)
+        this.erreur(cheminFormule, 'rang() et possede() ne sont pas permis dans l’apport d’un jet');
     }
   }
 

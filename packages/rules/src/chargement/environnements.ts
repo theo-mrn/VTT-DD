@@ -110,10 +110,12 @@ export interface OptionsEnv {
   des?: boolean;
   dynamique?: boolean;
   entree?: (id: string) => boolean;
+  /** Sans les agrégats sur les possessions (`compte`, `somme`…) : attributs seuls. */
+  sansAgregats?: boolean;
 }
 
 export function env(o: OptionsEnv): EnvironnementTypes {
-  const avecEntite = !!o.entite?.length;
+  const avecEntite = !!o.entite?.length && !o.sansAgregats;
   return {
     attribut: (cle, entite) =>
       entite === undefined

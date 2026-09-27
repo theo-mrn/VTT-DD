@@ -47,7 +47,9 @@ const Modificateur = z.union([z.boolean(), Formule]).optional();
  * apport à la formule. Sans `jet`, l'attribut n'est jamais proposé.
  *   - `modificateur` : son modificateur (`mod(@CLE)`), l'attribut doit en avoir un ;
  *   - `valeur` : sa valeur (`@CLE`), l'attribut doit être numérique ;
- *   - une formule sur l'entité, sans dé (`mod(@DEX) + @niveau`), ajoutée entre parenthèses.
+ *   - une formule sans dé qui ne lit que les attributs de l'entité (`mod(@DEX) + @niveau`),
+ *     ajoutée entre parenthèses : le service de dés l'évalue avec les seules valeurs et
+ *     modificateurs de la fiche (ni `rang`, ni `possede`, ni agrégats).
  */
 export const JetAttribut = z.object({
   apport: z.union([z.enum(['modificateur', 'valeur']), Formule]),

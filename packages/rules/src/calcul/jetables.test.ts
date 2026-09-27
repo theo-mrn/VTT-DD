@@ -98,6 +98,16 @@ describe('jet des attributs : chargement', () => {
     expect(texte).toHaveLength(1);
     const des = erreurs(avecJets({ FOR: { jet: { apport: '1d6 + mod(@FOR)' } } }));
     expect(des).toHaveLength(1);
+    // Reprise dans le lanceur, la formule ne lit que les attributs
+    const agregat = erreurs(avecJets({ FOR: { jet: { apport: 'compte("race")' } } }));
+    expect(agregat).toHaveLength(1);
+    const possede = erreurs(avecJets({ FOR: { jet: { apport: 'si(possede("elfe"), 1, 0)' } } }));
+    expect(possede).toEqual([
+      {
+        chemin: 'entites/personnage/FOR/jet',
+        message: 'rang() et possede() ne sont pas permis dans l’apport d’un jet',
+      },
+    ]);
   });
 
   it('une ressource peut servir aux jets', () => {
