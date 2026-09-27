@@ -80,22 +80,32 @@ describe.skipIf(!NATS_URL)('canal durable (NATS réel)', () => {
       payload: { total: 1 },
     });
     const e6 = await publish({ type: 'dice.rolled', roomId: c, actor: asGm, visibility: 'owner' });
+    // Élément caché de la carte que le joueur a le droit de voir (visibleTo)
+    const e6b = await publish({
+      type: 'token.updated',
+      roomId: c,
+      actor: asGm,
+      visibility: 'gm_only',
+      payload: { id: 't1', visibleTo: [joueur.userId] },
+    });
 
     const retour = await t.connect(joueur.userId);
     const ack = await retour.request<Ack>('subscribe', { campaignId: c, afterSeq: e3.seq });
-    expect(ack).toMatchObject({ ok: true, replayed: 2, resync: false, seq: e6.seq });
-    // Rejoués avant l'accusé : e4 complet, e5 expurgé (son auteur), pas e6 (au MJ seul)
+    expect(ack).toMatchObject({ ok: true, replayed: 3, resync: false, seq: e6b.seq });
+    // Rejoués avant l'accusé : e4 complet, e5 expurgé (son auteur), pas e6 (au MJ seul),
+    // e6b complet (joueur dans visibleTo)
     const rejoues = events(retour, c);
     expect(rejoues.map((p) => [p.seq, p.redacted ?? false])).toEqual([
       [e4.seq, false],
       [e5.seq, true],
+      [e6b.seq, false],
     ]);
     expect(rejoues[1]!.event.payload).toEqual({});
 
     const e7 = await publish({ type: 'dice.rolled', roomId: c, actor: asGm });
     await retour.waitFor<EventPacket>('event', (p) => p.seq === e7.seq);
     await settle();
-    expect(events(retour, c).map((p) => p.seq)).toEqual([e4.seq, e5.seq, e7.seq]);
+    expect(events(retour, c).map((p) => p.seq)).toEqual([e4.seq, e5.seq, e6b.seq, e7.seq]);
   });
 
   it('rejeu pendant que le direct continue : seq croissants, rien de perdu ni doublé', async () => {

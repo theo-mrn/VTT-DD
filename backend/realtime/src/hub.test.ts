@@ -122,6 +122,24 @@ describe('diffusion des événements', () => {
     expect(events(joueur)).toHaveLength(1);
   });
 
+  it('gm_only avec visibleTo : les joueurs listés en entier, un MJ listé une seule fois', async () => {
+    const { gm, joueur, autre, c } = await table();
+    const e = envelope({
+      type: 'token.updated',
+      roomId: c,
+      visibility: 'gm_only',
+      actor: { userId: gm.userId, role: 'gm', characterId: null },
+      payload: { id: 't1', visibleTo: [joueur.userId, gm.userId] },
+    });
+    t.app.realtime.dispatch(e, 110);
+    expect((await joueur.waitFor<EventPacket>('event')).event.payload).toEqual(e.payload);
+    await gm.waitFor<EventPacket>('event');
+    await settle();
+    expect(events(gm)).toHaveLength(1);
+    expect(events(joueur)).toHaveLength(1);
+    expect(events(autre)).toEqual([]);
+  });
+
   it("owner : l'auteur seul, sur toutes ses connexions, pas le MJ", async () => {
     const { gm, joueur, c } = await table();
     const onglet = await t.connect(joueur.userId);

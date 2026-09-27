@@ -13,12 +13,15 @@
  *
  * Visibilité :
  *  - `public`  → toute la campagne ;
- *  - `gm_only` → les MJ ; l'auteur (`actor.userId`) reçoit une version expurgée
- *                (type et agrégat, sans charge utile) : il sait que son action a
- *                eu lieu sans lire ce qui lui est caché (jet caché au MJ) ;
+ *  - `gm_only` → les MJ, et les utilisateurs de `payload.visibleTo` (carte :
+ *                éléments cachés ou en visibilité `custom`), complet ; l'auteur
+ *                (`actor.userId`), s'il n'est pas parmi eux, reçoit une version
+ *                expurgée (type et agrégat, sans charge utile) : il sait que son
+ *                action a eu lieu sans lire ce qui lui est caché (jet caché au MJ) ;
  *  - `owner`   → l'auteur seul, sur toutes ses connexions. Pas le MJ : dice y
  *                range les jets `self` (« l'auteur seul, MJ compris »).
- * Hors campagne (`roomId` null) : l'auteur seul (`public` ou `owner`).
+ * Hors campagne (`roomId` null) : l'auteur seul (`public` ou `owner`), les
+ * utilisateurs de `visibleTo` pour `gm_only`.
  */
 import type { EventEnvelope } from '@vtt/contracts';
 
@@ -37,17 +40,33 @@ export interface Targets {
   redacted: string[];
 }
 
+/**
+ * Utilisateurs autorisés en plus des MJ pour un événement `gm_only`
+ * (`payload.visibleTo`, identifiants d'utilisateurs), sans doublon.
+ */
+export function visibleToOf(event: EventEnvelope): string[] {
+  const list = event.payload.visibleTo;
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.filter((id): id is string => typeof id === 'string' && id !== ''))];
+}
+
 export function targetsFor(event: EventEnvelope): Targets {
   const actor = event.actor.userId;
+  // Un MJ ou un utilisateur présent dans plusieurs rooms ne reçoit l'événement qu'une fois
+  // (Socket.IO dédoublonne les connexions d'une même émission)
+  const allowed = event.visibility === 'gm_only' ? visibleToOf(event).map(rooms.user) : [];
   if (!event.roomId) {
     const toActor = actor && event.visibility !== 'gm_only';
-    return { full: toActor ? [rooms.user(actor)] : [], redacted: [] };
+    return { full: toActor ? [rooms.user(actor)] : allowed, redacted: [] };
   }
   switch (event.visibility) {
     case 'public':
       return { full: [rooms.campaign(event.roomId)], redacted: [] };
     case 'gm_only':
-      return { full: [rooms.gm(event.roomId)], redacted: actor ? [rooms.user(actor)] : [] };
+      return {
+        full: [rooms.gm(event.roomId), ...allowed],
+        redacted: actor && !allowed.includes(rooms.user(actor)) ? [rooms.user(actor)] : [],
+      };
     case 'owner':
       return { full: actor ? [rooms.user(actor)] : [], redacted: [] };
   }
@@ -65,7 +84,8 @@ export function deliveryFor(
     case 'public':
       return 'full';
     case 'gm_only':
-      return viewer.role === 'gm' ? 'full' : mine ? 'redacted' : null;
+      if (viewer.role === 'gm' || visibleToOf(event).includes(viewer.userId)) return 'full';
+      return mine ? 'redacted' : null;
     case 'owner':
       return mine ? 'full' : null;
   }

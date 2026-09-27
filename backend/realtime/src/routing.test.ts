@@ -23,6 +23,27 @@ describe('routage des événements', () => {
     expect(deliveryFor(e, { userId: other, role: 'player' })).toBeNull();
   });
 
+  it('gm_only avec visibleTo : aussi les utilisateurs listés, en entier', () => {
+    const gm = '0192f0c1-0000-7000-8000-00000000000c';
+    const e = envelope({
+      type: 'token.updated',
+      roomId: C,
+      actor: { userId: gm, role: 'gm', characterId: null },
+      visibility: 'gm_only',
+      payload: { id: 't1', visibleTo: [author, author, gm, 42, ''] },
+    });
+    expect(targetsFor(e)).toEqual({
+      full: [rooms.gm(C), rooms.user(author), rooms.user(gm)],
+      redacted: [],
+    });
+    expect(deliveryFor(e, { userId: author, role: 'player' })).toBe('full');
+    expect(deliveryFor(e, { userId: other, role: 'player' })).toBeNull();
+    // Auteur non listé : expurgé
+    const byPlayer = { ...e, actor, payload: { visibleTo: [other] } };
+    expect(targetsFor(byPlayer).redacted).toEqual([rooms.user(author)]);
+    expect(deliveryFor(byPlayer, { userId: other, role: 'spectator' })).toBe('full');
+  });
+
   it("owner : l'auteur seul, pas le MJ (jets « self »)", () => {
     const e = envelope({ type: 'dice.rolled', roomId: C, actor, visibility: 'owner' });
     expect(targetsFor(e)).toEqual({ full: [rooms.user(author)], redacted: [] });
