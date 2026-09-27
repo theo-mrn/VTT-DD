@@ -1,16 +1,16 @@
 'use client';
 
+import { MotionConfig } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EnTetePage, Page } from '@/components/commun/page';
-import { DiceSettings } from '@/components/dice/dice-settings';
-import { CarteResultat } from '@/components/des/carte-resultat';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
-import { Macros, useMacros } from '@/components/des/macros';
+import { Lanceur, type EtatPlateau } from '@/components/des/lanceur';
+import { useMacros } from '@/components/des/macros';
 import { PanneauJets } from '@/components/des/panneau-jets';
-import { Plateau, type EtatPlateau } from '@/components/des/plateau';
-import { Kbd } from '@/components/ui/kbd';
+import { ResultatCompact } from '@/components/des/resultat-compact';
 import { visibiliteDuBrouillon } from '@/components/des/visibilite';
+import { Kbd } from '@/components/ui/kbd';
 import { ApiError, messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
 import { useDicePreferences } from '@/lib/dice-preferences';
@@ -50,8 +50,8 @@ export interface ContexteTableDes {
 }
 
 /**
- * Table de dés : plateau pour composer un jet, résultat en grand, macros,
- * historique et statistiques. Les jets passent par le service dice : les dés
+ * Table de dés : lanceur compact (dernier résultat, formule, dés, macros),
+ * historique dense et statistiques. Les jets passent par le service dice : les dés
  * 3D roulent, leurs faces lues à l'arrêt font le jet, et le résultat
  * s'affiche ensuite. Le brouillon du plateau est gardé dans ce navigateur ;
  * les macros suivent le profil. Avec `contexte`, la table est celle d'une
@@ -132,7 +132,7 @@ export function TableDes({
     [setEtat],
   );
 
-  /** Ramène le résultat à l'écran (mobile, ou page défilée jusqu'aux macros). */
+  /** Ramène le résultat à l'écran (mobile, ou page défilée jusqu'à l'historique). */
   function reveler() {
     const carte = refResultat.current;
     if (!carte) return;
@@ -203,42 +203,39 @@ export function TableDes({
     return () => window.removeEventListener('keydown', clavier);
   }, []);
 
-  return (
-    <Page large>
-      <EnTetePage
-        surtitre={contexte ? contexte.campagneNom : 'Table de dés'}
-        titre={contexte ? 'Dés de la table' : 'Lancer les dés'}
-        description={
-          contexte
-            ? `Les jets de la campagne, en direct.${contexte.personnage ? ` Les modificateurs de ${contexte.personnage.name} sont à portée de clic.` : ''}`
-            : 'Composez un jet, lancez, retrouvez-le. Les dés roulent en 3D et leurs faces font le jet, calculé par le service de dés avec le moteur de règles, fiche de personnage comprise.'
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs text-subtle md:flex">
-              <span className="flex items-center gap-1.5">
-                <Kbd>R</Kbd> relancer
-              </span>
-              <span aria-hidden className="h-3 w-px bg-border-strong" />
-              <span className="flex items-center gap-1.5">
-                <Kbd>1</Kbd>–<Kbd>9</Kbd> macros
-              </span>
-            </div>
-            <DiceSettings />
-          </div>
-        }
-      />
+  const journal = (
+    <PanneauJets
+      jets={jets.data ?? []}
+      chargement={jets.isPending}
+      erreur={jets.error}
+      moi={profil?.id ?? null}
+      roomId={roomId}
+      campagne={contexte ? contexte.campagneNom : (campagne?.name ?? null)}
+      peutEffacer={contexte ? contexte.gm : !campagne || campagne.role === 'gm'}
+      live={live}
+      plusAnciens={{
+        possible: jets.hasNextPage,
+        enCours: jets.isFetchingNextPage,
+        charger: () => void jets.fetchNextPage(),
+      }}
+      onRelancer={(j) => void lancerFormule(j.formula, j.label)}
+      onEfface={() => setDernier(null)}
+      colonne={!contexte}
+    />
+  );
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="min-w-0 space-y-5">
-          <CarteResultat
+  const table = (
+    <div className="[container-type:inline-size]">
+      <div className="grid items-start gap-3 [@container(min-width:52rem)]:grid-cols-[minmax(0,1fr)_22rem] [@container(min-width:52rem)]:gap-4">
+        <div className="min-w-0 rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]">
+          <ResultatCompact
             ref={refResultat}
             jet={affiche}
             anime={dernier !== null && affiche === dernier}
             onRelancer={() => void relancer()}
             enCours={lancer.isPending}
           />
-          <Plateau
+          <Lanceur
             ref={refFormule}
             etat={etat}
             onModifier={modifier}
@@ -256,37 +253,51 @@ export function TableDes({
             }
             onLancer={() => void lancerFormule(etat.formule, etat.libelle)}
             enCours={lancer.isPending}
-          />
-          <Macros
-            formule={etat.formule}
-            libelle={etat.libelle}
-            formuleValide={verification.ok}
-            onLancer={(m) => void lancerFormule(m.formula, m.name)}
-            onCharger={(m) => {
+            onLancerMacro={(m) => void lancerFormule(m.formula, m.name)}
+            onChargerMacro={(m) => {
               modifier({ formule: m.formula, libelle: m.name });
               refFormule.current?.focus();
             }}
           />
         </div>
-
-        <PanneauJets
-          jets={jets.data ?? []}
-          chargement={jets.isPending}
-          erreur={jets.error}
-          moi={profil?.id ?? null}
-          roomId={roomId}
-          campagne={contexte ? contexte.campagneNom : (campagne?.name ?? null)}
-          peutEffacer={contexte ? contexte.gm : !campagne || campagne.role === 'gm'}
-          live={live}
-          plusAnciens={{
-            possible: jets.hasNextPage,
-            enCours: jets.isFetchingNextPage,
-            charger: () => void jets.fetchNextPage(),
-          }}
-          onRelancer={(j) => void lancerFormule(j.formula, j.label)}
-          onEfface={() => setDernier(null)}
-        />
+        {journal}
       </div>
-    </Page>
+    </div>
+  );
+
+  // Espace de jeu : le panneau porte déjà son titre, la table occupe tout
+  if (contexte)
+    return (
+      <MotionConfig reducedMotion="user">
+        <div className="p-3 sm:p-4">{table}</div>
+      </MotionConfig>
+    );
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <Page>
+        <EnTetePage
+          className="mb-4 sm:mb-5"
+          surtitre="Table de dés"
+          titre="Lancer les dés"
+          actions={
+            <div className="hidden items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs text-subtle md:flex">
+              <span className="flex items-center gap-1.5">
+                <Kbd>↵</Kbd> lancer
+              </span>
+              <span aria-hidden className="h-3 w-px bg-border-strong" />
+              <span className="flex items-center gap-1.5">
+                <Kbd>R</Kbd> relancer
+              </span>
+              <span aria-hidden className="h-3 w-px bg-border-strong" />
+              <span className="flex items-center gap-1.5">
+                <Kbd>1</Kbd>–<Kbd>9</Kbd> macros
+              </span>
+            </div>
+          }
+        />
+        {table}
+      </Page>
+    </MotionConfig>
   );
 }

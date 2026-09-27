@@ -5,14 +5,15 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
 import { useStatsJets, type Jet } from '@/lib/jets';
+import { cn } from '@/lib/utils';
 import { EffacerHistorique, HistoriqueJets, type PlusAnciens } from './historique-jets';
 import { StatsJets } from './stats-jets';
 
 /**
- * Colonne de droite : historique et statistiques du contexte courant (jets
- * personnels, ou ceux de la campagne choisie), servis par le service dice et
- * tenus à jour en direct. Collée sous la barre haute sur grand écran, elle
- * défile seule.
+ * Journal des jets du contexte courant (jets personnels, ou ceux de la
+ * campagne choisie), servis par le service dice et tenus à jour en direct :
+ * l'historique en liste dense, et les statistiques dans leur onglet. En
+ * colonne (table large), il reste collé sous la barre haute et défile seul.
  */
 export function PanneauJets({
   jets,
@@ -26,6 +27,7 @@ export function PanneauJets({
   plusAnciens,
   onRelancer,
   onEfface,
+  colonne = false,
 }: {
   jets: Jet[];
   chargement: boolean;
@@ -41,6 +43,8 @@ export function PanneauJets({
   plusAnciens: PlusAnciens;
   onRelancer: (jet: Jet) => void;
   onEfface: () => void;
+  /** Colonne à côté du lanceur (page large) : collée en haut, hauteur bornée. */
+  colonne?: boolean;
 }) {
   const [onglet, setOnglet] = useState('historique');
   const stats = useStatsJets(roomId, onglet === 'stats');
@@ -49,10 +53,13 @@ export function PanneauJets({
   return (
     <aside
       aria-label="Historique et statistiques"
-      className="flex min-w-0 flex-col rounded-2xl border border-border bg-card shadow-surface xl:sticky xl:top-[72px] xl:max-h-[calc(100dvh-88px)]"
+      className={cn(
+        'flex min-w-0 flex-col rounded-2xl border border-border bg-card shadow-surface',
+        colonne && 'lg:sticky lg:top-[72px] lg:max-h-[calc(100dvh-88px)]',
+      )}
     >
       <Tabs value={onglet} onValueChange={setOnglet} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-4">
+        <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-3">
           <TabsList>
             <TabsTrigger value="historique">
               <History aria-hidden />
@@ -78,7 +85,7 @@ export function PanneauJets({
             />
           )}
         </div>
-        <p className="flex items-center gap-1.5 border-b border-border px-5 pb-3 text-[11px] text-subtle">
+        <p className="flex items-center gap-1.5 border-b border-border px-4 pb-2 text-[11px] text-subtle">
           <Contexte className="size-3 shrink-0" aria-hidden />
           <span className="truncate">
             {onglet === 'stats' && !campagne

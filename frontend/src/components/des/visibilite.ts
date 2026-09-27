@@ -1,13 +1,20 @@
-import { Crown, EyeOff, Globe, Lock } from 'lucide-react';
+import { Crown, EyeOff, Globe, Lock, type LucideIcon } from 'lucide-react';
 import type { VisibiliteJet } from '@/lib/jets';
-import type { OptionSegment } from './segmente';
+
+export interface OptionVisibilite {
+  valeur: VisibiliteJet;
+  libelle: string;
+  icone: LucideIcon;
+  /** Explication courte (infobulle). */
+  aide: string;
+}
 
 /**
  * Qui voit un jet de campagne : libellés et icônes communs au plateau, au
  * résultat et à l'historique (valeurs du service dice). Hors campagne, un jet
  * est toujours personnel (`self`).
  */
-export const OPTIONS_VISIBILITE: OptionSegment<VisibiliteJet>[] = [
+export const OPTIONS_VISIBILITE: OptionVisibilite[] = [
   {
     valeur: 'public',
     libelle: 'Public',

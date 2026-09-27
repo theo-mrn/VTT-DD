@@ -10,7 +10,8 @@ import { useDicePreferences } from '@/lib/dice-preferences';
 import { prepareDice3D } from '@/lib/dice-throw';
 import { DES_RAPIDES, useLancer, verifierFormule, type Jet } from '@/lib/jets';
 import { cn } from '@/lib/utils';
-import { DesDuJet, TotalJet } from './resultat-jet';
+import { TotalJet } from './resultat-jet';
+import { ValeursDes } from './valeurs-des';
 
 /** Ajoute un dé à une formule : « 1d20 » puis « 2d20 », ou « 1d20 + 1d6 ». */
 export function ajouterDe(formule: string, faces: number): string {
@@ -132,7 +133,7 @@ export function LanceurRapide({ onFerme }: { onFerme?: () => void }) {
               />
               <span className="truncate font-mono text-xs text-subtle">{dernier.formula}</span>
             </div>
-            <DesDuJet groupes={dernier.groups} taille="xs" entree />
+            <ValeursDes groupes={dernier.groups} />
           </div>
         ) : (
           <p className="py-2 text-center text-xs text-subtle">

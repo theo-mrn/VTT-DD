@@ -1,8 +1,8 @@
 'use client';
 
 import { calculer, type Fiche } from '@vtt/rules';
-import { Check, ChevronsUpDown, Plus, Swords, UserRound, type LucideIcon } from 'lucide-react';
-import { useId, useMemo } from 'react';
+import { Check, ChevronsUpDown, Swords, UserRound, type LucideIcon } from 'lucide-react';
+import { useMemo } from 'react';
 import { degradeDe } from '@/components/commun/illustration';
 import {
   DropdownMenu,
@@ -72,7 +72,10 @@ export function attributsJetables(fiche: Fiche): AttributJetable[] {
 
 export const signe = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
-/** Pastilles des modificateurs : un clic ajoute `+ mod(@CLE)` à la formule. */
+/**
+ * Puces des modificateurs, sur une ligne qui défile : un clic ajoute
+ * `+ mod(@CLE)` à la formule.
+ */
 export function PastillesAttributs({
   attributs,
   chargement,
@@ -88,60 +91,64 @@ export function PastillesAttributs({
 }) {
   if (erreur)
     return (
-      <p className="text-xs text-destructive">
+      <p className="truncate text-xs text-destructive">
         Fiche de {nomPersonnage} indisponible : {erreur}
       </p>
     );
   if (chargement)
     return (
-      <div className="flex flex-wrap gap-1.5" aria-label="Chargement de la fiche">
+      <div className="flex gap-1.5 overflow-hidden" aria-label="Chargement de la fiche">
         {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-8 w-[68px] rounded-lg" />
+          <Skeleton key={i} className="h-8 w-16 shrink-0 rounded-full" />
         ))}
       </div>
     );
   if (!attributs.length)
     return (
-      <p className="text-xs text-subtle">
-        Ce système n’a pas de modificateur à ajouter ; écrivez{' '}
-        <code className="font-mono">@CLÉ</code> dans la formule.
+      <p className="truncate text-xs text-subtle">
+        Aucun modificateur : écrivez <code className="font-mono">@CLÉ</code> dans la formule.
       </p>
     );
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <ul className={LIGNE_DEFILANTE} aria-label={`Modificateurs de ${nomPersonnage}`}>
       {attributs.map((a) => (
-        <Info key={a.cle} texte={`Ajouter le modificateur de ${a.nom} : + mod(@${a.cle})`}>
-          <button
-            type="button"
-            onClick={() => onAjouter(a.cle)}
-            aria-label={`Ajouter le modificateur de ${a.nom} (${signe(a.modificateur)})`}
-            className={cn(
-              'group inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-surface-2/60 pl-2 pr-2.5 text-xs transition-colors',
-              'hover:border-primary/40 hover:bg-primary/[0.06]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-            )}
-          >
-            <Plus
-              className="size-3 text-subtle transition-colors group-hover:text-primary"
-              aria-hidden
-            />
-            <span className="font-semibold tracking-wide text-foreground">{a.libelle}</span>
-            <span
+        <li key={a.cle} className="shrink-0">
+          <Info texte={`${a.nom} : ajoute + mod(@${a.cle})`}>
+            <button
+              type="button"
+              onClick={() => onAjouter(a.cle)}
+              aria-label={`Ajouter le modificateur de ${a.nom} (${signe(a.modificateur)})`}
               className={cn(
-                'font-mono tabular',
-                a.modificateur > 0 && 'text-success',
-                a.modificateur < 0 && 'text-destructive',
-                a.modificateur === 0 && 'text-subtle',
+                PUCE,
+                'hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
               )}
             >
-              {signe(a.modificateur)}
-            </span>
-          </button>
-        </Info>
+              <span className="font-semibold tracking-wide text-foreground">{a.libelle}</span>
+              <span
+                className={cn(
+                  'font-mono tabular',
+                  a.modificateur > 0 && 'text-success',
+                  a.modificateur < 0 && 'text-destructive',
+                  a.modificateur === 0 && 'text-subtle',
+                )}
+              >
+                {signe(a.modificateur)}
+              </span>
+            </button>
+          </Info>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
+
+/** Ligne de puces qui défile à l'horizontale (fine barre de défilement). */
+export const LIGNE_DEFILANTE =
+  'flex min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain py-0.5 [scrollbar-width:thin]';
+
+/** Puce du lanceur (modificateur, macro) : 32 px, 44 px au doigt. */
+export const PUCE =
+  'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-surface-2/60 px-3 text-xs transition-colors [@media(pointer:coarse)]:h-11';
 
 // ─── Sélecteurs ──────────────────────────────────────────────────────────────
 
@@ -175,8 +182,8 @@ function Vignette({
 }
 
 /**
- * Choix d'un élément facultatif (campagne, personnage) dans un menu : le
- * déclencheur a l'allure d'un champ, la première ligne remet « aucun ».
+ * Choix d'un élément facultatif (campagne, personnage) dans un menu. Le
+ * déclencheur est une puce compacte ; la première ligne remet « aucun ».
  */
 export function SelecteurContexte({
   etiquette,
@@ -199,69 +206,55 @@ export function SelecteurContexte({
   vide: string;
   chargement?: boolean;
 }) {
-  const id = useId();
   const choisie = options.find((o) => o.id === valeur) ?? null;
 
   return (
-    <div className="min-w-0 space-y-2">
-      <p id={id} className="text-xs font-medium leading-none text-muted-foreground">
-        {etiquette}
-      </p>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-labelledby={id}
-          className={cn(
-            'flex h-10 w-full items-center gap-2.5 rounded-lg border border-input bg-surface-2/60 px-3 text-left text-sm shadow-surface transition-[border-color,box-shadow]',
-            'hover:border-border-strong data-[state=open]:border-primary/60 data-[state=open]:ring-4 data-[state=open]:ring-primary/10',
-            'focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10',
-          )}
-        >
-          {choisie ? (
-            <Vignette graine={choisie.id} libelle={choisie.libelle} />
-          ) : (
-            <Icone className="size-4 shrink-0 text-subtle" aria-hidden />
-          )}
-          <span className={cn('min-w-0 flex-1 truncate', !choisie && 'text-muted-foreground')}>
-            {chargement ? 'Chargement…' : (choisie?.libelle ?? aucun)}
-          </span>
-          <ChevronsUpDown className="size-3.5 shrink-0 text-subtle" aria-hidden />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[240px]"
-        >
-          <DropdownMenuItem onSelect={() => onChange(null)}>
-            <Icone aria-hidden />
-            <span className="flex-1">{aucun}</span>
-            {!choisie && <Check className="text-primary" aria-hidden />}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {options.length ? (
-            <>
-              <DropdownMenuLabel>{etiquette}s</DropdownMenuLabel>
-              {options.map((o) => (
-                <DropdownMenuItem key={o.id} onSelect={() => onChange(o.id)} className="py-1.5">
-                  <Vignette
-                    graine={o.id}
-                    libelle={o.libelle}
-                    className="size-7 rounded-lg text-xs"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-foreground">{o.libelle}</span>
-                    {o.detail && (
-                      <span className="block truncate text-[11px] text-subtle">{o.detail}</span>
-                    )}
-                  </span>
-                  {o.id === valeur && <Check className="text-primary" aria-hidden />}
-                </DropdownMenuItem>
-              ))}
-            </>
-          ) : (
-            <p className="px-2.5 py-2 text-xs text-subtle">{vide}</p>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`${etiquette} : ${chargement ? 'chargement' : (choisie?.libelle ?? aucun)}`}
+        title={etiquette}
+        className={cn(
+          'flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-lg border border-border bg-surface-2/60 pl-2 pr-2 text-left text-[13px] transition-colors [@media(pointer:coarse)]:h-11',
+          'hover:border-border-strong data-[state=open]:border-primary/60',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+        )}
+      >
+        {choisie ? (
+          <Vignette graine={choisie.id} libelle={choisie.libelle} />
+        ) : (
+          <Icone className="size-4 shrink-0 text-subtle" aria-hidden />
+        )}
+        <span className={cn('min-w-0 flex-1 truncate', !choisie && 'text-muted-foreground')}>
+          {chargement ? 'Chargement…' : (choisie?.libelle ?? aucun)}
+        </span>
+        <ChevronsUpDown className="size-3.5 shrink-0 text-subtle" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[240px]">
+        <DropdownMenuLabel>{etiquette}</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => onChange(null)}>
+          <Icone aria-hidden />
+          <span className="flex-1">{aucun}</span>
+          {!choisie && <Check className="text-primary" aria-hidden />}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {options.length ? (
+          options.map((o) => (
+            <DropdownMenuItem key={o.id} onSelect={() => onChange(o.id)} className="py-1.5">
+              <Vignette graine={o.id} libelle={o.libelle} className="size-7 rounded-lg text-xs" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-foreground">{o.libelle}</span>
+                {o.detail && (
+                  <span className="block truncate text-[11px] text-subtle">{o.detail}</span>
+                )}
+              </span>
+              {o.id === valeur && <Check className="text-primary" aria-hidden />}
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <p className="px-2.5 py-2 text-xs text-subtle">{vide}</p>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
