@@ -573,7 +573,8 @@ export function champsAffiches(
     if (vide && !modifiable) continue;
     r.push({
       champ: c,
-      valeur: valeur ?? '—',
+      // Vide : masqué hors personnalisation
+      valeur: vide ? '—' : (valeur ?? '—'),
       propre,
       modifiable,
       brut: Array.isArray(v) ? undefined : v,
