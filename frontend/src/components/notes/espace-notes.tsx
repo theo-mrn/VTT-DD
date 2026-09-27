@@ -100,14 +100,21 @@ const copieComplete = (n: Note): NouvelleNote => ({
 export function EspaceNotes({
   campagne: campagneFixe = null,
   base = URL_NOTES,
-}: { campagne?: string | null; base?: string } = {}) {
+  raccourcis = true,
+}: {
+  campagne?: string | null;
+  base?: string;
+  /** Raccourcis clavier actifs (faux quand l'espace est monté mais masqué, panneau fermé). */
+  raccourcis?: boolean;
+} = {}) {
   const params = useSearchParams();
   const idUrl = params.get('note');
   const demandeNouvelle = params.has('nouvelle');
   const campagneUrl = campagneFixe ?? params.get('campagne');
   const moi = useProfil().id;
   const urlNote = useCallback(
-    (id: string | null) => (id ? `${base}?note=${encodeURIComponent(id)}` : base),
+    (id: string | null) =>
+      id ? `${base}${base.includes('?') ? '&' : '?'}note=${encodeURIComponent(id)}` : base,
     [base],
   );
 
@@ -324,9 +331,10 @@ export function EspaceNotes({
   };
 
   // ─── Raccourcis clavier ──────────────────────────────────────────────────
-  const actions = useRef({ creer: () => creerNote(), chercher: () => {} });
+  const actions = useRef({ creer: () => creerNote(), chercher: () => {}, raccourcis });
   useEffect(() => {
     actions.current = {
+      raccourcis,
       creer: () => creerNote(),
       chercher: () => {
         if (!listeMasquee) return refRecherche.current?.focus();
@@ -339,7 +347,7 @@ export function EspaceNotes({
 
   useEffect(() => {
     const clavier = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.repeat) return;
+      if (!actions.current.raccourcis || e.defaultPrevented || e.repeat) return;
       // ⌘⌥N / Ctrl+Alt+N partout, même en pleine saisie (code : ⌥N produit « ˜ » sur Mac)
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyN') {
         e.preventDefault();

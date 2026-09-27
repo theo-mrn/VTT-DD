@@ -57,7 +57,14 @@ export interface ContexteTableDes {
  * les macros suivent le profil. Avec `contexte`, la table est celle d'une
  * campagne : jets, visibilités et historique de la campagne, avec le héros incarné.
  */
-export function TableDes({ contexte }: { contexte?: ContexteTableDes }) {
+export function TableDes({
+  contexte,
+  raccourcis = true,
+}: {
+  contexte?: ContexteTableDes;
+  /** Raccourcis clavier actifs (faux quand l'écran est monté mais masqué, panneau fermé). */
+  raccourcis?: boolean;
+}) {
   const { profil } = useSession();
   const [enregistre, setEtat] = usePreferenceLocale<EtatPlateau>(
     contexte ? `des:table:${contexte.campagneId}` : 'des:plateau',
@@ -175,10 +182,11 @@ export function TableDes({ contexte }: { contexte?: ContexteTableDes }) {
       : lancerFormule(etat.formule, etat.libelle);
 
   // Raccourcis : R relance le dernier jet, 1 à 9 lancent les macros
-  const actions = useRef({ relancer, macros, lancerFormule });
-  actions.current = { relancer, macros, lancerFormule };
+  const actions = useRef({ relancer, macros, lancerFormule, raccourcis });
+  actions.current = { relancer, macros, lancerFormule, raccourcis };
   useEffect(() => {
     function clavier(e: KeyboardEvent) {
+      if (!actions.current.raccourcis) return;
       if (e.defaultPrevented || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       if (frappeAilleurs(e)) return;
       if (e.key === 'r' || e.key === 'R') {
