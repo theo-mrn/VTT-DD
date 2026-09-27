@@ -40,8 +40,15 @@ export const ROUTES = {
   '/v1/history': 'UPSTREAM_HISTORY_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
 
-/** Routes accessibles sans jeton (connexion, webhooks signés). */
-const PUBLIC_PREFIXES = ['/v1/auth', '/v1/billing/webhooks'];
+/** Routes accessibles sans jeton (connexion). */
+const PUBLIC_PREFIXES = ['/v1/auth'];
+
+/**
+ * Webhooks signés, sans jeton : c'est leur signature qui les authentifie,
+ * vérifiée par le service sur le corps brut (relayé octet pour octet, jamais
+ * re-sérialisé par la gateway). Chemin exact, POST seulement.
+ */
+const PUBLIC_WEBHOOKS = ['/v1/billing/webhook'];
 
 /** Routes publiques en lecture seule : la liste des systèmes de jeu et leurs documents. */
 const PUBLIC_LECTURE = ['/v1/systems'];
@@ -50,6 +57,7 @@ const PUBLIC_LECTURE = ['/v1/systems'];
 export function estPublique(methode: string, url: string): boolean {
   if (PUBLIC_PREFIXES.some((p) => url.startsWith(p))) return true;
   const chemin = url.split('?')[0] ?? '';
+  if (methode === 'POST' && PUBLIC_WEBHOOKS.includes(chemin)) return true;
   return (
     (methode === 'GET' || methode === 'HEAD') &&
     PUBLIC_LECTURE.some((p) => chemin === p || chemin.startsWith(`${p}/`))

@@ -119,7 +119,66 @@ describe('gateway', () => {
   });
 });
 
+describe('webhook Stripe', () => {
+  it('passe sans jeton, corps brut et signature relayés octet pour octet', async () => {
+    let received: { body: Buffer; headers: IncomingHttpHeaders; url?: string } | undefined;
+    const billing = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        received = { body: Buffer.concat(chunks), headers: req.headers, url: req.url };
+        res.setHeader('content-type', 'application/json');
+        res.end('{"received":true}');
+      });
+    });
+    await new Promise<void>((r) => billing.listen(0, '127.0.0.1', r));
+    try {
+      const app = await buildGateway(
+        loadConfig(GatewayConfig, {
+          NODE_ENV: 'test',
+          LOG_LEVEL: 'silent',
+          JWT_ISSUER: 'https://identity.test',
+          JWT_AUDIENCE: 'vtt-api',
+          UPSTREAM_BILLING_URL: `http://127.0.0.1:${(billing.address() as AddressInfo).port}`,
+        }),
+        { authKeyResolver: async () => publicKey },
+      );
+      // Espaces, ordre des clés et caractères non ASCII : une re-sérialisation les changerait
+      const payload = '{ "id":"evt_1",  "type":"checkout.session.completed", "nom":"Élodie" }\n';
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/billing/webhook',
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'stripe-signature': 't=1,v1=abc',
+        },
+        payload,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(received!.url).toBe('/v1/billing/webhook');
+      expect(received!.body.equals(Buffer.from(payload, 'utf8'))).toBe(true);
+      expect(received!.headers['stripe-signature']).toBe('t=1,v1=abc');
+
+      // Le reste de /v1/billing exige un jeton
+      expect((await app.inject({ url: '/v1/billing/me' })).statusCode).toBe(401);
+      expect(
+        (await app.inject({ method: 'POST', url: '/v1/billing/checkout', payload: {} })).statusCode,
+      ).toBe(401);
+    } finally {
+      billing.close();
+    }
+  });
+});
+
 describe('estPublique', () => {
+  it('ouvre le webhook Stripe en POST, à ce chemin exact seulement', () => {
+    expect(estPublique('POST', '/v1/billing/webhook')).toBe(true);
+    expect(estPublique('GET', '/v1/billing/webhook')).toBe(false);
+    expect(estPublique('POST', '/v1/billing/webhooks')).toBe(false);
+    expect(estPublique('POST', '/v1/billing/webhook/x')).toBe(false);
+    expect(estPublique('POST', '/v1/billing/checkout')).toBe(false);
+  });
+
   it('ouvre la lecture des systèmes seulement', () => {
     expect(estPublique('GET', '/v1/systems')).toBe(true);
     expect(estPublique('GET', '/v1/systems?x=1')).toBe(true);
