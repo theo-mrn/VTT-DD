@@ -3,7 +3,8 @@
  * personnages restent dans character ; campaign enregistre seulement leur
  * engagement, avec un camp, et le membre qui l'incarne.
  *
- *   GET    /v1/campaigns/:id/characters                personnages engagés (membres)
+ *   GET    /v1/campaigns/:id/characters                personnages engagés, avec leur résumé
+ *                                                       de character (membres)
  *   POST   /v1/campaigns/:id/characters                { characterId, side? }
  *   DELETE /v1/campaigns/:id/characters/:characterId
  *   PUT    /v1/campaigns/:id/me/character              { characterId | null } : incarner
@@ -52,6 +53,13 @@ const CampaignCharacter = z.object({
   playedBy: z.string().nullable(),
   /** Création en cours : la fiche n'est pas terminée. */
   inCreation: z.boolean(),
+  /** Résumé des listes (« Nain · Guerrier », « PV 12/14 ») ; null si character ne le donne pas. */
+  summary: z
+    .object({
+      tagline: z.string(),
+      highlights: z.array(z.object({ label: z.string(), value: z.string() })),
+    })
+    .nullable(),
 });
 
 /** Personnages engagés, complétés par leur résumé dans character (appels parallèles). */
@@ -84,6 +92,7 @@ async function campaignCharactersOf(deps: Deps, a: Access, req: FastifyRequest) 
     ownerId: e.ownerId,
     playedBy: e.playedBy,
     inCreation: summaries[i]?.inCreation ?? false,
+    summary: summaries[i]?.summary ?? null,
   }));
 }
 

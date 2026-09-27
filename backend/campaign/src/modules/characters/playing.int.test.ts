@@ -50,7 +50,12 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
 
   it('liste des personnages engagés, avec leur résumé dans character', async () => {
     const id = await h.campaign(gm, 'dnd-classic', [alice]);
-    const hero = await h.engage(id, alice, { name: 'Aria', avatarUrl: 'https://img/aria.png' });
+    const summary = { tagline: 'Elfe · Barde', highlights: [{ label: 'Niveau', value: '3' }] };
+    const hero = await h.engage(id, alice, {
+      name: 'Aria',
+      avatarUrl: 'https://img/aria.png',
+      summary,
+    });
     const npc = await h.engage(id, gm, { name: 'Gobelin', type: 'pnj' });
     expect(await list(alice, id)).toEqual([
       {
@@ -62,6 +67,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         ownerId: alice.id,
         playedBy: null,
         inCreation: false,
+        summary,
       },
       {
         characterId: npc,
@@ -72,11 +78,18 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         ownerId: gm.id,
         playedBy: null,
         inCreation: false,
+        // Ancienne version de character, sans résumé
+        summary: null,
       },
     ]);
     // Personnage disparu de character : l'engagement reste, sans résumé
     t.character.characters.delete(npc);
-    expect((await list(alice, id))[1]).toMatchObject({ characterId: npc, name: null, type: null });
+    expect((await list(alice, id))[1]).toMatchObject({
+      characterId: npc,
+      name: null,
+      type: null,
+      summary: null,
+    });
     expect((await h.request(bob, 'GET', `/v1/campaigns/${id}/characters`)).statusCode).toBe(404);
   });
 

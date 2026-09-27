@@ -27,7 +27,21 @@ const SummaryResponse = z.object({
    * de character : vaut alors false.
    */
   creation: z.boolean().default(false),
+  /** Résumé des listes (entrées uniques, valeurs clés) ; absent des anciennes versions. */
+  summary: z
+    .object({
+      tagline: z.string(),
+      highlights: z.array(z.object({ label: z.string(), value: z.string() })),
+    })
+    .nullable()
+    .default(null),
 });
+
+/** Résumé d'un personnage pour les listes : « Elfe · Magicien », « Niveau 3 »… */
+export interface CharacterListSummary {
+  tagline: string;
+  highlights: { label: string; value: string }[];
+}
 
 export interface CharacterSummary {
   id: string;
@@ -37,6 +51,7 @@ export interface CharacterSummary {
   system: { id: string; version: string };
   type: string;
   inCreation: boolean;
+  summary: CharacterListSummary | null;
 }
 
 const ActionResponse = z.object({ resultat: z.unknown(), cles: z.array(z.number()).optional() });
@@ -180,6 +195,7 @@ export function characterClient(o: {
           system: r.systeme,
           type: r.type,
           inCreation: r.creation,
+          summary: r.summary,
         };
       } catch (e) {
         if (e instanceof CharacterError && e.status === 404) return null;

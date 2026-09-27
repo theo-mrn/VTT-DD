@@ -21,6 +21,8 @@ export interface FakeCharacter {
   inCreation?: boolean;
   type?: string;
   avatarUrl?: string | null;
+  /** Résumé des listes renvoyé par character. */
+  summary?: { tagline: string; highlights: { label: string; value: string }[] };
 }
 
 export interface Call {
@@ -72,6 +74,7 @@ export async function fakeCharacter(secret: string) {
         systeme: { id: c.systemId, version: '1.0.0' },
         type: c.type ?? 'personnage',
         creation: c.inCreation ?? false,
+        ...(c.summary ? { summary: c.summary } : {}),
       });
     }
     if (req.method === 'POST' && rest.startsWith('/actions/')) {

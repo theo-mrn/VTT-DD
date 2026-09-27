@@ -110,12 +110,12 @@ Lecture des messages, en polling en attendant le service realtime :
 
 Les personnages restent dans le service character. Campaign enregistre seulement leur **engagement** dans une campagne, avec un camp (`side`), et le membre qui l'incarne :
 
-| Méthode | Route                                       | Corps                                                        | Réponse                                                                                                         |
-| ------- | ------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/campaigns/:id/characters`              | —                                                            | personnages engagés : `[{ characterId, name, avatarUrl, type, side, ownerId, playedBy, inCreation }]` (membres) |
-| POST    | `/v1/campaigns/:id/characters`              | `{ characterId, side?: 'players' \| 'enemies' \| 'allies' }` | 201 et la campagne ; engage un de mes personnages (le MJ engage ainsi ses PNJ)                                  |
-| DELETE  | `/v1/campaigns/:id/characters/:characterId` | —                                                            | 204 ; retire le personnage (son propriétaire ou le MJ), et le sort du combat en cours                           |
-| PUT     | `/v1/campaigns/:id/me/character`            | `{ characterId: string \| null }`                            | la liste des personnages engagés (comme `GET /characters`) ; `null` libère le personnage incarné                |
+| Méthode | Route                                       | Corps                                                        | Réponse                                                                                                                  |
+| ------- | ------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| GET     | `/v1/campaigns/:id/characters`              | —                                                            | personnages engagés : `[{ characterId, name, avatarUrl, type, side, ownerId, playedBy, inCreation, summary }]` (membres) |
+| POST    | `/v1/campaigns/:id/characters`              | `{ characterId, side?: 'players' \| 'enemies' \| 'allies' }` | 201 et la campagne ; engage un de mes personnages (le MJ engage ainsi ses PNJ)                                           |
+| DELETE  | `/v1/campaigns/:id/characters/:characterId` | —                                                            | 204 ; retire le personnage (son propriétaire ou le MJ), et le sort du combat en cours                                    |
+| PUT     | `/v1/campaigns/:id/me/character`            | `{ characterId: string \| null }`                            | la liste des personnages engagés (comme `GET /characters`) ; `null` libère le personnage incarné                         |
 
 Règles de l'engagement :
 
@@ -123,7 +123,7 @@ Règles de l'engagement :
 - camp par défaut : `players` pour un joueur, `enemies` pour le MJ ; seul le MJ engage des `enemies` ; un spectateur n'engage rien ;
 - character injoignable : 502 `character_unavailable`, rien n'est engagé.
 
-Dans `GET /characters`, `name`, `avatarUrl` et `type` viennent de character : ils valent `null` si character est injoignable ou si le personnage n'existe plus. `inCreation` vaut `true` tant que la fiche est en cours de création.
+Dans `GET /characters`, `name`, `avatarUrl`, `type` et `summary` (résumé des listes : `{ tagline, highlights }`, voir [api-character.md](api-character.md)) viennent de character : ils valent `null` si character est injoignable ou si le personnage n'existe plus. `inCreation` vaut `true` tant que la fiche est en cours de création.
 
 Personnage incarné (ancien `users/{uid}.persoId`) :
 
