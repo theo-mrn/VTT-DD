@@ -6,11 +6,12 @@
  * configuré, les routes n'existent pas.
  *
  *   GET /internal/campaigns/:campaignId/events?afterSeq=&limit=&userId=&role=
- *       delta pour realtime : les événements de rang supérieur à afterSeq,
+ *       rattrapage d'une campagne : les événements de rang supérieur à afterSeq,
  *       du plus ancien au plus récent, et le dernier rang attribué (lastSeq).
  *       Avec userId et role, la visibilité est appliquée comme pour
- *       GET /v1/history ; sans, tout est renvoyé (realtime filtre lui-même,
- *       comme pour les événements reçus en direct). limit=0 : lastSeq seul.
+ *       GET /v1/history ; sans, tout est renvoyé (l'appelant filtre lui-même).
+ *       limit=0 : lastSeq seul. Sans appelant aujourd'hui (realtime rejoue depuis
+ *       JetStream) : prévue pour un rattrapage au-delà des 7 jours du flux.
  */
 import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -25,7 +26,7 @@ export const MAX_DELTA = 500;
 export const register: Module = async (app, deps) => {
   const secret = deps.config.INTERNAL_API_SECRET;
   if (!secret) {
-    app.log.warn('INTERNAL_API_SECRET absent : route interne (delta pour realtime) désactivée');
+    app.log.warn('INTERNAL_API_SECRET absent : route interne de rattrapage désactivée');
     return;
   }
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -36,7 +37,7 @@ export const register: Module = async (app, deps) => {
     {
       // Secret vérifié avant la validation : rien ne fuit sans lui
       preValidation: requireInternalSecret(secret),
-      // Les appels viennent de realtime (peu d'IP) : limite large
+      // Appels entre services (peu d'IP) : limite large
       config: { rateLimit: { max: 6000, timeWindow: '1 minute' } } as FastifyContextConfig,
       schema: {
         hide: true,

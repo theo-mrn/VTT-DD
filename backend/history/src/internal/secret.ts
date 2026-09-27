@@ -1,5 +1,5 @@
 /**
- * Routes /internal : appelées par les autres services (realtime), jamais
+ * Routes /internal : appelées par les autres services, jamais
  * relayées par la gateway. Elles n'ont pas de jeton utilisateur ; elles
  * exigent le secret partagé INTERNAL_API_SECRET dans l'en-tête
  * x-internal-secret, comparé à temps constant.

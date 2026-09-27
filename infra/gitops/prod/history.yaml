@@ -22,21 +22,21 @@ env:
   # Partitions mensuelles de history.events créées à l'avance (mois courant compris)
   PARTITION_MONTHS_AHEAD: '3'
 # Secret history-secrets (SOPS) : DATABASE_URL (rôle history_svc), INTERNAL_API_SECRET (même
-# valeur que campaign et realtime)
+# valeur que campaign)
 envFromSecrets:
   - name: history-secrets
 probes:
   liveness: /healthz
   readiness: /readyz
-# Pas d'ingress : history n'est joignable que par la gateway (et realtime en interne)
+# Pas d'ingress : history n'est joignable que par la gateway. La route interne de rattrapage
+# (/internal/…, secret partagé) n'a pas d'appelant : ajouter son podSelector ici le jour où un
+# service s'en sert (realtime rejoue aujourd'hui depuis JetStream)
 ingress:
   enabled: false
 networkPolicy:
   enabled: true
   allowFrom:
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
-    # realtime demande le rattrapage après une reconnexion (/internal/…, secret partagé)
-    - podSelector: { matchLabels: { app.kubernetes.io/name: realtime } }
 migrations:
   enabled: true
   image:

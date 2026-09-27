@@ -19,8 +19,8 @@ export const HistoryConfig = BaseConfig.extend({
 
   /**
    * Secret partagé entre services (en-tête x-internal-secret) : accompagne les
-   * appels de history vers campaign et protège la route /internal appelée par
-   * realtime. Absent : ni lecture de l'historique (droits inconnus), ni route interne.
+   * appels de history vers campaign et protège la route /internal de
+   * rattrapage. Absent : ni lecture de l'historique (droits inconnus), ni route interne.
    */
   INTERNAL_API_SECRET: optional(z.string().min(32)),
   /** Service campaign : rôle de l'appelant dans une campagne (visibilité, droits). */

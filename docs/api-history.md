@@ -6,11 +6,11 @@ Il ne reçoit rien en écriture par HTTP : les événements arrivent **uniquemen
 
 ## Timeline d'une campagne
 
-| Méthode | Route                                    | Réponse                                                                 |
-| ------- | ---------------------------------------- | ----------------------------------------------------------------------- |
-| GET     | `/v1/history?campaignId=…`               | `{ events, hasMore }` : événements visibles par l'appelant              |
-| GET     | `/v1/history/verify?campaignId=…`        | `{ campaignId, ok, events, lastSeq, firstBroken }` : chaîne recalculée  |
-| GET     | `/internal/campaigns/:campaignId/events` | route interne (realtime, secret partagé), jamais relayée par la gateway |
+| Méthode | Route                                    | Réponse                                                                |
+| ------- | ---------------------------------------- | ---------------------------------------------------------------------- |
+| GET     | `/v1/history?campaignId=…`               | `{ events, hasMore }` : événements visibles par l'appelant             |
+| GET     | `/v1/history/verify?campaignId=…`        | `{ campaignId, ok, events, lastSeq, firstBroken }` : chaîne recalculée |
+| GET     | `/internal/campaigns/:campaignId/events` | route interne (secret partagé), jamais relayée par la gateway          |
 
 ### `GET /v1/history`
 
@@ -82,7 +82,7 @@ Réservé au **MJ** (403 `gm_only` pour un joueur, 404 pour un non-membre ; 10 a
 
 ### Route interne de rattrapage
 
-`GET /internal/campaigns/:campaignId/events?afterSeq=&limit=&userId=&role=`, en-tête `x-internal-secret` (401 sinon ; route absente sans `INTERNAL_API_SECRET`) : les événements de rang supérieur à `afterSeq` (0 par défaut), du plus ancien au plus récent, 500 au plus, et `lastSeq`, le dernier rang attribué dans la campagne (lu après les événements : jamais en retard sur eux). Avec `userId` et `role` (`gm`, `player`, `spectator`), la visibilité est appliquée comme pour `GET /v1/history` ; sans, tout est renvoyé. `limit=0` : `lastSeq` seul. Réponse : `{ campaignId, lastSeq, events, hasMore }`. Utile à realtime pour un rattrapage au-delà des 7 jours de rétention du flux.
+`GET /internal/campaigns/:campaignId/events?afterSeq=&limit=&userId=&role=`, en-tête `x-internal-secret` (401 sinon ; route absente sans `INTERNAL_API_SECRET`) : les événements de rang supérieur à `afterSeq` (0 par défaut), du plus ancien au plus récent, 500 au plus, et `lastSeq`, le dernier rang attribué dans la campagne (lu après les événements : jamais en retard sur eux). Avec `userId` et `role` (`gm`, `player`, `spectator`), la visibilité est appliquée comme pour `GET /v1/history` ; sans, tout est renvoyé. `limit=0` : `lastSeq` seul. Réponse : `{ campaignId, lastSeq, events, hasMore }`. Sans appelant aujourd'hui (realtime rejoue directement depuis JetStream) : prévue pour un rattrapage au-delà des 7 jours de rétention du flux ; à ouvrir dans la NetworkPolicy (`allowFrom` de `infra/gitops/<env>/history.yaml`) le jour où un service l'appelle.
 
 ## Journal
 
@@ -166,6 +166,6 @@ pnpm import:history --sans-export --importer # réutilise ~/vtt-export/Historiqu
 | `HISTORY_CONSUMER`                       | nom du consommateur durable (`history`)                                                          |
 | `PARTITION_MONTHS_AHEAD`                 | partitions mensuelles créées à l'avance (3)                                                      |
 
-En cluster : valeurs dans `infra/gitops/<env>/history.yaml`, secret **`history-secrets`** (SOPS) avec `DATABASE_URL` (rôle `history_svc`) et `INTERNAL_API_SECRET` (même valeur que campaign et realtime) ; migrations par le Job PreSync avec le secret CloudNativePG `pg-history-owner`. NetworkPolicy : appelé par la gateway et realtime seulement.
+En cluster : valeurs dans `infra/gitops/<env>/history.yaml`, secret **`history-secrets`** (SOPS) avec `DATABASE_URL` (rôle `history_svc`) et `INTERNAL_API_SECRET` (même valeur que campaign) ; migrations par le Job PreSync avec le secret CloudNativePG `pg-history-owner`. NetworkPolicy : appelé par la gateway seulement.
 
 Tests : `pnpm --filter @vtt/history test`, avec `TEST_DATABASE_URL=postgres://history_svc:history-dev@localhost:5432/vtt` pour les tests d'intégration et `TEST_NATS_URL=nats://127.0.0.1:4222` pour le test de bout en bout du bus (ignorés sans). Le journal étant en ajout seul, les événements des tests restent en base (campagnes aléatoires, chaînes valides) ; les tests de chaîne cassée tournent dans des transactions annulées.
