@@ -11,8 +11,10 @@
  *   (`POST /v1/dice/rolls`, `physicalResults`, docs/api-dice.md) au lieu de
  *   Firestore ; repli aléatoire local sans 3D, jet caché, plus de 15 dés ou
  *   au bout de 10 s ;
- * - l'historique de la salle : polling du service (`useRollHistory`) au lieu
- *   de Firestore `rolls/{salle}/rolls` ; suppression par l'auteur ou le MJ ;
+ * - l'historique de la salle : service des dés, mis à jour en direct par le
+ *   service realtime (`useRollHistory`) au lieu de Firestore
+ *   `rolls/{salle}/rolls` ; suppression par l'auteur ou le MJ ; un seul jet à
+ *   la fois depuis le panneau (plus de double envoi) ;
  * - skin, animation 3D et son : préférences du service (`useDicePreferences`) ;
  * - système, personnage et MJ : props (plus de contextes Firebase), dés à
  *   symboles, couleurs et libellés lus dans le système et sa présentation ;
@@ -302,7 +304,7 @@ export const DiceRoller = ({
     return () => clearInterval(interval);
   }, [isLoading, latestResult]);
 
-  // Historique de la salle : service des dés (polling), toasts pour les jets des autres joueurs.
+  // Historique de la salle : service des dés (temps réel), toasts pour les jets des autres joueurs.
   const history = useRollHistory({
     campaignId: roomId,
     onIncoming: (rolls) => {
@@ -591,7 +593,14 @@ export const DiceRoller = ({
     });
   };
 
+  // Un seul jet à la fois depuis le panneau, comme le bouton, désactivé pendant le lancer.
+  // Entrée (ou un raccourci) pressée pendant que les dés roulaient lançait un second jet de la
+  // même notation ; au premier jet, les deux lancers attendaient ensemble le chargement de la
+  // 3D puis partaient en même temps : deux jets identiques enregistrés à la même seconde.
+  const rollingRef = useRef(false);
+
   const handleRoll = async (notationOverride?: string) => {
+    if (rollingRef.current) return;
     const notation = (notationOverride ?? input).trim();
     if (!notation) return;
 
@@ -600,6 +609,7 @@ export const DiceRoller = ({
       return;
     }
 
+    rollingRef.current = true;
     setIsLoading(true);
     try {
       const symbolRequests = parseSymbolDiceRequests(notation);
@@ -645,6 +655,7 @@ export const DiceRoller = ({
       console.error(e);
       toast.error(errorMessage(e, 'Erreur lors du lancer'));
     } finally {
+      rollingRef.current = false;
       setIsLoading(false);
     }
   };
@@ -667,7 +678,8 @@ export const DiceRoller = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleRoll();
+      // Touche maintenue : la répétition automatique ne relance pas
+      if (!e.repeat) handleRoll();
     }
   };
 
