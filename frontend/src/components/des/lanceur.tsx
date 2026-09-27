@@ -5,10 +5,11 @@ import { forwardRef, useMemo, useState, type FormEvent } from 'react';
 import type { Campagne } from '@/lib/campagnes';
 import type { Jet, Macro, Verification, VisibiliteJet } from '@/lib/jets';
 import type { Personnage } from '@/lib/personnages';
+import { useRollableAttributes } from '@/lib/rollable-attributes';
 import { cn } from '@/lib/utils';
 import { Bascule3D, BoutonBoutique, VisibiliteMenu } from './barre-options';
 import { AideLanceur, ChampFormule } from './champ-formule';
-import { attributsJetables, type useFichePersonnage } from './contexte-jet';
+import type { useFichePersonnage } from './contexte-jet';
 import { GrilleDes } from './grille-des';
 import { ajouterDe } from './lanceur-rapide';
 import { LigneResultat } from './ligne-resultat';
@@ -86,10 +87,7 @@ export const Lanceur = forwardRef<
   const compte = useMemo(() => compterDes(formule), [formule]);
   const mode = modeD20(formule);
   const personnage = personnages.liste.find((p) => p.id === etat.personnageId) ?? null;
-  const attributs = useMemo(
-    () => (fiche.fiche ? attributsJetables(fiche.fiche) : []),
-    [fiche.fiche],
-  );
+  const { groups, loading } = useRollableAttributes(etat.campagneId, fiche.fiche);
   const [options, setOptions] = useState(false);
   const [edition, setEdition] = useState<EditionMacro | null>(null);
   const ecrire = (f: string) => onModifier({ formule: f });
@@ -171,9 +169,10 @@ export const Lanceur = forwardRef<
             libelle={etat.libelle}
             onLibelle={(l) => onModifier({ libelle: l })}
             personnage={personnage}
-            attributs={attributs}
+            groupes={groups}
+            chargementAttributs={loading}
             fiche={fiche}
-            onAttribut={(cle) => ecrire(ajouterTerme(formule, `mod(@${cle})`))}
+            onAttribut={(a) => ecrire(ajouterTerme(formule, a.term))}
             formuleValide={verification.ok}
             onLancerMacro={onLancerMacro}
             onChargerMacro={onChargerMacro}

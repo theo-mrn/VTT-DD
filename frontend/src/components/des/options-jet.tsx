@@ -7,15 +7,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { Campagne } from '@/lib/campagnes';
 import type { Macro } from '@/lib/jets';
 import type { Personnage } from '@/lib/personnages';
+import type { RollableAttribute, RollableGroup } from '@/lib/rollable-attributes';
 import { cn } from '@/lib/utils';
 import { BasculeSon, ICONE_BARRE } from './barre-options';
-import {
-  ICONES_CONTEXTE,
-  PastillesAttributs,
-  SelecteurContexte,
-  signe,
-  type AttributJetable,
-} from './contexte-jet';
+import { ICONES_CONTEXTE, PastillesAttributs, SelecteurContexte, signe } from './contexte-jet';
 import { PucesMacros, type EditionMacro } from './macros';
 import type { ModeD20 } from './outils-formule';
 import { FOCUS, TACTILE } from './tactile';
@@ -52,7 +47,8 @@ export function OptionsJet({
   libelle,
   onLibelle,
   personnage,
-  attributs,
+  groupes,
+  chargementAttributs,
   fiche,
   onAttribut,
   formuleValide,
@@ -72,9 +68,10 @@ export function OptionsJet({
   libelle: string;
   onLibelle: (l: string) => void;
   personnage: Personnage | null;
-  attributs: AttributJetable[];
+  groupes: RollableGroup[];
+  chargementAttributs: boolean;
   fiche: { chargement: boolean; erreur: string | null };
-  onAttribut: (cle: string) => void;
+  onAttribut: (a: RollableAttribute) => void;
   formuleValide: boolean;
   onLancerMacro: (m: Macro) => void;
   onChargerMacro: (m: Macro) => void;
@@ -204,10 +201,10 @@ export function OptionsJet({
         />
 
         {personnage && (
-          <Section titre={`Modificateurs de ${personnage.name}`}>
+          <Section titre={`Attributs de ${personnage.name}`}>
             <PastillesAttributs
-              attributs={attributs}
-              chargement={fiche.chargement}
+              groupes={groupes}
+              chargement={fiche.chargement || chargementAttributs}
               erreur={fiche.erreur}
               nomPersonnage={personnage.name}
               onAjouter={onAttribut}

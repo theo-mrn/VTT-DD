@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
 import { usePersonnage, type Personnage } from '@/lib/personnages';
+import type { RollableAttribute, RollableGroup } from '@/lib/rollable-attributes';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 
@@ -47,47 +48,25 @@ export function useFichePersonnage(personnage: Personnage | null) {
   };
 }
 
-export interface AttributJetable {
-  cle: string;
-  libelle: string;
-  nom: string;
-  modificateur: number;
-}
-
-/** Attributs visibles qui portent un modificateur (caractéristiques…), dans l'ordre du système. */
-export function attributsJetables(fiche: Fiche): AttributJetable[] {
-  const liste: AttributJetable[] = [];
-  for (const a of fiche.entite.attributs.values()) {
-    if (a.nature !== 'base' && a.nature !== 'derivee') continue;
-    if (a.modificateur === undefined || a.modificateur === false || a.visibilite === 'mj') continue;
-    liste.push({
-      cle: a.cle,
-      libelle: a.abrege ?? a.nom,
-      nom: a.nom,
-      modificateur: fiche.valeurs.get(a.cle)?.modificateur ?? 0,
-    });
-  }
-  return liste;
-}
-
 export const signe = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
 /**
- * Puces des modificateurs : un clic ajoute
- * `+ mod(@CLE)` à la formule.
+ * Puces des attributs jetables (déclarés par le système, moins ceux que le MJ a
+ * retirés pour la campagne), par groupes : un clic ajoute leur terme à la
+ * formule (`mod(@FOR)`, `@INIT`…).
  */
 export function PastillesAttributs({
-  attributs,
+  groupes,
   chargement,
   erreur,
   nomPersonnage,
   onAjouter,
 }: {
-  attributs: AttributJetable[];
+  groupes: RollableGroup[];
   chargement: boolean;
   erreur: string | null;
   nomPersonnage: string;
-  onAjouter: (cle: string) => void;
+  onAjouter: (a: RollableAttribute) => void;
 }) {
   if (erreur)
     return (
@@ -97,48 +76,52 @@ export function PastillesAttributs({
     );
   if (chargement)
     return (
-      <div className="flex gap-1.5 overflow-hidden" aria-label="Chargement de la fiche">
+      <div className="flex gap-1.5 overflow-hidden" aria-label="Chargement des attributs">
         {Array.from({ length: 6 }, (_, i) => (
           <Skeleton key={i} className="h-8 w-16 shrink-0 rounded-full" />
         ))}
       </div>
     );
-  if (!attributs.length)
-    return (
-      <p className="truncate text-xs text-subtle">
-        Aucun modificateur : écrivez <code className="font-mono">@CLÉ</code> dans la formule.
-      </p>
-    );
+  if (!groupes.some((g) => g.attributes.length))
+    return <p className="text-xs text-subtle">Aucun attribut à ajouter pour ce système.</p>;
+  const titres = groupes.some((g) => g.title);
   return (
-    <ul className={LIGNE_PUCES} aria-label={`Modificateurs de ${nomPersonnage}`}>
-      {attributs.map((a) => (
-        <li key={a.cle} className="shrink-0">
-          <Info texte={`${a.nom} : ajoute + mod(@${a.cle})`}>
-            <button
-              type="button"
-              onClick={() => onAjouter(a.cle)}
-              aria-label={`Ajouter le modificateur de ${a.nom} (${signe(a.modificateur)})`}
-              className={cn(
-                PUCE,
-                'hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-              )}
-            >
-              <span className="font-semibold tracking-wide text-foreground">{a.libelle}</span>
-              <span
-                className={cn(
-                  'font-mono tabular',
-                  a.modificateur > 0 && 'text-success',
-                  a.modificateur < 0 && 'text-destructive',
-                  a.modificateur === 0 && 'text-subtle',
-                )}
-              >
-                {signe(a.modificateur)}
-              </span>
-            </button>
-          </Info>
-        </li>
+    <div className="space-y-2">
+      {groupes.map((g) => (
+        <div key={g.id ?? 'sans-groupe'} className="space-y-1">
+          {titres && g.title && <p className="text-[11px] text-muted-foreground">{g.title}</p>}
+          <ul className={LIGNE_PUCES} aria-label={g.title ?? `Attributs de ${nomPersonnage}`}>
+            {g.attributes.map((a) => (
+              <li key={a.key} className="shrink-0">
+                <Info texte={`${a.name} : ajoute + ${a.term}`}>
+                  <button
+                    type="button"
+                    onClick={() => onAjouter(a)}
+                    aria-label={`Ajouter ${a.name} (${signe(a.value)}) : ${a.term}`}
+                    className={cn(
+                      PUCE,
+                      'hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                    )}
+                  >
+                    <span className="font-semibold tracking-wide text-foreground">{a.label}</span>
+                    <span
+                      className={cn(
+                        'font-mono tabular',
+                        a.value > 0 && 'text-success',
+                        a.value < 0 && 'text-destructive',
+                        a.value === 0 && 'text-subtle',
+                      )}
+                    >
+                      {signe(a.value)}
+                    </span>
+                  </button>
+                </Info>
+              </li>
+            ))}
+          </ul>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 
