@@ -596,21 +596,8 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
   return (
     <section
       aria-label={widget.titre}
-      className="relative isolate flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]"
+      className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]"
     >
-      {/* Même ambiance que le lanceur de dés : grille de points estompée et lueur d'accent */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-dots opacity-60 mask-radial"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          backgroundImage:
-            'radial-gradient(80% 90% at 0% 0%, hsl(var(--primary) / 0.09), transparent 70%)',
-        }}
-      />
       <header className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-3">
         <h2 className="flex min-w-0 flex-1 items-baseline gap-2 text-sm font-semibold">
           <span className="truncate">{widget.titre}</span>

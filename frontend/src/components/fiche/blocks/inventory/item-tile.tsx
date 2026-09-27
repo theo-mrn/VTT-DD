@@ -24,11 +24,37 @@ export const GLISSER_OBJET = 'application/x-vtt-inventaire';
 
 /** Emplacement : carré fixe et sobre ; l'accent est réservé à l'état équipé. */
 const TUILE = cn(
-  'group relative flex size-[4.5rem] shrink-0 items-center justify-center rounded-lg border bg-surface-2/70 backdrop-blur-[1px]',
+  'group relative isolate flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2/70',
   'transition-colors duration-150 motion-reduce:transition-none',
   'hover:border-primary/40 hover:bg-surface-2 hover:shadow-[0_0_18px_-6px_hsl(var(--primary)/0.55)]',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
 );
+
+/**
+ * Décor d'une tuile, comme le lanceur de dés : grille de points estompée et dégradé d'accent
+ * depuis le coin haut gauche, plus marqué pour un objet équipé ou au survol.
+ */
+function Decor({ fort = false }: { fort?: boolean }) {
+  return (
+    <>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-dots opacity-50 mask-radial"
+      />
+      <span
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute inset-0 -z-10 rounded-[inherit] transition-opacity duration-200 motion-reduce:transition-none',
+          fort ? 'opacity-100' : 'opacity-50 group-hover:opacity-100',
+        )}
+        style={{
+          backgroundImage:
+            'radial-gradient(120% 120% at 0% 0%, hsl(var(--primary) / 0.22), transparent 65%)',
+        }}
+      />
+    </>
+  );
+}
 
 /** Quantité, en bas à droite dans la tuile (seulement au-delà de 1). */
 function Quantite({ children }: { children: ReactNode }) {
@@ -148,6 +174,7 @@ export function ItemTile({
           deplacable && 'cursor-grab active:cursor-grabbing',
         )}
       >
+        <Decor fort={equipe} />
         {image ? (
           <img
             src={image}
@@ -245,6 +272,7 @@ export function FolderTile({
           survol ? 'border-primary bg-surface-2' : 'border-border',
         )}
       >
+        <Decor fort={survol} />
         {survol ? (
           <FolderOpen aria-hidden strokeWidth={1.75} className="size-6 text-primary" />
         ) : (
