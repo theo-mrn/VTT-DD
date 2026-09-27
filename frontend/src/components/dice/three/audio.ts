@@ -29,6 +29,7 @@ export const getAudioContext = (): AudioContext | null => {
   try {
     if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
       sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      echoInput = null;
       masterGainNode = sharedAudioContext.createGain();
       masterGainNode.gain.value = masterVolume();
       masterGainNode.connect(sharedAudioContext.destination);
@@ -53,6 +54,35 @@ const noiseBuffer = (ctx: AudioContext, seconds: number) => {
   return buffer;
 };
 
+// Grave echo on every impact (design rule: low with an echo, never high
+// frequencies). One shared bus per context: a short delay whose repeats go
+// through a low-pass filter, so each repeat is darker than the previous one.
+const ECHO_DELAY_S = 0.12;
+const ECHO_FEEDBACK = 0.25;
+const ECHO_LOWPASS_HZ = 900;
+const ECHO_WET = 0.35;
+let echoInput: GainNode | null = null;
+
+const getEchoInput = (ctx: AudioContext): AudioNode => {
+  if (echoInput) return echoInput;
+  const input = ctx.createGain();
+  input.gain.value = ECHO_WET;
+  const delay = ctx.createDelay(1);
+  delay.delayTime.value = ECHO_DELAY_S;
+  const lowpass = ctx.createBiquadFilter();
+  lowpass.type = 'lowpass';
+  lowpass.frequency.value = ECHO_LOWPASS_HZ;
+  const feedback = ctx.createGain();
+  feedback.gain.value = ECHO_FEEDBACK;
+  input.connect(delay);
+  delay.connect(lowpass);
+  lowpass.connect(feedback);
+  feedback.connect(delay);
+  lowpass.connect(getMasterGain(ctx));
+  echoInput = input;
+  return input;
+};
+
 // The ORIGINAL heavy dice sound: a low frequency "thud" (the weight of the
 // die) plus a short soft noise clack (the scrape on the mat). Deep and
 // discreet — this is the sound the project shipped with before any theming.
@@ -64,6 +94,7 @@ export const playRoll = (velocity: number) => {
 
     const t0 = ctx.currentTime;
     const master = getMasterGain(ctx);
+    const echo = getEchoInput(ctx);
 
     // 1. Low "thud": sine dropping from ~120Hz to 40Hz (percussion envelope).
     const osc = ctx.createOscillator();
@@ -76,6 +107,7 @@ export const playRoll = (velocity: number) => {
     oscGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
     osc.connect(oscGain);
     oscGain.connect(master);
+    oscGain.connect(echo);
 
     // 2. Short low-passed noise burst: the soft mat clack/scrape.
     const noise = ctx.createBufferSource();
@@ -89,6 +121,7 @@ export const playRoll = (velocity: number) => {
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(master);
+    noiseGain.connect(echo);
 
     osc.start(t0);
     osc.stop(t0 + 0.1);
