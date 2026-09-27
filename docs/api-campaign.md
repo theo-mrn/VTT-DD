@@ -9,6 +9,7 @@ Le service campaign gère les campagnes (les « salles » de l'ancienne app) :
 - l'état de combat : initiative, tours, durées.
 
 La carte (scènes, tokens, brouillard, lumières, murs, objets…) est dans le même service : voir [api-map.md](api-map.md).
+Les notes privées et partagées (le Grimoire) aussi : voir [api-notes.md](api-notes.md).
 
 Toutes les routes publiques passent par la gateway (`/v1/campaigns/*`) et demandent un jeton d'accès. Corps et réponses sont en JSON, champs en anglais (camelCase) ; les erreurs suivent le format `application/problem+json` de la plateforme, avec un `code` en anglais (snake_case). Une campagne dont l'appelant n'est pas membre est introuvable (404 `campaign_not_found`) : son existence n'est pas révélée. Un membre sans le rôle requis reçoit 403.
 

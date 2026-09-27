@@ -248,8 +248,9 @@ vers `appendEvent` et ne figure pas dans ses `EXCEPTIONS` commentées.
 - Limites : l'analyse prouve qu'un chemin vers l'émetteur existe, pas qu'il est pris à chaque appel
   réussi (une branche sans événement passe, ex. un changement de rôle identique, volontairement
   muet) ; un appel à travers une interface (dépendance injectée) n'est pas suivi.
-- Exceptions actuelles : `POST /v1/campaigns/:id/image` et `POST /v1/users/me/uploads` (URL d'envoi
-  signée, rien d'écrit ; l'image est enregistrée ensuite par `PATCH`, tracé), `POST /v1/auth/refresh`
+- Exceptions actuelles : `POST /v1/campaigns/:id/image`, `POST /v1/campaigns/:id/notes/upload` et
+  `POST /v1/users/me/uploads` (URL d'envoi signée, rien d'écrit ; l'image est enregistrée ensuite
+  par `PATCH` ou `POST`, tracé), `POST /v1/auth/refresh`
   (rotation technique du jeton). Manque connu : `POST /v1/auth/logout` (pas d'événement de
   déconnexion, alors que la connexion émet `identity.user_logged_in`).
 
