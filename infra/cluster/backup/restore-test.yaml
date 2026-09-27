@@ -58,7 +58,8 @@ data:
     q "select postgis_full_version()" > /dev/null
     # Journal d'historique : la chaîne de hash doit être intacte après restauration
     if [ "$(q "select to_regproc('history.verify_chain') is not null")" = t ]; then
-      broken=$(q "select count(*) from (select distinct room_id from history.events) r, lateral history.verify_chain(r.room_id)")
+      # Une chaîne par campagne, plus les événements globaux (campaign_id null, hash seul)
+      broken=$(q "select count(*) from (select distinct campaign_id from history.events) r, lateral history.verify_chain(r.campaign_id)")
       echo "maillons cassés : $broken"; test "$broken" = 0
     fi
     echo "RESTORE TEST OK"

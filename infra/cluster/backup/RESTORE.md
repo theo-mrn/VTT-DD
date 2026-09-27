@@ -37,7 +37,9 @@ physique et vérifie la chaîne de hash de l'historique.
            parameters: { barmanObjectName: r2-backups, serverName: vtt-pg }
    ```
 
-3. Vérifier : `SELECT count(*) FROM history.verify_chain(NULL);` doit renvoyer 0.
+3. Vérifier la chaîne de hash de l'historique (chaque campagne, puis les événements globaux) :
+   `SELECT count(*) FROM (SELECT DISTINCT campaign_id FROM history.events) r, LATERAL history.verify_chain(r.campaign_id);`
+   doit renvoyer 0 (même requête que le test de restauration hebdomadaire).
 4. Basculer les services vers `vtt-pg-restored-rw` (valeurs GitOps), relancer, puis
    supprimer l'ancien cluster une fois la situation stable.
 

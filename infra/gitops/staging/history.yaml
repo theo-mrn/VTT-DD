@@ -1,0 +1,48 @@
+# Mis à jour par la CI (release.yml) : ne modifier que les valeurs hors image
+image:
+  repository: ghcr.io/theo-mrn/vtt-history
+  digest: ''
+  tag: 'main'
+replicaCount: 2
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  REDIS_URL: redis://valkey.messaging.svc:6379
+  # Bus d'événements : history consomme tout vtt.> (NATS JetStream, namespace messaging)
+  NATS_URL: nats://nats.messaging.svc:4222
+  # Consommateur durable partagé par les réplicas (JetStream répartit les messages)
+  HISTORY_CONSUMER: history
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+  # Doivent correspondre exactement à la configuration de la gateway
+  JWT_ISSUER: https://api.staging.yner.fr/v1/auth
+  JWT_AUDIENCE: vtt-api
+  JWKS_URL: http://identity.vtt-staging.svc/.well-known/jwks.json
+  # Rôle de l'appelant dans une campagne (membre, MJ)
+  CAMPAIGN_URL: http://campaign.vtt-staging.svc
+  # Partitions mensuelles de history.events créées à l'avance (mois courant compris)
+  PARTITION_MONTHS_AHEAD: '3'
+# Secret history-secrets (SOPS) : DATABASE_URL (rôle history_svc), INTERNAL_API_SECRET (même
+# valeur que campaign et realtime)
+envFromSecrets:
+  - name: history-secrets
+probes:
+  liveness: /healthz
+  readiness: /readyz
+# Pas d'ingress : history n'est joignable que par la gateway (et realtime en interne)
+ingress:
+  enabled: false
+networkPolicy:
+  enabled: true
+  allowFrom:
+    - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
+    # realtime demande le rattrapage après une reconnexion (/internal/…, secret partagé)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: realtime } }
+migrations:
+  enabled: true
+  image:
+    repository: ghcr.io/theo-mrn/vtt-history-migrations
+    digest: ''
+    tag: 'main'
+  schema: history
+  # Secret généré par CloudNativePG pour le rôle history_owner
+  secretName: pg-history-owner

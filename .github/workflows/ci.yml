@@ -77,7 +77,7 @@ jobs:
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
-          for svc in identity character campaign dice billing; do
+          for svc in identity character campaign dice billing history; do
             infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
@@ -90,6 +90,8 @@ jobs:
         run: bash infra/postgres/tests/dice-droits.sh
       - name: Droits et contraintes du schéma billing
         run: bash infra/postgres/tests/billing-droits.sh
+      - name: Droits, ajout seul et chaîne du schéma history
+        run: bash infra/postgres/tests/history-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -98,6 +100,7 @@ jobs:
       - run: >-
           pnpm install --frozen-lockfile --filter '@vtt/identity...' --filter '@vtt/character...'
           --filter '@vtt/campaign...' --filter '@vtt/dice...' --filter '@vtt/billing...'
+          --filter '@vtt/history...'
       - name: Tests d'intégration identity (Postgres réel)
         env:
           TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
@@ -128,6 +131,13 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/billing^...'
           pnpm --filter @vtt/billing test
+      # Sans TEST_NATS_URL (pas de JetStream dans ce job), le test de bout en bout du bus est ignoré
+      - name: Tests d'intégration history (Postgres réel)
+        env:
+          TEST_DATABASE_URL: postgres://history_svc:history-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/history^...'
+          pnpm --filter @vtt/history test
 
   security:
     name: Secrets et dépendances
@@ -242,6 +252,12 @@ jobs:
               image: billing-migrations,
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=billing',
+            }
+          - { image: history, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=history' }
+          - {
+              image: history-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=history',
             }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
