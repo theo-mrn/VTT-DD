@@ -8,9 +8,8 @@ Bibliothèque du MJ d'une campagne, reprise de l'ancienne app : modèles de PNJ 
 Périmètre : les **données** et un CRUD minimal réservé au MJ. Le placement sur la carte (glisser un
 modèle, nombre d'exemplaires, visibilité, PNJ en jeu) n'est pas couvert ici.
 
-> Routage : la gateway envoie tout `/v1/campaigns/*` à campaign. Les trois préfixes ci-dessous
-> doivent être relayés vers character (règle plus précise que `/v1/campaigns`) avant que le front
-> puisse s'en servir. En local, appeler character directement (port 3002).
+> Routage : la gateway relaie ces trois préfixes vers character (`SUB_ROUTES` dans
+> backend/gateway/src/app.ts), le reste de `/v1/campaigns/*` allant à campaign.
 
 ## Droits
 

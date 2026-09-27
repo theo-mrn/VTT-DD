@@ -120,6 +120,50 @@ describe('gateway', () => {
   });
 });
 
+describe('sous-routes', () => {
+  it('les modèles du MJ sous /v1/campaigns/:id vont à character, le reste à campaign', async () => {
+    const character = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ service: 'character', path: req.url }));
+    });
+    await new Promise<void>((r) => character.listen(0, '127.0.0.1', r));
+    const characterUrl = `http://127.0.0.1:${(character.address() as AddressInfo).port}`;
+    try {
+      const app = await buildGateway(
+        loadConfig(GatewayConfig, {
+          NODE_ENV: 'test',
+          LOG_LEVEL: 'silent',
+          JWT_ISSUER: 'https://identity.test',
+          JWT_AUDIENCE: 'vtt-api',
+          UPSTREAM_CAMPAIGN_URL: upstreamUrl,
+          UPSTREAM_CHARACTER_URL: characterUrl,
+        }),
+        { authKeyResolver: async () => publicKey },
+      );
+      const auth = { authorization: `Bearer ${await token()}` };
+      for (const path of [
+        '/v1/campaigns/c1/npc-templates',
+        '/v1/campaigns/c1/npc-templates/t1?x=1',
+        '/v1/campaigns/c1/npc-template-categories',
+        '/v1/campaigns/c1/object-templates/o1',
+      ]) {
+        const r = await app.inject({ url: path, headers: auth });
+        expect(r.json(), path).toEqual({ service: 'character', path });
+      }
+      // Ressemblances qui restent à campaign
+      for (const path of ['/v1/campaigns/c1/maps', '/v1/campaigns/c1/npc-templates-x']) {
+        const r = await app.inject({ url: path, headers: auth });
+        expect(r.json(), path).toEqual({ path });
+      }
+      // Toujours protégé
+      expect((await app.inject({ url: '/v1/campaigns/c1/npc-templates' })).statusCode).toBe(401);
+      await app.close();
+    } finally {
+      character.close();
+    }
+  });
+});
+
 describe('webhook Stripe', () => {
   it('passe sans jeton, corps brut et signature relayés octet pour octet', async () => {
     let received: { body: Buffer; headers: IncomingHttpHeaders; url?: string } | undefined;

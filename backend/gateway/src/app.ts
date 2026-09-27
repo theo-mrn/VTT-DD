@@ -43,6 +43,19 @@ export const ROUTES = {
   '/v1/realtime': 'UPSTREAM_REALTIME_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
 
+/**
+ * Sous-routes d'un préfixe servies par un autre service, relayées par leur propre
+ * proxy : le routeur de Fastify préfère ces préfixes paramétrés au joker du préfixe
+ * parent. (Un upstream choisi requête par requête ne marche pas : reply-from fige
+ * l'origine sur l'upstream de base avec undici.)
+ * Ex. les modèles du MJ vivent sous /v1/campaigns/:id/… mais appartiennent à character.
+ */
+export const SUB_ROUTES = {
+  '/v1/campaigns/:campaignId/npc-templates': 'UPSTREAM_CHARACTER_URL',
+  '/v1/campaigns/:campaignId/npc-template-categories': 'UPSTREAM_CHARACTER_URL',
+  '/v1/campaigns/:campaignId/object-templates': 'UPSTREAM_CHARACTER_URL',
+} as const satisfies Record<string, keyof GatewayConfig>;
+
 /** Préfixes dont la gateway relaie aussi les WebSockets. */
 const WEBSOCKET_PREFIXES: readonly string[] = ['/v1/realtime'];
 
@@ -183,7 +196,7 @@ export async function buildGateway(
     async (req) => ({ userId: req.user!.userId, roles: req.user!.roles }),
   );
 
-  for (const [prefix, key] of Object.entries(ROUTES)) {
+  for (const [prefix, key] of [...Object.entries(ROUTES), ...Object.entries(SUB_ROUTES)]) {
     const upstream = config[key as keyof GatewayConfig] as string | undefined;
     if (!upstream) continue;
     await app.register(proxy, {
