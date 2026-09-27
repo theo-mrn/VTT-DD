@@ -33,6 +33,15 @@ export const ApparenceSymbole = z.object({
   court: z.string().max(20).optional(),
 });
 
+/** Groupe d'attributs du lanceur de dés, dans l'ordre d'affichage. */
+export const GroupeJets = z.object({
+  titre: Libelle,
+  /** Type d'entité concerné ; absent : tous ceux qui ont ces attributs. */
+  entite: Id.optional(),
+  attributs: z.array(Cle).min(1),
+});
+export type GroupeJets = z.output<typeof GroupeJets>;
+
 const CiblesAttributs = { groupe: Id.optional(), attributs: z.array(Cle).optional() };
 
 /** Bloc de la fiche. Le front sait afficher chaque type sans connaître le jeu. */
@@ -146,6 +155,13 @@ export const Presentation = z.object({
       sortes: z.record(z.string(), ApparenceDe).default({}),
       /** Glyphes d'aperçu de pool : dé de base et dé amélioré. */
       glyphes: z.object({ base: z.string().max(4), ameliore: z.string().max(4) }).optional(),
+      /**
+       * Ordre et regroupement des attributs proposés dans le lanceur de dés (ceux qui
+       * déclarent `jet`). Un groupe sans `entite` vaut pour tous les types d'entité. Un
+       * attribut jetable absent de ces groupes est ajouté ensuite, groupé par son `groupe`.
+       * Sans déclaration : ordre du système, groupé par `groupe`.
+       */
+      jets: z.array(GroupeJets).optional(),
     })
     .optional(),
   /** Libellé et icône des marques posées par les règles (`carriere` → « Carrière »). */
@@ -230,6 +246,16 @@ export function verifierPresentation(
     if (!ok) erreur(`ressources/${cle}`, `Ressource inconnue : ${cle}`);
   }
 
+  const placesJets = new Set<string>();
+  p.des?.jets?.forEach((g, i) => {
+    for (const m of erreursGroupeJets(systeme, g)) erreur(`des/jets/${i}`, m);
+    for (const cle of new Set(g.attributs)) {
+      const place = `${g.entite ?? '*'}/${cle}`;
+      if (placesJets.has(place)) erreur(`des/jets/${i}`, `${cle} est déjà dans un autre groupe`);
+      placesJets.add(place);
+    }
+  });
+
   for (const [entite, fiche] of Object.entries(p.fiches)) {
     if (!systeme.entites.has(entite)) {
       erreur(`fiches/${entite}`, `Type d’entité inconnu : ${entite}`);
@@ -246,6 +272,29 @@ export function verifierPresentation(
   }
 
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
+}
+
+/**
+ * Groupe du lanceur de dés : chaque attribut existe et déclare `jet`, dans le type d'entité
+ * du groupe, ou dans au moins un type s'il n'en précise pas ; pas de doublon.
+ */
+export function erreursGroupeJets(systeme: SystemeCharge, g: GroupeJets): string[] {
+  const erreurs: string[] = [];
+  if (g.entite !== undefined && !systeme.entites.has(g.entite))
+    return [`Type d’entité inconnu : ${g.entite}`];
+  const entites = g.entite !== undefined ? [g.entite] : [...systeme.entites.keys()];
+  const vus = new Set<string>();
+  for (const cle of g.attributs) {
+    if (vus.has(cle)) erreurs.push(`Attribut en double : ${cle}`);
+    vus.add(cle);
+    const trouves = entites
+      .map((e) => systeme.entites.get(e)?.attributs.get(cle))
+      .filter((a) => a !== undefined);
+    if (!trouves.length) erreurs.push(`Attribut inconnu : ${cle}`);
+    else if (!trouves.some((a) => 'jet' in a && a.jet))
+      erreurs.push(`${cle} ne déclare pas \`jet\` : il ne sert pas aux jets`);
+  }
+  return erreurs;
 }
 
 /**

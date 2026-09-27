@@ -15,6 +15,8 @@ import {
   Systeme,
   type Achat,
   type Action,
+  type Attribut,
+  type JetAttribut,
   type Arbre,
   type Entree,
   type Monnaie,
@@ -27,6 +29,7 @@ import { verifierEffets, variablesSource, type ContexteEffets } from './effets.j
 import {
   AGREGATS,
   env,
+  infoAttribut,
   typeAttribut,
   typeChamp,
   type Attributs,
@@ -75,7 +78,7 @@ export const chemins = {
   attribut: (
     entite: string,
     cle: string,
-    champ: 'formule' | 'min' | 'max' | 'initiale' | 'modificateur',
+    champ: 'formule' | 'min' | 'max' | 'initiale' | 'modificateur' | 'jet',
   ) => `entites/${entite}/${cle}/${champ}`,
   modificateurSysteme: () => 'modificateur',
   effet: (entree: string, i: number, champ: string) => `catalogue/${entree}/effets/${i}/${champ}`,
@@ -365,7 +368,27 @@ class Chargeur {
             );
           }
         }
+
+        if ('jet' in a && a.jet) this.verifierJet(id, a, a.jet, moi);
       }
+    }
+  }
+
+  /**
+   * Apport d'un attribut aux jets libres : son modificateur (il doit en avoir un), sa valeur
+   * (numérique) ou une formule numérique sans dé, qui lit l'entité comme les autres formules.
+   */
+  private verifierJet(entite: string, a: Attribut, jet: JetAttribut, moi: OptionsEnv): void {
+    const chemin = `entites/${entite}/${a.cle}/jet`;
+    const apport = jet.apport;
+    if (apport === 'modificateur') {
+      if (!infoAttribut(a).modificateur)
+        this.erreur(chemin, 'Apport « modificateur » sur un attribut sans modificateur');
+    } else if (apport === 'valeur') {
+      if (typeAttribut(a) !== 'nombre')
+        this.erreur(chemin, 'Apport « valeur » sur un attribut non numérique');
+    } else {
+      this.compiler(chemins.attribut(entite, a.cle, 'jet'), apport, moi, 'nombre');
     }
   }
 

@@ -51,6 +51,8 @@ export interface ValeurCalculee {
   cle: string;
   valeur: Valeur;
   modificateur?: number;
+  /** Apport aux jets libres (attribut qui déclare `jet`) : modificateur, valeur ou formule. */
+  jet?: number;
   /** Bornes d'une ressource ou d'un attribut de base. */
   min?: number;
   max?: number;
@@ -797,6 +799,21 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     }
 
     valeurs.set(cle, calcule);
+  }
+
+  // ─── 4. Apport aux jets libres, une fois tous les attributs connus ────────
+
+  for (const a of entite.attributs.values()) {
+    if (!('jet' in a) || !a.jet) continue;
+    const v = valeurs.get(a.cle);
+    if (!v) continue;
+    const apport = a.jet.apport;
+    if (apport === 'modificateur') v.jet = v.modificateur ?? 0;
+    else if (apport === 'valeur') v.jet = typeof v.valeur === 'number' ? v.valeur : 0;
+    else {
+      const f = formuleDe(a, 'jet');
+      v.jet = f ? Number(evaluerSur(f, {}, 0, a.cle)) : 0;
+    }
   }
 
   // La construction des possessions est itérée : on ne garde chaque erreur qu'une fois

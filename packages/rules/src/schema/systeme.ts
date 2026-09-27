@@ -42,6 +42,18 @@ const AttributCommun = {
  */
 const Modificateur = z.union([z.boolean(), Formule]).optional();
 
+/**
+ * L'attribut sert aux jets libres du lanceur de dés : il y est proposé et ajoute son
+ * apport à la formule. Sans `jet`, l'attribut n'est jamais proposé.
+ *   - `modificateur` : son modificateur (`mod(@CLE)`), l'attribut doit en avoir un ;
+ *   - `valeur` : sa valeur (`@CLE`), l'attribut doit être numérique ;
+ *   - une formule sur l'entité, sans dé (`mod(@DEX) + @niveau`), ajoutée entre parenthèses.
+ */
+export const JetAttribut = z.object({
+  apport: z.union([z.enum(['modificateur', 'valeur']), Formule]),
+});
+export type JetAttribut = z.output<typeof JetAttribut>;
+
 export const Attribut = z.discriminatedUnion('nature', [
   z.object({
     ...AttributCommun,
@@ -51,6 +63,7 @@ export const Attribut = z.discriminatedUnion('nature', [
     min: Formule.optional(),
     max: Formule.optional(),
     modificateur: Modificateur,
+    jet: JetAttribut.optional(),
     /**
      * Qui saisit librement la valeur une fois la création terminée :
      * `creation` personne (elle s'achète ensuite), `jeu` le propriétaire ou le
@@ -66,6 +79,7 @@ export const Attribut = z.discriminatedUnion('nature', [
     type: z.enum(['nombre', 'booleen', 'texte']).default('nombre'),
     formule: Formule,
     modificateur: Modificateur,
+    jet: JetAttribut.optional(),
   }),
   z.object({
     ...AttributCommun,
@@ -79,6 +93,7 @@ export const Attribut = z.discriminatedUnion('nature', [
     recuperation: z.enum(['max', 'min']).default('max'),
     /** Faux : la valeur peut dépasser le maximum (blessures au-delà du seuil). */
     plafonnee: z.boolean().default(true),
+    jet: JetAttribut.optional(),
   }),
   z.object({
     ...AttributCommun,

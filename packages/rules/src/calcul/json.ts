@@ -9,6 +9,8 @@ import type { Fiche, LigneExplication } from './fiche.js';
 export interface ValeurJson {
   valeur: Valeur;
   modificateur?: number;
+  /** Apport aux jets libres, si l'attribut déclare `jet`. */
+  jet?: number;
   min?: number;
   max?: number;
   detail: LigneExplication[];
@@ -46,6 +48,7 @@ export function ficheJson(fiche: Fiche): FicheJson {
     valeurs[cle] = {
       valeur: v.valeur,
       ...(v.modificateur !== undefined ? { modificateur: v.modificateur } : {}),
+      ...(v.jet !== undefined ? { jet: v.jet } : {}),
       ...(v.min !== undefined ? { min: v.min } : {}),
       ...(v.max !== undefined ? { max: v.max } : {}),
       detail: v.detail,
