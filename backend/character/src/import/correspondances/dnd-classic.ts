@@ -1,3 +1,5 @@
+import { slug, type ObjetInventaireLegacy } from '../legacy.js';
+
 /**
  * D&D classique : identifiants legacy → nouveaux ids.
  *
@@ -185,14 +187,15 @@ export const VOIES: Readonly<Record<string, string>> = {
 
 /**
  * Objets proposés par l'ancien inventaire D&D (`predefinedItems` de
- * components/(inventaire)/inventaire.tsx), en `slug` → arme ou armure. Les
- * autres noms sont cherchés tels quels dans le catalogue (`Katana`,
- * `Épée longue`). Choix discutables, faute d'équivalent exact :
+ * components/(inventaire)/inventaire.tsx), en `slug` → entrée du catalogue
+ * (armes, armures, objets). Les autres noms sont cherchés tels quels dans le
+ * catalogue (`Katana`, `Épée longue`, `Pain`, `Pièce d'or`). Choix discutables,
+ * faute d'équivalent exact :
  *  - « Épée à une main » : épée longue (1d8, à une main) ;
  *  - « Couteaux de lancer » : dague (1d4, se lance) ;
  *  - « Armure légère » : cuir (DEF +2), la plus légère des armures courantes ;
  *  - « Armure lourde » : plaque complète (DEF +8, lourde).
- * Sans équivalent (avertissement) : rapière, marteau, potions, nourriture.
+ * Sans équivalent : un objet personnalisé (`objetLibre`).
  */
 export const EQUIPEMENT: Readonly<Record<string, string>> = {
   'epee-a-une-main': 'epee-longue',
@@ -207,17 +210,61 @@ export const EQUIPEMENT: Readonly<Record<string, string>> = {
   'armure-lourde': 'plaque-complete',
   'cote-de-maille': 'cotte-de-mailles',
   'cotte-de-maille': 'cotte-de-mailles',
+  // Potions, nourriture et pièces de l'ancien inventaire
+  'potion-de-degat': 'potion-de-degats',
+  minotaure: 'viande-de-minotaure',
+  'pieces-d-or': 'piece-d-or',
+  'pieces-d-argent': 'piece-d-argent',
+  'pieces-de-cuivre': 'piece-de-cuivre',
 };
 
 /**
- * Pièces de l'ancienne bourse (catégorie `bourse`), en `slug` → valeur en
- * pièces d'argent (attribut `bourse`) : 1 po = 10 pa, 1 pa = 10 pc.
+ * Catégorie de l'ancien inventaire → catégorie (`categorie`) d'un objet
+ * personnalisé. Les armes et armures ont leur propre entrée libre.
  */
-export const PIECES: Readonly<Record<string, number>> = {
-  'piece-d-or': 10,
-  'pieces-d-or': 10,
-  'piece-d-argent': 1,
-  'pieces-d-argent': 1,
-  'piece-de-cuivre': 0.1,
-  'pieces-de-cuivre': 0.1,
+const CATEGORIES: Readonly<Record<string, string>> = {
+  potions: 'potions',
+  nourriture: 'nourriture',
+  bourse: 'bourse',
+  monnaie: 'bourse',
 };
+
+/**
+ * Objet absent du catalogue → objet, arme ou protection personnalisés, selon sa
+ * catégorie legacy : arme au contact ou à distance (dés de dégâts de
+ * `diceSelection`, « 1d6 »), protection, ou objet de la catégorie reprise
+ * (« autre » à défaut).
+ */
+export function objetLibre(o: ObjetInventaireLegacy): {
+  entree: string;
+  champs?: Record<string, string | number>;
+} {
+  const categorie = slug(typeof o.category === 'string' ? o.category : '');
+  if (categorie.startsWith('arme')) {
+    const des = /^(\d+)d(\d+)$/.exec(String(o.diceSelection ?? '').trim());
+    return {
+      entree: 'arme-libre',
+      champs: {
+        attaque: categorie.includes('distance') ? 'Distance' : 'Contact',
+        ...(des ? { nbDes: Number(des[1]), faces: Number(des[2]) } : {}),
+      },
+    };
+  }
+  if (categorie.startsWith('armure')) return { entree: 'armure-libre' };
+  return { entree: 'objet-libre', champs: { categorie: CATEGORIES[categorie] ?? 'autre' } };
+}
+
+/**
+ * Ancienne bourse (attribut `bourse`, monnaie « pa », retirés des règles) : total en
+ * pièces d'argent, converti en pièces de l'inventaire, de la plus forte à la plus faible
+ * (1 po = 10 pa = 100 pc).
+ */
+export const BOURSE = {
+  attribut: 'bourse',
+  monnaie: 'pa',
+  pieces: [
+    ['piece-d-or', 10],
+    ['piece-d-argent', 1],
+    ['piece-de-cuivre', 0.1],
+  ],
+} as const;

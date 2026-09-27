@@ -239,7 +239,11 @@ describe('Star Wars : Bothan chasseur de primes avec talents et Obligation', () 
     for (const id of ['fusil-blaster', 'armure-legere', 'stimpack', 'fusil-tenseur'])
       expect(f.possessions.has(id), id).toBe(true);
     expect(f.valeur('credits')).toBe(250);
-    avertit(r, /Sabre laser de famille.*absent du catalogue/);
+    // Objet hors catalogue : objet personnalisé qui porte son nom
+    expect(r.etat.possessions.find((p) => p.entree === 'objet-libre')?.champs.nom).toBe(
+      'Sabre laser de famille',
+    );
+    expect(r.avertissements.filter((a) => /absent du catalogue/.test(a))).toEqual([]);
     // Quantité legacy migrée sur l'exemplaire, sans avertissement
     expect(r.etat.possessions.find((p) => p.entree === 'stimpack')?.quantite).toBe(3);
     expect(r.avertissements.filter((a) => /Stimpack/.test(a))).toEqual([]);
@@ -548,14 +552,20 @@ describe('D&D : nain guerrier niveau 3', () => {
     );
   });
 
-  it('équipement, bourse et objets sans équivalent', () => {
+  it('équipement, pièces et potions en objets de l’inventaire', () => {
     expect(f.possessions.has('epee-longue') && f.possessions.has('cuir')).toBe(true);
-    expect(f.valeur('bourse')).toBe(35);
-    // Dagues en quantité : une seule possession ×3
-    expect(r.etat.possessions.filter((p) => p.entree === 'dague').map((p) => p.quantite)).toEqual([
-      3,
-    ]);
-    avertit(r, /Petite potion de vie.*absent du catalogue/);
+    expect(r.etat.valeurs).not.toHaveProperty('bourse');
+    const quantite = (id: string) =>
+      r.etat.possessions.filter((p) => p.entree === id).map((p) => p.quantite);
+    // Dagues en quantité : une seule possession ×3 ; pièces et potions du catalogue
+    expect(quantite('dague')).toEqual([3]);
+    expect(quantite('piece-d-or')).toEqual([3]);
+    expect(quantite('piece-d-argent')).toEqual([5]);
+    expect(quantite('petite-potion-de-vie')).toEqual([2]);
+    expect(r.avertissements.filter((a) => /^Objet/.test(a))).toEqual([]);
+    // Chaque objet legacy est tracé par le chemin de son document
+    expect(r.objets.map((o) => o.nom)).toEqual(inventaireNain.map((o) => o.data.message));
+    expect(r.objets[0]!.legacyId).toBe(inventaireNain[0]!.path);
     expect(r.details).toEqual({
       Background: 'Forgeron exilé de Khaz Morn.',
       Taille: 140,
@@ -637,7 +647,9 @@ describe('D&D : wolfer nécromancien, données partielles', () => {
     avertit(r, /Voie personnalisée « Voie du chaos » \(rang 1\) non migrée/);
     avertit(r, /Capacité personnalisée « Frappe du chaos »/);
     expect(r.etat.bonus.find((b) => b.nom === 'Bottes')).toMatchObject({ actif: false });
-    avertit(r, /Grimoire relié de peau.*absent du catalogue/);
+    // Objet hors catalogue : objet personnalisé, catégorie legacy reprise
+    const grimoire = r.etat.possessions.find((p) => p.entree === 'objet-libre');
+    expect(grimoire?.champs).toMatchObject({ nom: 'Grimoire relié de peau', categorie: 'autre' });
     expect(f.possessions.has('baton')).toBe(true);
   });
 
@@ -699,7 +711,8 @@ describe('Noobliés : minotaure barbare', () => {
   it('capacités raciales ; voies et équipement signalés, bonus gardé en bonus libre', () => {
     expect(rang(f, 'coup-de-corne')).toBe(1);
     avertit(r, /Voie « Barbare1 » \(rang 1\) non migrée : pas de voies/);
-    avertit(r, /Objet « Hache » non migré : le système n'a pas d'équipement/);
+    // Pas de catalogue d'équipement : un objet personnalisé
+    expect(r.etat.possessions.find((p) => p.entree === 'objet-libre')?.champs.nom).toBe('Hache');
     expect(r.etat.bonus.map((b) => b.nom)).toEqual(['Ceinture']);
   });
 });

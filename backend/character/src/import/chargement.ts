@@ -9,6 +9,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { appendEvent } from '../db/outbox.js';
 import { characters, legacyIds } from '../db/schema.js';
+import { SOURCE_OBJET } from './reprise.js';
 import type { PersonnageMigre } from './transformer.js';
 
 export const SOURCE_LEGACY = 'firebase';
@@ -66,6 +67,18 @@ export async function chargerPersonnage(
       kind,
     });
     await tx.insert(legacyIds).values({ source: SOURCE_LEGACY, legacyId, characterId: id });
+    // Objets de l'inventaire repris : tracés, pour qu'une reprise ne les ajoute pas deux fois
+    if (migre.objets.length)
+      await tx
+        .insert(legacyIds)
+        .values(
+          migre.objets.map((o) => ({
+            source: SOURCE_OBJET,
+            legacyId: o.legacyId,
+            characterId: id,
+          })),
+        )
+        .onConflictDoNothing();
     await appendEvent(
       tx,
       { correlationId },

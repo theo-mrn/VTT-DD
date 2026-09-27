@@ -88,6 +88,8 @@ export interface PersonnageMigre {
   legacy: { id: string; roomId?: string; ownerUid?: string; type?: string };
   /** Textes et mesures sans place dans les règles (description, taille…), à garder à côté. */
   details: Record<string, string | number>;
+  /** Objets de l'inventaire legacy repris (traces de la reprise idempotente). */
+  objets: ObjetRepris[];
   avertissements: string[];
 }
 
@@ -137,6 +139,8 @@ class Brouillon {
   noeuds: Record<string, string[]> = {};
   journal: LigneJournal[] = [];
   bonus: BonusLibre[] = [];
+  /** Objets de l'inventaire legacy repris, par document. */
+  objets: ObjetRepris[] = [];
 
   constructor(
     readonly systeme: SystemeCharge,
@@ -365,20 +369,54 @@ interface RegleInventaire {
   alias: Readonly<Record<string, string>>;
   /** Monnaie : attribut crédité, et valeur d'un objet en unités de cet attribut. */
   monnaie?: { attribut: string; valeur: (nom: string, entree?: Entree) => number | undefined };
+  /**
+   * Objet absent du catalogue : entrée `libre` qui le reçoit et valeurs de ses champs
+   * propres (catégorie, dés d'une arme…), le nom étant ajouté d'office. À défaut, l'entrée
+   * libre de la première sorte qui en a une.
+   */
+  libre?: (objet: ObjetInventaireLegacy) => { entree: string; champs?: Record<string, Valeur> };
 }
 
 /**
  * Objets migrés : id du document legacy → exemplaire possédé (celui qui
  * reçoit le bonus saisi sur l'objet), et si son entrée porte des effets.
  */
-type ObjetsMigres = Map<string, { entree: string; exemplaire?: string; avecEffets: boolean }>;
+type ObjetsMigres = Map<
+  string,
+  { entree: string; exemplaire?: string; avecEffets: boolean; repris: ObjetRepris }
+>;
+
+/**
+ * Ce qu'est devenu un objet de l'inventaire legacy : les exemplaires créés, ou la valeur
+ * créditée à une monnaie. Sert à la reprise idempotente des personnages déjà importés.
+ */
+export interface ObjetRepris {
+  /** Chemin du document legacy (`Inventaire/{salle}/{personnage}/{id}`). */
+  legacyId: string;
+  nom: string;
+  /** Exemplaires créés (un par unité pour une sorte sans quantités), effets du bonus compris. */
+  possessions: Possession[];
+  /** Nom du bonus legacy rattaché à l'objet : ses effets sont ceux de `possessions[0]`. */
+  bonus?: string;
+  /** Crédité à un attribut (crédits) plutôt que possédé. */
+  credite?: { attribut: string; valeur: number };
+}
+
+/** Entrée `libre` (objets hors catalogue) de la première des sortes qui en déclare une. */
+function entreeLibre(systeme: SystemeCharge, sortes: readonly string[]): Entree | undefined {
+  for (const s of sortes)
+    for (const e of systeme.entrees.values()) if (e.sorte === s && e.libre) return e;
+  return undefined;
+}
 
 /**
  * Objets d'inventaire → possessions ou monnaie. Chaque objet legacy devient
  * son propre exemplaire (sorte `exemplaires`), avec sa quantité (sorte
  * `quantites`) ; sans quantités, un objet ×3 donne trois exemplaires. Une
  * sorte à quantités sans exemplaires cumule les quantités sur sa seule
- * possession. Renvoie l'exemplaire de chaque objet migré, pour ses bonus.
+ * possession. Un objet absent du catalogue devient un exemplaire de l'entrée
+ * `libre` du système, qui porte son nom et sa catégorie legacy. Renvoie
+ * l'exemplaire de chaque objet migré, pour ses bonus.
  */
 function migrerInventaire(
   b: Brouillon,
@@ -390,10 +428,11 @@ function migrerInventaire(
   let monnaieTrouvee = false;
   const parNom = new Map<string, Entree>();
   for (const e of b.systeme.entrees.values())
-    if (regle?.sortes.includes(e.sorte)) {
+    if (regle?.sortes.includes(e.sorte) && !e.libre) {
       parNom.set(slug(e.nom), e);
       parNom.set(e.id, e);
     }
+  const libreParDefaut = regle ? entreeLibre(b.systeme, regle.sortes) : undefined;
 
   for (const doc of objets) {
     const o = doc.data;
@@ -407,42 +446,65 @@ function migrerInventaire(
       continue;
     }
     const s = slug(nom);
-    const e = b.entree(regle.alias[s]) ?? parNom.get(s);
-    const valeur = regle.monnaie?.valeur(s, e);
+    const catalogue = b.entree(regle.alias[s]) ?? parNom.get(s);
+    const valeur = regle.monnaie?.valeur(s, catalogue);
     if (valeur !== undefined) {
       monnaie += valeur * quantite;
       monnaieTrouvee = true;
+      b.objets.push({
+        legacyId: doc.path,
+        nom,
+        possessions: [],
+        credite: { attribut: regle.monnaie!.attribut, valeur: valeur * quantite },
+      });
       continue;
     }
+    // Hors catalogue : objet personnalisé, nommé par son exemplaire
+    let e = catalogue;
+    let champs: Record<string, Valeur> = {};
     if (!e) {
-      b.avertir(
-        `Objet « ${nom} »${quantite > 1 ? ` (×${quantite})` : ''} non migré : absent du catalogue`,
-      );
-      continue;
+      const libre = regle.libre?.(o);
+      e = b.entree(libre?.entree) ?? libreParDefaut;
+      const nomExemplaire = e && b.systeme.sortes.get(e.sorte)?.nomExemplaire;
+      if (!e?.libre || !nomExemplaire) {
+        b.avertir(
+          `Objet « ${nom} »${quantite > 1 ? ` (×${quantite})` : ''} non migré : absent du catalogue`,
+        );
+        continue;
+      }
+      champs = { ...(libre?.entree === e.id ? libre.champs : {}), [nomExemplaire]: nom };
     }
     const sorte = b.systeme.sortes.get(e.sorte);
     const deja = b.possession(e.id);
-    let premier: Possession | undefined;
+    const crees: Possession[] = [];
     if (sorte?.quantites && !sorte.exemplaires && deja) {
       deja.quantite = quantiteDe(deja) + quantite;
-      premier = deja;
+      crees.push(deja);
     } else {
       const quantites = sorte?.quantites && quantite > 1 ? { quantite } : {};
-      premier = b.ajouterExemplaire(e.id, quantites);
+      const premier = b.ajouterExemplaire(e.id, { ...quantites, champs: { ...champs } });
       if (!premier) {
         b.avertir(`Objet « ${nom} » : ${e.nom} déjà possédé, exemplaire supplémentaire non migré`);
         continue;
       }
+      crees.push(premier);
       // Sans quantités : un exemplaire par unité (armes, armures)
       if (!sorte?.quantites && quantite > 1) {
-        if (sorte?.exemplaires) for (let i = 1; i < quantite; i++) b.ajouterExemplaire(e.id);
+        if (sorte?.exemplaires)
+          for (let i = 1; i < quantite; i++) {
+            const autre = b.ajouterExemplaire(e.id, { champs: { ...champs } });
+            if (autre) crees.push(autre);
+          }
         else b.avertir(`Objet « ${nom} » : ${quantite} exemplaires, un seul migré (${e.nom})`);
       }
     }
+    const repris: ObjetRepris = { legacyId: doc.path, nom, possessions: crees };
+    b.objets.push(repris);
     migres.set(doc.id, {
       entree: e.id,
-      ...(premier.exemplaire !== undefined ? { exemplaire: premier.exemplaire } : {}),
+      ...(crees[0]!.exemplaire !== undefined ? { exemplaire: crees[0]!.exemplaire } : {}),
       avecEffets: e.effets.length > 0,
+      repris,
     });
   }
   if (regle?.monnaie && monnaieTrouvee) b.valeurs[regle.monnaie.attribut] = Math.floor(monnaie);
@@ -502,6 +564,7 @@ function migrerBonus(
       );
       if (possession) {
         possession.effets = [...possession.effets, ...effets];
+        objet.repris.bonus = nom;
         continue;
       }
     }
@@ -840,10 +903,12 @@ function migrerDnd(b: Brouillon, p: PersonnageLegacy, options: OptionsTransforma
     );
   }
 
+  // Tout l'inventaire, pièces comprises (objets de la catégorie « bourse ») ; le reste en
+  // objets, armes ou protections personnalisés
   const objets = migrerInventaire(b, options.inventaire ?? [], {
-    sortes: ['arme', 'armure'],
+    sortes: ['arme', 'armure', 'objet'],
     alias: dnd.EQUIPEMENT,
-    monnaie: { attribut: 'bourse', valeur: (nom) => dnd.PIECES[nom] },
+    libre: dnd.objetLibre,
   });
 
   // Caractéristiques (race comprise) et PV max (jets de dés de vie), sans les bonus
@@ -874,7 +939,7 @@ function migrerNooblies(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
 
   for (const { fichier, rang } of voiesLegacy(p))
     b.avertir(`Voie « ${fichier} » (rang ${rang}) non migrée : pas de voies dans ce système`);
-  const objets = migrerInventaire(b, options.inventaire ?? [], undefined);
+  const objets = migrerInventaire(b, options.inventaire ?? [], { sortes: ['objet'], alias: {} });
 
   // Bases et PV max sans les bonus saisis à la main, ajoutés ensuite comme à l'affichage
   b.ajusterBases(caracteristiquesLegacy(p));
@@ -968,12 +1033,18 @@ export function transformerPersonnage(
   }
 
   let etat: EtatEntite;
+  let objets: ObjetRepris[];
   try {
     etat = b.etat();
     verifier(b, etat);
+    objets = b.objets.map((o) => ({
+      ...o,
+      possessions: o.possessions.map((x) => structuredClone(x)),
+    }));
   } catch (e) {
     avertir(`État invalide, personnage vide : ${e instanceof Error ? e.message : String(e)}`);
     etat = new Brouillon(systeme, avertir).etat();
+    objets = [];
   }
 
   const details: Record<string, string | number> = {};
@@ -995,6 +1066,7 @@ export function transformerPersonnage(
       ...(texte(p.type) ? { type: texte(p.type)! } : {}),
     },
     details,
+    objets,
     avertissements,
   };
 }

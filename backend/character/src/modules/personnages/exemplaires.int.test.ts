@@ -1,7 +1,7 @@
 /**
  * Exemplaires, quantités et saisie en jeu par HTTP : deux dagues dont une à
  * effets propres, stimpacks en quantité, retrait d'un exemplaire précis ;
- * bourse saisie en jeu par le propriétaire, XP gagnée réservée au MJ de la
+ * pièces en objets de l'inventaire (plus de bourse), XP gagnée réservée au MJ de la
  * salle (droits de salle simulés, comme les tests de droits).
  */
 import { sql } from 'drizzle-orm';
@@ -147,13 +147,34 @@ describe.skipIf(!TEST_DATABASE_URL)('exemplaires, quantités et saisie en jeu', 
     expect(refus.json().detail).toMatch(/ne se possède pas en quantité/);
   });
 
-  it('bourse saisie en jeu par le propriétaire ; niveau réservé au MJ', async () => {
+  it('pièces et objet personnalisé dans l’inventaire, plus de bourse ; niveau réservé au MJ', async () => {
     let p = await o.nainGuerrier(proprietaire, 'Thorin');
-    p = await o.ok(proprietaire, 'PUT', url(p, '/valeurs'), {
+    const bourse = await o.requete(proprietaire, 'PUT', url(p, '/valeurs'), {
       version: p.version,
       valeurs: { bourse: 50 },
     });
-    expect(p.etat.valeurs.bourse).toBe(50);
+    expect(bourse.statusCode).toBe(422);
+    expect(bourse.json().detail).toMatch(/Attribut inconnu : bourse/);
+    p = await o.ok(proprietaire, 'POST', url(p, '/possessions'), {
+      version: p.version,
+      entree: 'piece-d-or',
+      quantite: 5,
+    });
+    p = await o.ok(proprietaire, 'POST', url(p, '/possessions'), {
+      version: p.version,
+      entree: 'objet-libre',
+      nouveau: true,
+      quantite: 7,
+      champs: { nom: 'Ration journalière', categorie: 'nourriture' },
+    });
+    expect(
+      p.etat.possessions
+        .filter((x) => x.entree === 'piece-d-or' || x.entree === 'objet-libre')
+        .map((x) => [x.entree, x.quantite]),
+    ).toEqual([
+      ['piece-d-or', 5],
+      ['objet-libre', 7],
+    ]);
     const niveau = await o.requete(proprietaire, 'PUT', url(p, '/valeurs'), {
       version: p.version,
       valeurs: { niveau: 2 },
