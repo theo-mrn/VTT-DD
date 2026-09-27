@@ -105,6 +105,7 @@ export function useFicheCalculee(id: string | null | undefined) {
       dossiers: (folders, apercu) => void ecritures.dossiers(folders, apercu).catch(signaler),
       bonus: (d, apercu) => void ecritures.bonus(d, apercu).catch(signaler),
       retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
+      effet: (cle, actif, apercu) => void ecritures.effet(cle, actif, apercu).catch(signaler),
       rembourser: (index, apercu) => void ecritures.rembourser(index, apercu).catch(signaler),
       action: ecritures.action,
     };

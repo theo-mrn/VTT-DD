@@ -23,13 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Info } from '@/components/ui/tooltip';
-import {
-  afficherValeur,
-  champsLisibles,
-  explication,
-  groupesAttributs,
-  texteEffet,
-} from '@/lib/creation';
+import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
   DemandeBonus,
   DemandeDon,
@@ -38,6 +32,7 @@ import type {
   OperationsPersonnage,
 } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
+import { EntryBonuses } from './blocks/effects/entry-bonuses';
 import { LanceurAction } from './lanceur-action';
 
 /**
@@ -61,6 +56,8 @@ export interface OperationsFiche {
   /** Pose ou remplace (même `id`) un bonus libre. */
   bonus(d: DemandeBonus, apercu: EtatEntite): void;
   retirerBonus(id: string, apercu: EtatEntite): void;
+  /** Active ou coupe des effets (clés `<source>/<index>`) sans toucher à leur source. */
+  effet?(effets: string[], actif: boolean, apercu: EtatEntite): void;
   /** Annule l'achat de la ligne `index` du journal et rend son coût. */
   rembourser?(index: number, apercu: EtatEntite): void;
   /** Action du système : jet tiré par le service, conséquences appliquées s'il le faut. */
@@ -384,9 +381,6 @@ function FichePossession({
 }) {
   const e = ctx.systeme.entrees.get(id);
   if (!e) return <>{children}</>;
-  const effets = e.effets
-    .map((x) => texteEffet(ctx.fiche, x))
-    .filter((x): x is string => Boolean(x));
   const champs = champsLisibles(ctx.systeme, e);
   return (
     <Popover>
@@ -398,20 +392,18 @@ function FichePossession({
             {e.description}
           </p>
         )}
-        {(effets.length > 0 || champs.length > 0) && (
+        {champs.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {champs.map((c) => (
               <Badge key={c.nom} taille="md">
                 {c.nom} : <span className="text-foreground">{c.valeur}</span>
               </Badge>
             ))}
-            {effets.slice(0, 8).map((t) => (
-              <Badge key={t} ton="primaire" taille="md">
-                {t}
-              </Badge>
-            ))}
           </div>
         )}
+        <div className="mt-3 empty:hidden">
+          <EntryBonuses fiche={ctx.fiche} entry={e} />
+        </div>
       </PopoverContent>
     </Popover>
   );

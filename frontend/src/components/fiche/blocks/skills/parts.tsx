@@ -2,10 +2,11 @@
 
 /**
  * Carte d'une compétence et sa fenêtre de détail. La carte reste compacte : nom, pastille
- * d'état pour une sorte activable, rang, valeur du champ filtré et quelques étiquettes de
- * bonus ou de jet ; le détail montre tout (description assainie, effets, origine, actions).
+ * d'état pour une sorte activable, rang, valeur du champ filtré et un indicateur discret
+ * « a des bonus » ; le détail montre tout (description assainie, bonus et leur état, origine,
+ * actions) et renvoie au bloc Bonus, seul endroit où les bonus s'activent ou se coupent.
  */
-import { Dices, Plus, Power, Sparkles } from 'lucide-react';
+import { Plus, Power, Sparkles } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,12 +21,11 @@ import {
 import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ContexteFiche } from '../../widgets';
+import { allerAuBlocBonus, ancreBonus } from '../effects/model';
 import { currencyName } from '../tree/model';
 import type { SheetWrites } from '../tree/writes';
 import { EntryDetails } from './entry-details';
 import type { SkillCard } from './model';
-
-const MAX_TAGS = 3;
 
 function RankMarks({ rank, max }: { rank: number; max: number }) {
   if (max > 6)
@@ -66,10 +66,11 @@ export function SkillCardView({
 }) {
   const on = card.activable && card.active;
   const owned = card.rank > 0 || !card.maxRank || !!card.possession;
-  const tags = [
-    ...card.bonuses.map((b) => ({ kind: 'bonus' as const, label: b.label, applied: b.applied })),
-    ...card.rolls.map((label) => ({ kind: 'roll' as const, label, applied: true })),
-  ];
+  const { total: bonusTotal, active: bonusActive } = card.bonusCount;
+  const bonusText =
+    bonusTotal === 0
+      ? ''
+      : `${bonusTotal} bonus${bonusActive < bonusTotal ? `, ${bonusActive} actif${bonusActive > 1 ? 's' : ''}` : ''}`;
   const onKey = (e: KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === 'Enter' || e.key === ' ') {
@@ -110,6 +111,15 @@ export function SkillCardView({
         >
           {card.entry.nom}
         </span>
+        {bonusTotal > 0 && (
+          <span title={bonusText} className="flex shrink-0 items-center">
+            <Sparkles
+              className={cn('size-3', bonusActive > 0 ? 'text-primary/70' : 'text-subtle/60')}
+              aria-hidden
+            />
+            <span className="sr-only">{bonusText}</span>
+          </span>
+        )}
         {card.maxRank !== undefined && card.maxRank > 1 && (
           <RankMarks rank={card.rank} max={card.maxRank} />
         )}
@@ -133,32 +143,11 @@ export function SkillCardView({
           </Info>
         )}
       </div>
-      {(card.filter || tags.length > 0) && (
-        <div className="flex flex-wrap items-center gap-1 overflow-hidden">
-          {card.filter && card.filter.key !== '' && (
-            <span className="rounded border border-border-strong px-1.5 py-0.5 text-[10px] leading-none text-subtle">
-              {card.filter.label}
-            </span>
-          )}
-          {tags.slice(0, MAX_TAGS).map((t, i) => (
-            <span
-              key={`${t.label}-${i}`}
-              className={cn(
-                'flex max-w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                t.kind === 'roll'
-                  ? 'bg-info/10 text-info'
-                  : t.applied
-                    ? 'bg-primary/10 text-primary-strong'
-                    : 'border border-dashed border-border-strong text-subtle',
-              )}
-            >
-              {t.kind === 'roll' && <Dices className="size-2.5 shrink-0" />}
-              <span className="truncate">{t.label}</span>
-            </span>
-          ))}
-          {tags.length > MAX_TAGS && (
-            <span className="text-[10px] text-subtle">+{tags.length - MAX_TAGS}</span>
-          )}
+      {card.filter && card.filter.key !== '' && (
+        <div className="flex items-center overflow-hidden">
+          <span className="truncate rounded border border-border-strong px-1.5 py-0.5 text-[10px] leading-none text-subtle">
+            {card.filter.label}
+          </span>
         </div>
       )}
     </div>
@@ -220,7 +209,20 @@ export function SkillDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <EntryDetails fiche={ctx.fiche} entry={card.entry} />
+            <EntryDetails
+              fiche={ctx.fiche}
+              entry={card.entry}
+              onManageBonus={
+                typeof document !== 'undefined' &&
+                document.getElementById(ancreBonus(ctx.personnage.id))
+                  ? () => {
+                      onClose();
+                      // Après la fermeture : le focus revient d'abord à la carte, puis va au bloc
+                      window.setTimeout(() => allerAuBlocBonus(ctx.personnage.id), 150);
+                    }
+                  : undefined
+              }
+            />
             {card.activable && !on && card.bonuses.some((b) => !b.applied) && (
               <p className="text-xs text-subtle">
                 Les effets s’appliquent une fois l’entrée active.

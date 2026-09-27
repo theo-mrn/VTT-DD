@@ -154,6 +154,9 @@ export function explication(v: ValeurCalculee | undefined): string[] {
     .filter((l) => !l.ignore)
     .map((l) => {
       const val = typeof l.valeur === 'number' ? l.valeur : String(l.valeur);
+      // Effet coupé dans le bloc Bonus : listé, sans compter
+      if (l.desactive)
+        return `${l.nom} : ${typeof val === 'number' ? signe(val) : val} (désactivé)`;
       switch (l.operation) {
         case 'base':
           return `Base : ${val}`;

@@ -493,6 +493,11 @@ export interface OperationsPersonnage {
   bonus(d: DemandeBonus, apercu?: EtatEntite): Promise<FichePersonnage>;
   retirerBonus(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
   /**
+   * Active ou coupe des effets d'entrées possédées ou d'exemplaires (clés `<source>/<index>`),
+   * sans toucher à leur source : l'objet reste équipé.
+   */
+  effet(effets: string[], actif: boolean, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /**
    * Mise en page de la fiche (null : disposition par défaut), montrée tout de suite ;
    * elle appartient au personnage, toute la table la voit.
    */
@@ -590,6 +595,17 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
         ).fiche,
       bonus: async (d, apercu) =>
         (await w((version) => post('/bonus', { version, ...d }), apercu)).fiche,
+      effet: async (effets, actif, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(url(id, '/effets'), {
+                method: 'PUT',
+                ...json({ version, effets, actif }),
+              }),
+            apercu,
+          )
+        ).fiche,
       retirerBonus: async (bonusId, apercu) =>
         (
           await w(

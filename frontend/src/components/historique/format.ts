@@ -423,6 +423,19 @@ function characterUpdated(e: HistoryEvent, ctx: FormatContext): Formatted | null
       const nom = bonusName(changes, str(detail(p, 'bonusId')) ?? '');
       return line('stats', `${who} perd ${bold(nom ?? 'un bonus')}.`);
     }
+    case 'effet': {
+      // Effets coupés ou réactivés un à un (bloc Bonus) ; une demande sans effet ne se dit pas
+      if (detail(p, 'change') === false) return null;
+      const sources = detail(p, 'sources');
+      const noms = (Array.isArray(sources) ? sources : [])
+        .filter((x): x is string => typeof x === 'string')
+        .map((x) => `[${entryName(ctx, x.split('#')[0])}]`);
+      const de = noms.length ? ` de ${bold(noms.join(', '))}` : '';
+      return line(
+        'stats',
+        `${who} a ${detail(p, 'actif') === true ? 'réactivé' : 'désactivé'} des bonus${de}.`,
+      );
+    }
     case 'durees.decompte': {
       const retirees = detail(p, 'retirees');
       const names = (Array.isArray(retirees) ? retirees : [])

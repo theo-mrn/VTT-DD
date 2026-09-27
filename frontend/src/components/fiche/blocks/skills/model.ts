@@ -17,6 +17,7 @@ import {
   type Valeur,
 } from '@vtt/rules';
 import { texteEffet } from '@/lib/creation';
+import { effetsDuPersonnage } from '../effects/model';
 import { maxRank, pathSortes } from '../tree/model';
 
 export interface BonusTag {
@@ -41,6 +42,11 @@ export interface SkillCard {
   bonuses: BonusTag[];
   /** Effets sur les jets (dés ajoutés, améliorés, retirés, bonus au jet). */
   rolls: string[];
+  /**
+   * Bonus de l'entrée (effets de son catalogue et de ses exemplaires) : combien, et combien
+   * s'appliquent. La carte n'en montre qu'un indicateur ; ils se gèrent dans le bloc Bonus.
+   */
+  bonusCount: { total: number; active: number };
   /** Champs de l'entrée affichables (nom, valeur lisible). */
   fields: { name: string; value: string }[];
   filter?: FilterValue;
@@ -122,7 +128,7 @@ function appliedBonuses(fiche: Fiche, id: string): BonusTag[] {
   const r: BonusTag[] = [];
   for (const v of fiche.valeurs.values()) {
     for (const l of v.detail) {
-      if (l.ignore || (l.source !== id && !l.source.startsWith(`${id}#`))) continue;
+      if (l.ignore || l.desactive || (l.source !== id && !l.source.startsWith(`${id}#`))) continue;
       const nom = attributeLabel(fiche, v.cle);
       const val = l.valeur;
       const label =
@@ -283,6 +289,17 @@ export function buildSkills(
     return systeme.entrees.get(base)?.nom ?? systeme.arbres.get(arbre ?? '')?.nom ?? null;
   };
 
+  // Bonus par entrée possédée, calculés une fois pour toutes les cartes
+  const bonusParEntree = new Map<string, { total: number; active: number }>();
+  for (const e of effetsDuPersonnage(fiche)) {
+    const id = e.possession?.entree.id;
+    if (!id || e.possession?.sorte.id !== sorteId) continue;
+    const c = bonusParEntree.get(id) ?? { total: 0, active: 0 };
+    c.total++;
+    if (e.statut === 'actif') c.active++;
+    bonusParEntree.set(id, c);
+  }
+
   const cards: SkillCard[] = entries.map((entry) => {
     const p = fiche.possessions.get(entry.id);
     const rank = p?.rang ?? 0;
@@ -317,6 +334,10 @@ export function buildSkills(
       active,
       bonuses: [...applied, ...described],
       rolls,
+      bonusCount: bonusParEntree.get(entry.id) ?? {
+        total: entry.effets.filter((e) => e.sur !== 'marque').length,
+        active: 0,
+      },
       fields: fieldsOf(fiche, sorte, entry, filtreChamp),
       ...(filter ? { filter } : {}),
       ...(offer ? { offer } : {}),

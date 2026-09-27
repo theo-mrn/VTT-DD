@@ -1,16 +1,21 @@
 'use client';
 
 /**
- * Bloc Effets actifs (widget `bonus` de la présentation) : tout ce qui modifie le personnage
- * en ce moment, quelle que soit sa provenance. Les entrées possédées et les exemplaires
- * (épée +1) viennent des sources d'effets calculées par le moteur ; les bonus libres
- * (potion, bénédiction, décision du MJ) s'activent, se retirent et s'ajoutent ici.
- * Rien n'est propre à un jeu : les cibles proposées sont les attributs du type d'entité.
+ * Bloc Bonus (widget `bonus` de la présentation) : le seul endroit où l'on gère les bonus.
+ *
+ * Onglets : « Actifs » (par défaut, les seuls effets appliqués), puis une famille de sources
+ * par onglet (objets, capacités, profil, bonus libres), celles que le système peut remplir.
+ * Dans un onglet, une ligne compacte par source (objet, compétence, espèce, bonus libre) :
+ * son nom, ses effets en texte court, un interrupteur pour toute la source. Un clic déplie ses
+ * effets, pour les couper un à un (`etat.effetsDesactives`) sans déséquiper l'objet. Une
+ * source qui ne s'applique pas (objet rangé) est grisée, avec sa raison. Les bonus libres
+ * (potion, bénédiction, décision du MJ) s'activent en entier, s'ajoutent et se retirent dans
+ * leur onglet. La liste défile au-delà d'une douzaine de lignes : le bloc reste bas.
+ * Rien n'est propre à un jeu : tout vient de `listerEffets` de @vtt/rules.
  */
-import type { BonusLibre, Effet } from '@vtt/rules';
-import { Plus, Sparkles, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import type { BonusLibre, Effet, EffetListe } from '@vtt/rules';
+import { ChevronRight, Plus, Search, Trash2, X } from 'lucide-react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,53 +28,147 @@ import {
 import { Input, styleChampBase } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { groupesAttributs, texteEffet } from '@/lib/creation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { groupesAttributs } from '@/lib/creation';
 import { cn } from '@/lib/utils';
 import { Bloc, visiblePour, type ContexteFiche } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
+import {
+  ancreBonus,
+  apercuBascule,
+  effetsDuPersonnage,
+  familleDe,
+  famillesDuSysteme,
+  libelleEffet,
+  libelleFamille,
+  ongletFamille,
+  precisionEffet,
+  raisonInactif,
+  sorteDe,
+  type FamilleEffet,
+} from './model';
 
-/** Effets lisibles d'une source : ceux qui modifient une valeur, un jet ou des dégâts. */
-function textes(ctx: ContexteFiche, effets: readonly Effet[]): string[] {
-  return effets
-    .filter((e) => e.sur !== 'rang' && e.sur !== 'marque')
-    .map((e) => texteEffet(ctx.fiche, e))
-    .filter((t): t is string => Boolean(t));
+/** Au-delà de ce nombre de sources dans un onglet, la recherche apparaît. */
+const SEUIL_RECHERCHE = 8;
+
+type Onglet = 'actifs' | FamilleEffet;
+
+function plain(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
 interface LigneEffet {
-  id: string;
-  nom: string;
-  provenance: string;
-  textes: string[];
+  e: EffetListe;
+  libelle: string;
+  precision: string | null;
 }
 
-function EffectsBlock({ ctx, widget }: SheetBlockProps<'bonus'>) {
-  const { fiche, operations } = ctx;
+/** Une source affichée : une entrée, un exemplaire (s'il y en a plusieurs) ou un bonus libre. */
+interface GroupeSource {
+  cle: string;
+  nom: string;
+  sorte: string | null;
+  famille: FamilleEffet;
+  /** Pourquoi la source ne s'applique pas (objet rangé…), sinon null. */
+  raison: string | null;
+  bonus?: BonusLibre;
+  lignes: LigneEffet[];
+}
+
+function grouper(ctx: ContexteFiche, effets: EffetListe[]): GroupeSource[] {
+  const groupes = new Map<string, GroupeSource>();
+  for (const e of effets) {
+    const p = e.possession;
+    // Un seul exemplaire : ses effets propres rejoignent ceux de l'entrée
+    const cle =
+      e.genre === 'bonus' || !p
+        ? e.source
+        : e.genre === 'exemplaire' && p.exemplaires.length > 1
+          ? e.source
+          : p.entree.id;
+    let g = groupes.get(cle);
+    if (!g) {
+      g = {
+        cle,
+        nom: e.nom,
+        sorte: sorteDe(e),
+        famille: familleDe(e),
+        raison: e.statut === 'inactif' ? raisonInactif(e) : null,
+        ...(e.bonus ? { bonus: e.bonus } : {}),
+        lignes: [],
+      };
+      groupes.set(cle, g);
+    }
+    // Nom propre d'un exemplaire (objet personnalisé) plutôt que celui de l'entrée
+    if (e.genre === 'exemplaire') g.nom = e.nom;
+    if (e.statut === 'inactif' && !g.raison) g.raison = raisonInactif(e);
+    g.lignes.push({ e, libelle: libelleEffet(ctx.fiche, e), precision: precisionEffet(e) });
+  }
+  return [...groupes.values()];
+}
+
+const compte = (gs: GroupeSource[]) => ({
+  actifs: gs.reduce((n, g) => n + g.lignes.filter((l) => l.e.statut === 'actif').length, 0),
+  total: gs.reduce((n, g) => n + g.lignes.length, 0),
+});
+
+function EffectsBlock({ ctx, widget, mode }: SheetBlockProps<'bonus'>) {
+  const { fiche } = ctx;
+  const operations = mode === 'read' ? ctx.operations : undefined;
   const [ajout, setAjout] = useState(false);
+  const [onglet, setOnglet] = useState<Onglet>('actifs');
+  const [recherche, setRecherche] = useState('');
+  const differee = useDeferredValue(recherche);
+  const [ouverts, setOuverts] = useState<ReadonlySet<string>>(new Set());
 
-  // Entrées et exemplaires actifs qui portent des effets lisibles
-  const sources = useMemo<LigneEffet[]>(
-    () =>
-      fiche.sources
-        .filter((s) => s.genre !== 'bonus')
-        .filter((s) => {
-          const p = s.possession;
-          if (!p) return true;
-          if (p.sorte.rangs && p.rang === 0) return false;
-          return !p.sorte.activable || p.actif;
-        })
-        .map((s) => ({
-          id: s.id,
-          nom: s.nom,
-          provenance: s.possession?.sorte.nom ?? '',
-          textes: textes(ctx, s.effets),
-        }))
-        .filter((l) => l.textes.length > 0),
-    [fiche, ctx],
+  const groupes = useMemo(() => grouper(ctx, effetsDuPersonnage(fiche)), [ctx, fiche]);
+  const { familles, profil } = useMemo(() => famillesDuSysteme(fiche), [fiche]);
+  const onglets = useMemo(
+    () => [
+      {
+        id: 'actifs' as Onglet,
+        nom: 'Actifs',
+        titre: 'Bonus appliqués en ce moment',
+        ...compte(groupes),
+      },
+      ...familles.map((f) => ({
+        id: f as Onglet,
+        nom: ongletFamille(f, profil),
+        titre: libelleFamille(f, profil),
+        ...compte(groupes.filter((g) => g.famille === f)),
+      })),
+    ],
+    [groupes, familles, profil],
   );
-  const libres = fiche.etat.bonus;
 
-  function basculer(b: BonusLibre) {
+  /** Sources de l'onglet ; « Actifs » ne garde que les effets appliqués. */
+  const sources = useMemo(() => {
+    const q = plain(differee.trim());
+    const dansOnglet =
+      onglet === 'actifs'
+        ? groupes
+            .map((g) => ({ ...g, lignes: g.lignes.filter((l) => l.e.statut === 'actif') }))
+            .filter((g) => g.lignes.length > 0)
+        : groupes.filter((g) => g.famille === onglet);
+    if (!q) return dansOnglet;
+    return dansOnglet.filter((g) =>
+      plain(
+        [g.nom, g.sorte ?? '', g.bonus?.source ?? '', ...g.lignes.map((l) => l.libelle)].join(' '),
+      ).includes(q),
+    );
+  }, [groupes, onglet, differee]);
+  const nombreDansOnglet =
+    onglet === 'actifs'
+      ? groupes.filter((g) => g.lignes.some((l) => l.e.statut === 'actif')).length
+      : groupes.filter((g) => g.famille === onglet).length;
+
+  function basculerEffets(cles: string[], actif: boolean) {
+    if (!operations?.effet || !cles.length) return;
+    const apercu = apercuBascule(fiche, cles, actif);
+    if (apercu) operations.effet(cles, actif, apercu);
+  }
+
+  function basculerBonus(b: BonusLibre) {
     if (!operations) return;
     const suivant = { ...b, actif: !b.actif };
     operations.bonus(suivant, {
@@ -86,109 +185,282 @@ function EffectsBlock({ ctx, widget }: SheetBlockProps<'bonus'>) {
     });
   }
 
+  function deplier(cle: string) {
+    setOuverts((o) => {
+      const n = new Set(o);
+      if (!n.delete(cle)) n.add(cle);
+      return n;
+    });
+  }
+
+  const total = onglets[0]!;
+
   return (
     <Bloc
       titre={
         <span className="flex items-center gap-2">
           {widget.titre}
-          <span className="text-xs font-normal text-subtle">{sources.length + libres.length}</span>
+          {total.total > 0 && (
+            <span className="font-mono text-xs font-normal tabular text-subtle">
+              {total.actifs}/{total.total}
+            </span>
+          )}
         </span>
       }
-      action={
-        operations && (
-          <Button variant="ghost" size="xs" onClick={() => setAjout(true)}>
-            <Plus />
-            Bonus
-          </Button>
-        )
-      }
     >
-      {sources.length === 0 && libres.length === 0 ? (
-        <p className="py-6 text-center text-sm text-subtle">Aucun effet actif.</p>
-      ) : (
-        <div className="space-y-4">
-          {libres.length > 0 && (
-            <section>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">
-                Bonus libres
-              </p>
-              <ul className="divide-y divide-border">
-                {libres.map((b) => (
-                  <li key={b.id} className="flex items-start gap-3 py-2">
-                    <Sparkles
-                      className={cn(
-                        'mt-0.5 size-4 shrink-0',
-                        b.actif ? 'text-primary' : 'text-subtle',
-                      )}
-                      aria-hidden
+      <div
+        id={ancreBonus(ctx.personnage.id)}
+        tabIndex={-1}
+        className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+      >
+        <Tabs
+          value={onglet}
+          onValueChange={(v) => {
+            setOnglet(v as Onglet);
+            setRecherche('');
+          }}
+        >
+          <TabsList
+            variante="ligne"
+            aria-label="Sources des bonus"
+            className="h-8 gap-3 overflow-x-auto overflow-y-hidden [scrollbar-width:none]"
+          >
+            {onglets.map((o) => (
+              <TabsTrigger key={o.id} value={o.id} title={o.titre} className="shrink-0 text-xs">
+                {o.nom}
+                <span className="font-mono text-[10px] font-normal tabular text-subtle">
+                  {o.id === 'libres' || o.id === 'actifs' ? o.actifs : `${o.actifs}/${o.total}`}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {onglets.map((o) => (
+            <TabsContent key={o.id} value={o.id} className="mt-2 space-y-2">
+              {nombreDansOnglet > SEUIL_RECHERCHE && (
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-subtle"
+                    aria-hidden
+                  />
+                  <input
+                    type="search"
+                    value={recherche}
+                    onChange={(ev) => setRecherche(ev.target.value)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Escape' && recherche) {
+                        ev.stopPropagation();
+                        setRecherche('');
+                      }
+                    }}
+                    placeholder="Rechercher…"
+                    aria-label={`Rechercher dans ${o.titre}`}
+                    className="h-7 w-full rounded-md border border-input bg-surface-2/60 pl-7 pr-7 text-xs text-foreground placeholder:text-subtle focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/15 [&::-webkit-search-cancel-button]:hidden"
+                  />
+                  {recherche && (
+                    <button
+                      type="button"
+                      onClick={() => setRecherche('')}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-subtle hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                      aria-label="Effacer la recherche"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {sources.length === 0 ? (
+                <p className="py-4 text-center text-xs text-subtle">
+                  {recherche
+                    ? 'Aucun résultat.'
+                    : o.id === 'actifs'
+                      ? 'Aucun bonus appliqué en ce moment.'
+                      : o.id === 'libres'
+                        ? 'Aucun bonus libre.'
+                        : 'Rien ici pour l’instant.'}
+                </p>
+              ) : (
+                // Une douzaine de lignes, puis défilement : le bloc garde une hauteur raisonnable
+                <ul className="max-h-96 overflow-y-auto [scrollbar-width:thin]">
+                  {sources.map((g) => (
+                    <Source
+                      key={g.cle}
+                      g={g}
+                      ouvert={ouverts.has(g.cle)}
+                      onDeplier={() => deplier(g.cle)}
+                      ecriture={!!operations}
+                      peutBasculer={!!operations?.effet}
+                      onEffets={basculerEffets}
+                      onBonus={basculerBonus}
+                      onRetirer={retirer}
                     />
-                    <div className="min-w-0 flex-1">
-                      <p className={cn('truncate text-sm', !b.actif && 'text-muted-foreground')}>
-                        {b.nom}
-                        {b.source && <span className="text-subtle"> · {b.source}</span>}
-                        {b.duree !== undefined && (
-                          <span className="text-subtle"> · {b.duree} round(s)</span>
-                        )}
-                      </p>
-                      <Etiquettes textes={textes(ctx, b.effets)} actif={b.actif} />
-                    </div>
-                    <Switch
-                      checked={b.actif}
-                      disabled={!operations}
-                      onCheckedChange={() => basculer(b)}
-                      aria-label={`${b.actif ? 'Désactiver' : 'Activer'} ${b.nom}`}
-                    />
-                    {operations && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => retirer(b)}
-                        aria-label={`Retirer ${b.nom}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {sources.length > 0 && (
-            <section>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-subtle">
-                Possessions
-              </p>
-              <ul className="divide-y divide-border">
-                {sources.map((l) => (
-                  <li key={l.id} className="py-2">
-                    <p className="truncate text-sm">
-                      {l.nom}
-                      {l.provenance && <span className="text-subtle"> · {l.provenance}</span>}
-                    </p>
-                    <Etiquettes textes={l.textes} actif />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
-      )}
+                  ))}
+                </ul>
+              )}
+
+              {o.id === 'libres' && operations && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="w-full justify-start text-muted-foreground"
+                  onClick={() => setAjout(true)}
+                >
+                  <Plus />
+                  Ajouter un bonus libre
+                </Button>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
       {operations && <AjoutBonus ctx={ctx} ouvert={ajout} onOuvert={setAjout} />}
     </Bloc>
   );
 }
 
-function Etiquettes({ textes: liste, actif }: { textes: string[]; actif: boolean }) {
-  if (liste.length === 0) return null;
+/**
+ * Une source sur une ligne (~32 px) : nom, effets en texte court, un interrupteur pour toute
+ * la source. Dépliée, une ligne par effet avec son propre interrupteur.
+ */
+function Source({
+  g,
+  ouvert,
+  onDeplier,
+  ecriture,
+  peutBasculer,
+  onEffets,
+  onBonus,
+  onRetirer,
+}: {
+  g: GroupeSource;
+  ouvert: boolean;
+  onDeplier: () => void;
+  ecriture: boolean;
+  peutBasculer: boolean;
+  onEffets: (cles: string[], actif: boolean) => void;
+  onBonus: (b: BonusLibre) => void;
+  onRetirer: (b: BonusLibre) => void;
+}) {
+  const b = g.bonus;
+  const eteinte = g.raison !== null;
+  const basculables = g.lignes.filter((l) => l.e.basculable).map((l) => l.e.cle);
+  const coupes = g.lignes.filter((l) => l.e.statut === 'desactive').length;
+  // Interrupteur de la source : allumé si au moins un effet n'est pas coupé
+  const allume = b ? b.actif : coupes < g.lignes.length;
+  const resume = g.lignes
+    .filter((l) => l.e.statut !== 'desactive')
+    .map((l) => l.libelle)
+    .join(' · ');
+  const meta = b
+    ? [b.source, b.duree !== undefined ? `${b.duree} round(s)` : null].filter(Boolean).join(' · ')
+    : null;
+  const idDetail = `bonus-${g.cle.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   return (
-    <div className="mt-1 flex flex-wrap gap-1">
-      {liste.slice(0, 6).map((t) => (
-        <Badge key={t} ton={actif ? 'primaire' : 'neutre'}>
-          {t}
-        </Badge>
-      ))}
-      {liste.length > 6 && <Badge>+{liste.length - 6}</Badge>}
-    </div>
+    <li className="border-b border-border last:border-b-0">
+      <div className="flex h-8 items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onDeplier}
+          aria-expanded={ouvert}
+          aria-controls={idDetail}
+          className="flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        >
+          <ChevronRight
+            className={cn(
+              'size-3.5 shrink-0 text-subtle transition-transform',
+              ouvert && 'rotate-90',
+            )}
+            aria-hidden
+          />
+          <span
+            className={cn(
+              'min-w-0 max-w-[55%] shrink-0 truncate text-[13px] font-medium',
+              eteinte || !allume ? 'text-muted-foreground' : 'text-foreground',
+            )}
+          >
+            {g.nom}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs text-subtle">
+            {resume || (coupes ? `${coupes} désactivé${coupes > 1 ? 's' : ''}` : '')}
+          </span>
+          {g.raison && <span className="shrink-0 text-[11px] text-subtle">{g.raison}</span>}
+        </button>
+        {b ? (
+          <>
+            <Switch
+              className="scale-90"
+              checked={b.actif}
+              disabled={!ecriture}
+              onCheckedChange={() => onBonus(b)}
+              aria-label={`${b.actif ? 'Désactiver' : 'Activer'} le bonus ${b.nom}`}
+            />
+            {ecriture && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onRetirer(b)}
+                aria-label={`Retirer le bonus ${b.nom}`}
+              >
+                <Trash2 />
+              </Button>
+            )}
+          </>
+        ) : (
+          basculables.length > 0 && (
+            <Switch
+              className="scale-90"
+              checked={allume}
+              disabled={!peutBasculer || eteinte}
+              onCheckedChange={(v) => onEffets(basculables, v)}
+              aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
+                g.raison ? `, ${g.raison}` : ''
+              }`}
+            />
+          )
+        )}
+      </div>
+      {ouvert && (
+        <ul id={idDetail} className="pb-1.5 pl-6">
+          {meta && <li className="pb-0.5 text-[11px] text-subtle">{meta}</li>}
+          {g.sorte && !b && <li className="pb-0.5 text-[11px] text-subtle">{g.sorte}</li>}
+          {g.lignes.map(({ e, libelle, precision }) => {
+            const coupe = e.statut === 'desactive';
+            return (
+              <li
+                key={e.cle}
+                className={cn(
+                  'flex h-7 items-center gap-2',
+                  e.statut === 'actif' ? 'text-foreground' : 'text-subtle',
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-1.5 shrink-0 rounded-full',
+                    e.statut === 'actif' ? 'bg-primary' : 'bg-surface-3',
+                  )}
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1 truncate text-xs">
+                  <span className={cn(coupe && 'line-through')}>{libelle}</span>
+                  {precision && <span className="text-[11px] text-subtle"> · {precision}</span>}
+                  {coupe && <span className="text-[11px] text-subtle"> · désactivé</span>}
+                </span>
+                {e.basculable && (
+                  <Switch
+                    className="scale-75"
+                    checked={!coupe}
+                    disabled={!peutBasculer || eteinte}
+                    onCheckedChange={(v) => onEffets([e.cle], v)}
+                    aria-label={`${coupe ? 'Activer' : 'Désactiver'} ${libelle} (${g.nom})`}
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
   );
 }
 
@@ -315,8 +587,9 @@ function AjoutBonus({
 
 export const effectsBlock: SheetBlockDefinition<'bonus'> = {
   type: 'bonus',
-  label: 'Effets actifs',
-  description: 'Bonus libres et effets des possessions actives, activables et retirables.',
+  label: 'Bonus',
+  description:
+    'Tous les bonus du personnage par source, activables un à un ; bonus libres à ajouter.',
   defaultSize: { w: 6, h: 6 },
   minSize: { w: 3, h: 4 },
   Component: EffectsBlock,
