@@ -6,21 +6,16 @@
  * Aucune règle propre à un jeu : les sources sont celles de `calculer` (entrées possédées,
  * exemplaires, bonus libres), toutes sortes confondues.
  */
+import { evaluer, type Valeur } from '../formules/index.js';
 import {
   cleEffet,
   lireCleEffet,
-  sourceExemplaire,
   type BonusLibre,
   type Effet,
   type EtatEntite,
   type Possession,
 } from '../schema/index.js';
-import {
-  estEffective,
-  nomSourceExemplaire,
-  type Fiche,
-  type PossessionEffective,
-} from './fiche.js';
+import { estEffective, type Fiche, type PossessionEffective } from './fiche.js';
 
 /**
  * Pourquoi un effet ne s'applique pas alors qu'il n'est pas coupé :
@@ -48,74 +43,86 @@ export interface EffetListe {
   raison?: RaisonInactif;
   /** L'effet se coupe un à un (effets d'une entrée ou d'un exemplaire, pas d'un bonus libre). */
   basculable: boolean;
+  /**
+   * Valeur principale évaluée sur la fiche (modificateur d'un attribut, nombre de dés ou
+   * bonus d'un jet, rangs donnés, réduction de dégâts) ; absente si elle ne s'évalue pas.
+   */
+  valeur?: Valeur;
   possession?: PossessionEffective;
   exemplaire?: Possession;
   bonus?: BonusLibre;
 }
 
+/** Champ de l'effet qui porte sa valeur principale (évaluée pour l'affichage). */
+function champValeur(e: Effet): string | undefined {
+  switch (e.sur) {
+    case 'attribut':
+    case 'rang':
+    case 'degats':
+      return 'valeur';
+    case 'jet':
+      if (!e.ajout) return undefined;
+      return 'bonus' in e.ajout ? 'bonus' : 'variable' in e.ajout ? 'ajouter' : 'nombre';
+    case 'marque':
+      return undefined;
+  }
+}
+
 /**
  * Tous les effets de l'entité, actifs ou non : effets du catalogue de chaque entrée
  * possédée, effets propres de chaque exemplaire, effets des bonus libres. Dans l'ordre :
- * possessions (ordre de calcul), puis bonus libres.
+ * possessions (ordre de calcul), puis bonus libres. La valeur principale de chaque effet
+ * est évaluée sur la fiche quand c'est possible (sans dés).
  */
 export function listerEffets(fiche: Fiche): EffetListe[] {
   const coupes = new Set(fiche.etat.effetsDesactives);
   const r: EffetListe[] = [];
-  const pousser = (
-    base: Omit<EffetListe, 'cle' | 'index' | 'effet' | 'statut' | 'raison'>,
-    effets: readonly Effet[],
-    raison: RaisonInactif | undefined,
-  ) =>
-    effets.forEach((effet, index) => {
-      const cle = cleEffet(base.source, index);
-      const coupe = base.basculable && coupes.has(cle);
+  for (const s of fiche.toutesSources()) {
+    const p = s.possession;
+    const raison: RaisonInactif | undefined =
+      s.genre === 'bonus'
+        ? s.bonus?.actif
+          ? undefined
+          : 'bonus-inactif'
+        : p && !estEffective(p)
+          ? 'non-effective'
+          : s.genre === 'entree'
+            ? p?.actif
+              ? undefined
+              : 'inactive'
+            : p?.sorte.activable && !s.exemplaire?.actif
+              ? 'inactive'
+              : undefined;
+    const basculable = s.genre !== 'bonus';
+    s.effets.forEach((effet, index) => {
+      const cle = cleEffet(s.id, index);
+      const coupe = basculable && coupes.has(cle);
+      const champ = champValeur(effet);
+      const f = champ ? s.formule(index, champ) : undefined;
+      let valeur: Valeur | undefined;
+      if (f) {
+        try {
+          valeur = evaluer(f.noeud, fiche.contexte({ variable: s.variable })).valeur;
+        } catch {
+          valeur = undefined;
+        }
+      }
       r.push({
-        ...base,
         cle,
+        source: s.id,
+        nom: s.nom,
+        genre: s.genre,
         index,
         effet,
         statut: coupe ? 'desactive' : raison ? 'inactif' : 'actif',
         ...(raison ? { raison } : {}),
+        basculable,
+        ...(valeur !== undefined ? { valeur } : {}),
+        ...(p ? { possession: p } : {}),
+        ...(s.exemplaire ? { exemplaire: s.exemplaire } : {}),
+        ...(s.bonus ? { bonus: s.bonus } : {}),
       });
     });
-
-  for (const p of fiche.possessions.values()) {
-    const raisonEntree: RaisonInactif | undefined = !estEffective(p)
-      ? 'non-effective'
-      : !p.actif
-        ? 'inactive'
-        : undefined;
-    pousser(
-      { source: p.entree.id, nom: p.entree.nom, genre: 'entree', basculable: true, possession: p },
-      p.entree.effets,
-      raisonEntree,
-    );
-    for (const ex of p.exemplaires) {
-      const raison: RaisonInactif | undefined = !estEffective(p)
-        ? 'non-effective'
-        : p.sorte.activable && !ex.actif
-          ? 'inactive'
-          : undefined;
-      pousser(
-        {
-          source: sourceExemplaire(ex),
-          nom: nomSourceExemplaire(p, ex),
-          genre: 'exemplaire',
-          basculable: true,
-          possession: p,
-          exemplaire: ex,
-        },
-        ex.effets,
-        raison,
-      );
-    }
-  }
-  for (const b of fiche.etat.bonus) {
-    pousser(
-      { source: `bonus:${b.id}`, nom: b.nom, genre: 'bonus', basculable: false, bonus: b },
-      b.effets,
-      b.actif ? undefined : 'bonus-inactif',
-    );
   }
   return r;
 }
@@ -154,27 +161,49 @@ export function nettoyerEffetsDesactives(fiche: Fiche): string[] {
 }
 
 export type ResultatBascule =
-  | { ok: true; etat: EtatEntite; effet: EffetListe; change: boolean }
+  | { ok: true; etat: EtatEntite; effets: EffetListe[]; change: boolean }
   | { ok: false; erreur: string; introuvable?: boolean };
 
 /**
- * Active ou coupe un effet (idempotent : le demander deux fois ne change rien de plus).
- * Refusé pour un effet inconnu et pour un effet de bonus libre (qui s'active en entier).
- * La source n'est pas touchée : un objet rangé reste rangé, son effet coupé ou non.
+ * Active ou coupe des effets (tous ceux d'une source d'un coup, ou un seul). Idempotent : le
+ * redemander ne change rien de plus. Refusé en entier si une clé est inconnue ou désigne un
+ * effet de bonus libre (qui s'active en entier). La source n'est pas touchée : un objet rangé
+ * reste rangé, ses effets coupés ou non.
  */
-export function basculerEffet(fiche: Fiche, cle: string, actif: boolean): ResultatBascule {
-  const effet = listerEffets(fiche).find((e) => e.cle === cle);
-  if (!effet) return { ok: false, erreur: `Effet introuvable : ${cle}`, introuvable: true };
-  if (!effet.basculable)
-    return {
-      ok: false,
-      erreur: `${effet.nom} : un bonus libre s’active ou se désactive en entier`,
-    };
+export function basculerEffets(
+  fiche: Fiche,
+  cles: readonly string[],
+  actif: boolean,
+): ResultatBascule {
+  const tous = new Map(listerEffets(fiche).map((e) => [e.cle, e]));
+  const effets: EffetListe[] = [];
+  const oublies: string[] = [];
+  for (const cle of new Set(cles)) {
+    const effet = tous.get(cle);
+    // Réactiver un effet coupé dont la source a disparu (rang gratuit coupé…) : on l'oublie
+    if (!effet && actif && fiche.etat.effetsDesactives.includes(cle)) {
+      oublies.push(cle);
+      continue;
+    }
+    if (!effet) return { ok: false, erreur: `Effet introuvable : ${cle}`, introuvable: true };
+    if (!effet.basculable)
+      return {
+        ok: false,
+        erreur: `${effet.nom} : un bonus libre s’active ou se désactive en entier`,
+      };
+    effets.push(effet);
+  }
   const etat = fiche.etat;
-  const coupe = etat.effetsDesactives.includes(cle);
-  if (coupe === !actif) return { ok: true, etat, effet, change: false };
+  const coupes = new Set(etat.effetsDesactives);
+  const vises = [...effets.map((e) => e.cle), ...oublies].filter((c) => coupes.has(c) === actif);
+  if (!vises.length) return { ok: true, etat, effets, change: false };
   const effetsDesactives = actif
-    ? etat.effetsDesactives.filter((c) => c !== cle)
-    : [...etat.effetsDesactives, cle];
-  return { ok: true, etat: { ...etat, effetsDesactives }, effet, change: true };
+    ? etat.effetsDesactives.filter((c) => !vises.includes(c))
+    : [...etat.effetsDesactives, ...vises];
+  return { ok: true, etat: { ...etat, effetsDesactives }, effets, change: true };
+}
+
+/** Active ou coupe un seul effet (voir `basculerEffets`). */
+export function basculerEffet(fiche: Fiche, cle: string, actif: boolean): ResultatBascule {
+  return basculerEffets(fiche, [cle], actif);
 }

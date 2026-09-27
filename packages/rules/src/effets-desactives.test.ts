@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   basculerEffet,
+  basculerEffets,
   calculer,
   erreursEffetsDesactives,
   listerEffets,
@@ -157,6 +158,16 @@ describe('liste des effets', () => {
     ]);
   });
 
+  it('évalue la valeur de chaque effet, même d’un objet rangé', () => {
+    const f = fiche(d20, { possessions: [cuir(false), { entree: 'robustesse', rang: 2 }] });
+    const valeurs = Object.fromEntries(listerEffets(f).map((e) => [e.cle, e.valeur]));
+    expect(valeurs).toEqual({
+      'armure-cuir/0': 2,
+      'armure-cuir#exemplaire/0': 1,
+      'robustesse/0': 6,
+    });
+  });
+
   it('une entrée à rangs sans rang est non effective', () => {
     const f = fiche(d20, { possessions: [{ entree: 'robustesse', rang: 0 }] });
     expect(listerEffets(f)[0]).toMatchObject({ cle: 'robustesse/0', raison: 'non-effective' });
@@ -175,6 +186,20 @@ describe('bascule et nettoyage', () => {
     expect(encore.ok && encore.change).toBe(false);
     const retour = basculerEffet(calculer(d20, r.etat), 'armure-cuir/0', true);
     expect(retour.ok && retour.etat.effetsDesactives).toEqual([]);
+  });
+
+  it('bascule tous les effets d’une source d’un coup, ou rien si une clé est inconnue', () => {
+    const f = fiche(d20, { possessions: [cuir()], effetsDesactives: ['armure-cuir/0'] });
+    const r = basculerEffets(f, ['armure-cuir/0', 'armure-cuir#exemplaire/0'], false);
+    expect(r.ok && r.etat.effetsDesactives).toEqual(['armure-cuir/0', 'armure-cuir#exemplaire/0']);
+    expect(basculerEffets(f, ['armure-cuir#exemplaire/0', 'x/0'], false).ok).toBe(false);
+  });
+
+  it('réactive une clé coupée dont la source a disparu', () => {
+    const f = fiche(d20, { possessions: [cuir()], effetsDesactives: ['dague#2/0'] });
+    const r = basculerEffets(f, ['dague#2/0'], true);
+    expect(r.ok && r.etat.effetsDesactives).toEqual([]);
+    expect(basculerEffets(f, ['dague#2/0'], false).ok).toBe(false);
   });
 
   it('refuse un effet inconnu et un effet de bonus libre', () => {

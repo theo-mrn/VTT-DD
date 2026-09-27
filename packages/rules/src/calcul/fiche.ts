@@ -151,6 +151,12 @@ export interface Fiche {
   evaluer(f: FormuleVerifiee, extra?: Partial<ContexteEvaluation>, defaut?: Valeur): Valeur;
   /** Sources d'effets actives (entrées, exemplaires, bonus libres). */
   sources: SourceEffets[];
+  /**
+   * Toutes les sources d'effets, actives ou non : entrées possédées (même sans rang ou
+   * inactives), chaque exemplaire qui porte des effets (même rangé), chaque bonus libre.
+   * Pour lister et expliquer les effets ; le calcul, lui, ne lit que `sources`.
+   */
+  toutesSources(): SourceEffets[];
 }
 
 /**
@@ -328,13 +334,15 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
 
   // ─── Sources d'effets ─────────────────────────────────────────────────────
 
+  let muet = false;
   const signaler = (c: EffetsCompiles) => {
+    if (muet) return;
     for (const e of c.erreurs)
       erreurs.push({ ou: e.chemin, message: `Effet invalide, ignoré : ${e.message}` });
   };
 
-  /** Effets du catalogue de l'entrée, puis effets propres à l'exemplaire. */
-  const sourcesDe = (p: PossessionEffective): SourceEffets[] => {
+  /** Effets du catalogue de l'entrée, puis effets propres à l'exemplaire (actif, ou `tous`). */
+  const sourcesDe = (p: PossessionEffective, tous = false): SourceEffets[] => {
     const variable = variablesSource(p);
     const r: SourceEffets[] = [];
     if (p.entree.effets.length) {
@@ -351,7 +359,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     }
     // Effets propres : une source par exemplaire actif qui en porte
     for (const ex of p.exemplaires) {
-      if (!ex.effets.length || (p.sorte.activable && !ex.actif)) continue;
+      if (!ex.effets.length || (!tous && p.sorte.activable && !ex.actif)) continue;
       const prefixe = prefixeExemplaire(ex);
       const c = effetsCompiles(systeme, etat.type, prefixe, ex.effets, variablesDeSorte(p.sorte));
       signaler(c);
@@ -370,10 +378,10 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     return r;
   };
 
-  /** Bonus libres actifs : variables `rang` = 1 et `actif` = vrai, pas de champs. */
-  const sourcesBonus = (): SourceEffets[] =>
+  /** Bonus libres actifs (ou `tous`) : variables `rang` = 1 et `actif` = vrai, pas de champs. */
+  const sourcesBonus = (tous = false): SourceEffets[] =>
     etat.bonus
-      .filter((b) => b.actif)
+      .filter((b) => tous || b.actif)
       .map((b) => {
         const prefixe = `bonus/${b.id}`;
         const c = effetsCompiles(systeme, etat.type, prefixe, b.effets, {
@@ -399,7 +407,9 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
 
   /** Toutes les sources actives : possessions actives et effectives, bonus libres actifs. */
   const sourcesActives = (): SourceEffets[] => [
-    ...[...possessions.values()].filter((p) => p.actif && estEffective(p)).flatMap(sourcesDe),
+    ...[...possessions.values()]
+      .filter((p) => p.actif && estEffective(p))
+      .flatMap((p) => sourcesDe(p)),
     ...sourcesBonus(),
   ];
 
@@ -850,6 +860,18 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     contexte,
     evaluer: (f, extra, defaut) => evaluerSur(f, extra, defaut),
     sources,
+    toutesSources: () => {
+      // Les erreurs de compilation sont déjà dans `erreurs` : on ne les répète pas
+      muet = true;
+      try {
+        return [
+          ...[...possessions.values()].flatMap((p) => sourcesDe(p, true)),
+          ...sourcesBonus(true),
+        ];
+      } finally {
+        muet = false;
+      }
+    },
   };
 }
 

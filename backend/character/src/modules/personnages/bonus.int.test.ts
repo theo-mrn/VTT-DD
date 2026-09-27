@@ -153,7 +153,7 @@ describe.skipIf(!TEST_DATABASE_URL)('bonus par HTTP', () => {
         [false, false],
         [true, true],
       ]);
-      expect(evts[0]!.payload).toMatchObject({ effet: 'cuir/0', source: 'cuir' });
+      expect(evts[0]!.payload).toMatchObject({ effets: ['cuir/0'], sources: ['cuir'] });
       expect(evts[0]!.payload.changes).toContainEqual(
         expect.objectContaining({ path: 'etat.effetsDesactives' }),
       );
@@ -173,6 +173,32 @@ describe.skipIf(!TEST_DATABASE_URL)('bonus par HTTP', () => {
       const libre = await basculer(avec, 'bonus:potion/0', false);
       expect(libre.statusCode).toBe(422);
       expect((await basculer(p, 'cuir/0', false)).statusCode).toBe(409);
+    });
+
+    it('coupe tous les effets d’une source d’un coup', async () => {
+      const p = await creer();
+      const posee = (
+        await envoyer('POST', `/v1/characters/${p.id}/possessions`, {
+          version: p.version,
+          entree: 'cuir',
+          actif: true,
+          effets: [{ sur: 'attribut', attribut: 'Defense', operation: 'ajouter', valeur: 1 }],
+        })
+      ).json() as Personnage;
+      const res = await envoyer('PUT', `/v1/characters/${p.id}/effets`, {
+        version: posee.version,
+        effets: ['cuir/0', 'cuir#exemplaire/0'],
+        actif: false,
+      });
+      expect(res.statusCode).toBe(200);
+      const q = res.json() as Personnage;
+      expect(q.etat.effetsDesactives).toEqual(['cuir/0', 'cuir#exemplaire/0']);
+      expect(Number(q.fiche.valeurs.Defense!.valeur)).toBe(Number(p.fiche.valeurs.Defense!.valeur));
+      const vide = await envoyer('PUT', `/v1/characters/${p.id}/effets`, {
+        version: q.version,
+        actif: false,
+      });
+      expect(vide.statusCode).toBe(400);
     });
 
     it('oublie l’effet coupé quand l’objet est retiré', async () => {

@@ -8,7 +8,7 @@ import { HttpError } from '@vtt/platform';
 import {
   acheter,
   acheterEtape,
-  basculerEffet,
+  basculerEffets,
   BonusLibre,
   CleEffet,
   erreursEffetsDesactives,
@@ -792,28 +792,43 @@ function identifiantBonus(nom: string, etat: EtatEntite): string {
 
 // ─── Effets activés un à un ───────────────────────────────────────────────────
 
-/** Effet à activer ou couper : sa clé stable (`<source>/<index>`, voir `CleEffet`). */
-export const DemandeEffet = z.object({ effet: CleEffet, actif: z.boolean() });
+/**
+ * Effets à activer ou couper, par leur clé stable (`<source>/<index>`, voir `CleEffet`) :
+ * `effet` pour un seul, `effets` pour plusieurs (tous ceux d'une source d'un coup).
+ */
+export const DemandeEffet = z.object({
+  effet: CleEffet.optional(),
+  effets: z.array(CleEffet).min(1).max(200).optional(),
+  actif: z.boolean(),
+});
 export type DemandeEffet = z.output<typeof DemandeEffet>;
 
 /**
- * Active ou coupe un effet d'une entrée possédée ou d'un exemplaire, sans toucher à sa
+ * Active ou coupe des effets d'entrées possédées ou d'exemplaires, sans toucher à leur
  * source (l'objet reste équipé). Idempotent : redemander le même état ne change rien.
- * 404 pour un effet inconnu, 422 pour un effet de bonus libre (qui s'active en entier).
+ * 400 sans aucune clé, 404 pour un effet inconnu, 422 pour un effet de bonus libre (qui
+ * s'active en entier) ; une demande refusée ne change aucun effet.
  */
 export function basculerEffetPersonnage(
   systeme: SystemeCharge,
   etat: EtatEntite,
   d: DemandeEffet,
 ): { etat: EtatEntite; details: Record<string, unknown> } {
-  const r = basculerEffet(calculer(systeme, etat), d.effet, d.actif);
+  const cles = [...new Set([...(d.effet ? [d.effet] : []), ...(d.effets ?? [])])];
+  if (!cles.length) throw HttpError.badRequest('effet ou effets attendu', 'validation_failed');
+  const r = basculerEffets(calculer(systeme, etat), cles, d.actif);
   if (!r.ok) {
     if (r.introuvable) throw HttpError.notFound(r.erreur);
     throw refus(r.erreur, 'effet_non_basculable');
   }
   return {
     etat: r.etat,
-    details: { effet: d.effet, actif: d.actif, source: r.effet.source, change: r.change },
+    details: {
+      effets: cles,
+      actif: d.actif,
+      sources: [...new Set(r.effets.map((e) => e.source))],
+      change: r.change,
+    },
   };
 }
 

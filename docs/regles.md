@@ -131,9 +131,11 @@ L'état porte la liste des effets coupés, `effetsDesactives` (clés). Un effet 
 
 Se coupent un à un les effets du catalogue d'une entrée possédée et les effets propres d'un exemplaire. Un bonus libre, lui, s'active ou se désactive en entier (son `actif`) : une clé `bonus:…` est refusée.
 
-`listerEffets(fiche)` donne tous les effets de l'entité, actifs ou non, avec leur statut : `actif`, `desactive` (coupé), ou `inactif` avec sa raison (`inactive` : objet rangé ; `non-effective` : entrée à rangs sans rang ; `bonus-inactif`). `basculerEffet(fiche, cle, actif)` active ou coupe un effet, de façon idempotente.
+`listerEffets(fiche)` donne tous les effets de l'entité, actifs ou non, avec leur statut : `actif`, `desactive` (coupé), ou `inactif` avec sa raison (`inactive` : objet rangé ; `non-effective` : entrée à rangs sans rang ; `bonus-inactif`). `basculerEffets(fiche, cles, actif)` active ou coupe un ou plusieurs effets (tous ceux d'une source d'un coup), de façon idempotente ; une clé inconnue fait tout refuser, sauf pour réactiver une clé coupée dont la source a disparu.
 
-La clé suit la position : modifier la liste des effets propres d'un exemplaire garde les positions coupées. Une clé qui ne désigne plus aucun effet (objet retiré, effet supprimé, nœud rendu) est oubliée à l'écriture suivante, pour qu'un nouvel exemplaire du même identifiant n'en hérite pas. Le service character l'expose par `PUT /v1/characters/:id/effets` (`{ version, effet, actif }`, événement `character.updated`, opération `effet`).
+La clé suit la position : modifier la liste des effets propres d'un exemplaire garde les positions coupées. Une clé qui ne désigne plus aucun effet (objet retiré, effet supprimé, nœud rendu) est oubliée à l'écriture suivante, pour qu'un nouvel exemplaire du même identifiant n'en hérite pas. Le service character l'expose par `PUT /v1/characters/:id/effets` (`{ version, effet | effets, actif }`, événement `character.updated`, opération `effet`, avec les clés, les sources et `change`).
+
+Sur la fiche, le bloc Bonus est le seul endroit où l'on active ou coupe un bonus : onglets « Actifs » puis par famille de sources (objets : sortes à exemplaires ou quantités ; profil : sortes uniques ; capacités : le reste ; bonus libres), une ligne repliable par source. Les cartes et fenêtres de détail ne font que les lister, avec leur état.
 
 ### 5. Progression et achats
 
