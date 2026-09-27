@@ -1,8 +1,19 @@
 'use client';
 
 import { LayoutGroup, motion } from 'framer-motion';
-import { Check, ChevronDown, Crown, Pin, Search, SearchX, Users, X } from 'lucide-react';
-import { useEffect, useMemo, type ReactNode, type RefObject } from 'react';
+import {
+  Check,
+  ChevronDown,
+  Crown,
+  Loader2,
+  Pin,
+  Search,
+  SearchX,
+  UserRoundCheck,
+  Users,
+  X,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,11 +28,11 @@ import { InputGroup } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Campagne } from '@/lib/campagnes';
-import { TYPES_NOTE, type Note, type TypeNote } from '@/lib/notes';
+import { TYPES_NOTE, type FacettesNotes, type TypeNote } from '@/lib/notes';
 import { cn } from '@/lib/utils';
 import { BoutonNouvelleNote } from './bouton-nouvelle-note';
 import type { ModeleNote } from './modeles';
-import { dateCourte, extrait, iconeNote, segments, type Groupe, type NoteIndexee } from './outils';
+import { dateCourte, iconeNote, segments, type Groupe, type NoteIndexee } from './outils';
 
 export interface FiltreNotes {
   epinglees: boolean;
@@ -38,14 +49,27 @@ export const filtreActif = (f: FiltreNotes) =>
 /** Id DOM d'une note de la liste (aria-activedescendant, défilement). */
 export const idElementNote = (id: string) => `note-${id}`;
 
+/** Pages suivantes de la liste (chargées au défilement). */
+export interface SuiteListe {
+  aSuite: boolean;
+  enCours: boolean;
+  charger: () => void;
+}
+
 /**
  * Volet liste : recherche, filtres, notes groupées (épinglées puis par
- * récence). La liste est un listbox : ↑/↓ changent la sélection quand elle a
- * le focus, Entrée ouvre la note.
+ * récence). Recherche et filtres sont appliqués par le service ; les pages
+ * suivantes se chargent au défilement. La liste est un listbox : ↑/↓ changent
+ * la sélection quand elle a le focus, Entrée ouvre la note.
  */
 export function ListeNotes({
   chargement,
-  toutes,
+  recherchant,
+  total,
+  totalFiltre,
+  facettes,
+  suite,
+  moi,
   groupes,
   mots,
   idSelection,
@@ -64,7 +88,15 @@ export function ListeNotes({
   className,
 }: {
   chargement: boolean;
-  toutes: Note[];
+  /** Une nouvelle recherche (ou de nouveaux filtres) est en cours au service. */
+  recherchant: boolean;
+  /** Toutes mes notes lisibles. */
+  total: number;
+  /** Notes correspondant à la recherche et aux filtres. */
+  totalFiltre: number | null;
+  facettes: FacettesNotes | undefined;
+  suite: SuiteListe;
+  moi: string;
   groupes: Groupe[];
   mots: string[];
   idSelection: string | null;
@@ -85,6 +117,24 @@ export function ListeNotes({
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
   const parCampagne = useMemo(() => new Map(campagnes.map((c) => [c.id, c])), [campagnes]);
   const nbVisibles = ordre.length;
+  const filtree = filtreActif(filtre) || recherche.trim() !== '';
+
+  // Bas de liste en vue : page suivante
+  const repere = useRef<HTMLDivElement>(null);
+  const chargerSuite = useRef(suite.charger);
+  chargerSuite.current = suite.charger;
+  useEffect(() => {
+    const el = repere.current;
+    if (!el || !suite.aSuite) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e?.isIntersecting) chargerSuite.current();
+      },
+      { root: refListe.current, rootMargin: '0px 0px 240px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [suite.aSuite, refListe, nbVisibles]);
 
   // La sélection suit le clavier (ou un lien direct) : on la garde à l'écran
   useEffect(() => {
@@ -120,9 +170,7 @@ export function ListeNotes({
           <h1 className="flex items-baseline gap-2 text-2xl font-semibold tracking-tight lg:text-[15px]">
             Notes
             {!chargement && (
-              <span className="text-sm font-normal text-subtle tabular lg:text-xs">
-                {toutes.length}
-              </span>
+              <span className="text-sm font-normal text-subtle tabular lg:text-xs">{total}</span>
             )}
           </h1>
           <BoutonNouvelleNote onNouvelle={onNouvelle} enCours={creationEnCours} />
@@ -148,7 +196,7 @@ export function ListeNotes({
           placeholder="Rechercher titre, texte, #étiquette…"
           aria-label="Rechercher dans les notes"
           className="h-9 text-[13px] [&::-webkit-search-cancel-button]:hidden"
-          avant={<Search />}
+          avant={recherchant ? <Loader2 className="animate-spin" /> : <Search />}
           apres={
             recherche ? (
               <Button
@@ -168,7 +216,12 @@ export function ListeNotes({
           }
         />
 
-        <FiltresNotes filtre={filtre} onFiltre={onFiltre} toutes={toutes} campagnes={campagnes} />
+        <FiltresNotes
+          filtre={filtre}
+          onFiltre={onFiltre}
+          facettes={facettes}
+          campagnes={campagnes}
+        />
       </div>
 
       <motion.div
@@ -214,6 +267,7 @@ export function ListeNotes({
                     mots={mots}
                     selectionnee={n.note.id === idSelection}
                     campagne={n.note.roomId ? parCampagne.get(n.note.roomId) : undefined}
+                    auteur={n.note.authorId === moi ? null : n.note.authorName}
                     maintenant={maintenant}
                     onChoix={() => onSelection(n.note.id)}
                   />
@@ -222,13 +276,26 @@ export function ListeNotes({
             ))}
           </LayoutGroup>
         )}
+        {!chargement && suite.aSuite && (
+          <div ref={repere} className="flex justify-center py-3">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={suite.charger}
+              loading={suite.enCours}
+              className="text-subtle"
+            >
+              Charger plus de notes
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       <div className="hidden h-9 shrink-0 items-center justify-between gap-2 border-t border-border/70 px-4 text-[11px] text-subtle lg:flex">
         <span className="tabular">
-          {filtreActif(filtre) || recherche
-            ? `${nbVisibles} sur ${toutes.length}`
-            : `${toutes.length} note${toutes.length > 1 ? 's' : ''}`}
+          {filtree
+            ? `${totalFiltre ?? nbVisibles} sur ${total}`
+            : `${total} note${total > 1 ? 's' : ''}`}
         </span>
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
@@ -247,6 +314,7 @@ function ElementNote({
   mots,
   selectionnee,
   campagne,
+  auteur,
   maintenant,
   onChoix,
 }: {
@@ -254,11 +322,13 @@ function ElementNote({
   mots: string[];
   selectionnee: boolean;
   campagne: Campagne | undefined;
+  /** Auteur, si la note est celle d'un autre joueur. */
+  auteur: string | null;
   maintenant: number;
   onChoix: () => void;
 }) {
   const { note } = n;
-  const apercu = extrait(n, mots);
+  const apercu = n.apercu;
   const titre = note.title.trim();
 
   return (
@@ -318,7 +388,7 @@ function ElementNote({
               <span className="text-subtle">Aucun contenu</span>
             )}
           </p>
-          {(campagne || note.roomId || note.tags.length > 0) && (
+          {(campagne || note.roomId || note.tags.length > 0 || auteur) && (
             <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[11px] text-subtle">
               {note.roomId && (
                 <span className="flex min-w-0 items-center gap-1.5">
@@ -341,8 +411,15 @@ function ElementNote({
                       aria-label="Partagée avec la table"
                     />
                   )}
+                  {note.visibility === 'characters' && (
+                    <UserRoundCheck
+                      className="size-3 shrink-0 text-primary/80"
+                      aria-label="Partagée avec des personnages"
+                    />
+                  )}
                 </span>
               )}
+              {auteur && <span className="max-w-[90px] shrink-0 truncate">{auteur}</span>}
               {note.tags.slice(0, 3).map((t) => (
                 <span key={t} className="max-w-[90px] shrink-0 truncate">
                   <span className="text-subtle/60">#</span>
@@ -405,24 +482,19 @@ function Puce({
 function FiltresNotes({
   filtre,
   onFiltre,
-  toutes,
+  facettes,
   campagnes,
 }: {
   filtre: FiltreNotes;
   onFiltre: (f: FiltreNotes) => void;
-  toutes: Note[];
+  facettes: FacettesNotes | undefined;
   campagnes: Campagne[];
 }) {
-  const compte = useMemo(() => {
-    const types = new Map<TypeNote, number>();
-    const salles = new Map<string, number>();
-    for (const n of toutes) {
-      types.set(n.kind, (types.get(n.kind) ?? 0) + 1);
-      const cle = n.roomId ?? 'aucune';
-      salles.set(cle, (salles.get(cle) ?? 0) + 1);
-    }
-    return { types, salles };
-  }, [toutes]);
+  // Compteurs de toutes mes notes, calculés par le service
+  const compte = {
+    types: new Map<TypeNote, number>(Object.entries(facettes?.types ?? {}) as [TypeNote, number][]),
+    salles: facettes?.campagnes ?? new Map<string, number>(),
+  };
 
   const type = filtre.type ? TYPES_NOTE.find((t) => t.id === filtre.type) : null;
   const campagne =

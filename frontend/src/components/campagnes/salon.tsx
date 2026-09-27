@@ -59,7 +59,7 @@ import {
   type DetailCampagne,
   type Membre,
 } from '@/lib/campagnes';
-import { iconeNote, useNotes } from '@/lib/notes';
+import { iconeNote, useNotes, useNotesSync } from '@/lib/notes';
 import { usePersonnagesCampagne, type Personnage } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
@@ -726,8 +726,10 @@ function Sessions({ campagne: c, gm }: { campagne: DetailCampagne; gm: boolean }
 // ─── Notes de la campagne ────────────────────────────────────────────────────
 
 function NotesCampagne({ campagneId }: { campagneId: string }) {
-  const notes = useNotes();
-  const liste = (notes.data ?? []).filter((n) => n.roomId === campagneId).slice(0, 6);
+  const notes = useNotes({ campaignId: campagneId, limit: 6 });
+  // Notes de la campagne tenues à jour en direct (écrites ou partagées par les autres)
+  useNotesSync(campagneId);
+  const liste = notes.data ?? [];
   return (
     <Panneau
       titre="Notes de campagne"

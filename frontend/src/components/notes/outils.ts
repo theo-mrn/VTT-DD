@@ -1,47 +1,36 @@
 /**
- * Outils purs de l'espace Notes : recherche tolérante aux accents, extraits,
- * regroupement par date et formats de date relatifs.
+ * Outils purs de l'espace Notes : mise en valeur des termes cherchés (sans
+ * tenir compte des accents), regroupement par date et formats de date relatifs.
+ * La recherche elle-même est faite par le service (plein texte).
  */
-import { texteNote, TYPES_NOTE, type Note, type TypeNote } from '@/lib/notes';
+import { TYPES_NOTE, type ResumeNote, type TypeNote } from '@/lib/notes';
 
 // ─── Recherche ───────────────────────────────────────────────────────────────
 
 /** Minuscules sans accents : « Épée » et « epee » se trouvent l'un l'autre. */
 export function normaliser(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 }
 
-/** Note accompagnée de son texte brut, calculé une fois par version du cache. */
+/** Note de la liste, avec son extrait (calculé par le service). */
 export interface NoteIndexee {
-  note: Note;
-  /** Texte intégral (recherche, extraits autour d'un terme trouvé). */
-  texte: string;
-  /** Texte d'aperçu, sans les intertitres des modèles (« Résumé », « Secrets »…). */
+  note: ResumeNote;
+  /** Aperçu, ou extrait centré sur le terme cherché. */
   apercu: string;
-  /** Titre, texte et étiquettes normalisés : la botte de foin de la recherche. */
-  cle: string;
 }
 
-export function indexer(notes: Note[]): NoteIndexee[] {
-  return notes.map((note) => {
-    const texte = texteNote(note.content);
-    const corps = texteNote(note.content.replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, ' '));
-    return {
-      note,
-      texte,
-      apercu: corps || texte,
-      cle: normaliser(`${note.title}\n${texte}\n${note.tags.map((t) => `#${t}`).join(' ')}`),
-    };
-  });
+export function indexer(notes: ResumeNote[]): NoteIndexee[] {
+  return notes.map((note) => ({ note, apercu: note.excerpt }));
 }
 
-/** Termes de la requête : tous doivent apparaître (ordre libre). */
+/** Termes de la requête, pour les mettre en valeur dans les résultats. */
 export function termes(requete: string): string[] {
-  return normaliser(requete).split(/\s+/).filter(Boolean);
-}
-
-export function correspond(n: NoteIndexee, mots: string[]): boolean {
-  return mots.every((m) => n.cle.includes(m));
+  return normaliser(requete)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
 }
 
 /**
@@ -75,20 +64,6 @@ export function segments(texte: string, mots: string[]): { t: string; surligne: 
     else res.push({ t: texte[i], surligne: marque[i] });
   }
   return res;
-}
-
-/**
- * Extrait centré sur la première occurrence cherchée dans le texte ; sans
- * occurrence (terme trouvé dans le titre ou une étiquette), l'aperçu habituel.
- */
-export function extrait(n: NoteIndexee, mots: string[], longueur = 150): string {
-  const plat = normaliser(n.texte);
-  const positions = mots.map((m) => plat.indexOf(m)).filter((i) => i >= 0);
-  if (!positions.length) return n.apercu.slice(0, longueur);
-  const debut = Math.max(0, Math.min(...positions) - 36);
-  // Coupe sur un espace pour ne pas commencer au milieu d'un mot
-  const coupe = debut === 0 ? 0 : n.texte.indexOf(' ', debut) + 1 || debut;
-  return (coupe > 0 ? '… ' : '') + n.texte.slice(coupe, coupe + longueur);
 }
 
 // ─── Regroupement ────────────────────────────────────────────────────────────

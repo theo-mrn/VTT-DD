@@ -9,6 +9,9 @@ import {
   ChevronLeft,
   CopyPlus,
   Ellipsis,
+  Eye,
+  GitCompareArrows,
+  ImageOff,
   Link2,
   PanelLeftClose,
   PanelLeftOpen,
@@ -34,14 +37,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Info } from '@/components/ui/tooltip';
+import { messageErreur } from '@/lib/api';
 import type { Campagne } from '@/lib/campagnes';
-import type { ModificationNote, Note } from '@/lib/notes';
+import {
+  useEpinglerNote,
+  type ModificationNote,
+  type Note,
+  type NoteDetails,
+  type NouvelleNote,
+} from '@/lib/notes';
 import { cn } from '@/lib/utils';
 import { BarreMiseEnForme, BulleMiseEnForme } from './barre-mise-en-forme';
-import { useEnregistrementAuto } from './enregistrement';
+import { AlignementTexte, ImageNote } from './editor-extensions';
+import { useEnregistrementAuto, type Conflit } from './enregistrement';
 import { IndicateurEnregistrement } from './indicateur-enregistrement';
+import { aDesDetails, DetailsNote } from './note-details';
 import { compterMots, dateLongue, depuis, iconeNote } from './outils';
-import { ProprietesNote } from './proprietes-note';
+import { ProprietesNote, type Partage } from './proprietes-note';
+import { preparerContenu } from './sanitize';
 import { BoutonAjoutIcone, SelecteurIcone } from './selecteur-icone';
 import { useMaintenant } from './use-maintenant';
 
@@ -50,8 +63,31 @@ export type CibleFocus = 'titre' | 'debut' | 'premier-vide';
 
 type Brouillon = Pick<
   Note,
-  'title' | 'icon' | 'kind' | 'tags' | 'pinned' | 'roomId' | 'visibility'
+  | 'title'
+  | 'icon'
+  | 'kind'
+  | 'tags'
+  | 'roomId'
+  | 'visibility'
+  | 'sharedWith'
+  | 'sharedWithGm'
+  | 'imageUrl'
+  | 'details'
 >;
+
+/** Champs de la note que l'éditeur tient en local. */
+const brouillonDe = (n: Note): Brouillon => ({
+  title: n.title,
+  icon: n.icon,
+  kind: n.kind,
+  tags: n.tags,
+  roomId: n.roomId,
+  visibility: n.visibility,
+  sharedWith: n.sharedWith,
+  sharedWithGm: n.sharedWithGm,
+  imageUrl: n.imageUrl,
+  details: n.details,
+});
 
 const LONGUEUR_TITRE = 200;
 
@@ -92,11 +128,18 @@ function focusTexte(editor: Editor, position: 'debut' | 'premier-vide') {
 /**
  * Éditeur d'une note. Monté une fois par note (clé = id) : le titre, les
  * propriétés et le contenu vivent ici en local et partent à l'enregistrement
- * automatique ; les mises à jour du cache ne réinitialisent jamais la saisie.
+ * automatique, avec la version sur laquelle ils reposent.
+ *
+ * - Une version plus récente arrive du service (autre joueur, autre onglet)
+ *   alors que rien n'est en attente : l'éditeur l'adopte en direct.
+ * - Sinon, l'enregistrement tombe en conflit (409) : la version récente est
+ *   affichée, et l'utilisateur choisit quoi faire de ses modifications.
+ * - Sans droit d'écriture (spectateur), la note est en lecture seule.
  */
 export function EditeurNote({
   note,
   campagnes,
+  moi,
   suggestionsEtiquettes,
   focusInitial,
   onFocusConsomme,
@@ -108,25 +151,21 @@ export function EditeurNote({
 }: {
   note: Note;
   campagnes: Campagne[];
+  /** Utilisateur connecté. */
+  moi: string;
   suggestionsEtiquettes: string[];
   focusInitial: CibleFocus | null;
   onFocusConsomme: () => void;
   listeMasquee: boolean;
   onBasculerListe: () => void;
   onRetour: () => void;
-  onDupliquer: (copie: ModificationNote) => void;
+  onDupliquer: (copie: NouvelleNote) => void;
   onSupprimer: (instantane: Note) => void;
 }) {
-  const { etat, planifier, vider, abandonner } = useEnregistrementAuto(note.id);
-  const [brouillon, setBrouillon] = useState<Brouillon>(() => ({
-    title: note.title,
-    icon: note.icon,
-    kind: note.kind,
-    tags: note.tags,
-    pinned: note.pinned,
-    roomId: note.roomId,
-    visibility: note.visibility,
-  }));
+  const lecture = !note.permissions.edit;
+  const [conflit, setConflit] = useState<Conflit | null>(null);
+  const editeurRef = useRef<Editor | null>(null);
+  const [brouillon, setBrouillon] = useState<Brouillon>(() => brouillonDe(note));
   const [confirmation, setConfirmation] = useState(false);
   // Compteurs recalculés à chaque modification du texte (pas à chaque déplacement du curseur)
   const [stats, setStats] = useState({ mots: 0, caracteres: 0 });
@@ -134,10 +173,45 @@ export function EditeurNote({
   const titreRef = useRef<HTMLTextAreaElement>(null);
   const [titreVisible, setTitreVisible] = useState(true);
   const maintenant = useMaintenant();
+  const epingler = useEpinglerNote();
+
+  /** Affiche une version du service (titre, propriétés, texte), curseur gardé si possible. */
+  function afficherVersion(n: Note) {
+    setBrouillon(brouillonDe(n));
+    const e = editeurRef.current;
+    if (!e) return;
+    const { from, to } = e.state.selection;
+    e.commands.setContent(preparerContenu(n.content), { emitUpdate: false });
+    const fin = e.state.doc.content.size;
+    if (e.isFocused)
+      e.commands.setTextSelection({ from: Math.min(from, fin), to: Math.min(to, fin) });
+    dernierContenu.current = contenuDe(e);
+    setStats(statistiques(e));
+  }
+
+  const { etat, planifier, vider, abandonner, reprendre, adopter, enAttente, versionDeBase } =
+    useEnregistrementAuto(note, {
+      onConflit: (c) => {
+        afficherVersion(c.recente);
+        setConflit(c);
+      },
+    });
+
+  // Version plus récente venue du service, rien en attente ici : adoptée en direct
+  useEffect(() => {
+    if (conflit || note.version <= versionDeBase() || enAttente()) return;
+    afficherVersion(note);
+    adopter(note);
+    // afficherVersion ne dépend que de refs et de setters stables
+  }, [note, conflit, versionDeBase, enAttente, adopter]);
 
   const changer = useCallback(
     (patch: ModificationNote, immediat = true) => {
-      setBrouillon((b) => ({ ...b, ...patch }));
+      setBrouillon((b) => ({
+        ...b,
+        ...patch,
+        details: patch.details ? { ...b.details, ...patch.details } : b.details,
+      }));
       planifier(patch, immediat);
     },
     [planifier],
@@ -145,6 +219,7 @@ export function EditeurNote({
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !lecture,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -162,9 +237,13 @@ export function EditeurNote({
             : 'Écrivez librement… « # » pour un titre, « - » pour une liste, « > » pour une citation',
       }),
       // Guillemets à la française, espaces fines insécables comprises
-      Typography.configure({ openDoubleQuote: '«\u202f', closeDoubleQuote: '\u202f»' }),
+      Typography.configure({ openDoubleQuote: '« ', closeDoubleQuote: ' »' }),
+      // Notes de l'ancien éditeur : images du texte et alignement
+      ImageNote,
+      AlignementTexte,
     ],
-    content: note.content || '',
+    // Assaini par le service à l'écriture, et encore ici avant d'entrer dans l'éditeur
+    content: preparerContenu(note.content),
     editorProps: {
       attributes: {
         class: 'editeur-note min-h-[40vh] pb-6',
@@ -186,8 +265,12 @@ export function EditeurNote({
       },
     },
     onCreate: ({ editor: e }) => {
+      editeurRef.current = e;
       dernierContenu.current = contenuDe(e);
       setStats(statistiques(e));
+    },
+    onDestroy: () => {
+      editeurRef.current = null;
     },
     onUpdate: ({ editor: e, transaction }) => {
       setStats(statistiques(e));
@@ -203,13 +286,20 @@ export function EditeurNote({
     },
   });
 
+  // Droits changés (rôle dans la campagne) : lecture seule ou non
+  useEffect(() => {
+    if (editor && editor.isEditable === lecture) editor.setEditable(!lecture);
+  }, [editor, lecture]);
+
   // Focus demandé à l'ouverture (nouvelle note, Entrée depuis la liste)
   useEffect(() => {
     if (!focusInitial || !editor) return;
-    if (focusInitial === 'titre') titreRef.current?.focus();
-    else focusTexte(editor, focusInitial);
+    if (!lecture) {
+      if (focusInitial === 'titre') titreRef.current?.focus();
+      else focusTexte(editor, focusInitial);
+    }
     onFocusConsomme();
-  }, [focusInitial, editor, onFocusConsomme]);
+  }, [focusInitial, editor, onFocusConsomme, lecture]);
 
   // Titre sur plusieurs lignes : la zone suit son contenu (et la largeur du volet)
   const ajusterTitre = useCallback(() => {
@@ -266,19 +356,76 @@ export function EditeurNote({
     content: editor ? contenuDe(editor) : note.content,
   });
 
+  /** Champs d'une copie de la note (duplication, conflit, restauration). */
+  const copieDe = (n: Note, titre: string): NouvelleNote => ({
+    title: titre,
+    content: n.content,
+    icon: n.icon,
+    kind: n.kind,
+    tags: n.tags,
+    roomId: n.roomId,
+    visibility: n.visibility,
+    sharedWith: n.sharedWith,
+    sharedWithGm: n.sharedWithGm,
+    imageUrl: n.imageUrl,
+    details: n.details,
+  });
+
   const dupliquer = async () => {
     await vider();
     const n = instantane();
-    onDupliquer({
-      title: n.title ? `${n.title} (copie)` : '',
-      content: n.content,
-      icon: n.icon,
-      kind: n.kind,
-      tags: n.tags,
-      roomId: n.roomId,
-      visibility: n.visibility,
-    });
+    onDupliquer(copieDe(n, n.title ? `${n.title} (copie)` : ''));
   };
+
+  // ─── Conflit ───────────────────────────────────────────────────────────────
+
+  /** Réapplique mes modifications sur la version récente (choix explicite). */
+  const reappliquer = () => {
+    if (!conflit) return;
+    const m = conflit.modifs;
+    const { content, ...champs } = m;
+    setBrouillon((b) => ({
+      ...b,
+      ...champs,
+      details: m.details ? { ...b.details, ...m.details } : b.details,
+    }));
+    const e = editeurRef.current;
+    if (content !== undefined && e) {
+      e.commands.setContent(preparerContenu(content), { emitUpdate: false });
+      dernierContenu.current = contenuDe(e);
+      setStats(statistiques(e));
+    }
+    setConflit(null);
+    reprendre(m);
+  };
+
+  /** Garde mes modifications dans une nouvelle note ; celle-ci reste telle quelle. */
+  const copierConflit = () => {
+    if (!conflit) return;
+    const { recente, modifs } = conflit;
+    const { details, ...champs } = modifs;
+    const mienne: Note = {
+      ...recente,
+      ...champs,
+      details: { ...recente.details, ...details },
+    };
+    onDupliquer(copieDe(mienne, `${mienne.title || 'Sans titre'} (ma version)`));
+    setConflit(null);
+    reprendre();
+  };
+
+  const abandonnerConflit = () => {
+    setConflit(null);
+    reprendre();
+  };
+
+  const basculerEpingle = () =>
+    epingler.mutate(
+      { id: note.id, pinned: !note.pinned },
+      {
+        onError: (err) => toast.error(messageErreur(err, 'L’épingle n’a pas pu être changée.')),
+      },
+    );
 
   const copierLien = async () => {
     try {
@@ -298,8 +445,11 @@ export function EditeurNote({
     onSupprimer(n);
   };
 
+  const onPartage = (p: Partage) => changer(p, true);
+
   const icone = brouillon.icon;
   const titreCompact = brouillon.title.trim() || 'Sans titre';
+  const auteur = note.authorId === moi ? null : note.authorName;
 
   return (
     <div className="flex min-h-full flex-col lg:h-full lg:min-h-0">
@@ -339,25 +489,29 @@ export function EditeurNote({
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <IndicateurEnregistrement etat={etat} onReessayer={() => void vider()} />
+            {lecture ? (
+              <span className="flex items-center gap-1.5 text-xs text-subtle">
+                <Eye className="size-3.5" aria-hidden />
+                Lecture seule
+              </span>
+            ) : (
+              <IndicateurEnregistrement etat={etat} onReessayer={() => void vider()} />
+            )}
             <span aria-hidden className="mx-1 hidden h-4 w-px bg-border-strong sm:block" />
             <Info
-              texte={brouillon.pinned ? 'Désépingler' : 'Épingler en haut de la liste'}
+              texte={note.pinned ? 'Désépingler' : 'Épingler en haut de la liste (pour vous)'}
               cote="bottom"
             >
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-pressed={brouillon.pinned}
-                aria-label={brouillon.pinned ? 'Désépingler la note' : 'Épingler la note'}
-                onClick={() => changer({ pinned: !brouillon.pinned })}
-                className={cn(brouillon.pinned && 'text-primary hover:text-primary-strong')}
+                aria-pressed={note.pinned}
+                aria-label={note.pinned ? 'Désépingler la note' : 'Épingler la note'}
+                onClick={basculerEpingle}
+                className={cn(note.pinned && 'text-primary hover:text-primary-strong')}
               >
                 <Pin
-                  className={cn(
-                    'transition-transform',
-                    brouillon.pinned && 'rotate-45 fill-current',
-                  )}
+                  className={cn('transition-transform', note.pinned && 'rotate-45 fill-current')}
                 />
               </Button>
             </Info>
@@ -376,31 +530,91 @@ export function EditeurNote({
                   <Link2 />
                   Copier le lien
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => setConfirmation(true)}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <Trash2 />
-                  Supprimer…
-                </DropdownMenuItem>
+                {note.permissions.delete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => setConfirmation(true)}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <Trash2 />
+                      Supprimer…
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
         {/* Mobile : pas de bulle sur sélection tactile, une barre fixe à la place */}
-        {editor && (
+        {editor && !lecture && (
           <div className="mask-fade-x overflow-x-auto border-t border-border/60 px-2 py-1 no-scrollbar lg:hidden">
             <BarreMiseEnForme editor={editor} variante="fixe" />
+          </div>
+        )}
+
+        {conflit && (
+          <div
+            role="alert"
+            className="border-t border-warning/30 bg-warning/10 px-4 py-3 text-[13px] sm:px-5"
+          >
+            <p className="flex items-center gap-2 font-medium text-foreground">
+              <GitCompareArrows className="size-4 shrink-0 text-warning" aria-hidden />
+              Cette note a été modifiée ailleurs pendant votre saisie.
+            </p>
+            <p className="mt-0.5 text-muted-foreground">
+              La version la plus récente est affichée. Vos modifications non enregistrées sont
+              gardées de côté : rien n’a été écrasé.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <Button size="xs" onClick={reappliquer}>
+                Réappliquer mes modifications
+              </Button>
+              <Button size="xs" variant="secondary" onClick={copierConflit}>
+                En faire une copie
+              </Button>
+              <Button size="xs" variant="ghost" onClick={abandonnerConflit}>
+                Abandonner mes modifications
+              </Button>
+            </div>
           </div>
         )}
       </header>
 
       <div className="flex-1 lg:min-h-0 lg:overflow-y-auto">
         <article className="mx-auto w-full max-w-[740px] px-5 pb-16 pt-8 sm:px-8 lg:px-12 lg:pt-14">
+          {brouillon.imageUrl && (
+            <figure className="group/image relative mb-6 overflow-hidden rounded-xl border border-border bg-surface">
+              {/* Image d'en-tête de l'ancien Grimoire (URL validée par le service) */}
+              <img
+                src={brouillon.imageUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="max-h-72 w-full object-cover"
+              />
+              {!lecture && (
+                <Button
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => changer({ imageUrl: null })}
+                  className="absolute right-2 top-2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/image:opacity-100"
+                >
+                  <ImageOff />
+                  Retirer l’image
+                </Button>
+              )}
+            </figure>
+          )}
+
           <div className="group/entete">
-            {icone ? (
+            {lecture ? (
+              icone && (
+                <span className="-ml-1.5 mb-3 flex size-[72px] items-center justify-center text-[52px] leading-none">
+                  {icone}
+                </span>
+              )
+            ) : icone ? (
               <SelecteurIcone valeur={icone} onChoix={(i) => changer({ icon: i })}>
                 <button
                   type="button"
@@ -420,6 +634,7 @@ export function EditeurNote({
               ref={titreRef}
               rows={1}
               value={brouillon.title}
+              readOnly={lecture}
               maxLength={LONGUEUR_TITRE}
               onChange={(e) => changer({ title: e.target.value.replace(/\n/g, ' ') }, false)}
               onKeyDown={(e) => {
@@ -442,23 +657,39 @@ export function EditeurNote({
             />
           </div>
 
-          <div className="mt-5">
+          <div className="mt-5 space-y-px">
             <ProprietesNote
               kind={brouillon.kind}
               roomId={brouillon.roomId}
-              visibility={brouillon.visibility}
+              partage={{
+                visibility: brouillon.visibility,
+                sharedWith: brouillon.sharedWith,
+                sharedWithGm: brouillon.sharedWithGm,
+              }}
               tags={brouillon.tags}
               campagnes={campagnes}
-              auteurId={note.authorId}
+              moi={moi}
+              auteur={auteur}
+              permissions={note.permissions}
               suggestionsEtiquettes={suggestionsEtiquettes}
               onKind={(kind) => changer({ kind })}
               onCampagne={(roomId) =>
-                // Sans campagne, plus personne avec qui partager : retour en privé
-                changer(roomId ? { roomId } : { roomId: null, visibility: 'private' })
+                // Nouvelle campagne : la note y repart privée (on choisit ensuite avec qui)
+                changer({ roomId, visibility: 'private', sharedWith: [], sharedWithGm: false })
               }
-              onVisibilite={(visibility) => changer({ visibility })}
+              onPartage={onPartage}
               onTags={(tags) => changer({ tags })}
             />
+            {aDesDetails(brouillon.kind) && (
+              <DetailsNote
+                kind={brouillon.kind}
+                details={brouillon.details}
+                lecture={lecture}
+                onChange={(details: Partial<NoteDetails>, immediat = false) =>
+                  changer({ details }, immediat)
+                }
+              />
+            )}
           </div>
 
           <div
@@ -470,7 +701,7 @@ export function EditeurNote({
             {editor ? (
               <>
                 <EditorContent editor={editor} />
-                <BulleMiseEnForme editor={editor} />
+                {!lecture && <BulleMiseEnForme editor={editor} />}
               </>
             ) : (
               <div className="min-h-[40vh]" />
@@ -512,8 +743,10 @@ export function EditeurNote({
             <DialogTitle>Supprimer cette note ?</DialogTitle>
             <DialogDescription>
               « {titreCompact} » disparaîtra de vos notes
-              {brouillon.roomId ? ' et de la campagne' : ''}. Vous pourrez l’annuler pendant
-              quelques secondes.
+              {brouillon.roomId && brouillon.visibility !== 'private'
+                ? ' et de celles des joueurs qui la lisent'
+                : ''}
+              . Vous pourrez l’annuler pendant quelques secondes.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

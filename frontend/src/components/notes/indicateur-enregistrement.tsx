@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, CircleAlert, RotateCw } from 'lucide-react';
+import { Check, CircleAlert, GitCompareArrows, RotateCw } from 'lucide-react';
 import type { EtatEnregistrement } from './enregistrement';
 
 /** État de l'enregistrement automatique, discret tant que tout va bien. */
@@ -39,6 +39,12 @@ export function IndicateurEnregistrement({
                 <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
               </span>
               <span className="text-muted-foreground">Enregistrement…</span>
+            </>
+          )}
+          {cle === 'conflit' && (
+            <>
+              <GitCompareArrows className="size-3.5 text-warning" aria-hidden />
+              <span className="text-warning">Modifiée ailleurs</span>
             </>
           )}
           {cle === 'erreur' && (
