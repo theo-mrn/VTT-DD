@@ -23,7 +23,8 @@ export interface ErreurFormule {
 
 export type ResultatAnalyse = { ok: true; noeud: Noeud } | { ok: false; erreur: ErreurFormule };
 
-type Jeton =
+/** Jeton du découpage d'une formule (positions : index de caractère dans le texte). */
+export type JetonFormule =
   | { k: 'nombre'; v: number; pos: number }
   | {
       k: 'des';
@@ -82,7 +83,7 @@ function lireEntier(s: string, i: number): number {
 }
 
 /** Suffixes d'une notation de dés : `k3`, `kh3`, `kl1`, `!`. */
-function lireSuffixesDes(s: string, i: number, jeton: Extract<Jeton, { k: 'des' }>): number {
+function lireSuffixesDes(s: string, i: number, jeton: Extract<JetonFormule, { k: 'des' }>): number {
   if (s[i] === 'k') {
     let j = i + 1;
     let sens: 'haut' | 'bas' = 'haut';
@@ -104,8 +105,8 @@ function lireSuffixesDes(s: string, i: number, jeton: Extract<Jeton, { k: 'des' 
   return i;
 }
 
-function decouper(s: string): Jeton[] {
-  const jetons: Jeton[] = [];
+function decouper(s: string): JetonFormule[] {
+  const jetons: JetonFormule[] = [];
   let i = 0;
   while (i < s.length) {
     const c = s[i]!;
@@ -119,7 +120,7 @@ function decouper(s: string): Jeton[] {
       let fin = lireEntier(s, i);
       if (s[fin] === 'd' && CHIFFRE.test(s[fin + 1] ?? '')) {
         const finFaces = lireEntier(s, fin + 1);
-        const jeton: Extract<Jeton, { k: 'des' }> = {
+        const jeton: Extract<JetonFormule, { k: 'des' }> = {
           k: 'des',
           nombre: Number(s.slice(i, fin)),
           faces: Number(s.slice(fin + 1, finFaces)),
@@ -171,7 +172,7 @@ function decouper(s: string): Jeton[] {
       if (c === 'd' && CHIFFRE.test(s[i + 1] ?? '')) {
         const finFaces = lireEntier(s, i + 1);
         if (finFaces >= s.length || !LETTRE_OU_CHIFFRE.test(s[finFaces]!) || s[finFaces] === 'k') {
-          const jeton: Extract<Jeton, { k: 'des' }> = {
+          const jeton: Extract<JetonFormule, { k: 'des' }> = {
             k: 'des',
             nombre: 1,
             faces: Number(s.slice(i + 1, finFaces)),
@@ -205,9 +206,9 @@ const COMPARAISONS = new Set(['<', '<=', '>', '>=', '==', '!=']);
 class Analyseur {
   private i = 0;
   private profondeur = 0;
-  constructor(private jetons: Jeton[]) {}
+  constructor(private jetons: JetonFormule[]) {}
 
-  private get courant(): Jeton {
+  private get courant(): JetonFormule {
     return this.jetons[this.i]!;
   }
 
@@ -290,7 +291,7 @@ class Analyseur {
   private somme(): Noeud {
     let g = this.produit();
     while (this.estOp('+') || this.estOp('-')) {
-      const j = this.courant as Extract<Jeton, { k: 'op' }>;
+      const j = this.courant as Extract<JetonFormule, { k: 'op' }>;
       this.i++;
       g = { t: 'binaire', op: j.v as '+' | '-', g, d: this.produit(), pos: j.pos };
     }
@@ -300,7 +301,7 @@ class Analyseur {
   private produit(): Noeud {
     let g = this.unaire();
     while (this.estOp('*') || this.estOp('/') || this.estOp('%')) {
-      const j = this.courant as Extract<Jeton, { k: 'op' }>;
+      const j = this.courant as Extract<JetonFormule, { k: 'op' }>;
       this.i++;
       g = { t: 'binaire', op: j.v as '*' | '/' | '%', g, d: this.unaire(), pos: j.pos };
     }
@@ -426,6 +427,23 @@ export function analyser(texte: string): ResultatAnalyse {
   }
   try {
     return { ok: true, noeud: new Analyseur(decouper(texte)).analyser() };
+  } catch (e) {
+    if (e instanceof Echec)
+      return { ok: false, erreur: { message: e.message, position: e.position } };
+    throw e;
+  }
+}
+
+/**
+ * Jetons d'une formule, sans l'analyser (le dernier est `fin`). Sert aux
+ * réécritures qui doivent respecter le découpage du langage : `CONTACT` n'est
+ * pas `CON`, `d20` est un dé et pas un identifiant.
+ */
+export function decouperFormule(
+  texte: string,
+): { ok: true; jetons: JetonFormule[] } | { ok: false; erreur: ErreurFormule } {
+  try {
+    return { ok: true, jetons: decouper(texte) };
   } catch (e) {
     if (e instanceof Echec)
       return { ok: false, erreur: { message: e.message, position: e.position } };

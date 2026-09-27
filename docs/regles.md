@@ -319,6 +319,19 @@ Trois couches décident des attributs proposés dans le lanceur, sans aucune cl�
 | Nooblies  | Comme D&D, dont il reprend la structure et les actions (`1d20 + valeur(score)`, `1d20 + @INIT`).                      |
 | Star Wars | Aucun : chaque jet est un test de compétence dont la réserve de dés combine caractéristique et rang.                  |
 
+#### Clés nues dans les formules de jet
+
+Comme dans l'ancienne app, une formule de jet s'écrit avec les clés nues : `1d20+CON`, `1d6-CON+8`, `2d6+INIT`. `normaliserFormuleJet(systeme, entite, formule)` les réécrit en termes du moteur avant l'analyse :
+
+- clé d'un attribut jetable : son terme déclaré (`CON` → `mod(@CON)`, `INIT` → `@INIT`, apport en formule → `(formule)`) ;
+- clé d'un attribut sans `jet` : sa valeur (`niveau` → `@niveau`) ;
+- formes explicites (`@CON` = valeur brute, `mod(@CON)`), dés (`1d20`, `4d6k3`), appels de fonction et mots du langage : inchangés ;
+- tout autre identifiant nu : erreur lisible, avec sa position (« « CONS » n'est pas un attribut du personnage »).
+
+La réécriture suit le découpage du langage (`decouperFormule`) : `Contact` n'est pas `CON`, `d20` est un dé. La casse est tolérée quand elle ne prête pas à confusion (`con` → `CON`). Elle ne dépend pas des retraits de la campagne : une clé retirée du lanceur s'écrit toujours à la main. Le front (vérification en direct, dés 3D à lancer) et le service de dés (calcul) appellent la même fonction ; la formule saisie (`1d20+CON`) est celle qui est enregistrée et affichée. `termesAttributs(formule)` repère les `@CLE` et `mod(@CLE)` d'une formule normalisée, pour afficher le détail d'un jet avec les valeurs de la fiche (`1d20+CON = [12]+2 = 14`).
+
+Les formules d'objets de l'inventaire (`1d6-CON+8`) passent par la même fonction, avec le système et le type d'entité du personnage.
+
 ### Présentation
 
 Le fichier `presentation.yaml` de chaque système décrit :
@@ -331,6 +344,7 @@ Le fichier `presentation.yaml` de chaque système décrit :
   - `ressources` : en jauges (défaut) ou en chiffres (`affichage: valeur` : « PV / PV max », et d'autres attributs en valeur simple, comme la Défense) ;
   - `inventaire` : source unique de l'équipement, toutes sortes d'objets réunies ; regroupé par sorte, ou par un champ (`groupeChamp`), ou par une liste de champs quand les sortes n'ont pas le même (`[attaque, categorie]` : pour chaque objet, le premier que déclare sa sorte, sinon sa sorte) ;
 - l'ordre et les groupes des attributs du lanceur de dés (`des.jets`, voir « Attributs jetables ») ;
+- les icônes des objets de l'inventaire (`iconesObjets`) : une icône générique (`epee`, `cible`, `bouclier`, `fiole`, `pieces`, `sac`…) par sorte, ou par valeur d'un champ (`{ champ: categorie, valeur: potions, icone: fiole }`, `{ champ: melee, valeur: true, icone: epee }`) ; la première règle qui convient l'emporte, vérifiée contre le système (`erreursRegleIcone`). Sans règle, le front déduit l'icône de la forme de la sorte (formule de jet, équipable, en quantité) ;
 - la géométrie des arbres, les images et les bibliothèques.
 
 Ce fichier est validé contre les règles au build (`erreursWidget` pour chaque bloc). Le front n'y ajoute aucune valeur propre à un jeu, et marque indisponible un bloc enregistré dans une mise en page que le système ne permet plus (attribut retiré).
