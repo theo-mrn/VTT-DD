@@ -19,6 +19,7 @@
  *   GET    /v1/dice/rolls/:id                                  un jet
  *   DELETE /v1/dice/rolls/:id                                  auteur ou MJ
  *   DELETE /v1/dice/rolls?campaignId=                          vide l'historique (MJ)
+ *   DELETE /v1/dice/rolls                                      vide ses jets personnels
  *   GET    /v1/dice/skins                                      catalogue des skins
  *
  * Comme l'ancienne app, l'historique est renvoyé du plus récent au plus
@@ -61,6 +62,7 @@ import {
   actorRole,
   canSee,
   clearCampaignHistory,
+  clearPersonalHistory,
   deleteRoll,
   findByIdempotencyKey,
   insertRoll,
@@ -432,14 +434,14 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const { campaignId } = req.query;
-      if (!campaignId)
-        throw new HttpError(
-          400,
-          'Campagne requise',
-          'campaign_required',
-          'Préciser la campagne dont on vide l’historique (campaignId)',
-        );
       const userId = currentUser(req);
+      // Sans campagne : les jets personnels de l'appelant, comme la lecture de l'historique
+      if (!campaignId) {
+        const deleted = await db.transaction((tx) =>
+          clearPersonalHistory(tx, eventContext(req), userId),
+        );
+        return { deleted };
+      }
       // 404 si l'appelant n'est pas membre, comme pour la lecture de l'historique
       const role = await memberRole(deps, campaignId, userId);
       if (role !== 'gm')

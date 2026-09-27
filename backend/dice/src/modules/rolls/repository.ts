@@ -212,6 +212,34 @@ export async function clearCampaignHistory(
   return deleted.length;
 }
 
+/**
+ * Vide l'historique personnel d'un utilisateur (ses jets sans campagne), en
+ * une requête, et publie un seul événement `dice.history_cleared` pour lui
+ * seul (`owner`, sans campagne), seulement s'il y avait des jets. Ses jets de
+ * campagne ne sont pas touchés. Renvoie le nombre de jets supprimés.
+ */
+export async function clearPersonalHistory(
+  tx: Tx,
+  ctx: EventContext,
+  userId: string,
+): Promise<number> {
+  const deleted = await tx
+    .delete(rolls)
+    .where(and(isNull(rolls.campaignId), eq(rolls.authorId, userId)))
+    .returning({ id: rolls.id });
+  if (deleted.length) {
+    await appendEvent(tx, ctx, {
+      type: 'dice.history_cleared',
+      actor: { userId, role: 'user', characterId: null },
+      aggregate: { type: 'user', id: userId },
+      payload: { campaignId: null, deleted: deleted.length, userId },
+      visibility: 'owner',
+      campaignId: null,
+    });
+  }
+  return deleted.length;
+}
+
 /** Jet déjà enregistré pour cette clé d'idempotence (même auteur). */
 export async function findByIdempotencyKey(
   db: Db | Tx,

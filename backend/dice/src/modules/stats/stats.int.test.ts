@@ -66,6 +66,13 @@ describe.skipIf(!TEST_DATABASE_URL)('statistiques', () => {
     // Alice non plus (jet caché au MJ)
     expect((await stats(alice, `campaignId=${campaignId}&faces=20`)).rollCount).toBe(1);
 
+    // Issues (badges des jets) et répartition des seuls d20, dés à symboles exclus
+    expect(all.outcomes).toEqual({ critical: 1, fumble: 1 });
+    expect(all.byFaces.map((f) => [f.faces, f.count])).toEqual([
+      [6, 2],
+      [20, 2],
+    ]);
+
     // Filtre par joueur : évolution de ses jets
     const bobOnly = await stats(gm, `campaignId=${campaignId}&userId=${bob.id}`);
     expect(bobOnly.timeline).toEqual([{ roll: 1, total: 3.5, notation: '2d6+1' }]);

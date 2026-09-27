@@ -13,14 +13,15 @@ Toutes les routes passent par la gateway (`/v1/dice/*`). Elles demandent un jeto
 
 ## Jets
 
-| Méthode | Route                                              | Corps           | Réponse                                                                                                                                                                                                                             |
-| ------- | -------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST    | `/v1/dice/rolls`                                   | voir ci-dessous | 201 : le jet, plus `rolls`, `saved` et `user` de l'ancienne API                                                                                                                                                                     |
-| GET     | `/v1/dice/rolls?campaignId=&before=&after=&limit=` | —               | jets visibles par l'appelant, **du plus récent au plus ancien**                                                                                                                                                                     |
-| GET     | `/v1/dice/rolls/:id`                               | —               | un jet (404 `roll_not_found` s'il n'est pas visible par l'appelant)                                                                                                                                                                 |
-| DELETE  | `/v1/dice/rolls/:id`                               | —               | 204 ; auteur ou MJ de la campagne, sinon 403 `not_roll_author`                                                                                                                                                                      |
-| DELETE  | `/v1/dice/rolls?campaignId=`                       | —               | `{ deleted }` : vide tout l'historique de la campagne (jets importés et d'action compris) ; MJ seul, sinon 403 `gm_required` ; 400 `campaign_required` sans campagne ; 404 si non membre ; un seul événement `dice.history_cleared` |
-| GET     | `/v1/dice/skins`                                   | —               | catalogue des skins : `[{ id, free }]`                                                                                                                                                                                              |
+| Méthode | Route                                              | Corps           | Réponse                                                                                                                                                                                     |
+| ------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST    | `/v1/dice/rolls`                                   | voir ci-dessous | 201 : le jet, plus `rolls`, `saved` et `user` de l'ancienne API                                                                                                                             |
+| GET     | `/v1/dice/rolls?campaignId=&before=&after=&limit=` | —               | jets visibles par l'appelant, **du plus récent au plus ancien**                                                                                                                             |
+| GET     | `/v1/dice/rolls/:id`                               | —               | un jet (404 `roll_not_found` s'il n'est pas visible par l'appelant)                                                                                                                         |
+| DELETE  | `/v1/dice/rolls/:id`                               | —               | 204 ; auteur ou MJ de la campagne, sinon 403 `not_roll_author`                                                                                                                              |
+| DELETE  | `/v1/dice/rolls?campaignId=`                       | —               | `{ deleted }` : vide tout l'historique de la campagne (jets importés et d'action compris) ; MJ seul, sinon 403 `gm_required` ; 404 si non membre ; un seul événement `dice.history_cleared` |
+| DELETE  | `/v1/dice/rolls`                                   | —               | `{ deleted }` : sans campagne, vide les jets **personnels** de l'appelant (ses jets de campagne restent) ; un seul événement `dice.history_cleared`, pour lui seul                          |
+| GET     | `/v1/dice/skins`                                   | —               | catalogue des skins : `[{ id, free }]`                                                                                                                                                      |
 
 ### Lancer
 
@@ -172,6 +173,8 @@ Un jet sans campagne est personnel (`visibility: self`) : visible par son auteur
 - `after=<id>` : jets plus récents que ce jet (polling, en attendant le service realtime) ; s'il y en a plus que `limit`, les plus anciens d'entre eux, pour reprendre ensuite avec le plus récent reçu ;
 - `before` et `after` ensemble : 400.
 
+Vidage : `DELETE /v1/dice/rolls?campaignId=` (MJ) vide l'historique de la campagne ; `DELETE /v1/dice/rolls` sans campagne vide les jets personnels de l'appelant, jamais ceux de ses campagnes. Rien à supprimer : `{ deleted: 0 }`, aucun événement.
+
 ## Jets d'action
 
 Les actions de character (`POST /v1/characters/:id/actions/:action`) tirent leurs dés elles-mêmes, avec le moteur de règles. Leur corps accepte deux champs pour l'historique : `campaignId` (campagne où le jet apparaît ; absent : jet personnel) et `visibility`. Une fois l'action enregistrée, character transmet le jet à dice, sans attendre : une panne de dice est journalisée, l'action reste jouée. L'initiative lancée par campaign pour un MJ va dans l'historique de sa campagne.
@@ -212,13 +215,19 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
   ],
   "globalDistribution": [{ "value": 1, "count": 3 }],
   "timeline": [{ "roll": 1, "total": 12, "notation": "1d20+FOR" }],
-  "streak": { "direction": "high", "length": 3 }
+  "streak": { "direction": "high", "length": 3 },
+  "outcomes": { "critical": 2, "fumble": 1 },
+  "byFaces": [
+    { "faces": 20, "count": 30, "sum": 327, "distribution": [{ "value": 1, "count": 1 }] }
+  ]
 }
 ```
 
 - `players` : par joueur (compte ; nom pour un jet importé sans compte), du plus grand nombre de dés au plus petit ; `totalRolls` compte les **dés** comme l'ancienne app ; critiques et échecs critiques : 20 et 1 naturels du d20 d'un jet de `1d20`.
 - `timeline` : moyenne des dés de chaque jet (2 décimales), du plus ancien au plus récent (du joueur `userId` s'il est donné).
 - `streak` : série en cours, derniers dés tous au-dessus (`high`) ou tous en dessous (`low`) de la moyenne théorique ; seulement avec `diceType` ou `faces`, sinon `{ direction: null, length: 0 }`.
+- `outcomes` : jets critiques et échecs critiques d'après l'`outcome` de chaque jet, la même règle que son badge dans l'historique (un seul dé gardé, à sa valeur maximale ou à 1 : `2d20kh1` compris). Jets importés sans issue : ni l'un ni l'autre.
+- `byFaces` : par taille de dé, triée, **seulement les dés de cette taille** (écartés compris) : `count`, `sum`, `distribution`. Le d6 de `1d20 + 1d6` n'entre pas dans la répartition des d20, contrairement à `globalDistribution` qui garde le calcul de l'ancienne app.
 
 ## Préférences
 
@@ -254,11 +263,11 @@ Les calculs de l'ancien composant `dice-stats.tsx`, faits côté serveur sur tou
 
 Écrits dans l'outbox du service, dans la transaction de la donnée :
 
-| Type                                                                            | Charge utile                                                                 | Visibilité de l'enveloppe                                                                                  |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `dice.rolled`                                                                   | le jet complet (sans masquage), `results`, `output`, `userName`, `authorId`… | `public` ; `private` et `gm` → `gm_only` (l'auteur est `actor.userId`) ; `self` et jet personnel → `owner` |
-| `dice.roll_deleted`, `dice.history_cleared` (`{ campaignId, deleted, userId }`) | `{ id, campaignId, authorId }`                                               | celle du jet                                                                                               |
-| `dice.preferences_updated`                                                      | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (route interne all-skins, `actor.userId` null)                 |
+| Type                                                                            | Charge utile                                                                 | Visibilité de l'enveloppe                                                                                   |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `dice.rolled`                                                                   | le jet complet (sans masquage), `results`, `output`, `userName`, `authorId`… | `public` ; `private` et `gm` → `gm_only` (l'auteur est `actor.userId`) ; `self` et jet personnel → `owner`  |
+| `dice.roll_deleted`, `dice.history_cleared` (`{ campaignId, deleted, userId }`) | `{ id, campaignId, authorId }`                                               | celle du jet ; vidage d'une campagne : `public` ; vidage personnel : `owner`, sans campagne, agrégat `user` |
+| `dice.preferences_updated`                                                      | `{ userId, skinId, animation3d, sound, allSkins }` (préférences effectives)  | `owner` ; acteur `user` (PATCH) ou `system` (route interne all-skins, `actor.userId` null)                  |
 
 `roomId` de l'enveloppe = la campagne (sujet `vtt.<campagne>.dice.rolled`). Les titres de l'ancienne app débloqués par un 1 ou un 20 naturel (« Maudit des dés », « Béni des Dieux ») seront attribués par identity en écoutant `dice.rolled` (dés et `outcome` dans la charge utile).
 

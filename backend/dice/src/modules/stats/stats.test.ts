@@ -59,6 +59,43 @@ describe('computeStats (calculs de dice-stats.tsx)', () => {
     ]);
   });
 
+  it('par taille de dé, seulement les dés de cette taille ; issues des jets', () => {
+    const mixed = {
+      ...roll('a', 'A', 20, 20),
+      dice: [
+        { faces: 20, values: [{ value: 20, kept: true, exploded: false }] },
+        { faces: 6, values: [{ value: 4, kept: true, exploded: false }] },
+      ],
+      outcome: { success: null, critical: true, fumble: false },
+    };
+    const advantage = {
+      ...roll('a', 'A', 20, 1, 12),
+      outcome: { success: null, critical: false, fumble: false },
+    };
+    const fumble = {
+      ...roll('b', 'B', 20, 1),
+      outcome: { success: null, critical: false, fumble: true },
+    };
+    const s = computeStats([mixed, advantage, fumble, roll('c', 'C', 6, 6)], { faces: 20 });
+    expect(s.outcomes).toEqual({ critical: 1, fumble: 1 });
+    // Le d6 du premier jet ne compte pas parmi les d20 (dés écartés compris)
+    expect(s.byFaces).toEqual([
+      { faces: 6, count: 1, sum: 4, distribution: [{ value: 4, count: 1 }] },
+      {
+        faces: 20,
+        count: 4,
+        sum: 34,
+        distribution: [
+          { value: 1, count: 2 },
+          { value: 12, count: 1 },
+          { value: 20, count: 1 },
+        ],
+      },
+    ]);
+    // Jets importés sans issue enregistrée : ni critique ni échec
+    expect(computeStats(rolls, {}).outcomes).toEqual({ critical: 0, fumble: 0 });
+  });
+
   it('critiques seulement sur les jets de 1d20', () => {
     const s = computeStats([roll('a', 'A', 20, 20, 1)], {});
     expect(s.players[0]!.criticalSuccesses + s.players[0]!.criticalFailures).toBe(0);

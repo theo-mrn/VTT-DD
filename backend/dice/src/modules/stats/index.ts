@@ -10,7 +10,10 @@
  * type de dé `diceType` (`${diceCount}d${diceFaces}`, premier groupe du jet) ;
  * critiques et échecs critiques comptés sur les jets de 1d20 (20 et 1
  * naturels). En plus : `faces` (tous les jets dont le premier groupe a ce
- * nombre de faces) et la série en cours.
+ * nombre de faces), la série en cours, les critiques et échecs critiques des
+ * jets (`outcomes`, même règle que le badge d'un jet) et la répartition par
+ * taille de dé (`byFaces` : seulement les dés de cette taille, sans les
+ * autres dés du jet).
  *
  * Seuls comptent les jets dont l'appelant voit le résultat : dans une
  * campagne, les jets publics, les siens (sauf ses jets cachés au MJ) et, pour
@@ -59,6 +62,20 @@ const Stats = z.object({
   timeline: z.array(z.object({ roll: z.number().int(), total: z.number(), notation: z.string() })),
   /** Série en cours : derniers dés tous au-dessus (high) ou en dessous (low) de la moyenne. */
   streak: z.object({ direction: z.enum(['high', 'low']).nullable(), length: z.number().int() }),
+  /** Jets critiques et échecs critiques, selon `outcome` de chaque jet (badge de l'historique). */
+  outcomes: z.object({ critical: z.number().int(), fumble: z.number().int() }),
+  /**
+   * Par taille de dé (d20, d6…), seulement les dés de cette taille, écartés
+   * compris : nombre, somme, répartition des faces. Triée par taille.
+   */
+  byFaces: z.array(
+    z.object({
+      faces: z.number().int(),
+      count: z.number().int(),
+      sum: z.number(),
+      distribution: z.array(z.object({ value: z.number(), count: z.number().int() })),
+    }),
+  ),
 });
 export type Stats = z.output<typeof Stats>;
 
@@ -67,7 +84,8 @@ const DiceType = z.string().regex(/^\d{1,3}d\d{1,5}$/, 'Type de dé attendu : 1d
 type StatRow = Pick<
   RollRow,
   'authorId' | 'authorName' | 'authorAvatarUrl' | 'diceCount' | 'diceFaces' | 'dice' | 'notation'
->;
+> &
+  Partial<Pick<RollRow, 'outcome'>>;
 
 export function streakOf(
   values: number[],
@@ -100,7 +118,20 @@ export function computeStats(
 
   const players = new Map<string, PlayerStats>();
   const global = new Map<number, number>();
+  const sizes = new Map<number, { count: number; sum: number; values: Map<number, number> }>();
+  const outcomes = { critical: 0, fumble: 0 };
   for (const roll of filtered) {
+    if (roll.outcome?.critical) outcomes.critical += 1;
+    if (roll.outcome?.fumble) outcomes.fumble += 1;
+    for (const group of roll.dice) {
+      let size = sizes.get(group.faces);
+      if (!size) sizes.set(group.faces, (size = { count: 0, sum: 0, values: new Map() }));
+      for (const { value } of group.values) {
+        size.count += 1;
+        size.sum += value;
+        size.values.set(value, (size.values.get(value) ?? 0) + 1);
+      }
+    }
     const key = roll.authorId ?? `name:${roll.authorName}`;
     let p = players.get(key);
     if (!p) {
@@ -178,6 +209,17 @@ export function computeStats(
       .sort((a, b) => a.value - b.value),
     timeline,
     streak,
+    outcomes,
+    byFaces: [...sizes]
+      .sort(([a], [b]) => a - b)
+      .map(([faces, size]) => ({
+        faces,
+        count: size.count,
+        sum: size.sum,
+        distribution: [...size.values]
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => a.value - b.value),
+      })),
   };
 }
 
@@ -230,6 +272,7 @@ export const register: Module = async (app, deps) => {
           diceFaces: rolls.diceFaces,
           dice: rolls.dice,
           notation: rolls.notation,
+          outcome: rolls.outcome,
         })
         .from(rolls)
         .where(and(where, isNull(rolls.symbols)))

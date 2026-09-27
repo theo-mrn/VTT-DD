@@ -494,8 +494,8 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
 
     const refused = await h.request(alice, 'DELETE', `/v1/dice/rolls?campaignId=${campaignId}`);
     expect([refused.statusCode, refused.json().code]).toEqual([403, 'gm_required']);
-    const missing = await h.request(gm, 'DELETE', '/v1/dice/rolls');
-    expect([missing.statusCode, missing.json().code]).toEqual([400, 'campaign_required']);
+    // Sans campagne : les jets personnels du MJ (aucun ici), jamais ceux de la campagne
+    expect(await h.ok(gm, 'DELETE', '/v1/dice/rolls')).toEqual({ deleted: 0 });
 
     const cleared = await h.ok<{ deleted: number }>(
       gm,
@@ -520,5 +520,51 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
     expect(await h.ok(gm, 'DELETE', `/v1/dice/rolls?campaignId=${campaignId}`)).toEqual({
       deleted: 0,
     });
+  });
+
+  it('chacun vide ses jets personnels ; ceux des campagnes et des autres restent', async () => {
+    await h.roll(alice, { notation: '1d20' });
+    await h.roll(alice, { notation: '2d6' });
+    await h.roll(alice, { notation: '1d8', campaignId });
+    await h.roll(bob, { notation: '1d4' });
+
+    const cleared = await h.ok<{ deleted: number }>(alice, 'DELETE', '/v1/dice/rolls');
+    expect(cleared).toEqual({ deleted: 2 });
+    expect(await history(alice, '')).toEqual([]);
+    expect(await history(alice)).toHaveLength(1);
+    expect(await history(bob, '')).toHaveLength(1);
+
+    // Un seul événement, pour Alice seule (pas de campagne)
+    const events = await t
+      .db!.select()
+      .from(outbox)
+      .where(
+        and(
+          sql`${outbox.envelope}->>'type' = 'dice.history_cleared'`,
+          sql`${outbox.envelope}->'actor'->>'userId' = ${alice.id}`,
+        ),
+      );
+    expect(events).toHaveLength(1);
+    expect(events[0]!.subject).toBe('vtt.global.dice.history_cleared');
+    expect(events[0]!.envelope).toMatchObject({
+      roomId: null,
+      visibility: 'owner',
+      actor: { userId: alice.id, role: 'user' },
+      aggregate: { type: 'user', id: alice.id },
+      payload: { campaignId: null, deleted: 2, userId: alice.id },
+    });
+
+    // Rien à vider : aucun nouvel événement
+    expect(await h.ok(alice, 'DELETE', '/v1/dice/rolls')).toEqual({ deleted: 0 });
+    const after = await t
+      .db!.select()
+      .from(outbox)
+      .where(
+        and(
+          sql`${outbox.envelope}->>'type' = 'dice.history_cleared'`,
+          sql`${outbox.envelope}->'actor'->>'userId' = ${alice.id}`,
+        ),
+      );
+    expect(after).toHaveLength(1);
   });
 });
