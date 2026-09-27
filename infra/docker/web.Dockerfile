@@ -17,6 +17,9 @@ COPY backend/identity/package.json ./backend/identity/
 COPY backend/character/package.json ./backend/character/
 COPY backend/campaign/package.json ./backend/campaign/
 COPY backend/dice/package.json ./backend/dice/
+COPY backend/billing/package.json ./backend/billing/
+COPY backend/history/package.json ./backend/history/
+COPY backend/realtime/package.json ./backend/realtime/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/platform/package.json ./packages/platform/
 COPY packages/rules/package.json ./packages/rules/
