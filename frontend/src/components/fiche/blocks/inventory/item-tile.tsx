@@ -30,29 +30,13 @@ const TUILE = cn(
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
 );
 
-/**
- * Décor d'une tuile, comme le lanceur de dés : grille de points estompée et dégradé d'accent
- * depuis le coin haut gauche, plus marqué pour un objet équipé ou au survol.
- */
-function Decor({ fort = false }: { fort?: boolean }) {
+/** Décor d'une tuile : la grille de petits points du lanceur de dés, estompée. */
+function Decor() {
   return (
-    <>
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-dots opacity-50 mask-radial"
-      />
-      <span
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute inset-0 -z-10 rounded-[inherit] transition-opacity duration-200 motion-reduce:transition-none',
-          fort ? 'opacity-100' : 'opacity-50 group-hover:opacity-100',
-        )}
-        style={{
-          backgroundImage:
-            'radial-gradient(120% 120% at 0% 0%, hsl(var(--primary) / 0.22), transparent 65%)',
-        }}
-      />
-    </>
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-dots opacity-50 mask-radial"
+    />
   );
 }
 
@@ -172,7 +156,7 @@ export function ItemTile({
           deplacable && 'cursor-grab active:cursor-grabbing',
         )}
       >
-        <Decor fort={equipe} />
+        <Decor />
         {image ? (
           <img
             src={image}
@@ -270,7 +254,7 @@ export function FolderTile({
           survol ? 'border-primary bg-surface-2' : 'border-border',
         )}
       >
-        <Decor fort={survol} />
+        <Decor />
         {survol ? (
           <FolderOpen aria-hidden strokeWidth={1.75} className="size-6 text-primary" />
         ) : (
