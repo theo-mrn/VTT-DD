@@ -1,14 +1,15 @@
 'use client';
 
 /**
- * Table de jeu d'une campagne, en attendant la carte : emplacement de la
- * carte, panneau d'actions et fiche du personnage incarné. Le MJ sans
- * personnage retrouve les fiches des personnages de la campagne.
+ * Table de jeu d'une campagne : la carte de l'ancienne app (map/, scènes,
+ * tokens, brouillard, lumières, murs…), puis le panneau d'actions et la fiche
+ * du personnage incarné. Le MJ sans personnage retrouve les fiches des
+ * personnages de la campagne.
  *
  * Panneau de dés de l'ancienne app (lanceur, historique de la salle,
  * statistiques) : flottant à gauche sur grand écran, plein écran sur mobile.
  */
-import { Crown, Dices, Eye, Map as MapIcon, Swords, Users } from 'lucide-react';
+import { Crown, Dices, Eye, Swords, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -16,7 +17,7 @@ import { ActionsPanel, type ActionTarget } from '@/components/(dices)/actions-pa
 import { DiceThrowerHost } from '@/components/(dices)/throw-host';
 import { Loading } from '@/components/account/elements';
 import { DiceRoller, type DiceRollerCharacter } from '@/components/dice-roller';
-import { aclonica, Notice, CampaignImage } from '@/components/campaigns/elements';
+import { Notice } from '@/components/campaigns/elements';
 import { CampaignHeaderBar } from '@/components/campaigns/campaign-panels';
 import { CharacterPage } from '@/components/sheet/character-page';
 import { useSheet } from '@/components/sheet/context';
@@ -26,7 +27,8 @@ import { useResource } from '@/lib/resource';
 import { getCampaign, listCampaignCharacters, type CampaignCharacter } from '@/lib/campaigns';
 import { useProfile } from '@/lib/session';
 import { sheetWidgets, useSystem } from '@/lib/systems';
-import { cn } from '@/lib/utils';
+import MapView from './map/map-view';
+import { MapLayout } from './map/map-layout';
 
 const same = (a: string | null | undefined, b: string | null | undefined) =>
   !!a && !!b && a.toLowerCase() === b.toLowerCase();
@@ -88,7 +90,23 @@ export default function PlayPage() {
           </Link>
         </div>
 
-        <MapPlaceholder imageUrl={detail.imageUrl} title={detail.name} />
+        {/* Carte : `transform` fait du cadre le repère des éléments `fixed` de la carte
+            (barre d'outils, panneaux), qui restent ainsi dans la carte. */}
+        <section
+          aria-label="Carte"
+          className="relative h-[calc(100dvh-8rem)] min-h-[480px] overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-dark)] shadow-2xl"
+          style={{ transform: 'translateZ(0)' }}
+        >
+          <MapLayout
+            campaignId={id}
+            userId={profile.id}
+            isMJ={isGm}
+            isOwner={detail.ownerId === profile.id}
+            persoId={mine?.characterId ?? detail.playedCharacterId ?? null}
+          >
+            <MapView />
+          </MapLayout>
+        </section>
 
         {characters.error && !characters.data && <Notice>{characters.error}</Notice>}
 
@@ -144,42 +162,6 @@ export default function PlayPage() {
       {/* Lanceur 3D des jets (dés qui roulent sur la table, face lue à l'arrêt) */}
       <DiceThrowerHost />
     </>
-  );
-}
-
-/** Emplacement de la future carte (brouillard, lumières, jetons). */
-function MapPlaceholder({
-  imageUrl,
-  title,
-}: {
-  imageUrl: string | null | undefined;
-  title: string;
-}) {
-  return (
-    <div className="relative aspect-[16/7] min-h-[200px] overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-dark)] shadow-2xl">
-      <div className="absolute inset-0 scale-110 opacity-30 blur-sm">
-        <CampaignImage url={imageUrl} alt="" zoom={false} />
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
-      <div className="relative flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <div
-          className="rounded-2xl p-3"
-          style={{
-            background: 'color-mix(in srgb, var(--accent-brown) 12%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--accent-brown) 30%, transparent)',
-          }}
-        >
-          <MapIcon className="h-8 w-8 text-[var(--accent-brown)]" />
-        </div>
-        <h2 className={cn(aclonica, 'text-xl text-[var(--text-primary)] sm:text-2xl')}>
-          La carte arrive
-        </h2>
-        <p className="max-w-md text-sm text-[var(--text-secondary)]">
-          La table de {title} accueillera bientôt la carte, les jetons et le brouillard. En
-          attendant, jouez depuis la fiche et le panneau d&apos;actions.
-        </p>
-      </div>
-    </div>
   );
 }
 

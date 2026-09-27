@@ -1,0 +1,463 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import {
+  Trash2,
+  X,
+  Lock,
+  Unlock,
+  Image as ImageIcon,
+  Eye,
+  EyeOff,
+  Check,
+  RotateCw,
+  Edit2,
+  Package,
+  Ghost,
+  Sword,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { MapObject, Character, GroupEntity } from '@/app/(campaigns)/campaigns/[id]/play/map/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EntityNotes } from './EntityNotes';
+import type { StatDefinition } from '@/modules/game-system/types';
+import { resolveCharacterStats } from '@/lib/rules-engine';
+
+interface ObjectContextMenuProps {
+  object: MapObject | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onAction: (action: string, objectId: string, value?: any) => void;
+  isMJ: boolean;
+  isBackgroundEditMode: boolean;
+  players: Character[]; // 🆕 Liste des joueurs pour la sélection custom
+  groupEntities?: GroupEntity[]; // 🆕 Entités de groupe (ex vaisseaux) — pour l'onglet Stats
+  groupEntityStats?: StatDefinition[];
+  groupEntityLabel?: string;
+}
+
+export default function ObjectContextMenu({
+  object,
+  isOpen,
+  onClose,
+  onAction,
+  isMJ,
+  isBackgroundEditMode,
+  players,
+  groupEntities = [],
+  groupEntityStats = [],
+  groupEntityLabel = 'Entité',
+}: ObjectContextMenuProps) {
+  const dragControls = useDragControls();
+
+  const [rotation, setRotation] = useState(object?.rotation || 0);
+
+  // Local state for renaming
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+
+  useEffect(() => {
+    if (isOpen && object) {
+      setRotation(object.rotation || 0);
+      setRenameValue(object.name || '');
+      setIsRenaming(false);
+    }
+  }, [isOpen, object]);
+
+  if (!object) return null;
+
+  // Token d'entité de groupe (ex vaisseau) : les stats sont toujours résolues en direct depuis
+  // groupEntities, jamais copiées sur l'objet — entity.values reste l'unique source de vérité.
+  const entity = object.groupEntityId
+    ? (groupEntities.find((e) => e.id === object.groupEntityId) ?? null)
+    : null;
+  const resolvedEntityStats = entity
+    ? resolveCharacterStats({ systemId: '', stats: groupEntityStats }, [], entity.values)
+    : null;
+
+  const handleRotationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newRotation = parseInt(e.target.value);
+    setRotation(newRotation);
+    onAction('rotate', object.id, newRotation);
+  };
+
+  const handleRenameSubmit = () => {
+    onAction('rename', object.id, renameValue);
+    setIsRenaming(false);
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          drag
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="fixed right-24 top-24 w-72 backdrop-blur-md border border-[var(--border-color)] rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden"
+          style={{ background: 'color-mix(in srgb, var(--bg-card) 95%, transparent)' }}
+        >
+          {/* Header avec Image */}
+          <div
+            className={`relative ${isMJ ? 'cursor-move' : ''} ${isMJ ? 'h-32' : 'h-48'}`}
+            onPointerDown={(e) => isMJ && dragControls.start(e)}
+          >
+            {/* Background Image Floutée */}
+            <div className="absolute inset-0 bg-[var(--bg-darker)] flex items-center justify-center overflow-hidden">
+              {object.imageUrl ? (
+                <img
+                  src={object.imageUrl}
+                  className="w-full h-full object-contain opacity-80"
+                  alt="Objet"
+                />
+              ) : (
+                <ImageIcon className="text-gray-600 w-12 h-12" />
+              )}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 h-6 w-6 bg-black/50 hover:bg-black/70 text-white rounded-full z-20"
+              onClick={onClose}
+            >
+              <X size={14} />
+            </Button>
+          </div>
+
+          <Separator className="bg-[var(--border-color)]" />
+
+          {/* Object Name - visible to all, editable by MJ */}
+          <div className="p-4 pb-2">
+            {isRenaming && isMJ ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  className="bg-[var(--bg-dark)] border-[var(--border-color)] text-center font-bold text-[var(--text-primary)]"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleRenameSubmit()}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleRenameSubmit}
+                  className="hover:text-green-400"
+                >
+                  <Check size={16} />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setIsRenaming(false)}
+                  className="hover:text-red-400"
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+            ) : (
+              <div className="group relative flex justify-center items-center gap-2">
+                <h2 className="text-xl font-bold text-[var(--text-primary)] font-serif tracking-wide text-center">
+                  {entity?.label || object.name || 'Objet'}
+                </h2>
+                {isMJ && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-white"
+                    onClick={() => {
+                      setRenameValue(object.name || '');
+                      setIsRenaming(true);
+                    }}
+                  >
+                    <Edit2 size={14} />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Tabs defaultValue="actions" className="flex-1 flex flex-col min-h-0 w-full">
+            <div className="px-4 pb-2">
+              <TabsList
+                className={`w-full p-1 border border-white/5 grid ${entity ? 'grid-cols-3' : 'grid-cols-2'}`}
+                style={{ background: 'color-mix(in srgb, var(--bg-dark) 80%, transparent)' }}
+              >
+                <TabsTrigger
+                  value="actions"
+                  className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white"
+                >
+                  Général
+                </TabsTrigger>
+                {entity && (
+                  <TabsTrigger
+                    value="stats"
+                    className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white"
+                  >
+                    Stats
+                  </TabsTrigger>
+                )}
+                <TabsTrigger
+                  value="notes"
+                  className="text-xs data-[state=active]:bg-[var(--border-color)] data-[state=active]:text-white"
+                >
+                  Notes
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-4">
+                <TabsContent value="actions" className="mt-0 space-y-4 focus-visible:ring-0">
+                  {isMJ && (
+                    <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
+                      Actions Objet
+                    </h3>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-2">
+                    {!entity && (
+                      <Button
+                        variant="outline"
+                        className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-amber-400 text-gray-300"
+                        onClick={() => onAction('openLoot', object.id)}
+                      >
+                        <Package size={16} />
+                        {object.type === 'item' ? 'Ramasser' : 'Fouiller'}
+                      </Button>
+                    )}
+
+                    {/* Attaque de zone : pose un gabarit de mesure (même système que les joueurs)
+                                            depuis la position du vaisseau, sans ouvrir de jet de combat. */}
+                    {entity && (
+                      <Button
+                        variant="outline"
+                        className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[#ae3838] hover:text-white text-gray-300"
+                        onClick={() => onAction('startAreaAttack', object.id)}
+                      >
+                        <Sword size={16} />
+                        Attaquer une zone
+                      </Button>
+                    )}
+
+                    {isMJ && (
+                      <>
+                        {/* Lock / Unlock Object */}
+                        <Button
+                          variant="outline"
+                          className={`justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] text-gray-300 ${object.isLocked ? 'hover:text-green-400' : 'hover:text-orange-400'}`}
+                          onClick={() => onAction('toggleLock', object.id)}
+                        >
+                          {object.isLocked ? <Unlock size={16} /> : <Lock size={16} />}
+                          {object.isLocked ? 'Déverrouiller' : 'Verrouiller pour joueurs'}
+                        </Button>
+
+                        {/* Lock / Unlock Background */}
+                        {!object.isBackground && (
+                          <Button
+                            variant="outline"
+                            className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-blue-400 text-gray-300"
+                            onClick={() => onAction('toggleBackground', object.id)}
+                          >
+                            <Lock size={16} />
+                            Incruster dans le fond
+                          </Button>
+                        )}
+
+                        {object.isBackground && isBackgroundEditMode && (
+                          <Button
+                            variant="outline"
+                            className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-green-400 text-gray-300"
+                            onClick={() => onAction('toggleBackground', object.id)}
+                          >
+                            <Unlock size={16} />
+                            Libérer l'objet
+                          </Button>
+                        )}
+
+                        <Button
+                          variant="outline"
+                          className="justify-start gap-2 bg-[var(--bg-dark)] border-[var(--border-color)] hover:bg-[var(--border-color)] hover:text-red-600 text-gray-300"
+                          onClick={() => onAction('delete', object.id)}
+                        >
+                          <Trash2 size={16} />
+                          {entity
+                            ? `Retirer ${groupEntityLabel.toLowerCase()} de la carte`
+                            : 'Supprimer'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Size Control */}
+                  {isMJ && (
+                    <div className="mt-4 space-y-2">
+                      <div className="bg-[var(--bg-dark)] p-2 rounded border border-[var(--border-color)]">
+                        <div className="flex justify-between text-xs text-gray-400 mb-1">
+                          <span>Rotation</span>
+                          <span>{Math.round(rotation || 0)}°</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="360"
+                          step="5"
+                          value={rotation}
+                          onChange={handleRotationChange}
+                          className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🆕 Visibility Controls for Objects */}
+                  {isMJ && (
+                    <div className="mt-4 space-y-2">
+                      <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">
+                        Visibilité
+                      </h3>
+
+                      <div className="grid grid-cols-3 gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`text-xs ${!object.visibility || object.visibility === 'visible' ? 'bg-green-900/50 border-green-700 text-green-200' : 'bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-400'}`}
+                          onClick={() => onAction('setObjectVisibility', object.id, 'visible')}
+                        >
+                          <Eye size={12} className="mr-1" />
+                          Visible
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`text-xs ${object.visibility === 'hidden' ? 'bg-red-900/50 border-red-700 text-red-200' : 'bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-400'}`}
+                          onClick={() => onAction('setObjectVisibility', object.id, 'hidden')}
+                        >
+                          <EyeOff size={12} className="mr-1" />
+                          Caché
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`text-xs ${object.visibility === 'custom' ? 'bg-purple-900/50 border-purple-700 text-purple-200' : 'bg-[var(--bg-dark)] border-[var(--border-color)] text-gray-400'}`}
+                          onClick={() => onAction('setObjectVisibility', object.id, 'custom')}
+                        >
+                          Custom
+                        </Button>
+                      </div>
+
+                      {/* 🆕 Player Selection for Custom Visibility */}
+                      {object.visibility === 'custom' && (
+                        <div className="mt-2 bg-[var(--bg-darker)] p-2 rounded border border-[var(--border-color)] space-y-1 max-h-40 overflow-y-auto">
+                          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">
+                            Visible pour:
+                          </p>
+                          {players.length === 0 ? (
+                            <p className="text-xs text-gray-500 italic">Aucun joueur disponible</p>
+                          ) : (
+                            players.map((player) => {
+                              const isSelected =
+                                object.visibleToPlayerIds?.includes(player.id) ?? false;
+                              return (
+                                <div
+                                  key={player.id}
+                                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all duration-150 ${
+                                    isSelected
+                                      ? 'bg-purple-900/40 border border-purple-600/50'
+                                      : 'hover:bg-[var(--bg-dark)] border border-transparent'
+                                  }`}
+                                  onClick={() => {
+                                    const currentIds = object.visibleToPlayerIds || [];
+                                    const newIds = isSelected
+                                      ? currentIds.filter((id) => id !== player.id)
+                                      : [...currentIds, player.id];
+                                    onAction('updateObjectVisiblePlayers', object.id, newIds);
+                                  }}
+                                >
+                                  <div
+                                    className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                                      isSelected
+                                        ? 'bg-purple-600 border-purple-600'
+                                        : 'border-gray-500 bg-transparent'
+                                    }`}
+                                  >
+                                    {isSelected && (
+                                      <Check size={12} className="text-white" strokeWidth={3} />
+                                    )}
+                                  </div>
+                                  {player.image &&
+                                  (typeof player.image === 'object'
+                                    ? player.image.src
+                                    : player.image) ? (
+                                    <img
+                                      src={
+                                        typeof player.image === 'object'
+                                          ? player.image.src
+                                          : player.image
+                                      }
+                                      className="w-6 h-6 rounded-full object-cover"
+                                      alt={player.name}
+                                    />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-blue-900 flex items-center justify-center text-[10px] text-white font-bold">
+                                      {player.name[0]}
+                                    </div>
+                                  )}
+                                  <span className="text-xs text-gray-300 flex-1">
+                                    {player.name}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {entity && (
+                  <TabsContent value="stats" className="mt-0 space-y-2 focus-visible:ring-0">
+                    <div className="grid grid-cols-2 gap-2">
+                      {groupEntityStats
+                        .filter((s) => s.category !== 'meta')
+                        .map((stat) => (
+                          <div
+                            key={stat.key}
+                            className="p-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-dark)]"
+                          >
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 truncate mb-0.5">
+                              {stat.label || stat.key}
+                            </p>
+                            <p className="text-sm font-bold text-gray-200">
+                              {String(resolvedEntityStats?.values[stat.key] ?? 0)}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </TabsContent>
+                )}
+
+                <TabsContent value="notes" className="mt-0 pt-2 focus-visible:ring-0">
+                  <EntityNotes
+                    initialNotes={object.notes}
+                    onSave={(notes) => onAction('updateNotes', object.id, notes)}
+                    isReadOnly={!isMJ} // Usually only MJ edits object notes?
+                  />
+                </TabsContent>
+              </div>
+            </ScrollArea>
+          </Tabs>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
