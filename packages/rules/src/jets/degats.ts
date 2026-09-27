@@ -40,7 +40,7 @@ export function reduireDegats(
   for (const s of fiche.sources) {
     const variable = s.variable;
     s.effets.forEach((f, i) => {
-      if (f.sur !== 'degats') return;
+      if (f.sur !== 'degats' || s.desactive(i)) return;
       if (f.types && (type === undefined || !f.types.includes(type))) return;
       if (f.attributs && !f.attributs.includes(attribut)) return;
       const cond = s.formule(i, 'condition');

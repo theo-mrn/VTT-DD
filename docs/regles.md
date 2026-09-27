@@ -119,6 +119,22 @@ La règle est la même dans tous les systèmes.
 
 Chaque ligne d'explication de la fiche porte l'identifiant de sa source : `armure-cuir`, `armure-cuir#exemplaire` (effets propres du premier exemplaire), `dague#2` (effets propres de l'exemplaire `2`), `bonus:potion`.
 
+#### Activer ou désactiver un effet, un par un
+
+Chaque effet a une **clé stable** : `<source>/<index>`, où `<source>` est l'identifiant de source ci-dessus et `<index>` la position de l'effet dans sa liste, à partir de 0 (`entree.effets` du catalogue, `possession.effets` d'un exemplaire, `bonus.effets`). Exemples : `armure-cuir/0`, `dague#2/1`, `pilotage#exemplaire/0`.
+
+L'état porte la liste des effets coupés, `effetsDesactives` (clés). Un effet coupé :
+
+- ne s'applique nulle part : attributs, rangs gratuits, marques, jets et résistances ;
+- ne touche pas à sa source : l'objet reste équipé, le talent possédé, les autres effets de la même source s'appliquent ;
+- reste dans l'explication de la valeur qu'il vise, marqué `desactive`, après les effets appliqués ; il ne compte pas dans le départage de sa famille.
+
+Se coupent un à un les effets du catalogue d'une entrée possédée et les effets propres d'un exemplaire. Un bonus libre, lui, s'active ou se désactive en entier (son `actif`) : une clé `bonus:…` est refusée.
+
+`listerEffets(fiche)` donne tous les effets de l'entité, actifs ou non, avec leur statut : `actif`, `desactive` (coupé), ou `inactif` avec sa raison (`inactive` : objet rangé ; `non-effective` : entrée à rangs sans rang ; `bonus-inactif`). `basculerEffet(fiche, cle, actif)` active ou coupe un effet, de façon idempotente.
+
+La clé suit la position : modifier la liste des effets propres d'un exemplaire garde les positions coupées. Une clé qui ne désigne plus aucun effet (objet retiré, effet supprimé, nœud rendu) est oubliée à l'écriture suivante, pour qu'un nouvel exemplaire du même identifiant n'en hérite pas. Le service character l'expose par `PUT /v1/characters/:id/effets` (`{ version, effet, actif }`, événement `character.updated`, opération `effet`).
+
 ### 5. Progression et achats
 
 Les points dépensables (XP, points de création, points de compétence…) sont des **monnaies** déclarées par le système. Chaque **achat** décrit :

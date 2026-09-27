@@ -22,6 +22,7 @@ import {
   type Valeur,
 } from '../formules/index.js';
 import {
+  cleEffet,
   nomPossession,
   quantiteDe,
   sourceExemplaire,
@@ -45,6 +46,8 @@ export interface LigneExplication {
   valeur: Valeur;
   /** Effet écarté (famille non cumulable, ou borne sans effet). */
   ignore?: boolean;
+  /** Effet coupé à la main (`etat.effetsDesactives`) : listé, jamais appliqué. */
+  desactive?: boolean;
 }
 
 export interface ValeurCalculee {
@@ -115,6 +118,8 @@ export interface SourceEffets {
   effets: readonly Effet[];
   /** Formule compilée d'un effet (`undefined` si l'effet est invalide et ignoré). */
   formule(i: number, champ: string): FormuleVerifiee | undefined;
+  /** Vrai si l'effet `i` est coupé à la main (`etat.effetsDesactives`) : il ne s'applique pas. */
+  desactive(i: number): boolean;
   /** Variables de la source : `rang`, `actif`, `quantite`, `source.<champ>`. */
   variable(nom: string): Valeur;
   possession?: PossessionEffective;
@@ -180,6 +185,9 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     throw new Error(`Type d’entité inconnu du système ${systeme.source.id} : ${etat.type}`);
 
   const erreurs: ErreurCalcul[] = [];
+  const coupes = new Set(etat.effetsDesactives);
+  /** Effets coupés d'une source, par position (voir `cleEffet`). */
+  const desactivePour = (source: string) => (i: number) => coupes.has(cleEffet(source, i));
   const valeurs = new Map<string, ValeurCalculee>();
   const possessions = new Map<string, PossessionEffective>();
   const marques = new Map<string, Set<string>>();
@@ -336,6 +344,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         genre: 'entree',
         effets: p.entree.effets,
         formule: (i, x) => systeme.formules.get(chemins.effet(p.entree.id, i, x)),
+        desactive: desactivePour(p.entree.id),
         variable,
         possession: p,
       });
@@ -346,19 +355,13 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       const prefixe = prefixeExemplaire(ex);
       const c = effetsCompiles(systeme, etat.type, prefixe, ex.effets, variablesDeSorte(p.sorte));
       signaler(c);
-      // Nom propre de l'exemplaire s'il en a un (objet personnalisé), sinon son identifiant
-      const propre = nomPossession(p.entree, p.sorte, ex);
       r.push({
         id: sourceExemplaire(ex),
-        nom:
-          propre !== p.entree.nom
-            ? propre
-            : ex.exemplaire
-              ? `${p.entree.nom} (${ex.exemplaire})`
-              : p.entree.nom,
+        nom: nomSourceExemplaire(p, ex),
         genre: 'exemplaire',
         effets: ex.effets,
         formule: (i, x) => c.formules.get(`${prefixe}/effets/${i}/${x}`),
+        desactive: desactivePour(sourceExemplaire(ex)),
         variable: variablesSource(p, ex),
         possession: p,
         exemplaire: ex,
@@ -384,6 +387,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
           genre: 'bonus' as const,
           effets: b.effets,
           formule: (i: number, x: string) => c.formules.get(`${prefixe}/effets/${i}/${x}`),
+          desactive: desactivePour(`bonus:${b.id}`),
           variable: (nom: string): Valeur => {
             if (nom === 'rang') return 1;
             if (nom === 'actif') return true;
@@ -502,7 +506,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     for (const s of sourcesActives()) {
       const vars = { variable: s.variable };
       s.effets.forEach((f, i) => {
-        if (f.sur !== 'rang' && f.sur !== 'marque') return;
+        if ((f.sur !== 'rang' && f.sur !== 'marque') || s.desactive(i)) return;
         const cond = s.formule(i, 'condition');
         if (f.condition !== undefined && !cond) return;
         if (cond && evaluerSur(cond, vars, false) !== true) return;
@@ -545,6 +549,8 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     condition?: FormuleVerifiee | undefined;
     famille?: string | undefined;
     nom: string;
+    /** Coupé à la main : expliqué, pas appliqué. */
+    desactive?: boolean;
   }
   const effetsPar = new Map<string, EffetActif[]>();
   const pousser = (cle: string, e: EffetActif) => {
@@ -581,6 +587,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         condition,
         famille: f.famille,
         nom: f.description ?? s.nom,
+        ...(s.desactive(i) ? { desactive: true } : {}),
       });
     });
   }
@@ -633,6 +640,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
 
   const appliquerEffets = (cle: string, depart: Valeur, detail: LigneExplication[]): Valeur => {
     const actifs: { op: Operation; v: Valeur; famille?: string; ligne: LigneExplication }[] = [];
+    const coupees: LigneExplication[] = [];
     for (const e of effetsPar.get(cle) ?? []) {
       const vars = { variable: e.variable };
       if (e.condition && evaluerSur(e.condition, vars, false, cle) !== true) continue;
@@ -643,6 +651,11 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         operation: e.operation,
         valeur: v,
       };
+      // Coupé à la main : listé après les autres, sans compter (ni dans sa famille)
+      if (e.desactive) {
+        coupees.push({ ...ligne, desactive: true });
+        continue;
+      }
       actifs.push({ op: e.operation, v, ...(e.famille ? { famille: e.famille } : {}), ligne });
     }
 
@@ -672,6 +685,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       }
     }
     detail.push(...actifs.filter((a) => a.ligne.ignore).map((a) => a.ligne));
+    detail.push(...coupees);
     return v;
   };
 
@@ -837,6 +851,13 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     evaluer: (f, extra, defaut) => evaluerSur(f, extra, defaut),
     sources,
   };
+}
+
+/** Nom affiché d'une source d'effets propres : nom propre de l'exemplaire, sinon son identifiant. */
+export function nomSourceExemplaire(p: PossessionEffective, ex: Possession): string {
+  const propre = nomPossession(p.entree, p.sorte, ex);
+  if (propre !== p.entree.nom) return propre;
+  return ex.exemplaire ? `${p.entree.nom} (${ex.exemplaire})` : p.entree.nom;
 }
 
 /** Préfixe des chemins d'erreur des effets propres d'un exemplaire. */

@@ -8,7 +8,11 @@ import { HttpError } from '@vtt/platform';
 import {
   acheter,
   acheterEtape,
+  basculerEffet,
   BonusLibre,
+  CleEffet,
+  erreursEffetsDesactives,
+  nettoyerEffetsDesactives,
   compilerEffets,
   Effet,
   estExemplaire,
@@ -88,6 +92,10 @@ export function etatInitial(systeme: SystemeCharge, type: string): EtatEntite {
  * Valide un état à enregistrer (schéma EtatEntite, système et type connus) et
  * le recalcule. Toute écriture passe par ici : un état qui ne se calcule pas
  * n'est jamais enregistré.
+ *
+ * Effets coupés (`effetsDesactives`) : une clé en double ou d'un bonus libre est refusée ;
+ * une clé dont la source a disparu (objet retiré, effet supprimé) est oubliée, pour qu'un
+ * nouvel exemplaire du même identifiant n'en hérite pas.
  */
 export function verifierEtat(
   systeme: SystemeCharge,
@@ -107,7 +115,14 @@ export function verifierEtat(
     if (!systeme.entrees.has(p.entree))
       throw refus(`Entrée inconnue du système : ${p.entree}`, 'etat_invalide');
   }
-  return { etat, fiche: calculer(systeme, etat) };
+  const coupes = erreursEffetsDesactives(etat);
+  if (coupes.length) throw refus(`État invalide : ${coupes.join(' ; ')}`, 'etat_invalide');
+  const fiche = calculer(systeme, etat);
+  const gardes = nettoyerEffetsDesactives(fiche);
+  if (gardes.length === etat.effetsDesactives.length) return { etat, fiche };
+  // Les clés oubliées ne désignaient aucun effet : le calcul n'en change pas
+  const net = { ...etat, effetsDesactives: gardes };
+  return { etat: net, fiche: { ...fiche, etat: net } };
 }
 
 // ─── Valeurs saisies ──────────────────────────────────────────────────────────
@@ -773,6 +788,33 @@ function identifiantBonus(nom: string, etat: EtatEntite): string {
   let id = base;
   for (let n = 2; etat.bonus.some((b) => b.id === id); n++) id = `${base}-${n}`;
   return id;
+}
+
+// ─── Effets activés un à un ───────────────────────────────────────────────────
+
+/** Effet à activer ou couper : sa clé stable (`<source>/<index>`, voir `CleEffet`). */
+export const DemandeEffet = z.object({ effet: CleEffet, actif: z.boolean() });
+export type DemandeEffet = z.output<typeof DemandeEffet>;
+
+/**
+ * Active ou coupe un effet d'une entrée possédée ou d'un exemplaire, sans toucher à sa
+ * source (l'objet reste équipé). Idempotent : redemander le même état ne change rien.
+ * 404 pour un effet inconnu, 422 pour un effet de bonus libre (qui s'active en entier).
+ */
+export function basculerEffetPersonnage(
+  systeme: SystemeCharge,
+  etat: EtatEntite,
+  d: DemandeEffet,
+): { etat: EtatEntite; details: Record<string, unknown> } {
+  const r = basculerEffet(calculer(systeme, etat), d.effet, d.actif);
+  if (!r.ok) {
+    if (r.introuvable) throw HttpError.notFound(r.erreur);
+    throw refus(r.erreur, 'effet_non_basculable');
+  }
+  return {
+    etat: r.etat,
+    details: { effet: d.effet, actif: d.actif, source: r.effet.source, change: r.change },
+  };
 }
 
 // ─── Repos ────────────────────────────────────────────────────────────────────

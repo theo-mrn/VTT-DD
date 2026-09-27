@@ -144,6 +144,36 @@ export type InventoryFolder = z.output<typeof InventoryFolder>;
 /** Nombre maximal de dossiers d'inventaire par entité. */
 export const MAX_INVENTORY_FOLDERS = 50;
 
+/**
+ * Clé stable d'un effet : `<source>/<index>`, où `<source>` est l'identifiant de source des
+ * explications (`armure-cuir` pour les effets du catalogue d'une entrée, `dague#2` ou
+ * `dague#exemplaire` pour les effets propres d'un exemplaire, `bonus:potion` pour un bonus
+ * libre) et `<index>` la position de l'effet dans sa liste (`entree.effets`,
+ * `possession.effets`, `bonus.effets`), à partir de 0.
+ */
+export const CleEffet = z
+  .string()
+  .max(420)
+  .regex(
+    /^(bonus:)?[\p{L}\p{N}_][\p{L}\p{N}_-]*(#[\p{L}\p{N}_][\p{L}\p{N}_-]*)?\/(0|[1-9]\d{0,3})$/u,
+    'Clé d’effet attendue : <source>/<index>',
+  );
+
+/** Clé stable d'un effet : identifiant de sa source et position dans la liste. */
+export function cleEffet(source: string, index: number): string {
+  return `${source}/${index}`;
+}
+
+/** Source et position d'une clé d'effet (`undefined` si la clé est mal formée). */
+export function lireCleEffet(cle: string): { source: string; index: number } | undefined {
+  if (!CleEffet.safeParse(cle).success) return undefined;
+  const i = cle.lastIndexOf('/');
+  return { source: cle.slice(0, i), index: Number(cle.slice(i + 1)) };
+}
+
+/** Nombre maximal d'effets désactivés par entité. */
+export const MAX_EFFETS_DESACTIVES = 1000;
+
 export const LigneJournal = z.object({
   achat: Id,
   /** Attribut, entrée ou `arbre/noeud` obtenu. */
@@ -167,6 +197,12 @@ export const EtatEntite = z.object({
   journal: z.array(LigneJournal).default([]),
   /** Dossiers d'inventaire, dans leur ordre d'affichage. */
   folders: z.array(InventoryFolder).max(MAX_INVENTORY_FOLDERS).default([]),
+  /**
+   * Effets coupés un à un (`CleEffet`), sans toucher à leur source : l'objet reste équipé,
+   * le talent possédé, mais cet effet-là ne s'applique pas. Effets du catalogue d'une entrée
+   * et effets propres d'un exemplaire ; un bonus libre s'active, lui, par son `actif`.
+   */
+  effetsDesactives: z.array(CleEffet).max(MAX_EFFETS_DESACTIVES).default([]),
   /** Vrai tant que la création n'est pas terminée. */
   creation: z.boolean().default(false),
 });

@@ -14,8 +14,10 @@ import type { Module } from '../../deps.js';
 import {
   acheterObjet,
   appliquerEtape,
+  basculerEffetPersonnage,
   changerDossiers,
   DemandeBonus,
+  DemandeEffet,
   DemandeDon,
   DemandeDossiers,
   DemandePossession,
@@ -659,6 +661,32 @@ export const register: Module = async (app, deps) => {
         operation: 'bonus.retrait',
         details: { bonusId: req.params.bonusId },
       }));
+      return api(ligne);
+    },
+  );
+
+  // ─── Effets activés un à un ────────────────────────────────────────────────
+
+  /**
+   * Active ou coupe un effet d'une entrée ou d'un exemplaire (`effet` : sa clé
+   * `<source>/<index>`), sans déséquiper l'objet. Idempotent.
+   */
+  r.put(
+    '/v1/characters/:id/effets',
+    {
+      ...auth,
+      schema: {
+        params: Params,
+        body: DemandeEffet.extend({ version: Version }),
+        response: { 200: Personnage },
+      },
+    },
+    async (req) => {
+      const { version, ...demande } = req.body;
+      const ligne = await modifierPour(req, req.params.id, version, (l, systeme) => {
+        const r = basculerEffetPersonnage(systeme, l.etat, demande);
+        return { changement: { etat: r.etat }, operation: 'effet', details: r.details };
+      });
       return api(ligne);
     },
   );

@@ -499,7 +499,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     for (const source of fiche.sources) {
       const ctxEffet = fiche.contexte({ variable: variablesEffet(source) });
       source.effets.forEach((f, i) => {
-        if (f.sur !== 'jet' || !f.ajout) return;
+        if (f.sur !== 'jet' || !f.ajout || source.desactive(i)) return;
         if (f.cote !== cote) return;
         if (f.actions && !f.actions.includes(action.id)) return;
         if (f.implique?.entree !== undefined && !impliques.has(`entree:${f.implique.entree}`))
