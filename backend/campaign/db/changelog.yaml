@@ -10,5 +10,7 @@ databaseChangeLog:
   - include: { file: changes/0005-campaigns.sql, relativeToChangelogFile: true }
   # Plus de limite de joueurs par campagne
   - include: { file: changes/0006-drop-max-players.sql, relativeToChangelogFile: true }
+  # Carte : scènes et couches en PostGIS (docs/map.md)
+  - include: { file: changes/0008-maps.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }
