@@ -33,15 +33,17 @@ if [ "$(uname)" = Darwin ] && { [ "$hote" = localhost ] || [ "$hote" = 127.0.0.1
   hote=host.docker.internal
 fi
 
-# Identifiants passés par variables d'environnement : jamais visibles dans la liste des processus
+# Identifiants passés par variables d'environnement : jamais visibles dans la liste des processus.
+# Schémas aussi (comme le Job Helm) : en option de ligne de commande, « history » serait lu
+# comme la commande Liquibase du même nom.
 exec docker run --rm --network host \
   -v "$dossier:/liquibase/changelog:ro" \
   -e LIQUIBASE_COMMAND_URL="jdbc:postgresql://$hote:${PGPORT:-5432}/${PGDATABASE:-vtt}" \
   -e LIQUIBASE_COMMAND_USERNAME="${schema}_owner" \
   -e LIQUIBASE_COMMAND_PASSWORD="${LIQUIBASE_OWNER_PASSWORD:-${schema}-owner-dev}" \
+  -e LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME="$schema" \
+  -e LIQUIBASE_LIQUIBASE_SCHEMA_NAME="$schema" \
   "$IMAGE" \
   --search-path=/liquibase/changelog \
   --changelog-file=changelog.yaml \
-  --default-schema-name="$schema" \
-  --liquibase-schema-name="$schema" \
   "${commande[@]}"
