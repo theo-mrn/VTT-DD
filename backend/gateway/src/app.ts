@@ -1,4 +1,4 @@
-import proxy from '@fastify/http-proxy';
+import proxy, { type FastifyHttpProxyOptions } from '@fastify/http-proxy';
 import { BaseConfig, createService, type ServiceOptions } from '@vtt/platform';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ export const GatewayConfig = BaseConfig.extend({
   UPSTREAM_CHARACTER_URL: z.string().url().optional(),
   UPSTREAM_DICE_URL: z.string().url().optional(),
   UPSTREAM_HISTORY_URL: z.string().url().optional(),
+  UPSTREAM_REALTIME_URL: z.string().url().optional(),
   /**
    * Secret partagé avec identity pour échanger les clés d'API (en-tête
    * x-internal-secret). Absent : « Authorization: ApiKey … » est refusé.
@@ -38,7 +39,31 @@ export const ROUTES = {
   // Jets de dés (remplace /api/roll-dice) : jeton ou clé d'API
   '/v1/dice': 'UPSTREAM_DICE_URL',
   '/v1/history': 'UPSTREAM_HISTORY_URL',
+  // Temps réel : WebSocket (Socket.IO) relayé, et routes HTTP du service
+  '/v1/realtime': 'UPSTREAM_REALTIME_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
+
+/** Préfixes dont la gateway relaie aussi les WebSockets. */
+const WEBSOCKET_PREFIXES: readonly string[] = ['/v1/realtime'];
+
+/**
+ * Poignée de main WebSocket du temps réel : un navigateur ne peut pas y
+ * joindre d'en-tête Authorization, le jeton voyage dans le premier message
+ * Socket.IO et c'est realtime qui le vérifie. Seul ce chemin passe sans jeton,
+ * et seulement pour une demande d'upgrade (Node ne la traite jamais comme une
+ * requête HTTP ordinaire).
+ */
+export function estPoigneeTempsReel(
+  url: string,
+  headers: { upgrade?: string | string[] | undefined },
+): boolean {
+  const chemin = url.split('?')[0] ?? '';
+  return (
+    typeof headers.upgrade === 'string' &&
+    headers.upgrade.toLowerCase() === 'websocket' &&
+    chemin.startsWith('/v1/realtime/socket.io/')
+  );
+}
 
 /** Routes accessibles sans jeton (connexion). */
 const PUBLIC_PREFIXES = ['/v1/auth'];
@@ -87,6 +112,27 @@ export function estInterne(url: string): boolean {
   );
 }
 
+/**
+ * Options du proxy pour un préfixe qui relaie aussi les WebSockets : l'IP du
+ * client et l'identifiant de requête suivent, comme en HTTP (jamais le cookie).
+ * `rewriteRequestHeaders` existe à l'exécution mais pas dans les types du plugin.
+ */
+function optionsWebSocket(prefix: string) {
+  if (!WEBSOCKET_PREFIXES.includes(prefix)) return { websocket: false as const };
+  const wsClientOptions = {
+    rewriteRequestHeaders: (_headers: unknown, req: FastifyRequest) => ({
+      'x-request-id': req.id,
+      'x-forwarded-for': [req.headers['x-forwarded-for'], req.ip].filter(Boolean).join(', '),
+    }),
+  } as unknown as NonNullable<FastifyHttpProxyOptions['wsClientOptions']>;
+  return {
+    websocket: true as const,
+    // Messages Socket.IO petits (64 Kio côté service) : pas de trames géantes
+    wsServerOptions: { maxPayload: 256 * 1024 },
+    wsClientOptions,
+  };
+}
+
 export async function buildGateway(
   config: GatewayConfig,
   extra: Omit<ServiceOptions, 'config'> & {
@@ -99,6 +145,14 @@ export async function buildGateway(
 
   app.addHook('onRequest', async (req, reply) => {
     if (estInterne(req.url)) {
+      reply.callNotFound();
+      return reply;
+    }
+  });
+
+  // WebSocket hors des préfixes prévus : refusé tout de suite, sinon la connexion resterait pendante
+  app.addHook('onRequest', async (req, reply) => {
+    if (req.headers.upgrade && !WEBSOCKET_PREFIXES.some((p) => req.url.startsWith(`${p}/`))) {
       reply.callNotFound();
       return reply;
     }
@@ -138,10 +192,11 @@ export async function buildGateway(
       rewritePrefix: prefix,
       http2: false,
       preHandler: async (req, reply) => {
-        if (!estPublique(req.method, req.url)) {
+        if (!estPublique(req.method, req.url) && !estPoigneeTempsReel(req.url, req.headers)) {
           await authentifier(req, reply);
         }
       },
+      ...optionsWebSocket(prefix),
       replyOptions: {
         // Propagation de la corrélation ; traceparent est ajouté par l'instrumentation http
         rewriteRequestHeaders: (req, { [EN_TETE_SECRET_INTERNE]: _secret, ...headers }) => ({

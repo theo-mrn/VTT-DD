@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { loadConfig } from '@vtt/platform';
 import { generateKeyPair, SignJWT, type CryptoKey } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildGateway, estPublique, GatewayConfig } from './app.js';
+import { buildGateway, estPoigneeTempsReel, estPublique, GatewayConfig } from './app.js';
 
 let upstream: Server;
 let upstreamUrl: string;
@@ -187,5 +188,103 @@ describe('estPublique', () => {
     expect(estPublique('GET', '/v1/systemsx')).toBe(false);
     expect(estPublique('GET', '/v1/characters')).toBe(false);
     expect(estPublique('POST', '/v1/auth/login')).toBe(true);
+  });
+});
+
+/**
+ * Faux realtime : accepte l'upgrade WebSocket (réponse 101 écrite à la main),
+ * puis envoie une trame texte avec le chemin et les en-têtes reçus.
+ */
+function fakeRealtime() {
+  const server = createServer((req, res) => {
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ path: req.url, authorization: req.headers.authorization ?? null }));
+  });
+  server.on('upgrade', (req, socket) => {
+    const accept = createHash('sha1')
+      .update(`${req.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest('base64');
+    socket.write(
+      'HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n' +
+        `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
+    );
+    const body = Buffer.from(
+      JSON.stringify({
+        path: req.url,
+        forwardedFor: req.headers['x-forwarded-for'] ?? null,
+        cookie: req.headers.cookie ?? null,
+      }),
+    );
+    const header =
+      body.length < 126
+        ? Buffer.from([0x81, body.length])
+        : Buffer.from([0x81, 126, body.length >> 8, body.length & 0xff]);
+    socket.write(Buffer.concat([header, body]));
+    socket.on('error', () => undefined);
+  });
+  return server;
+}
+
+describe('temps réel (WebSocket)', () => {
+  it('relaie la poignée de main Socket.IO sans jeton, les routes HTTP avec jeton', async () => {
+    const realtime = fakeRealtime();
+    await new Promise<void>((r) => realtime.listen(0, '127.0.0.1', r));
+    const realtimeUrl = `http://127.0.0.1:${(realtime.address() as AddressInfo).port}`;
+    const app = await buildGateway(
+      loadConfig(GatewayConfig, {
+        NODE_ENV: 'test',
+        LOG_LEVEL: 'silent',
+        JWT_ISSUER: 'https://identity.test',
+        JWT_AUDIENCE: 'vtt-api',
+        UPSTREAM_REALTIME_URL: realtimeUrl,
+        UPSTREAM_CAMPAIGN_URL: upstreamUrl,
+      }),
+      { authKeyResolver: async () => publicKey },
+    );
+    try {
+      await app.listen({ port: 0, host: '127.0.0.1' });
+      const port = (app.server.address() as AddressInfo).port;
+      const ws = new WebSocket(
+        `ws://127.0.0.1:${port}/v1/realtime/socket.io/?EIO=4&transport=websocket`,
+      );
+      const first = await new Promise<string>((resolve, reject) => {
+        ws.addEventListener('message', (m) => resolve(String(m.data)));
+        ws.addEventListener('error', () => reject(new Error('WebSocket refusé')));
+      });
+      ws.close();
+      expect(JSON.parse(first)).toEqual({
+        path: '/v1/realtime/socket.io/?EIO=4&transport=websocket',
+        forwardedFor: '127.0.0.1',
+        cookie: null,
+      });
+
+      // Upgrade ailleurs : refusé, même avec un jeton
+      const ailleurs = new WebSocket(`ws://127.0.0.1:${port}/v1/campaigns/c1`);
+      await new Promise<void>((resolve) => {
+        ailleurs.addEventListener('error', () => resolve());
+        ailleurs.addEventListener('open', () => resolve());
+      });
+      expect(ailleurs.readyState).not.toBe(WebSocket.OPEN);
+
+      // Routes HTTP du service : jeton exigé par la gateway, puis relayé
+      expect((await app.inject({ url: '/v1/realtime/token' })).statusCode).toBe(401);
+      const bearer = `Bearer ${await token()}`;
+      const res = await app.inject({
+        url: '/v1/realtime/token',
+        headers: { authorization: bearer },
+      });
+      expect(res.json()).toEqual({ path: '/v1/realtime/token', authorization: bearer });
+    } finally {
+      await app.close();
+      realtime.close();
+    }
+  });
+
+  it('seule une demande d’upgrade vers Socket.IO passe sans jeton', () => {
+    const ws = { upgrade: 'websocket' };
+    expect(estPoigneeTempsReel('/v1/realtime/socket.io/?EIO=4&transport=websocket', ws)).toBe(true);
+    expect(estPoigneeTempsReel('/v1/realtime/socket.io/', {})).toBe(false);
+    expect(estPoigneeTempsReel('/v1/realtime/token', ws)).toBe(false);
+    expect(estPoigneeTempsReel('/v1/campaigns/socket.io/', ws)).toBe(false);
   });
 });
