@@ -108,7 +108,9 @@ describe.skipIf(!TEST_DATABASE_URL)('import des notes', () => {
     expect(await loadNotes(t.db!, campaignId, m.notes, 'test')).toEqual({ private: 0, shared: 0 });
 
     const titles = async (u: TestUser) =>
-      (await h.ok<{ title: string }[]>(u, 'GET', `/v1/campaigns/${campaignId}/notes`))
+      (
+        await h.ok<{ items: { title: string }[] }>(u, 'GET', `/v1/campaigns/${campaignId}/notes`)
+      ).items
         .map((n) => n.title)
         .sort();
     expect(await titles(alice)).toEqual(['Pour Brom', 'Pour tous', 'Renommée']);

@@ -1,25 +1,36 @@
 /**
- * Module « notes » : le Grimoire de la campagne (legacy Notes.tsx et
- * QuickNotes.tsx), notes privées et partagées. Contrat : docs/api-notes.md.
+ * Module « notes » : l'espace Notes (notes personnelles, sans campagne) et le
+ * Grimoire des campagnes (legacy Notes.tsx et QuickNotes.tsx), notes privées
+ * et partagées. Contrat : docs/api-notes.md.
  *
- *   GET    /v1/campaigns/:id/notes                notes lisibles par l'appelant (récentes d'abord)
- *   GET    /v1/campaigns/:id/notes/:noteId        une note
- *   POST   /v1/campaigns/:id/notes                créer (auteur : l'appelant et son personnage incarné)
- *   PATCH  /v1/campaigns/:id/notes/:noteId        modifier : privée, l'auteur ; partagée, qui la lit
- *   DELETE /v1/campaigns/:id/notes/:noteId        supprimer : mêmes droits
- *   POST   /v1/campaigns/:id/notes/upload         URL d'envoi d'une image de note (rien d'écrit)
+ *   GET    /v1/notes                               mes notes lisibles (filtres, recherche, pages)
+ *   GET    /v1/notes/facets                        compteurs et étiquettes de l'espace Notes
+ *   POST   /v1/notes                               créer (personnelle, ou dans une campagne)
+ *   GET    /v1/notes/:noteId                       une note
+ *   PATCH  /v1/notes/:noteId                       modifier, partager, changer de campagne
+ *   DELETE /v1/notes/:noteId                       supprimer
+ *   PUT    /v1/notes/:noteId/pin                   épingler (pour soi)
+ *   DELETE /v1/notes/:noteId/pin                   désépingler
+ *   GET    /v1/campaigns/:id/notes                 notes lisibles de la campagne (mêmes filtres)
+ *   GET    /v1/campaigns/:id/notes/:noteId         une note de la campagne
+ *   POST   /v1/campaigns/:id/notes                 créer dans la campagne
+ *   PATCH  /v1/campaigns/:id/notes/:noteId         modifier : privée, l'auteur ; partagée, qui la lit
+ *   DELETE /v1/campaigns/:id/notes/:noteId         supprimer : mêmes droits
+ *   POST   /v1/campaigns/:id/notes/upload          URL d'envoi d'une image de note (rien d'écrit)
  *
  * Comme l'ancienne app, une note partagée se modifie et se supprime par
- * quiconque la lit ; seul son auteur la rend privée (les autres en font une
- * copie privée par POST). Les spectateurs ne font que lire.
+ * quiconque la lit ; seul son auteur la rend privée ou la change de campagne
+ * (les autres en font une copie par POST). Les spectateurs ne font que lire.
+ * Le HTML est assaini par le service à chaque écriture (html.ts).
  */
 import { uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { NOTE_TYPES, notes, QUEST_STATUSES, QUEST_TYPES } from '../../db/schema.js';
+import type { EventContext, Tx } from '../../db/outbox.js';
+import { notePins, notes } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import {
   IMAGE_MAX_BYTES,
@@ -28,120 +39,53 @@ import {
   publicBase,
   UPLOAD_EXPIRY,
 } from '../../storage/images.js';
-import { CampaignId, currentUser, eventContext, UserRef, Uuid } from '../schemas.js';
+import { campaignNotFound } from '../campaigns/repository.js';
+import { CampaignId, currentUser, eventContext } from '../schemas.js';
+import { BACKFILL_INTERVAL_MS, resanitizeNotes } from './backfill.js';
 import {
+  campaignReader,
   changedFields,
+  contentFields,
   loadNote,
   noteApi,
   noteEvent,
-  noteViewer,
-  readableBy,
+  noteReader,
+  noteSummaryApi,
+  notNoteOwner,
+  pinEvent,
+  pinnedAmong,
+  playedCharacter,
   requireWriter,
+  searchTextOf,
+  servedContent,
   shareTargets,
   versionConflict,
+  type NoteReader,
   type NoteRow,
 } from './common.js';
+import { SANITIZER_VERSION, type SanitizeOptions } from './html.js';
+import { listNotes, noteFacets } from './list.js';
+import {
+  LIMITS,
+  ListQuery,
+  Note,
+  NoteFacets,
+  NoteId,
+  NotePage,
+  noteFields,
+  sharingFields,
+} from './schemas.js';
 
-/** Bornes (contraintes de 0009-notes.sql). */
-export const LIMITS = {
-  title: 200,
-  content: 200_000,
-  detail: 200,
-  tags: 50,
-  subQuests: 100,
-  sharedWith: 100,
-} as const;
+export { LIMITS } from './schemas.js';
 
 /** Limite par IP des demandes d'URL d'envoi, comme l'image de campagne. */
 const UPLOAD_LIMIT = {
   rateLimit: { max: 20, timeWindow: '1 minute' },
 } as FastifyContextConfig;
 
-const NoteId = Uuid('Identifiant de note invalide');
 const Params = z.object({ id: CampaignId });
-const NoteParams = z.object({ id: CampaignId, noteId: NoteId });
-
-/**
- * Image d'en-tête : URL https ou chemin absolu du site (comme les médias de la
- * carte), ou fichier de notre stockage (`S3_PUBLIC_URL`, en http en dev).
- */
-const imageUrl = (base: string | null) =>
-  z
-    .string()
-    .trim()
-    .max(2048, '2048 caractères au plus')
-    .refine(
-      (u) =>
-        /^https:\/\/\S+$/.test(u) ||
-        /^\/[^/]\S*$/.test(u) ||
-        (!!base && u.startsWith(`${base}/`) && !/\s/.test(u)),
-      { message: 'URL https ou chemin absolu attendu' },
-    );
-
-const Tag = z.strictObject({
-  id: z.string().trim().min(1).max(100),
-  label: z.string().trim().min(1).max(100),
-});
-
-const SubQuest = z.strictObject({
-  id: z.string().trim().min(1).max(100),
-  title: z.string().max(500),
-  description: z.string().max(5000),
-  status: z.enum(QUEST_STATUSES),
-});
-
-const Detail = z.string().trim().max(LIMITS.detail).nullable();
-
-const noteFields = (base: string | null) => ({
-  title: z.string().trim().max(LIMITS.title, `${LIMITS.title} caractères au plus`),
-  content: z.string().max(LIMITS.content, `${LIMITS.content} caractères au plus`),
-  type: z.enum(NOTE_TYPES),
-  tags: z.array(Tag).max(LIMITS.tags),
-  imageUrl: imageUrl(base).nullable(),
-  race: Detail,
-  class: Detail,
-  region: Detail,
-  itemType: Detail,
-  questType: z.enum(QUEST_TYPES).nullable(),
-  questStatus: z.enum(QUEST_STATUSES).nullable(),
-  subQuests: z.array(SubQuest).max(LIMITS.subQuests),
-});
-
-/** Destinataires : tous (`'all'`) ou des personnages engagés dans la campagne. */
-const SharedWith = z.union([
-  z.literal('all'),
-  z.array(Uuid('Identifiant de personnage invalide')).min(1).max(LIMITS.sharedWith),
-]);
-
-const Note = z.object({
-  id: z.string(),
-  owner: UserRef,
-  characterId: z.string().nullable(),
-  shared: z.boolean(),
-  sharedWith: z.union([z.literal('all'), z.array(z.string())]).nullable(),
-  title: z.string(),
-  content: z.string(),
-  type: z.enum(NOTE_TYPES),
-  tags: z.array(z.object({ id: z.string(), label: z.string() })),
-  imageUrl: z.string().nullable(),
-  race: z.string().nullable(),
-  class: z.string().nullable(),
-  region: z.string().nullable(),
-  itemType: z.string().nullable(),
-  questType: z.enum(QUEST_TYPES).nullable(),
-  questStatus: z.enum(QUEST_STATUSES).nullable(),
-  subQuests: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      description: z.string(),
-      status: z.enum(QUEST_STATUSES),
-    }),
-  ),
-  version: z.number().int(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
+const NoteParams = z.object({ noteId: NoteId });
+const CampaignNoteParams = z.object({ id: CampaignId, noteId: NoteId });
 
 const storageUnavailable = () =>
   new HttpError(
@@ -152,87 +96,418 @@ const storageUnavailable = () =>
   );
 
 const shareRequiresShared = () =>
-  HttpError.badRequest('sharedWith ne vaut que pour une note partagée', 'share_requires_shared');
+  HttpError.badRequest(
+    'sharedWith et sharedWithGm ne valent que pour une note partagée',
+    'share_requires_shared',
+  );
+
+const personalNotShareable = () =>
+  HttpError.badRequest(
+    'Une note personnelle ne se partage pas : rattachez-la d’abord à une campagne',
+    'personal_note_not_shareable',
+  );
+
+const noShareTarget = () =>
+  HttpError.badRequest(
+    'Partage sans destinataire : des personnages, les MJ ou toute la campagne',
+    'invalid_share_target',
+  );
+
+const quotaExceeded = () =>
+  new HttpError(
+    403,
+    'Accès refusé',
+    'note_quota_exceeded',
+    `${LIMITS.notesPerAuthor} notes au plus par auteur : supprimez-en avant d’en créer`,
+  );
+
+type Sharing = Pick<NoteRow, 'shared' | 'sharedWith' | 'sharedWithGm'>;
+interface SharingRequest {
+  shared?: boolean;
+  sharedWith?: 'all' | string[];
+  sharedWithGm?: boolean;
+}
+
+/**
+ * Partage demandé, à partir du partage actuel (`prev`, null pour une nouvelle
+ * note ou une note qui change de campagne : elle repart privée). Partager sans
+ * destinataires vaut « tous », comme l'ancienne app ; avec `sharedWithGm`
+ * seul, « les MJ seulement ». Partagée avec tous, elle l'est aussi avec les MJ.
+ */
+async function resolveSharing(
+  tx: Tx,
+  campaignId: string | null,
+  prev: Sharing | null,
+  req: SharingRequest,
+): Promise<Sharing> {
+  const shared = req.shared ?? prev?.shared ?? false;
+  if (!shared) {
+    if (req.sharedWith !== undefined || req.sharedWithGm === true) throw shareRequiresShared();
+    return { shared: false, sharedWith: null, sharedWithGm: false };
+  }
+  if (!campaignId) throw personalNotShareable();
+  let sharedWith: string[] | null;
+  if (req.sharedWith !== undefined) sharedWith = await shareTargets(tx, campaignId, req.sharedWith);
+  else if (prev?.shared) sharedWith = prev.sharedWith;
+  else sharedWith = req.sharedWithGm ? [] : null;
+  const sharedWithGm =
+    sharedWith !== null && (req.sharedWithGm ?? (prev?.shared ? prev.sharedWithGm : false));
+  if (sharedWith !== null && !sharedWith.length && !sharedWithGm) throw noShareTarget();
+  return { shared, sharedWith, sharedWithGm };
+}
 
 export const register: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
   const auth = { preValidation: app.authenticate };
   const base = publicBase(deps.config.S3_PUBLIC_URL);
-  const NoteFields = noteFields(base);
+  const opts: SanitizeOptions = { imageBase: base };
+  const Fields = noteFields(base);
+  const FieldsBody = z.strictObject(Fields).partial();
+  const SharingBody = z.object(sharingFields).partial().shape;
+  const Version = z.number().int().positive();
+  const CreateBody = FieldsBody.extend(SharingBody);
+  const UpdateBody = FieldsBody.extend(SharingBody).extend({ version: Version.optional() });
+  const CampaignTarget = CampaignId.nullable().optional();
 
-  async function notesApi(rows: NoteRow[], authorization: string | undefined) {
-    const profiles = await deps.profiles.profiles(
-      [...new Set(rows.map((n) => n.ownerUserId))],
-      authorization,
-    );
-    return rows.map((n) => noteApi(n, profiles));
+  // ─── Reprise des notes importées ───────────────────────────────────────────
+  if (deps.config.NODE_ENV !== 'test') {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const sweep = () =>
+      resanitizeNotes(db, opts).then(
+        (n) => n && app.log.info({ notes: n }, 'notes réassainies'),
+        (err: unknown) => app.log.error({ err }, 'reprise des notes impossible'),
+      );
+    app.addHook('onReady', async () => {
+      void sweep();
+      timer = setInterval(() => void sweep(), BACKFILL_INTERVAL_MS);
+      timer.unref();
+    });
+    app.addHook('onClose', async () => {
+      if (timer) clearInterval(timer);
+    });
   }
 
-  r.get(
-    '/v1/campaigns/:id/notes',
-    { ...auth, schema: { params: Params, response: { 200: z.array(Note) } } },
-    async (req) => {
-      const v = await noteViewer(db, req.params.id, currentUser(req));
-      const rows = await db
-        .select()
+  // ─── Représentation ────────────────────────────────────────────────────────
+
+  async function one(n: NoteRow, reader: NoteReader, authorization: string | undefined) {
+    const [profiles, pinned] = await Promise.all([
+      deps.profiles.profiles([n.ownerUserId], authorization),
+      pinnedAmong(db, reader.userId, [n.id]),
+    ]);
+    return noteApi(n, reader, profiles, pinned.has(n.id), opts);
+  }
+
+  async function page(reader: NoteReader, q: ListQuery, authorization: string | undefined) {
+    const result = await listNotes(db, reader, q);
+    const profiles = await deps.profiles.profiles(
+      [...new Set(result.items.map((i) => i.row.ownerUserId))],
+      authorization,
+    );
+    return {
+      items: result.items.map((i) => noteSummaryApi(i.row, reader, profiles, i.pinned, i.excerpt)),
+      nextCursor: result.nextCursor,
+      total: result.total,
+    };
+  }
+
+  // ─── Écritures ─────────────────────────────────────────────────────────────
+
+  type CreateInput = z.infer<typeof CreateBody>;
+  type UpdateInput = z.infer<typeof UpdateBody> & { campaignId?: string | null };
+
+  async function createNote(
+    tx: Tx,
+    ctx: EventContext,
+    reader: NoteReader,
+    campaignId: string | null,
+    body: CreateInput,
+  ): Promise<NoteRow> {
+    if (campaignId && !reader.campaigns.has(campaignId)) throw campaignNotFound();
+    requireWriter(reader, campaignId);
+    const [count] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(notes)
+      .where(eq(notes.ownerUserId, reader.userId));
+    if ((count?.n ?? 0) >= LIMITS.notesPerAuthor) throw quotaExceeded();
+
+    const { shared, sharedWith, sharedWithGm, ...fields } = body;
+    const sharing = await resolveSharing(tx, campaignId, null, {
+      shared,
+      sharedWith,
+      sharedWithGm,
+    });
+    const derived = contentFields(fields.content ?? '', opts);
+    const searchable = {
+      title: fields.title ?? '',
+      tags: fields.tags ?? [],
+      race: fields.race ?? null,
+      class: fields.class ?? null,
+      region: fields.region ?? null,
+      itemType: fields.itemType ?? null,
+      subQuests: fields.subQuests ?? [],
+    };
+    const [row] = await tx
+      .insert(notes)
+      .values({
+        ...fields,
+        ...derived,
+        searchText: searchTextOf(searchable, derived.plainText),
+        id: uuidv7(),
+        campaignId,
+        ownerUserId: reader.userId,
+        characterId: await playedCharacter(tx, campaignId, reader.userId),
+        ...sharing,
+      })
+      .returning();
+    const { plainText: _p, searchText: _s, search: _v, ...note } = row!;
+    await noteEvent(tx, ctx, reader, { type: 'note.created', room: campaignId, after: note });
+    return note;
+  }
+
+  async function updateNote(
+    tx: Tx,
+    ctx: EventContext,
+    reader: NoteReader,
+    noteId: string,
+    body: UpdateInput,
+    scope?: string,
+  ): Promise<NoteRow> {
+    const stored = await loadNote(tx, reader, noteId, { lock: true, campaignId: scope });
+    requireWriter(reader, stored.campaignId);
+    const { version, shared, sharedWith, sharedWithGm, campaignId: target, ...fields } = body;
+    if (version !== undefined && version !== stored.version) throw versionConflict();
+    // Comparaisons et événements sur le contenu tel qu'il est servi (assaini)
+    const before = { ...stored, content: servedContent(stored, opts) };
+    const mine = before.ownerUserId === reader.userId;
+
+    const moving = target !== undefined && target !== before.campaignId;
+    const campaignId = moving ? target : before.campaignId;
+    if (moving) {
+      if (!mine) throw notNoteOwner('Seul l’auteur change la note de campagne');
+      if (campaignId && !reader.campaigns.has(campaignId)) throw campaignNotFound();
+      requireWriter(reader, campaignId);
+    }
+    // Une note privée n'est lisible que par son auteur : seul lui la partage
+    if (before.shared && shared === false && !mine)
+      throw notNoteOwner('Seul l’auteur rend privée une note partagée : créez-en une copie');
+    const sharing = await resolveSharing(tx, campaignId, moving ? null : before, {
+      shared,
+      sharedWith,
+      sharedWithGm,
+    });
+
+    // Contenu réécrit : le nouveau, ou l'ancien s'il date d'un assainisseur antérieur
+    const derived =
+      fields.content !== undefined
+        ? contentFields(fields.content, opts)
+        : stored.sanitizerVersion < SANITIZER_VERSION
+          ? contentFields(stored.content, opts, true)
+          : null;
+    let plainText = derived?.plainText;
+    if (plainText === undefined) {
+      const [p] = await tx
+        .select({ plainText: notes.plainText })
         .from(notes)
-        .where(readableBy(v))
-        .orderBy(desc(notes.updatedAt), desc(notes.id));
-      return notesApi(rows, req.headers.authorization);
+        .where(eq(notes.id, before.id));
+      plainText = p?.plainText ?? '';
+    }
+
+    const next = {
+      ...before,
+      ...fields,
+      ...(derived ? { content: derived.content } : {}),
+      ...sharing,
+      campaignId,
+    };
+    const changed = changedFields(before, next);
+    const rewrite = stored.sanitizerVersion < SANITIZER_VERSION;
+    // Rien ne change (et rien à reprendre) : ni écriture, ni version, ni événement
+    if (!changed.length && !rewrite) return stored;
+
+    const [row] = await tx
+      .update(notes)
+      .set({
+        ...fields,
+        ...(derived ?? {}),
+        ...sharing,
+        campaignId,
+        ...(moving ? { characterId: await playedCharacter(tx, campaignId, reader.userId) } : {}),
+        searchText: searchTextOf(next, plainText),
+        ...(changed.length ? { version: sql`${notes.version} + 1`, updatedAt: sql`now()` } : {}),
+      })
+      .where(eq(notes.id, before.id))
+      .returning();
+    const { plainText: _p, searchText: _s, search: _v, ...after } = row!;
+    if (!changed.length) return after;
+
+    const rooms = moving ? [before.campaignId, campaignId] : [campaignId];
+    for (const room of rooms)
+      await noteEvent(tx, ctx, reader, { type: 'note.updated', room, before, after, changed });
+    return after;
+  }
+
+  async function deleteNote(
+    tx: Tx,
+    ctx: EventContext,
+    reader: NoteReader,
+    noteId: string,
+    scope?: string,
+  ) {
+    // Privée ou personnelle : seul l'auteur la trouve ; partagée : quiconque la lit
+    const note = await loadNote(tx, reader, noteId, { lock: true, campaignId: scope });
+    requireWriter(reader, note.campaignId);
+    await tx.delete(notes).where(eq(notes.id, note.id));
+    await noteEvent(tx, ctx, reader, {
+      type: 'note.deleted',
+      room: note.campaignId,
+      before: note,
+    });
+  }
+
+  // ─── Toutes mes notes ──────────────────────────────────────────────────────
+
+  r.get(
+    '/v1/notes',
+    { ...auth, schema: { querystring: ListQuery, response: { 200: NotePage } } },
+    async (req) => {
+      const reader = await noteReader(db, currentUser(req));
+      return page(reader, req.query, req.headers.authorization);
     },
   );
 
-  r.get(
-    '/v1/campaigns/:id/notes/:noteId',
-    { ...auth, schema: { params: NoteParams, response: { 200: Note } } },
-    async (req) => {
-      const v = await noteViewer(db, req.params.id, currentUser(req));
-      const note = await loadNote(db, v, req.params.noteId);
-      return (await notesApi([note], req.headers.authorization))[0]!;
-    },
+  r.get('/v1/notes/facets', { ...auth, schema: { response: { 200: NoteFacets } } }, async (req) =>
+    noteFacets(db, await noteReader(db, currentUser(req))),
   );
 
   r.post(
+    '/v1/notes',
+    {
+      ...auth,
+      schema: {
+        body: CreateBody.extend({ campaignId: CampaignTarget }),
+        response: { 201: Note },
+      },
+    },
+    async (req, reply) => {
+      const { campaignId = null, ...body } = req.body;
+      const reader = await noteReader(db, currentUser(req));
+      const note = await db.transaction((tx) =>
+        createNote(tx, eventContext(req), reader, campaignId, body),
+      );
+      reply.code(201);
+      return one(note, reader, req.headers.authorization);
+    },
+  );
+
+  r.get(
+    '/v1/notes/:noteId',
+    { ...auth, schema: { params: NoteParams, response: { 200: Note } } },
+    async (req) => {
+      const reader = await noteReader(db, currentUser(req));
+      return one(await loadNote(db, reader, req.params.noteId), reader, req.headers.authorization);
+    },
+  );
+
+  r.patch(
+    '/v1/notes/:noteId',
+    {
+      ...auth,
+      schema: {
+        params: NoteParams,
+        body: UpdateBody.extend({ campaignId: CampaignTarget }),
+        response: { 200: Note },
+      },
+    },
+    async (req) => {
+      const reader = await noteReader(db, currentUser(req));
+      const note = await db.transaction((tx) =>
+        updateNote(tx, eventContext(req), reader, req.params.noteId, req.body),
+      );
+      return one(note, reader, req.headers.authorization);
+    },
+  );
+
+  r.delete('/v1/notes/:noteId', { ...auth, schema: { params: NoteParams } }, async (req, reply) => {
+    const reader = await noteReader(db, currentUser(req));
+    await db.transaction((tx) => deleteNote(tx, eventContext(req), reader, req.params.noteId));
+    reply.code(204);
+  });
+
+  r.put(
+    '/v1/notes/:noteId/pin',
+    { ...auth, schema: { params: NoteParams } },
+    async (req, reply) => {
+      const reader = await noteReader(db, currentUser(req));
+      await db.transaction(async (tx) => {
+        const note = await loadNote(tx, reader, req.params.noteId);
+        const pinned = await tx
+          .insert(notePins)
+          .values({ userId: reader.userId, noteId: note.id })
+          .onConflictDoNothing()
+          .returning({ id: notePins.noteId });
+        if (pinned.length) await pinEvent(tx, eventContext(req), reader.userId, note.id, true);
+      });
+      reply.code(204);
+    },
+  );
+
+  r.delete(
+    '/v1/notes/:noteId/pin',
+    { ...auth, schema: { params: NoteParams } },
+    async (req, reply) => {
+      const reader = await noteReader(db, currentUser(req));
+      await db.transaction(async (tx) => {
+        const note = await loadNote(tx, reader, req.params.noteId);
+        const unpinned = await tx
+          .delete(notePins)
+          .where(and(eq(notePins.userId, reader.userId), eq(notePins.noteId, note.id)))
+          .returning({ id: notePins.noteId });
+        if (unpinned.length) await pinEvent(tx, eventContext(req), reader.userId, note.id, false);
+      });
+      reply.code(204);
+    },
+  );
+
+  // ─── Notes d'une campagne ──────────────────────────────────────────────────
+
+  r.get(
     '/v1/campaigns/:id/notes',
     {
       ...auth,
       schema: {
         params: Params,
-        body: z
-          .strictObject(NoteFields)
-          .partial()
-          .extend({ shared: z.boolean().default(false), sharedWith: SharedWith.optional() }),
-        response: { 201: Note },
+        querystring: ListQuery.omit({ campaignId: true }),
+        response: { 200: NotePage },
       },
     },
+    async (req) => {
+      const reader = await campaignReader(db, req.params.id, currentUser(req));
+      return page(reader, { ...req.query, campaignId: req.params.id }, req.headers.authorization);
+    },
+  );
+
+  r.get(
+    '/v1/campaigns/:id/notes/:noteId',
+    { ...auth, schema: { params: CampaignNoteParams, response: { 200: Note } } },
+    async (req) => {
+      const reader = await campaignReader(db, req.params.id, currentUser(req));
+      const note = await loadNote(db, reader, req.params.noteId, { campaignId: req.params.id });
+      return one(note, reader, req.headers.authorization);
+    },
+  );
+
+  r.post(
+    '/v1/campaigns/:id/notes',
+    { ...auth, schema: { params: Params, body: CreateBody, response: { 201: Note } } },
     async (req, reply) => {
       const userId = currentUser(req);
       const note = await db.transaction(async (tx) => {
-        const v = await noteViewer(tx, req.params.id, userId);
-        requireWriter(v);
-        const { shared, sharedWith, ...fields } = req.body;
-        if (sharedWith !== undefined && !shared) throw shareRequiresShared();
-        const [row] = await tx
-          .insert(notes)
-          .values({
-            ...fields,
-            id: uuidv7(),
-            campaignId: v.access.campaign.id,
-            ownerUserId: userId,
-            characterId: v.playedCharacterId,
-            shared,
-            // Comme l'ancienne app : une note partagée sans destinataires l'est avec tous
-            sharedWith: shared
-              ? await shareTargets(tx, v.access.campaign.id, sharedWith ?? 'all')
-              : null,
-          })
-          .returning();
-        await noteEvent(tx, eventContext(req), v, { type: 'note.created', after: row! });
-        return row!;
+        const reader = await campaignReader(tx, req.params.id, userId);
+        return createNote(tx, eventContext(req), reader, req.params.id, req.body);
       });
       reply.code(201);
-      return (await notesApi([note], req.headers.authorization))[0]!;
+      return one(note, await campaignReader(db, req.params.id, userId), req.headers.authorization);
     },
   );
 
@@ -240,75 +515,26 @@ export const register: Module = async (app, deps) => {
     '/v1/campaigns/:id/notes/:noteId',
     {
       ...auth,
-      schema: {
-        params: NoteParams,
-        body: z.strictObject(NoteFields).partial().extend({
-          shared: z.boolean().optional(),
-          sharedWith: SharedWith.optional(),
-          version: z.number().int().positive().optional(),
-        }),
-        response: { 200: Note },
-      },
+      schema: { params: CampaignNoteParams, body: UpdateBody, response: { 200: Note } },
     },
     async (req) => {
       const userId = currentUser(req);
-      const note = await db.transaction(async (tx) => {
-        const v = await noteViewer(tx, req.params.id, userId);
-        requireWriter(v);
-        const before = await loadNote(tx, v, req.params.noteId, true);
-        const { version, shared, sharedWith, ...fields } = req.body;
-        if (version !== undefined && version !== before.version) throw versionConflict();
-        const nextShared = shared ?? before.shared;
-        // Une note privée n'est lisible que par son auteur : seul lui la partage
-        if (before.shared && !nextShared && before.ownerUserId !== userId)
-          throw new HttpError(
-            403,
-            'Accès refusé',
-            'not_note_owner',
-            'Seul l’auteur rend privée une note partagée : créez-en une copie privée',
-          );
-        let nextSharedWith: string[] | null = null;
-        if (!nextShared) {
-          if (sharedWith !== undefined) throw shareRequiresShared();
-        } else if (sharedWith !== undefined)
-          nextSharedWith = await shareTargets(tx, v.access.campaign.id, sharedWith);
-        else nextSharedWith = before.shared ? before.sharedWith : null;
-        const [after] = await tx
-          .update(notes)
-          .set({
-            ...fields,
-            shared: nextShared,
-            sharedWith: nextSharedWith,
-            version: sql`${notes.version} + 1`,
-            updatedAt: sql`now()`,
-          })
-          .where(eq(notes.id, before.id))
-          .returning();
-        await noteEvent(tx, eventContext(req), v, {
-          type: 'note.updated',
-          before,
-          after: after!,
-          changed: changedFields(before, after!),
-        });
-        return after!;
-      });
-      return (await notesApi([note], req.headers.authorization))[0]!;
+      const reader = await campaignReader(db, req.params.id, userId);
+      const note = await db.transaction((tx) =>
+        updateNote(tx, eventContext(req), reader, req.params.noteId, req.body, req.params.id),
+      );
+      return one(note, reader, req.headers.authorization);
     },
   );
 
   r.delete(
     '/v1/campaigns/:id/notes/:noteId',
-    { ...auth, schema: { params: NoteParams } },
+    { ...auth, schema: { params: CampaignNoteParams } },
     async (req, reply) => {
-      const userId = currentUser(req);
-      await db.transaction(async (tx) => {
-        const v = await noteViewer(tx, req.params.id, userId);
-        requireWriter(v);
-        // Privée : seul l'auteur la trouve ; partagée : quiconque la lit (ancienne app)
-        const note = await loadNote(tx, v, req.params.noteId, true);
-        await tx.delete(notes).where(eq(notes.id, note.id));
-        await noteEvent(tx, eventContext(req), v, { type: 'note.deleted', before: note });
-      });
+      const reader = await campaignReader(db, req.params.id, currentUser(req));
+      await db.transaction((tx) =>
+        deleteNote(tx, eventContext(req), reader, req.params.noteId, req.params.id),
+      );
       reply.code(204);
     },
   );
@@ -331,10 +557,10 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => {
-      const v = await noteViewer(db, req.params.id, currentUser(req));
-      requireWriter(v);
+      const reader = await campaignReader(db, req.params.id, currentUser(req));
+      requireWriter(reader, req.params.id);
       if (!deps.signer || !base) throw storageUnavailable();
-      const key = imageKey(v.access.campaign.id, req.body.contentType);
+      const key = imageKey(req.params.id, req.body.contentType);
       let uploadUrl: string;
       try {
         uploadUrl = await deps.signer({

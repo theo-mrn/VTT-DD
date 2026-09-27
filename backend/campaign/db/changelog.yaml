@@ -18,5 +18,9 @@ databaseChangeLog:
   - include: { file: changes/0010-campaign-presentation.sql, relativeToChangelogFile: true }
   # Invitations nominatives (un ami invité rejoint sans code)
   - include: { file: changes/0011-campaign-invitees.sql, relativeToChangelogFile: true }
+  # Espace Notes : notes personnelles, icône, partage avec le MJ, épingles
+  - include: { file: changes/0012-personal-notes.sql, relativeToChangelogFile: true }
+  # Texte brut et recherche plein texte des notes
+  - include: { file: changes/0013-notes-search.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

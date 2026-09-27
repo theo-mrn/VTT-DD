@@ -3,6 +3,7 @@
  * La source de vérité est le changelog Liquibase (backend/campaign/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -13,6 +14,7 @@ import {
   pgSchema,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   unique,
@@ -489,24 +491,35 @@ export interface NoteSubQuest {
   status: QuestStatus;
 }
 
+/** Vecteur de recherche (généré par la base, jamais écrit par le service). */
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType: () => 'tsvector',
+});
+
 /**
- * Notes privées (`shared` faux : l'auteur seul) et partagées (`sharedWith` null :
- * tous les membres ; sinon les joueurs de ces personnages). Voir docs/api-notes.md.
+ * Notes : personnelles (`campaignId` null, l'auteur seul), ou d'une campagne,
+ * privées (`shared` faux : l'auteur seul) ou partagées (`sharedWith` null :
+ * tous les membres ; sinon les joueurs de ces personnages, et les MJ si
+ * `sharedWithGm`). Voir docs/api-notes.md.
  */
 export const notes = campaignSchema.table(
   'notes',
   {
     id: uuid('id').primaryKey(),
-    campaignId: uuid('campaign_id')
-      .notNull()
-      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    /** Null : note personnelle, hors campagne. */
+    campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }),
     ownerUserId: uuid('owner_user_id').notNull(),
     /** Personnage incarné par l'auteur quand il l'a écrite. */
     characterId: uuid('character_id'),
     shared: boolean('shared').notNull().default(false),
     sharedWith: uuid('shared_with').array(),
+    /** Partagée aussi avec les MJ de la campagne (sharedWith vide : avec eux seulement). */
+    sharedWithGm: boolean('shared_with_gm').notNull().default(false),
     title: text('title').notNull().default(''),
+    /** HTML assaini par le service (modules/notes/html.ts). */
     content: text('content').notNull().default(''),
+    /** Un emoji ; null : celui du type. */
+    icon: text('icon'),
     type: text('type').$type<NoteType>().notNull().default('other'),
     tags: jsonb('tags').$type<NoteTag[]>().notNull().default([]),
     imageUrl: text('image_url'),
@@ -517,9 +530,36 @@ export const notes = campaignSchema.table(
     questType: text('quest_type').$type<QuestType | null>(),
     questStatus: text('quest_status').$type<QuestStatus | null>(),
     subQuests: jsonb('sub_quests').$type<NoteSubQuest[]>().notNull().default([]),
+    /** Texte brut de `content` (recherche, extraits). */
+    plainText: text('plain_text').notNull().default(''),
+    /** Aperçu des listes : texte sans les intertitres. */
+    preview: text('preview').notNull().default(''),
+    /** Forme de recherche (minuscules, sans accents) du titre, des étiquettes et du texte. */
+    searchText: text('search_text').notNull().default(''),
+    /** Version de l'assainisseur qui a écrit `content` (0 : importée, à réassainir). */
+    sanitizerVersion: smallint('sanitizer_version').notNull().default(0),
+    search: tsvector('search').generatedAlwaysAs(
+      sql`to_tsvector('french', search_text) || to_tsvector('simple', search_text)`,
+    ),
     version: integer('version').notNull().default(1),
     createdAt: timestampTz('created_at').notNull().defaultNow(),
     updatedAt: timestampTz('updated_at').notNull().defaultNow(),
   },
-  (t) => [index('notes_owner').on(t.campaignId, t.ownerUserId)],
+  (t) => [
+    index('notes_owner').on(t.campaignId, t.ownerUserId),
+    index('notes_author').on(t.ownerUserId),
+  ],
+);
+
+/** Épingles : préférence de chaque lecteur, sans effet pour les autres. */
+export const notePins = campaignSchema.table(
+  'note_pins',
+  {
+    userId: uuid('user_id').notNull(),
+    noteId: uuid('note_id')
+      .notNull()
+      .references(() => notes.id, { onDelete: 'cascade' }),
+    pinnedAt: timestampTz('pinned_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.noteId] }), index('note_pins_note').on(t.noteId)],
 );
