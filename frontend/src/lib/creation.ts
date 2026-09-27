@@ -127,7 +127,9 @@ export function champsLisibles(
       if (cible) r.push({ nom: c.nom, valeur: cible.nom });
     } else if (typeof v === 'boolean') {
       if (v) r.push({ nom: c.nom, valeur: 'oui' });
-    } else r.push({ nom: c.nom, valeur: String(v) });
+    } else if (c.type === 'choix')
+      r.push({ nom: c.nom, valeur: c.options.find((o) => o.valeur === v)?.nom ?? String(v) });
+    else r.push({ nom: c.nom, valeur: String(v) });
   }
   return r;
 }
