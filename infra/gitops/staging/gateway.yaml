@@ -19,8 +19,12 @@ env:
   UPSTREAM_DICE_URL: http://dice.vtt-staging.svc
   # Paiements Stripe ; /v1/billing/webhook passe sans jeton (signature vérifiée par billing)
   UPSTREAM_BILLING_URL: http://billing.vtt-staging.svc
+  # Temps réel : WebSocket Socket.IO (/v1/realtime/socket.io), jeton vérifié par realtime
+  UPSTREAM_REALTIME_URL: http://realtime.vtt-staging.svc
 ingress:
   enabled: true
+  # Connexions WebSocket longues (realtime)
+  websocket: true
   host: api.staging.yner.fr
 networkPolicy:
   enabled: true
