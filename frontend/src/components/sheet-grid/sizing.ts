@@ -137,3 +137,14 @@ export function sizeFor(ctx: ContexteFiche): SizeOf {
 
 export const minSizeOf: MinSizeOf = (block: GridBlock): BlockSize =>
   block.widget ? blockDefinition(block.widget.type).minSize : { w: 3, h: 2 };
+
+export type HeightMode = 'auto' | 'fixed';
+
+/**
+ * Hauteur d'un bloc : `auto` suit son contenu mesuré (pas de poignée verticale), `fixed`
+ * garde la hauteur réglée et fait défiler le contenu. Choix du bloc, sinon celui de son type.
+ */
+export function heightModeOf(block: GridBlock): HeightMode {
+  if (!block.widget) return 'auto';
+  return blockDefinition(block.widget.type).defaultHeight ?? 'auto';
+}

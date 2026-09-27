@@ -9,6 +9,7 @@ import { GripVertical, RotateCw, TriangleAlert, X } from 'lucide-react';
 import {
   Component,
   Suspense,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -22,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { GridBlock } from './model';
+import type { HeightMode } from './sizing';
 
 class BlockBoundary extends Component<
   { children: ReactNode; title: string; resetKey: string },
@@ -132,6 +134,8 @@ export function BlockFrame({
   ctx,
   editing,
   empty,
+  heightMode,
+  onMeasure,
   onRemove,
 }: {
   block: GridBlock;
@@ -139,8 +143,30 @@ export function BlockFrame({
   editing: boolean;
   /** Le bloc sait qu'il n'a rien à montrer (caché en lecture, montré en personnalisation). */
   empty: boolean;
+  /**
+   * `auto` : le contenu garde sa hauteur naturelle, mesurée et remontée par `onMeasure` (la
+   * grille en tire la hauteur de la case) ; `fixed` : il remplit la case et défile.
+   */
+  heightMode: HeightMode;
+  onMeasure: (px: number) => void;
   onRemove: () => void;
 }) {
+  const auto = heightMode === 'auto';
+  // Hauteur naturelle du contenu : elle ne dépend pas de la case (pas de h-full), donc la
+  // mesure ne boucle pas
+  const mesure = useRef<HTMLDivElement>(null);
+  const onMeasureRef = useRef(onMeasure);
+  useEffect(() => {
+    onMeasureRef.current = onMeasure;
+  }, [onMeasure]);
+  useLayoutEffect(() => {
+    const el = mesure.current;
+    if (!auto || !el) return;
+    const obs = new ResizeObserver(() => onMeasureRef.current(el.offsetHeight));
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [auto]);
+
   const definition = block.widget
     ? (blockDefinition(block.widget.type as WidgetType) as SheetBlockDefinition)
     : null;
@@ -167,7 +193,7 @@ export function BlockFrame({
         title={titre}
         resetKey={`${ctx.personnage.id}:${block.id}:${ctx.fiche.etat.systeme.version}`}
       >
-        <Suspense fallback={<Skeleton className="h-full rounded-2xl" />}>
+        <Suspense fallback={<Skeleton className="h-full min-h-24 rounded-2xl" />}>
           <BlockContent
             block={block}
             definition={definition}
@@ -180,7 +206,11 @@ export function BlockFrame({
 
   return (
     <div className="relative h-full">
-      <div className={cn('h-full', editing && 'pointer-events-none select-none')} inert={editing}>
+      <div
+        ref={mesure}
+        className={cn(!auto && 'h-full', editing && 'pointer-events-none select-none')}
+        inert={editing}
+      >
         {contenu}
       </div>
       {editing && (

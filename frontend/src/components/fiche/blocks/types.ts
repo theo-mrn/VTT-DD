@@ -35,5 +35,10 @@ export interface SheetBlockDefinition<T extends WidgetType = WidgetType> {
   description: string;
   defaultSize: BlockSize;
   minSize: BlockSize;
+  /**
+   * Hauteur par défaut dans la grille : `auto` (défaut) suit le contenu, `fixed` garde la
+   * hauteur réglée au coin et fait défiler le contenu (blocs volumineux : arbre…).
+   */
+  defaultHeight?: 'auto' | 'fixed';
   Component: ComponentType<SheetBlockProps<T>>;
 }

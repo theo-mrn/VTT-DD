@@ -26,5 +26,6 @@ export const treeBlock: SheetBlockDefinition<'arbres'> = {
   description: 'Voies ou arbres de talents du système : rangs, achats et remboursements.',
   defaultSize: { w: 12, h: 10 },
   minSize: { w: 4, h: 6 },
+  defaultHeight: 'fixed',
   Component: TreeBlock,
 };

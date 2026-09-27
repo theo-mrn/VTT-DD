@@ -47,6 +47,7 @@ import {
   breakpointFor,
   cleanItems,
   gridBlock,
+  heightUnits,
   newBlockId,
   pack,
   scaleMin,
@@ -56,7 +57,7 @@ import {
   type GridLayouts,
   type GridState,
 } from './model';
-import { isBlockEmpty, minSizeOf, sizeFor } from './sizing';
+import { heightModeOf, isBlockEmpty, minSizeOf, sizeFor } from './sizing';
 import './sheet-grid.css';
 
 /** Délai avant d'enregistrer une série de changements (déplacements successifs). */
@@ -88,6 +89,8 @@ function auClavier(
   agrandir: boolean,
   cols: number,
   min: { w: number; h: number },
+  /** Hauteur suivie du contenu : seule la largeur se règle. */
+  hauteurAuto: boolean,
 ): SheetLayoutItem[] | null {
   const it = items.find((x) => x.i === id);
   if (!it) return null;
@@ -95,6 +98,7 @@ function auClavier(
   let suivant = { ...it };
   let reste = autres;
   if (agrandir) {
+    if (hauteurAuto && (touche === 'ArrowDown' || touche === 'ArrowUp')) return null;
     if (touche === 'ArrowRight') suivant.w = Math.min(cols - it.x, it.w + 1);
     if (touche === 'ArrowLeft') suivant.w = Math.max(min.w, it.w - 1);
     if (touche === 'ArrowDown') suivant.h = Math.min(200, it.h + 1);
@@ -254,6 +258,17 @@ export function SheetGrid({
     () => (editing ? etat.blocks : etat.blocks.filter((b) => b.widget && !vides.has(b.id))),
     [editing, etat.blocks, vides],
   );
+  const modes = useMemo(
+    () => new Map(etat.blocks.map((b) => [b.id, heightModeOf(b)])),
+    [etat.blocks],
+  );
+  /** Hauteur (rangées) mesurée du contenu des blocs en hauteur automatique. */
+  const [mesures, setMesures] = useState<Record<string, number>>({});
+  const mesurer = useCallback((id: string, px: number) => {
+    if (px <= 0) return;
+    const h = heightUnits(px);
+    setMesures((m) => (m[id] === h ? m : { ...m, [id]: h }));
+  }, []);
   const layouts = useMemo(() => {
     const ids = new Set(visibles.map((b) => b.id));
     const parId = new Map(etat.blocks.map((b) => [b.id, b]));
@@ -263,11 +278,28 @@ export function SheetGrid({
         .filter((it) => ids.has(it.i))
         .map((it) => {
           const min = scaleMin(minSizeOf(parId.get(it.i)!), cle);
-          return { ...it, minW: Math.min(min.w, it.w), minH: Math.min(min.h, it.h) };
+          if (modes.get(it.i) === 'auto') {
+            // La hauteur suit le contenu ; la compaction verticale remonte les blocs du dessous
+            const h = mesures[it.i] ?? it.h;
+            return {
+              ...it,
+              h,
+              minW: Math.min(min.w, it.w),
+              minH: h,
+              maxH: h,
+              resizeHandles: ['e'],
+            } satisfies Layout;
+          }
+          return {
+            ...it,
+            minW: Math.min(min.w, it.w),
+            minH: Math.min(min.h, it.h),
+            resizeHandles: ['se'],
+          } satisfies Layout;
         });
     }
     return r;
-  }, [etat.layouts, etat.blocks, visibles]);
+  }, [etat.layouts, etat.blocks, visibles, modes, mesures]);
 
   // ─── Changements ───────────────────────────────────────────────────────────
   const appliquerPositions = useCallback(
@@ -362,13 +394,15 @@ export function SheetGrid({
       e.preventDefault();
       const bloc = brouillon.blocks.find((b) => b.id === id);
       if (!bloc) return;
+      // Positions affichées : hauteurs mesurées des blocs automatiques comprises
       const items = auClavier(
-        brouillon.layouts[bp],
+        cleanItems(layouts[bp] as SheetLayoutItem[]),
         id,
         e.key,
         e.shiftKey,
         COLUMNS[bp],
         scaleMin(minSizeOf(bloc), bp),
+        modes.get(id) === 'auto',
       );
       if (!items || memePositions(items, brouillon.layouts[bp])) return;
       appliquerPositions(items);
@@ -379,7 +413,7 @@ export function SheetGrid({
           : `Position : colonne ${it.x + 1}, rangée ${it.y + 1}.`,
       );
     },
-    [brouillon, bp, retirer, appliquerPositions],
+    [brouillon, bp, retirer, appliquerPositions, modes, layouts],
   );
 
   const [selecteur, setSelecteur] = useState(false);
@@ -400,7 +434,7 @@ export function SheetGrid({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Personnalisation</p>
             <p className="hidden text-xs text-muted-foreground md:block">
-              Glissez un bloc pour le déplacer, tirez son coin pour le redimensionner. Au clavier :{' '}
+              Glissez un bloc pour le déplacer, tirez son bord pour changer sa largeur. Au clavier :{' '}
               <Kbd>←↑→↓</Kbd> déplace, <Kbd>Maj</Kbd>+<Kbd>←↑→↓</Kbd> redimensionne,{' '}
               <Kbd>Suppr</Kbd> retire.
             </p>
@@ -478,6 +512,8 @@ export function SheetGrid({
                     ctx={ctx}
                     editing={editing}
                     empty={vides.has(b.id)}
+                    heightMode={modes.get(b.id) ?? 'auto'}
+                    onMeasure={(px) => mesurer(b.id, px)}
                     onRemove={() => retirer(b.id)}
                   />
                 </div>
