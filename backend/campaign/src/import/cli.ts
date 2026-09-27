@@ -19,6 +19,8 @@
  *
  * Sous-commande `maps` : import des cartes, une fois les campagnes importées
  * (voir src/import/maps/cli.ts ; simulation par défaut, --importer pour écrire).
+ * Sous-commande `notes` : import des notes (Notes, SharedNotes), une fois les
+ * campagnes importées (voir src/import/notes/cli.ts ; même principe).
  */
 import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,6 +45,10 @@ import { imageRehoster, isFirebaseStorage } from './images.js';
 
 if (process.argv[2] === 'maps') {
   await import('./maps/cli.js');
+  process.exit();
+}
+if (process.argv[2] === 'notes') {
+  await import('./notes/cli.js');
   process.exit();
 }
 
