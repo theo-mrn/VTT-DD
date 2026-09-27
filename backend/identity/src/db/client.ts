@@ -8,13 +8,16 @@ export type Db = NodePgDatabase<typeof schema>;
  * Connexion du service, avec le rôle identity_svc (données uniquement).
  * Le rôle identity_owner n'est jamais utilisé ici : il est réservé à Liquibase.
  */
-export function createDb(databaseUrl: string): { db: Db; pool: pg.Pool } {
+export function createDb(
+  databaseUrl: string,
+  opts: { max?: number; applicationName?: string } = {},
+): { db: Db; pool: pg.Pool } {
   const pool = new pg.Pool({
     connectionString: databaseUrl,
-    max: 10,
+    max: opts.max ?? 10,
     // Une requête bloquée ne doit pas retenir la connexion indéfiniment
     statement_timeout: 5_000,
-    application_name: 'identity',
+    application_name: opts.applicationName ?? 'identity',
   });
   return { db: drizzle(pool, { schema }), pool };
 }
