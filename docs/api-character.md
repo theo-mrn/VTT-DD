@@ -104,7 +104,7 @@ Un bloc est un widget de la présentation (`type`, `titre` → `title`, ses autr
 
 - texte, choix, booléen et ressource, à tout moment ;
 - un attribut de base pendant la création ; ensuite, selon sa `saisie` dans le système :
-  - `jeu` (crédits, bourse) : propriétaire ou MJ ;
+  - `jeu` (crédits) : propriétaire ou MJ ;
   - `mj` (XP gagnée, niveau, jets de dés de vie) : MJ seul. Le propriétaire reçoit **403** `saisie_reservee_mj`, sauf s'il mène lui-même une salle où le personnage est engagé ;
   - `creation` (défaut : caractéristiques) : plus personne, **422** (l'attribut s'achète).
 

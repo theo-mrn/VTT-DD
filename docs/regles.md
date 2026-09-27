@@ -59,7 +59,7 @@ Un système déclare ses **types d'entité** (personnage, PNJ, véhicule, groupe
 
 Chaque attribut porte aussi son libellé, son groupe d'affichage, sa visibilité (tous ou MJ seul), sa valeur par défaut, et sa **formule de modificateur** s'il en a une (propre à l'attribut ou commune à tout le système).
 
-Un attribut de base déclare aussi qui le **saisit** une fois la création terminée (`saisie`, voir la référence rapide) : personne (il s'achète), le joueur ou le MJ (crédits, bourse), ou le MJ seul (XP gagnée, niveau).
+Un attribut de base déclare aussi qui le **saisit** une fois la création terminée (`saisie`, voir la référence rapide) : personne (il s'achète), le joueur ou le MJ (crédits), ou le MJ seul (XP gagnée, niveau).
 
 ### 3. Catalogues
 
@@ -277,6 +277,18 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
 - **Exemplaires** : une sorte sans rangs déclarée `exemplaires: true` (armes, armures, Obligations) se possède plusieurs fois. Chaque possession est un exemplaire, avec son `actif`, ses `champs`, ses `effets` et sa durée, distingué par `exemplaire` : identifiant unique par entrée, absent pour le premier. Outils : `estExemplaire(p, entree, exemplaire?)` (absent désigne l'exemplaire sans identifiant), `nouvelExemplaire(possessions, entree)` (`2`, `3`…), `sourceExemplaire(p)` (`entree#id`). Une entrée à rangs n'a qu'une possession, dont les rangs s'additionnent.
 - **Quantités** : une sorte `quantites: true` (munitions, stimpacks, dagues D&D) porte `quantite` sur chaque possession (entier ≥ 1, absent : 1, `quantiteDe(p)`). `somme` la multiplie, `quantite("sorte")` l'additionne.
 - Don, tirage, achat et remboursement (`donnerEntree`, `retirerEntree`) ajoutent ou retirent une unité, ou un exemplaire si la sorte l'autorise.
+
+### Objets hors catalogue et catégories
+
+- **Champ `choix`** d'une sorte : valeur prise dans des `options` déclarées par le système (catégorie d'objet : potions, nourriture, bourse, autre). Lu comme un texte dans les formules.
+- **Nom propre d'un exemplaire** : la sorte désigne un champ `texte` par `nomExemplaire` (et `descriptionExemplaire`). Un exemplaire qui le renseigne s'affiche sous ce nom, dans l'inventaire comme dans les explications (`nomPossession`, `descriptionPossession`).
+- **Entrée `libre`** (« Objet personnalisé ») : entrée générique d'une sorte à exemplaires qui déclare `nomExemplaire`. Chaque exemplaire est un objet hors catalogue : son nom, sa description et sa catégorie sont ses champs propres, ses bonus ses effets propres. Le front la propose à part du catalogue.
+- Les pièces de monnaie d'un jeu sans monnaie dépensable (D&D) sont des objets comme les autres (catégorie « bourse »).
+
+### Tolérance des états
+
+Le calcul ignore sans erreur ce que le système ne connaît plus : valeur d'un attribut retiré, ligne de journal d'une monnaie ou d'un achat retirés (le solde ne compte que les monnaies existantes, un tel achat ne se rembourse plus). Une entrée inconnue est signalée dans `erreurs` et ignorée ; le service refuse seulement d'enregistrer un état qui en contient. La reprise de l'import (service character) nettoie ces restes.
+
 - **Saisie** d'un attribut de base (`saisie`, défaut `creation`) : pendant la création, le propriétaire saisit tout ; ensuite `jeu` = propriétaire ou MJ, `mj` = MJ seul, `creation` = plus personne (l'attribut s'achète). `refusSaisie(attribut, creation, { proprietaire, mj })` donne la raison d'un refus ; le service character la renvoie en 403 (réservé au MJ) ou 422.
 
 ### Présentation
@@ -287,10 +299,12 @@ Le fichier `presentation.yaml` de chaque système décrit :
 - l'apparence de chaque dé (skin, couleur, forme) ;
 - l'icône et la couleur de chaque symbole ;
 - le sens des jauges ;
-- les blocs de chaque fiche (`attributs`, `ressources`, `possessions`, `arbres`, `monnaies`, `details`, `actions`, `texte`) ;
+- les blocs de chaque fiche (`attributs`, `ressources`, `possessions`, `inventaire`, `competences`, `arbres`, `monnaies`, `details`, `actions`, `bonus`, `texte`) :
+  - `ressources` : en jauges (défaut) ou en chiffres (`affichage: valeur` : « PV / PV max », et d'autres attributs en valeur simple, comme la Défense) ;
+  - `inventaire` : source unique de l'équipement, toutes sortes d'objets réunies ; regroupé par sorte, ou par un champ (`groupeChamp`), ou par une liste de champs quand les sortes n'ont pas le même (`[attaque, categorie]` : pour chaque objet, le premier que déclare sa sorte, sinon sa sorte) ;
 - la géométrie des arbres, les images et les bibliothèques.
 
-Ce fichier est validé contre les règles au build. Le front n'y ajoute aucune valeur propre à un jeu.
+Ce fichier est validé contre les règles au build (`erreursWidget` pour chaque bloc). Le front n'y ajoute aucune valeur propre à un jeu, et marque indisponible un bloc enregistré dans une mise en page que le système ne permet plus (attribut retiré).
 
 ## Ce qui relève de l'état de partie (services campaign et character)
 
