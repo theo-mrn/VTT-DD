@@ -24,7 +24,7 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       styleChampBase,
-      'flex h-10 items-center justify-between gap-2 px-3 text-left data-[placeholder]:text-subtle [&>span]:truncate',
+      'flex h-10 cursor-pointer items-center justify-between gap-2 px-3 text-left hover:bg-surface-2 data-[state=open]:border-primary/60 data-[placeholder]:text-subtle [&>span]:truncate',
       className,
     )}
     {...props}
@@ -122,8 +122,9 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex cursor-default select-none items-center rounded-lg py-2 pl-2.5 pr-8 text-[13px] text-muted-foreground outline-none transition-colors',
-      'focus:bg-surface-3 focus:text-foreground data-[state=checked]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'relative flex cursor-pointer select-none items-center rounded-lg py-2 pl-2.5 pr-8 text-[13px] text-muted-foreground outline-none transition-colors duration-100',
+      'hover:bg-surface-3 hover:text-foreground focus:bg-surface-3 focus:text-foreground data-[highlighted]:bg-surface-3 data-[highlighted]:text-foreground',
+      'data-[state=checked]:bg-primary/10 data-[state=checked]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
     {...props}
