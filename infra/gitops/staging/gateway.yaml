@@ -21,6 +21,8 @@ env:
   UPSTREAM_BILLING_URL: http://billing.vtt-staging.svc
   # Temps réel : WebSocket Socket.IO (/v1/realtime/socket.io), jeton vérifié par realtime
   UPSTREAM_REALTIME_URL: http://realtime.vtt-staging.svc
+  # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash
+  UPSTREAM_HISTORY_URL: http://history.vtt-staging.svc
 ingress:
   enabled: true
   # Connexions WebSocket longues (realtime)
