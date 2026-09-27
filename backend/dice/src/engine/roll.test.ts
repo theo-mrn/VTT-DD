@@ -71,6 +71,47 @@ describe('rollNotation (comportement de l’ancienne app)', () => {
     expect(r.total).toBe(20);
   });
 
+  describe('clés nues réécrites par le moteur de règles (système du personnage)', () => {
+    const dnd = systeme('dnd-classic');
+    const sheet = {
+      CON: { value: 14, modifier: 2 },
+      DEX: { value: 8, modifier: -1 },
+      Contact: { value: 5 },
+      INIT: { value: 12 },
+      niveau: { value: 3 },
+    };
+
+    it('CON au modificateur, Contact et INIT à la valeur, comme le front', () => {
+      expect(rollNotation('1d20+CON', { sheet, system: dnd }, dice(12)).total).toBe(14);
+      expect(rollNotation('1d20+Contact', { sheet, system: dnd }, dice(12)).total).toBe(17);
+      expect(rollNotation('2d6+INIT', { sheet, system: dnd }, dice(3, 4)).total).toBe(19);
+    });
+
+    it('formule saisie conservée, détail avec les valeurs de la fiche', () => {
+      const r = rollNotation('1d6-CON+8', { sheet, system: dnd }, dice(5));
+      expect(r.notation).toBe('1d6-mod(@CON)+8');
+      expect(r.total).toBe(11);
+      expect(r.output).toBe('1d6-CON+8 = [5]-2+8 = 11');
+      const neg = rollNotation('1D20 + DEX + @DEX', { sheet, system: dnd }, dice(10));
+      expect(neg.output).toBe('1d20 + DEX + @DEX = [10] + (-1) + 8 = 17');
+    });
+
+    it('Contact n’est pas CON ; clé inconnue en erreur lisible', () => {
+      expect(rollNotation('Contact+CON', { sheet, system: dnd }, dice()).total).toBe(7);
+      expect(() => rollNotation('1d20+CONS', { sheet, system: dnd }, dice(1))).toThrowError(
+        expect.objectContaining({
+          code: 'invalid_notation',
+          detail: 'Notation invalide : « CONS » n’est pas un attribut du personnage (position 5)',
+        }),
+      );
+    });
+
+    it('fiche d’un autre système : variables de l’ancienne app', () => {
+      const other = { NIV: { value: 4 } };
+      expect(rollNotation('1d20+NIV', { sheet: other, system: dnd }, dice(1)).total).toBe(5);
+    });
+  });
+
   it('variable explicite (ancien champ variables) sans fiche', () => {
     expect(rollNotation('1d20+CON', { variables: { CON: 3 } }, dice(7)).total).toBe(10);
   });

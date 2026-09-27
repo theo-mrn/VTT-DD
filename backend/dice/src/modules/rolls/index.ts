@@ -40,7 +40,6 @@ import {
   MAX_NOTATION,
   rollNotation,
   rollPool,
-  sheetVariables,
   symbolPool,
   type Rolled,
 } from '../../engine/roll.js';
@@ -274,7 +273,7 @@ export const register: Module = async (app, deps) => {
         if (physical) replayed = notationGenerator(physical, random);
         rolled = rollNotation(
           notation!,
-          { variables: body.variables ?? sheetVariables(sheet?.values), sheet: sheet?.values },
+          { variables: body.variables, sheet: sheet?.values, system },
           replayed ?? random,
         );
       }

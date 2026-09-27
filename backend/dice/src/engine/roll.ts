@@ -3,9 +3,13 @@
  * (legacy/src/components/(dices)/dice-roller.tsx et app/api/roll-dice) :
  *
  *  - notation numérique `2d6+3`, `4d6kh3`, `2d20kl1`, `1d20!`, avec les
- *    variables du personnage écrites en nom nu (`1d20+FOR`, remplacées par le
- *    modificateur s'il existe, sinon la valeur) ou avec la syntaxe du moteur
- *    (`@FOR`, `mod(@DEX)`) ; le calcul passe par @vtt/rules (jamais d'eval) ;
+ *    attributs du personnage écrits en clé nue (`1d20+CON`, `2d6+INIT`) ou avec
+ *    la syntaxe du moteur (`@FOR`, `mod(@DEX)`). Les clés nues sont réécrites
+ *    par `normaliserFormuleJet` de @vtt/rules avec le système du personnage,
+ *    comme dans le front (`CON` → `mod(@CON)`, `INIT` → `@INIT`) ; sans système
+ *    connu ou avec des `variables` explicites (ancienne API), elles sont
+ *    remplacées comme dans l'ancienne app. Le calcul passe par @vtt/rules
+ *    (jamais d'eval) ;
  *  - dés à symboles du système, en notation `N<dé>` (`2aptitude 1difficulte`)
  *    ou en pool `[{ de, nombre }]`, résolus par `lancerSymboles`.
  *
@@ -22,6 +26,8 @@ import {
   ErreurEvaluation,
   evaluer,
   lancerSymboles,
+  normaliserFormuleJet,
+  termesAttributs,
   type EnvironnementTypes,
   type Generateur,
   type JetDes,
@@ -136,15 +142,56 @@ export function freeOutcome(dice: readonly DiceGroup[]): Outcome {
 }
 
 /**
- * Lance une notation numérique. `variables` : noms nus (`FOR`) ; `sheet` :
- * attributs lus par la syntaxe du moteur (`@FOR`, `mod(@DEX)`).
+ * Type d'entité d'une fiche : celui du système dont les attributs couvrent le
+ * plus de ses valeurs (la fiche de character ne le dit pas). `undefined` si
+ * aucune valeur n'y correspond (fiche d'un autre système).
+ */
+export function sheetEntity(system: SystemeCharge, sheet: SheetValues): string | undefined {
+  let best: { id: string; n: number } | undefined;
+  for (const [id, e] of system.entites) {
+    const n = Object.keys(sheet).filter((k) => e.attributs.has(k)).length;
+    if (n > 0 && (!best || n > best.n)) best = { id, n };
+  }
+  return best?.id;
+}
+
+/** Nombre lisible dans le détail : négatif entre parenthèses (`[12]+(-1)`). */
+const detailNumber = (n: number) => (n < 0 ? `(${n})` : String(n));
+
+/**
+ * Notation prête pour le moteur : clés nues réécrites par le moteur de règles
+ * (système et fiche connus), sinon par les variables de l'ancienne app.
+ */
+function engineNotation(
+  notation: string,
+  context: { variables?: Variables; sheet?: SheetValues; system?: SystemeCharge },
+): { processed: string; rules: boolean } {
+  const withDice = normalizeDice(notation);
+  const { variables, sheet, system } = context;
+  const entity = !variables && sheet && system ? sheetEntity(system, sheet) : undefined;
+  if (entity) {
+    const r = normaliserFormuleJet(system!, entity, withDice);
+    if (!r.ok)
+      throw invalidNotation(
+        `Notation invalide : ${r.erreur.message} (position ${r.erreur.position})`,
+      );
+    return { processed: r.formule, rules: true };
+  }
+  const vars = variables ?? sheetVariables(sheet);
+  return { processed: normalizeDice(applyVariables(notation, vars)), rules: false };
+}
+
+/**
+ * Lance une notation numérique. `variables` : noms nus de l'ancienne API ;
+ * `sheet` : valeurs de la fiche ; `system` : système du personnage, pour les
+ * clés nues (`1d20+CON`) réécrites comme dans le front.
  */
 export function rollNotation(
   notation: string,
-  context: { variables?: Variables; sheet?: SheetValues },
+  context: { variables?: Variables; sheet?: SheetValues; system?: SystemeCharge },
   generator: Generateur,
 ): Rolled {
-  const processed = normalizeDice(applyVariables(notation, context.variables ?? {}));
+  const { processed, rules } = engineNotation(notation, context);
   const sheet = context.sheet;
   const env: EnvironnementTypes = {
     attribut: (cle, entite) => {
@@ -180,14 +227,28 @@ export function rollNotation(
   }
   const dice = diceGroups(jets);
 
-  // Détail : chaque notation de dés remplacée par ses valeurs, de la fin vers le début
-  let detail = processed;
-  const byPosition = jets.map((j, i) => ({ pos: j.position, group: dice[i]! }));
-  for (const { pos, group } of byPosition.sort((a, b) => b.pos - a.pos)) {
-    DICE_TOKEN.lastIndex = pos;
-    const m = DICE_TOKEN.exec(detail);
-    if (m) detail = detail.slice(0, pos) + formatGroup(group) + detail.slice(pos + m[0].length);
+  // Détail : chaque notation de dés remplacée par ses valeurs et, pour une notation
+  // réécrite par le moteur, chaque attribut par sa valeur sur la fiche ; de la fin vers le début
+  const spans: { start: number; end: number; text: string }[] = [];
+  jets.forEach((j, i) => {
+    DICE_TOKEN.lastIndex = j.position;
+    const m = DICE_TOKEN.exec(processed);
+    if (m)
+      spans.push({ start: j.position, end: j.position + m[0].length, text: formatGroup(dice[i]!) });
+  });
+  if (rules && sheet) {
+    for (const t of termesAttributs(processed)) {
+      const v = sheet[t.cle];
+      const n = t.modificateur ? v?.modifier : v?.value;
+      if (typeof n === 'number') spans.push({ start: t.debut, end: t.fin, text: detailNumber(n) });
+    }
   }
+  let detail = processed;
+  for (const sp of spans.sort((a, b) => b.start - a.start))
+    detail = detail.slice(0, sp.start) + sp.text + detail.slice(sp.end);
+
+  // Formule affichée : telle que saisie (`1d20+CON`) quand le moteur l'a réécrite
+  const shown = rules ? normalizeDice(notation) : processed;
 
   return {
     notation: processed,
@@ -195,7 +256,7 @@ export function rollNotation(
     symbols: null,
     ...firstGroup(dice),
     total: Math.floor(valeur),
-    output: `${processed} = ${detail} = ${valeur}`,
+    output: `${shown} = ${detail} = ${valeur}`,
     symbolResult: null,
     outcome: freeOutcome(dice),
   };

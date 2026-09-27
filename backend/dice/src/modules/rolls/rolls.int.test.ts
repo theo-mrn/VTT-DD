@@ -132,19 +132,20 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
       ownerId: alice.id,
       name: 'Aria',
       avatarUrl: 'https://cdn.test/aria.png',
-      values: { FOR: { valeur: 16, modificateur: 3 }, NIV: { valeur: 4 } },
+      values: { FOR: { valeur: 16, modificateur: 3 }, niveau: { valeur: 4 } },
     });
     t.dice.force(10, 10);
     const r = await h.roll(alice, {
-      notation: '1d20+FOR+NIV + @FOR',
+      notation: '1d20+FOR+niveau + @FOR',
       campaignId,
       persoId: hero,
     });
-    // Notation saisie conservée ; détail après substitution (@FOR : valeur, FOR : modificateur)
+    // Notation saisie conservée ; clés nues réécrites par le moteur (FOR : modificateur,
+    // niveau : valeur) ; détail avec les valeurs de la fiche
     expect(r).toMatchObject({
       total: 33,
-      notation: '1d20+FOR+NIV + @FOR',
-      output: '1d20+3+4 + @FOR = [10]+3+4 + @FOR = 33',
+      notation: '1d20+FOR+niveau + @FOR',
+      output: '1d20+FOR+niveau + @FOR = [10]+3+4 + 16 = 33',
       userName: 'Aria',
       userAvatar: 'https://cdn.test/aria.png',
       persoId: hero,
@@ -163,6 +164,53 @@ describe.skipIf(!TEST_DATABASE_URL)('jets', () => {
     // Variables explicites (ancienne API) : sans personnage
     t.dice.force(5);
     expect((await h.roll(bob, { notation: '1d20+CON', variables: { CON: 2 } })).total).toBe(7);
+  });
+
+  it('clés nues du système (1d20+CON, 1d6-CON+8, 2d6+INIT), calculées comme le front', async () => {
+    const hero = t.services.character({
+      ownerId: alice.id,
+      name: 'Aria',
+      values: {
+        CON: { valeur: 14, modificateur: 2 },
+        Contact: { valeur: 5 },
+        INIT: { valeur: 12 },
+      },
+    });
+    t.dice.force(12);
+    let r = await h.roll(alice, { notation: '1d20+CON', campaignId, characterId: hero });
+    expect(r).toMatchObject({ total: 14, notation: '1d20+CON', output: '1d20+CON = [12]+2 = 14' });
+    t.dice.force(5);
+    r = await h.roll(alice, { notation: '1d6-CON+8', campaignId, characterId: hero });
+    expect(r).toMatchObject({
+      total: 11,
+      notation: '1d6-CON+8',
+      output: '1d6-CON+8 = [5]-2+8 = 11',
+    });
+    t.dice.force(3, 4);
+    r = await h.roll(alice, { notation: '2d6+INIT', campaignId, characterId: hero });
+    expect(r).toMatchObject({ total: 19, output: '2d6+INIT = [3, 4]+12 = 19' });
+    t.dice.force(10);
+    r = await h.roll(alice, { notation: '1d20+Contact', campaignId, characterId: hero });
+    expect(r.total).toBe(15);
+
+    // Faces des dés 3D rejouées avec une notation en clés nues
+    r = await h.roll(alice, {
+      notation: '1d20+CON',
+      campaignId,
+      characterId: hero,
+      physicalResults: [{ type: 'd20', value: 17 }],
+    });
+    expect(r).toMatchObject({ total: 19, source: '3d' });
+
+    const res = await h.request(alice, 'POST', '/v1/dice/rolls', {
+      notation: '1d20+CONS',
+      campaignId,
+      characterId: hero,
+    });
+    expect([res.statusCode, res.json().code]).toEqual([400, 'invalid_notation']);
+    expect(res.json().detail).toBe(
+      'Notation invalide : « CONS » n’est pas un attribut du personnage (position 5)',
+    );
   });
 
   it('sans personnage indiqué : celui que l’appelant incarne, comme l’ancienne app', async () => {
