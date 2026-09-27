@@ -12,7 +12,7 @@ import {
   Lock,
   Sparkles,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { CarteChoix } from '@/components/commun/carte-choix';
@@ -28,7 +28,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAmis } from '@/lib/amis';
 import { messageErreur } from '@/lib/api';
 import { JOUEURS_MAX, useCreerCampagne, type NouvelleCampagne } from '@/lib/campagnes';
-import { useProfil } from '@/lib/session';
+import { onboardingFini, onboardingTermine, RETOUR_ONBOARDING } from '@/lib/onboarding';
+import { useProfil, useSession } from '@/lib/session';
 import { useSystemes } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { CarteCampagne } from './carte-campagne';
@@ -48,6 +49,9 @@ const ETIQUETTES_MAX = 4;
 export function AssistantCampagne() {
   const profil = useProfil();
   const router = useRouter();
+  const { modifierPreferences } = useSession();
+  // Lancé depuis l'onboarding : quitter y ramène, créer la campagne le termine
+  const depuisOnboarding = useSearchParams().get('depuis') === 'bienvenue';
   const creer = useCreerCampagne();
   const [etape, setEtape] = useState(0);
   const [sens, setSens] = useState(1);
@@ -77,6 +81,8 @@ export function AssistantCampagne() {
   async function terminer() {
     try {
       const c = await creer.mutateAsync({ ...b, name: b.name.trim(), pitch: b.pitch.trim() });
+      // Avant la navigation : sinon le cadre de l'app renverrait vers /bienvenue
+      if (!onboardingTermine(profil)) await modifierPreferences({ onboarding: onboardingFini() });
       router.replace(`/campagnes/${c.id}?bienvenue=1`);
     } catch (err) {
       toast.error(messageErreur(err));
@@ -115,7 +121,7 @@ export function AssistantCampagne() {
             onAller={(i) => (i < etape || valide.slice(0, i).every(Boolean)) && aller(i)}
           />
         }
-        quitter={{ href: '/campagnes' }}
+        quitter={{ href: depuisOnboarding ? RETOUR_ONBOARDING : '/campagnes' }}
       />
       <div className="relative flex-1">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-halo" />

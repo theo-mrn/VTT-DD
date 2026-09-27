@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
 import { LONGUEUR_CODE, useRejoindreCampagne } from '@/lib/campagnes';
-import type { Onboarding } from '@/lib/onboarding';
+import { onboardingFini } from '@/lib/onboarding';
 import { modifierMonProfil } from '@/lib/profil';
 import { cheminInterne } from '@/lib/redirection';
 import { useProfil, useSession } from '@/lib/session';
@@ -30,9 +30,14 @@ export function ParcoursOnboarding() {
   const profil = useProfil();
   const { modifierPreferences, remplacerProfil } = useSession();
   const router = useRouter();
-  const suite = cheminInterne(useSearchParams().get('suite'), '/accueil');
+  const params = useSearchParams();
+  const suite = cheminInterne(params.get('suite'), '/accueil');
 
-  const [etape, setEtape] = useState(0);
+  // L'étape est dans l'URL : un retour depuis un assistant (campagne…) retombe au même endroit
+  const [etape, setEtape] = useState(() => {
+    const e = Number(params.get('etape'));
+    return Number.isInteger(e) && e >= 0 && e < ETAPES.length ? e : 0;
+  });
   const [sens, setSens] = useState(1);
   const [nom, setNom] = useState(profil.name);
   const [bio, setBio] = useState(profil.bio ?? '');
@@ -41,6 +46,9 @@ export function ParcoursOnboarding() {
   function aller(i: number) {
     setSens(i > etape ? 1 : -1);
     setEtape(i);
+    const p = new URLSearchParams(params);
+    p.set('etape', String(i));
+    router.replace(`/bienvenue?${p}`, { scroll: false });
   }
 
   async function enregistrerProfil() {
@@ -61,8 +69,7 @@ export function ParcoursOnboarding() {
   async function terminer(destination: string) {
     setEnvoi(true);
     try {
-      const onboarding: Onboarding = { version: 2, termineLe: new Date().toISOString() };
-      await modifierPreferences({ onboarding });
+      await modifierPreferences({ onboarding: onboardingFini() });
       router.replace(destination);
     } catch (err) {
       toast.error(messageErreur(err));
@@ -289,6 +296,7 @@ function EtapeDepart({
   envoi: boolean;
   onTerminer: (destination: string) => Promise<void>;
 }) {
+  const router = useRouter();
   const [code, setCode] = useState('');
   const rejoindre = useRejoindreCampagne();
 
@@ -362,7 +370,8 @@ function EtapeDepart({
       <button
         type="button"
         disabled={envoi}
-        onClick={() => void onTerminer('/campagnes/nouvelle')}
+        // L'onboarding n'est terminé qu'à la création : quitter l'assistant ramène ici
+        onClick={() => router.push('/campagnes/nouvelle?depuis=bienvenue')}
         className="group mt-3 flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong disabled:opacity-60"
       >
         <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-primary">

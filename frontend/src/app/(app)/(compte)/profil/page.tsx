@@ -1,6 +1,7 @@
 'use client';
 
 import { Camera, Check, Clock, Crown, ImagePlus, Lock, Mail, CalendarDays } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   AvatarJoueur,
@@ -16,6 +17,7 @@ import {
 } from '@/components/compte/elements';
 import { useEnvoiImage } from '@/components/compte/envoi-image';
 import { styleChamp, styleLabel } from '@/components/compte/styles';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -556,6 +558,17 @@ function CartePreferences({ profil }: { profil: Profil }) {
           label="Notifications par e-mail"
           description="Rappels de session et nouvelles de vos campagnes."
         />
+        <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+          <div>
+            <p className="text-sm font-medium">Accueil de l'application</p>
+            <p className="text-[13px] text-muted-foreground">
+              Revoir les premiers pas : profil, puis rejoindre ou créer une campagne.
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" asChild>
+            <Link href="/bienvenue">Revoir l'accueil</Link>
+          </Button>
+        </div>
         {erreur && <Message>{erreur}</Message>}
       </div>
     </Carte>
