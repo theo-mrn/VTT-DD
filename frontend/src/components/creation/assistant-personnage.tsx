@@ -272,7 +272,8 @@ export function AssistantPersonnage({
     try {
       const p = await ops.terminer();
       toast.success(`${p.name} est prêt pour l'aventure !`);
-      router.replace(`/campagnes/${campagneId}`);
+      // Le héros est déjà incarné (création dans la campagne) : direction la table
+      router.replace(`/campagnes/${campagneId}/table`);
     } catch (err) {
       toast.error(messageErreur(err));
       setEnvoi(false);

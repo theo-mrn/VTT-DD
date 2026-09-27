@@ -179,6 +179,8 @@ function Banniere({
   const nomSysteme = useNomSysteme(c.system);
   const [reglages, setReglages] = useState(false);
   const [sortie, setSortie] = useState<'supprimer' | 'quitter' | null>(null);
+  // Un joueur entre à la table avec son héros ; le MJ et les spectateurs, directement
+  const aTable = role === 'gm' || role === 'spectator' || Boolean(c.playedCharacterId);
 
   return (
     <section className="relative isolate overflow-hidden border-b border-border">
@@ -217,16 +219,29 @@ function Banniere({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="lg" asChild>
-            <Link href={`/campagnes/${c.id}/personnage`}>
-              {role === 'gm' ? <Crown /> : monPerso ? <Play /> : <UserRound />}
-              {role === 'gm'
-                ? 'Entrer en MJ'
-                : monPerso
-                  ? `Jouer ${monPerso.name}`
-                  : 'Choisir mon héros'}
-            </Link>
-          </Button>
+          {aTable ? (
+            <Button size="lg" asChild className="shadow-glow">
+              <Link href={`/campagnes/${c.id}/table`}>
+                <Play />
+                Entrer à la table
+              </Link>
+            </Button>
+          ) : (
+            <Button size="lg" asChild className="shadow-glow">
+              <Link href={`/campagnes/${c.id}/personnage`}>
+                <UserRound />
+                Choisir mon héros
+              </Link>
+            </Button>
+          )}
+          {aTable && role !== 'spectator' && (
+            <Button size="lg" variant="secondary" asChild>
+              <Link href={`/campagnes/${c.id}/personnage`}>
+                {role === 'gm' ? <Crown /> : <UserRound />}
+                {monPerso ? `Changer de héros` : role === 'gm' ? 'Jouer un héros' : 'Mon héros'}
+              </Link>
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

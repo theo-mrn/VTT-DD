@@ -91,7 +91,7 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
       // Un héros libre est d'abord engagé dans la campagne, puis incarné
       await jouerPersonnage.mutateAsync(p);
       toast.success(p ? `Vous incarnez ${p.name}` : 'Vous entrez en maître du jeu');
-      router.push(`/campagnes/${campagneId}`);
+      router.push(`/campagnes/${campagneId}/table`);
     } catch (err) {
       toast.error(messageErreur(err));
       setEnvoi(false);
