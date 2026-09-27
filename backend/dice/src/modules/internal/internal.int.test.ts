@@ -165,6 +165,53 @@ describe.skipIf(!TEST_DATABASE_URL)('route interne /internal/rolls', () => {
     expect(system).toHaveLength(2);
   });
 
+  it('skin acheté (billing) : secret exigé, ajouté une fois, événement, skin inconnu refusé', async () => {
+    const grant = (
+      skinId: string,
+      source: unknown = 'purchase',
+      headers: Record<string, string> = internal,
+    ) =>
+      t.app.inject({
+        method: 'PUT',
+        url: `/internal/users/${alice.id}/inventory/${skinId}`,
+        headers,
+        payload: { source },
+      });
+    const granted = async () =>
+      (
+        await t
+          .db!.select()
+          .from(outbox)
+          .where(
+            and(
+              eq(sql`${outbox.envelope}->>'type'`, 'dice.skin_granted'),
+              eq(sql`${outbox.envelope}->'payload'->>'userId'`, alice.id),
+            ),
+          )
+      ).map((e) => (e.envelope as { payload: Record<string, unknown> }).payload);
+
+    expect((await grant('bismuth', 'purchase', {})).statusCode).toBe(401);
+    expect((await grant('bismuth', 'vol')).statusCode).toBe(400);
+    expect((await grant('Pas Un Skin')).statusCode).toBe(400);
+    const unknown = await grant('skin_inexistant');
+    expect([unknown.statusCode, unknown.json().code]).toEqual([422, 'unknown_skin']);
+
+    let res = await grant('bismuth');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ allSkins: false });
+    expect(res.json().inventory).toContain('bismuth');
+    // Le skin acheté peut être équipé
+    await h.ok(alice, 'PATCH', '/v1/dice/me/preferences', { skinId: 'bismuth' });
+
+    // Rejoué (webhook Stripe relivré) : aucune écriture, aucun nouvel événement
+    res = await grant('bismuth');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ skinId: 'bismuth' });
+    // Skin gratuit : toujours possédé, rien à écrire
+    expect((await grant('gold')).statusCode).toBe(200);
+    expect(await granted()).toEqual([{ userId: alice.id, skinId: 'bismuth', source: 'purchase' }]);
+  });
+
   it('sans INTERNAL_API_SECRET configuré, la route n’existe pas', async () => {
     const bare = await testApp({ INTERNAL_API_SECRET: '' });
     try {

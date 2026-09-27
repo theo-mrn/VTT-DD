@@ -12,8 +12,12 @@
  *       campagne indiquée ; sans campagne, le jet est personnel.
  *
  *   PUT /internal/users/:userId/all-skins   { allSkins }
- *       accès à tous les skins (ancien premium) : destiné au service billing,
- *       qui le pilotera selon les événements d'abonnement. Idempotent.
+ *       accès à tous les skins (ancien premium) : piloté par le service
+ *       billing selon l'abonnement premium. Idempotent.
+ *
+ *   PUT /internal/users/:userId/inventory/:skinId   { source }
+ *       ajoute un skin à l'inventaire (achat Stripe confirmé par billing,
+ *       plus tard cadeau ou défi). Idempotent ; skin inconnu : 422 unknown_skin.
  */
 import { HttpError } from '@vtt/platform';
 import type { FastifyContextConfig } from 'fastify';
@@ -23,6 +27,7 @@ import type { Module } from '../../deps.js';
 import { requireInternalSecret } from '../../internal/secret.js';
 import { firstGroup, formatDice, formatSymbolResult } from '../../engine/roll.js';
 import { Preferences, setAllSkins } from '../preferences/index.js';
+import { grantSkin } from './inventory.js';
 import { memberRole } from '../rolls/index.js';
 import { actorRole, insertRoll, type Viewer } from '../rolls/repository.js';
 import {
@@ -155,5 +160,24 @@ export const register: Module = async (app, deps) => {
       },
     },
     async (req) => setAllSkins(db, eventContext(req), req.params.userId, req.body.allSkins),
+  );
+
+  r.put(
+    '/internal/users/:userId/inventory/:skinId',
+    {
+      preValidation: requireInternalSecret(secret),
+      config: { rateLimit: { max: 6000, timeWindow: '1 minute' } } as FastifyContextConfig,
+      schema: {
+        hide: true,
+        params: z.object({
+          userId: UserId,
+          skinId: z.string().regex(/^[a-z0-9_]{1,64}$/, 'Identifiant de skin invalide'),
+        }),
+        body: z.object({ source: z.enum(['purchase', 'gift', 'challenge']) }),
+        response: { 200: Preferences },
+      },
+    },
+    async (req) =>
+      grantSkin(db, eventContext(req), req.params.userId, req.params.skinId, req.body.source),
   );
 };
