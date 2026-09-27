@@ -1,8 +1,9 @@
 /**
  * Systèmes de jeu connus de campaign : les systèmes de référence de
- * @vtt/systemes. campaign n'en lit que l'identité (id, version, nom) et la
- * déclaration d'initiative (action à lancer, clés de tri) : les règles
- * elles-mêmes sont exécutées par character.
+ * @vtt/systemes. campaign n'en lit que l'identité (id, version, nom), la
+ * déclaration d'initiative (action à lancer, clés de tri) et les attributs
+ * jetables (réglages du lanceur) : les règles elles-mêmes sont exécutées par
+ * character.
  */
 import { readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -15,6 +16,11 @@ export interface CampaignSystem {
   name: string;
   /** Action d'initiative et clés de tri (ordre décroissant), si le système en déclare. */
   initiative?: { action: string; sortKeys: string[] };
+  /**
+   * Attributs qui servent aux jets libres (déclarent `jet`), tous types d'entité confondus :
+   * les seuls que le MJ peut retirer du lanceur de dés.
+   */
+  rollAttributes?: string[];
 }
 
 export interface Catalog {
@@ -47,11 +53,18 @@ export function referenceCatalog(ids: string[] = referenceIds()): Catalog {
           version: string;
           nom: string;
           initiative?: { action: string; tri: string[] };
+          entites?: { attributs?: { cle: string; jet?: unknown }[] }[];
         };
+        const rollAttributes = new Set(
+          (doc.entites ?? []).flatMap((e) =>
+            (e.attributs ?? []).filter((a) => a.jet).map((a) => a.cle),
+          ),
+        );
         s = {
           id: doc.id,
           version: doc.version,
           name: doc.nom,
+          rollAttributes: [...rollAttributes],
           ...(doc.initiative
             ? { initiative: { action: doc.initiative.action, sortKeys: [...doc.initiative.tri] } }
             : {}),

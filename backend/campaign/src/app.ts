@@ -14,6 +14,7 @@ import { register as maps } from './modules/maps/index.js';
 import { register as messages } from './modules/messages/index.js';
 import { register as notes } from './modules/notes/index.js';
 import { register as sessions } from './modules/sessions/index.js';
+import { register as settings } from './modules/settings/index.js';
 import { createS3Signer } from './storage/images.js';
 import { referenceCatalog, type Catalog } from './systems/catalog.js';
 
@@ -66,6 +67,7 @@ export async function buildCampaign(
   // Un module par domaine fonctionnel (src/modules/<nom>)
   for (const module of [
     campaigns,
+    settings,
     invitations,
     characters,
     combat,

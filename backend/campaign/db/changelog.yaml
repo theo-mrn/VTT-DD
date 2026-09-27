@@ -24,5 +24,7 @@ databaseChangeLog:
   - include: { file: changes/0013-notes-search.sql, relativeToChangelogFile: true }
   # Plus de notes hors campagne : campaign_id redevient obligatoire
   - include: { file: changes/0014-notes-campaign-required.sql, relativeToChangelogFile: true }
+  # Réglages de table décidés par le MJ (attributs du lanceur de dés)
+  - include: { file: changes/0015-campaign-settings.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

@@ -100,6 +100,17 @@ export const campaignInvitees = campaignSchema.table(
   (t) => [primaryKey({ columns: [t.campaignId, t.userId] })],
 );
 
+/** Réglages de table d'une campagne (document validé par le service, version propre). */
+export const campaignSettings = campaignSchema.table('campaign_settings', {
+  campaignId: uuid('campaign_id')
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
+  version: integer('version').notNull().default(1),
+  updatedBy: uuid('updated_by').notNull(),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
 export const campaignCharacters = campaignSchema.table(
   'campaign_characters',
   {

@@ -69,6 +69,18 @@ Précisions :
 - une image **envoyée** : `POST /v1/campaigns/:id/image`, puis `PATCH { imageUrl: publicUrl }` ;
 - une image de la **bibliothèque du produit** (couvertures proposées par le front) : une URL `https` sous `PRESET_IMAGES_URL` (défaut `https://assets.yner.fr/` ; vide : désactivée), sans identifiants, requête, fragment ni `..`. Seule source possible à la création, l'envoi demandant une campagne existante.
 
+### Réglages de table
+
+Décidés par le MJ pour toute la table, versionnés à part de la campagne (modifier un réglage n'entre pas en conflit avec une modification du titre).
+
+| Méthode | Route                        | Corps                                      | Réponse                                                                                                                                                                          |
+| ------- | ---------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/settings` | —                                          | `{ version, dice: { hiddenAttributes }, updatedAt }` (membres) ; `version` 0 et défauts tant que le MJ n'a rien réglé                                                            |
+| PATCH   | `/v1/campaigns/:id/settings` | `{ version, dice?: { hiddenAttributes } }` | les réglages (MJ) ; `version` : celle lue, sinon 409 `version_conflict` ; 400 `not_rollable` pour une clé qui ne sert pas aux jets dans le système ; `campaign.settings_updated` |
+
+- `dice.hiddenAttributes` : attributs retirés du lanceur de dés (200 au plus, doublons ignorés). Seuls les attributs dont les règles déclarent `jet` sont proposés (docs/regles.md, « Attributs jetables ») : le MJ ne peut qu'en retirer, jamais en ajouter. Après un changement de système, une clé qui ne sert plus aux jets est ignorée à la lecture.
+- Stockage : table `campaign_settings` (document `jsonb` validé par Zod, clés inconnues ignorées).
+
 ## Invitations et adhésion
 
 | Méthode | Route                                | Corps                      | Réponse                                                                                                                                                                                            |
@@ -172,6 +184,7 @@ Le mode vaut `individual` par défaut ; le MJ passe `mode: 'slots'` pour Star Wa
 - `campaign.member_unbanned` (visible du MJ seulement)
 - `campaign.character_added`, `campaign.character_removed` (`reason: 'member_left'` au départ d'un membre), `campaign.character_played` (`previousCharacterId`)
 - `campaign.session_scheduled`, `campaign.session_cancelled`
+- `campaign.settings_updated` (`version`, `dice`, et diff avant/après `changes`)
 - `campaign.message_posted`, `campaign.message_deleted`
 - `combat.started`, `combat.turn_changed` (`reason` : `initiative`, `next`, `new_round`, `participants_removed`), `combat.ended`
 
