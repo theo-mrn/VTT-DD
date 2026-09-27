@@ -60,19 +60,19 @@ import {
 } from './widgets';
 
 /**
- * Fiche d'un personnage, générée depuis la présentation de son système. Les
- * valeurs viennent de @vtt/rules ; les changements (PV, états activés,
- * conséquences d'une action) sont enregistrés par le service character, qui
- * recalcule la fiche. Le propriétaire et le MJ de sa campagne la modifient.
+ * Fiche calculée d'un personnage et ses écritures : état lu dans character,
+ * calculé par @vtt/rules avec son système, tenu à jour en direct dans sa
+ * campagne. Le propriétaire et le MJ de sa campagne la modifient ; les autres
+ * la lisent (`ctx.operations` absent).
  */
-export function FichePersonnage({ id }: { id: string }) {
+export function useFicheCalculee(id: string | null | undefined) {
   const profil = useProfil();
   const perso = usePersonnage(id);
   const sys = useSysteme(perso.data?.system.id);
   const campagne = useCampagne(perso.data?.roomId);
-  const ecritures = useOperationsPersonnage(id);
+  const ecritures = useOperationsPersonnage(id ?? '');
   // Le MJ modifie la fiche (ou le joueur, vu du MJ) : elle change en direct
-  useSynchroCampagne(perso.data?.roomId, { personnage: id });
+  useSynchroCampagne(perso.data?.roomId, { personnage: id ?? null });
   const fiche = useMemo(
     () => (sys.data && perso.data ? calculer(sys.data.systeme, perso.data.state) : null),
     [sys.data, perso.data],
@@ -87,6 +87,32 @@ export function FichePersonnage({ id }: { id: string }) {
       action: ecritures.action,
     };
   }, [ecritures]);
+
+  const p = perso.data;
+  const proprietaire = Boolean(p) && p!.ownerId === profil.id;
+  // Le MJ de la campagne où le personnage est engagé le modifie aussi
+  const peutModifier = proprietaire || campagne.data?.role === 'gm';
+  const ctx: ContexteFiche | null =
+    p && sys.data && fiche
+      ? {
+          systeme: sys.data.systeme,
+          presentation: sys.data.presentation,
+          fiche,
+          personnage: { id: p.id, name: p.name, roomId: p.roomId },
+          operations: peutModifier ? operations : undefined,
+        }
+      : null;
+  return { perso, sys, ctx, proprietaire, peutModifier };
+}
+
+/**
+ * Fiche d'un personnage, générée depuis la présentation de son système. Les
+ * valeurs viennent de @vtt/rules ; les changements (PV, états activés,
+ * conséquences d'une action) sont enregistrés par le service character, qui
+ * recalcule la fiche. Le propriétaire et le MJ de sa campagne la modifient.
+ */
+export function FichePersonnage({ id }: { id: string }) {
+  const { perso, sys, ctx, proprietaire } = useFicheCalculee(id);
 
   if (perso.isLoading) return <SqueletteFiche />;
   if (perso.isError || !perso.data)
@@ -106,20 +132,6 @@ export function FichePersonnage({ id }: { id: string }) {
     );
 
   const p = perso.data;
-  const proprietaire = p.ownerId === profil.id;
-  // Le MJ de la campagne où le personnage est engagé le modifie aussi
-  const peutModifier = proprietaire || campagne.data?.role === 'gm';
-
-  const ctx: ContexteFiche | null =
-    sys.data && fiche
-      ? {
-          systeme: sys.data.systeme,
-          presentation: sys.data.presentation,
-          fiche,
-          personnage: { id: p.id, name: p.name, roomId: p.roomId },
-          operations: peutModifier ? operations : undefined,
-        }
-      : null;
 
   return (
     <div>
@@ -481,7 +493,7 @@ function DialogueSuppression({
   );
 }
 
-function SqueletteFiche() {
+export function SqueletteFiche() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-8">
       <div className="flex items-end gap-6">

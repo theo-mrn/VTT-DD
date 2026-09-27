@@ -78,11 +78,23 @@ export const Plateau = forwardRef<
     fiche: ReturnType<typeof useFichePersonnage>;
     campagnes: { liste: Campagne[]; chargement: boolean };
     personnages: { liste: Personnage[]; chargement: boolean };
+    /** Campagne et personnage imposés (table d'une campagne) : pas de sélecteurs. */
+    contexteFixe?: boolean;
     onLancer: () => void;
     enCours: boolean;
   }
 >(function Plateau(
-  { etat, onModifier, verification, fiche, campagnes, personnages, onLancer, enCours },
+  {
+    etat,
+    onModifier,
+    verification,
+    fiche,
+    campagnes,
+    personnages,
+    contexteFixe = false,
+    onLancer,
+    enCours,
+  },
   refFormule,
 ) {
   const { formule } = etat;
@@ -197,34 +209,38 @@ export const Plateau = forwardRef<
                 className="h-10 w-full"
               />
             </div>
-            <SelecteurContexte
-              etiquette="Campagne"
-              icone={ICONES_CONTEXTE.campagne}
-              aucun="Jets personnels"
-              vide="Aucune campagne pour l’instant."
-              chargement={campagnes.chargement}
-              valeur={etat.campagneId}
-              onChange={(id) => onModifier({ campagneId: id })}
-              options={campagnes.liste.map((c) => ({
-                id: c.id,
-                libelle: c.name,
-                detail: c.pitch || undefined,
-              }))}
-            />
-            <SelecteurContexte
-              etiquette="Personnage"
-              icone={ICONES_CONTEXTE.personnage}
-              aucun="Sans personnage"
-              vide="Aucun personnage pour l’instant."
-              chargement={personnages.chargement}
-              valeur={etat.personnageId}
-              onChange={(id) => onModifier({ personnageId: id })}
-              options={personnages.liste.map((p) => ({
-                id: p.id,
-                libelle: p.name,
-                detail: p.summary.tagline || undefined,
-              }))}
-            />
+            {!contexteFixe && (
+              <>
+                <SelecteurContexte
+                  etiquette="Campagne"
+                  icone={ICONES_CONTEXTE.campagne}
+                  aucun="Jets personnels"
+                  vide="Aucune campagne pour l’instant."
+                  chargement={campagnes.chargement}
+                  valeur={etat.campagneId}
+                  onChange={(id) => onModifier({ campagneId: id })}
+                  options={campagnes.liste.map((c) => ({
+                    id: c.id,
+                    libelle: c.name,
+                    detail: c.pitch || undefined,
+                  }))}
+                />
+                <SelecteurContexte
+                  etiquette="Personnage"
+                  icone={ICONES_CONTEXTE.personnage}
+                  aucun="Sans personnage"
+                  vide="Aucun personnage pour l’instant."
+                  chargement={personnages.chargement}
+                  valeur={etat.personnageId}
+                  onChange={(id) => onModifier({ personnageId: id })}
+                  options={personnages.liste.map((p) => ({
+                    id: p.id,
+                    libelle: p.name,
+                    detail: p.summary.tagline || undefined,
+                  }))}
+                />
+              </>
+            )}
           </div>
 
           {personnage && (
