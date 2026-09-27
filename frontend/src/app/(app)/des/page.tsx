@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EnTetePage, Page } from '@/components/commun/page';
+import { DiceSettings } from '@/components/dice/dice-settings';
 import { CarteResultat } from '@/components/des/carte-resultat';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
 import { Macros, useMacros } from '@/components/des/macros';
@@ -182,14 +183,17 @@ export default function PageDes() {
         titre="Lancer les dés"
         description="Composez un jet, lancez, retrouvez-le. Les dés roulent en 3D et leurs faces font le jet, calculé par le service de dés avec le moteur de règles, fiche de personnage comprise."
         actions={
-          <div className="hidden items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs text-subtle md:flex">
-            <span className="flex items-center gap-1.5">
-              <Kbd>R</Kbd> relancer
-            </span>
-            <span aria-hidden className="h-3 w-px bg-border-strong" />
-            <span className="flex items-center gap-1.5">
-              <Kbd>1</Kbd>–<Kbd>9</Kbd> macros
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs text-subtle md:flex">
+              <span className="flex items-center gap-1.5">
+                <Kbd>R</Kbd> relancer
+              </span>
+              <span aria-hidden className="h-3 w-px bg-border-strong" />
+              <span className="flex items-center gap-1.5">
+                <Kbd>1</Kbd>–<Kbd>9</Kbd> macros
+              </span>
+            </div>
+            <DiceSettings />
           </div>
         }
       />
