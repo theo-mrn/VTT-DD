@@ -1,16 +1,16 @@
 /**
- * Dépôt local : ne sert plus que les notes (lib/notes.ts) et l'historique des
- * jets (lib/jets.ts), en attendant leur branchement sur les services notes
- * (campaign) et dice. Les données restent dans ce navigateur (localStorage).
- * Campagnes et personnages passent toujours par leurs services.
+ * Dépôt local : ne sert plus que les notes (lib/notes.ts), en attendant leur
+ * branchement sur le service notes (campaign). Les données restent dans ce
+ * navigateur (localStorage). Campagnes, personnages et jets de dés passent
+ * toujours par leurs services.
  *
- * NEXT_PUBLIC_SERVICES ne concerne donc plus que ces deux domaines
- * (« campaign » : notes, « character » : jets) ; leurs routes distantes ne
- * sont pas encore celles des services : ne pas l'activer d'ici là.
+ * NEXT_PUBLIC_SERVICES ne concerne donc plus que les notes (« campaign ») ;
+ * leurs routes distantes ne sont pas encore celles du service : ne pas
+ * l'activer d'ici là.
  */
 import { ApiError } from './api';
 
-export type Service = 'campaign' | 'character';
+export type Service = 'campaign';
 
 const ACTIFS = new Set(
   (process.env.NEXT_PUBLIC_SERVICES ?? '')
@@ -24,8 +24,8 @@ export function serviceActif(service: Service): boolean {
   return ACTIFS.has(service);
 }
 
-/** Vrai si notes ou jets sont servis localement (affiché discrètement dans l'app). */
-export const APERCU_LOCAL = !serviceActif('campaign') || !serviceActif('character');
+/** Vrai si les notes sont servies localement (affiché discrètement dans l'app). */
+export const APERCU_LOCAL = !serviceActif('campaign');
 
 // ─── Utilisateur courant ─────────────────────────────────────────────────────
 
