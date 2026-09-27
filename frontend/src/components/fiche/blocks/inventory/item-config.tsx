@@ -53,7 +53,6 @@ export interface CibleAjout {
 }
 
 /** Dossier : celui qu'affiche l'inventaire, la racine, ou un dossier de l'état. */
-const DOSSIER_AFFICHE = '';
 const RACINE = '\u0000racine';
 const QUANTITE_MAX = 1_000_000;
 
@@ -63,10 +62,16 @@ export function ItemConfig({
   presentation,
   onRetour,
   onAjouter,
+  dossierOuvert = null,
+  mj = false,
 }: {
   fiche: Fiche;
   cible: CibleAjout;
   presentation: Presentation | null;
+  /** Dossier ouvert dans la grille : choisi par défaut pour le nouvel objet. */
+  dossierOuvert?: string | null;
+  /** Le MJ peut viser des attributs qui lui sont réservés dans les bonus. */
+  mj?: boolean;
   onRetour(): void;
   onAjouter(modele: ModeleLibre, saisie: SaisieLibre): void;
 }) {
@@ -94,6 +99,8 @@ export function ItemConfig({
       }
       onRetour={onRetour}
       onAjouter={onAjouter}
+      dossierOuvert={dossierOuvert}
+      mj={mj}
     />
   );
 }
@@ -110,10 +117,14 @@ function Formulaire({
   choixSorte,
   onRetour,
   onAjouter,
+  dossierOuvert,
+  mj,
 }: {
   fiche: Fiche;
   cible: CibleAjout;
   modele: ModeleLibre;
+  dossierOuvert: string | null;
+  mj: boolean;
   image?: string | undefined;
   nom: string;
   onNom(nom: string): void;
@@ -136,7 +147,7 @@ function Formulaire({
   );
   const [actif, setActif] = useState(true);
   const [visible, setVisible] = useState(true);
-  const [dossier, setDossier] = useState(DOSSIER_AFFICHE);
+  const [dossier, setDossier] = useState(dossierOuvert ?? RACINE);
   const [champs, setChamps] = useState<Record<string, ValeurChamp>>({});
   const [invalides, setInvalides] = useState<Set<string>>(new Set());
   const [formules, setFormules] = useState<Record<string, string>>({});
@@ -215,7 +226,7 @@ function Formulaire({
       effets,
       ...(sorte.activable ? { actif } : {}),
       hidden: !visible,
-      ...(dossier === DOSSIER_AFFICHE ? {} : { folder: dossier === RACINE ? null : dossier }),
+      folder: dossier === RACINE ? null : dossier,
     });
   }
 
@@ -434,7 +445,6 @@ function Formulaire({
                 onChange={(e) => setDossier(e.target.value)}
                 className={cn(styleChampBase, 'h-8 max-w-44 px-2 text-xs')}
               >
-                <option value={DOSSIER_AFFICHE}>Dossier affiché</option>
                 <option value={RACINE}>Sans dossier</option>
                 {folders.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -563,7 +573,7 @@ function Formulaire({
               <BonusForm
                 fiche={fiche}
                 sorte={sorte}
-                mj={false}
+                mj={mj}
                 onAjouter={(effet) => {
                   setEffets((x) => [...x, effet]);
                   setAjoutBonus(false);

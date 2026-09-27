@@ -57,8 +57,13 @@ export function AddDialog({
   presentation,
   onAcheter,
   onLibre,
+  dossierOuvert = null,
+  mj = false,
 }: {
   open: boolean;
+  /** Dossier ouvert dans la grille, proposé par défaut. */
+  dossierOuvert?: string | null;
+  mj?: boolean;
   onOpenChange(open: boolean): void;
   fiche: Fiche;
   widget: InventoryWidget;
@@ -99,6 +104,8 @@ export function AddDialog({
               fiche={fiche}
               cible={cible}
               presentation={presentation}
+              dossierOuvert={dossierOuvert}
+              mj={mj}
               onRetour={() => setCible(null)}
               onAjouter={(m, s) => {
                 onLibre(m, s);

@@ -352,7 +352,13 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
 
   function ajouterObjetLibre(modele: ModeleLibre, s: SaisieLibre) {
     if (!ops) return;
-    ecrire(dansDossier(ajouterLibre(fiche.etat, modele, s), dossier?.id ?? null));
+    // Le dossier choisi dans la configuration l'emporte sur celui affiché dans la grille
+    ecrire(
+      dansDossier(
+        ajouterLibre(fiche.etat, modele, s),
+        s.folder !== undefined ? s.folder : (dossier?.id ?? null),
+      ),
+    );
     toast.success(`${s.nom.trim()} ajouté`);
     setAjout(false);
   }
@@ -867,6 +873,8 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
               onAjouter={ajouterDuCatalogue}
               onAcheter={acheterDuCatalogue}
               onLibre={ajouterObjetLibre}
+              dossierOuvert={dossier?.id ?? null}
+              mj={ctx.mj === true}
             />
           )}
         </>
