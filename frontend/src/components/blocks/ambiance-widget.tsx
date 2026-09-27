@@ -3,7 +3,7 @@ import React from 'react';
 import YouTube, { YouTubeEvent } from 'react-youtube';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { aclonica } from '@/app/fonts';
+import { Aclonica } from 'next/font/google';
 import { Music, Play, Pause, Upload, Youtube, FileAudio, Library, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,6 +12,11 @@ import {
   SUGGESTED_MUSICS,
   MUSIC_CATEGORIES,
 } from '@/lib/suggested-sounds';
+
+const aclonica = Aclonica({
+  weight: '400',
+  subsets: ['latin'],
+});
 
 function extractVideoId(url: string): string | null {
   const patterns = [
@@ -63,13 +68,13 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
   // Lecture 100% locale : fichier importé via object URL, vidéo via player
   // YouTube caché — rien n'est envoyé ni stocké côté serveur.
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const queue = e.target.files?.[0];
+    const file = e.target.files?.[0];
     e.target.value = '';
-    if (!queue) return;
+    if (!file) return;
 
     stopAll();
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const url = URL.createObjectURL(queue);
+    const url = URL.createObjectURL(file);
     objectUrlRef.current = url;
 
     const audio = new Audio(url);
@@ -83,7 +88,7 @@ export function AmbiancePlayerCard({ delay = 0 }: { delay?: number }) {
     audio
       .play()
       .then(() => {
-        setActiveSource({ kind: 'file', label: queue.name });
+        setActiveSource({ kind: 'file', label: file.name });
         setIsPlaying(true);
       })
       .catch(() => {});

@@ -8,14 +8,14 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
+import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
 import { VisualDie } from './visual-die';
 import { createBeveledGeometry, getCachedGeometry } from './geometry';
-import { getAudioContext, getMasterGain, playOneShotForSkin } from './audio';
-import { ShaderWarmer } from './shader-warmer';
+import { getAudioContext, playOneShotForSkin } from './audio';
 
 // Skins eligible for the random "for fun" roll. Orb skins use a heavier
 // transmission + GLTF-core path, so we keep the random pool to the procedural
@@ -23,22 +23,6 @@ import { ShaderWarmer } from './shader-warmer';
 const FUN_SKIN_POOL = Object.values(DICE_SKINS)
   .filter((s) => s.effectType !== 'orb')
   .map((s) => s.id);
-
-// Skins actually mounted by the shader warmer. Every textured skin compiles to
-// the SAME program (standard material + map), so one representative per
-// transparency variant is enough: warming all of them downloaded every texture
-// of the catalogue (~50 MB, one of them 40 MB) on each visit, for nothing.
-const WARM_SKIN_POOL = (() => {
-  const seenTextured = new Set<boolean>();
-  return FUN_SKIN_POOL.filter((id) => {
-    const skin = getSkinById(id);
-    if (!skin.textureMap) return true;
-    const variant = skin.opacity < 1;
-    if (seenTextured.has(variant)) return false;
-    seenTextured.add(variant);
-    return true;
-  });
-})();
 
 // NOTE: compiled shader programs belong to ONE WebGL context. Warming must
 // therefore happen once per <Canvas>, never once per session — an earlier
@@ -129,8 +113,7 @@ const FunDie = React.forwardRef(
         oscGain.gain.setValueAtTime(Math.min(0.4, vel / 5), ctx.currentTime);
         oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
         osc.connect(oscGain);
-        // Through the dice master gain, so the mixer's "Dés 3D" volume applies.
-        oscGain.connect(getMasterGain(ctx));
+        oscGain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
       } catch (e) {}
@@ -175,6 +158,94 @@ const FunDie = React.forwardRef(
   },
 );
 FunDie.displayName = 'FunDie';
+
+// ============================================================================
+// SHADER WARMER
+// ----------------------------------------------------------------------------
+// Renders every pooled skin once, far off-screen, and asks the renderer to
+// compile their shader programs asynchronously. This moves the (synchronous,
+// frame-blocking) shader compilation off the click path, so throwing dice no
+// longer freezes the page the first time a given skin appears.
+// ============================================================================
+
+// Each skin's onBeforeCompile injects distinct GLSL, so ~50 pooled skins mean
+// ~50 separate shader programs. `gl.compile()` (even via `compileAsync`,
+// which runs it synchronously under the hood) issues every compile/link call
+// for the whole scene in a single JS tick — a one-shot GPU burst big enough
+// to trip Windows' driver-timeout watchdog (TDR) on some machines: Chrome's
+// GPU process dies instantly with no JS error. So the pool is warmed a few
+// skins at a time, yielding a frame between batches.
+const WARM_BATCH_SIZE = 4;
+
+const ShaderWarmer = ({ diceType, onDone }: { diceType: string; onDone: () => void }) => {
+  const { gl, scene, camera } = useThree();
+  const groupRef = useRef<THREE.Group>(null);
+  const [batchEnd, setBatchEnd] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      for (
+        let end = WARM_BATCH_SIZE;
+        end < FUN_SKIN_POOL.length + WARM_BATCH_SIZE;
+        end += WARM_BATCH_SIZE
+      ) {
+        if (cancelled) return;
+        // Let the new batch's meshes mount before compiling them.
+        await new Promise((r) => requestAnimationFrame(r));
+        if (cancelled) return;
+        setBatchEnd(Math.min(end, FUN_SKIN_POOL.length));
+        await new Promise((r) => requestAnimationFrame(r));
+        if (cancelled) return;
+        try {
+          const anyGl = gl as any;
+          if (typeof anyGl.compileAsync === 'function') {
+            // compileAsync polls KHR_parallel_shader_compile, and
+            // some drivers only progress that status while the
+            // context is doing work — never let one stuck batch
+            // hang the whole warm-up (and with it the roll queue).
+            await Promise.race([
+              anyGl.compileAsync(scene, camera),
+              new Promise((r) => setTimeout(r, 1200)),
+            ]);
+          } else {
+            gl.compile(scene, camera);
+          }
+        } catch {
+          // best-effort warmup — ignore failures
+        }
+      }
+      if (!cancelled) onDone();
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [gl, scene, camera, onDone]);
+
+  return (
+    // Pushed far away + tiny so it never shows; only there to exist in the
+    // scene graph long enough for the programs to compile.
+    <group ref={groupRef} position={[0, -1000, 0]} scale={0.001}>
+      {/* Full-fidelity die mounted for the WHOLE warm-up (not batched):
+                compiles the face-number text + rim programs, and keeps the
+                scene's light count constant across batches (its innerGlow
+                point light would otherwise invalidate previously-warmed
+                programs mid-run). */}
+      <VisualDie type={diceType} skin={FULL_WARM_SKIN} isShattered={false} critType={null} />
+      {FUN_SKIN_POOL.slice(0, batchEnd).map((skinId) => (
+        <VisualDie
+          key={skinId}
+          type={diceType}
+          skin={getSkinById(skinId)}
+          isShattered={false}
+          critType={null}
+          simple
+        />
+      ))}
+    </group>
+  );
+};
 
 // ============================================================================
 // FUN DICE THROWER (No DB, no result tracking, just visual)
@@ -356,15 +427,7 @@ export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(
               <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
               <Environment preset="city" />
 
-              {!warmDone && (
-                <ShaderWarmer
-                  diceType={defaultDiceType}
-                  skins={WARM_SKIN_POOL}
-                  fullSkin={FULL_WARM_SKIN}
-                  simple
-                  onDone={handleWarmed}
-                />
-              )}
+              {!warmDone && <ShaderWarmer diceType={defaultDiceType} onDone={handleWarmed} />}
 
               {dice.length > 0 && (
                 <Physics

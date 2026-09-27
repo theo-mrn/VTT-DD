@@ -15,6 +15,30 @@ theme:
     texteSecondaire: '#7a706a'
     accent: '#c2956a'
     accentSurvol: '#d0ad8b'
+  fond:
+    type: image
+    source: 'https://assets.yner.fr/Map/Village/Illustrations/Bustling_Village_il02_D_Static.webp'
+
+images:
+  humain: https://assets.yner.fr/images/races/Humain.webp
+  elfe: https://assets.yner.fr/images/races/Elfe.webp
+  elfe-noir: https://assets.yner.fr/images/races/Elfenoir.jpg
+  nain: https://assets.yner.fr/images/races/Nain.webp
+  orque: https://assets.yner.fr/images/races/Orc.webp
+  halfelin: https://assets.yner.fr/images/races/Halfelin.webp
+  minotaure: https://assets.yner.fr/images/races/Minotaure.webp
+  drakonide: https://assets.yner.fr/images/races/Drakonide.webp
+  barbare: https://assets.yner.fr/images/profiles/barbare.jpg
+  barde: https://assets.yner.fr/images/profiles/Barde.jpg
+  chevalier: https://assets.yner.fr/images/profiles/chevalier.jpg
+  druide: https://assets.yner.fr/images/profiles/druide.webp
+  ensorceleur: https://assets.yner.fr/images/profiles/ensorceleur.jpg
+  guerrier: https://assets.yner.fr/images/profiles/guerrier.webp
+  magicien: https://assets.yner.fr/images/profiles/magicien.webp
+  moine: https://assets.yner.fr/images/profiles/moine.jpg
+  pretre: https://assets.yner.fr/images/profiles/pretre.jpg
+  rodeur: https://assets.yner.fr/images/profiles/rodeur.webp
+  voleur: https://assets.yner.fr/images/profiles/voleur.webp
 
 des:
   sortes:

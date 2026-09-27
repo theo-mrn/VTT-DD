@@ -49,8 +49,8 @@ backend/              un dossier par service : chacun est un pod indépendant,
 packages/
   contracts/          schémas partagés front/back (événements, erreurs, identifiants)
   platform/           socle des services (sécurité, logs, traces, cache, santé)
-  rules/              moteur de règles générique (@vtt/rules)
-  systemes/           systèmes de jeu de référence, écrits en données
+  rules/              moteur de règles générique (fiches, création, jets, achats)
+  systemes/           systèmes de référence en données (D&D, Star Wars, Nooblies)
 legacy/               ancienne app Firebase, référence jusqu'à la parité
 tools/
   firebase-export/    export Firebase (comptes, Firestore) pour les imports
@@ -65,6 +65,27 @@ infra/
   ci/                 variables factices de build
 docs/                 plan de refonte
 ```
+
+### Le front
+
+| Dossier (`frontend/src/`)  | Rôle                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `components/ui/`           | primitives du design system (bouton, champ, dialog, onglets, palette…)       |
+| `components/shell/`        | cadre de l'app : barre latérale, barre haute, palette ⌘K, pages « focus »    |
+| `app/(app)/`               | pages connectées avec le cadre : accueil, campagnes, personnages, dés, notes |
+| `app/(focus)/`             | pages plein écran : onboarding, assistants de création, « Qui joue ? »       |
+| `lib/`                     | hooks de domaine (TanStack Query) : les composants n'appellent pas l'API   |
+
+Jetons de couleur et ambiances de campagne : `app/globals.css`. Les fiches,
+l'assistant de création et les jets lisent le système (`@vtt/rules`) et sa
+présentation (`packages/systemes/systemes/<id>/presentation.yaml`) : aucune
+clé de jeu n'est codée dans le front.
+
+Tant que les services campaign et character n'existent pas, leurs domaines
+(campagnes, personnages, notes, jets) sont servis par un dépôt local au
+navigateur, avec le même contrat que la future API (`lib/campagnes.ts`,
+`lib/personnages.ts`…). Un service passe sur la gateway en l'ajoutant à
+`NEXT_PUBLIC_SERVICES` (`campaign,character`) au build du front.
 
 ### Ajouter un service
 

@@ -4,33 +4,40 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center gap-1 whitespace-nowrap rounded-full border font-medium leading-none [&_svg]:size-3 [&_svg]:shrink-0',
   {
     variants: {
-      variant: {
-        default: 'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
-        secondary:
-          'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive:
-          'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
-        outline: 'text-foreground',
+      ton: {
+        neutre: 'border-border-strong bg-surface-2 text-muted-foreground',
+        primaire: 'border-primary/25 bg-primary/10 text-primary-strong',
+        succes: 'border-success/25 bg-success/10 text-success',
+        alerte: 'border-warning/25 bg-warning/10 text-warning',
+        danger: 'border-destructive/25 bg-destructive/10 text-destructive',
+        info: 'border-info/25 bg-info/10 text-info',
+        arcane: 'border-arcane/25 bg-arcane/10 text-arcane',
+        verre: 'border-white/10 bg-black/40 text-white backdrop-blur-md',
+      },
+      taille: {
+        sm: 'h-5 px-2 text-[11px]',
+        md: 'h-6 px-2.5 text-xs',
       },
     },
-    defaultVariants: {
-      variant: 'default',
-    },
+    defaultVariants: { ton: 'neutre', taille: 'sm' },
   },
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+  extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof badgeVariants> {
+  /** Petite pastille colorée avant le texte (statut « en ligne »…). */
+  point?: boolean;
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({ className, ton, taille, point, children, ...props }: BadgeProps) {
   return (
-    <div
-      className={cn(badgeVariants({ variant: variant || 'default' }), className || '')}
-      {...props}
-    />
+    <span className={cn(badgeVariants({ ton, taille }), className)} {...props}>
+      {point && <span className="size-1.5 rounded-full bg-current" aria-hidden />}
+      {children}
+    </span>
   );
 }
 

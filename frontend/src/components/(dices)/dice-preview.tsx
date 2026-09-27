@@ -99,15 +99,6 @@ function useHoverLock(wants: boolean) {
   return activeCanvasId === idRef.current;
 }
 
-// Live WebGL on hover stays off on Windows: creating/destroying a context on
-// hover is one of the GPU bursts that made the whole of Chrome crash there
-// (driver TDR). The pre-baked image is shown instead.
-const isWindows = () => {
-  if (typeof navigator === 'undefined') return false;
-  const uaData = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
-  return uaData?.platform === 'Windows' || /Windows/i.test(navigator.userAgent);
-};
-
 function useInView<T extends HTMLElement>(rootMargin = '150px') {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(false);
@@ -259,7 +250,7 @@ export function DicePreviewCard({
 }) {
   const [ref, inView] = useInView<HTMLDivElement>('150px');
   const [selfHover, setSelfHover] = useState(false);
-  const wantHover = (active ?? selfHover) && inView && !isWindows();
+  const wantHover = (active ?? selfHover) && inView;
 
   const prebaked = getPrebakedUrl(skinId);
   const [snapshot, setSnapshot] = useState<string | null>(() => snapshotCache.get(skinId) ?? null);

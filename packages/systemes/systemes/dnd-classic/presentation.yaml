@@ -18,6 +18,38 @@ theme:
     texteSecondaire: '#7a706a'
     accent: '#c2956a'
     accentSurvol: '#d0ad8b'
+  fond:
+    type: image
+    source: 'https://assets.yner.fr/Map/Chateau/Illustration/Cragwind Castle_Day02_static.webp'
+
+# Illustrations des races et des profils (assistant de création, fiches)
+images:
+  ame_forgee: https://assets.yner.fr/images/races/Ame-forgee.webp
+  elfe: https://assets.yner.fr/images/races/Elfe.webp
+  elfe_noir: https://assets.yner.fr/images/races/Elfenoir.jpg
+  elfe_sylvain: https://assets.yner.fr/images/races/Elfesylvain.webp
+  humain: https://assets.yner.fr/images/races/Humain.webp
+  nain: https://assets.yner.fr/images/races/Nain.webp
+  minotaure: https://assets.yner.fr/images/races/Minotaure.webp
+  halfelin: https://assets.yner.fr/images/races/Halfelin.webp
+  orque: https://assets.yner.fr/images/races/Orc.webp
+  drakonide: https://assets.yner.fr/images/races/Drakonide.webp
+  barbare: https://assets.yner.fr/images/profiles/barbare.jpg
+  barde: https://assets.yner.fr/images/profiles/Barde.jpg
+  chevalier: https://assets.yner.fr/images/profiles/chevalier.jpg
+  druide: https://assets.yner.fr/images/profiles/druide.webp
+  ensorceleur: https://assets.yner.fr/images/profiles/ensorceleur.jpg
+  forgesort: https://assets.yner.fr/images/profiles/forgesort.webp
+  guerrier: https://assets.yner.fr/images/profiles/guerrier.webp
+  invocateur: https://assets.yner.fr/images/profiles/invocateur.jpg
+  magicien: https://assets.yner.fr/images/profiles/magicien.webp
+  moine: https://assets.yner.fr/images/profiles/moine.jpg
+  necromancien: https://assets.yner.fr/images/profiles/necromancien.webp
+  pretre: https://assets.yner.fr/images/profiles/pretre.jpg
+  psionique: https://assets.yner.fr/images/profiles/psionique.jpg
+  rodeur: https://assets.yner.fr/images/profiles/rodeur.webp
+  samourai: https://assets.yner.fr/images/profiles/samourai.jpg
+  voleur: https://assets.yner.fr/images/profiles/voleur.webp
 
 des:
   sortes:

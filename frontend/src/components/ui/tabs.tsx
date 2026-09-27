@@ -1,99 +1,66 @@
 'use client';
 
-/**
- * Onglets, même API que `@/components/ui/tabs` de l'ancienne app (Radix,
- * absent du nouveau front) : `Tabs defaultValue|value onValueChange`,
- * `TabsList`, `TabsTrigger value`, `TabsContent value`.
- */
 import * as React from 'react';
+import * as TabsPrimitive from '@radix-ui/react-tabs';
+
 import { cn } from '@/lib/utils';
 
-interface TabsState {
-  value: string;
-  setValue(v: string): void;
-}
+const Tabs = TabsPrimitive.Root;
 
-const TabsContext = React.createContext<TabsState | null>(null);
+/** Onglets en « pilule » sur fond discret. `variante="ligne"` : soulignement, pour les en-têtes de page. */
+const TabsList = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & { variante?: 'pilule' | 'ligne' }
+>(({ className, variante = 'pilule', ...props }, ref) => (
+  <TabsPrimitive.List
+    ref={ref}
+    data-variante={variante}
+    className={cn(
+      'group/tabs inline-flex items-center text-muted-foreground',
+      variante === 'pilule' && 'h-9 gap-0.5 rounded-lg border border-border bg-surface p-0.5',
+      variante === 'ligne' && 'h-10 w-full justify-start gap-5 border-b border-border',
+      className,
+    )}
+    {...props}
+  />
+));
+TabsList.displayName = TabsPrimitive.List.displayName;
 
-function Tabs({
-  value,
-  defaultValue,
-  onValueChange,
-  className,
-  children,
-  ...props
-}: Omit<React.HTMLAttributes<HTMLDivElement>, 'defaultValue' | 'onChange'> & {
-  value?: string;
-  defaultValue?: string;
-  onValueChange?(value: string): void;
-}) {
-  const [inner, setInner] = React.useState(defaultValue ?? '');
-  const current = value ?? inner;
-  return (
-    <TabsContext.Provider
-      value={{
-        value: current,
-        setValue: (v) => {
-          setInner(v);
-          onValueChange?.(v);
-        },
-      }}
-    >
-      <div className={className} {...props}>
-        {children}
-      </div>
-    </TabsContext.Provider>
-  );
-}
+const TabsTrigger = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      'inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-all',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5',
+      // Pilule
+      'group-data-[variante=pilule]/tabs:h-full group-data-[variante=pilule]/tabs:rounded-md group-data-[variante=pilule]/tabs:px-3',
+      'group-data-[variante=pilule]/tabs:hover:text-foreground',
+      'group-data-[variante=pilule]/tabs:data-[state=active]:bg-surface-3 group-data-[variante=pilule]/tabs:data-[state=active]:text-foreground group-data-[variante=pilule]/tabs:data-[state=active]:shadow-surface',
+      // Ligne
+      'group-data-[variante=ligne]/tabs:relative group-data-[variante=ligne]/tabs:h-full group-data-[variante=ligne]/tabs:px-0.5',
+      'group-data-[variante=ligne]/tabs:hover:text-foreground group-data-[variante=ligne]/tabs:data-[state=active]:text-foreground',
+      'group-data-[variante=ligne]/tabs:after:absolute group-data-[variante=ligne]/tabs:after:inset-x-0 group-data-[variante=ligne]/tabs:after:-bottom-px group-data-[variante=ligne]/tabs:after:h-0.5 group-data-[variante=ligne]/tabs:after:rounded-full',
+      'group-data-[variante=ligne]/tabs:data-[state=active]:after:bg-primary',
+      className,
+    )}
+    {...props}
+  />
+));
+TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
-function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      role="tablist"
-      className={cn(
-        'inline-flex h-9 items-center justify-center rounded-lg bg-[var(--bg-dark)] p-1 text-[var(--text-secondary)]',
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function TabsTrigger({
-  value,
-  className,
-  onClick,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }) {
-  const ctx = React.useContext(TabsContext)!;
-  const active = ctx.value === value;
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      data-state={active ? 'active' : 'inactive'}
-      onClick={(e) => {
-        onClick?.(e);
-        ctx.setValue(value);
-      }}
-      className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[var(--bg-card)] data-[state=active]:text-[var(--text-primary)] data-[state=active]:shadow',
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function TabsContent({
-  value,
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement> & { value: string }) {
-  const ctx = React.useContext(TabsContext)!;
-  if (ctx.value !== value) return null;
-  return <div role="tabpanel" data-state="active" className={className} {...props} />;
-}
+const TabsContent = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Content
+    ref={ref}
+    className={cn('mt-4 focus-visible:outline-none data-[state=active]:animate-fade-up', className)}
+    {...props}
+  />
+));
+TabsContent.displayName = TabsPrimitive.Content.displayName;
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };

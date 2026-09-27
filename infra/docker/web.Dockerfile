@@ -27,10 +27,14 @@ COPY packages/systemes/package.json ./packages/systemes/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter "@vtt/web..."
+# Le front calcule les fiches avec le moteur de règles et lit les systèmes de référence
+COPY packages/rules ./packages/rules
+COPY packages/systemes ./packages/systemes
 COPY frontend ./frontend
-# Les réécritures /v1/* sont figées au build : URL interne de la gateway dans le cluster
+# Les réécritures /v1/* sont figées au build : URL interne de la gateway dans le cluster.
+# « @vtt/web... » construit d'abord ses dépendances du workspace (rules, systemes).
 ARG API_URL=http://gateway:3000
-RUN API_URL=$API_URL pnpm --filter @vtt/web build
+RUN API_URL=$API_URL pnpm --filter "@vtt/web..." build
 
 FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
 ARG VERSION=dev

@@ -19,16 +19,10 @@ export const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
 
 // Component that actually loads the texture. useTexture suspends, so it is
 // wrapped in Suspense with a solid-color fallback.
-// Textures are cached by drei and shared by every die of a skin: configure each
-// one ONCE. Setting `needsUpdate` on every render re-uploaded the whole image
-// to the GPU each time a die re-rendered.
-const configured = new WeakSet<THREE.Texture>();
-
 const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
   const texture = useTexture(skin.textureMap as string);
 
-  if (texture && !configured.has(texture)) {
-    configured.add(texture);
+  if (texture) {
     // With our planar per-face UVs, one texture tile fills each face.
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(1, 1);

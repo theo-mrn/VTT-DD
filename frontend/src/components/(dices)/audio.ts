@@ -85,7 +85,7 @@ export const getAudioContext = (): AudioContext | null => {
 // ctx.destination directly, so the mixer's dice3d slider applies to it.
 // getAudioContext() always creates masterGainNode alongside the context, so
 // this is only ever called after it exists.
-export const getMasterGain = (ctx: AudioContext): AudioNode => masterGainNode ?? ctx.destination;
+const getMasterGain = (ctx: AudioContext): AudioNode => masterGainNode ?? ctx.destination;
 
 const noiseBuffer = (ctx: AudioContext, seconds: number) => {
   const size = Math.max(1, Math.floor(ctx.sampleRate * seconds));

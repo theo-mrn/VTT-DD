@@ -1,153 +1,51 @@
 'use client';
 
-/**
- * Infobulle minimale, même API que `@/components/ui/tooltip` de l'ancienne app
- * (Radix, absent du nouveau front) : `TooltipProvider`, `Tooltip`,
- * `TooltipTrigger asChild`, `TooltipContent side align`. Ouverte au survol ou
- * au focus, rendue dans un portail (comme Radix) pour ne pas être rognée.
- * Reprise de components/dice-roller/tooltip.tsx ; les gestionnaires du
- * déclencheur (clic d'un bouton d'outil…) sont conservés.
- */
-import {
-  cloneElement,
-  createContext,
-  isValidElement,
-  useContext,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactElement,
-  type ReactNode,
-  type RefObject,
-} from 'react';
-import { createPortal } from 'react-dom';
+import * as React from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+
 import { cn } from '@/lib/utils';
 
-interface TooltipState {
-  open: boolean;
-  set(open: boolean): void;
-  anchor: RefObject<HTMLSpanElement | null>;
-}
+const TooltipProvider = TooltipPrimitive.Provider;
+const Tooltip = TooltipPrimitive.Root;
+const TooltipTrigger = TooltipPrimitive.Trigger;
 
-const TooltipContext = createContext<TooltipState | null>(null);
+const TooltipContent = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(({ className, sideOffset = 6, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        'z-[70] max-w-xs overflow-hidden rounded-lg border border-border-strong bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-elevated',
+        'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+        'data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1',
+        className,
+      )}
+      {...props}
+    />
+  </TooltipPrimitive.Portal>
+));
+TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
-export function TooltipProvider({ children }: { children: ReactNode; delayDuration?: number }) {
-  return <>{children}</>;
-}
-
-export function Tooltip({
+/** Infobulle en une ligne : `<Info texte="…"><button/></Info>`. */
+function Info({
+  texte,
+  cote = 'top',
   children,
-  delayDuration = 0,
 }: {
-  children: ReactNode;
-  delayDuration?: number;
+  texte: React.ReactNode;
+  cote?: 'top' | 'bottom' | 'left' | 'right';
+  children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const timer = useRef<number | null>(null);
-  const anchor = useRef<HTMLSpanElement>(null);
-  const set = (next: boolean) => {
-    if (timer.current) window.clearTimeout(timer.current);
-    if (next && delayDuration > 0)
-      timer.current = window.setTimeout(() => setOpen(true), delayDuration);
-    else setOpen(next);
-  };
+  if (!texte) return <>{children}</>;
   return (
-    <TooltipContext.Provider value={{ open, set, anchor }}>
-      <span ref={anchor} className="relative inline-flex" onMouseLeave={() => set(false)}>
-        {children}
-      </span>
-    </TooltipContext.Provider>
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={cote}>{texte}</TooltipContent>
+    </Tooltip>
   );
 }
 
-type TriggerProps = {
-  onMouseEnter?(e: unknown): void;
-  onFocus?(e: unknown): void;
-  onBlur?(e: unknown): void;
-  onPointerDown?(e: unknown): void;
-};
-
-export function TooltipTrigger({ children }: { children: ReactNode; asChild?: boolean }) {
-  const ctx = useContext(TooltipContext)!;
-  if (isValidElement(children)) {
-    const own = (children as ReactElement<TriggerProps>).props;
-    return cloneElement(children as ReactElement<TriggerProps>, {
-      onMouseEnter: (e: unknown) => {
-        own.onMouseEnter?.(e);
-        ctx.set(true);
-      },
-      onFocus: (e: unknown) => {
-        own.onFocus?.(e);
-        ctx.set(true);
-      },
-      onBlur: (e: unknown) => {
-        own.onBlur?.(e);
-        ctx.set(false);
-      },
-      onPointerDown: (e: unknown) => {
-        own.onPointerDown?.(e);
-        ctx.set(false);
-      },
-    });
-  }
-  return (
-    <span
-      onMouseEnter={() => ctx.set(true)}
-      onFocus={() => ctx.set(true)}
-      onBlur={() => ctx.set(false)}
-    >
-      {children}
-    </span>
-  );
-}
-
-export function TooltipContent({
-  children,
-  className,
-  side = 'top',
-  align = 'center',
-}: {
-  children: ReactNode;
-  className?: string;
-  side?: 'top' | 'bottom' | 'left' | 'right';
-  align?: 'start' | 'center' | 'end';
-  sideOffset?: number;
-}) {
-  const ctx = useContext(TooltipContext)!;
-  if (!ctx.open || typeof document === 'undefined' || !ctx.anchor.current) return null;
-  const r = ctx.anchor.current.getBoundingClientRect();
-  const gap = 8;
-  const horizontal = side === 'left' || side === 'right';
-  const style: CSSProperties = horizontal
-    ? {
-        position: 'fixed',
-        zIndex: 10030,
-        top: r.top + r.height / 2,
-        transform: 'translateY(-50%)',
-        ...(side === 'right'
-          ? { left: r.right + gap }
-          : { right: window.innerWidth - r.left + gap }),
-      }
-    : {
-        position: 'fixed',
-        zIndex: 10030,
-        ...(side === 'top'
-          ? { bottom: window.innerHeight - r.top + gap }
-          : { top: r.bottom + gap }),
-        ...(align === 'start'
-          ? { left: Math.max(8, r.left) }
-          : align === 'end'
-            ? { right: Math.max(8, window.innerWidth - r.right) }
-            : { left: r.left + r.width / 2, transform: 'translateX(-50%)' }),
-      };
-  return createPortal(
-    <div
-      role="tooltip"
-      style={style}
-      className={cn('max-w-[calc(100vw-1rem)] rounded-lg', className)}
-    >
-      {children}
-    </div>,
-    document.body,
-  );
-}
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, Info };

@@ -31,6 +31,11 @@ export const FaceNumber = ({
   const textRef = useRef<any>(null);
   const _wn = useRef(new THREE.Vector3());
   const _up = useRef(new THREE.Vector3(0, 1, 0));
+  // Réutilisé à chaque frame : avec N dés x jusqu'à 20 faces, allouer un nouveau
+  // Quaternion par appel de useFrame (getWorldQuaternion(new Quaternion())) crée
+  // des centaines d'allocations/s, mettant la pression sur le GC — source probable
+  // de stutters quand plusieurs dés (surtout d20, 20 faces chacun) sont en vol.
+  const _parentQuat = useRef(new THREE.Quaternion());
   // Une fois le dé arrêté, son orientation ne change plus : on fait un dernier calcul
   // pour figer l'opacité à la bonne valeur, puis on arrête ce useFrame. Sans ça, chaque
   // face de chaque dé continue de tourner un calcul (dont un getWorldQuaternion) à 60fps
@@ -51,13 +56,10 @@ export const FaceNumber = ({
     const mat = t?.material as
       (THREE.Material & { opacity: number; transparent: boolean }) | undefined;
     if (!t || !g || !mat) return;
-    // World normal of this face = parent(die) world rotation applied to local
-    // normal. Read from the parent's world matrix (updated by the last render)
-    // instead of getWorldQuaternion(), which recomputed the whole parent chain
-    // once per face per frame (20× per d20).
+    // World normal of this face = parent(die) world rotation applied to local normal
     const parent = g.parent;
     const wn = _wn.current.copy(face.norm);
-    if (parent) wn.transformDirection(parent.matrixWorld);
+    if (parent) wn.applyQuaternion(parent.getWorldQuaternion(_parentQuat.current));
     // dot with world up: 1 = facing camera (top), <=0 = bottom/side
     const up = _up.current.dot(wn);
     // Map [0.1 .. 0.9] of upward-ness to [0 .. 0.85] opacity. Mutating the

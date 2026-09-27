@@ -6,8 +6,6 @@ import { TexturedMaterial } from './materials/textured-material';
 import { CriticalEffect, ShatteredDie } from './effects/critical';
 import { DiceCore, OrbShell } from './cores';
 import { FaceNumber } from './face-number';
-import { FaceSymbol } from './face-symbol';
-import type { Die3DSymbol } from './throw-3d';
 
 // Visual Die Component (Pure Rendering). The parent handles positioning /
 // rotation via a Group, so this just renders the mesh + effects at 0,0,0.
@@ -22,7 +20,6 @@ export const VisualDie = React.forwardRef(
       stopped = false,
       simple = false,
       onCritComplete,
-      faceSymbols,
     }: {
       type: string;
       skin: DiceSkin;
@@ -31,11 +28,6 @@ export const VisualDie = React.forwardRef(
       stopped?: boolean;
       simple?: boolean;
       onCritComplete?: () => void;
-      /**
-       * Symbol die: symbols of each physical face (index of `trueFaces`),
-       * drawn instead of the numbers; an empty face shows nothing.
-       */
-      faceSymbols?: Die3DSymbol[][];
     },
     ref: any,
   ) => {
@@ -59,36 +51,20 @@ export const VisualDie = React.forwardRef(
           {/* Face numbers — opacity driven per-frame by face orientation:
                     top faces (toward the camera) stay readable, others fade out. */}
           {!simple &&
-            trueFaces.map((face, index) =>
-              faceSymbols ? (
-                faceSymbols[index]?.length ? (
-                  <FaceSymbol
-                    key={index}
-                    face={face}
-                    symbols={faceSymbols[index]!}
-                    scale={type === 'd20' ? 0.45 : 0.7}
-                    color={'#ffffff'}
-                    outlineColor={skin.shadowColor}
-                    radius={0.92}
-                    maxOpacity={0.85}
-                    stopped={stopped}
-                  />
-                ) : null
-              ) : (
-                <FaceNumber
-                  key={index}
-                  face={face}
-                  value={getDieValue(type, index)}
-                  scale={type === 'd20' ? 0.45 : 0.7}
-                  color={'#ffffff'}
-                  outlineColor={skin.shadowColor}
-                  radius={0.92}
-                  maxOpacity={0.85}
-                  outlineWidth={0}
-                  stopped={stopped}
-                />
-              ),
-            )}
+            trueFaces.map((face, index) => (
+              <FaceNumber
+                key={index}
+                face={face}
+                value={getDieValue(type, index)}
+                scale={type === 'd20' ? 0.45 : 0.7}
+                color={'#ffffff'}
+                outlineColor={skin.shadowColor}
+                radius={0.92}
+                maxOpacity={0.85}
+                outlineWidth={0}
+                stopped={stopped}
+              />
+            ))}
 
           {/* Transparent glass shell (rolls with the die body), drawn LAST */}
           <OrbShell skin={skin} geometry={geometry} />
@@ -141,36 +117,20 @@ export const VisualDie = React.forwardRef(
         {/* Face numbers — fade out on faces pointing away from the camera */}
         {!isShattered &&
           !simple &&
-          trueFaces.map((face, index) =>
-            faceSymbols ? (
-              faceSymbols[index]?.length ? (
-                <FaceSymbol
-                  key={index}
-                  face={face}
-                  symbols={faceSymbols[index]!}
-                  scale={type === 'd20' ? 0.45 : 0.7}
-                  color={skin.textColor}
-                  outlineColor={skin.shadowColor}
-                  radius={1.01}
-                  maxOpacity={1}
-                  stopped={stopped}
-                />
-              ) : null
-            ) : (
-              <FaceNumber
-                key={index}
-                face={face}
-                value={getDieValue(type, index)}
-                scale={type === 'd20' ? 0.45 : 0.7}
-                color={skin.textColor}
-                outlineColor={skin.shadowColor}
-                radius={1.01}
-                maxOpacity={1}
-                outlineWidth={0.06}
-                stopped={stopped}
-              />
-            ),
-          )}
+          trueFaces.map((face, index) => (
+            <FaceNumber
+              key={index}
+              face={face}
+              value={getDieValue(type, index)}
+              scale={type === 'd20' ? 0.45 : 0.7}
+              color={skin.textColor}
+              outlineColor={skin.shadowColor}
+              radius={1.01}
+              maxOpacity={1}
+              outlineWidth={0.06}
+              stopped={stopped}
+            />
+          ))}
       </group>
     );
   },

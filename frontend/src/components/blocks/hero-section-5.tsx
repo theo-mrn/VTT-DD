@@ -6,14 +6,15 @@ import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button
 import { cn } from '@/lib/utils';
 import { Menu, X, Mail, ChevronDown, Send } from 'lucide-react';
 import { useScroll, motion, useTransform } from 'framer-motion';
-import { aclonica } from '@/app/fonts';
-import { LoginForm } from '@/components/auth/login-form';
+import { Aclonica } from 'next/font/google';
+import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/lib/session';
 import { Features1 } from '@/components/blocks/features1';
 import { MockupCtaSection } from '@/components/blocks/mockup-cta-section';
 import { StartCampaignSection } from '@/components/blocks/start-campaign-section';
 import { DiceWidget } from '@/components/blocks/dice-widget';
+import { FrontiereErreur } from '@/components/commun/frontiere-erreur';
 import { CanvaSection } from '@/components/blocks/canva';
 import { TestimonialsSection } from '@/components/ui/testimonial-v2';
 import { ImageAutoSlider } from '@/components/ui/image-auto-slider';
@@ -26,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, LogOut, PlusCircle, User, Users } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,11 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+
+const aclonica = Aclonica({
+  weight: '400',
+  subsets: ['latin'],
+});
 
 const HERO_PORTRAITS = [
   {
@@ -123,7 +129,7 @@ const FloatingPortrait = ({
       transition={{
         opacity: { duration: 0.8, delay: delay + 0.5 },
         scale: { duration: 0.8, delay: delay + 0.5 },
-        y: { duration: 3.5 + index * 0.5, repeat: Infinity, ease: 'easeInOut', delay },
+        y: { duration: 3.5 + index * 0.5, repeat: Infinity, ease: 'easeInOut', delay: delay },
       }}
     >
       {src && <img src={src} alt="" className="w-full h-full object-cover" loading="eager" />}
@@ -204,27 +210,6 @@ const HeroHeader = ({
                         <User className="w-4 h-4" />
                         <span>Voir mon profil</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => router.push('/campaigns')}
-                        className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
-                      >
-                        <LayoutDashboard className="w-4 h-4" />
-                        <span>Mes campagnes</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => router.push('/join')}
-                        className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
-                      >
-                        <Users className="w-4 h-4" />
-                        <span>Rejoindre</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => router.push('/campaigns/new')}
-                        className="focus:bg-white/10 focus:text-white cursor-pointer gap-2"
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                        <span>Créer</span>
-                      </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-white/10" />
                       <DropdownMenuItem
                         onClick={() => onSignOut().then(() => router.push('/'))}
@@ -265,12 +250,10 @@ export function HeroSection() {
   const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
   const [heroPortraits, setHeroPortraits] = React.useState<string[]>([]);
 
-  const { status, profile, signOut } = useSession();
-  const isUserLoggedIn = status === 'chargement' ? null : status === 'connecte';
+  const { statut, profil, seDeconnecter } = useSession();
+  const isUserLoggedIn = statut === 'chargement' ? null : statut === 'connecte';
   // Même forme que l'ancien document Firestore (pp, name) pour le menu utilisateur
-  const userData = profile
-    ? { pp: profile.avatarUrl, name: profile.name, email: profile.email }
-    : null;
+  const userData = profil ? { pp: profil.avatarUrl, name: profil.name, email: profil.email } : null;
   const router = useRouter();
   const { scrollYProgress } = useScroll();
 
@@ -282,7 +265,7 @@ export function HeroSection() {
 
   const handleStartAdventure = () => {
     if (isUserLoggedIn) {
-      router.push('/join');
+      router.push('/accueil');
     } else {
       setIsAuthModalOpen(true);
     }
@@ -294,8 +277,8 @@ export function HeroSection() {
         onOpenAuth={() => setIsAuthModalOpen(true)}
         isUserLoggedIn={isUserLoggedIn}
         userData={userData}
-        onOpenProfile={() => router.push('/profile')}
-        onSignOut={signOut}
+        onOpenProfile={() => router.push('/profil')}
+        onSignOut={seDeconnecter}
         router={router}
       />
       <main className="overflow-x-hidden">
@@ -442,7 +425,10 @@ export function HeroSection() {
         <StartCampaignSection onStart={handleStartAdventure} />
       </main>
 
-      <DiceWidget />
+      {/* Scène 3D chargée depuis des CDN : son échec ne doit pas emporter la page */}
+      <FrontiereErreur>
+        <DiceWidget />
+      </FrontiereErreur>
 
       {isAuthModalOpen && (
         <div className="fixed inset-0 z-50">
@@ -454,11 +440,18 @@ export function HeroSection() {
             <div className="relative">
               <button
                 onClick={() => setIsAuthModalOpen(false)}
-                className="absolute -top-4 -right-4 z-20 bg-zinc-900 rounded-xl p-2 shadow-lg hover:bg-zinc-800 text-white"
+                className="absolute right-3 top-3 z-20 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
-              <LoginForm onLoggedIn={() => setIsAuthModalOpen(false)} />
+              <FormulaireConnexion
+                carte
+                redirection="/accueil"
+                onConnecte={(mode) => {
+                  setIsAuthModalOpen(false);
+                  router.push(mode === 'inscription' ? '/bienvenue' : '/accueil');
+                }}
+              />
             </div>
           </div>
         </div>
@@ -517,9 +510,9 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
     setIsSending(true);
     try {
       // Pas encore de service « retours » dans la nouvelle stack : envoi par e-mail
-      const subject = encodeURIComponent('Retour sur YNER');
-      const body = encodeURIComponent(`${message}\n\n— ${userData?.name || 'Aventurier anonyme'}`);
-      window.location.href = `mailto:contact@yner.fr?subject=${subject}&body=${body}`;
+      const sujet = encodeURIComponent('Retour sur YNER');
+      const corps = encodeURIComponent(`${message}\n\n— ${userData?.name || 'Aventurier anonyme'}`);
+      window.location.href = `mailto:contact@yner.fr?subject=${sujet}&body=${corps}`;
       setOpen(false);
       setMessage('');
     } catch (error) {

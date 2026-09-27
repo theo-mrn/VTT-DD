@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { mapImagePath } from '@/utils/imagePathMapper';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { aclonica } from '@/app/fonts';
+import { Aclonica } from 'next/font/google';
 import { ChevronRight } from 'lucide-react';
+
+const aclonica = Aclonica({ weight: '400', subsets: ['latin'] });
 
 export function StartCampaignSection({ onStart }: { onStart: () => void }) {
   const [bgImage, setBgImage] = React.useState('');

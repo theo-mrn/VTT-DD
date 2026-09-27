@@ -1,8 +1,13 @@
 'use client';
 import { motion } from 'framer-motion';
-import { aclonica } from '@/app/fonts';
+import { Aclonica } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { Dices, Map, ScrollText, Users } from 'lucide-react';
+
+const aclonica = Aclonica({
+  weight: '400',
+  subsets: ['latin'],
+});
 
 const HIGHLIGHTS = [
   { icon: Map, label: 'Cartes & tokens' },

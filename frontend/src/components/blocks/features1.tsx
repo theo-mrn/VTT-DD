@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
-import { aclonica } from '@/app/fonts';
+import { Aclonica } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { mapImagePath } from '@/utils/imagePathMapper';
 import {
@@ -16,6 +16,11 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { AmbiancePlayerCard } from '@/components/blocks/ambiance-widget';
+
+const aclonica = Aclonica({
+  weight: '400',
+  subsets: ['latin'],
+});
 
 interface BentoCardProps {
   icon: React.ReactNode;
@@ -250,8 +255,8 @@ export function Features1() {
       mapImagePath('/landingpage/fiche.png'),
       mapImagePath('/landingpage/ombres.gif'),
       mapImagePath('/landingpage/weather.mp4'),
-    ]).then(([creation, sheet, shadows, weather]) => {
-      setAssets({ creation, fiche: sheet, ombres: shadows, weather });
+    ]).then(([creation, fiche, ombres, weather]) => {
+      setAssets({ creation, fiche, ombres, weather });
     });
   }, []);
 

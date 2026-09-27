@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -56,14 +56,9 @@ export const OrbShell = ({
 export const GlowCore = ({ skin }: { skin: DiceSkin }) => {
   const coreRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
-  const color = useMemo(
-    () => new THREE.Color(skin.coreColor || skin.edgeColor),
-    [skin.coreColor, skin.edgeColor],
-  );
-  const dark = useMemo(
-    () => new THREE.Color(skin.coreColor2 || skin.bodyColor).multiplyScalar(0.18),
-    [skin.coreColor2, skin.bodyColor],
-  );
+  const color = new THREE.Color(skin.coreColor || skin.edgeColor);
+  const color2 = new THREE.Color(skin.coreColor2 || skin.bodyColor);
+  const dark = color2.clone().multiplyScalar(0.18);
 
   // Fresnel material: dark at center, glowing at grazing angles.
   const coreMat = useMemo(() => {
@@ -101,8 +96,6 @@ export const GlowCore = ({ skin }: { skin: DiceSkin }) => {
             `,
     });
   }, []);
-  // Passed as a prop, so R3F does not dispose it on unmount.
-  useEffect(() => () => coreMat.dispose(), [coreMat]);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
@@ -144,9 +137,9 @@ export const GlowCore = ({ skin }: { skin: DiceSkin }) => {
 // gaze and occasional blink. All in one shader for richness without assets.
 export const EyeCore = ({ skin }: { skin: DiceSkin }) => {
   const matRef = useRef<THREE.ShaderMaterial>(null);
-  const iris = useMemo(() => new THREE.Color(skin.coreColor || '#1fa2ff'), [skin.coreColor]);
-  const irisDark = useMemo(() => iris.clone().multiplyScalar(0.35), [iris]);
-  const sclera = useMemo(() => new THREE.Color(skin.coreColor2 || '#eef4ff'), [skin.coreColor2]);
+  const iris = new THREE.Color(skin.coreColor || '#1fa2ff');
+  const irisDark = iris.clone().multiplyScalar(0.35);
+  const sclera = new THREE.Color(skin.coreColor2 || '#eef4ff');
 
   const material = useMemo(
     () =>
@@ -258,8 +251,6 @@ export const EyeCore = ({ skin }: { skin: DiceSkin }) => {
 
   // Keep matRef pointing at our shader material for per-frame uniform updates.
   matRef.current = material;
-  // Passed as a prop, so R3F does not dispose it on unmount.
-  useEffect(() => () => material.dispose(), [material]);
 
   return (
     <group>
@@ -323,27 +314,11 @@ const ModelCore = ({ skin, url }: { skin: DiceSkin; url: string }) => {
   );
 };
 
-// A model that fails to load (404, bad file) would otherwise throw through the
-// whole canvas and take every die down with it: show the glow core instead.
-class CoreErrorBoundary extends React.Component<
-  { fallback: React.ReactNode; children: React.ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
-
 // The core element, billboarded so it always faces the camera and never rolls
 // with the die. It lives inside the rolling die group, so we counter-rotate it
 // every frame using the camera's world quaternion.
 export const DiceCore = ({ skin }: { skin: DiceSkin }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const parentQuat = useRef(new THREE.Quaternion());
   const { camera } = useThree();
   const scale = skin.coreScale ?? 1;
 
@@ -352,10 +327,10 @@ export const DiceCore = ({ skin }: { skin: DiceSkin }) => {
     // Cancel the die's rotation and align to the camera (billboard).
     const parent = groupRef.current.parent;
     if (parent) {
+      const parentQuat = parent.getWorldQuaternion(new THREE.Quaternion());
       // Desired world orientation = camera orientation; local = parent⁻¹ * camera
-      // (reused quaternion: no allocation per frame).
-      parent.getWorldQuaternion(parentQuat.current).invert().multiply(camera.quaternion);
-      groupRef.current.quaternion.copy(parentQuat.current);
+      const local = parentQuat.clone().invert().multiply(camera.quaternion);
+      groupRef.current.quaternion.copy(local);
     } else {
       groupRef.current.quaternion.copy(camera.quaternion);
     }
@@ -364,11 +339,9 @@ export const DiceCore = ({ skin }: { skin: DiceSkin }) => {
   return (
     <group ref={groupRef} scale={scale}>
       {skin.coreType === 'model' && skin.coreModelUrl ? (
-        <CoreErrorBoundary fallback={<GlowCore skin={skin} />}>
-          <React.Suspense fallback={<GlowCore skin={skin} />}>
-            <ModelCore skin={skin} url={skin.coreModelUrl} />
-          </React.Suspense>
-        </CoreErrorBoundary>
+        <React.Suspense fallback={<GlowCore skin={skin} />}>
+          <ModelCore skin={skin} url={skin.coreModelUrl} />
+        </React.Suspense>
       ) : skin.coreType === 'eye' ? (
         <EyeCore skin={skin} />
       ) : (

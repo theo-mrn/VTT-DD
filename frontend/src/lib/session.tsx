@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,
@@ -7,92 +8,123 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { login, logout, register, refreshSession, setAccessToken } from './api';
-import { getMyProfile, type Profile } from './profile';
-import { loginUrl } from './redirect';
+import { connexion, deconnexion, inscription, refreshSession, setAccessToken } from './api';
+import { definirUtilisateurLocal } from './depot-local';
+import { lireMonProfil, modifierMonProfil, type Profil } from './profil';
+import { urlConnexion } from './redirection';
 
-export type { Profile as Profil } from './profile';
+export type { Profil } from './profil';
 
 interface Session {
-  status: 'chargement' | 'connecte' | 'anonyme';
-  profile: Profile | null;
+  statut: 'chargement' | 'connecte' | 'anonyme';
+  profil: Profil | null;
   /** Vrai si la session a été fermée volontairement (déconnexion, suppression du compte…). */
-  signedOut: boolean;
-  signIn(email: string, password: string): Promise<void>;
-  signUp(email: string, password: string, name: string): Promise<void>;
-  signOut(): Promise<void>;
+  sortieVolontaire: boolean;
+  seConnecter(email: string, motDePasse: string): Promise<void>;
+  sInscrire(email: string, motDePasse: string, nom: string): Promise<void>;
+  seDeconnecter(): Promise<void>;
   /** Recharge le profil depuis l'API (après une vérification d'e-mail, un changement de titre…). */
-  reloadProfile(): Promise<void>;
+  rechargerProfil(): Promise<void>;
   /** Remplace le profil par celui renvoyé par l'API (réponse d'un PATCH). */
-  replaceProfile(profile: Profile): void;
+  remplacerProfil(profil: Profil): void;
   /** Oublie la session côté front, quand le backend l'a déjà fermée (déconnexion partout, compte supprimé). */
-  forgetSession(): void;
+  oublierSession(): void;
+  /**
+   * Fusionne des préférences dans `settings` (onboarding, macros de dés…) et
+   * enregistre le tout : l'API remplace l'objet entier.
+   */
+  modifierPreferences(maj: Record<string, unknown>): Promise<void>;
 }
 
-const SessionContext = createContext<Session | null>(null);
+const Contexte = createContext<Session | null>(null);
 
 /** Une seule session pour toute l'app : le profil est chargé une fois, puis partagé. */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<Session['status']>('chargement');
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [signedOut, setSignedOut] = useState(false);
+  const [statut, setStatut] = useState<Session['statut']>('chargement');
+  const [profil, setProfil] = useState<Profil | null>(null);
+  const [sortieVolontaire, setSortieVolontaire] = useState(false);
+  const requetes = useQueryClient();
 
-  const loadProfile = useCallback(async () => {
-    setProfile(await getMyProfile());
-    setStatus('connecte');
-    setSignedOut(false);
+  const dernierProfil = useRef(profil);
+  dernierProfil.current = profil;
+  // Le dépôt local (domaines sans service) attribue les données à l'utilisateur
+  // connecté ; posé pendant le rendu, avant que les requêtes des pages ne partent
+  definirUtilisateurLocal(
+    profil ? { id: profil.id, name: profil.name, avatarUrl: profil.avatarUrl } : null,
+  );
+
+  const chargerProfil = useCallback(async () => {
+    setProfil(await lireMonProfil());
+    setStatut('connecte');
+    setSortieVolontaire(false);
   }, []);
 
   // Au chargement : reprise de la session via le cookie de refresh
   // (c'est aussi ainsi que le front récupère son jeton au retour d'OAuth)
   useEffect(() => {
     refreshSession()
-      .then((token) => (token ? loadProfile() : setStatus('anonyme')))
-      .catch(() => setStatus('anonyme'));
-  }, [loadProfile]);
+      .then((jeton) => (jeton ? chargerProfil() : setStatut('anonyme')))
+      .catch(() => setStatut('anonyme'));
+  }, [chargerProfil]);
 
-  const forgetSession = useCallback(() => {
+  const oublierSession = useCallback(() => {
     setAccessToken(null);
-    setProfile(null);
-    setSignedOut(true);
-    setStatus('anonyme');
-  }, []);
+    // Rien de l'utilisateur précédent ne doit rester en cache
+    requetes.clear();
+    setProfil(null);
+    setSortieVolontaire(true);
+    setStatut('anonyme');
+  }, [requetes]);
 
-  const value = useMemo<Session>(
+  const valeur = useMemo<Session>(
     () => ({
-      status,
-      profile,
-      signedOut,
-      async signIn(email, password) {
-        await login(email, password);
-        await loadProfile();
+      statut,
+      profil,
+      sortieVolontaire,
+      async seConnecter(email, motDePasse) {
+        await connexion(email, motDePasse);
+        await chargerProfil();
       },
-      async signUp(email, password, name) {
-        await register(email, password, name);
-        await loadProfile();
+      async sInscrire(email, motDePasse, nom) {
+        await inscription(email, motDePasse, nom);
+        await chargerProfil();
       },
-      async signOut() {
+      async seDeconnecter() {
         try {
-          await logout();
+          await deconnexion();
         } finally {
-          forgetSession();
+          oublierSession();
         }
       },
-      reloadProfile: loadProfile,
-      replaceProfile: setProfile,
-      forgetSession,
+      rechargerProfil: chargerProfil,
+      remplacerProfil: setProfil,
+      oublierSession,
+      async modifierPreferences(maj) {
+        const avant = dernierProfil.current;
+        if (!avant) return;
+        const settings = { ...avant.settings, ...maj };
+        // Affichage immédiat, puis profil renvoyé par l'API
+        setProfil({ ...avant, settings });
+        try {
+          setProfil(await modifierMonProfil({ settings }));
+        } catch (err) {
+          setProfil(avant);
+          throw err;
+        }
+      },
     }),
-    [status, profile, signedOut, loadProfile, forgetSession],
+    [statut, profil, sortieVolontaire, chargerProfil, oublierSession],
   );
 
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return <Contexte.Provider value={valeur}>{children}</Contexte.Provider>;
 }
 
 export function useSession(): Session {
-  const s = useContext(SessionContext);
+  const s = useContext(Contexte);
   if (!s) throw new Error('useSession doit être utilisé dans <SessionProvider>');
   return s;
 }
@@ -102,22 +134,22 @@ export function useSession(): Session {
  * la page demandée en retour ; après une déconnexion volontaire, vers l'accueil.
  * Renvoie le profil une fois la session ouverte, null sinon.
  */
-export function useRequiredProfile(): Profile | null {
-  const { status, profile, signedOut } = useSession();
+export function useProfilRequis(): Profil | null {
+  const { statut, profil, sortieVolontaire } = useSession();
   const router = useRouter();
-  const path = usePathname();
+  const chemin = usePathname();
 
   useEffect(() => {
-    if (status !== 'anonyme') return;
-    router.replace(signedOut ? '/' : loginUrl(path));
-  }, [status, signedOut, path, router]);
+    if (statut !== 'anonyme') return;
+    router.replace(sortieVolontaire ? '/' : urlConnexion(chemin));
+  }, [statut, sortieVolontaire, chemin, router]);
 
-  return status === 'connecte' ? profile : null;
+  return statut === 'connecte' ? profil : null;
 }
 
 /** Profil de l'utilisateur dans une page protégée (rendue seulement une fois connecté). */
-export function useProfile(): Profile {
-  const { profile } = useSession();
-  if (!profile) throw new Error('useProfil doit être utilisé dans une page protégée');
-  return profile;
+export function useProfil(): Profil {
+  const { profil } = useSession();
+  if (!profil) throw new Error('useProfil doit être utilisé dans une page protégée');
+  return profil;
 }
