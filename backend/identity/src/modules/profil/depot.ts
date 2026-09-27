@@ -194,6 +194,8 @@ export async function modifierProfil(
       type: 'identity.profile_updated',
       actor: { userId, role: 'user', characterId: null },
       aggregate: { type: 'user', id: userId },
+      // Noms des champs seulement, jamais les valeurs : le journal history est en ajout seul,
+      // une donnée personnelle qui y entre ne pourrait plus être effacée (RGPD)
       payload: { fields: champs },
       visibility: 'owner',
     });

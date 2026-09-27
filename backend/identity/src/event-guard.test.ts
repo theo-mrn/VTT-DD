@@ -18,11 +18,11 @@ const EXCEPTIONS: Record<string, string> = {
     'sont enregistrés ensuite par PATCH /v1/users/me, tracé par identity.profile_updated.',
   'POST /v1/auth/refresh':
     'Rotation technique du refresh token (toutes les quelques minutes par client) : bruit sans ' +
-    'valeur pour l’historique. Les révocations explicites (logout-all, DELETE sessions/:id) sont tracées.',
-  // Manque connu, hors du périmètre du garde-fou : à corriger dans identity
+    'valeur pour l’historique. Seule la réutilisation d’un jeton (vol probable) est tracée ' +
+    '(identity.refresh_token_reused, via SessionStore). Les révocations explicites sont tracées.',
   'POST /v1/auth/logout':
-    'MANQUE CONNU : la déconnexion clôt la session sans événement, alors que la connexion émet ' +
-    'identity.user_logged_in. À ajouter (identity.user_logged_out) pour un audit des sessions complet.',
+    'Émet identity.user_logged_out, mais à travers SessionStore (interface injectée, non suivie par ' +
+    'l’analyse) : couvert par les tests de tokens/refresh.test.ts et db/db.int.test.ts.',
 };
 
 describe('garde-fou : chaque route d’écriture émet un événement', () => {

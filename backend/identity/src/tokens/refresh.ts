@@ -56,15 +56,31 @@ export interface SessionTx {
   insert(session: NewSession): Promise<void>;
   markRotated(id: string, at: Date): Promise<void>;
   revokeFamily(familyId: string, at: Date): Promise<void>;
+  /** Trace un événement de session (outbox), dans la même transaction. */
+  record(event: SessionEvent): Promise<void>;
+}
+
+/** Événements de session tracés : déconnexion, et vol probable d'un refresh token. */
+export interface SessionEvent {
+  type: 'logged_out' | 'refresh_reused';
+  userId: string;
+  familyId: string;
+}
+
+/** Contexte de la requête qui a produit l'événement (corrélation, trace). */
+export interface SessionEventContext {
+  correlationId: string;
+  traceparent?: string | null;
 }
 
 export interface SessionStore {
-  transaction<T>(fn: (tx: SessionTx) => Promise<T>): Promise<T>;
+  transaction<T>(fn: (tx: SessionTx) => Promise<T>, context?: SessionEventContext): Promise<T>;
 }
 
 export interface ClientMeta {
   userAgent?: string | null;
   ip?: string | null;
+  context?: SessionEventContext;
 }
 
 export function hashRefreshToken(token: string): Buffer {
@@ -123,6 +139,11 @@ export async function rotateSession(
     if (session.rotatedAt) {
       // Jeton déjà consommé : copié par un tiers. On coupe toute la chaîne.
       await tx.revokeFamily(session.familyId, now);
+      await tx.record({
+        type: 'refresh_reused',
+        userId: session.userId,
+        familyId: session.familyId,
+      });
       return { ok: false, reason: 'reused' } as const;
     }
     if (session.expiresAt.getTime() <= now.getTime())
@@ -148,17 +169,21 @@ export async function rotateSession(
       familyId: nouvelle.familyId,
       expiresAt: nouvelle.expiresAt,
     } as const;
-  });
+  }, meta.context);
 }
 
 /** Déconnexion : révoque la famille du jeton présenté (cet appareil). */
 export async function endSession(
   store: SessionStore,
   token: string,
+  meta: ClientMeta = {},
   now: Date = new Date(),
 ): Promise<void> {
   await store.transaction(async (tx) => {
     const session = await tx.findByHashForUpdate(hashRefreshToken(token));
-    if (session) await tx.revokeFamily(session.familyId, now);
-  });
+    // Déjà révoquée : rien ne change, rien à tracer
+    if (!session || session.revokedAt) return;
+    await tx.revokeFamily(session.familyId, now);
+    await tx.record({ type: 'logged_out', userId: session.userId, familyId: session.familyId });
+  }, meta.context);
 }

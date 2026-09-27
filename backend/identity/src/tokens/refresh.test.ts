@@ -8,6 +8,7 @@ import {
   startSession,
   type NewSession,
   type SessionRecord,
+  type SessionEvent,
   type SessionStore,
 } from './refresh.js';
 
@@ -17,6 +18,7 @@ const USER = '0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b';
 /** Stockage en mémoire respectant le contrat de SessionStore. */
 function memoire() {
   const lignes: (SessionRecord & { tokenHash: Buffer })[] = [];
+  const evenements: SessionEvent[] = [];
   const store: SessionStore = {
     async transaction(fn) {
       return fn({
@@ -32,10 +34,13 @@ function memoire() {
         async revokeFamily(familyId, at) {
           for (const l of lignes) if (l.familyId === familyId && !l.revokedAt) l.revokedAt = at;
         },
+        async record(e) {
+          evenements.push(e);
+        },
       });
     },
   };
-  return { store, lignes };
+  return { store, lignes, evenements };
 }
 
 describe('refresh tokens', () => {
@@ -60,7 +65,7 @@ describe('refresh tokens', () => {
   });
 
   it('révoquent toute la famille quand un jeton consommé revient (vol)', async () => {
-    const { store } = memoire();
+    const { store, evenements } = memoire();
     const debut = await startSession(store, USER);
     const r1 = await rotateSession(store, debut.token);
     expect(r1.ok).toBe(true);
@@ -70,6 +75,10 @@ describe('refresh tokens', () => {
     // L'utilisateur légitime est déconnecté lui aussi : la chaîne entière est morte
     if (r1.ok)
       expect(await rotateSession(store, r1.token)).toEqual({ ok: false, reason: 'revoked' });
+    // La réutilisation est tracée (audit de sécurité)
+    expect(evenements).toEqual([
+      { type: 'refresh_reused', userId: USER, familyId: debut.familyId },
+    ]);
   });
 
   it('refusent un jeton inconnu', async () => {
@@ -112,10 +121,15 @@ describe('refresh tokens', () => {
   });
 
   it('la déconnexion révoque la famille de cet appareil seulement', async () => {
-    const { store } = memoire();
+    const { store, evenements } = memoire();
     const telephone = await startSession(store, USER);
     const ordinateur = await startSession(store, USER);
     await endSession(store, telephone.token);
+    // Tracée une seule fois : une seconde déconnexion ne change rien
+    await endSession(store, telephone.token);
+    expect(evenements).toEqual([
+      { type: 'logged_out', userId: USER, familyId: telephone.familyId },
+    ]);
     expect(await rotateSession(store, telephone.token)).toEqual({ ok: false, reason: 'revoked' });
     expect((await rotateSession(store, ordinateur.token)).ok).toBe(true);
   });

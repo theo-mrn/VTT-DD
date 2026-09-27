@@ -6,11 +6,12 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import type { SessionStore, SessionTx } from '../tokens/refresh.js';
 import type { Db } from './client.js';
+import { appendEvent } from './outbox.js';
 import { sessions } from './schema.js';
 
 export function pgSessionStore(db: Db): SessionStore {
   return {
-    transaction(fn) {
+    transaction(fn, context) {
       return db.transaction(async (tx) => {
         const operations: SessionTx = {
           async findByHashForUpdate(tokenHash) {
@@ -47,6 +48,17 @@ export function pgSessionStore(db: Db): SessionStore {
               .update(sessions)
               .set({ revokedAt: at })
               .where(and(eq(sessions.familyId, familyId), isNull(sessions.revokedAt)));
+          },
+          async record(e) {
+            const reused = e.type === 'refresh_reused';
+            await appendEvent(tx, context ?? { correlationId: 'session' }, {
+              type: reused ? 'identity.refresh_token_reused' : 'identity.user_logged_out',
+              // Réutilisation : détectée par le serveur, l'auteur réel est inconnu (vol probable)
+              actor: { userId: e.userId, role: reused ? 'system' : 'user', characterId: null },
+              aggregate: { type: 'user', id: e.userId },
+              payload: { familyId: e.familyId },
+              visibility: 'owner',
+            });
           },
         };
         return fn(operations);

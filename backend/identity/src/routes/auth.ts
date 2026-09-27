@@ -83,6 +83,7 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
   const client = (req: FastifyRequest) => ({
     userAgent: req.headers['user-agent']?.slice(0, 512) ?? null,
     ip: req.ip,
+    context: contexte(req),
   });
 
   function poserCookie(reply: FastifyReply, refresh: IssuedRefresh) {
@@ -273,7 +274,7 @@ export async function registerAuthRoutes(app: ServiceApp, deps: AuthDeps) {
   r.post('/v1/auth/logout', async (req, reply) => {
     exigerCsrf(req);
     const jeton = req.cookies[REFRESH_COOKIE];
-    if (jeton) await endSession(deps.sessions, jeton);
+    if (jeton) await endSession(deps.sessions, jeton, client(req));
     effacerCookie(reply);
     reply.code(204);
   });
