@@ -7,7 +7,6 @@ import {
   Crown,
   Dices,
   KeyRound,
-  NotebookPen,
   Plus,
   Swords,
   UserRound,
@@ -301,7 +300,6 @@ function ActionsRapides() {
     { href: '/campagnes/nouvelle', label: 'Créer une campagne', icone: Swords },
     { href: '/personnages/nouveau', label: 'Créer un héros', icone: Wand2 },
     { href: '/des', label: 'Lancer des dés', icone: Dices },
-    { href: '/notes?nouvelle=1', label: 'Écrire une note', icone: NotebookPen },
   ];
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -348,7 +346,6 @@ function PremiersPas() {
       href: '/personnages/nouveau',
     },
     { ok: (jets.data?.length ?? 0) > 0, label: 'Lancer vos premiers dés', href: '/des' },
-    { ok: (notes.data?.length ?? 0) > 0, label: 'Écrire une note', href: '/notes?nouvelle=1' },
   ];
   const faites = etapes.filter((e) => e.ok).length;
   const charge = campagnes.isSuccess && personnages.isSuccess && jets.isSuccess && notes.isSuccess;

@@ -4,7 +4,6 @@ import {
   ChevronsLeft,
   ChevronsUpDown,
   LogOut,
-  NotebookPen,
   Plus,
   Search,
   Swords,
@@ -288,7 +287,6 @@ function MenuCreer({ repliee, onNavigue }: { repliee: boolean; onNavigue?: () =>
       desc: 'Créer un héros',
       icone: UserRound,
     },
-    { href: '/notes?nouvelle=1', label: 'Note', desc: 'Écrire une idée', icone: NotebookPen },
   ];
   return (
     <DropdownMenu>

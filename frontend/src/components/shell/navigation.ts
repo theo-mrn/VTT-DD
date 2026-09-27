@@ -2,7 +2,6 @@ import {
   Dices,
   Home,
   KeyRound,
-  NotebookPen,
   Shield,
   Swords,
   User,
@@ -27,7 +26,6 @@ export const NAV_PRINCIPALE: LienNav[] = [
   { href: '/campagnes', label: 'Campagnes', icone: Swords },
   { href: '/personnages', label: 'Personnages', icone: UserRound },
   { href: '/des', label: 'Dés', icone: Dices },
-  { href: '/notes', label: 'Notes', icone: NotebookPen },
 ];
 
 export const NAV_SOCIALE: LienNav[] = [{ href: '/amis', label: 'Amis', icone: Users }];

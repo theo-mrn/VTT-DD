@@ -1,6 +1,6 @@
 'use client';
 
-import { Dices, LogIn, NotebookPen, Plus, Swords, UserRound } from 'lucide-react';
+import { Dices, LogIn, Plus, Swords, UserRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -102,10 +102,6 @@ export function PaletteCommandes({
               <CommandItem onSelect={() => aller('/personnages/nouveau')}>
                 <UserRound />
                 Nouveau personnage
-              </CommandItem>
-              <CommandItem onSelect={() => aller('/notes?nouvelle=1')}>
-                <NotebookPen />
-                Nouvelle note
               </CommandItem>
             </CommandGroup>
 
