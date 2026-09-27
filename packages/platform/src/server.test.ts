@@ -1,4 +1,4 @@
-import { Writable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
 import { exportJWK, generateKeyPair, SignJWT, type CryptoKey } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -62,6 +62,11 @@ async function build() {
       return reply.code(201).send({ n: rolls });
     },
   );
+  let streams = 0;
+  app.post('/stream', async (_req, reply) => {
+    streams++;
+    return reply.type('application/json').send(Readable.from([`{"n":${streams}}`]));
+  });
   app.get('/boom', async () => {
     throw new Error('secret interne: postgres://user:pass@db');
   });
@@ -183,6 +188,22 @@ describe('createService', () => {
       headers: { ...req.headers, 'idempotency-key': 'roll-00000002' },
     });
     expect(other.json().n).toBe(2);
+  });
+
+  it('idempotence : un corps en flux (relayé) passe sans cache, sans corps rejoué illisible', async () => {
+    const { app } = await build();
+    const t = await token({});
+    const req = {
+      method: 'POST' as const,
+      url: '/stream',
+      headers: { authorization: `Bearer ${t}`, 'idempotency-key': 'stream-00000001' },
+    };
+    const a = await app.inject(req);
+    const b = await app.inject(req);
+    expect(a.json()).toEqual({ n: 1 });
+    // Pas de rejeu depuis le cache : le service en aval dédoublonne avec la même clé
+    expect(b.headers['idempotent-replayed']).toBeUndefined();
+    expect(b.json()).toEqual({ n: 2 });
   });
 
   it('masque les secrets dans les logs', async () => {

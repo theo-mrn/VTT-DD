@@ -64,15 +64,24 @@ export const idempotency = fp<IdempotencyOptions>(
     app.addHook('onSend', async (req, reply, payload) => {
       const k = req.idempotencyKey;
       if (!k) return payload;
-      // On ne mémorise que les réponses définitives (pas les 5xx, qu'on peut retenter)
-      if (reply.statusCode < 500) {
-        let body: unknown = payload;
-        if (typeof payload === 'string') {
-          try {
-            body = JSON.parse(payload);
-          } catch {
-            body = payload;
-          }
+      // On ne mémorise que les réponses définitives (pas les 5xx, qu'on peut retenter), et
+      // seulement un corps sérialisable. Un flux (réponse relayée par la gateway) ne peut pas
+      // être rejoué : il passe sans cache, et le service en aval, qui reçoit la même clé,
+      // dédoublonne lui-même.
+      const text =
+        payload == null
+          ? ''
+          : typeof payload === 'string'
+            ? payload
+            : Buffer.isBuffer(payload)
+              ? payload.toString('utf8')
+              : null;
+      if (reply.statusCode < 500 && text !== null) {
+        let body: unknown = text;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = text;
         }
         const contentType = reply.getHeader('content-type');
         await opts.cache.set<StoredResponse>(
