@@ -161,13 +161,6 @@ export function gridBlock(id: string, widget: Widget): GridBlock {
   return { id, widget, raw: toApiBlock(id, widget) };
 }
 
-/** Clé d'identité d'un widget (même type, mêmes paramètres, titre compris). */
-export function widgetKey(w: Widget): string {
-  const trie = (o: Record<string, unknown>) =>
-    JSON.stringify(Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b))));
-  return trie(w as unknown as Record<string, unknown>);
-}
-
 /** Identifiant libre pour un nouveau bloc. */
 export function newBlockId(blocks: GridBlock[]): string {
   const pris = new Set(blocks.map((b) => b.id));
@@ -269,8 +262,10 @@ export function stateFrom(
   sizeOf: SizeOf,
   minOf: MinSizeOf,
 ): GridState {
-  const blocks = stored ? stored.blocks.map(fromApiBlock) : defaults();
-  const layouts = stored?.layouts ?? {};
+  // Une mise en page d'un format inconnu est ignorée : la disposition par défaut s'affiche
+  const lisible = stored?.format === 1 && Array.isArray(stored.blocks) ? stored : null;
+  const blocks = lisible ? lisible.blocks.map(fromApiBlock) : defaults();
+  const layouts = lisible?.layouts ?? {};
   return {
     blocks,
     layouts: completeLayouts(blocks, layouts, sizeOf, minOf),

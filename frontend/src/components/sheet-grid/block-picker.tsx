@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { candidateWidgets, ciblesDe } from './candidates';
+import { candidateWidgets, cibleDe } from './candidates';
 
 /** Précision affichée sous le titre : ce que vise le bloc (sorte, groupe, attribut…). */
 function precision(ctx: ContexteFiche, w: Widget): string | null {
@@ -68,11 +68,8 @@ export function BlockPicker({
   onPick: (w: Widget) => void;
 }) {
   const groupes = useMemo(() => {
-    const deja = new Set(present.map((w) => `${w.type}:${JSON.stringify(ciblesDe(w))}`));
-    const liste = candidateWidgets(ctx).map((w) => ({
-      widget: w,
-      present: deja.has(`${w.type}:${JSON.stringify(ciblesDe(w))}`),
-    }));
+    const deja = new Set(present.map(cibleDe));
+    const liste = candidateWidgets(ctx).map((w) => ({ widget: w, present: deja.has(cibleDe(w)) }));
     return BLOCK_TYPE_ORDER.map((type) => ({
       type,
       definition: blockDefinition(type),

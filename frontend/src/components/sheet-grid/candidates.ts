@@ -13,7 +13,6 @@ import {
   type ContexteFiche,
 } from '@/components/fiche/widgets';
 import { groupesAttributs } from '@/lib/creation';
-import { widgetKey } from './model';
 
 /** Disposition par défaut : les blocs de la présentation, sans le profil (montré en en-tête). */
 export function defaultWidgets(ctx: ContexteFiche): Widget[] {
@@ -35,10 +34,15 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
   );
   // Objets : sortes qu'on possède en quantité, ou en exemplaires qu'on équipe
   const objets = sortes.filter((s) => s.quantites || (s.activable && s.exemplaires));
+  // Arbres ou voies : des nœuds ou des rangs achetables que ce type d'entité peut posséder
+  const possedable = (entree: string) => {
+    const e = systeme.entrees.get(entree);
+    return Boolean(e && systeme.sortes.get(e.sorte)?.pour.includes(type));
+  };
   const arbres =
-    systeme.arbres.size > 0 ||
+    [...systeme.arbres.values()].some((a) => a.noeuds.some((n) => possedable(n.entree))) ||
     [...systeme.achats.values()].some(
-      (a) => a.obtient.type === 'rang' || a.obtient.type === 'noeud',
+      (a) => a.obtient.type === 'rang' && systeme.sortes.get(a.obtient.sorte)?.pour.includes(type),
     );
 
   const generes: Widget[] = [
@@ -80,23 +84,40 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
     ...textes.map((a) => ({ type: 'texte' as const, titre: a.nom, attribut: a.cle })),
   ];
 
+  // Un bloc qui vise la même chose qu'un bloc déjà retenu (même sorte, même groupe…) n'est
+  // proposé qu'une fois : la présentation d'abord, avec ses réglages
   const vus = new Set<string>();
-  // Un type déjà décliné par la présentation (même sorte, même groupe…) n'est proposé qu'une fois
-  const cibles = new Set<string>();
-  const cible = (w: Widget) => `${w.type}:${JSON.stringify(ciblesDe(w))}`;
   return [...widgetsDe(ctx), ...generes].filter((w) => {
-    const k = widgetKey(w);
-    const c = cible(w);
-    if (vus.has(k) || cibles.has(c)) return false;
-    vus.add(k);
-    cibles.add(c);
+    const c = cibleDe(w);
+    if (vus.has(c)) return false;
+    vus.add(c);
     return true;
   });
 }
 
-/** Ce qu'un widget affiche, sans son titre : deux blocs de même cible sont le même bloc. */
-export function ciblesDe(w: Widget): unknown {
-  const reste: Record<string, unknown> = { ...w };
-  delete reste.titre;
-  return Object.fromEntries(Object.entries(reste).sort(([a], [b]) => a.localeCompare(b)));
+const trie = (l: readonly string[]) => [...l].sort().join(',');
+
+/**
+ * Ce qu'un widget affiche, sans ses réglages de présentation (titre, colonnes, champ de
+ * regroupement ou de filtre) : deux widgets de même cible sont le même bloc.
+ */
+export function cibleDe(w: Widget): string {
+  switch (w.type) {
+    case 'attributs':
+      return `attributs:${w.attributs ? trie(w.attributs) : `@${w.groupe ?? ''}`}`;
+    case 'ressources':
+      return `ressources:${trie(w.attributs)}`;
+    case 'possessions':
+    case 'competences':
+      return `${w.type}:${w.sorte}`;
+    case 'inventaire':
+    case 'details':
+      return `${w.type}:${trie(w.sortes)}`;
+    case 'texte':
+      return `texte:${w.attribut}`;
+    case 'actions':
+      return `actions:${w.actions ? trie(w.actions) : '*'}`;
+    default:
+      return w.type;
+  }
 }
