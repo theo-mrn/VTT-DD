@@ -70,7 +70,11 @@ export function ChoixHeros({ campagneId }: { campagneId: string }) {
   const nomMembre = (userId: string) => c.members.find((m) => m.userId === userId)?.name ?? '';
   const mesEngages = (engages.data ?? []).filter((p) => p.ownerId === profil.id);
   const autres = (engages.data ?? []).filter((p) => p.ownerId !== profil.id);
-  const libres = (miens.data ?? []).filter((p) => p.roomId === null && p.system.id === c.system);
+  // Un héros déjà engagé ici n'est pas « libre », même si sa campagne n'est pas encore connue
+  const engagesIds = new Set((engages.data ?? []).map((p) => p.id));
+  const libres = (miens.data ?? []).filter(
+    (p) => p.roomId === null && p.system.id === c.system && !engagesIds.has(p.id),
+  );
   const peutCreer = c.freeCreation || role === 'gm';
   const selection = [...mesEngages, ...libres].find((p) => p.id === choisi) ?? null;
 
