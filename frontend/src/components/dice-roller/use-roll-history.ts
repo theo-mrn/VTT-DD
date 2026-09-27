@@ -1,19 +1,25 @@
 'use client';
 
 /**
- * Historique des jets d'une campagne : dernière page, puis polling `after`
- * toutes les 3 s (onglet visible), remontée avec `before`. Les suppressions
- * faites ailleurs sont rattrapées en relisant la dernière page de temps en
- * temps. Sans campagne, ce sont les jets personnels de l'utilisateur.
+ * Historique des jets d'une campagne : dernière page, puis mises à jour en
+ * direct par le service realtime (`dice.rolled`, `dice.roll_deleted`,
+ * `dice.history_cleared`), remontée avec `before`. Sans campagne, ce sont les
+ * jets personnels de l'utilisateur (événements personnels).
+ *
+ * Un événement de jet ne sert que de signal : le jet est relu en REST (`after`),
+ * qui applique le masquage (jet caché vu par son auteur). Chaque jet n'apparaît
+ * qu'une fois (fusion par identifiant). Socket coupé : relecture de secours
+ * toutes les 30 s ; à chaque (ré)abonnement sans rejeu, la dernière page est relue.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, errorMessage } from '@/lib/api';
 import { clearRolls, deleteRoll, listRolls, onRollsChanged, type Roll } from '@/lib/dice';
+import { useCampaignEvents, type RealtimeEvent } from '@/lib/realtime';
 
-const POLL_MS = 3000;
-/** Toutes les 10 relèves (30 s), la dernière page est relue en entier (suppressions). */
-const FULL_EVERY = 10;
+/** Relecture de secours quand le temps réel est coupé (onglet visible). */
+const FALLBACK_POLL_MS = 30_000;
 const PAGE = 50;
+const DICE_EVENTS = ['dice.rolled', 'dice.roll_deleted', 'dice.history_cleared'] as const;
 
 export interface RollHistory {
   /** Du plus ancien au plus récent. */
@@ -23,7 +29,7 @@ export interface RollHistory {
   hasMore: boolean;
   loadingOlder: boolean;
   loadOlder(): Promise<void>;
-  /** Ajoute un jet qui vient d'être enregistré (sans attendre le polling). */
+  /** Ajoute un jet qui vient d'être enregistré (sans attendre l'événement). */
   push(roll: Roll): void;
   remove(id: string): Promise<void>;
   /** Vide l'historique de la campagne (MJ) ; le polling repart de la dernière page. */
@@ -48,7 +54,7 @@ export function useRollHistory({
 }: {
   campaignId: string | null;
   enabled?: boolean;
-  /** Jets arrivés par le polling (pas la première page), pour les notifications. */
+  /** Jets arrivés après la première page (temps réel ou relecture), pour les notifications. */
   onIncoming?(rolls: Roll[]): void;
 }): RollHistory {
   const [rolls, setRolls] = useState<Roll[]>([]);
@@ -64,25 +70,32 @@ export function useRollHistory({
   const incomingRef = useRef(onIncoming);
   incomingRef.current = onIncoming;
   const inFlight = useRef(false);
-  const ticks = useRef(0);
+  /** Relecture demandée pendant qu'une autre est en cours : relancée ensuite (rien de perdu). */
+  const queued = useRef<{ full: boolean } | null>(null);
   const generation = useRef(0);
 
-  /** Relit la dernière page ; les jets plus anciens déjà remontés sont gardés. */
+  /**
+   * Relit la dernière page (du plus récent au plus ancien) ; les jets plus
+   * anciens qu'elle, déjà remontés, sont gardés, les autres absents sont supprimés.
+   */
   const loadLatest = useCallback(async (): Promise<Roll[] | null> => {
     const gen = generation.current;
     const page = await listRolls({ campaignId, limit: PAGE });
     if (gen !== generation.current) return null;
     setRolls((list) => {
-      const oldest = page[0]?.createdAt;
-      const older = oldest ? list.filter((r) => r.createdAt < oldest) : [];
+      const oldest = page.at(-1)?.createdAt;
+      const older = oldest && page.length >= PAGE ? list.filter((r) => r.createdAt < oldest) : [];
       return merge(older, page);
     });
     return page;
   }, [campaignId]);
 
   const poll = useCallback(
-    async (full = false) => {
-      if (inFlight.current) return;
+    async (full = false): Promise<void> => {
+      if (inFlight.current) {
+        queued.current = { full: full || (queued.current?.full ?? false) };
+        return;
+      }
       inFlight.current = true;
       const gen = generation.current;
       try {
@@ -104,19 +117,25 @@ export function useRollHistory({
         else setError(errorMessage(e));
       } finally {
         inFlight.current = false;
+        const next = queued.current;
+        queued.current = null;
+        // Version à jour (campagne courante) : une demande faite avant un changement a été oubliée
+        if (next) void pollRef.current(next.full);
       }
     },
     [campaignId, loadLatest],
   );
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
 
-  // Première page, puis polling
+  // Première page
   useEffect(() => {
     generation.current += 1;
     setRolls([]);
     setHasMore(false);
     setError(null);
     setUnsupported(false);
-    ticks.current = 0;
+    queued.current = null;
     if (!enabled) {
       setLoading(false);
       return;
@@ -142,18 +161,60 @@ export function useRollHistory({
     };
   }, [campaignId, enabled, loadLatest]);
 
+  /** Historique vidé (par le MJ, ici ou ailleurs) : liste et curseur remis à zéro. */
+  const resetList = useCallback(() => {
+    generation.current += 1;
+    queued.current = null;
+    rollsRef.current = [];
+    setRolls([]);
+    setHasMore(false);
+    setError(null);
+  }, []);
+
+  // Temps réel : un jet arrivé est relu en REST (masquage), une suppression appliquée telle quelle
+  const onDiceEvent = useCallback(
+    (e: RealtimeEvent) => {
+      switch (e.event.type) {
+        case 'dice.rolled':
+          void poll();
+          return;
+        case 'dice.roll_deleted': {
+          // L'agrégat est le jet, même dans une version expurgée
+          const id = e.event.aggregate.id;
+          setRolls((list) => list.filter((r) => r.id !== id));
+          return;
+        }
+        case 'dice.history_cleared':
+          resetList();
+          void poll();
+          return;
+      }
+    },
+    [poll, resetList],
+  );
+  const realtime = useCampaignEvents(campaignId, DICE_EVENTS, onDiceEvent, {
+    enabled: enabled && !unsupported,
+  });
+
+  // (Ré)abonnement sans rejeu : ce qui a pu arriver entre-temps est relu
+  useEffect(() => {
+    if (!enabled || unsupported || !realtime.live || !realtime.generation) return;
+    void poll(true);
+  }, [enabled, unsupported, realtime.live, realtime.generation, poll]);
+
+  // Secours : relecture lente tant que le temps réel est coupé
+  useEffect(() => {
+    if (!enabled || unsupported || realtime.live) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void poll(true);
+    }, FALLBACK_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [enabled, unsupported, realtime.live, poll]);
+
+  // Jet d'action enregistré par character depuis cet onglet : relu aussitôt
   useEffect(() => {
     if (!enabled || unsupported) return;
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      ticks.current += 1;
-      void poll(ticks.current % FULL_EVERY === 0);
-    }, POLL_MS);
-    const offChanged = onRollsChanged(() => void poll());
-    return () => {
-      window.clearInterval(timer);
-      offChanged();
-    };
+    return onRollsChanged(() => void poll());
   }, [enabled, unsupported, poll]);
 
   const loadOlder = useCallback(async () => {
@@ -189,14 +250,9 @@ export function useRollHistory({
   const clear = useCallback(async () => {
     if (!campaignId) return;
     await clearRolls(campaignId);
-    // Liste vidée et curseur remis à zéro : le prochain passage relit la dernière page.
-    generation.current += 1;
-    ticks.current = 0;
-    rollsRef.current = [];
-    setRolls([]);
-    setHasMore(false);
-    setError(null);
-  }, [campaignId]);
+    // Liste vidée et curseur remis à zéro : le prochain jet relit la dernière page.
+    resetList();
+  }, [campaignId, resetList]);
 
   const refresh = useCallback(() => void poll(), [poll]);
 
