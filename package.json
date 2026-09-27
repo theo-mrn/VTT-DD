@@ -20,7 +20,8 @@
     "dev:legacy": "pnpm --filter @vtt/legacy dev",
     "import:personnages": "bash infra/local/import-personnages.sh",
     "import:campaigns": "bash infra/local/import-campaigns.sh",
-    "import:dice": "bash infra/local/import-dice.sh"
+    "import:dice": "bash infra/local/import-dice.sh",
+    "import:billing": "bash infra/local/import-billing.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
