@@ -61,6 +61,8 @@ Chaque attribut porte aussi son libellé, son groupe d'affichage, sa visibilité
 
 Un attribut de base déclare aussi qui le **saisit** une fois la création terminée (`saisie`, voir la référence rapide) : personne (il s'achète), le joueur ou le MJ (crédits), ou le MJ seul (XP gagnée, niveau).
 
+Un attribut (`base`, `derivee` ou `ressource`) déclare enfin s'il sert aux **jets libres** du lanceur de dés : `jet: { apport }` (voir « Attributs jetables » dans la référence rapide). Sans `jet`, il n'y est jamais proposé.
+
 ### 3. Catalogues
 
 Les races, classes, carrières, spécialisations, compétences, talents, armes, armures, qualités d'arme, états (étourdi, à terre…) et blessures critiques sont tous des **entrées de catalogue**. Le système déclare lui-même ses **sortes** d'entrée, avec leurs champs propres : le moteur n'a pas de liste fermée.
@@ -295,6 +297,28 @@ Le calcul ignore sans erreur ce que le système ne connaît plus : valeur d'un a
 
 - **Saisie** d'un attribut de base (`saisie`, défaut `creation`) : pendant la création, le propriétaire saisit tout ; ensuite `jeu` = propriétaire ou MJ, `mj` = MJ seul, `creation` = plus personne (l'attribut s'achète). `refusSaisie(attribut, creation, { proprietaire, mj })` donne la raison d'un refus ; le service character la renvoie en 403 (réservé au MJ) ou 422.
 
+### Attributs jetables (lanceur de dés)
+
+Trois couches décident des attributs proposés dans le lanceur, sans aucune clé de jeu dans le moteur ni dans le front :
+
+1. **Règles** : l'attribut déclare `jet: { apport }`, avec pour apport :
+   - `modificateur` : son modificateur, ajouté comme `mod(@CLE)` (l'attribut doit en avoir un) ;
+   - `valeur` : sa valeur, ajoutée comme `@CLE` (attribut numérique) ;
+   - une formule sans dé, ajoutée entre parenthèses (`mod(@DEX) + @niveau`). Elle ne lit que les attributs de l'entité (valeurs et modificateurs) : ni `rang`, ni `possede`, ni agrégats, car le service de dés l'évalue avec les seules valeurs de la fiche.
+
+   Le chargement vérifie l'apport comme les autres formules. La fiche calculée donne l'apport de chaque attribut jetable (`ValeurCalculee.jet`, repris par `ficheJson`).
+
+2. **Présentation** : `des.jets` ordonne et regroupe (`[{ titre, entite?, attributs }]`), validé contre les règles (attribut existant qui déclare `jet`, pas de doublon). Un attribut jetable absent de ces groupes suit, groupé par son `groupe`. Sans déclaration : ordre du système, groupé par `groupe`.
+3. **Campagne** : le MJ retire des attributs pour toute la table (réglages de campagne, `dice.hiddenAttributes`, docs/api-campaign.md). Il ne peut jamais en ajouter un qui ne déclare pas `jet`.
+
+`declarationsJetables(systeme, entite, options)` et `attributsJetables(fiche, options)` renvoient la liste ordonnée (clé, nom, genre d'apport, terme à ajouter à la formule, groupe, et l'apport calculé pour la fiche). Options : `presentation`, `retires` (réglage de campagne) et `mj` (garder les attributs réservés au MJ). `grouperJetables` regroupe la liste pour l'affichage.
+
+| Système   | Attributs jetables                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
+| D&D       | FOR, DEX, CON, SAG, INT, CHA (modificateur) ; Contact, Distance, Magie, INIT (valeur). Défense et PV max : aucun jet. |
+| Nooblies  | Comme D&D, dont il reprend la structure et les actions (`1d20 + valeur(score)`, `1d20 + @INIT`).                      |
+| Star Wars | Aucun : chaque jet est un test de compétence dont la réserve de dés combine caractéristique et rang.                  |
+
 ### Présentation
 
 Le fichier `presentation.yaml` de chaque système décrit :
@@ -306,6 +330,7 @@ Le fichier `presentation.yaml` de chaque système décrit :
 - les blocs de chaque fiche (`attributs`, `ressources`, `possessions`, `inventaire`, `competences`, `arbres`, `monnaies`, `details`, `actions`, `bonus`, `texte`) :
   - `ressources` : en jauges (défaut) ou en chiffres (`affichage: valeur` : « PV / PV max », et d'autres attributs en valeur simple, comme la Défense) ;
   - `inventaire` : source unique de l'équipement, toutes sortes d'objets réunies ; regroupé par sorte, ou par un champ (`groupeChamp`), ou par une liste de champs quand les sortes n'ont pas le même (`[attaque, categorie]` : pour chaque objet, le premier que déclare sa sorte, sinon sa sorte) ;
+- l'ordre et les groupes des attributs du lanceur de dés (`des.jets`, voir « Attributs jetables ») ;
 - la géométrie des arbres, les images et les bibliothèques.
 
 Ce fichier est validé contre les règles au build (`erreursWidget` pour chaque bloc). Le front n'y ajoute aucune valeur propre à un jeu, et marque indisponible un bloc enregistré dans une mise en page que le système ne permet plus (attribut retiré).
