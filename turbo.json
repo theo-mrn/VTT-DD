@@ -13,7 +13,7 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "passThroughEnv": ["TEST_DATABASE_URL"]
+      "passThroughEnv": ["TEST_DATABASE_URL", "NATS_URL"]
     },
     "dev": {
       "cache": false,

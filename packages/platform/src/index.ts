@@ -12,3 +12,4 @@ export * from './middleware/idempotency.js';
 export * from './middleware/request-context.js';
 export * from './middleware/security.js';
 export * from './bus.js';
+export * from './outbox-relay.js';
