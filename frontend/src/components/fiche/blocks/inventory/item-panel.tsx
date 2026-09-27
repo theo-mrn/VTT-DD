@@ -2,18 +2,12 @@
 
 /**
  * Détail d'un objet, modifiable sur place : nom, quantité, équipé, visibilité, dossier,
- * description, formules (dés d'une arme : formule libre vérifiée en direct, avec l'aperçu
- * pour ce personnage), caractéristiques propres de l'exemplaire, bonus (ajouter, activer,
- * retirer), puis nouvel exemplaire, don et suppression. Tout vient de la sorte : aucun
- * champ nommé.
+ * description, formules (dés d'une arme : formule en clés nues vérifiée en direct, avec
+ * l'aperçu pour ce personnage), caractéristiques propres de l'exemplaire, bonus (ajouter,
+ * activer, retirer), puis nouvel exemplaire, don et suppression. Tout vient de la sorte :
+ * aucun champ nommé. Les éditeurs sont partagés avec la configuration avant l'ajout.
  */
-import {
-  compilerEffets,
-  variablesSource,
-  type Effet,
-  type Fiche,
-  type InventoryFolder,
-} from '@vtt/rules';
+import type { Effet, Fiche, InventoryFolder } from '@vtt/rules';
 import {
   Check,
   Copy,
@@ -42,6 +36,15 @@ import { Input, styleChampBase } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import {
+  BonusForm,
+  BonusPropresListe,
+  echapLocal,
+  ECHAP_LOCAL,
+  estModifiable,
+  FieldInput,
+  FormulaField,
+} from './editors';
 import { ItemIcon, SectionTitle } from './item-icon';
 import { actionsDe, type ItemHandlers, type SectionDetail } from './item-menu';
 import {
@@ -49,10 +52,11 @@ import {
   basculerBonus,
   bonusPropres,
   champsAffiches,
-  effetBonus,
+  cleExemple,
   formulesDe,
   sansBonus,
   verifierFormule,
+  type ChampFormule,
   type FormuleAffichee,
   type InventoryItem,
   type ValeurChamp,
@@ -92,7 +96,10 @@ export function ItemPanel({
 }) {
   return (
     <Dialog open={item !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[min(48rem,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent
+        onEscapeKeyDown={(e) => echapLocal(e) && e.preventDefault()}
+        className="flex max-h-[min(48rem,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+      >
         {item && (
           <Contenu
             key={item.cle}
@@ -245,6 +252,7 @@ function Nom({ item, onRenommer }: { item: InventoryItem; onRenommer?: (nom: str
         <Input
           autoFocus
           aria-label="Nom de l’objet"
+          {...ECHAP_LOCAL}
           value={nom}
           maxLength={200}
           onChange={(e) => setNom(e.target.value)}
@@ -517,8 +525,9 @@ function Description({ item, writes }: { item: InventoryItem; writes?: PanelWrit
 }
 
 /**
- * Formule d'un champ de l'objet : aperçu pour ce personnage et, pour un exemplaire
- * modifiable, formule libre vérifiée en direct par le moteur (comme le fera le service).
+ * Formule d'un champ de l'objet, lisible (`1d8+FOR`), avec son aperçu pour ce personnage ;
+ * pour un exemplaire modifiable, formule en clés nues (`1d6-CON+8`) vérifiée en direct par
+ * le moteur, comme le fera le service.
  */
 function EditeurFormule({
   fiche,
@@ -534,12 +543,11 @@ function EditeurFormule({
   const id = useId();
   const [edition, setEdition] = useState(false);
   const [texte, setTexte] = useState(formule.texte);
-  const champ = formule.champ as Extract<typeof formule.champ, { type: 'formule' }>;
+  const champ = formule.champ as ChampFormule;
   const verif = useMemo(
     () => (edition && texte.trim() ? verifierFormule(fiche, item, champ, texte) : null),
     [edition, texte, fiche, item, champ],
   );
-  const erreur = verif && !verif.ok ? verif.erreurs.join(' ; ') : null;
 
   function enregistrer(e: FormEvent) {
     e.preventDefault();
@@ -594,61 +602,35 @@ function EditeurFormule({
         </p>
       )}
       {edition && (
-        <form onSubmit={enregistrer} className="mt-2 space-y-1.5">
-          <label htmlFor={`${id}-f`} className="sr-only">
-            Formule de {champ.nom}
-          </label>
-          <div className="flex gap-2">
-            <Input
-              id={`${id}-f`}
-              autoFocus
-              spellCheck={false}
-              autoComplete="off"
-              value={texte}
-              maxLength={500}
-              placeholder={formule.des ? '1d6 + FOR + 2' : 'FOR + 2'}
-              aria-invalid={erreur ? true : undefined}
-              aria-describedby={`${id}-aide`}
-              onChange={(e) => setTexte(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.stopPropagation();
-                  setEdition(false);
-                }
-              }}
-              className="h-9 px-2.5 font-mono text-[13px]"
-            />
-            <Button type="submit" size="sm" disabled={!verif?.ok}>
-              Enregistrer
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Annuler"
-              onClick={() => setEdition(false)}
-            >
-              <X />
-            </Button>
-          </div>
-          <div id={`${id}-aide`} aria-live="polite" className="min-h-4 text-xs">
-            {erreur ? (
-              <p role="alert" className="text-destructive">
-                {erreur}
-              </p>
-            ) : verif?.ok ? (
-              <p className="text-muted-foreground">
-                Pour ce personnage :{' '}
-                <span className="font-mono text-foreground">{verif.apercu}</span>
-              </p>
-            ) : null}
-          </div>
-          <p className="text-[11px] leading-relaxed text-subtle">
-            {formule.des ? 'Dés : 2d6, 4d6k3 (garder les 3 meilleurs). ' : ''}
-            Attributs du personnage : CON ou @CON, mod(@DEX). Opérateurs + − * /, parenthèses,
-            si(condition, alors, sinon). Champs de l’objet : source.
-            {item.sorte.champs.find((c) => c.type === 'nombre')?.id ?? 'champ'}.
-          </p>
+        <form onSubmit={enregistrer} className="mt-2">
+          <FormulaField
+            id={`${id}-f`}
+            label={`Formule de ${champ.nom}`}
+            texte={texte}
+            onChange={setTexte}
+            verif={verif}
+            des={formule.des}
+            cle={cleExemple(fiche)}
+            sorte={item.sorte}
+            autoFocus
+            onEscape={() => setEdition(false)}
+            actions={
+              <>
+                <Button type="submit" size="sm" disabled={!verif?.ok}>
+                  Enregistrer
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Annuler"
+                  onClick={() => setEdition(false)}
+                >
+                  <X />
+                </Button>
+              </>
+            }
+          />
         </form>
       )}
     </div>
@@ -670,19 +652,26 @@ function Caracteristiques({
   );
   const [edition, setEdition] = useState(false);
   const [brouillon, setBrouillon] = useState<Record<string, ValeurChamp>>({});
+  const [invalides, setInvalides] = useState<Set<string>>(new Set());
   const lisibles = champs.filter((c) => edition || c.valeur !== '—');
   const modifiables = Boolean(writes) && champs.some((c) => c.modifiable);
   if (!lisibles.length && !modifiables) return null;
 
+  function fermer() {
+    setBrouillon({});
+    setInvalides(new Set());
+    setEdition(false);
+  }
+
   function enregistrer() {
+    if (invalides.size) return;
     const changes = Object.fromEntries(
       Object.entries(brouillon).filter(
         ([id, v]) => champs.find((c) => c.champ.id === id)?.brut !== v,
       ),
     );
     if (Object.keys(changes).length) writes?.champs(item, changes);
-    setBrouillon({});
-    setEdition(false);
+    fermer();
   }
 
   return (
@@ -704,51 +693,32 @@ function Caracteristiques({
         <dl className="grid grid-cols-1 gap-x-5 sm:grid-cols-2">
           {lisibles.map((c) => {
             const id = `champ-${item.cle}-${c.champ.id}`;
-            const valeur = brouillon[c.champ.id] ?? c.brut;
-            const saisir = (v: ValeurChamp) => setBrouillon((b) => ({ ...b, [c.champ.id]: v }));
+            const saisissable = edition && c.modifiable && estModifiable(c.champ);
             return (
               <div
                 key={c.champ.id}
                 className="flex min-h-9 min-w-0 items-center justify-between gap-3 border-b border-border py-1 text-[13px]"
               >
                 <dt className="min-w-0 truncate text-muted-foreground">
-                  <label htmlFor={edition && c.modifiable ? id : undefined}>{c.champ.nom}</label>
+                  <label htmlFor={saisissable ? id : undefined}>{c.champ.nom}</label>
                 </dt>
                 <dd className="flex shrink-0 items-center gap-1.5 font-medium">
-                  {edition && c.modifiable ? (
-                    c.champ.type === 'choix' ? (
-                      <select
-                        id={id}
-                        value={valeur === undefined ? '' : String(valeur)}
-                        onChange={(e) => saisir(e.target.value)}
-                        className={cn(styleChampBase, 'h-7 w-36 px-2 text-xs')}
-                      >
-                        {c.champ.options.map((o) => (
-                          <option key={o.valeur} value={o.valeur}>
-                            {o.nom}
-                          </option>
-                        ))}
-                      </select>
-                    ) : c.champ.type === 'booleen' ? (
-                      <Switch id={id} checked={valeur === true} onCheckedChange={saisir} />
-                    ) : (
-                      <Input
-                        id={id}
-                        type={c.champ.type === 'nombre' ? 'number' : 'text'}
-                        className={cn(
-                          'h-7 px-2 text-xs',
-                          c.champ.type === 'nombre' ? 'w-24 text-right' : 'w-40',
-                        )}
-                        value={valeur === undefined ? '' : String(valeur)}
-                        onChange={(e) => {
-                          const v =
-                            c.champ.type === 'nombre' ? Number(e.target.value) : e.target.value;
-                          if (c.champ.type === 'nombre' && !Number.isFinite(v)) return;
-                          saisir(v);
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && enregistrer()}
-                      />
-                    )
+                  {saisissable && estModifiable(c.champ) ? (
+                    <FieldInput
+                      id={id}
+                      champ={c.champ}
+                      valeur={brouillon[c.champ.id] ?? c.brut}
+                      onEnter={enregistrer}
+                      onChange={(v) => {
+                        setInvalides((x) => {
+                          const n = new Set(x);
+                          if (v === undefined) n.add(c.champ.id);
+                          else n.delete(c.champ.id);
+                          return n;
+                        });
+                        if (v !== undefined) setBrouillon((b) => ({ ...b, [c.champ.id]: v }));
+                      }}
+                    />
                   ) : (
                     <span className="max-w-48 truncate">{c.valeur}</span>
                   )}
@@ -765,17 +735,10 @@ function Caracteristiques({
       )}
       {edition && (
         <div className="mt-3 flex justify-end gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setBrouillon({});
-              setEdition(false);
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={fermer}>
             Annuler
           </Button>
-          <Button size="sm" onClick={enregistrer}>
+          <Button size="sm" onClick={enregistrer} disabled={invalides.size > 0}>
             Enregistrer
           </Button>
         </div>
@@ -799,40 +762,22 @@ function Bonus({
   mj: boolean;
   writes?: PanelWrites | undefined;
 }) {
-  const id = useId();
   const propres = bonusPropres(fiche, item);
   const nbPropres = item.possession?.effets.length ?? 0;
   const catalogue = item.bonus.slice(
     0,
     Math.max(0, item.bonus.length - propres.filter((b) => b.actif).length),
   );
-  const attributs = useMemo(() => attributsBonus(fiche, mj), [fiche, mj]);
   const [ajout, setAjout] = useState(false);
-  const [attribut, setAttribut] = useState(attributs[0]?.cle ?? '');
-  const [valeur, setValeur] = useState('1');
-  const [description, setDescription] = useState('');
-
-  const effet = attribut && valeur.trim() ? effetBonus(attribut, valeur.trim(), description) : null;
-  const erreurs = useMemo(() => {
-    if (!effet) return [];
-    const r = compilerEffets(
-      fiche.systeme,
-      fiche.etat.type,
-      [effet],
-      (i, x) => `bonus/${i}/${x}`,
-      variablesSource(item.sorte),
-    );
-    return r.erreurs.map((e) => e.message);
-  }, [effet, fiche, item.sorte]);
+  const peutAjouter = useMemo(() => attributsBonus(fiche, mj).length > 0, [fiche, mj]);
 
   if (!item.bonus.length && !nbPropres && !writes) return null;
-  const groupes = [...new Set(attributs.map((x) => x.groupe ?? ''))];
 
   return (
     <section aria-label="Bonus" data-section="bonus" className="scroll-mt-24">
       <SectionTitle
         action={
-          writes && !ajout && attributs.length > 0 ? (
+          writes && !ajout && peutAjouter ? (
             <Button variant="ghost" size="xs" onClick={() => setAjout(true)}>
               <Plus /> Ajouter un bonus
             </Button>
@@ -846,39 +791,15 @@ function Bonus({
           <BonusBadges bonus={catalogue} taille="md" />
         </div>
       )}
-      {propres.length > 0 && (
-        <ul className="divide-y divide-border rounded-xl border border-border">
-          {propres.map((b) => (
-            <li key={b.index} className="flex min-h-10 items-center gap-2 px-3 py-1.5 text-[13px]">
-              <span
-                className={cn('min-w-0 flex-1 truncate', !b.actif && 'text-subtle line-through')}
-              >
-                {b.texte}
-                {b.effet.description && b.effet.description !== b.texte && (
-                  <span className="ml-1.5 text-xs text-subtle">{b.effet.description}</span>
-                )}
-              </span>
-              {writes && (
-                <>
-                  <Switch
-                    checked={b.actif}
-                    aria-label={b.actif ? `Désactiver ${b.texte}` : `Activer ${b.texte}`}
-                    onCheckedChange={() => writes.effets(item, basculerBonus(item, b.index))}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Retirer ${b.texte}`}
-                    onClick={() => writes.effets(item, sansBonus(item, b.index))}
-                  >
-                    <Trash2 />
-                  </Button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <BonusPropresListe
+        bonus={propres}
+        {...(writes
+          ? {
+              onBasculer: (i: number) => writes.effets(item, basculerBonus(item, i)),
+              onRetirer: (i: number) => writes.effets(item, sansBonus(item, i)),
+            }
+          : {})}
+      />
       {!item.bonus.length && !propres.length && !ajout && (
         <p className="text-[13px] text-subtle">Aucun bonus.</p>
       )}
@@ -888,85 +809,16 @@ function Bonus({
         </p>
       )}
       {ajout && writes && (
-        <form
-          className="mt-3 space-y-2 rounded-xl border border-border p-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!effet || erreurs.length) return;
+        <BonusForm
+          fiche={fiche}
+          sorte={item.sorte}
+          mj={mj}
+          onAjouter={(effet) => {
             writes.effets(item, [...(item.possession?.effets ?? []), effet]);
             setAjout(false);
-            setValeur('1');
-            setDescription('');
           }}
-        >
-          <div className="grid gap-2 sm:grid-cols-[1fr_7rem]">
-            <div className="space-y-1">
-              <label htmlFor={`${id}-a`} className="text-xs text-muted-foreground">
-                Attribut
-              </label>
-              <select
-                id={`${id}-a`}
-                value={attribut}
-                onChange={(e) => setAttribut(e.target.value)}
-                className={cn(styleChampBase, 'h-9 px-2 text-[13px]')}
-              >
-                {groupes.map((g) => {
-                  const options = attributs
-                    .filter((x) => (x.groupe ?? '') === g)
-                    .map((x) => (
-                      <option key={x.cle} value={x.cle}>
-                        {x.nom}
-                      </option>
-                    ));
-                  return g ? (
-                    <optgroup key={g} label={g}>
-                      {options}
-                    </optgroup>
-                  ) : (
-                    options
-                  );
-                })}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor={`${id}-v`} className="text-xs text-muted-foreground">
-                Valeur
-              </label>
-              <Input
-                id={`${id}-v`}
-                value={valeur}
-                spellCheck={false}
-                aria-invalid={erreurs.length ? true : undefined}
-                aria-describedby={`${id}-e`}
-                onChange={(e) => setValeur(e.target.value)}
-                className="h-9 px-2 font-mono text-[13px]"
-              />
-            </div>
-          </div>
-          <Input
-            aria-label="Description (facultative)"
-            placeholder="Description (facultative)"
-            value={description}
-            maxLength={200}
-            onChange={(e) => setDescription(e.target.value)}
-            className="h-9 px-2 text-[13px]"
-          />
-          <p
-            id={`${id}-e`}
-            role={erreurs.length ? 'alert' : undefined}
-            className="min-h-4 text-xs text-destructive"
-          >
-            {erreurs.join(' ; ')}
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setAjout(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" size="sm" disabled={!effet || erreurs.length > 0}>
-              <Plus /> Ajouter
-            </Button>
-          </div>
-        </form>
+          onAnnuler={() => setAjout(false)}
+        />
       )}
     </section>
   );

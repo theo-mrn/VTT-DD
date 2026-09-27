@@ -9,10 +9,14 @@
 import {
   achatsPossibles,
   apercuFormule,
+  compilerEffets,
+  declarationsJetables,
+  variablesSource,
   champsGroupe,
   chemins,
   compilerFormuleChamp,
   formuleChamp,
+  formuleLisible,
   variablesObjet,
   descriptionPossession,
   essayer,
@@ -632,12 +636,19 @@ export function champsAffiches(
     else if (c.type === 'entree' || c.type === 'attribut' || c.type === 'choix')
       valeur = nomValeurChamp(fiche.systeme, c, String(v));
     else if (c.type === 'formule') {
-      const f = fiche.systeme.formules.get(chemins.champ(entree.id, c.id));
-      const res = f ? essayer(fiche, f) : undefined;
-      valeur =
-        res?.ok && String(res.valeur) !== String(v)
-          ? `${String(v)} (${String(arrondi(res.valeur))})`
-          : String(v);
+      // Formule lisible (« 1d8+FOR »), et son aperçu pour ce personnage s'il en diffère
+      const f = formuleChamp(fiche.systeme, entree, c, possession, fiche.entite.type.id);
+      if (f) {
+        const vars = variablesObjet(
+          entree,
+          sorte,
+          { rang: 0, actif: true, quantite: possession ? quantiteDe(possession) : 1 },
+          possession,
+        );
+        const lisible = formuleLisible(fiche.systeme, fiche.entite.type.id, f.noeud, vars);
+        const apercu = apercuFormule(fiche, f, vars);
+        valeur = apercu !== lisible ? `${lisible} (${apercu})` : lisible;
+      } else valeur = String(v);
     } else if (typeof v === 'boolean') valeur = v ? 'oui' : 'non';
     else valeur = String(v);
     // Booléen faux et nombre nul du catalogue : sans intérêt, sauf valeur propre
@@ -767,57 +778,151 @@ export function modelesLibres(fiche: Fiche, widget: InventoryWidget): ModeleLibr
     const sorte = systeme.sortes.get(id);
     if (!sorte?.pour.includes(fiche.etat.type) || !sorte.nomExemplaire) continue;
     const entree = [...systeme.entrees.values()].find((e) => e.sorte === id && e.libre);
-    if (!entree) continue;
-    const champ = champGroupe(widget, sorte) ?? sorte.champs.find((c) => c.type === 'choix');
-    const options = champ ? optionsCategorie(systeme, sorte, champ) : [];
-    const defaut = champ ? champDe(entree, champ) : undefined;
-    r.push({
-      entree,
-      sorte,
-      ...(champ && options.length
-        ? {
-            categorie: {
-              champ,
-              options,
-              ...(typeof defaut === 'string' && defaut ? { defaut } : {}),
-            },
-          }
-        : {}),
-    });
+    if (entree) r.push(modeleDe(fiche, widget, entree, sorte));
   }
   return r;
 }
 
+/**
+ * Modèle d'ajout d'une entrée (catalogue ou objet personnalisé) : son champ de catégorie
+ * (celui du regroupement du widget, sinon le premier `choix` de la sorte) et ses valeurs.
+ */
+export function modeleDe(
+  fiche: Fiche,
+  widget: InventoryWidget,
+  entree: Entree,
+  sorte: Sorte,
+): ModeleLibre {
+  const champ = champGroupe(widget, sorte) ?? sorte.champs.find((c) => c.type === 'choix');
+  const options = champ ? optionsCategorie(fiche.systeme, sorte, champ) : [];
+  const defaut = champ ? champDe(entree, champ) : undefined;
+  return {
+    entree,
+    sorte,
+    ...(champ && options.length
+      ? {
+          categorie: {
+            champ,
+            options,
+            ...(typeof defaut === 'string' && defaut ? { defaut } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+/** Objet configuré avant son ajout (catalogue ou objet personnalisé). */
 export interface SaisieLibre {
+  /** Nom affiché ; nom propre de l'exemplaire s'il diffère de celui de l'entrée. */
   nom: string;
   quantite: number;
   categorie?: string;
   description?: string;
+  /** Autres valeurs propres (champs de la sorte ; formules en clés nues : `1d6-CON+8`). */
+  champs?: Record<string, ValeurChamp>;
+  /** Bonus propres de l'exemplaire. */
+  effets?: Effet[];
+  /** Équipé (sorte activable) ; absent : équipé, comme le service. */
+  actif?: boolean;
+  /** Caché aux autres joueurs. */
+  hidden?: boolean;
+  /** Dossier choisi ; null : à la racine ; absent : le dossier affiché. */
+  folder?: string | null;
+  /** Sorte en quantités déjà possédée : unités ajoutées au dernier exemplaire. */
+  empiler?: boolean;
 }
 
-/** Nouvel objet personnalisé : un exemplaire de l'entrée libre, nommé par ses champs propres. */
+/**
+ * Ce que permet l'ajout d'une entrée : des unités de plus sur l'exemplaire possédé (sorte
+ * en quantités), et/ou un nouvel exemplaire (non possédée, ou sorte `exemplaires`, sous le
+ * maximum de la sorte). Même règle que `poserPossession` côté service.
+ */
+export function modesAjout(
+  fiche: Fiche,
+  entree: Entree,
+  sorte: Sorte,
+): { empiler: boolean; nouveau: boolean } {
+  const { systeme, etat } = fiche;
+  const possede = etat.possessions.some((p) => p.entree === entree.id);
+  const deLaSorte = etat.possessions.filter(
+    (p) => systeme.entrees.get(p.entree)?.sorte === sorte.id,
+  ).length;
+  const plein = sorte.maximum !== undefined && deLaSorte >= sorte.maximum;
+  return {
+    empiler: sorte.quantites && possede,
+    nouveau: (!possede || sorte.exemplaires) && !plein,
+  };
+}
+
+/** Dernier exemplaire possédé d'une entrée, auquel s'ajoutent des unités. */
+export function pileDe(etat: EtatEntite, entree: string): Possession | undefined {
+  return etat.possessions.filter((p) => p.entree === entree).at(-1);
+}
+
+/**
+ * Ajout d'un objet configuré, en une seule demande : un nouvel exemplaire avec ses valeurs
+ * propres (nom, description, catégorie, champs, formules), ses bonus, sa quantité, son
+ * état équipé, sa visibilité et son dossier. Seul ce qui diffère de l'entrée est envoyé.
+ * `empiler` : des unités de plus sur l'exemplaire déjà possédé.
+ */
 export function ajouterLibre(etat: EtatEntite, modele: ModeleLibre, saisie: SaisieLibre): Ecriture {
   const { entree, sorte } = modele;
-  const champs: Record<string, ValeurChamp> = { [sorte.nomExemplaire!]: saisie.nom.trim() };
-  if (saisie.description?.trim() && sorte.descriptionExemplaire)
-    champs[sorte.descriptionExemplaire] = saisie.description.trim();
-  if (saisie.categorie && modele.categorie) champs[modele.categorie.champ.id] = saisie.categorie;
+  const pile = saisie.empiler && sorte.quantites ? pileDe(etat, entree.id) : undefined;
+  if (pile) {
+    const quantite = quantiteDe(pile) + Math.max(1, Math.floor(saisie.quantite));
+    return {
+      demande: {
+        entree: entree.id,
+        ...(pile.exemplaire !== undefined ? { exemplaire: pile.exemplaire } : {}),
+        quantite,
+      },
+      apercu: avecPossessions(
+        etat,
+        etat.possessions.map((p) => (p === pile ? { ...p, quantite } : p)),
+      ),
+    };
+  }
+
+  const champs: Record<string, ValeurChamp> = { ...(saisie.champs ?? {}) };
+  const nom = saisie.nom.trim();
+  if (sorte.nomExemplaire && nom && nom !== entree.nom) champs[sorte.nomExemplaire] = nom;
+  const description = saisie.description?.trim() ?? '';
+  if (sorte.descriptionExemplaire && description && description !== entree.description?.trim())
+    champs[sorte.descriptionExemplaire] = description;
+  if (
+    saisie.categorie &&
+    modele.categorie &&
+    saisie.categorie !== champDe(entree, modele.categorie.champ)
+  )
+    champs[modele.categorie.champ.id] = saisie.categorie;
   const quantite = sorte.quantites && saisie.quantite > 1 ? saisie.quantite : undefined;
+  const effets = saisie.effets?.length ? saisie.effets : undefined;
   const deja = etat.possessions.some((p) => p.entree === entree.id);
   const exemplaire = deja ? nouvelExemplaire(etat.possessions, entree.id) : undefined;
+  const reglages = {
+    ...(Object.keys(champs).length ? { champs } : {}),
+    ...(quantite !== undefined ? { quantite } : {}),
+    ...(effets ? { effets } : {}),
+    ...(sorte.activable && saisie.actif === false ? { actif: false } : {}),
+    ...(saisie.hidden ? { hidden: true } : {}),
+  };
+  const folder =
+    saisie.folder === null || etat.folders.some((f) => f.id === saisie.folder)
+      ? saisie.folder
+      : undefined;
   return {
     demande: {
       entree: entree.id,
       nouveau: true,
-      champs,
-      ...(quantite !== undefined ? { quantite } : {}),
+      ...reglages,
+      ...(folder !== undefined ? { folder } : {}),
     },
     apercu: avecPossessions(etat, [
       ...etat.possessions,
       nouvellePossession(entree.id, 0, {
-        champs,
+        ...reglages,
         ...(exemplaire !== undefined ? { exemplaire } : {}),
-        ...(quantite !== undefined ? { quantite } : {}),
+        ...(folder ? { folder } : {}),
       }),
     ]),
   };
@@ -962,7 +1067,10 @@ export function sortesInventaireParDefaut(systeme: SystemeCharge, type: string):
 
 export interface FormuleAffichee {
   champ: Champ;
-  /** Formule en vigueur : celle de l'exemplaire, sinon celle de l'entrée. */
+  /**
+   * Formule en vigueur, lisible : celle de l'exemplaire telle que saisie (`1d6-CON+8`), sinon
+   * celle de l'entrée réécrite comme on la saisit (`des(source.nbDes, source.faces)` → `1d8`).
+   */
   texte: string;
   /** L'exemplaire a sa propre formule. */
   propre: boolean;
@@ -972,49 +1080,100 @@ export interface FormuleAffichee {
   apercu: string;
 }
 
-type ChampFormule = Extract<Champ, { type: 'formule' }>;
+export type ChampFormule = Extract<Champ, { type: 'formule' }>;
 
-function variablesItem(item: InventoryItem) {
+/** État d'un objet lu par ses formules : `rang`, `actif`, `quantite`, `source.<champ>`. */
+export interface ObjetFormules {
+  entree: Entree;
+  sorte: Sorte;
+  rang: number;
+  actif: boolean;
+  quantite: number;
+  /** Valeurs propres de l'exemplaire (possédé, ou en cours de configuration). */
+  champs?: Possession['champs'];
+}
+
+function variablesDe(o: ObjetFormules) {
   return variablesObjet(
-    item.entree,
-    item.sorte,
-    { rang: item.effective.rang, actif: item.actif, quantite: item.quantite },
-    item.possession,
+    o.entree,
+    o.sorte,
+    { rang: o.rang, actif: o.actif, quantite: o.quantite },
+    o.champs ? { champs: o.champs } : undefined,
   );
 }
 
-/** Formules d'un objet (champs `formule` de sa sorte), avec leur aperçu. */
-export function formulesDe(fiche: Fiche, item: InventoryItem): FormuleAffichee[] {
+function objetDe(item: InventoryItem): ObjetFormules {
+  return {
+    entree: item.entree,
+    sorte: item.sorte,
+    rang: item.effective.rang,
+    actif: item.actif,
+    quantite: item.quantite,
+    ...(item.possession ? { champs: item.possession.champs } : {}),
+  };
+}
+
+/**
+ * Formules d'un objet (champs `formule` de sa sorte), lisibles et avec leur aperçu : celles
+ * de l'exemplaire si ses valeurs propres en portent une, sinon celles de l'entrée.
+ */
+export function formulesObjet(fiche: Fiche, o: ObjetFormules): FormuleAffichee[] {
+  const entite = fiche.entite.type.id;
+  const vars = variablesDe(o);
   const r: FormuleAffichee[] = [];
-  for (const champ of item.sorte.champs) {
+  for (const champ of o.sorte.champs) {
     if (champ.type !== 'formule') continue;
-    const f = formuleChamp(fiche.systeme, item.entree, champ, item.possession);
+    const ex = o.champs ? { champs: o.champs } : undefined;
+    const f = formuleChamp(fiche.systeme, o.entree, champ, ex, entite);
     if (!f) continue;
-    const propre = item.possession?.champs[champ.id];
+    const brut = o.champs?.[champ.id];
+    const saisie = typeof brut === 'string' || typeof brut === 'number' ? String(brut).trim() : '';
+    // Formule propre valide : telle que saisie ; sinon celle de l'entrée, réécrite
+    const propre =
+      saisie !== '' && compilerFormuleChamp(fiche.systeme, o.sorte, champ, saisie, entite).ok;
     r.push({
       champ,
-      texte: f.texte,
-      propre: typeof propre === 'string' ? propre.trim() !== '' : propre !== undefined,
+      texte: propre ? saisie : formuleLisible(fiche.systeme, entite, f.noeud, vars),
+      propre,
       des: champ.des === true,
-      apercu: apercuFormule(fiche, f, variablesItem(item)),
+      apercu: apercuFormule(fiche, f, vars),
     });
   }
   return r;
 }
 
+/** Formules d'un objet possédé (voir `formulesObjet`). */
+export function formulesDe(fiche: Fiche, item: InventoryItem): FormuleAffichee[] {
+  return formulesObjet(fiche, objetDe(item));
+}
+
 export type FormuleVerifiee =
   { ok: true; texte: string; apercu: string } | { ok: false; erreurs: string[] };
 
-/** Vérifie une formule saisie pour un champ de l'objet (comme le fera le service). */
+/**
+ * Vérifie une formule saisie en clés nues (`1d6-CON+8`) pour un champ de l'objet, comme le
+ * fera le service : `normaliserFormuleJet` pour le type d'entité du personnage, puis
+ * compilation ; aperçu calculé pour ce personnage.
+ */
+export function verifierFormuleObjet(
+  fiche: Fiche,
+  o: ObjetFormules,
+  champ: ChampFormule,
+  texte: string,
+): FormuleVerifiee {
+  const r = compilerFormuleChamp(fiche.systeme, o.sorte, champ, texte, fiche.entite.type.id);
+  if (!r.ok) return r;
+  return { ok: true, texte: r.texte, apercu: apercuFormule(fiche, r.formule, variablesDe(o)) };
+}
+
+/** Vérifie une formule saisie pour un champ d'un objet possédé. */
 export function verifierFormule(
   fiche: Fiche,
   item: InventoryItem,
   champ: ChampFormule,
   texte: string,
 ): FormuleVerifiee {
-  const r = compilerFormuleChamp(fiche.systeme, item.sorte, champ, texte);
-  if (!r.ok) return r;
-  return { ok: true, texte: r.texte, apercu: apercuFormule(fiche, r.formule, variablesItem(item)) };
+  return verifierFormuleObjet(fiche, objetDe(item), champ, texte);
 }
 
 /**
@@ -1043,7 +1202,12 @@ export interface BonusPropre {
 
 /** Effets propres de l'exemplaire (bonus saisis sur l'objet), avec leur état. */
 export function bonusPropres(fiche: Fiche, item: InventoryItem): BonusPropre[] {
-  return (item.possession?.effets ?? []).map((effet, index) => {
+  return bonusDesEffets(fiche, item.possession?.effets ?? []);
+}
+
+/** Bonus propres d'une liste d'effets (exemplaire possédé, ou objet en configuration). */
+export function bonusDesEffets(fiche: Fiche, effets: readonly Effet[]): BonusPropre[] {
+  return effets.map((effet, index) => {
     const brut = effet.sur === 'attribut' ? Number(effet.valeur) : Number.NaN;
     const texte =
       libelleEffet(fiche, effet, (champ) =>
@@ -1075,6 +1239,17 @@ export function attributsBonus(
     }));
 }
 
+/**
+ * Clé d'attribut prise en exemple dans l'aide des formules : le premier attribut jetable du
+ * système, sinon le premier attribut de base.
+ */
+export function cleExemple(fiche: Fiche): string {
+  const jetable = declarationsJetables(fiche.systeme, fiche.entite.type.id)[0];
+  if (jetable) return jetable.cle;
+  const base = [...fiche.entite.attributs.values()].find((a) => a.nature === 'base');
+  return base?.cle ?? 'X';
+}
+
 /** Bonus d'objet sur un attribut : « +2 en DEF ». */
 export function effetBonus(attribut: string, valeur: string, description?: string): Effet {
   return {
@@ -1087,7 +1262,12 @@ export function effetBonus(attribut: string, valeur: string, description?: strin
 }
 
 export function basculerBonus(item: InventoryItem, index: number): Effet[] {
-  return (item.possession?.effets ?? []).map((e, i) => {
+  return basculerBonusDans(item.possession?.effets ?? [], index);
+}
+
+/** Active ou désactive le bonus `index` d'une liste d'effets. */
+export function basculerBonusDans(effets: readonly Effet[], index: number): Effet[] {
+  return effets.map((e, i) => {
     if (i !== index) return e;
     if (e.condition === EFFET_DESACTIVE) {
       const { condition: _, ...reste } = e;
@@ -1099,6 +1279,20 @@ export function basculerBonus(item: InventoryItem, index: number): Effet[] {
 
 export function sansBonus(item: InventoryItem, index: number): Effet[] {
   return (item.possession?.effets ?? []).filter((_, i) => i !== index);
+}
+
+/**
+ * Erreurs d'un bonus saisi, comme le service les donnera : effet compilé par le moteur
+ * pour le type d'entité, avec les variables de la sorte (`source.<champ>`).
+ */
+export function erreursBonus(fiche: Fiche, sorte: Sorte, effet: Effet): string[] {
+  return compilerEffets(
+    fiche.systeme,
+    fiche.etat.type,
+    [effet],
+    (i, x) => `bonus/${i}/${x}`,
+    variablesSource(sorte),
+  ).erreurs.map((e) => e.message);
 }
 
 // ─── Autres écritures de l'inventaire ────────────────────────────────────────
@@ -1226,10 +1420,12 @@ export function trier(items: InventoryItem[], tri: Tri): InventoryItem[] {
 
 /**
  * Nouvel exemplaire créé dans un dossier (ajout depuis un dossier ouvert) ; une écriture
- * qui ne crée rien (unité de plus sur un exemplaire existant) reste telle quelle.
+ * qui ne crée rien (unité de plus sur un exemplaire existant) ou dont le dossier est déjà
+ * choisi reste telle quelle.
  */
 export function dansDossier(w: Ecriture, folder: string | null): Ecriture {
-  if (!folder || !w.demande.nouveau) return w;
+  // Dossier déjà choisi à la configuration (racine comprise) : il l'emporte
+  if (!folder || !w.demande.nouveau || w.demande.folder !== undefined) return w;
   const possessions = [...w.apercu.possessions];
   const derniere = possessions[possessions.length - 1];
   if (derniere) possessions[possessions.length - 1] = { ...derniere, folder };

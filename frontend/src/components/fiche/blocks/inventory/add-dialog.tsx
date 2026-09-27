@@ -2,12 +2,21 @@
 
 /**
  * Ajout depuis le catalogue du système : entrées des sortes du widget, recherche,
- * filtre par catégorie. Ajout libre (une unité ou un exemplaire de plus) et, si un achat
- * du système donne l'entrée, achat au coût de l'achat dans sa monnaie. Et, si le système
- * déclare une entrée `libre` pour ces sortes, ajout d'un objet personnalisé.
+ * filtre par catégorie. « Ajouter » ouvre la configuration de l'objet (item-config) sur le
+ * même écran, avant l'écriture ; Échap ou Retour ramène au catalogue. Si un achat du système
+ * donne l'entrée, achat au coût de l'achat dans sa monnaie. Et, si le système déclare une
+ * entrée `libre` pour ces sortes, configuration d'un objet personnalisé.
  */
 import type { Fiche, Presentation } from '@vtt/rules';
-import { AlertTriangle, ChevronDown, Coins, Plus, Search, ShoppingCart } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  Coins,
+  PenLine,
+  Plus,
+  Search,
+  ShoppingCart,
+} from 'lucide-react';
 import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +28,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { InputGroup } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
@@ -27,6 +35,7 @@ import {
   buildCatalogue,
   champsAffiches,
   correspond,
+  modeleDe,
   modelesLibres,
   monnaiesInventaire,
   type CatalogueEntry,
@@ -34,7 +43,8 @@ import {
   type ModeleLibre,
   type SaisieLibre,
 } from './model';
-import { FreeItemForm } from './free-item-form';
+import { ECHAP_LOCAL, echapLocal } from './editors';
+import { ItemConfig, type CibleAjout } from './item-config';
 import { BonusBadges, Thumbnail } from './parts';
 
 const LIMITE = 120;
@@ -45,7 +55,6 @@ export function AddDialog({
   fiche,
   widget,
   presentation,
-  onAjouter,
   onAcheter,
   onLibre,
 }: {
@@ -54,76 +63,63 @@ export function AddDialog({
   fiche: Fiche;
   widget: InventoryWidget;
   presentation: Presentation | null;
-  onAjouter(entree: CatalogueEntry): void;
+  /** Ajout sans configuration (conservé pour l'appelant ; l'ajout passe par `onLibre`). */
+  onAjouter?(entree: CatalogueEntry): void;
   onAcheter(entree: CatalogueEntry): void;
+  /** Ajout d'un objet configuré, en une écriture (catalogue ou objet personnalisé). */
   onLibre(modele: ModeleLibre, saisie: SaisieLibre): void;
 }) {
+  const [cible, setCible] = useState<CibleAjout | null>(null);
+  // Recherche et catégorie gardées au retour de la configuration
+  const [terme, setTerme] = useState('');
+  const [categorie, setCategorie] = useState<string | null>(null);
+  const ouvrir = (o: boolean) => {
+    if (!o) {
+      setCible(null);
+      setTerme('');
+      setCategorie(null);
+    }
+    onOpenChange(o);
+  };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(44rem,calc(100dvh-2rem))] flex-col gap-4 overflow-hidden sm:max-w-2xl">
-        {open && (
-          <Contenu
-            fiche={fiche}
-            widget={widget}
-            presentation={presentation}
-            onAjouter={onAjouter}
-            onAcheter={onAcheter}
-            onLibre={onLibre}
-          />
-        )}
+    <Dialog open={open} onOpenChange={ouvrir}>
+      <DialogContent
+        onEscapeKeyDown={(e) => {
+          if (echapLocal(e)) e.preventDefault();
+          else if (cible) {
+            e.preventDefault();
+            setCible(null);
+          }
+        }}
+        className="flex max-h-[min(44rem,calc(100dvh-2rem))] flex-col gap-4 overflow-hidden sm:max-w-2xl"
+      >
+        {open &&
+          (cible ? (
+            <ItemConfig
+              fiche={fiche}
+              cible={cible}
+              presentation={presentation}
+              onRetour={() => setCible(null)}
+              onAjouter={(m, s) => {
+                onLibre(m, s);
+                setCible(null);
+              }}
+            />
+          ) : (
+            <Catalogue
+              fiche={fiche}
+              widget={widget}
+              presentation={presentation}
+              terme={terme}
+              onTerme={setTerme}
+              categorie={categorie}
+              onCategorie={setCategorie}
+              onConfigurer={setCible}
+              onAcheter={onAcheter}
+            />
+          ))}
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** Catalogue, et onglet « Objet personnalisé » si le système en déclare pour ces sortes. */
-function Contenu({
-  fiche,
-  widget,
-  presentation,
-  onAjouter,
-  onAcheter,
-  onLibre,
-}: {
-  fiche: Fiche;
-  widget: InventoryWidget;
-  presentation: Presentation | null;
-  onAjouter(entree: CatalogueEntry): void;
-  onAcheter(entree: CatalogueEntry): void;
-  onLibre(modele: ModeleLibre, saisie: SaisieLibre): void;
-}) {
-  const modeles = useMemo(() => modelesLibres(fiche, widget), [fiche, widget]);
-  const catalogue = (
-    <Catalogue
-      fiche={fiche}
-      widget={widget}
-      presentation={presentation}
-      onAjouter={onAjouter}
-      onAcheter={onAcheter}
-    />
-  );
-  if (!modeles.length) return catalogue;
-  return (
-    <Tabs defaultValue="catalogue" className="flex min-h-0 flex-1 flex-col gap-4">
-      <TabsList className="h-8 self-start">
-        <TabsTrigger value="catalogue" className="text-xs">
-          Catalogue
-        </TabsTrigger>
-        <TabsTrigger value="libre" className="text-xs">
-          Objet personnalisé
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="catalogue" className="mt-0 flex min-h-0 flex-1 flex-col gap-4">
-        {catalogue}
-      </TabsContent>
-      <TabsContent value="libre" className="mt-0 min-h-0 flex-1 overflow-y-auto">
-        <DialogHeader className="mb-4">
-          <DialogTitle>Objet personnalisé</DialogTitle>
-          <DialogDescription>Ajouté à « {widget.titre} »</DialogDescription>
-        </DialogHeader>
-        <FreeItemForm modeles={modeles} onAjouter={onLibre} />
-      </TabsContent>
-    </Tabs>
   );
 }
 
@@ -131,18 +127,27 @@ function Catalogue({
   fiche,
   widget,
   presentation,
-  onAjouter,
+  terme,
+  onTerme: setTerme,
+  categorie,
+  onCategorie: setCategorie,
+  onConfigurer,
   onAcheter,
 }: {
   fiche: Fiche;
   widget: InventoryWidget;
   presentation: Presentation | null;
-  onAjouter(entree: CatalogueEntry): void;
+  terme: string;
+  onTerme(t: string): void;
+  categorie: string | null;
+  onCategorie(c: string | null): void;
+  onConfigurer(cible: CibleAjout): void;
   onAcheter(entree: CatalogueEntry): void;
 }) {
-  const [terme, setTerme] = useState('');
-  const [categorie, setCategorie] = useState<string | null>(null);
   const [ouverte, setOuverte] = useState<string | null>(null);
+  const modeles = useMemo(() => modelesLibres(fiche, widget), [fiche, widget]);
+  const libre = (nom?: string) =>
+    onConfigurer({ modeles, libre: true, ...(nom?.trim() ? { nom: nom.trim() } : {}) });
   const recherche = useDeferredValue(terme);
   const catalogue = useMemo(() => buildCatalogue(fiche, widget), [fiche, widget]);
   const categories = useMemo(() => {
@@ -180,6 +185,7 @@ function Catalogue({
             aria-label="Rechercher dans le catalogue"
             value={terme}
             autoFocus
+            {...(terme ? ECHAP_LOCAL : {})}
             onChange={(e) => setTerme(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape' && terme) {
@@ -190,6 +196,11 @@ function Catalogue({
             }}
             className="h-9"
           />
+          {modeles.length > 0 && (
+            <Button variant="secondary" size="sm" className="shrink-0" onClick={() => libre(terme)}>
+              <PenLine /> Objet personnalisé
+            </Button>
+          )}
           {soldes.map((s) => (
             <span
               key={s.monnaie.id}
@@ -225,6 +236,11 @@ function Catalogue({
                 ? 'Le système ne propose aucune entrée de ces sortes.'
                 : 'Essayez un autre terme ou une autre catégorie.'}
             </p>
+            {modeles.length > 0 && terme.trim() && (
+              <Button variant="secondary" size="sm" className="mt-4" onClick={() => libre(terme)}>
+                <PenLine /> Créer « {terme.trim()} » comme objet personnalisé
+              </Button>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -237,7 +253,12 @@ function Catalogue({
                 avecCategorie={categorie === null && categories.length > 1}
                 ouverte={ouverte === c.entree.id}
                 onBasculer={() => setOuverte((o) => (o === c.entree.id ? null : c.entree.id))}
-                onAjouter={() => onAjouter(c)}
+                onAjouter={() =>
+                  onConfigurer({
+                    modeles: [modeleDe(fiche, widget, c.entree, c.sorte)],
+                    libre: false,
+                  })
+                }
                 onAcheter={() => onAcheter(c)}
               />
             ))}
@@ -367,7 +388,14 @@ function Ligne({
               </span>
             </Info>
           )}
-          <Info texte={c.bloque ?? (ajoutUnite ? 'Une unité de plus' : 'Ajouter sans payer')}>
+          <Info
+            texte={
+              c.bloque ??
+              (ajoutUnite
+                ? 'Des unités de plus, ou un exemplaire à configurer'
+                : 'Configurer puis ajouter sans payer')
+            }
+          >
             <span>
               <Button
                 variant="secondary"
