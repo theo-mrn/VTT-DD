@@ -10,6 +10,7 @@ import { register as characters } from './modules/characters/index.js';
 import { register as combat } from './modules/combat/index.js';
 import { register as internal } from './modules/internal/index.js';
 import { register as invitations } from './modules/invitations/index.js';
+import { register as maps } from './modules/maps/index.js';
 import { register as messages } from './modules/messages/index.js';
 import { register as sessions } from './modules/sessions/index.js';
 import { createS3Signer } from './storage/images.js';
@@ -62,7 +63,16 @@ export async function buildCampaign(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [campaigns, invitations, characters, combat, sessions, messages, internal]) {
+  for (const module of [
+    campaigns,
+    invitations,
+    characters,
+    combat,
+    maps,
+    sessions,
+    messages,
+    internal,
+  ]) {
     await module(app, deps);
   }
 
