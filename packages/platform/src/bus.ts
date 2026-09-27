@@ -56,8 +56,15 @@ export async function connectBus(opts: {
       }
     }
   })();
-  const jsm = await jetstreamManager(nc);
-  await ensureEventStream(jsm);
+  let jsm: JetStreamManager;
+  try {
+    jsm = await jetstreamManager(nc);
+    await ensureEventStream(jsm);
+  } catch (err) {
+    // Pas de connexion orpheline quand l'appelant réessaie en boucle (relais d'outbox)
+    await nc.close().catch(() => undefined);
+    throw err;
+  }
   return {
     nc,
     js: jetstream(nc),
@@ -100,6 +107,12 @@ export interface ConsumeOptions {
   subjects?: string[];
   /** `all` : depuis le début du flux ; `new` : seulement les prochains. */
   deliver?: 'all' | 'new';
+  /**
+   * Reprise à partir de cette séquence du flux, incluse (`by_start_sequence`),
+   * ex. dernier `seq` reçu + 1. Prioritaire sur `deliver`. Pour un durable,
+   * seulement à sa création.
+   */
+  startSeq?: number;
   logger?: Logger;
   /**
    * Traite un événement. Si la promesse est rejetée, le message est relivré
@@ -111,13 +124,19 @@ export interface ConsumeOptions {
 /** Consomme le flux ; renvoie une fonction d'arrêt. */
 export async function consumeEvents(bus: Bus, opts: ConsumeOptions): Promise<() => Promise<void>> {
   const subjects = opts.subjects ?? ['vtt.>'];
-  const deliver = opts.deliver === 'new' ? DeliverPolicy.New : DeliverPolicy.All;
+  const start =
+    opts.startSeq !== undefined
+      ? {
+          deliver_policy: DeliverPolicy.StartSequence,
+          opt_start_seq: Math.max(1, Math.floor(opts.startSeq)),
+        }
+      : { deliver_policy: opts.deliver === 'new' ? DeliverPolicy.New : DeliverPolicy.All };
   let consumer;
   if (opts.durable) {
     const config = {
       durable_name: opts.durable,
       ack_policy: AckPolicy.Explicit,
-      deliver_policy: deliver,
+      ...start,
       filter_subjects: subjects,
       max_deliver: -1,
       ack_wait: nanos(30_000),
@@ -133,10 +152,7 @@ export async function consumeEvents(bus: Bus, opts: ConsumeOptions): Promise<() 
     }
     consumer = await bus.js.consumers.get(EVENTS_STREAM, opts.durable);
   } else {
-    consumer = await bus.js.consumers.get(EVENTS_STREAM, {
-      filter_subjects: subjects,
-      deliver_policy: deliver,
-    });
+    consumer = await bus.js.consumers.get(EVENTS_STREAM, { filter_subjects: subjects, ...start });
   }
 
   const messages = await consumer.consume();
@@ -170,4 +186,100 @@ export async function consumeEvents(bus: Bus, opts: ConsumeOptions): Promise<() 
     await messages.close();
     await done;
   };
+}
+
+/** Dernière séquence du flux (0 s'il est vide) : curseur de départ d'un client. */
+export async function streamLastSeq(bus: Pick<Bus, 'jsm'>): Promise<number> {
+  return (await bus.jsm.streams.info(EVENTS_STREAM)).state.last_seq;
+}
+
+export interface ReplayOptions {
+  /** Sujets relus, ex. `vtt.<campaignId>.>`. */
+  subjects: string[];
+  /** Première séquence du flux relue (incluse), ex. dernier `seq` reçu + 1. */
+  startSeq: number;
+  /** Au-delà de ce nombre d'événements, rien n'est relu (`truncated`). */
+  max: number;
+  logger?: Logger;
+  /** Reçoit les événements dans l'ordre du flux ; les messages illisibles sont ignorés. */
+  handler(event: EventEnvelope, msg: JsMsg): void | Promise<void>;
+}
+
+export interface ReplayResult {
+  /** Événements transmis au handler. */
+  count: number;
+  /** Séquence du dernier message relu ; null si aucun. */
+  lastSeq: number | null;
+  /**
+   * Rejeu impossible ou incomplet : plus de `max` événements, ou messages déjà
+   * sortis du flux (rétention). Le client doit recharger son état.
+   */
+  truncated: boolean;
+  /** Dernière séquence du flux au début du rejeu. */
+  streamLastSeq: number;
+}
+
+/**
+ * Rejoue les événements de `subjects` depuis `startSeq` jusqu'à la fin actuelle
+ * du flux, puis s'arrête (consommateur éphémère ordonné, supprimé ensuite).
+ * Sert à realtime pour rattraper un client qui se reconnecte avec son dernier `seq`.
+ */
+export async function replayEvents(
+  bus: Pick<Bus, 'js' | 'jsm'>,
+  opts: ReplayOptions,
+): Promise<ReplayResult> {
+  const { first_seq, last_seq } = (await bus.jsm.streams.info(EVENTS_STREAM)).state;
+  const start = Math.max(1, Math.floor(opts.startSeq));
+  const result: ReplayResult = {
+    count: 0,
+    lastSeq: null,
+    truncated: false,
+    streamLastSeq: last_seq,
+  };
+  if (start > last_seq) return result;
+  // Des messages entre `start` et le début du flux ont expiré : rejeu incomplet
+  if (first_seq > start) return { ...result, truncated: true };
+
+  const consumer = await bus.js.consumers.get(EVENTS_STREAM, {
+    filter_subjects: opts.subjects,
+    deliver_policy: DeliverPolicy.StartSequence,
+    opt_start_seq: start,
+    inactive_threshold: 60_000,
+  });
+  try {
+    let remaining = (await consumer.info(true)).num_pending;
+    if (remaining > opts.max) return { ...result, truncated: true };
+    while (remaining > 0) {
+      const batch = await consumer.fetch({
+        max_messages: Math.min(remaining, 256),
+        expires: 5_000,
+      });
+      let received = 0;
+      for await (const msg of batch) {
+        received += 1;
+        remaining -= 1;
+        result.lastSeq = msg.seq;
+        let event: EventEnvelope;
+        try {
+          event = parseEvent(msg.json());
+        } catch (err) {
+          opts.logger?.error(
+            { err, subject: msg.subject, seq: msg.seq },
+            'événement illisible ignoré',
+          );
+          continue;
+        }
+        await opts.handler(event, msg);
+        result.count += 1;
+      }
+      // Messages supprimés entre-temps : on s'arrête sur ce qui a été lu
+      if (!received) {
+        result.truncated = true;
+        break;
+      }
+    }
+    return result;
+  } finally {
+    await consumer.delete().catch(() => undefined);
+  }
 }
