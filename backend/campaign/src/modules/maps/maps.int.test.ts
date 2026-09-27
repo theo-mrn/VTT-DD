@@ -409,6 +409,16 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
         (e.payload as { visibility: string }).visibility !== 'visible',
     );
     expect(leaked).toEqual([]);
+
+    // Visibilité custom : realtime reçoit les joueurs visés (propriétaires des personnages)
+    const custom = orcEvents.filter(
+      (e) => (e.payload as { visibility?: string }).visibility === 'custom',
+    );
+    expect(custom.length).toBeGreaterThan(0);
+    for (const e of custom) {
+      expect(e.visibility).toBe('gm_only');
+      expect((e.payload as { visibleToUsers?: string[] }).visibleToUsers).toEqual([bob.id]);
+    }
   });
 
   it('voyage entre scènes, carte du groupe et suppression protégée', async () => {

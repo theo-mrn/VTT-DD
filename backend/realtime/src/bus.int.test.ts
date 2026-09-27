@@ -86,7 +86,7 @@ describe.skipIf(!NATS_URL)('canal durable (NATS réel)', () => {
       roomId: c,
       actor: asGm,
       visibility: 'gm_only',
-      payload: { id: 't1', visibleTo: [joueur.userId] },
+      payload: { id: 't1', visibleToUsers: [joueur.userId] },
     });
 
     const retour = await t.connect(joueur.userId);

@@ -91,8 +91,30 @@ export async function canSeeMap(db: Db | Tx, v: Viewer, map: MapRow) {
 /** Tableau d'uuid pour `= any(…)` et `&&`. */
 export const sqlUuids = (ids: string[]) => sql`${`{${ids.join(',')}}`}::uuid[]`;
 
-/** Événement de carte, écrit dans l'outbox avec la donnée. */
-export function mapEvent(
+/**
+ * Utilisateurs (propriétaires ou incarnateurs) des personnages donnés : même
+ * règle que `viewerOf`, pour que le temps réel cible les mêmes joueurs que la lecture.
+ */
+async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: string[]) {
+  if (!characterIds.length) return [];
+  const rows = await tx
+    .select({ ownerId: campaignCharacters.ownerId, playedBy: campaignCharacters.playedBy })
+    .from(campaignCharacters)
+    .where(
+      and(
+        eq(campaignCharacters.campaignId, campaignId),
+        sql`${campaignCharacters.characterId} = any(${sqlUuids(characterIds)})`,
+      ),
+    );
+  return [...new Set(rows.flatMap((r) => (r.playedBy ? [r.ownerId, r.playedBy] : [r.ownerId])))];
+}
+
+/**
+ * Événement de carte, écrit dans l'outbox avec la donnée. Un événement
+ * `gm_only` dont le payload liste des personnages (`visibleTo`) reçoit aussi
+ * `visibleToUsers` : les joueurs autorisés, à qui realtime l'envoie en plus des MJ.
+ */
+export async function mapEvent(
   tx: Tx,
   ctx: EventContext,
   v: Viewer,
@@ -103,13 +125,24 @@ export function mapEvent(
     visibility?: Visibility;
   },
 ) {
+  const visibility = e.visibility ?? 'public';
+  const characterIds = Array.isArray(e.payload.visibleTo)
+    ? e.payload.visibleTo.filter((id): id is string => typeof id === 'string')
+    : [];
+  const payload =
+    visibility === 'gm_only' && characterIds.length
+      ? {
+          ...e.payload,
+          visibleToUsers: await usersOfCharacters(tx, v.access.campaign.id, characterIds),
+        }
+      : e.payload;
   return appendEvent(tx, ctx, {
     type: e.type,
     campaignId: v.access.campaign.id,
     actor: { userId: v.userId, role: actorRole(v.access.role), characterId: null },
     aggregate: e.aggregate,
-    payload: e.payload,
-    visibility: e.visibility ?? 'public',
+    payload,
+    visibility,
   });
 }
 

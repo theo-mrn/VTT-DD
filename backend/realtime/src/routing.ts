@@ -13,7 +13,7 @@
  *
  * Visibilité :
  *  - `public`  → toute la campagne ;
- *  - `gm_only` → les MJ, et les utilisateurs de `payload.visibleTo` (carte :
+ *  - `gm_only` → les MJ, et les utilisateurs de `payload.visibleToUsers` (carte :
  *                éléments cachés ou en visibilité `custom`), complet ; l'auteur
  *                (`actor.userId`), s'il n'est pas parmi eux, reçoit une version
  *                expurgée (type et agrégat, sans charge utile) : il sait que son
@@ -21,7 +21,7 @@
  *  - `owner`   → l'auteur seul, sur toutes ses connexions. Pas le MJ : dice y
  *                range les jets `self` (« l'auteur seul, MJ compris »).
  * Hors campagne (`roomId` null) : l'auteur seul (`public` ou `owner`), les
- * utilisateurs de `visibleTo` pour `gm_only`.
+ * utilisateurs de `visibleToUsers` pour `gm_only`.
  */
 import type { EventEnvelope } from '@vtt/contracts';
 
@@ -42,10 +42,11 @@ export interface Targets {
 
 /**
  * Utilisateurs autorisés en plus des MJ pour un événement `gm_only`
- * (`payload.visibleTo`, identifiants d'utilisateurs), sans doublon.
+ * (`payload.visibleToUsers`, identifiants d'utilisateurs calculés par le service
+ * émetteur ; `visibleTo` de la carte contient des personnages), sans doublon.
  */
 export function visibleToOf(event: EventEnvelope): string[] {
-  const list = event.payload.visibleTo;
+  const list = event.payload.visibleToUsers;
   if (!Array.isArray(list)) return [];
   return [...new Set(list.filter((id): id is string => typeof id === 'string' && id !== ''))];
 }

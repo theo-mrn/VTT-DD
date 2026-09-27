@@ -30,7 +30,7 @@ describe('routage des événements', () => {
       roomId: C,
       actor: { userId: gm, role: 'gm', characterId: null },
       visibility: 'gm_only',
-      payload: { id: 't1', visibleTo: [author, author, gm, 42, ''] },
+      payload: { id: 't1', visibleToUsers: [author, author, gm, 42, ''] },
     });
     expect(targetsFor(e)).toEqual({
       full: [rooms.gm(C), rooms.user(author), rooms.user(gm)],
@@ -39,7 +39,7 @@ describe('routage des événements', () => {
     expect(deliveryFor(e, { userId: author, role: 'player' })).toBe('full');
     expect(deliveryFor(e, { userId: other, role: 'player' })).toBeNull();
     // Auteur non listé : expurgé
-    const byPlayer = { ...e, actor, payload: { visibleTo: [other] } };
+    const byPlayer = { ...e, actor, payload: { visibleToUsers: [other] } };
     expect(targetsFor(byPlayer).redacted).toEqual([rooms.user(author)]);
     expect(deliveryFor(byPlayer, { userId: other, role: 'spectator' })).toBe('full');
   });

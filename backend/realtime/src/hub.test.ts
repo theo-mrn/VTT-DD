@@ -129,7 +129,7 @@ describe('diffusion des événements', () => {
       roomId: c,
       visibility: 'gm_only',
       actor: { userId: gm.userId, role: 'gm', characterId: null },
-      payload: { id: 't1', visibleTo: [joueur.userId, gm.userId] },
+      payload: { id: 't1', visibleToUsers: [joueur.userId, gm.userId] },
     });
     t.app.realtime.dispatch(e, 110);
     expect((await joueur.waitFor<EventPacket>('event')).event.payload).toEqual(e.payload);
