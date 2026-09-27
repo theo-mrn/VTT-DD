@@ -251,7 +251,7 @@ export function FicheJoueur({ id }: { id: string }) {
   return (
     <>
       {retour}
-      <FichePersonnage id={id} />
+      <FichePersonnage id={id} dansPanneau />
     </>
   );
 }

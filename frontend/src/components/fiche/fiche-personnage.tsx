@@ -1,15 +1,25 @@
 'use client';
 
 import { calculer } from '@vtt/rules';
-import { Hammer, MoreHorizontal, Pencil, Swords, Trash2, UserRound } from 'lucide-react';
+import {
+  Hammer,
+  LayoutGrid,
+  MoreHorizontal,
+  Pencil,
+  Swords,
+  Trash2,
+  UserRound,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
 import { Chargement, formaterDepuis, Message } from '@/components/compte/elements';
+import { JaugeRessource } from '@/components/creation/apercu-fiche';
+import { SheetGrid } from '@/components/sheet-grid/sheet-grid';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,19 +51,16 @@ import {
   usePersonnage,
   useSupprimerPersonnage,
   type FichePersonnage as Fiche,
+  type SheetLayout,
 } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
+import { cn } from '@/lib/utils';
+import { styleThemeSysteme } from './theme';
 import {
-  BlocActions,
-  BlocArbres,
-  BlocAttributs,
-  BlocMonnaies,
-  BlocPossessions,
-  BlocRessources,
-  BlocTexte,
   ChipsDetails,
+  visiblePour,
   widgetsDe,
   type ContexteFiche,
   type OperationsFiche,
@@ -88,6 +95,7 @@ export function useFicheCalculee(id: string | null | undefined) {
         void ecritures.retirerPossession(entree, exemplaire, apercu).catch(signaler),
       bonus: (d, apercu) => void ecritures.bonus(d, apercu).catch(signaler),
       retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
+      rembourser: (index, apercu) => void ecritures.rembourser(index, apercu).catch(signaler),
       action: ecritures.action,
     };
   }, [ecritures]);
@@ -97,37 +105,57 @@ export function useFicheCalculee(id: string | null | undefined) {
   // Droits décidés par le service (propriétaire, ou MJ d'une campagne où il est engagé)
   const permissions = p?.permissions ?? { write: false, layout: false };
   const peutModifier = permissions.write;
-  const ctx: ContexteFiche | null =
-    p && sys.data && fiche
-      ? {
-          systeme: sys.data.systeme,
-          presentation: sys.data.presentation,
-          fiche,
-          personnage: { id: p.id, name: p.name, roomId: p.roomId },
-          operations: peutModifier ? operations : undefined,
-          mj: campagne.data?.role === 'gm',
-        }
-      : null;
+  const mj = campagne.data?.role === 'gm';
+  const ctx = useMemo<ContexteFiche | null>(
+    () =>
+      p && sys.data && fiche
+        ? {
+            systeme: sys.data.systeme,
+            presentation: sys.data.presentation,
+            fiche,
+            personnage: { id: p.id, name: p.name, roomId: p.roomId, portraitUrl: p.portraitUrl },
+            operations: peutModifier ? operations : undefined,
+            mj,
+          }
+        : null,
+    [p, sys.data, fiche, peutModifier, operations, mj],
+  );
   return { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures };
 }
 
 /**
- * Fiche d'un personnage, générée depuis la présentation de son système. Les
- * valeurs viennent de @vtt/rules ; les changements (PV, états activés,
- * conséquences d'une action) sont enregistrés par le service character, qui
- * recalcule la fiche. Le propriétaire et le MJ de sa campagne la modifient.
+ * Fiche d'un personnage : en-tête (portrait, nom, campagne, système, ressources) et grille
+ * de blocs personnalisable (components/sheet-grid), aux couleurs de sa campagne ou de son
+ * système. Les valeurs viennent de @vtt/rules ; les changements sont enregistrés par le
+ * service character, qui décide des droits (`permissions`) : écrire sur la fiche, changer
+ * sa mise en page. La même fiche s'affiche en page et dans les panneaux de la table.
  */
-export function FichePersonnage({ id }: { id: string }) {
-  const { perso, sys, ctx, proprietaire } = useFicheCalculee(id);
+export function FichePersonnage({
+  id,
+  dansPanneau = false,
+}: {
+  id: string;
+  /** Dans un panneau de la table : en-tête plus compact. */
+  dansPanneau?: boolean;
+}) {
+  const { perso, sys, ctx, proprietaire, permissions, ecritures } = useFicheCalculee(id);
+  const campagne = useCampagne(perso.data?.roomId);
+  const [personnalisation, setPersonnalisation] = useState(false);
+  const enregistrerMiseEnPage = useCallback(
+    (l: SheetLayout | null) => ecritures.miseEnPage(l),
+    [ecritures],
+  );
+  // Droit retiré entre-temps (le personnage a quitté la campagne du MJ…) : fin de la personnalisation
+  const edition = personnalisation && permissions.layout;
 
-  if (perso.isLoading) return <SqueletteFiche />;
+  if (perso.isLoading) return <SqueletteFiche dansPanneau={dansPanneau} />;
   if (perso.isError || !perso.data)
     return (
       <Page>
         <EtatVide
           icone={UserRound}
           titre="Personnage introuvable"
-          description="Il a peut-être été supprimé."
+          description="Il a peut-être été supprimé, ou vous n’y avez plus accès."
           action={
             <Button asChild variant="secondary">
               <Link href="/personnages">Tous les personnages</Link>
@@ -140,8 +168,19 @@ export function FichePersonnage({ id }: { id: string }) {
   const p = perso.data;
 
   return (
-    <div>
-      <EnTeteFiche personnage={p} ctx={ctx} proprietaire={proprietaire} />
+    <div
+      data-ambiance={campagne.data?.ambiance}
+      style={campagne.data ? undefined : styleThemeSysteme(sys.data?.presentation)}
+    >
+      <EnTeteFiche
+        personnage={p}
+        ctx={ctx}
+        proprietaire={proprietaire}
+        dansPanneau={dansPanneau}
+        personnaliser={
+          permissions.layout && ctx && !edition ? () => setPersonnalisation(true) : undefined
+        }
+      />
       <Page large className="pt-0 lg:pt-0">
         <Tabs defaultValue="fiche">
           <TabsList variante="ligne" className="mb-2">
@@ -150,7 +189,17 @@ export function FichePersonnage({ id }: { id: string }) {
           </TabsList>
           <TabsContent value="fiche">
             {sys.isError && <Message>Impossible de charger les règles de ce personnage.</Message>}
-            {!ctx ? <Chargement texte="Calcul de la fiche…" /> : <CorpsFiche ctx={ctx} />}
+            {!ctx ? (
+              !sys.isError && <Chargement texte="Calcul de la fiche…" />
+            ) : (
+              <SheetGrid
+                ctx={ctx}
+                layout={p.sheetLayout}
+                editing={edition}
+                onEditingChange={setPersonnalisation}
+                onSave={enregistrerMiseEnPage}
+              />
+            )}
           </TabsContent>
           <TabsContent value="histoire">
             <Histoire personnage={p} />
@@ -165,10 +214,15 @@ function EnTeteFiche({
   personnage: p,
   ctx,
   proprietaire,
+  dansPanneau,
+  personnaliser,
 }: {
   personnage: Fiche;
   ctx: ContexteFiche | null;
   proprietaire: boolean;
+  dansPanneau: boolean;
+  /** Présent si l'utilisateur peut changer la mise en page de la fiche. */
+  personnaliser?: () => void;
 }) {
   const nomSysteme = useNomSysteme(p.system.id);
   const campagne = useCampagne(p.roomId);
@@ -189,12 +243,20 @@ function EnTeteFiche({
         aria-hidden
         className="absolute inset-0 -z-10 bg-gradient-to-b from-background/40 via-background/85 to-background"
       />
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-6 pt-8 sm:flex-row sm:items-end sm:px-6 lg:px-8 lg:pt-12">
+      <div
+        className={cn(
+          'mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-6 sm:flex-row sm:items-end sm:px-6 lg:px-8',
+          dansPanneau ? 'pt-6 lg:pt-8' : 'pt-8 lg:pt-12',
+        )}
+      >
         <Illustration
           src={p.portraitUrl}
           graine={p.name}
           position="top"
-          className="aspect-[3/4] w-36 shrink-0 rounded-2xl shadow-elevated ring-1 ring-white/10 sm:w-44"
+          className={cn(
+            'aspect-[3/4] shrink-0 rounded-2xl shadow-elevated ring-1 ring-white/10',
+            dansPanneau ? 'w-24 sm:w-32' : 'w-36 sm:w-44',
+          )}
         />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -218,7 +280,12 @@ function EnTeteFiche({
                 </Badge>
               ))}
           </div>
-          <h1 className="text-balance font-display text-4xl font-semibold leading-tight sm:text-5xl">
+          <h1
+            className={cn(
+              'text-balance font-display font-semibold leading-tight',
+              dansPanneau ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl',
+            )}
+          >
             {p.name}
           </h1>
           {p.details.concept && (
@@ -228,42 +295,24 @@ function EnTeteFiche({
           )}
           {ctx && details?.type === 'details' && <ChipsDetails ctx={ctx} widget={details} />}
         </div>
-        {proprietaire && (
-          <div className="flex shrink-0 gap-2">
-            {p.inCreation && p.roomId && (
-              <Button asChild>
-                <Link href={lienPersonnage(p)}>
-                  <Hammer />
-                  Reprendre la création
-                </Link>
+        <div className="flex shrink-0 flex-col gap-4 sm:items-end">
+          {ctx && <JaugesEnTete ctx={ctx} />}
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {personnaliser && (
+              <Button variant="secondary" onClick={personnaliser}>
+                <LayoutGrid />
+                Personnaliser
               </Button>
             )}
-            <Button variant="secondary" onClick={() => setEdition(true)}>
-              <Pencil />
-              Modifier
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" size="icon" aria-label="Plus d'actions">
-                  <MoreHorizontal />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem disabled className="text-xs">
-                  Modifié {formaterDepuis(p.updatedAt)}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => setSuppression(true)}
-                  className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <Trash2 />
-                  Supprimer
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {proprietaire && (
+              <ActionsProprietaire
+                personnage={p}
+                onModifier={() => setEdition(true)}
+                onSupprimer={() => setSuppression(true)}
+              />
+            )}
           </div>
-        )}
+        </div>
       </div>
       {proprietaire && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
       {proprietaire && (
@@ -273,36 +322,75 @@ function EnTeteFiche({
   );
 }
 
-function CorpsFiche({ ctx }: { ctx: ContexteFiche }) {
-  const widgets = widgetsDe(ctx);
-  const larges = widgets.filter((w) => w.type === 'attributs');
-  const cote = widgets.filter((w) => w.type !== 'attributs' && w.type !== 'details');
+/**
+ * Ressources du personnage en tête de fiche (PV, stress…) : celles du premier bloc
+ * « ressources » de la présentation, sinon toutes celles de son type, trois au plus.
+ */
+function JaugesEnTete({ ctx }: { ctx: ContexteFiche }) {
+  const declarees = widgetsDe(ctx).find((w) => w.type === 'ressources');
+  const cles = (
+    declarees?.type === 'ressources'
+      ? declarees.attributs
+      : [...ctx.fiche.entite.attributs.values()]
+          .filter((a) => a.nature === 'ressource')
+          .map((a) => a.cle)
+  )
+    .filter((c) => visiblePour(ctx, c) && ctx.fiche.valeurs.has(c))
+    .slice(0, 3);
+  if (cles.length === 0) return null;
   return (
-    <div className="space-y-5">
-      {larges.map(
-        (w) => w.type === 'attributs' && <BlocAttributs key={w.titre} ctx={ctx} widget={w} />,
-      )}
-      <div className="columns-1 gap-5 lg:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
-        {cote.map((w) => {
-          switch (w.type) {
-            case 'ressources':
-              return <BlocRessources key={w.titre} ctx={ctx} widget={w} />;
-            case 'possessions':
-              return <BlocPossessions key={w.titre} ctx={ctx} widget={w} />;
-            case 'monnaies':
-              return <BlocMonnaies key={w.titre} ctx={ctx} widget={w} />;
-            case 'arbres':
-              return <BlocArbres key={w.titre} ctx={ctx} widget={w} />;
-            case 'texte':
-              return <BlocTexte key={w.titre} ctx={ctx} widget={w} />;
-            case 'actions':
-              return <BlocActions key={w.titre} ctx={ctx} widget={w} />;
-            default:
-              return null;
-          }
-        })}
-      </div>
+    <div className="grid w-full gap-2 sm:w-64" aria-label="Ressources">
+      {cles.map((c) => (
+        <JaugeRessource key={c} fiche={ctx.fiche} cle={c} presentation={ctx.presentation} />
+      ))}
     </div>
+  );
+}
+
+function ActionsProprietaire({
+  personnage: p,
+  onModifier,
+  onSupprimer,
+}: {
+  personnage: Fiche;
+  onModifier: () => void;
+  onSupprimer: () => void;
+}) {
+  return (
+    <>
+      {p.inCreation && p.roomId && (
+        <Button asChild>
+          <Link href={lienPersonnage(p)}>
+            <Hammer />
+            Reprendre la création
+          </Link>
+        </Button>
+      )}
+      <Button variant="secondary" onClick={onModifier}>
+        <Pencil />
+        Modifier
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="icon" aria-label="Plus d'actions">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled className="text-xs">
+            Modifié {formaterDepuis(p.updatedAt)}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={onSupprimer}
+            className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+          >
+            <Trash2 />
+            Supprimer
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }
 
@@ -499,11 +587,15 @@ function DialogueSuppression({
   );
 }
 
-export function SqueletteFiche() {
+export function SqueletteFiche({ dansPanneau = false }: { dansPanneau?: boolean }) {
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-8">
+    <div
+      className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-8"
+      aria-busy
+      aria-label="Chargement de la fiche"
+    >
       <div className="flex items-end gap-6">
-        <Skeleton className="aspect-[3/4] w-44 rounded-2xl" />
+        <Skeleton className={cn('aspect-[3/4] rounded-2xl', dansPanneau ? 'w-32' : 'w-44')} />
         <div className="flex-1 space-y-3">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-12 w-80 max-w-full" />

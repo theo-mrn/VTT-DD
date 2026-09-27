@@ -42,6 +42,8 @@ export interface OperationsFiche {
   /** Pose ou remplace (même `id`) un bonus libre. */
   bonus(d: DemandeBonus, apercu: EtatEntite): void;
   retirerBonus(id: string, apercu: EtatEntite): void;
+  /** Annule l'achat de la ligne `index` du journal et rend son coût. */
+  rembourser?(index: number, apercu: EtatEntite): void;
   /** Action du système : jet tiré par le service, conséquences appliquées s'il le faut. */
   action: OperationsPersonnage['action'];
 }
@@ -50,7 +52,7 @@ export interface ContexteFiche {
   systeme: SystemeCharge;
   presentation: Presentation | null;
   fiche: Fiche;
-  personnage: { id: string; name: string; roomId: string | null };
+  personnage: { id: string; name: string; roomId: string | null; portraitUrl?: string | null };
   /** Absent : fiche en lecture seule (droits renvoyés par le service character). */
   operations?: OperationsFiche;
   /** L'utilisateur mène la campagne du personnage : il voit aussi les attributs réservés au MJ. */
@@ -108,17 +110,34 @@ export function Bloc({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-2xl border border-border bg-card shadow-surface', className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-        <h2 className="text-sm font-semibold">{titre}</h2>
+    // Dans la grille de la fiche, le bloc remplit sa case et son contenu défile
+    <section
+      className={cn(
+        'flex h-full min-h-0 flex-col rounded-2xl border border-border bg-card shadow-surface',
+        className,
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+        <h2 className="min-w-0 truncate text-sm font-semibold">{titre}</h2>
         {action}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-width:thin]">{children}</div>
     </section>
   );
 }
 
 // ─── Attributs ───────────────────────────────────────────────────────────────
+
+/**
+ * Grille de `colonnes` colonnes au plus, moins quand le conteneur est étroit (chaque
+ * colonne garde `minimum`) : les blocs s'adaptent à leur largeur dans la fiche.
+ */
+export function grilleColonnes(colonnes: number, minimum: string, espace = '0.5rem') {
+  const n = Math.max(1, colonnes);
+  return {
+    gridTemplateColumns: `repeat(auto-fill, minmax(max(${minimum}, calc((100% - ${n - 1} * ${espace}) / ${n})), 1fr))`,
+  };
+}
 
 export function BlocAttributs({
   ctx,
@@ -128,24 +147,28 @@ export function BlocAttributs({
   widget: Extract<Widget, { type: 'attributs' }>;
 }) {
   const { fiche } = ctx;
-  const cles =
+  const cles = (
     widget.attributs ??
     [...fiche.entite.attributs.values()]
       .filter((a) => a.groupe === widget.groupe && a.nature !== 'texte' && a.nature !== 'ressource')
-      .map((a) => a.cle);
+      .map((a) => a.cle)
+  ).filter((c) => visiblePour(ctx, c));
   const colonnes = widget.colonnes ?? Math.min(6, cles.length);
   return (
     <Bloc titre={widget.titre}>
-      <div
-        className="grid grid-cols-3 gap-2 sm:[grid-template-columns:repeat(var(--colonnes),minmax(0,1fr))]"
-        style={{ ['--colonnes' as string]: colonnes }}
-      >
+      {/* `colonnes` au plus, moins quand le bloc est étroit (tuiles de 4,5 rem au minimum) */}
+      <div className="grid gap-2" style={grilleColonnes(colonnes, '4.5rem')}>
         {cles.map((c) => (
           <TuileAttribut key={c} fiche={fiche} cle={c} />
         ))}
       </div>
     </Bloc>
   );
+}
+
+/** Attribut montré à l'utilisateur : ceux réservés au MJ (`visibilite: mj`) ne le sont qu'au MJ. */
+export function visiblePour(ctx: ContexteFiche, cle: string): boolean {
+  return ctx.mj === true || ctx.fiche.entite.attributs.get(cle)?.visibilite !== 'mj';
 }
 
 // ─── Ressources ──────────────────────────────────────────────────────────────
@@ -173,33 +196,35 @@ export function BlocRessources({
   return (
     <Bloc titre={widget.titre}>
       <div className="space-y-4">
-        {widget.attributs.map((c) => (
-          <div key={c} className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
-            </div>
-            {ecritures && (
-              <div className="flex gap-1">
-                <Button
-                  variant="secondary"
-                  size="icon-xs"
-                  onClick={() => ajuster(c, -1)}
-                  aria-label="Retirer 1"
-                >
-                  <Minus />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon-xs"
-                  onClick={() => ajuster(c, 1)}
-                  aria-label="Ajouter 1"
-                >
-                  <Plus />
-                </Button>
+        {widget.attributs
+          .filter((c) => visiblePour(ctx, c))
+          .map((c) => (
+            <div key={c} className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
               </div>
-            )}
-          </div>
-        ))}
+              {ecritures && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="secondary"
+                    size="icon-xs"
+                    onClick={() => ajuster(c, -1)}
+                    aria-label="Retirer 1"
+                  >
+                    <Minus />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon-xs"
+                    onClick={() => ajuster(c, 1)}
+                    aria-label="Ajouter 1"
+                  >
+                    <Plus />
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
       </div>
     </Bloc>
   );

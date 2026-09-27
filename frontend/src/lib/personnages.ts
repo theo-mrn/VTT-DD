@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   EtatEntite,
   type BonusLibre,
+  type Effet,
   type ResultatAction,
   type Tirage,
   type Valeur,
@@ -207,6 +208,10 @@ export interface DemandePossession {
   rang?: number;
   actif?: boolean;
   choix?: Record<string, string[]>;
+  /** Valeurs propres à l'exemplaire (points d'Obligation, munitions…). */
+  champs?: Record<string, number | string | boolean>;
+  /** Effets propres à l'exemplaire (épée +1) : remplacent les précédents. */
+  effets?: Effet[];
 }
 
 /** Corps d'une étape de création, selon son type. */

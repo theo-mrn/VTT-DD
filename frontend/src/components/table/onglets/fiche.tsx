@@ -11,7 +11,7 @@ import { PanelLink } from '../panels/navigation';
 /** Ma fiche : celle du héros incarné, éditable et tenue à jour en direct. */
 export function OngletFiche() {
   const { herosId, gm, campagne } = useTable();
-  if (herosId) return <FichePersonnage id={herosId} />;
+  if (herosId) return <FichePersonnage id={herosId} dansPanneau />;
   return (
     <Page>
       <EtatVide
