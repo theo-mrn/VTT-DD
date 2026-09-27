@@ -2,6 +2,7 @@
  * Module « invitations » : liens d'invitation d'une campagne et adhésion.
  *
  *   POST /v1/campaigns/:id/invitations   { expiresIn?, maxUses? } → { code, url, expiresAt, maxUses } (MJ)
+ *        événement campaign.invitation_created (gm_only, sans le code)
  *   POST /v1/campaigns/join              { code } → la campagne ; l'appelant devient joueur
  *
  * `code` est un code d'invitation (« inv_… ») ou le code court de la
@@ -73,19 +74,31 @@ export const register: Module = async (app, deps) => {
     },
     async (req, reply) => {
       const userId = currentUser(req);
-      const a = await gmAccess(db, req.params.id, userId);
       const code = newInvitationCode();
       const expiresAt = new Date(
         deps.now().getTime() + (req.body.expiresIn ?? DEFAULT_EXPIRY) * 1000,
       );
       const maxUses = req.body.maxUses ?? DEFAULT_MAX_USES;
-      await db.insert(campaignInvitations).values({
-        id: uuidv7(),
-        campaignId: a.campaign.id,
-        codeHash: hashCode(code),
-        createdBy: userId,
-        expiresAt,
-        maxUses,
+      await db.transaction(async (tx) => {
+        const a = await gmAccess(tx, req.params.id, userId);
+        const id = uuidv7();
+        await tx.insert(campaignInvitations).values({
+          id,
+          campaignId: a.campaign.id,
+          codeHash: hashCode(code),
+          createdBy: userId,
+          expiresAt,
+          maxUses,
+        });
+        // Réservé au MJ, et sans le code : qui le lirait pourrait rejoindre la campagne
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.invitation_created',
+          campaignId: a.campaign.id,
+          userId,
+          role: a.role,
+          payload: { invitationId: id, expiresAt: expiresAt.toISOString() },
+          visibility: 'gm_only',
+        });
       });
       // Le code n'est renvoyé qu'ici, jamais journalisé ni stocké en clair
       reply.code(201).header('cache-control', 'no-store');

@@ -8,13 +8,14 @@
  *   GET    /v1/campaigns/:id                     détail (membres)
  *   PATCH  /v1/campaigns/:id                     modifier (MJ)
  *   DELETE /v1/campaigns/:id                     supprimer (MJ propriétaire)
- *   POST   /v1/campaigns/:id/image               URL d'envoi de l'image (MJ)
+ *   POST   /v1/campaigns/:id/image               URL d'envoi de l'image (MJ ; rien d'écrit, l'image
+ *                                                 est enregistrée par PATCH → campaign.updated)
  *   PATCH  /v1/campaigns/:id/members/:userId     changer un rôle (MJ)
  *   DELETE /v1/campaigns/:id/members/:userId     exclure, ?ban=true (MJ) ou quitter (soi-même)
  *   GET    /v1/campaigns/:id/bans                bannissements (MJ)
  *   DELETE /v1/campaigns/:id/bans/:userId        lever un bannissement (MJ)
  */
-import { uuidv7 } from '@vtt/contracts';
+import { changesPayload, uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
@@ -76,6 +77,17 @@ const storageUnavailable = () =>
     'storage_unavailable',
     'L’envoi d’images n’est pas configuré sur ce serveur',
   );
+
+/** Champs modifiables par PATCH /v1/campaigns/:id, comparés pour `changes` de campaign.updated. */
+const editable = (c: typeof campaigns.$inferSelect) => ({
+  name: c.name,
+  description: c.description,
+  systemId: c.systemId,
+  systemVersion: c.systemVersion,
+  imageUrl: c.imageUrl,
+  isPublic: c.isPublic,
+  characterCreation: c.characterCreation,
+});
 
 /** Échappe les jokers de LIKE (%, _ et le caractère d'échappement \). */
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -299,7 +311,7 @@ export const register: Module = async (app, deps) => {
               'characters_engaged',
             );
         }
-        const changes = {
+        const fields = {
           ...(name !== undefined ? { name } : {}),
           ...(description !== undefined ? { description } : {}),
           ...(system ? { systemId: system.id, systemVersion: system.version } : {}),
@@ -309,7 +321,7 @@ export const register: Module = async (app, deps) => {
         };
         const [next] = await tx
           .update(campaigns)
-          .set({ ...changes, version: a.campaign.version + 1, updatedAt: sql`now()` })
+          .set({ ...fields, version: a.campaign.version + 1, updatedAt: sql`now()` })
           .where(eq(campaigns.id, a.campaign.id))
           .returning();
         await campaignEvent(tx, eventContext(req), {
@@ -317,7 +329,12 @@ export const register: Module = async (app, deps) => {
           campaignId: a.campaign.id,
           userId,
           role: a.role,
-          payload: { version: next!.version, ...changes },
+          // Champs envoyés (après), et diff avant/après des champs modifiables
+          payload: {
+            version: next!.version,
+            ...fields,
+            ...changesPayload(editable(a.campaign), editable(next!)),
+          },
         });
         return next!;
       });

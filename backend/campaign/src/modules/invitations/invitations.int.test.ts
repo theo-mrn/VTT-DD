@@ -2,9 +2,9 @@
  * Invitations : code aléatoire stocké haché, expiration, nombre
  * d'utilisations, adhésion comme joueur.
  */
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { campaignInvitations } from '../../db/schema.js';
+import { campaignInvitations, outbox } from '../../db/schema.js';
 import {
   helpers,
   TEST_DATABASE_URL,
@@ -62,6 +62,26 @@ describe.skipIf(!TEST_DATABASE_URL)('invitations', () => {
       .where(eq(campaignInvitations.campaignId, id));
     expect(row!.codeHash).toBe(hashCode(inv.code));
     expect(JSON.stringify(row)).not.toContain(inv.code);
+
+    // Événement réservé au MJ, sans le code ni son empreinte
+    const [event] = await t
+      .db!.select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->>'roomId' = ${id} and ${outbox.envelope}->>'type' = 'campaign.invitation_created'`,
+      );
+    expect(event!.envelope).toMatchObject({
+      visibility: 'gm_only',
+      actor: { userId: gm.id, role: 'gm' },
+      aggregate: { type: 'campaign', id },
+      payload: { invitationId: row!.id, expiresAt: inv.expiresAt },
+    });
+    expect(Object.keys((event!.envelope as { payload: object }).payload).sort()).toEqual([
+      'expiresAt',
+      'invitationId',
+    ]);
+    expect(JSON.stringify(event!.envelope)).not.toContain(inv.code);
+    expect(JSON.stringify(event!.envelope)).not.toContain(row!.codeHash);
 
     const r = await join(alice, inv.code);
     expect(r.statusCode).toBe(200);

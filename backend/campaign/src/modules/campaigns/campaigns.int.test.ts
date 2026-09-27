@@ -153,6 +153,23 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes et membres', () => {
       systemId: 'nooblies',
     });
     expect(c).toMatchObject({ name: 'Nouvelle table', system: { id: 'nooblies' }, version: 2 });
+    const [updated] = await t
+      .db!.select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->>'roomId' = ${id} and ${outbox.envelope}->>'type' = 'campaign.updated'`,
+      );
+    // Champs envoyés, et diff avant/après (seulement ce qui a changé)
+    expect((updated!.envelope as { payload: unknown }).payload).toEqual({
+      version: 2,
+      name: 'Nouvelle table',
+      systemId: 'nooblies',
+      systemVersion: c.system.version,
+      changes: [
+        { path: 'name', before: 'La Table', after: 'Nouvelle table' },
+        { path: 'systemId', before: 'dnd-classic', after: 'nooblies' },
+      ],
+    });
     await h.engage(id, gm, { systemId: 'nooblies' });
     const refused = await h.request(gm, 'PATCH', `/v1/campaigns/${id}`, {
       systemId: 'dnd-classic',
@@ -190,9 +207,11 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes et membres', () => {
     ).toBe(400);
     expect(await events(id)).toEqual([
       'campaign.created',
+      'campaign.invitation_created',
       'campaign.member_joined',
       'campaign.member_role_changed',
       'campaign.member_role_changed',
+      'campaign.invitation_created',
     ]);
   });
 
