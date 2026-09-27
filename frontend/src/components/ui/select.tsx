@@ -7,7 +7,7 @@
  * les primitives restent exportées pour les cas particuliers.
  */
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { styleChampBase } from './input';
@@ -37,6 +37,41 @@ const SelectTrigger = React.forwardRef<
 ));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
+/** Boutons de défilement du haut et du bas : Radix masque la barre de défilement de la liste. */
+const SelectScrollUpButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollUpButton
+    ref={ref}
+    className={cn(
+      'flex h-6 cursor-default items-center justify-center text-muted-foreground',
+      className,
+    )}
+    {...props}
+  >
+    <ChevronUp className="size-4" aria-hidden />
+  </SelectPrimitive.ScrollUpButton>
+));
+SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName;
+
+const SelectScrollDownButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollDownButton
+    ref={ref}
+    className={cn(
+      'flex h-6 cursor-default items-center justify-center text-muted-foreground',
+      className,
+    )}
+    {...props}
+  >
+    <ChevronDown className="size-4" aria-hidden />
+  </SelectPrimitive.ScrollDownButton>
+));
+SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName;
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -47,16 +82,19 @@ const SelectContent = React.forwardRef<
       position={position}
       sideOffset={4}
       className={cn(
-        'relative z-50 max-h-[min(20rem,var(--radix-select-content-available-height))] min-w-[8rem] overflow-hidden rounded-xl border border-border-strong bg-popover text-popover-foreground shadow-elevated',
+        'relative z-50 flex max-h-[min(20rem,var(--radix-select-content-available-height))] min-w-[8rem] flex-col overflow-hidden rounded-xl border border-border-strong bg-popover text-popover-foreground shadow-elevated',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         position === 'popper' && 'w-[var(--radix-select-trigger-width)]',
         className,
       )}
       {...props}
     >
-      <SelectPrimitive.Viewport className="max-h-[inherit] overflow-y-auto p-1.5 [scrollbar-width:thin]">
+      <SelectScrollUpButton />
+      {/* min-h-0 : la liste reste dans la hauteur maximale et défile (molette, clavier, boutons) */}
+      <SelectPrimitive.Viewport className="min-h-0 flex-1 p-1.5">
         {children}
       </SelectPrimitive.Viewport>
+      <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
@@ -196,6 +234,8 @@ function SelectField({
 
 export {
   Select,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
   SelectContent,
   SelectField,
   SelectGroup,
