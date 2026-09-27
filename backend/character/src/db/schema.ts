@@ -69,6 +69,19 @@ export const legacyIds = schemaCharacters.table(
   (t) => [primaryKey({ columns: [t.source, t.legacyId] })],
 );
 
+/** Objets de l'inventaire Firebase repris par personnage (reprise idempotente de l'import). */
+export const legacyItems = schemaCharacters.table(
+  'legacy_items',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    legacyId: text('legacy_id').notNull(),
+    createdAt: horodatage('created_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.legacyId] })],
+);
+
 /** Action d'un modèle de PNJ (legacy `Actions` : Nom, Description, Toucher). */
 export interface NpcTemplateAction {
   name: string;

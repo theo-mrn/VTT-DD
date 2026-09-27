@@ -7,8 +7,8 @@
  * existant les objets que la migration actuelle sait reprendre, convertit la bourse en
  * pièces et retire les valeurs et lignes de journal que le système ne connaît plus.
  *
- * Idempotente : chaque objet legacy traité est tracé dans `legacy_ids` (source
- * `firebase-objet`, chemin du document) ; un objet tracé n'est jamais repris deux fois.
+ * Idempotente : chaque objet legacy traité est tracé dans `legacy_items` (personnage,
+ * chemin du document) ; un objet tracé n'est jamais repris deux fois.
  * La conversion de la bourse retire l'attribut : elle ne se refait pas.
  *
  * `reprendreEtat` est pure (testée seule) ; `reprendrePersonnage` l'applique en base,
@@ -25,16 +25,13 @@ import {
   type Possession,
   type SystemeCharge,
 } from '@vtt/rules';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { appendEvent } from '../db/outbox.js';
-import { characters, legacyIds } from '../db/schema.js';
+import { characters, legacyItems } from '../db/schema.js';
 import { etatNormalise, IDENTITES } from '../modules/personnages/depot.js';
 import * as dnd from './correspondances/dnd-classic.js';
 import type { ObjetRepris } from './transformer.js';
-
-/** Source des traces d'objets legacy repris dans `legacy_ids`. */
-export const SOURCE_OBJET = 'firebase-objet';
 
 /**
  * Sortes que le premier import reprenait déjà (objets du catalogue) : un objet legacy qui
@@ -68,7 +65,7 @@ export interface BilanReprise {
   bourse?: { valeur: number; pieces: Record<string, number> };
   /** Valeurs d'attributs inconnus du système retirées (`bourse`…). */
   valeursRetirees: string[];
-  /** Lignes du journal d'une monnaie ou d'un achat inconnus retirées. */
+  /** Lignes du journal d'une monnaie retirée des règles (« pa ») retirées. */
   lignesRetirees: number;
   avertissements: string[];
 }
@@ -199,17 +196,17 @@ export function reprendreEtat(
     }
   }
 
-  // Valeurs d'attributs retirés des règles, lignes de journal d'une monnaie ou d'un achat
-  // retirés : ignorées par le calcul, elles sont nettoyées ici
+  // Valeurs d'attributs retirés des règles, lignes de journal d'une monnaie retirée :
+  // ignorées par le calcul, elles sont nettoyées ici
   for (const cle of Object.keys(etat.valeurs))
     if (!entite?.attributs.has(cle)) {
       delete etat.valeurs[cle];
       bilan.valeursRetirees.push(cle);
     }
+  // Une ligne d'un achat inconnu mais d'une monnaie connue reste (dépense d'XP reprise
+  // de l'ancienne app, achat « migration ») : elle compte toujours dans le solde
   const avant = etat.journal.length;
-  etat.journal = etat.journal.filter(
-    (l) => systeme.monnaies.has(l.monnaie) && systeme.achats.has(l.achat),
-  );
+  etat.journal = etat.journal.filter((l) => systeme.monnaies.has(l.monnaie));
   bilan.lignesRetirees = avant - etat.journal.length;
 
   etat.systeme = { id: systeme.source.id, version: systeme.source.version };
@@ -244,16 +241,13 @@ export async function reprendrePersonnage(
       .where(and(eq(characters.id, id), isNull(characters.deletedAt)));
     const [ligne] = ecrire ? await requete.for('update') : await requete;
     if (!ligne) throw new Error(`Personnage importé introuvable : ${id}`);
-    const chemins = objets.map((o) => o.legacyId);
     const traces = new Set(
-      chemins.length
-        ? (
-            await tx
-              .select({ legacyId: legacyIds.legacyId })
-              .from(legacyIds)
-              .where(and(eq(legacyIds.source, SOURCE_OBJET), inArray(legacyIds.legacyId, chemins)))
-          ).map((r) => r.legacyId)
-        : [],
+      (
+        await tx
+          .select({ legacyId: legacyItems.legacyId })
+          .from(legacyItems)
+          .where(eq(legacyItems.characterId, id))
+      ).map((r) => r.legacyId),
     );
     const existant = EtatEntite.parse(ligne.etat);
     const { etat, bilan, nouvellesTraces } = reprendreEtat(systeme, existant, objets, traces);
@@ -292,10 +286,8 @@ export async function reprendrePersonnage(
     }
     if (nouvellesTraces.length)
       await tx
-        .insert(legacyIds)
-        .values(
-          nouvellesTraces.map((legacyId) => ({ source: SOURCE_OBJET, legacyId, characterId: id })),
-        )
+        .insert(legacyItems)
+        .values(nouvellesTraces.map((legacyId) => ({ characterId: id, legacyId })))
         .onConflictDoNothing();
     return { statut: inchange ? 'inchange' : 'repris', bilan };
   });
