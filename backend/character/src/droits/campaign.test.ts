@@ -14,7 +14,14 @@ describe('droits décidés par campaign', () => {
   it('interroge campaign avec le secret interne puis garde la réponse en cache', async () => {
     let maintenant = 1_000;
     const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) =>
-      reponse({ read: true, write: false, campaigns: [] }),
+      reponse({
+        read: true,
+        write: false,
+        campaigns: [
+          { campaignId: 'camp-1', role: 'player' },
+          { campaignId: 'camp-2', role: 'gm' },
+        ],
+      }),
     );
     const droits = droitsCampaign({
       url: 'http://campaign.local',
@@ -24,7 +31,12 @@ describe('droits décidés par campaign', () => {
       maintenant: () => maintenant,
     });
 
-    expect(await droits.de('perso-1', 'user-1')).toEqual({ lecture: true, ecriture: false });
+    // Campagnes où il est MJ : ses écritures y sont annoncées en direct
+    expect(await droits.de('perso-1', 'user-1')).toEqual({
+      lecture: true,
+      ecriture: false,
+      campagnesMj: ['camp-2'],
+    });
     const [url, init] = fetch.mock.calls[0]!;
     expect(String(url)).toBe(
       'http://campaign.local/internal/characters/perso-1/campaigns-of?userId=user-1',
@@ -54,7 +66,7 @@ describe('droits décidés par campaign', () => {
     });
     expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
     expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
-    expect(await droits.de('p', 'u')).toEqual({ lecture: true, ecriture: true });
+    expect(await droits.de('p', 'u')).toEqual({ lecture: true, ecriture: true, campagnesMj: [] });
     expect(signaler).toHaveBeenCalledTimes(2);
   });
 });

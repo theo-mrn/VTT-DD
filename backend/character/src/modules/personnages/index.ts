@@ -97,6 +97,13 @@ export const register: Module = async (app, deps) => {
     await autoriser(db, deps.droits, moi(req), [{ id, mode: 'lecture' }]);
     return lire(db, id);
   };
+  /**
+   * Campagne où annoncer l'écriture d'un MJ (il y mène la partie) : le
+   * propriétaire la voit en direct. Réponse de campaign déjà en cache (autoriser).
+   */
+  const salleDuMj = async (req: FastifyRequest, id: string, role: string) =>
+    role === 'gm' ? ((await deps.droits.de(id, moi(req))).campagnesMj?.[0] ?? null) : null;
+
   /** Modification par le propriétaire ou le MJ d'une salle où le personnage est engagé. */
   const modifierPour = async (
     req: FastifyRequest,
@@ -105,7 +112,16 @@ export const register: Module = async (app, deps) => {
     calcul: Parameters<typeof modifier>[6],
   ) => {
     const role = await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-    return modifier(db, contexte(req), catalogue, { userId: moi(req), role }, id, version, calcul);
+    const roomId = await salleDuMj(req, id, role);
+    return modifier(
+      db,
+      contexte(req),
+      catalogue,
+      { userId: moi(req), role, roomId },
+      id,
+      version,
+      calcul,
+    );
   };
 
   /**
@@ -233,11 +249,12 @@ export const register: Module = async (app, deps) => {
           mj = (await deps.droits.de(id, moi(req))).ecriture;
       }
       const qui = { proprietaire: role === 'user', mj };
+      const roomId = await salleDuMj(req, id, role);
       const ligne = await modifier(
         db,
         contexte(req),
         catalogue,
-        { userId: moi(req), role },
+        { userId: moi(req), role, roomId },
         id,
         version,
         (l, systeme) => ({

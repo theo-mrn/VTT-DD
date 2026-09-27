@@ -19,6 +19,11 @@ import { EN_TETE_SECRET_INTERNE } from '../interne/secret.js';
 export interface Droits {
   lecture: boolean;
   ecriture: boolean;
+  /**
+   * Campagnes où l'utilisateur est MJ et le personnage engagé : ses écritures y
+   * sont annoncées en direct (événement de la campagne, voir `enregistrer`).
+   */
+  campagnesMj?: string[];
 }
 
 /** Rôle dans une campagne (contrat de campaign). */
@@ -54,7 +59,11 @@ export const sansCampagnes: DroitsCampagnes = {
 };
 
 /** Réponse de campaign (contrat en anglais : read, write, campaigns). */
-const Reponse = z.object({ read: z.boolean(), write: z.boolean() });
+const Reponse = z.object({
+  read: z.boolean(),
+  write: z.boolean(),
+  campaigns: z.array(z.object({ campaignId: z.string(), role: z.string() })).default([]),
+});
 /** Réponse de GET /internal/campaigns/:id/rights. */
 const ReponseRole = z.object({
   member: z.boolean(),
@@ -132,7 +141,11 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
         });
         if (!res.ok) throw new Error(`campaign a répondu ${res.status}`);
         const r = Reponse.parse(await res.json());
-        droits = { lecture: r.read, ecriture: r.write };
+        droits = {
+          lecture: r.read,
+          ecriture: r.write,
+          campagnesMj: r.campaigns.filter((c) => c.role === 'gm').map((c) => c.campaignId),
+        };
       } catch (erreur) {
         // Pas de mise en cache d'une panne : la prochaine requête réessaie
         o.signaler?.(erreur);

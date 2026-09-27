@@ -330,11 +330,16 @@ export async function enregistrer(
   await appendEvent(tx, ctx, {
     type: 'character.updated',
     ...salle(appelant),
+    // Écriture dans une campagne (le MJ, un tour de combat) : annoncée aux MJ de la
+    // campagne et au propriétaire, qui voient la fiche changer en direct ; jamais aux
+    // autres joueurs (le diff peut porter des valeurs réservées au MJ)
+    ...(appelant.roomId ? { visibility: 'gm_only' as const } : {}),
     actor: acteur(appelant, ligne.id),
     aggregate: { type: 'character', id: ligne.id },
     payload: {
       version: suivante.version,
       operation: evenement.operation,
+      ...(appelant.roomId ? { visibleToUsers: [ligne.ownerId] } : {}),
       ...evenement.details,
       ...changesPayload(
         suivi(ligne, etatNormalise(ligne.etat)),

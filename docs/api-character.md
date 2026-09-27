@@ -124,4 +124,6 @@ Sans `appliquer`, le résultat est seulement renvoyé.
 
 Chaque écriture publie un événement : `character.created`, `character.updated` (avec la version), `character.deleted`, et `character.action_resolved` (avec le résultat complet, pour l'historique).
 
+Visibilité de `character.updated` : une écriture du propriétaire reste la sienne (`owner`, sans campagne). Une écriture du **MJ** (ou de campaign, pendant un combat) est publiée dans la campagne où il mène la partie (`roomId`), en `gm_only` avec `payload.visibleToUsers: [propriétaire]` : les MJ et le propriétaire la reçoivent en direct par le service realtime, pas les autres joueurs (le diff peut porter des valeurs réservées au MJ). La campagne vient de la réponse de campaign déjà lue pour les droits (`campaigns-of`, champ `campaigns`).
+
 `character.updated` porte l'opération (`operation`), ses détails, et le diff avant/après de l'état, du nom, de l'avatar et de la présentation (`details.concept`…) : `changes: [{ path, before, after }]` (ex. `{ "path": "etat.valeurs.PV", "before": 24, "after": 17 }`, possessions désignées par `entree#exemplaire`). Format et bornes : [bus.md](bus.md#diff-avantaprès-changes).

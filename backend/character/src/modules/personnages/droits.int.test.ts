@@ -90,6 +90,39 @@ describe.skipIf(!TEST_DATABASE_URL)('droits des salles sur les personnages', () 
     });
   });
 
+  it('une écriture du MJ est annoncée dans sa campagne, au MJ et au propriétaire seulement', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Thorin');
+    const campagne = crypto.randomUUID();
+    salles.accorder(p.id, mj.id, { lecture: true, ecriture: true, campagnesMj: [campagne] });
+    const u = `/v1/characters/${p.id}`;
+    const pv = Math.max(0, (p.etat.valeurs.PV as number) - 1);
+    const modifie = await o.ok(mj, 'PUT', `${u}/valeurs`, {
+      version: p.version,
+      valeurs: { PV: pv },
+    });
+    await o.ok(proprietaire, 'PATCH', u, { version: modifie.version, nom: 'Thorin II' });
+
+    const evenements = (
+      await t
+        .db!.select({ envelope: outbox.envelope })
+        .from(outbox)
+        .where(
+          sql`${outbox.envelope}->'aggregate'->>'id' = ${p.id} and ${outbox.envelope}->>'type' = 'character.updated'`,
+        )
+        .orderBy(outbox.id)
+    ).map((e) => e.envelope as Record<string, unknown>);
+    const [parMj, parProprietaire] = evenements.slice(-2);
+    expect(parMj).toMatchObject({
+      roomId: campagne,
+      visibility: 'gm_only',
+      actor: { userId: mj.id, role: 'gm' },
+      payload: { operation: 'valeurs', visibleToUsers: [proprietaire.id] },
+    });
+    // Le propriétaire écrit hors campagne : l'événement reste le sien
+    expect(parProprietaire).toMatchObject({ roomId: null, visibility: 'owner' });
+    expect(parProprietaire!.payload).not.toHaveProperty('visibleToUsers');
+  });
+
   it('le MJ applique une attaque de son PNJ au personnage d’un joueur ; le joueur ne le peut pas', async () => {
     const p = await engage();
     const pnj = await o.nainGuerrier(mj, 'Orque');
