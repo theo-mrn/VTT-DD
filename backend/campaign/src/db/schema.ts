@@ -32,6 +32,10 @@ export type Side = (typeof SIDES)[number];
 export const COMBAT_MODES = ['individual', 'slots'] as const;
 export type CombatMode = (typeof COMBAT_MODES)[number];
 
+/** Couleurs d'accent d'une campagne (le front les traduit en thème). */
+export const ACCENTS = ['gold', 'ember', 'arcane', 'sylvan', 'frost', 'blood'] as const;
+export type Accent = (typeof ACCENTS)[number];
+
 export const campaigns = campaignSchema.table('campaigns', {
   id: uuid('id').primaryKey(),
   name: text('name').notNull(),
@@ -47,6 +51,11 @@ export const campaigns = campaignSchema.table('campaigns', {
   imageUrl: text('image_url'),
   isPublic: boolean('is_public').notNull().default(false),
   characterCreation: boolean('character_creation').notNull().default(true),
+  /** Accroche d'une ligne (160 caractères au plus). */
+  pitch: text('pitch').notNull().default(''),
+  accent: text('accent').$type<Accent>().notNull().default('gold'),
+  /** Genres (10 au plus). */
+  tags: text('tags').array().notNull().default([]),
 });
 
 export const campaignMembers = campaignSchema.table(
@@ -74,6 +83,20 @@ export const campaignInvitations = campaignSchema.table('campaign_invitations', 
   uses: integer('uses').notNull().default(0),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
 });
+
+/** Invitations nominatives en attente : l'invité rejoint sans code, même une campagne privée. */
+export const campaignInvitees = campaignSchema.table(
+  'campaign_invitees',
+  {
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull(),
+    invitedBy: uuid('invited_by').notNull(),
+    invitedAt: timestampTz('invited_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.campaignId, t.userId] })],
+);
 
 export const campaignCharacters = campaignSchema.table(
   'campaign_characters',

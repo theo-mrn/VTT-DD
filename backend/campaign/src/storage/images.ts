@@ -49,8 +49,31 @@ export function publicBase(s3PublicUrl: string | undefined): string | null {
 }
 
 /**
+ * Image de la bibliothèque du produit (couvertures proposées par le front) :
+ * https, sous PRESET_IMAGES_URL, sans identifiants, requête, fragment ni
+ * segment « .. ».
+ */
+export function isPresetImageUrl(url: string, presetBase: string | null): boolean {
+  if (!presetBase) return false;
+  let u: URL;
+  let b: URL;
+  try {
+    u = new URL(url);
+    b = new URL(presetBase.endsWith('/') ? presetBase : `${presetBase}/`);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.origin !== b.origin) return false;
+  if (u.username || u.password || u.search || u.hash) return false;
+  if (!u.pathname.startsWith(b.pathname)) return false;
+  // `new URL` résout déjà « .. » ; on refuse aussi sa forme encodée
+  return !/(^|\/)(\.|%2e){1,2}(\/|$)/i.test(url.slice(b.origin.length));
+}
+
+/**
  * Une URL d'image est acceptée si elle vaut null, la valeur déjà enregistrée,
- * ou un fichier du dossier de la campagne sur notre stockage
+ * une image de la bibliothèque du produit (PRESET_IMAGES_URL), ou un fichier
+ * du dossier de la campagne sur notre stockage
  * ({S3_PUBLIC_URL}/campaigns/<campaignId>/<fichier>). Jamais une URL arbitraire :
  * elle serait affichée aux autres joueurs (pistage, contenu tiers).
  */
@@ -59,8 +82,10 @@ export function isAcceptedImageUrl(
   current: string | null,
   base: string | null,
   campaignId: string,
+  presetBase: string | null = null,
 ): boolean {
   if (url === null || url === current) return true;
+  if (isPresetImageUrl(url, presetBase)) return true;
   if (!base) return false;
   const prefix = `${base}/${FOLDER}/${campaignId}/`;
   if (!url.startsWith(prefix)) return false;

@@ -17,14 +17,12 @@ import { z } from 'zod';
 import { campaignSessions } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { access, campaignEvent, gmAccess, lockCampaign } from '../campaigns/repository.js';
-import { CampaignId, currentUser, eventContext, Uuid } from '../schemas.js';
+import { CampaignId, currentUser, eventContext, Session, Uuid } from '../schemas.js';
 
 /** Sessions à venir par campagne, au plus. */
 export const MAX_SESSIONS = 50;
 
-const Session = z.object({ id: z.string(), date: z.string(), title: z.string().nullable() });
-
-const sessionApi = (s: typeof campaignSessions.$inferSelect) => ({
+export const sessionApi = (s: typeof campaignSessions.$inferSelect) => ({
   id: s.id,
   date: s.scheduledAt.toISOString(),
   title: s.title,

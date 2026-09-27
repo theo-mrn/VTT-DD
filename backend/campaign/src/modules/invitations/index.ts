@@ -1,9 +1,14 @@
 /**
- * Module « invitations » : liens d'invitation d'une campagne et adhésion.
+ * Module « invitations » : liens d'invitation, invitations nominatives et adhésion.
  *
- *   POST /v1/campaigns/:id/invitations   { expiresIn?, maxUses? } → { code, url, expiresAt, maxUses } (MJ)
- *        événement campaign.invitation_created (gm_only, sans le code)
- *   POST /v1/campaigns/join              { code } → la campagne ; l'appelant devient joueur
+ *   POST   /v1/campaigns/:id/invitations         { expiresIn?, maxUses? } → { code, url, expiresAt, maxUses } (MJ)
+ *          événement campaign.invitation_created (gm_only, sans le code)
+ *   POST   /v1/campaigns/join                    { code } → la campagne ; l'appelant devient joueur
+ *   POST   /v1/campaigns/:id/join                rejoindre une campagne publique, ou une campagne
+ *                                                où l'on est invité nominativement
+ *   POST   /v1/campaigns/:id/invitees            { userIds } : inviter des utilisateurs (MJ)
+ *   DELETE /v1/campaigns/:id/invitees/:userId    annuler (MJ) ou décliner (l'invité)
+ *   GET    /v1/campaigns/invited                 campagnes où l'appelant est invité
  *
  * `code` est un code d'invitation (« inv_… ») ou le code court de la
  * campagne, publique ou privée. Refus : 404 `campaign_not_found`, 403 `banned`,
@@ -14,23 +19,51 @@
  */
 import { uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { campaignBans, campaignInvitations, campaignMembers, campaigns } from '../../db/schema.js';
+import {
+  campaignBans,
+  campaignInvitations,
+  campaignInvitees,
+  campaignMembers,
+  campaigns,
+} from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import { CAMPAIGN_CODE_FORMAT, normalizeCampaignCode } from '../campaigns/code.js';
-import { campaignDetail, campaignEvent, gmAccess } from '../campaigns/repository.js';
-import { CampaignId, CampaignResponse, currentUser, eventContext } from '../schemas.js';
+import {
+  campaignDetail,
+  campaignEvent,
+  campaignNotFound,
+  campaignSummaries,
+  clearInvitation,
+  gmAccess,
+  headcounts,
+  lockCampaign,
+  userApi,
+} from '../campaigns/repository.js';
+import {
+  CampaignId,
+  CampaignResponse,
+  currentUser,
+  eventContext,
+  InvitedCampaign,
+  UserId,
+} from '../schemas.js';
 import { hashCode, INVITATION_CODE_FORMAT, newInvitationCode } from './codes.js';
 
 const DAY = 24 * 3600;
 export const DEFAULT_EXPIRY = 7 * DAY;
 export const DEFAULT_MAX_USES = 10;
+/** Invitations nominatives en attente par campagne, au plus. */
+export const MAX_INVITEES = 50;
 
 const expired = (detail: string, code: string) =>
   new HttpError(410, 'Invitation périmée', code, detail);
+
+const banned = () =>
+  new HttpError(403, 'Accès refusé', 'banned', 'Vous avez été banni de cette campagne');
 
 const notFound = () =>
   new HttpError(
@@ -173,17 +206,11 @@ export const register: Module = async (app, deps) => {
         // Déjà membre : rien à consommer, on renvoie la campagne
         if (already) return { campaign, role: already.role };
 
-        const [banned] = await tx
+        const [isBanned] = await tx
           .select()
           .from(campaignBans)
           .where(and(eq(campaignBans.campaignId, campaignId), eq(campaignBans.userId, userId)));
-        if (banned)
-          throw new HttpError(
-            403,
-            'Accès refusé',
-            'banned',
-            'Vous avez été banni de cette campagne',
-          );
+        if (isBanned) throw banned();
 
         if (invitation) {
           if (invitation.expiresAt.getTime() <= deps.now().getTime())
@@ -200,6 +227,7 @@ export const register: Module = async (app, deps) => {
             .set({ uses: sql`${campaignInvitations.uses} + 1` })
             .where(eq(campaignInvitations.id, invitation.id));
         await tx.insert(campaignMembers).values({ campaignId, userId, role: 'player' });
+        await clearInvitation(tx, campaignId, userId);
         await campaignEvent(tx, eventContext(req), {
           type: 'campaign.member_joined',
           campaignId,
@@ -214,6 +242,216 @@ export const register: Module = async (app, deps) => {
         return { campaign, role: 'player' as const };
       });
       return campaignDetail(deps, joined, req);
+    },
+  );
+
+  // ─── Rejoindre sans code : campagne publique ou invitation nominative ──────
+
+  r.post(
+    '/v1/campaigns/:id/join',
+    {
+      ...auth,
+      schema: { params: z.object({ id: CampaignId }), response: { 200: CampaignResponse } },
+    },
+    async (req) => {
+      const userId = currentUser(req);
+      const joined = await db.transaction(async (tx) => {
+        const [campaign] = await tx
+          .select()
+          .from(campaigns)
+          .where(eq(campaigns.id, req.params.id))
+          .for('update');
+        if (!campaign) throw campaignNotFound();
+        const [already] = await tx
+          .select()
+          .from(campaignMembers)
+          .where(
+            and(eq(campaignMembers.campaignId, campaign.id), eq(campaignMembers.userId, userId)),
+          );
+        if (already) return { campaign, role: already.role };
+        const [invited] = await tx
+          .select()
+          .from(campaignInvitees)
+          .where(
+            and(eq(campaignInvitees.campaignId, campaign.id), eq(campaignInvitees.userId, userId)),
+          );
+        // Campagne privée sans invitation : son existence n'est pas révélée
+        if (!campaign.isPublic && !invited) throw campaignNotFound();
+        const [isBanned] = await tx
+          .select()
+          .from(campaignBans)
+          .where(and(eq(campaignBans.campaignId, campaign.id), eq(campaignBans.userId, userId)));
+        if (isBanned) throw banned();
+
+        await tx
+          .insert(campaignMembers)
+          .values({ campaignId: campaign.id, userId, role: 'player' });
+        await clearInvitation(tx, campaign.id, userId);
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.member_joined',
+          campaignId: campaign.id,
+          userId,
+          role: 'player',
+          payload: {
+            userId,
+            role: 'player',
+            ...(invited ? { byInvitee: true } : { publicCampaign: true }),
+          },
+        });
+        return { campaign, role: 'player' as const };
+      });
+      return campaignDetail(deps, joined, req);
+    },
+  );
+
+  // ─── Invitations nominatives ───────────────────────────────────────────────
+
+  r.post(
+    '/v1/campaigns/:id/invitees',
+    {
+      ...auth,
+      schema: {
+        params: z.object({ id: CampaignId }),
+        body: z.object({
+          userIds: z
+            .array(UserId)
+            .min(1)
+            .max(20)
+            .transform((ids) => [...new Set(ids)]),
+        }),
+        response: { 200: CampaignResponse },
+      },
+    },
+    async (req) => {
+      const userId = currentUser(req);
+      const a = await db.transaction(async (tx) => {
+        await lockCampaign(tx, req.params.id);
+        const a = await gmAccess(tx, req.params.id, userId);
+        const ids = req.body.userIds;
+        const [members, bans, pending] = await Promise.all([
+          tx
+            .select({ userId: campaignMembers.userId })
+            .from(campaignMembers)
+            .where(
+              and(
+                eq(campaignMembers.campaignId, a.campaign.id),
+                inArray(campaignMembers.userId, ids),
+              ),
+            ),
+          tx
+            .select({ userId: campaignBans.userId })
+            .from(campaignBans)
+            .where(
+              and(eq(campaignBans.campaignId, a.campaign.id), inArray(campaignBans.userId, ids)),
+            ),
+          tx
+            .select({ userId: campaignInvitees.userId })
+            .from(campaignInvitees)
+            .where(eq(campaignInvitees.campaignId, a.campaign.id)),
+        ]);
+        if (bans.length)
+          throw HttpError.conflict(
+            'Un utilisateur banni ne peut pas être invité : levez d’abord son bannissement',
+            'user_banned',
+          );
+        // Déjà membre ou déjà invité : rien à faire pour lui
+        const skip = new Set([...members, ...pending].map((m) => m.userId));
+        const fresh = ids.filter((id) => !skip.has(id));
+        if (pending.length + fresh.length > MAX_INVITEES)
+          throw HttpError.conflict(
+            `${MAX_INVITEES} invitations en attente au plus`,
+            'too_many_invitees',
+          );
+        for (const invitee of fresh) {
+          await tx
+            .insert(campaignInvitees)
+            .values({ campaignId: a.campaign.id, userId: invitee, invitedBy: userId });
+          await campaignEvent(tx, eventContext(req), {
+            type: 'campaign.member_invited',
+            campaignId: a.campaign.id,
+            userId,
+            role: a.role,
+            payload: { userId: invitee },
+            visibility: 'gm_only',
+          });
+        }
+        return a;
+      });
+      return campaignDetail(deps, a, req);
+    },
+  );
+
+  r.delete(
+    '/v1/campaigns/:id/invitees/:userId',
+    { ...auth, schema: { params: z.object({ id: CampaignId, userId: UserId }) } },
+    async (req, reply) => {
+      const me = currentUser(req);
+      const target = req.params.userId;
+      await db.transaction(async (tx) => {
+        await lockCampaign(tx, req.params.id);
+        // L'invité décline sans être membre ; sinon, seul le MJ annule
+        const role = target === me ? null : (await gmAccess(tx, req.params.id, me)).role;
+        const [removed] = await tx
+          .delete(campaignInvitees)
+          .where(
+            and(
+              eq(campaignInvitees.campaignId, req.params.id),
+              eq(campaignInvitees.userId, target),
+            ),
+          )
+          .returning();
+        if (!removed) {
+          if (target === me) throw campaignNotFound();
+          throw HttpError.notFound('Cet utilisateur n’est pas invité');
+        }
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.invitee_removed',
+          campaignId: removed.campaignId,
+          userId: me,
+          role,
+          payload: { userId: target, declined: target === me },
+          visibility: 'gm_only',
+        });
+      });
+      reply.code(204);
+    },
+  );
+
+  r.get(
+    '/v1/campaigns/invited',
+    { ...auth, schema: { response: { 200: z.array(InvitedCampaign) } } },
+    async (req) => {
+      const userId = currentUser(req);
+      const headcount = headcounts(db);
+      const rows = await db
+        .select({
+          campaign: campaigns,
+          invitedBy: campaignInvitees.invitedBy,
+          invitedAt: campaignInvitees.invitedAt,
+          memberCount: headcount.memberCount,
+          playerCount: headcount.playerCount,
+        })
+        .from(campaignInvitees)
+        .innerJoin(campaigns, eq(campaigns.id, campaignInvitees.campaignId))
+        .innerJoin(headcount, eq(headcount.campaignId, campaigns.id))
+        .where(eq(campaignInvitees.userId, userId))
+        .orderBy(desc(campaignInvitees.invitedAt), asc(campaigns.id));
+      const [summaries, profiles] = await Promise.all([
+        campaignSummaries(
+          deps,
+          rows.map((r) => ({ ...r, role: null })),
+          req.headers.authorization,
+        ),
+        deps.profiles.profiles(
+          [...new Set(rows.map((r) => r.invitedBy))],
+          req.headers.authorization,
+        ),
+      ]);
+      return summaries.map((s, i) => ({
+        ...s,
+        invitedBy: userApi(rows[i]!.invitedBy, profiles),
+        invitedAt: rows[i]!.invitedAt.toISOString(),
+      }));
     },
   );
 };

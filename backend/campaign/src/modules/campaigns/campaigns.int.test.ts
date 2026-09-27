@@ -97,8 +97,15 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes et membres', () => {
         imageUrl: null,
         isPublic: false,
         characterCreation: true,
+        pitch: '',
+        accent: 'gold',
+        tags: [],
         owner: { id: gm.id, name: 'Maître', avatarUrl: null },
         updatedAt: expect.any(String),
+        members: [{ userId: gm.id, name: 'Maître', avatarUrl: null, role: 'gm' }],
+        nextSession: null,
+        playedCharacterId: null,
+        characterIds: [],
       },
     ]);
     expect(await h.ok(stranger, 'GET', '/v1/campaigns')).toEqual([]);

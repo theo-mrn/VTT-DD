@@ -2,11 +2,13 @@
  * Module « campaigns » : campagnes, membres et rôles (contrat :
  * docs/api-campaign.md). Toutes les routes demandent un jeton d'accès.
  *
- *   GET    /v1/campaigns?role=                   mes campagnes
+ *   GET    /v1/campaigns?role=                   mes campagnes (aperçu des membres, prochaine
+ *                                                 session, personnages engagés et incarné)
  *   GET    /v1/campaigns/public                  campagnes publiques (recherche, pages)
  *   POST   /v1/campaigns                         créer (le créateur est MJ propriétaire, code généré)
  *   GET    /v1/campaigns/:id                     détail (membres)
  *   PATCH  /v1/campaigns/:id                     modifier (MJ)
+ *   POST   /v1/campaigns/:id/code                nouveau code (MJ) : l'ancien ne vaut plus
  *   DELETE /v1/campaigns/:id                     supprimer (MJ propriétaire)
  *   POST   /v1/campaigns/:id/image               URL d'envoi de l'image (MJ ; rien d'écrit, l'image
  *                                                 est enregistrée par PATCH → campaign.updated)
@@ -33,15 +35,19 @@ import {
 } from '../../storage/images.js';
 import { removeFromCombat } from '../combat/repository.js';
 import {
+  Accent,
   CampaignId,
   CampaignResponse,
   CampaignSummary,
   currentUser,
   Description,
   eventContext,
+  MyCampaignSummary,
   Name,
+  Pitch,
   Role,
   SystemId,
+  Tags,
   UserId,
 } from '../schemas.js';
 import { newCampaignCode, normalizeCampaignCode } from './code.js';
@@ -53,6 +59,7 @@ import {
   gmAccess,
   headcounts,
   lockCampaign,
+  myCampaignSummaries,
   userApi,
 } from './repository.js';
 
@@ -87,7 +94,16 @@ const editable = (c: typeof campaigns.$inferSelect) => ({
   imageUrl: c.imageUrl,
   isPublic: c.isPublic,
   characterCreation: c.characterCreation,
+  pitch: c.pitch,
+  accent: c.accent,
+  tags: c.tags,
 });
+
+const invalidImage = () =>
+  HttpError.badRequest(
+    'L’image doit venir de la bibliothèque, ou avoir été envoyée par POST /v1/campaigns/:id/image',
+    'invalid_image',
+  );
 
 /** Échappe les jokers de LIKE (%, _ et le caractère d'échappement \). */
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -97,6 +113,7 @@ export const register: Module = async (app, deps) => {
   const { db, catalog } = deps;
   const auth = { preValidation: app.authenticate };
   const base = publicBase(deps.config.S3_PUBLIC_URL);
+  const presets = deps.config.PRESET_IMAGES_URL;
 
   const knownSystem = (id: string) => {
     const s = catalog.system(id);
@@ -110,7 +127,7 @@ export const register: Module = async (app, deps) => {
       ...auth,
       schema: {
         querystring: z.object({ role: Role.optional() }),
-        response: { 200: z.array(CampaignSummary) },
+        response: { 200: z.array(MyCampaignSummary) },
       },
     },
     async (req) => {
@@ -132,7 +149,7 @@ export const register: Module = async (app, deps) => {
           ),
         )
         .orderBy(desc(campaigns.updatedAt), desc(campaigns.id));
-      return campaignSummaries(deps, rows, req.headers.authorization);
+      return myCampaignSummaries(deps, rows, currentUser(req), req.headers.authorization);
     },
   );
 
@@ -211,6 +228,11 @@ export const register: Module = async (app, deps) => {
           description: Description.optional(),
           isPublic: z.boolean().optional(),
           characterCreation: z.boolean().optional(),
+          pitch: Pitch.optional(),
+          accent: Accent.optional(),
+          tags: Tags.optional(),
+          // À la création, seule une image de la bibliothèque (l'envoi demande la campagne)
+          imageUrl: z.string().max(2048).nullable().optional(),
         }),
         response: { 201: CampaignResponse },
       },
@@ -219,6 +241,8 @@ export const register: Module = async (app, deps) => {
       const system = knownSystem(req.body.systemId);
       const userId = currentUser(req);
       const id = uuidv7();
+      const imageUrl = req.body.imageUrl ?? null;
+      if (!isAcceptedImageUrl(imageUrl, null, null, id, presets)) throw invalidImage();
       const campaign = await db.transaction(async (tx) => {
         let created: typeof campaigns.$inferSelect | undefined;
         // Code déjà pris : on en tire un autre (sans interrompre la transaction)
@@ -235,6 +259,10 @@ export const register: Module = async (app, deps) => {
               code: newCampaignCode(),
               isPublic: req.body.isPublic ?? false,
               characterCreation: req.body.characterCreation ?? true,
+              pitch: req.body.pitch ?? '',
+              accent: req.body.accent ?? 'gold',
+              tags: req.body.tags ?? [],
+              imageUrl,
             })
             .onConflictDoNothing({ target: campaigns.code })
             .returning();
@@ -251,6 +279,10 @@ export const register: Module = async (app, deps) => {
             code: created.code,
             isPublic: created.isPublic,
             system: { id: system.id, version: system.version },
+            pitch: created.pitch,
+            accent: created.accent,
+            tags: created.tags,
+            imageUrl: created.imageUrl,
           },
         });
         return created;
@@ -278,7 +310,10 @@ export const register: Module = async (app, deps) => {
           systemId: SystemId.optional(),
           isPublic: z.boolean().optional(),
           characterCreation: z.boolean().optional(),
-          // Vérifiée ensuite contre le dossier de la campagne sur le stockage
+          pitch: Pitch.optional(),
+          accent: Accent.optional(),
+          tags: Tags.optional(),
+          // Vérifiée ensuite : bibliothèque, ou dossier de la campagne sur le stockage
           imageUrl: z.string().max(2048).nullable().optional(),
         }),
         response: { 200: CampaignResponse },
@@ -287,17 +322,15 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const userId = currentUser(req);
       const { name, description, systemId, imageUrl, isPublic, characterCreation } = req.body;
+      const { pitch, accent, tags } = req.body;
       const campaign = await db.transaction(async (tx) => {
         await lockCampaign(tx, req.params.id);
         const a = await gmAccess(tx, req.params.id, userId);
         if (
           imageUrl !== undefined &&
-          !isAcceptedImageUrl(imageUrl, a.campaign.imageUrl, base, a.campaign.id)
+          !isAcceptedImageUrl(imageUrl, a.campaign.imageUrl, base, a.campaign.id, presets)
         )
-          throw HttpError.badRequest(
-            'L’image doit avoir été envoyée par POST /v1/campaigns/:id/image',
-            'invalid_image',
-          );
+          throw invalidImage();
         const system = systemId ? knownSystem(systemId) : undefined;
         if (system && system.id !== a.campaign.systemId) {
           // Les personnages engagés sont tous du système de la campagne
@@ -318,6 +351,9 @@ export const register: Module = async (app, deps) => {
           ...(imageUrl !== undefined ? { imageUrl } : {}),
           ...(isPublic !== undefined ? { isPublic } : {}),
           ...(characterCreation !== undefined ? { characterCreation } : {}),
+          ...(pitch !== undefined ? { pitch } : {}),
+          ...(accent !== undefined ? { accent } : {}),
+          ...(tags !== undefined ? { tags } : {}),
         };
         const [next] = await tx
           .update(campaigns)
@@ -337,6 +373,48 @@ export const register: Module = async (app, deps) => {
           },
         });
         return next!;
+      });
+      return campaignDetail(deps, { campaign, role: 'gm' }, req);
+    },
+  );
+
+  r.post(
+    '/v1/campaigns/:id/code',
+    { ...auth, schema: { params: Params, response: { 200: CampaignResponse } } },
+    async (req) => {
+      const userId = currentUser(req);
+      const campaign = await db.transaction(async (tx) => {
+        await lockCampaign(tx, req.params.id);
+        const a = await gmAccess(tx, req.params.id, userId);
+        let next: typeof campaigns.$inferSelect | undefined;
+        // Code déjà pris : on en tire un autre (collision très improbable, et la contrainte
+        // d'unicité reste le dernier garde-fou)
+        for (let attempt = 0; !next && attempt < CODE_ATTEMPTS; attempt++) {
+          const code = newCampaignCode();
+          const [taken] = await tx
+            .select({ id: campaigns.id })
+            .from(campaigns)
+            .where(eq(campaigns.code, code));
+          if (taken) continue;
+          [next] = await tx
+            .update(campaigns)
+            .set({ code, version: a.campaign.version + 1, updatedAt: sql`now()` })
+            .where(eq(campaigns.id, a.campaign.id))
+            .returning();
+        }
+        if (!next) throw new Error('Aucun code de campagne libre après plusieurs essais');
+        await campaignEvent(tx, eventContext(req), {
+          type: 'campaign.updated',
+          campaignId: a.campaign.id,
+          userId,
+          role: a.role,
+          payload: {
+            version: next.version,
+            code: next.code,
+            ...changesPayload({ code: a.campaign.code }, { code: next.code }),
+          },
+        });
+        return next;
       });
       return campaignDetail(deps, { campaign, role: 'gm' }, req);
     },

@@ -53,5 +53,13 @@ export const CampaignConfig = BaseConfig.extend({
   S3_SECRET_ACCESS_KEY: optional(z.string()),
   /** URL publique des fichiers envoyés (CDN R2, ou S3_ENDPOINT/bucket en dev). */
   S3_PUBLIC_URL: optional(z.string().url()),
+  /**
+   * Bibliothèque d'images du produit (couvertures proposées à la création) :
+   * une image de campagne peut désigner un fichier sous cette URL sans être
+   * envoyée. Vide : seules les images envoyées sont acceptées.
+   */
+  PRESET_IMAGES_URL: z
+    .preprocess((v) => (v === '' ? null : v), z.string().url().nullable())
+    .default('https://assets.yner.fr/'),
 });
 export type CampaignConfig = z.infer<typeof CampaignConfig>;

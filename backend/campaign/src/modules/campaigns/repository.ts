@@ -6,7 +6,7 @@
  */
 import type { ActorRole, Visibility } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, asc, count, eq, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { Profile } from '../../clients/profiles.js';
 import type { Db } from '../../db/client.js';
@@ -15,8 +15,11 @@ import {
   campaignCharacters,
   campaignCombatParticipants,
   campaignCombats,
+  campaignInvitees,
   campaignMembers,
   campaigns,
+  campaignSessions,
+  type Accent,
   type Role,
   type Side,
 } from '../../db/schema.js';
@@ -116,6 +119,9 @@ export interface CampaignFieldsApi {
   imageUrl: string | null;
   isPublic: boolean;
   characterCreation: boolean;
+  pitch: string;
+  accent: Accent;
+  tags: string[];
   playerCount: number;
   owner: UserApi;
   updatedAt: string;
@@ -124,6 +130,28 @@ export interface CampaignFieldsApi {
 export interface CampaignSummaryApi extends CampaignFieldsApi {
   role: Role | null;
   memberCount: number;
+}
+
+export interface SessionApi {
+  id: string;
+  date: string;
+  title: string | null;
+}
+
+export interface MyCampaignSummaryApi extends CampaignSummaryApi {
+  role: Role;
+  members: MemberApi[];
+  nextSession: SessionApi | null;
+  playedCharacterId: string | null;
+  characterIds: string[];
+}
+
+export interface InviteeApi {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  invitedBy: string;
+  invitedAt: string;
 }
 
 export interface CampaignApi extends CampaignFieldsApi {
@@ -140,6 +168,7 @@ export interface CampaignApi extends CampaignFieldsApi {
     playedBy: string | null;
   }[];
   combat?: CombatApi;
+  invitees: InviteeApi[];
   version: number;
   createdAt: string;
 }
@@ -165,6 +194,9 @@ function campaignFields(
     imageUrl: c.imageUrl,
     isPublic: c.isPublic,
     characterCreation: c.characterCreation,
+    pitch: c.pitch,
+    accent: c.accent,
+    tags: c.tags,
     playerCount,
     owner: userApi(c.ownerId, profiles),
     updatedAt: c.updatedAt.toISOString(),
@@ -203,6 +235,99 @@ export async function campaignSummaries(
   }));
 }
 
+/** Membres montrés dans une liste de campagnes, au plus (le total est `memberCount`). */
+export const MEMBERS_PREVIEW = 5;
+
+/**
+ * Mes campagnes : résumés, plus les premiers membres (MJ d'abord), la
+ * prochaine session, le personnage que j'incarne et les personnages engagés.
+ * Quatre requêtes pour toute la liste, quel que soit le nombre de campagnes.
+ */
+export async function myCampaignSummaries(
+  deps: Pick<Deps, 'db' | 'profiles' | 'now'>,
+  rows: { campaign: Campaign; role: Role; memberCount: number; playerCount: number }[],
+  userId: string,
+  authorization: string | undefined,
+): Promise<MyCampaignSummaryApi[]> {
+  const ids = rows.map((r) => r.campaign.id);
+  if (!ids.length) return [];
+  const { db } = deps;
+  const [members, sessions, engagements] = await Promise.all([
+    db
+      .select()
+      .from(campaignMembers)
+      .where(inArray(campaignMembers.campaignId, ids))
+      .orderBy(
+        asc(campaignMembers.campaignId),
+        sql`${campaignMembers.role} <> 'gm'`,
+        asc(campaignMembers.joinedAt),
+        asc(campaignMembers.userId),
+      ),
+    // Une session par campagne : la prochaine
+    db
+      .selectDistinctOn([campaignSessions.campaignId])
+      .from(campaignSessions)
+      .where(
+        and(
+          inArray(campaignSessions.campaignId, ids),
+          gt(campaignSessions.scheduledAt, deps.now()),
+        ),
+      )
+      .orderBy(
+        asc(campaignSessions.campaignId),
+        asc(campaignSessions.scheduledAt),
+        asc(campaignSessions.id),
+      ),
+    db
+      .select({
+        campaignId: campaignCharacters.campaignId,
+        characterId: campaignCharacters.characterId,
+        playedBy: campaignCharacters.playedBy,
+      })
+      .from(campaignCharacters)
+      .where(inArray(campaignCharacters.campaignId, ids))
+      .orderBy(asc(campaignCharacters.addedAt), asc(campaignCharacters.characterId)),
+  ]);
+  const preview = new Map<string, (typeof members)[number][]>();
+  for (const m of members) {
+    const list = preview.get(m.campaignId) ?? [];
+    if (list.length < MEMBERS_PREVIEW) preview.set(m.campaignId, [...list, m]);
+  }
+  const shown = [...preview.values()].flat().map((m) => m.userId);
+  const profiles = await deps.profiles.profiles(
+    [...new Set([...rows.map((r) => r.campaign.ownerId), ...shown])],
+    authorization,
+  );
+  return rows.map((r) => {
+    const id = r.campaign.id;
+    const next = sessions.find((s) => s.campaignId === id);
+    const engaged = engagements.filter((e) => e.campaignId === id);
+    return {
+      ...campaignFields(r.campaign, Number(r.playerCount), profiles),
+      role: r.role,
+      memberCount: Number(r.memberCount),
+      members: (preview.get(id) ?? []).map((m) => ({
+        userId: m.userId,
+        name: profiles.get(m.userId)?.name ?? null,
+        avatarUrl: profiles.get(m.userId)?.avatarUrl ?? null,
+        role: m.role,
+      })),
+      nextSession: next
+        ? { id: next.id, date: next.scheduledAt.toISOString(), title: next.title }
+        : null,
+      playedCharacterId: engaged.find((e) => e.playedBy === userId)?.characterId ?? null,
+      characterIds: engaged.map((e) => e.characterId),
+    };
+  });
+}
+
+/** Un membre qui rejoint n'a plus d'invitation nominative en attente. */
+export async function clearInvitation(tx: Tx, campaignId: string, userId: string) {
+  await tx
+    .delete(campaignInvitees)
+    .where(and(eq(campaignInvitees.campaignId, campaignId), eq(campaignInvitees.userId, userId)));
+}
+
 /** Détail d'une campagne pour un membre (profils des membres via identity). */
 export async function campaignDetail(
   deps: Pick<Deps, 'db' | 'profiles'>,
@@ -213,7 +338,7 @@ export async function campaignDetail(
   const userId = currentUser(req);
   const id = a.campaign.id;
   // Relue : l'accès a pu être obtenu avant une modification de la même requête
-  const [[campaign], members, characters, [combat], participants] = await Promise.all([
+  const [[campaign], members, characters, [combat], participants, invitees] = await Promise.all([
     db.select().from(campaigns).where(eq(campaigns.id, id)),
     db
       .select()
@@ -231,10 +356,18 @@ export async function campaignDetail(
       .from(campaignCombatParticipants)
       .where(eq(campaignCombatParticipants.campaignId, id))
       .orderBy(asc(campaignCombatParticipants.turnOrder)),
+    // Les invitations nominatives ne regardent que le MJ
+    a.role === 'gm'
+      ? db
+          .select()
+          .from(campaignInvitees)
+          .where(eq(campaignInvitees.campaignId, id))
+          .orderBy(desc(campaignInvitees.invitedAt), asc(campaignInvitees.userId))
+      : Promise.resolve([]),
   ]);
   const c = campaign ?? a.campaign;
   const profiles = await deps.profiles.profiles(
-    [...new Set([c.ownerId, ...members.map((m) => m.userId)])],
+    [...new Set([c.ownerId, ...members.map((m) => m.userId), ...invitees.map((i) => i.userId)])],
     req.headers.authorization,
   );
   return {
@@ -256,6 +389,13 @@ export async function campaignDetail(
       playedBy: p.playedBy,
     })),
     ...(combat ? { combat: combatApi(combat, participants) } : {}),
+    invitees: invitees.map((i) => ({
+      userId: i.userId,
+      name: profiles.get(i.userId)?.name ?? null,
+      avatarUrl: profiles.get(i.userId)?.avatarUrl ?? null,
+      invitedBy: i.invitedBy,
+      invitedAt: i.invitedAt.toISOString(),
+    })),
     version: c.version,
     createdAt: c.createdAt.toISOString(),
   };
