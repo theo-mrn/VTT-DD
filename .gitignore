@@ -42,3 +42,6 @@ legacy/public/Musics/
 legacy/starwars-bundle/assets/3d/
 # Bundles générés (pnpm bundle:zip)
 *-bundle.zip
+
+# Systèmes de jeu copiés au build du front (frontend/scripts/systemes.mjs)
+frontend/public/systemes/

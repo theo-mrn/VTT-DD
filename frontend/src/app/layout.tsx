@@ -1,42 +1,37 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { Aclonica, Caveat, Cinzel, IM_Fell_English, Inter, MedievalSharp } from 'next/font/google';
-import { ThemeProvider } from '@/components/theme-provider';
-import { SessionProvider } from '@/lib/session';
+import { Aclonica, Cinzel, Geist, Geist_Mono } from 'next/font/google';
+import { Fournisseurs } from '@/components/fournisseurs';
 import './globals.css';
 
-// Mêmes polices que l'ancienne app : le thème (globals.css) s'appuie sur ces variables
-const imFellEnglish = IM_Fell_English({
+/** Interface. */
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
+/** Chiffres des dés et des fiches. */
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
+/** Noms de héros et de campagnes, en touche d'ambiance. */
+const cinzel = Cinzel({
   subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-body',
+  weight: ['400', '600', '700'],
+  variable: '--font-display',
   display: 'swap',
 });
+/** Logo YNER (et titres de la landing page). */
 const aclonica = Aclonica({
   subsets: ['latin'],
   weight: ['400'],
   variable: '--font-aclonica',
   display: 'swap',
 });
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-title',
-  display: 'swap',
-});
-const caveat = Caveat({ subsets: ['latin'], variable: '--font-hand', display: 'swap' });
-const medieval = MedievalSharp({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-medieval',
-  display: 'swap',
-});
-const inter = Inter({ subsets: ['latin'], variable: '--font-modern', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'Yner',
+  title: { default: 'Yner', template: '%s · Yner' },
   description: 'Plateforme de JDR VTT pour créer, gérer et jouer vos aventures épiques en ligne.',
   icons: { icon: '/favicon.ico' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#09090b',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -44,18 +39,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${imFellEnglish.variable} ${cinzel.variable} ${caveat.variable} ${medieval.variable} ${inter.variable} ${aclonica.variable}`}
+      className={`dark ${geist.variable} ${geistMono.variable} ${cinzel.variable} ${aclonica.variable}`}
     >
-      <body className="antialiased" suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-          themes={['dark', 'tavern', 'dungeon', 'royal', 'druid']}
-        >
-          <SessionProvider>{children}</SessionProvider>
-        </ThemeProvider>
+      <body suppressHydrationWarning>
+        <Fournisseurs>{children}</Fournisseurs>
       </body>
     </html>
   );

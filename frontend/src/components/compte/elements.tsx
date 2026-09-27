@@ -1,63 +1,43 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { AlertCircle, CheckCircle2, Info as IconeInfo, Loader2 } from 'lucide-react';
+import { useId, type ReactNode } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button, type ButtonProps } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 export { aclonica, styleChamp, styleLabel, styleLien } from './styles';
-import { aclonica } from './styles';
 
 // ─── Boutons ─────────────────────────────────────────────────────────────────
 
 type Ton = 'dore' | 'secondaire' | 'danger' | 'discret';
 
-const tons: Record<Ton, string> = {
-  dore: 'bg-[#c9a965] text-zinc-950 font-semibold hover:bg-[#d8bb7a] shadow-none',
-  secondaire:
-    'border border-zinc-700 bg-transparent text-zinc-200 hover:border-[#c9a965] hover:bg-zinc-800/60 hover:text-white shadow-none',
-  danger:
-    'border border-red-500/40 bg-transparent text-red-400 hover:border-red-400 hover:bg-red-500/10 shadow-none',
-  discret: 'bg-transparent text-zinc-400 hover:bg-zinc-800 hover:text-white shadow-none',
+const variantes: Record<Ton, ButtonProps['variant']> = {
+  dore: 'default',
+  secondaire: 'secondary',
+  danger: 'destructive',
+  discret: 'ghost',
 };
 
+/** Bouton des pages de compte (tons historiques → variantes du design system). */
 export function Bouton({
   ton = 'dore',
   chargement = false,
-  className,
-  children,
-  disabled,
-  asChild,
   ...props
 }: ButtonProps & { ton?: Ton; chargement?: boolean }) {
-  return (
-    <Button
-      className={cn('rounded-lg', tons[ton], className)}
-      disabled={disabled || chargement}
-      asChild={asChild}
-      {...props}
-    >
-      {/* Avec asChild, Slot exige un enfant unique */}
-      {asChild ? (
-        children
-      ) : (
-        <>
-          {chargement && <Loader2 className="animate-spin" />}
-          {children}
-        </>
-      )}
-    </Button>
-  );
+  return <Button variant={variantes[ton]} loading={chargement} {...props} />;
 }
 
 // ─── Mise en page ────────────────────────────────────────────────────────────
 
 export function TitrePage({ children, sousTitre }: { children: ReactNode; sousTitre?: ReactNode }) {
   return (
-    <header className="space-y-1">
-      <h1 className={cn(aclonica, 'text-2xl tracking-wide text-white sm:text-3xl')}>{children}</h1>
-      {sousTitre && <p className="text-sm text-zinc-400">{sousTitre}</p>}
+    <header className="space-y-1.5">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
+        {children}
+      </h1>
+      {sousTitre && <p className="text-sm text-muted-foreground">{sousTitre}</p>}
     </header>
   );
 }
@@ -76,12 +56,17 @@ export function Carte({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6', className)}>
+    <section
+      className={cn(
+        'rounded-2xl border border-border bg-card p-5 shadow-surface sm:p-6',
+        className,
+      )}
+    >
       {(titre || action) && (
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
-            {titre && <h2 className={cn(aclonica, 'text-lg text-white')}>{titre}</h2>}
-            {description && <p className="text-sm text-zinc-400">{description}</p>}
+            {titre && <h2 className="text-[15px] font-semibold tracking-tight">{titre}</h2>}
+            {description && <p className="text-[13px] text-muted-foreground">{description}</p>}
           </div>
           {action}
         </div>
@@ -100,19 +85,19 @@ export function Message({
   children: ReactNode;
   className?: string;
 }) {
-  const Icone = ton === 'succes' ? CheckCircle2 : AlertCircle;
+  const Icone = ton === 'succes' ? CheckCircle2 : ton === 'info' ? IconeInfo : AlertCircle;
   return (
     <p
       role={ton === 'erreur' ? 'alert' : 'status'}
       className={cn(
-        'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
-        ton === 'erreur' && 'border-red-500/30 bg-red-500/10 text-red-300',
-        ton === 'succes' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
-        ton === 'info' && 'border-[#c9a965]/30 bg-[#c9a965]/10 text-[#e2cc97]',
+        'flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-[13px] leading-relaxed',
+        ton === 'erreur' && 'border-destructive/25 bg-destructive/10 text-destructive',
+        ton === 'succes' && 'border-success/25 bg-success/10 text-success',
+        ton === 'info' && 'border-primary/25 bg-primary/10 text-primary-strong',
         className,
       )}
     >
-      <Icone className="mt-0.5 h-4 w-4 shrink-0" />
+      <Icone className="mt-0.5 size-4 shrink-0" />
       <span className="min-w-0 break-words">{children}</span>
     </p>
   );
@@ -120,8 +105,8 @@ export function Message({
 
 export function Chargement({ texte = 'Chargement…' }: { texte?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-400">
-      <Loader2 className="h-4 w-4 animate-spin text-[#c9a965]" />
+    <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+      <Loader2 className="size-4 animate-spin text-primary" />
       {texte}
     </div>
   );
@@ -129,13 +114,13 @@ export function Chargement({ texte = 'Chargement…' }: { texte?: string }) {
 
 export function Vide({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-lg border border-dashed border-zinc-800 px-4 py-6 text-center text-sm text-zinc-500">
+    <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-subtle">
       {children}
     </p>
   );
 }
 
-/** Interrupteur accessible (role="switch"). */
+/** Ligne de réglage avec interrupteur. */
 export function Interrupteur({
   actif,
   onChange,
@@ -149,31 +134,21 @@ export function Interrupteur({
   description?: ReactNode;
   disabled?: boolean;
 }) {
+  const id = useId();
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-4">
-      <span className="min-w-0 space-y-0.5">
-        <span className="block text-sm text-zinc-200">{label}</span>
-        {description && <span className="block text-xs text-zinc-500">{description}</span>}
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={actif}
+    <div className="flex items-start justify-between gap-4">
+      <label htmlFor={id} className="min-w-0 cursor-pointer space-y-0.5">
+        <span className="block text-sm text-foreground">{label}</span>
+        {description && <span className="block text-xs text-subtle">{description}</span>}
+      </label>
+      <Switch
+        id={id}
+        checked={actif}
+        onCheckedChange={onChange}
         disabled={disabled}
-        onClick={() => onChange(!actif)}
-        className={cn(
-          'relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-          actif ? 'border-[#c9a965] bg-[#c9a965]' : 'border-zinc-700 bg-zinc-800',
-        )}
-      >
-        <span
-          className={cn(
-            'inline-block h-4 w-4 rounded-full shadow transition-transform',
-            actif ? 'translate-x-6 bg-zinc-950' : 'translate-x-1 bg-zinc-400',
-          )}
-        />
-      </button>
-    </label>
+        className="mt-0.5"
+      />
+    </div>
   );
 }
 
@@ -196,10 +171,11 @@ export const BORDURES: { id: string; label: string; couleurs: string[] }[] = [
 ];
 
 const tailles = {
-  sm: 'h-9 w-9 text-sm',
-  md: 'h-12 w-12 text-lg',
-  lg: 'h-20 w-20 text-2xl',
-  xl: 'h-24 w-24 text-3xl sm:h-28 sm:w-28',
+  xs: 'size-6 text-[10px]',
+  sm: 'size-8 text-xs',
+  md: 'size-11 text-base',
+  lg: 'size-20 text-2xl',
+  xl: 'size-24 text-3xl sm:size-28',
 };
 
 export function AvatarJoueur({
@@ -218,9 +194,9 @@ export function AvatarJoueur({
   const b = BORDURES.find((x) => x.id === bordure);
   const couleurs = b?.couleurs ?? [];
   const avatar = (
-    <Avatar className={cn(tailles[taille], 'bg-zinc-800')}>
+    <Avatar className={cn(tailles[taille], 'bg-surface-3')}>
       {url && <AvatarImage src={url} alt="" className="object-cover" />}
-      <AvatarFallback className="flex h-full w-full items-center justify-center bg-zinc-800 font-semibold text-[#c9a965]">
+      <AvatarFallback className="flex size-full items-center justify-center bg-gradient-to-br from-surface-3 to-surface-2 font-semibold text-primary">
         {nom.charAt(0).toUpperCase() || '?'}
       </AvatarFallback>
     </Avatar>
@@ -228,25 +204,25 @@ export function AvatarJoueur({
 
   if (couleurs.length === 0)
     return (
-      <div className={cn('shrink-0 rounded-full ring-2 ring-zinc-700', className)}>{avatar}</div>
+      <div className={cn('shrink-0 rounded-full ring-1 ring-white/10', className)}>{avatar}</div>
     );
   if (couleurs.length === 1)
     return (
       <div
-        className={cn('shrink-0 rounded-full ring-[3px]', className)}
+        className={cn('shrink-0 rounded-full ring-2', className)}
         style={{ ['--tw-ring-color' as string]: couleurs[0] }}
       >
         {avatar}
       </div>
     );
   return (
-    <div className={cn('relative shrink-0 overflow-hidden rounded-full p-[3px]', className)}>
+    <div className={cn('relative shrink-0 overflow-hidden rounded-full p-[2px]', className)}>
       <div
         aria-hidden
         className="absolute inset-[-50%] animate-[spin_5s_linear_infinite]"
         style={{ background: `conic-gradient(${[...couleurs, couleurs[0]].join(', ')})` }}
       />
-      <div className="relative rounded-full bg-[#0c0c0e]">{avatar}</div>
+      <div className="relative rounded-full bg-background p-px">{avatar}</div>
     </div>
   );
 }

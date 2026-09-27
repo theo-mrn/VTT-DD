@@ -1,4 +1,5 @@
 /** Amis et demandes d'amitié (service identity). */
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { api, messageErreur } from './api';
 import { useRessource } from './ressource';
@@ -54,7 +55,21 @@ export function retirerAmi(idJoueur: string) {
   return api<void>(`/v1/friends/${encodeURIComponent(idJoueur)}`, { method: 'DELETE' });
 }
 
-// ─── Hook de domaine ─────────────────────────────────────────────────────────
+// ─── Hooks de domaine ────────────────────────────────────────────────────────
+
+/** Amis (invitations à une campagne, écrans sociaux). */
+export function useAmis() {
+  return useQuery({ queryKey: ['amis', 'liste'], queryFn: lireAmis });
+}
+
+/** Demandes reçues et envoyées : relues chaque minute pour la pastille de la barre latérale. */
+export function useDemandesAmis() {
+  return useQuery({
+    queryKey: ['amis', 'demandes'],
+    queryFn: lireDemandesAmis,
+    refetchInterval: 60_000,
+  });
+}
 
 export type Relation = 'moi' | 'ami' | 'recue' | 'envoyee' | 'aucune';
 
@@ -67,6 +82,7 @@ export function useRelations(idMoi: string) {
   const demandes = useRessource('demandes-amis', lireDemandesAmis);
   const [enCours, setEnCours] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const client = useQueryClient();
   const { recharger: rechargerAmis } = amis;
   const { recharger: rechargerDemandes } = demandes;
 
@@ -89,11 +105,15 @@ export function useRelations(idMoi: string) {
         setErreur(messageErreur(err));
         return false;
       } finally {
-        await Promise.all([rechargerAmis(), rechargerDemandes()]);
+        await Promise.all([
+          rechargerAmis(),
+          rechargerDemandes(),
+          client.invalidateQueries({ queryKey: ['amis'] }),
+        ]);
         setEnCours(null);
       }
     },
-    [rechargerAmis, rechargerDemandes],
+    [rechargerAmis, rechargerDemandes, client],
   );
 
   return { amis, demandes, relation, agir, enCours, erreur };

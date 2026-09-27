@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   createContext,
@@ -7,11 +8,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { connexion, deconnexion, inscription, refreshSession, setAccessToken } from './api';
-import { lireMonProfil, type Profil } from './profil';
+import { definirUtilisateurLocal } from './depot-local';
+import { lireMonProfil, modifierMonProfil, type Profil } from './profil';
 import { urlConnexion } from './redirection';
 
 export type { Profil } from './profil';
@@ -30,6 +33,11 @@ interface Session {
   remplacerProfil(profil: Profil): void;
   /** Oublie la session côté front, quand le backend l'a déjà fermée (déconnexion partout, compte supprimé). */
   oublierSession(): void;
+  /**
+   * Fusionne des préférences dans `settings` (onboarding, macros de dés…) et
+   * enregistre le tout : l'API remplace l'objet entier.
+   */
+  modifierPreferences(maj: Record<string, unknown>): Promise<void>;
 }
 
 const Contexte = createContext<Session | null>(null);
@@ -39,6 +47,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [statut, setStatut] = useState<Session['statut']>('chargement');
   const [profil, setProfil] = useState<Profil | null>(null);
   const [sortieVolontaire, setSortieVolontaire] = useState(false);
+  const requetes = useQueryClient();
+
+  const dernierProfil = useRef(profil);
+  dernierProfil.current = profil;
+  // Le dépôt local (domaines sans service) attribue les données à l'utilisateur
+  // connecté ; posé pendant le rendu, avant que les requêtes des pages ne partent
+  definirUtilisateurLocal(
+    profil ? { id: profil.id, name: profil.name, avatarUrl: profil.avatarUrl } : null,
+  );
 
   const chargerProfil = useCallback(async () => {
     setProfil(await lireMonProfil());
@@ -56,10 +73,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const oublierSession = useCallback(() => {
     setAccessToken(null);
+    // Rien de l'utilisateur précédent ne doit rester en cache
+    requetes.clear();
     setProfil(null);
     setSortieVolontaire(true);
     setStatut('anonyme');
-  }, []);
+  }, [requetes]);
 
   const valeur = useMemo<Session>(
     () => ({
@@ -84,6 +103,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       rechargerProfil: chargerProfil,
       remplacerProfil: setProfil,
       oublierSession,
+      async modifierPreferences(maj) {
+        const avant = dernierProfil.current;
+        if (!avant) return;
+        const settings = { ...avant.settings, ...maj };
+        // Affichage immédiat, puis profil renvoyé par l'API
+        setProfil({ ...avant, settings });
+        try {
+          setProfil(await modifierMonProfil({ settings }));
+        } catch (err) {
+          setProfil(avant);
+          throw err;
+        }
+      },
     }),
     [statut, profil, sortieVolontaire, chargerProfil, oublierSession],
   );

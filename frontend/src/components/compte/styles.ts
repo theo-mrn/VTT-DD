@@ -1,14 +1,13 @@
-/** Classes partagées par les pages de compte (style de la landing page). */
+/** Classes partagées par les pages de compte. */
 
-/** Police des titres de la landing page. */
-export const aclonica = 'font-[family-name:var(--font-aclonica)]';
+/** Police du logo (titres de la landing page). */
+export const aclonica = 'font-logo';
 
-/** Champ de saisie (Input, Textarea). */
-export const styleChamp =
-  'h-10 rounded-lg border-zinc-700 bg-zinc-800/60 text-white placeholder:text-zinc-500 focus-visible:border-[#c9a965] focus-visible:ring-[#c9a965]/40';
+/** Champ de saisie (Input, Textarea) : le style vient du design system. */
+export const styleChamp = '';
 
-export const styleLabel = 'text-sm text-zinc-300';
+export const styleLabel = 'text-[13px] text-foreground/90';
 
 /** Liens discrets en bas des formulaires. */
 export const styleLien =
-  'text-sm text-zinc-400 underline-offset-4 hover:text-[#c9a965] hover:underline';
+  'text-[13px] text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline';
