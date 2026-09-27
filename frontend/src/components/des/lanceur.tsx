@@ -107,7 +107,7 @@ export const Lanceur = forwardRef<
       aria-label="Lanceur de dés"
       className="relative isolate flex min-h-[14.5rem] overflow-hidden rounded-2xl border border-border bg-card shadow-surface"
     >
-      <div className="w-[5.75rem] shrink-0 border-r border-border p-2 [@media(pointer:coarse)]:w-28">
+      <div className="flex shrink-0 items-center justify-center border-r border-border p-2">
         <GrilleDes
           compte={compte}
           onAjouter={(faces) => ecrire(ajouterDe(formule, faces))}

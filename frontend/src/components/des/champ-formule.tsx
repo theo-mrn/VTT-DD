@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Check, Info as IconeInfo } from 'lucide-react';
+import { AlertCircle, Check, Info as IconeInfo, Sigma } from 'lucide-react';
 import { forwardRef, useState } from 'react';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,8 +20,8 @@ const EXEMPLES: { formule: string; sens: string; personnage?: boolean }[] = [
 ];
 
 /**
- * Formule en grand, à la manière d'une ligne de saisie : chasse fixe, grise
- * tant qu'elle est vide, éditable. Une petite coche ou un point d'alerte dit
+ * Champ de la formule, bien visible comme tel : cadre, fond en creux, Σ à
+ * gauche, placeholder grisé, anneau d'accent au focus. Une petite coche ou un point d'alerte dit
  * discrètement si elle est lisible ; le détail de l'erreur vient dessous.
  */
 export const ChampFormule = forwardRef<
@@ -37,7 +37,13 @@ export const ChampFormule = forwardRef<
 
   return (
     <div className="space-y-0.5">
-      <div className="relative flex items-center rounded-lg border-b border-transparent transition-colors focus-within:border-primary/60">
+      {/* Toute la zone est une étiquette : un clic n'importe où place le curseur dans le champ */}
+      <label
+        htmlFor="formule-des"
+        className="relative flex cursor-text items-center gap-2 rounded-xl border border-border-strong bg-background/70 pl-3 pr-2 shadow-[inset_0_1px_2px_0_hsl(0_0%_0%/0.25)] transition-[border-color,box-shadow] hover:border-primary/40 focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-primary/30 has-[[aria-invalid=true]]:border-destructive/60"
+      >
+        <Sigma className="size-4 shrink-0 text-subtle" aria-hidden />
+        <span className="sr-only">Formule</span>
         <input
           ref={ref}
           id="formule-des"
@@ -45,17 +51,16 @@ export const ChampFormule = forwardRef<
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={erreur}
           aria-describedby={erreur ? 'formule-des-etat' : undefined}
-          aria-label="Formule de dés"
-          placeholder="1d20 + 5…"
+          placeholder="Écrire une formule… 1d20+5"
           spellCheck={false}
           autoComplete="off"
           autoCapitalize="off"
           enterKeyHint="go"
           maxLength={100}
-          className="h-14 w-full min-w-0 bg-transparent pr-7 font-mono text-[2rem] font-light tracking-tight text-foreground outline-none placeholder:text-subtle"
+          className="h-12 w-full min-w-0 cursor-text bg-transparent font-mono text-2xl tracking-tight text-foreground outline-none placeholder:font-sans placeholder:text-base placeholder:italic placeholder:text-subtle/80"
         />
         {!vide && (
-          <span className="pointer-events-none absolute right-1" aria-hidden>
+          <span className="pointer-events-none shrink-0" aria-hidden>
             {erreur ? (
               <AlertCircle className="size-4 text-destructive" />
             ) : (
@@ -63,7 +68,7 @@ export const ChampFormule = forwardRef<
             )}
           </span>
         )}
-      </div>
+      </label>
       {erreur && !verification.ok && (
         <p id="formule-des-etat" className="truncate text-[11px] leading-4 text-destructive">
           {verification.message}

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { EyeOff, RotateCcw } from 'lucide-react';
+import { EyeOff, History, RotateCcw } from 'lucide-react';
 import type { Jet } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { FOCUS, TACTILE } from './tactile';
@@ -43,10 +43,16 @@ export function LigneResultat({
   onRelancer: () => void;
 }) {
   return (
-    <div className="flex min-h-7 items-center gap-2">
+    <div className="flex min-h-7 items-center gap-2 px-1">
       <p aria-live="polite" aria-atomic className="sr-only">
         {jet && anime ? annonce(jet) : ''}
       </p>
+      {(enCours || jet) && (
+        <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-subtle">
+          <History className="size-3" aria-hidden />
+          Dernier jet
+        </span>
+      )}
       {enCours ? (
         <p className="animate-pulse font-mono text-xs text-subtle motion-reduce:animate-none">
           Lancement…
