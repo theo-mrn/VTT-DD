@@ -1,8 +1,10 @@
 'use client';
 
 import { BarChart3, Skull, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
-import { statistiques, type Jet } from '@/lib/jets';
+import { useState, type ReactNode } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { messageErreur } from '@/lib/api';
+import type { StatsJets as Statistiques } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 
 const MOYENNE_ATTENDUE = 10.5;
@@ -11,10 +13,39 @@ const nombre = (n: number, decimales = 1) =>
 const pourcent = (part: number, total: number) =>
   total ? `${nombre((part / total) * 100, 0)} %` : '—';
 
-/** Statistiques des jets de l'historique : volume, critiques, et honnêteté des d20. */
-export function StatsJets({ jets }: { jets: Jet[] }) {
-  const stats = useMemo(() => statistiques(jets), [jets]);
-  const nbD20 = stats.repartitionD20.reduce((s, n) => s + n, 0);
+/**
+ * Statistiques du contexte, calculées par le service dice sur tout
+ * l'historique visible : volume, critiques, et honnêteté des d20.
+ */
+export function StatsJets({
+  stats,
+  chargement,
+  erreur,
+}: {
+  stats: Statistiques | null;
+  chargement: boolean;
+  erreur: unknown;
+}) {
+  if (chargement)
+    return (
+      <div className="space-y-5 p-4" aria-label="Chargement des statistiques">
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-[92px] rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-44 rounded-xl" />
+      </div>
+    );
+
+  if (erreur || !stats)
+    return (
+      <p className="p-6 text-center text-sm text-destructive">
+        Statistiques indisponibles : {messageErreur(erreur)}
+      </p>
+    );
+
+  const nbD20 = stats.nbD20;
 
   if (!stats.nombre)
     return (
@@ -35,7 +66,7 @@ export function StatsJets({ jets }: { jets: Jet[] }) {
     <div className="space-y-5 p-4">
       <div className="grid grid-cols-2 gap-2">
         <TuileStat libelle="Jets" valeur={nombre(stats.nombre, 0)}>
-          {nbD20 ? `${nombre(nbD20, 0)} d20 retenus` : 'Aucun d20'}
+          {nbD20 ? `${nombre(nbD20, 0)} d20 lancés` : 'Aucun d20'}
         </TuileStat>
         <TuileStat
           libelle="Moyenne d20"
@@ -203,7 +234,7 @@ function RepartitionD20({ repartition, total }: { repartition: number[]; total: 
       </div>
 
       <table className="sr-only">
-        <caption>Répartition des d20 retenus, sur {total} dés</caption>
+        <caption>Répartition des d20 lancés, sur {total} dés</caption>
         <thead>
           <tr>
             <th scope="col">Face</th>

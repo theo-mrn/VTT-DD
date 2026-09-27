@@ -17,7 +17,8 @@ import {
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Kbd } from '@/components/ui/kbd';
 import { useCampagnes } from '@/lib/campagnes';
-import { calculerJet, useLancer, verifierFormule } from '@/lib/jets';
+import { messageErreur } from '@/lib/api';
+import { useLancer, verifierFormule } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
 import { lienPersonnage, usePersonnages } from '@/lib/personnages';
 import { LIENS_COMPTE, NAV_PRINCIPALE, NAV_SOCIALE } from './navigation';
@@ -45,19 +46,19 @@ export function PaletteCommandes({
     router.push(href);
   }
 
+  // Jet personnel : les dés 3D roulent par-dessus l'app, le résultat arrive à leur arrêt
   async function lancerFormule(f: string) {
     onOuverte(false);
     setSaisie('');
     try {
-      const resultat = calculerJet(f);
-      await lancer.mutateAsync({ formula: f, resultat });
-      toast(`${resultat.total}`, {
-        description: `${resultat.formula}${resultat.critical === 'success' ? ' · critique !' : resultat.critical === 'failure' ? ' · échec critique' : ''}`,
+      const jet = await lancer.mutateAsync({ formula: f });
+      toast(`${jet.symbolResult ?? jet.total}`, {
+        description: `${jet.formula}${jet.critical === 'success' ? ' · critique !' : jet.critical === 'failure' ? ' · échec critique' : ''}`,
         icon: <Dices className="size-4 text-primary" />,
         action: { label: 'Table de dés', onClick: () => router.push('/des') },
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Jet impossible');
+      toast.error('Jet impossible', { description: messageErreur(e) });
     }
   }
 

@@ -23,6 +23,7 @@ export function Segmente<T extends string>({
   valeur,
   onChange,
   etiquette,
+  desactive = false,
   className,
 }: {
   options: OptionSegment<T>[];
@@ -30,6 +31,8 @@ export function Segmente<T extends string>({
   onChange: (v: T) => void;
   /** Nom du groupe pour les lecteurs d'écran. */
   etiquette: string;
+  /** Choix figé (sans objet dans le contexte) : visible mais inactif. */
+  desactive?: boolean;
   className?: string;
 }) {
   const id = useId();
@@ -53,8 +56,10 @@ export function Segmente<T extends string>({
     <div
       role="radiogroup"
       aria-label={etiquette}
+      aria-disabled={desactive || undefined}
       className={cn(
         'relative inline-flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5',
+        desactive && 'opacity-50',
         className,
       )}
     >
@@ -70,12 +75,14 @@ export function Segmente<T extends string>({
             role="radio"
             aria-checked={actif}
             tabIndex={actif ? 0 : -1}
+            disabled={desactive}
             onClick={() => onChange(o.valeur)}
             onKeyDown={(e) => clavier(e, i)}
             className={cn(
               'relative flex h-full flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-              actif ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              'disabled:cursor-not-allowed',
+              actif ? 'text-foreground' : 'text-muted-foreground enabled:hover:text-foreground',
             )}
           >
             {actif && (
@@ -94,7 +101,7 @@ export function Segmente<T extends string>({
             <span className="relative">{o.libelle}</span>
           </button>
         );
-        return o.aide ? (
+        return o.aide && !desactive ? (
           <Info key={o.valeur} texte={o.aide}>
             {bouton}
           </Info>

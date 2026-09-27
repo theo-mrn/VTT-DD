@@ -23,7 +23,10 @@ function forme(faces: number) {
         lignes: 'M3.5 16.5 20 23l16.5-6.5M20 23v14',
       };
     case 12:
-      return { d: 'M20 3.5 36.6 15.6 30.3 35.2H9.7L3.4 15.6 20 3.5Z', lignes: null };
+      return {
+        d: 'M20 3.5 36.6 15.6 30.3 35.2H9.7L3.4 15.6 20 3.5Z',
+        lignes: null,
+      };
     case 20:
       return {
         d: 'M20 3 35 11.5v17L20 37 5 28.5v-17L20 3Z',
@@ -38,7 +41,9 @@ export type EtatDe = 'normal' | 'ecarte' | 'critique' | 'fumble' | 'explose';
 
 /**
  * Dé en SVG avec sa valeur. `roulement` fait défiler des valeurs au hasard
- * avant de se poser sur la vraie (le résultat est déjà tiré).
+ * avant de se poser sur la vraie (le résultat est déjà tiré : jets d'action de
+ * la fiche). `entree` le fait seulement apparaître, sans valeurs de passage :
+ * pour un jet dont les dés 3D ont déjà roulé, ou tiré par le serveur.
  */
 export function DeVisuel({
   faces,
@@ -46,6 +51,7 @@ export function DeVisuel({
   etat = 'normal',
   taille = 'md',
   roulement = false,
+  entree = false,
   delai = 0,
   className,
 }: {
@@ -54,6 +60,7 @@ export function DeVisuel({
   etat?: EtatDe;
   taille?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   roulement?: boolean;
+  entree?: boolean;
   delai?: number;
   className?: string;
 }) {
@@ -93,9 +100,14 @@ export function DeVisuel({
 
   return (
     <motion.div
-      initial={roulement ? { rotate: -90, scale: 0.6, opacity: 0 } : false}
+      initial={roulement || entree ? { rotate: -90, scale: 0.6, opacity: 0 } : false}
       animate={{ rotate: 0, scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 16, delay: delai / 1000 }}
+      transition={{
+        type: 'spring',
+        stiffness: 260,
+        damping: 16,
+        delay: delai / 1000,
+      }}
       className={cn(
         'relative inline-flex shrink-0 items-center justify-center font-mono font-semibold tabular',
         tailles[taille],

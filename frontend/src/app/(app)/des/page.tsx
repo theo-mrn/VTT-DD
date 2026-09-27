@@ -9,9 +9,12 @@ import { Macros, useMacros } from '@/components/des/macros';
 import { PanneauJets } from '@/components/des/panneau-jets';
 import { Plateau, type EtatPlateau } from '@/components/des/plateau';
 import { Kbd } from '@/components/ui/kbd';
+import { visibiliteDuBrouillon } from '@/components/des/visibilite';
 import { ApiError, messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
-import { calculerJet, useJets, useLancer, verifierFormule, type Jet } from '@/lib/jets';
+import { useDicePreferences } from '@/lib/dice-preferences';
+import { prepareDice3D } from '@/lib/dice-throw';
+import { useJets, useLancer, useSynchroJets, verifierFormule, type Jet } from '@/lib/jets';
 import { usePersonnages } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { useSession } from '@/lib/session';
@@ -22,6 +25,7 @@ const PLATEAU_INITIAL: EtatPlateau = {
   visibilite: 'public',
   campagneId: null,
   personnageId: null,
+  version: 2,
 };
 
 /** Vrai si la frappe vise un champ ou une fenêtre : les raccourcis se taisent alors. */
@@ -36,17 +40,29 @@ function frappeAilleurs(e: KeyboardEvent): boolean {
 
 /**
  * Table de dés : plateau pour composer un jet, résultat en grand, macros,
- * historique et statistiques. Le brouillon du plateau est gardé dans ce
- * navigateur ; les macros suivent le profil.
+ * historique et statistiques. Les jets passent par le service dice : les dés
+ * 3D roulent, leurs faces lues à l'arrêt font le jet, et le résultat
+ * s'affiche ensuite. Le brouillon du plateau est gardé dans ce navigateur ;
+ * les macros suivent le profil.
  */
 export default function PageDes() {
   const { profil } = useSession();
   const [enregistre, setEtat] = usePreferenceLocale<EtatPlateau>('des:plateau', PLATEAU_INITIAL);
-  // Un brouillon d'une ancienne version peut manquer de champs
-  const etat = useMemo(() => ({ ...PLATEAU_INITIAL, ...enregistre }), [enregistre]);
+  // Un brouillon d'une ancienne version peut manquer de champs, ou dater
+  // d'avant les visibilités du service dice
+  const etat = useMemo(
+    (): EtatPlateau => ({
+      ...PLATEAU_INITIAL,
+      ...enregistre,
+      visibilite: visibiliteDuBrouillon(enregistre.visibilite, enregistre.version),
+      version: 2,
+    }),
+    [enregistre],
+  );
   const [dernier, setDernier] = useState<Jet | null>(null);
   const refFormule = useRef<HTMLInputElement>(null);
   const refResultat = useRef<HTMLElement>(null);
+  const enCours = useRef(false);
 
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
@@ -57,8 +73,16 @@ export default function PageDes() {
   const fiche = useFichePersonnage(personnage);
 
   const jets = useJets(roomId);
+  const { live } = useSynchroJets(roomId);
   const lancer = useLancer();
   const { macros } = useMacros();
+  const prefs = useDicePreferences().data;
+
+  // Lanceur 3D chargé et shaders du skin préchauffés dès l'arrivée sur la table
+  const skin = prefs?.animation3d ? prefs.skinId : null;
+  useEffect(() => {
+    if (skin) prepareDice3D([skin]);
+  }, [skin]);
 
   const verification = useMemo(
     () => verifierFormule(etat.formule, fiche.fiche),
@@ -88,26 +112,30 @@ export default function PageDes() {
     const { top } = carte.getBoundingClientRect();
     if (top >= 56 && top <= window.innerHeight - 160) return;
     const doux = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    carte.scrollIntoView({ behavior: doux ? 'smooth' : 'auto', block: 'start' });
+    carte.scrollIntoView({
+      behavior: doux ? 'smooth' : 'auto',
+      block: 'start',
+    });
   }
 
   async function lancerFormule(formule: string, libelle: string | null) {
+    // Un seul jet à la fois : R, une macro ou Entrée pendant que les dés roulent ne relancent pas
+    if (enCours.current) return;
     const verif = verifierFormule(formule, fiche.fiche);
     if (!verif.ok) {
       toast.error('Formule invalide', { description: verif.message });
       return;
     }
+    enCours.current = true;
     try {
-      // Tiré ici pour que l'animation montre exactement ce qui est enregistré
-      const resultat = calculerJet(formule, { fiche: fiche.fiche });
+      // Les dés roulent d'abord ; le service calcule le jet avec leurs faces
       const jet = await lancer.mutateAsync({
         formula: formule,
         label: libelle?.trim() || null,
         visibility: etat.visibilite,
         roomId,
         characterId: personnage?.id ?? null,
-        characterName: personnage?.name ?? null,
-        resultat,
+        fiche: fiche.fiche,
       });
       setDernier(jet);
       reveler();
@@ -116,6 +144,8 @@ export default function PageDes() {
         description:
           err instanceof ApiError || !(err instanceof Error) ? messageErreur(err) : err.message,
       });
+    } finally {
+      enCours.current = false;
     }
   }
 
@@ -150,7 +180,7 @@ export default function PageDes() {
       <EnTetePage
         surtitre="Table de dés"
         titre="Lancer les dés"
-        description="Composez un jet, lancez, retrouvez-le. Chaque dé est tiré au hasard cryptographique et calculé par le moteur de règles, fiche de personnage comprise."
+        description="Composez un jet, lancez, retrouvez-le. Les dés roulent en 3D et leurs faces font le jet, calculé par le service de dés avec le moteur de règles, fiche de personnage comprise."
         actions={
           <div className="hidden items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs text-subtle md:flex">
             <span className="flex items-center gap-1.5">
@@ -179,8 +209,14 @@ export default function PageDes() {
             onModifier={modifier}
             verification={verification}
             fiche={fiche}
-            campagnes={{ liste: campagnes.data ?? [], chargement: campagnes.isPending }}
-            personnages={{ liste: personnages.data ?? [], chargement: personnages.isPending }}
+            campagnes={{
+              liste: campagnes.data ?? [],
+              chargement: campagnes.isPending,
+            }}
+            personnages={{
+              liste: personnages.data ?? [],
+              chargement: personnages.isPending,
+            }}
             onLancer={() => void lancerFormule(etat.formule, etat.libelle)}
             enCours={lancer.isPending}
           />
@@ -201,7 +237,15 @@ export default function PageDes() {
           chargement={jets.isPending}
           erreur={jets.error}
           moi={profil?.id ?? null}
+          roomId={roomId}
           campagne={campagne?.name ?? null}
+          peutEffacer={!campagne || campagne.role === 'gm'}
+          live={live}
+          plusAnciens={{
+            possible: jets.hasNextPage,
+            enCours: jets.isFetchingNextPage,
+            charger: () => void jets.fetchNextPage(),
+          }}
           onRelancer={(j) => void lancerFormule(j.formula, j.label)}
           onEfface={() => setDernier(null)}
         />

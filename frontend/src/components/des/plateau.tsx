@@ -39,10 +39,17 @@ export interface EtatPlateau {
   visibilite: VisibiliteJet;
   campagneId: string | null;
   personnageId: string | null;
+  /** Format du brouillon enregistré : 2 = visibilités du service dice. */
+  version?: number;
 }
 
 const OPTIONS_D20: OptionSegment<ModeD20>[] = [
-  { valeur: 'normal', libelle: 'Normal', icone: Equal, aide: 'Un seul d20 (1d20)' },
+  {
+    valeur: 'normal',
+    libelle: 'Normal',
+    icone: Equal,
+    aide: 'Un seul d20 (1d20)',
+  },
   {
     valeur: 'avantage',
     libelle: 'Avantage',
@@ -173,12 +180,20 @@ export const Plateau = forwardRef<
               />
             </div>
             <div className="min-w-0 space-y-2">
-              <p className="text-xs font-medium leading-none text-muted-foreground">Visibilité</p>
+              <p className="flex items-baseline justify-between gap-2 text-xs font-medium leading-none text-muted-foreground">
+                Visibilité
+                {!etat.campagneId && (
+                  <span className="truncate font-normal text-subtle">
+                    jets personnels : vous seul
+                  </span>
+                )}
+              </p>
               <Segmente
                 etiquette="Visibilité du jet"
                 options={OPTIONS_VISIBILITE}
-                valeur={etat.visibilite}
+                valeur={etat.campagneId ? etat.visibilite : 'self'}
                 onChange={(v) => onModifier({ visibilite: v })}
+                desactive={!etat.campagneId}
                 className="h-10 w-full"
               />
             </div>

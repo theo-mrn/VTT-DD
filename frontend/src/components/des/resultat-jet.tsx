@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, Skull } from 'lucide-react';
+import { EyeOff, Sparkles, Skull } from 'lucide-react';
 import type { Critique, GroupeDes } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { DeVisuel, etatDe } from './de-visuel';
@@ -11,11 +11,15 @@ export function DesDuJet({
   groupes,
   taille = 'sm',
   roulement = false,
+  entree = false,
   max = 24,
 }: {
   groupes: GroupeDes[];
   taille?: 'xs' | 'sm' | 'md' | 'lg';
+  /** Valeurs qui défilent avant de se poser (résultat déjà tiré). */
   roulement?: boolean;
+  /** Apparition des dés, sans valeurs de passage (dés 3D déjà arrêtés). */
+  entree?: boolean;
   /** Au-delà, les dés sont résumés (« +12 »). */
   max?: number;
 }) {
@@ -33,7 +37,8 @@ export function DesDuJet({
           etat={etatDe(g.faces, d, seulD20)}
           taille={taille}
           roulement={roulement}
-          delai={roulement ? k * 45 : 0}
+          entree={entree}
+          delai={roulement || entree ? k * 45 : 0}
         />
       ))}
       {tous.length > max && <span className="text-xs text-subtle">+{tous.length - max} dés</span>}
@@ -41,19 +46,34 @@ export function DesDuJet({
   );
 }
 
-/** Total d'un jet, mis en valeur (et coloré sur un critique). */
+/**
+ * Total d'un jet, mis en valeur (et coloré sur un critique). Un jet à
+ * symboles montre son résultat (`symboles`) ; un jet caché au MJ, vu par son
+ * auteur, n'a pas de total (`null`).
+ */
 export function TotalJet({
   total,
   critique,
   taille = 'lg',
   cle,
+  symboles = null,
 }: {
-  total: number;
+  total: number | null;
   critique: Critique;
   taille?: 'md' | 'lg' | 'xl';
   /** Change à chaque jet pour rejouer l'apparition. */
   cle?: string;
+  symboles?: string | null;
 }) {
+  if (total === null)
+    return (
+      <div className="flex items-center gap-2.5 text-muted-foreground">
+        <EyeOff className={cn(taille === 'md' ? 'size-5' : 'size-7')} aria-hidden />
+        <span className={cn('font-medium', taille === 'md' ? 'text-sm' : 'text-base')}>
+          Résultat caché, visible par le MJ
+        </span>
+      </div>
+    );
   return (
     <div className="flex items-center gap-3">
       <AnimatePresence mode="popLayout">
@@ -64,15 +84,19 @@ export function TotalJet({
           transition={{ type: 'spring', stiffness: 320, damping: 22 }}
           className={cn(
             'font-mono font-bold leading-none tabular',
-            taille === 'md' && 'text-3xl',
-            taille === 'lg' && 'text-5xl',
-            taille === 'xl' && 'text-7xl',
+            symboles
+              ? 'font-sans text-2xl'
+              : [
+                  taille === 'md' && 'text-3xl',
+                  taille === 'lg' && 'text-5xl',
+                  taille === 'xl' && 'text-7xl',
+                ],
             critique === 'success' && 'text-gradient-primary',
             critique === 'failure' && 'text-destructive',
             !critique && 'text-foreground',
           )}
         >
-          {total}
+          {symboles ?? total}
         </motion.span>
       </AnimatePresence>
       {critique && (

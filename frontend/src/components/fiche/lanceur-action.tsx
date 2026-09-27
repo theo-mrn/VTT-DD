@@ -8,6 +8,7 @@ import {
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
+import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, Dices, Wand2, X } from 'lucide-react';
 import { useState } from 'react';
@@ -28,7 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { messageErreur } from '@/lib/api';
 import { libelleAttribut } from '@/lib/creation';
-import { useLancer, type Critique } from '@/lib/jets';
+import { marquerJetsPerimes } from '@/lib/jets';
 import type { OperationsPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { DesSymboles, ResultatsSymboles } from './symboles';
@@ -60,9 +61,11 @@ function optionsEntree(fiche: Fiche, p: Extract<Parametre, { type: 'entree' }>) 
   const convient = (e: { sorte: string; etiquettes: string[] }) =>
     e.sorte === p.sorte && (!p.etiquette || e.etiquettes.includes(p.etiquette));
   if (!p.possedee)
-    return [...fiche.systeme.entrees.values()]
-      .filter(convient)
-      .map((e) => ({ id: e.id, nom: e.nom, rang: fiche.possessions.get(e.id)?.rang ?? 0 }));
+    return [...fiche.systeme.entrees.values()].filter(convient).map((e) => ({
+      id: e.id,
+      nom: e.nom,
+      rang: fiche.possessions.get(e.id)?.rang ?? 0,
+    }));
   return [...fiche.possessions.values()]
     .filter((x) => convient(x.entree))
     .map((x) => ({ id: x.entree.id, nom: x.entree.nom, rang: x.rang }));
@@ -104,7 +107,7 @@ export function LanceurAction({
   const [applique, setApplique] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [numero, setNumero] = useState(0);
-  const historique = useLancer();
+  const requetes = useQueryClient();
 
   async function lancer() {
     const parametres = Object.fromEntries(
@@ -132,28 +135,8 @@ export function LanceurAction({
     setApplique(Boolean(r.fiche) && aDesConsequences);
     if (r.fiche && aDesConsequences) toast.success('Fiche mise à jour');
     setNumero((n) => n + 1);
-    // Les jets numériques rejoignent l'historique des dés de cet appareil
-    const jet = r.resultat.jet;
-    if (jet.type === 'numerique') {
-      const critical: Critique = jet.critique ? 'success' : jet.fumble ? 'failure' : null;
-      historique.mutate({
-        formula: jet.formule,
-        label: action.nom,
-        roomId: personnage.roomId,
-        characterId: personnage.id,
-        characterName: personnage.name,
-        resultat: {
-          formula: jet.formule,
-          total: jet.total,
-          critical,
-          groups: jet.jets.map((j) => ({
-            faces: j.faces,
-            total: j.total,
-            dice: j.des.map((d) => ({ value: d.valeur, kept: d.garde, exploded: d.explosion })),
-          })),
-        },
-      });
-    }
+    // Le jet est transmis par le service character à l'historique des dés (service dice)
+    marquerJetsPerimes(requetes);
   }
 
   const modifs = resultat?.modifications.filter((m) => m.entite === 'acteur') ?? [];

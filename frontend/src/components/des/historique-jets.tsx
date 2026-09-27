@@ -1,6 +1,6 @@
 'use client';
 
-import { History, RotateCcw, Trash2, UserRound } from 'lucide-react';
+import { EyeOff, History, RotateCcw, Sparkles, Trash2, UserRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,21 @@ function parJour(jets: Jet[], maintenant: number) {
     const cle = cleJour(j.createdAt);
     const dernier = groupes.at(-1);
     if (dernier?.cle === cle) dernier.jets.push(j);
-    else groupes.push({ cle, libelle: libelleJour(j.createdAt, maintenant), jets: [j] });
+    else
+      groupes.push({
+        cle,
+        libelle: libelleJour(j.createdAt, maintenant),
+        jets: [j],
+      });
   }
   return groupes;
+}
+
+export interface PlusAnciens {
+  /** Le service a encore des jets plus anciens. */
+  possible: boolean;
+  enCours: boolean;
+  charger: () => void;
 }
 
 /** Historique des jets : un clic sur une ligne relance la même formule. */
@@ -43,6 +55,7 @@ export function HistoriqueJets({
   erreur,
   moi,
   onRelancer,
+  plusAnciens,
 }: {
   jets: Jet[];
   chargement: boolean;
@@ -50,6 +63,8 @@ export function HistoriqueJets({
   /** Identifiant de l'utilisateur : les jets des autres joueurs montrent leur auteur. */
   moi: string | null;
   onRelancer: (jet: Jet) => void;
+  /** Pages suivantes du service, une fois les jets chargés tous affichés. */
+  plusAnciens?: PlusAnciens;
 }) {
   const maintenant = useMaintenant();
   const [limite, setLimite] = useState(PAR_PAGE);
@@ -119,7 +134,7 @@ export function HistoriqueJets({
           </ul>
         </section>
       ))}
-      {jets.length > limite && (
+      {jets.length > limite ? (
         <div className="px-4 pt-1">
           <Button
             variant="ghost"
@@ -130,6 +145,23 @@ export function HistoriqueJets({
             Afficher {Math.min(PAR_PAGE, jets.length - limite)} jets de plus
           </Button>
         </div>
+      ) : (
+        plusAnciens?.possible && (
+          <div className="px-4 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              loading={plusAnciens.enCours}
+              onClick={() => {
+                setLimite((l) => l + PAR_PAGE);
+                plusAnciens.charger();
+              }}
+            >
+              Charger des jets plus anciens
+            </Button>
+          </div>
+        )
       )}
     </div>
   );
@@ -149,12 +181,15 @@ function LigneJet({
   const vis = infoVisibilite(jet.visibility);
   const Icone = vis.icone;
   const nbDes = jet.groups.reduce((n, g) => n + g.dice.length, 0);
+  const resultat = jet.hidden ? 'caché' : (jet.symbolResult ?? String(jet.total));
+  // Nom affiché du jet (personnage, « MJ » ou profil), sans le répéter
+  const noms = [...new Set([auteur, jet.characterName].filter(Boolean))];
 
   return (
     <button
       type="button"
       onClick={onRelancer}
-      aria-label={`Relancer ${jet.label ? `« ${jet.label} » ` : ''}${jet.formula} (résultat précédent : ${jet.total}${jet.critical === 'success' ? ', critique' : jet.critical === 'failure' ? ', échec critique' : ''}, ${vis.libelle.toLowerCase()})`}
+      aria-label={`Relancer ${jet.label ? `« ${jet.label} » ` : ''}${jet.formula} (résultat précédent : ${resultat}${jet.critical === 'success' ? ', critique' : jet.critical === 'failure' ? ', échec critique' : ''}, ${vis.libelle.toLowerCase()})`}
       className={cn(
         'group relative flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors',
         'hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
@@ -168,7 +203,13 @@ function LigneJet({
           !jet.critical && 'border-border bg-surface-2 text-foreground',
         )}
       >
-        {jet.total}
+        {jet.hidden ? (
+          <EyeOff className="size-4 text-subtle" aria-hidden />
+        ) : jet.symbolResult ? (
+          <Sparkles className="size-4 text-primary" aria-hidden />
+        ) : (
+          jet.total
+        )}
       </span>
 
       <span className="min-w-0 flex-1 space-y-0.5">
@@ -196,16 +237,19 @@ function LigneJet({
         </span>
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-subtle">
           {jet.label && <span className="truncate font-mono">{jet.formula}</span>}
-          {(jet.characterName || auteur) && (
+          {noms.length > 0 && (
             <>
               {jet.label && <span aria-hidden>·</span>}
               <UserRound className="size-3 shrink-0" aria-hidden />
-              <span className="truncate">
-                {[auteur, jet.characterName].filter(Boolean).join(' · ')}
-              </span>
+              <span className="truncate">{noms.join(' · ')}</span>
             </>
           )}
         </span>
+        {jet.symbolResult && !jet.hidden && (
+          <span className="block truncate text-[11px] text-muted-foreground">
+            {jet.symbolResult}
+          </span>
+        )}
         {nbDes > 0 && (
           <span className="block pt-1">
             <DesDuJet groupes={jet.groups} taille="xs" max={8} />
@@ -232,16 +276,25 @@ function LigneJet({
   );
 }
 
-/** Bouton « Effacer » et sa confirmation : l'historique ne revient pas. */
+/**
+ * Bouton « Effacer » et sa confirmation : l'historique ne revient pas. Sans
+ * campagne, mes jets personnels ; dans une campagne, tout son historique
+ * (le MJ seul peut le vider).
+ */
 export function EffacerHistorique({
+  roomId,
+  campagne,
   desactive,
   onEfface,
 }: {
+  roomId: string | null;
+  /** Nom de la campagne vidée, ou null pour les jets personnels. */
+  campagne: string | null;
   desactive: boolean;
   onEfface: () => void;
 }) {
   const [ouvert, setOuvert] = useState(false);
-  const effacer = useEffacerJets();
+  const effacer = useEffacerJets(roomId);
 
   async function confirmer() {
     try {
@@ -250,7 +303,9 @@ export function EffacerHistorique({
       onEfface();
       toast.success('Historique effacé');
     } catch (err) {
-      toast.error('Impossible d’effacer l’historique', { description: messageErreur(err) });
+      toast.error('Impossible d’effacer l’historique', {
+        description: messageErreur(err),
+      });
     }
   }
 
@@ -271,8 +326,9 @@ export function EffacerHistorique({
         <DialogHeader>
           <DialogTitle>Effacer l’historique ?</DialogTitle>
           <DialogDescription>
-            Tous vos jets enregistrés seront supprimés, y compris ceux des campagnes. Vos
-            statistiques repartiront de zéro. Cette action est définitive.
+            {campagne
+              ? `Tous les jets de « ${campagne} » seront supprimés, ceux de tous les joueurs, pour toute la table. Les statistiques de la campagne repartiront de zéro. Cette action est définitive.`
+              : 'Tous vos jets personnels seront supprimés. Vos jets de campagne restent. Cette action est définitive.'}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

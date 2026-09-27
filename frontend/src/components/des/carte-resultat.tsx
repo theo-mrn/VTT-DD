@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { RotateCcw, UserRound } from 'lucide-react';
+import { Box, RotateCcw, UserRound } from 'lucide-react';
 import { forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,12 +22,17 @@ function annonce(jet: Jet): string {
       : jet.critical === 'failure'
         ? ', échec critique'
         : '';
-  return `${jet.label ? `${jet.label} : ` : ''}${jet.total}${crit} (${jet.formula})`;
+  const resultat = jet.hidden
+    ? 'résultat caché, visible par le MJ'
+    : (jet.symbolResult ?? String(jet.total));
+  return `${jet.label ? `${jet.label} : ` : ''}${resultat}${crit} (${jet.formula})`;
 }
 
 /**
- * Résultat du dernier jet, en grand : total, dés qui roulent puis se posent,
- * formule. Un critique dore la carte, un échec critique la teinte de rouge.
+ * Résultat du dernier jet, en grand : total, dés posés, formule. Il n'arrive
+ * qu'une fois les dés 3D arrêtés (leurs faces font le jet) ; pendant qu'ils
+ * roulent, la carte le dit. Un critique dore la carte, un échec critique la
+ * teinte de rouge.
  */
 export const CarteResultat = forwardRef<
   HTMLElement,
@@ -36,6 +41,7 @@ export const CarteResultat = forwardRef<
     /** Vrai pour un jet qui vient d'être lancé (dés animés). */
     anime: boolean;
     onRelancer: () => void;
+    /** Les dés roulent (ou le jet part au service) : le résultat n'est pas encore connu. */
     enCours: boolean;
   }
 >(function CarteResultat({ jet, anime, onRelancer, enCours }, ref) {
@@ -102,11 +108,20 @@ export const CarteResultat = forwardRef<
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-subtle">
-                Dernier jet
-                <span className="normal-case tracking-normal">
-                  {' '}
-                  · {depuis(jet.createdAt, maintenant)}
-                </span>
+                {enCours ? (
+                  <span className="inline-flex items-center gap-1.5 text-primary">
+                    <Box className="size-3 animate-spin [animation-duration:2.4s]" aria-hidden />
+                    Les dés roulent…
+                  </span>
+                ) : (
+                  <>
+                    Dernier jet
+                    <span className="normal-case tracking-normal">
+                      {' '}
+                      · {depuis(jet.createdAt, maintenant)}
+                    </span>
+                  </>
+                )}
               </p>
               <p className="truncate text-[15px] font-semibold text-foreground">
                 {jet.label || 'Jet libre'}
@@ -139,9 +154,20 @@ export const CarteResultat = forwardRef<
             </div>
           </div>
 
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+          <div
+            className={cn(
+              'flex flex-col gap-5 transition-opacity duration-300 sm:flex-row sm:items-center sm:gap-8',
+              enCours && 'opacity-40',
+            )}
+          >
             <div className="shrink-0 space-y-2">
-              <TotalJet total={jet.total} critique={critique} taille="xl" cle={jet.id} />
+              <TotalJet
+                total={jet.total}
+                symboles={jet.symbolResult}
+                critique={critique}
+                taille="xl"
+                cle={jet.id}
+              />
               <p className="max-w-[280px] break-words font-mono text-sm text-muted-foreground">
                 {jet.formula}
               </p>
@@ -150,7 +176,7 @@ export const CarteResultat = forwardRef<
           </div>
         </motion.div>
       ) : (
-        <EtatVideResultat />
+        <EtatVideResultat enCours={enCours} />
       )}
     </section>
   );
@@ -168,7 +194,7 @@ function PisteDes({ jet, anime }: { jet: Jet; anime: boolean }) {
       {nbDes ? (
         <>
           <div className="[&>div]:justify-center">
-            <DesDuJet groupes={jet.groups} taille={taille} roulement={anime} max={18} />
+            <DesDuJet groupes={jet.groups} taille={taille} entree={anime} max={18} />
           </div>
           <p className="text-[11px] text-subtle">
             {nbDes} dé{nbDes > 1 ? 's' : ''} ·{' '}
@@ -177,13 +203,15 @@ function PisteDes({ jet, anime }: { jet: Jet; anime: boolean }) {
           </p>
         </>
       ) : (
-        <p className="text-xs text-subtle">Aucun dé : valeur fixe.</p>
+        <p className="text-xs text-subtle">
+          {jet.hidden ? 'Dés cachés : seul le MJ les voit.' : 'Aucun dé : valeur fixe.'}
+        </p>
       )}
     </div>
   );
 }
 
-function EtatVideResultat() {
+function EtatVideResultat({ enCours }: { enCours: boolean }) {
   return (
     <div className="flex min-h-[236px] flex-col items-center justify-center gap-5 px-6 py-8 text-center sm:flex-row sm:gap-7 sm:text-left">
       <div className="relative shrink-0">
@@ -196,9 +224,13 @@ function EtatVideResultat() {
         </span>
       </div>
       <div className="space-y-1.5">
-        <p className="text-[15px] font-semibold">La table est prête</p>
+        <p className="text-[15px] font-semibold">
+          {enCours ? 'Les dés roulent…' : 'La table est prête'}
+        </p>
         <p className="max-w-xs text-sm text-muted-foreground">
-          Composez votre jet sur le plateau et lancez : le résultat s’affichera ici.
+          {enCours
+            ? 'Le résultat s’affichera ici dès que les dés seront arrêtés.'
+            : 'Composez votre jet sur le plateau et lancez : le résultat s’affichera ici.'}
         </p>
         <p className="flex items-center justify-center gap-2 pt-1.5 text-xs text-subtle sm:justify-start">
           <Kbd>↵</Kbd> lancer

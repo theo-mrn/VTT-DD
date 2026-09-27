@@ -1,12 +1,14 @@
 'use client';
 
-import { ArrowRight, Dices, Loader2 } from 'lucide-react';
+import { ArrowRight, Box, Dices, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { messageErreur } from '@/lib/api';
-import { calculerJet, DES_RAPIDES, useLancer, verifierFormule, type Jet } from '@/lib/jets';
+import { ApiError, messageErreur } from '@/lib/api';
+import { useDicePreferences } from '@/lib/dice-preferences';
+import { prepareDice3D } from '@/lib/dice-throw';
+import { DES_RAPIDES, useLancer, verifierFormule, type Jet } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { DesDuJet, TotalJet } from './resultat-jet';
 
@@ -23,23 +25,40 @@ export function ajouterDe(formule: string, faces: number): string {
   return `${f} + 1d${faces}`;
 }
 
-/** Lanceur compact (barre haute, palette) : formule, dés rapides, dernier résultat. */
+/**
+ * Lanceur compact (barre haute) : formule, dés rapides, dernier résultat. Les
+ * jets sont personnels ; les dés 3D roulent par-dessus l'app et le résultat
+ * s'affiche une fois qu'ils sont arrêtés.
+ */
 export function LanceurRapide({ onFerme }: { onFerme?: () => void }) {
   const [formule, setFormule] = useState('1d20');
   const [dernier, setDernier] = useState<Jet | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const lancer = useLancer();
+  const enCours = useRef(false);
   const verif = verifierFormule(formule);
+  const prefs = useDicePreferences().data;
+
+  // Lanceur 3D chargé et shaders du skin préchauffés dès l'ouverture
+  const skin = prefs?.animation3d ? prefs.skinId : null;
+  useEffect(() => {
+    if (skin) prepareDice3D([skin]);
+  }, [skin]);
 
   async function valider(e?: FormEvent) {
     e?.preventDefault();
-    if (!verif.ok) return;
+    // Un seul jet à la fois : Entrée pendant que les dés roulent ne relance pas
+    if (!verif.ok || enCours.current) return;
+    enCours.current = true;
     setErreur(null);
     try {
-      const resultat = calculerJet(formule);
-      setDernier(await lancer.mutateAsync({ formula: formule, resultat }));
+      setDernier(await lancer.mutateAsync({ formula: formule }));
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : messageErreur(err));
+      setErreur(
+        err instanceof ApiError || !(err instanceof Error) ? messageErreur(err) : err.message,
+      );
+    } finally {
+      enCours.current = false;
     }
   }
 
@@ -93,21 +112,27 @@ export function LanceurRapide({ onFerme }: { onFerme?: () => void }) {
       <div
         className={cn(
           'rounded-xl border border-border bg-surface-2/60 p-3 transition-opacity',
-          !dernier && 'opacity-60',
+          !dernier && !lancer.isPending && 'opacity-60',
         )}
       >
-        {dernier ? (
+        {lancer.isPending ? (
+          <p className="flex items-center justify-center gap-2 py-2 text-xs text-primary">
+            <Box className="size-3.5 animate-spin [animation-duration:2.4s]" aria-hidden />
+            Les dés roulent…
+          </p>
+        ) : dernier ? (
           <div className="space-y-2.5">
             <div className="flex items-baseline justify-between gap-2">
               <TotalJet
                 total={dernier.total}
+                symboles={dernier.symbolResult}
                 critique={dernier.critical}
                 taille="md"
                 cle={dernier.id}
               />
               <span className="truncate font-mono text-xs text-subtle">{dernier.formula}</span>
             </div>
-            <DesDuJet groupes={dernier.groups} taille="xs" roulement />
+            <DesDuJet groupes={dernier.groups} taille="xs" entree />
           </div>
         ) : (
           <p className="py-2 text-center text-xs text-subtle">
