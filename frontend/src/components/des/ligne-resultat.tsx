@@ -27,8 +27,8 @@ export function detailJet(jet: Jet): string {
 }
 
 /**
- * Dernier résultat, sur une ligne au-dessus de la formule : total en grand,
- * détail en petit. Il n'arrive qu'une fois les dés 3D arrêtés ; pendant qu'ils
+ * Dernier résultat, sur une petite ligne sous la formule : total en gras,
+ * détail discret. Il n'arrive qu'une fois les dés 3D arrêtés ; pendant qu'ils
  * roulent, la ligne dit « Lancement… ».
  */
 export function LigneResultat({
@@ -43,20 +43,20 @@ export function LigneResultat({
   onRelancer: () => void;
 }) {
   return (
-    <div className="flex min-h-10 items-end gap-2">
+    <div className="flex min-h-7 items-center gap-2">
       <p aria-live="polite" aria-atomic className="sr-only">
         {jet && anime ? annonce(jet) : ''}
       </p>
       {enCours ? (
-        <p className="animate-pulse pb-1 font-mono text-xs text-subtle motion-reduce:animate-none">
+        <p className="animate-pulse font-mono text-xs text-subtle motion-reduce:animate-none">
           Lancement…
         </p>
       ) : jet ? (
         <>
           <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
             {jet.hidden || jet.total === null ? (
-              <span className="flex items-center gap-1.5 pb-1 text-xs font-medium uppercase tracking-widest text-subtle">
-                <EyeOff className="size-4" aria-hidden />
+              <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-subtle">
+                <EyeOff className="size-3.5" aria-hidden />
                 Résultat masqué
               </span>
             ) : (
@@ -66,8 +66,8 @@ export function LigneResultat({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 360, damping: 24 }}
                 className={cn(
-                  'shrink-0 font-mono font-bold leading-none tracking-tight tabular',
-                  jet.symbolResult ? 'text-lg' : 'text-3xl',
+                  'shrink-0 font-mono leading-none tabular',
+                  'text-base font-semibold',
                   jet.critical === 'success' && 'text-gradient-primary',
                   jet.critical === 'failure' && 'text-destructive',
                   !jet.critical && 'text-foreground',
@@ -77,9 +77,7 @@ export function LigneResultat({
               </motion.span>
             )}
             {!jet.hidden && detailJet(jet) && (
-              <span className="shrink-0 font-mono text-sm text-muted-foreground">
-                = {detailJet(jet)}
-              </span>
+              <span className="shrink-0 font-mono text-xs text-subtle">= {detailJet(jet)}</span>
             )}
             <span className="min-w-0 truncate font-mono text-xs text-subtle">
               ({jet.label ? `${jet.label} · ` : ''}

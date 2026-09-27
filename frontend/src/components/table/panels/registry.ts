@@ -20,13 +20,15 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 export type TableRole = 'gm' | 'player' | 'spectator';
 
 /** Largeur d'un panneau latéral sur grand écran (plein écran sur mobile). */
-export type PanelWidth = 'narrow' | 'medium' | 'wide' | 'full';
+export type PanelWidth = 'compact' | 'narrow' | 'medium' | 'wide' | 'full';
 
 /**
  * `side` : ancré à gauche, contre le rail, la carte reste utilisable à côté.
  * `centered` : fenêtre modale au centre (focus piégé, voile sur la carte).
+ * `floating` : carte flottante contre le rail, haute comme son contenu (défilement interne
+ * au-delà de l'écran) ; la carte de jeu reste visible et cliquable autour.
  */
-export type PanelMode = 'side' | 'centered';
+export type PanelMode = 'side' | 'centered' | 'floating';
 
 export interface PanelShortcut {
   /** `KeyboardEvent.code`, indépendant de la disposition du clavier. */
@@ -74,8 +76,8 @@ export const panelRegistry = [
     description: 'Lancer les dés et suivre les jets de la table',
     icon: Dices,
     shortcut: { code: 'KeyD', label: 'D' },
-    width: 'wide',
-    mode: 'side',
+    width: 'compact',
+    mode: 'floating',
     roles: ALL_ROLES,
     activity: ['dice.rolled'],
     component: lazy(() => import('../onglets/des').then((m) => ({ default: m.OngletDes }))),

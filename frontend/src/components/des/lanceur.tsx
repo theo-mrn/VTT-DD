@@ -37,7 +37,7 @@ export interface EtatPlateau {
 
 /**
  * Lanceur de dés, sur le modèle de l'ancien : la grille des dés à gauche ; à
- * droite, le dernier résultat sur une ligne, la formule en grand et une seule
+ * droite, la formule en grand, le dernier résultat en petit dessous et une seule
  * rangée d'actions (boutique, 3D, visibilité, options, vider, lancer).
  * Avantage, bonus, libellé, modificateurs et macros sont dans le « + ».
  */
@@ -105,7 +105,7 @@ export const Lanceur = forwardRef<
     <form
       onSubmit={valider}
       aria-label="Lanceur de dés"
-      className="relative isolate flex overflow-hidden rounded-2xl border border-border bg-card shadow-surface"
+      className="relative isolate flex min-h-[14.5rem] overflow-hidden rounded-2xl border border-border bg-card shadow-surface"
     >
       <div className="w-[5.75rem] shrink-0 border-r border-border p-2 [@media(pointer:coarse)]:w-28">
         <GrilleDes
@@ -141,13 +141,15 @@ export const Lanceur = forwardRef<
           <span className="ml-auto min-w-0 truncate text-[11px] text-subtle">{sousTitre}</span>
         </div>
 
-        <LigneResultat jet={jet} anime={anime} enCours={enCours} onRelancer={onRelancer} />
-        <ChampFormule
-          ref={refFormule}
-          valeur={formule}
-          onChange={ecrire}
-          verification={verification}
-        />
+        <div className="flex flex-1 flex-col justify-center gap-1 py-1.5">
+          <ChampFormule
+            ref={refFormule}
+            valeur={formule}
+            onChange={ecrire}
+            verification={verification}
+          />
+          <LigneResultat jet={jet} anime={anime} enCours={enCours} onRelancer={onRelancer} />
+        </div>
 
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
           <BoutonBoutique />

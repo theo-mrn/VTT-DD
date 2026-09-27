@@ -52,7 +52,7 @@ export const ChampFormule = forwardRef<
           autoCapitalize="off"
           enterKeyHint="go"
           maxLength={100}
-          className="h-11 w-full min-w-0 bg-transparent pr-7 font-mono text-2xl font-light tracking-tight text-foreground outline-none placeholder:text-subtle"
+          className="h-14 w-full min-w-0 bg-transparent pr-7 font-mono text-[2rem] font-light tracking-tight text-foreground outline-none placeholder:text-subtle"
         />
         {!vide && (
           <span className="pointer-events-none absolute right-1" aria-hidden>

@@ -9,7 +9,6 @@ import { Lanceur, type EtatPlateau } from '@/components/des/lanceur';
 import { useMacros } from '@/components/des/macros';
 import { PanneauJets } from '@/components/des/panneau-jets';
 import { visibiliteDuBrouillon } from '@/components/des/visibilite';
-import { Kbd } from '@/components/ui/kbd';
 import { ApiError, messageErreur } from '@/lib/api';
 import { useCampagnes } from '@/lib/campagnes';
 import { useDicePreferences } from '@/lib/dice-preferences';
@@ -220,8 +219,8 @@ export function TableDes({
   );
 
   const table = (
-    <div className="[container-type:inline-size]">
-      <div className="mx-auto grid w-full max-w-[34rem] items-start gap-3 [@container(min-width:56rem)]:max-w-none [@container(min-width:56rem)]:grid-cols-2">
+    <div>
+      <div className="mx-auto grid w-full max-w-[34rem] gap-3">
         <div ref={refResultat} className="min-w-0 scroll-mt-20">
           <Lanceur
             ref={refFormule}
@@ -263,7 +262,7 @@ export function TableDes({
     </div>
   );
 
-  // Espace de jeu : le panneau porte déjà son titre, la table occupe tout
+  // Espace de jeu : le panneau flottant porte déjà son titre
   if (contexte)
     return (
       <MotionConfig reducedMotion="user">
@@ -273,27 +272,8 @@ export function TableDes({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Page>
-        <EnTetePage
-          className="mb-4 sm:mb-5"
-          surtitre="Table de dés"
-          titre="Lancer les dés"
-          actions={
-            <div className="hidden items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs text-subtle md:flex">
-              <span className="flex items-center gap-1.5">
-                <Kbd>↵</Kbd> lancer
-              </span>
-              <span aria-hidden className="h-3 w-px bg-border-strong" />
-              <span className="flex items-center gap-1.5">
-                <Kbd>R</Kbd> relancer
-              </span>
-              <span aria-hidden className="h-3 w-px bg-border-strong" />
-              <span className="flex items-center gap-1.5">
-                <Kbd>1</Kbd>–<Kbd>9</Kbd> macros
-              </span>
-            </div>
-          }
-        />
+      <Page className="max-w-[38rem]">
+        <EnTetePage className="mb-4 sm:mb-5" surtitre="Table de dés" titre="Lancer les dés" />
         {table}
       </Page>
     </MotionConfig>

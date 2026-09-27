@@ -14,6 +14,7 @@ import { usePanelStore } from './store';
 
 /** Largeur sur grand écran ; sur mobile, tout panneau occupe l'écran au-dessus du dock. */
 const WIDTH: Record<PanelWidth, string> = {
+  compact: 'lg:w-[min(34rem,calc(100vw-7rem))]',
   narrow: 'lg:w-[26rem]',
   medium: 'lg:w-[min(40rem,calc(100vw-6rem))]',
   wide: 'lg:w-[min(60rem,calc(100vw-6rem))]',
@@ -24,6 +25,10 @@ const VARIANTS: Record<TablePanel['mode'], Variants> = {
   side: {
     open: { opacity: 1, x: 0, visibility: 'visible' },
     closed: { opacity: 0, x: -16, transitionEnd: { visibility: 'hidden' } },
+  },
+  floating: {
+    open: { opacity: 1, x: 0, visibility: 'visible' },
+    closed: { opacity: 0, x: -12, transitionEnd: { visibility: 'hidden' } },
   },
   centered: {
     open: { opacity: 1, scale: 1, y: 0, visibility: 'visible' },
@@ -122,7 +127,9 @@ function PanelFrame({ panel, visible }: { panel: TablePanel; visible: boolean })
         'flex flex-col bg-background text-foreground shadow-elevated outline-none',
         centered
           ? 'pointer-events-auto relative size-full lg:h-auto lg:max-h-full lg:rounded-2xl lg:border lg:border-border-strong'
-          : 'fixed inset-x-0 top-0 bottom-[var(--table-dock-h)] z-40 lg:inset-x-auto lg:bottom-0 lg:left-20 lg:border-x lg:border-border',
+          : panel.mode === 'floating'
+            ? 'fixed inset-x-0 top-0 bottom-[var(--table-dock-h)] z-40 lg:inset-x-auto lg:bottom-auto lg:left-[5.75rem] lg:top-3 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-border-strong'
+            : 'fixed inset-x-0 top-0 bottom-[var(--table-dock-h)] z-40 lg:inset-x-auto lg:bottom-0 lg:left-20 lg:border-x lg:border-border',
         WIDTH[panel.width],
       )}
     >

@@ -24,11 +24,15 @@ export function GrilleDes({
 }) {
   const aide = useId();
   return (
-    <div>
+    <div className="h-full">
       <p id={aide} className="sr-only">
         Clic droit, appui long ou touche Retour arrière pour retirer un dé.
       </p>
-      <div role="group" aria-label="Dés à ajouter" className="grid grid-cols-2 gap-1.5">
+      <div
+        role="group"
+        aria-label="Dés à ajouter"
+        className="grid h-full grid-cols-2 grid-rows-3 gap-1.5"
+      >
         {DES_GRILLE.map((faces) => (
           <BoutonDe
             key={faces}
@@ -118,7 +122,7 @@ export function BoutonDe({
       aria-label={`Ajouter un d${faces}${n ? `, ${n} dans la formule` : ''}`}
       aria-describedby={aide}
       className={cn(
-        'relative flex aspect-square w-full touch-manipulation select-none items-center justify-center rounded-lg border font-mono text-[13px] font-semibold tabular transition-[background-color,border-color,color,transform] duration-150 [-webkit-touch-callout:none]',
+        'relative flex h-full min-h-10 w-full touch-manipulation select-none items-center justify-center rounded-lg border font-mono text-[13px] font-semibold tabular transition-[background-color,border-color,color,transform] duration-150 [-webkit-touch-callout:none]',
         'active:scale-95 motion-reduce:active:scale-100',
         n
           ? 'border-primary/45 bg-primary/10 text-primary-strong'
