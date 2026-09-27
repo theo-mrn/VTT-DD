@@ -10,6 +10,16 @@ export const CharacterConfig = BaseConfig.extend({
   PORT: z.coerce.number().int().positive().default(3002),
   /** Connexion avec le rôle characters_svc (jamais characters_owner). */
   DATABASE_URL: z.string().min(1),
+  /**
+   * Connexion directe à Postgres (hors PgBouncer) pour le LISTEN du relais
+   * d'outbox : LISTEN ne traverse pas un pooler en mode transaction. Absent : DATABASE_URL.
+   */
+  DATABASE_DIRECT_URL: facultatif(z.string().min(1)),
+  /**
+   * Bus NATS JetStream (`nats://hôte:4222`, plusieurs séparés par des virgules) :
+   * le relais y publie l'outbox. Absent : les événements restent dans l'outbox.
+   */
+  NATS_URL: facultatif(z.string().min(1)),
 
   /** Jetons d'accès émis par identity : mêmes valeurs que la gateway. */
   JWT_ISSUER: z.string().min(1),

@@ -25,6 +25,16 @@ export const IdentityConfig = BaseConfig.extend({
   SERVICE_NAME: z.string().default('identity'),
   /** Connexion avec le rôle identity_svc (jamais identity_owner). */
   DATABASE_URL: z.string().min(1),
+  /**
+   * Connexion directe à Postgres (hors PgBouncer) pour le LISTEN du relais
+   * d'outbox : LISTEN ne traverse pas un pooler en mode transaction. Absent : DATABASE_URL.
+   */
+  DATABASE_DIRECT_URL: facultatif(z.string().min(1)),
+  /**
+   * Bus NATS JetStream (`nats://hôte:4222`, plusieurs séparés par des virgules) :
+   * le relais y publie l'outbox. Absent : les événements restent dans l'outbox.
+   */
+  NATS_URL: facultatif(z.string().min(1)),
 
   JWT_ISSUER: z.string().min(1),
   JWT_AUDIENCE: z.string().min(1),

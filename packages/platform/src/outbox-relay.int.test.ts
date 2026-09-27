@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { EventEnvelope, uuidv7 } from '@vtt/contracts';
 import pg from 'pg';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { connectBus, consumeEvents, publishEvent, type Bus } from './bus.js';
+import { connectBus, consumeEvents, EVENTS_STREAM, publishEvent, type Bus } from './bus.js';
 import { startOutboxRelay, startOutboxRelayWithBus } from './outbox-relay.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -256,6 +256,8 @@ describe.skipIf(!TEST_DATABASE_URL)('relais d’outbox (Postgres réel)', () => 
       } finally {
         await stopConsuming();
         await stop();
+        // Le flux local est partagé avec history et realtime : on retire nos événements
+        await bus.jsm.streams.purge(EVENTS_STREAM, { filter: `vtt.${room}.>` });
       }
     });
   });
