@@ -7,7 +7,7 @@ replicaCount: 2
 env:
   NODE_ENV: production
   LOG_LEVEL: info
-  REDIS_URL: redis://valkey.messaging.svc:6379
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
@@ -18,6 +18,10 @@ env:
   # Livraison des paiements : skins et premium (dice), badge premium (identity)
   DICE_URL: http://dice.vtt-prod.svc
   IDENTITY_URL: http://identity.vtt-prod.svc
+# Mot de passe de valkey-prod (secret messaging-credentials), substitué dans REDIS_URL :
+# voir « Déploiement » dans docs/bus.md
+secretEnv:
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 # Secret billing-secrets (SOPS) :
 #   DATABASE_URL             rôle billing_svc
 #   INTERNAL_API_SECRET      même valeur que dice et identity

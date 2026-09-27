@@ -16,9 +16,9 @@ env:
   NODE_ENV: production
   LOG_LEVEL: info
   # Cache des droits (campaign) et adaptateur Socket.IO entre réplicas
-  REDIS_URL: redis://valkey.messaging.svc:6379
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-prod.messaging.svc:6379
   # Bus d'événements : diffusion en direct et rejeu après reconnexion (NATS JetStream)
-  NATS_URL: nats://nats.messaging.svc:4222
+  NATS_URL: nats://vtt-prod:$(NATS_PASSWORD)@nats.messaging.svc:4222
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.yner.fr/v1/auth
@@ -33,6 +33,11 @@ env:
   EPHEMERAL_RATE_PER_SECOND: '20'
   EPHEMERAL_BURST: '40'
   EPHEMERAL_MAX_BYTES: '4096'
+# Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 # Secret realtime-secrets (SOPS) : INTERNAL_API_SECRET (même valeur que campaign). Pas de base :
 # ni DATABASE_URL ni migrations.
 envFromSecrets:

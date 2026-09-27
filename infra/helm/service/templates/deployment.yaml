@@ -50,6 +50,11 @@ spec:
               valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "k8s.namespace.name={{ .Release.Namespace }},k8s.pod.name=$(K8S_POD_NAME),k8s.node.name=$(K8S_NODE_NAME)"
+            {{- /* Avant `env` : $(NOM) n'est substitué que par une variable déjà déclarée */}}
+            {{- range $k, $v := .Values.secretEnv }}
+            - name: {{ $k }}
+              valueFrom: { secretKeyRef: { name: {{ $v.secret }}, key: {{ $v.key }} } }
+            {{- end }}
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}

@@ -7,9 +7,9 @@ replicaCount: 2
 env:
   NODE_ENV: production
   LOG_LEVEL: info
-  REDIS_URL: redis://valkey.messaging.svc:6379
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : history consomme tout vtt.> (NATS JetStream, namespace messaging)
-  NATS_URL: nats://nats.messaging.svc:4222
+  NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
   # Consommateur durable partagé par les réplicas (JetStream répartit les messages)
   HISTORY_CONSUMER: history
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
@@ -21,6 +21,11 @@ env:
   CAMPAIGN_URL: http://campaign.vtt-staging.svc
   # Partitions mensuelles de history.events créées à l'avance (mois courant compris)
   PARTITION_MONTHS_AHEAD: '3'
+# Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 # Secret history-secrets (SOPS) : DATABASE_URL (rôle history_svc), INTERNAL_API_SECRET (même
 # valeur que campaign)
 envFromSecrets:

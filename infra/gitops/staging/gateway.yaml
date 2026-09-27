@@ -8,7 +8,7 @@ env:
   NODE_ENV: production
   LOG_LEVEL: info
   CORS_ORIGINS: https://staging.yner.fr
-  REDIS_URL: redis://valkey.messaging.svc:6379
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
   JWT_AUDIENCE: vtt-api
@@ -23,6 +23,10 @@ env:
   UPSTREAM_REALTIME_URL: http://realtime.vtt-staging.svc
   # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash
   UPSTREAM_HISTORY_URL: http://history.vtt-staging.svc
+# Mot de passe de valkey-staging (secret messaging-credentials), substitué dans REDIS_URL :
+# voir « Déploiement » dans docs/bus.md
+secretEnv:
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 ingress:
   enabled: true
   # Connexions WebSocket longues (realtime)

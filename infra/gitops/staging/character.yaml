@@ -7,9 +7,9 @@ replicaCount: 2
 env:
   NODE_ENV: production
   LOG_LEVEL: info
-  REDIS_URL: redis://valkey.messaging.svc:6379
+  REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
   # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
-  NATS_URL: nats://nats.messaging.svc:4222
+  NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
@@ -19,6 +19,11 @@ env:
   CAMPAIGN_URL: http://campaign.vtt-staging.svc
   # Historique des jets : chaque jet d'action est transmis à dice (/internal/rolls)
   DICE_URL: http://dice.vtt-staging.svc
+# Mots de passe du compte NATS STAGING et de valkey-staging (secret messaging-credentials),
+# substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md
+secretEnv:
+  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
+  REDIS_PASSWORD: { secret: messaging-credentials, key: REDIS_PASSWORD }
 # Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc), INTERNAL_API_SECRET
 # (même valeur que campaign et dice)
 # + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais

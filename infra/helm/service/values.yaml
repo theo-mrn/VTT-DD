@@ -15,6 +15,10 @@ env: {}
 # Secrets (générés par SOPS/Sealed Secrets ou par CloudNativePG)
 envFromSecrets: []
 #  - name: gateway-secrets
+# Variables lues une à une dans un Secret, déclarées avant `env` : une valeur de `env` peut les
+# reprendre avec $(NOM) (substitution Kubernetes), ex. un mot de passe dans une URL
+secretEnv: {}
+#  NATS_PASSWORD: { secret: messaging-credentials, key: NATS_PASSWORD }
 
 resources:
   requests: { cpu: 50m, memory: 128Mi }
