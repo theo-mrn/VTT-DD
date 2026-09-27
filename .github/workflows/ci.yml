@@ -60,6 +60,20 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U vtt" --health-interval 5s --health-retries 10
+      # Bus et cache des tests d'intégration : mêmes images que le dev local (infra/local),
+      # sans authentification (les comptes NATS et les ACL Valkey ne concernent que le cluster)
+      nats:
+        image: nats:2.11.17-alpine@sha256:e4bf19f15fd3218814a4e3c9e0064e1334bd8aa20d5984b9f1a0afd084f8cc00
+        command: -js -m 8222
+        ports: ['4222:4222']
+        options: >-
+          --health-cmd "wget -q -O /dev/null http://127.0.0.1:8222/healthz" --health-interval 5s
+          --health-retries 10
+      valkey:
+        image: valkey/valkey:8.1.10-alpine@sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "valkey-cli ping" --health-interval 5s --health-retries 10
     env:
       PGHOST: localhost
       PGUSER: vtt
@@ -100,10 +114,19 @@ jobs:
       - run: >-
           pnpm install --frozen-lockfile --filter '@vtt/identity...' --filter '@vtt/character...'
           --filter '@vtt/campaign...' --filter '@vtt/dice...' --filter '@vtt/billing...'
-          --filter '@vtt/history...'
-      - name: Tests d'intégration identity (Postgres réel)
+          --filter '@vtt/history...' --filter '@vtt/realtime...'
+      # Relais d'outbox sur une table temporaire (rôle quelconque) et publication sur JetStream
+      - name: Tests d'intégration platform (Postgres et NATS réels)
+        env:
+          TEST_DATABASE_URL: postgres://dice_svc:dice-dev@localhost:5432/vtt
+          NATS_URL: nats://localhost:4222
+        run: |
+          pnpm turbo run build --filter '@vtt/platform^...'
+          pnpm --filter @vtt/platform test
+      - name: Tests d'intégration identity (Postgres et NATS réels, titres)
         env:
           TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
+          NATS_URL: nats://localhost:4222
         run: |
           pnpm turbo run build --filter '@vtt/identity^...'
           pnpm --filter @vtt/identity test
@@ -131,13 +154,21 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/billing^...'
           pnpm --filter @vtt/billing test
-      # Sans TEST_NATS_URL (pas de JetStream dans ce job), le test de bout en bout du bus est ignoré
-      - name: Tests d'intégration history (Postgres réel)
+      - name: Tests d'intégration history (Postgres et NATS réels)
         env:
           TEST_DATABASE_URL: postgres://history_svc:history-dev@localhost:5432/vtt
+          TEST_NATS_URL: nats://localhost:4222
         run: |
           pnpm turbo run build --filter '@vtt/history^...'
           pnpm --filter @vtt/history test
+      # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
+      - name: Tests d'intégration realtime (NATS et Valkey réels)
+        env:
+          NATS_URL: nats://localhost:4222
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pnpm turbo run build --filter '@vtt/realtime^...'
+          pnpm --filter @vtt/realtime test
 
   security:
     name: Secrets et dépendances
@@ -191,6 +222,21 @@ jobs:
             env=$(basename "$(dirname "$f")"); svc=$(basename "$f" .yaml)
             helm template "$svc" infra/helm/service -n "vtt-$env" -f "$f" > "rendered/$env-$svc.yaml"
           done
+      - name: Rendu des charts de messaging (NATS, Valkey)
+        run: |
+          # Dépôt, chart, version, release et values lus dans les Applications Argo CD
+          yq 'select(.kind == "Application" and .spec.sources[0].chart != null)
+            | [.spec.sources[0].repoURL, .spec.sources[0].chart, .spec.sources[0].targetRevision,
+               .spec.sources[0].helm.releaseName, (.spec.sources[0].helm.valueFiles | join(","))]
+            | @tsv' infra/argocd/messaging.yaml |
+          while IFS=$'\t' read -r repo chart version release values; do
+            [ -n "$repo" ] || continue
+            args=()
+            for v in ${values//,/ }; do args+=(-f "${v#\$values/}"); done
+            helm template "$release" "$chart" --repo "$repo" --version "$version" -n messaging \
+              --skip-tests "${args[@]}" > "rendered/messaging-$release.yaml"
+          done
+          test -s rendered/messaging-nats.yaml
       - name: Validation des schémas
         run: |
           kubeconform -strict -summary -ignore-missing-schemas \
