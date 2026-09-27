@@ -87,6 +87,13 @@ for dossier in backend/*/; do
     done < "$dossier/.env.example"
     [ "$ajoutees" -gt 0 ] && echo "backend/$service/.env : $ajoutees variable(s) ajoutée(s)"
   fi
+  # Bus NATS local (docker-compose) : pour les services qui lisent NATS_URL (relais d'outbox,
+  # history, realtime), sans jamais modifier une valeur déjà présente ni une ligne commentée
+  if [ -f "$dossier/.env" ] && grep -rqs NATS_URL "$dossier/src" \
+    && ! grep -qE "^#? ?NATS_URL=" "$dossier/.env"; then
+    printf '%s\n' "NATS_URL=nats://127.0.0.1:4222" >> "$dossier/.env"
+    echo "backend/$service/.env : NATS_URL ajoutée"
+  fi
 done
 
 if [ "$PREPARER_SEULEMENT" = 1 ]; then
