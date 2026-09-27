@@ -418,12 +418,10 @@ function Table({
     >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {[...mj, ...joueurs, ...spectateurs].map((m) => {
-          const perso = personnages.find((p) => p.id === m.characterId) ?? null;
           return (
             <SiegeMembre
               key={m.userId}
               membre={m}
-              perso={perso}
               estMoi={m.userId === moi}
               action={
                 gm && m.userId !== c.ownerId ? (
@@ -458,14 +456,13 @@ function Table({
   );
 }
 
+/** Un membre de la table : l'utilisateur (avatar, nom, rôle), pas son personnage. */
 function SiegeMembre({
   membre: m,
-  perso,
   estMoi,
   action,
 }: {
   membre: Membre;
-  perso: Personnage | null;
   estMoi: boolean;
   action: React.ReactNode;
 }) {
@@ -476,49 +473,16 @@ function SiegeMembre({
         estMoi ? 'border-primary/40' : 'border-border',
       )}
     >
-      {perso ? (
-        <Illustration
-          src={perso.portraitUrl}
-          graine={perso.name}
-          position="top"
-          className="size-14 shrink-0 rounded-lg ring-1 ring-white/10"
-        />
-      ) : (
-        <AvatarJoueur nom={m.name} url={m.avatarUrl} taille="md" className="m-[5px]" />
-      )}
+      <AvatarJoueur nom={m.name} url={m.avatarUrl} taille="md" className="m-[5px]" />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
           {m.role === 'gm' && <Crown className="size-3.5 shrink-0 text-primary" />}
-          {perso && !perso.inCreation ? (
-            // Fiche lisible par toute la table, modifiable par son joueur et le MJ
-            <Link
-              href={`/personnages/${perso.id}`}
-              className="truncate transition-colors hover:text-primary"
-            >
-              {perso.name}
-            </Link>
-          ) : (
-            (perso?.name ?? m.name)
-          )}
+          <span className="truncate">{m.name}</span>
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {m.role === 'gm'
-            ? 'Maître du jeu'
-            : m.role === 'spectator'
-              ? 'Spectateur'
-              : perso
-                ? perso.inCreation
-                  ? 'Héros en création'
-                  : perso.summary.tagline || 'Aventurier'
-                : 'Héros à choisir'}
+          {m.role === 'gm' ? 'Maître du jeu' : m.role === 'spectator' ? 'Spectateur' : 'Joueur'}
+          {estMoi && ' · vous'}
         </p>
-        {perso && (
-          <p className="mt-0.5 truncate text-[11px] text-subtle">
-            joué par {m.name}
-            {estMoi && ' (vous)'}
-          </p>
-        )}
-        {!perso && estMoi && <p className="mt-0.5 text-[11px] text-primary">C&apos;est vous</p>}
       </div>
       {action && (
         <div className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
