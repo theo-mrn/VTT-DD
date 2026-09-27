@@ -6,13 +6,16 @@
 # ORDRE : comptes (`pnpm import:firebase`), puis personnages
 # (`pnpm import:personnages --importer`), puis campagnes. Les membres sans compte
 # migré et les personnages non importés sont ignorés (voir le rapport).
-# Seule la collection `salles` (membres) est exportée ici : Salle, users, cartes
-# et gameSystems viennent de l'export des personnages, pour que campagnes et
-# personnages partent du même instantané. Exports et rapport dans ~/vtt-export.
+# Seules les collections `salles` (membres), `Notes` et `SharedNotes` sont exportées
+# ici : Salle, users, cartes et gameSystems viennent de l'export des personnages,
+# pour que campagnes et personnages partent du même instantané. Les notes sont
+# importées après les campagnes (sous-commande `notes`, docs/api-notes.md).
+# Exports et rapports dans ~/vtt-export.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 EXPORT="${VTT_EXPORT_DIR:-$HOME/vtt-export}"
 RAPPORT="$EXPORT/rapport-campagnes.ndjson"
+RAPPORT_NOTES="$EXPORT/rapport-notes.ndjson"
 etape() { printf '\n\033[1;33m▶ %s\033[0m\n' "$1"; }
 
 IMPORTER=0; EXPORTER=1
@@ -41,9 +44,9 @@ pnpm turbo run build --filter=@vtt/firebase-export --filter=@vtt/campaign --outp
 
 if [ "$EXPORTER" = 1 ]; then
   [ -f legacy/.env ] || { echo "legacy/.env introuvable (FIREBASE_SERVICE_ACCOUNT_KEY)" >&2; exit 1; }
-  etape "Export Firestore : membres des campagnes (salles/{code}/Noms)"
+  etape "Export Firestore : membres des campagnes (salles/{code}/Noms) et notes"
   node --env-file=legacy/.env tools/firebase-export/dist/cli.js \
-    --collection salles --recursive --out "$EXPORT"
+    --collection salles --collection Notes --collection SharedNotes --recursive --out "$EXPORT"
 fi
 
 # Lecture seule : compte migré de chaque UID Firebase (identity_svc),
@@ -56,8 +59,17 @@ if [ "$IMPORTER" = 1 ]; then
   etape "Import des campagnes"
   node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js \
     --export "$EXPORT" --report "$RAPPORT"
+  etape "Import des notes"
+  node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js notes \
+    --export "$EXPORT" --report "$RAPPORT_NOTES" --importer
 else
   etape "Simulation (rien n'est écrit) — relance avec --importer pour importer"
   node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js \
     --export "$EXPORT" --report "$RAPPORT" --dry-run
+  # Notes : seules celles des campagnes déjà importées sont simulées
+  if [ -f "$EXPORT/Notes.ndjson" ] || [ -f "$EXPORT/SharedNotes.ndjson" ]; then
+    etape "Simulation des notes (campagnes déjà importées)"
+    node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js notes \
+      --export "$EXPORT" --report "$RAPPORT_NOTES"
+  fi
 fi
