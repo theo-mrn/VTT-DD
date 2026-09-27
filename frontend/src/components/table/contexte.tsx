@@ -19,7 +19,9 @@ export interface Table {
   campagne: DetailCampagne;
   moi: Membre;
   gm: boolean;
-  /** Héros incarné (null : MJ ou spectateur sans héros). */
+  /** Héros incarné, connu de la campagne dès son chargement (null : MJ ou spectateur). */
+  herosId: string | null;
+  /** Son résumé (portrait, nom, ressources) ; null tant qu'il se charge. */
   heros: Personnage | null;
   /** Adresse de la table (`/campagnes/:id/table`). */
   base: string;

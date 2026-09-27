@@ -9,8 +9,8 @@ import { useTable } from '../contexte';
 
 /** Ma fiche : celle du héros incarné, éditable et tenue à jour en direct. */
 export function OngletFiche() {
-  const { heros, gm, base, campagne } = useTable();
-  if (heros) return <FichePersonnage id={heros.id} />;
+  const { herosId, gm, base, campagne } = useTable();
+  if (herosId) return <FichePersonnage id={herosId} />;
   return (
     <Page>
       <EtatVide

@@ -7,10 +7,10 @@ import { useTable } from '@/components/table/contexte';
 
 /** Arrivée à la table : ma fiche, ou la vue MJ, ou les joueurs pour un spectateur. */
 export default function PageTable() {
-  const { heros, gm, base } = useTable();
+  const { herosId, gm, base } = useTable();
   const router = useRouter();
   useEffect(() => {
-    router.replace(`${base}/${heros ? 'fiche' : gm ? 'mj' : 'joueurs'}`);
-  }, [router, base, heros, gm]);
+    router.replace(`${base}/${herosId ? 'fiche' : gm ? 'mj' : 'joueurs'}`);
+  }, [router, base, herosId, gm]);
   return <ChargementOnglet />;
 }

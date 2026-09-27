@@ -12,6 +12,7 @@ import { useFicheCalculee } from '@/components/fiche/fiche-personnage';
 import { EcranChargement } from '@/components/shell/ecran-chargement';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
 import { ApiError, messageErreur } from '@/lib/api';
 import { useCampagne } from '@/lib/campagnes';
@@ -77,9 +78,16 @@ export function CadreTable({ id, children }: { id: string; children: ReactNode }
   const table = useMemo<Table | null>(
     () =>
       c && moi
-        ? { campagne: c, moi, gm: c.role === 'gm', heros, base: `/campagnes/${id}/table` }
+        ? {
+            campagne: c,
+            moi,
+            gm: c.role === 'gm',
+            herosId,
+            heros,
+            base: `/campagnes/${id}/table`,
+          }
         : null,
-    [c, moi, heros, id],
+    [c, moi, herosId, heros, id],
   );
 
   if (!profil || campagne.isLoading || refuse || horsTable || sansHeros)
@@ -163,6 +171,8 @@ function EnTeteTable({ table, herosId }: { table: Table; herosId: string | null 
           <FrontiereTable nom="Fiche" compacte>
             <HerosIncarne heros={table.heros} herosId={herosId} base={table.base} />
           </FrontiereTable>
+        ) : table.herosId ? (
+          <Skeleton className="size-9 rounded-full" aria-label="Chargement du héros" />
         ) : (
           <span className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary-strong">
             {gm ? <Crown className="size-3.5" /> : <Eye className="size-3.5" />}
