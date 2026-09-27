@@ -267,6 +267,14 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
       (await h.request(alice, 'PATCH', `${base}/${hero.id}`, { visibility: 'hidden' })).statusCode,
     ).toBe(403);
     expect(
+      (await h.request(alice, 'PATCH', `${base}/${hero.id}`, { visionRadius: 5000 })).statusCode,
+    ).toBe(403);
+    // Vision augmentée : le rayon triple, puis revient
+    const boosted = await h.ok<Token>(alice, 'PATCH', `${base}/${hero.id}`, { visionBoost: true });
+    expect(boosted).toMatchObject({ visionBoost: true, visionRadius: 300 });
+    const normal = await h.ok<Token>(alice, 'PATCH', `${base}/${hero.id}`, { visionBoost: false });
+    expect(normal).toMatchObject({ visionBoost: false, visionRadius: 100 });
+    expect(
       (await h.request(alice, 'PATCH', `${base}/${orc.id}`, { pos: { x: 0, y: 0 } })).statusCode,
     ).toBe(403);
     expect(

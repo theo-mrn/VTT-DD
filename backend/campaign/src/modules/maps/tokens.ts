@@ -95,8 +95,14 @@ const TokenFields = {
   interactions: z.array(z.record(z.string(), z.unknown())).max(50).nullable(),
 };
 
-/** Champs qu'un joueur modifie sur le token de son personnage. */
-const PLAYER_FIELDS = new Set(['pos', 'visionRadius', 'visionBoost', 'version']);
+/**
+ * Champs qu'un joueur modifie sur le token de son personnage. Pas le rayon de
+ * vision : il verrait les tokens cachés ; « Vision augmentée » le triple.
+ */
+const PLAYER_FIELDS = new Set(['pos', 'visionBoost', 'version']);
+
+/** Vision augmentée (ancienne carte) : rayon triplé à l'activation, divisé par 3 ensuite. */
+const BOOST = 3;
 
 // ─── Visibilité côté serveur (reprise de utils/visibility-checks.ts) ────────
 
@@ -263,6 +269,15 @@ async function updateToken(
     if (extra.length) throw HttpError.forbidden(`Réservé au MJ : ${extra.join(', ')}`);
   }
   const { version, pos, ...changes } = patch;
+  if (
+    typeof changes.visionBoost === 'boolean' &&
+    changes.visionBoost !== before.visionBoost &&
+    changes.visionRadius === undefined
+  )
+    changes.visionRadius = Math.min(
+      100_000,
+      changes.visionBoost ? before.visionRadius * BOOST : before.visionRadius / BOOST,
+    );
   if (version !== undefined && version !== before.version) throw versionConflict();
   const wasPublic = Object.keys(changes).length ? await isPublicToken(tx, before) : false;
   const [after] = await tx

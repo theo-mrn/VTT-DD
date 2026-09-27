@@ -10,7 +10,7 @@ Coordonnées en **pixels de l'image de fond** : `{ x, y }`. Chaque élément por
 tout `PATCH` accepte `version` (facultatif) et répond 409 `version_conflict` s'il a changé.
 
 Droits : le MJ fait tout. Un joueur lit ce qu'il voit (filtré par le serveur), déplace les tokens
-de ses personnages (et règle leur vision), ouvre ou ferme une porte non verrouillée, crée des
+de ses personnages (et active leur vision augmentée), ouvre ou ferme une porte non verrouillée, crée des
 dessins, textes et gabarits et modifie ou supprime les siens. Un spectateur lit seulement.
 Au-delà : 403.
 
@@ -41,7 +41,7 @@ Au-delà : 403.
 | GET     | `/v1/campaigns/:id/maps/:mapId/tokens?bbox=`              | —                                                       | `{ items: [Token] }` présents sur la carte, visibles par l'appelant                                                                                                                       |
 | GET     | `/v1/campaigns/:id/maps/:mapId/tokens/near?x=&y=&radius=` | —                                                       | `{ items: [Token & { distance }] }` dans le rayon (pixels), du plus proche au plus loin, filtrés                                                                                          |
 | POST    | `/v1/campaigns/:id/maps/:mapId/tokens`                    | `{ characterId, pos, …champs du token }`                | 201 `Token` (MJ) ; personnage engagé (422 `character_not_engaged`) ; 409 `token_exists`, 409 `character_on_other_map` (utiliser `/travel`)                                                |
-| PATCH   | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId`           | `{ pos?, …champs?, version? }`                          | `Token` ; joueur : ses personnages, champs `pos`, `visionRadius`, `visionBoost` seulement                                                                                                 |
+| PATCH   | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId`           | `{ pos?, …champs?, version? }`                          | `Token` ; joueur : ses personnages, `pos` et `visionBoost` seulement (le rayon triple, puis revient)                                                                                      |
 | DELETE  | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId`           | —                                                       | 204 (MJ) ; le personnage reste engagé                                                                                                                                                     |
 | POST    | `/v1/campaigns/:id/maps/:mapId/tokens/move`               | `{ moves: [{ tokenId, pos, version? }] }` (200 au plus) | `{ items: [Token] }` : fin de drag, sélection multiple ; un `token.moved` par token                                                                                                       |
 | POST    | `/v1/campaigns/:id/maps/:mapId/travel`                    | `{ characterIds?, pos? }`                               | `{ items: [Token] }` : amène des personnages sur cette carte (portail, changement de scène). Sans `characterIds` : tous les personnages joueurs, et la carte devient celle du groupe (MJ) |
