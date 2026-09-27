@@ -11,6 +11,7 @@ import { type Effet, type Fiche, type InventoryFolder, type Presentation } from 
 import { ArrowLeft, Eye, EyeOff, Minus, Plus, ShieldCheck } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { SelectField } from '@/components/ui/select';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input, styleChampBase } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -289,28 +290,22 @@ function Formulaire({
           <section aria-label="Identité" className="space-y-4">
             {choixCategorie && (
               <Champ label="Catégorie" htmlFor={`${id}-categorie-combinee`}>
-                <select
+                <SelectField
                   id={`${id}-categorie-combinee`}
                   value={choixCategorie.valeur}
-                  onChange={(e) => choixCategorie.onChange(e.target.value)}
-                  className={cn(styleChampBase, 'h-10 px-3')}
-                >
-                  {cible.modeles.map((m) =>
-                    m.categorie && m.categorie.options.length > 0 ? (
-                      <optgroup key={m.sorte.id} label={m.sorte.nom}>
-                        {m.categorie.options.map((o) => (
-                          <option key={o.valeur} value={`${m.sorte.id}::${o.valeur}`}>
-                            {o.nom}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : (
-                      <option key={m.sorte.id} value={`${m.sorte.id}::`}>
-                        {m.sorte.nom}
-                      </option>
-                    ),
+                  onValueChange={choixCategorie.onChange}
+                  options={cible.modeles.map((m) =>
+                    m.categorie && m.categorie.options.length > 0
+                      ? {
+                          groupe: m.sorte.nom,
+                          options: m.categorie.options.map((o) => ({
+                            valeur: `${m.sorte.id}::${o.valeur}`,
+                            nom: o.nom,
+                          })),
+                        }
+                      : { valeur: `${m.sorte.id}::`, nom: m.sorte.nom },
                   )}
-                </select>
+                />
               </Champ>
             )}
             {sorte.nomExemplaire && (
@@ -349,18 +344,12 @@ function Formulaire({
             )}
             {!choixCategorie && modele.categorie && options.length > 0 && (
               <Champ label={modele.categorie.champ.nom} htmlFor={`${id}-categorie`}>
-                <select
+                <SelectField
                   id={`${id}-categorie`}
                   value={categorie}
-                  onChange={(e) => setCategorie(e.target.value)}
-                  className={cn(styleChampBase, 'h-10 px-3')}
-                >
-                  {options.map((o) => (
-                    <option key={o.valeur} value={o.valeur}>
-                      {o.nom}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setCategorie}
+                  options={options}
+                />
               </Champ>
             )}
           </section>
@@ -433,19 +422,16 @@ function Formulaire({
           )}
           {!seulementUnites && folders.length > 0 && (
             <Case titre="Dossier" htmlFor={`${id}-d`}>
-              <select
+              <SelectField
                 id={`${id}-d`}
                 value={dossier}
-                onChange={(e) => setDossier(e.target.value)}
-                className={cn(styleChampBase, 'h-8 max-w-44 px-2 text-xs')}
-              >
-                <option value={RACINE}>Sans dossier</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setDossier}
+                className="h-8 max-w-44 px-2 text-xs"
+                options={[
+                  { valeur: RACINE, nom: 'Sans dossier' },
+                  ...folders.map((f) => ({ valeur: f.id, nom: f.name })),
+                ]}
+              />
             </Case>
           )}
         </section>

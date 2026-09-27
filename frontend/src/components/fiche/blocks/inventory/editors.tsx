@@ -9,6 +9,7 @@ import type { Effet, Fiche, Sorte } from '@vtt/rules';
 import { Plus, Trash2 } from 'lucide-react';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { SelectField, type SelectOption, type SelectOptionGroup } from '@/components/ui/select';
 import { Input, styleChampBase } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -69,19 +70,14 @@ export function FieldInput({
   const [texte, setTexte] = useState(valeur === undefined ? '' : String(valeur));
   if (champ.type === 'choix')
     return (
-      <select
+      <SelectField
         id={id}
         value={valeur === undefined ? '' : String(valeur)}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(styleChampBase, 'h-7 w-36 px-2 text-xs', className)}
-      >
-        {valeur === undefined && <option value="">—</option>}
-        {champ.options.map((o) => (
-          <option key={o.valeur} value={o.valeur}>
-            {o.nom}
-          </option>
-        ))}
-      </select>
+        onValueChange={(v) => onChange(v)}
+        className={cn('h-7 w-36 px-2 text-xs', className)}
+        placeholder="—"
+        options={champ.options.map((o) => ({ valeur: o.valeur, nom: o.nom }))}
+      />
     );
   if (champ.type === 'booleen')
     return <Switch id={id} checked={valeur === true} onCheckedChange={(v) => onChange(v)} />;
@@ -312,30 +308,18 @@ export function BonusForm({
           <label htmlFor={`${id}-a`} className="text-xs text-muted-foreground">
             Attribut
           </label>
-          <select
+          <SelectField
             id={`${id}-a`}
-            autoFocus
             value={attribut}
-            onChange={(e) => setAttribut(e.target.value)}
-            className={cn(styleChampBase, 'h-9 px-2 text-[13px]')}
-          >
-            {groupes.map((g) => {
+            onValueChange={setAttribut}
+            className="h-9 px-2 text-[13px]"
+            options={groupes.flatMap((g): (SelectOption | SelectOptionGroup)[] => {
               const options = attributs
                 .filter((x) => (x.groupe ?? '') === g)
-                .map((x) => (
-                  <option key={x.cle} value={x.cle}>
-                    {x.nom}
-                  </option>
-                ));
-              return g ? (
-                <optgroup key={g} label={g}>
-                  {options}
-                </optgroup>
-              ) : (
-                options
-              );
+                .map((x) => ({ valeur: x.cle, nom: x.nom }));
+              return g ? [{ groupe: g, options }] : options;
             })}
-          </select>
+          />
         </div>
         <div className="space-y-1">
           <label htmlFor={`${id}-v`} className="text-xs text-muted-foreground">

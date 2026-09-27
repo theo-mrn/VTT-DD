@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { SelectField } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -356,19 +357,16 @@ function Reglages({
   if (a.ranger && (folders.length > 0 || item.folder))
     cases.push(
       <Case key="d" titre="Dossier" htmlFor={`${id}-d`}>
-        <select
+        <SelectField
           id={`${id}-d`}
           value={item.folder?.id ?? ''}
-          onChange={(e) => a.ranger!(item, e.target.value || null)}
-          className={cn(styleChampBase, 'h-8 max-w-40 px-2 text-xs')}
-        >
-          <option value="">Sans dossier</option>
-          {folders.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
+          onValueChange={(v) => a.ranger!(item, v || null)}
+          className="h-8 max-w-40 px-2 text-xs"
+          options={[
+            { valeur: '', nom: 'Sans dossier' },
+            ...folders.map((f) => ({ valeur: f.id, nom: f.name })),
+          ]}
+        />
       </Case>,
     );
   if (item.poids)

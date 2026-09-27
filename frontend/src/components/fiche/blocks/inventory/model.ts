@@ -227,7 +227,10 @@ export function bonusDe(
     actif &&
     e.sur === 'attribut' &&
     Boolean(
-      fiche.valeurs.get(e.attribut)?.detail.some((l) => l.source === source && l.ignore === true),
+      fiche.valeurs
+        .get(e.attribut)
+        // Non cumulé, ou coupé depuis le bloc Bonus : l'effet n'est pas appliqué
+        ?.detail.some((l) => l.source === source && (l.ignore === true || l.desactive === true)),
     );
 
   entree.effets.forEach((e, i) => {
