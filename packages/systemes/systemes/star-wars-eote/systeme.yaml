@@ -25,6 +25,10 @@ entites:
     attributs:
       # ─── Caractéristiques ───────────────────────────────────────────────
       # Valeur enregistrée = points achetés à l'XP ; l'espèce ajoute sa valeur de départ.
+      # Aucun attribut ne déclare `jet` : chaque jet est un test de compétence (actions `test`,
+      # `attaque`, `initiative`, `soins`…) dont la réserve de dés combine la caractéristique liée
+      # et le rang (max → dés d'Aptitude, min → améliorations en Maîtrise). Une caractéristique
+      # n'ajoute jamais de terme à un total numérique : la proposer au lanceur n'aurait pas de sens.
       - {
           cle: vigueur,
           nom: Vigueur,

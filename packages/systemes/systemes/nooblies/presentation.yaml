@@ -45,6 +45,10 @@ des:
     d6: { couleur: '#c2956a', forme: d6 }
     d12: { couleur: '#c2956a', forme: d12 }
     d20: { couleur: '#d0ad8b', forme: d20 }
+  # Lanceur de dés : ordre et groupes des attributs qui déclarent `jet` dans les règles
+  jets:
+    - { titre: Caractéristiques, attributs: [FOR, DEX, CON, SAG, INT, CHA] }
+    - { titre: Attaques et initiative, attributs: [Contact, Distance, Magie, INIT] }
 
 ressources:
   PV: { sens: descendant, couleur: '#dc2626' }

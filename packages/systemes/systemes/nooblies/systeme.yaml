@@ -30,6 +30,7 @@ entites:
           defaut: 10,
           min: 1,
           modificateur: true,
+          jet: { apport: modificateur },
           groupe: caracteristiques,
         }
       - {
@@ -40,6 +41,7 @@ entites:
           defaut: 10,
           min: 1,
           modificateur: true,
+          jet: { apport: modificateur },
           groupe: caracteristiques,
         }
       - {
@@ -50,6 +52,7 @@ entites:
           defaut: 10,
           min: 1,
           modificateur: true,
+          jet: { apport: modificateur },
           groupe: caracteristiques,
         }
       - {
@@ -60,6 +63,7 @@ entites:
           defaut: 10,
           min: 1,
           modificateur: true,
+          jet: { apport: modificateur },
           groupe: caracteristiques,
         }
       - {
@@ -70,6 +74,7 @@ entites:
           defaut: 10,
           min: 1,
           modificateur: true,
+          jet: { apport: modificateur },
           groupe: caracteristiques,
         }
       - {
@@ -80,6 +85,7 @@ entites:
           defaut: 10,
           min: 1,
           modificateur: true,
+          jet: { apport: modificateur },
           groupe: caracteristiques,
         }
 
@@ -99,6 +105,7 @@ entites:
           nature: derivee,
           formule: '1 + mod(@FOR)',
           groupe: combat,
+          jet: { apport: valeur },
         }
       - {
           cle: Distance,
@@ -107,6 +114,7 @@ entites:
           nature: derivee,
           formule: '1 + mod(@DEX)',
           groupe: combat,
+          jet: { apport: valeur },
         }
       - {
           cle: Magie,
@@ -115,6 +123,7 @@ entites:
           nature: derivee,
           formule: '1 + mod(@CHA)',
           groupe: combat,
+          jet: { apport: valeur },
         }
       - {
           cle: INIT,
@@ -123,6 +132,7 @@ entites:
           nature: derivee,
           formule: '@DEX',
           groupe: combat,
+          jet: { apport: valeur },
         }
 
       # ─── Vitaux ─────────────────────────────────────────────────────────
