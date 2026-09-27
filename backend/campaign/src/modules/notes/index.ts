@@ -61,14 +61,22 @@ const NoteId = Uuid('Identifiant de note invalide');
 const Params = z.object({ id: CampaignId });
 const NoteParams = z.object({ id: CampaignId, noteId: NoteId });
 
-/** Image d'en-tête : URL https ou chemin absolu du site (comme les médias de la carte). */
-const ImageUrl = z
-  .string()
-  .trim()
-  .max(2048, '2048 caractères au plus')
-  .refine((u) => /^https:\/\/\S+$/.test(u) || /^\/[^/]\S*$/.test(u), {
-    message: 'URL https ou chemin absolu attendu',
-  });
+/**
+ * Image d'en-tête : URL https ou chemin absolu du site (comme les médias de la
+ * carte), ou fichier de notre stockage (`S3_PUBLIC_URL`, en http en dev).
+ */
+const imageUrl = (base: string | null) =>
+  z
+    .string()
+    .trim()
+    .max(2048, '2048 caractères au plus')
+    .refine(
+      (u) =>
+        /^https:\/\/\S+$/.test(u) ||
+        /^\/[^/]\S*$/.test(u) ||
+        (!!base && u.startsWith(`${base}/`) && !/\s/.test(u)),
+      { message: 'URL https ou chemin absolu attendu' },
+    );
 
 const Tag = z.strictObject({
   id: z.string().trim().min(1).max(100),
@@ -84,12 +92,12 @@ const SubQuest = z.strictObject({
 
 const Detail = z.string().trim().max(LIMITS.detail).nullable();
 
-const NoteFields = {
+const noteFields = (base: string | null) => ({
   title: z.string().trim().max(LIMITS.title, `${LIMITS.title} caractères au plus`),
   content: z.string().max(LIMITS.content, `${LIMITS.content} caractères au plus`),
   type: z.enum(NOTE_TYPES),
   tags: z.array(Tag).max(LIMITS.tags),
-  imageUrl: ImageUrl.nullable(),
+  imageUrl: imageUrl(base).nullable(),
   race: Detail,
   class: Detail,
   region: Detail,
@@ -97,7 +105,7 @@ const NoteFields = {
   questType: z.enum(QUEST_TYPES).nullable(),
   questStatus: z.enum(QUEST_STATUSES).nullable(),
   subQuests: z.array(SubQuest).max(LIMITS.subQuests),
-};
+});
 
 /** Destinataires : tous (`'all'`) ou des personnages engagés dans la campagne. */
 const SharedWith = z.union([
@@ -151,6 +159,7 @@ export const register: Module = async (app, deps) => {
   const { db } = deps;
   const auth = { preValidation: app.authenticate };
   const base = publicBase(deps.config.S3_PUBLIC_URL);
+  const NoteFields = noteFields(base);
 
   async function notesApi(rows: NoteRow[], authorization: string | undefined) {
     const profiles = await deps.profiles.profiles(

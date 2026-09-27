@@ -276,6 +276,8 @@ describe.skipIf(!TEST_DATABASE_URL)('notes de la campagne', () => {
       new RegExp(`^https://cdn\\.test\\.local/vtt/campaigns/${campaignId}/[0-9a-f-]+\\.webp$`),
     );
     expect(t.uploads.at(-1)).toMatchObject({ contentType: 'image/webp', size: 1024 });
+    const withImage = await create(bob, { title: 'Portrait', imageUrl: res.publicUrl });
+    expect(withImage).toMatchObject({ imageUrl: res.publicUrl });
 
     const stranger = await t.user();
     expect((await h.request(stranger, 'GET', url())).statusCode).toBe(404);
@@ -291,6 +293,7 @@ describe.skipIf(!TEST_DATABASE_URL)('notes de la campagne', () => {
       { questStatus: 'not-started' },
       { subQuests: [{ id: '1', title: 'X', description: '', status: 'done' }] },
       { imageUrl: 'javascript:alert(1)' },
+      { imageUrl: 'http://tiers.example/pistage.png' },
       { createdBy: 'x' },
     ]) {
       const res = await h.request(alice, 'POST', url(), body);
