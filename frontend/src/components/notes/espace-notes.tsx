@@ -39,8 +39,6 @@ import { grouper, indexer, termes } from './outils';
 import { useMaintenant } from './use-maintenant';
 
 const URL_NOTES = '/notes';
-const urlNote = (id: string | null) =>
-  id ? `${URL_NOTES}?note=${encodeURIComponent(id)}` : URL_NOTES;
 
 /** Vrai si la touche part d'un champ, d'un menu ou d'une fenêtre : pas de raccourci alors. */
 function estSaisie(cible: EventTarget | null): boolean {
@@ -95,13 +93,23 @@ const copieComplete = (n: Note): NouvelleNote => ({
  * dans l'URL (`?note=<id>`) ; `?nouvelle=1` en crée une. Recherche, filtres et
  * pages sont servis par le service campaign ; les notes se tiennent à jour en
  * direct.
+ *
+ * `campagne` : espace fixé sur une campagne (table de jeu) ; ses notes
+ * seulement, et toute nouvelle note y est créée. `base` : adresse de l'espace.
  */
-export function EspaceNotes() {
+export function EspaceNotes({
+  campagne: campagneFixe = null,
+  base = URL_NOTES,
+}: { campagne?: string | null; base?: string } = {}) {
   const params = useSearchParams();
   const idUrl = params.get('note');
   const demandeNouvelle = params.has('nouvelle');
-  const campagneUrl = params.get('campagne');
+  const campagneUrl = campagneFixe ?? params.get('campagne');
   const moi = useProfil().id;
+  const urlNote = useCallback(
+    (id: string | null) => (id ? `${base}?note=${encodeURIComponent(id)}` : base),
+    [base],
+  );
 
   const campagnesQ = useCampagnes();
   const facettes = useFacettesNotes();
@@ -116,7 +124,12 @@ export function EspaceNotes() {
 
   const [recherche, setRecherche] = useState('');
   const rechercheRetardee = useRetarde(recherche, 250);
-  const [filtre, setFiltre] = useState<FiltreNotes>(FILTRE_VIDE);
+  const [filtreChoisi, setFiltre] = useState<FiltreNotes>(FILTRE_VIDE);
+  // Espace d'une campagne : le filtre de campagne est imposé
+  const filtre = useMemo(
+    () => (campagneFixe ? { ...filtreChoisi, campagne: campagneFixe } : filtreChoisi),
+    [filtreChoisi, campagneFixe],
+  );
   const filtres: FiltresNotes = useMemo(
     () => ({ ...filtre, recherche: rechercheRetardee }),
     [filtre, rechercheRetardee],
@@ -151,20 +164,25 @@ export function EspaceNotes() {
     [index, campagnes],
   );
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
-  const total = facettes.data?.total ?? chargees.length;
+  const total =
+    (campagneFixe ? facettes.data?.campagnes.get(campagneFixe) : facettes.data?.total) ??
+    chargees.length;
   const totalFiltre = liste.data?.pages[0]?.total ?? null;
-  const filtree = filtreActif(filtre) || rechercheRetardee.trim() !== '';
+  const filtree = filtreActif(filtreChoisi) || rechercheRetardee.trim() !== '';
 
   // Étiquettes connues, les plus utilisées d'abord (suggestions à la saisie)
   const etiquettes = facettes.data?.etiquettes ?? [];
 
   // ─── Navigation ──────────────────────────────────────────────────────────
-  const naviguer = useCallback((id: string | null, mode: 'push' | 'replace') => {
-    if (mode === 'push') {
-      window.history.pushState(null, '', urlNote(id));
-      empile.current = true;
-    } else window.history.replaceState(null, '', urlNote(id));
-  }, []);
+  const naviguer = useCallback(
+    (id: string | null, mode: 'push' | 'replace') => {
+      if (mode === 'push') {
+        window.history.pushState(null, '', urlNote(id));
+        empile.current = true;
+      } else window.history.replaceState(null, '', urlNote(id));
+    },
+    [urlNote],
+  );
 
   const selectionner = useCallback(
     (id: string) => {
@@ -200,6 +218,7 @@ export function EspaceNotes() {
   // ─── Création ────────────────────────────────────────────────────────────
   /** Campagne d'une nouvelle note sans choix explicite : celle du filtre, ou la seule où j'écris. */
   const campagneParDefaut = (): string | null => {
+    if (campagneFixe) return campagneFixe;
     if (filtre.campagne && ecrivables.some((c) => c.id === filtre.campagne)) return filtre.campagne;
     return ecrivables.length === 1 ? ecrivables[0]!.id : null;
   };
@@ -258,7 +277,7 @@ export function EspaceNotes() {
     lienTraite.current = true;
     const roomId = campagneUrl ?? (ecrivables.length === 1 ? ecrivables[0]!.id : null);
     if (!roomId) {
-      window.history.replaceState(null, '', URL_NOTES);
+      window.history.replaceState(null, '', base);
       setChoix({});
       return;
     }
@@ -273,7 +292,7 @@ export function EspaceNotes() {
         },
         onError: (err) => {
           toast.error(messageErreur(err, 'La note n’a pas pu être créée.'));
-          window.history.replaceState(null, '', URL_NOTES);
+          window.history.replaceState(null, '', base);
         },
       },
     );
@@ -348,7 +367,7 @@ export function EspaceNotes() {
   const synchro = (
     <>
       <SynchroNotes
-        campagnes={campagnes.map((c) => c.id)}
+        campagnes={campagneFixe ? [campagneFixe] : campagnes.map((c) => c.id)}
         prioritaire={noteQ.data?.roomId ?? null}
       />
       <ChoixCampagne
@@ -382,9 +401,11 @@ export function EspaceNotes() {
     return (
       <div className="lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto">
         {synchro}
-        <div className="mx-auto max-w-md px-4 pt-6 empty:hidden">
-          <ImportNotesLocales moi={moi} campagnes={campagnes} />
-        </div>
+        {!campagneFixe && (
+          <div className="mx-auto max-w-md px-4 pt-6 empty:hidden">
+            <ImportNotesLocales moi={moi} campagnes={campagnes} />
+          </div>
+        )}
         <GrimoireVide onNouvelle={(modele) => creerNote({ modele })} enCours={creer.isPending} />
       </div>
     );
@@ -428,9 +449,10 @@ export function EspaceNotes() {
           onRecherche={setRecherche}
           refRecherche={refRecherche}
           refListe={refListe}
-          filtre={filtre}
+          filtre={filtreChoisi}
           onFiltre={setFiltre}
           campagnes={campagnes}
+          campagneFixe={Boolean(campagneFixe)}
           maintenant={maintenant}
           onSelection={selectionner}
           onOuvrir={(id) => {
@@ -439,7 +461,9 @@ export function EspaceNotes() {
           }}
           onNouvelle={(modele) => creerNote({ modele })}
           creationEnCours={creer.isPending}
-          bandeau={<ImportNotesLocales moi={moi} campagnes={campagnes} />}
+          bandeau={
+            campagneFixe ? undefined : <ImportNotesLocales moi={moi} campagnes={campagnes} />
+          }
         />
       </div>
 

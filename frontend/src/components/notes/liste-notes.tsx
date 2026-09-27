@@ -80,6 +80,7 @@ export function ListeNotes({
   filtre,
   onFiltre,
   campagnes,
+  campagneFixe = false,
   maintenant,
   onSelection,
   onOuvrir,
@@ -108,6 +109,8 @@ export function ListeNotes({
   filtre: FiltreNotes;
   onFiltre: (f: FiltreNotes) => void;
   campagnes: Campagne[];
+  /** Espace d'une seule campagne : pas de filtre de campagne. */
+  campagneFixe?: boolean;
   maintenant: number;
   onSelection: (id: string) => void;
   onOuvrir: (id: string) => void;
@@ -224,6 +227,7 @@ export function ListeNotes({
           onFiltre={onFiltre}
           facettes={facettes}
           campagnes={campagnes}
+          campagneFixe={campagneFixe}
         />
         {bandeau}
       </div>
@@ -482,11 +486,13 @@ function FiltresNotes({
   onFiltre,
   facettes,
   campagnes,
+  campagneFixe,
 }: {
   filtre: FiltreNotes;
   onFiltre: (f: FiltreNotes) => void;
   facettes: FacettesNotes | undefined;
   campagnes: Campagne[];
+  campagneFixe: boolean;
 }) {
   // Compteurs de toutes mes notes, calculés par le service
   const compte = {
@@ -547,56 +553,58 @@ function FiltresNotes({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Puce actif={!!filtre.campagne}>
-            {campagne ? (
-              <>
-                <Illustration
-                  src={campagne.coverUrl}
-                  graine={campagne.name}
-                  initiale={false}
-                  className="size-3.5 rounded-[4px]"
-                />
-                <span className="max-w-[110px] truncate">{campagne.name}</span>
-              </>
-            ) : (
-              'Campagne'
-            )}
-            <ChevronDown className="!size-3 opacity-60" />
-          </Puce>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-64">
-          <ElementFiltre
-            actif={!filtre.campagne}
-            onSelect={() => onFiltre({ ...filtre, campagne: null })}
-          >
-            Toutes les campagnes
-          </ElementFiltre>
-          {campagnes.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Mes campagnes</DropdownMenuLabel>
-            </>
-          )}
-          {campagnes.map((c) => (
+      {!campagneFixe && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Puce actif={!!filtre.campagne}>
+              {campagne ? (
+                <>
+                  <Illustration
+                    src={campagne.coverUrl}
+                    graine={campagne.name}
+                    initiale={false}
+                    className="size-3.5 rounded-[4px]"
+                  />
+                  <span className="max-w-[110px] truncate">{campagne.name}</span>
+                </>
+              ) : (
+                'Campagne'
+              )}
+              <ChevronDown className="!size-3 opacity-60" />
+            </Puce>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64">
             <ElementFiltre
-              key={c.id}
-              actif={filtre.campagne === c.id}
-              compte={compte.salles.get(c.id) ?? 0}
-              onSelect={() => onFiltre({ ...filtre, campagne: c.id })}
+              actif={!filtre.campagne}
+              onSelect={() => onFiltre({ ...filtre, campagne: null })}
             >
-              <Illustration
-                src={c.coverUrl}
-                graine={c.name}
-                initiale={false}
-                className="size-5 shrink-0 rounded-[5px] ring-1 ring-white/10"
-              />
-              <span className="truncate">{c.name}</span>
+              Toutes les campagnes
             </ElementFiltre>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            {campagnes.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Mes campagnes</DropdownMenuLabel>
+              </>
+            )}
+            {campagnes.map((c) => (
+              <ElementFiltre
+                key={c.id}
+                actif={filtre.campagne === c.id}
+                compte={compte.salles.get(c.id) ?? 0}
+                onSelect={() => onFiltre({ ...filtre, campagne: c.id })}
+              >
+                <Illustration
+                  src={c.coverUrl}
+                  graine={c.name}
+                  initiale={false}
+                  className="size-5 shrink-0 rounded-[5px] ring-1 ring-white/10"
+                />
+                <span className="truncate">{c.name}</span>
+              </ElementFiltre>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }
