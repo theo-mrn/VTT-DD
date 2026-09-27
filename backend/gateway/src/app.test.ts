@@ -75,6 +75,49 @@ describe('gateway', () => {
     expect(res.statusCode).toBe(404);
   });
 
+  it('relaie /v1/notes (notes personnelles, toutes mes notes) vers campaign, avec jeton', async () => {
+    const campaign = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ service: 'campaign', method: req.method, path: req.url }));
+    });
+    await new Promise<void>((r) => campaign.listen(0, '127.0.0.1', r));
+    try {
+      const app = await buildGateway(
+        loadConfig(GatewayConfig, {
+          NODE_ENV: 'test',
+          LOG_LEVEL: 'silent',
+          JWT_ISSUER: 'https://identity.test',
+          JWT_AUDIENCE: 'vtt-api',
+          UPSTREAM_CAMPAIGN_URL: `http://127.0.0.1:${(campaign.address() as AddressInfo).port}`,
+          UPSTREAM_CHARACTER_URL: upstreamUrl,
+          UPSTREAM_IDENTITY_URL: upstreamUrl,
+        }),
+        { authKeyResolver: async () => publicKey },
+      );
+      expect((await app.inject({ url: '/v1/notes' })).statusCode).toBe(401);
+      const auth = { authorization: `Bearer ${await token()}` };
+      for (const [method, path] of [
+        ['GET', '/v1/notes?q=%C3%A9p%C3%A9e&limit=20'],
+        ['GET', '/v1/notes/facets'],
+        ['POST', '/v1/notes'],
+        ['PATCH', '/v1/notes/n1'],
+        ['PUT', '/v1/notes/n1/pin'],
+        ['DELETE', '/v1/notes/n1'],
+      ] as const) {
+        const r = await app.inject({
+          method,
+          url: path,
+          headers: auth,
+          ...(method === 'POST' || method === 'PATCH' ? { payload: {} } : {}),
+        });
+        expect(r.json(), `${method} ${path}`).toEqual({ service: 'campaign', method, path });
+      }
+      await app.close();
+    } finally {
+      campaign.close();
+    }
+  });
+
   it("laisse passer l'authentification sans jeton", async () => {
     const app = await gateway();
     const res = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {} });

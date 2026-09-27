@@ -34,6 +34,8 @@ export const ROUTES = {
   '/v1/titles': 'UPSTREAM_IDENTITY_URL',
   '/v1/billing': 'UPSTREAM_BILLING_URL',
   '/v1/campaigns': 'UPSTREAM_CAMPAIGN_URL',
+  // Notes personnelles et toutes mes notes (service campaign, docs/api-notes.md)
+  '/v1/notes': 'UPSTREAM_CAMPAIGN_URL',
   '/v1/systems': 'UPSTREAM_CHARACTER_URL',
   '/v1/characters': 'UPSTREAM_CHARACTER_URL',
   // Jets de dés (remplace /api/roll-dice) : jeton ou clé d'API
