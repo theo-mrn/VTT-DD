@@ -35,6 +35,7 @@ import { texte, type DocFirestore } from '../legacy.js';
 import { loadCampaignTemplates, type CampaignTemplates } from './load.js';
 import {
   classify,
+  importedId,
   transformCategory,
   transformNpcTemplate,
   transformObjectTemplate,
@@ -172,6 +173,20 @@ async function rehost(url: string | null, what: string, warn: (w: string) => voi
 
 // ─── Conversion et écriture, salle par salle ─────────────────────────────────
 
+/** Lignes déjà présentes parmi `ids` (sans base en simulation : aucune). */
+async function existingIds(ids: string[]): Promise<Set<string>> {
+  const found = new Set<string>();
+  if (!base || !ids.length) return found;
+  for (const table of [npcTemplateCategories, npcTemplates, objectTemplates] as const) {
+    const rows = await base.db
+      .select({ id: table.id })
+      .from(table as typeof npcTemplates)
+      .where(inArray(table.id, ids));
+    for (const r of rows) found.add(r.id);
+  }
+  return found;
+}
+
 const report = createWriteStream(values.report, { mode: 0o600 });
 const correlationId = uuidv7();
 const counts = {
@@ -214,6 +229,11 @@ for (const [code, docs] of byRoom) {
   const m: CampaignTemplates = { categories: [], npcTemplates: [], objectTemplates: [] };
   const warningsOf = new Map<string, string[]>();
 
+  // Déjà en base (même UUIDv5) : écrit à un import précédent, images comprises
+  const existing = await existingIds(docs.map((d) => importedId(d.doc.path)));
+  const rehostNew = (id: string, url: string | null, what: string, warn: (w: string) => void) =>
+    existing.has(id) ? Promise.resolve(url) : rehost(url, what, warn);
+
   for (const { kind, doc } of docs) {
     try {
       if (kind === 'npc_category') {
@@ -223,7 +243,7 @@ for (const [code, docs] of byRoom) {
       } else if (kind === 'object_template') {
         const o = transformObjectTemplate(doc);
         const warn = (w: string) => o.warnings.push(w);
-        o.imageUrl = await rehost(o.imageUrl, 'Image', warn);
+        o.imageUrl = await rehostNew(o.id, o.imageUrl, 'Image', warn);
         m.objectTemplates.push(o);
         warningsOf.set(o.id, o.warnings);
       } else {
@@ -236,8 +256,8 @@ for (const [code, docs] of byRoom) {
           categories: categoryPaths,
         });
         const warn = (w: string) => t.warnings.push(w);
-        t.imageUrl = await rehost(t.imageUrl, 'Portrait', warn);
-        t.tokenUrl = await rehost(t.tokenUrl, 'Jeton', warn);
+        t.imageUrl = await rehostNew(t.id, t.imageUrl, 'Portrait', warn);
+        t.tokenUrl = await rehostNew(t.id, t.tokenUrl, 'Jeton', warn);
         m.npcTemplates.push(t);
         warningsOf.set(t.id, t.warnings);
       }
@@ -252,29 +272,6 @@ for (const [code, docs] of byRoom) {
     }
   }
 
-  // Déjà en base (même UUIDv5) : écrit à un import précédent
-  const existing = new Set<string>();
-  if (base) {
-    const ids = (l: { id: string }[]) => (l.length ? l.map((x) => x.id) : [uuidv7()]);
-    const t1 = npcTemplateCategories;
-    const t2 = npcTemplates;
-    const t3 = objectTemplates;
-    for (const f of [
-      ...(await base.db
-        .select({ id: t1.id })
-        .from(t1)
-        .where(inArray(t1.id, ids(m.categories)))),
-      ...(await base.db
-        .select({ id: t2.id })
-        .from(t2)
-        .where(inArray(t2.id, ids(m.npcTemplates)))),
-      ...(await base.db
-        .select({ id: t3.id })
-        .from(t3)
-        .where(inArray(t3.id, ids(m.objectTemplates)))),
-    ])
-      existing.add(f.id);
-  }
   const inserted = new Set<string>();
   if (write) {
     const r = await loadCampaignTemplates(base!.db, campaign.id, m, correlationId);
