@@ -45,6 +45,8 @@ export const profiles = identity.table('profiles', {
   bannerUrl: text('banner_url'),
   borderType: text('border_type').notNull().default('none'),
   showPremiumBadge: boolean('show_premium_badge').notNull().default(true),
+  /** Abonnement premium, posé par le service billing (route interne). */
+  premium: boolean('premium').notNull().default(false),
   timeSpentMinutes: bigint('time_spent_minutes', { mode: 'number' }).notNull().default(0),
   settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
   emailNotifications: boolean('email_notifications').notNull().default(true),

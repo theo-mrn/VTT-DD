@@ -52,7 +52,7 @@ const ProfilPublicReponse = z.object({
   bio: z.string().nullable(),
   bannerUrl: z.string().nullable(),
   borderType: z.string(),
-  premium: z.literal(false),
+  premium: z.boolean(),
   showPremiumBadge: z.boolean(),
   timeSpentMinutes: z.number(),
 });

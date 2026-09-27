@@ -9,6 +9,7 @@ import { createMailer, type Mailer } from './mail/mailer.js';
 import { register as amis } from './modules/amis/index.js';
 import { register as clesApi } from './modules/cles-api/index.js';
 import { register as oauth } from './modules/oauth/index.js';
+import { register as premium } from './modules/premium/index.js';
 import { register as profil } from './modules/profil/index.js';
 import { register as securite } from './modules/securite/index.js';
 import { register as titres } from './modules/titres/index.js';
@@ -88,7 +89,7 @@ export async function buildIdentity(
   });
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [securite, oauth, profil, titres, amis, clesApi]) {
+  for (const module of [securite, oauth, profil, titres, amis, clesApi, premium]) {
     await module(app, deps);
   }
 

@@ -39,7 +39,7 @@ export interface ProfilPublic {
   bio: string | null;
   bannerUrl: string | null;
   borderType: string;
-  premium: false;
+  premium: boolean;
   showPremiumBadge: boolean;
   timeSpentMinutes: number;
 }
@@ -93,6 +93,8 @@ export async function lireProfilPublic(db: Db, userId: string): Promise<ProfilPu
       bio: profiles.bio,
       bannerUrl: profiles.bannerUrl,
       borderType: profiles.borderType,
+      // Posé par le service billing (PUT /internal/users/:userId/premium)
+      premium: profiles.premium,
       showPremiumBadge: profiles.showPremiumBadge,
       timeSpentMinutes: profiles.timeSpentMinutes,
     })
@@ -100,8 +102,7 @@ export async function lireProfilPublic(db: Db, userId: string): Promise<ProfilPu
     .innerJoin(profiles, eq(profiles.userId, users.id))
     .where(and(eq(users.id, userId), isNull(users.disabledAt)))
     .limit(1);
-  // L'abonnement relève du service billing : jamais premium côté identity pour l'instant
-  return ligne ? { ...ligne, premium: false } : null;
+  return ligne ?? null;
 }
 
 /** Recherche par nom (sous-chaîne, insensible à la casse), hors soi et comptes désactivés. */
