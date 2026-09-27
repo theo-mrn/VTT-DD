@@ -8,25 +8,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /**
- * Frontière d'erreur d'un onglet ou d'un panneau de la table : si un service
- * (dés, historique…) fait tomber son écran, le reste de la table continue.
- * `cle` change à la navigation : la frontière repart de zéro.
+ * Frontière d'erreur d'un panneau de la table (ou d'un de ses blocs) : si un
+ * service (dés, historique…) fait tomber son écran, le reste de la table continue.
  */
 export class FrontiereTable extends Component<
-  { children: ReactNode; nom: string; cle?: string; compacte?: boolean },
-  { erreur: boolean; cle?: string }
+  { children: ReactNode; nom: string; compacte?: boolean },
+  { erreur: boolean }
 > {
-  state = { erreur: false, cle: this.props.cle };
+  state = { erreur: false };
 
   static getDerivedStateFromError() {
     return { erreur: true };
-  }
-
-  static getDerivedStateFromProps(
-    props: { cle?: string },
-    state: { erreur: boolean; cle?: string },
-  ) {
-    return props.cle !== state.cle ? { erreur: false, cle: props.cle } : null;
   }
 
   componentDidCatch(erreur: Error, info: ErrorInfo) {
@@ -52,7 +44,7 @@ export class FrontiereTable extends Component<
         <EtatVide
           icone={TriangleAlert}
           titre={`${this.props.nom} indisponible`}
-          description="Une erreur est survenue dans cet onglet. Le reste de la table fonctionne toujours."
+          description="Une erreur est survenue dans ce panneau. Le reste de la table fonctionne toujours."
           action={
             <Button variant="secondary" onClick={reessayer}>
               <RotateCw />
@@ -65,7 +57,7 @@ export class FrontiereTable extends Component<
   }
 }
 
-/** Attente du code d'un onglet (chargé à la demande). */
+/** Attente du code d'un panneau (chargé à la demande). */
 export function ChargementOnglet({ className }: { className?: string }) {
   return (
     <div
@@ -74,7 +66,7 @@ export function ChargementOnglet({ className }: { className?: string }) {
         className,
       )}
       aria-busy
-      aria-label="Chargement de l'onglet"
+      aria-label="Chargement du panneau"
     >
       <div className="space-y-2">
         <Skeleton className="h-3 w-28" />

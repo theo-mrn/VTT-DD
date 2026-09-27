@@ -1,16 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { ChargementOnglet } from '@/components/table/frontiere';
 import { useTable } from '@/components/table/contexte';
+import { MapStage } from '@/components/table/map-stage';
 
-/** Arrivée à la table : ma fiche, ou la vue MJ, ou les joueurs pour un spectateur. */
+/** La table : la carte au centre, les panneaux s'ouvrent par-dessus (cadre de la table). */
 export default function PageTable() {
-  const { herosId, gm, base } = useTable();
-  const router = useRouter();
-  useEffect(() => {
-    router.replace(`${base}/${herosId ? 'fiche' : gm ? 'mj' : 'joueurs'}`);
-  }, [router, base, herosId, gm]);
-  return <ChargementOnglet />;
+  const { campagne } = useTable();
+  return <MapStage backdropUrl={campagne.coverUrl} seed={campagne.name} />;
 }

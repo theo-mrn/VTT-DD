@@ -1,7 +1,6 @@
 'use client';
 
 import { Crown, ExternalLink, Lock, Users } from 'lucide-react';
-import Link from 'next/link';
 import { EtatVide, Page, TitreSection } from '@/components/commun/page';
 import { Illustration } from '@/components/commun/illustration';
 import { useFicheCalculee } from '@/components/fiche/fiche-personnage';
@@ -12,13 +11,15 @@ import { messageErreur } from '@/lib/api';
 import { usePersonnagesCampagne, type Personnage } from '@/lib/personnages';
 import { useTable } from '../contexte';
 import { FrontiereTable } from '../frontiere';
+import { PanelLink } from '../panels/navigation';
+import { TABLE_PARAMS } from '../panels/registry';
 
 /**
  * Vue du MJ : les héros de la table d'un coup d'œil, ressources modifiables
  * (écrites par le service character, qui accepte le MJ de la campagne).
  */
 export function OngletMj() {
-  const { campagne, gm, base } = useTable();
+  const { campagne, gm } = useTable();
   const personnages = usePersonnagesCampagne(gm ? campagne.id : null);
 
   if (!gm)
@@ -65,11 +66,7 @@ export function OngletMj() {
         <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {liste.map((p) => (
             <FrontiereTable key={p.id} nom={p.name}>
-              <CarteHerosMj
-                personnage={p}
-                joueur={incarnePar.get(p.id) ?? null}
-                href={`${base}/joueurs/${p.id}`}
-              />
+              <CarteHerosMj personnage={p} joueur={incarnePar.get(p.id) ?? null} />
             </FrontiereTable>
           ))}
         </div>
@@ -81,11 +78,9 @@ export function OngletMj() {
 function CarteHerosMj({
   personnage: p,
   joueur,
-  href,
 }: {
   personnage: Personnage;
   joueur: string | null;
-  href: string;
 }) {
   const { ctx, perso } = useFicheCalculee(p.id);
   const ressources = ctx ? widgetsDe(ctx).find((w) => w.type === 'ressources') : undefined;
@@ -108,9 +103,13 @@ function CarteHerosMj({
           </p>
         </div>
         <Button variant="ghost" size="icon-sm" asChild>
-          <Link href={href} aria-label={`Ouvrir la fiche de ${p.name}`}>
+          <PanelLink
+            panel="joueurs"
+            params={{ [TABLE_PARAMS.character]: p.id }}
+            aria-label={`Ouvrir la fiche de ${p.name}`}
+          >
             <ExternalLink />
-          </Link>
+          </PanelLink>
         </Button>
       </header>
       {perso.isError ? (

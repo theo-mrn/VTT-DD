@@ -6,10 +6,11 @@ import { EtatVide, Page } from '@/components/commun/page';
 import { FichePersonnage } from '@/components/fiche/fiche-personnage';
 import { Button } from '@/components/ui/button';
 import { useTable } from '../contexte';
+import { PanelLink } from '../panels/navigation';
 
 /** Ma fiche : celle du héros incarné, éditable et tenue à jour en direct. */
 export function OngletFiche() {
-  const { herosId, gm, base, campagne } = useTable();
+  const { herosId, gm, campagne } = useTable();
   if (herosId) return <FichePersonnage id={herosId} />;
   return (
     <Page>
@@ -24,10 +25,10 @@ export function OngletFiche() {
         action={
           <>
             <Button asChild>
-              <Link href={`${base}/${gm ? 'mj' : 'joueurs'}`}>
+              <PanelLink panel={gm ? 'mj' : 'joueurs'}>
                 {gm ? <Crown /> : <Users />}
                 {gm ? 'Vue MJ' : 'Voir les joueurs'}
-              </Link>
+              </PanelLink>
             </Button>
             {gm && (
               <Button variant="secondary" asChild>

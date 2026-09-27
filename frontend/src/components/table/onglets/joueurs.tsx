@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowLeft, Crown, Eye, UserRound, Users } from 'lucide-react';
-import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { EtatVide, Page, TitreSection } from '@/components/commun/page';
 import { Illustration } from '@/components/commun/illustration';
@@ -18,8 +18,16 @@ import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { useTable } from '../contexte';
 import { jaugeDeResume, MiniJauge } from '../jauges';
+import { PanelLink } from '../panels/navigation';
+import { TABLE_PARAMS } from '../panels/registry';
 
 const ORDRE_ROLE: Record<Membre['role'], number> = { gm: 0, player: 1, spectator: 2 };
+
+/** Panneau Joueurs : la table, ou la fiche d'un joueur ouverte depuis elle (`?personnage=`). */
+export function PanneauJoueurs() {
+  const personnage = useSearchParams().get(TABLE_PARAMS.character);
+  return personnage ? <FicheJoueur id={personnage} /> : <OngletJoueurs />;
+}
 
 /**
  * Joueurs : les membres de la table (présence en direct) et leurs personnages
@@ -27,7 +35,7 @@ const ORDRE_ROLE: Record<Membre['role'], number> = { gm: 0, player: 1, spectator
  * service. Un clic ouvre la fiche (en lecture, ou modifiable selon les droits).
  */
 export function OngletJoueurs() {
-  const { campagne, base } = useTable();
+  const { campagne } = useTable();
   const moi = useProfil().id;
   const personnages = usePersonnagesCampagne(campagne.id);
   const presence = useCampaignPresence(campagne.id);
@@ -116,12 +124,7 @@ export function OngletJoueurs() {
               ) : persos.length > 0 ? (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {persos.map((p) => (
-                    <CarteHeros
-                      key={p.id}
-                      personnage={p}
-                      href={`${base}/joueurs/${p.id}`}
-                      incarne={p.id === m.characterId}
-                    />
+                    <CarteHeros key={p.id} personnage={p} incarne={p.id === m.characterId} />
                   ))}
                 </div>
               ) : m.role === 'player' ? (
@@ -135,22 +138,15 @@ export function OngletJoueurs() {
   );
 }
 
-function CarteHeros({
-  personnage: p,
-  href,
-  incarne,
-}: {
-  personnage: Personnage;
-  href: string;
-  incarne: boolean;
-}) {
+function CarteHeros({ personnage: p, incarne }: { personnage: Personnage; incarne: boolean }) {
   const jauges = p.summary.highlights
     .map((h) => ({ label: h.label, jauge: jaugeDeResume(h.value) }))
     .filter((h) => h.jauge !== null);
   const badges = p.summary.highlights.filter((h) => !jaugeDeResume(h.value));
   return (
-    <Link
-      href={href}
+    <PanelLink
+      panel="joueurs"
+      params={{ [TABLE_PARAMS.character]: p.id }}
       className="group flex gap-3 rounded-xl border border-border bg-surface-2/50 p-3 transition-colors hover:border-border-strong hover:bg-surface-2"
     >
       <Illustration
@@ -195,23 +191,23 @@ function CarteHeros({
           </div>
         )}
       </div>
-    </Link>
+    </PanelLink>
   );
 }
 
 /** Fiche d'un personnage de la table, ouverte depuis « Joueurs ». */
 export function FicheJoueur({ id }: { id: string }) {
-  const { base, campagne } = useTable();
+  const { campagne } = useTable();
   const personnages = usePersonnagesCampagne(campagne.id);
   const aLaTable = personnages.data?.some((p) => p.id === id);
 
   const retour = (
     <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
       <Button variant="ghost" size="sm" asChild>
-        <Link href={`${base}/joueurs`}>
+        <PanelLink panel="joueurs" params={{ [TABLE_PARAMS.character]: null }}>
           <ArrowLeft />
           Joueurs
-        </Link>
+        </PanelLink>
       </Button>
     </div>
   );
