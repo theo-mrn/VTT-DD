@@ -8,8 +8,12 @@
  */
 import {
   achatsPossibles,
+  apercuFormule,
   champsGroupe,
   chemins,
+  compilerFormuleChamp,
+  formuleChamp,
+  variablesObjet,
   descriptionPossession,
   essayer,
   estEffective,
@@ -25,6 +29,7 @@ import {
   type Entree,
   type EtatEntite,
   type Fiche,
+  type InventoryFolder,
   type Noeud,
   type ObjetAchetable,
   type Possession,
@@ -45,8 +50,15 @@ export interface InventoryRequest {
   exemplaire?: string;
   nouveau?: boolean;
   quantite?: number;
+  rang?: number;
   actif?: boolean;
+  choix?: Record<string, string[]>;
   champs?: Record<string, ValeurChamp>;
+  effets?: Effet[];
+  /** Caché aux autres joueurs. */
+  hidden?: boolean;
+  /** Dossier d'inventaire ; null : à la racine. */
+  folder?: string | null;
 }
 
 // ─── Bonus des effets ────────────────────────────────────────────────────────
@@ -119,7 +131,7 @@ function nomDe(systeme: SystemeCharge, id: string): string {
 }
 
 /** Libellé d'un effet d'entrée ou d'exemplaire, valeurs évaluées quand c'est possible. */
-function libelleEffet(
+export function libelleEffet(
   fiche: Fiche,
   e: Effet,
   valeur: (champ: string) => Valeur | undefined,
@@ -412,6 +424,10 @@ export interface InventoryItem {
   bonus: BonusLabel[];
   /** Poids ou encombrement unitaire, si le système en déclare un pour la sorte. */
   poids?: { champ: Champ; unitaire: number };
+  /** Caché aux autres joueurs (seuls le propriétaire et le MJ le voient). */
+  hidden: boolean;
+  /** Dossier d'inventaire de l'exemplaire (connu de l'état). */
+  folder?: InventoryFolder;
 }
 
 const AUTRES = '\u0000autres';
@@ -484,6 +500,8 @@ export interface Inventory {
 export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false): Inventory {
   const charge = chargeInventaire(fiche, widget.sortes, mj);
   const items: InventoryItem[] = [];
+  const dossier = (id: string | undefined) =>
+    id === undefined ? undefined : fiche.etat.folders.find((f) => f.id === id);
   for (const p of fiche.possessions.values()) {
     if (!widget.sortes.includes(p.sorte.id) || !estEffective(p)) continue;
     const champPoids = charge.champs.get(p.sorte.id);
@@ -507,6 +525,7 @@ export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false
         categorie: categorieDe(fiche, widget, p.entree, p.sorte),
         bonus: bonusDe(fiche, p.entree, p.sorte, p, undefined),
         ...(pd ? { poids: pd } : {}),
+        hidden: false,
       });
       continue;
     }
@@ -529,6 +548,8 @@ export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false
         categorie: categorieDe(fiche, widget, p.entree, p.sorte, ex),
         bonus: bonusDe(fiche, p.entree, p.sorte, p, ex),
         ...(pd ? { poids: pd } : {}),
+        hidden: ex.hidden === true,
+        ...(dossier(ex.folder) ? { folder: dossier(ex.folder)! } : {}),
       });
     });
   }
@@ -935,4 +956,330 @@ export function sortesInventaireParDefaut(systeme: SystemeCharge, type: string):
         achetables.has(s.id),
     )
     .map((s) => s.id);
+}
+
+// ─── Formules des objets (dés d'une arme…) ───────────────────────────────────
+
+export interface FormuleAffichee {
+  champ: Champ;
+  /** Formule en vigueur : celle de l'exemplaire, sinon celle de l'entrée. */
+  texte: string;
+  /** L'exemplaire a sa propre formule. */
+  propre: boolean;
+  /** Formule de jet : peut lancer des dés (tirés par l'action qui la lit). */
+  des: boolean;
+  /** Aperçu pour ce personnage : attributs et champs calculés, dés écrits (« 1d6 − 2 + 8 »). */
+  apercu: string;
+}
+
+type ChampFormule = Extract<Champ, { type: 'formule' }>;
+
+function variablesItem(item: InventoryItem) {
+  return variablesObjet(
+    item.entree,
+    item.sorte,
+    { rang: item.effective.rang, actif: item.actif, quantite: item.quantite },
+    item.possession,
+  );
+}
+
+/** Formules d'un objet (champs `formule` de sa sorte), avec leur aperçu. */
+export function formulesDe(fiche: Fiche, item: InventoryItem): FormuleAffichee[] {
+  const r: FormuleAffichee[] = [];
+  for (const champ of item.sorte.champs) {
+    if (champ.type !== 'formule') continue;
+    const f = formuleChamp(fiche.systeme, item.entree, champ, item.possession);
+    if (!f) continue;
+    const propre = item.possession?.champs[champ.id];
+    r.push({
+      champ,
+      texte: f.texte,
+      propre: typeof propre === 'string' ? propre.trim() !== '' : propre !== undefined,
+      des: champ.des === true,
+      apercu: apercuFormule(fiche, f, variablesItem(item)),
+    });
+  }
+  return r;
+}
+
+export type FormuleVerifiee =
+  { ok: true; texte: string; apercu: string } | { ok: false; erreurs: string[] };
+
+/** Vérifie une formule saisie pour un champ de l'objet (comme le fera le service). */
+export function verifierFormule(
+  fiche: Fiche,
+  item: InventoryItem,
+  champ: ChampFormule,
+  texte: string,
+): FormuleVerifiee {
+  const r = compilerFormuleChamp(fiche.systeme, item.sorte, champ, texte);
+  if (!r.ok) return r;
+  return { ok: true, texte: r.texte, apercu: apercuFormule(fiche, r.formule, variablesItem(item)) };
+}
+
+/**
+ * Méta courte d'un objet pour sa ligne : dés de ses formules de jet (« 1d8 »), sinon
+ * valeur d'une formule non nulle ; les calculs viennent du système, aucun champ nommé.
+ */
+export function metaFormule(fiche: Fiche, item: InventoryItem): string | null {
+  const fs = formulesDe(fiche, item);
+  const jet = fs.find((f) => f.des);
+  if (jet) return jet.apercu;
+  const autre = fs.find((f) => f.apercu !== '0' && f.apercu !== '');
+  return autre ? `${autre.champ.nom} ${autre.apercu}` : null;
+}
+
+// ─── Bonus propres d'un exemplaire ───────────────────────────────────────────
+
+/** Condition d'un effet propre désactivé (l'effet reste, sans s'appliquer). */
+export const EFFET_DESACTIVE = 'faux';
+
+export interface BonusPropre {
+  index: number;
+  effet: Effet;
+  texte: string;
+  actif: boolean;
+}
+
+/** Effets propres de l'exemplaire (bonus saisis sur l'objet), avec leur état. */
+export function bonusPropres(fiche: Fiche, item: InventoryItem): BonusPropre[] {
+  return (item.possession?.effets ?? []).map((effet, index) => {
+    const brut = effet.sur === 'attribut' ? Number(effet.valeur) : Number.NaN;
+    const texte =
+      libelleEffet(fiche, effet, (champ) =>
+        champ === 'valeur' && Number.isFinite(brut) ? brut : undefined,
+      ) ?? 'Effet';
+    return { index, effet, texte, actif: effet.condition !== EFFET_DESACTIVE };
+  });
+}
+
+/** Attributs qu'un bonus d'objet peut modifier : numériques et visibles de l'utilisateur. */
+export function attributsBonus(
+  fiche: Fiche,
+  mj = false,
+): { cle: string; nom: string; groupe?: string }[] {
+  return [...fiche.entite.attributs.values()]
+    .filter(
+      (a) =>
+        (mj || a.visibilite !== 'mj') &&
+        (a.nature === 'base' ||
+          a.nature === 'ressource' ||
+          (a.nature === 'derivee' && a.type === 'nombre')),
+    )
+    .map((a) => ({
+      cle: a.cle,
+      nom: a.abrege && a.abrege !== a.nom ? `${a.nom} (${a.abrege})` : a.nom,
+      ...(a.groupe
+        ? { groupe: fiche.entite.type.groupes.find((g) => g.id === a.groupe)?.nom ?? a.groupe }
+        : {}),
+    }));
+}
+
+/** Bonus d'objet sur un attribut : « +2 en DEF ». */
+export function effetBonus(attribut: string, valeur: string, description?: string): Effet {
+  return {
+    sur: 'attribut',
+    attribut,
+    operation: 'ajouter',
+    valeur,
+    ...(description?.trim() ? { description: description.trim() } : {}),
+  } as Effet;
+}
+
+export function basculerBonus(item: InventoryItem, index: number): Effet[] {
+  return (item.possession?.effets ?? []).map((e, i) => {
+    if (i !== index) return e;
+    if (e.condition === EFFET_DESACTIVE) {
+      const { condition: _, ...reste } = e;
+      return reste as Effet;
+    }
+    return { ...e, condition: EFFET_DESACTIVE };
+  });
+}
+
+export function sansBonus(item: InventoryItem, index: number): Effet[] {
+  return (item.possession?.effets ?? []).filter((_, i) => i !== index);
+}
+
+// ─── Autres écritures de l'inventaire ────────────────────────────────────────
+
+/** Effets propres de l'exemplaire (remplacent les précédents). */
+export function poserEffets(etat: EtatEntite, item: InventoryItem, effets: Effet[]): Ecriture {
+  return { demande: { ...viser(item), effets }, apercu: modifier(etat, item, { effets }) };
+}
+
+/** Range l'exemplaire dans un dossier (null : à la racine). */
+export function ranger(etat: EtatEntite, item: InventoryItem, folder: string | null): Ecriture {
+  const apercu = avecPossessions(
+    etat,
+    etat.possessions.map((p) => {
+      if (!estExemplaire(p, item.entree.id, item.possession?.exemplaire)) return p;
+      const { folder: _, ...reste } = p;
+      return folder === null ? reste : { ...reste, folder };
+    }),
+  );
+  return { demande: { ...viser(item), folder }, apercu };
+}
+
+/** Cache l'exemplaire aux autres joueurs, ou le rend visible. */
+export function cacher(etat: EtatEntite, item: InventoryItem, hidden: boolean): Ecriture {
+  const apercu = avecPossessions(
+    etat,
+    etat.possessions.map((p) => {
+      if (!estExemplaire(p, item.entree.id, item.possession?.exemplaire)) return p;
+      const { hidden: _, ...reste } = p;
+      return hidden ? { ...reste, hidden: true } : reste;
+    }),
+  );
+  return { demande: { ...viser(item), hidden }, apercu };
+}
+
+/** Champ qui nomme l'exemplaire (renommage), si la sorte en déclare un. */
+export function renommable(item: InventoryItem): boolean {
+  return Boolean(item.possession && item.sorte.nomExemplaire);
+}
+
+export function renommer(etat: EtatEntite, item: InventoryItem, nom: string): Ecriture {
+  // Le nom de l'entrée : retour au nom du catalogue
+  const valeur = nom.trim() === item.entree.nom ? '' : nom.trim();
+  return changerChamps(etat, item, { [item.sorte.nomExemplaire!]: valeur });
+}
+
+/** Une unité de moins (consommée), ou l'exemplaire retiré s'il n'en reste qu'une. */
+export function consommer(
+  etat: EtatEntite,
+  item: InventoryItem,
+): { type: 'quantite'; ecriture: Ecriture } | { type: 'retrait'; retrait: Retrait } {
+  return item.quantite > 1
+    ? { type: 'quantite', ecriture: changerQuantite(etat, item, item.quantite - 1) }
+    : { type: 'retrait', retrait: retirer(etat, item) };
+}
+
+/** Aperçu du donneur après un don de `quantite` unités (tout l'exemplaire au-delà). */
+export function apresDon(etat: EtatEntite, item: InventoryItem, quantite: number): EtatEntite {
+  if (quantite < item.quantite) return changerQuantite(etat, item, item.quantite - quantite).apercu;
+  return retirer(etat, item).apercu;
+}
+
+/** Remet un exemplaire retiré tel qu'il était (annulation d'une suppression). */
+export function restaurer(etat: EtatEntite, p: Possession): Ecriture {
+  return {
+    demande: {
+      entree: p.entree,
+      nouveau: true,
+      ...(p.exemplaire !== undefined ? { exemplaire: p.exemplaire } : {}),
+      ...(p.quantite !== undefined ? { quantite: p.quantite } : {}),
+      ...(p.rang ? { rang: p.rang } : {}),
+      actif: p.actif,
+      choix: p.choix,
+      champs: p.champs,
+      effets: p.effets,
+      ...(p.hidden ? { hidden: true } : {}),
+      ...(p.folder !== undefined && etat.folders.some((f) => f.id === p.folder)
+        ? { folder: p.folder }
+        : {}),
+    },
+    apercu: avecPossessions(etat, [...etat.possessions, p]),
+  };
+}
+
+/** Dossiers : nouvel ordre, noms, ajouts (sans identifiant) et suppressions. */
+export function apercuDossiers(
+  etat: EtatEntite,
+  folders: { id?: string; name: string }[],
+): EtatEntite {
+  const ids = new Set(folders.flatMap((f) => (f.id ? [f.id] : [])));
+  return {
+    ...etat,
+    folders: folders.map((f, i) => ({ id: f.id ?? `nouveau-${i}`, name: f.name })),
+    possessions: etat.possessions.map((p) => {
+      if (p.folder === undefined || ids.has(p.folder)) return p;
+      const { folder: _, ...reste } = p;
+      return reste;
+    }),
+  };
+}
+
+// ─── Regroupement et tri de la liste ─────────────────────────────────────────
+
+export type Regroupement = 'categorie' | 'dossier' | 'aucun';
+export type Tri = 'nom' | 'quantite' | 'poids' | 'equipe';
+
+export const TRIS: { cle: Tri; nom: string }[] = [
+  { cle: 'nom', nom: 'Nom' },
+  { cle: 'quantite', nom: 'Quantité' },
+  { cle: 'poids', nom: 'Poids' },
+  { cle: 'equipe', nom: 'Équipés d’abord' },
+];
+
+export interface Groupe {
+  cle: string;
+  nom: string;
+  items: InventoryItem[];
+  /** Groupe d'un dossier (renommer, supprimer, déplacer). */
+  dossier?: InventoryFolder;
+}
+
+export function trier(items: InventoryItem[], tri: Tri): InventoryItem[] {
+  const parNom = (a: InventoryItem, b: InventoryItem) => a.nom.localeCompare(b.nom, 'fr');
+  const poids = (i: InventoryItem) => (i.poids ? i.poids.unitaire * i.quantite : 0);
+  const cmp: Record<Tri, (a: InventoryItem, b: InventoryItem) => number> = {
+    nom: parNom,
+    quantite: (a, b) => b.quantite - a.quantite || parNom(a, b),
+    poids: (a, b) => poids(b) - poids(a) || parNom(a, b),
+    equipe: (a, b) =>
+      Number(b.sorte.activable && b.actif) - Number(a.sorte.activable && a.actif) || parNom(a, b),
+  };
+  return [...items].sort(cmp[tri]);
+}
+
+/**
+ * Groupes de la liste : par catégorie (sortes ou `groupeChamp` du widget), par dossier
+ * (dossiers de l'état dans leur ordre, même vides, puis « Sans dossier »), ou aucun.
+ */
+export function grouper(
+  inv: Inventory,
+  items: InventoryItem[],
+  mode: Regroupement,
+  folders: InventoryFolder[],
+  tri: Tri,
+): Groupe[] {
+  if (mode === 'aucun') return [{ cle: 'tout', nom: 'Tout', items: trier(items, tri) }];
+  if (mode === 'dossier') {
+    const groupes: Groupe[] = folders.map((f) => ({
+      cle: `dossier:${f.id}`,
+      nom: f.name,
+      dossier: f,
+      items: trier(
+        items.filter((i) => i.folder?.id === f.id),
+        tri,
+      ),
+    }));
+    const racine = items.filter((i) => !i.folder);
+    if (racine.length || !folders.length)
+      groupes.push({ cle: 'dossier:', nom: 'Sans dossier', items: trier(racine, tri) });
+    return groupes;
+  }
+  return inv.categories
+    .map((c) => ({
+      cle: c.cle,
+      nom: c.nom,
+      items: trier(
+        items.filter((i) => i.categorie.cle === c.cle),
+        tri,
+      ),
+    }))
+    .filter((g) => g.items.length > 0);
+}
+
+/**
+ * Nouvel exemplaire créé dans un dossier (ajout depuis un dossier ouvert) ; une écriture
+ * qui ne crée rien (unité de plus sur un exemplaire existant) reste telle quelle.
+ */
+export function dansDossier(w: Ecriture, folder: string | null): Ecriture {
+  if (!folder || !w.demande.nouveau) return w;
+  const possessions = [...w.apercu.possessions];
+  const derniere = possessions[possessions.length - 1];
+  if (derniere) possessions[possessions.length - 1] = { ...derniere, folder };
+  return { demande: { ...w.demande, folder }, apercu: { ...w.apercu, possessions } };
 }

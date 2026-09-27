@@ -305,7 +305,7 @@ function Ligne({
   return (
     <li className="py-2">
       <div className="flex items-center gap-3">
-        <Thumbnail nom={c.entree.nom} image={image} />
+        <Thumbnail image={image} sorte={c.sorte} />
         <button
           type="button"
           onClick={onBasculer}
