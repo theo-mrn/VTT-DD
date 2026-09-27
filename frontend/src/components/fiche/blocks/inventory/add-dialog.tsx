@@ -3,7 +3,8 @@
 /**
  * Ajout depuis le catalogue du système : entrées des sortes du widget, recherche,
  * filtre par catégorie. Ajout libre (une unité ou un exemplaire de plus) et, si un achat
- * du système donne l'entrée, achat au coût de l'achat dans sa monnaie.
+ * du système donne l'entrée, achat au coût de l'achat dans sa monnaie. Et, si le système
+ * déclare une entrée `libre` pour ces sortes, ajout d'un objet personnalisé.
  */
 import type { Fiche, Presentation } from '@vtt/rules';
 import { AlertTriangle, ChevronDown, Coins, Plus, Search, ShoppingCart } from 'lucide-react';
@@ -18,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { InputGroup } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
@@ -25,10 +27,14 @@ import {
   buildCatalogue,
   champsAffiches,
   correspond,
+  modelesLibres,
   monnaiesInventaire,
   type CatalogueEntry,
   type InventoryWidget,
+  type ModeleLibre,
+  type SaisieLibre,
 } from './model';
+import { FreeItemForm } from './free-item-form';
 import { BonusBadges, Thumbnail } from './parts';
 
 const LIMITE = 120;
@@ -41,6 +47,7 @@ export function AddDialog({
   presentation,
   onAjouter,
   onAcheter,
+  onLibre,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
@@ -49,21 +56,74 @@ export function AddDialog({
   presentation: Presentation | null;
   onAjouter(entree: CatalogueEntry): void;
   onAcheter(entree: CatalogueEntry): void;
+  onLibre(modele: ModeleLibre, saisie: SaisieLibre): void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(44rem,calc(100dvh-2rem))] flex-col gap-4 overflow-hidden sm:max-w-2xl">
         {open && (
-          <Catalogue
+          <Contenu
             fiche={fiche}
             widget={widget}
             presentation={presentation}
             onAjouter={onAjouter}
             onAcheter={onAcheter}
+            onLibre={onLibre}
           />
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Catalogue, et onglet « Objet personnalisé » si le système en déclare pour ces sortes. */
+function Contenu({
+  fiche,
+  widget,
+  presentation,
+  onAjouter,
+  onAcheter,
+  onLibre,
+}: {
+  fiche: Fiche;
+  widget: InventoryWidget;
+  presentation: Presentation | null;
+  onAjouter(entree: CatalogueEntry): void;
+  onAcheter(entree: CatalogueEntry): void;
+  onLibre(modele: ModeleLibre, saisie: SaisieLibre): void;
+}) {
+  const modeles = useMemo(() => modelesLibres(fiche, widget), [fiche, widget]);
+  const catalogue = (
+    <Catalogue
+      fiche={fiche}
+      widget={widget}
+      presentation={presentation}
+      onAjouter={onAjouter}
+      onAcheter={onAcheter}
+    />
+  );
+  if (!modeles.length) return catalogue;
+  return (
+    <Tabs defaultValue="catalogue" className="flex min-h-0 flex-1 flex-col gap-4">
+      <TabsList className="h-8 self-start">
+        <TabsTrigger value="catalogue" className="text-xs">
+          Catalogue
+        </TabsTrigger>
+        <TabsTrigger value="libre" className="text-xs">
+          Objet personnalisé
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="catalogue" className="mt-0 flex min-h-0 flex-1 flex-col gap-4">
+        {catalogue}
+      </TabsContent>
+      <TabsContent value="libre" className="mt-0 min-h-0 flex-1 overflow-y-auto">
+        <DialogHeader className="mb-4">
+          <DialogTitle>Objet personnalisé</DialogTitle>
+          <DialogDescription>Ajouté à « {widget.titre} »</DialogDescription>
+        </DialogHeader>
+        <FreeItemForm modeles={modeles} onAjouter={onLibre} />
+      </TabsContent>
+    </Tabs>
   );
 }
 

@@ -60,6 +60,7 @@ import { cn } from '@/lib/utils';
 import { styleThemeSysteme } from './theme';
 import {
   ChipsDetails,
+  estRessource,
   visiblePour,
   widgetsDe,
   type ContexteFiche,
@@ -335,7 +336,7 @@ function JaugesEnTete({ ctx }: { ctx: ContexteFiche }) {
           .filter((a) => a.nature === 'ressource')
           .map((a) => a.cle)
   )
-    .filter((c) => visiblePour(ctx, c) && ctx.fiche.valeurs.has(c))
+    .filter((c) => visiblePour(ctx, c) && estRessource(ctx, c) && ctx.fiche.valeurs.has(c))
     .slice(0, 3);
   if (cles.length === 0) return null;
   return (

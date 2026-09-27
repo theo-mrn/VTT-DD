@@ -60,7 +60,7 @@ export function ItemCard({ item, image, avecCategorie, actions, editable }: Item
       )}
     >
       <div className="flex min-w-0 items-start gap-2.5">
-        <Thumbnail nom={item.entree.nom} image={image} className={cn(range && 'opacity-60')} />
+        <Thumbnail nom={item.nom} image={image} className={cn(range && 'opacity-60')} />
         <div className="min-w-0 flex-1">
           <button
             type="button"
@@ -71,7 +71,7 @@ export function ItemCard({ item, image, avecCategorie, actions, editable }: Item
               range && 'text-muted-foreground',
             )}
           >
-            {item.entree.nom}
+            {item.nom}
           </button>
           {detail && <p className="truncate text-[11px] text-subtle">{detail}</p>}
         </div>
@@ -81,12 +81,12 @@ export function ItemCard({ item, image, avecCategorie, actions, editable }: Item
       {(item.sorte.activable || item.sorte.quantites) && (
         <div className="mt-auto flex items-center justify-between gap-2">
           {item.sorte.activable ? (
-            <ActiveToggle nom={item.entree.nom} actif={item.actif} onChange={r.actif} />
+            <ActiveToggle nom={item.nom} actif={item.actif} onChange={r.actif} />
           ) : (
             <span />
           )}
           {item.sorte.quantites && (
-            <QuantityStepper nom={item.entree.nom} quantite={item.quantite} onChange={r.quantite} />
+            <QuantityStepper nom={item.nom} quantite={item.quantite} onChange={r.quantite} />
           )}
         </div>
       )}
@@ -101,7 +101,7 @@ export function ItemRow({ item, image, avecCategorie, actions, editable }: ItemV
   return (
     <li className="flex min-w-0 items-center gap-2 py-1.5">
       <Thumbnail
-        nom={item.entree.nom}
+        nom={item.nom}
         image={image}
         className={cn('size-7 rounded-md text-xs', range && 'opacity-60')}
       />
@@ -115,7 +115,7 @@ export function ItemRow({ item, image, avecCategorie, actions, editable }: ItemV
             range && 'text-muted-foreground',
           )}
         >
-          {item.entree.nom}
+          {item.nom}
           {item.bonus.length > 0 && (
             <span className="ml-1.5 text-[11px] font-normal text-primary">
               {item.bonus[0]!.texte}
@@ -126,15 +126,10 @@ export function ItemRow({ item, image, avecCategorie, actions, editable }: ItemV
         {detail && <p className="truncate text-[11px] text-subtle">{detail}</p>}
       </div>
       {item.sorte.quantites && (
-        <QuantityStepper
-          nom={item.entree.nom}
-          quantite={item.quantite}
-          onChange={r.quantite}
-          compact
-        />
+        <QuantityStepper nom={item.nom} quantite={item.quantite} onChange={r.quantite} compact />
       )}
       {item.sorte.activable && (
-        <ActiveToggle nom={item.entree.nom} actif={item.actif} onChange={r.actif} icone />
+        <ActiveToggle nom={item.nom} actif={item.actif} onChange={r.actif} icone />
       )}
       {editable && <ItemMenu item={item} actions={actions} />}
     </li>

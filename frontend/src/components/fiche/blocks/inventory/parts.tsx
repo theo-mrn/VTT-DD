@@ -206,7 +206,7 @@ export interface ItemActions {
 
 /** Menu « … » d'un objet : détail, équiper, nouvel exemplaire, retrait. */
 export function ItemMenu({ item, actions }: { item: InventoryItem; actions: ItemActions }) {
-  const { entree, sorte, possession } = item;
+  const { sorte, possession } = item;
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -214,7 +214,7 @@ export function ItemMenu({ item, actions }: { item: InventoryItem; actions: Item
           variant="ghost"
           size="icon-xs"
           className="size-6 text-subtle"
-          aria-label={`Actions sur ${entree.nom}`}
+          aria-label={`Actions sur ${item.nom}`}
         >
           <MoreHorizontal />
         </Button>

@@ -84,7 +84,8 @@ export function JaugeRessource({
 }) {
   const a = fiche.entite.attributs.get(cle);
   const v = fiche.valeurs.get(cle);
-  if (!a || !v || typeof v.valeur !== 'number') return null;
+  // Une jauge pour une ressource seulement (un bloc « ressources » en valeur peut lister la Défense)
+  if (!a || !v || a.nature !== 'ressource' || typeof v.valeur !== 'number') return null;
   const max = v.max ?? v.valeur;
   const sens =
     presentation?.ressources[cle]?.sens ??

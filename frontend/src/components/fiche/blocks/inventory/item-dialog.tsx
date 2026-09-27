@@ -17,8 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Input, styleChampBase } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 import { champsAffiches, type InventoryItem, type ValeurChamp } from './model';
 import { ActiveToggle, BonusBadges, QuantityStepper, Thumbnail, type ItemActions } from './parts';
 
@@ -83,7 +84,8 @@ function Contenu({
   const [confirmer, setConfirmer] = useState(false);
   const personnalisable =
     editable && Boolean(possession) && Boolean(onChamps) && champs.some((c) => c.modifiable);
-  const lisibles = champs.filter((c) => edition || c.valeur !== '—');
+  // Nom et description propres : en titre et en description, listés seulement pour les modifier
+  const lisibles = champs.filter((c) => edition || (c.valeur !== '—' && !c.identite));
 
   function enregistrer() {
     const changes = Object.fromEntries(
@@ -108,10 +110,10 @@ function Contenu({
   return (
     <>
       <DialogHeader className="flex-row items-center gap-3 space-y-0 pr-8 text-left">
-        <Thumbnail nom={entree.nom} image={image} className="size-12 rounded-xl text-lg" />
+        <Thumbnail nom={item.nom} image={image} className="size-12 rounded-xl text-lg" />
         <div className="min-w-0">
           <DialogTitle className="truncate font-display text-xl">
-            {entree.nom}
+            {item.nom}
             {item.exemplaireLabel && (
               <span className="ml-2 text-sm font-normal text-subtle">
                 exemplaire {item.exemplaireLabel}
@@ -120,7 +122,8 @@ function Contenu({
           </DialogTitle>
           <DialogDescription className="truncate">
             {[
-              sorte.nom,
+              // Objet renommé ou personnalisé : l'entrée dont il est un exemplaire
+              item.nom !== entree.nom ? entree.nom : sorte.nom,
               item.categorie.nom !== (sorte.nomPluriel ?? sorte.nom) ? item.categorie.nom : null,
             ]
               .filter(Boolean)
@@ -133,16 +136,12 @@ function Contenu({
       {(sorte.activable || sorte.quantites || item.poids) && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-2/50 px-3 py-2.5">
           {sorte.activable && (
-            <ActiveToggle nom={entree.nom} actif={item.actif} onChange={reglerActif} />
+            <ActiveToggle nom={item.nom} actif={item.actif} onChange={reglerActif} />
           )}
           {sorte.quantites && (
             <span className="flex items-center gap-2 text-xs text-muted-foreground">
               Quantité
-              <QuantityStepper
-                nom={entree.nom}
-                quantite={item.quantite}
-                onChange={reglerQuantite}
-              />
+              <QuantityStepper nom={item.nom} quantite={item.quantite} onChange={reglerQuantite} />
             </span>
           )}
           {item.poids && (
@@ -156,9 +155,9 @@ function Contenu({
         </div>
       )}
 
-      {entree.description && (
+      {item.description && (
         <p className="max-h-48 overflow-y-auto whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">
-          {entree.description}
+          {item.description}
         </p>
       )}
 
@@ -203,7 +202,22 @@ function Contenu({
                   </dt>
                   <dd className="flex shrink-0 items-center gap-1.5 font-medium">
                     {edition && c.modifiable ? (
-                      c.champ.type === 'booleen' ? (
+                      c.champ.type === 'choix' ? (
+                        <select
+                          id={id}
+                          value={valeur === undefined ? '' : String(valeur)}
+                          onChange={(e) =>
+                            setBrouillon((b) => ({ ...b, [c.champ.id]: e.target.value }))
+                          }
+                          className={cn(styleChampBase, 'h-7 w-36 px-2 text-xs')}
+                        >
+                          {c.champ.options.map((o) => (
+                            <option key={o.valeur} value={o.valeur}>
+                              {o.nom}
+                            </option>
+                          ))}
+                        </select>
+                      ) : c.champ.type === 'booleen' ? (
                         <Switch
                           id={id}
                           checked={valeur === true}
@@ -213,7 +227,10 @@ function Contenu({
                         <Input
                           id={id}
                           type={c.champ.type === 'nombre' ? 'number' : 'text'}
-                          className="h-7 w-28 px-2 text-right text-xs"
+                          className={cn(
+                            'h-7 px-2 text-xs',
+                            c.identite ? 'w-44' : 'w-28 text-right',
+                          )}
                           value={valeur === undefined ? '' : String(valeur)}
                           onChange={(e) => {
                             const v =

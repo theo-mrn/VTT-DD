@@ -6,7 +6,12 @@ import { cn } from '@/lib/utils';
 /** Ressources principales d'une fiche (celles du bloc « ressources » de la présentation). */
 export function ressourcesPrincipales(ctx: ContexteFiche, nombre = 3): string[] {
   const w = widgetsDe(ctx).find((x) => x.type === 'ressources');
-  return w?.type === 'ressources' ? w.attributs.slice(0, nombre) : [];
+  // Des ressources seulement : un bloc en valeur peut aussi lister la Défense
+  return w?.type === 'ressources'
+    ? w.attributs
+        .filter((c) => ctx.fiche.entite.attributs.get(c)?.nature === 'ressource')
+        .slice(0, nombre)
+    : [];
 }
 
 /** Petite jauge (en-tête, cartes) : libellé court, barre, valeur sur maximum. */

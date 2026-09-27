@@ -7,7 +7,12 @@
 import { soldes, type Widget } from '@vtt/rules';
 import { blockDefinition } from '@/components/fiche/blocks/registry';
 import type { WidgetType } from '@/components/fiche/blocks/types';
-import { actionsDisponibles, visiblePour, type ContexteFiche } from '@/components/fiche/widgets';
+import {
+  actionsDisponibles,
+  estRessource,
+  visiblePour,
+  type ContexteFiche,
+} from '@/components/fiche/widgets';
 import {
   clampDefaultHeight,
   heightUnits,
@@ -52,8 +57,15 @@ const CONTENU: Partial<Record<WidgetType, Estimation>> = {
     const lignes = Math.max(1, Math.ceil(n / parLigne));
     return lignes * 82 + (lignes - 1) * 8;
   },
-  ressources: (ctx, w: Extract<Widget, { type: 'ressources' }>) => {
-    const n = Math.max(1, w.attributs.filter((c) => visiblePour(ctx, c)).length);
+  ressources: (ctx, w: Extract<Widget, { type: 'ressources' }>, largeur) => {
+    const cles = w.attributs.filter((c) => visiblePour(ctx, c));
+    if (w.affichage === 'valeur') {
+      // Tuiles de 8 rem au moins, trois par ligne au plus
+      const parLigne = Math.max(1, Math.min(3, cles.length, Math.floor((largeur - 40) / 136)));
+      const lignes = Math.max(1, Math.ceil(cles.length / parLigne));
+      return lignes * 66 + (lignes - 1) * 8;
+    }
+    const n = Math.max(1, cles.filter((c) => estRessource(ctx, c)).length);
     return n * 38 + (n - 1) * 16;
   },
   possessions: (ctx, w: Extract<Widget, { type: 'possessions' }>) => {

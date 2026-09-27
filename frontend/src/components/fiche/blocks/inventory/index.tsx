@@ -26,6 +26,7 @@ import { ItemDialog } from './item-dialog';
 import { ItemCard, ItemRow } from './item-views';
 import {
   ajouter,
+  ajouterLibre,
   basculerActif,
   buildInventory,
   changerChamps,
@@ -38,6 +39,8 @@ import {
   type Ecriture,
   type Inventory,
   type InventoryItem,
+  type ModeleLibre,
+  type SaisieLibre,
 } from './model';
 import type { ItemActions } from './parts';
 import { useWidth } from './use-width';
@@ -78,8 +81,15 @@ function InventoryBlock({ ctx, widget, mode }: SheetBlockProps<'inventaire'>) {
           actif: (item: InventoryItem, actif: boolean) =>
             ecrire(basculerActif(fiche.etat, item, actif)),
           exemplaire: (item: InventoryItem) => {
-            ecrire(nouvelExemplaireDe(fiche.etat, item.entree.id));
-            toast.success(`Nouvel exemplaire : ${item.entree.nom}`);
+            // Un objet personnalisé garde son nom et sa catégorie
+            ecrire(
+              nouvelExemplaireDe(
+                fiche.etat,
+                item.entree.id,
+                item.entree.libre ? item.possession?.champs : undefined,
+              ),
+            );
+            toast.success(`Nouvel exemplaire : ${item.nom}`);
           },
           retirer: (item: InventoryItem) => {
             const r = retirer(fiche.etat, item);
@@ -94,6 +104,13 @@ function InventoryBlock({ ctx, widget, mode }: SheetBlockProps<'inventaire'>) {
     if (!ops || c.bloque) return;
     ecrire(ajouter(systeme, fiche.etat, c.entree.id));
     toast.success(`${c.entree.nom} ajouté`);
+  }
+
+  function ajouterObjetLibre(modele: ModeleLibre, saisie: SaisieLibre) {
+    if (!ops) return;
+    ecrire(ajouterLibre(fiche.etat, modele, saisie));
+    toast.success(`${saisie.nom.trim()} ajouté`);
+    setAjout(false);
   }
 
   function acheterDuCatalogue(c: CatalogueEntry) {
@@ -156,7 +173,7 @@ function InventoryBlock({ ctx, widget, mode }: SheetBlockProps<'inventaire'>) {
           action={
             editable ? (
               <Button size="sm" onClick={() => setAjout(true)}>
-                <Plus /> Ajouter depuis le catalogue
+                <Plus /> Ajouter un objet
               </Button>
             ) : undefined
           }
@@ -323,6 +340,7 @@ function InventoryBlock({ ctx, widget, mode }: SheetBlockProps<'inventaire'>) {
               presentation={presentation}
               onAjouter={ajouterDuCatalogue}
               onAcheter={acheterDuCatalogue}
+              onLibre={ajouterObjetLibre}
             />
           )}
         </>

@@ -23,7 +23,13 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Info } from '@/components/ui/tooltip';
-import { champsLisibles, groupesAttributs, texteEffet } from '@/lib/creation';
+import {
+  afficherValeur,
+  champsLisibles,
+  explication,
+  groupesAttributs,
+  texteEffet,
+} from '@/lib/creation';
 import type { DemandeBonus, DemandePossession, OperationsPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { LanceurAction } from './lanceur-action';
@@ -173,6 +179,16 @@ export function visiblePour(ctx: ContexteFiche, cle: string): boolean {
 
 // ─── Ressources ──────────────────────────────────────────────────────────────
 
+/** L'attribut est une ressource (valeur courante bornée) : lui seul a une jauge. */
+export function estRessource(ctx: Pick<ContexteFiche, 'fiche'>, cle: string): boolean {
+  return ctx.fiche.entite.attributs.get(cle)?.nature === 'ressource';
+}
+
+/**
+ * Ressources en jauges (défaut), ou en chiffres (`affichage: valeur`) : « PV / PV max »
+ * pour une ressource, valeur simple pour un autre attribut (Défense). Les ressources se
+ * règlent par + et − pour qui peut modifier la fiche.
+ */
 export function BlocRessources({
   ctx,
   widget,
@@ -193,40 +209,104 @@ export function BlocRessources({
       { ...fiche.etat, valeurs: { ...fiche.etat.valeurs, [cle]: suivante } },
     );
   }
+  const cles = widget.attributs.filter((c) => visiblePour(ctx, c) && fiche.valeurs.has(c));
+  const reglage = (c: string) =>
+    ecritures && estRessource(ctx, c) ? (
+      <div className="flex shrink-0 gap-1">
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          onClick={() => ajuster(c, -1)}
+          aria-label={`Retirer 1 à ${fiche.entite.attributs.get(c)?.nom ?? c}`}
+        >
+          <Minus />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          onClick={() => ajuster(c, 1)}
+          aria-label={`Ajouter 1 à ${fiche.entite.attributs.get(c)?.nom ?? c}`}
+        >
+          <Plus />
+        </Button>
+      </div>
+    ) : null;
+
+  if (widget.affichage === 'valeur')
+    return (
+      <Bloc titre={widget.titre}>
+        <div className="grid gap-2" style={grilleColonnes(Math.min(3, cles.length), '8rem')}>
+          {cles.map((c) => (
+            <ValeurChiffree key={c} ctx={ctx} cle={c} reglage={reglage(c)} />
+          ))}
+        </div>
+      </Bloc>
+    );
+
   return (
     <Bloc titre={widget.titre}>
       <div className="space-y-4">
-        {widget.attributs
-          .filter((c) => visiblePour(ctx, c))
+        {cles
+          .filter((c) => estRessource(ctx, c))
           .map((c) => (
             <div key={c} className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
               </div>
-              {ecritures && (
-                <div className="flex gap-1">
-                  <Button
-                    variant="secondary"
-                    size="icon-xs"
-                    onClick={() => ajuster(c, -1)}
-                    aria-label="Retirer 1"
-                  >
-                    <Minus />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon-xs"
-                    onClick={() => ajuster(c, 1)}
-                    aria-label="Ajouter 1"
-                  >
-                    <Plus />
-                  </Button>
-                </div>
-              )}
+              {reglage(c)}
             </div>
           ))}
       </div>
     </Bloc>
+  );
+}
+
+/** Valeur en chiffres : « courante / max » pour une ressource, sinon la valeur seule. */
+function ValeurChiffree({
+  ctx,
+  cle,
+  reglage,
+}: {
+  ctx: ContexteFiche;
+  cle: string;
+  reglage: ReactNode;
+}) {
+  const a = ctx.fiche.entite.attributs.get(cle);
+  const v = ctx.fiche.valeurs.get(cle);
+  if (!a || !v) return null;
+  const couleur = ctx.presentation?.ressources[cle]?.couleur;
+  const lignes = explication(v);
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-border bg-surface-2/70 px-3 py-2.5">
+      <Info
+        texte={
+          <span className="block space-y-0.5">
+            <span className="block font-medium">{a.nom}</span>
+            {lignes.map((l) => (
+              <span key={l} className="block font-mono text-[11px] text-muted-foreground">
+                {l}
+              </span>
+            ))}
+          </span>
+        }
+      >
+        <div
+          tabIndex={0}
+          className="min-w-0 cursor-help rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <p className="truncate text-[10px] font-medium uppercase tracking-wider text-subtle">
+            {a.abrege ?? a.nom}
+          </p>
+          <p className="font-mono text-2xl font-semibold leading-tight tabular">
+            <span style={couleur ? { color: couleur } : undefined}>{afficherValeur(v)}</span>
+            {a.nature === 'ressource' && v.max !== undefined && (
+              <span className="text-base font-normal text-subtle"> / {v.max}</span>
+            )}
+          </p>
+        </div>
+      </Info>
+      {reglage}
+    </div>
   );
 }
 

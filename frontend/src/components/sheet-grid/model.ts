@@ -151,10 +151,20 @@ export function toApiBlock(id: string, widget: Widget): SheetLayout['blocks'][nu
   return { id, type, title: titre, params };
 }
 
-/** Widget d'un bloc enregistré ; null si la présentation ne sait plus l'afficher. */
-export function fromApiBlock(b: SheetLayout['blocks'][number]): GridBlock {
+/** Le système sait-il encore afficher ce widget (attributs, sortes, champs existants) ? */
+export type Availability = (widget: Widget) => boolean;
+
+/**
+ * Widget d'un bloc enregistré ; null si la présentation ne sait plus l'afficher (forme
+ * inconnue) ou si le système ne le permet plus (`disponible` : attribut retiré…).
+ */
+export function fromApiBlock(
+  b: SheetLayout['blocks'][number],
+  disponible?: Availability,
+): GridBlock {
   const r = Widget.safeParse({ ...b.params, type: b.type, titre: b.title });
-  return { id: b.id, widget: r.success ? r.data : null, raw: b };
+  const widget = r.success && (!disponible || disponible(r.data)) ? r.data : null;
+  return { id: b.id, widget, raw: b };
 }
 
 export function gridBlock(id: string, widget: Widget): GridBlock {
@@ -261,10 +271,11 @@ export function stateFrom(
   defaults: () => GridBlock[],
   sizeOf: SizeOf,
   minOf: MinSizeOf,
+  disponible?: Availability,
 ): GridState {
   // Une mise en page d'un format inconnu est ignorée : la disposition par défaut s'affiche
   const lisible = stored?.format === 1 && Array.isArray(stored.blocks) ? stored : null;
-  const blocks = lisible ? lisible.blocks.map(fromApiBlock) : defaults();
+  const blocks = lisible ? lisible.blocks.map((b) => fromApiBlock(b, disponible)) : defaults();
   const layouts = lisible?.layouts ?? {};
   return {
     blocks,

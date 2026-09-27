@@ -13,7 +13,7 @@
  * La largeur est celle du conteneur (la fiche vit aussi dans un panneau de la table), mesurée
  * en continu : pas de WidthProvider, qui n'écoute que la fenêtre.
  */
-import type { Widget } from '@vtt/rules';
+import { erreursWidget, type Widget } from '@vtt/rules';
 import { Check, CloudOff, LayoutGrid, Loader2, Plus, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Responsive, type Layout } from 'react-grid-layout';
@@ -167,6 +167,8 @@ export function SheetGrid({
         () => defaultWidgets(ctx).map((w, i) => gridBlock(`p${i + 1}`, w)),
         sizeOf,
         minSizeOf,
+        // Bloc enregistré qui vise un attribut ou une sorte retirés des règles : indisponible
+        (w) => erreursWidget(ctx.systeme, ctx.fiche.etat.type, w).length === 0,
       ),
     [layout, ctx, sizeOf],
   );

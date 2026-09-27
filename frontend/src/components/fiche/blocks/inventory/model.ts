@@ -8,10 +8,13 @@
  */
 import {
   achatsPossibles,
+  champsGroupe,
   chemins,
+  descriptionPossession,
   essayer,
   estEffective,
   estExemplaire,
+  nomPossession,
   nouvelExemplaire,
   nouvellePossession,
   quantiteDe,
@@ -385,11 +388,17 @@ export function monnaiesInventaire(fiche: Fiche, sortes: readonly string[]): Sol
 export interface Categorie {
   cle: string;
   nom: string;
+  /** Ordre d'affichage : sorte dans le widget, puis option du champ (sinon alphabétique). */
+  rang: number;
 }
 
 export interface InventoryItem {
   /** `entree#exemplaire` : unique dans l'inventaire. */
   cle: string;
+  /** Nom affiché : nom propre de l'exemplaire (objet personnalisé), sinon celui de l'entrée. */
+  nom: string;
+  /** Description de l'exemplaire, sinon celle de l'entrée. */
+  description?: string;
   entree: Entree;
   sorte: Sorte;
   effective: PossessionEffective;
@@ -406,25 +415,61 @@ export interface InventoryItem {
 }
 
 const AUTRES = '\u0000autres';
+const SANS_RANG = 999;
 
-/** Catégorie d'une entrée : sa sorte, ou la valeur du champ `groupeChamp` du widget. */
+/** Champ de regroupement d'une sorte : le premier des champs du widget qu'elle déclare. */
+export function champGroupe(widget: InventoryWidget, sorte: Sorte): Champ | undefined {
+  for (const id of champsGroupe(widget)) {
+    const c = sorte.champs.find((x) => x.id === id);
+    if (c) return c;
+  }
+  return undefined;
+}
+
+/** Nom lisible d'une valeur de champ (option d'un choix, attribut, entrée). */
+export function nomValeurChamp(systeme: SystemeCharge, champ: Champ, v: string): string {
+  switch (champ.type) {
+    case 'choix':
+      return champ.options.find((o) => o.valeur === v)?.nom ?? v;
+    case 'entree':
+      return systeme.entrees.get(v)?.nom ?? v;
+    case 'attribut':
+      return systeme.entites.get(champ.entite)?.attributs.get(v)?.nom ?? v;
+    default:
+      return v;
+  }
+}
+
+/**
+ * Catégorie d'une possession : la valeur de son champ de regroupement (celui de
+ * l'exemplaire s'il en porte un : objet personnalisé), sinon sa sorte.
+ */
 export function categorieDe(
   fiche: Fiche,
   widget: InventoryWidget,
   entree: Entree,
   sorte: Sorte,
+  possession?: Possession,
 ): Categorie {
-  if (!widget.groupeChamp) return { cle: sorte.id, nom: sorte.nomPluriel ?? sorte.nom };
-  const champ = sorte.champs.find((c) => c.id === widget.groupeChamp);
-  const v = champ ? champDe(entree, champ) : undefined;
-  if (v === undefined || v === '' || Array.isArray(v)) return { cle: AUTRES, nom: 'Autres' };
+  const base = Math.max(0, widget.sortes.indexOf(sorte.id)) * 1000;
+  const champ = champGroupe(widget, sorte);
+  if (!champ) return { cle: `sorte:${sorte.id}`, nom: sorte.nomPluriel ?? sorte.nom, rang: base };
+  const v = champDe(entree, champ, possession);
+  if (v === undefined || v === '' || Array.isArray(v))
+    return { cle: AUTRES, nom: 'Autres', rang: Number.MAX_SAFE_INTEGER };
   if (typeof v === 'boolean')
-    return { cle: `${champ!.id}:${v}`, nom: v ? champ!.nom : `Sans ${champ!.nom.toLowerCase()}` };
+    return {
+      cle: `${champ.id}:${v}`,
+      nom: v ? champ.nom : `Sans ${champ.nom.toLowerCase()}`,
+      rang: base + (v ? 0 : 1),
+    };
   const s = String(v);
-  if (champ?.type === 'entree') return { cle: s, nom: fiche.systeme.entrees.get(s)?.nom ?? s };
-  if (champ?.type === 'attribut')
-    return { cle: s, nom: fiche.systeme.entites.get(champ.entite)?.attributs.get(s)?.nom ?? s };
-  return { cle: s, nom: s };
+  const option = champ.type === 'choix' ? champ.options.findIndex((o) => o.valeur === s) : -1;
+  return {
+    cle: `${champ.id}:${s}`,
+    nom: nomValeurChamp(fiche.systeme, champ, s),
+    rang: base + (option >= 0 ? option : SANS_RANG),
+  };
 }
 
 export interface Inventory {
@@ -441,7 +486,6 @@ export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false
   const items: InventoryItem[] = [];
   for (const p of fiche.possessions.values()) {
     if (!widget.sortes.includes(p.sorte.id) || !estEffective(p)) continue;
-    const categorie = categorieDe(fiche, widget, p.entree, p.sorte);
     const champPoids = charge.champs.get(p.sorte.id);
     const poids = (ex?: Possession) => {
       if (!champPoids) return undefined;
@@ -453,12 +497,14 @@ export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false
       const pd = poids();
       items.push({
         cle: `${p.entree.id}#`,
+        nom: p.entree.nom,
+        ...(p.entree.description ? { description: p.entree.description } : {}),
         entree: p.entree,
         sorte: p.sorte,
         effective: p,
         quantite: 1,
         actif: p.actif,
-        categorie,
+        categorie: categorieDe(fiche, widget, p.entree, p.sorte),
         bonus: bonusDe(fiche, p.entree, p.sorte, p, undefined),
         ...(pd ? { poids: pd } : {}),
       });
@@ -466,28 +512,32 @@ export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false
     }
     p.exemplaires.forEach((ex, i) => {
       const pd = poids(ex);
+      const nom = nomPossession(p.entree, p.sorte, ex);
+      const description = descriptionPossession(p.entree, p.sorte, ex);
       items.push({
         cle: `${p.entree.id}#${ex.exemplaire ?? ''}`,
+        nom,
+        ...(description ? { description } : {}),
         entree: p.entree,
         sorte: p.sorte,
         effective: p,
         possession: ex,
-        ...(plusieurs ? { exemplaireLabel: `n° ${i + 1}` } : {}),
+        // Un objet nommé se distingue par son nom, pas par son numéro
+        ...(plusieurs && nom === p.entree.nom ? { exemplaireLabel: `n° ${i + 1}` } : {}),
         quantite: quantiteDe(ex),
         actif: p.sorte.activable ? ex.actif : true,
-        categorie,
+        categorie: categorieDe(fiche, widget, p.entree, p.sorte, ex),
         bonus: bonusDe(fiche, p.entree, p.sorte, p, ex),
         ...(pd ? { poids: pd } : {}),
       });
     });
   }
 
-  const ordreSorte = (s: string) => widget.sortes.indexOf(s);
+  const ordre = (a: Categorie, b: Categorie) => a.rang - b.rang || a.nom.localeCompare(b.nom, 'fr');
   items.sort(
     (a, b) =>
-      (widget.groupeChamp ? 0 : ordreSorte(a.sorte.id) - ordreSorte(b.sorte.id)) ||
-      a.categorie.nom.localeCompare(b.categorie.nom, 'fr') ||
-      a.entree.nom.localeCompare(b.entree.nom, 'fr') ||
+      ordre(a.categorie, b.categorie) ||
+      a.nom.localeCompare(b.nom, 'fr') ||
       (a.possession?.exemplaire ?? '').localeCompare(b.possession?.exemplaire ?? '', 'fr', {
         numeric: true,
       }),
@@ -496,13 +546,7 @@ export function buildInventory(fiche: Fiche, widget: InventoryWidget, mj = false
   const categories: Categorie[] = [];
   for (const it of items)
     if (!categories.some((c) => c.cle === it.categorie.cle)) categories.push(it.categorie);
-  // Par sorte : ordre du widget ; par champ : alphabétique, « Autres » en dernier
-  if (widget.groupeChamp)
-    categories.sort(
-      (a, b) =>
-        Number(a.cle === AUTRES) - Number(b.cle === AUTRES) ||
-        a.nom.localeCompare(b.nom, 'fr', { numeric: true }),
-    );
+  categories.sort(ordre);
 
   return { items, categories, charge, monnaies: monnaiesInventaire(fiche, widget.sortes) };
 }
@@ -516,13 +560,16 @@ export function normaliser(s: string): string {
     .trim();
 }
 
-export function correspond(item: { entree: Entree; categorie?: Categorie }, terme: string) {
+export function correspond(
+  item: { entree: Entree; nom?: string; description?: string; categorie?: Categorie },
+  terme: string,
+) {
   if (!terme) return true;
   const t = normaliser(terme);
   return (
-    normaliser(item.entree.nom).includes(t) ||
+    normaliser(item.nom ?? item.entree.nom).includes(t) ||
     normaliser(item.categorie?.nom ?? '').includes(t) ||
-    normaliser(item.entree.description ?? '').includes(t)
+    normaliser(item.description ?? item.entree.description ?? '').includes(t)
   );
 }
 
@@ -533,8 +580,13 @@ export interface ChampAffiche {
   valeur: string;
   /** Valeur propre à l'exemplaire (différente de celle du catalogue). */
   propre: boolean;
-  /** Modifiable sur l'exemplaire (nombre, texte, booléen). */
+  /** Modifiable sur l'exemplaire (nombre, texte, booléen, choix). */
   modifiable: boolean;
+  /**
+   * Champ qui nomme ou décrit l'exemplaire (`nomExemplaire`, `descriptionExemplaire` de la
+   * sorte) : montré en titre et en description, listé seulement en personnalisation.
+   */
+  identite: boolean;
   brut: ValeurChamp | undefined;
 }
 
@@ -549,14 +601,15 @@ export function champsAffiches(
   for (const c of sorte.champs) {
     const v = champDe(entree, c, possession);
     const propre = possession?.champs[c.id] !== undefined;
-    const modifiable = c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen';
+    const modifiable =
+      c.type === 'nombre' || c.type === 'texte' || c.type === 'booleen' || c.type === 'choix';
+    const identite = c.id === sorte.nomExemplaire || c.id === sorte.descriptionExemplaire;
     let valeur: string | null = null;
     if (Array.isArray(v))
       valeur = v.map((id) => fiche.systeme.entrees.get(id)?.nom ?? id).join(', ') || null;
     else if (v === undefined || v === '') valeur = null;
-    else if (c.type === 'entree') valeur = fiche.systeme.entrees.get(String(v))?.nom ?? String(v);
-    else if (c.type === 'attribut')
-      valeur = fiche.systeme.entites.get(c.entite)?.attributs.get(String(v))?.nom ?? String(v);
+    else if (c.type === 'entree' || c.type === 'attribut' || c.type === 'choix')
+      valeur = nomValeurChamp(fiche.systeme, c, String(v));
     else if (c.type === 'formule') {
       const f = fiche.systeme.formules.get(chemins.champ(entree.id, c.id));
       const res = f ? essayer(fiche, f) : undefined;
@@ -577,6 +630,7 @@ export function champsAffiches(
       valeur: vide ? '—' : (valeur ?? '—'),
       propre,
       modifiable,
+      identite,
       brut: Array.isArray(v) ? undefined : v,
     });
   }
@@ -615,7 +669,8 @@ export function buildCatalogue(fiche: Fiche, widget: InventoryWidget): Catalogue
   }
   const r: CatalogueEntry[] = [];
   for (const entree of systeme.entrees.values()) {
-    if (!widget.sortes.includes(entree.sorte)) continue;
+    // Entrée générique d'objets hors catalogue : proposée par l'ajout d'un objet personnalisé
+    if (!widget.sortes.includes(entree.sorte) || entree.libre) continue;
     const sorte = systeme.sortes.get(entree.sorte);
     if (!sorte || !sorte.pour.includes(etat.type)) continue;
     const siens = etat.possessions.filter((p) => p.entree === entree.id);
@@ -647,6 +702,104 @@ export function buildCatalogue(fiche: Fiche, widget: InventoryWidget): Catalogue
       widget.sortes.indexOf(a.sorte.id) - widget.sortes.indexOf(b.sorte.id) ||
       a.entree.nom.localeCompare(b.entree.nom, 'fr'),
   );
+}
+
+// ─── Objets personnalisés (hors catalogue) ───────────────────────────────────
+
+export interface ModeleLibre {
+  entree: Entree;
+  sorte: Sorte;
+  /** Champ de catégorie proposé à la saisie, et ses valeurs possibles. */
+  categorie?: { champ: Champ; options: { valeur: string; nom: string }[]; defaut?: string };
+}
+
+/**
+ * Valeurs proposées pour la catégorie d'un objet personnalisé : les options d'un champ
+ * `choix`, sinon les valeurs que le catalogue de la sorte emploie (Contact, Distance…).
+ */
+function optionsCategorie(
+  systeme: SystemeCharge,
+  sorte: Sorte,
+  champ: Champ,
+): { valeur: string; nom: string }[] {
+  if (champ.type === 'choix') return champ.options;
+  if (champ.type !== 'texte' && champ.type !== 'attribut' && champ.type !== 'entree') return [];
+  const vus = new Set<string>();
+  for (const e of systeme.entrees.values()) {
+    const v = e.sorte === sorte.id ? e.champs[champ.id] : undefined;
+    if (typeof v === 'string' && v) vus.add(v);
+  }
+  return [...vus]
+    .map((v) => ({ valeur: v, nom: nomValeurChamp(systeme, champ, v) }))
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+}
+
+/**
+ * Objets personnalisés possibles dans ce widget : entrées `libre` de ses sortes (une par
+ * sorte au plus), avec le champ de catégorie à saisir (celui du regroupement du widget,
+ * sinon le premier champ `choix` de la sorte).
+ */
+export function modelesLibres(fiche: Fiche, widget: InventoryWidget): ModeleLibre[] {
+  const { systeme } = fiche;
+  const r: ModeleLibre[] = [];
+  for (const id of widget.sortes) {
+    const sorte = systeme.sortes.get(id);
+    if (!sorte?.pour.includes(fiche.etat.type) || !sorte.nomExemplaire) continue;
+    const entree = [...systeme.entrees.values()].find((e) => e.sorte === id && e.libre);
+    if (!entree) continue;
+    const champ = champGroupe(widget, sorte) ?? sorte.champs.find((c) => c.type === 'choix');
+    const options = champ ? optionsCategorie(systeme, sorte, champ) : [];
+    const defaut = champ ? champDe(entree, champ) : undefined;
+    r.push({
+      entree,
+      sorte,
+      ...(champ && options.length
+        ? {
+            categorie: {
+              champ,
+              options,
+              ...(typeof defaut === 'string' && defaut ? { defaut } : {}),
+            },
+          }
+        : {}),
+    });
+  }
+  return r;
+}
+
+export interface SaisieLibre {
+  nom: string;
+  quantite: number;
+  categorie?: string;
+  description?: string;
+}
+
+/** Nouvel objet personnalisé : un exemplaire de l'entrée libre, nommé par ses champs propres. */
+export function ajouterLibre(etat: EtatEntite, modele: ModeleLibre, saisie: SaisieLibre): Ecriture {
+  const { entree, sorte } = modele;
+  const champs: Record<string, ValeurChamp> = { [sorte.nomExemplaire!]: saisie.nom.trim() };
+  if (saisie.description?.trim() && sorte.descriptionExemplaire)
+    champs[sorte.descriptionExemplaire] = saisie.description.trim();
+  if (saisie.categorie && modele.categorie) champs[modele.categorie.champ.id] = saisie.categorie;
+  const quantite = sorte.quantites && saisie.quantite > 1 ? saisie.quantite : undefined;
+  const deja = etat.possessions.some((p) => p.entree === entree.id);
+  const exemplaire = deja ? nouvelExemplaire(etat.possessions, entree.id) : undefined;
+  return {
+    demande: {
+      entree: entree.id,
+      nouveau: true,
+      champs,
+      ...(quantite !== undefined ? { quantite } : {}),
+    },
+    apercu: avecPossessions(etat, [
+      ...etat.possessions,
+      nouvellePossession(entree.id, 0, {
+        champs,
+        ...(exemplaire !== undefined ? { exemplaire } : {}),
+        ...(quantite !== undefined ? { quantite } : {}),
+      }),
+    ]),
+  };
 }
 
 // ─── Écritures : demande et aperçu ───────────────────────────────────────────
@@ -682,15 +835,26 @@ export function ajouter(systeme: SystemeCharge, etat: EtatEntite, entreeId: stri
   return nouvelExemplaireDe(etat, entreeId);
 }
 
-/** Un exemplaire distinct de plus (sorte `exemplaires`), ou la première possession. */
-export function nouvelExemplaireDe(etat: EtatEntite, entreeId: string): Ecriture {
+/**
+ * Un exemplaire distinct de plus (sorte `exemplaires`), ou la première possession. `champs` :
+ * valeurs propres reprises (nom et catégorie d'un objet personnalisé).
+ */
+export function nouvelExemplaireDe(
+  etat: EtatEntite,
+  entreeId: string,
+  champs?: Record<string, ValeurChamp>,
+): Ecriture {
   const deja = etat.possessions.some((p) => p.entree === entreeId);
   const exemplaire = deja ? nouvelExemplaire(etat.possessions, entreeId) : undefined;
+  const propres = champs && Object.keys(champs).length ? { champs } : {};
   return {
-    demande: { entree: entreeId, nouveau: true },
+    demande: { entree: entreeId, nouveau: true, ...propres },
     apercu: avecPossessions(etat, [
       ...etat.possessions,
-      nouvellePossession(entreeId, 0, exemplaire !== undefined ? { exemplaire } : {}),
+      nouvellePossession(entreeId, 0, {
+        ...(exemplaire !== undefined ? { exemplaire } : {}),
+        ...propres,
+      }),
     ]),
   };
 }
