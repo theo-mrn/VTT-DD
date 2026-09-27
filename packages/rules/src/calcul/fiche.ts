@@ -10,6 +10,8 @@ import type { EffetsCompiles, EntiteChargee, SystemeCharge } from '../chargement
 import {
   chemins,
   compilerEffets,
+  formuleChamp,
+  variablesObjet,
   variablesSource as variablesDeSorte,
 } from '../chargement/index.js';
 import {
@@ -289,8 +291,25 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         const v = champ(p, c, ex ?? p.possession);
         const def = p.sorte.champs.find((x) => x.id === c);
         if (def?.type === 'formule') {
-          const f = systeme.formules.get(chemins.champ(p.entree.id, c));
-          return f ? evaluerSur(f, {}, 0, `${p.entree.id}/${c}`) : Number(v) || 0;
+          // Formule propre de l'exemplaire, sinon celle de l'entrée ; elle lit les champs de l'objet
+          const objet = ex ?? p.possession;
+          const f = formuleChamp(systeme, p.entree, def, objet);
+          const lire = variablesObjet(
+            p.entree,
+            p.sorte,
+            {
+              rang: p.rang,
+              actif: ex ? !p.sorte.activable || ex.actif : p.actif,
+              quantite: ex ? quantiteDe(ex) : p.quantite,
+            },
+            objet,
+          );
+          const variable = (n: string): Valeur => {
+            const x = lire(n);
+            if (x === undefined) throw new ErreurEvaluation(`Variable inconnue : ${n}`, 0);
+            return x;
+          };
+          return f ? evaluerSur(f, { variable }, 0, `${p.entree.id}/${c}`) : Number(v) || 0;
         }
         return v ?? (def?.type === 'booleen' ? false : def?.type === 'nombre' ? 0 : '');
       }

@@ -22,6 +22,7 @@ import {
   type Table,
   type TypeEntite,
 } from '../schema/index.js';
+import { variablesFormuleChamp } from './champs.js';
 import { verifierEffets, variablesSource, type ContexteEffets } from './effets.js';
 import {
   AGREGATS,
@@ -439,7 +440,12 @@ class Chargeur {
           break;
         case 'formule':
           if (typeof v === 'string' || typeof v === 'number') {
-            this.compiler(chemins.champ(e.id, cle), String(v), { entite: porteurs }, 'nombre');
+            this.compiler(
+              chemins.champ(e.id, cle),
+              String(v),
+              { entite: porteurs, variables: variablesFormuleChamp(sorte), des: c.des === true },
+              'nombre',
+            );
           } else this.erreur(ch, 'Formule attendue');
           break;
         case 'attribut':
@@ -480,7 +486,12 @@ class Chargeur {
     // Défaut d'un champ formule de la sorte : compilé pour chaque entrée qui ne le redéfinit pas
     for (const c of sorte.champs) {
       if (c.type === 'formule' && c.defaut !== undefined && !(c.id in e.champs)) {
-        this.compiler(chemins.champ(e.id, c.id), c.defaut, { entite: porteurs }, 'nombre');
+        this.compiler(
+          chemins.champ(e.id, c.id),
+          c.defaut,
+          { entite: porteurs, variables: variablesFormuleChamp(sorte), des: c.des === true },
+          'nombre',
+        );
       }
     }
 

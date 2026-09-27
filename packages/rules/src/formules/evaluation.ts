@@ -5,15 +5,32 @@
 import type { Generateur } from './aleatoire.js';
 import { LIMITES, type Noeud, type Valeur } from './ast.js';
 
+/**
+ * Façon de lancer les dés d'une sous-formule : `multiplier_des(2, x)` lance deux fois plus
+ * de dés dans `x` (critique), `maximum_des(x)` donne à chaque dé sa valeur maximale.
+ */
+export interface ModeDes {
+  multiplicateur: number;
+  maximum: boolean;
+}
+
+export const MODE_DES_NORMAL: ModeDes = Object.freeze({ multiplicateur: 1, maximum: false });
+
 export interface ContexteEvaluation {
   attribut(cle: string, entite?: string): Valeur;
   modificateur(cle: string, entite?: string): number;
-  variable(nom: string): Valeur;
+  /**
+   * `des` : mode de lancer en cours là où la variable est lue ; une variable qui porte une
+   * formule de jet (dés d'une arme) l'applique à ses propres dés.
+   */
+  variable(nom: string, des?: ModeDes): Valeur;
   rang?(id: string): number;
   possede?(id: string): boolean;
   /** Implémentations des fonctions déclarées dans `EnvironnementTypes.fonctions`. */
   fonctions?: Record<string, (...args: Valeur[]) => Valeur>;
   aleatoire?: Generateur;
+  /** Mode de lancer au départ de l'évaluation (défaut : normal). */
+  modeDes?: ModeDes;
 }
 
 export interface De {
@@ -49,6 +66,7 @@ export class ErreurEvaluation extends Error {
 
 export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluation {
   const jets: JetDes[] = [];
+  let mode: ModeDes = ctx.modeDes ?? MODE_DES_NORMAL;
 
   const nombre = (n: Noeud): number => {
     const v = ev(n);
@@ -76,7 +94,7 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
       case 'attribut':
         return ctx.attribut(n.cle, n.entite);
       case 'variable':
-        return ctx.variable(n.nom);
+        return mode === MODE_DES_NORMAL ? ctx.variable(n.nom) : ctx.variable(n.nom, mode);
       case 'unaire':
         return n.op === '-' ? -nombre(n.arg) : !booleen(n.arg);
       case 'si':
@@ -128,9 +146,28 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
     }
   }
 
+  /** Évalue `x` avec un autre mode de lancer (dés multipliés ou maximaux), puis le rétablit. */
+  function avecMode(suivant: ModeDes, x: Noeud): number {
+    const avant = mode;
+    mode = suivant;
+    try {
+      return nombre(x);
+    } finally {
+      mode = avant;
+    }
+  }
+
   function appel(n: Extract<Noeud, { t: 'appel' }>): Valeur {
     const args = () => n.args.map(nombre);
     switch (n.fn) {
+      case 'multiplier_des': {
+        const k = nombre(n.args[0]!);
+        if (!Number.isInteger(k) || k < 0)
+          throw new ErreurEvaluation(`Multiplicateur de dés invalide : ${k}`, n.pos);
+        return avecMode({ ...mode, multiplicateur: mode.multiplicateur * k }, n.args[1]!);
+      }
+      case 'maximum_des':
+        return avecMode({ ...mode, maximum: true }, n.args[0]!);
       case 'floor':
         return Math.floor(nombre(n.args[0]!));
       case 'ceil':
@@ -180,8 +217,8 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
 
   function des(n: Extract<Noeud, { t: 'des' }>): number {
     const g = ctx.aleatoire;
-    if (!g) throw new ErreurEvaluation('Aucun générateur de dés fourni', n.pos);
-    const nb = nombre(n.nombre);
+    if (!g && !mode.maximum) throw new ErreurEvaluation('Aucun générateur de dés fourni', n.pos);
+    const nb = nombre(n.nombre) * mode.multiplicateur;
     const faces = nombre(n.faces);
     if (!Number.isInteger(nb) || nb < 0 || nb > LIMITES.desParJet) {
       throw new ErreurEvaluation(
@@ -195,12 +232,14 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
 
     const tires: De[] = [];
     for (let i = 0; i < nb; i++) {
-      let v = g.entier(faces);
+      // Dés maximaux : chaque dé vaut ses faces, sans explosion
+      let v = mode.maximum || !g ? faces : g.entier(faces);
       tires.push({ valeur: v, garde: true, explosion: false });
+      if (mode.maximum) continue;
       // Un d1 explosif exploserait indéfiniment : l'explosion n'a de sens qu'à partir de 2 faces
       let explosions = 0;
       while (n.explose && faces > 1 && v === faces && explosions < LIMITES.explosions) {
-        v = g.entier(faces);
+        v = g!.entier(faces);
         tires.push({ valeur: v, garde: true, explosion: true });
         explosions++;
       }

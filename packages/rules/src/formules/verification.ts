@@ -62,6 +62,12 @@ export const FONCTIONS: Record<string, SignatureFonction> = {
   min: { args: ['nombre'], variadique: true, retour: 'nombre' },
   max: { args: ['nombre'], variadique: true, retour: 'nombre' },
   clamp: { args: ['nombre', 'nombre', 'nombre'], retour: 'nombre' },
+  /**
+   * Dés d'une sous-formule multipliés (`multiplier_des(2, arme.degats)` : critique qui double
+   * les dés de l'arme, pas ses bonus) ou maximaux (`maximum_des(arme.degats)`).
+   */
+  multiplier_des: { args: ['nombre', 'nombre'], retour: 'nombre' },
+  maximum_des: NOMBRE_VERS_NOMBRE,
 };
 
 const NOMS_RESERVES = new Set([

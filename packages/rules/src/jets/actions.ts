@@ -15,7 +15,8 @@
  */
 import { type Fiche, type PossessionEffective, type SourceEffets } from '../calcul/index.js';
 import { reduireDegats } from './degats.js';
-import { chemins, type SystemeCharge } from '../chargement/index.js';
+import { chemins, formuleChamp, variablesObjet, type SystemeCharge } from '../chargement/index.js';
+import { quantiteDe } from '../schema/index.js';
 import {
   ErreurEvaluation,
   evaluer,
@@ -24,6 +25,7 @@ import {
   type FormuleVerifiee,
   type Generateur,
   type JetDes,
+  type ModeDes,
   type ResultatEvaluation,
   type TypeValeur,
   type Valeur,
@@ -231,8 +233,28 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
           refuser(`${p.nom} : identifiant d’entrée attendu`);
           break;
         }
+        // `entree#exemplaire` : un exemplaire précis (ses champs et sa formule propres)
+        const [id, exemplaire] = v.split('#', 2) as [string, string | undefined];
+        v = id;
         const entree = systeme.entrees.get(v);
-        const possession = acteur.possessions.get(v);
+        const effective = acteur.possessions.get(v);
+        const ex =
+          exemplaire === undefined
+            ? undefined
+            : effective?.exemplaires.find((x) => (x.exemplaire ?? '') === exemplaire);
+        if (exemplaire !== undefined && !ex) {
+          refuser(`${p.nom} : exemplaire « ${exemplaire} » de ${entree?.nom ?? id} introuvable`);
+          break;
+        }
+        const possession =
+          effective && ex
+            ? {
+                ...effective,
+                possession: ex,
+                actif: effective.sorte.activable ? ex.actif : true,
+                quantite: quantiteDe(ex),
+              }
+            : effective;
         if (!entree) refuser(`${p.nom} : entrée inconnue « ${v} »`);
         else if (entree.sorte !== p.sorte) refuser(`${p.nom} : ${entree.nom} n’est pas ${sorte}`);
         else if (p.etiquette && !entree.etiquettes.includes(p.etiquette))
@@ -279,6 +301,11 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   const explications: string[] = [];
   const variables = new Map<string, Valeur>();
 
+  /**
+   * Dés lancés par les formules de jet des objets (`arme.degats`), lues pendant
+   * l'évaluation d'une autre formule : ajoutés aux jets de celle-ci.
+   */
+  let imbriques: JetDes[] = [];
   const calculerFormule = (
     chemin: string,
     defaut: Valeur,
@@ -290,17 +317,29 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     defaut: Valeur,
     ctx: ContexteEvaluation,
   ): ResultatEvaluation => {
+    const avant = imbriques;
+    imbriques = [];
     try {
-      return evaluer(f.noeud, ctx);
+      const r = evaluer(f.noeud, ctx);
+      return imbriques.length ? { valeur: r.valeur, jets: [...r.jets, ...imbriques] } : r;
     } catch (e) {
       if (!(e instanceof ErreurEvaluation)) throw e;
       erreurs.push({ ou: chemin, message: `${e.message} (« ${f.texte} »)` });
       return { valeur: defaut, jets: [] };
+    } finally {
+      imbriques = avant;
     }
   };
 
-  /** Valeur d'un champ d'une possession ; un champ `formule` est évalué sur l'acteur. */
-  const lireChamp = (p: PossessionEffective, c: string): Valeur => {
+  /** Formules de jet des objets choisis (`arme.degats`) : tirées à chaque lecture. */
+  const differees = new Map<string, (mode?: ModeDes) => Valeur>();
+
+  /**
+   * Valeur d'un champ d'une possession (celle de l'exemplaire choisi, sinon de l'entrée) ;
+   * un champ `formule` est évalué sur l'acteur, avec les champs de l'objet. Un champ de
+   * jet (`des`) est renvoyé comme une fonction : ses dés sont lancés à chaque lecture.
+   */
+  const lireChamp = (p: PossessionEffective, c: string): Valeur | ((m?: ModeDes) => Valeur) => {
     const def = p.sorte.champs.find((x) => x.id === c);
     const brut = p.possession?.champs[c] ?? p.entree.champs[c];
     const v =
@@ -310,19 +349,42 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
           ? def.defaut
           : undefined;
     if (def?.type === 'formule') {
-      const chemin = chemins.champ(p.entree.id, c);
-      return systeme.formules.has(chemin)
-        ? Number(calculerFormule(chemin, 0, acteur.contexte()).valeur)
-        : Number(v) || 0;
+      const f = formuleChamp(systeme, p.entree, def, p.possession);
+      if (!f) return Number(v) || 0;
+      const lire = variablesObjet(p.entree, p.sorte, p, p.possession);
+      const variable = (n: string): Valeur => {
+        const x = lire(n);
+        if (x === undefined) throw new ErreurEvaluation(`Variable inconnue : ${n}`, 0);
+        return x;
+      };
+      const ou = `${p.entree.id}/champs/${c}`;
+      const tirer = (mode?: ModeDes): Valeur => {
+        const r = evaluerFormule(
+          f,
+          ou,
+          0,
+          acteur.contexte({ variable, aleatoire, ...(mode ? { modeDes: mode } : {}) }),
+        );
+        imbriques.push(...r.jets);
+        return Number(r.valeur);
+      };
+      return def.des ? tirer : tirer();
     }
     return v ?? (def?.type === 'booleen' ? false : def?.type === 'nombre' ? 0 : '');
+  };
+  /** Valeur simple d'un champ (les formules de jet sont tirées une fois). */
+  const valeurChamp = (p: PossessionEffective, c: string): Valeur => {
+    const v = lireChamp(p, c);
+    return typeof v === 'function' ? v() : v;
   };
 
   const entite = (e: string): Fiche => {
     if (e === 'cible' && cible) return cible;
     throw new ErreurEvaluation(`Entité « ${e} » absente du contexte`, 0);
   };
-  const lireVariable = (nom: string): Valeur => {
+  const lireVariable = (nom: string, mode?: ModeDes): Valeur => {
+    const differee = differees.get(nom);
+    if (differee) return differee(mode);
     const v = variables.get(nom);
     if (v === undefined) throw new ErreurEvaluation(`Variable absente du contexte : ${nom}`, 0);
     return v;
@@ -356,7 +418,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         variables.set(`${p.id}.rang`, 0);
         for (const c of systeme.sortes.get(p.sorte)?.champs ?? []) {
           if (c.type === 'entrees') continue;
-          const def = 'defaut' in c && c.defaut !== undefined ? c.defaut : undefined;
+          const def =
+            c.type !== 'formule' && 'defaut' in c && c.defaut !== undefined ? c.defaut : undefined;
           variables.set(
             `${p.id}.${c.id}`,
             def ??
@@ -372,7 +435,9 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     variables.set(`${p.id}.rang`, possession.rang);
     for (const c of possession.sorte.champs) {
       if (c.type === 'entrees') continue;
-      variables.set(`${p.id}.${c.id}`, lireChamp(possession, c.id));
+      const v = lireChamp(possession, c.id);
+      if (typeof v === 'function') differees.set(`${p.id}.${c.id}`, v);
+      else variables.set(`${p.id}.${c.id}`, v);
     }
     explications.push(`${p.nom} : ${possession.entree.nom} (rang ${possession.rang})`);
   }
@@ -396,6 +461,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
       // Paramètre de l’action : sa valeur, ou sa valeur neutre si l’action ne l’a pas
       if (neutres.has(nom)) return parametres[nom] ?? neutres.get(nom)!;
       // Rang et champs d'un paramètre entrée (`arme.competence`) ; neutres si l'action ne l'a pas
+      const differee = differees.get(nom);
+      if (differee) return differee();
       const lu = variables.get(nom);
       if (lu !== undefined) return lu;
       if (nom.includes('.')) return nom.endsWith('.rang') ? 0 : '';
@@ -417,7 +484,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     const choisie = choisies.get(p.id);
     for (const c of choisie?.sorte.champs ?? []) {
       if (c.type !== 'entree' && c.type !== 'attribut') continue;
-      const renvoi = lireChamp(choisie!, c.id);
+      const renvoi = valeurChamp(choisie!, c.id);
       if (typeof renvoi === 'string' && renvoi) impliques.add(`${c.type}:${renvoi}`);
     }
   }

@@ -34,8 +34,18 @@ export const Possession = z.object({
   effets: z.array(Effet).default([]),
   /** Rounds restants pour un état temporaire (décomptés par l'état de combat). */
   duree: z.number().int().nonnegative().optional(),
-  /** Valeurs propres à cet exemplaire (points d'Obligation, munitions…). */
+  /**
+   * Valeurs propres à cet exemplaire (points d'Obligation, munitions…). Un champ `formule`
+   * y reçoit le texte d'une formule qui remplace celle de l'entrée (`formuleChamp`).
+   */
   champs: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).default({}),
+  /**
+   * Exemplaire caché aux autres joueurs : seuls le propriétaire et le MJ le voient (le
+   * service character le retire de la lecture des autres). Absent : visible.
+   */
+  hidden: z.boolean().optional(),
+  /** Dossier d'inventaire de l'exemplaire (`folders` de l'état) ; absent : à la racine. */
+  folder: Id.optional(),
 });
 export type Possession = z.output<typeof Possession>;
 
@@ -124,6 +134,16 @@ export const BonusLibre = z.object({
 });
 export type BonusLibre = z.output<typeof BonusLibre>;
 
+/** Dossier d'inventaire d'une entité, pour ranger ses exemplaires (sacs, coffres…). */
+export const InventoryFolder = z.object({
+  id: Id,
+  name: z.string().trim().min(1).max(60),
+});
+export type InventoryFolder = z.output<typeof InventoryFolder>;
+
+/** Nombre maximal de dossiers d'inventaire par entité. */
+export const MAX_INVENTORY_FOLDERS = 50;
+
 export const LigneJournal = z.object({
   achat: Id,
   /** Attribut, entrée ou `arbre/noeud` obtenu. */
@@ -145,6 +165,8 @@ export const EtatEntite = z.object({
   /** Nœuds acquis, par arbre. */
   noeuds: z.record(z.string(), z.array(Id)).default({}),
   journal: z.array(LigneJournal).default([]),
+  /** Dossiers d'inventaire, dans leur ordre d'affichage. */
+  folders: z.array(InventoryFolder).max(MAX_INVENTORY_FOLDERS).default([]),
   /** Vrai tant que la création n'est pas terminée. */
   creation: z.boolean().default(false),
 });

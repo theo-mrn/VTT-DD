@@ -204,8 +204,19 @@ export const Champ = z.discriminatedUnion('type', [
   z.object({ id: Cle, nom: Libelle, type: z.literal('nombre'), defaut: z.number().optional() }),
   z.object({ id: Cle, nom: Libelle, type: z.literal('texte'), defaut: z.string().optional() }),
   z.object({ id: Cle, nom: Libelle, type: z.literal('booleen'), defaut: z.boolean().optional() }),
-  /** Formule évaluée dans le contexte du porteur (dégâts `@vigueur + 2`…). */
-  z.object({ id: Cle, nom: Libelle, type: z.literal('formule'), defaut: Formule.optional() }),
+  /**
+   * Formule évaluée dans le contexte du porteur (dégâts `@vigueur + 2`…) ; elle lit aussi
+   * les autres champs de l'objet (`source.<champ>`). `des` : formule de jet, qui peut lancer
+   * des dés (`des(source.nbDes, source.faces)`), tirés pendant l'action qui la lit.
+   * Un exemplaire peut la remplacer par la sienne (champ propre, voir `formuleChamp`).
+   */
+  z.object({
+    id: Cle,
+    nom: Libelle,
+    type: z.literal('formule'),
+    defaut: Formule.optional(),
+    des: z.boolean().optional(),
+  }),
   /** Clé d'un attribut d'un type d'entité (caractéristique liée d'une compétence). */
   z.object({ id: Cle, nom: Libelle, type: z.literal('attribut'), entite: Id }),
   /** Référence vers une autre entrée (compétence utilisée par une arme). */

@@ -273,7 +273,7 @@ export function compilerEffets(
 }
 
 /** Appels de fonction dont les arguments sont des textes littéraux. */
-function appelsLitteraux(n: Noeud): { fn: string; args: (string | undefined)[] }[] {
+export function appelsLitteraux(n: Noeud): { fn: string; args: (string | undefined)[] }[] {
   const r: { fn: string; args: (string | undefined)[] }[] = [];
   const visiter = (x: Noeud): void => {
     switch (x.t) {
