@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, type Db } from '../db/client.js';
-import { envelope, TEST_DATABASE_URL } from '../test/test-app.js';
+import { envelope, inRollback, TEST_DATABASE_URL } from '../test/test-app.js';
 import { appendEvents, isPermanentDbError } from './append.js';
 import { ensurePartitions } from './partitions.js';
 
@@ -53,9 +53,9 @@ describe.skipIf(!TEST_DATABASE_URL)('journal (Postgres réel)', () => {
       .update(Buffer.concat([Buffer.from(prev ?? '', 'hex'), Buffer.from(canonical, 'utf8')]))
       .digest('hex');
 
-  const verify = async (campaignId: string) =>
+  const verify = async (campaignId: string, on: Db = db) =>
     (
-      await db.execute<{ seq: string; id: string | null; reason: string }>(
+      await on.execute<{ seq: string; id: string | null; reason: string }>(
         sql`select seq, id, reason from history.verify_chain(${campaignId}::uuid)`,
       )
     ).rows;
@@ -147,21 +147,24 @@ describe.skipIf(!TEST_DATABASE_URL)('journal (Postgres réel)', () => {
   });
 
   it('détecte un maillon forgé, un trou et une tête qui ne suit plus', async () => {
-    const campaignId = crypto.randomUUID();
-    for (let i = 0; i < 3; i++)
-      await appendEvents(db, [envelope({ roomId: campaignId })], 'history');
-    // Le rôle du service peut ajouter (jamais modifier) : un ajout hors chaîne se voit
-    const forged = envelope({ roomId: campaignId });
-    await db.execute(sql`
-      insert into history.events (id, occurred_at, campaign_id, seq, type, version, actor_role,
-        aggregate_type, aggregate_id, payload, correlation_id, prev_hash, hash)
-      values (${forged.id}, now(), ${campaignId}, 5, 'character.hp_changed', 1, 'gm',
-        'character', 'x', '{}', 'c', sha256('faux'::bytea), sha256('faux'::bytea))`);
-    const broken = await verify(campaignId);
-    expect(broken.map((b) => [Number(b.seq), b.reason])).toEqual([
-      [3, 'head'],
-      [5, 'seq'],
-    ]);
+    // Transaction annulée : aucune chaîne cassée ne reste dans le journal
+    await inRollback(db, async (tx) => {
+      const campaignId = crypto.randomUUID();
+      for (let i = 0; i < 3; i++)
+        await appendEvents(tx, [envelope({ roomId: campaignId })], 'history');
+      // Le rôle du service peut ajouter (jamais modifier) : un ajout hors chaîne se voit
+      const forged = envelope({ roomId: campaignId });
+      await tx.execute(sql`
+        insert into history.events (id, occurred_at, campaign_id, seq, type, version, actor_role,
+          aggregate_type, aggregate_id, payload, correlation_id, prev_hash, hash)
+        values (${forged.id}, now(), ${campaignId}, 5, 'character.hp_changed', 1, 'gm',
+          'character', 'x', '{}', 'c', sha256('faux'::bytea), sha256('faux'::bytea))`);
+      const broken = await verify(campaignId, tx);
+      expect(broken.map((b) => [Number(b.seq), b.reason])).toEqual([
+        [3, 'head'],
+        [5, 'seq'],
+      ]);
+    });
   });
 
   it('le journal ne se modifie ni ne se vide avec le rôle du service', async () => {

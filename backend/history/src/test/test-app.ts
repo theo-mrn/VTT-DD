@@ -13,7 +13,7 @@ import { loadConfig } from '@vtt/platform';
 import { generateKeyPair, SignJWT } from 'jose';
 import { buildHistory } from '../app.js';
 import { HistoryConfig } from '../config.js';
-import { createDb } from '../db/client.js';
+import { createDb, type Db } from '../db/client.js';
 import { fakeServices } from './fake-services.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -45,6 +45,22 @@ export function envelope(
     ...rest,
     actor: { userId: null, role: 'gm', characterId: null, ...actor },
   };
+}
+
+/**
+ * Exécute `fn` dans une transaction toujours annulée : le journal est en ajout
+ * seul, c'est le seul moyen de tester une chaîne cassée sans la laisser en base.
+ */
+export async function inRollback(db: Db, fn: (tx: Db) => Promise<void>): Promise<void> {
+  const rollback = new Error('annulation voulue');
+  await db
+    .transaction(async (tx) => {
+      await fn(tx as unknown as Db);
+      throw rollback;
+    })
+    .catch((e: unknown) => {
+      if (e !== rollback) throw e;
+    });
 }
 
 export async function testApp(

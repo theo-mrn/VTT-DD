@@ -2,7 +2,7 @@
  * Bout en bout sur un vrai NATS JetStream (TEST_NATS_URL) et un vrai Postgres
  * (TEST_DATABASE_URL) : un événement publié sur le bus devient lisible par
  * l'API, une seule fois même publié deux fois. Consommateur durable propre au
- * test, limité aux sujets d'une campagne neuve, supprimé à la fin.
+ * test, limité aux sujets d'une campagne neuve, supprimé à la fin avec ses messages.
  */
 import { connectBus, EVENTS_STREAM, publishEvent, type Bus } from '@vtt/platform';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -41,6 +41,8 @@ describe.skipIf(!TEST_DATABASE_URL || !TEST_NATS_URL)('consommation du bus', () 
   afterEach(async () => {
     await t.close();
     await bus.jsm.consumers.delete(EVENTS_STREAM, durable).catch(() => undefined);
+    // Messages du test retirés du flux : le vrai consommateur ne les rejouera pas
+    await bus.jsm.streams.purge(EVENTS_STREAM, { filter: `vtt.${campaignId}.>` });
     await bus.close();
   });
 

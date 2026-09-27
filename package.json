@@ -21,6 +21,7 @@
     "import:personnages": "bash infra/local/import-personnages.sh",
     "import:campaigns": "bash infra/local/import-campaigns.sh",
     "import:dice": "bash infra/local/import-dice.sh",
+    "import:history": "bash infra/local/import-history.sh",
     "import:billing": "bash infra/local/import-billing.sh"
   },
   "devDependencies": {

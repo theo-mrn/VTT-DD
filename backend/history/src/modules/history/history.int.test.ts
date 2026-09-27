@@ -2,9 +2,11 @@
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appendEvents } from '../../journal/append.js';
+import { verifyChain } from './repository.js';
 import {
   envelope,
   get,
+  inRollback,
   TEST_DATABASE_URL,
   testApp,
   type EventBody,
@@ -177,19 +179,22 @@ describe.skipIf(!TEST_DATABASE_URL)('GET /v1/history', () => {
       );
     });
 
-    it('premier maillon cassé', async () => {
-      for (let i = 0; i < 2; i++) await add();
-      // Ajout hors chaîne (le rôle du service ne peut qu'ajouter) : prev_hash qui ne suit pas
-      await t.db!.execute(sql`
-        insert into history.events (id, occurred_at, campaign_id, seq, type, version, actor_role,
-          aggregate_type, aggregate_id, payload, correlation_id, prev_hash, hash)
-        values (${crypto.randomUUID()}, now(), ${campaignId}, 3, 'character.hp_changed', 1, 'gm',
-          'character', 'x', '{}', 'c', sha256('faux'::bytea), sha256('faux'::bytea))`);
-      expect(await get(t, gm, `/v1/history/verify?campaignId=${campaignId}`)).toMatchObject({
-        ok: false,
-        events: 3,
-        lastSeq: 3,
-        firstBroken: { seq: 2, id: null, reason: 'head' },
+    it('premier maillon cassé (transaction annulée)', async () => {
+      await inRollback(t.db!, async (tx) => {
+        for (let i = 0; i < 2; i++)
+          await appendEvents(tx, [envelope({ roomId: campaignId })], 'history');
+        // Ajout hors chaîne (le rôle du service ne peut qu'ajouter) : prev_hash qui ne suit pas
+        await tx.execute(sql`
+          insert into history.events (id, occurred_at, campaign_id, seq, type, version, actor_role,
+            aggregate_type, aggregate_id, payload, correlation_id, prev_hash, hash)
+          values (${crypto.randomUUID()}, now(), ${campaignId}, 3, 'character.hp_changed', 1, 'gm',
+            'character', 'x', '{}', 'c', sha256('faux'::bytea), sha256('faux'::bytea))`);
+        expect(await verifyChain(tx, campaignId)).toEqual({
+          ok: false,
+          events: 3,
+          lastSeq: 3,
+          firstBroken: { seq: 2, id: null, reason: 'head' },
+        });
       });
     });
   });
