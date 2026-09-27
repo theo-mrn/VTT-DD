@@ -19,6 +19,13 @@ import {
 
 export const schemaCharacters = pgSchema('characters');
 
+/** Présentation libre d'un personnage, écrite par son joueur (champs absents : vides). */
+export interface CharacterDetails {
+  concept?: string;
+  appearance?: string;
+  backstory?: string;
+}
+
 const horodatage = (nom: string) => timestamp(nom, { withTimezone: true, mode: 'date' });
 
 export const characters = schemaCharacters.table('characters', {
@@ -30,6 +37,7 @@ export const characters = schemaCharacters.table('characters', {
   systemVersion: text('system_version').notNull(),
   type: text('type').notNull(),
   etat: jsonb('etat').$type<EtatEntite>().notNull(),
+  details: jsonb('details').$type<CharacterDetails>().notNull().default({}),
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),

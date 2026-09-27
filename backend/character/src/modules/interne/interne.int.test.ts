@@ -66,6 +66,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       systeme: { id: 'dnd-classic', version: expect.any(String) },
       type: 'personnage',
       creation: false, // nainGuerrier termine la création
+      summary: { tagline: expect.stringContaining('Nain'), highlights: expect.any(Array) },
     });
     const inconnu = await t.app.inject({
       method: 'GET',

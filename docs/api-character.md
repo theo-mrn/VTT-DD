@@ -25,32 +25,47 @@ Un personnage renvoyé par l'API a cette forme :
   avatarUrl: string | null;
   etat: EtatEntite; // ce qui est saisi, acheté ou tiré (schéma @vtt/rules)
   fiche: FicheJson; // valeurs calculées et expliquées (ficheJson de @vtt/rules)
+  details: {
+    concept: string;
+    appearance: string;
+    backstory: string;
+  } // présentation libre du joueur
+  summary: {
+    tagline: string;
+    highlights: {
+      label: string;
+      value: string;
+    }
+    [];
+  } // résumé des listes
   version: number; // concurrence optimiste : chaque écriture l'envoie et l'incrémente
   createdAt: string;
   updatedAt: string;
 }
 ```
 
-Une écriture qui envoie une `version` périmée reçoit **409** (problem+json). Le client relit alors le personnage et réessaie.
+Une écriture qui envoie une `version` périmée reçoit **409** `version_perimee` (problem+json). Le client relit alors le personnage, le montre à l'utilisateur et le laisse refaire sa modification : il n'écrase jamais en silence.
 
-| Méthode | Route                                    | Corps                                                             | Réponse                                                                                           |
-| ------- | ---------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/characters`                         | —                                                                 | `[{ id, nom, avatarUrl, systeme: { id, version }, type, creation, updatedAt }]` : mes personnages |
-| POST    | `/v1/characters`                         | `{ systemeId, type, nom }`                                        | 201 et le personnage (`etat.creation = true`)                                                     |
-| GET     | `/v1/characters/:id`                     | —                                                                 | le personnage                                                                                     |
-| PATCH   | `/v1/characters/:id`                     | `{ version, nom?, avatarUrl? }`                                   | le personnage                                                                                     |
-| DELETE  | `/v1/characters/:id`                     | —                                                                 | 204                                                                                               |
-| PUT     | `/v1/characters/:id/valeurs`             | `{ version, valeurs: { [cle]: valeur } }`                         | le personnage. Seuls les attributs saisissables sont acceptés (voir « Saisie des valeurs »)       |
-| GET     | `/v1/characters/:id/creation`            | —                                                                 | `etapesCreation()` : état de chaque étape                                                         |
-| POST    | `/v1/characters/:id/creation/:etape`     | `{ version, ... }` selon le type d'étape (voir ci-dessous)        | le personnage                                                                                     |
-| POST    | `/v1/characters/:id/creation/terminer`   | `{ version }`                                                     | le personnage                                                                                     |
-| GET     | `/v1/characters/:id/achats`              | —                                                                 | `achatsPossibles()`                                                                               |
-| POST    | `/v1/characters/:id/achats`              | `{ version, achat, objet }`                                       | le personnage                                                                                     |
-| POST    | `/v1/characters/:id/achats/rembourser`   | `{ version, index }`                                              | le personnage                                                                                     |
-| POST    | `/v1/characters/:id/possessions`         | voir « Possessions » ci-dessous                                   | le personnage (ajout ou mise à jour d'un exemplaire)                                              |
-| DELETE  | `/v1/characters/:id/possessions/:entree` | `?version=&exemplaire=`                                           | le personnage (retrait d'un exemplaire précis)                                                    |
-| POST    | `/v1/characters/:id/repos`               | `{ version, attributs? }`                                         | le personnage (`recuperer()`)                                                                     |
-| POST    | `/v1/characters/:id/actions/:action`     | `{ parametres?, cibleId?, appliquer?, campaignId?, visibility? }` | `{ resultat, personnage?, cible? }`                                                               |
+`summary` est calculé par le service à partir de la fiche et de la **présentation** du système : `tagline` réunit les entrées uniques (race, profil, carrière… : les sortes du bloc `details` de la fiche, sinon celles à une seule entrée), `highlights` les valeurs clés (attributs du bloc `details`, puis les ressources visibles), trois au plus. Aucune clé de jeu dans le code. Il est gardé en mémoire par personnage et par version.
+
+| Méthode | Route                                    | Corps                                                             | Réponse                                                                                                                                         |
+| ------- | ---------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/characters`                         | —                                                                 | `[{ id, nom, avatarUrl, systeme: { id, version }, type, creation, concept, summary, updatedAt }]` : mes personnages                             |
+| POST    | `/v1/characters`                         | `{ systemeId, type, nom }`                                        | 201 et le personnage (`etat.creation = true`)                                                                                                   |
+| GET     | `/v1/characters/:id`                     | —                                                                 | le personnage                                                                                                                                   |
+| PATCH   | `/v1/characters/:id`                     | `{ version, nom?, avatarUrl?, details? }`                         | le personnage ; `details` : `{ concept?, appearance?, backstory? }` (160, 2 000 et 8 000 caractères au plus), seuls les champs envoyés changent |
+| DELETE  | `/v1/characters/:id`                     | —                                                                 | 204                                                                                                                                             |
+| PUT     | `/v1/characters/:id/valeurs`             | `{ version, valeurs: { [cle]: valeur } }`                         | le personnage. Seuls les attributs saisissables sont acceptés (voir « Saisie des valeurs »)                                                     |
+| GET     | `/v1/characters/:id/creation`            | —                                                                 | `etapesCreation()` : état de chaque étape                                                                                                       |
+| POST    | `/v1/characters/:id/creation/:etape`     | `{ version, ... }` selon le type d'étape (voir ci-dessous)        | le personnage ; étape `tirer` : plus `tirage: { attributs, retenu, essais }` (le tirage retenu, dés compris, pour l'afficher)                   |
+| POST    | `/v1/characters/:id/creation/terminer`   | `{ version }`                                                     | le personnage                                                                                                                                   |
+| GET     | `/v1/characters/:id/achats`              | —                                                                 | `achatsPossibles()`                                                                                                                             |
+| POST    | `/v1/characters/:id/achats`              | `{ version, achat, objet }`                                       | le personnage                                                                                                                                   |
+| POST    | `/v1/characters/:id/achats/rembourser`   | `{ version, index }`                                              | le personnage                                                                                                                                   |
+| POST    | `/v1/characters/:id/possessions`         | voir « Possessions » ci-dessous                                   | le personnage (ajout ou mise à jour d'un exemplaire)                                                                                            |
+| DELETE  | `/v1/characters/:id/possessions/:entree` | `?version=&exemplaire=`                                           | le personnage (retrait d'un exemplaire précis)                                                                                                  |
+| POST    | `/v1/characters/:id/repos`               | `{ version, attributs? }`                                         | le personnage (`recuperer()`)                                                                                                                   |
+| POST    | `/v1/characters/:id/actions/:action`     | `{ parametres?, cibleId?, appliquer?, campaignId?, visibility? }` | `{ resultat, personnage?, cible? }`                                                                                                             |
 
 Après chaque action, character transmet le jet au service dice (`POST /internal/rolls`, variable `DICE_URL`), sans bloquer l'action si dice est indisponible. `campaignId` range le jet dans l'historique de cette campagne, et `visibility` (`public`, `private`, `gm`, `self`) règle qui le voit (voir [api-dice.md](api-dice.md)).
 
@@ -58,7 +73,7 @@ Corps des étapes de création, selon leur type :
 
 - `choisir` : `{ entrees: [{ entree, choix? }] }`
 - `repartir` et `saisir` : `{ valeurs }`
-- `tirer` : `{ affectation? }`. Le serveur tire lui-même avec un générateur cryptographique.
+- `tirer` : `{ affectation? }`. Le serveur tire lui-même avec un générateur cryptographique ; la réponse porte le tirage retenu. En attribution `libre` avec plusieurs attributs, `affectation` est exigée dans la même requête : le joueur ne voit donc pas les valeurs avant de les répartir (aucun système de référence n'utilise ce cas, tous tirent `dans l'ordre`).
 - `acheter` : `{ achat, objet }`
 
 ### Saisie des valeurs
@@ -109,4 +124,4 @@ Sans `appliquer`, le résultat est seulement renvoyé.
 
 Chaque écriture publie un événement : `character.created`, `character.updated` (avec la version), `character.deleted`, et `character.action_resolved` (avec le résultat complet, pour l'historique).
 
-`character.updated` porte l'opération (`operation`), ses détails, et le diff avant/après de l'état, du nom et de l'avatar : `changes: [{ path, before, after }]` (ex. `{ "path": "etat.valeurs.PV", "before": 24, "after": 17 }`, possessions désignées par `entree#exemplaire`). Format et bornes : [bus.md](bus.md#diff-avantaprès-changes).
+`character.updated` porte l'opération (`operation`), ses détails, et le diff avant/après de l'état, du nom, de l'avatar et de la présentation (`details.concept`…) : `changes: [{ path, before, after }]` (ex. `{ "path": "etat.valeurs.PV", "before": 24, "after": 17 }`, possessions désignées par `entree#exemplaire`). Format et bornes : [bus.md](bus.md#diff-avantaprès-changes).

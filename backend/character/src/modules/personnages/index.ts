@@ -6,7 +6,7 @@
  * personnage est engagé le lisent, son MJ le modifie (voir `autoriser`).
  */
 import { HttpError } from '@vtt/platform';
-import { achatsPossibles, etapesCreation } from '@vtt/rules';
+import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -29,10 +29,12 @@ import {
   Valeurs,
   verifierEtat,
 } from '../../regles/operations.js';
+import { CharacterSummary } from '../../regles/summary.js';
 import { jouerAction } from './actions.js';
 import {
   autoriser,
   creer,
+  detailsApi,
   lire,
   lister,
   modifier,
@@ -49,6 +51,8 @@ const Version = z.number().int().positive();
 
 const Params = z.object({ id: IdPersonnage });
 
+const Details = z.object({ concept: z.string(), appearance: z.string(), backstory: z.string() });
+
 const Personnage = z.object({
   id: z.string(),
   ownerId: z.string(),
@@ -56,9 +60,18 @@ const Personnage = z.object({
   avatarUrl: z.string().nullable(),
   etat: z.unknown(),
   fiche: z.unknown(),
+  details: Details,
+  summary: CharacterSummary,
   version: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+/** Présentation libre modifiable : seuls les champs envoyés changent. */
+const DetailsModifies = z.object({
+  concept: z.string().trim().max(160, '160 caractères au plus').optional(),
+  appearance: z.string().trim().max(2000, '2000 caractères au plus').optional(),
+  backstory: z.string().trim().max(8000, '8000 caractères au plus').optional(),
 });
 
 const Nom = z.string().trim().min(1, 'Nom requis').max(100, '100 caractères au plus');
@@ -119,13 +132,15 @@ export const register: Module = async (app, deps) => {
               systeme: z.object({ id: z.string(), version: z.string() }),
               type: z.string(),
               creation: z.boolean(),
+              concept: z.string(),
+              summary: CharacterSummary,
               updatedAt: z.string(),
             }),
           ),
         },
       },
     },
-    async (req) => lister(db, moi(req)),
+    async (req) => lister(db, catalogue, moi(req)),
   );
 
   r.post(
@@ -164,16 +179,18 @@ export const register: Module = async (app, deps) => {
           version: Version,
           nom: Nom.optional(),
           avatarUrl: AvatarUrl.nullable().optional(),
+          details: DetailsModifies.optional(),
         }),
         response: { 200: Personnage },
       },
     },
     async (req) => {
-      const { version, nom, avatarUrl } = req.body;
-      const ligne = await modifierPour(req, req.params.id, version, () => ({
+      const { version, nom, avatarUrl, details } = req.body;
+      const ligne = await modifierPour(req, req.params.id, version, (l) => ({
         changement: {
           ...(nom !== undefined ? { nom } : {}),
           ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+          ...(details !== undefined ? { details: { ...detailsApi(l.details), ...details } } : {}),
         },
         operation: 'profil',
         details: {
@@ -289,10 +306,18 @@ export const register: Module = async (app, deps) => {
         params: z.object({ id: IdPersonnage, etape: Id }),
         // Le reste du corps dépend du type de l'étape (lu par appliquerEtape)
         body: z.looseObject({ version: Version }),
-        response: { 200: Personnage },
+        response: {
+          200: Personnage.extend({
+            /** Étape « tirer » : le tirage retenu (dés compris), pour l'afficher. */
+            tirage: z
+              .object({ attributs: z.array(z.string()), retenu: z.unknown(), essais: z.number() })
+              .optional(),
+          }),
+        },
       },
     },
     async (req) => {
+      let tirage: { attributs: string[]; retenu: unknown; essais: number } | undefined;
       const ligne = await modifierPour(req, req.params.id, req.body.version, (l, systeme) => {
         const r = appliquerEtape(
           systeme,
@@ -302,13 +327,17 @@ export const register: Module = async (app, deps) => {
           deps.aleatoire(),
           date(),
         );
+        const type = creationDe(systeme, l.etat.type)?.etapes.find(
+          (e) => e.id === req.params.etape,
+        )?.type;
+        if (type === 'tirer') tirage = r.details as typeof tirage;
         return {
           changement: { etat: r.etat },
           operation: `creation.${req.params.etape}`,
           details: r.details,
         };
       });
-      return api(ligne);
+      return { ...api(ligne), ...(tirage ? { tirage } : {}) };
     },
   );
 

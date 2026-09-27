@@ -15,11 +15,21 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import type { DroitsCampagnes } from '../../droits/campaign.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
-import { characters } from '../../db/schema.js';
+import { characters, type CharacterDetails } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
 import { verifierEtat } from '../../regles/operations.js';
+import { summaryOf, type CharacterSummary } from '../../regles/summary.js';
 
 export type Ligne = typeof characters.$inferSelect;
+
+/** Présentation libre renvoyée par l'API : les trois champs, vides s'ils manquent. */
+export type Details = Required<CharacterDetails>;
+
+export const detailsApi = (d: CharacterDetails | null | undefined): Details => ({
+  concept: d?.concept ?? '',
+  appearance: d?.appearance ?? '',
+  backstory: d?.backstory ?? '',
+});
 
 export interface Personnage {
   id: string;
@@ -28,6 +38,8 @@ export interface Personnage {
   avatarUrl: string | null;
   etat: EtatEntite;
   fiche: FicheJson;
+  details: Details;
+  summary: CharacterSummary;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -40,6 +52,9 @@ export interface ResumePersonnage {
   systeme: { id: string; version: string };
   type: string;
   creation: boolean;
+  /** Concept du joueur (recherche dans les listes). */
+  concept: string;
+  summary: CharacterSummary;
   updatedAt: string;
 }
 
@@ -108,7 +123,19 @@ export function systemeDe(catalogue: Catalogue, ligne: Pick<Ligne, 'systemId'>):
   return s;
 }
 
-/** Forme renvoyée par l'API : état enregistré et fiche recalculée. */
+/** Résumé d'un personnage enregistré (fiche recalculée seulement hors cache). */
+export function resumeDe(
+  catalogue: Catalogue,
+  ligne: Pick<Ligne, 'id' | 'version' | 'systemId' | 'etat'>,
+): CharacterSummary {
+  return summaryOf(
+    catalogue,
+    ligne,
+    () => verifierEtat(systemeDe(catalogue, ligne), ligne.etat).fiche,
+  );
+}
+
+/** Forme renvoyée par l'API : état enregistré, fiche recalculée, présentation et résumé. */
 export function versApi(catalogue: Catalogue, ligne: Ligne): Personnage {
   const { etat, fiche } = verifierEtat(systemeDe(catalogue, ligne), ligne.etat);
   return {
@@ -118,6 +145,8 @@ export function versApi(catalogue: Catalogue, ligne: Ligne): Personnage {
     avatarUrl: ligne.avatarUrl,
     etat,
     fiche: ficheJson(fiche),
+    details: detailsApi(ligne.details),
+    summary: summaryOf(catalogue, ligne, () => fiche),
     version: ligne.version,
     createdAt: ligne.createdAt.toISOString(),
     updatedAt: ligne.updatedAt.toISOString(),
@@ -126,7 +155,11 @@ export function versApi(catalogue: Catalogue, ligne: Ligne): Personnage {
 
 const actif = (id: string) => and(eq(characters.id, id), isNull(characters.deletedAt));
 
-export async function lister(db: Db, owner: string): Promise<ResumePersonnage[]> {
+export async function lister(
+  db: Db,
+  catalogue: Catalogue,
+  owner: string,
+): Promise<ResumePersonnage[]> {
   const lignes = await db
     .select({
       id: characters.id,
@@ -135,6 +168,9 @@ export async function lister(db: Db, owner: string): Promise<ResumePersonnage[]>
       systemId: characters.systemId,
       systemVersion: characters.systemVersion,
       type: characters.type,
+      etat: characters.etat,
+      version: characters.version,
+      concept: sql<string>`coalesce(${characters.details}->>'concept', '')`,
       creation: sql<boolean>`coalesce((${characters.etat}->>'creation')::boolean, false)`,
       updatedAt: characters.updatedAt,
     })
@@ -148,6 +184,8 @@ export async function lister(db: Db, owner: string): Promise<ResumePersonnage[]>
     systeme: { id: l.systemId, version: l.systemVersion },
     type: l.type,
     creation: l.creation,
+    concept: l.concept,
+    summary: resumeDe(catalogue, l),
     updatedAt: l.updatedAt.toISOString(),
   }));
 }
@@ -225,6 +263,7 @@ export interface Changement {
   etat?: EtatEntite;
   nom?: string;
   avatarUrl?: string | null;
+  details?: CharacterDetails;
 }
 
 /**
@@ -239,6 +278,7 @@ const suivi = (ligne: Ligne, etat: unknown) => ({
   etat,
   nom: ligne.nom,
   avatarUrl: ligne.avatarUrl,
+  details: detailsApi(ligne.details),
 });
 
 /**
@@ -275,6 +315,7 @@ export async function enregistrer(
       ...(etat ? { etat, systemVersion: etat.systeme.version, type: etat.type } : {}),
       ...(changement.nom !== undefined ? { nom: changement.nom } : {}),
       ...(changement.avatarUrl !== undefined ? { avatarUrl: changement.avatarUrl } : {}),
+      ...(changement.details !== undefined ? { details: changement.details } : {}),
       version: ligne.version + 1,
       updatedAt: sql`now()`,
     })

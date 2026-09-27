@@ -5,7 +5,8 @@
  * x-internal-secret) est exigé. Sans ce secret configuré, les routes
  * n'existent pas.
  *
- *   GET  /internal/characters/:id                    résumé (propriétaire, système)
+ *   GET  /internal/characters/:id                    résumé (propriétaire, système, création en
+ *        cours, et résumé des listes : entrées uniques et valeurs clés)
  *   GET  /internal/characters/:id/sheet?userId=      valeurs calculées de la fiche, pour
  *        les variables des jets de dice (`1d20+FOR`) ; 404/403 si `userId` ne peut
  *        pas agir avec ce personnage (mêmes droits qu'une action)
@@ -26,10 +27,12 @@ import {
   autoriser,
   enregistrer,
   lire,
+  resumeDe,
   verrouiller,
   versApi,
   type Appelant,
 } from '../personnages/depot.js';
+import { CharacterSummary } from '../../regles/summary.js';
 
 const IdPersonnage = z.uuid('Identifiant de personnage invalide').transform((s) => s.toLowerCase());
 const IdUtilisateur = z.uuid().transform((s) => s.toLowerCase());
@@ -100,6 +103,8 @@ export const register: Module = async (app, deps) => {
             type: z.string(),
             /** Création non terminée (campaign : `creationPersonnages`). */
             creation: z.boolean(),
+            /** Résumé des listes (table de la campagne). */
+            summary: CharacterSummary,
           }),
         },
       },
@@ -114,6 +119,7 @@ export const register: Module = async (app, deps) => {
         systeme: { id: l.systemId, version: l.systemVersion },
         type: l.type,
         creation: l.etat.creation,
+        summary: resumeDe(catalogue, l),
       };
     },
   );

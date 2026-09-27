@@ -134,6 +134,8 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
         systeme: { id: 'star-wars-eote', version: '1.0.0' },
         type: 'personnage',
         creation: true,
+        concept: '',
+        summary: { tagline: '', highlights: expect.any(Array) },
         updatedAt: p.updatedAt,
       },
     ]);
