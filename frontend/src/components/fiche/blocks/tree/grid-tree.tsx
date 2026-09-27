@@ -25,6 +25,8 @@ const DEFAULT_GEOMETRY: Geometry = {
 const PAD = 16;
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.6;
+/** Ajustement automatique : jamais en dessous (texte lisible), on défile au-delà. */
+const MIN_FIT = 0.6;
 
 interface Rect {
   x: number;
@@ -95,15 +97,14 @@ export function GridTree({
   const [zoom, setZoom] = useState(1);
   const [auto, setAuto] = useState(true);
 
+  // Tout l'arbre si le cadre le permet sans rendre le texte illisible, sinon la largeur
   const fit = useCallback(() => {
     const el = frame.current;
     if (!el) return;
-    const z = Math.min(
-      1,
-      (el.clientWidth - 8) / width,
-      el.clientHeight > 80 ? (el.clientHeight - 8) / height : 1,
-    );
-    setZoom(Math.max(MIN_ZOOM, Math.round(z * 100) / 100));
+    const w = (el.clientWidth - 8) / width;
+    const h = el.clientHeight > 80 ? (el.clientHeight - 8) / height : 1;
+    const z = Math.min(1, Math.min(w, h) >= MIN_FIT ? Math.min(w, h) : w);
+    setZoom(Math.max(MIN_FIT, Math.round(z * 100) / 100));
   }, [width, height]);
 
   // Ajusté au cadre tant que l'utilisateur n'a pas zoomé lui-même (bloc redimensionné…)
