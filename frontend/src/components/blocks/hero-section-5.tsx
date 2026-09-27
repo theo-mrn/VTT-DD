@@ -14,6 +14,7 @@ import { Features1 } from '@/components/blocks/features1';
 import { MockupCtaSection } from '@/components/blocks/mockup-cta-section';
 import { StartCampaignSection } from '@/components/blocks/start-campaign-section';
 import { DiceWidget } from '@/components/blocks/dice-widget';
+import { FrontiereErreur } from '@/components/commun/frontiere-erreur';
 import { CanvaSection } from '@/components/blocks/canva';
 import { TestimonialsSection } from '@/components/ui/testimonial-v2';
 import { ImageAutoSlider } from '@/components/ui/image-auto-slider';
@@ -264,7 +265,7 @@ export function HeroSection() {
 
   const handleStartAdventure = () => {
     if (isUserLoggedIn) {
-      router.push('/home');
+      router.push('/accueil');
     } else {
       setIsAuthModalOpen(true);
     }
@@ -424,7 +425,10 @@ export function HeroSection() {
         <StartCampaignSection onStart={handleStartAdventure} />
       </main>
 
-      <DiceWidget />
+      {/* Scène 3D chargée depuis des CDN : son échec ne doit pas emporter la page */}
+      <FrontiereErreur>
+        <DiceWidget />
+      </FrontiereErreur>
 
       {isAuthModalOpen && (
         <div className="fixed inset-0 z-50">
@@ -436,11 +440,18 @@ export function HeroSection() {
             <div className="relative">
               <button
                 onClick={() => setIsAuthModalOpen(false)}
-                className="absolute -top-4 -right-4 z-20 bg-zinc-900 rounded-xl p-2 shadow-lg hover:bg-zinc-800 text-white"
+                className="absolute right-3 top-3 z-20 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
-              <FormulaireConnexion onConnecte={() => setIsAuthModalOpen(false)} />
+              <FormulaireConnexion
+                carte
+                redirection="/accueil"
+                onConnecte={(mode) => {
+                  setIsAuthModalOpen(false);
+                  router.push(mode === 'inscription' ? '/bienvenue' : '/accueil');
+                }}
+              />
             </div>
           </div>
         </div>

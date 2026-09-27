@@ -82,7 +82,7 @@ function Reinitialisation() {
           onChange={(e) => setMotDePasse(e.target.value)}
           className={styleChamp}
         />
-        <p className="text-xs text-zinc-500">{LONGUEUR_MIN_MDP} caractères minimum.</p>
+        <p className="text-xs text-subtle">{LONGUEUR_MIN_MDP} caractères minimum.</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmation" className={styleLabel}>

@@ -17,18 +17,18 @@ export function LigneJoueur({
   actions?: ReactNode;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-3 py-3">
+    <li className="flex flex-wrap items-center gap-3 py-3.5">
       <Link href={`/joueurs/${encodeURIComponent(id)}`} className="shrink-0" tabIndex={-1}>
         <AvatarJoueur nom={nom} url={avatarUrl} taille="sm" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link
           href={`/joueurs/${encodeURIComponent(id)}`}
-          className="block truncate text-sm text-zinc-100 hover:text-[#c9a965]"
+          className="block truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
         >
           {nom}
         </Link>
-        {detail && <p className="truncate text-xs text-zinc-500">{detail}</p>}
+        {detail && <p className="truncate text-xs text-subtle">{detail}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
     </li>

@@ -12,7 +12,7 @@ import {
   TitrePage,
   Vide,
 } from '@/components/compte/elements';
-import { aclonica, styleChamp, styleLabel } from '@/components/compte/styles';
+import { styleChamp, styleLabel } from '@/components/compte/styles';
 import {
   Dialog,
   DialogContent,
@@ -175,7 +175,7 @@ function CarteSansMotDePasse({ profil }: { profil: Profil }) {
       <div className="space-y-4">
         {profil.email ? (
           <>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted-foreground">
               Pour pouvoir aussi vous connecter par e-mail, recevez un lien permettant de définir un
               mot de passe.
             </p>
@@ -215,9 +215,9 @@ function CarteComptesLies({ profil }: { profil: Profil }) {
 
 function LigneConnexion({ label, actif }: { label: string; actif: boolean }) {
   return (
-    <li className="flex items-center justify-between rounded-lg border border-zinc-800 px-3 py-2">
-      <span className="text-zinc-200">{label}</span>
-      <span className={cn('text-xs', actif ? 'text-emerald-400' : 'text-zinc-500')}>
+    <li className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+      <span className="text-foreground">{label}</span>
+      <span className={cn('text-xs', actif ? 'text-success' : 'text-subtle')}>
         {actif ? 'Activé' : 'Non lié'}
       </span>
     </li>
@@ -322,23 +322,23 @@ function CarteSessions() {
       ) : liste.length === 0 ? (
         <Vide>Aucune session active.</Vide>
       ) : (
-        <ul className="divide-y divide-zinc-800">
+        <ul className="divide-y divide-border">
           {liste.map((s) => {
             const appareil = decrireAppareil(s.userAgent);
             const Icone = appareil.mobile ? Smartphone : Monitor;
             return (
               <li key={s.id} className="flex flex-wrap items-center gap-3 py-3">
-                <Icone className="h-5 w-5 shrink-0 text-zinc-500" />
+                <Icone className="h-5 w-5 shrink-0 text-subtle" />
                 <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 text-sm text-zinc-200">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-foreground">
                     <span className="truncate">{appareil.nom}</span>
                     {s.current && (
-                      <span className="rounded-full bg-[#c9a965]/15 px-2 py-0.5 text-[11px] text-[#e2cc97]">
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary-strong">
                         Cet appareil
                       </span>
                     )}
                   </p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-subtle">
                     {s.ip ? `${s.ip} · ` : ''}active {formaterDepuis(s.lastUsedAt)} · ouverte le{' '}
                     {formaterDate(s.createdAt)}
                   </p>
@@ -361,10 +361,8 @@ function CarteSessions() {
       <Dialog open={confirmer} onOpenChange={(o) => !partout && setConfirmer(o)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className={cn(aclonica, 'text-white')}>
-              Déconnecter tous les appareils ?
-            </DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogTitle>Déconnecter tous les appareils ?</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Toutes vos sessions seront fermées, y compris celle-ci. Il faudra vous reconnecter
               partout.
             </DialogDescription>
@@ -375,7 +373,7 @@ function CarteSessions() {
             </Bouton>
             <Bouton
               ton="danger"
-              className="bg-red-500/10"
+              className="bg-destructive/10"
               chargement={partout}
               onClick={toutDeconnecter}
             >
@@ -431,7 +429,7 @@ function CarteSuppression({ profil }: { profil: Profil }) {
     <Carte
       titre="Supprimer le compte"
       description="Supprime définitivement votre compte, votre profil et vos amitiés. Cette action est irréversible."
-      className="border-red-500/20"
+      className="border-destructive/20"
     >
       <Bouton ton="danger" onClick={() => setOuvert(true)}>
         <Trash2 />
@@ -442,10 +440,8 @@ function CarteSuppression({ profil }: { profil: Profil }) {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={supprimer} className="space-y-4">
             <DialogHeader>
-              <DialogTitle className={cn(aclonica, 'text-red-400')}>
-                Supprimer définitivement ?
-              </DialogTitle>
-              <DialogDescription className="text-zinc-400">
+              <DialogTitle className="text-destructive">Supprimer définitivement ?</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 Votre compte « {profil.name} » et toutes ses données seront supprimés. Impossible de
                 revenir en arrière.
               </DialogDescription>
@@ -485,7 +481,7 @@ function CarteSuppression({ profil }: { profil: Profil }) {
               <Bouton
                 type="submit"
                 ton="danger"
-                className="bg-red-500/10"
+                className="bg-destructive/10"
                 chargement={envoi}
                 disabled={!pret}
               >

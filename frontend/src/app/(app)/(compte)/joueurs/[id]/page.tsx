@@ -10,7 +10,7 @@ import {
   Message,
   formaterDuree,
 } from '@/components/compte/elements';
-import { aclonica, styleLien } from '@/components/compte/styles';
+import { styleLien } from '@/components/compte/styles';
 import {
   accepterDemande,
   demanderEnAmi,
@@ -48,17 +48,19 @@ export default function PageJoueur() {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface-2">
         <div
-          className="h-36 bg-zinc-800 bg-cover bg-center sm:h-44"
+          className="h-36 bg-surface-3 bg-cover bg-center sm:h-44"
           style={p.bannerUrl ? { backgroundImage: `url(${p.bannerUrl})` } : undefined}
         />
         <div className="space-y-4 p-6">
           <div className="-mt-16 flex flex-wrap items-end gap-4">
             <AvatarJoueur nom={p.name} url={p.avatarUrl} bordure={p.borderType} taille="xl" />
             <div className="min-w-0 flex-1">
-              <h1 className={cn('truncate text-2xl text-white sm:text-3xl', aclonica)}>{p.name}</h1>
-              {p.title && <p className="text-[#c9a965]">{p.title}</p>}
+              <h1 className="truncate font-display text-2xl font-semibold text-foreground sm:text-3xl">
+                {p.name}
+              </h1>
+              {p.title && <p className="text-primary">{p.title}</p>}
             </div>
             <div className="flex gap-2">
               {lien === 'moi' && (
@@ -103,10 +105,10 @@ export default function PageJoueur() {
           </div>
 
           {erreur && <Message>{erreur}</Message>}
-          {p.bio && <p className="whitespace-pre-line text-zinc-300">{p.bio}</p>}
-          <p className="text-sm text-zinc-400">
+          {p.bio && <p className="whitespace-pre-line text-foreground/85">{p.bio}</p>}
+          <p className="text-sm text-muted-foreground">
             Temps de jeu :{' '}
-            <span className="text-zinc-200">{formaterDuree(p.timeSpentMinutes)}</span>
+            <span className="text-foreground">{formaterDuree(p.timeSpentMinutes)}</span>
           </p>
         </div>
       </div>

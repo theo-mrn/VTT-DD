@@ -15,7 +15,7 @@ import {
   TitrePage,
 } from '@/components/compte/elements';
 import { useEnvoiImage } from '@/components/compte/envoi-image';
-import { aclonica, styleChamp, styleLabel } from '@/components/compte/styles';
+import { styleChamp, styleLabel } from '@/components/compte/styles';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -107,17 +107,17 @@ function BandeauVerification({ email }: { email: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#c9a965]/30 bg-[#c9a965]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
-        <Mail className="mt-0.5 h-5 w-5 shrink-0 text-[#c9a965]" />
+        <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div className="min-w-0 text-sm">
-          <p className="text-[#e2cc97]">Votre adresse e-mail n&apos;est pas vérifiée.</p>
-          <p className="break-all text-zinc-400">
+          <p className="text-primary-strong">Votre adresse e-mail n&apos;est pas vérifiée.</p>
+          <p className="break-all text-muted-foreground">
             {etat === 'envoye'
               ? `Lien envoyé à ${email} : ouvrez-le pour confirmer votre adresse.`
               : `Confirmez ${email} pour sécuriser votre compte.`}
           </p>
-          {erreur && <p className="mt-1 text-red-300">{erreur}</p>}
+          {erreur && <p className="mt-1 text-destructive">{erreur}</p>}
         </div>
       </div>
       <Bouton
@@ -140,11 +140,11 @@ function EnTete({ profil }: { profil: Profil }) {
   const urlBanniere = banniere.apercu ?? profil.bannerUrl;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface-2">
       {banniere.input}
       {avatar.input}
       <div
-        className="relative h-32 bg-gradient-to-br from-zinc-800 via-zinc-900 to-[#c9a965]/20 bg-cover bg-center sm:h-44"
+        className="relative h-32 bg-gradient-to-br from-surface-3 via-surface-2 to-primary/20 bg-cover bg-center sm:h-44"
         style={urlBanniere ? { backgroundImage: `url(${JSON.stringify(urlBanniere)})` } : undefined}
       >
         <div className="absolute right-3 top-3 flex gap-2">
@@ -180,21 +180,23 @@ function EnTete({ profil }: { profil: Profil }) {
                 type="button"
                 onClick={avatar.ouvrir}
                 aria-label="Changer l'avatar"
-                className="absolute bottom-1 right-1 rounded-full border border-zinc-700 bg-zinc-900 p-2 text-zinc-200 transition-colors hover:border-[#c9a965] hover:text-[#c9a965]"
+                className="absolute bottom-1 right-1 rounded-full border border-border-strong bg-surface-2 p-2 text-foreground transition-colors hover:border-primary hover:text-primary"
               >
                 <Camera className="h-4 w-4" />
               </button>
             )}
           </div>
           <div className="min-w-0 flex-1 space-y-1">
-            <h2 className={cn(aclonica, 'truncate text-2xl text-white')}>{profil.name}</h2>
-            {profil.title && <p className="text-sm text-[#c9a965]">{profil.title}</p>}
+            <h2 className="truncate font-display text-2xl font-semibold text-foreground">
+              {profil.name}
+            </h2>
+            {profil.title && <p className="text-sm text-primary">{profil.title}</p>}
           </div>
         </div>
 
         {avatar.enAttente && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-zinc-400">Aperçu du nouvel avatar :</span>
+            <span className="text-sm text-muted-foreground">Aperçu du nouvel avatar :</span>
             <Bouton ton="secondaire" size="sm" onClick={avatar.annuler}>
               Annuler
             </Bouton>
@@ -211,7 +213,7 @@ function EnTete({ profil }: { profil: Profil }) {
         )}
 
         {profil.bio && (
-          <p className="mt-4 whitespace-pre-line text-sm text-zinc-300">{profil.bio}</p>
+          <p className="mt-4 whitespace-pre-line text-sm text-foreground/85">{profil.bio}</p>
         )}
 
         <dl className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
@@ -227,7 +229,7 @@ function EnTete({ profil }: { profil: Profil }) {
           />
           <Statistique icone={Mail} label="E-mail" valeur={profil.email ?? '—'} />
         </dl>
-        <p className="mt-3 text-xs text-zinc-500">Images PNG, JPEG, WebP ou GIF, 5 Mo maximum.</p>
+        <p className="mt-3 text-xs text-subtle">Images PNG, JPEG, WebP ou GIF, 5 Mo maximum.</p>
       </div>
     </section>
   );
@@ -243,11 +245,11 @@ function Statistique({
   valeur: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-800 bg-[#0c0c0e]/60 px-3 py-2.5">
-      <Icone className="h-4 w-4 shrink-0 text-[#c9a965]" />
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5">
+      <Icone className="h-4 w-4 shrink-0 text-primary" />
       <div className="min-w-0">
-        <dt className="text-xs text-zinc-500">{label}</dt>
-        <dd className="truncate text-zinc-200">{valeur}</dd>
+        <dt className="text-xs text-subtle">{label}</dt>
+        <dd className="truncate text-foreground">{valeur}</dd>
       </div>
     </div>
   );
@@ -294,7 +296,7 @@ function CarteIdentite({ profil }: { profil: Profil }) {
             <Label htmlFor="bio" className={styleLabel}>
               Bio
             </Label>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-subtle">
               {bio.length} / {LONGUEUR_MAX_BIO}
             </span>
           </div>
@@ -379,22 +381,22 @@ function CarteTitre({ profil }: { profil: Profil }) {
             ))}
           </div>
           {liste.length === 0 && (
-            <p className="text-sm text-zinc-500">Aucun titre débloqué pour l&apos;instant.</p>
+            <p className="text-sm text-subtle">Aucun titre débloqué pour l&apos;instant.</p>
           )}
           {erreur && <Message>{erreur}</Message>}
           {verrouilles.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wider text-zinc-500">À débloquer</p>
+              <p className="text-xs uppercase tracking-wider text-subtle">À débloquer</p>
               <ul className="space-y-2">
                 {verrouilles.map((t) => (
                   <li
                     key={t.slug}
-                    className="flex items-start gap-3 rounded-lg border border-zinc-800 px-3 py-2 text-sm"
+                    className="flex items-start gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                   >
-                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" />
+                    <Lock className="mt-0.5 h-4 w-4 shrink-0 text-subtle" />
                     <div className="min-w-0">
-                      <p className="text-zinc-300">{t.label}</p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-foreground/85">{t.label}</p>
+                      <p className="text-xs text-subtle">
                         {texteCondition(t.condition, t.description)}
                       </p>
                     </div>
@@ -430,8 +432,8 @@ function PastilleTitre({
       className={cn(
         'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors disabled:opacity-60',
         actif
-          ? 'border-[#c9a965] bg-[#c9a965]/15 text-[#e2cc97]'
-          : 'border-zinc-700 text-zinc-300 hover:border-zinc-500',
+          ? 'border-primary bg-primary/15 text-primary-strong'
+          : 'border-border-strong text-foreground/85 hover:border-subtle',
       )}
     >
       {actif && <Check className="h-3.5 w-3.5" />}
@@ -471,8 +473,8 @@ function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean 
     >
       <div className="space-y-4">
         {!premium && (
-          <p className="flex items-center gap-2 text-xs text-zinc-500">
-            <Crown className="h-3.5 w-3.5 text-[#c9a965]" />
+          <p className="flex items-center gap-2 text-xs text-subtle">
+            <Crown className="h-3.5 w-3.5 text-primary" />
             Les bordures animées sont réservées aux membres Premium.
           </p>
         )}
@@ -492,12 +494,12 @@ function CarteApparence({ profil, premium }: { profil: Profil; premium: boolean 
                 className={cn(
                   'flex flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-[11px] leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-40',
                   bordure === b.id
-                    ? 'border-[#c9a965] bg-[#c9a965]/10 text-[#e2cc97]'
-                    : 'border-zinc-800 text-zinc-400 hover:border-zinc-600',
+                    ? 'border-primary bg-primary/10 text-primary-strong'
+                    : 'border-border text-muted-foreground hover:border-border-strong',
                 )}
               >
                 <span
-                  className="relative h-6 w-6 rounded-full border border-zinc-700"
+                  className="relative h-6 w-6 rounded-full border border-border-strong"
                   style={
                     b.couleurs.length
                       ? {

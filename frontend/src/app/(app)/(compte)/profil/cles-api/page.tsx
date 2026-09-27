@@ -12,7 +12,7 @@ import {
   TitrePage,
   Vide,
 } from '@/components/compte/elements';
-import { aclonica, styleChamp, styleLabel } from '@/components/compte/styles';
+import { styleChamp, styleLabel } from '@/components/compte/styles';
 import {
   Dialog,
   DialogContent,
@@ -62,14 +62,14 @@ export default function PageClesApi() {
         ) : !cles.donnees?.length ? (
           <Vide>Aucune clé d&apos;API pour l&apos;instant.</Vide>
         ) : (
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-border">
             {cles.donnees.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-3 py-3">
-                <KeyRound className="h-5 w-5 shrink-0 text-[#c9a965]" />
+                <KeyRound className="h-5 w-5 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-zinc-200">{c.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-300">
+                  <p className="truncate text-sm text-foreground">{c.name}</p>
+                  <p className="text-xs text-subtle">
+                    <code className="rounded bg-surface-3 px-1.5 py-0.5 text-foreground/85">
                       {c.prefix}…
                     </code>{' '}
                     · créée le {formaterDate(c.createdAt)} · utilisée{' '}
@@ -167,8 +167,10 @@ function DialogueCreation({
         {creee ? (
           <div className="space-y-4">
             <DialogHeader>
-              <DialogTitle className={cn(aclonica, 'text-white')}>Clé créée</DialogTitle>
-              <DialogDescription className="text-zinc-400">« {creee.name} »</DialogDescription>
+              <DialogTitle>Clé créée</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                « {creee.name} »
+              </DialogDescription>
             </DialogHeader>
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -179,7 +181,7 @@ function DialogueCreation({
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <code
-                className="min-w-0 flex-1 select-all break-all rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-[#e2cc97]"
+                className="min-w-0 flex-1 select-all break-all rounded-lg border border-border-strong bg-primary-foreground px-3 py-2 font-mono text-sm text-primary-strong"
                 aria-label="Clé d'API"
               >
                 {creee.key}
@@ -197,10 +199,8 @@ function DialogueCreation({
         ) : (
           <form onSubmit={creer} className="space-y-4">
             <DialogHeader>
-              <DialogTitle className={cn(aclonica, 'text-white')}>
-                Nouvelle clé d&apos;API
-              </DialogTitle>
-              <DialogDescription className="text-zinc-400">
+              <DialogTitle>Nouvelle clé d&apos;API</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 Donnez-lui un nom pour la reconnaître (l&apos;outil qui l&apos;utilise, par
                 exemple).
               </DialogDescription>
@@ -273,8 +273,8 @@ function DialogueRevocation({
     <Dialog open={cle !== null} onOpenChange={(o) => !o && fermer()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className={cn(aclonica, 'text-white')}>Révoquer cette clé ?</DialogTitle>
-          <DialogDescription className="text-zinc-400">
+          <DialogTitle>Révoquer cette clé ?</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Les outils qui utilisent « {cle?.name} » perdront immédiatement l&apos;accès à votre
             compte.
           </DialogDescription>
@@ -284,7 +284,7 @@ function DialogueRevocation({
           <Bouton ton="secondaire" onClick={fermer} disabled={envoi}>
             Annuler
           </Bouton>
-          <Bouton ton="danger" className="bg-red-500/10" chargement={envoi} onClick={revoquer}>
+          <Bouton ton="danger" className="bg-destructive/10" chargement={envoi} onClick={revoquer}>
             Révoquer
           </Bouton>
         </DialogFooter>

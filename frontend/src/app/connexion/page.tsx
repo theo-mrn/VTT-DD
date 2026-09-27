@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
+import { CadreAuth } from '@/components/auth/cadre-auth';
 import { FormulaireConnexion } from '@/components/auth/formulaire-connexion';
 import { cheminInterne } from '@/lib/redirection';
 import { useSession } from '@/lib/session';
@@ -14,8 +15,8 @@ function Connexion() {
   const { statut } = useSession();
   const router = useRouter();
   const params = useSearchParams();
-  // Page demandée avant la connexion (?redirect=/amis), sinon le profil
-  const retour = cheminInterne(params.get('redirect'));
+  // Page demandée avant la connexion (?redirect=/amis), sinon l'accueil
+  const retour = cheminInterne(params.get('redirect'), '/accueil');
   const codeErreur = params.get('erreur');
   const erreur = codeErreur ? (ERREURS[codeErreur] ?? 'La connexion a échoué.') : null;
 
@@ -27,17 +28,23 @@ function Connexion() {
     <FormulaireConnexion
       redirection={retour}
       erreurInitiale={erreur}
-      onConnecte={() => router.replace(retour)}
+      modeInitial={params.get('mode') === 'inscription' ? 'inscription' : 'connexion'}
+      // Un nouveau compte passe par l'onboarding avant la page demandée
+      onConnecte={(mode) =>
+        router.replace(
+          mode === 'inscription' ? `/bienvenue?${new URLSearchParams({ suite: retour })}` : retour,
+        )
+      }
     />
   );
 }
 
 export default function PageConnexion() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0c0c0e] p-4">
+    <CadreAuth>
       <Suspense>
         <Connexion />
       </Suspense>
-    </main>
+    </CadreAuth>
   );
 }

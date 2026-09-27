@@ -48,7 +48,7 @@ export default function PageAmis() {
 
       {recues.length > 0 && (
         <Carte titre={`Demandes reçues (${recues.length})`}>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-border">
             {recues.map((d) => (
               <LigneJoueur
                 key={d.id}
@@ -92,7 +92,7 @@ export default function PageAmis() {
           ) : !amis.donnees?.length ? (
             <Vide>Pas encore d&apos;amis : cherchez des joueurs ci-dessus.</Vide>
           ) : (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-border">
               {amis.donnees.map((a) => (
                 <LigneJoueur
                   key={a.id}
@@ -137,7 +137,7 @@ export default function PageAmis() {
           ) : envoyees.length === 0 ? (
             <Vide>Aucune demande en attente.</Vide>
           ) : (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-border">
               {envoyees.map((d) => (
                 <LigneJoueur
                   key={d.id}
@@ -213,7 +213,7 @@ function Recherche({
   return (
     <Carte titre="Trouver des joueurs">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
         <Input
           type="search"
           value={texte}
@@ -233,7 +233,7 @@ function Recherche({
           ) : visibles.length === 0 ? (
             !recherche && <Vide>Aucun joueur trouvé pour « {texte.trim()} ».</Vide>
           ) : (
-            <ul className={cn('divide-y divide-zinc-800', recherche && 'opacity-60')}>
+            <ul className={cn('divide-y divide-border', recherche && 'opacity-60')}>
               {visibles.map((j) => (
                 <LigneJoueur
                   key={j.id}
@@ -270,8 +270,8 @@ function ActionRelation({
   onAjouter(): void;
   onAccepter(): void;
 }) {
-  if (relation === 'ami') return <span className="text-xs text-emerald-400">Ami</span>;
-  if (relation === 'envoyee') return <span className="text-xs text-zinc-500">Demande envoyée</span>;
+  if (relation === 'ami') return <span className="text-xs text-success">Ami</span>;
+  if (relation === 'envoyee') return <span className="text-xs text-subtle">Demande envoyée</span>;
   if (relation === 'recue')
     return (
       <Bouton size="sm" chargement={chargement} onClick={onAccepter}>
