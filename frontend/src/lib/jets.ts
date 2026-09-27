@@ -35,6 +35,8 @@ import {
   analyser,
   evaluer,
   aleatoireCrypto,
+  normaliserFormuleJet,
+  type ErreurFormule,
   type ContexteEvaluation,
   type Fiche,
   type Generateur,
@@ -197,6 +199,21 @@ export function normaliserFormule(texte: string): string {
     .replace(/kh(\d)/g, 'k$1');
 }
 
+/**
+ * Formule telle que le moteur la lit : écritures courantes normalisées, puis
+ * clés nues du personnage réécrites comme le fait le service de dés
+ * (`1d20+CON` → `1d20+mod(@CON)`, `2d6+INIT` → `2d6+@INIT`). Sans fiche, les
+ * clés nues restent (la vérification demande alors un personnage).
+ */
+export function formuleMoteur(
+  texte: string,
+  fiche?: Fiche | null,
+): { ok: true; formule: string } | { ok: false; erreur: ErreurFormule } {
+  const f = normaliserFormule(texte);
+  if (!fiche) return { ok: true, formule: f };
+  return normaliserFormuleJet(fiche.systeme, fiche.entite.type.id, f);
+}
+
 function contexte(fiche: Fiche | null | undefined, aleatoire: ContexteEvaluation['aleatoire']) {
   if (fiche) return fiche.contexte({ aleatoire });
   const inconnu = (quoi: string) => () => {
@@ -206,7 +223,7 @@ function contexte(fiche: Fiche | null | undefined, aleatoire: ContexteEvaluation
     attribut: inconnu('Attribut'),
     modificateur: inconnu('Modificateur'),
     variable: (nom: string) => {
-      throw new Error(`Terme inconnu : « ${nom} »`);
+      throw new Error(`« ${nom} » : choisissez un personnage pour utiliser ses attributs`);
     },
     aleatoire,
   } satisfies ContexteEvaluation;
@@ -216,9 +233,10 @@ export type Verification = { ok: true } | { ok: false; message: string; position
 
 /** Vérifie une formule sans la lancer pour de vrai (le résultat est jeté). */
 export function verifierFormule(texte: string, fiche?: Fiche | null): Verification {
-  const f = normaliserFormule(texte);
-  if (!f) return { ok: false, message: 'Formule vide', position: null };
-  const a = analyser(f);
+  if (!normaliserFormule(texte)) return { ok: false, message: 'Formule vide', position: null };
+  const m = formuleMoteur(texte, fiche);
+  if (!m.ok) return { ok: false, message: m.erreur.message, position: m.erreur.position };
+  const a = analyser(m.formule);
   if (!a.ok)
     return {
       ok: false,
@@ -248,7 +266,9 @@ const UN: Generateur = { entier: () => 1 };
  */
 export function desDeFormule(texte: string, fiche?: Fiche | null): ThrowRequest[] {
   try {
-    const a = analyser(normaliserFormule(texte));
+    const m = formuleMoteur(texte, fiche);
+    if (!m.ok) return [];
+    const a = analyser(m.formule);
     if (!a.ok) return [];
     return evaluer(a.noeud, contexte(fiche, UN))
       .jets.filter((j) => j.des.length > 0)

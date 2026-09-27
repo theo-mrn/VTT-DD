@@ -52,8 +52,8 @@ export const signe = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
 /**
  * Puces des attributs jetables (déclarés par le système, moins ceux que le MJ a
- * retirés pour la campagne), par groupes : un clic ajoute leur terme à la
- * formule (`mod(@FOR)`, `@INIT`…).
+ * retirés pour la campagne), par groupes : un clic ajoute leur clé nue à la
+ * formule (`CON`, `INIT`), que le moteur lit selon le système (`mod(@CON)`, `@INIT`).
  */
 export function PastillesAttributs({
   groupes,
@@ -93,11 +93,11 @@ export function PastillesAttributs({
           <ul className={LIGNE_PUCES} aria-label={g.title ?? `Attributs de ${nomPersonnage}`}>
             {g.attributes.map((a) => (
               <li key={a.key} className="shrink-0">
-                <Info texte={`${a.name} : ajoute + ${a.term}`}>
+                <Info texte={`${a.name} : ajoute + ${a.key} (lu comme ${a.term})`}>
                   <button
                     type="button"
                     onClick={() => onAjouter(a)}
-                    aria-label={`Ajouter ${a.name} (${signe(a.value)}) : ${a.term}`}
+                    aria-label={`Ajouter ${a.key}, ${a.name} (${signe(a.value)})`}
                     className={cn(
                       PUCE,
                       'hover:border-primary/40 hover:bg-primary/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',

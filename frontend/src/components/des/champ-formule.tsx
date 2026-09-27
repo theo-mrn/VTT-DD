@@ -16,7 +16,12 @@ const EXEMPLES: { formule: string; sens: string; personnage?: boolean }[] = [
   { formule: '4d6k3', sens: 'Quatre d6, on garde les trois meilleurs' },
   { formule: '1d6!', sens: 'Dé explosif : relancé et ajouté sur un 6' },
   { formule: '(1d8+2)*2', sens: 'Parenthèses et calculs' },
-  { formule: '1d20 + mod(@FOR)', sens: 'Modificateur d’un attribut du héros', personnage: true },
+  {
+    formule: '1d20 + CON',
+    sens: 'CON du héros, selon le système (modificateur)',
+    personnage: true,
+  },
+  { formule: '1d20 + @CON', sens: 'Valeur brute de CON', personnage: true },
 ];
 
 /**
@@ -108,6 +113,11 @@ export function AideLanceur({
           <li>
             <strong className="font-medium text-foreground">Clic sur un dé</strong> : l’ajoute (3
             clics sur d6 = 3d6). Clic droit ou appui long : le retire.
+          </li>
+          <li>
+            <strong className="font-medium text-foreground">CON</strong> = modificateur de CON
+            (selon le système), <strong className="font-medium text-foreground">@CON</strong> =
+            valeur brute.
           </li>
           <li>
             <strong className="font-medium text-foreground">+</strong> : avantage, bonus, libellé,

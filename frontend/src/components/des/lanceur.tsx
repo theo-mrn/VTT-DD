@@ -172,7 +172,7 @@ export const Lanceur = forwardRef<
             groupes={groups}
             chargementAttributs={loading}
             fiche={fiche}
-            onAttribut={(a) => ecrire(ajouterTerme(formule, a.term))}
+            onAttribut={(a) => ecrire(ajouterTerme(formule, a.key))}
             formuleValide={verification.ok}
             onLancerMacro={onLancerMacro}
             onChargerMacro={onChargerMacro}
