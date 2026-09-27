@@ -30,21 +30,6 @@ const TUILE = cn(
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
 );
 
-/** Décor d'une tuile : la grille de petits points du lanceur de dés, estompée. */
-function Decor() {
-  return (
-    <span
-      aria-hidden
-      className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-      style={{
-        backgroundImage: 'radial-gradient(hsl(0 0% 100% / 0.11) 1px, transparent 1.2px)',
-        backgroundSize: '9px 9px',
-        backgroundPosition: '4px 4px',
-      }}
-    />
-  );
-}
-
 /** Quantité, en bas à droite dans la tuile (seulement au-delà de 1). */
 function Quantite({ children }: { children: ReactNode }) {
   return (
@@ -161,7 +146,6 @@ export function ItemTile({
           deplacable && 'cursor-grab active:cursor-grabbing',
         )}
       >
-        <Decor />
         {image ? (
           <img
             src={image}
@@ -259,7 +243,6 @@ export function FolderTile({
           survol ? 'border-primary bg-surface-2' : 'border-border',
         )}
       >
-        <Decor />
         {survol ? (
           <FolderOpen aria-hidden strokeWidth={1.75} className="size-6 text-primary" />
         ) : (

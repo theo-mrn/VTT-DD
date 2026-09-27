@@ -596,7 +596,7 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
   return (
     <section
       aria-label={widget.titre}
-      className="relative isolate flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]"
+      className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]"
     >
       {/* Fond à petits points, comme le lanceur de dés */}
       <div
