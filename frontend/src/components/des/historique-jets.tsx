@@ -19,6 +19,7 @@ import { messageErreur } from '@/lib/api';
 import { useEffacerJets, type Jet } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { cleJour, depuis, heureDe, libelleJour, useMaintenant } from './temps';
+import { TACTILE } from './tactile';
 import { infoVisibilite } from './visibilite';
 
 const PAR_PAGE = 20;
@@ -324,6 +325,7 @@ export function EffacerHistorique({
         <Button
           variant="ghost"
           size="icon-sm"
+          className={TACTILE}
           disabled={desactive}
           onClick={() => setOuvert(true)}
           aria-label="Effacer l’historique"
