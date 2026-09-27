@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError, messageErreur } from '@/lib/api';
+import { useCampaignSettings, useUpdateCampaignSettings } from '@/lib/campaign-settings';
 import {
   LONGUEUR_ACCROCHE,
   LONGUEUR_DESCRIPTION,
@@ -22,6 +23,7 @@ import {
 import { TYPES_IMAGE, verifierImage } from '@/lib/profil';
 import { cn } from '@/lib/utils';
 import { AMBIANCES, COUVERTURES } from './elements';
+import { ReglagesLanceur } from './reglages-lanceur';
 
 /** Réglages du MJ, dans un panneau latéral : tout sauf le système (définitif). */
 export function ReglagesCampagne({
@@ -34,6 +36,11 @@ export function ReglagesCampagne({
   onOuvert: (v: boolean) => void;
 }) {
   const modifier = useModifierCampagne(c.id);
+  const reglages = useCampaignSettings(c.id);
+  const modifierReglages = useUpdateCampaignSettings(c.id);
+  // Attributs retirés du lanceur : null tant que le MJ n'y a pas touché (valeur enregistrée)
+  const [retires, setRetires] = useState<string[] | null>(null);
+  const retiresEnregistres = reglages.data?.dice.hiddenAttributes ?? [];
   const envoi = useEnvoyerCouverture(c.id);
   const champFichier = useRef<HTMLInputElement>(null);
   const initial = (): Required<ModificationCampagne> => ({
@@ -51,7 +58,9 @@ export function ReglagesCampagne({
 
   // Repart des valeurs enregistrées à chaque ouverture (pas à chaque mise à jour du cache)
   useEffect(() => {
-    if (ouvert) setF(initial());
+    if (!ouvert) return;
+    setF(initial());
+    setRetires(null);
   }, [ouvert]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Image importée : envoyée tout de suite, elle devient la couverture enregistrée
@@ -75,13 +84,27 @@ export function ReglagesCampagne({
   }
   const importee = f.coverUrl !== null && !COUVERTURES.some((cv) => cv.url === f.coverUrl);
 
+  const memes = (a: readonly string[], b: readonly string[]) =>
+    a.length === b.length && a.every((k) => b.includes(k));
+
   async function enregistrer() {
     try {
       await modifier.mutateAsync({ ...f, name: f.name.trim(), pitch: f.pitch.trim() });
+      if (retires !== null && reglages.data && !memes(retires, retiresEnregistres))
+        await modifierReglages.mutateAsync({
+          version: reglages.data.version,
+          dice: { hiddenAttributes: retires },
+        });
       toast.success('Campagne mise à jour');
       onOuvert(false);
     } catch (err) {
-      toast.error(messageErreur(err));
+      if (err instanceof ApiError && err.problem.code === 'version_conflict') {
+        void reglages.refetch();
+        setRetires(null);
+        toast.error(
+          'Les réglages du lanceur ont changé entre-temps : vérifiez-les et recommencez.',
+        );
+      } else toast.error(messageErreur(err));
     }
   }
 
@@ -229,6 +252,13 @@ export function ReglagesCampagne({
             label="Création libre des personnages"
             description="Les joueurs créent leur héros eux-mêmes."
           />
+
+          <ReglagesLanceur
+            systemId={c.system}
+            hidden={retires ?? retiresEnregistres}
+            onChange={setRetires}
+            loading={reglages.isPending}
+          />
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
           <Button variant="ghost" onClick={() => onOuvert(false)}>
@@ -236,7 +266,7 @@ export function ReglagesCampagne({
           </Button>
           <Button
             onClick={() => void enregistrer()}
-            loading={modifier.isPending}
+            loading={modifier.isPending || modifierReglages.isPending}
             disabled={f.name.trim().length < 3}
           >
             Enregistrer

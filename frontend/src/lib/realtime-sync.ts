@@ -14,6 +14,7 @@
 
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { campaignSettingsKey } from './campaign-settings';
 import { clePersonnagesCampagne, clesCampagnes } from './campagnes';
 import { clesPersonnages, type FichePersonnage } from './personnages';
 import { useCampaignEvents, type RealtimeEvent } from './realtime';
@@ -49,6 +50,11 @@ export function appliquerEvenement(client: QueryClient, moi: string, e: Realtime
     }
     // La discussion n'a pas d'écran ici
     if (type.startsWith('campaign.message_')) return;
+    // Réglages de table (lanceur de dés) : seule leur requête change
+    if (type === 'campaign.settings_updated') {
+      void client.invalidateQueries({ queryKey: campaignSettingsKey(id) });
+      return;
+    }
     if (type === 'campaign.session_scheduled' || type === 'campaign.session_cancelled') {
       void client.invalidateQueries({ queryKey: clesCampagnes.sessions(id) });
       void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
