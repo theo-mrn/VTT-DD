@@ -9,6 +9,7 @@ import { droitsCampaign, sansCampagnes } from './droits/campaign.js';
 import { register as interne } from './modules/interne/index.js';
 import { register as personnages } from './modules/personnages/index.js';
 import { register as systemes } from './modules/systemes/index.js';
+import { register as templates } from './modules/templates/index.js';
 import { catalogueReference, type Catalogue } from './regles/catalogue.js';
 
 export async function buildCharacter(
@@ -58,7 +59,7 @@ export async function buildCharacter(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [systemes, personnages, interne]) {
+  for (const module of [systemes, personnages, templates, interne]) {
     await module(app, deps);
   }
 

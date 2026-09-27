@@ -232,7 +232,7 @@ export interface Changement {
  * (schéma de @vtt/rules) : bonus libres par `id`, possessions par entrée et
  * exemplaire (`etat.possessions[epee-longue#2].quantite`).
  */
-const IDENTITES: DiffOptions = { identityKeys: ['id', ['entree', 'exemplaire']] };
+export const IDENTITES: DiffOptions = { identityKeys: ['id', ['entree', 'exemplaire']] };
 
 /** Champs suivis par le diff de `character.updated`. */
 const suivi = (ligne: Ligne, etat: unknown) => ({
@@ -245,7 +245,7 @@ const suivi = (ligne: Ligne, etat: unknown) => ({
  * État enregistré avec ses valeurs par défaut (un état importé peut en omettre) :
  * sans cela, le diff rapporterait des champs « ajoutés » qui n'ont pas bougé.
  */
-function etatNormalise(brut: unknown): unknown {
+export function etatNormalise(brut: unknown): unknown {
   const r = EtatEntite.safeParse(brut);
   return r.success ? r.data : brut;
 }

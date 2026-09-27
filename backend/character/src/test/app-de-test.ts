@@ -14,7 +14,12 @@ import { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { characters, outbox } from '../db/schema.js';
 import type { JetAction, JournalDes } from '../des/dice.js';
-import type { Droits, DroitsCampagnes } from '../droits/campaign.js';
+import {
+  campaignIndisponible,
+  type Droits,
+  type DroitsCampagnes,
+  type RoleCampagne,
+} from '../droits/campaign.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -48,17 +53,30 @@ export function aleatoirePilote() {
 /**
  * Droits de salle simulés (à la place de campaign) : `accorder(characterId,
  * userId, droits)` ouvre la lecture ou l'écriture d'un personnage à un
- * utilisateur qui ne le possède pas.
+ * utilisateur qui ne le possède pas ; `nommer(campaignId, userId, role)` fait
+ * d'un utilisateur un membre d'une campagne. `panne(true)` simule campaign
+ * injoignable pour les rôles (503).
  */
 export function droitsSimules() {
   const table = new Map<string, Droits>();
+  const roles = new Map<string, RoleCampagne>();
+  let enPanne = false;
   const droits: DroitsCampagnes = {
     de: async (characterId, userId) =>
       table.get(`${characterId}:${userId}`) ?? { lecture: false, ecriture: false },
+    role: async (campaignId, userId) => {
+      if (enPanne) throw campaignIndisponible();
+      return roles.get(`${campaignId}:${userId}`) ?? null;
+    },
   };
   const accorder = (characterId: string, userId: string, d: Droits) =>
     table.set(`${characterId}:${userId}`, d);
-  return { droits, accorder };
+  const nommer = (campaignId: string, userId: string, role: RoleCampagne) =>
+    roles.set(`${campaignId}:${userId}`, role);
+  const panne = (oui: boolean) => {
+    enPanne = oui;
+  };
+  return { droits, accorder, nommer, panne };
 }
 
 export async function appDeTest(

@@ -58,3 +58,51 @@ describe('droits décidés par campaign', () => {
     expect(signaler).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('rôle dans une campagne décidé par campaign', () => {
+  it('interroge la route des droits de la campagne puis garde le rôle en cache', async () => {
+    let maintenant = 1_000;
+    const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) =>
+      reponse({ member: true, role: 'gm' }),
+    );
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 5_000,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      maintenant: () => maintenant,
+    });
+
+    expect(await droits.role('camp-1', 'user-1')).toBe('gm');
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(String(url)).toBe(
+      'http://campaign.local/internal/campaigns/camp-1/rights?userId=user-1',
+    );
+    expect((init!.headers as Record<string, string>)['x-internal-secret']).toBe(SECRET);
+    await droits.role('camp-1', 'user-1');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    maintenant += 5_001;
+    await droits.role('camp-1', 'user-1');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('non-membre : aucun rôle ; panne : erreur 503, jamais mise en cache', async () => {
+    const signaler = vi.fn();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(reponse({ member: false, role: null }))
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValueOnce(reponse({ member: true, role: 'player' }));
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 0,
+      fetch,
+      signaler,
+    });
+    expect(await droits.role('c', 'u')).toBeNull();
+    await expect(droits.role('c', 'u')).rejects.toMatchObject({ status: 503 });
+    expect(await droits.role('c', 'u')).toBe('player');
+    expect(signaler).toHaveBeenCalledTimes(1);
+  });
+});
