@@ -56,6 +56,7 @@ import {
   toApiLayout,
   type GridLayouts,
   type GridState,
+  type HeightMode,
 } from './model';
 import { heightModeOf, isBlockEmpty, minSizeOf, sizeFor } from './sizing';
 import './sheet-grid.css';
@@ -318,6 +319,33 @@ export function SheetGrid({
     [brouillon, bp, changer],
   );
 
+  /** Hauteur automatique ou définie ; un bloc qui passe en définie garde la hauteur affichée. */
+  const changerHauteur = useCallback(
+    (id: string, mode: HeightMode) => {
+      if (!brouillon) return;
+      const affiche = layouts[bp].find((it) => it.i === id);
+      changer({
+        ...brouillon,
+        blocks: brouillon.blocks.map((b) => (b.id === id ? { ...b, height: mode } : b)),
+        layouts: {
+          ...brouillon.layouts,
+          [bp]: brouillon.layouts[bp].map((it) =>
+            it.i === id && affiche ? { ...it, h: affiche.h } : it,
+          ),
+        },
+        arranged: brouillon.arranged.includes(bp)
+          ? brouillon.arranged
+          : [...brouillon.arranged, bp],
+      });
+      setAnnonce(
+        mode === 'auto'
+          ? 'Hauteur automatique : le bloc suit son contenu.'
+          : 'Hauteur définie : réglez-la au coin du bloc, son contenu défile.',
+      );
+    },
+    [brouillon, layouts, bp, changer],
+  );
+
   const retirer = useCallback(
     (id: string) => {
       if (!brouillon) return;
@@ -434,9 +462,9 @@ export function SheetGrid({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Personnalisation</p>
             <p className="hidden text-xs text-muted-foreground md:block">
-              Glissez un bloc pour le déplacer, tirez son bord pour changer sa largeur. Au clavier :{' '}
-              <Kbd>←↑→↓</Kbd> déplace, <Kbd>Maj</Kbd>+<Kbd>←↑→↓</Kbd> redimensionne,{' '}
-              <Kbd>Suppr</Kbd> retire.
+              Glissez un bloc pour le déplacer, tirez son bord pour changer sa largeur (son coin en
+              hauteur définie). Au clavier : <Kbd>←↑→↓</Kbd> déplace, <Kbd>Maj</Kbd>+<Kbd>←↑→↓</Kbd>{' '}
+              redimensionne, <Kbd>Suppr</Kbd> retire.
             </p>
           </div>
           <StatutEnregistrement statut={statut} />
@@ -514,6 +542,7 @@ export function SheetGrid({
                     empty={vides.has(b.id)}
                     heightMode={modes.get(b.id) ?? 'auto'}
                     onMeasure={(px) => mesurer(b.id, px)}
+                    onHeightModeChange={(m) => changerHauteur(b.id, m)}
                     onRemove={() => retirer(b.id)}
                   />
                 </div>

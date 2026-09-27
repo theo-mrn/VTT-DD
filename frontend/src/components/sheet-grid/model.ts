@@ -29,10 +29,15 @@ export interface BlockSize {
   h: number;
 }
 
+/** Hauteur d'un bloc : `auto` suit son contenu, `fixed` garde la hauteur réglée (défile). */
+export type HeightMode = 'auto' | 'fixed';
+
 /** Bloc de la grille : son widget, ou null s'il n'est plus lisible (système mis à jour). */
 export interface GridBlock {
   id: string;
   widget: Widget | null;
+  /** Hauteur choisie en personnalisation ; absente : préférence du type de bloc. */
+  height?: HeightMode;
   /** Bloc tel qu'enregistré, gardé tel quel s'il n'est plus lisible. */
   raw: SheetLayout['blocks'][number];
 }
@@ -164,7 +169,7 @@ export function fromApiBlock(
 ): GridBlock {
   const r = Widget.safeParse({ ...b.params, type: b.type, titre: b.title });
   const widget = r.success && (!disponible || disponible(r.data)) ? r.data : null;
-  return { id: b.id, widget, raw: b };
+  return { id: b.id, widget, raw: b, ...(b.height ? { height: b.height } : {}) };
 }
 
 export function gridBlock(id: string, widget: Widget): GridBlock {
@@ -291,7 +296,10 @@ export function toApiLayout(state: GridState): SheetLayout {
     layouts[bp] = state.layouts[bp].map(({ i, x, y, w, h }) => ({ i, x, y, w, h }));
   return {
     format: 1,
-    blocks: state.blocks.map((b) => (b.widget ? toApiBlock(b.id, b.widget) : b.raw)),
+    blocks: state.blocks.map((b) => {
+      const api = b.widget ? toApiBlock(b.id, b.widget) : b.raw;
+      return b.height ? { ...api, height: b.height } : api;
+    }),
     layouts,
   };
 }

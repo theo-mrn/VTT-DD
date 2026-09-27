@@ -35,6 +35,11 @@ export const SheetBlock = z.strictObject({
     .record(ParamKey, ParamValue)
     .refine((p) => Object.keys(p).length <= 16, '16 paramètres au plus')
     .default({}),
+  /**
+   * Hauteur dans la grille : `auto` suit le contenu, `fixed` garde la hauteur des positions
+   * (le contenu défile). Absente : préférence du type de bloc, choisie par le front.
+   */
+  height: z.enum(['auto', 'fixed']).optional(),
 });
 export type SheetBlock = z.output<typeof SheetBlock>;
 

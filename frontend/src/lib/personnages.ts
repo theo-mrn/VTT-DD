@@ -155,6 +155,8 @@ export interface SheetLayout {
     type: string;
     title: string;
     params: Record<string, string | number | boolean | string[]>;
+    /** Hauteur dans la grille : suit le contenu, ou définie ; absente : préférence du bloc. */
+    height?: 'auto' | 'fixed';
   }[];
   layouts: Partial<Record<SheetBreakpoint, SheetLayoutItem[]>>;
 }

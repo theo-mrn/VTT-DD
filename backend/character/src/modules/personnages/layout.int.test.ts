@@ -27,7 +27,13 @@ const MISE_EN_PAGE = {
       title: 'Caractéristiques',
       params: { groupe: 'caracteristiques', colonnes: 6 },
     },
-    { id: 'b2', type: 'ressources', title: 'Vitalité', params: { attributs: ['PV'] } },
+    {
+      id: 'b2',
+      type: 'ressources',
+      title: 'Vitalité',
+      params: { attributs: ['PV'] },
+      height: 'fixed',
+    },
   ],
   layouts: {
     lg: [
@@ -197,6 +203,10 @@ describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
         { ...MISE_EN_PAGE, layouts: { md: [{ i: 'b1', x: 10, y: 0, w: 4, h: 4 }] } },
       ],
       ['largeur inconnue', { ...MISE_EN_PAGE, layouts: { xxl: [] } }],
+      [
+        'mode de hauteur inconnu',
+        { ...MISE_EN_PAGE, blocks: [{ ...MISE_EN_PAGE.blocks[0], height: 'grande' }] },
+      ],
       [
         'paramètre invalide',
         {

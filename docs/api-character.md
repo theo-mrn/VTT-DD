@@ -92,11 +92,13 @@ La fiche du front est une grille de blocs (12 colonnes sur grand écran) que le 
 ```ts
 SheetLayout = {
   format: 1;
-  blocks: { id: string; type: string; title: string; params: Record<string, string | number | boolean | string[]> }[]; // 40 au plus
+  blocks: { id: string; type: string; title: string; params: Record<string, string | number | boolean | string[]>; height?: 'auto' | 'fixed' }[]; // 40 au plus
   layouts: { lg?: Item[]; md?: Item[]; sm?: Item[]; xs?: Item[] }; // positions par largeur ; absente : déduite
 }
 Item = { i: string; x: number; y: number; w: number; h: number } // i : id d'un bloc, x + w <= 12
 ```
+
+`height` règle la hauteur d'un bloc dans la grille : `auto`, elle suit son contenu (le `h` des positions n'est qu'une estimation, le front mesure) ; `fixed`, le `h` des positions s'applique et le contenu défile. Absent : préférence du type de bloc côté front (automatique, sauf l'arbre) ; les mises en page enregistrées avant ce champ suivent donc cette préférence.
 
 Un bloc est un widget de la présentation (`type`, `titre` → `title`, ses autres champs → `params`) : le service ne connaît aucun jeu, il vérifie la forme (schéma strict, clés inconnues refusées), les bornes, l'unicité des blocs et que chaque position désigne un bloc. 32 Ko au plus une fois sérialisée (400 au-delà ; 413 pour un corps de plus de 64 Ko). La `version` est obligatoire et incrémentée, comme pour toute écriture (409 `version_perimee` si elle est périmée). Propriétaire ou MJ de la table ; un joueur de la table reçoit 403.
 

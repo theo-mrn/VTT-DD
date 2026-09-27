@@ -22,8 +22,7 @@ import type { ContexteFiche } from '@/components/fiche/widgets';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { GridBlock } from './model';
-import type { HeightMode } from './sizing';
+import type { GridBlock, HeightMode } from './model';
 
 class BlockBoundary extends Component<
   { children: ReactNode; title: string; resetKey: string },
@@ -129,6 +128,51 @@ function BlockContent({
   );
 }
 
+const HAUTEURS: [HeightMode, string][] = [
+  ['auto', 'Automatique'],
+  ['fixed', 'Définie'],
+];
+
+/** « Hauteur : Automatique | Définie » : suit le contenu, ou se règle au coin et défile. */
+function HeightSwitch({
+  title,
+  value,
+  onChange,
+}: {
+  title: string;
+  value: HeightMode;
+  onChange: (mode: HeightMode) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={`Hauteur du bloc ${title}`}
+      className="sheet-no-drag ml-1 flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-surface-2 p-0.5 text-[11px]"
+    >
+      <span aria-hidden className="px-1 text-subtle">
+        Hauteur
+      </span>
+      {HAUTEURS.map(([mode, label]) => (
+        <button
+          key={mode}
+          type="button"
+          role="radio"
+          aria-checked={value === mode}
+          onClick={() => value !== mode && onChange(mode)}
+          className={cn(
+            'rounded px-1.5 py-0.5 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+            value === mode
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-surface-3 hover:text-foreground',
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function BlockFrame({
   block,
   ctx,
@@ -136,6 +180,7 @@ export function BlockFrame({
   empty,
   heightMode,
   onMeasure,
+  onHeightModeChange,
   onRemove,
 }: {
   block: GridBlock;
@@ -149,6 +194,7 @@ export function BlockFrame({
    */
   heightMode: HeightMode;
   onMeasure: (px: number) => void;
+  onHeightModeChange: (mode: HeightMode) => void;
   onRemove: () => void;
 }) {
   const auto = heightMode === 'auto';
@@ -223,6 +269,7 @@ export function BlockFrame({
           <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-border-strong bg-popover/95 py-0.5 pl-1.5 pr-0.5 text-xs shadow-elevated backdrop-blur">
             <GripVertical className="size-3.5 shrink-0 text-subtle" aria-hidden />
             <span className="min-w-0 truncate font-medium">{titre}</span>
+            <HeightSwitch title={titre} value={heightMode} onChange={onHeightModeChange} />
             <Button
               variant="ghost"
               size="icon-xs"
