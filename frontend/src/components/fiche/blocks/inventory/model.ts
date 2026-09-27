@@ -1200,9 +1200,8 @@ export function apercuDossiers(
   };
 }
 
-// ─── Regroupement et tri de la liste ─────────────────────────────────────────
+// ─── Tri de la grille ────────────────────────────────────────────────────────
 
-export type Regroupement = 'categorie' | 'dossier' | 'aucun';
 export type Tri = 'nom' | 'quantite' | 'poids' | 'equipe';
 
 export const TRIS: { cle: Tri; nom: string }[] = [
@@ -1211,14 +1210,6 @@ export const TRIS: { cle: Tri; nom: string }[] = [
   { cle: 'poids', nom: 'Poids' },
   { cle: 'equipe', nom: 'Équipés d’abord' },
 ];
-
-export interface Groupe {
-  cle: string;
-  nom: string;
-  items: InventoryItem[];
-  /** Groupe d'un dossier (renommer, supprimer, déplacer). */
-  dossier?: InventoryFolder;
-}
 
 export function trier(items: InventoryItem[], tri: Tri): InventoryItem[] {
   const parNom = (a: InventoryItem, b: InventoryItem) => a.nom.localeCompare(b.nom, 'fr');
@@ -1231,45 +1222,6 @@ export function trier(items: InventoryItem[], tri: Tri): InventoryItem[] {
       Number(b.sorte.activable && b.actif) - Number(a.sorte.activable && a.actif) || parNom(a, b),
   };
   return [...items].sort(cmp[tri]);
-}
-
-/**
- * Groupes de la liste : par catégorie (sortes ou `groupeChamp` du widget), par dossier
- * (dossiers de l'état dans leur ordre, même vides, puis « Sans dossier »), ou aucun.
- */
-export function grouper(
-  inv: Inventory,
-  items: InventoryItem[],
-  mode: Regroupement,
-  folders: InventoryFolder[],
-  tri: Tri,
-): Groupe[] {
-  if (mode === 'aucun') return [{ cle: 'tout', nom: 'Tout', items: trier(items, tri) }];
-  if (mode === 'dossier') {
-    const groupes: Groupe[] = folders.map((f) => ({
-      cle: `dossier:${f.id}`,
-      nom: f.name,
-      dossier: f,
-      items: trier(
-        items.filter((i) => i.folder?.id === f.id),
-        tri,
-      ),
-    }));
-    const racine = items.filter((i) => !i.folder);
-    if (racine.length || !folders.length)
-      groupes.push({ cle: 'dossier:', nom: 'Sans dossier', items: trier(racine, tri) });
-    return groupes;
-  }
-  return inv.categories
-    .map((c) => ({
-      cle: c.cle,
-      nom: c.nom,
-      items: trier(
-        items.filter((i) => i.categorie.cle === c.cle),
-        tri,
-      ),
-    }))
-    .filter((g) => g.items.length > 0);
 }
 
 /**

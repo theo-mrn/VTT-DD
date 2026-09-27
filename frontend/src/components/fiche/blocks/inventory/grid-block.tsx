@@ -95,7 +95,7 @@ import {
 const TOUT = '*';
 
 /** Grille des emplacements : autant de colonnes que la largeur du bloc en permet. */
-const GRILLE = 'grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(5.5rem,1fr))]';
+const GRILLE = 'grid justify-start gap-2 [grid-template-columns:repeat(auto-fill,4.5rem)]';
 
 /** Identifiant d'un nouveau dossier, choisi ici pour y ranger un objet aussitôt. */
 function nouvelIdDossier(): string {
@@ -596,8 +596,21 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
   return (
     <section
       aria-label={widget.titre}
-      className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]"
+      className="relative isolate flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-surface [container-type:inline-size]"
     >
+      {/* Même ambiance que le lanceur de dés : grille de points estompée et lueur d'accent */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-dots opacity-60 mask-radial"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          backgroundImage:
+            'radial-gradient(80% 90% at 0% 0%, hsl(var(--primary) / 0.09), transparent 70%)',
+        }}
+      />
       <header className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-3">
         <h2 className="flex min-w-0 flex-1 items-baseline gap-2 text-sm font-semibold">
           <span className="truncate">{widget.titre}</span>
@@ -623,7 +636,7 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
             mode === 'edit' && 'pointer-events-none',
           )}
         >
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 sm:max-w-64">
             <InputGroup
               avant={<Search />}
               apres={
@@ -761,12 +774,6 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
         )}
       >
         {contenu()}
-        {editable && (inv.items.length > 0 || folders.length > 0) && (
-          <p className="pt-3 text-[10px] text-subtle [@media(pointer:coarse)]:hidden">
-            Clic droit ou Maj+F10 : options · flèches : parcourir · Entrée : ouvrir · Suppr :
-            supprimer{deplacable && folders.length > 0 ? ' · glisser sur un dossier : ranger' : ''}
-          </p>
-        )}
       </div>
 
       <Pied inv={inv} />

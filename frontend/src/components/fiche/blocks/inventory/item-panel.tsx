@@ -92,7 +92,7 @@ export function ItemPanel({
 }) {
   return (
     <Dialog open={item !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[min(48rem,calc(100dvh-2rem))] gap-0 overflow-y-auto p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[min(48rem,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         {item && (
           <Contenu
             key={item.cle}
@@ -155,7 +155,7 @@ function Contenu({
 
   return (
     <>
-      <DialogHeader className="sticky top-0 z-10 gap-1 border-b border-border bg-popover px-5 pb-4 pt-5">
+      <DialogHeader className="shrink-0 gap-1 border-b border-border bg-popover px-5 pb-4 pt-5">
         <div className="flex min-w-0 items-center gap-3 pr-8">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2">
             <ItemIcon sorte={sorte} image={image} className="size-5" />
@@ -170,7 +170,10 @@ function Contenu({
         </div>
       </DialogHeader>
 
-      <div ref={corps} className="space-y-6 px-5 py-5">
+      <div
+        ref={corps}
+        className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-5"
+      >
         <Reglages item={item} folders={folders} handlers={handlers} writes={w} />
 
         <Description item={item} writes={w} />
@@ -194,7 +197,7 @@ function Contenu({
       </div>
 
       {(a.exemplaire || a.donner || a.supprimer) && (
-        <footer className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-border bg-popover px-5 py-3">
+        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-popover px-5 py-3">
           {a.exemplaire && (
             <Button variant="ghost" size="sm" onClick={() => a.exemplaire!(item)}>
               <Copy /> Nouvel exemplaire

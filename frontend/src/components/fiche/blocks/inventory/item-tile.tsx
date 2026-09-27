@@ -7,7 +7,7 @@
  * dépose un objet), et la tuile « + » pour ajouter. Pas de nom sous la tuile : il est dans
  * l'infobulle et dans le libellé accessible, avec la quantité et l'info clé.
  */
-import { Check, EyeOff, Folder, FolderOpen, Plus, type LucideIcon } from 'lucide-react';
+import { EyeOff, Folder, FolderOpen, Plus, type LucideIcon } from 'lucide-react';
 import {
   useState,
   type DragEvent,
@@ -22,21 +22,20 @@ import type { InventoryItem } from './model';
 /** Type du glisser-déposer d'un objet de l'inventaire (sa clé `entree#exemplaire`). */
 export const GLISSER_OBJET = 'application/x-vtt-inventaire';
 
+/** Emplacement : carré fixe et sobre ; l'accent est réservé à l'état équipé. */
 const TUILE = cn(
-  'group relative flex aspect-square w-full items-center justify-center rounded-xl border bg-surface-2',
-  'transition-[border-color,background-color,box-shadow,transform] duration-150 motion-reduce:transition-none',
-  'hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+  'group relative flex size-[4.5rem] shrink-0 items-center justify-center rounded-lg border bg-surface-2/70 backdrop-blur-[1px]',
+  'transition-colors duration-150 motion-reduce:transition-none',
+  'hover:border-primary/40 hover:bg-surface-2 hover:shadow-[0_0_18px_-6px_hsl(var(--primary)/0.55)]',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
 );
 
-const CERCLE =
-  'flex size-[52%] max-h-16 max-w-16 items-center justify-center rounded-full border-2 bg-card transition-colors duration-150 motion-reduce:transition-none';
-
-/** Pastille de quantité, en haut à droite. */
-function Pastille({ children }: { children: ReactNode }) {
+/** Quantité, en bas à droite dans la tuile (seulement au-delà de 1). */
+function Quantite({ children }: { children: ReactNode }) {
   return (
     <span
       aria-hidden
-      className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-card bg-primary px-1.5 font-mono text-[11px] font-bold tabular-nums text-primary-foreground shadow-surface"
+      className="absolute bottom-1 right-1.5 font-mono text-[11px] font-medium leading-none tabular-nums text-foreground/80"
     >
       {children}
     </span>
@@ -144,38 +143,37 @@ export function ItemTile({
         className={cn(
           TUILE,
           equipe
-            ? 'border-primary/70 ring-1 ring-primary/40'
-            : 'border-border hover:border-primary/40',
+            ? 'border-primary/50 shadow-[0_0_16px_-6px_hsl(var(--primary)/0.6)]'
+            : 'border-border',
           deplacable && 'cursor-grab active:cursor-grabbing',
         )}
       >
-        <span
-          aria-hidden
-          className={cn(
-            CERCLE,
-            equipe
-              ? 'border-primary text-primary'
-              : 'border-primary/35 text-primary group-hover:border-primary/60',
-            range && 'opacity-60',
-          )}
-        >
-          {image ? (
-            <img src={image} alt="" className="size-full rounded-full object-cover" />
-          ) : (
-            <Icone className="size-[45%]" />
-          )}
-        </span>
-        {(item.sorte.quantites || item.quantite > 1) && <Pastille>{item.quantite}</Pastille>}
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            aria-hidden
+            className={cn('size-10 rounded-md object-cover', range && 'opacity-60')}
+          />
+        ) : (
+          <Icone
+            aria-hidden
+            strokeWidth={1.75}
+            className={cn(
+              'size-7 transition-colors duration-150 motion-reduce:transition-none',
+              equipe ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground',
+            )}
+          />
+        )}
+        {item.quantite > 1 && <Quantite>{item.quantite}</Quantite>}
         {equipe && (
           <span
             aria-hidden
-            className="absolute bottom-1.5 left-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
-          >
-            <Check className="size-3" strokeWidth={3} />
-          </span>
+            className="absolute bottom-1 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-primary"
+          />
         )}
         {item.hidden && (
-          <EyeOff aria-hidden className="absolute bottom-1.5 right-1.5 size-3.5 text-subtle" />
+          <EyeOff aria-hidden className="absolute left-1.5 top-1.5 size-3 text-subtle" />
         )}
       </button>
     </Info>
@@ -243,15 +241,27 @@ export function FolderTile({
         }}
         className={cn(
           TUILE,
-          survol
-            ? 'border-primary bg-surface-3'
-            : 'border-border border-dashed hover:border-primary/40',
+          'flex-col gap-1 px-1.5',
+          survol ? 'border-primary bg-surface-2' : 'border-border',
         )}
       >
-        <span aria-hidden className={cn(CERCLE, 'border-primary/35 text-primary')}>
-          {survol ? <FolderOpen className="size-[45%]" /> : <Folder className="size-[45%]" />}
+        {survol ? (
+          <FolderOpen aria-hidden strokeWidth={1.75} className="size-6 text-primary" />
+        ) : (
+          <Folder aria-hidden strokeWidth={1.75} className="size-6 text-primary/80" />
+        )}
+        <span
+          aria-hidden
+          className="w-full truncate text-center text-[10px] leading-tight text-muted-foreground"
+        >
+          {nom}
         </span>
-        <Pastille>{nombre}</Pastille>
+        <span
+          aria-hidden
+          className="absolute right-1.5 top-1 font-mono text-[10px] tabular-nums text-subtle"
+        >
+          {nombre}
+        </span>
       </button>
     </Info>
   );
@@ -276,17 +286,16 @@ export function AddTile({
         aria-label="Ajouter un objet"
         onFocus={onFocusTile}
         onClick={onClick}
-        className={cn(TUILE, 'border-transparent bg-transparent hover:bg-surface-2')}
+        className={cn(
+          TUILE,
+          'border-dashed border-border-strong bg-transparent hover:border-primary/60 hover:bg-transparent',
+        )}
       >
-        <span
+        <Plus
           aria-hidden
-          className={cn(
-            CERCLE,
-            'border-dashed border-primary/50 bg-transparent text-primary group-hover:border-primary',
-          )}
-        >
-          <Plus className="size-[45%]" />
-        </span>
+          strokeWidth={1.75}
+          className="size-6 text-muted-foreground transition-colors group-hover:text-primary"
+        />
       </button>
     </Info>
   );
