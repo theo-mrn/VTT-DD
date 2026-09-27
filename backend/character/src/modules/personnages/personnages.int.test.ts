@@ -156,7 +156,18 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
 
     const types = (await evenements(p.id)).map((e) => e.type);
     expect(types).toEqual(['character.created', 'character.updated', 'character.deleted']);
-    const [cree] = await evenements(p.id);
+    const [cree, profil] = await evenements(p.id);
+    // Diff avant/après : nom et avatar, sans l'état qui n'a pas bougé
+    expect(profil!.envelope.payload).toEqual({
+      version: 2,
+      operation: 'profil',
+      nom: 'Kesh Vatra',
+      avatarUrl: 'https://cdn.exemple.fr/kesh.png',
+      changes: [
+        { path: 'avatarUrl', before: null, after: 'https://cdn.exemple.fr/kesh.png' },
+        { path: 'nom', before: 'Kesh', after: 'Kesh Vatra' },
+      ],
+    });
     expect(cree!.envelope).toMatchObject({
       actor: { userId: alice.id, role: 'user', characterId: p.id },
       aggregate: { type: 'character', id: p.id },
@@ -397,6 +408,11 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     expect(p.etat.possessions).toEqual([
       { entree: 'fusil-blaster', rang: 0, actif: false, choix: {}, champs: {}, effets: [] },
     ]);
+    // Possessions repérées par leur entrée (et exemplaire), pas par leur index
+    const pose = (await evenements(p.id)).at(-1)!.envelope.payload as { changes: unknown };
+    expect(pose.changes).toEqual([
+      { path: 'etat.possessions[fusil-blaster].actif', before: true, after: false },
+    ]);
     const perime = await t.app.inject({
       method: 'DELETE',
       url: `/v1/characters/${p.id}/possessions/fusil-blaster?version=1`,
@@ -409,6 +425,37 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
       `/v1/characters/${p.id}/possessions/fusil-blaster?version=${p.version}`,
     );
     expect(p.etat.possessions).toEqual([]);
+    const retrait = (await evenements(p.id)).at(-1)!.envelope.payload as { changes: unknown };
+    expect(retrait.changes).toEqual([
+      {
+        path: 'etat.possessions[fusil-blaster]',
+        before: {
+          entree: 'fusil-blaster',
+          rang: 0,
+          actif: false,
+          choix: {},
+          champs: {},
+          effets: [],
+        },
+      },
+    ]);
+  });
+
+  it('character.updated porte le diff avant/après des valeurs saisies', async () => {
+    const gimli = await nainGuerrier(alice, 'Gimli');
+    const pv = gimli.etat.valeurs.PV as number;
+    await ok(alice, 'PUT', `/v1/characters/${gimli.id}/valeurs`, {
+      version: gimli.version,
+      valeurs: { PV: pv - 7 },
+    });
+    const dernier = (await evenements(gimli.id)).at(-1)!.envelope;
+    expect(dernier).toMatchObject({ type: 'character.updated', visibility: 'owner' });
+    expect(dernier.payload).toEqual({
+      version: gimli.version + 1,
+      operation: 'valeurs',
+      valeurs: { PV: pv - 7 },
+      changes: [{ path: 'etat.valeurs.PV', before: pv, after: pv - 7 }],
+    });
   });
 
   it('attaque appliquée à une cible possédée, dans la même transaction', async () => {
@@ -464,6 +511,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
     expect(cible.at(-1)!.envelope.payload).toMatchObject({
       operation: 'action.cible',
       version: gimli.version + 1,
+      changes: [{ path: 'etat.valeurs.PV', before: pvAvant, after: pvAvant - degats }],
     });
   });
 

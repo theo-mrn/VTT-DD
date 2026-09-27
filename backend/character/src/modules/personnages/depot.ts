@@ -8,9 +8,9 @@
  * utilisateur, un personnage, ou un personnage supprimé, est introuvable
  * (404) : on ne révèle pas son existence.
  */
-import { uuidv7, type ActorRole } from '@vtt/contracts';
+import { changesPayload, uuidv7, type ActorRole, type DiffOptions } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { ficheJson, type EtatEntite, type FicheJson, type SystemeCharge } from '@vtt/rules';
+import { EtatEntite, ficheJson, type FicheJson, type SystemeCharge } from '@vtt/rules';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import type { DroitsCampagnes } from '../../droits/campaign.js';
@@ -228,9 +228,34 @@ export interface Changement {
 }
 
 /**
+ * Identité des éléments des tableaux de l'état, communs à tous les systèmes
+ * (schéma de @vtt/rules) : bonus libres par `id`, possessions par entrée et
+ * exemplaire (`etat.possessions[epee-longue#2].quantite`).
+ */
+const IDENTITES: DiffOptions = { identityKeys: ['id', ['entree', 'exemplaire']] };
+
+/** Champs suivis par le diff de `character.updated`. */
+const suivi = (ligne: Ligne, etat: unknown) => ({
+  etat,
+  nom: ligne.nom,
+  avatarUrl: ligne.avatarUrl,
+});
+
+/**
+ * État enregistré avec ses valeurs par défaut (un état importé peut en omettre) :
+ * sans cela, le diff rapporterait des champs « ajoutés » qui n'ont pas bougé.
+ */
+function etatNormalise(brut: unknown): unknown {
+  const r = EtatEntite.safeParse(brut);
+  return r.success ? r.data : brut;
+}
+
+/**
  * Enregistre un changement sur une ligne verrouillée : l'état est validé et
  * recalculé avant l'écriture, la version incrémentée, l'événement
- * `character.updated` ajouté à l'outbox dans la même transaction.
+ * `character.updated` ajouté à l'outbox dans la même transaction. Son payload
+ * porte les `details` de l'opération et le diff avant/après (`changes`, voir
+ * docs/bus.md) de l'état, du nom et de l'avatar.
  */
 export async function enregistrer(
   tx: Tx,
@@ -263,7 +288,16 @@ export async function enregistrer(
     ...salle(appelant),
     actor: acteur(appelant, ligne.id),
     aggregate: { type: 'character', id: ligne.id },
-    payload: { version: suivante.version, operation: evenement.operation, ...evenement.details },
+    payload: {
+      version: suivante.version,
+      operation: evenement.operation,
+      ...evenement.details,
+      ...changesPayload(
+        suivi(ligne, etatNormalise(ligne.etat)),
+        suivi(suivante, etatNormalise(suivante.etat)),
+        IDENTITES,
+      ),
+    },
   });
   return suivante;
 }
