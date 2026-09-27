@@ -77,7 +77,7 @@ jobs:
       # applique, annule puis réapplique : un rollback cassé fait échouer la CI.
       - name: Migrations Liquibase (applique, annule, réapplique)
         run: |
-          for svc in identity character campaign dice; do
+          for svc in identity character campaign dice billing; do
             infra/postgres/liquibase/migrate.sh "$svc" update-testing-rollback
           done
       - name: Droits et contraintes du schéma identity
@@ -88,6 +88,8 @@ jobs:
         run: bash infra/postgres/tests/campaign-droits.sh
       - name: Droits et contraintes du schéma dice
         run: bash infra/postgres/tests/dice-droits.sh
+      - name: Droits et contraintes du schéma billing
+        run: bash infra/postgres/tests/billing-droits.sh
       # Tests d'intégration des services sur la base migrée ci-dessus, avec le rôle
       # du service (jamais le propriétaire) : ils sont ignorés dans le job qualité.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -95,7 +97,7 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: >-
           pnpm install --frozen-lockfile --filter '@vtt/identity...' --filter '@vtt/character...'
-          --filter '@vtt/campaign...' --filter '@vtt/dice...'
+          --filter '@vtt/campaign...' --filter '@vtt/dice...' --filter '@vtt/billing...'
       - name: Tests d'intégration identity (Postgres réel)
         env:
           TEST_DATABASE_URL: postgres://identity_svc:identity-dev@localhost:5432/vtt
@@ -120,6 +122,12 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/dice^...'
           pnpm --filter @vtt/dice test
+      - name: Tests d'intégration billing (Postgres réel, Stripe simulé)
+        env:
+          TEST_DATABASE_URL: postgres://billing_svc:billing-dev@localhost:5432/vtt
+        run: |
+          pnpm turbo run build --filter '@vtt/billing^...'
+          pnpm --filter @vtt/billing test
 
   security:
     name: Secrets et dépendances
@@ -228,6 +236,12 @@ jobs:
               image: dice-migrations,
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=dice',
+            }
+          - { image: billing, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=billing' }
+          - {
+              image: billing-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=billing',
             }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5

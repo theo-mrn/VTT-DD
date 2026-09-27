@@ -39,6 +39,8 @@ networkPolicy:
     - podSelector: { matchLabels: { app.kubernetes.io/name: campaign } }
     # dice : JWKS et profils publics des lanceurs
     - podSelector: { matchLabels: { app.kubernetes.io/name: dice } }
+    # billing : JWKS et statut premium du profil (/internal/users/:id/premium)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: billing } }
   # SMTP (Resend) en plus du HTTPS
   extraEgressPorts: [587]
 migrations:

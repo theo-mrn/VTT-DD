@@ -41,6 +41,8 @@ networkPolicy:
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
     # character transmet les jets d'action (/internal/rolls, secret partagé)
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
+    # billing livre les achats et le premium (/internal/users/…, secret partagé)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: billing } }
 migrations:
   enabled: true
   image:

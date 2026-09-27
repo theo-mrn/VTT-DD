@@ -95,6 +95,12 @@ for dossier in backend/*/; do
     echo "backend/$service/.env : NATS_URL ajoutée"
   fi
 done
+# Paiements : sans clés Stripe de TEST, billing démarre mais répond 503 billing_unconfigured
+if [ -f backend/billing/.env ] && ! grep -qE '^STRIPE_SECRET_KEY=.+' backend/billing/.env; then
+  echo "billing : paiements désactivés (STRIPE_SECRET_KEY vide dans backend/billing/.env)"
+elif [ -f backend/billing/.env ]; then
+  echo "billing : webhook local → stripe listen --forward-to localhost:8080/v1/billing/webhook"
+fi
 
 if [ "$PREPARER_SEULEMENT" = 1 ]; then
   etape "Prêt (--preparer : services non lancés)"
