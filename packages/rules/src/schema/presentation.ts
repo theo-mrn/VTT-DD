@@ -68,6 +68,28 @@ export const Widget = z.discriminatedUnion('type', [
    * attribut, une entrée à rangs ou les jets qui impliquent une entrée ou un attribut.
    */
   z.object({ type: z.literal('bonus'), titre: Libelle }),
+  /**
+   * Inventaire : possessions de une ou plusieurs sortes (objets, armes, armures…), avec
+   * quantités, exemplaires, état équipé ou actif, bonus des effets. Les catégories sont
+   * les sortes elles-mêmes, ou les valeurs d'un champ (`groupeChamp`) commun aux sortes.
+   */
+  z.object({
+    type: z.literal('inventaire'),
+    titre: Libelle,
+    sortes: z.array(Cle).min(1),
+    groupeChamp: Cle.optional(),
+  }),
+  /**
+   * Compétences en cartes : entrées d'une sorte (capacités, talents, compétences) en grille,
+   * actives mises en avant, bonus en étiquettes, recherche, filtres par la valeur d'un champ
+   * de la sorte (`filtreChamp`), détail et activation.
+   */
+  z.object({
+    type: z.literal('competences'),
+    titre: Libelle,
+    sorte: Cle,
+    filtreChamp: Cle.optional(),
+  }),
 ]);
 export type Widget = z.output<typeof Widget>;
 
@@ -207,7 +229,12 @@ export function verifierPresentation(
           if (e.attributs.get(a) && e.attributs.get(a)!.nature !== 'ressource')
             erreur(ch, `${a} n’est pas une ressource`);
       }
-      const sortes = w.type === 'possessions' ? [w.sorte] : w.type === 'details' ? w.sortes : [];
+      const sortes =
+        w.type === 'possessions' || w.type === 'competences'
+          ? [w.sorte]
+          : w.type === 'details' || w.type === 'inventaire'
+            ? w.sortes
+            : [];
       for (const so of sortes) {
         const sorte = systeme.sortes.get(so);
         if (!sorte) erreur(ch, `Sorte inconnue : ${so}`);
@@ -220,6 +247,17 @@ export function verifierPresentation(
         !systeme.sortes.get(w.sorte)?.champs.some((c) => c.id === w.groupeChamp)
       ) {
         erreur(ch, `Champ inconnu sur ${w.sorte} : ${w.groupeChamp}`);
+      }
+      if (w.type === 'inventaire' && w.groupeChamp)
+        for (const so of w.sortes)
+          if (!systeme.sortes.get(so)?.champs.some((c) => c.id === w.groupeChamp))
+            erreur(ch, `Champ inconnu sur ${so} : ${w.groupeChamp}`);
+      if (
+        w.type === 'competences' &&
+        w.filtreChamp &&
+        !systeme.sortes.get(w.sorte)?.champs.some((c) => c.id === w.filtreChamp)
+      ) {
+        erreur(ch, `Champ inconnu sur ${w.sorte} : ${w.filtreChamp}`);
       }
       if (w.type === 'actions')
         for (const a of w.actions ?? [])
