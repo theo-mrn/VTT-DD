@@ -9,7 +9,6 @@
  * mettre les événements en mots (`format.ts`). Les chroniques IA de l'ancienne
  * app n'ont pas encore de service : elles ne sont pas proposées.
  */
-import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
   ArrowLeft,
@@ -36,7 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
-import { campagnes, clePersonnagesCampagne, type DetailCampagne } from '@/lib/campagnes';
+import type { DetailCampagne } from '@/lib/campagnes';
 import { useHistorique, useHistoriqueEnDirect, type HistoryEvent } from '@/lib/history';
 import { usePersonnagesCampagne } from '@/lib/personnages';
 import { useSysteme } from '@/lib/systemes';
@@ -93,15 +92,12 @@ function libelleJour(d: Date): string {
 // ─── Noms ────────────────────────────────────────────────────────────────────
 
 /**
- * Contexte de mise en forme : membres et rôle (campagne), tous les personnages
- * engagés (PNJ compris, pour nommer ce que le lecteur a le droit de voir),
- * système de jeu, et noms connus par les événements eux-mêmes.
+ * Contexte de mise en forme : membres et rôle (campagne), personnages joueurs
+ * engagés (hook du domaine), système de jeu, et noms connus par les événements
+ * eux-mêmes (PNJ, personnages retirés).
  */
 function useContexteFormat(campagne: DetailCampagne, events: readonly HistoryEvent[]) {
-  const engages = useQuery({
-    queryKey: clePersonnagesCampagne(campagne.id),
-    queryFn: () => campagnes.personnages(campagne.id),
-  });
+  const engages = usePersonnagesCampagne(campagne.id);
   const systeme = useSysteme(campagne.system);
   const extra = useMemo(() => namesFromEvents(events), [events]);
 
@@ -109,12 +105,12 @@ function useContexteFormat(campagne: DetailCampagne, events: readonly HistoryEve
     const characters = new Map<string, CharacterLabel>();
     for (const [id, name] of extra)
       characters.set(id, { name, avatarUrl: null, side: null, type: null });
-    for (const c of engages.data ?? [])
-      characters.set(c.characterId.toLowerCase(), {
-        name: c.name ?? 'Personnage',
-        avatarUrl: c.avatarUrl,
-        side: c.side,
-        type: c.type || null,
+    for (const p of engages.data ?? [])
+      characters.set(p.id.toLowerCase(), {
+        name: p.name,
+        avatarUrl: p.portraitUrl,
+        side: 'players',
+        type: p.type || null,
       });
     const users = new Map<string, UserLabel>(
       campagne.members.map((m) => [
