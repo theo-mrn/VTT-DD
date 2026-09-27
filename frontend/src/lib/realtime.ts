@@ -90,6 +90,8 @@ interface Subscription {
   generation: number;
   presence: PresenceUser[];
   pending: boolean;
+  /** Tentative d'abonnement en cours : une réponse d'une connexion perdue est ignorée. */
+  attempt: number;
   unsubscribeTimer: ReturnType<typeof setTimeout> | null;
   retryTimer: ReturnType<typeof setTimeout> | null;
 }
@@ -188,7 +190,12 @@ class RealtimeClient {
       this.changed();
     });
     socket.on('disconnect', (reason) => {
-      for (const sub of this.subs.values()) sub.live = false;
+      for (const sub of this.subs.values()) {
+        sub.live = false;
+        // Abonnement sans réponse sur la connexion perdue : refait à la reconnexion
+        sub.pending = false;
+        sub.attempt += 1;
+      }
       this.setStatus('disconnected');
       this.changed();
       // Fermée par le serveur (jeton expiré) : pas de reconnexion automatique
@@ -259,6 +266,7 @@ class RealtimeClient {
         generation: 0,
         presence: NO_PRESENCE,
         pending: false,
+        attempt: 0,
         unsubscribeTimer: null,
         retryTimer: null,
       };
@@ -289,6 +297,7 @@ class RealtimeClient {
     const socket = this.socket;
     if (!socket?.connected || sub.pending) return;
     sub.pending = true;
+    const attempt = ++sub.attempt;
     const hadCursor = sub.lastSeq !== null;
     let ack: SubscribeAck | null = null;
     try {
@@ -298,9 +307,9 @@ class RealtimeClient {
       })) as SubscribeAck;
     } catch {
       ack = null;
-    } finally {
-      sub.pending = false;
     }
+    if (attempt !== sub.attempt) return;
+    sub.pending = false;
     if (this.subs.get(sub.campaignId) !== sub || socket !== this.socket) return;
     if (!ack?.ok) {
       sub.live = false;
