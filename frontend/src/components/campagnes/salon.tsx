@@ -1,0 +1,753 @@
+'use client';
+
+import {
+  CalendarPlus,
+  Check,
+  Copy,
+  Crown,
+  DoorOpen,
+  LogOut,
+  MoreHorizontal,
+  NotebookPen,
+  PartyPopper,
+  Play,
+  RefreshCw,
+  Settings2,
+  Trash2,
+  UserMinus,
+  UserRound,
+  Users,
+  X,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
+import { Illustration } from '@/components/commun/illustration';
+import { EtatVide, Panneau } from '@/components/commun/page';
+import { AvatarJoueur, formaterDepuis } from '@/components/compte/elements';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Info } from '@/components/ui/tooltip';
+import { messageErreur } from '@/lib/api';
+import {
+  monRole,
+  nombreJoueurs,
+  useCampagne,
+  useDeplanifier,
+  useNouveauCode,
+  usePlanifier,
+  useRetirerMembre,
+  useSortirCampagne,
+  type Campagne,
+  type Membre,
+} from '@/lib/campagnes';
+import { iconeNote, useNotes } from '@/lib/notes';
+import { usePersonnagesCampagne, type Personnage } from '@/lib/personnages';
+import { useProfil } from '@/lib/session';
+import { cn } from '@/lib/utils';
+import { useNomSysteme } from './carte-campagne';
+import { BadgeRole, BadgeVisibilite, formaterDans, formaterSession } from './elements';
+import { ReglagesCampagne } from './reglages-campagne';
+
+/** Salon d'une campagne : présentation, table (joueurs et héros), invitation, sessions. */
+export function SalonCampagne({ id }: { id: string }) {
+  const profil = useProfil();
+  const campagne = useCampagne(id);
+  const personnages = usePersonnagesCampagne(id);
+
+  if (campagne.isLoading) return <SalonSquelette />;
+  if (campagne.isError || !campagne.data)
+    return (
+      <div className="px-4 py-16 sm:px-8">
+        <EtatVide
+          icone={DoorOpen}
+          titre="Campagne introuvable"
+          description="Elle a peut-être été supprimée, ou vous n'en faites plus partie."
+          action={
+            <Button asChild variant="secondary">
+              <Link href="/campagnes">Retour aux campagnes</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+
+  const c = campagne.data;
+  const role = monRole(c, profil.id);
+  const moi = c.members.find((m) => m.userId === profil.id);
+  const monPerso = personnages.data?.find((p) => p.id === moi?.characterId) ?? null;
+
+  return (
+    <div data-ambiance={c.ambiance}>
+      <Banniere campagne={c} role={role} monPerso={monPerso} />
+      <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8">
+        <div className="min-w-0 space-y-6">
+          <BandeauBienvenue campagne={c} />
+          <Table
+            campagne={c}
+            personnages={personnages.data ?? []}
+            moi={profil.id}
+            gm={role === 'gm'}
+          />
+          {c.description && (
+            <Panneau titre="Présentation">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
+                {c.description}
+              </p>
+            </Panneau>
+          )}
+          <NotesCampagne campagneId={c.id} />
+        </div>
+        <aside className="space-y-6">
+          <CarteInvitation campagne={c} gm={role === 'gm'} />
+          <Sessions campagne={c} gm={role === 'gm'} />
+          {c.invitations.length > 0 && (
+            <Panneau titre="Invitations en attente" corps={false}>
+              <ul className="divide-y divide-border">
+                {c.invitations.map((i) => (
+                  <li key={i.userId} className="flex items-center gap-3 px-5 py-3">
+                    <AvatarJoueur nom={i.name} url={i.avatarUrl} taille="sm" />
+                    <span className="min-w-0 flex-1 truncate text-sm">{i.name}</span>
+                    <span className="text-xs text-subtle">{formaterDepuis(i.invitedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panneau>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bannière ────────────────────────────────────────────────────────────────
+
+function Banniere({
+  campagne: c,
+  role,
+  monPerso,
+}: {
+  campagne: Campagne;
+  role: Membre['role'] | null;
+  monPerso: Personnage | null;
+}) {
+  const profil = useProfil();
+  const nomSysteme = useNomSysteme(c.system);
+  const [reglages, setReglages] = useState(false);
+  const [sortie, setSortie] = useState<'supprimer' | 'quitter' | null>(null);
+
+  return (
+    <section className="relative isolate overflow-hidden border-b border-border">
+      <Illustration
+        src={c.coverUrl}
+        graine={c.name}
+        initiale={false}
+        className="absolute inset-0 -z-10"
+        classeImage="scale-105 blur-[1px]"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/80 to-background/20"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-r from-background/90 via-background/40 to-transparent"
+      />
+
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-8 pt-16 sm:px-6 sm:pt-24 lg:flex-row lg:items-end lg:justify-between lg:px-8">
+        <div className="min-w-0 max-w-2xl space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <BadgeRole role={role} />
+            <Badge ton="verre">{nomSysteme}</Badge>
+            <BadgeVisibilite campagne={c} />
+            {c.tags.map((t) => (
+              <Badge key={t} ton="verre" className="text-white/70">
+                {t}
+              </Badge>
+            ))}
+          </div>
+          <h1 className="text-balance font-display text-4xl font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl">
+            {c.name}
+          </h1>
+          {c.pitch && <p className="text-lg text-muted-foreground">{c.pitch}</p>}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="lg" asChild>
+            <Link href={`/campagnes/${c.id}/personnage`}>
+              {role === 'gm' ? <Crown /> : monPerso ? <Play /> : <UserRound />}
+              {role === 'gm'
+                ? 'Entrer en MJ'
+                : monPerso
+                  ? `Jouer ${monPerso.name}`
+                  : 'Choisir mon héros'}
+            </Link>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                aria-label="Plus d'actions"
+                className="size-11"
+              >
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {role === 'gm' && (
+                <DropdownMenuItem onSelect={() => setReglages(true)} className="cursor-pointer">
+                  <Settings2 />
+                  Réglages de la campagne
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href={`/notes?nouvelle=1&campagne=${c.id}`}>
+                  <NotebookPen />
+                  Nouvelle note de campagne
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {c.ownerId === profil.id ? (
+                <DropdownMenuItem
+                  onSelect={() => setSortie('supprimer')}
+                  className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <Trash2 />
+                  Supprimer la campagne
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onSelect={() => setSortie('quitter')}
+                  className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <LogOut />
+                  Quitter la campagne
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {role === 'gm' && <ReglagesCampagne campagne={c} ouvert={reglages} onOuvert={setReglages} />}
+      <DialogueSortie campagne={c} mode={sortie} onFerme={() => setSortie(null)} />
+    </section>
+  );
+}
+
+function DialogueSortie({
+  campagne,
+  mode,
+  onFerme,
+}: {
+  campagne: Campagne;
+  mode: 'supprimer' | 'quitter' | null;
+  onFerme: () => void;
+}) {
+  const router = useRouter();
+  const sortir = useSortirCampagne(campagne.id);
+  const [confirmation, setConfirmation] = useState('');
+  const supprimer = mode === 'supprimer';
+
+  async function valider() {
+    if (!mode) return;
+    try {
+      await sortir.mutateAsync(mode);
+      toast.success(supprimer ? 'Campagne supprimée' : 'Vous avez quitté la campagne');
+      router.replace('/campagnes');
+    } catch (err) {
+      toast.error(messageErreur(err));
+    }
+  }
+
+  return (
+    <Dialog open={mode !== null} onOpenChange={(v) => !v && (onFerme(), setConfirmation(''))}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {supprimer ? 'Supprimer la campagne ?' : 'Quitter la campagne ?'}
+          </DialogTitle>
+          <DialogDescription>
+            {supprimer
+              ? 'Les joueurs perdront l’accès au salon, aux notes et à l’historique. Cette action est définitive.'
+              : 'Vous pourrez revenir avec le code de la campagne, si une place est libre.'}
+          </DialogDescription>
+        </DialogHeader>
+        {supprimer && (
+          <div className="space-y-2">
+            <p className="text-[13px] text-muted-foreground">
+              Tapez <span className="font-medium text-foreground">{campagne.name}</span> pour
+              confirmer.
+            </p>
+            <Input
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onFerme}>
+            Annuler
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void valider()}
+            loading={sortir.isPending}
+            disabled={supprimer && confirmation.trim() !== campagne.name}
+          >
+            {supprimer ? 'Supprimer' : 'Quitter'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Bandeau après création ──────────────────────────────────────────────────
+
+function BandeauBienvenue({ campagne }: { campagne: Campagne }) {
+  const router = useRouter();
+  const nouvelle = useSearchParams().get('bienvenue') === '1';
+  if (!nouvelle) return null;
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-primary/[0.07] p-5 shadow-glow">
+      <div
+        aria-hidden
+        className="absolute -right-10 -top-10 size-40 rounded-full bg-primary/20 blur-3xl"
+      />
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <PartyPopper className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">Votre campagne est prête !</p>
+          <p className="text-[13px] text-muted-foreground">
+            Partagez le code{' '}
+            <span className="font-mono font-semibold text-primary-strong">{campagne.code}</span> à
+            vos joueurs, ou planifiez la première session.
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Fermer"
+          onClick={() => router.replace(`/campagnes/${campagne.id}`, { scroll: false })}
+        >
+          <X />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Table : membres et héros ────────────────────────────────────────────────
+
+function Table({
+  campagne: c,
+  personnages,
+  moi,
+  gm,
+}: {
+  campagne: Campagne;
+  personnages: Personnage[];
+  moi: string;
+  gm: boolean;
+}) {
+  const retirer = useRetirerMembre(c.id);
+  const mj = c.members.filter((m) => m.role === 'gm');
+  const joueurs = c.members.filter((m) => m.role === 'player');
+  const placesLibres = Math.max(0, c.maxPlayers - joueurs.length);
+
+  return (
+    <Panneau
+      titre={
+        <span className="flex items-center gap-2">
+          <Users className="size-4 text-primary" />
+          La table
+          <span className="text-[13px] font-normal text-subtle">
+            {nombreJoueurs(c)}/{c.maxPlayers} joueurs
+          </span>
+        </span>
+      }
+    >
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {[...mj, ...joueurs].map((m) => {
+          const perso = personnages.find((p) => p.id === m.characterId) ?? null;
+          return (
+            <SiegeMembre
+              key={m.userId}
+              membre={m}
+              perso={perso}
+              estMoi={m.userId === moi}
+              action={
+                gm && m.userId !== c.ownerId ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-xs" aria-label={`Actions pour ${m.name}`}>
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+                        onSelect={() =>
+                          retirer.mutate(m.userId, {
+                            onSuccess: () => toast.success(`${m.name} a été retiré de la table`),
+                            onError: (e) => toast.error(messageErreur(e)),
+                          })
+                        }
+                      >
+                        <UserMinus />
+                        Retirer de la campagne
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null
+              }
+            />
+          );
+        })}
+        {Array.from({ length: Math.min(placesLibres, 3) }, (_, i) => (
+          <div
+            key={`libre-${i}`}
+            className="flex min-h-[88px] items-center justify-center rounded-xl border border-dashed border-border-strong text-xs text-subtle"
+          >
+            Place libre
+          </div>
+        ))}
+      </div>
+    </Panneau>
+  );
+}
+
+function SiegeMembre({
+  membre: m,
+  perso,
+  estMoi,
+  action,
+}: {
+  membre: Membre;
+  perso: Personnage | null;
+  estMoi: boolean;
+  action: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'group relative flex items-center gap-3 overflow-hidden rounded-xl border bg-surface-2/50 p-3 transition-colors',
+        estMoi ? 'border-primary/40' : 'border-border',
+      )}
+    >
+      {perso ? (
+        <Illustration
+          src={perso.portraitUrl}
+          graine={perso.name}
+          position="top"
+          className="size-14 shrink-0 rounded-lg ring-1 ring-white/10"
+        />
+      ) : (
+        <AvatarJoueur nom={m.name} url={m.avatarUrl} taille="md" className="m-[5px]" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
+          {m.role === 'gm' && <Crown className="size-3.5 shrink-0 text-primary" />}
+          {perso ? perso.name : m.name}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {m.role === 'gm'
+            ? 'Maître du jeu'
+            : perso
+              ? perso.summary.tagline || 'Aventurier'
+              : 'Héros à choisir'}
+        </p>
+        {perso && (
+          <p className="mt-0.5 truncate text-[11px] text-subtle">
+            joué par {m.name}
+            {estMoi && ' (vous)'}
+          </p>
+        )}
+        {!perso && estMoi && <p className="mt-0.5 text-[11px] text-primary">C&apos;est vous</p>}
+      </div>
+      {action && (
+        <div className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          {action}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Invitation ──────────────────────────────────────────────────────────────
+
+function CarteInvitation({ campagne: c, gm }: { campagne: Campagne; gm: boolean }) {
+  const [copie, setCopie] = useState<'code' | 'lien' | null>(null);
+  const nouveauCode = useNouveauCode(c.id);
+
+  async function copier(quoi: 'code' | 'lien') {
+    const texte =
+      quoi === 'code' ? c.code : `${window.location.origin}/campagnes?rejoindre=1&code=${c.code}`;
+    try {
+      await navigator.clipboard.writeText(texte);
+      setCopie(quoi);
+      setTimeout(() => setCopie(null), 1600);
+    } catch {
+      toast.error('Copie impossible : sélectionnez le code à la main.');
+    }
+  }
+
+  return (
+    <Panneau titre="Inviter des joueurs" description="Le code suffit pour rejoindre la table.">
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-border-strong bg-surface-2 p-2 pl-4">
+        <span className="font-mono text-2xl font-semibold tracking-[0.3em] text-primary-strong">
+          {c.code}
+        </span>
+        <Info texte={copie === 'code' ? 'Copié !' : 'Copier le code'}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => void copier('code')}
+            aria-label="Copier le code"
+          >
+            {copie === 'code' ? <Check className="text-success" /> : <Copy />}
+          </Button>
+        </Info>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1"
+          onClick={() => void copier('lien')}
+        >
+          {copie === 'lien' ? <Check className="text-success" /> : <Copy />}
+          {copie === 'lien' ? 'Lien copié' : 'Copier le lien'}
+        </Button>
+        {gm && (
+          <Info texte="Nouveau code : l'ancien ne fonctionnera plus">
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={nouveauCode.isPending}
+              onClick={() =>
+                nouveauCode.mutate(undefined, {
+                  onSuccess: () => toast.success('Nouveau code généré'),
+                  onError: (e) => toast.error(messageErreur(e)),
+                })
+              }
+            >
+              {!nouveauCode.isPending && <RefreshCw />}
+              Changer
+            </Button>
+          </Info>
+        )}
+      </div>
+    </Panneau>
+  );
+}
+
+// ─── Sessions ────────────────────────────────────────────────────────────────
+
+function Sessions({ campagne: c, gm }: { campagne: Campagne; gm: boolean }) {
+  const planifier = usePlanifier(c.id);
+  const deplanifier = useDeplanifier(c.id);
+  const [date, setDate] = useState('');
+  const [titre, setTitre] = useState('');
+  const [ajout, setAjout] = useState(false);
+  const maintenant = Date.now();
+  const aVenir = [...c.sessions]
+    .filter((s) => new Date(s.startsAt).getTime() > maintenant)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+  async function valider(e: FormEvent) {
+    e.preventDefault();
+    if (!date) return;
+    try {
+      await planifier.mutateAsync({
+        startsAt: new Date(date).toISOString(),
+        title: titre.trim() || null,
+      });
+      setDate('');
+      setTitre('');
+      setAjout(false);
+      toast.success('Session planifiée');
+    } catch (err) {
+      toast.error(messageErreur(err));
+    }
+  }
+
+  return (
+    <Panneau
+      titre="Sessions"
+      action={
+        gm && !ajout ? (
+          <Button variant="ghost" size="xs" onClick={() => setAjout(true)}>
+            <CalendarPlus />
+            Planifier
+          </Button>
+        ) : null
+      }
+    >
+      {ajout && (
+        <form
+          onSubmit={valider}
+          className="mb-4 space-y-2 rounded-xl border border-border bg-surface-2/60 p-3"
+        >
+          <Input
+            type="datetime-local"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+            aria-label="Date et heure"
+            className="[color-scheme:dark]"
+          />
+          <Input
+            value={titre}
+            onChange={(e) => setTitre(e.target.value)}
+            placeholder="Titre (facultatif) : « Session 3 — Le col »"
+            maxLength={80}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setAjout(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" size="sm" loading={planifier.isPending}>
+              Planifier
+            </Button>
+          </div>
+        </form>
+      )}
+      {aVenir.length === 0 ? (
+        <p className="py-4 text-center text-[13px] text-subtle">
+          {gm
+            ? 'Aucune session prévue. Fixez la prochaine date !'
+            : 'Aucune session prévue pour le moment.'}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {aVenir.map((s, i) => {
+            const d = new Date(s.startsAt);
+            return (
+              <li
+                key={s.id}
+                className={cn(
+                  'group flex items-center gap-3 rounded-xl border p-2.5',
+                  i === 0 ? 'border-primary/30 bg-primary/[0.06]' : 'border-border',
+                )}
+              >
+                <span className="flex w-11 shrink-0 flex-col items-center rounded-lg bg-surface-3 py-1">
+                  <span className="text-[10px] font-medium uppercase text-primary">
+                    {d.toLocaleDateString('fr-FR', { month: 'short' })}
+                  </span>
+                  <span className="font-mono text-base font-semibold leading-tight">
+                    {d.getDate()}
+                  </span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {s.title ?? 'Session de jeu'}
+                  </span>
+                  <span className="block text-xs text-subtle">
+                    {formaterSession(s.startsAt)} · {formaterDans(s.startsAt)}
+                  </span>
+                </span>
+                {gm && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="opacity-0 transition-opacity group-hover:opacity-100"
+                    aria-label="Annuler la session"
+                    onClick={() => deplanifier.mutate(s.id)}
+                  >
+                    <X />
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Panneau>
+  );
+}
+
+// ─── Notes de la campagne ────────────────────────────────────────────────────
+
+function NotesCampagne({ campagneId }: { campagneId: string }) {
+  const notes = useNotes();
+  const liste = (notes.data ?? []).filter((n) => n.roomId === campagneId).slice(0, 6);
+  return (
+    <Panneau
+      titre="Notes de campagne"
+      action={
+        <Button variant="ghost" size="xs" asChild>
+          <Link href={`/notes?nouvelle=1&campagne=${campagneId}`}>
+            <NotebookPen />
+            Écrire
+          </Link>
+        </Button>
+      }
+    >
+      {liste.length === 0 ? (
+        <p className="py-4 text-center text-[13px] text-subtle">
+          Journal de session, PNJ croisés, indices : gardez tout ici.
+        </p>
+      ) : (
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {liste.map((n) => (
+            <li key={n.id}>
+              <Link
+                href={`/notes?note=${n.id}`}
+                className="flex items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:border-border-strong hover:bg-surface-2"
+              >
+                <span className="text-lg">{iconeNote(n)}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">
+                    {n.title || 'Sans titre'}
+                  </span>
+                  <span className="block text-xs text-subtle">{formaterDepuis(n.updatedAt)}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panneau>
+  );
+}
+
+function SalonSquelette() {
+  return (
+    <div>
+      <div className="border-b border-border px-4 pb-8 pt-24 sm:px-8">
+        <div className="mx-auto max-w-7xl space-y-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-12 w-96 max-w-full" />
+          <Skeleton className="h-5 w-72" />
+        </div>
+      </div>
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-8 lg:grid-cols-[1fr_340px]">
+        <Skeleton className="h-64" />
+        <Skeleton className="h-48" />
+      </div>
+    </div>
+  );
+}
