@@ -110,5 +110,6 @@ fi
 etape "Services et front (Ctrl+C pour tout arrêter)"
 echo "  front    http://localhost:3000"
 echo "  gateway  http://localhost:8080"
+echo "  temps réel ws://localhost:8080/v1/realtime/socket.io (service realtime :3006)"
 echo "  e-mails  http://localhost:8025"
 exec pnpm turbo run dev --filter='./backend/*' --filter=@vtt/web
