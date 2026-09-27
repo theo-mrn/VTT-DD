@@ -14,11 +14,17 @@ const contexteInterne = (): EventContext => ({ correlationId: `titres-${uuidv7()
 
 const acteur = (userId: string) => ({ userId, role: 'user' as const, characterId: null });
 
+/** Titre débloqué : slug et libellé (repris dans l'événement identity.title_unlocked). */
+export interface UnlockedTitle {
+  slug: string;
+  label: string;
+}
+
 async function evenementDeblocage(
   tx: Tx,
   ctx: EventContext,
   userId: string,
-  slug: string,
+  titre: UnlockedTitle,
   source: 'time' | 'event',
 ) {
   await appendEvent(tx, ctx, {
@@ -26,8 +32,33 @@ async function evenementDeblocage(
     actor: acteur(userId),
     aggregate: { type: 'user', id: userId },
     visibility: 'owner',
-    payload: { slug, source },
+    payload: { slug: titre.slug, label: titre.label, source },
   });
+}
+
+/**
+ * Débloque un titre dans la transaction `tx` (celle de l'appelant) et y écrit
+ * son événement. Renvoie le titre s'il vient d'être débloqué ; null s'il
+ * l'était déjà ou s'il n'existe pas au catalogue.
+ */
+export async function unlockTitleInTx(
+  tx: Tx,
+  ctx: EventContext,
+  userId: string,
+  slug: string,
+  source: 'time' | 'event' = 'event',
+): Promise<UnlockedTitle | null> {
+  const res = await tx.execute<{ slug: string; label: string }>(sql`
+    with ins as (
+      insert into ${userTitles} (user_id, slug)
+      select ${userId}::uuid, t.slug from ${titles} t where t.slug = ${slug}
+      on conflict (user_id, slug) do nothing
+      returning slug)
+    select ins.slug, t.label from ins join ${titles} t on t.slug = ins.slug`);
+  const titre = res.rows[0];
+  if (!titre) return null;
+  await evenementDeblocage(tx, ctx, userId, titre, source);
+  return titre;
 }
 
 /**
@@ -45,19 +76,21 @@ export async function debloquerTitresParTemps(
   return db.transaction(async (tx) => {
     // Insertion idempotente : un titre déjà débloqué (ou débloqué en même temps
     // par une autre requête) n'est pas renvoyé, et n'a donc pas d'événement.
-    const res = await tx.execute<{ slug: string }>(sql`
-      insert into ${userTitles} (user_id, slug)
-      select ${userId}::uuid, t.slug
-        from ${titles} t
-       where t.condition->>'type' = 'time'
-         and jsonb_typeof(t.condition->'minutes') = 'number'
-         and (t.condition->>'minutes')::numeric <= ${totalMinutes}
-       order by t.slug
-      on conflict (user_id, slug) do nothing
-      returning slug`);
-    const slugs = res.rows.map((r) => r.slug).sort();
-    for (const slug of slugs) await evenementDeblocage(tx, ctx, userId, slug, 'time');
-    return slugs;
+    const res = await tx.execute<{ slug: string; label: string }>(sql`
+      with ins as (
+        insert into ${userTitles} (user_id, slug)
+        select ${userId}::uuid, t.slug
+          from ${titles} t
+         where t.condition->>'type' = 'time'
+           and jsonb_typeof(t.condition->'minutes') = 'number'
+           and (t.condition->>'minutes')::numeric <= ${totalMinutes}
+         order by t.slug
+        on conflict (user_id, slug) do nothing
+        returning slug)
+      select ins.slug, t.label from ins join ${titles} t on t.slug = ins.slug`);
+    const debloques = res.rows.sort((a, b) => a.slug.localeCompare(b.slug));
+    for (const titre of debloques) await evenementDeblocage(tx, ctx, userId, titre, 'time');
+    return debloques.map((t) => t.slug);
   });
 }
 
@@ -71,16 +104,7 @@ export async function debloquerTitre(
   slug: string,
   ctx: EventContext = contexteInterne(),
 ): Promise<boolean> {
-  return db.transaction(async (tx) => {
-    const res = await tx.execute<{ slug: string }>(sql`
-      insert into ${userTitles} (user_id, slug)
-      select ${userId}::uuid, t.slug from ${titles} t where t.slug = ${slug}
-      on conflict (user_id, slug) do nothing
-      returning slug`);
-    if (res.rows.length === 0) return false;
-    await evenementDeblocage(tx, ctx, userId, slug, 'event');
-    return true;
-  });
+  return db.transaction(async (tx) => (await unlockTitleInTx(tx, ctx, userId, slug)) !== null);
 }
 
 export interface TitrePublic {

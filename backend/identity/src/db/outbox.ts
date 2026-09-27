@@ -13,6 +13,8 @@ export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export interface EventContext {
   correlationId: string;
   traceparent?: string | null;
+  /** Id de l'événement du bus qui a causé celui-ci (consommateurs), sinon null. */
+  causationId?: string | null;
 }
 
 export async function appendEvent(
@@ -39,6 +41,7 @@ export async function appendEvent(
     visibility: event.visibility ?? 'owner',
     payload: event.payload,
     correlationId: ctx.correlationId,
+    causationId: ctx.causationId ?? null,
     traceparent: ctx.traceparent ?? null,
   });
   await tx.insert(outbox).values({ id: envelope.id, subject: subjectFor(envelope), envelope });
