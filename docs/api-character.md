@@ -91,12 +91,14 @@ La fiche du front est une grille de blocs (12 colonnes sur grand écran) que le 
 
 ```ts
 SheetLayout = {
-  format: 1;
+  format: 1 | 2; // 2 : pas vertical de 4 px ; 1 : rangées de 32 px espacées de 16 (converti par le front)
   blocks: { id: string; type: string; title: string; params: Record<string, string | number | boolean | string[]>; height?: 'auto' | 'fixed' }[]; // 40 au plus
   layouts: { lg?: Item[]; md?: Item[]; sm?: Item[]; xs?: Item[] }; // positions par largeur ; absente : déduite
 }
-Item = { i: string; x: number; y: number; w: number; h: number } // i : id d'un bloc, x + w <= 12
+Item = { i: string; x: number; y: number; w: number; h: number } // i : id d'un bloc, x + w <= 12 ; y <= 50 000, h <= 2 400
 ```
+
+Le front écrit le format 2 : la grille avance par pas de 4 px, sans espace entre rangées (chaque bloc porte sa marge basse de 12 px), pour que les hauteurs automatiques épousent le contenu. Une mise en page au format 1 (rangées de 32 px espacées de 16) reste lisible : le front la convertit (`y × 12`, `h × 12 − 1`) et l'enregistre au format 2 au prochain changement.
 
 `height` règle la hauteur d'un bloc dans la grille : `auto`, elle suit son contenu (le `h` des positions n'est qu'une estimation, le front mesure) ; `fixed`, le `h` des positions s'applique et le contenu défile. Absent : préférence du type de bloc côté front (automatique, sauf l'arbre) ; les mises en page enregistrées avant ce champ suivent donc cette préférence.
 

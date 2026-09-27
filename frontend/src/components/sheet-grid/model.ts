@@ -15,13 +15,22 @@ export const BREAKPOINT_ORDER: SheetBreakpoint[] = ['lg', 'md', 'sm', 'xs'];
 /** Largeur minimale du conteneur (px) de chaque disposition. */
 export const BREAKPOINTS: Record<SheetBreakpoint, number> = { lg: 1024, md: 700, sm: 480, xs: 0 };
 export const COLUMNS: Record<SheetBreakpoint, number> = { lg: 12, md: 8, sm: 2, xs: 1 };
-/** Hauteur d'une rangée et espace entre blocs (px) : une unité de hauteur vaut 48 px. */
-export const ROW_HEIGHT = 32;
-export const MARGIN = 16;
+/**
+ * Pas vertical de la grille (px) : fin, pour qu'une hauteur automatique épouse son contenu
+ * à quelques pixels près. Les rangées ne sont pas espacées : l'espace vertical entre blocs
+ * est la marge basse du cadre de chaque bloc (MARGIN), comprise dans sa hauteur.
+ */
+export const ROW_HEIGHT = 4;
+/** Espace entre blocs (px) : marge horizontale de la grille, marge basse du cadre. */
+export const MARGIN = 12;
+/** Format de la mise en page enregistrée : 2, pas de 4 px ; 1, rangées de 32 px espacées de 16. */
+export const LAYOUT_FORMAT = 2;
+const LEGACY_ROW = 32;
+const LEGACY_MARGIN = 16;
 /** Largeur type du conteneur, pour estimer la hauteur d'un bloc avant de le mesurer. */
 const NOMINAL_WIDTH: Record<SheetBreakpoint, number> = { lg: 1216, md: 860, sm: 600, xs: 380 };
-/** Hauteur maximale d'un bloc par défaut (unités) : au-delà, son contenu défile. */
-const MAX_DEFAULT_HEIGHT = 14;
+/** Hauteur maximale d'un bloc par défaut (rangées de l'ancienne grille, ~670 px). */
+const MAX_DEFAULT_ROWS = 14;
 export const MAX_BLOCKS = 40;
 
 export interface BlockSize {
@@ -67,13 +76,32 @@ export function blockWidthPx(w: number, bp: SheetBreakpoint, container = NOMINAL
   return w * colonne + (w - 1) * MARGIN;
 }
 
-/** Unités de hauteur pour un contenu de `px` pixels (chrome du bloc compris). */
+/** Unités de hauteur pour une carte de `px` pixels (marge basse du cadre en plus). */
 export function heightUnits(px: number): number {
-  return Math.max(1, Math.ceil((px + MARGIN) / (ROW_HEIGHT + MARGIN)));
+  return Math.max(1, Math.ceil((px + MARGIN) / ROW_HEIGHT));
+}
+
+/**
+ * Unités de hauteur d'une hauteur en rangées de l'ancienne grille (32 px espacées de 16) :
+ * tailles déclarées par les blocs, mises en page enregistrées au format 1.
+ */
+export function legacyRows(h: number): number {
+  return heightUnits(h * (LEGACY_ROW + LEGACY_MARGIN) - LEGACY_MARGIN);
+}
+
+/** Positions d'une mise en page au format 1, ramenées au pas actuel. */
+function fromLegacy(layouts: SheetLayout['layouts']): SheetLayout['layouts'] {
+  const facteur = (LEGACY_ROW + LEGACY_MARGIN) / ROW_HEIGHT;
+  const r: SheetLayout['layouts'] = {};
+  for (const bp of BREAKPOINT_ORDER) {
+    const l = layouts[bp];
+    if (l) r[bp] = l.map((it) => ({ ...it, y: it.y * facteur, h: legacyRows(it.h) }));
+  }
+  return r;
 }
 
 export function clampDefaultHeight(h: number, min: number): number {
-  return Math.max(min, Math.min(MAX_DEFAULT_HEIGHT, h));
+  return Math.max(min, Math.min(legacyRows(MAX_DEFAULT_ROWS), h));
 }
 
 /** Largeur d'un bloc dans une disposition, déduite de sa largeur sur grand écran. */
@@ -279,9 +307,16 @@ export function stateFrom(
   disponible?: Availability,
 ): GridState {
   // Une mise en page d'un format inconnu est ignorée : la disposition par défaut s'affiche
-  const lisible = stored?.format === 1 && Array.isArray(stored.blocks) ? stored : null;
+  const lisible =
+    (stored?.format === 1 || stored?.format === LAYOUT_FORMAT) && Array.isArray(stored.blocks)
+      ? stored
+      : null;
   const blocks = lisible ? lisible.blocks.map((b) => fromApiBlock(b, disponible)) : defaults();
-  const layouts = lisible?.layouts ?? {};
+  const layouts = !lisible
+    ? {}
+    : lisible.format === 1
+      ? fromLegacy(lisible.layouts ?? {})
+      : (lisible.layouts ?? {});
   return {
     blocks,
     layouts: completeLayouts(blocks, layouts, sizeOf, minOf),
@@ -295,7 +330,7 @@ export function toApiLayout(state: GridState): SheetLayout {
   for (const bp of state.arranged)
     layouts[bp] = state.layouts[bp].map(({ i, x, y, w, h }) => ({ i, x, y, w, h }));
   return {
-    format: 1,
+    format: LAYOUT_FORMAT,
     blocks: state.blocks.map((b) => {
       const api = b.widget ? toApiBlock(b.id, b.widget) : b.raw;
       return b.height ? { ...api, height: b.height } : api;

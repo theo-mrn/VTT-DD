@@ -31,11 +31,12 @@ export function TuileAttribut({
   const tuile = (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-border bg-surface-2/70 text-center',
+        'flex min-w-0 flex-col items-center justify-center rounded-xl border border-border bg-surface-2/70 text-center',
         compacte ? 'px-1.5 py-2' : 'px-2 py-3',
       )}
     >
-      <span className="text-[10px] font-medium uppercase tracking-wider text-subtle">
+      {/* Une seule ligne : un nom long est tronqué, complet dans l'infobulle */}
+      <span className="max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-subtle">
         {a.abrege ?? a.nom}
       </span>
       <span

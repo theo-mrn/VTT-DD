@@ -73,12 +73,21 @@ function compact(items: SheetLayoutItem[]): SheetLayoutItem[] {
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   for (const it of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
     const courant = { ...it, y: 0 };
-    while (places.some((p) => chevauche(courant, p))) courant.y++;
+    // Saute sous le bloc qui gêne (pas fin de 4 px : pas de descente rangée par rangée)
+    for (
+      let g = places.find((p) => chevauche(courant, p));
+      g;
+      g = places.find((p) => chevauche(courant, p))
+    )
+      courant.y = g.y + g.h;
     places.push(courant);
   }
   const ordre = new Map(items.map((it, i) => [it.i, i]));
   return places.sort((a, b) => ordre.get(a.i)! - ordre.get(b.i)!);
 }
+
+/** Pas d'un redimensionnement vertical au clavier (unités de 4 px : 24 px). */
+const PAS_CLAVIER = 6;
 
 const recouvreX = (a: SheetLayoutItem, b: SheetLayoutItem) => a.x < b.x + b.w && b.x < a.x + a.w;
 
@@ -102,8 +111,8 @@ function auClavier(
     if (hauteurAuto && (touche === 'ArrowDown' || touche === 'ArrowUp')) return null;
     if (touche === 'ArrowRight') suivant.w = Math.min(cols - it.x, it.w + 1);
     if (touche === 'ArrowLeft') suivant.w = Math.max(min.w, it.w - 1);
-    if (touche === 'ArrowDown') suivant.h = Math.min(200, it.h + 1);
-    if (touche === 'ArrowUp') suivant.h = Math.max(min.h, it.h - 1);
+    if (touche === 'ArrowDown') suivant.h = Math.min(2400, it.h + PAS_CLAVIER);
+    if (touche === 'ArrowUp') suivant.h = Math.max(min.h, it.h - PAS_CLAVIER);
   } else if (touche === 'ArrowRight' || touche === 'ArrowLeft') {
     suivant.x = Math.max(0, Math.min(cols - it.w, it.x + (touche === 'ArrowRight' ? 1 : -1)));
   } else if (touche === 'ArrowDown') {
@@ -437,7 +446,7 @@ export function SheetGrid({
       const it = items.find((x) => x.i === id)!;
       setAnnonce(
         e.shiftKey
-          ? `Taille : ${it.w} colonne(s) sur ${it.h} rangée(s).`
+          ? `Taille : ${it.w} colonne(s), ${it.h * ROW_HEIGHT - MARGIN} px de haut.`
           : `Position : colonne ${it.x + 1}, rangée ${it.y + 1}.`,
       );
     },
@@ -507,7 +516,8 @@ export function SheetGrid({
             cols={COLUMNS}
             layouts={layouts}
             rowHeight={ROW_HEIGHT}
-            margin={[MARGIN, MARGIN]}
+            // Pas d'espace entre rangées : chaque cadre porte sa marge basse (MARGIN)
+            margin={[MARGIN, 0]}
             containerPadding={[0, 0]}
             compactType="vertical"
             isDraggable={editing}
@@ -533,7 +543,7 @@ export function SheetGrid({
                       : undefined
                   }
                   onKeyDown={editing ? (e) => surTouche(b.id, e) : undefined}
-                  className="rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  className="group/bloc outline-none"
                 >
                   <BlockFrame
                     block={b}

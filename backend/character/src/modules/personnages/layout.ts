@@ -51,9 +51,9 @@ export const LayoutItem = z
       .int()
       .min(0)
       .max(GRID_COLUMNS - 1),
-    y: z.number().int().min(0).max(2000),
+    y: z.number().int().min(0).max(50_000),
     w: z.number().int().min(1).max(GRID_COLUMNS),
-    h: z.number().int().min(1).max(200),
+    h: z.number().int().min(1).max(2_400),
   })
   .refine((l) => l.x + l.w <= GRID_COLUMNS, `Bloc hors de la grille (${GRID_COLUMNS} colonnes)`);
 export type LayoutItem = z.output<typeof LayoutItem>;
@@ -62,7 +62,8 @@ const Positions = z.array(LayoutItem).max(MAX_BLOCKS);
 
 export const SheetLayout = z
   .strictObject({
-    format: z.literal(1),
+    /** 2 : pas vertical fin (4 px) ; 1 : rangées de 32 px espacées de 16 (converti par le front). */
+    format: z.union([z.literal(1), z.literal(2)]),
     blocks: z.array(SheetBlock).max(MAX_BLOCKS, `${MAX_BLOCKS} blocs au plus`),
     /** Positions par largeur d'écran ; une largeur absente est déduite par le front. */
     layouts: z

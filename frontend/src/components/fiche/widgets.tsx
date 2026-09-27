@@ -136,11 +136,11 @@ export function Bloc({
         className,
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-        <h2 className="min-w-0 truncate text-sm font-semibold">{titre}</h2>
+      <div className="flex min-h-9 shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1.5">
+        <h2 className="min-w-0 truncate text-[13px] font-semibold">{titre}</h2>
         {action}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-width:thin]">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">{children}</div>
     </section>
   );
 }
@@ -178,7 +178,7 @@ export function BlocAttributs({
       {/* `colonnes` au plus, moins quand le bloc est étroit (tuiles de 4,5 rem au minimum) */}
       <div className="grid gap-2" style={grilleColonnes(colonnes, '4.5rem')}>
         {cles.map((c) => (
-          <TuileAttribut key={c} fiche={fiche} cle={c} />
+          <TuileAttribut key={c} fiche={fiche} cle={c} compacte />
         ))}
       </div>
     </Bloc>
@@ -290,7 +290,7 @@ function ValeurChiffree({
   const couleur = ctx.presentation?.ressources[cle]?.couleur;
   const lignes = explication(v);
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-border bg-surface-2/70 px-3 py-2.5">
+    <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border bg-surface-2/70 px-2.5 py-1.5">
       <Info
         texte={
           <span className="block space-y-0.5">
@@ -310,10 +310,10 @@ function ValeurChiffree({
           <p className="truncate text-[10px] font-medium uppercase tracking-wider text-subtle">
             {a.abrege ?? a.nom}
           </p>
-          <p className="font-mono text-2xl font-semibold leading-tight tabular">
+          <p className="font-mono text-xl font-semibold leading-tight tabular">
             <span style={couleur ? { color: couleur } : undefined}>{afficherValeur(v)}</span>
             {a.nature === 'ressource' && v.max !== undefined && (
-              <span className="text-base font-normal text-subtle"> / {v.max}</span>
+              <span className="text-sm font-normal text-subtle"> / {v.max}</span>
             )}
           </p>
         </div>

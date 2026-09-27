@@ -149,7 +149,8 @@ export type SheetBreakpoint = 'lg' | 'md' | 'sm' | 'xs';
  * largeur d'écran. Elle appartient au personnage : toute la table voit la même fiche.
  */
 export interface SheetLayout {
-  format: 1;
+  /** 2 : pas vertical de 4 px ; 1 : rangées de 32 px espacées de 16 (converti à la lecture). */
+  format: 1 | 2;
   blocks: {
     id: string;
     type: string;

@@ -22,7 +22,10 @@ export interface SheetBlockProps<T extends WidgetType = WidgetType> {
   mode: 'read' | 'edit';
 }
 
-/** Tailles en unités de la grille (12 colonnes sur grand écran). */
+/**
+ * Tailles : `w` en colonnes (12 sur grand écran), `h` en rangées de 48 px (converties au pas
+ * fin de la grille par sheet-grid/model.ts).
+ */
 export interface BlockSize {
   w: number;
   h: number;

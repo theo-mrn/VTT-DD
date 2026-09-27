@@ -43,6 +43,23 @@ const MISE_EN_PAGE = {
   },
 };
 
+/** Même mise en page au format 2 (pas de 4 px) : hauteurs et ordonnées plus grandes. */
+const MISE_EN_PAGE_FINE = {
+  ...MISE_EN_PAGE,
+  format: 2,
+  layouts: {
+    lg: [
+      { i: 'b1', x: 0, y: 0, w: 8, h: 47 },
+      { i: 'b2', x: 8, y: 0, w: 4, h: 2_000 },
+      { i: 'b3', x: 0, y: 47, w: 12, h: 30 },
+    ],
+  },
+  blocks: [
+    ...MISE_EN_PAGE.blocks,
+    { id: 'b3', type: 'texte', title: 'Notes', params: { attribut: 'notes' } },
+  ],
+};
+
 describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
   let t: Contexte;
   let o: ReturnType<typeof outils>;
@@ -144,6 +161,15 @@ describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
     expect(apres).toMatchObject({ payload: { version: p.version + 2, reset: true, blocks: 0 } });
   });
 
+  it('accepte le format 2, au pas vertical fin', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Fin');
+    const enregistre = (await o.ok(proprietaire, 'PUT', `/v1/characters/${p.id}/layout`, {
+      version: p.version,
+      layout: MISE_EN_PAGE_FINE,
+    })) as AvecMiseEnPage;
+    expect(enregistre.sheetLayout).toEqual(MISE_EN_PAGE_FINE);
+  });
+
   it('hors campagne, l’événement reste celui du propriétaire', async () => {
     const p = await o.nainGuerrier(proprietaire, 'Solitaire');
     await o.ok(proprietaire, 'PUT', `/v1/characters/${p.id}/layout`, {
@@ -188,7 +214,7 @@ describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
     const p = await engage();
     const u = `/v1/characters/${p.id}/layout`;
     const invalides: [string, unknown][] = [
-      ['format inconnu', { ...MISE_EN_PAGE, format: 2 }],
+      ['format inconnu', { ...MISE_EN_PAGE, format: 3 }],
       ['clé en trop', { ...MISE_EN_PAGE, theme: 'sombre' }],
       [
         'bloc en double',

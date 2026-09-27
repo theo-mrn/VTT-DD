@@ -22,7 +22,7 @@ import type { ContexteFiche } from '@/components/fiche/widgets';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { GridBlock, HeightMode } from './model';
+import { MARGIN, type GridBlock, type HeightMode } from './model';
 
 class BlockBoundary extends Component<
   { children: ReactNode; title: string; resetKey: string },
@@ -78,11 +78,13 @@ function EmptyCard({
 }) {
   return (
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-dashed border-border-strong bg-card/60">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border px-5 py-3.5">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
         {icon && <TriangleAlert className="size-4 text-warning" aria-hidden />}
-        <h2 className="min-w-0 truncate text-sm font-semibold text-muted-foreground">{title}</h2>
+        <h2 className="min-w-0 truncate text-[13px] font-semibold text-muted-foreground">
+          {title}
+        </h2>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-5 text-sm text-subtle">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 text-sm text-subtle">{children}</div>
     </section>
   );
 }
@@ -250,39 +252,43 @@ export function BlockFrame({
       </BlockBoundary>
     );
 
+  // La case de la grille = la carte + la marge basse (espace avec le bloc du dessous). Le
+  // cadre de personnalisation épouse la carte, pas la case.
   return (
-    <div className="relative h-full">
-      <div
-        ref={mesure}
-        className={cn(!auto && 'h-full', editing && 'pointer-events-none select-none')}
-        inert={editing}
-      >
-        {contenu}
-      </div>
-      {editing && (
+    <div className="h-full" style={{ paddingBottom: MARGIN }}>
+      <div ref={mesure} className={cn('relative', !auto && 'h-full')}>
         <div
-          className={cn(
-            'sheet-drag-handle absolute inset-0 z-10 cursor-grab rounded-2xl active:cursor-grabbing',
-            'ring-1 ring-primary/30 transition-colors hover:bg-primary/[0.04] hover:ring-primary/60',
-          )}
+          className={cn(!auto && 'h-full', editing && 'pointer-events-none select-none')}
+          inert={editing}
         >
-          <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-border-strong bg-popover/95 py-0.5 pl-1.5 pr-0.5 text-xs shadow-elevated backdrop-blur">
-            <GripVertical className="size-3.5 shrink-0 text-subtle" aria-hidden />
-            <span className="min-w-0 truncate font-medium">{titre}</span>
-            <HeightSwitch title={titre} value={heightMode} onChange={onHeightModeChange} />
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="sheet-no-drag shrink-0"
-              onClick={onRemove}
-              aria-label={`Retirer le bloc ${titre}`}
-              tabIndex={-1}
-            >
-              <X />
-            </Button>
-          </div>
+          {contenu}
         </div>
-      )}
+        {editing && (
+          <div
+            className={cn(
+              'sheet-drag-handle absolute inset-0 z-10 cursor-grab rounded-2xl active:cursor-grabbing',
+              'ring-1 ring-primary/40 transition-colors hover:bg-primary/[0.04] hover:ring-primary/70',
+              'group-focus-visible/bloc:ring-2 group-focus-visible/bloc:ring-ring',
+            )}
+          >
+            <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-border-strong bg-popover/95 py-0.5 pl-1.5 pr-0.5 text-xs shadow-elevated backdrop-blur">
+              <GripVertical className="size-3.5 shrink-0 text-subtle" aria-hidden />
+              <span className="min-w-0 truncate font-medium">{titre}</span>
+              <HeightSwitch title={titre} value={heightMode} onChange={onHeightModeChange} />
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="sheet-no-drag shrink-0"
+                onClick={onRemove}
+                aria-label={`Retirer le bloc ${titre}`}
+                tabIndex={-1}
+              >
+                <X />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

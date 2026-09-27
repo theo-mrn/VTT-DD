@@ -16,6 +16,7 @@ import {
 import {
   clampDefaultHeight,
   heightUnits,
+  legacyRows,
   type BlockSize,
   type GridBlock,
   type HeightMode,
@@ -23,8 +24,8 @@ import {
   type SizeOf,
 } from './model';
 
-/** En-tête (titre) et marges intérieures d'un bloc, en px. */
-const CHROME = 49 + 40 + 2;
+/** En-tête (titre), marges intérieures et bordure d'un bloc, en px. */
+const CHROME = 37 + 24 + 2;
 
 type Estimation = (ctx: ContexteFiche, widget: never, widthPx: number) => number | null;
 
@@ -56,7 +57,7 @@ const CONTENU: Partial<Record<WidgetType, Estimation>> = {
     const colonnes = w.colonnes ?? Math.min(6, n);
     const parLigne = Math.max(1, Math.min(colonnes, Math.floor((largeur - 40 + 8) / (72 + 8))));
     const lignes = Math.max(1, Math.ceil(n / parLigne));
-    return lignes * 82 + (lignes - 1) * 8;
+    return lignes * 72 + (lignes - 1) * 8;
   },
   ressources: (ctx, w: Extract<Widget, { type: 'ressources' }>, largeur) => {
     const cles = w.attributs.filter((c) => visiblePour(ctx, c));
@@ -64,7 +65,7 @@ const CONTENU: Partial<Record<WidgetType, Estimation>> = {
       // Tuiles de 8 rem au moins, trois par ligne au plus
       const parLigne = Math.max(1, Math.min(3, cles.length, Math.floor((largeur - 40) / 136)));
       const lignes = Math.max(1, Math.ceil(cles.length / parLigne));
-      return lignes * 66 + (lignes - 1) * 8;
+      return lignes * 54 + (lignes - 1) * 8;
     }
     const n = Math.max(1, cles.filter((c) => estRessource(ctx, c)).length);
     return n * 38 + (n - 1) * 16;
@@ -125,19 +126,22 @@ export function isBlockEmpty(ctx: ContexteFiche, widget: Widget): boolean {
 /** Taille par défaut d'un bloc de largeur `widthPx` : largeur déclarée, hauteur estimée. */
 export function sizeFor(ctx: ContexteFiche): SizeOf {
   return (block, _bp, widthPx) => {
-    if (!block.widget) return { w: 6, h: 3 };
+    if (!block.widget) return { w: 6, h: legacyRows(3) };
     const def = blockDefinition(block.widget.type);
     const contenu = CONTENU[block.widget.type]?.(ctx, block.widget as never, widthPx) ?? null;
     const h =
       contenu === null
-        ? def.defaultSize.h
-        : clampDefaultHeight(heightUnits(CHROME + contenu), def.minSize.h);
+        ? legacyRows(def.defaultSize.h)
+        : clampDefaultHeight(heightUnits(CHROME + contenu), legacyRows(def.minSize.h));
     return { w: def.defaultSize.w, h };
   };
 }
 
-export const minSizeOf: MinSizeOf = (block: GridBlock): BlockSize =>
-  block.widget ? blockDefinition(block.widget.type).minSize : { w: 3, h: 2 };
+/** Minimum d'un bloc, en unités de la grille (les définitions le déclarent en rangées). */
+export const minSizeOf: MinSizeOf = (block: GridBlock): BlockSize => {
+  const min = block.widget ? blockDefinition(block.widget.type).minSize : { w: 3, h: 2 };
+  return { w: min.w, h: legacyRows(min.h) };
+};
 
 /**
  * Hauteur d'un bloc : `auto` suit son contenu mesuré (pas de poignée verticale), `fixed`
