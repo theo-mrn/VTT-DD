@@ -97,8 +97,9 @@ ne sont pas modélisés côté serveur (un mur à sens unique bloque dans les de
   token est visible au départ ou à l'arrivée.
 - Un élément qui devient caché produit l'événement complet en `gm_only` **et** un `<domaine>.hidden`
   public `{ id, mapId }` pour que les clients joueurs le retirent.
-- `custom` : événement `gm_only`, `visibleTo` (ids de personnages) dans le payload pour une
-  diffusion ciblée par realtime ; les tokens `hidden` restent `gm_only` : les clients joueurs
+- `custom` : événement `gm_only`, `visibleTo` (ids de personnages) dans le payload, et
+  `visibleToUsers` (propriétaires et incarnateurs de ces personnages, ajoutés par `mapEvent`) que
+  realtime utilise pour envoyer l'événement à ces joueurs en plus des MJ ; les tokens `hidden` restent `gm_only` : les clients joueurs
   relisent `GET …/tokens` (filtré) quand un de leurs tokens bouge.
 - `map_drawing.cleared` : `{ mapId, ids }` (effacement groupé) ; `map_settings.updated` est aussi
   émis quand le groupe change de scène (`partyMapId`).
