@@ -1,0 +1,68 @@
+# Présentation D&D classique : ce que le front affiche sans que ce soit une
+# règle. Les illustrations sont celles de l'ancienne app (stockage R2).
+
+format: 1
+systeme: dnd-classic
+
+theme:
+  couleurs:
+    accent: '#c9a965'
+  fond:
+    type: image
+    source: 'https://assets.yner.fr/Map/Chateau/Illustration/Cragwind Castle_Day02_static.webp'
+
+# Illustrations des races et des profils (assistant de création, fiches)
+images:
+  ame_forgee: https://assets.yner.fr/images/races/Ame-forgee.webp
+  elfe: https://assets.yner.fr/images/races/Elfe.webp
+  elfe_noir: https://assets.yner.fr/images/races/Elfenoir.jpg
+  elfe_sylvain: https://assets.yner.fr/images/races/Elfesylvain.webp
+  humain: https://assets.yner.fr/images/races/Humain.webp
+  nain: https://assets.yner.fr/images/races/Nain.webp
+  minotaure: https://assets.yner.fr/images/races/Minotaure.webp
+  halfelin: https://assets.yner.fr/images/races/Halfelin.webp
+  orque: https://assets.yner.fr/images/races/Orc.webp
+  drakonide: https://assets.yner.fr/images/races/Drakonide.webp
+  barbare: https://assets.yner.fr/images/profiles/barbare.jpg
+  barde: https://assets.yner.fr/images/profiles/Barde.jpg
+  chevalier: https://assets.yner.fr/images/profiles/chevalier.jpg
+  druide: https://assets.yner.fr/images/profiles/druide.webp
+  ensorceleur: https://assets.yner.fr/images/profiles/ensorceleur.jpg
+  forgesort: https://assets.yner.fr/images/profiles/forgesort.webp
+  guerrier: https://assets.yner.fr/images/profiles/guerrier.webp
+  invocateur: https://assets.yner.fr/images/profiles/invocateur.jpg
+  magicien: https://assets.yner.fr/images/profiles/magicien.webp
+  moine: https://assets.yner.fr/images/profiles/moine.jpg
+  necromancien: https://assets.yner.fr/images/profiles/necromancien.webp
+  pretre: https://assets.yner.fr/images/profiles/pretre.jpg
+  psionique: https://assets.yner.fr/images/profiles/psionique.jpg
+  rodeur: https://assets.yner.fr/images/profiles/rodeur.webp
+  samourai: https://assets.yner.fr/images/profiles/samourai.jpg
+  voleur: https://assets.yner.fr/images/profiles/voleur.webp
+
+# PV : jauge pleine au départ, qui descend
+ressources:
+  PV: { sens: descendant, couleur: '#10b981' }
+
+# Fiche du personnage : le front l'affiche bloc par bloc, sans connaître le jeu.
+# Le premier bloc « details » sert aussi de résumé (cartes, listes).
+fiches:
+  personnage:
+    widgets:
+      - { type: details, titre: Profil, sortes: [race, profil], attributs: [niveau] }
+      - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
+      - { type: ressources, titre: Vitalité, attributs: [PV] }
+      - {
+          type: attributs,
+          titre: Combat,
+          attributs: [Defense, Contact, Distance, Magie, INIT, Critique],
+          colonnes: 6,
+        }
+      - { type: possessions, titre: Voies, sorte: voie }
+      - { type: possessions, titre: Capacités, sorte: capacite }
+      - { type: possessions, titre: Capacités à activer, sorte: capacite_active }
+      - { type: possessions, titre: Armes, sorte: arme }
+      - { type: possessions, titre: Armures et boucliers, sorte: armure }
+      - { type: possessions, titre: États, sorte: etat }
+      - { type: monnaies, titre: Points et bourse }
+      - { type: actions, titre: Actions }
