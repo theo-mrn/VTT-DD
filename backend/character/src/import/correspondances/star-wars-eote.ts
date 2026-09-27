@@ -533,3 +533,12 @@ export const NOEUDS: Readonly<Record<string, string>> = {
   'slicer-mental-fortress': 'arbre-pirate-informatique/l5c3', // Mental Fortress → forteresse-mentale
   'slicer-dedication': 'arbre-pirate-informatique/l5c4', // Dedication → devouement
 };
+
+/**
+ * Seuils figés de l'ancienne fiche → attribut dérivé qui les recalcule dans le
+ * nouveau système (le seuil de blessure s'appelait PV_Max, comme les PV max D&D).
+ */
+export const SEUILS: Readonly<Record<string, string>> = {
+  PV_Max: 'seuilBlessure',
+  Stress_Max: 'seuilStress',
+};

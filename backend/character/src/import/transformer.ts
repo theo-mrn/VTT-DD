@@ -729,10 +729,7 @@ function migrerStarWars(b: Brouillon, p: PersonnageLegacy, options: OptionsTrans
 
   // Seuils : l'ancienne fiche les figeait, le nouveau système les recalcule
   const f = b.fiche();
-  for (const [legacy, cle] of [
-    ['PV_Max', 'seuilBlessure'],
-    ['Stress_Max', 'seuilStress'],
-  ] as const) {
+  for (const [legacy, cle] of Object.entries(sw.SEUILS)) {
     const avant = entier(p[legacy]);
     const apres = Number(f.valeur(cle));
     if (avant !== undefined && avant !== apres)
