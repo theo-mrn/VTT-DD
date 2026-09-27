@@ -491,7 +491,11 @@ export function usePersonnagesCampagne(roomId: string | null | undefined) {
   const data = useMemo(
     () =>
       engages.data && campagne.data
-        ? engages.data.map((e) => versEngage(e, campagne.data))
+        ? engages.data
+            // Les listes de la table (« Qui joue ? », salon) ne montrent que les personnages
+            // joueurs : les PNJ (côté ennemis ou alliés) relèvent de la carte et du MJ.
+            .filter((e) => e.side === 'players')
+            .map((e) => versEngage(e, campagne.data))
         : undefined,
     [engages.data, campagne.data],
   );
