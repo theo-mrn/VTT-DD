@@ -45,6 +45,8 @@ export const characters = schemaCharacters.table('characters', {
   etat: jsonb('etat').$type<EtatEntite>().notNull(),
   details: jsonb('details').$type<CharacterDetails>().notNull().default({}),
   pendingRoll: jsonb('pending_roll').$type<PendingRoll>(),
+  /** `pc` personnage joueur, `npc` PNJ (les PNJ importés de l'ancienne app). */
+  kind: text('kind').$type<'pc' | 'npc'>().notNull().default('pc'),
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),

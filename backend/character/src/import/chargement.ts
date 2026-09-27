@@ -5,7 +5,7 @@
  * `character.created`.
  */
 import { uuidv7 } from '@vtt/contracts';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { appendEvent } from '../db/outbox.js';
 import { characters, legacyIds } from '../db/schema.js';
@@ -22,12 +22,34 @@ export async function chargerPersonnage(
   legacyId: string,
   ownerId: string,
   correlationId: string,
+  kind: 'pc' | 'npc',
 ): Promise<ResultatChargement> {
   const [existant] = await db
     .select({ id: legacyIds.characterId })
     .from(legacyIds)
     .where(and(eq(legacyIds.source, SOURCE_LEGACY), eq(legacyIds.legacyId, legacyId)));
-  if (existant) return { statut: 'deja-importe', id: existant.id };
+  if (existant) {
+    // Rejeu : seul le classement joueur / PNJ peut être corrigé (import antérieur à `kind`)
+    await db.transaction(async (tx) => {
+      const [maj] = await tx
+        .update(characters)
+        .set({ kind })
+        .where(and(eq(characters.id, existant.id), ne(characters.kind, kind)))
+        .returning({ id: characters.id });
+      if (maj)
+        await appendEvent(
+          tx,
+          { correlationId },
+          {
+            type: 'character.kind_changed',
+            actor: { userId: null, role: 'system', characterId: null },
+            aggregate: { type: 'character', id: existant.id },
+            payload: { kind, importe: true },
+          },
+        );
+    });
+    return { statut: 'deja-importe', id: existant.id };
+  }
 
   const id = uuidv7();
   await db.transaction(async (tx) => {
@@ -40,6 +62,8 @@ export async function chargerPersonnage(
       systemVersion: migre.etat.systeme.version,
       type: migre.etat.type,
       etat: migre.etat,
+      // Seuls les personnages « joueurs » de l'ancienne app sont des PJ (voir 0006-character-kind)
+      kind,
     });
     await tx.insert(legacyIds).values({ source: SOURCE_LEGACY, legacyId, characterId: id });
     await appendEvent(

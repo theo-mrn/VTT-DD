@@ -175,7 +175,10 @@ export async function lister(
       updatedAt: characters.updatedAt,
     })
     .from(characters)
-    .where(and(eq(characters.ownerId, owner), isNull(characters.deletedAt)))
+    // « Mes personnages » : les personnages joueurs seulement, pas les PNJ
+    .where(
+      and(eq(characters.ownerId, owner), eq(characters.kind, 'pc'), isNull(characters.deletedAt)),
+    )
     .orderBy(desc(characters.updatedAt), desc(characters.id));
   return lignes.map((l) => ({
     id: l.id,

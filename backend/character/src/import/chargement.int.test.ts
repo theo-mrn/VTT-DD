@@ -43,7 +43,7 @@ describe.skipIf(!URL)('import des personnages en base', () => {
     );
     const owner = uuidv7();
     const correlation = uuidv7();
-    const premier = await chargerPersonnage(db, migre, legacyId, owner, correlation);
+    const premier = await chargerPersonnage(db, migre, legacyId, owner, correlation, 'pc');
     expect(premier.statut).toBe('importe');
     ids.push(premier.id);
 
@@ -69,7 +69,7 @@ describe.skipIf(!URL)('import des personnages en base', () => {
       ),
     );
 
-    const second = await chargerPersonnage(db, migre, legacyId, owner, uuidv7());
+    const second = await chargerPersonnage(db, migre, legacyId, owner, uuidv7(), 'pc');
     expect(second).toEqual({ statut: 'deja-importe', id: premier.id });
   });
 });

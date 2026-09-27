@@ -142,7 +142,12 @@ for (const a of aImporter) {
         ligne.statut = 'sans-compte';
         bilan.sansCompte++;
       } else {
-        const r = await chargerPersonnage(base!.db, migre, a.legacyId, owner, correlationId);
+        // PNJ : un personnage non « joueurs » attribué au créateur de la salle faute de joueur
+        const kind =
+          a.origineProprietaire === 'createur-salle' && a.doc.data?.type !== 'joueurs'
+            ? 'npc'
+            : 'pc';
+        const r = await chargerPersonnage(base!.db, migre, a.legacyId, owner, correlationId, kind);
         ligne.statut = r.statut;
         ligne.id = r.id;
         if (r.statut === 'importe') bilan.importes++;
