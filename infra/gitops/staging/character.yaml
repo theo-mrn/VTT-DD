@@ -8,6 +8,8 @@ env:
   NODE_ENV: production
   LOG_LEVEL: info
   REDIS_URL: redis://valkey.messaging.svc:6379
+  # Bus d'événements : le relais d'outbox y publie (NATS JetStream, namespace messaging)
+  NATS_URL: nats://nats.messaging.svc:4222
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
   # Doivent correspondre exactement à la configuration de la gateway
   JWT_ISSUER: https://api.staging.yner.fr/v1/auth
@@ -19,6 +21,8 @@ env:
   DICE_URL: http://dice.vtt-staging.svc
 # Secret character-secrets (SOPS) : DATABASE_URL (rôle characters_svc), INTERNAL_API_SECRET
 # (même valeur que campaign et dice)
+# + DATABASE_DIRECT_URL (même rôle) vers vtt-pg-rw.data.svc en direct : le LISTEN du relais
+#   d'outbox ne traverse pas PgBouncer (sans elle : DATABASE_URL, réveil par le poll de 5 s)
 envFromSecrets:
   - name: character-secrets
 probes:
