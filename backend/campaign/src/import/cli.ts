@@ -16,6 +16,9 @@
  *   CHARACTER_DATABASE_URL rôle characters_svc : personnages importés
  * En simulation, les correspondances sont vérifiées si les deux dernières sont
  * fournies (lecture seule). Rejouable : les campagnes déjà importées sont ignorées.
+ *
+ * Sous-commande `maps` : import des cartes, une fois les campagnes importées
+ * (voir src/import/maps/cli.ts ; simulation par défaut, --importer pour écrire).
  */
 import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -37,6 +40,11 @@ import {
 } from './loading.js';
 import { transformCampaign } from './transform.js';
 import { imageRehoster, isFirebaseStorage } from './images.js';
+
+if (process.argv[2] === 'maps') {
+  await import('./maps/cli.js');
+  process.exit();
+}
 
 const { values } = parseArgs({
   options: {
