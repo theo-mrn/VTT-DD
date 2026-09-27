@@ -82,34 +82,54 @@ ne sont pas modélisés côté serveur (un mur à sens unique bloque dans les de
 
 ## Événements (outbox, sujet `vtt.<campaignId>.<domaine>.<action>`)
 
-| Domaine                                                                        | Actions                                            | Visibilité                                                                |
-| ------------------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------- |
-| `map`                                                                          | `created`, `updated`, `deleted`, `imported`        | `public` si `visible_to_players`, sinon `gm_only`                         |
-| `map_group`                                                                    | `created`, `updated`, `deleted`                    | `gm_only`                                                                 |
-| `map_settings`                                                                 | `updated`                                          | `public`                                                                  |
-| `map_fog`                                                                      | `updated`                                          | `public`                                                                  |
-| `token`                                                                        | `created`, `updated`, `moved`, `deleted`, `hidden` | `public` si visible par tous (`visible`, `ally`, joueur), sinon `gm_only` |
-| `map_object`, `map_light`, `map_portal`                                        | `created`, `updated`, `deleted`, `hidden`          | `gm_only` pour les éléments cachés                                        |
-| `map_obstacle`, `map_drawing`, `map_note`, `map_music_zone`, `map_measurement` | `created`, `updated`, `deleted`                    | `public`                                                                  |
+| Domaine                                                         | Actions                                            | Visibilité                                                                          |
+| --------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `map`                                                           | `created`, `updated`, `deleted`, `hidden`          | `public` si `visible_to_players`, sinon `gm_only` ; `imported` (import) : `gm_only` |
+| `map_group`                                                     | `created`, `updated`, `deleted`                    | `gm_only`                                                                           |
+| `map_settings`, `map_fog`                                       | `updated`                                          | `public`                                                                            |
+| `token`                                                         | `created`, `updated`, `moved`, `deleted`, `hidden` | `public` : joueur, `ally`, ou `visible` hors brouillard ; sinon `gm_only`           |
+| `map_object`, `map_light`, `map_portal`                         | `created`, `updated`, `deleted`, `hidden`          | `gm_only` pour les éléments cachés (`hidden`, `custom`, éteints)                    |
+| `map_obstacle`, `map_note`, `map_music_zone`, `map_measurement` | `created`, `updated`, `deleted`                    | `public`                                                                            |
+| `map_drawing`                                                   | `created`, `updated`, `deleted`, `cleared`         | `public`                                                                            |
 
-- `token.moved` : un seul événement par déplacement, `{ tokenId, characterId, from: { mapId, x, y }, to: { mapId, x, y } }`.
+- `token.moved` : un seul événement par déplacement (fin de drag, voyage entre scènes),
+  `{ tokenId, characterId, from: { mapId, x, y } | null, to: { mapId, x, y } }` ; `public` si le
+  token est visible au départ ou à l'arrivée.
 - Un élément qui devient caché produit l'événement complet en `gm_only` **et** un `<domaine>.hidden`
   public `{ id, mapId }` pour que les clients joueurs le retirent.
 - `custom` : événement `gm_only`, `visibleTo` (ids de personnages) dans le payload pour une
   diffusion ciblée par realtime ; les tokens `hidden` restent `gm_only` : les clients joueurs
   relisent `GET …/tokens` (filtré) quand un de leurs tokens bouge.
+- `map_drawing.cleared` : `{ mapId, ids }` (effacement groupé) ; `map_settings.updated` est aussi
+  émis quand le groupe change de scène (`partyMapId`).
 
 ## Import Firebase
 
-`node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js maps --export ~/vtt-export --rtdb ~/vtt-export/rtdb-rooms.json --report ~/vtt-export/rapport-cartes.ndjson [--importer]`
+```sh
+CHARACTER_DATABASE_URL=… IDENTITY_DATABASE_URL=… \
+node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js maps \
+  --export ~/vtt-export --rtdb ~/vtt-export/rtdb-rooms.json \
+  --report ~/vtt-export/rapport-cartes.ndjson [--importer]
+```
 
-- après comptes, personnages et campagnes ; simulation par défaut ;
-- `--rtdb` : JSON de la Realtime Database (export complet de la console Firebase, ou objet
-  `{ "rooms": { … } }`) ; sans lui, positions Firestore seulement et ni murs, ni dessins,
-  ni textes récents, ni musique ;
+- après comptes, personnages et campagnes ; simulation par défaut, `--importer` pour écrire ;
+  la sortie ne donne que des compteurs, le détail est dans le rapport (0600) ;
+- `--rtdb` : JSON de la Realtime Database, soit l'export complet de la console Firebase,
+  soit `{ "rooms": { "<code>": { positions, obstacles, drawings, notes, measurements, music, _migrations } } }`
+  (lecture seule, par exemple `firebase database:get /rooms`) ; `tools/firebase-export` ne sait
+  pas encore l'exporter. Sans lui : positions Firestore seulement, ni murs, ni dessins, ni textes
+  récents, ni musique ;
+- salle basculée sur la RTDB (`_migrations.drawings_obstacles_notes`) : les copies Firestore
+  (`text`, `obstacles`, `drawings`) sont ignorées, elles sont périmées ;
 - identifiants stables : UUID (SHA-1, version 5) du chemin legacy (`cartes/{r}/cities/{id}`,
-  `rtdb:rooms/{r}/obstacles/{id}`…) : un import rejoué n'écrit rien de plus (`ON CONFLICT DO NOTHING`) ;
-- médias sur Firebase Storage (fonds, images de tokens) copiés dans le stockage S3 par
-  `src/import/images.ts` ; les autres URL (assets.yner.fr, chemins relatifs) sont gardées ;
-- un token n'est créé que pour un personnage importé **et** engagé dans la campagne ;
-  les ids de `visibleToPlayerIds` sont traduits (`characters.legacy_ids`).
+  `rooms/{r}/obstacles/{id}`, `cartes/{r}/characters/{id}#{cityId}` pour un token…) ; un import
+  rejoué n'ajoute que ce qui manque (`ON CONFLICT DO NOTHING`) : à ne pas relancer après la
+  bascule, un élément supprimé depuis reviendrait ;
+- médias sur Firebase Storage et images `data:` (fonds, tokens, objets, sons) copiés dans le
+  stockage S3 (`src/import/images.ts`, 50 Mo, images, vidéos webm/mp4, sons) ; les autres URL
+  (assets.yner.fr, R2, chemins relatifs) sont gardées ;
+- un token n'est créé que pour un personnage importé **et** engagé dans la campagne ; les ids de
+  `visibleToPlayerIds` sont traduits (`characters.legacy_ids`) ; un joueur a un token présent sur
+  sa scène (`currentSceneId`, sinon celle du groupe) et un token mémorisé par autre scène connue ;
+- non importés (avertissements du rapport) : combat de scène, rapports d'attaque, parties
+  d'échecs, scénario, entités de groupe, mesures éphémères.
