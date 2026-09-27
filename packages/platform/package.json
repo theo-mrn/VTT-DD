@@ -11,6 +11,10 @@
     "./telemetry": {
       "types": "./dist/telemetry.d.ts",
       "default": "./dist/telemetry.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/write-routes.d.ts",
+      "default": "./dist/testing/write-routes.js"
     }
   },
   "files": [
