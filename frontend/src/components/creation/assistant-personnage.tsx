@@ -19,13 +19,12 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EtatVide } from '@/components/commun/page';
 import { Chargement, Message } from '@/components/compte/elements';
 import { EnTeteFocus, ProgressionEtapes } from '@/components/shell/cadre-focus';
-import { CarteSysteme, CarteSystemeSquelette } from '@/components/systemes/carte-systeme';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,7 +33,7 @@ import { messageErreur } from '@/lib/api';
 import { campagnes, useCampagne } from '@/lib/campagnes';
 import { etatInitial, resumer } from '@/lib/creation';
 import { useCreerPersonnage, type DetailsPersonnage } from '@/lib/personnages';
-import { useSysteme, useSystemes } from '@/lib/systemes';
+import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { ApercuFiche } from './apercu-fiche';
 import { EtapeAcheter } from './etape-acheter';
@@ -57,7 +56,7 @@ interface Brouillon {
 }
 
 type EtapeUI =
-  | { id: 'systeme' | 'identite' | 'portrait' | 'recap'; nom: string }
+  | { id: 'identite' | 'portrait' | 'recap'; nom: string }
   | { id: string; nom: string; regle: EtapeCreation };
 
 function lireBrouillon(): Brouillon | null {
@@ -85,22 +84,18 @@ const DETAILS_VIDES: DetailsPersonnage = { concept: '', appearance: '', backstor
  * le système (`creation`) : aucune règle de jeu ici, chaque action passe par
  * @vtt/rules. Le brouillon est gardé dans le navigateur à chaque changement.
  */
-export function AssistantPersonnage() {
+export function AssistantPersonnage({ campagneId }: { campagneId: string }) {
   const router = useRouter();
-  const params = useSearchParams();
-  const campagneId = params.get('campagne');
   const campagne = useCampagne(campagneId);
-  const systemes = useSystemes();
   const creer = useCreerPersonnage();
 
-  const [systemeId, setSystemeId] = useState<string | null>(params.get('systeme'));
+  // Le système est celui de la campagne : jamais demandé au joueur
+  const [systemeId, setSystemeId] = useState<string | null>(null);
   const [etat, setEtat] = useState<EtatEntite | null>(null);
   const [nom, setNom] = useState('');
   const [details, setDetails] = useState<DetailsPersonnage>(DETAILS_VIDES);
   const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
-  const [courant, setCourant] = useState<string>(
-    campagneId || params.get('systeme') ? 'identite' : 'systeme',
-  );
+  const [courant, setCourant] = useState<string>('identite');
   const [sens, setSens] = useState(1);
   const [pret, setPret] = useState(false);
   const [envoi, setEnvoi] = useState(false);
@@ -120,11 +115,7 @@ export function AssistantPersonnage() {
     if (repris.current) return;
     repris.current = true;
     const b = lireBrouillon();
-    if (
-      b &&
-      (b.campagneId ?? null) === (campagneId ?? null) &&
-      (!params.get('systeme') || params.get('systeme') === b.systemeId)
-    ) {
+    if (b && b.campagneId === campagneId) {
       setSystemeId(b.systemeId);
       setEtat(b.etat);
       setNom(b.nom);
@@ -134,7 +125,7 @@ export function AssistantPersonnage() {
       toast('Brouillon repris', { description: 'Vous reprenez là où vous vous étiez arrêté.' });
     }
     setPret(true);
-  }, [campagneId, params]);
+  }, [campagneId]);
 
   // Un nouveau système repart d'un état vierge
   useEffect(() => {
@@ -170,7 +161,6 @@ export function AssistantPersonnage() {
 
   const regles = systeme ? (creationDe(systeme, 'personnage')?.etapes ?? []) : [];
   const etapes: EtapeUI[] = [
-    ...(campagneId ? [] : [{ id: 'systeme' as const, nom: 'Système' }]),
     { id: 'identite' as const, nom: 'Identité' },
     ...regles.map((r) => ({ id: `regle:${r.id}`, nom: r.nom, regle: r })),
     { id: 'portrait' as const, nom: 'Portrait' },
@@ -184,7 +174,6 @@ export function AssistantPersonnage() {
   const regle = 'regle' in etape ? etape.regle : null;
 
   const valide = (e: EtapeUI): boolean => {
-    if (e.id === 'systeme') return Boolean(systeme);
     if (e.id === 'identite') return nom.trim().length >= 2;
     if ('regle' in e) return statut(e.regle.id)?.statut === 'faite';
     return true;
@@ -205,7 +194,7 @@ export function AssistantPersonnage() {
     setNom('');
     setDetails(DETAILS_VIDES);
     setPortraitUrl(null);
-    aller(campagneId ? 0 : 1);
+    aller(0);
   }
 
   async function terminer() {
@@ -278,7 +267,7 @@ export function AssistantPersonnage() {
             <div className="mb-8 flex items-start justify-between gap-4">
               <div className="space-y-2">
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary">
-                  {campagne.data ? `Nouveau héros · ${campagne.data.name}` : 'Nouveau personnage'}
+                  Nouveau héros{campagne.data ? ` · ${campagne.data.name}` : ''}
                 </p>
                 <h1 className="text-balance text-3xl font-semibold tracking-tight">
                   {titreEtape(etape)}
@@ -306,25 +295,6 @@ export function AssistantPersonnage() {
                 exit={{ opacity: 0, x: sens * -28 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               >
-                {etape.id === 'systeme' && (
-                  <div
-                    role="radiogroup"
-                    aria-label="Système de jeu"
-                    className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-                  >
-                    {systemes.isLoading &&
-                      Array.from({ length: 3 }, (_, i) => <CarteSystemeSquelette key={i} />)}
-                    {systemes.data?.map((s) => (
-                      <CarteSysteme
-                        key={s.id}
-                        systeme={s}
-                        choisie={systemeId === s.id}
-                        onChoisir={() => setSystemeId(s.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-
                 {etape.id === 'identite' && (
                   <Identite nom={nom} setNom={setNom} details={details} setDetails={setDetails} />
                 )}
@@ -492,8 +462,6 @@ export function AssistantPersonnage() {
 
 function titreEtape(e: EtapeUI): string {
   switch (e.id) {
-    case 'systeme':
-      return 'À quel jeu jouera-t-il ?';
     case 'identite':
       return 'Qui est votre héros ?';
     case 'portrait':

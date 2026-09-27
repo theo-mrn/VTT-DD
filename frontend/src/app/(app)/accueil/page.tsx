@@ -36,7 +36,6 @@ import { Progress } from '@/components/ui/progress';
 import { monRole, prochaineSession, useCampagnes, type Campagne } from '@/lib/campagnes';
 import { useJets } from '@/lib/jets';
 import { iconeNote, useNotes } from '@/lib/notes';
-import { lireOnboarding } from '@/lib/onboarding';
 import { usePersonnages } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { useProfil } from '@/lib/session';
@@ -52,7 +51,6 @@ export default function PageAccueil() {
   const profil = useProfil();
   const campagnes = useCampagnes();
   const personnages = usePersonnages();
-  const mj = lireOnboarding(profil)?.roles.includes('mj') ?? false;
   const recente = campagnes.data?.[0] ?? null;
   const date = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -77,9 +75,9 @@ export default function PageAccueil() {
             </Link>
           </Button>
           <Button asChild>
-            <Link href={mj ? '/campagnes/nouvelle' : '/personnages/nouveau'}>
+            <Link href="/campagnes/nouvelle">
               <Plus />
-              {mj ? 'Nouvelle campagne' : 'Nouveau personnage'}
+              Nouvelle campagne
             </Link>
           </Button>
         </div>

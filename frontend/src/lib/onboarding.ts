@@ -4,15 +4,14 @@
  */
 import type { Profil } from './profil';
 
-export type RoleJeu = 'joueur' | 'mj';
-export type Experience = 'decouverte' | 'initie' | 'veteran';
-
+/**
+ * Version 2 : l'onboarding ne demande plus ni rôle, ni expérience, ni systèmes
+ * préférés (le système vient toujours de la campagne). Un profil en version 1 est
+ * lu comme terminé, ses anciennes réponses sont ignorées.
+ */
 export interface Onboarding {
-  version: 1;
+  version: 1 | 2;
   termineLe: string;
-  roles: RoleJeu[];
-  experience: Experience;
-  systemes: string[];
 }
 
 export function lireOnboarding(profil: Profil): Onboarding | null {

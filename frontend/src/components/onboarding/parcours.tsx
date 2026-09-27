@@ -1,28 +1,13 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  Compass,
-  Crown,
-  Feather,
-  LogIn,
-  Sparkles,
-  Swords,
-  Trophy,
-  UserRound,
-  Wand2,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, LogIn, Sparkles, Swords } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { CarteChoix } from '@/components/commun/carte-choix';
 import { AvatarJoueur, Message } from '@/components/compte/elements';
 import { useEnvoiImage } from '@/components/compte/envoi-image';
 import { EnTeteFocus, ProgressionEtapes } from '@/components/shell/cadre-focus';
-import { CarteSysteme, CarteSystemeSquelette } from '@/components/systemes/carte-systeme';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
@@ -30,48 +15,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
 import { LONGUEUR_CODE, useRejoindreCampagne } from '@/lib/campagnes';
-import type { Experience, Onboarding, RoleJeu } from '@/lib/onboarding';
+import type { Onboarding } from '@/lib/onboarding';
 import { modifierMonProfil } from '@/lib/profil';
 import { cheminInterne } from '@/lib/redirection';
 import { useProfil, useSession } from '@/lib/session';
-import { useSystemes } from '@/lib/systemes';
-import { cn } from '@/lib/utils';
 
 const ETAPES = [
   { id: 'bienvenue', nom: 'Bienvenue' },
   { id: 'profil', nom: 'Votre profil' },
-  { id: 'style', nom: 'Votre façon de jouer' },
-  { id: 'univers', nom: 'Vos univers' },
   { id: 'depart', nom: 'Premier pas' },
 ];
 
-const EXPERIENCES: { id: Experience; titre: string; description: string; icone: typeof Feather }[] =
-  [
-    {
-      id: 'decouverte',
-      titre: 'Je découvre',
-      description: 'Premières parties : on vous guide pas à pas.',
-      icone: Feather,
-    },
-    {
-      id: 'initie',
-      titre: 'Initié',
-      description: 'Quelques campagnes au compteur.',
-      icone: Compass,
-    },
-    {
-      id: 'veteran',
-      titre: 'Vétéran',
-      description: 'Des années de dés roulés et de tables animées.',
-      icone: Trophy,
-    },
-  ];
-
-/**
- * Parcours d'accueil d'un nouveau compte : profil, rôle, expérience, systèmes
- * préférés, puis une première action. Les réponses vont dans
- * `settings.onboarding` (voir lib/onboarding).
- */
 export function ParcoursOnboarding() {
   const profil = useProfil();
   const { modifierPreferences, remplacerProfil } = useSession();
@@ -82,9 +36,6 @@ export function ParcoursOnboarding() {
   const [sens, setSens] = useState(1);
   const [nom, setNom] = useState(profil.name);
   const [bio, setBio] = useState(profil.bio ?? '');
-  const [roles, setRoles] = useState<RoleJeu[]>(['joueur']);
-  const [experience, setExperience] = useState<Experience>('initie');
-  const [systemes, setSystemes] = useState<string[]>([]);
   const [envoi, setEnvoi] = useState(false);
 
   function aller(i: number) {
@@ -110,13 +61,7 @@ export function ParcoursOnboarding() {
   async function terminer(destination: string) {
     setEnvoi(true);
     try {
-      const onboarding: Onboarding = {
-        version: 1,
-        termineLe: new Date().toISOString(),
-        roles,
-        experience,
-        systemes,
-      };
+      const onboarding: Onboarding = { version: 2, termineLe: new Date().toISOString() };
       await modifierPreferences({ onboarding });
       router.replace(destination);
     } catch (err) {
@@ -160,16 +105,7 @@ export function ParcoursOnboarding() {
             >
               {etape === 0 && <EtapeBienvenue nom={profil.name} onCommencer={() => aller(1)} />}
               {etape === 1 && <EtapeProfil nom={nom} setNom={setNom} bio={bio} setBio={setBio} />}
-              {etape === 2 && (
-                <EtapeStyle
-                  roles={roles}
-                  setRoles={setRoles}
-                  experience={experience}
-                  setExperience={setExperience}
-                />
-              )}
-              {etape === 3 && <EtapeUnivers choisis={systemes} setChoisis={setSystemes} />}
-              {etape === 4 && <EtapeDepart roles={roles} envoi={envoi} onTerminer={terminer} />}
+              {etape === 2 && <EtapeDepart envoi={envoi} onTerminer={terminer} />}
             </motion.section>
           </AnimatePresence>
 
@@ -346,191 +282,36 @@ function EtapeProfil({
 
 // ─── Étape 2 : rôle et expérience ────────────────────────────────────────────
 
-function EtapeStyle({
-  roles,
-  setRoles,
-  experience,
-  setExperience,
-}: {
-  roles: RoleJeu[];
-  setRoles: (r: RoleJeu[]) => void;
-  experience: Experience;
-  setExperience: (e: Experience) => void;
-}) {
-  const basculer = (r: RoleJeu) => {
-    const suivant = roles.includes(r) ? roles.filter((x) => x !== r) : [...roles, r];
-    setRoles(suivant.length ? suivant : [r]);
-  };
-  return (
-    <>
-      <TitreEtape
-        surtitre="Votre façon de jouer"
-        titre="De quel côté de l'écran êtes-vous ?"
-        description="Choisissez les deux si vous alternez : l'accueil s'adaptera."
-      />
-      <div role="group" aria-label="Rôles" className="grid gap-3 sm:grid-cols-2">
-        <CarteChoix
-          multiple
-          choisie={roles.includes('joueur')}
-          onChoisir={() => basculer('joueur')}
-          icone={UserRound}
-          titre="Joueur"
-          description="J'incarne un héros, je lance les dés et je vis l'histoire."
-        />
-        <CarteChoix
-          multiple
-          choisie={roles.includes('mj')}
-          onChoisir={() => basculer('mj')}
-          icone={Crown}
-          titre="Maître du jeu"
-          description="Je prépare les aventures, j'anime la table et j'arbitre les règles."
-        />
-      </div>
-
-      <h2 className="mb-3 mt-10 text-sm font-semibold">Votre expérience</h2>
-      <div role="radiogroup" aria-label="Expérience" className="grid gap-3 sm:grid-cols-3">
-        {EXPERIENCES.map((e) => (
-          <CarteChoix
-            key={e.id}
-            choisie={experience === e.id}
-            onChoisir={() => setExperience(e.id)}
-            icone={e.icone}
-            titre={e.titre}
-            description={e.description}
-          />
-        ))}
-      </div>
-    </>
-  );
-}
-
-// ─── Étape 3 : univers ───────────────────────────────────────────────────────
-
-function EtapeUnivers({
-  choisis,
-  setChoisis,
-}: {
-  choisis: string[];
-  setChoisis: (s: string[]) => void;
-}) {
-  const systemes = useSystemes();
-  return (
-    <>
-      <TitreEtape
-        surtitre="Vos univers"
-        titre="À quoi aimez-vous jouer ?"
-        description="Ces systèmes sont prêts à l'emploi : fiches calculées, création guidée, dés adaptés. Vous en créerez d'autres plus tard."
-      />
-      <div
-        role="group"
-        aria-label="Systèmes de jeu"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        {systemes.isLoading &&
-          Array.from({ length: 3 }, (_, i) => <CarteSystemeSquelette key={i} />)}
-        {systemes.data?.map((s) => (
-          <CarteSysteme
-            key={s.id}
-            systeme={s}
-            multiple
-            choisie={choisis.includes(s.id)}
-            onChoisir={() =>
-              setChoisis(
-                choisis.includes(s.id) ? choisis.filter((x) => x !== s.id) : [...choisis, s.id],
-              )
-            }
-          />
-        ))}
-      </div>
-      {systemes.isError && <Message className="mt-4">Impossible de charger les systèmes.</Message>}
-    </>
-  );
-}
-
-// ─── Étape 4 : premier pas ───────────────────────────────────────────────────
-
 function EtapeDepart({
-  roles,
   envoi,
   onTerminer,
 }: {
-  roles: RoleJeu[];
   envoi: boolean;
   onTerminer: (destination: string) => Promise<void>;
 }) {
   const [code, setCode] = useState('');
   const rejoindre = useRejoindreCampagne();
-  const mj = roles.includes('mj');
 
+  // Un héros naît dans une campagne : après avoir rejoint, on le choisit ou on le crée
+  // pour cette table, dont le système est imposé.
   async function rejoindreCampagne() {
     try {
       const c = await rejoindre.mutateAsync(code);
-      await onTerminer(`/campagnes/${c.id}`);
+      await onTerminer(`/campagnes/${c.id}/personnage`);
     } catch (err) {
       toast.error(messageErreur(err));
     }
   }
-
-  const choix = [
-    {
-      id: 'campagne',
-      titre: 'Créer une campagne',
-      description: 'Choisissez un système, une ambiance, et invitez vos joueurs.',
-      icone: Swords,
-      href: '/campagnes/nouvelle',
-      conseille: mj,
-    },
-    {
-      id: 'personnage',
-      titre: 'Créer un personnage',
-      description: 'Un assistant guidé, calculé par les règles du système.',
-      icone: Wand2,
-      href: '/personnages/nouveau',
-      conseille: !mj,
-    },
-  ];
 
   return (
     <>
       <TitreEtape
         surtitre="Premier pas"
         titre="Par où commence l'aventure ?"
-        description="Tout est prêt. Choisissez votre première quête."
+        description="Rejoignez la table de votre MJ, ou ouvrez la vôtre. Votre héros se crée ensuite dans la campagne, avec son système de jeu."
       />
-      <div className="grid gap-3 sm:grid-cols-2">
-        {choix.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            disabled={envoi}
-            onClick={() => void onTerminer(c.href)}
-            className={cn(
-              'group relative flex flex-col gap-4 overflow-hidden rounded-2xl border p-5 text-left transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-60',
-              c.conseille
-                ? 'border-primary/50 bg-primary/[0.06] shadow-glow'
-                : 'border-border bg-card shadow-surface hover:border-border-strong',
-            )}
-          >
-            {c.conseille && (
-              <span className="absolute right-4 top-4 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">
-                Conseillé
-              </span>
-            )}
-            <span className="flex size-11 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-primary">
-              <c.icone className="size-5" />
-            </span>
-            <span>
-              <span className="flex items-center gap-2 text-base font-semibold">
-                {c.titre}
-                <ArrowRight className="size-4 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-              </span>
-              <span className="mt-1 block text-[13px] text-muted-foreground">{c.description}</span>
-            </span>
-          </button>
-        ))}
-      </div>
 
-      <div className="mt-3 rounded-2xl border border-border bg-card p-5 shadow-surface">
+      <div className="rounded-2xl border border-primary/50 bg-primary/[0.06] p-5 shadow-glow">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-primary">
@@ -569,7 +350,7 @@ function EtapeDepart({
             </InputOTP>
             <Button
               type="submit"
-              disabled={code.length !== LONGUEUR_CODE}
+              disabled={code.length !== LONGUEUR_CODE || envoi}
               loading={rejoindre.isPending}
             >
               Rejoindre
@@ -577,6 +358,26 @@ function EtapeDepart({
           </form>
         </div>
       </div>
+
+      <button
+        type="button"
+        disabled={envoi}
+        onClick={() => void onTerminer('/campagnes/nouvelle')}
+        className="group mt-3 flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong disabled:opacity-60"
+      >
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border-strong bg-surface-2 text-primary">
+          <Swords className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2 text-base font-semibold">
+            Créer une campagne
+            <ArrowRight className="size-4 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+          </span>
+          <span className="mt-1 block text-[13px] text-muted-foreground">
+            Vous êtes le MJ : choisissez le système et l'ambiance, puis invitez vos joueurs.
+          </span>
+        </span>
+      </button>
 
       <div className="mt-6 text-center">
         <Button variant="link" disabled={envoi} onClick={() => void onTerminer('/accueil')}>
