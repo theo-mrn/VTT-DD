@@ -322,8 +322,12 @@ function ecrire(
   };
 
   return enFile(id, async () => {
+    // Un conflit a eu lieu depuis cette demande : elle partirait d'une fiche périmée
+    if ((generations.get(id) ?? 0) !== generation) {
+      enAttente.set(id, (enAttente.get(id) ?? 1) - 1);
+      throw conflitVersion();
+    }
     try {
-      if ((generations.get(id) ?? 0) !== generation) throw conflitVersion();
       const connue: FichePersonnage =
         client.getQueryData<FichePersonnage>(cle) ??
         (await client.fetchQuery<FichePersonnage>({
@@ -340,7 +344,7 @@ function ecrire(
       invaliderListes(client);
       return { fiche, brut };
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (err instanceof ApiError && err.problem.code === 'version_perimee') {
         generations.set(id, generation + 1);
         await recharger();
         throw conflitVersion();
