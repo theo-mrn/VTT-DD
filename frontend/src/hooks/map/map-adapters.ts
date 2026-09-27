@@ -173,8 +173,27 @@ export function toLegacyCharacter(
   };
 }
 
-/** Champs de l'ancienne fiche de carte que le token ne connaît pas (stats, états…). */
-export const UNSUPPORTED_CHARACTER_FIELDS = new Set(['conditions', 'Nomperso', 'currentSceneId']);
+/**
+ * Champs de l'ancienne fiche de carte à ignorer sans rien signaler : identifiants et valeurs
+ * dérivées que toLegacyCharacter ajoute (image affichée, carte, scène…). Les autres champs sans
+ * équivalent (stats, nom, états) sont signalés « Bientôt disponible ».
+ */
+export const IGNORED_CHARACTER_FIELDS = new Set([
+  'id',
+  'type',
+  'tokenId',
+  'tokenVersion',
+  'mapId',
+  'currentSceneId',
+  'cityId',
+  'positions',
+  'niveau',
+  'name',
+  'image',
+  'imageUrl',
+  'Actions',
+  'Race',
+]);
 
 /**
  * Changement d'un personnage de l'ancienne carte (`cartes/{r}/characters/{id}`)
@@ -223,7 +242,6 @@ export function fromLegacyCharacter(data: Legacy): {
       case 'imageURL':
       case 'imageURL2':
       case 'imageURLFinal':
-      case 'imageUrl':
         body.imageUrl = (value as string) || null;
         break;
       default:

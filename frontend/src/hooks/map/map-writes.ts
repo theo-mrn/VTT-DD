@@ -30,6 +30,7 @@ import {
   type MapSettingsUpdate,
 } from '@/lib/maps';
 import {
+  IGNORED_CHARACTER_FIELDS,
   fromLegacyCharacter,
   fromLegacyDrawing,
   fromLegacyLight,
@@ -262,11 +263,13 @@ export async function legacyUpdate(
       const t = tokenOf(campaignId, id);
       if (!t) return;
       const { body, ignored } = fromLegacyCharacter(updates);
-      const unsupported = ignored.filter((k) => k !== 'cityId' && k !== 'positions');
-      if (unsupported.length && !Object.keys(body).length) {
-        soon(unsupported.includes('conditions') ? 'États des personnages' : 'Stats du personnage');
-        return;
-      }
+      const unsupported = ignored.filter((k) => !IGNORED_CHARACTER_FIELDS.has(k));
+      if (unsupported.length)
+        soon(
+          unsupported.includes('conditions') && unsupported.length === 1
+            ? 'États des personnages'
+            : 'Nom, stats et états du personnage depuis la carte',
+        );
       if (!Object.keys(body).length) return;
       store.upsertToken(await updateToken(campaignId, t.mapId, t.id, body));
       return;
