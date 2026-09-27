@@ -295,7 +295,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         if (def?.type === 'formule') {
           // Formule propre de l'exemplaire, sinon celle de l'entrée ; elle lit les champs de l'objet
           const objet = ex ?? p.possession;
-          const f = formuleChamp(systeme, p.entree, def, objet);
+          const f = formuleChamp(systeme, p.entree, def, objet, etat.type);
           const lire = variablesObjet(
             p.entree,
             p.sorte,

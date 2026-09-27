@@ -448,6 +448,67 @@ describe('actions', () => {
     expect(Number(calculer(dnd, applique.cible!).valeur('PV'))).toBeLessThan(pv(cible));
   });
 
+  it('formule propre en clés nues : normalisée comme au lanceur avant l’évaluation', () => {
+    const base = nain().etat;
+    const avec = (degats: string) =>
+      poserPossession(dnd, base, { entree: 'epee-longue', champs: { degats } }).etat;
+    const nue = avec('1d6-CON+8');
+    // La formule saisie est celle qui est enregistrée
+    expect(nue.possessions.find((p) => p.entree === 'epee-longue')?.champs.degats).toBe(
+      '1d6-CON+8',
+    );
+    const degats = (etat: EtatEntite) =>
+      resoudreAction(dnd, {
+        action: 'attaque',
+        acteur: calculer(dnd, etat),
+        cible: nain(),
+        parametres: { arme: 'epee-longue' },
+        appliquer: false,
+        aleatoire: aleatoireImpose([14, 4]),
+      }).resultat.variables.degats;
+    // CON nu vaut son apport au jet (le modificateur), comme au lanceur de dés
+    expect(degats(nue)).toBe(degats(avec('1d6-mod(@CON)+8')));
+    expect(degats(nue)).not.toBe(degats(avec('1d6-@CON+8')));
+    expect(erreur(() => avec('1d6-CONS+8'))).toMatchObject({
+      status: 422,
+      code: 'champs_invalides',
+      detail: expect.stringMatching(/« CONS » n’est pas un attribut du personnage/),
+    });
+  });
+
+  it('ajout configuré en une écriture : nom, formule, bonus, dossier, caché, rangé', () => {
+    const etat = { ...nain().etat, folders: [{ id: 'sac', name: 'Sac à dos' }] };
+    const bonus = {
+      sur: 'attribut' as const,
+      attribut: 'Defense',
+      operation: 'ajouter' as const,
+      valeur: '1',
+    };
+    const r = poserPossession(dnd, etat, {
+      entree: 'epee-longue',
+      nouveau: true,
+      champs: { nom: 'Orcrist', degats: '1d10+FOR' },
+      effets: [bonus],
+      actif: false,
+      hidden: true,
+      folder: 'sac',
+    });
+    expect(r.cree).toBe(true);
+    expect(r.etat.possessions.filter((p) => p.entree === 'epee-longue').at(-1)).toMatchObject({
+      exemplaire: '2',
+      actif: false,
+      hidden: true,
+      folder: 'sac',
+      champs: { nom: 'Orcrist', degats: '1d10+FOR' },
+      effets: [bonus],
+    });
+    expect(
+      erreur(() =>
+        poserPossession(dnd, etat, { entree: 'epee-longue', nouveau: true, folder: 'x' }),
+      ),
+    ).toMatchObject({ status: 422, code: 'dossier_inconnu' });
+  });
+
   it('refuse une action inconnue ou sans sa cible', () => {
     const acteur = nain();
     const essai = (action: string) => () =>

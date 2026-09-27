@@ -349,7 +349,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
           ? def.defaut
           : undefined;
     if (def?.type === 'formule') {
-      const f = formuleChamp(systeme, p.entree, def, p.possession);
+      const f = formuleChamp(systeme, p.entree, def, p.possession, acteur.etat.type);
       if (!f) return Number(v) || 0;
       const lire = variablesObjet(p.entree, p.sorte, p, p.possession);
       const variable = (n: string): Valeur => {

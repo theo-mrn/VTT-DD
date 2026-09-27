@@ -475,10 +475,10 @@ export function poserPossession(
       prefixeExemplaire({ entree: d.entree, ...(exemplaire !== undefined ? { exemplaire } : {}) }),
       variablesSource(sorte),
     );
-  // Valeurs propres : champ connu, type, option, formule compilable (écriture simple normalisée)
+  // Valeurs propres : champ connu, type, option, formule compilable (clés nues du porteur)
   let champs = d.champs;
   if (champs !== undefined) {
-    const v = verifierChampsExemplaire(systeme, entree, champs);
+    const v = verifierChampsExemplaire(systeme, entree, champs, etat.type);
     if (v.erreurs.length) throw refus(v.erreurs.join(' ; '), 'champs_invalides');
     champs = v.champs;
   }

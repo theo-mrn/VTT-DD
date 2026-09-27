@@ -4,12 +4,17 @@
  * les dés seulement, aperçu lisible. Et dossiers / objets cachés de l'état.
  */
 import { describe, expect, it } from 'vitest';
-import { apercuFormule, calculer, type Fiche } from './calcul/index.js';
+import {
+  apercuFormule,
+  calculer,
+  formuleLisible,
+  normaliserFormuleJet,
+  type Fiche,
+} from './calcul/index.js';
 import {
   charger,
   compilerFormuleChamp,
   formuleChamp,
-  normaliserFormule,
   verifierChampsExemplaire,
   type SystemeCharge,
 } from './chargement/index.js';
@@ -28,6 +33,7 @@ const source: SystemeSaisi = {
   id: 'mini-formules-objets',
   version: '1.0.0',
   nom: 'Mini formules d’objets',
+  modificateur: 'floor((valeur - 10) / 2)',
   entites: [
     {
       id: 'personnage',
@@ -35,6 +41,16 @@ const source: SystemeSaisi = {
       attributs: [
         { cle: 'CON', nom: 'Constitution', nature: 'base', defaut: 2 },
         { cle: 'FOR', nom: 'Force', nature: 'base', defaut: 3, abrege: 'For' },
+        // Au lanceur, DEX s'ajoute par son modificateur : « DEX » nu vaut mod(@DEX)
+        {
+          cle: 'DEX',
+          nom: 'Dextérité',
+          nature: 'base',
+          defaut: 14,
+          abrege: 'Dx',
+          modificateur: true,
+          jet: { apport: 'modificateur' },
+        },
         { cle: 'PV', nom: 'Points de vie', nature: 'ressource', max: '20' },
       ],
     },
@@ -133,20 +149,38 @@ function attaque(f: Fiche, arme: string, des: number[]): ResultatAction {
 const variable = (r: ResultatAction, cle: string) =>
   r.explications.find((l) => l.startsWith(`${cle} = `));
 
-describe('écriture simple d’une formule', () => {
-  it('un nom nu d’attribut devient une lecture d’attribut', () => {
-    const attributs = [sys.entites.get('personnage')!.attributs];
-    expect(normaliserFormule('1d6-CON+8', attributs)).toBe('1d6-@CON+8');
-    // Abréviation sans casse, fonction et variable de la formule respectées
-    expect(
-      normaliserFormule('mod(for) + source.nbDes', attributs, { 'source.nbDes': 'nombre' }),
-    ).toBe('mod(@FOR) + source.nbDes');
-    expect(normaliserFormule('  2d6 + @CON ', attributs)).toBe('2d6 + @CON');
+describe('clés nues dans la formule d’un objet', () => {
+  const norm = (f: string, variables: string[] = []) => {
+    const r = normaliserFormuleJet(sys, 'personnage', f, { variables });
+    return r.ok ? r.formule : `ERREUR ${r.erreur.message}`;
+  };
+
+  it('une clé nue devient le terme du lanceur, les variables de l’objet restent', () => {
+    expect(norm('1d6-CON+8')).toBe('1d6-@CON+8');
+    expect(norm('1d6-DEX+8')).toBe('1d6-mod(@DEX)+8');
+    expect(norm('2d6 + source.nbDes + rang', ['source.nbDes', 'rang'])).toBe(
+      '2d6 + source.nbDes + rang',
+    );
+    // Abréviation (exacte ou sans casse) et argument de mod(…) : la valeur de l'attribut
+    expect(norm('1d4 + Dx + for')).toBe('1d4 + mod(@DEX) + @FOR');
+    expect(norm('mod(dex) + mod(for)')).toBe('mod(@DEX) + mod(@FOR)');
+  });
+
+  it('refuse une clé inconnue ou une variable que l’objet n’a pas', () => {
+    expect(norm('1d6 + CONS')).toBe('ERREUR « CONS » n’est pas un attribut du personnage');
+    expect(norm('source.poids')).toMatch(/^ERREUR « source\.poids »/);
   });
 
   it('compile la formule propre avec les champs de l’objet et les dés d’un champ de jet', () => {
-    const r = compilerFormuleChamp(sys, arme, champ('degats'), '2d6 + FOR + source.nbDes');
-    expect(r.ok && r.texte).toBe('2d6 + @FOR + source.nbDes');
+    const r = compilerFormuleChamp(sys, arme, champ('degats'), ' 2d6 + FOR + source.nbDes ');
+    // La formule saisie est celle qui est enregistrée
+    expect(r.ok && r.texte).toBe('2d6 + FOR + source.nbDes');
+    const dex = compilerFormuleChamp(sys, arme, champ('degats'), '1d6-DEX+8', 'personnage');
+    expect(dex.ok && dex.formule.texte).toBe('1d6-mod(@DEX)+8');
+    const inconnue = compilerFormuleChamp(sys, arme, champ('degats'), '1d6 + CONS');
+    expect(inconnue.ok || inconnue.erreurs).toEqual([
+      'Dégâts : « CONS » n’est pas un attribut du personnage',
+    ]);
     // Pas de dés dans un champ qui n'est pas une formule de jet
     const bonus = compilerFormuleChamp(sys, arme, champ('bonus'), '1d4');
     expect(bonus.ok).toBe(false);
@@ -165,7 +199,7 @@ describe('valeurs propres d’un exemplaire', () => {
     });
     expect(r.erreurs).toEqual([]);
     expect(r.champs).toEqual({
-      degats: '1d6-@CON+8',
+      degats: '1d6-CON+8',
       nbDes: 2,
       categorie: 'distance',
       nom: 'Lame du nord',
@@ -182,6 +216,9 @@ describe('valeurs propres d’un exemplaire', () => {
     });
     expect(r.erreurs).toHaveLength(5);
     expect(r.erreurs.join(' ; ')).toMatch(/Attribut inconnu : @SAG/);
+    expect(verifierChampsExemplaire(sys, epee, { degats: '1d6+SAG' }).erreurs).toEqual([
+      'Dégâts : « SAG » n’est pas un attribut du personnage',
+    ]);
     expect(r.erreurs.join(' ; ')).toMatch(/500 caractères au plus/);
   });
 });
@@ -245,6 +282,39 @@ describe('formule de jet d’une arme', () => {
     });
     if (!f2.ok) throw new Error('formule');
     expect(apercuFormule(f, f2.formule)).toBe('2d6 + 4 − 5');
+  });
+});
+
+describe('formule lisible', () => {
+  const lisible = (texte: string, variables: Record<string, number> = {}) => {
+    const c = compilerFormuleChamp(sys, arme, champ('degats'), texte);
+    if (!c.ok) throw new Error(c.erreurs.join(' ; '));
+    return formuleLisible(sys, 'personnage', c.formule.noeud, (n) => variables[n]);
+  };
+
+  it('écrit les dés et les clés nues comme au lanceur', () => {
+    expect(
+      lisible('des(source.nbDes, source.faces)', { 'source.nbDes': 1, 'source.faces': 8 }),
+    ).toBe('1d8');
+    expect(lisible('1d6-DEX+8')).toBe('1d6-DEX+8');
+    expect(lisible('1d6 - mod(@DEX) + 8')).toBe('1d6-DEX+8');
+    // CON sans déclaration de jet : la clé nue est sa valeur
+    expect(lisible('1d6 + @CON')).toBe('1d6+CON');
+    // Valeur brute d'un attribut ajouté par son modificateur : forme explicite
+    expect(lisible('1d20 + @DEX')).toBe('1d20+@DEX');
+  });
+
+  it('calcule les constantes et garde les priorités', () => {
+    expect(lisible('des(source.nbDes, 6) + source.nbDes * 0', { 'source.nbDes': 2 })).toBe('2d6');
+    expect(lisible('(1d6 + FOR) * 2 - (3 - 1)')).toBe('(1d6+FOR)*2-2');
+    expect(lisible('1d6 - (FOR - 1)')).toBe('1d6-(FOR-1)');
+  });
+
+  it('relue par normaliserFormuleJet, redonne la même formule', () => {
+    for (const texte of ['1d6-DEX+8', '2d8 + @DEX * 2', '(1d6 + CON) * 2']) {
+      const l = lisible(texte);
+      expect(compilerFormuleChamp(sys, arme, champ('degats'), l).ok, l).toBe(true);
+    }
   });
 });
 

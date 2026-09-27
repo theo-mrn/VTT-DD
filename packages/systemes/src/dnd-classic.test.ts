@@ -573,7 +573,8 @@ describe('dnd-classic : actions', () => {
   });
 
   it('formule de dégâts propre à un exemplaire : ses dés, doublés au critique', () => {
-    // Second exemplaire d'épée longue : 1d6 − CON + 20 (écriture simple)
+    // Second exemplaire d'épée longue : 1d6 − CON + 20 en clés nues, comme au lanceur :
+    // CON y vaut son apport au jet (le modificateur), pas la valeur brute
     const avecLame = fiche({
       ...thorin().etat,
       possessions: [
@@ -581,7 +582,8 @@ describe('dnd-classic : actions', () => {
         { entree: 'epee-longue', exemplaire: '2', champs: { degats: '1d6-CON+20' } },
       ],
     });
-    const con = Number(avecLame.valeur('CON'));
+    const con = Number(avecLame.valeurs.get('CON')?.jet);
+    expect(con).not.toBe(Number(avecLame.valeur('CON')));
     const imprenable = avecBonus(elaria(), { Defense: 20 });
     const r = agir('attaque', avecLame, [14, 4], cuirasse(), { arme: 'epee-longue#2' });
     expect(r.variables.degats).toBe(4 - con + 20);

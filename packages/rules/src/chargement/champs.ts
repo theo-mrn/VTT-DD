@@ -7,14 +7,8 @@
  * champs de l'objet (`source.nbDes`) et son `rang`, `actif`, `quantite` ; un champ déclaré
  * `des` (formule de jet) peut lancer des dés, tirés pendant l'action qui le lit.
  */
-import {
-  analyser,
-  compiler,
-  type FormuleVerifiee,
-  type Noeud,
-  type TypeValeur,
-  type Valeur,
-} from '../formules/index.js';
+import { normaliserFormuleJet } from '../calcul/formule-jet.js';
+import { compiler, type FormuleVerifiee, type TypeValeur, type Valeur } from '../formules/index.js';
 import type { Champ, Entree, Possession, Sorte } from '../schema/index.js';
 import { chemins, type SystemeCharge } from './charger.js';
 import { appelsLitteraux } from './effets.js';
@@ -59,70 +53,6 @@ export function envFormuleChamp(systeme: SystemeCharge, sorte: Sorte, champ: Cha
   });
 }
 
-/** Attribut désigné sans `@` : clé exacte, sinon clé ou abréviation sans casse (unique). */
-function attributNu(tables: Attributs[], nom: string): string | undefined {
-  for (const t of tables) if (t.has(nom)) return nom;
-  const bas = nom.toLowerCase();
-  const trouves = new Set<string>();
-  for (const t of tables)
-    for (const a of t.values())
-      if (a.cle.toLowerCase() === bas || a.abrege?.toLowerCase() === bas) trouves.add(a.cle);
-  return trouves.size === 1 ? [...trouves][0] : undefined;
-}
-
-/**
- * Écriture simple d'une formule : un nom nu qui désigne un attribut du porteur (et pas une
- * variable de la formule) devient une lecture d'attribut. « 1d6-CON+8 » → « 1d6 - @CON + 8 ».
- * Une formule sans nom nu reste telle quelle ; une formule illisible aussi (la compilation
- * dira pourquoi).
- */
-export function normaliserFormule(
-  texte: string,
-  attributs: Attributs[],
-  variables: Record<string, TypeValeur> = {},
-): string {
-  const brut = texte.trim();
-  const a = analyser(brut);
-  if (!a.ok) return brut;
-  // Noms nus à remplacer, à leur position dans le texte (l'écriture de l'auteur est gardée)
-  const remplacements: { pos: number; nom: string; cle: string }[] = [];
-  const visiter = (n: Noeud): void => {
-    switch (n.t) {
-      case 'variable': {
-        if (n.nom in variables) return;
-        const cle = attributNu(attributs, n.nom);
-        if (cle) remplacements.push({ pos: n.pos, nom: n.nom, cle });
-        return;
-      }
-      case 'appel':
-        return n.args.forEach(visiter);
-      case 'unaire':
-        return visiter(n.arg);
-      case 'binaire':
-        visiter(n.g);
-        return visiter(n.d);
-      case 'si':
-        visiter(n.condition);
-        visiter(n.alors);
-        return visiter(n.sinon);
-      case 'des':
-        visiter(n.nombre);
-        visiter(n.faces);
-        if (n.garder) visiter(n.garder.n);
-        return;
-      default:
-        return;
-    }
-  };
-  visiter(a.noeud);
-  let r = brut;
-  for (const x of remplacements.sort((p, q) => q.pos - p.pos)) {
-    if (r.slice(x.pos, x.pos + x.nom.length) !== x.nom) return brut;
-    r = `${r.slice(0, x.pos)}@${x.cle}${r.slice(x.pos + x.nom.length)}`;
-  }
-  return r;
-}
-
 export type FormuleChampCompilee =
   { ok: true; formule: FormuleVerifiee; texte: string } | { ok: false; erreurs: string[] };
 
@@ -130,51 +60,62 @@ const cache = new WeakMap<SystemeCharge, Map<string, FormuleChampCompilee>>();
 
 /**
  * Compile la formule propre d'un exemplaire pour un champ `formule` de sa sorte : même
- * environnement que la formule du catalogue, écriture simple normalisée (`texte`, forme
- * enregistrée), longueur bornée. Résultat gardé en mémoire par système et par texte.
+ * environnement que la formule du catalogue, longueur bornée. Elle s'écrit comme au
+ * lanceur de dés, en clés nues (`1d6-CON+8`) : `normaliserFormuleJet` la réécrit pour le
+ * type d'entité du porteur (par défaut, le premier de la sorte), variables de l'objet
+ * (`source.nbDes`, `rang`…) respectées. `texte` : la formule saisie, forme enregistrée et
+ * affichée. Résultat gardé en mémoire par système, type d'entité et texte.
  */
 export function compilerFormuleChamp(
   systeme: SystemeCharge,
   sorte: Sorte,
   champ: Champ,
   texte: string,
+  entite: string | undefined = sorte.pour[0],
 ): FormuleChampCompilee {
   if (champ.type !== 'formule')
     return { ok: false, erreurs: [`${champ.nom} n’est pas une formule`] };
   let memo = cache.get(systeme);
   if (!memo) cache.set(systeme, (memo = new Map()));
-  const cle = `${sorte.id}\n${champ.id}\n${texte}`;
+  const cle = `${sorte.id}\n${champ.id}\n${entite ?? ''}\n${texte}`;
   const connu = memo.get(cle);
   if (connu) return connu;
 
   let r: FormuleChampCompilee;
-  const variables = variablesFormuleChamp(sorte);
-  const normalise = normaliserFormule(texte, porteurs(systeme, sorte), variables);
-  if (!normalise) r = { ok: false, erreurs: [`${champ.nom} : formule vide`] };
-  else if (normalise.length > LONGUEUR_FORMULE_EXEMPLAIRE)
+  const saisie = texte.trim();
+  if (!saisie) r = { ok: false, erreurs: [`${champ.nom} : formule vide`] };
+  else if (saisie.length > LONGUEUR_FORMULE_EXEMPLAIRE)
     r = {
       ok: false,
       erreurs: [`${champ.nom} : ${LONGUEUR_FORMULE_EXEMPLAIRE} caractères au plus`],
     };
-  else {
-    const c = compiler(normalise, envFormuleChamp(systeme, sorte, champ), 'nombre');
-    if (!c.ok) {
-      r = { ok: false, erreurs: c.erreurs.map((e) => `${champ.nom} : ${e.message}`) };
-    } else {
-      const erreurs: string[] = [];
-      for (const appel of appelsLitteraux(c.formule.noeud)) {
-        const [s] = appel.args;
-        if (AGREGATS.includes(appel.fn) && s !== undefined && !systeme.sortes.has(s))
-          erreurs.push(`${champ.nom} : sorte inconnue : ${s}`);
-      }
-      r = erreurs.length
-        ? { ok: false, erreurs }
-        : { ok: true, formule: c.formule, texte: normalise };
-    }
-  }
+  else r = compilerSaisie(systeme, sorte, champ, saisie, entite ?? '');
   if (memo.size > 1000) memo.clear();
   memo.set(cle, r);
   return r;
+}
+
+/** Formule saisie non vide : clés nues réécrites, puis compilée dans l'environnement du champ. */
+function compilerSaisie(
+  systeme: SystemeCharge,
+  sorte: Sorte,
+  champ: ChampFormule,
+  saisie: string,
+  entite: string,
+): FormuleChampCompilee {
+  const n = normaliserFormuleJet(systeme, entite, saisie, {
+    variables: Object.keys(variablesFormuleChamp(sorte)),
+  });
+  if (!n.ok) return { ok: false, erreurs: [`${champ.nom} : ${n.erreur.message}`] };
+  const c = compiler(n.formule, envFormuleChamp(systeme, sorte, champ), 'nombre');
+  if (!c.ok) return { ok: false, erreurs: c.erreurs.map((e) => `${champ.nom} : ${e.message}`) };
+  const erreurs: string[] = [];
+  for (const appel of appelsLitteraux(c.formule.noeud)) {
+    const [s] = appel.args;
+    if (AGREGATS.includes(appel.fn) && s !== undefined && !systeme.sortes.has(s))
+      erreurs.push(`${champ.nom} : sorte inconnue : ${s}`);
+  }
+  return erreurs.length ? { ok: false, erreurs } : { ok: true, formule: c.formule, texte: saisie };
 }
 
 /**
@@ -186,12 +127,15 @@ export function formuleChamp(
   entree: Entree,
   champ: Champ,
   ex?: Pick<Possession, 'champs'>,
+  entite?: string,
 ): FormuleVerifiee | undefined {
   if (champ.type !== 'formule') return undefined;
   const propre = ex?.champs[champ.id];
   if ((typeof propre === 'string' && propre.trim()) || typeof propre === 'number') {
     const sorte = systeme.sortes.get(entree.sorte);
-    const r = sorte ? compilerFormuleChamp(systeme, sorte, champ, String(propre)) : undefined;
+    const r = sorte
+      ? compilerFormuleChamp(systeme, sorte, champ, String(propre), entite)
+      : undefined;
     // Formule propre devenue invalide (système modifié) : celle de l'entrée
     if (r?.ok) return r.formule;
   }
@@ -234,7 +178,7 @@ export function variablesObjet(
 }
 
 export interface ChampsVerifies {
-  /** Valeurs à enregistrer (formules sous leur forme normalisée). */
+  /** Valeurs à enregistrer (formules telles que saisies, espaces de bord retirés). */
   champs: Record<string, number | string | boolean>;
   erreurs: string[];
 }
@@ -242,12 +186,14 @@ export interface ChampsVerifies {
 /**
  * Vérifie les valeurs propres d'un exemplaire contre les champs de sa sorte : champ connu,
  * type de valeur, option d'un `choix`, attribut ou entrée existants, formule compilable
- * (écriture simple normalisée). Chaîne vide : retour à la valeur de l'entrée.
+ * (clés nues comprises, gardée telle que saisie). Chaîne vide : retour à la valeur de l'entrée.
  */
 export function verifierChampsExemplaire(
   systeme: SystemeCharge,
   entree: Entree,
   champs: Record<string, number | string | boolean>,
+  /** Type d'entité du porteur, pour les clés nues des formules (défaut : le premier de la sorte). */
+  entite?: string,
 ): ChampsVerifies {
   const sorte = systeme.sortes.get(entree.sorte);
   const erreurs: string[] = [];
@@ -305,7 +251,7 @@ export function verifierChampsExemplaire(
           r[id] = '';
           break;
         }
-        const f = compilerFormuleChamp(systeme, sorte, c, texte);
+        const f = compilerFormuleChamp(systeme, sorte, c, texte, entite);
         if (f.ok) r[id] = f.texte;
         else erreurs.push(...f.erreurs);
         break;

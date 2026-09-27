@@ -155,7 +155,7 @@ describe.skipIf(!TEST_DATABASE_URL)('inventaire : dons, objets cachés, dossiers
     expect(epees[1]).toMatchObject({
       exemplaire: '2',
       actif: false,
-      champs: { nom: 'Orcrist', degats: '1d10-@CON+4' },
+      champs: { nom: 'Orcrist', degats: '1d10-CON+4' },
     });
   });
 
@@ -258,14 +258,15 @@ describe.skipIf(!TEST_DATABASE_URL)('inventaire : dons, objets cachés, dossiers
     expect(refuse.statusCode).toBe(403);
   });
 
-  it('formule propre d’un exemplaire : normalisée, refusée si invalide', async () => {
+  it('formule propre d’un exemplaire : en clés nues, gardée telle que saisie, refusée si invalide', async () => {
     const { thorin } = await table();
     const ok = await poser(alice, thorin, {
       entree: 'epee-longue',
       champs: { degats: '1d6-CON+8' },
     });
-    expect(de(ok, 'epee-longue')[0]!.champs.degats).toBe('1d6-@CON+8');
+    expect(de(ok, 'epee-longue')[0]!.champs.degats).toBe('1d6-CON+8');
     for (const [champs, attendu] of [
+      [{ degats: '1d6-CONS+8' }, /« CONS » n’est pas un attribut du personnage/],
       [{ degats: '1d6 + @INCONNU' }, /Attribut inconnu/],
       [{ bonusDegats: '1d4' }, /dés ne sont pas permis/],
       [{ degats: `1${' + 1'.repeat(200)}` }, /500 caractères/],
@@ -283,5 +284,31 @@ describe.skipIf(!TEST_DATABASE_URL)('inventaire : dons, objets cachés, dossiers
       ]);
       expect(r.json().detail).toMatch(attendu);
     }
+  });
+
+  it('ajout configuré : un nouvel exemplaire complet en une requête et un seul événement', async () => {
+    const { thorin } = await table();
+    const rangee = (await o.ok(alice, 'PUT', url(thorin, '/folders'), {
+      version: thorin.version,
+      folders: [{ name: 'Râtelier' }],
+    })) as Personnage;
+    const avant = (await evenements(thorin.id)).length;
+    const bonus = { sur: 'attribut', attribut: 'Defense', operation: 'ajouter', valeur: '1' };
+    const r = await poser(alice, rangee, {
+      entree: 'epee-longue',
+      nouveau: true,
+      champs: { nom: 'Dard', degats: '1d8+DEX' },
+      effets: [bonus],
+      actif: false,
+      hidden: true,
+      folder: rangee.etat.folders[0]!.id,
+    });
+    expect(de(r, 'epee-longue').at(-1)).toMatchObject({
+      actif: false,
+      hidden: true,
+      folder: rangee.etat.folders[0]!.id,
+      champs: { nom: 'Dard', degats: '1d8+DEX' },
+    });
+    expect(await evenements(thorin.id)).toHaveLength(avant + 1);
   });
 });
