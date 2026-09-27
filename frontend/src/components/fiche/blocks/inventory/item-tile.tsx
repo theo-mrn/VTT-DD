@@ -24,7 +24,7 @@ export const GLISSER_OBJET = 'application/x-vtt-inventaire';
 
 /** Emplacement : carré fixe et sobre ; l'accent est réservé à l'état équipé. */
 const TUILE = cn(
-  'group relative isolate flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2/70',
+  'group relative isolate flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2',
   'transition-colors duration-150 motion-reduce:transition-none',
   'hover:border-primary/40 hover:bg-surface-2',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card',
@@ -35,7 +35,12 @@ function Decor() {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-dots opacity-50 mask-radial"
+      className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
+      style={{
+        backgroundImage: 'radial-gradient(hsl(0 0% 100% / 0.11) 1px, transparent 1.2px)',
+        backgroundSize: '9px 9px',
+        backgroundPosition: '4px 4px',
+      }}
     />
   );
 }
