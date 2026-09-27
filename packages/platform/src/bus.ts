@@ -38,13 +38,41 @@ export interface Bus {
 }
 
 /** Connexion au bus ; crée ou met à jour le flux `VTT_EVENTS`. */
+/**
+ * Serveurs et identifiants d'une URL NATS (`nats://user:pass@hôte:4222`, plusieurs
+ * serveurs séparés par des virgules). nats.js ignore les identifiants placés dans
+ * l'URL : ils sont extraits ici et passés en options `user`/`pass`.
+ */
+export function parseNatsUrl(url: string): { servers: string[]; user?: string; pass?: string } {
+  const parsed = url
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => new URL(s.includes('://') ? s : `nats://${s}`));
+  const withAuth = parsed.find((u) => u.username);
+  return {
+    servers: parsed.map((u) => `${u.protocol}//${u.host}`),
+    ...(withAuth
+      ? {
+          user: decodeURIComponent(withAuth.username),
+          ...(withAuth.password ? { pass: decodeURIComponent(withAuth.password) } : {}),
+        }
+      : {}),
+  };
+}
+
 export async function connectBus(opts: {
   url: string;
   name: string;
   logger?: Logger;
+  /**
+   * Réplicas du flux `VTT_EVENTS` (1 aujourd'hui, 3 avec un NATS en cluster).
+   * Par défaut `NATS_STREAM_REPLICAS`, sinon 1.
+   */
+  streamReplicas?: number;
 }): Promise<Bus> {
   const nc = await connect({
-    servers: opts.url.split(','),
+    ...parseNatsUrl(opts.url),
     name: opts.name,
     maxReconnectAttempts: -1,
     reconnectTimeWait: 1000,
@@ -59,7 +87,10 @@ export async function connectBus(opts: {
   let jsm: JetStreamManager;
   try {
     jsm = await jetstreamManager(nc);
-    await ensureEventStream(jsm);
+    await ensureEventStream(
+      jsm,
+      opts.streamReplicas ?? (Number(process.env.NATS_STREAM_REPLICAS) || 1),
+    );
   } catch (err) {
     // Pas de connexion orpheline quand l'appelant réessaie en boucle (relais d'outbox)
     await nc.close().catch(() => undefined);
@@ -73,12 +104,13 @@ export async function connectBus(opts: {
   };
 }
 
-export async function ensureEventStream(jsm: JetStreamManager): Promise<void> {
+export async function ensureEventStream(jsm: JetStreamManager, replicas = 1): Promise<void> {
   const config = {
     name: EVENTS_STREAM,
     subjects: ['vtt.>'],
     retention: RetentionPolicy.Limits,
     storage: StorageType.File,
+    num_replicas: replicas,
     max_age: nanos(RETENTION_MS),
     duplicate_window: nanos(DUPLICATE_WINDOW_MS),
   };

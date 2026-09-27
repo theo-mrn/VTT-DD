@@ -159,19 +159,17 @@ NATS_URL: nats://vtt-staging:$(NATS_PASSWORD)@nats.messaging.svc:4222
 REDIS_URL: redis://default:$(REDIS_PASSWORD)@valkey-staging.messaging.svc:6379
 ```
 
-ioredis lit l'utilisateur et le mot de passe de `REDIS_URL`. **À faire côté code** : nats.js
-ignore ceux d'une URL, et `connectBus` lui passe l'URL telle quelle. Tant que `connectBus` ne les
-extrait pas (options `user` et `pass`), le serveur répond `Authorization Violation` : history et
-realtime refusent de démarrer, les relais d'outbox gardent les événements en attente.
+ioredis lit l'utilisateur et le mot de passe de `REDIS_URL`. nats.js ignore ceux d'une URL :
+`connectBus` les extrait (`parseNatsUrl`) et les passe en options `user` et `pass`. Vérifié sur un
+NATS avec comptes : bon mot de passe accepté, mauvais refusé (`Authorization Violation`).
 
 ### Haute disponibilité (3 nœuds)
 
 - `config.cluster.enabled: true` dans `infra/messaging/nats.yaml` : 3 serveurs, un par nœud
   (volume `local-path` lié au nœud), routes sur 6222 déjà permises.
-- `VTT_EVENTS` resterait sur un seul serveur : `ensureEventStream` ne fixe pas `num_replicas`,
-  et sa mise à jour au démarrage de chaque service le ramènerait à 1. Il faut d'abord le rendre
-  configurable dans le code. En R3, chaque message compte trois fois dans `max_file` : revoir les
-  limites des comptes et la taille des volumes.
+- `VTT_EVENTS` : passer `NATS_STREAM_REPLICAS=3` à **tous** les services qui se connectent au bus
+  (chaque démarrage met le flux à jour avec cette valeur ; 1 par défaut). En R3, chaque message
+  compte trois fois dans `max_file` : revoir les limites des comptes et la taille des volumes.
 
 ### Vérification
 
