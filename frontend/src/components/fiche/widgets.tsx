@@ -30,7 +30,13 @@ import {
   groupesAttributs,
   texteEffet,
 } from '@/lib/creation';
-import type { DemandeBonus, DemandePossession, OperationsPersonnage } from '@/lib/personnages';
+import type {
+  DemandeBonus,
+  DemandeDon,
+  DemandeDossier,
+  DemandePossession,
+  OperationsPersonnage,
+} from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { LanceurAction } from './lanceur-action';
 
@@ -45,6 +51,13 @@ export interface OperationsFiche {
   possession(d: DemandePossession, apercu: EtatEntite): void;
   /** Retire une possession (un exemplaire précis ; absent : l'exemplaire sans identifiant). */
   retirerPossession(entree: string, exemplaire: string | undefined, apercu: EtatEntite): void;
+  /**
+   * Donne un objet à un personnage de la même campagne ; vrai si le service l'a fait
+   * (une erreur est déjà signalée).
+   */
+  donner?(d: DemandeDon, apercu: EtatEntite): Promise<boolean>;
+  /** Remplace les dossiers d'inventaire (ordre, noms, ajouts, suppressions). */
+  dossiers?(folders: DemandeDossier[], apercu: EtatEntite): void;
   /** Pose ou remplace (même `id`) un bonus libre. */
   bonus(d: DemandeBonus, apercu: EtatEntite): void;
   retirerBonus(id: string, apercu: EtatEntite): void;

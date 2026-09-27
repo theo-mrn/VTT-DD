@@ -212,6 +212,26 @@ export interface DemandePossession {
   champs?: Record<string, number | string | boolean>;
   /** Effets propres à l'exemplaire (épée +1) : remplacent les précédents. */
   effets?: Effet[];
+  /** Caché aux autres joueurs (le propriétaire et le MJ le voient). */
+  hidden?: boolean;
+  /** Dossier d'inventaire ; null : retour à la racine. */
+  folder?: string | null;
+}
+
+/** Don d'un objet à un personnage de la même campagne (`POST /possessions/give`). */
+export interface DemandeDon {
+  /** Personnage qui reçoit. */
+  to: string;
+  entree: string;
+  exemplaire?: string;
+  /** Unités données ; absent : tout l'exemplaire. */
+  quantity?: number;
+}
+
+/** Dossier d'inventaire envoyé au service : sans `id`, un nouveau dossier. */
+export interface DemandeDossier {
+  id?: string;
+  name: string;
 }
 
 /** Corps d'une étape de création, selon son type. */
@@ -459,6 +479,13 @@ export interface OperationsPersonnage {
     exemplaire?: string,
     apercu?: EtatEntite,
   ): Promise<FichePersonnage>;
+  /**
+   * Donne un objet à un personnage de la même campagne : les deux fiches changent
+   * ensemble (celle du receveur est relue).
+   */
+  donner(d: DemandeDon, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /** Remplace les dossiers d'inventaire (ordre, noms, ajouts, suppressions). */
+  dossiers(folders: DemandeDossier[], apercu?: EtatEntite): Promise<FichePersonnage>;
   /** Pose (ou remplace, même `id`) un bonus libre : potion, bénédiction, décision du MJ. */
   bonus(d: DemandeBonus, apercu?: EtatEntite): Promise<FichePersonnage>;
   retirerBonus(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
@@ -538,6 +565,23 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
                 })}`,
                 { method: 'DELETE' },
               ),
+            apercu,
+          )
+        ).fiche,
+      donner: async (d, apercu) => {
+        const r = await w((version) => post('/possessions/give', { version, ...d }), apercu);
+        // Le receveur a changé aussi : sa fiche en cache est relue
+        void client.invalidateQueries({ queryKey: clesPersonnages.un(d.to) });
+        return r.fiche;
+      },
+      dossiers: async (folders, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(url(id, '/folders'), {
+                method: 'PUT',
+                ...json({ version, folders }),
+              }),
             apercu,
           )
         ).fiche,

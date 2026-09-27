@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  nomPossession,
   type Action,
   type Fiche,
   type Presentation,
@@ -57,18 +58,47 @@ function optionsAttribut(fiche: Fiche, p: Extract<Parametre, { type: 'attribut' 
     .map((a) => a.cle);
 }
 
+/**
+ * Entrées proposées pour un paramètre `entree`. Une entrée possédée en plusieurs
+ * exemplaires en propose chacun (`entree#exemplaire`) : l'action lit alors ses valeurs
+ * et sa formule propres (dés d'une arme personnalisée).
+ */
 function optionsEntree(fiche: Fiche, p: Extract<Parametre, { type: 'entree' }>) {
   const convient = (e: { sorte: string; etiquettes: string[] }) =>
     e.sorte === p.sorte && (!p.etiquette || e.etiquettes.includes(p.etiquette));
+  const exemplaires = (id: string) => {
+    const x = fiche.possessions.get(id);
+    if (!x || x.exemplaires.length < 2) return null;
+    return x.exemplaires.map((ex, i) => {
+      const nom = nomPossession(x.entree, x.sorte, ex);
+      return {
+        id: ex.exemplaire === undefined ? id : `${id}#${ex.exemplaire}`,
+        nom: nom === x.entree.nom ? `${nom} (n° ${i + 1})` : nom,
+        rang: x.rang,
+      };
+    });
+  };
   if (!p.possedee)
-    return [...fiche.systeme.entrees.values()].filter(convient).map((e) => ({
-      id: e.id,
-      nom: e.nom,
-      rang: fiche.possessions.get(e.id)?.rang ?? 0,
-    }));
+    return [...fiche.systeme.entrees.values()]
+      .filter(convient)
+      .flatMap(
+        (e) =>
+          exemplaires(e.id) ?? [
+            { id: e.id, nom: e.nom, rang: fiche.possessions.get(e.id)?.rang ?? 0 },
+          ],
+      );
   return [...fiche.possessions.values()]
     .filter((x) => convient(x.entree))
-    .map((x) => ({ id: x.entree.id, nom: x.entree.nom, rang: x.rang }));
+    .flatMap(
+      (x) =>
+        exemplaires(x.entree.id) ?? [
+          {
+            id: x.entree.id,
+            nom: nomPossession(x.entree, x.sorte, x.possession),
+            rang: x.rang,
+          },
+        ],
+    );
 }
 
 /**

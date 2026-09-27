@@ -94,6 +94,15 @@ export function useFicheCalculee(id: string | null | undefined) {
       possession: (d, apercu) => void ecritures.possession(d, apercu).catch(signaler),
       retirerPossession: (entree, exemplaire, apercu) =>
         void ecritures.retirerPossession(entree, exemplaire, apercu).catch(signaler),
+      donner: (d, apercu) =>
+        ecritures.donner(d, apercu).then(
+          () => true,
+          (e: unknown) => {
+            signaler(e);
+            return false;
+          },
+        ),
+      dossiers: (folders, apercu) => void ecritures.dossiers(folders, apercu).catch(signaler),
       bonus: (d, apercu) => void ecritures.bonus(d, apercu).catch(signaler),
       retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
       rembourser: (index, apercu) => void ecritures.rembourser(index, apercu).catch(signaler),
