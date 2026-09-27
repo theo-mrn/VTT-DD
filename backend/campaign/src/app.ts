@@ -12,6 +12,7 @@ import { register as internal } from './modules/internal/index.js';
 import { register as invitations } from './modules/invitations/index.js';
 import { register as maps } from './modules/maps/index.js';
 import { register as messages } from './modules/messages/index.js';
+import { register as notes } from './modules/notes/index.js';
 import { register as sessions } from './modules/sessions/index.js';
 import { createS3Signer } from './storage/images.js';
 import { referenceCatalog, type Catalog } from './systems/catalog.js';
@@ -71,6 +72,7 @@ export async function buildCampaign(
     maps,
     sessions,
     messages,
+    notes,
     internal,
   ]) {
     await module(app, deps);

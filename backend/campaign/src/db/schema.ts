@@ -444,3 +444,59 @@ export const mapMeasurements = campaignSchema.table('map_measurements', {
   skin: text('skin'),
   options: jsonb('options').$type<Record<string, unknown>>().notNull().default({}),
 });
+
+// ─── Notes (legacy Notes et SharedNotes) ────────────────────────────────────
+
+export const NOTE_TYPES = ['character', 'location', 'item', 'quest', 'journal', 'other'] as const;
+export type NoteType = (typeof NOTE_TYPES)[number];
+export const QUEST_TYPES = ['main', 'side'] as const;
+export type QuestType = (typeof QUEST_TYPES)[number];
+export const QUEST_STATUSES = ['not_started', 'in_progress', 'completed'] as const;
+export type QuestStatus = (typeof QUEST_STATUSES)[number];
+
+export interface NoteTag {
+  id: string;
+  label: string;
+}
+
+export interface NoteSubQuest {
+  id: string;
+  title: string;
+  description: string;
+  status: QuestStatus;
+}
+
+/**
+ * Notes privées (`shared` faux : l'auteur seul) et partagées (`sharedWith` null :
+ * tous les membres ; sinon les joueurs de ces personnages). Voir docs/api-notes.md.
+ */
+export const notes = campaignSchema.table(
+  'notes',
+  {
+    id: uuid('id').primaryKey(),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    ownerUserId: uuid('owner_user_id').notNull(),
+    /** Personnage incarné par l'auteur quand il l'a écrite. */
+    characterId: uuid('character_id'),
+    shared: boolean('shared').notNull().default(false),
+    sharedWith: uuid('shared_with').array(),
+    title: text('title').notNull().default(''),
+    content: text('content').notNull().default(''),
+    type: text('type').$type<NoteType>().notNull().default('other'),
+    tags: jsonb('tags').$type<NoteTag[]>().notNull().default([]),
+    imageUrl: text('image_url'),
+    race: text('race'),
+    class: text('class'),
+    region: text('region'),
+    itemType: text('item_type'),
+    questType: text('quest_type').$type<QuestType | null>(),
+    questStatus: text('quest_status').$type<QuestStatus | null>(),
+    subQuests: jsonb('sub_quests').$type<NoteSubQuest[]>().notNull().default([]),
+    version: integer('version').notNull().default(1),
+    createdAt: timestampTz('created_at').notNull().defaultNow(),
+    updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('notes_owner').on(t.campaignId, t.ownerUserId)],
+);
