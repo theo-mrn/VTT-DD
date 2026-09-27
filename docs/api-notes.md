@@ -1,10 +1,11 @@
 # API des notes (service campaign)
 
-L'espace Notes du front et le Grimoire de l'ancienne app (`legacy/src/components/Notes.tsx`,
-`QuickNotes.tsx`) : notes **personnelles** (sans campagne) et notes **d'une campagne**, privées ou
-partagées. Module `backend/campaign/src/modules/notes`, table `campaign.notes` et épingles
-`campaign.note_pins` (changesets `0009-notes.sql`, `0012-personal-notes.sql`,
-`0013-notes-search.sql`). La gateway relaie `/v1/notes` et `/v1/campaigns` vers campaign.
+Le Grimoire de l'ancienne app (`legacy/src/components/Notes.tsx`, `QuickNotes.tsx`) et l'espace
+Notes du front : notes **d'une campagne**, privées ou partagées. Module
+`backend/campaign/src/modules/notes`, table `campaign.notes` et épingles `campaign.note_pins`
+(changesets `0009-notes.sql`, `0012-personal-notes.sql`, `0013-notes-search.sql`,
+`0014-notes-campaign-required.sql`). La gateway relaie `/v1/notes` et `/v1/campaigns` vers
+campaign.
 
 Mêmes conventions que [api-campaign.md](api-campaign.md) : jeton d'accès obligatoire, JSON
 camelCase, erreurs `application/problem+json` avec un `code`. Campagne dont l'appelant n'est pas
@@ -13,13 +14,13 @@ révèle pas son existence).
 
 ## Modèle retenu
 
-- **Une seule table** pour les deux sortes de notes : `campaign_id` null = note personnelle. Les
-  règles de lecture, les événements, la recherche et les pages sont les mêmes ; une note passe de
-  l'une à l'autre en gardant son id (`PATCH { campaignId }`). Une table à part aurait dupliqué
-  tout le module et rendu « toutes mes notes » (une seule liste triée et paginée) coûteux.
-- **Note personnelle** : son auteur seul la lit et l'écrit ; elle ne se partage pas (contrainte
-  `notes_personal` : `shared` faux, pas de personnage). Pour la partager, on la range d'abord dans
-  une campagne.
+- **Une note appartient toujours à une campagne** (`campaign_id NOT NULL`) : c'est une décision
+  produit. `0012` avait ouvert des notes personnelles (sans campagne) ; `0014` les retire (les
+  seules existantes étaient des données de test) et remet la contrainte. Une note peut changer de
+  campagne (`PATCH /v1/notes/:id { campaignId }`, l'auteur seul) en gardant son id.
+- **`/v1/notes`** sert l'espace Notes : toutes mes notes, **toutes campagnes confondues**, en une
+  liste triée et paginée, la lecture d'une note sans connaître sa campagne (liens `?note=<id>`),
+  sa modification et son déplacement. On crée une note par la route de sa campagne.
 - **Champs de l'UI ajoutés** : `icon` (un emoji), `sharedWithGm` (partage avec les MJ), épingles.
   Le type (`other`, `journal`…), les étiquettes `[{ id, label }]` et les champs de l'ancien
   Grimoire (race, classe, région, type d'objet, quête et étapes, image d'en-tête) existaient déjà :
@@ -50,21 +51,20 @@ note partagée rendue privée par son auteur faisait le chemin inverse, par un a
 
 ## Droits (repris de l'ancienne app)
 
-- **Lecture** : ses notes personnelles ; dans une campagne dont on est membre, ses propres notes
-  (privées ou partagées), les notes partagées avec tous, celles partagées avec un de ses
+- **Lecture**, dans une campagne dont on est membre : ses propres notes (privées ou partagées), les notes partagées avec tous, celles partagées avec un de ses
   personnages (dont il est propriétaire ou qu'il incarne), et, pour un MJ, celles partagées avec
   les MJ (`sharedWithGm`).
 - **Le MJ n'a aucun droit de plus** : l'ancienne app ne lui montrait ni les notes privées des
   joueurs, ni les notes partagées avec d'autres personnages que les siens. Partager avec le MJ est
   un choix de l'auteur.
-- **Note privée ou personnelle** : son auteur seul la lit, la modifie, la partage ou la supprime.
+- **Note privée** : son auteur seul la lit, la modifie, la partage ou la supprime.
 - **Note partagée** : quiconque la lit la modifie (texte, champs, destinataires) ou la supprime,
   comme avant. Seul son auteur la rend privée (403 `not_note_owner` pour les autres, qui en font
   une copie par `POST`) ou la change de campagne.
 - **Spectateur** : lit les notes partagées avec tous, n'écrit rien (403), mais épingle pour lui.
 - L'auteur d'une note est l'appelant ; `characterId` est le personnage qu'il incarne dans la
-  campagne à la création ou au changement de campagne (legacy : `persoId`), null pour le MJ, sans
-  personnage incarné ou pour une note personnelle.
+  campagne à la création ou au changement de campagne (legacy : `persoId`), null pour le MJ ou
+  sans personnage incarné.
 - Chaque note porte `permissions: { edit, delete, share, move }` calculé par le service pour
   l'appelant (`share` : changer la visibilité ; `move` : changer de campagne) : le front s'y fie
   au lieu de recalculer les règles.
@@ -72,25 +72,24 @@ note partagée rendue privée par son auteur faisait le chemin inverse, par un a
 
 ## Routes
 
-| Méthode | Route                             | Corps / paramètres                                  | Réponse                                  |
-| ------- | --------------------------------- | --------------------------------------------------- | ---------------------------------------- |
-| GET     | `/v1/notes`                       | `?campaignId=<id>\|none&type&pinned&q&limit&cursor` | `NotePage` : mes notes lisibles, partout |
-| GET     | `/v1/notes/facets`                | —                                                   | `NoteFacets`                             |
-| POST    | `/v1/notes`                       | `{ campaignId?, …champs?, …partage? }`              | 201 `Note`                               |
-| GET     | `/v1/notes/:noteId`               | —                                                   | `Note`                                   |
-| PATCH   | `/v1/notes/:noteId`               | `{ campaignId?, …champs?, …partage?, version? }`    | `Note`                                   |
-| DELETE  | `/v1/notes/:noteId`               | —                                                   | 204                                      |
-| PUT     | `/v1/notes/:noteId/pin`           | —                                                   | 204 (épinglée pour moi)                  |
-| DELETE  | `/v1/notes/:noteId/pin`           | —                                                   | 204                                      |
-| GET     | `/v1/campaigns/:id/notes`         | mêmes paramètres, sans `campaignId`                 | `NotePage` de la campagne                |
-| GET     | `/v1/campaigns/:id/notes/:noteId` | —                                                   | `Note`                                   |
-| POST    | `/v1/campaigns/:id/notes`         | `{ …champs?, …partage? }`                           | 201 `Note`                               |
-| PATCH   | `/v1/campaigns/:id/notes/:noteId` | `{ …champs?, …partage?, version? }`                 | `Note`                                   |
-| DELETE  | `/v1/campaigns/:id/notes/:noteId` | —                                                   | 204                                      |
-| POST    | `/v1/campaigns/:id/notes/upload`  | `{ contentType: image/png…, size }` (5 Mo)          | `{ uploadUrl, publicUrl, expiresIn }`    |
+| Méthode | Route                             | Corps / paramètres                               | Réponse                                  |
+| ------- | --------------------------------- | ------------------------------------------------ | ---------------------------------------- |
+| GET     | `/v1/notes`                       | `?campaignId&type&pinned&q&limit&cursor`         | `NotePage` : mes notes, toutes campagnes |
+| GET     | `/v1/notes/facets`                | —                                                | `NoteFacets`                             |
+| GET     | `/v1/notes/:noteId`               | —                                                | `Note`                                   |
+| PATCH   | `/v1/notes/:noteId`               | `{ campaignId?, …champs?, …partage?, version? }` | `Note`                                   |
+| DELETE  | `/v1/notes/:noteId`               | —                                                | 204                                      |
+| PUT     | `/v1/notes/:noteId/pin`           | —                                                | 204 (épinglée pour moi)                  |
+| DELETE  | `/v1/notes/:noteId/pin`           | —                                                | 204                                      |
+| GET     | `/v1/campaigns/:id/notes`         | mêmes paramètres, sans `campaignId`              | `NotePage` de la campagne                |
+| GET     | `/v1/campaigns/:id/notes/:noteId` | —                                                | `Note`                                   |
+| POST    | `/v1/campaigns/:id/notes`         | `{ …champs?, …partage? }`                        | 201 `Note` (seule route de création)     |
+| PATCH   | `/v1/campaigns/:id/notes/:noteId` | `{ …champs?, …partage?, version? }`              | `Note`                                   |
+| DELETE  | `/v1/campaigns/:id/notes/:noteId` | —                                                | 204                                      |
+| POST    | `/v1/campaigns/:id/notes/upload`  | `{ contentType: image/png…, size }` (5 Mo)       | `{ uploadUrl, publicUrl, expiresIn }`    |
 
 Les routes `/v1/campaigns/:id/notes…` sont celles d'origine (même comportement, mêmes champs) ;
-elles ne changent pas une note de campagne. **Changement de contrat** : leur liste renvoie
+elles ne changent pas une note de campagne (`campaignId` : 400). **Changement de contrat** : leur liste renvoie
 désormais une `NotePage` paginée (aucun client ne la lisait encore).
 
 - **Champs** : `title` (200 caractères, vide permis : « Sans titre »), `content` (HTML),
@@ -103,10 +102,10 @@ status }]` (100). Champ inconnu : 400.
   `invalid_share_target` sinon), `sharedWithGm`. Partager sans destinataires vaut `'all'` (ancienne
   app) ; `sharedWithGm` seul (`sharedWith: []`) : les MJ seulement ; partagée avec tous, elle l'est
   avec les MJ (`sharedWithGm` faux). Sans destinataire du tout : 400 `invalid_share_target`.
-  `sharedWith` ou `sharedWithGm` sur une note privée : 400 `share_requires_shared` ; note
-  personnelle partagée : 400 `personal_note_not_shareable`. Rendre privée efface les destinataires.
-- **Changer de campagne** (`campaignId`, null = note personnelle) : l'auteur seul, dans une
-  campagne où il écrit ; la note y repart **privée** sauf partage donné dans la même requête (ses
+  `sharedWith` ou `sharedWithGm` sur une note privée : 400 `share_requires_shared`. Rendre privée
+  efface les destinataires.
+- **Changer de campagne** (`campaignId`, jamais null) : l'auteur seul, vers une campagne où il
+  écrit ; la note y repart **privée** sauf partage donné dans la même requête (ses
   destinataires n'ont pas de sens ailleurs).
 - **Verrou optimiste** : `version` (facultatif) ; différente de celle de la note : 409
   `version_conflict`, rien n'est écrit. Une requête qui ne change rien n'écrit rien (ni version, ni
@@ -129,8 +128,8 @@ premier terme trouvé, coupé aux mots, avec « … » aux bords coupés.
 filtres) sur la première page seulement, null ensuite.
 
 `NoteFacets` : `{ total, pinned, types: { character: n, … }, campaigns: [{ campaignId, count }],
-tags: [{ label, count }] }` sur toutes mes notes lisibles (`campaignId` null : personnelles ;
-les 200 étiquettes les plus utilisées).
+tags: [{ label, count }] }` sur toutes mes notes lisibles (les 200 étiquettes les plus
+utilisées).
 
 ## Contenu : HTML assaini
 
@@ -191,8 +190,8 @@ décroissant (à la microseconde) et id. Stable pendant le parcours, sans doublo
 ## Événements
 
 `note.created`, `note.updated`, `note.deleted` (agrégat `note`), écrits dans l'outbox dans la
-transaction de la donnée. Acteur : l'appelant et le personnage qu'il incarne (rôle `user` hors
-campagne).
+transaction de la donnée, toujours dans la campagne de la note (`roomId`). Acteur : l'appelant
+et le personnage qu'il incarne.
 
 **Jamais de texte** : le journal history est en ajout seul, il ne doit pas figer le contenu
 personnel d'une note. Le payload porte seulement `{ id, ownerId, campaignId, characterId, shared,
@@ -210,16 +209,16 @@ l'accès doit l'apprendre) :
 | partagée avec tous                             | `public`                                                     | oui     |
 | sinon, partagée avec des personnages ou les MJ | `gm_only` + `visibleToUsers` : leurs joueurs, auteur, acteur | non     |
 | sinon, privée                                  | `owner` (l'auteur, seul à agir sur sa note privée)           | non     |
-| personnelle                                    | `owner`, `roomId` null (événement personnel)                 | non     |
 
 - `gm_only` est le seul moyen de toucher en temps réel les joueurs destinataires : le MJ reçoit
   donc l'id et le partage d'une note ciblée, jamais son titre ni son texte.
 - `owner` : history montre aussi ces événements au MJ ([api-history.md](api-history.md)) ; c'est
   pourquoi une note privée n'y met pas même son titre.
-- Changement de campagne : un `note.updated` dans l'ancienne (ou hors campagne) et un dans la
-  nouvelle, chacun avec la visibilité de son côté.
-- Épingles : `note.pinned` et `note.unpinned`, payload `{ id }`, hors campagne (`roomId` null),
-  `owner` : pour les autres onglets de l'utilisateur.
+- Changement de campagne : un `note.updated` dans l'ancienne et un dans la nouvelle, chacun avec
+  la visibilité de son côté.
+- Épingles : `note.pinned` et `note.unpinned`, payload `{ id }`, `owner`, hors campagne
+  (`roomId` null) : c'est une préférence de l'utilisateur, pas un fait de la campagne (history la
+  montrerait sinon au MJ) ; elle sert à ses autres onglets.
 
 Import : un `note.imported` par campagne (acteur système, `gm_only`), payload
 `{ counts: { private, shared } }`.
@@ -256,14 +255,17 @@ node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js notes 
 `frontend/src/lib/notes.ts` : adaptateur typé de ce contrat (types, étiquettes, visibilité
 `private`/`gm`/`room`/`characters`), sans dépôt local.
 
-- Espace Notes : pages par curseur (défilement), recherche et filtres envoyés au service, compteurs
-  et suggestions d'étiquettes par les facettes ; lien `?note=<id>` et `?nouvelle=1`
-  (`&campagne=<id>` : créée dans cette campagne).
+- Espace Notes : notes **groupées par campagne** (épinglées en tête de chacune), pages par curseur
+  (défilement), recherche et filtres envoyés au service, compteurs et suggestions d'étiquettes par
+  les facettes ; lien `?note=<id>`.
+- Création : la campagne est imposée (`?nouvelle=1&campagne=<id>` depuis le salon, filtre de
+  campagne actif, seule campagne où l'on écrit) ou choisie dans une fenêtre ; sans campagne où
+  écrire, invitation à en rejoindre une. `POST /v1/campaigns/:id/notes`.
 - Enregistrement automatique avec la `version` de la saisie ; 409 : la note est relue et affichée,
   rien n'est écrasé, et l'utilisateur choisit (réappliquer ses modifications, en faire une copie,
   les abandonner).
 - Mises à jour optimistes (note, listes, épingles, suppression) annulées sur un refus.
-- Temps réel : `note.*` des campagnes suivies et événements personnels ; la note ouverte adopte en
-  direct une version plus récente quand rien n'est en attente.
-- Les notes de l'aperçu local (navigateur) s'importent d'un clic et ne quittent le navigateur
-  qu'une fois recréées par le service.
+- Temps réel : `note.*` des campagnes suivies et épingles (événements personnels) ; la note
+  ouverte adopte en direct une version plus récente quand rien n'est en attente.
+- Les notes de l'aperçu local (navigateur) s'importent d'un clic (celles sans campagne dans la
+  campagne choisie) et ne quittent le navigateur qu'une fois recréées par le service.
