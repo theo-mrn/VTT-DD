@@ -17,7 +17,13 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { EtatEntite, type ResultatAction, type Tirage, type Valeur } from '@vtt/rules';
+import {
+  EtatEntite,
+  type BonusLibre,
+  type ResultatAction,
+  type Tirage,
+  type Valeur,
+} from '@vtt/rules';
 import { useMemo } from 'react';
 import { api, ApiError } from './api';
 import {
@@ -67,6 +73,10 @@ interface CharacterApi {
   fiche: unknown;
   details: DetailsApi;
   summary: SummaryApi;
+  /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
+  sheetLayout?: SheetLayout | null;
+  /** Droits de l'appelant : renvoyés par la lecture et par le changement de mise en page. */
+  permissions?: PermissionsFiche;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -113,10 +123,52 @@ export interface Personnage {
   updatedAt: string;
 }
 
+/** Droits de l'appelant sur une fiche, décidés par le service character. */
+export interface PermissionsFiche {
+  /** Modifier le personnage (valeurs, achats, possessions, profil…). */
+  write: boolean;
+  /** Changer la mise en page de sa fiche. */
+  layout: boolean;
+}
+
+/** Position d'un bloc dans la grille de la fiche (unités de la grille, 12 colonnes au plus). */
+export interface SheetLayoutItem {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export type SheetBreakpoint = 'lg' | 'md' | 'sm' | 'xs';
+
+/**
+ * Mise en page d'une fiche, enregistrée par le service (docs/api-character.md, « Mise en
+ * page de la fiche ») : les blocs (widgets de la présentation) et leurs positions par
+ * largeur d'écran. Elle appartient au personnage : toute la table voit la même fiche.
+ */
+export interface SheetLayout {
+  format: 1;
+  blocks: {
+    id: string;
+    type: string;
+    title: string;
+    params: Record<string, string | number | boolean | string[]>;
+  }[];
+  layouts: Partial<Record<SheetBreakpoint, SheetLayoutItem[]>>;
+}
+
 /** Personnage complet : état saisi (calculé par le moteur), présentation, version. */
 export interface FichePersonnage extends Personnage {
   state: EtatEntite;
   details: DetailsPersonnage;
+  /** Mise en page choisie ; null : disposition par défaut de la présentation. */
+  sheetLayout: SheetLayout | null;
+  /**
+   * Droits de l'appelant, lus avec la fiche ; null tant qu'aucune lecture ne les a
+   * donnés (les écritures ne les renvoient pas, le cache garde ceux de la lecture).
+   */
+  permissions: PermissionsFiche | null;
   version: number;
   createdAt: string;
 }
@@ -133,6 +185,17 @@ export interface ModificationProfil {
   name?: string;
   portraitUrl?: string | null;
   details?: Partial<DetailsPersonnage>;
+}
+
+/** Bonus libre posé sur un personnage (`POST /v1/characters/:id/bonus`). */
+export interface DemandeBonus {
+  /** Absent : créé à partir du nom ; présent : remplace le bonus de même identifiant. */
+  id?: string;
+  nom: string;
+  source?: string;
+  effets: BonusLibre['effets'];
+  actif?: boolean;
+  duree?: number;
 }
 
 /** Demande de possession (docs/api-character.md, « Possessions »). */
@@ -193,9 +256,18 @@ function versFiche(p: CharacterApi): FichePersonnage {
     updatedAt: p.updatedAt,
     state,
     details: p.details,
+    sheetLayout: p.sheetLayout ?? null,
+    permissions: p.permissions ?? null,
     version: p.version,
     createdAt: p.createdAt,
   };
+}
+
+/** Fiche reçue d'une écriture : garde les droits déjà lus si la réponse n'en porte pas. */
+function avecDroits(fiche: FichePersonnage, connue: FichePersonnage | undefined): FichePersonnage {
+  return fiche.permissions || !connue?.permissions
+    ? fiche
+    : { ...fiche, permissions: connue.permissions };
 }
 
 /** Personnage engagé dans une campagne, vu par les autres membres. */
@@ -301,21 +373,26 @@ function invaliderListes(client: QueryClient) {
 
 /**
  * Écrit sur un personnage : `requete` reçoit la version à envoyer. `apercu`
- * (calculé par le moteur local) est montré tout de suite ; la réponse du
- * service le remplace. Sur un refus, la fiche du service est relue.
+ * (état calculé par le moteur local, ou changement de la fiche comme sa mise en
+ * page) est montré tout de suite ; la réponse du service le remplace. Sur un
+ * refus, la fiche du service est relue.
  */
 function ecrire(
   client: QueryClient,
   id: string,
   requete: (version: number) => Promise<CharacterApi>,
-  apercu?: EtatEntite,
+  apercu?: EtatEntite | ((p: FichePersonnage) => FichePersonnage),
 ): Promise<{ fiche: FichePersonnage; brut: CharacterApi }> {
   const cle = clesPersonnages.un(id);
   const generation = generations.get(id) ?? 0;
-  if (apercu) client.setQueryData<FichePersonnage>(cle, (p) => (p ? { ...p, state: apercu } : p));
+  if (apercu)
+    client.setQueryData<FichePersonnage>(cle, (p) =>
+      p ? (typeof apercu === 'function' ? apercu(p) : { ...p, state: apercu }) : p,
+    );
   enAttente.set(id, (enAttente.get(id) ?? 0) + 1);
 
   const recharger = async () => {
+    // La lecture renvoie aussi les droits à jour
     const frais = await personnages.lire(id).catch(() => null);
     if (frais) client.setQueryData(cle, frais);
     else void client.invalidateQueries({ queryKey: cle });
@@ -335,11 +412,11 @@ function ecrire(
           queryFn: () => personnages.lire(id),
         }));
       const brut = await requete(connue.version);
-      const fiche = versFiche(brut);
+      const fiche = avecDroits(versFiche(brut), client.getQueryData<FichePersonnage>(cle));
       const reste = (enAttente.get(id) ?? 1) - 1;
       // D'autres écritures attendent : on garde leur aperçu, avec la nouvelle version
       client.setQueryData<FichePersonnage>(cle, (p) =>
-        reste > 0 && p ? { ...fiche, state: p.state } : fiche,
+        reste > 0 && p ? { ...fiche, state: p.state, sheetLayout: p.sheetLayout } : fiche,
       );
       invaliderListes(client);
       return { fiche, brut };
@@ -371,6 +448,20 @@ export interface OperationsPersonnage {
   acheter(achat: string, objet: string, apercu?: EtatEntite): Promise<FichePersonnage>;
   rembourser(index: number, apercu?: EtatEntite): Promise<FichePersonnage>;
   possession(d: DemandePossession, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /** Retire une possession (un exemplaire précis ; absent : l'exemplaire sans identifiant). */
+  retirerPossession(
+    entree: string,
+    exemplaire?: string,
+    apercu?: EtatEntite,
+  ): Promise<FichePersonnage>;
+  /** Pose (ou remplace, même `id`) un bonus libre : potion, bénédiction, décision du MJ. */
+  bonus(d: DemandeBonus, apercu?: EtatEntite): Promise<FichePersonnage>;
+  retirerBonus(id: string, apercu?: EtatEntite): Promise<FichePersonnage>;
+  /**
+   * Mise en page de la fiche (null : disposition par défaut), montrée tout de suite ;
+   * elle appartient au personnage, toute la table la voit.
+   */
+  miseEnPage(layout: SheetLayout | null): Promise<FichePersonnage>;
   /**
    * Action du système (jet tiré par le service, transmis à l'historique des dés).
    * `appliquer` : les conséquences sur le personnage sont enregistrées avec le jet.
@@ -390,8 +481,10 @@ export interface OperationsPersonnage {
 export function useOperationsPersonnage(id: string): OperationsPersonnage {
   const client = useQueryClient();
   return useMemo(() => {
-    const w = (requete: (version: number) => Promise<CharacterApi>, apercu?: EtatEntite) =>
-      ecrire(client, id, requete, apercu);
+    const w = (
+      requete: (version: number) => Promise<CharacterApi>,
+      apercu?: Parameters<typeof ecrire>[3],
+    ) => ecrire(client, id, requete, apercu);
     const post = (suite: string, corps: object) =>
       api<CharacterApi>(url(id, suite), { method: 'POST', ...json(corps) });
     return {
@@ -429,6 +522,44 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
         (await w((version) => post('/achats/rembourser', { version, index }), apercu)).fiche,
       possession: async (d, apercu) =>
         (await w((version) => post('/possessions', { version, ...d }), apercu)).fiche,
+      retirerPossession: async (entree, exemplaire, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(
+                `${url(id, `/possessions/${encodeURIComponent(entree)}`)}?${new URLSearchParams({
+                  version: String(version),
+                  ...(exemplaire !== undefined ? { exemplaire } : {}),
+                })}`,
+                { method: 'DELETE' },
+              ),
+            apercu,
+          )
+        ).fiche,
+      bonus: async (d, apercu) =>
+        (await w((version) => post('/bonus', { version, ...d }), apercu)).fiche,
+      retirerBonus: async (bonusId, apercu) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(
+                `${url(id, `/bonus/${encodeURIComponent(bonusId)}`)}?version=${version}`,
+                { method: 'DELETE' },
+              ),
+            apercu,
+          )
+        ).fiche,
+      miseEnPage: async (layout) =>
+        (
+          await w(
+            (version) =>
+              api<CharacterApi>(url(id, '/layout'), {
+                method: 'PUT',
+                ...json({ version, layout }),
+              }),
+            (p) => ({ ...p, sheetLayout: layout }),
+          )
+        ).fiche,
       action: (action, o) =>
         // Pas de version : le service verrouille le personnage ; la file garde l'ordre
         enFile(id, async () => {
@@ -441,7 +572,12 @@ export function useOperationsPersonnage(id: string): OperationsPersonnage {
               ...(o.visibility ? { visibility: o.visibility } : {}),
             }),
           });
-          const fiche = r.personnage ? versFiche(r.personnage) : null;
+          const fiche = r.personnage
+            ? avecDroits(
+                versFiche(r.personnage),
+                client.getQueryData<FichePersonnage>(clesPersonnages.un(id)),
+              )
+            : null;
           if (fiche) {
             client.setQueryData(clesPersonnages.un(id), fiche);
             invaliderListes(client);
@@ -572,7 +708,11 @@ export function useCreerPersonnage() {
       return p;
     },
     onSuccess: (p, n) => {
-      client.setQueryData(clesPersonnages.un(p.id), p);
+      // Son créateur en est le propriétaire : tous les droits
+      client.setQueryData(clesPersonnages.un(p.id), {
+        ...p,
+        permissions: { write: true, layout: true },
+      });
       invaliderListes(client);
       void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
       void client.invalidateQueries({ queryKey: clesCampagnes.une(n.campagneId) });

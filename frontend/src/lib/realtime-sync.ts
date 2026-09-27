@@ -7,7 +7,8 @@
  *
  * Une écriture du MJ sur la fiche d'un joueur est publiée dans sa campagne,
  * pour les MJ et le propriétaire (docs/api-character.md) : le joueur qui
- * regarde sa fiche la voit changer en direct.
+ * regarde sa fiche la voit changer en direct. Un changement de mise en page
+ * (`character.layout_changed`) est publié à toute la table.
  */
 'use client';
 
@@ -74,7 +75,8 @@ export function appliquerEvenement(client: QueryClient, moi: string, e: Realtime
       invaliderListesPersonnages(client);
       return;
     }
-    if (type === 'character.updated') {
+    // Mise en page de la fiche changée par son propriétaire ou le MJ : toute la table la relit
+    if (type === 'character.updated' || type === 'character.layout_changed') {
       const connue = client.getQueryData<FichePersonnage>(clesPersonnages.un(id));
       const version = typeof payload.version === 'number' ? payload.version : null;
       // Déjà à jour : c'est mon écriture, appliquée par sa réponse

@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { Info } from '@/components/ui/tooltip';
 import { champsLisibles, groupesAttributs, texteEffet } from '@/lib/creation';
-import type { DemandePossession, OperationsPersonnage } from '@/lib/personnages';
+import type { DemandeBonus, DemandePossession, OperationsPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { LanceurAction } from './lanceur-action';
 
@@ -37,6 +37,11 @@ export interface OperationsFiche {
   valeurs(valeurs: Record<string, Valeur>, apercu: EtatEntite): void;
   acheter(achat: string, objet: string, apercu: EtatEntite): void;
   possession(d: DemandePossession, apercu: EtatEntite): void;
+  /** Retire une possession (un exemplaire précis ; absent : l'exemplaire sans identifiant). */
+  retirerPossession(entree: string, exemplaire: string | undefined, apercu: EtatEntite): void;
+  /** Pose ou remplace (même `id`) un bonus libre. */
+  bonus(d: DemandeBonus, apercu: EtatEntite): void;
+  retirerBonus(id: string, apercu: EtatEntite): void;
   /** Action du système : jet tiré par le service, conséquences appliquées s'il le faut. */
   action: OperationsPersonnage['action'];
 }
@@ -46,8 +51,10 @@ export interface ContexteFiche {
   presentation: Presentation | null;
   fiche: Fiche;
   personnage: { id: string; name: string; roomId: string | null };
-  /** Absent : fiche en lecture seule (ni propriétaire, ni MJ de sa campagne). */
+  /** Absent : fiche en lecture seule (droits renvoyés par le service character). */
   operations?: OperationsFiche;
+  /** L'utilisateur mène la campagne du personnage : il voit aussi les attributs réservés au MJ. */
+  mj?: boolean;
 }
 
 /**

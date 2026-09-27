@@ -84,14 +84,19 @@ export function useFicheCalculee(id: string | null | undefined) {
       acheter: (achat, objet, apercu) =>
         void ecritures.acheter(achat, objet, apercu).catch(signaler),
       possession: (d, apercu) => void ecritures.possession(d, apercu).catch(signaler),
+      retirerPossession: (entree, exemplaire, apercu) =>
+        void ecritures.retirerPossession(entree, exemplaire, apercu).catch(signaler),
+      bonus: (d, apercu) => void ecritures.bonus(d, apercu).catch(signaler),
+      retirerBonus: (b, apercu) => void ecritures.retirerBonus(b, apercu).catch(signaler),
       action: ecritures.action,
     };
   }, [ecritures]);
 
   const p = perso.data;
   const proprietaire = Boolean(p) && p!.ownerId === profil.id;
-  // Le MJ de la campagne où le personnage est engagé le modifie aussi
-  const peutModifier = proprietaire || campagne.data?.role === 'gm';
+  // Droits décidés par le service (propriétaire, ou MJ d'une campagne où il est engagé)
+  const permissions = p?.permissions ?? { write: false, layout: false };
+  const peutModifier = permissions.write;
   const ctx: ContexteFiche | null =
     p && sys.data && fiche
       ? {
@@ -100,9 +105,10 @@ export function useFicheCalculee(id: string | null | undefined) {
           fiche,
           personnage: { id: p.id, name: p.name, roomId: p.roomId },
           operations: peutModifier ? operations : undefined,
+          mj: campagne.data?.role === 'gm',
         }
       : null;
-  return { perso, sys, ctx, proprietaire, peutModifier };
+  return { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures };
 }
 
 /**
