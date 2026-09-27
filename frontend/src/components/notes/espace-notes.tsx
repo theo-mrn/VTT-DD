@@ -21,6 +21,7 @@ import {
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { useProfil } from '@/lib/session';
 import { cn } from '@/lib/utils';
+import { campagnesEcrivables, ChoixCampagne } from './campaign-picker';
 import { EditeurNote, type CibleFocus } from './editeur-note';
 import {
   AccueilEditeur,
@@ -67,7 +68,6 @@ function useRetarde<T>(valeur: T, ms: number): T {
 function dansLeFiltre(n: ResumeNote, f: FiltreNotes): boolean {
   if (f.epinglees && !n.pinned) return false;
   if (f.type && n.kind !== f.type) return false;
-  if (f.campagne === 'aucune') return n.roomId === null;
   return !f.campagne || n.roomId === f.campagne;
 }
 
@@ -89,10 +89,12 @@ const copieComplete = (n: Note): NouvelleNote => ({
 
 /**
  * Espace Notes : liste à gauche, éditeur à droite (grand écran) ; liste puis
- * éditeur avec retour (mobile). La note ouverte vit dans l'URL
- * (`?note=<id>`) pour les liens directs ; `?nouvelle=1` en crée une (dans la
- * campagne `?campagne=<id>` si elle est donnée). Recherche, filtres et pages
- * sont servis par le service campaign ; les notes se tiennent à jour en direct.
+ * éditeur avec retour (mobile). Les notes sont groupées par campagne : une
+ * note appartient toujours à une campagne, imposée (`?campagne=<id>`, filtre,
+ * seule campagne où l'on écrit) ou choisie à la création. La note ouverte vit
+ * dans l'URL (`?note=<id>`) ; `?nouvelle=1` en crée une. Recherche, filtres et
+ * pages sont servis par le service campaign ; les notes se tiennent à jour en
+ * direct.
  */
 export function EspaceNotes() {
   const params = useSearchParams();
@@ -108,6 +110,9 @@ export function EspaceNotes() {
   const maintenant = useMaintenant();
 
   const campagnes = useMemo(() => campagnesQ.data ?? [], [campagnesQ.data]);
+  const ecrivables = useMemo(() => campagnesEcrivables(campagnes), [campagnes]);
+  // Création en attente du choix de la campagne (modèle éventuel)
+  const [choix, setChoix] = useState<{ modele?: ModeleNote } | null>(null);
 
   const [recherche, setRecherche] = useState('');
   const rechercheRetardee = useRetarde(recherche, 250);
@@ -141,7 +146,10 @@ export function EspaceNotes() {
   }, [liste.data, filtre]);
   const index = useMemo(() => indexer(chargees), [chargees]);
   const mots = useMemo(() => termes(rechercheRetardee), [rechercheRetardee]);
-  const groupes = useMemo(() => grouper(index, maintenant), [index, maintenant]);
+  const groupes = useMemo(
+    () => grouper(index, (id) => campagnes.find((c) => c.id === id)?.name ?? 'Campagne'),
+    [index, campagnes],
+  );
   const ordre = useMemo(() => groupes.flatMap((g) => g.notes.map((n) => n.note.id)), [groupes]);
   const total = facettes.data?.total ?? chargees.length;
   const totalFiltre = liste.data?.pages[0]?.total ?? null;
@@ -190,19 +198,33 @@ export function EspaceNotes() {
   }, [idSelection]);
 
   // ─── Création ────────────────────────────────────────────────────────────
+  /** Campagne d'une nouvelle note sans choix explicite : celle du filtre, ou la seule où j'écris. */
+  const campagneParDefaut = (): string | null => {
+    if (filtre.campagne && ecrivables.some((c) => c.id === filtre.campagne)) return filtre.campagne;
+    return ecrivables.length === 1 ? ecrivables[0]!.id : null;
+  };
+
   const creerNote = (
-    options: { modele?: ModeleNote; champs?: NouvelleNote; message?: string } = {},
+    options: {
+      modele?: ModeleNote;
+      champs?: NouvelleNote;
+      message?: string;
+      /** Campagne choisie. */
+      roomId?: string;
+    } = {},
   ) => {
     if (creer.isPending) return;
     const { modele, champs, message } = options;
-    const filtreSalle = filtre.campagne && filtre.campagne !== 'aucune' ? filtre.campagne : null;
-    // Seulement une campagne où j'écris (pas en spectateur)
-    const role = campagnes.find((c) => c.id === filtreSalle)?.role;
-    const salle = role && role !== 'spectator' ? filtreSalle : null;
-    // Une note créée pendant un filtre en hérite, pour rester sous les yeux
+    const roomId = champs?.roomId ?? options.roomId ?? campagneParDefaut();
+    // Plusieurs campagnes possibles (ou aucune) : on demande
+    if (!roomId) {
+      setChoix({ modele });
+      return;
+    }
+    // Une note créée pendant un filtre de type en hérite, pour rester sous les yeux
     const base: NouvelleNote = champs ?? {
+      roomId,
       ...(filtre.type ? { kind: filtre.type } : {}),
-      ...(salle ? { roomId: salle } : {}),
       ...(modele ? depuisModele(modele) : {}),
     };
     creer.mutate(base, {
@@ -211,7 +233,7 @@ export function EspaceNotes() {
         setFiltre((f) => ({
           epinglees: false,
           type: f.type && f.type !== n.kind ? null : f.type,
-          campagne: f.campagne && f.campagne !== (n.roomId ?? 'aucune') ? null : f.campagne,
+          campagne: f.campagne && f.campagne !== n.roomId ? null : f.campagne,
         }));
         if (!champs) setFocus({ id: n.id, cible: modele ? 'premier-vide' : 'titre' });
         if (!idSelection) defilementListe.current = window.scrollY;
@@ -222,7 +244,8 @@ export function EspaceNotes() {
     });
   };
 
-  // Lien direct `?nouvelle=1` (menu « Créer », palette ⌘K) : une note, une seule
+  // Lien direct `?nouvelle=1` (menu « Créer », palette ⌘K, salon) : une note, une seule.
+  // `?campagne=<id>` l'impose ; sinon la seule campagne où j'écris, ou un choix.
   const lienTraite = useRef(false);
   useEffect(() => {
     if (!demandeNouvelle) {
@@ -230,22 +253,32 @@ export function EspaceNotes() {
       return;
     }
     if (lienTraite.current) return;
+    // Sans campagne imposée, on attend mes campagnes pour savoir s'il faut choisir
+    if (!campagneUrl && !campagnesQ.isSuccess) return;
     lienTraite.current = true;
-    // `?campagne=<id>` (salon de la campagne) : la note y est rangée
-    creer.mutate(campagneUrl ? { roomId: campagneUrl } : {}, {
-      onSuccess: (n) => {
-        setRecherche('');
-        setFiltre(FILTRE_VIDE);
-        setFocus({ id: n.id, cible: 'titre' });
-        window.history.replaceState(null, '', urlNote(n.id));
+    const roomId = campagneUrl ?? (ecrivables.length === 1 ? ecrivables[0]!.id : null);
+    if (!roomId) {
+      window.history.replaceState(null, '', URL_NOTES);
+      setChoix({});
+      return;
+    }
+    creer.mutate(
+      { roomId },
+      {
+        onSuccess: (n) => {
+          setRecherche('');
+          setFiltre(FILTRE_VIDE);
+          setFocus({ id: n.id, cible: 'titre' });
+          window.history.replaceState(null, '', urlNote(n.id));
+        },
+        onError: (err) => {
+          toast.error(messageErreur(err, 'La note n’a pas pu être créée.'));
+          window.history.replaceState(null, '', URL_NOTES);
+        },
       },
-      onError: (err) => {
-        toast.error(messageErreur(err, 'La note n’a pas pu être créée.'));
-        window.history.replaceState(null, '', URL_NOTES);
-      },
-    });
-    // `creer` change à chaque rendu : seul le paramètre d'URL déclenche la création
-  }, [demandeNouvelle]);
+    );
+    // `creer` change à chaque rendu : seuls le lien et le chargement des campagnes déclenchent
+  }, [demandeNouvelle, campagnesQ.isSuccess]);
 
   // ─── Suppression ─────────────────────────────────────────────────────────
   // Annuler : la note est recréée à l'identique (nouvel identifiant)
@@ -310,9 +343,25 @@ export function EspaceNotes() {
   const consommerFocus = useCallback(() => setFocus(null), []);
 
   // ─── Rendu ───────────────────────────────────────────────────────────────
-  // Temps réel : notes personnelles, mes campagnes, et celle de la note ouverte
+  // Temps réel : mes campagnes (celle de la note ouverte d'abord) et mes épingles ;
+  // choix de la campagne d'une nouvelle note
   const synchro = (
-    <SynchroNotes campagnes={campagnes.map((c) => c.id)} prioritaire={noteQ.data?.roomId ?? null} />
+    <>
+      <SynchroNotes
+        campagnes={campagnes.map((c) => c.id)}
+        prioritaire={noteQ.data?.roomId ?? null}
+      />
+      <ChoixCampagne
+        ouvert={choix !== null}
+        campagnes={ecrivables}
+        onFermer={() => setChoix(null)}
+        onChoix={(roomId) => {
+          const modele = choix?.modele;
+          setChoix(null);
+          creerNote({ modele, roomId });
+        }}
+      />
+    </>
   );
 
   if (liste.isPending && !idSelection)

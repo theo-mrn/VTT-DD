@@ -5,15 +5,23 @@ import { HardDriveUpload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { Campagne } from '@/lib/campagnes';
 import { clesNotes, notes, type NouvelleNote, type TypeNote } from '@/lib/notes';
+import { campagnesEcrivables } from './campaign-picker';
 
 /**
  * Notes de l'aperçu local (avant le service) : l'ancienne version les gardait
  * dans ce navigateur (`localStorage`, clé `yner:v1:notes`). Elles ne sont
  * jamais effacées sans avoir été recréées au service : l'utilisateur les
  * importe d'un clic, et seules celles que le service a acceptées quittent le
- * navigateur.
+ * navigateur. Une note appartient toujours à une campagne : celles qui n'en
+ * avaient pas (ou dont on n'est plus joueur) vont dans la campagne choisie.
  */
 const CLE = 'yner:v1:notes';
 
@@ -50,12 +58,12 @@ function ecrire(restantes: NoteLocale[]) {
   }
 }
 
-/** Note locale → nouvelle note du service (campagne gardée si j'y écris encore). */
-function versNouvelle(n: NoteLocale, campagnes: Campagne[]): NouvelleNote {
-  const role = campagnes.find((c) => c.id === n.roomId)?.role;
-  const roomId = n.roomId && role && role !== 'spectator' ? n.roomId : null;
+/** Note locale → nouvelle note du service, dans sa campagne si j'y écris, sinon dans `cible`. */
+function versNouvelle(n: NoteLocale, ecrivables: Campagne[], cible: string): NouvelleNote {
+  const sienne = ecrivables.some((c) => c.id === n.roomId);
+  const roomId = sienne && n.roomId ? n.roomId : cible;
   const visibility =
-    roomId && (n.visibility === 'gm' || n.visibility === 'room') ? n.visibility : 'private';
+    sienne && (n.visibility === 'gm' || n.visibility === 'room') ? n.visibility : 'private';
   return {
     title: (n.title ?? '').slice(0, 200),
     content: n.content ?? '',
@@ -75,6 +83,11 @@ export function ImportNotesLocales({ moi, campagnes }: { moi: string; campagnes:
   const client = useQueryClient();
   const [locales, setLocales] = useState<NoteLocale[]>([]);
   const [enCours, setEnCours] = useState(false);
+  const ecrivables = campagnesEcrivables(campagnes);
+  const [choisie, setChoisie] = useState<string | null>(null);
+  const cible = ecrivables.find((c) => c.id === choisie) ?? ecrivables[0];
+  // Notes sans campagne où j'écris encore : elles iront dans la campagne cible
+  const sansCampagne = locales.filter((n) => !ecrivables.some((c) => c.id === n.roomId)).length;
 
   useEffect(() => {
     setLocales(lire().filter((n) => n.authorId === moi));
@@ -83,13 +96,14 @@ export function ImportNotesLocales({ moi, campagnes }: { moi: string; campagnes:
   if (!locales.length) return null;
 
   const importer = async () => {
+    if (!cible) return;
     setEnCours(true);
     const importees = new Set<string>();
     // Les plus anciennes d'abord : les plus récentes restent en haut de la liste
     const ordre = [...locales].sort((a, b) => (a.updatedAt ?? '').localeCompare(b.updatedAt ?? ''));
     for (const n of ordre) {
       try {
-        await notes.creer(versNouvelle(n, campagnes));
+        await notes.creer(versNouvelle(n, ecrivables, cible.id));
         importees.add(n.id);
       } catch {
         // Refusée (contenu invalide, campagne quittée…) : elle reste dans le navigateur
@@ -121,10 +135,34 @@ export function ImportNotesLocales({ moi, campagnes }: { moi: string; campagnes:
       </p>
       <p className="mt-1 text-muted-foreground">
         Écrites pendant l’aperçu local, elles ne sont pas encore sur votre compte.
+        {sansCampagne > 0 &&
+          (cible
+            ? ' Celles sans campagne iront dans la campagne choisie.'
+            : ' Rejoignez ou créez une campagne pour les importer.')}
       </p>
-      <Button size="xs" className="mt-2.5" onClick={() => void importer()} loading={enCours}>
-        Les importer sur mon compte
-      </Button>
+      {cible && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          {sansCampagne > 0 && ecrivables.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="xs" variant="secondary" className="max-w-[180px]">
+                  <span className="truncate">{cible.name}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {ecrivables.map((c) => (
+                  <DropdownMenuItem key={c.id} onSelect={() => setChoisie(c.id)}>
+                    <span className="truncate">{c.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <Button size="xs" onClick={() => void importer()} loading={enCours}>
+            Les importer sur mon compte
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -743,10 +743,8 @@ export function EditeurNote({
             <DialogTitle>Supprimer cette note ?</DialogTitle>
             <DialogDescription>
               « {titreCompact} » disparaîtra de vos notes
-              {brouillon.roomId && brouillon.visibility !== 'private'
-                ? ' et de celles des joueurs qui la lisent'
-                : ''}
-              . Vous pourrez l’annuler pendant quelques secondes.
+              {brouillon.visibility !== 'private' ? ' et de celles des joueurs qui la lisent' : ''}.
+              Vous pourrez l’annuler pendant quelques secondes.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

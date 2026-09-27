@@ -11,9 +11,9 @@ function SynchroUne({ campaignId }: { campaignId: string | null }) {
 }
 
 /**
- * Notes tenues à jour en direct : événements personnels (notes personnelles,
- * épingles) et ceux de mes campagnes, la plus récemment active d'abord ; la
- * campagne de la note ouverte est toujours suivie.
+ * Notes tenues à jour en direct : événements de mes campagnes, la plus
+ * récemment active d'abord (la campagne de la note ouverte toujours suivie),
+ * et mes événements personnels (épingles posées dans un autre onglet).
  */
 export function SynchroNotes({
   campagnes,

@@ -37,7 +37,7 @@ import { dateCourte, iconeNote, segments, type Groupe, type NoteIndexee } from '
 export interface FiltreNotes {
   epinglees: boolean;
   type: TypeNote | null;
-  /** Id de campagne, ou « aucune » pour les notes personnelles. */
+  /** Id de campagne ; null : toutes mes campagnes. */
   campagne: string | null;
 }
 
@@ -257,8 +257,13 @@ export function ListeNotes({
                   id={`groupe-${g.id}`}
                   className="z-10 flex items-center gap-1.5 px-3 pb-1.5 pt-4 text-[11px] font-medium uppercase tracking-[0.12em] text-subtle lg:sticky lg:top-0 lg:bg-gradient-to-b lg:from-background lg:via-background/95 lg:to-background/0"
                 >
-                  {g.id === 'epinglees' && <Pin className="size-3 rotate-45" aria-hidden />}
-                  {g.titre}
+                  <Illustration
+                    src={parCampagne.get(g.id)?.coverUrl}
+                    graine={g.titre}
+                    initiale={false}
+                    className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/10"
+                  />
+                  <span className="min-w-0 truncate">{g.titre}</span>
                   <span className="ml-auto font-normal normal-case tracking-normal tabular text-subtle/70">
                     {g.notes.length}
                   </span>
@@ -270,7 +275,6 @@ export function ListeNotes({
                     n={n}
                     mots={mots}
                     selectionnee={n.note.id === idSelection}
-                    campagne={n.note.roomId ? parCampagne.get(n.note.roomId) : undefined}
                     auteur={n.note.authorId === moi ? null : n.note.authorName}
                     maintenant={maintenant}
                     onChoix={() => onSelection(n.note.id)}
@@ -317,7 +321,6 @@ function ElementNote({
   n,
   mots,
   selectionnee,
-  campagne,
   auteur,
   maintenant,
   onChoix,
@@ -325,7 +328,6 @@ function ElementNote({
   n: NoteIndexee;
   mots: string[];
   selectionnee: boolean;
-  campagne: Campagne | undefined;
   /** Auteur, si la note est celle d'un autre joueur. */
   auteur: string | null;
   maintenant: number;
@@ -392,35 +394,27 @@ function ElementNote({
               <span className="text-subtle">Aucun contenu</span>
             )}
           </p>
-          {(campagne || note.roomId || note.tags.length > 0 || auteur) && (
+          {(note.pinned || note.visibility !== 'private' || note.tags.length > 0 || auteur) && (
             <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[11px] text-subtle">
-              {note.roomId && (
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <Illustration
-                    src={campagne?.coverUrl}
-                    graine={campagne?.name ?? note.roomId}
-                    initiale={false}
-                    className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/10"
-                  />
-                  <span className="max-w-[120px] truncate">{campagne?.name ?? 'Campagne'}</span>
-                  {note.visibility === 'gm' && (
-                    <Crown
-                      className="size-3 shrink-0 text-primary/80"
-                      aria-label="Partagée avec le MJ"
-                    />
-                  )}
-                  {note.visibility === 'room' && (
-                    <Users
-                      className="size-3 shrink-0 text-primary/80"
-                      aria-label="Partagée avec la table"
-                    />
-                  )}
-                  {note.visibility === 'characters' && (
-                    <UserRoundCheck
-                      className="size-3 shrink-0 text-primary/80"
-                      aria-label="Partagée avec des personnages"
-                    />
-                  )}
+              {note.pinned && (
+                <Pin className="size-3 shrink-0 rotate-45 text-primary/80" aria-label="Épinglée" />
+              )}
+              {note.visibility === 'gm' && (
+                <span className="flex shrink-0 items-center gap-1">
+                  <Crown className="size-3 text-primary/80" aria-hidden />
+                  MJ
+                </span>
+              )}
+              {note.visibility === 'room' && (
+                <span className="flex shrink-0 items-center gap-1">
+                  <Users className="size-3 text-primary/80" aria-hidden />
+                  Table
+                </span>
+              )}
+              {note.visibility === 'characters' && (
+                <span className="flex shrink-0 items-center gap-1">
+                  <UserRoundCheck className="size-3 text-primary/80" aria-hidden />
+                  Ciblée
                 </span>
               )}
               {auteur && <span className="max-w-[90px] shrink-0 truncate">{auteur}</span>}
@@ -501,10 +495,7 @@ function FiltresNotes({
   };
 
   const type = filtre.type ? TYPES_NOTE.find((t) => t.id === filtre.type) : null;
-  const campagne =
-    filtre.campagne && filtre.campagne !== 'aucune'
-      ? campagnes.find((c) => c.id === filtre.campagne)
-      : null;
+  const campagne = filtre.campagne ? campagnes.find((c) => c.id === filtre.campagne) : null;
 
   return (
     <div
@@ -569,8 +560,6 @@ function FiltresNotes({
                 />
                 <span className="max-w-[110px] truncate">{campagne.name}</span>
               </>
-            ) : filtre.campagne === 'aucune' ? (
-              'Personnelles'
             ) : (
               'Campagne'
             )}
@@ -583,13 +572,6 @@ function FiltresNotes({
             onSelect={() => onFiltre({ ...filtre, campagne: null })}
           >
             Toutes les campagnes
-          </ElementFiltre>
-          <ElementFiltre
-            actif={filtre.campagne === 'aucune'}
-            compte={compte.salles.get('aucune') ?? 0}
-            onSelect={() => onFiltre({ ...filtre, campagne: 'aucune' })}
-          >
-            Personnelles (sans campagne)
           </ElementFiltre>
           {campagnes.length > 0 && (
             <>

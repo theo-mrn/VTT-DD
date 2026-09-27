@@ -4,9 +4,9 @@
  * passent par un adaptateur explicite vers les types de l'UI (type, étiquettes,
  * campagne, visibilité).
  *
- * - Une note est personnelle (sans campagne : l'auteur seul) ou rattachée à une
- *   campagne, privée ou partagée (MJ, toute la table, personnages choisis). Le
- *   service dit ce que l'appelant peut en faire (`permissions`).
+ * - Une note appartient toujours à une campagne ; elle y est privée ou
+ *   partagée (MJ, toute la table, personnages choisis). Le service dit ce que
+ *   l'appelant peut en faire (`permissions`).
  * - Contenu : HTML de l'éditeur, assaini par le service à chaque écriture, et
  *   repassé à DOMPurify avant d'entrer dans l'éditeur (components/notes/sanitize.ts).
  * - Écritures avec la `version` connue : un 409 relit la note sans rien écraser
@@ -68,7 +68,7 @@ export interface NotePermissions {
 
 interface NoteCommonApi {
   id: string;
-  campaignId: string | null;
+  campaignId: string;
   owner: UserRefApi;
   characterId: string | null;
   shared: boolean;
@@ -111,7 +111,7 @@ interface NoteFacetsApi {
   total: number;
   pinned: number;
   types: Record<NoteTypeApi, number>;
-  campaigns: { campaignId: string | null; count: number }[];
+  campaigns: { campaignId: string; count: number }[];
   tags: { label: string; count: number }[];
 }
 
@@ -145,8 +145,8 @@ interface BaseNote {
   tags: string[];
   /** Épinglée par moi (préférence personnelle). */
   pinned: boolean;
-  /** Campagne ; null : note personnelle. */
-  roomId: string | null;
+  /** Campagne de la note (toujours une). */
+  roomId: string;
   visibility: VisibiliteNote;
   /** Personnages destinataires (visibilité `characters`). */
   sharedWith: string[];
@@ -195,12 +195,12 @@ export type ModificationNote = Partial<
   > & { details: Partial<NoteDetails> }
 >;
 
-/** Nouvelle note : ses champs de départ, et son épingle. */
-export type NouvelleNote = ModificationNote & { pinned?: boolean };
+/** Nouvelle note : sa campagne (obligatoire), ses champs de départ et son épingle. */
+export type NouvelleNote = ModificationNote & { roomId: string; pinned?: boolean };
 
 /** Filtres de l'espace Notes (appliqués par le service). */
 export interface FiltresNotes {
-  /** Id de campagne, ou « aucune » pour les notes personnelles. */
+  /** Id de campagne ; null : toutes mes campagnes. */
   campagne: string | null;
   type: TypeNote | null;
   epinglees: boolean;
@@ -211,7 +211,7 @@ export interface FacettesNotes {
   total: number;
   epinglees: number;
   types: Record<TypeNote, number>;
-  /** Par campagne ; clé « aucune » : notes personnelles. */
+  /** Nombre de notes par campagne. */
   campagnes: Map<string, number>;
   /** Étiquettes, les plus utilisées d'abord. */
   etiquettes: string[];
@@ -349,7 +349,7 @@ function versFacettes(f: NoteFacetsApi): FacettesNotes {
     total: f.total,
     epinglees: f.pinned,
     types: types as Record<TypeNote, number>,
-    campagnes: new Map(f.campaigns.map((c) => [c.campaignId ?? 'aucune', c.count])),
+    campagnes: new Map(f.campaigns.map((c) => [c.campaignId, c.count])),
     etiquettes: f.tags.map((t) => t.label),
   };
 }
@@ -415,7 +415,7 @@ const json = (corps: unknown) => ({ body: JSON.stringify(corps) });
 
 function parametres(f: FiltresNotes, cursor: string | null, limit: number): string {
   const p = new URLSearchParams({ limit: String(limit) });
-  if (f.campagne) p.set('campaignId', f.campagne === 'aucune' ? 'none' : f.campagne);
+  if (f.campagne) p.set('campaignId', f.campagne);
   if (f.type) p.set('type', TYPE_API[f.type]);
   if (f.epinglees) p.set('pinned', 'true');
   if (f.recherche.trim()) p.set('q', f.recherche.trim());
@@ -433,13 +433,13 @@ export const notes = {
 
   lire: async (id: string) => versNote(await api<NoteApi>(url(id))),
 
-  /** Crée la note (dans sa campagne, ou personnelle), puis l'épingle si demandé. */
+  /** Crée la note dans sa campagne, puis l'épingle si demandé. */
   async creer(n: NouvelleNote): Promise<Note> {
-    const { pinned, ...m } = n;
+    const { pinned, roomId, ...m } = n;
     const note = versNote(
-      await api<NoteApi>('/v1/notes', {
+      await api<NoteApi>(`/v1/campaigns/${encodeURIComponent(roomId)}/notes`, {
         method: 'POST',
-        ...json({ campaignId: m.roomId ?? null, ...versCorps(m, []) }),
+        ...json(versCorps(m, [])),
       }),
     );
     if (!pinned) return note;
@@ -710,8 +710,8 @@ export function appliquerEvenementNote(client: QueryClient, e: RealtimeEvent): v
 }
 
 /**
- * Tient les notes à jour en direct : événements personnels (`campaignId` null :
- * notes personnelles, épingles) ou d'une campagne. À chaque (ré)abonnement
+ * Tient les notes à jour en direct : événements d'une campagne, ou événements
+ * personnels (`campaignId` null : mes épingles, posées dans un autre onglet). À chaque (ré)abonnement
  * sans rejeu possible, les notes sont relues.
  */
 export function useNotesSync(campaignId: string | null, enabled = true): { live: boolean } {

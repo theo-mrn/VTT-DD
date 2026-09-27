@@ -500,7 +500,7 @@ function NotesRecentes() {
                     {n.title || 'Sans titre'}
                   </span>
                   <span className="block truncate text-xs text-subtle">
-                    {campagnes.data?.find((c) => c.id === n.roomId)?.name ?? 'Note personnelle'} ·{' '}
+                    {campagnes.data?.find((c) => c.id === n.roomId)?.name ?? 'Campagne'} ·{' '}
                     {formaterDepuis(n.updatedAt)}
                   </span>
                 </span>

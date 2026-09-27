@@ -74,7 +74,7 @@ export function ProprietesNote({
   onTags,
 }: {
   kind: TypeNote;
-  roomId: string | null;
+  roomId: string;
   partage: Partage;
   tags: string[];
   campagnes: Campagne[];
@@ -84,13 +84,13 @@ export function ProprietesNote({
   permissions: NotePermissions;
   suggestionsEtiquettes: string[];
   onKind: (k: TypeNote) => void;
-  onCampagne: (id: string | null) => void;
+  onCampagne: (id: string) => void;
   onPartage: (p: Partage) => void;
   onTags: (t: string[]) => void;
 }) {
   const type = typeNote(kind);
   const lecture = !permissions.edit;
-  const campagne = roomId ? campagnes.find((c) => c.id === roomId) : undefined;
+  const campagne = campagnes.find((c) => c.id === roomId);
   // Mon rôle, donné par le service (l'auteur des propriétés est l'utilisateur connecté)
   const jeSuisMj = campagne ? campagne.role === 'gm' : false;
   // On ne range une note que dans une campagne où l'on écrit
@@ -131,38 +131,22 @@ export function ProprietesNote({
           <span className="inline-flex max-w-full">
             <DropdownMenu>
               <DropdownMenuTrigger className={styleDeclencheur} disabled={!permissions.move}>
-                {roomId ? (
-                  <>
-                    <Illustration
-                      src={campagne?.coverUrl}
-                      graine={campagne?.name ?? roomId}
-                      initiale={false}
-                      className="size-5 shrink-0 rounded-[5px] ring-1 ring-white/10"
-                    />
-                    <span className="truncate">{campagne?.name ?? 'Campagne introuvable'}</span>
-                    {jeSuisMj && (
-                      <span className="rounded bg-primary/10 px-1 text-[10px] font-medium uppercase tracking-wide text-primary">
-                        MJ
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-subtle">Aucune</span>
+                <Illustration
+                  src={campagne?.coverUrl}
+                  graine={campagne?.name ?? roomId}
+                  initiale={false}
+                  className="size-5 shrink-0 rounded-[5px] ring-1 ring-white/10"
+                />
+                <span className="truncate">{campagne?.name ?? 'Campagne'}</span>
+                {jeSuisMj && (
+                  <span className="rounded bg-primary/10 px-1 text-[10px] font-medium uppercase tracking-wide text-primary">
+                    MJ
+                  </span>
                 )}
                 {permissions.move && <ChevronDown className="size-3.5 shrink-0 text-subtle" />}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuItem onSelect={() => onCampagne(null)}>
-                  <span className="flex size-5 items-center justify-center rounded-[5px] border border-dashed border-border-strong" />
-                  <span className="flex-1">Aucune (note personnelle)</span>
-                  {!roomId && <Check className="text-primary" />}
-                </DropdownMenuItem>
-                {destinations.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Mes campagnes</DropdownMenuLabel>
-                  </>
-                )}
+                <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
                 {destinations.map((c) => (
                   <DropdownMenuItem key={c.id} onSelect={() => onCampagne(c.id)}>
                     <Illustration
@@ -182,7 +166,7 @@ export function ProprietesNote({
                 ))}
                 {!destinations.length && (
                   <p className="px-2.5 pb-1.5 pt-1 text-xs text-subtle">
-                    Rejoignez ou créez une campagne pour y rattacher vos notes.
+                    Aucune autre campagne où vous écrivez.
                   </p>
                 )}
               </DropdownMenuContent>
@@ -193,12 +177,9 @@ export function ProprietesNote({
 
       <Ligne icone={Eye} label="Visibilité">
         <SelecteurVisibilite
-          partage={
-            roomId ? partage : { visibility: 'private', sharedWith: [], sharedWithGm: false }
-          }
+          partage={partage}
           roomId={roomId}
           moi={moi}
-          sansCampagne={!roomId}
           modifiable={permissions.share}
           jeSuisMj={jeSuisMj}
           onChange={onPartage}
@@ -228,33 +209,31 @@ export function ProprietesNote({
 }
 
 /**
- * Contrôle segmenté Privée / MJ / Table / Ciblée ; inactif sans campagne, et
- * pour qui n'est pas l'auteur (seul l'auteur change la visibilité).
+ * Contrôle segmenté Privée / MJ / Table / Ciblée ; inactif pour qui n'est pas
+ * l'auteur (seul l'auteur change la visibilité).
  */
 function SelecteurVisibilite({
   partage,
   roomId,
   moi,
-  sansCampagne,
   modifiable,
   jeSuisMj,
   onChange,
 }: {
   partage: Partage;
-  roomId: string | null;
+  roomId: string;
   moi: string;
-  sansCampagne: boolean;
   modifiable: boolean;
   jeSuisMj: boolean;
   onChange: (p: Partage) => void;
 }) {
-  const desactive = sansCampagne || !modifiable;
+  const desactive = !modifiable;
   const [ciblage, setCiblage] = useState(false);
   // Personnages des joueurs (sauf les miens), chargés à l'ouverture du choix
   const engages = useQuery({
-    queryKey: clePersonnagesCampagne(roomId ?? ''),
-    queryFn: () => apiCampagnes.personnages(roomId!),
-    enabled: Boolean(roomId) && (ciblage || partage.visibility === 'characters'),
+    queryKey: clePersonnagesCampagne(roomId),
+    queryFn: () => apiCampagnes.personnages(roomId),
+    enabled: ciblage || partage.visibility === 'characters',
   });
   const cibles = (engages.data ?? []).filter(
     (p) => p.side === 'players' && p.ownerId !== moi && p.playedBy !== moi,
@@ -398,15 +377,5 @@ function SelecteurVisibilite({
   );
 
   if (!desactive) return groupe;
-  return (
-    <Info
-      texte={
-        sansCampagne
-          ? 'Rattachez la note à une campagne pour la partager avec le MJ ou la table.'
-          : 'Seul l’auteur de la note change sa visibilité.'
-      }
-    >
-      {groupe}
-    </Info>
-  );
+  return <Info texte="Seul l’auteur de la note change sa visibilité.">{groupe}</Info>;
 }

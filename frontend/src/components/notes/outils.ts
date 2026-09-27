@@ -1,6 +1,6 @@
 /**
  * Outils purs de l'espace Notes : mise en valeur des termes cherchés (sans
- * tenir compte des accents), regroupement par date et formats de date relatifs.
+ * tenir compte des accents), regroupement par campagne et formats de date.
  * La recherche elle-même est faite par le service (plein texte).
  */
 import { TYPES_NOTE, type ResumeNote, type TypeNote } from '@/lib/notes';
@@ -68,51 +68,47 @@ export function segments(texte: string, mots: string[]): { t: string; surligne: 
 
 // ─── Regroupement ────────────────────────────────────────────────────────────
 
-export type IdGroupe = 'epinglees' | 'aujourdhui' | 'semaine' | 'ancien';
-
+/** Notes d'une campagne dans la liste. */
 export interface Groupe {
-  id: IdGroupe;
+  /** Id de la campagne. */
+  id: string;
   titre: string;
   notes: NoteIndexee[];
 }
 
-const TITRES_GROUPES: Record<IdGroupe, string> = {
-  epinglees: 'Épinglées',
-  aujourdhui: "Aujourd'hui",
-  semaine: 'Cette semaine',
-  ancien: 'Plus ancien',
-};
+/**
+ * Par campagne, la plus récemment active d'abord ; dans chacune, les notes
+ * épinglées puis les plus récemment modifiées.
+ */
+export function grouper(notes: NoteIndexee[], nomCampagne: (id: string) => string): Groupe[] {
+  const parCampagne = new Map<string, NoteIndexee[]>();
+  for (const n of notes) {
+    const liste = parCampagne.get(n.note.roomId);
+    if (liste) liste.push(n);
+    else parCampagne.set(n.note.roomId, [n]);
+  }
+  const recente = (g: Groupe) =>
+    g.notes.reduce((max, n) => (n.note.updatedAt > max ? n.note.updatedAt : max), '');
+  return [...parCampagne]
+    .map(([id, liste]) => ({
+      id,
+      titre: nomCampagne(id),
+      notes: [...liste].sort(
+        (a, b) =>
+          Number(b.note.pinned) - Number(a.note.pinned) ||
+          b.note.updatedAt.localeCompare(a.note.updatedAt),
+      ),
+    }))
+    .sort((a, b) => recente(b).localeCompare(recente(a)));
+}
+
+// ─── Dates ───────────────────────────────────────────────────────────────────
 
 function debutDuJour(ms: number): number {
   const d = new Date(ms);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
-
-/** Épinglées d'abord, puis par récence (les plus récentes en haut de chaque groupe). */
-export function grouper(notes: NoteIndexee[], maintenant: number): Groupe[] {
-  const jour = debutDuJour(maintenant);
-  const semaine = jour - 6 * 86_400_000;
-  const tries = [...notes].sort((a, b) => b.note.updatedAt.localeCompare(a.note.updatedAt));
-  const seaux: Record<IdGroupe, NoteIndexee[]> = {
-    epinglees: [],
-    aujourdhui: [],
-    semaine: [],
-    ancien: [],
-  };
-  for (const n of tries) {
-    const t = new Date(n.note.updatedAt).getTime();
-    if (n.note.pinned) seaux.epinglees.push(n);
-    else if (t >= jour) seaux.aujourdhui.push(n);
-    else if (t >= semaine) seaux.semaine.push(n);
-    else seaux.ancien.push(n);
-  }
-  return (Object.keys(seaux) as IdGroupe[])
-    .filter((id) => seaux[id].length)
-    .map((id) => ({ id, titre: TITRES_GROUPES[id], notes: seaux[id] }));
-}
-
-// ─── Dates ───────────────────────────────────────────────────────────────────
 
 const HEURE = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const JOUR_SEMAINE = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' });
