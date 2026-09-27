@@ -7,6 +7,7 @@ import {
   aleatoireGraine,
   aleatoireImpose,
   calculer,
+  charger,
   etapesCreation,
   solde,
   type EtatEntite,
@@ -193,6 +194,64 @@ describe('création D&D', () => {
     expect(fini.creation).toBe(false);
     // Ressources fixées à leur valeur initiale à la fin de la création
     expect(fini.valeurs.PV).toBe(calculer(dnd, fini).valeurs.get('PV')?.max);
+  });
+});
+
+describe('tirage en attribution libre', () => {
+  // D&D dont les caractéristiques se répartissent librement (aucun système de référence ne le fait)
+  const libre = (() => {
+    const doc = structuredClone(catalogue.documents('dnd-classic')!.systeme) as unknown as {
+      creation: { etapes: { id: string; attribution?: string }[] }[];
+    };
+    for (const c of doc.creation)
+      for (const e of c.etapes) if (e.id === 'caracteristiques') e.attribution = 'libre';
+    const r = charger(doc);
+    if (!r.ok) throw new Error(r.erreurs[0]?.message);
+    return r.systeme;
+  })();
+  const CARACS = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'];
+
+  it('tire et garde le tirage en attente, puis le rejoue à l’identique pour le répartir', () => {
+    const e = etapes(libre, etatInitial(libre, 'personnage'), [
+      ['race', { entrees: [{ entree: 'nain' }] }],
+      ['profil', { entrees: [{ entree: 'guerrier' }] }],
+    ]);
+    const tire = appliquerEtape(libre, e, 'caracteristiques', {}, aleatoireGraine('x'), DATE);
+    // Rien d'attribué : le joueur voit les valeurs avant de choisir
+    expect(tire.etat).toBe(e);
+    expect(tire.enAttente).toMatchObject({ etape: 'caracteristiques' });
+    const valeurs = (tire.details.retenu as { valeurs: number[] }).valeurs;
+    expect(valeurs).toHaveLength(6);
+
+    // Répartition à l'envers : même tirage, un autre générateur n'y change rien
+    const affectation = Object.fromEntries(CARACS.map((c, i) => [c, 5 - i]));
+    const reparti = appliquerEtape(
+      libre,
+      e,
+      'caracteristiques',
+      { affectation },
+      aleatoireGraine('autre'),
+      DATE,
+      tire.enAttente,
+    );
+    expect(CARACS.map((c) => reparti.etat.valeurs[c])).toEqual([...valeurs].reverse());
+    expect(reparti.enAttente).toBeNull();
+    expect(reparti.details).toMatchObject({ repartition: affectation });
+
+    // Une affectation incomplète est refusée par les règles
+    expect(
+      erreur(() =>
+        appliquerEtape(
+          libre,
+          e,
+          'caracteristiques',
+          { affectation: { FOR: 0 } },
+          aleatoireGraine('x'),
+          DATE,
+          tire.enAttente,
+        ),
+      ).status,
+    ).toBe(422);
   });
 });
 

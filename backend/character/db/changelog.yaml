@@ -7,5 +7,7 @@ databaseChangeLog:
   - include: { file: changes/0003-templates.sql, relativeToChangelogFile: true }
   # Concept, apparence et histoire d'un personnage
   - include: { file: changes/0004-character-details.sql, relativeToChangelogFile: true }
+  # Tirage de création en attente de répartition (attribution libre)
+  - include: { file: changes/0005-pending-roll.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

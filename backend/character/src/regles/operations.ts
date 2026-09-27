@@ -28,6 +28,7 @@ import {
   rembourser,
   repartirEtape,
   saisirEtape,
+  aleatoireImpose,
   terminerCreation,
   tirerEtape,
   type Attribut,
@@ -213,9 +214,21 @@ export interface EtapeAppliquee {
   etat: EtatEntite;
   /** Détails pour l'événement (tirage effectué, achat…). */
   details: Record<string, unknown>;
+  /**
+   * Étape « tirer » : tirage gardé en attente de répartition, ou null pour
+   * effacer celui qui attendait ; absent pour les autres étapes.
+   */
+  enAttente?: { etape: string; des: number[] } | null;
 }
 
-/** Applique une étape de création, avec le corps propre à son type. */
+/**
+ * Applique une étape de création, avec le corps propre à son type.
+ *
+ * Étape « tirer » en attribution libre sur plusieurs attributs : sans
+ * `affectation`, le serveur tire et garde le tirage en attente (`enAttente`),
+ * l'état ne change pas ; avec `affectation`, il rejoue exactement ce tirage
+ * (mêmes dés) et l'attribue. Le client ne choisit jamais ses dés.
+ */
 export function appliquerEtape(
   systeme: SystemeCharge,
   etat: EtatEntite,
@@ -223,6 +236,7 @@ export function appliquerEtape(
   corps: unknown,
   aleatoire: Generateur,
   date: string,
+  enAttente: { etape: string; des: number[] } | null = null,
 ): EtapeAppliquee {
   if (!etat.creation) throw refus('La création est terminée', 'creation_terminee');
   const etape = creationDe(systeme, etat.type)?.etapes.find((e) => e.id === etapeId);
@@ -249,18 +263,32 @@ export function appliquerEtape(
     }
     case 'tirer': {
       const { affectation } = lireCorps(CorpsEtape.tirer, corps);
-      const r = tirerEtape(systeme, etat, etape.id, aleatoire);
+      // Répartition d'un tirage en attente : il est rejoué à l'identique
+      const rejeu = affectation && enAttente?.etape === etape.id;
+      const r = tirerEtape(
+        systeme,
+        etat,
+        etape.id,
+        rejeu ? aleatoireImpose(enAttente.des) : aleatoire,
+      );
       if (!r.ok) throw refus(r.erreur);
+      // Tirage complet (dés compris) : l'historique garde la preuve du jet
+      const details = {
+        attributs: r.attributs,
+        retenu: r.retenu,
+        essais: r.tirages.length,
+        ...(rejeu ? { repartition: affectation } : {}),
+      };
+      if (!affectation && r.attribution === 'libre' && r.attributs.length > 1) {
+        const des = r.retenu.jets.flatMap((j) => j.flatMap((x) => x.des.map((d) => d.valeur)));
+        return { etat, details, enAttente: { etape: etape.id, des } };
+      }
       // Attribution libre d'une seule valeur (dé de vie…) : elle ne peut aller qu'à cet attribut
       const seule =
         !affectation && r.attribution === 'libre' && r.attributs.length === 1
           ? { [r.attributs[0]!]: 0 }
           : affectation;
-      return {
-        etat: ouRefus(r.attribuer(seule)),
-        // Tirage complet (dés compris) : l'historique garde la preuve du jet
-        details: { attributs: r.attributs, retenu: r.retenu, essais: r.tirages.length },
-      };
+      return { etat: ouRefus(r.attribuer(seule)), details, enAttente: null };
     }
     case 'acheter': {
       const { achat, objet } = lireCorps(CorpsEtape.acheter, corps);

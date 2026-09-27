@@ -14,6 +14,7 @@ import { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { characters, outbox } from '../db/schema.js';
 import type { JetAction, JournalDes } from '../des/dice.js';
+import type { Catalogue } from '../regles/catalogue.js';
 import {
   campaignIndisponible,
   type Droits,
@@ -81,7 +82,7 @@ export function droitsSimules() {
 
 export async function appDeTest(
   surcharges: Record<string, string> = {},
-  options: { droits?: DroitsCampagnes; des?: JournalDes } = {},
+  options: { droits?: DroitsCampagnes; des?: JournalDes; catalogue?: Catalogue } = {},
 ) {
   // Jets d'action transmis à dice : gardés pour les vérifier
   const jets: JetAction[] = [];
@@ -107,6 +108,7 @@ export async function appDeTest(
       aleatoire: () => des.generateur,
       ...(connexion ? { db: connexion.db } : {}),
       ...(options.droits ? { droits: options.droits } : {}),
+      ...(options.catalogue ? { catalogue: options.catalogue } : {}),
       des: options.des ?? journal,
     },
   );

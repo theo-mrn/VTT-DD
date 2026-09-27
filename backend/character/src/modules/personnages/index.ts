@@ -326,13 +326,17 @@ export const register: Module = async (app, deps) => {
           req.body,
           deps.aleatoire(),
           date(),
+          l.pendingRoll,
         );
         const type = creationDe(systeme, l.etat.type)?.etapes.find(
           (e) => e.id === req.params.etape,
         )?.type;
         if (type === 'tirer') tirage = r.details as typeof tirage;
         return {
-          changement: { etat: r.etat },
+          changement: {
+            etat: r.etat,
+            ...(r.enAttente !== undefined ? { pendingRoll: r.enAttente } : {}),
+          },
           operation: `creation.${req.params.etape}`,
           details: r.details,
         };

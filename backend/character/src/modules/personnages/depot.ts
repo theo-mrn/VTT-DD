@@ -15,7 +15,7 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import type { DroitsCampagnes } from '../../droits/campaign.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
-import { characters, type CharacterDetails } from '../../db/schema.js';
+import { characters, type CharacterDetails, type PendingRoll } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
 import { verifierEtat } from '../../regles/operations.js';
 import { summaryOf, type CharacterSummary } from '../../regles/summary.js';
@@ -264,6 +264,8 @@ export interface Changement {
   nom?: string;
   avatarUrl?: string | null;
   details?: CharacterDetails;
+  /** Tirage en attente de répartition ; null l'efface. */
+  pendingRoll?: PendingRoll | null;
 }
 
 /**
@@ -316,6 +318,7 @@ export async function enregistrer(
       ...(changement.nom !== undefined ? { nom: changement.nom } : {}),
       ...(changement.avatarUrl !== undefined ? { avatarUrl: changement.avatarUrl } : {}),
       ...(changement.details !== undefined ? { details: changement.details } : {}),
+      ...(changement.pendingRoll !== undefined ? { pendingRoll: changement.pendingRoll } : {}),
       version: ligne.version + 1,
       updatedAt: sql`now()`,
     })

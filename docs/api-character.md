@@ -73,7 +73,7 @@ Corps des étapes de création, selon leur type :
 
 - `choisir` : `{ entrees: [{ entree, choix? }] }`
 - `repartir` et `saisir` : `{ valeurs }`
-- `tirer` : `{ affectation? }`. Le serveur tire lui-même avec un générateur cryptographique ; la réponse porte le tirage retenu. En attribution `libre` avec plusieurs attributs, `affectation` est exigée dans la même requête : le joueur ne voit donc pas les valeurs avant de les répartir (aucun système de référence n'utilise ce cas, tous tirent `dans l'ordre`).
+- `tirer` : `{ affectation? }`. Le serveur tire lui-même avec un générateur cryptographique ; la réponse porte le tirage retenu (`tirage`). En attribution `libre` sur plusieurs attributs, en deux temps : sans `affectation`, le serveur tire, garde le tirage en attente (colonne `pending_roll`) et ne change pas l'état ; le joueur voit les valeurs, puis `{ affectation }` (attribut → rang de la valeur) rejoue exactement ce tirage et l'attribue. Le client ne choisit jamais ses dés.
 - `acheter` : `{ achat, objet }`
 
 ### Saisie des valeurs

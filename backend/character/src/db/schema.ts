@@ -19,6 +19,12 @@ import {
 
 export const schemaCharacters = pgSchema('characters');
 
+/** Tirage d'une étape « tirer » en attente de répartition : les dés, rejoués ensuite. */
+export interface PendingRoll {
+  etape: string;
+  des: number[];
+}
+
 /** Présentation libre d'un personnage, écrite par son joueur (champs absents : vides). */
 export interface CharacterDetails {
   concept?: string;
@@ -38,6 +44,7 @@ export const characters = schemaCharacters.table('characters', {
   type: text('type').notNull(),
   etat: jsonb('etat').$type<EtatEntite>().notNull(),
   details: jsonb('details').$type<CharacterDetails>().notNull().default({}),
+  pendingRoll: jsonb('pending_roll').$type<PendingRoll>(),
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),

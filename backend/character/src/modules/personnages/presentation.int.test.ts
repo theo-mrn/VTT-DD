@@ -2,9 +2,11 @@
  * Présentation libre (concept, apparence, histoire), résumé des listes et
  * tirage renvoyé par l'étape « tirer » de la création.
  */
+import { charger } from '@vtt/rules';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { outbox } from '../../db/schema.js';
+import { catalogueReference, type Catalogue } from '../../regles/catalogue.js';
 import { appDeTest, TEST_DATABASE_URL } from '../../test/app-de-test.js';
 import { outils } from '../../test/outils.js';
 
@@ -119,6 +121,53 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages : présentation, résumé, tira
       summary: Personnage['summary'];
     }[];
     expect(liste!.summary).toEqual(p.summary);
+  });
+
+  it('tirage libre : valeurs montrées d’abord, puis réparties sur le même tirage', async () => {
+    // D&D dont les caractéristiques se répartissent librement (aucun système de référence ne le fait)
+    const reference = catalogueReference();
+    const doc = structuredClone(reference.documents('dnd-classic')!.systeme) as unknown as {
+      creation: { etapes: { id: string; attribution?: string }[] }[];
+    };
+    for (const c of doc.creation)
+      for (const e of c.etapes) if (e.id === 'caracteristiques') e.attribution = 'libre';
+    const charge = charger(doc);
+    if (!charge.ok) throw new Error(charge.erreurs[0]?.message);
+    const catalogue: Catalogue = {
+      ...reference,
+      charge: (id) => (id === 'dnd-classic' ? charge.systeme : reference.charge(id)),
+    };
+    const t2 = await appDeTest({}, { catalogue });
+    try {
+      const o2 = outils(t2);
+      const u = await t2.utilisateur();
+      let p = (await o2.ok(u, 'POST', '/v1/characters', {
+        systemeId: 'dnd-classic',
+        type: 'personnage',
+        nom: 'Libre',
+      })) as unknown as Personnage;
+      p = (await o2.etapes(u, p as never, [
+        ['race', { entrees: [{ entree: 'nain' }] }],
+        ['profil', { entrees: [{ entree: 'guerrier' }] }],
+      ])) as unknown as Personnage;
+      const tire = (await o2.ok(u, 'POST', `/v1/characters/${p.id}/creation/caracteristiques`, {
+        version: p.version,
+      })) as unknown as Personnage;
+      const valeurs = tire.tirage!.retenu.valeurs;
+      expect(valeurs).toHaveLength(6);
+      expect(tire.etat.valeurs.FOR).toBeUndefined();
+
+      const cles = tire.tirage!.attributs;
+      const affectation = Object.fromEntries(cles.map((c, i) => [c, cles.length - 1 - i]));
+      const reparti = (await o2.ok(u, 'POST', `/v1/characters/${p.id}/creation/caracteristiques`, {
+        version: tire.version,
+        affectation,
+      })) as unknown as Personnage;
+      expect(cles.map((c) => reparti.etat.valeurs[c])).toEqual([...valeurs].reverse());
+      expect(reparti.tirage!.retenu.valeurs).toEqual(valeurs);
+    } finally {
+      await t2.fermer();
+    }
   });
 
   it('étape « tirer » : la réponse porte le tirage retenu, dés compris', async () => {

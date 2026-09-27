@@ -446,17 +446,19 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages par HTTP', () => {
   it('character.updated porte le diff avant/après des valeurs saisies', async () => {
     const gimli = await nainGuerrier(alice, 'Gimli');
     const pv = gimli.etat.valeurs.PV as number;
+    // PV tirés au hasard (dé de vie) : jamais sous le minimum 0
+    const apres = Math.max(0, pv - 7);
     await ok(alice, 'PUT', `/v1/characters/${gimli.id}/valeurs`, {
       version: gimli.version,
-      valeurs: { PV: pv - 7 },
+      valeurs: { PV: apres },
     });
     const dernier = (await evenements(gimli.id)).at(-1)!.envelope;
     expect(dernier).toMatchObject({ type: 'character.updated', visibility: 'owner' });
     expect(dernier.payload).toEqual({
       version: gimli.version + 1,
       operation: 'valeurs',
-      valeurs: { PV: pv - 7 },
-      changes: [{ path: 'etat.valeurs.PV', before: pv, after: pv - 7 }],
+      valeurs: { PV: apres },
+      changes: [{ path: 'etat.valeurs.PV', before: pv, after: apres }],
     });
   });
 
