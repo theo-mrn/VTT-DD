@@ -13,7 +13,7 @@ le même flux (voir « Le tunnel d'historique » dans [refacto.md](refacto.md)).
 - Un seul flux, `VTT_EVENTS`, sur `vtt.>` : stockage fichier, rétention 7 jours (rejeu après une
   panne), fenêtre de dédoublonnage 10 minutes. `connectBus` le crée ou le met à jour.
 - Consommateurs (`consumeEvents`) : history en durable (tout rejouer, ack explicite), realtime en
-  éphémère ordonné (seulement le nouveau).
+  éphémère ordonné (seulement le nouveau), identity en durable `identity-titles` (voir plus bas).
 
 ## Relais d'outbox (`@vtt/platform`, `outbox-relay.ts`)
 
@@ -85,4 +85,56 @@ Test d'intégration du relais (table temporaire, l'outbox réelle n'est pas touc
 ```sh
 TEST_DATABASE_URL=postgres://dice_svc:dice-dev@127.0.0.1:5432/vtt NATS_URL=nats://127.0.0.1:4222 \
   pnpm --filter @vtt/platform test
+```
+
+## Consommateur des titres (identity)
+
+identity consomme le bus pour débloquer les titres « événement », que l'ancienne app attribuait
+côté client (`dice-roller.tsx`, `challenge-tracker.ts`). Code : `backend/identity/src/modules/titres/`
+(`event-rules.ts` pour les règles, `consumer.ts` pour le traitement), branché par `src/bus.ts`.
+
+- Durable `identity-titles`, sujets `vtt.*.dice.rolled` et `vtt.*.campaign.message_posted`. Démarré
+  dans `main.ts` seulement si `NATS_URL` est définie, sur la même connexion NATS que le relais
+  d'outbox d'identity (reconnexion de 1 à 30 s, le démarrage HTTP n'attend pas). À sa création, il
+  ne lit que les événements à venir (pas de rattrapage des 7 jours du flux) ; ensuite il reprend où
+  il s'était arrêté.
+- Une seule fois par événement : l'id entre dans `identity.inbox` (colonne `consumer`) dans la
+  transaction qui met à jour `identity.title_progress` (compteurs par joueur), débloque les titres
+  (`identity.user_titles`) et écrit leurs événements. Une relivraison est reconnue et ignorée. Un
+  événement sans effet (voir le critère) n'écrit rien ; celui d'un compte inconnu d'identity est
+  consommé sans effet.
+- Critère « vrai jet » (`dice.rolled`) : dans une campagne (`roomId` non nul, comme l'ancienne app
+  qui ne suivait que les salles) et `payload.source` parmi `3d`, `mixed`, `free`, `action`. Les jets
+  `import` (historique Firebase) et `api` (clé d'API, que l'ancienne route `/api/roll-dice` ne
+  suivait pas) ne débloquent rien. Les jets cachés au MJ et privés comptent, comme avant.
+
+| Titre                                      | Événement source          | Condition (reprise de l'ancienne app)                   |
+| ------------------------------------------ | ------------------------- | ------------------------------------------------------- |
+| Maudit des dés                             | `dice.rolled`             | un 1 sur n'importe quel d20 du jet                      |
+| Béni des Dieux                             | `dice.rolled`             | un 20 sur n'importe quel d20 du jet                     |
+| Apprenti Lanceur, Lanceur Enthousiaste     | `dice.rolled`             | 1 et 50 jets (`dice_rolls`, un jet compte pour 1)       |
+| Chanceux                                   | `dice.rolled`             | 1 réussite critique : premier dé du jet = d20 à 20      |
+| Éternel Malchanceux                        | `dice.rolled`             | 10 échecs critiques : premier dé du jet = d20 à 1       |
+| Orateur Novice, Conteur Bavard, Barde Lég. | `campaign.message_posted` | 1, 50 et 200 messages (seuils des défis, pas 100 / 500) |
+
+Titres « événement » sans source dans le nouveau système (jamais débloqués pour l'instant) :
+Aventurier Confirmé (niveau 5), Collectionneur Débutant, Accumulateur Compulsif, Maître d'Armes,
+Étudiant (l'ancienne app les recalculait depuis l'état du personnage joué ; `character.updated`
+ne porte ni le propriétaire ni cet état), Héros Accompli et Légende Vivante (les défis niveau 10
+et 20 donnaient un skin de dé, jamais ce titre), Combattant Novice, Vétéran de Guerre, Fléau des
+Dragons (défis désactivés dans l'ancienne app).
+
+Événement produit : `identity.title_unlocked` (sujet `vtt.global.identity.title_unlocked`,
+`roomId` null, visibilité `owner`, agrégat `user`), payload `{ slug, label, source }` avec
+`source` = `event` (bus) ou `time` (temps de jeu). Pour un déblocage par le bus, `correlationId` et
+`traceparent` sont ceux de l'événement source et `causationId` est son id.
+
+Les e-mails de l'ancienne app au premier « Maudit des dés » / « Béni des Dieux » ne sont pas
+envoyés : reportés au futur service d'e-mails, qui consommera `identity.title_unlocked` (TODO dans
+`consumer.ts`).
+
+```sh
+# Tests (handler direct ; bout en bout via JetStream si NATS_URL est définie)
+TEST_DATABASE_URL=postgres://identity_svc:identity-dev@localhost:5432/vtt \
+  NATS_URL=nats://127.0.0.1:4222 pnpm --filter @vtt/identity test
 ```
