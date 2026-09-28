@@ -9,6 +9,7 @@ import {
   ScrollText,
   Settings2,
   Users,
+  Volume2,
   type LucideIcon,
 } from 'lucide-react';
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
@@ -147,14 +148,27 @@ export const panelRegistry = [
   {
     id: 'son',
     label: 'Son',
-    description: 'Musique et ambiance de la table, effets, bibliothèque et mixeur',
+    description: 'Musique, ambiance et effets de la table, bibliothèque du MJ',
     icon: Music,
     // S comme son (Q, l'ancien raccourci du mixeur, reste libre)
     shortcut: { code: 'KeyS', label: 'S' },
     width: 'medium',
     mode: 'side',
-    roles: ALL_ROLES,
+    // Le son se pilote par le MJ seul ; les autres n'ont que leur volume (panneau « Volume »)
+    roles: ['gm'],
     component: lazy(() => import('../onglets/son').then((m) => ({ default: m.OngletSon }))),
+  },
+  {
+    id: 'volume',
+    label: 'Volume',
+    description: 'Mon volume : musique, ambiance, effets, dés, pour moi seul',
+    icon: Volume2,
+    // Même touche que « Son » pour le MJ : chacun ouvre son réglage du son avec S
+    shortcut: { code: 'KeyS', label: 'S' },
+    width: 'compact',
+    mode: 'floating',
+    roles: ['player', 'spectator'],
+    component: lazy(() => import('../onglets/volume').then((m) => ({ default: m.OngletVolume }))),
   },
   {
     id: 'resources',

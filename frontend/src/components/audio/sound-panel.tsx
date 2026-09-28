@@ -4,7 +4,7 @@
  * Panneau « Son » de la table (touche S). En haut, ce que vous entendez vraiment et votre
  * volume. Pour le MJ, trois espaces séparés, chacun avec son lecteur, ses sons et son
  * « Ajouter » : Musique (morceaux et playlists), Ambiance, Effets (table personnalisable).
- * Les joueurs voient ce qui joue et règlent leur volume : la bibliothèque du MJ reste privée.
+ * Réservé au MJ : les joueurs n'ont que leur volume (panneau « Volume »).
  */
 import { AlertTriangle, AudioLines, ListMusic, Music, Wind } from 'lucide-react';
 import { useState } from 'react';
@@ -14,7 +14,7 @@ import { useAudioLibrary, useChannel, useSoundboard, useSoundCues } from '@/lib/
 import { AddSoundDialog, type SoundTarget } from './add-sound-dialog';
 import { Deck } from './deck';
 import { LiveNow } from './live-now';
-import { MixerButton, MixerPanel } from './mixer-panel';
+import { MixerButton } from './mixer-panel';
 import { Segmented } from './parts';
 import { PlaylistsTab } from './playlists-tab';
 import { SectionList } from './section-list';
@@ -118,37 +118,17 @@ function GmSound({ campaignId, systemId }: { campaignId: string; systemId: strin
   );
 }
 
-export function SoundPanel({
-  campaignId,
-  systemId,
-  gm,
-}: {
-  campaignId: string;
-  systemId: string;
-  gm: boolean;
-}) {
+/** Panneau « Son » du MJ (les autres ont le panneau « Volume », leur mixeur seul). */
+export function SoundPanel({ campaignId, systemId }: { campaignId: string; systemId: string }) {
   return (
     <div className="space-y-4 px-4 py-4 sm:px-6">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <LiveNow />
         </div>
-        {gm && <MixerButton />}
+        <MixerButton />
       </div>
-      {gm ? (
-        <GmSound campaignId={campaignId} systemId={systemId} />
-      ) : (
-        <>
-          <div className="space-y-2">
-            <Deck campaignId={campaignId} channel="music" gm={false} />
-            <Deck campaignId={campaignId} channel="ambience" gm={false} />
-            <p className="text-xs text-muted-foreground">
-              Le MJ choisit la musique et les effets ; vous réglez ce que vous entendez.
-            </p>
-          </div>
-          <MixerPanel />
-        </>
-      )}
+      <GmSound campaignId={campaignId} systemId={systemId} />
     </div>
   );
 }
