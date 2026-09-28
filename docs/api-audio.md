@@ -55,6 +55,15 @@ Le catalogue par défaut (89 entrées) est servi par `assets.yner.fr` (CORS `*`,
 
 MJ seul. Pistes : sons vivants de la campagne, sans doublon (422 `asset_not_found`). Une playlist modifiée pendant sa lecture recalcule la file du canal autour de la piste courante (cause `playlist_updated`).
 
+## Table d'effets
+
+| Méthode | Route                                | Corps → réponse                                 |
+| ------- | ------------------------------------ | ----------------------------------------------- |
+| GET     | `/v1/audio/campaigns/:id/soundboard` | `Soundboard` `{ assetIds, version }`            |
+| PUT     | `/v1/audio/campaigns/:id/soundboard` | `{ assetIds (ordre), version? }` → `Soundboard` |
+
+MJ seul. Les sons que le MJ veut sous la main, **quels que soient leur type et leur provenance** (fichier, YouTube, catalogue), 60 au plus, sans doublon (400), sons vivants de la campagne (422 `asset_not_found`) ; `version` optionnelle (409 `version_conflict`). Sans ligne : vide, version 0. Un son supprimé de la bibliothèque disparaît de la lecture sans réécriture. Événement `audio.soundboard_updated` (`gm_only`, `changes` sur `assetIds`). Un clic sur une case joue le son comme un effet (`POST …/cues`).
+
 ## Canaux (musique, ambiance)
 
 | Méthode | Route                                                | Corps → réponse                                                                                                                                                          | Droits  |
