@@ -20,7 +20,7 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 export type TableRole = 'gm' | 'player' | 'spectator';
 
 /** Largeur d'un panneau latéral sur grand écran (plein écran sur mobile). */
-export type PanelWidth = 'compact' | 'narrow' | 'medium' | 'wide' | 'full';
+export type PanelWidth = 'compact' | 'fit' | 'narrow' | 'medium' | 'wide' | 'full';
 
 /**
  * `side` : ancré à gauche, contre le rail, la carte reste utilisable à côté.
@@ -76,7 +76,7 @@ export const panelRegistry = [
     description: 'Lancer les dés et suivre les jets de la table',
     icon: Dices,
     shortcut: { code: 'KeyD', label: 'D' },
-    width: 'compact',
+    width: 'fit',
     mode: 'floating',
     roles: ALL_ROLES,
     activity: ['dice.rolled'],

@@ -15,6 +15,8 @@ import { usePanelStore } from './store';
 /** Largeur sur grand écran ; sur mobile, tout panneau occupe l'écran au-dessus du dock. */
 const WIDTH: Record<PanelWidth, string> = {
   compact: 'lg:w-[min(34rem,calc(100vw-7rem))]',
+  /** À la largeur du contenu (Dés : plus large quand l'encadré des bonus s'y ajoute). */
+  fit: 'lg:w-auto lg:max-w-[calc(100vw-7rem)]',
   narrow: 'lg:w-[26rem]',
   medium: 'lg:w-[min(40rem,calc(100vw-6rem))]',
   wide: 'lg:w-[min(60rem,calc(100vw-6rem))]',

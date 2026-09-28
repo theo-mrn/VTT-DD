@@ -8,12 +8,13 @@
  * dégâts, avantage…) restent un rappel. Rien n'est propre à un jeu : tout vient du moteur.
  */
 import { listerEffets, type Fiche } from '@vtt/rules';
-import { Check, ChevronDown, Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { clesJetsVises } from '@/components/fiche/blocks/effects/condition-text';
 import { libelleEffet, precisionEffet } from '@/components/fiche/blocks/effects/model';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { FOCUS, TACTILE } from './tactile';
+import { FOCUS } from './tactile';
 
 export interface BonusJet {
   cle: string;
@@ -75,29 +76,28 @@ export function BonusJetListe({
   bonus,
   choisis,
   onBasculer,
+  className,
 }: {
   bonus: BonusJet[];
   choisis: ReadonlySet<string>;
   onBasculer: (cle: string) => void;
+  className?: string;
 }) {
   const concernes = useMemo(() => bonus.filter((b) => b.concerne).length, [bonus]);
   if (!bonus.length) return null;
   return (
-    <section
-      aria-labelledby="bonus-jet-titre"
-      className="rounded-2xl border border-border bg-card shadow-surface"
-    >
-      <div className="flex items-baseline gap-2 px-3 pb-1 pt-2">
+    <aside aria-labelledby="bonus-jet-titre" className={cn('flex min-h-0 flex-col', className)}>
+      <div className="shrink-0 px-1.5 pb-1.5 pt-1">
         <h2 id="bonus-jet-titre" className="text-xs font-medium text-muted-foreground">
           Bonus de jet
         </h2>
-        <span className="text-[11px] text-subtle">
+        <p className="text-[11px] text-subtle">
           {concernes > 0
-            ? `${concernes} pour cette formule`
-            : 'selon la situation, à ajouter vous-même'}
-        </span>
+            ? `${concernes} pour cette formule · activez pour ajouter`
+            : 'Selon la situation · activez pour ajouter'}
+        </p>
       </div>
-      <ul className="max-h-80 divide-y divide-border overflow-y-auto px-1.5 pb-1.5 [scrollbar-width:thin]">
+      <ul className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
         {bonus.map((b) => (
           <LigneBonus
             key={b.cle}
@@ -107,13 +107,14 @@ export function BonusJetListe({
           />
         ))}
       </ul>
-    </section>
+    </aside>
   );
 }
 
-/** Au-delà, la règle se replie sur trois lignes et se déplie à la demande. */
-const REGLE_LONGUE = 180;
-
+/**
+ * Une ligne compacte : un interrupteur ajoute le bonus au prochain jet ; la règle complète de
+ * la source est dans l'infobulle du texte.
+ */
 function LigneBonus({
   b,
   coche,
@@ -123,90 +124,53 @@ function LigneBonus({
   coche: boolean;
   onBasculer: () => void;
 }) {
-  const [deplie, setDeplie] = useState(false);
-  const longue = (b.description?.length ?? 0) > REGLE_LONGUE;
-  const entete = (
-    <>
-      <span
-        aria-hidden
-        className={cn(
-          'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
-          b.terme === null
-            ? 'border-dashed border-border-strong'
-            : coche
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border-strong text-subtle',
-        )}
-      >
-        {b.terme !== null &&
-          (coche ? <Check className="size-3.5" /> : <Plus className="size-3.5" />)}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-[13px]">
-        <span
-          className={cn('font-medium', b.concerne ? 'text-foreground' : 'text-muted-foreground')}
-        >
-          {b.libelle}
-        </span>
-        <span className="text-xs text-subtle"> · {b.source}</span>
-      </span>
-      {b.concerne && (
-        <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-          cette formule
-        </span>
-      )}
-      {b.terme === null && <span className="shrink-0 text-[10px] text-subtle">à la main</span>}
-    </>
-  );
   return (
-    <li className="py-1">
-      {b.terme !== null ? (
-        <button
-          type="button"
-          aria-pressed={coche}
-          onClick={onBasculer}
-          className={cn(
-            'flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-surface-2',
-            coche && 'bg-primary/[0.06]',
-            FOCUS,
-            TACTILE,
-          )}
-        >
-          {entete}
-        </button>
-      ) : (
-        <div className="flex items-center gap-2 px-1.5 py-1">{entete}</div>
-      )}
-      {(b.description || b.precision) && (
-        <div className="space-y-0.5 pl-9 pr-1.5">
-          {b.description && (
-            <p
-              className={cn(
-                'whitespace-pre-line text-xs leading-relaxed text-muted-foreground',
-                longue && !deplie && 'line-clamp-3',
+    <li className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} className={cn('min-w-0 flex-1 cursor-help rounded', FOCUS)}>
+            <span className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'min-w-0 truncate text-[13px] font-medium',
+                  b.concerne || coche ? 'text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                {b.libelle}
+              </span>
+              {b.concerne && (
+                <span
+                  aria-label="concerne cette formule"
+                  className="size-1.5 shrink-0 rounded-full bg-primary"
+                />
               )}
-            >
-              {b.description}
-            </p>
-          )}
-          {longue && (
-            <button
-              type="button"
-              aria-expanded={deplie}
-              onClick={() => setDeplie((d) => !d)}
-              className={cn(
-                'flex items-center gap-1 rounded text-[11px] text-subtle hover:text-foreground',
-                FOCUS,
-              )}
-            >
-              <ChevronDown
-                className={cn('size-3 transition-transform', deplie && 'rotate-180')}
-                aria-hidden
-              />
-              {deplie ? 'Réduire' : 'Toute la règle'}
-            </button>
-          )}
-          {b.precision && <p className="text-[11px] text-subtle">{b.precision}</p>}
-        </div>
+            </span>
+            <span className="block truncate text-[11px] text-subtle">
+              {b.source}
+              {b.precision && ` · ${b.precision}`}
+              {b.terme === null && ' · à la main'}
+            </span>
+          </span>
+        </TooltipTrigger>
+        {(b.description || b.precision) && (
+          <TooltipContent side="left" className="max-w-sm space-y-1.5 py-2">
+            <p className="font-medium">{b.source}</p>
+            {b.description && (
+              <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
+                {b.description}
+              </p>
+            )}
+            {b.precision && <p className="text-subtle">{b.precision}</p>}
+          </TooltipContent>
+        )}
+      </Tooltip>
+      {b.terme !== null && (
+        <Switch
+          className="scale-90"
+          checked={coche}
+          onCheckedChange={onBasculer}
+          aria-label={`${coche ? 'Retirer' : 'Ajouter'} ${b.libelle} (${b.source}) au prochain jet`}
+        />
       )}
     </li>
   );

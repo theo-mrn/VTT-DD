@@ -17,6 +17,7 @@ import { prepareDice3D } from '@/lib/dice-throw';
 import { useJets, useLancer, useSynchroJets, verifierFormule, type Jet } from '@/lib/jets';
 import { usePersonnages, type Personnage } from '@/lib/personnages';
 import { usePreferenceLocale } from '@/lib/preference-locale';
+import { cn } from '@/lib/utils';
 
 const PLATEAU_INITIAL: EtatPlateau = {
   formule: '1d20',
@@ -115,6 +116,7 @@ export function TableDes({
 
   // Bonus de jet du personnage (conditionnels) : cochés, ils s'ajoutent au prochain jet
   const bonus = useMemo(() => bonusDeJet(fiche.fiche, etat.formule), [fiche.fiche, etat.formule]);
+  const avecBonus = bonus.length > 0;
   const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
   const basculerBonus = (cle: string) =>
     setChoisis((c) => {
@@ -242,7 +244,15 @@ export function TableDes({
 
   const table = (
     <div>
-      <div className="mx-auto grid w-full max-w-[34rem] gap-3">
+      {/* Bonus de jet à droite du lanceur (sous lui sur mobile), sur toute la hauteur */}
+      <div
+        className={cn(
+          'mx-auto grid w-full gap-3',
+          // Colonnes fixes sur grand écran : le panneau Dés prend la largeur de son contenu
+          'max-w-[34rem] lg:max-w-none',
+          avecBonus ? 'lg:grid-cols-[32rem_18rem]' : 'lg:grid-cols-[32rem]',
+        )}
+      >
         <div ref={refResultat} className="min-w-0 scroll-mt-20">
           <Lanceur
             ref={refFormule}
@@ -279,7 +289,14 @@ export function TableDes({
             onRelancer={() => void relancer()}
           />
         </div>
-        <BonusJetListe bonus={bonus} choisis={choisis} onBasculer={basculerBonus} />
+        {avecBonus && (
+          <BonusJetListe
+            bonus={bonus}
+            choisis={choisis}
+            onBasculer={basculerBonus}
+            className="max-h-72 lg:sticky lg:top-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-9rem)] lg:self-start"
+          />
+        )}
         {journal}
       </div>
     </div>
@@ -295,7 +312,7 @@ export function TableDes({
 
   return (
     <MotionConfig reducedMotion="user">
-      <Page className="max-w-[38rem]">
+      <Page className={avecBonus ? 'max-w-[54rem]' : 'max-w-[38rem]'}>
         <EnTetePage className="mb-4 sm:mb-5" surtitre="Table de dés" titre="Lancer les dés" />
         {table}
       </Page>
