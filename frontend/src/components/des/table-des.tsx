@@ -114,16 +114,17 @@ export function TableDes({
     [etat.formule, fiche.fiche],
   );
 
-  // Bonus de jet du personnage (conditionnels) : cochés, ils s'ajoutent au prochain jet
+  // Bonus de jet du personnage (conditionnels) : allumés, ils s'ajoutent à chaque jet jusqu'à
+  // ce qu'on les éteigne ; gardés par personnage dans ce navigateur (panneau fermé, rechargement)
   const bonus = useMemo(() => bonusDeJet(fiche.fiche, etat.formule), [fiche.fiche, etat.formule]);
   const avecBonus = bonus.length > 0;
-  const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
+  const [allumes, setAllumes] = usePreferenceLocale<string[]>(
+    `des:bonus:${personnage?.id ?? 'aucun'}`,
+    [],
+  );
+  const choisis = useMemo(() => new Set(allumes), [allumes]);
   const basculerBonus = (cle: string) =>
-    setChoisis((c) => {
-      const n = new Set(c);
-      if (!n.delete(cle)) n.add(cle);
-      return n;
-    });
+    setAllumes(choisis.has(cle) ? allumes.filter((c) => c !== cle) : [...allumes, cle]);
   function lancerPlateau() {
     const retenus = bonus.filter((b) => b.terme !== null && choisis.has(b.cle));
     if (!retenus.length) return void lancerFormule(etat.formule, etat.libelle);
@@ -132,7 +133,6 @@ export function TableDes({
     const libelle = etat.libelle.trim()
       ? `${etat.libelle.trim()} (+ ${sources})`
       : `Avec ${sources}`;
-    setChoisis(new Set());
     void lancerFormule(avecBonusChoisis(etat.formule, bonus, choisis), libelle);
   }
 

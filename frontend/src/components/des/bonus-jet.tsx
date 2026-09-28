@@ -93,8 +93,8 @@ export function BonusJetListe({
         </h2>
         <p className="text-[11px] text-subtle">
           {concernes > 0
-            ? `${concernes} pour cette formule · activez pour ajouter`
-            : 'Selon la situation · activez pour ajouter'}
+            ? `${concernes} pour cette formule · allumés, ils s’ajoutent à chaque jet`
+            : 'Selon la situation · allumés, ils s’ajoutent à chaque jet'}
         </p>
       </div>
       <ul className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
