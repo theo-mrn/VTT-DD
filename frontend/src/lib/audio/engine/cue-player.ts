@@ -30,11 +30,16 @@ export class CuePlayer {
     return () => void this.listeners.delete(l);
   }
   private emit() {
+    this.snapshot = null;
     for (const l of this.listeners) l();
   }
 
+  /** Dernière liste calculée : la même référence tant que rien ne change (useSyncExternalStore). */
+  private snapshot: { cueId: string; assetId: string }[] | null = null;
+
   get list(): { cueId: string; assetId: string }[] {
-    return [...this.active].map(([cueId, c]) => ({ cueId, assetId: c.assetId }));
+    this.snapshot ??= [...this.active].map(([cueId, c]) => ({ cueId, assetId: c.assetId }));
+    return this.snapshot;
   }
 
   /** Précharge un effet court (bibliothèque du MJ, sons d'armes). */
