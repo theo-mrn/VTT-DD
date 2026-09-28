@@ -62,18 +62,22 @@ describe.skipIf(!TEST_DATABASE_URL)('inventaire : dons, objets cachés, dossiers
   const de = (p: Personnage, entree: string) =>
     p.etat.possessions.filter((x) => x.entree === entree);
 
-  /** Deux héros engagés dans la même campagne ; le MJ écrit sur les deux. */
+  /** Deux héros engagés dans la même campagne, incarnés par leurs propriétaires ; le MJ écrit sur les deux. */
   async function table() {
     const thorin = (await o.nainGuerrier(alice, 'Thorin')) as Personnage;
     const grok = (await o.nainGuerrier(bob, 'Grok')) as Personnage;
     const membres = [alice, bob, mj];
     for (const p of [thorin, grok])
       for (const u of membres) {
-        const proprietaire = u.id === p.ownerId;
+        const incarne = u.id === p.ownerId;
         salles.accorder(p.id, u.id, {
           lecture: true,
-          ecriture: proprietaire || u === mj,
+          ecriture: incarne || u === mj,
+          engage: true,
+          incarne,
+          autreIncarnateur: !incarne,
           campagnes: [CAMPAGNE],
+          incarnateurs: { [CAMPAGNE]: p.ownerId },
           ...(u === mj ? { campagnesMj: [CAMPAGNE] } : {}),
         });
       }
@@ -123,7 +127,7 @@ describe.skipIf(!TEST_DATABASE_URL)('inventaire : dons, objets cachés, dossiers
     expect(de(vide, 'petite-potion-de-vie')).toEqual([]);
     expect(de(await lire(bob, grok), 'petite-potion-de-vie')).toMatchObject([{ quantite: 5 }]);
 
-    // Un événement par personnage ; celui du receveur dans la campagne, pour son propriétaire
+    // Un événement par personnage ; celui du receveur dans la campagne, pour qui l'incarne
     const recus = await evenements(grok.id);
     const recue = recus.filter((e) => e.payload.operation === 'possession.recue');
     expect(recue).toHaveLength(2);

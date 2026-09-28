@@ -1,12 +1,20 @@
 /**
- * Droits d'un utilisateur sur un personnage qu'il ne possède pas, décidés par
- * les campagnes du service campaign :
+ * Droits d'un utilisateur sur un personnage, décidés par les campagnes du
+ * service campaign. Un seul personnage actif, pas de possession :
  *  - lecture : l'utilisateur est membre d'une campagne où le personnage est engagé ;
- *  - écriture : il y est MJ.
+ *  - écriture : il y est MJ, ou il y incarne le personnage (`played_by`).
+ * Le propriétaire d'un personnage le lit toujours ; il l'écrit hors campagne
+ * (jamais engagé) et pendant la création (voir `acces` dans le dépôt des
+ * personnages). La réponse dit donc aussi si le personnage est engagé quelque
+ * part (`engage`) et si un autre membre l'incarne (`autreIncarnateur`).
  *
  * character interroge campaign (GET /internal/characters/:id/campaigns-of?userId=)
- * et garde la réponse quelques secondes en mémoire. Une panne de campaign
- * n'ouvre aucun droit : seul le propriétaire garde l'accès.
+ * et garde la réponse quelques secondes en mémoire (`DROITS_CACHE_MS`, 5 s par
+ * défaut). character ne lit pas le bus : un changement d'incarnation
+ * (`campaign.character_played`) compte au plus tard à l'expiration ; la lecture
+ * d'une fiche (`frais`) relit campaign pour renvoyer des `permissions` à jour.
+ * Une panne de campaign n'ouvre aucun droit (`indisponible`) : seul le
+ * propriétaire garde la lecture, ses écritures échouent (503).
  *
  * Rôle d'un utilisateur dans une campagne (modèles de PNJ et d'objets, réservés
  * au MJ) : GET /internal/campaigns/:id/rights?userId=, même cache. Une panne de
@@ -22,26 +30,41 @@ import { z } from 'zod';
 import { EN_TETE_SECRET_INTERNE } from '../interne/secret.js';
 
 export interface Droits {
+  /** Membre d'une campagne où le personnage est engagé. */
   lecture: boolean;
+  /** MJ d'une de ces campagnes, ou il y incarne le personnage. */
   ecriture: boolean;
+  /** Engagé dans au moins une campagne, dont l'utilisateur soit membre ou non. */
+  engage?: boolean;
+  /** L'utilisateur incarne le personnage dans une de ces campagnes. */
+  incarne?: boolean;
+  /** Un autre membre incarne le personnage, dans n'importe quelle campagne. */
+  autreIncarnateur?: boolean;
   /**
    * Campagnes où l'utilisateur est MJ et le personnage engagé : ses écritures y
    * sont annoncées en direct (événement de la campagne, voir `enregistrer`).
    */
   campagnesMj?: string[];
   /**
-   * Toutes les campagnes où l'utilisateur est membre et le personnage engagé (le
-   * propriétaire y joue) : la mise en page de la fiche y est annoncée à la table.
+   * Toutes les campagnes où l'utilisateur est membre et le personnage engagé :
+   * la mise en page de la fiche y est annoncée à la table.
    */
   campagnes?: string[];
+  /** Membre qui incarne le personnage, par campagne de `campagnes` (absent : personne). */
+  incarnateurs?: Record<string, string>;
+  /** campaign n'a pas répondu : aucun droit n'est connu. */
+  indisponible?: boolean;
 }
 
 /** Rôle dans une campagne (contrat de campaign). */
 export type RoleCampagne = 'gm' | 'player' | 'spectator';
 
 export interface DroitsCampagnes {
-  /** Droits de `userId` sur le personnage `characterId`, qu'il ne possède pas. */
-  de(characterId: string, userId: string): Promise<Droits>;
+  /**
+   * Droits de `userId` sur le personnage `characterId` (voir `Droits`). `frais` :
+   * relit campaign sans passer par le cache (la réponse y est gardée).
+   */
+  de(characterId: string, userId: string, o?: { frais?: boolean }): Promise<Droits>;
   /**
    * Rôle de `userId` dans `campaignId` ; `null` s'il n'en est pas membre (ou
    * si elle n'existe pas). Lève une erreur 503 si campaign ne répond pas.
@@ -55,6 +78,13 @@ export interface DroitsCampagnes {
 }
 
 export const AUCUN_DROIT: Droits = Object.freeze({ lecture: false, ecriture: false });
+
+/** Réponse d'une panne de campaign : aucun droit, et on le sait. */
+const INDISPONIBLE: Droits = Object.freeze({
+  lecture: false,
+  ecriture: false,
+  indisponible: true,
+});
 
 export function campaignIndisponible(): HttpError {
   return new HttpError(
@@ -74,11 +104,22 @@ export const sansCampagnes: DroitsCampagnes = {
   options: async () => ({}),
 };
 
-/** Réponse de campaign (contrat en anglais : read, write, campaigns). */
+/** Réponse de campaign (contrat en anglais : read, write, engaged…). */
 const Reponse = z.object({
   read: z.boolean(),
   write: z.boolean(),
-  campaigns: z.array(z.object({ campaignId: z.string(), role: z.string() })).default([]),
+  engaged: z.boolean(),
+  plays: z.boolean(),
+  playedByOther: z.boolean(),
+  campaigns: z
+    .array(
+      z.object({
+        campaignId: z.string(),
+        role: z.string(),
+        playedBy: z.string().nullable().default(null),
+      }),
+    )
+    .default([]),
 });
 /** Réponse de GET /internal/campaigns/:id/rights. */
 const ReponseRole = z.object({
@@ -171,10 +212,10 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
       return role;
     },
 
-    async de(characterId, userId) {
+    async de(characterId, userId, { frais = false } = {}) {
       const cle = `${characterId}:${userId}`;
       const entree = cache.get(cle);
-      if (entree && entree.jusqua > maintenant()) return entree.droits;
+      if (!frais && entree && entree.jusqua > maintenant()) return entree.droits;
       cache.delete(cle);
 
       let droits: Droits;
@@ -193,13 +234,19 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
         droits = {
           lecture: r.read,
           ecriture: r.write,
+          engage: r.engaged,
+          incarne: r.plays,
+          autreIncarnateur: r.playedByOther,
           campagnesMj: r.campaigns.filter((c) => c.role === 'gm').map((c) => c.campaignId),
           campagnes: r.campaigns.map((c) => c.campaignId),
+          incarnateurs: Object.fromEntries(
+            r.campaigns.flatMap((c) => (c.playedBy ? [[c.campaignId, c.playedBy]] : [])),
+          ),
         };
       } catch (erreur) {
         // Pas de mise en cache d'une panne : la prochaine requête réessaie
         o.signaler?.(erreur);
-        return AUCUN_DROIT;
+        return INDISPONIBLE;
       }
 
       if (o.cacheMs > 0) {

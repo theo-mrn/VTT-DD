@@ -237,7 +237,12 @@ describe.skipIf(!TEST_DATABASE_URL)('exemplaires, quantités et saisie en jeu', 
     expect(p.etat.valeurs.xpGagne).toBe(25);
 
     // Le propriétaire qui mène lui-même une salle où son personnage est engagé est MJ
-    salles.accorder(p.id, proprietaire.id, { lecture: true, ecriture: true });
+    salles.accorder(p.id, proprietaire.id, {
+      lecture: true,
+      ecriture: true,
+      engage: true,
+      campagnesMj: [crypto.randomUUID()],
+    });
     p = await o.ok(proprietaire, 'PUT', url(p, '/valeurs'), {
       version: p.version,
       valeurs: { xpGagne: 30 },

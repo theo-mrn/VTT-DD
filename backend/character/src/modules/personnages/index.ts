@@ -2,10 +2,13 @@
  * Module « personnages » : CRUD du propriétaire, saisie des valeurs, création
  * par étapes, achats, possessions, repos et actions (contrat :
  * docs/api-character.md). Toutes les routes demandent un jeton d'accès.
- * Le propriétaire a tous les droits ; les membres d'une salle où le
- * personnage est engagé le lisent, son MJ le modifie (voir `autoriser`).
+ * Un seul personnage actif, pas de possession : engagé dans une campagne, le
+ * personnage s'écrit par le joueur qui l'incarne et par le MJ, les autres
+ * membres le lisent ; hors campagne et pendant la création, son propriétaire
+ * a la main ; lui seul le supprime (voir `acces` et `autoriser`).
  */
 import { HttpError } from '@vtt/platform';
+import { campaignIndisponible } from '../../droits/campaign.js';
 import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -39,6 +42,7 @@ import {
 import { CharacterSummary } from '../../regles/summary.js';
 import { jouerAction } from './actions.js';
 import {
+  accesA,
   autoriser,
   changerMiseEnPage,
   creer,
@@ -81,7 +85,7 @@ const Personnage = z.object({
   updatedAt: z.string(),
 });
 
-/** Tous les droits : le propriétaire, ou le MJ d'une campagne où le personnage est engagé. */
+/** Tous les droits : qui peut écrire sur le personnage (voir `acces`). */
 const TOUS_DROITS: Permissions = { write: true, layout: true };
 
 /** Présentation libre modifiable : seuls les champs envoyés changent. */
@@ -115,19 +119,23 @@ export const register: Module = async (app, deps) => {
     versApi(catalogue, ligne, { ...o, options: await optionsDe(ligne.id) });
   const date = () => deps.maintenant().toISOString();
 
-  /** Personnage lisible par l'appelant (propriétaire, membre de sa salle). */
+  /** Personnage lisible par l'appelant (propriétaire, membre d'une campagne où il est engagé). */
   const lecture = async (req: FastifyRequest, id: string) => {
     await autoriser(db, deps.droits, moi(req), [{ id, mode: 'lecture' }]);
     return lire(db, id);
   };
   /**
-   * Campagne où annoncer l'écriture d'un MJ (il y mène la partie) : le
-   * propriétaire la voit en direct. Réponse de campaign déjà en cache (autoriser).
+   * Campagne où annoncer l'écriture d'un MJ (il y mène la partie), et le joueur qui y
+   * incarne le personnage : il la voit en direct. Réponse de campaign déjà en cache.
    */
-  const salleDuMj = async (req: FastifyRequest, id: string, role: string) =>
-    role === 'gm' ? ((await deps.droits.de(id, moi(req))).campagnesMj?.[0] ?? null) : null;
+  const salleDuMj = async (req: FastifyRequest, id: string, role: string) => {
+    if (role !== 'gm') return { roomId: null, joueur: null };
+    const dr = await deps.droits.de(id, moi(req));
+    const roomId = dr.campagnesMj?.[0] ?? null;
+    return { roomId, joueur: roomId ? (dr.incarnateurs?.[roomId] ?? null) : null };
+  };
 
-  /** Modification par le propriétaire ou le MJ d'une salle où le personnage est engagé. */
+  /** Modification par qui a la main sur le personnage (voir `acces`). */
   const modifierPour = async (
     req: FastifyRequest,
     id: string,
@@ -135,12 +143,12 @@ export const register: Module = async (app, deps) => {
     calcul: Parameters<typeof modifier>[6],
   ) => {
     const role = await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-    const roomId = await salleDuMj(req, id, role);
+    const salle = await salleDuMj(req, id, role);
     return modifier(
       db,
       contexte(req),
       catalogue,
-      { userId: moi(req), role, roomId },
+      { userId: moi(req), role, ...salle },
       id,
       version,
       calcul,
@@ -207,16 +215,16 @@ export const register: Module = async (app, deps) => {
     '/v1/characters/:id',
     { ...auth, schema: { params: Params, response: { 200: Personnage } } },
     async (req) => {
-      const ligne = await lecture(req, req.params.id);
-      // Le front se fie à ces droits : il n'a pas à les recalculer (réponse de campaign en cache)
-      const permissions: Permissions =
-        ligne.ownerId === moi(req)
-          ? TOUS_DROITS
-          : await deps.droits.de(ligne.id, moi(req)).then((d) => ({
-              write: d.ecriture,
-              layout: d.ecriture,
-            }));
-      // Un joueur qui ne peut pas écrire ne voit pas les objets cachés (propriétaire, MJ : si)
+      const ligne = await lire(db, req.params.id);
+      // Le front se fie à ces droits : il n'a pas à les recalculer. Relus sans cache :
+      // un changement d'incarnation se voit dès la lecture suivante de la fiche
+      const a = await accesA(deps.droits, moi(req), ligne, { frais: true });
+      if (!a.lecture) {
+        if (a.droits?.indisponible) throw campaignIndisponible();
+        throw HttpError.notFound('Personnage introuvable');
+      }
+      const permissions: Permissions = { write: a.ecriture, layout: a.ecriture };
+      // Qui ne peut pas écrire ne voit pas les objets cachés (joueur qui l'incarne, MJ : si)
       return { ...(await api(ligne, { publique: !permissions.write })), permissions };
     },
   );
@@ -308,21 +316,21 @@ export const register: Module = async (app, deps) => {
       const { id } = req.params;
       const { version, valeurs } = req.body;
       const role = await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
-      // Le propriétaire est MJ s'il mène une salle où le personnage est engagé :
-      // campaign n'est interrogé que si un attribut réservé au MJ est saisi
+      // Le joueur qui a la main est aussi MJ s'il mène une salle où le personnage est
+      // engagé : campaign n'est interrogé que si un attribut réservé au MJ est saisi
       let mj = role === 'gm';
       if (!mj) {
         const l = await lire(db, id);
         if (saisieReserveeMj(systemeDe(catalogue, l), l.type, valeurs))
-          mj = (await deps.droits.de(id, moi(req))).ecriture;
+          mj = ((await deps.droits.de(id, moi(req))).campagnesMj ?? []).length > 0;
       }
       const qui = { proprietaire: role === 'user', mj };
-      const roomId = await salleDuMj(req, id, role);
+      const salle = await salleDuMj(req, id, role);
       const ligne = await modifier(
         db,
         contexte(req),
         catalogue,
-        { userId: moi(req), role, roomId },
+        { userId: moi(req), role, ...salle },
         id,
         version,
         (l, systeme) => ({
@@ -441,8 +449,7 @@ export const register: Module = async (app, deps) => {
       const systeme = systemeDe(catalogue, ligne, await optionsDe(ligne.id));
       const etat = verifierEtat(systeme, ligne.etat).etat;
       // Lecteur sans droit d'écriture : sans les objets cachés
-      const ecrit =
-        ligne.ownerId === moi(req) || (await deps.droits.de(ligne.id, moi(req))).ecriture;
+      const ecrit = (await accesA(deps.droits, moi(req), ligne)).ecriture;
       return achatsPossibles(verifierEtat(systeme, ecrit ? etat : vuePublique(etat)).fiche);
     },
   );
@@ -582,7 +589,7 @@ export const register: Module = async (app, deps) => {
       const { version, to, ...don } = req.body;
       if (to === id)
         throw HttpError.badRequest('Un personnage ne se donne pas un objet', 'don_a_soi_meme');
-      // Le donneur : son propriétaire ou le MJ ; le receveur doit être lisible par l'appelant
+      // Le donneur : qui a la main sur lui ; le receveur doit être lisible par l'appelant
       const role = await autoriser(db, deps.droits, moi(req), [
         { id, mode: 'ecriture' },
         { id: to, mode: 'lecture' },
@@ -600,13 +607,13 @@ export const register: Module = async (app, deps) => {
           'hors_campagne',
           'Le receveur doit être engagé dans la même campagne que le donneur',
         );
-      const roomId = await salleDuMj(req, id, role);
+      const salle = await salleDuMj(req, id, role);
       const ligne = await modifierPaire(
         db,
         contexte(req),
         catalogue,
-        { userId: moi(req), role, roomId },
-        commune,
+        { userId: moi(req), role, ...salle },
+        { roomId: commune, joueur: vers.incarnateurs?.[commune] ?? null },
         [id, to],
         version,
         (donneur, receveur, systeme) => {

@@ -85,13 +85,29 @@ Corps des étapes de création, selon leur type :
 
 Chaque calcul d'autorité (fiche renvoyée, étapes de création, achats, actions, repos, fiche lue par dice) se fait avec les règles optionnelles de la campagne du personnage (encombrement…, voir [regles-optionnelles.md](regles-optionnelles.md)) : character les lit sur la route interne de campaign `GET /internal/characters/:id/rules` (la première campagne où il est engagé), avec le client et la durée de cache des droits (`DROITS_CACHE_MS`, 5 s par défaut ; character ne lit pas le bus). Hors campagne, ou si campaign ne répond pas, les défauts du système. Les listes (`GET /v1/characters`) résument avec les défauts. L'état enregistré ne porte jamais les options : éteindre une règle ne supprime aucune valeur saisie.
 
+### Droits
+
+Un seul personnage actif, pas de notion de possession. Qui peut quoi sur un personnage :
+
+| Situation                                    | Écrire (valeurs, possessions, bonus, actions, jets avec ses variables, mise en page, identité) | Lire                          |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------- |
+| Jamais engagé dans une campagne              | son propriétaire (`ownerId`)                                                                   | son propriétaire              |
+| En création (`etat.creation`), engagé ou non | son propriétaire, plus les ayants droit ci-dessous s'il est engagé                             | son propriétaire, les membres |
+| Engagé dans une campagne                     | le membre qui l'incarne (`campaign_characters.played_by`) et le MJ de la campagne              | les membres, son propriétaire |
+
+Le propriétaire d'un personnage engagé qu'il n'incarne pas (et dont il n'est pas MJ) le **lit seulement** : **403** à l'écriture. Il le lit toujours, même hors de la table. Un étranger reçoit **404** (on ne révèle pas l'existence du personnage). Le rôle des événements suit : `user` pour qui a la main (joueur qui l'incarne, propriétaire hors campagne ou en création), `gm` pour le MJ qui n'incarne pas le personnage.
+
+**Suppression** (`DELETE /v1/characters/:id`) : le propriétaire seul (**403** pour les autres), et pas tant qu'un autre membre incarne le personnage dans une campagne : **409** `character_played` (le retirer d'abord de la campagne, ce que seul le MJ peut faire tant qu'un autre membre l'incarne, voir [api-campaign.md](api-campaign.md)). On ne supprime pas la fiche que quelqu'un joue.
+
+character lit ces droits sur la route interne de campaign `GET /internal/characters/:id/campaigns-of?userId=` (`read`, `write`, `engaged`, `plays`, `playedByOther`, `campaigns: [{ campaignId, role, playedBy }]`), gardée en cache `DROITS_CACHE_MS` (5 s par défaut). character ne lit pas le bus : après un changement d'incarnation (`campaign.character_played`), une écriture peut encore être jugée avec les anciens droits pendant au plus cette durée. `GET /v1/characters/:id` relit toujours campaign (sans cache) : les `permissions` renvoyées sont à jour. Le propriétaire en création n'interroge pas campaign. campaign injoignable : le propriétaire garde la lecture, toute écriture (et la suppression) qui dépend de campaign échoue en **503** `campaign_unavailable`.
+
 ### Droits de l'appelant (`permissions`)
 
-`GET /v1/characters/:id` renvoie `permissions: { write, layout }` : `write`, modifier le personnage (propriétaire, ou MJ d'une campagne où il est engagé) ; `layout`, changer la mise en page de sa fiche (mêmes personnes aujourd'hui). Le front s'y fie au lieu de recalculer les droits. Les autres écritures ne renvoient pas `permissions` (l'appelant a déjà le droit d'écrire) : le client garde celles de la dernière lecture.
+`GET /v1/characters/:id` renvoie `permissions: { write, layout }` : `write`, modifier le personnage (voir « Droits » : joueur qui l'incarne, MJ, propriétaire hors campagne ou en création) ; `layout`, changer la mise en page de sa fiche (mêmes personnes aujourd'hui). Le front s'y fie au lieu de recalculer les droits. Les autres écritures ne renvoient pas `permissions` (l'appelant a déjà le droit d'écrire) : le client garde celles de la dernière lecture.
 
 ### Mise en page de la fiche
 
-La fiche du front est une grille de blocs (12 colonnes sur grand écran) que le propriétaire ou le MJ réorganisent. La mise en page appartient au personnage (colonne `sheet_layout`) : toute la table voit la même fiche. `null` : disposition par défaut, déduite des widgets de la présentation du système.
+La fiche du front est une grille de blocs (12 colonnes sur grand écran) que le joueur qui a la main ou le MJ réorganisent. La mise en page appartient au personnage (colonne `sheet_layout`) : toute la table voit la même fiche. `null` : disposition par défaut, déduite des widgets de la présentation du système.
 
 ```ts
 SheetLayout = {
@@ -112,12 +128,12 @@ Un bloc est un widget de la présentation (`type`, `titre` → `title`, ses autr
 
 ### Saisie des valeurs
 
-`PUT /valeurs` accepte, pour le propriétaire comme pour le MJ d'une salle où le personnage est engagé :
+`PUT /valeurs` accepte, pour le joueur qui a la main (voir « Droits ») comme pour le MJ d'une salle où le personnage est engagé :
 
 - texte, choix, booléen et ressource, à tout moment ;
 - un attribut de base pendant la création ; ensuite, selon sa `saisie` dans le système :
-  - `jeu` (crédits) : propriétaire ou MJ ;
-  - `mj` (XP gagnée, niveau, jets de dés de vie) : MJ seul. Le propriétaire reçoit **403** `saisie_reservee_mj`, sauf s'il mène lui-même une salle où le personnage est engagé ;
+  - `jeu` (crédits) : joueur ou MJ ;
+  - `mj` (XP gagnée, niveau, jets de dés de vie) : MJ seul. Le joueur reçoit **403** `saisie_reservee_mj`, sauf s'il mène lui-même une salle où le personnage est engagé ;
   - `creation` (défaut : caractéristiques) : plus personne, **422** (l'attribut s'achète).
 
 Un attribut inconnu, calculé, une valeur hors bornes ou de mauvaise nature donnent **422** avec le détail de chaque erreur.
@@ -153,9 +169,9 @@ L'événement `character.updated` d'une possession porte la demande avec l'exemp
 
 `POST /possessions/give` donne l'exemplaire `exemplaire` (absent : celui sans identifiant) de `:id` au personnage `to`. `quantity` : unités données d'une sorte `quantites` ; absent, tout l'exemplaire.
 
-- **Droits** : écrire sur le donneur (propriétaire ou MJ), lire le receveur ; les deux doivent être engagés dans une même campagne où l'appelant siège (réponses `campaigns-of` de campaign). Sinon **403** (`hors_campagne` pour une campagne commune absente), **404** pour un receveur inconnu.
+- **Droits** : écrire sur le donneur (joueur qui l'incarne ou MJ, voir « Droits »), lire le receveur ; les deux doivent être engagés dans une même campagne où l'appelant siège (réponses `campaigns-of` de campaign). Sinon **403** (`hors_campagne` pour une campagne commune absente), **404** pour un receveur inconnu.
 - **Règles** (`donnerObjet`) : même système (**400** `systeme_different`), sorte possédable par le receveur, pas plus d'unités que possédées (**422** `quantite_insuffisante`), dernier exemplaire d'une entrée qui ouvre un arbre aux nœuds acquis refusé. Chez le receveur, les unités s'ajoutent à un exemplaire identique (même entrée, mêmes valeurs, effets et choix propres) ; sinon un nouvel exemplaire est créé avec les valeurs et effets propres de l'objet, non équipé (sorte `activable`), visible et hors dossier.
-- **Transaction** : les deux personnages sont verrouillés ensemble ; la `version` envoyée est celle du donneur (**409** si elle est périmée), les deux versions sont incrémentées. Deux événements `character.updated` : `possession.don` pour le donneur (visibilité habituelle de l'appelant), `possession.recue` pour le receveur, publié dans la campagne commune en `gm_only` avec `visibleToUsers: [propriétaire du receveur]`. Les deux portent `don: { entree, exemplaire?, quantity, from, to, received? }`.
+- **Transaction** : les deux personnages sont verrouillés ensemble ; la `version` envoyée est celle du donneur (**409** si elle est périmée), les deux versions sont incrémentées. Deux événements `character.updated` : `possession.don` pour le donneur (visibilité habituelle de l'appelant), `possession.recue` pour le receveur, publié dans la campagne commune en `gm_only` avec `visibleToUsers: [joueur qui incarne le receveur]` (vide si personne ne l'incarne). Les deux portent `don: { entree, exemplaire?, quantity, from, to, received? }`.
 
 #### Dossiers
 
@@ -163,7 +179,7 @@ L'événement `character.updated` d'une possession porte la demande avec l'exemp
 
 #### Objets cachés
 
-Un exemplaire `hidden: true` n'est visible que du propriétaire et des MJ (droit d'écriture). Pour tout autre lecteur, le service le retire de `GET /v1/characters/:id` (état **et** fiche, recalculée sans lui : ses effets disparaissent aussi) et de `GET /achats`. Le résumé (`summary`) ne nomme jamais une entrée dont tous les exemplaires sont cachés. Les événements `character.updated` ne sont jamais publics (propriétaire, ou MJ et propriétaire) : le temps réel ne le révèle pas.
+Un exemplaire `hidden: true` n'est visible que de qui peut écrire sur le personnage (joueur qui l'incarne, MJ, propriétaire hors campagne). Pour tout autre lecteur, le service le retire de `GET /v1/characters/:id` (état **et** fiche, recalculée sans lui : ses effets disparaissent aussi) et de `GET /achats`. Le résumé (`summary`) ne nomme jamais une entrée dont tous les exemplaires sont cachés. Les événements `character.updated` ne sont jamais publics (l'auteur, ou les MJ et le joueur qui incarne) : le temps réel ne le révèle pas.
 
 En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre.
 
@@ -182,6 +198,6 @@ Chaque écriture publie un événement : `character.created`, `character.updated
 
 `character.layout_changed` (`PUT /layout`) porte `{ version, reset, blocks }` (nouvelle version, retour à la disposition par défaut, nombre de blocs), pas la mise en page : le client relit le personnage. Il est publié, en `public`, dans chaque campagne où le personnage est engagé et où l'auteur siège (réponse `campaigns-of` de campaign) : toute la table voit la nouvelle fiche. Hors campagne, il reste celui de l'auteur (`owner`).
 
-Visibilité de `character.updated` : une écriture du propriétaire reste la sienne (`owner`, sans campagne). Une écriture du **MJ** (ou de campaign, pendant un combat) est publiée dans la campagne où il mène la partie (`roomId`), en `gm_only` avec `payload.visibleToUsers: [propriétaire]` : les MJ et le propriétaire la reçoivent en direct par le service realtime, pas les autres joueurs (le diff peut porter des valeurs réservées au MJ). La campagne vient de la réponse de campaign déjà lue pour les droits (`campaigns-of`, champ `campaigns`).
+Visibilité de `character.updated` : une écriture du joueur qui a la main reste la sienne (`owner`, sans campagne). Une écriture du **MJ** (ou de campaign, pendant un combat) est publiée dans la campagne où il mène la partie (`roomId`), en `gm_only` avec `payload.visibleToUsers` : le membre qui y incarne le personnage, et son propriétaire s'il est en création. Les MJ et ces joueurs la reçoivent en direct par le service realtime, pas les autres (le diff peut porter des valeurs réservées au MJ). La campagne et son incarnateur viennent de la réponse de campaign déjà lue pour les droits (`campaigns-of`, champ `campaigns`).
 
 `character.updated` porte l'opération (`operation`), ses détails, et le diff avant/après de l'état, du nom, de l'avatar et de la présentation (`details.concept`…) : `changes: [{ path, before, after }]` (ex. `{ "path": "etat.valeurs.PV", "before": 24, "after": 17 }`, possessions désignées par `entree#exemplaire`). Format et bornes : [bus.md](bus.md#diff-avantaprès-changes).

@@ -16,10 +16,13 @@ describe('droits décidés par campaign', () => {
     const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) =>
       reponse({
         read: true,
-        write: false,
+        write: true,
+        engaged: true,
+        plays: false,
+        playedByOther: true,
         campaigns: [
-          { campaignId: 'camp-1', role: 'player' },
-          { campaignId: 'camp-2', role: 'gm' },
+          { campaignId: 'camp-1', role: 'player', playedBy: 'user-2' },
+          { campaignId: 'camp-2', role: 'gm', playedBy: null },
         ],
       }),
     );
@@ -31,13 +34,17 @@ describe('droits décidés par campaign', () => {
       maintenant: () => maintenant,
     });
 
-    // Campagnes où il est MJ : ses écritures y sont annoncées en direct ; toutes ses
-    // campagnes : la mise en page de la fiche y est annoncée
+    // Campagnes où il est MJ : ses écritures y sont annoncées en direct, à qui incarne le
+    // personnage ; toutes ses campagnes : la mise en page de la fiche y est annoncée
     expect(await droits.de('perso-1', 'user-1')).toEqual({
       lecture: true,
-      ecriture: false,
+      ecriture: true,
+      engage: true,
+      incarne: false,
+      autreIncarnateur: true,
       campagnesMj: ['camp-2'],
       campagnes: ['camp-1', 'camp-2'],
+      incarnateurs: { 'camp-1': 'user-2' },
     });
     const [url, init] = fetch.mock.calls[0]!;
     expect(String(url)).toBe(
@@ -50,6 +57,11 @@ describe('droits décidés par campaign', () => {
     maintenant += 5_001;
     await droits.de('perso-1', 'user-1');
     expect(fetch).toHaveBeenCalledTimes(2);
+    // Lecture fraîche (permissions d'une fiche) : campaign relu, le cache rafraîchi
+    await droits.de('perso-1', 'user-1', { frais: true });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    await droits.de('perso-1', 'user-1');
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it('une panne de campaign n’ouvre aucun droit et n’est pas mise en cache', async () => {
@@ -58,7 +70,16 @@ describe('droits décidés par campaign', () => {
       .fn()
       .mockResolvedValueOnce(reponse({ title: 'Erreur' }, 503))
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-      .mockResolvedValueOnce(reponse({ read: true, write: true, campaigns: [] }));
+      .mockResolvedValueOnce(
+        reponse({
+          read: true,
+          write: true,
+          engaged: true,
+          plays: true,
+          playedByOther: false,
+          campaigns: [],
+        }),
+      );
     const droits = droitsCampaign({
       url: 'http://campaign.local',
       secret: SECRET,
@@ -66,13 +87,18 @@ describe('droits décidés par campaign', () => {
       fetch,
       signaler,
     });
-    expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
-    expect(await droits.de('p', 'u')).toEqual({ lecture: false, ecriture: false });
+    const panne = { lecture: false, ecriture: false, indisponible: true };
+    expect(await droits.de('p', 'u')).toEqual(panne);
+    expect(await droits.de('p', 'u')).toEqual(panne);
     expect(await droits.de('p', 'u')).toEqual({
       lecture: true,
       ecriture: true,
+      engage: true,
+      incarne: true,
+      autreIncarnateur: false,
       campagnesMj: [],
       campagnes: [],
+      incarnateurs: {},
     });
     expect(signaler).toHaveBeenCalledTimes(2);
   });

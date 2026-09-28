@@ -1,7 +1,10 @@
 /**
- * Droits sur les personnages des autres, décidés par les salles de campaign
- * (simulées ici) : lecture pour les membres de la salle, écriture pour son
- * MJ, suppression réservée au propriétaire, 404 pour les étrangers.
+ * Droits sur les personnages, décidés par les campagnes de campaign (simulées
+ * ici). Un seul personnage actif, pas de possession : engagé, un personnage
+ * s'écrit par le membre qui l'incarne et par le MJ, les autres membres (son
+ * propriétaire compris) le lisent ; hors campagne et pendant la création, son
+ * propriétaire a la main ; suppression réservée au propriétaire ; 404 pour les
+ * étrangers.
  */
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -36,13 +39,144 @@ describe.skipIf(!TEST_DATABASE_URL)('droits des salles sur les personnages', () 
     await t.fermer();
   });
 
-  /** Personnage du propriétaire engagé dans une salle (MJ : mj, joueur : joueur). */
+  /** Personnage du propriétaire engagé dans une salle (MJ : mj, joueur : joueur), incarné par personne. */
   async function engage() {
     const p = await o.nainGuerrier(proprietaire, 'Thorin');
-    salles.accorder(p.id, mj.id, { lecture: true, ecriture: true });
-    salles.accorder(p.id, joueur.id, { lecture: true, ecriture: false });
+    salles.accorder(p.id, proprietaire.id, { lecture: true, ecriture: false, engage: true });
+    salles.accorder(p.id, mj.id, { lecture: true, ecriture: true, engage: true });
+    salles.accorder(p.id, joueur.id, { lecture: true, ecriture: false, engage: true });
     return p;
   }
+
+  /** `qui` incarne le personnage : il l'écrit, son propriétaire (s'il n'est pas `qui`) le lit. */
+  function incarner(p: { id: string }, qui: Utilisateur, campagne = crypto.randomUUID()) {
+    const autres = [proprietaire, joueur].filter((u) => u !== qui);
+    salles.accorder(p.id, qui.id, {
+      lecture: true,
+      ecriture: true,
+      engage: true,
+      incarne: true,
+      campagnes: [campagne],
+      incarnateurs: { [campagne]: qui.id },
+    });
+    for (const u of autres)
+      salles.accorder(p.id, u.id, {
+        lecture: true,
+        ecriture: false,
+        engage: true,
+        autreIncarnateur: true,
+        campagnes: [campagne],
+        incarnateurs: { [campagne]: qui.id },
+      });
+    salles.accorder(p.id, mj.id, {
+      lecture: true,
+      ecriture: true,
+      engage: true,
+      autreIncarnateur: true,
+      campagnes: [campagne],
+      campagnesMj: [campagne],
+      incarnateurs: { [campagne]: qui.id },
+    });
+    return campagne;
+  }
+
+  const permissions = async (u: Utilisateur, p: { id: string }) =>
+    ((await o.ok(u, 'GET', `/v1/characters/${p.id}`)) as { permissions: unknown }).permissions;
+
+  it('hors campagne, le propriétaire a tous les droits', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Thorin');
+    const u = `/v1/characters/${p.id}`;
+    expect(await permissions(proprietaire, p)).toEqual({ write: true, layout: true });
+    const renomme = await o.ok(proprietaire, 'PATCH', u, { version: p.version, nom: 'Thorin II' });
+    expect(renomme).toMatchObject({ nom: 'Thorin II', version: p.version + 1 });
+    expect((await o.requete(proprietaire, 'DELETE', u)).statusCode).toBe(204);
+  });
+
+  it('le joueur qui incarne écrit ; le propriétaire qui ne l’incarne plus lit seulement', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Thorin');
+    const u = `/v1/characters/${p.id}`;
+    incarner(p, joueur);
+
+    expect(await permissions(joueur, p)).toEqual({ write: true, layout: true });
+    const soigne = await o.ok(joueur, 'PUT', `${u}/valeurs`, {
+      version: p.version,
+      valeurs: { PV: Math.max(0, (p.etat.valeurs.PV as number) - 1) },
+    });
+    expect(soigne.version).toBe(p.version + 1);
+    t.des.imposer(12);
+    expect((await o.requete(joueur, 'POST', `${u}/actions/initiative`, {})).statusCode).toBe(200);
+    // Il écrit en joueur (rôle user), pas en MJ : l'événement n'est pas annoncé à une campagne
+    const [evenement] = await t
+      .db!.select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->'aggregate'->>'id' = ${p.id} and ${outbox.envelope}->'payload'->>'operation' = 'valeurs'`,
+      );
+    expect(evenement!.envelope).toMatchObject({
+      roomId: null,
+      actor: { userId: joueur.id, role: 'user' },
+    });
+
+    // Sa propriétaire lit la fiche, sans les droits d'écriture
+    expect(await permissions(proprietaire, p)).toEqual({ write: false, layout: false });
+    for (const [method, url, payload] of [
+      ['PATCH', u, { version: soigne.version, nom: 'Volé' }],
+      ['PUT', `${u}/valeurs`, { version: soigne.version, valeurs: { PV: 1 } }],
+      ['PUT', `${u}/layout`, { version: soigne.version, layout: null }],
+      ['POST', `${u}/repos`, { version: soigne.version }],
+      ['POST', `${u}/actions/initiative`, {}],
+    ] as const) {
+      const res = await o.requete(proprietaire, method, url, payload);
+      expect(res.statusCode, `${method} ${url}`).toBe(403);
+    }
+    // Suppression : réservée au propriétaire, pas tant qu'un autre l'incarne
+    expect((await o.requete(joueur, 'DELETE', u)).statusCode).toBe(403);
+    expect((await o.requete(proprietaire, 'DELETE', u)).json()).toMatchObject({
+      status: 409,
+      code: 'character_played',
+    });
+
+    // Elle le reprend : elle écrit à nouveau, le joueur lit seulement
+    incarner(p, proprietaire);
+    expect(await permissions(proprietaire, p)).toEqual({ write: true, layout: true });
+    expect(await permissions(joueur, p)).toEqual({ write: false, layout: false });
+    await o.ok(proprietaire, 'PATCH', u, { version: soigne.version, nom: 'Thorin II' });
+    expect((await o.requete(joueur, 'POST', `${u}/repos`, { version: 99 })).statusCode).toBe(403);
+    expect((await o.requete(proprietaire, 'DELETE', u)).statusCode).toBe(204);
+  });
+
+  it('pendant la création, le propriétaire garde la main même engagé', async () => {
+    const creation = await o.ok(proprietaire, 'POST', '/v1/characters', {
+      systemeId: 'dnd-classic',
+      type: 'personnage',
+      nom: 'Brouillon',
+    });
+    const u = `/v1/characters/${creation.id}`;
+    salles.accorder(creation.id, proprietaire.id, {
+      lecture: true,
+      ecriture: false,
+      engage: true,
+    });
+    expect(await permissions(proprietaire, creation)).toEqual({ write: true, layout: true });
+    const renomme = await o.ok(proprietaire, 'PATCH', u, {
+      version: creation.version,
+      nom: 'Brouillon II',
+    });
+    expect(renomme.nom).toBe('Brouillon II');
+  });
+
+  it('campaign en panne : le propriétaire d’un personnage engagé lit, ses écritures échouent (503)', async () => {
+    const p = await engage();
+    const u = `/v1/characters/${p.id}`;
+    salles.accorder(p.id, proprietaire.id, { lecture: false, ecriture: false, indisponible: true });
+    expect(await permissions(proprietaire, p)).toEqual({ write: false, layout: false });
+    const res = await o.requete(proprietaire, 'PATCH', u, { version: p.version, nom: 'X' });
+    expect(res.json()).toMatchObject({ status: 503, code: 'campaign_unavailable' });
+    expect((await o.requete(proprietaire, 'DELETE', u)).statusCode).toBe(503);
+    // Un membre de la table, sans réponse de campaign : 503 plutôt qu'un faux 404
+    salles.accorder(p.id, joueur.id, { lecture: false, ecriture: false, indisponible: true });
+    expect((await o.requete(joueur, 'GET', u)).statusCode).toBe(503);
+  });
 
   it('un joueur de la salle lit la fiche mais ne la modifie pas', async () => {
     const p = await engage();
@@ -90,17 +224,16 @@ describe.skipIf(!TEST_DATABASE_URL)('droits des salles sur les personnages', () 
     });
   });
 
-  it('une écriture du MJ est annoncée dans sa campagne, au MJ et au propriétaire seulement', async () => {
+  it('une écriture du MJ est annoncée dans sa campagne, au MJ et au joueur qui incarne seulement', async () => {
     const p = await o.nainGuerrier(proprietaire, 'Thorin');
-    const campagne = crypto.randomUUID();
-    salles.accorder(p.id, mj.id, { lecture: true, ecriture: true, campagnesMj: [campagne] });
+    const campagne = incarner(p, joueur);
     const u = `/v1/characters/${p.id}`;
     const pv = Math.max(0, (p.etat.valeurs.PV as number) - 1);
     const modifie = await o.ok(mj, 'PUT', `${u}/valeurs`, {
       version: p.version,
       valeurs: { PV: pv },
     });
-    await o.ok(proprietaire, 'PATCH', u, { version: modifie.version, nom: 'Thorin II' });
+    await o.ok(joueur, 'PATCH', u, { version: modifie.version, nom: 'Thorin II' });
 
     const evenements = (
       await t
@@ -111,16 +244,16 @@ describe.skipIf(!TEST_DATABASE_URL)('droits des salles sur les personnages', () 
         )
         .orderBy(outbox.id)
     ).map((e) => e.envelope as Record<string, unknown>);
-    const [parMj, parProprietaire] = evenements.slice(-2);
+    const [parMj, parJoueur] = evenements.slice(-2);
     expect(parMj).toMatchObject({
       roomId: campagne,
       visibility: 'gm_only',
       actor: { userId: mj.id, role: 'gm' },
-      payload: { operation: 'valeurs', visibleToUsers: [proprietaire.id] },
+      payload: { operation: 'valeurs', visibleToUsers: [joueur.id] },
     });
-    // Le propriétaire écrit hors campagne : l'événement reste le sien
-    expect(parProprietaire).toMatchObject({ roomId: null, visibility: 'owner' });
-    expect(parProprietaire!.payload).not.toHaveProperty('visibleToUsers');
+    // Le joueur écrit hors annonce de campagne : l'événement reste le sien
+    expect(parJoueur).toMatchObject({ roomId: null, visibility: 'owner' });
+    expect(parJoueur!.payload).not.toHaveProperty('visibleToUsers');
   });
 
   it('le MJ applique une attaque de son PNJ au personnage d’un joueur ; le joueur ne le peut pas', async () => {

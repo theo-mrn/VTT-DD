@@ -2,11 +2,13 @@
  * Personnages en base : lectures, écritures transactionnelles avec
  * concurrence optimiste (`version`) et événement dans l'outbox.
  *
- * Accès (`autoriser`) : le propriétaire a tous les droits ; un membre d'une
- * salle où le personnage est engagé peut le lire, le MJ de cette salle peut
- * aussi le modifier (droits décidés par campaign). Pour tout autre
- * utilisateur, un personnage, ou un personnage supprimé, est introuvable
- * (404) : on ne révèle pas son existence.
+ * Accès (`acces`, `autoriser`) : un seul personnage actif, pas de possession.
+ * Engagé dans une campagne, un personnage s'écrit par le membre qui l'incarne
+ * et par le MJ ; les autres membres le lisent, son propriétaire compris s'il ne
+ * l'incarne pas. Son propriétaire garde la main hors campagne (jamais engagé)
+ * et pendant la création, et seul il le supprime. Pour tout autre utilisateur,
+ * un personnage, ou un personnage supprimé, est introuvable (404) : on ne
+ * révèle pas son existence.
  */
 import { changesPayload, uuidv7, type ActorRole, type DiffOptions } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
@@ -20,7 +22,7 @@ import {
 } from '@vtt/rules';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
-import type { DroitsCampagnes } from '../../droits/campaign.js';
+import { campaignIndisponible, type Droits, type DroitsCampagnes } from '../../droits/campaign.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
 import { characters, type CharacterDetails, type PendingRoll } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
@@ -74,10 +76,19 @@ export interface ResumePersonnage {
 export interface Appelant {
   /** Utilisateur à l'origine de la demande (null : le système). */
   userId: string | null;
-  /** `user` pour le propriétaire, `gm` pour le MJ d'une salle, `system` pour un service. */
+  /**
+   * `user` pour qui a la main sur le personnage (le joueur qui l'incarne, son
+   * propriétaire hors campagne ou en création), `gm` pour le MJ d'une salle,
+   * `system` pour un service.
+   */
   role: ActorRole;
   /** Salle concernée, le cas échéant (sujet vtt.<roomId>.character.*). */
   roomId?: string | null;
+  /**
+   * Membre qui incarne le personnage dans `roomId` : une écriture du MJ lui est
+   * annoncée en direct (`visibleToUsers`), comme au propriétaire pendant la création.
+   */
+  joueur?: string | null;
 }
 
 const acteur = (appelant: Appelant, characterId: string) => ({
@@ -90,15 +101,60 @@ const salle = (appelant: Appelant) => ({ roomId: appelant.roomId ?? null });
 
 /**
  * - lecture : fiche, étapes de création, achats possibles ;
- * - ecriture : toute modification (MJ de la salle ou propriétaire) ;
+ * - ecriture : toute modification (joueur qui l'incarne, MJ de la salle, propriétaire
+ *   hors campagne ou en création) ;
  * - proprietaire : suppression, réservée au propriétaire.
  */
 export type Mode = 'lecture' | 'ecriture' | 'proprietaire';
 
+/** Création en cours (`etat.creation`), lue sans charger l'état. */
+const enCreation = sql<boolean>`coalesce((${characters.etat}->>'creation')::boolean, false)`;
+
+/** Ce qu'un utilisateur peut faire d'un personnage. */
+export interface Acces {
+  lecture: boolean;
+  ecriture: boolean;
+  /** Rôle de ses écritures dans les événements (voir `Appelant.role`). */
+  role: ActorRole;
+  /** Réponse de campaign ; absente pour le propriétaire en création (pas interrogé). */
+  droits?: Droits;
+}
+
 /**
- * Vérifie les droits de `userId` sur des personnages actifs. Renvoie le rôle
- * de l'appelant pour les événements : `user` s'il les possède tous, sinon `gm`.
- * Sans droit de lecture : 404 ; lecture seule : 403.
+ * Accès de `userId` au personnage `ligne` :
+ *  - pendant la création, son propriétaire a la main (sans interroger campaign) ;
+ *  - jamais engagé dans une campagne, son propriétaire aussi ;
+ *  - engagé : le membre qui l'incarne et le MJ écrivent, les membres lisent, le
+ *    propriétaire lit toujours (même s'il ne siège plus à la table).
+ * campaign en panne : le propriétaire garde la lecture, personne n'écrit
+ * (`droits.indisponible`, 503 à l'écriture). `frais` : droits relus sans cache.
+ */
+export async function acces(
+  droits: DroitsCampagnes,
+  userId: string,
+  ligne: { id: string; ownerId: string; creation: boolean },
+  o: { frais?: boolean } = {},
+): Promise<Acces> {
+  const proprietaire = ligne.ownerId === userId;
+  if (proprietaire && ligne.creation) return { lecture: true, ecriture: true, role: 'user' };
+  const dr = await droits.de(ligne.id, userId, o);
+  if (proprietaire && !dr.engage && !dr.indisponible)
+    return { lecture: true, ecriture: true, role: 'user', droits: dr };
+  return {
+    lecture: proprietaire || dr.lecture,
+    ecriture: dr.ecriture,
+    // Qui l'incarne écrit en joueur, même s'il est aussi MJ ; sinon, c'est le MJ
+    role: dr.incarne ? 'user' : 'gm',
+    droits: dr,
+  };
+}
+
+/**
+ * Vérifie les droits de `userId` sur des personnages actifs (voir `acces`). Renvoie
+ * le rôle de l'appelant pour les événements : `gm` si une écriture ne lui est permise
+ * que comme MJ, sinon `user`. Sans droit de lecture : 404 ; lecture seule : 403 ;
+ * campaign injoignable quand il décide : 503. Suppression : le propriétaire seul
+ * (403), et pas tant qu'un autre membre incarne le personnage (409 `character_played`).
  */
 export async function autoriser(
   db: Db | Tx,
@@ -107,25 +163,52 @@ export async function autoriser(
   demandes: { id: string; mode: Mode }[],
 ): Promise<ActorRole> {
   const ids = [...new Set(demandes.map((d) => d.id))];
-  const proprietaires = await db
-    .select({ id: characters.id, ownerId: characters.ownerId })
+  const lignes = await db
+    .select({ id: characters.id, ownerId: characters.ownerId, creation: enCreation })
     .from(characters)
     .where(and(inArray(characters.id, ids), isNull(characters.deletedAt)));
   let role: ActorRole = 'user';
   for (const d of demandes) {
-    const ligne = proprietaires.find((l) => l.id === d.id);
+    const ligne = lignes.find((l) => l.id === d.id);
     if (!ligne) throw HttpError.notFound('Personnage introuvable');
-    if (ligne.ownerId === userId) continue;
-    const dr = await droits.de(d.id, userId);
-    if (!dr.lecture) throw HttpError.notFound('Personnage introuvable');
-    if (d.mode === 'proprietaire')
-      throw HttpError.forbidden('Seul le propriétaire peut supprimer ce personnage');
-    if (d.mode === 'ecriture') {
-      if (!dr.ecriture) throw HttpError.forbidden('Réservé au propriétaire ou au MJ de la salle');
-      role = 'gm';
+    const a = await acces(droits, userId, ligne);
+    if (!a.lecture) {
+      if (a.droits?.indisponible) throw campaignIndisponible();
+      throw HttpError.notFound('Personnage introuvable');
+    }
+    if (d.mode === 'proprietaire') {
+      if (ligne.ownerId !== userId)
+        throw HttpError.forbidden('Seul le propriétaire peut supprimer ce personnage');
+      const dr = a.droits ?? (await droits.de(ligne.id, userId));
+      if (dr.indisponible) throw campaignIndisponible();
+      if (dr.autreIncarnateur)
+        throw HttpError.conflict(
+          'Un autre membre incarne ce personnage : retirez-le d’abord de sa campagne',
+          'character_played',
+        );
+    } else if (d.mode === 'ecriture') {
+      if (!a.ecriture) {
+        if (a.droits?.indisponible) throw campaignIndisponible();
+        throw HttpError.forbidden(
+          ligne.ownerId === userId
+            ? 'Vous ne l’incarnez pas : sa fiche se modifie par le joueur qui l’incarne et le MJ'
+            : 'Réservé au joueur qui incarne ce personnage et au MJ',
+        );
+      }
+      if (a.role === 'gm') role = 'gm';
     }
   }
   return role;
+}
+
+/** Accès de `userId` à un personnage déjà lu (droits renvoyés avec la fiche). */
+export function accesA(
+  droits: DroitsCampagnes,
+  userId: string,
+  ligne: Ligne,
+  o: { frais?: boolean } = {},
+): Promise<Acces> {
+  return acces(droits, userId, { ...ligne, creation: ligne.etat.creation === true }, o);
 }
 
 /**
@@ -205,7 +288,7 @@ export async function lister(
       etat: characters.etat,
       version: characters.version,
       concept: sql<string>`coalesce(${characters.details}->>'concept', '')`,
-      creation: sql<boolean>`coalesce((${characters.etat}->>'creation')::boolean, false)`,
+      creation: enCreation,
       updatedAt: characters.updatedAt,
     })
     .from(characters)
@@ -329,6 +412,12 @@ export function etatNormalise(brut: unknown): unknown {
   return r.success ? r.data : brut;
 }
 
+/** Joueurs à qui annoncer une écriture du MJ : qui incarne le personnage, son propriétaire en création. */
+function voient(appelant: Appelant, ligne: Ligne): string[] {
+  const ids = [appelant.joueur, ligne.etat.creation === true ? ligne.ownerId : null];
+  return [...new Set(ids.filter((id): id is string => Boolean(id)))];
+}
+
 /**
  * Enregistre un changement sur une ligne verrouillée : l'état est validé et
  * recalculé avant l'écriture, la version incrémentée, l'événement
@@ -371,15 +460,16 @@ export async function enregistrer(
     type: 'character.updated',
     ...salle(appelant),
     // Écriture dans une campagne (le MJ, un tour de combat) : annoncée aux MJ de la
-    // campagne et au propriétaire, qui voient la fiche changer en direct ; jamais aux
-    // autres joueurs (le diff peut porter des valeurs réservées au MJ)
+    // campagne et au joueur qui incarne le personnage (au propriétaire pendant la
+    // création), qui voient la fiche changer en direct ; jamais aux autres joueurs
+    // (le diff peut porter des valeurs réservées au MJ)
     ...(appelant.roomId ? { visibility: 'gm_only' as const } : {}),
     actor: acteur(appelant, ligne.id),
     aggregate: { type: 'character', id: ligne.id },
     payload: {
       version: suivante.version,
       operation: evenement.operation,
-      ...(appelant.roomId ? { visibleToUsers: [ligne.ownerId] } : {}),
+      ...(appelant.roomId ? { visibleToUsers: voient(appelant, ligne) } : {}),
       ...evenement.details,
       ...changesPayload(
         suivi(ligne, etatNormalise(ligne.etat)),
@@ -437,15 +527,15 @@ export async function modifier(
  * Écriture sur deux personnages dans une transaction (don d'un objet) : les deux lignes
  * sont verrouillées (ordre des identifiants), la version du premier est vérifiée, chacune
  * est enregistrée avec son événement `character.updated`. Le second est annoncé dans
- * `roomId` (campagne commune), à son propriétaire et aux MJ. `options` : règles
- * optionnelles de la campagne de chacun.
+ * `salle.roomId` (campagne commune), à qui l'incarne (`salle.joueur`) et aux MJ.
+ * `options` : règles optionnelles de la campagne de chacun.
  */
 export async function modifierPaire(
   db: Db,
   ctx: EventContext,
   catalogue: Catalogue,
   appelant: Appelant,
-  roomId: string,
+  salle: { roomId: string; joueur: string | null },
   ids: [string, string],
   version: number,
   calcul: (
@@ -484,7 +574,7 @@ export async function modifierPaire(
       tx,
       ctx,
       catalogue,
-      { ...appelant, roomId },
+      { ...appelant, roomId: salle.roomId, joueur: salle.joueur },
       b!,
       { etat: r.b.etat },
       {

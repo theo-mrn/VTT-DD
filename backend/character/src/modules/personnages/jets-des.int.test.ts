@@ -123,5 +123,9 @@ describe.skipIf(!TEST_DATABASE_URL)('jets transmis à dice', () => {
     expect((await sheet(bob.id)).statusCode).toBe(403);
     salles.accorder(thorin.id, bob.id, { lecture: true, ecriture: true });
     expect((await sheet(bob.id)).statusCode).toBe(200);
+    // Engagé et incarné par Bob : sa propriétaire ne lance plus avec lui
+    expect((await sheet(alice.id)).statusCode).toBe(200);
+    salles.accorder(thorin.id, alice.id, { lecture: true, ecriture: false, engage: true });
+    expect((await sheet(alice.id)).statusCode).toBe(403);
   });
 });

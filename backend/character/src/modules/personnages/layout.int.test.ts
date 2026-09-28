@@ -100,13 +100,16 @@ describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
     await t.fermer();
   });
 
-  /** Personnage du propriétaire engagé dans une campagne (MJ : mj, joueur : joueur). */
+  /** Personnage engagé dans une campagne et incarné par son propriétaire (MJ : mj, joueur : joueur). */
   async function engage() {
     const p = await o.nainGuerrier(proprietaire, 'Thorin');
     salles.accorder(p.id, proprietaire.id, {
       lecture: true,
-      ecriture: false,
+      ecriture: true,
+      engage: true,
+      incarne: true,
       campagnes: [campagne],
+      incarnateurs: { [campagne]: proprietaire.id },
     });
     salles.accorder(p.id, mj.id, {
       lecture: true,
