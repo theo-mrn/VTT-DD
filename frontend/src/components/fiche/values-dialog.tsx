@@ -102,6 +102,7 @@ export function ValuesDialog({
   onOpenChange,
 }: {
   ctx: ContexteFiche;
+  /** A la main sur la fiche (joueur qui l'incarne, propriétaire hors campagne) : `Saisisseur`. */
   proprietaire: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;

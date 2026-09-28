@@ -6,8 +6,9 @@
  * le cache, on relit la donnée (déjà masquée comme il faut pour l'appelant).
  *
  * Une écriture du MJ sur la fiche d'un joueur est publiée dans sa campagne,
- * pour les MJ et le propriétaire (docs/api-character.md) : le joueur qui
- * regarde sa fiche la voit changer en direct. Un changement de mise en page
+ * pour les MJ et le joueur qui l'incarne (docs/api-character.md) : il la voit
+ * changer en direct. Un changement d'incarnation relit les fiches concernées
+ * (la main sur la fiche suit l'incarnation). Un changement de mise en page
  * (`character.layout_changed`) est publié à toute la table.
  */
 'use client';
@@ -70,6 +71,12 @@ export function appliquerEvenement(client: QueryClient, moi: string, e: Realtime
     ) {
       void client.invalidateQueries({ queryKey: clePersonnagesCampagne(id) });
       invaliderListesPersonnages(client);
+      // Qui incarne un personnage a la main sur sa fiche : ses droits (`permissions`) changent
+      for (const cle of ['characterId', 'previousCharacterId'] as const) {
+        const perso = payload[cle];
+        if (typeof perso === 'string')
+          void client.invalidateQueries({ queryKey: clesPersonnages.un(perso) });
+      }
     }
     return;
   }

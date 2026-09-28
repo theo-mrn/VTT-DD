@@ -109,8 +109,10 @@ export function useFicheCalculee(id: string | null | undefined) {
   }, [ecritures]);
 
   const p = perso.data;
+  // Suppression seulement : le reste suit `permissions` (pas de possession dans une campagne)
   const proprietaire = Boolean(p) && p!.ownerId === profil.id;
-  // Droits décidés par le service (propriétaire, ou MJ d'une campagne où il est engagé)
+  // Droits décidés par le service : joueur qui l'incarne ou MJ d'une campagne où il est
+  // engagé ; hors campagne et pendant la création, son propriétaire
   const permissions = p?.permissions ?? { write: false, layout: false };
   const peutModifier = permissions.write;
   const mj = campagne.data?.role === 'gm';
@@ -146,7 +148,8 @@ export function FichePersonnage({
   /** Dans un panneau de la table : en-tête plus compact. */
   dansPanneau?: boolean;
 }) {
-  const { perso, sys, ctx, proprietaire, permissions, ecritures } = useFicheCalculee(id);
+  const { perso, sys, ctx, proprietaire, peutModifier, permissions, ecritures } =
+    useFicheCalculee(id);
   const campagne = useCampagne(perso.data?.roomId);
   const [personnalisation, setPersonnalisation] = useState(false);
   const enregistrerMiseEnPage = useCallback(
@@ -184,6 +187,7 @@ export function FichePersonnage({
         personnage={p}
         ctx={ctx}
         proprietaire={proprietaire}
+        peutModifier={peutModifier}
         dansPanneau={dansPanneau}
         personnaliser={
           permissions.layout && ctx && !edition ? () => setPersonnalisation(true) : undefined
@@ -222,12 +226,16 @@ function EnTeteFiche({
   personnage: p,
   ctx,
   proprietaire,
+  peutModifier,
   dansPanneau,
   personnaliser,
 }: {
   personnage: Fiche;
   ctx: ContexteFiche | null;
+  /** Propriétaire du personnage : lui seul le supprime. */
   proprietaire: boolean;
+  /** Droit d'écrire sur la fiche (`permissions.write`) : identité comprise. */
+  peutModifier: boolean;
   dansPanneau: boolean;
   /** Présent si l'utilisateur peut changer la mise en page de la fiche. */
   personnaliser?: () => void;
@@ -238,9 +246,10 @@ function EnTeteFiche({
   const [suppression, setSuppression] = useState(false);
   const [valeurs, setValeurs] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
-  // Actions de progression (passage de niveau) : au joueur comme au MJ, qui voit tout passer
-  const progressions = ctx?.operations && (proprietaire || ctx.mj) ? actionsProgression(ctx) : [];
-  const peutValeurs = Boolean(ctx?.operations) && (proprietaire || ctx?.mj === true);
+  // Progression (passage de niveau) et valeurs : à qui peut écrire sur la fiche (joueur
+  // qui l'incarne, MJ), comme toutes les écritures (`ctx.operations`)
+  const progressions = ctx?.operations ? actionsProgression(ctx) : [];
+  const peutValeurs = Boolean(ctx?.operations);
   const details = ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined;
 
   return (
@@ -310,6 +319,7 @@ function EnTeteFiche({
             <MenuFiche
               personnage={p}
               proprietaire={proprietaire}
+              peutModifier={peutModifier}
               progressions={progressions}
               onProgression={setProgression}
               onValeurs={peutValeurs ? () => setValeurs(true) : undefined}
@@ -347,12 +357,12 @@ function EnTeteFiche({
       {ctx && peutValeurs && (
         <ValuesDialog
           ctx={ctx}
-          proprietaire={proprietaire}
+          proprietaire={peutModifier}
           open={valeurs}
           onOpenChange={setValeurs}
         />
       )}
-      {proprietaire && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
+      {peutModifier && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
       {proprietaire && (
         <DialogueSuppression personnage={p} ouvert={suppression} onOuvert={setSuppression} />
       )}
@@ -362,11 +372,13 @@ function EnTeteFiche({
 
 /**
  * Actions de la fiche dans un seul menu « … » : progression (passage de niveau), valeurs,
- * mise en page, identité ; puis la date de modification et la suppression (propriétaire).
+ * mise en page, identité (qui peut écrire sur la fiche) ; puis la date de modification et
+ * la suppression (propriétaire).
  */
 function MenuFiche({
   personnage: p,
   proprietaire,
+  peutModifier,
   progressions,
   onProgression,
   onValeurs,
@@ -376,6 +388,7 @@ function MenuFiche({
 }: {
   personnage: Fiche;
   proprietaire: boolean;
+  peutModifier: boolean;
   progressions: { id: string; nom: string }[];
   onProgression: (id: string) => void;
   onValeurs?: (() => void) | undefined;
@@ -384,7 +397,8 @@ function MenuFiche({
   onSupprimer: () => void;
 }) {
   const creation = proprietaire && p.inCreation && p.roomId;
-  if (!progressions.length && !onValeurs && !onPersonnaliser && !proprietaire) return null;
+  if (!progressions.length && !onValeurs && !onPersonnaliser && !peutModifier && !proprietaire)
+    return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -419,24 +433,28 @@ function MenuFiche({
             Personnaliser la fiche
           </DropdownMenuItem>
         )}
-        {proprietaire && (
+        {peutModifier && (
+          <DropdownMenuItem onSelect={onModifier}>
+            <Pencil />
+            Modifier l’identité
+          </DropdownMenuItem>
+        )}
+        {(peutModifier || proprietaire) && (
           <>
-            <DropdownMenuItem onSelect={onModifier}>
-              <Pencil />
-              Modifier l’identité
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled className="text-xs">
               Modifié {formaterDepuis(p.updatedAt)}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={onSupprimer}
-              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
-            >
-              <Trash2 />
-              Supprimer
-            </DropdownMenuItem>
           </>
+        )}
+        {proprietaire && (
+          <DropdownMenuItem
+            onSelect={onSupprimer}
+            className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+          >
+            <Trash2 />
+            Supprimer
+          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

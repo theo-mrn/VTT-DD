@@ -825,7 +825,9 @@ export function useModifierPersonnage(id: string) {
 /**
  * Joue un personnage dans une campagne : un héros libre y est d'abord engagé,
  * puis incarné ; `null` : jouer en MJ. Un personnage incarné par un autre
- * membre lui est repris (pas de verrou, voir docs/api-campaign.md).
+ * membre lui est repris (pas de verrou, voir docs/api-campaign.md). Incarner
+ * donne la main sur la fiche, la quitter la rend : les fiches déjà lues sont
+ * relues pour leurs `permissions`.
  */
 export function useJouerPersonnage(campagneId: string) {
   const client = useQueryClient();
@@ -837,6 +839,7 @@ export function useJouerPersonnage(campagneId: string) {
     onSuccess: (engages) => {
       client.setQueryData(clesPersonnages.campagne(campagneId), engages);
       invaliderListes(client);
+      void client.invalidateQueries({ queryKey: [...clesPersonnages.racine, 'un'] });
       void client.invalidateQueries({ queryKey: clesCampagnes.miennes });
       void client.invalidateQueries({ queryKey: clesCampagnes.une(campagneId) });
     },

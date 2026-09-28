@@ -4,12 +4,14 @@ import { calculer } from '@vtt/rules';
 import {
   ArrowRight,
   Check,
+  ChevronDown,
   Crown,
   DoorOpen,
   Eye,
   Hammer,
   Plus,
   TriangleAlert,
+  UserPlus,
   UserRound,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -19,7 +21,6 @@ import { toast } from 'sonner';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EnTetePage, EtatVide, TitreSection } from '@/components/commun/page';
-import { AvatarJoueur } from '@/components/compte/elements';
 import { JaugeRessource, TuileAttribut } from '@/components/creation/apercu-fiche';
 import { EnTeteFocus } from '@/components/shell/cadre-focus';
 import { Badge } from '@/components/ui/badge';
@@ -49,8 +50,8 @@ interface CharacterOption {
   character: Personnage;
   /** Hors de la campagne : il y sera engagé en entrant à la table. */
   free: boolean;
+  /** Je l'ai créé : moi seul reprends sa création. */
   mine: boolean;
-  owner: Membre | null;
   /** Membre qui l'incarne en ce moment (moi compris). */
   playedBy: Membre | null;
   /** Un autre membre l'incarne : le choisir le lui reprend. */
@@ -61,10 +62,13 @@ interface CharacterOption {
 
 /**
  * Choix du personnage incarné dans une campagne, avant d'aller à la table.
- * Seuls les personnages joueurs sont proposés (filtre `kind` du service) : les
- * miens, engagés ou libres du même système, et ceux des autres joueurs, sans
- * verrou (en choisir un déjà incarné le reprend à son joueur). Le MJ peut aussi
- * entrer en maître du jeu ; une création pas terminée se reprend dans l'assistant.
+ * Un seul personnage actif, pas de possession : une seule liste des personnages
+ * joueurs de la campagne (filtre `kind` du service), chacun avec qui l'incarne
+ * en ce moment, sans verrou (en choisir un déjà incarné le reprend à son
+ * joueur). Qui l'incarne modifie sa fiche avec le MJ ; les autres la lisent.
+ * À part, « Amener un personnage existant » engage un de mes personnages hors
+ * campagne du même système. Le MJ peut aussi entrer en maître du jeu ; une
+ * création pas terminée se reprend dans l'assistant.
  */
 export function CharacterPicker({ campaignId }: { campaignId: string }) {
   const profile = useProfil();
@@ -78,13 +82,14 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
   const systemName = useNomSysteme(campaign.data?.system);
   const [picked, setPicked] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  // Personnages à amener : repliés, sauf s'il n'y a encore aucun personnage joueur
+  const [bringOpen, setBringOpen] = useState<boolean | null>(null);
 
   const c = campaign.data;
   const me = c?.members.find((m) => m.userId === profile.id) ?? null;
 
   const options = useMemo(() => {
     if (!c || !pcs.data || !mine.data) return null;
-    const members = new Map(c.members.map((m) => [m.userId, m]));
     const players = new Map(c.members.filter((m) => m.characterId).map((m) => [m.characterId!, m]));
     const engaged = new Set(pcs.data.map((p) => p.id));
     const option = (p: Personnage, free: boolean): CharacterOption => {
@@ -94,20 +99,16 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
         character: p,
         free,
         mine: isMine,
-        owner: members.get(p.ownerId) ?? null,
         playedBy,
         takenFrom: playedBy && playedBy.userId !== profile.id ? playedBy : null,
         selectable: isMine || !p.inCreation,
       };
     };
     return {
-      mine: [
-        ...pcs.data.filter((p) => p.ownerId === profile.id).map((p) => option(p, false)),
-        ...mine.data
-          .filter((p) => p.roomId === null && p.system.id === c.system && !engaged.has(p.id))
-          .map((p) => option(p, true)),
-      ],
-      others: pcs.data.filter((p) => p.ownerId !== profile.id).map((p) => option(p, false)),
+      pcs: pcs.data.map((p) => option(p, false)),
+      bring: mine.data
+        .filter((p) => p.roomId === null && p.system.id === c.system && !engaged.has(p.id))
+        .map((p) => option(p, true)),
     };
   }, [c, pcs.data, mine.data, profile.id]);
 
@@ -193,7 +194,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
 
   if (!options) return shell(<PickerSkeleton />);
 
-  const all = [...options.mine, ...options.others];
+  const all = [...options.pcs, ...options.bring];
   const createButton = (primary: boolean) => (
     <Button asChild variant={primary ? 'default' : 'secondary'}>
       <Link href={createHref}>
@@ -223,6 +224,8 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
 
   // Sélection par défaut : ce que j'incarne déjà (le MJ sans personnage : maître du jeu)
   const current = me?.characterId ?? (role === 'gm' ? GM_OPTION : null);
+  const played = options.pcs.find((o) => o.character.id === me?.characterId) ?? null;
+  const showBring = bringOpen ?? options.pcs.length === 0;
   const selectedValue = picked ?? current;
   const selected =
     selectedValue === GM_OPTION && role === 'gm'
@@ -268,7 +271,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
 
   return shell(
     <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-8 sm:px-6 lg:pb-12">
-      {heading(all.length > 0 && canCreate ? createButton(false) : undefined)}
+      {heading(options.pcs.length > 0 && canCreate ? createButton(false) : undefined)}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <fieldset className="min-w-0 space-y-8" onKeyDown={onKeyDown}>
@@ -287,27 +290,37 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
             </section>
           )}
 
-          {options.mine.length > 0 && (
+          {options.pcs.length > 0 ? (
             <section>
-              <TitreSection compte={options.mine.length}>Mes personnages</TitreSection>
-              <OptionGrid options={options.mine} {...optionProps} />
+              <TitreSection compte={options.pcs.length}>Personnages joueurs</TitreSection>
+              <OptionGrid options={options.pcs} {...optionProps} />
             </section>
-          )}
-
-          {options.others.length > 0 && (
-            <section>
-              <TitreSection compte={options.others.length}>Autres personnages joueurs</TitreSection>
-              <OptionGrid options={options.others} {...optionProps} />
-            </section>
-          )}
-
-          {all.length === 0 && (
+          ) : (
             <EtatVide
               icone={UserRound}
               titre="Aucun personnage joueur pour l'instant"
-              description="Les personnages de vos joueurs apparaîtront ici dès qu'ils les auront créés."
-              action={createButton(true)}
+              description={
+                role === 'gm'
+                  ? "Les personnages de vos joueurs apparaîtront ici dès qu'ils les auront créés."
+                  : 'Créez votre personnage, ou amenez-en un que vous avez déjà.'
+              }
+              action={canCreate ? createButton(true) : undefined}
             />
+          )}
+
+          {options.bring.length > 0 && (
+            <section>
+              <BringToggle
+                count={options.bring.length}
+                open={showBring}
+                onToggle={() => setBringOpen(!showBring)}
+              />
+              {showBring && (
+                <div className="mt-2.5">
+                  <OptionGrid options={options.bring} {...optionProps} />
+                </div>
+              )}
+            </section>
           )}
         </fieldset>
 
@@ -315,6 +328,7 @@ export function CharacterPicker({ campaignId }: { campaignId: string }) {
           <div className="sticky top-24">
             <SelectionPanel
               selected={selected}
+              played={role === 'gm' ? null : played}
               systemId={c.system}
               sending={sending}
               onEnter={() => selected && void enter(selected)}
@@ -360,6 +374,49 @@ function OptionGrid({
         />
       ))}
     </div>
+  );
+}
+
+/**
+ * Ligne sobre qui déplie mes personnages hors campagne du même système : ce ne sont pas
+ * des personnages joueurs de la campagne, ils y seront engagés en entrant à la table.
+ */
+function BringToggle({
+  count,
+  open,
+  onToggle,
+}: {
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const id = useId();
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-describedby={id}
+      onClick={onToggle}
+      className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border-strong px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted-foreground">
+        <UserPlus className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">Amener un personnage existant</span>
+        <span id={id} className="block truncate text-[13px] text-muted-foreground">
+          Un de vos personnages hors campagne, engagé en entrant à la table
+        </span>
+      </span>
+      <span className="tabular text-xs text-subtle">{count}</span>
+      <ChevronDown
+        aria-hidden
+        className={cn(
+          'size-4 shrink-0 text-muted-foreground transition-transform',
+          open && 'rotate-180',
+        )}
+      />
+    </button>
   );
 }
 
@@ -513,22 +570,8 @@ function OptionCard({
   );
 }
 
-/** Où en est le personnage (en création, incarné, hors campagne), et à qui il est. */
+/** Où en est le personnage : en création, qui l'incarne en ce moment, libre, hors campagne. */
 function OptionStatus({ option: o }: { option: CharacterOption }) {
-  return (
-    <>
-      <StatusBadge option={o} />
-      {!o.mine && o.owner && (
-        <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-          <AvatarJoueur nom={o.owner.name} url={o.owner.avatarUrl} taille="xs" />
-          <span className="truncate">{o.owner.name}</span>
-        </span>
-      )}
-    </>
-  );
-}
-
-function StatusBadge({ option: o }: { option: CharacterOption }) {
   if (o.character.inCreation)
     return (
       <Badge ton="alerte">
@@ -549,7 +592,7 @@ function StatusBadge({ option: o }: { option: CharacterOption }) {
       </Badge>
     );
   if (o.free) return <Badge ton="neutre">Hors campagne</Badge>;
-  return null;
+  return <Badge ton="neutre">Libre</Badge>;
 }
 
 // ─── Sélection ───────────────────────────────────────────────────────────────
@@ -559,15 +602,29 @@ function enterLabel(selected: CharacterOption | typeof GM_OPTION) {
   return selected.character.inCreation ? 'Reprendre la création' : 'Entrer à la table';
 }
 
-/** Ce que le choix change pour les autres : personnage repris, engagement, droits. */
-function SelectionNotes({ option: o }: { option: CharacterOption }) {
+/**
+ * Ce que le choix change : personnage repris, engagement, et la main sur les fiches (qui
+ * incarne un personnage modifie sa fiche avec le MJ, les autres la lisent). `played` : ce
+ * que j'incarne déjà (joueur seulement : le MJ modifie toutes les fiches).
+ */
+function SelectionNotes({
+  option: o,
+  played,
+}: {
+  option: CharacterOption;
+  played: CharacterOption | null;
+}) {
   const notes: string[] = [];
   if (o.takenFrom)
-    notes.push(`${o.takenFrom.name} l’incarne en ce moment : le choisir le lui reprend.`);
-  if (o.free) notes.push('Il sera engagé dans la campagne.');
-  if (!o.mine)
     notes.push(
-      `Sa fiche reste modifiable par ${o.owner ? o.owner.name : 'son propriétaire'} et le MJ.`,
+      `${o.takenFrom.name} l’incarne en ce moment : le choisir le lui reprend, avec la main sur sa fiche.`,
+    );
+  if (o.free) notes.push('Il sera engagé dans la campagne.');
+  if (!o.character.inCreation && !o.playedBy)
+    notes.push('Vous modifierez sa fiche tant que vous l’incarnez ; les autres joueurs la lisent.');
+  if (played && played.character.id !== o.character.id)
+    notes.push(
+      `Vous n’incarnerez plus ${played.character.name} : sa fiche passera en lecture seule.`,
     );
   if (notes.length === 0) return null;
   return (
@@ -584,11 +641,13 @@ function SelectionNotes({ option: o }: { option: CharacterOption }) {
 
 function SelectionPanel({
   selected,
+  played,
   systemId,
   sending,
   onEnter,
 }: {
   selected: CharacterOption | typeof GM_OPTION | null;
+  played: CharacterOption | null;
   systemId: string;
   sending: boolean;
   onEnter: () => void;
@@ -631,16 +690,18 @@ function SelectionPanel({
       </section>
     );
 
-  return <CharacterPanel option={selected} systemId={systemId} action={action} />;
+  return <CharacterPanel option={selected} played={played} systemId={systemId} action={action} />;
 }
 
 /** Fiche résumée du personnage choisi, calculée par le moteur de règles. */
 function CharacterPanel({
   option: o,
+  played,
   systemId,
   action,
 }: {
   option: CharacterOption;
+  played: CharacterOption | null;
   systemId: string;
   action: ReactNode;
 }) {
@@ -686,12 +747,6 @@ function CharacterPanel({
         </div>
       </Illustration>
       <div className="space-y-4 p-5">
-        {!o.mine && o.owner && (
-          <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-            <AvatarJoueur nom={o.owner.name} url={o.owner.avatarUrl} taille="xs" />
-            Personnage de {o.owner.name}
-          </p>
-        )}
         {concept && <p className="text-sm italic text-muted-foreground">« {concept} »</p>}
         {sheet && resources?.type === 'ressources' && (
           <div className="space-y-2">
@@ -722,7 +777,7 @@ function CharacterPanel({
             </div>
           </div>
         )}
-        <SelectionNotes option={o} />
+        <SelectionNotes option={o} played={played} />
         {action}
       </div>
     </section>
