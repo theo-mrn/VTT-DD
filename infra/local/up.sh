@@ -113,4 +113,4 @@ echo "  gateway  http://localhost:8080"
 echo "  temps réel ws://localhost:8080/v1/realtime/socket.io (service realtime :3006)"
 echo "  e-mails  http://localhost:8025"
 echo "  son      service audio :3008, worker ffmpeg :3009 (brew install ffmpeg)"
-exec pnpm turbo run dev --filter='./backend/*' --filter=@vtt/web
+exec pnpm turbo run dev --concurrency=20 --filter='./backend/*' --filter=@vtt/web
