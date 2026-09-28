@@ -17,7 +17,15 @@ import { ChannelPlayer } from './channel-player';
 import { CuePlayer } from './cue-player';
 import { AudioGraph, type AudioBus } from './graph';
 import type { EngineHost } from './host';
-import { anyStalled, disposeAllVoices, kickAll, scanAudio, type LiveSound } from './registry';
+import {
+  adoptContext,
+  anyStalled,
+  disposeAllVoices,
+  kickAll,
+  scanAudio,
+  sweepYoutubeHost,
+  type LiveSound,
+} from './registry';
 import { ElementPool } from './voices';
 
 export type EngineStatus = 'locked' | 'running' | 'unsupported';
@@ -95,6 +103,7 @@ export class AudioEngine implements EngineHost {
 
   /** Relevé : coupe les voix orphelines et publie ce qui sonne, s'il a changé. */
   scan() {
+    sweepYoutubeHost();
     const blocked = anyStalled();
     if (blocked !== this.blocked) {
       this.blocked = blocked;
@@ -149,6 +158,8 @@ export class AudioEngine implements EngineHost {
           return Ctor ? new Ctor() : null;
         });
       this.ctx = create();
+      // Une seule sortie son : les contextes d'un ancien moteur sont fermés
+      if (this.ctx) adoptContext(this.ctx);
     } catch {
       this.ctx = null;
     }

@@ -26,6 +26,8 @@ import { YoutubeVoice } from './youtube';
 export const PAUSE_FADE_MS = 150;
 export const SEEK_FADE_MS = 60;
 const DRIFT_EVERY_MS = 1_000;
+/** Durée pendant laquelle un lecteur YouTube en pause est gardé pour une reprise instantanée. */
+const PARKED_FOR_MS = 120_000;
 
 type Live =
   | { kind: 'media'; key: string; plan: PlannedVoice; voice: MediaVoice; correcting: boolean }
@@ -39,6 +41,14 @@ export class ChannelPlayer {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private drift: ReturnType<typeof setInterval> | null = null;
   private preloaded: HTMLAudioElement | null = null;
+  /**
+   * Lecteurs YouTube mis de côté (pause, recalage) plutôt que détruits : la reprise réutilise
+   * le même lecteur, déjà chargé et déjà autorisé par le navigateur, au lieu d'en recréer un.
+   */
+  private readonly parked = new Map<
+    string,
+    { voice: YoutubeVoice; timer: ReturnType<typeof setTimeout> }
+  >();
   onYoutubeEnded: ((state: ChannelState) => void) | null = null;
 
   constructor(
@@ -77,7 +87,7 @@ export class ChannelPlayer {
     for (const [key, live] of this.voices) {
       if (wanted.has(key)) continue;
       if (live.kind === 'media') live.voice.dispose(fadeOutMs);
-      else live.voice.dispose();
+      else this.park(live.plan.asset.id, live.voice);
       this.voices.delete(key);
     }
     for (const planned of plan.voices) {
@@ -102,11 +112,41 @@ export class ChannelPlayer {
     return planned.asset.volume * (s?.volume ?? 1);
   }
 
+  /** Met un lecteur YouTube de côté (en pause) ; libéré s'il n'est pas repris sous 2 min. */
+  private park(assetId: string, voice: YoutubeVoice) {
+    voice.pause();
+    const previous = this.parked.get(assetId);
+    if (previous && previous.voice !== voice) {
+      clearTimeout(previous.timer);
+      previous.voice.dispose();
+    }
+    voice.owned = () => this.parked.get(assetId)?.voice === voice;
+    const timer = setTimeout(() => {
+      if (this.parked.get(assetId)?.voice !== voice) return;
+      this.parked.delete(assetId);
+      voice.dispose();
+    }, PARKED_FOR_MS);
+    this.parked.set(assetId, { voice, timer });
+    // Un seul lecteur de côté par canal : les autres morceaux sont libérés
+    for (const [id, p] of this.parked) {
+      if (id === assetId) continue;
+      clearTimeout(p.timer);
+      p.voice.dispose();
+      this.parked.delete(id);
+    }
+  }
+
   private startVoice(planned: PlannedVoice, now: number) {
     const key = keyOf(planned);
     const delay = Math.max(0, planned.startAtMs - now);
     if (planned.asset.source === 'youtube' && planned.asset.youtubeId) {
-      const voice = new YoutubeVoice(planned.asset.youtubeId);
+      const kept = this.parked.get(planned.asset.id);
+      if (kept) {
+        this.parked.delete(planned.asset.id);
+        clearTimeout(kept.timer);
+      }
+      const voice =
+        kept && !kept.voice.disposed ? kept.voice : new YoutubeVoice(planned.asset.youtubeId);
       this.tag(voice, key, planned);
       const live: Live = { kind: 'youtube', key, plan: planned, voice };
       voice.onEnded = () => {
@@ -256,6 +296,11 @@ export class ChannelPlayer {
     this.drift = null;
     for (const live of this.voices.values()) live.voice.dispose();
     this.voices.clear();
+    for (const p of this.parked.values()) {
+      clearTimeout(p.timer);
+      p.voice.dispose();
+    }
+    this.parked.clear();
     this.preload(null);
   }
 }

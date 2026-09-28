@@ -6,7 +6,15 @@
  * synchronisation est grossière (seek au-delà de 2 s d'écart). Publicités et
  * vidéos non intégrables échappent à notre contrôle (`onError`).
  */
-import { registerVoice, unregisterVoice, type LiveKind, type Registered } from './registry';
+import {
+  registerVoice,
+  trackYoutubeBox,
+  unregisterVoice,
+  untrackYoutubeBox,
+  YOUTUBE_HOST_ID,
+  type LiveKind,
+  type Registered,
+} from './registry';
 
 interface YTPlayer {
   playVideo(): void;
@@ -69,10 +77,10 @@ function loadApi(): Promise<YTNamespace> {
 
 /** Conteneur caché des lecteurs (hors de l'arbre React). */
 function hiddenHost(): HTMLElement {
-  let host = document.getElementById('vtt-youtube-host');
+  let host = document.getElementById(YOUTUBE_HOST_ID);
   if (!host) {
     host = document.createElement('div');
-    host.id = 'vtt-youtube-host';
+    host.id = YOUTUBE_HOST_ID;
     host.setAttribute('aria-hidden', 'true');
     host.style.cssText =
       'position:fixed;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;left:0;bottom:0';
@@ -91,6 +99,7 @@ export class YoutubeVoice implements Registered {
   owned: () => boolean = () => true;
   private player: YTPlayer | null = null;
   private readonly el: HTMLElement;
+  private readonly box: HTMLElement;
   private volume = 0;
   private pending: { positionMs: number; play: boolean } | null = null;
   private startTimer: ReturnType<typeof setTimeout> | null = null;
@@ -99,8 +108,13 @@ export class YoutubeVoice implements Registered {
   onPlaying: (() => void) | null = null;
 
   constructor(readonly videoId: string) {
+    // Une boîte par voix : l'API YouTube remplace `el` par son iframe, la boîte reste et sert
+    // à reconnaître les lecteurs suivis (les autres sont balayés, voir sweepYoutubeHost)
+    this.box = document.createElement('div');
     this.el = document.createElement('div');
-    hiddenHost().appendChild(this.el);
+    this.box.appendChild(this.el);
+    hiddenHost().appendChild(this.box);
+    trackYoutubeBox(this.box);
     registerVoice(this);
     loadApi()
       .then((YT) => {
@@ -224,7 +238,8 @@ export class YoutubeVoice implements Registered {
     } catch {
       // Lecteur jamais prêt
     }
-    this.el.remove();
+    this.box.remove();
+    untrackYoutubeBox(this.box);
     unregisterVoice(this.id);
   }
 }

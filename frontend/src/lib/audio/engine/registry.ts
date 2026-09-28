@@ -36,11 +36,62 @@ export interface LiveSound {
 
 interface Store {
   voices: Map<string, Registered>;
+  /** Contextes audio créés par un moteur (une seule sortie son à la fois). */
+  contexts?: Set<BaseAudioContext>;
+  /** Boîtes des lecteurs YouTube suivis, dans le conteneur caché. */
+  youtubeBoxes?: Set<Element>;
 }
 
 const store: Store = ((
   globalThis as unknown as { __vttAudioRegistry?: Store }
 ).__vttAudioRegistry ??= { voices: new Map() });
+store.contexts ??= new Set();
+store.youtubeBoxes ??= new Set();
+
+/**
+ * Nouveau contexte d'un moteur : tous les autres sont fermés. Un son routé par un ancien
+ * moteur (code précédent, onglet resté ouvert pendant une mise à jour) se tait avec eux.
+ */
+export function adoptContext(ctx: BaseAudioContext): void {
+  for (const other of store.contexts!) {
+    if (other === ctx) continue;
+    try {
+      void (other as AudioContext).close?.();
+    } catch {
+      // Déjà fermé
+    }
+    store.contexts!.delete(other);
+  }
+  store.contexts!.add(ctx);
+}
+
+export function trackYoutubeBox(box: Element): void {
+  store.youtubeBoxes!.add(box);
+}
+
+export function untrackYoutubeBox(box: Element): void {
+  store.youtubeBoxes!.delete(box);
+}
+
+/** Id du conteneur caché des lecteurs YouTube (partagé avec youtube.ts). */
+export const YOUTUBE_HOST_ID = 'vtt-youtube-host';
+
+/**
+ * Supprime tout lecteur YouTube du conteneur caché qu'aucune voix ne suit (ancien code,
+ * voix perdue) : retirer l'iframe arrête sa lecture. Filet indépendant du moteur.
+ */
+export function sweepYoutubeHost(): number {
+  if (typeof document === 'undefined') return 0;
+  const host = document.getElementById(YOUTUBE_HOST_ID);
+  if (!host) return 0;
+  let removed = 0;
+  for (const child of [...host.children]) {
+    if (store.youtubeBoxes!.has(child)) continue;
+    child.remove();
+    removed += 1;
+  }
+  return removed;
+}
 
 export function registerVoice(v: Registered): void {
   store.voices.set(v.id, v);
