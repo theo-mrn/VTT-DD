@@ -95,7 +95,6 @@ fiches:
           filtreChamp: activation,
           vue: progression,
         }
-      - { type: monnaies, titre: Points de capacité }
       # Source unique de l'équipement : armes (contact, distance), protections, objets
       # (potions, nourriture, bourse, autre)
       - {
@@ -106,7 +105,6 @@ fiches:
         }
       - { type: bonus, titre: Bonus }
       - { type: possessions, titre: États, sorte: etat }
-      - { type: actions, titre: Actions }
 
 # Icônes des objets de l'inventaire : les règles les plus précises d'abord.
 iconesObjets:

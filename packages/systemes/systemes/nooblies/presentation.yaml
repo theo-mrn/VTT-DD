@@ -69,7 +69,6 @@ fiches:
       - { type: competences, titre: Capacités, sortes: [capacite] }
       - { type: inventaire, titre: Inventaire, sortes: [objet] }
       - { type: bonus, titre: Bonus }
-      - { type: actions, titre: Actions }
 
 # Icônes des objets de l'inventaire.
 iconesObjets:
