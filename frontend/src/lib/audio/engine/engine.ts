@@ -22,6 +22,7 @@ import {
   anyStalled,
   disposeAllVoices,
   kickAll,
+  reportVoices,
   scanAudio,
   sweepYoutubeHost,
   type LiveSound,
@@ -103,6 +104,36 @@ export class AudioEngine implements EngineHost {
   /** Sons qui s'entendent en ce moment dans l'onglet (relevé réel, pas l'état supposé). */
   get live(): LiveSound[] {
     return this.liveSounds;
+  }
+
+  /** Photographie lisible du moteur (panneau de diagnostic). */
+  diagnostics() {
+    const ch = (name: ChannelName) => {
+      const s = this.states[name];
+      return s
+        ? `v${s.version} · ${s.status} · ${s.track?.name ?? 'aucun morceau'}${s.track ? ` (${s.track.source})` : ''} · volume table ${Math.round(s.volume * 100)} %`
+        : 'aucun état reçu';
+    };
+    return {
+      campagne: this.campaignId ?? 'aucune (moteur détaché)',
+      contexte: this.ctx
+        ? this.ctx.state
+        : this.unsupported
+          ? 'Web Audio indisponible'
+          : 'pas encore créé',
+      debloquage: this.needsUnlock ? 'requis' : 'non',
+      youtubeBloque: this.blocked,
+      mixeur: Object.entries(this.mixer.volumes)
+        .map(
+          ([b, v]) =>
+            `${b} ${Math.round(v * 100)}${this.mixer.muted[b as BusName] ? ' (coupé)' : ''}`,
+        )
+        .join(', '),
+      musique: ch('music'),
+      ambiance: ch('ambience'),
+      effetsActifs: this.cues.list.length,
+      voix: reportVoices(),
+    };
   }
 
   /** Relevé : coupe les voix orphelines et publie ce qui sonne, s'il a changé. */

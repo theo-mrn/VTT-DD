@@ -87,6 +87,8 @@ export class MediaVoice implements Voice, Registered {
   kind: LiveKind = 'music';
   owned: () => boolean = () => true;
   private lastScanTime = -1;
+  /** Dernier refus de `play()` (lecture automatique bloquée, fichier illisible…). */
+  lastPlayError: string | null = null;
   private readonly item: PooledElement;
   private readonly gain: GainNode;
   private readonly panner: StereoPannerNode | null;
@@ -122,6 +124,21 @@ export class MediaVoice implements Voice, Registered {
       el.load?.();
     }
     registerVoice(this);
+  }
+
+  describe(): string {
+    const el = this.item.el;
+    return [
+      el.paused ? 'élément en pause' : 'élément en lecture',
+      `t=${el.currentTime.toFixed(1)}s`,
+      `prêt=${el.readyState}`,
+      `gain=${this.gain.gain.value.toFixed(2)}`,
+      `contexte=${this.ctx.state}`,
+      el.error ? `erreur média ${el.error.code}` : null,
+      this.lastPlayError ? `lecture refusée (${this.lastPlayError})` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   /** Lu sur l'élément : en lecture, temps qui avance, contexte actif, gain audible. */
@@ -166,7 +183,14 @@ export class MediaVoice implements Voice, Registered {
       this.startTimer = null;
       if (this.disposed) return;
       this.seek(positionMs);
-      this.item.el.play().catch(() => undefined);
+      this.item.el.play().then(
+        () => {
+          this.lastPlayError = null;
+        },
+        (e: unknown) => {
+          this.lastPlayError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        },
+      );
     };
     if (delayMs > 4) {
       this.seek(positionMs);
@@ -274,6 +298,10 @@ export class BufferVoice implements Voice, Registered {
     this.endCtx = this.startCtx + buffer.duration;
     this.source.start(this.startCtx);
     registerVoice(this);
+  }
+
+  describe(): string {
+    return `tampon · t=${this.ctx.currentTime.toFixed(1)}s (de ${this.startCtx.toFixed(1)} à ${this.endCtx.toFixed(1)}) · gain=${this.gain.gain.value.toFixed(2)} · contexte=${this.ctx.state}`;
   }
 
   /** Dans sa fenêtre de lecture sur un contexte actif, avec un gain audible. */

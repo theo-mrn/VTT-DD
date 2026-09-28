@@ -12,6 +12,7 @@ import { Notice } from '@/components/resources/parts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAudioLibrary, useChannel, useSoundboard, useSoundCues } from '@/lib/audio';
 import { AddSoundDialog, type SoundTarget } from './add-sound-dialog';
+import { AudioDiagnostics } from './audio-diagnostics';
 import { Deck } from './deck';
 import { LiveNow } from './live-now';
 import { MixerButton } from './mixer-panel';
@@ -129,6 +130,7 @@ export function SoundPanel({ campaignId, systemId }: { campaignId: string; syste
         <MixerButton />
       </div>
       <GmSound campaignId={campaignId} systemId={systemId} />
+      <AudioDiagnostics />
     </div>
   );
 }

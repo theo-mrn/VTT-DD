@@ -218,6 +218,11 @@ export class YoutubeVoice implements Registered {
     return state !== PLAYING && state !== BUFFERING;
   }
 
+  describe(): string {
+    if (!this.ready) return `youtube · lecteur pas encore prêt · voulu=${this.wantPlaying}`;
+    return `youtube · état=${this.player!.getPlayerState()} · t=${(this.player!.getCurrentTime() ?? 0).toFixed(1)}s · volume=${Math.round(this.volume * 100)} · voulu=${this.wantPlaying}`;
+  }
+
   /** Relance la lecture pendant un geste de l'utilisateur (le recalage suit au relevé). */
   kick() {
     if (this.disposed || !this.wantPlaying || !this.ready) return;

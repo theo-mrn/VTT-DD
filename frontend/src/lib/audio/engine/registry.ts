@@ -25,7 +25,18 @@ export interface Registered {
   stalled?(): boolean;
   /** Relance une lecture bloquée ; appelé pendant un geste de l'utilisateur. */
   kick?(): void;
+  /** État lisible pour le diagnostic (élément, lecteur, gain, dernière erreur). */
+  describe?(): string;
   dispose(): void;
+}
+
+export interface VoiceReport {
+  id: string;
+  label: string;
+  kind: LiveKind;
+  owned: boolean;
+  sounding: boolean;
+  detail: string;
 }
 
 export interface LiveSound {
@@ -152,6 +163,27 @@ export function kickAll(): void {
       // Lecteur indisponible
     }
   }
+}
+
+/** Toutes les voix inscrites, telles qu'elles sont réellement (diagnostic). */
+export function reportVoices(): VoiceReport[] {
+  return [...store.voices.values()].map((v) => {
+    const safe = <T>(f: () => T, d: T) => {
+      try {
+        return f();
+      } catch {
+        return d;
+      }
+    };
+    return {
+      id: v.id,
+      label: v.label,
+      kind: v.kind,
+      owned: safe(() => v.owned(), false),
+      sounding: safe(() => v.sounding(), false),
+      detail: safe(() => v.describe?.() ?? '', 'illisible'),
+    };
+  });
 }
 
 /** Coupe tout ce qui est inscrit (changement de moteur, « tout couper »). */
