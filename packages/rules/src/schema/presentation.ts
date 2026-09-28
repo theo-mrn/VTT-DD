@@ -172,6 +172,7 @@ export const IconeObjet = z.enum([
   'plume',
   'os',
   'objet',
+  'coeur',
 ]);
 export type IconeObjet = z.output<typeof IconeObjet>;
 
@@ -251,6 +252,10 @@ export const Presentation = z.object({
       z.object({ sens: z.enum(['descendant', 'montant']), couleur: Couleur.optional() }),
     )
     .default({}),
+  /** Apparence d'un attribut dans les tuiles de la fiche : icône (cœur des PV…) et couleur. */
+  attributs: z
+    .record(z.string(), z.object({ icone: IconeObjet.optional(), couleur: Couleur.optional() }))
+    .default({}),
   fiches: z.record(z.string(), z.object({ widgets: z.array(Widget).min(1) })).default({}),
   arbres: z
     .object({
@@ -317,6 +322,10 @@ export function verifierPresentation(
   for (const cle of Object.keys(p.ressources)) {
     const ok = [...systeme.entites.keys()].some((e) => attributDe(e, cle)?.nature === 'ressource');
     if (!ok) erreur(`ressources/${cle}`, `Ressource inconnue : ${cle}`);
+  }
+  for (const cle of Object.keys(p.attributs)) {
+    const ok = [...systeme.entites.keys()].some((e) => attributDe(e, cle));
+    if (!ok) erreur(`attributs/${cle}`, `Attribut inconnu : ${cle}`);
   }
 
   const placesJets = new Set<string>();
