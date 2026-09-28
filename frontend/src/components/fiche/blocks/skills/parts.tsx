@@ -109,7 +109,7 @@ export function SkillDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <EntryDetails ctx={ctx} entry={card.entry} writes={writes} onClose={onClose} />
+            <EntryDetails ctx={ctx} entry={card.entry} writes={writes} />
             {card.activable && !on && card.bonuses.some((b) => !b.applied) && (
               <p className="text-xs text-subtle">
                 Les effets s’appliquent une fois l’entrée active.

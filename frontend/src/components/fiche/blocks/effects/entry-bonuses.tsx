@@ -2,7 +2,7 @@
 
 /**
  * Bonus d'une entrée (fenêtre d'une compétence, d'un nœud d'arbre, d'une possession du
- * profil) : en-tête (titre, compteur, lien vers le bloc Bonus), puis une carte avec une ligne
+ * profil) : en-tête (titre, compteur), puis une carte avec une ligne
  * par effet, ceux du catalogue et ceux ajoutés à la main (effets propres de sa possession).
  * Entrée acquise et fiche modifiable : un interrupteur par effet, la même opération que le
  * bloc Bonus (`etat.effetsDesactives`), donc le même état des deux côtés ; un bonus propre se
@@ -10,7 +10,7 @@
  * Entrée non acquise : lecture seule.
  */
 import { sourceExemplaire, type Effet, type Entree, type Fiche } from '@vtt/rules';
-import { ArrowUpRight, BadgePlus, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { BadgePlus, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,13 +85,10 @@ const TITRE = 'text-sm font-semibold text-foreground';
 export function EntryBonuses({
   fiche,
   entry,
-  onManage,
   edit,
 }: {
   fiche: Fiche;
   entry: Entree;
-  /** Amène le bloc Bonus à l'écran (absent : il n'est pas sur la fiche). */
-  onManage?: (() => void) | undefined;
   /** Interrupteurs et gestion des bonus propres (absent : lecture seule). */
   edit?: EntryBonusEdit | undefined;
 }) {
@@ -180,20 +177,6 @@ export function EntryBonuses({
               <span className="font-mono text-xs tabular text-subtle">
                 {actifs} actif{actifs > 1 ? 's' : ''} / {liste.length}
               </span>
-            )}
-            {possedee && onManage && (
-              <Info texte="Ouvrir dans le bloc Bonus">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  className="ml-auto text-muted-foreground"
-                  aria-label="Ouvrir dans le bloc Bonus"
-                  onClick={onManage}
-                >
-                  <ArrowUpRight />
-                </Button>
-              </Info>
             )}
           </div>
           {bloque && (

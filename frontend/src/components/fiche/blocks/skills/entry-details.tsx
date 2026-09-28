@@ -5,7 +5,7 @@
  * champs, description assainie et bonus (une ligne par effet, avec son état). Entrée
  * acquise et fiche modifiable : chaque bonus s'active ou se coupe ici comme dans le bloc
  * Bonus (même opération, même état), et « Gérer les bonus » ajoute ou retire les bonus
- * propres. Le lien « Y aller » amène le bloc Bonus à l'écran.
+ * propres.
  */
 import type { Entree } from '@vtt/rules';
 import { useMemo } from 'react';
@@ -13,37 +13,20 @@ import { Badge } from '@/components/ui/badge';
 import { cibleBonusPropres } from '../../bonus-editor/model';
 import type { ContexteFiche } from '../../widgets';
 import { EntryBonuses, type EntryBonusEdit } from '../effects/entry-bonuses';
-import { allerAuBlocBonus, ancreBonus } from '../effects/model';
 import type { SheetWrites } from '../tree/writes';
 import { describeEntry } from './model';
 import { RichText } from './rich-text';
-
-/**
- * Lien vers le bloc Bonus, s'il est sur la fiche : ferme la fenêtre, puis amène le bloc à
- * l'écran (après la fermeture, le focus revient d'abord à l'élément d'origine).
- */
-export function lienBlocBonus(ctx: ContexteFiche, onClose: () => void): (() => void) | undefined {
-  if (typeof document === 'undefined' || !document.getElementById(ancreBonus(ctx.personnage.id)))
-    return undefined;
-  return () => {
-    onClose();
-    window.setTimeout(() => allerAuBlocBonus(ctx.personnage.id), 150);
-  };
-}
 
 export function EntryDetails({
   ctx,
   entry,
   writes,
-  onClose,
   showDescription = true,
 }: {
   ctx: ContexteFiche;
   entry: Entree;
   /** Écritures de la fiche (absentes : lecture seule). */
   writes?: SheetWrites | undefined;
-  /** Ferme la fenêtre (avant d'aller au bloc Bonus). */
-  onClose: () => void;
   showDescription?: boolean;
 }) {
   const { fiche } = ctx;
@@ -75,12 +58,7 @@ export function EntryDetails({
           <RichText text={entry.description} />
         </div>
       )}
-      <EntryBonuses
-        fiche={fiche}
-        entry={entry}
-        onManage={lienBlocBonus(ctx, onClose)}
-        edit={edit}
-      />
+      <EntryBonuses fiche={fiche} entry={entry} edit={edit} />
     </div>
   );
 }

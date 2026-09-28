@@ -139,7 +139,7 @@ export function TreeDetailDialog({
                   {info.entries.length > 1 && (
                     <p className="text-sm font-semibold text-primary-strong">{e.nom}</p>
                   )}
-                  <EntryDetails ctx={ctx} entry={e} writes={writes} onClose={onClose} />
+                  <EntryDetails ctx={ctx} entry={e} writes={writes} />
                 </div>
               ))}
 
