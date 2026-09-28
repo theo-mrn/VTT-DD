@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Crown, Eye, UserRound, Users } from 'lucide-react';
+import { ArrowLeft, Crown, Eye, MessageSquareLock, UserRound, Users } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
 import { EtatVide, Page, TitreSection } from '@/components/commun/page';
@@ -10,6 +10,7 @@ import { FichePersonnage } from '@/components/fiche/fiche-personnage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
 import type { Membre } from '@/lib/campagnes';
 import { usePersonnagesCampagne, type Personnage } from '@/lib/personnages';
@@ -111,6 +112,19 @@ export function OngletJoueurs() {
                     )}
                   </p>
                 </div>
+                {m.userId !== moi && (
+                  <Info texte={`Chuchoter à ${m.name}`}>
+                    <Button variant="ghost" size="icon-sm" asChild>
+                      <PanelLink
+                        panel="chat"
+                        params={{ [TABLE_PARAMS.whisper]: m.userId }}
+                        aria-label={`Chuchoter à ${m.name}`}
+                      >
+                        <MessageSquareLock />
+                      </PanelLink>
+                    </Button>
+                  </Info>
+                )}
               </div>
 
               {personnages.isLoading ? (

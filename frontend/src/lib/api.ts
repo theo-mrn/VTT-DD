@@ -12,6 +12,8 @@ export interface ProblemDetail {
   title: string;
   detail?: string;
   code?: string;
+  /** Secondes à attendre avant de réessayer (en-tête `retry-after` d'un 429 ou d'un 503). */
+  retryAfter?: number;
 }
 
 export class ApiError extends Error {
@@ -49,11 +51,19 @@ export function setAccessToken(jeton: string | null) {
   jetonAcces = jeton;
 }
 
+/** `retry-after` en secondes (la forme date HTTP n'est pas utilisée par les services). */
+function delaiReessai(res: Response): number | undefined {
+  const valeur = Number(res.headers.get('retry-after'));
+  return Number.isFinite(valeur) && valeur > 0 ? valeur : undefined;
+}
+
 async function lireErreur(res: Response): Promise<ApiError> {
+  const retryAfter = delaiReessai(res);
+  const avecDelai = retryAfter ? { retryAfter } : {};
   try {
-    return new ApiError((await res.json()) as ProblemDetail);
+    return new ApiError({ ...((await res.json()) as ProblemDetail), ...avecDelai });
   } catch {
-    return new ApiError({ status: res.status, title: res.statusText });
+    return new ApiError({ status: res.status, title: res.statusText, ...avecDelai });
   }
 }
 

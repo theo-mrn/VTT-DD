@@ -112,7 +112,11 @@ function Plateau({ table, children }: { table: Table; children: ReactNode }) {
   const permis = useMemo(() => new Set(panels.map((p) => p.id)), [panels]);
   usePanelLocationSync(permis);
   useTableShortcuts(panels);
-  useActivityBadges(table.campagne.id, table.moi.userId, panels);
+  const viewer = useMemo(
+    () => ({ userId: table.moi.userId, gm: table.gm }),
+    [table.moi.userId, table.gm],
+  );
+  useActivityBadges(table.campagne.id, viewer, panels);
   const rail = useRailLayout(table.moi.userId, table.campagne.id, panels);
 
   return (

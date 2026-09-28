@@ -71,7 +71,7 @@ Les accusés (`ack`) sont facultatifs.
 `{ campaignId, kind, data, gmOnly? }`, sans accusé :
 
 - relayé aux **autres** abonnés de la campagne (`gmOnly` : aux MJ seulement, ex. glissement d'un jeton caché), jamais stocké ;
-- `kind` : `[a-z][a-z0-9_.:-]{0,39}` (`cursor`, `drag`, `ping`…) ; `data` : 4 Kio au plus en JSON (`EPHEMERAL_MAX_BYTES`) ;
+- `kind` : `[a-z][a-z0-9_.:-]{0,39}` (`cursor`, `drag`, `ping`, `chat.typing` pour « X écrit… »…) ; `data` : 4 Kio au plus en JSON (`EPHEMERAL_MAX_BYTES`) ;
 - débit par connexion : 20 messages par seconde, rafale de 40 (`EPHEMERAL_RATE_PER_SECOND`, `EPHEMERAL_BURST`) ; au-delà, messages ignorés et `rate_limited` (au plus un par seconde) ;
 - volatile : perdu plutôt que mis en file si la connexion du destinataire est occupée. Dernier état gagne : un message porte `at` (horloge du serveur).
 
@@ -114,7 +114,9 @@ Membres : sur `campaign.member_left` (y compris exclusion), les connexions du me
 
 - `useCampaignEvents(campaignId | null, types, handler)` → `{ live, generation }` : `null` pour les événements personnels ; `types` exacts ou `domaine.*` ; `generation` change quand l'état doit être relu en REST (premier abonnement, `resync`, reconnexion pour les événements personnels) ;
 - `useCampaignPresence(campaignId)` → `{ users, live }` ;
-- `useCampaignEphemeral(campaignId, kinds, handler)` → `{ send, live }` (pour la carte).
+- `useCampaignEphemeral(campaignId, kinds, handler)` → `{ send, live }` (carte, « X écrit… » du chat).
+
+Le chat de la table (`lib/campaign-chat.ts`) rattrape les messages par `after` sur `campaign.message_posted`, relit le message sur `_updated`, le retire sur `_deleted` (aucun ne porte le texte), rattrape aussi à chaque `generation`, et toutes les 20 s si le temps réel est coupé.
 
 Exemple : l'historique des dés (`use-roll-history.ts`) relit le jet en REST sur `dice.rolled` (masquage appliqué par dice), retire le jet sur `dice.roll_deleted` (`aggregate.id`, présent même expurgé), se vide sur `dice.history_cleared`, et ne relit l'historique toutes les 30 s que si le temps réel est coupé.
 

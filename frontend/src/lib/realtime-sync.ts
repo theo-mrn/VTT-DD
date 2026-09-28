@@ -49,7 +49,7 @@ export function appliquerEvenement(client: QueryClient, moi: string, e: Realtime
       invaliderListesPersonnages(client);
       return;
     }
-    // La discussion n'a pas d'écran ici
+    // La discussion se tient à jour elle-même (lib/campaign-chat.ts)
     if (type.startsWith('campaign.message_')) return;
     // Réglages de table (lanceur de dés) : seule leur requête change
     if (type === 'campaign.settings_updated') {

@@ -2,6 +2,7 @@ import {
   Crown,
   Dices,
   History,
+  MessagesSquare,
   NotebookPen,
   ScrollText,
   Settings2,
@@ -9,6 +10,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import { isChatEventForMe } from '@/lib/campaign-chat';
+import type { RealtimeEnvelope } from '@/lib/realtime';
 
 /**
  * Registre des panneaux de la table : la seule liste de ce qui s'ouvre par-dessus la carte.
@@ -54,6 +57,11 @@ export interface PanelDefinition {
    * quand il est fermé : pastille de non-lus sur le rail. Ceux de l'utilisateur ne comptent pas.
    */
   activity?: readonly string[];
+  /**
+   * Filtre du domaine sur ces événements : ceux qui ne me concernent pas (un chuchotement entre
+   * joueurs, dont le MJ reçoit l'id sans pouvoir le lire) ne comptent pas.
+   */
+  activityFilter?: (event: RealtimeEnvelope, viewer: { userId: string; gm: boolean }) => boolean;
   component: LazyExoticComponent<ComponentType>;
 }
 
@@ -82,6 +90,19 @@ export const panelRegistry = [
     roles: ALL_ROLES,
     activity: ['dice.rolled'],
     component: lazy(() => import('../onglets/des').then((m) => ({ default: m.OngletDes }))),
+  },
+  {
+    id: 'chat',
+    label: 'Chat',
+    description: 'Discuter avec la table, ou chuchoter à un joueur ou au MJ',
+    icon: MessagesSquare,
+    shortcut: { code: 'KeyC', label: 'C' },
+    width: 'narrow',
+    mode: 'side',
+    roles: ALL_ROLES,
+    activity: ['campaign.message_posted'],
+    activityFilter: isChatEventForMe,
+    component: lazy(() => import('../onglets/chat').then((m) => ({ default: m.ChatPanel }))),
   },
   {
     id: 'notes',
@@ -169,11 +190,14 @@ export function panelsFor(role: TableRole): TablePanel[] {
 
 /**
  * Paramètres d'adresse de la table : le panneau ouvert et l'état profond de certains panneaux,
- * pour les liens directs (`?panneau=notes&note=…`, `?panneau=joueurs&personnage=…`).
+ * pour les liens directs (`?panneau=notes&note=…`, `?panneau=joueurs&personnage=…`,
+ * `?panneau=chat&chuchoter=<userId>`).
  */
 export const TABLE_PARAMS = {
   panel: 'panneau',
   note: 'note',
   newNote: 'nouvelle',
   character: 'personnage',
+  /** Chat ouvert sur un chuchotement à ce membre (« Chuchoter » depuis Joueurs). */
+  whisper: 'chuchoter',
 } as const;
