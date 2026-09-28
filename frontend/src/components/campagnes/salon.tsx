@@ -67,6 +67,7 @@ import { cn } from '@/lib/utils';
 import { useNomSysteme } from './carte-campagne';
 import { BadgeRole, BadgeVisibilite, formaterDans, formaterSession } from './elements';
 import { ReglagesCampagne } from './reglages-campagne';
+import { PanneauReglesOptionnelles } from './reglages-regles';
 
 /** Salon d'une campagne : présentation, table (joueurs et héros), invitation, sessions. */
 export function SalonCampagne({ id }: { id: string }) {
@@ -122,6 +123,7 @@ export function SalonCampagne({ id }: { id: string }) {
         <aside className="space-y-6">
           <CarteInvitation campagne={c} gm={role === 'gm'} />
           <Sessions campagne={c} gm={role === 'gm'} />
+          <PanneauReglesOptionnelles campaignId={c.id} systemId={c.system} />
           {c.invitations.length > 0 && <InvitationsEnAttente campagne={c} />}
         </aside>
       </div>

@@ -102,9 +102,15 @@ export function estBonus(e: EffetListe): boolean {
   return effetEstBonus(e.effet);
 }
 
-/** Effets affichés : bonus des sources possédées (une entrée à rangs sans rang est ignorée). */
+/**
+ * Effets affichés : bonus des sources possédées (une entrée à rangs sans rang est ignorée).
+ * Les effets de règle du système (surcharge…) ne sont pas des bonus du personnage : ils se
+ * lisent dans l'explication des valeurs qu'ils modifient.
+ */
 export function effetsDuPersonnage(fiche: Fiche): EffetListe[] {
-  return listerEffets(fiche).filter((e) => estBonus(e) && e.raison !== 'non-effective');
+  return listerEffets(fiche).filter(
+    (e) => estBonus(e) && e.genre !== 'regle' && e.raison !== 'non-effective',
+  );
 }
 
 /** Pourquoi un effet ne s'applique pas, sans être coupé (grisé dans la liste). */

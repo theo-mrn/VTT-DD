@@ -5,7 +5,7 @@
  * `quantites`, `rangs`), groupes, natures et visibilité des attributs, arbres, achats,
  * monnaies et actions. Aucune clé de jeu.
  */
-import { monnaiesDe, type Widget } from '@vtt/rules';
+import { monnaiesDe, optionPermet, type Widget } from '@vtt/rules';
 import {
   actionsDisponibles,
   visiblePour,
@@ -87,6 +87,8 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
   // proposé qu'une fois : la présentation d'abord, avec ses réglages
   const vus = new Set<string>();
   return [...widgetsDe(ctx), ...generes].filter((w) => {
+    // Bloc d'une règle optionnelle éteinte pour la campagne : pas proposé
+    if (!optionPermet(w, ctx.fiche.options)) return false;
     const c = cibleDe(w);
     if (vus.has(c)) return false;
     vus.add(c);

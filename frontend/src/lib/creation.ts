@@ -180,6 +180,8 @@ export function groupesAttributs(
   for (const a of fiche.entite.attributs.values()) {
     if (
       a.visibilite === 'mj' ||
+      // Règle optionnelle éteinte pour la campagne : pas sur la fiche
+      !fiche.attributActif(a.cle) ||
       a.nature === 'texte' ||
       a.nature === 'choix' ||
       a.nature === 'booleen'

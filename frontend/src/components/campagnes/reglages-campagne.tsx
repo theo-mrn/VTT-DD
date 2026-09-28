@@ -24,6 +24,9 @@ import { TYPES_IMAGE, verifierImage } from '@/lib/profil';
 import { cn } from '@/lib/utils';
 import { AMBIANCES, COUVERTURES } from './elements';
 import { ReglagesLanceur } from './reglages-lanceur';
+import { ReglagesRegles } from './reglages-regles';
+
+const AUCUNE_REGLE: Record<string, boolean> = {};
 
 /** Réglages du MJ, dans un panneau latéral : tout sauf le système (définitif). */
 export function ReglagesCampagne({
@@ -41,6 +44,9 @@ export function ReglagesCampagne({
   // Attributs retirés du lanceur : null tant que le MJ n'y a pas touché (valeur enregistrée)
   const [retires, setRetires] = useState<string[] | null>(null);
   const retiresEnregistres = reglages.data?.dice.hiddenAttributes ?? [];
+  // Règles optionnelles réglées : null tant que le MJ n'y a pas touché
+  const [regles, setRegles] = useState<Record<string, boolean> | null>(null);
+  const reglesEnregistrees = reglages.data?.rules?.options ?? AUCUNE_REGLE;
   const envoi = useEnvoyerCouverture(c.id);
   const champFichier = useRef<HTMLInputElement>(null);
   const initial = (): Required<ModificationCampagne> => ({
@@ -61,6 +67,7 @@ export function ReglagesCampagne({
     if (!ouvert) return;
     setF(initial());
     setRetires(null);
+    setRegles(null);
   }, [ouvert]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Image importée : envoyée tout de suite, elle devient la couverture enregistrée
@@ -90,10 +97,15 @@ export function ReglagesCampagne({
   async function enregistrer() {
     try {
       await modifier.mutateAsync({ ...f, name: f.name.trim(), pitch: f.pitch.trim() });
-      if (retires !== null && reglages.data && !memes(retires, retiresEnregistres))
+      // Lanceur et règles optionnelles : une seule écriture des réglages de table
+      const lanceur = retires !== null && !memes(retires, retiresEnregistres);
+      const options =
+        regles !== null && Object.entries(regles).some(([k, v]) => reglesEnregistrees[k] !== v);
+      if (reglages.data && (lanceur || options))
         await modifierReglages.mutateAsync({
           version: reglages.data.version,
-          dice: { hiddenAttributes: retires },
+          ...(lanceur ? { dice: { hiddenAttributes: retires } } : {}),
+          ...(options ? { rules: { options: regles } } : {}),
         });
       toast.success('Campagne mise à jour');
       onOuvert(false);
@@ -101,8 +113,9 @@ export function ReglagesCampagne({
       if (err instanceof ApiError && err.problem.code === 'version_conflict') {
         void reglages.refetch();
         setRetires(null);
+        setRegles(null);
         toast.error(
-          'Les réglages du lanceur ont changé entre-temps : vérifiez-les et recommencez.',
+          'Les réglages de la table ont changé entre-temps : vérifiez-les et recommencez.',
         );
       } else toast.error(messageErreur(err));
     }
@@ -251,6 +264,13 @@ export function ReglagesCampagne({
             onChange={(v) => maj({ freeCreation: v })}
             label="Création libre des personnages"
             description="Les joueurs créent leur héros eux-mêmes."
+          />
+
+          <ReglagesRegles
+            systemId={c.system}
+            options={regles ?? reglesEnregistrees}
+            onChange={setRegles}
+            loading={reglages.isPending}
           />
 
           <ReglagesLanceur

@@ -4,7 +4,7 @@
  * Tout se lit dans la fiche calculée et le widget : aucun système n'est connu ici. Un type
  * de bloc sans estimation prend la taille déclarée par sa définition.
  */
-import { soldes, type Widget } from '@vtt/rules';
+import { optionPermet, soldes, type Widget } from '@vtt/rules';
 import { blockDefinition } from '@/components/fiche/blocks/registry';
 import { skillSortes } from '@/components/fiche/blocks/skills/abilities';
 import { pathSortes } from '@/components/fiche/blocks/tree/model';
@@ -149,6 +149,8 @@ const VIDE: Partial<Record<WidgetType, (ctx: ContexteFiche, widget: never) => bo
 
 /** Le bloc n'a rien à montrer (vrai seulement pour les types qui savent le dire). */
 export function isBlockEmpty(ctx: ContexteFiche, widget: Widget): boolean {
+  // Bloc d'une règle optionnelle éteinte pour la campagne : rien à montrer
+  if (!optionPermet(widget, ctx.fiche.options)) return true;
   const vide = VIDE[widget.type];
   return vide ? vide(ctx, widget as never) : false;
 }

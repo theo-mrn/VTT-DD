@@ -14,9 +14,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
+import { useCampaignSystem } from '@/lib/campaign-settings';
 import { usePersonnage, type Personnage } from '@/lib/personnages';
 import type { RollableAttribute, RollableGroup } from '@/lib/rollable-attributes';
-import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 
 // ─── Fiche du personnage ─────────────────────────────────────────────────────
@@ -28,7 +28,8 @@ import { cn } from '@/lib/utils';
  */
 export function useFichePersonnage(personnage: Personnage | null) {
   const complet = usePersonnage(personnage?.id);
-  const systeme = useSysteme(personnage?.system.id);
+  // Règles réglées avec les options de sa campagne (Contact en surcharge…)
+  const systeme = useCampaignSystem(personnage?.system.id, personnage?.roomId);
   const etat = complet.data?.state;
   const calcul = useMemo((): { fiche: Fiche | null; erreur: string | null } => {
     if (!etat || !systeme.data) return { fiche: null, erreur: null };

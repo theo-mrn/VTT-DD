@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
+import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCampagne } from '@/lib/campagnes';
 import { etatInitial } from '@/lib/creation';
 import {
@@ -45,7 +46,6 @@ import {
 } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
-import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { ApercuFiche } from './apercu-fiche';
 import { EtapeAcheter } from './etape-acheter';
@@ -102,8 +102,8 @@ export function AssistantPersonnage({
   // Réglages de la campagne (création permise…) et fiche suivis en direct
   useSynchroCampagne(campagneId, { personnage: id });
 
-  // Le système est celui de la campagne : jamais demandé au joueur
-  const sys = useSysteme(campagne.data?.system);
+  // Le système est celui de la campagne, avec ses règles optionnelles : jamais demandé au joueur
+  const sys = useCampaignSystem(campagne.data?.system, campagneId);
   const systeme = sys.data?.systeme ?? null;
   const presentation = sys.data?.presentation ?? null;
 

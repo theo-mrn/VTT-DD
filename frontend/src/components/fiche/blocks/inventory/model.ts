@@ -11,6 +11,7 @@ import {
   apercuFormule,
   declarationsJetables,
   champsGroupe,
+  champsActifs,
   chemins,
   compilerFormuleChamp,
   formuleChamp,
@@ -280,11 +281,15 @@ export function bonusDe(
 // ─── Charge (poids, encombrement) ────────────────────────────────────────────
 
 /**
- * Agrégat du moteur qui additionne un champ des objets portés d'une sorte :
- * `somme_actifs("sorte", "champ")`. `somme` (tout ce qui est possédé) n'est pas une charge :
- * total d'Obligation, dé de vie…
+ * Agrégats du moteur qui additionnent un champ numérique des objets d'une sorte de
+ * l'inventaire : ceux portés (`somme_actifs("arme", "encombrement")`, sorte équipable) ou
+ * tous ceux possédés (`somme("objet", "poids")`). Hors des sortes de l'inventaire (total
+ * d'Obligation, dé de vie du profil), une somme n'est pas une charge.
  */
-const AGREGAT_CHARGE = 'somme_actifs';
+const AGREGATS_CHARGE = new Set(['somme_actifs', 'somme']);
+
+/** Charge lisible : deux décimales au plus (des poids de 0,01 kg s'additionnent mal en flottants). */
+const arrondiCharge = (n: number) => Math.round(n * 100) / 100;
 
 function parcourir(n: Noeud, visite: (n: Noeud) => void) {
   visite(n);
@@ -331,8 +336,9 @@ export interface ChargeInventaire {
 
 /**
  * Charge déclarée par le système : un attribut dérivé dont la formule additionne
- * (`somme_actifs`) un champ numérique des objets portés d'une sorte équipable de
- * l'inventaire. Aucun nom de champ supposé : c'est la formule du système qui désigne le poids.
+ * (`somme_actifs` ou `somme`) un champ numérique des objets d'une sorte de l'inventaire.
+ * Aucun nom de champ supposé : c'est la formule du système qui désigne le poids. Une charge
+ * d'une règle optionnelle éteinte pour la campagne n'est pas montrée, ni le poids des objets.
  */
 export function chargeInventaire(
   fiche: Fiche,
@@ -344,20 +350,23 @@ export function chargeInventaire(
   const charges: Charge[] = [];
   const type = fiche.etat.type;
   const formule = (cle: string) => systeme.formules.get(chemins.attribut(type, cle, 'formule'));
-  const visible = (a: { visibilite: string }) => mj || a.visibilite !== 'mj';
+  const visible = (a: { cle: string; visibilite: string }) =>
+    fiche.attributActif(a.cle) && (mj || a.visibilite !== 'mj');
 
   for (const a of entite.attributs.values()) {
+    // Une charge d'une règle optionnelle éteinte (encombrement) n'est pas sur la fiche
     if (a.nature !== 'derivee' || a.type !== 'nombre' || !visible(a)) continue;
     const f = formule(a.cle);
     if (!f) continue;
     let lit = false;
     parcourir(f.noeud, (n) => {
-      if (n.t !== 'appel' || n.fn !== AGREGAT_CHARGE) return;
+      if (n.t !== 'appel' || !AGREGATS_CHARGE.has(n.fn)) return;
       const [s, c] = n.args;
       if (s?.t !== 'texte' || c?.t !== 'texte' || !sortes.includes(s.v)) return;
       const sorte = systeme.sortes.get(s.v);
       const champ = sorte?.champs.find((x) => x.id === c.v);
-      if (!sorte?.activable || champ?.type !== 'nombre') return;
+      if (!sorte || champ?.type !== 'nombre') return;
+      if (n.fn === 'somme_actifs' && !sorte.activable) return;
       champs.set(s.v, champ);
       lit = true;
     });
@@ -371,7 +380,8 @@ export function chargeInventaire(
         const l = entite.attributs.get(cle);
         if (!l || l.cle === a.cle || l.groupe !== a.groupe || !visible(l)) continue;
         const v = fiche.valeur(cle);
-        if (typeof v === 'number' && !limite) limite = { cle, nom: l.nom, valeur: v };
+        if (typeof v === 'number' && !limite)
+          limite = { cle, nom: l.nom, valeur: arrondiCharge(v) };
       }
     }
     const alertes = dependants
@@ -381,7 +391,7 @@ export function chargeInventaire(
     charges.push({
       cle: a.cle,
       nom: a.nom,
-      valeur: Number(fiche.valeur(a.cle)) || 0,
+      valeur: arrondiCharge(Number(fiche.valeur(a.cle)) || 0),
       ...(limite ? { limite } : {}),
       alertes,
     });
@@ -625,7 +635,8 @@ export function champsAffiches(
   possession?: Possession,
 ): ChampAffiche[] {
   const r: ChampAffiche[] = [];
-  for (const c of sorte.champs) {
+  // Champs d'une règle optionnelle éteinte (poids sans encombrement) : cachés, valeurs gardées
+  for (const c of champsActifs(sorte, fiche.options)) {
     const v = champDe(entree, c, possession);
     const propre = possession?.champs[c.id] !== undefined;
     const modifiable =

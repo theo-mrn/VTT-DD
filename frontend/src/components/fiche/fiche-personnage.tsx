@@ -43,6 +43,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { messageErreur } from '@/lib/api';
+import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCampagne } from '@/lib/campagnes';
 import {
   lienPersonnage,
@@ -55,7 +56,6 @@ import {
 } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
-import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
 import { styleThemeSysteme } from './theme';
@@ -65,14 +65,15 @@ import { widgetsDe, type ContexteFiche, type OperationsFiche } from './widgets';
 
 /**
  * Fiche calculée d'un personnage et ses écritures : état lu dans character,
- * calculé par @vtt/rules avec son système, tenu à jour en direct dans sa
- * campagne. Le propriétaire et le MJ de sa campagne la modifient ; les autres
+ * calculé par @vtt/rules avec son système et les règles optionnelles de sa
+ * campagne, tenu à jour en direct dans sa campagne. Le propriétaire et le MJ de sa campagne la modifient ; les autres
  * la lisent (`ctx.operations` absent).
  */
 export function useFicheCalculee(id: string | null | undefined) {
   const profil = useProfil();
   const perso = usePersonnage(id);
-  const sys = useSysteme(perso.data?.system.id);
+  // Règles du système, réglées avec les options de sa campagne (encombrement…)
+  const sys = useCampaignSystem(perso.data?.system.id, perso.data?.roomId);
   const campagne = useCampagne(perso.data?.roomId);
   const ecritures = useOperationsPersonnage(id ?? '');
   // Le MJ modifie la fiche (ou le joueur, vu du MJ) : elle change en direct

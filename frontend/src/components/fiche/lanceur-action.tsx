@@ -52,9 +52,10 @@ function defaut(fiche: Fiche, p: Parametre): Valeur {
 }
 
 function optionsAttribut(fiche: Fiche, p: Extract<Parametre, { type: 'attribut' }>): string[] {
-  if (p.attributs?.length) return p.attributs;
+  // Un attribut d'une règle optionnelle éteinte n'est pas proposé
+  if (p.attributs?.length) return p.attributs.filter((c) => fiche.attributActif(c));
   return [...fiche.entite.attributs.values()]
-    .filter((a) => a.groupe === p.groupe)
+    .filter((a) => a.groupe === p.groupe && fiche.attributActif(a.cle))
     .map((a) => a.cle);
 }
 

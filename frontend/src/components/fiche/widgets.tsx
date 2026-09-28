@@ -91,7 +91,9 @@ export function widgetsDe(ctx: ContexteFiche): Widget[] {
   const uniques = [...fiche.systeme.sortes.values()].filter(
     (s) => s.maximum === 1 && s.pour.includes(fiche.etat.type),
   );
-  const ressources = [...fiche.entite.attributs.values()].filter((a) => a.nature === 'ressource');
+  const ressources = [...fiche.entite.attributs.values()].filter(
+    (a) => a.nature === 'ressource' && fiche.attributActif(a.cle),
+  );
   const sortesPossedees = new Set([...fiche.possessions.values()].map((p) => p.sorte.id));
   return [
     { type: 'details', titre: 'Profil', sortes: uniques.map((s) => s.id), attributs: [] },
@@ -194,8 +196,12 @@ export function BlocAttributs({
   );
 }
 
-/** Attribut montré à l'utilisateur : ceux réservés au MJ (`visibilite: mj`) ne le sont qu'au MJ. */
-export function visiblePour(ctx: ContexteFiche, cle: string): boolean {
+/**
+ * Attribut montré à l'utilisateur : sur la fiche (pas d'une règle optionnelle éteinte pour
+ * la campagne), et s'il est réservé au MJ (`visibilite: mj`), au MJ seul.
+ */
+export function visiblePour(ctx: Pick<ContexteFiche, 'fiche' | 'mj'>, cle: string): boolean {
+  if (!ctx.fiche.attributActif(cle)) return false;
   return ctx.mj === true || ctx.fiche.entite.attributs.get(cle)?.visibilite !== 'mj';
 }
 

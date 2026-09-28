@@ -7,7 +7,13 @@
  * les champs proposés sont ceux de la sorte. Seul ce qui diffère de l'entrée part au
  * service, en une seule demande (`ajouterLibre`).
  */
-import { type Effet, type Fiche, type InventoryFolder, type Presentation } from '@vtt/rules';
+import {
+  champsActifs,
+  type Effet,
+  type Fiche,
+  type InventoryFolder,
+  type Presentation,
+} from '@vtt/rules';
 import { ArrowLeft, Eye, EyeOff, Minus, Plus, ShieldCheck } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -179,7 +185,10 @@ function Formulaire({
   const exclus = new Set(
     [sorte.nomExemplaire, sorte.descriptionExemplaire, modele.categorie?.champ.id].filter(Boolean),
   );
-  const editables = sorte.champs.filter((c) => estModifiable(c) && !exclus.has(c.id));
+  // Sans les champs d'une règle optionnelle éteinte pour la campagne
+  const editables = champsActifs(sorte, fiche.options).filter(
+    (c) => estModifiable(c) && !exclus.has(c.id),
+  );
   const valeur = (cid: string) => {
     if (cid in champs) return champs[cid];
     const c = sorte.champs.find((x) => x.id === cid);
