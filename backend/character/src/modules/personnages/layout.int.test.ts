@@ -60,6 +60,20 @@ const MISE_EN_PAGE_FINE = {
   ],
 };
 
+/** Bloc de tuiles avec sa disposition interne : 3 colonnes, ordre choisi, une valeur masquée. */
+const BLOC_DISPOSE = {
+  id: 'b1',
+  type: 'attributs',
+  title: 'Caractéristiques',
+  params: {
+    groupe: 'caracteristiques',
+    colonnes: 6,
+    colonnesTuiles: 3,
+    ordre: ['DEX', 'FOR', 'CON', 'INT', 'SAG', 'CHA'],
+    masques: ['CHA'],
+  },
+};
+
 describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
   let t: Contexte;
   let o: ReturnType<typeof outils>;
@@ -170,6 +184,36 @@ describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
     expect(enregistre.sheetLayout).toEqual(MISE_EN_PAGE_FINE);
   });
 
+  it('garde la disposition interne d’un bloc de tuiles (colonnes, ordre, masques)', async () => {
+    const p = await o.nainGuerrier(proprietaire, 'Dispose');
+    const u = `/v1/characters/${p.id}/layout`;
+    const layout = {
+      ...MISE_EN_PAGE_FINE,
+      blocks: [BLOC_DISPOSE, ...MISE_EN_PAGE_FINE.blocks.slice(1)],
+    };
+    const enregistre = (await o.ok(proprietaire, 'PUT', u, {
+      version: p.version,
+      layout,
+    })) as AvecMiseEnPage;
+    expect(enregistre.sheetLayout).toEqual(layout);
+    // `auto` explicite, clés accentuées : acceptés aussi
+    const auto = {
+      ...layout,
+      blocks: [
+        {
+          ...BLOC_DISPOSE,
+          params: { groupe: 'g', colonnesTuiles: 'auto', ordre: ['Agilité', 'FOR_2'] },
+        },
+        ...layout.blocks.slice(1),
+      ],
+    };
+    const relu = (await o.ok(proprietaire, 'PUT', u, {
+      version: enregistre.version,
+      layout: auto,
+    })) as AvecMiseEnPage;
+    expect(relu.sheetLayout).toEqual(auto);
+  });
+
   it('hors campagne, l’événement reste celui du propriétaire', async () => {
     const p = await o.nainGuerrier(proprietaire, 'Solitaire');
     await o.ok(proprietaire, 'PUT', `/v1/characters/${p.id}/layout`, {
@@ -240,6 +284,32 @@ describe.skipIf(!TEST_DATABASE_URL)('mise en page de la fiche', () => {
           blocks: [{ id: 'b1', type: 'attributs', title: 'X', params: { a: {} } }],
         },
       ],
+      ...(
+        [
+          ['colonnes à 0', { colonnesTuiles: 0 }],
+          ['colonnes au-delà de 6', { colonnesTuiles: 7 }],
+          ['colonnes non entières', { colonnesTuiles: 2.5 }],
+          ['colonnes inconnues', { colonnesTuiles: 'large' }],
+          ['ordre qui n’est pas une liste', { ordre: 'FOR' }],
+          ['ordre vide', { ordre: [] }],
+          ['valeur en double dans l’ordre', { ordre: ['FOR', 'FOR'] }],
+          ['clé de valeur invalide', { masques: ['FOR-1'] }],
+          ['trop de valeurs', { ordre: Array.from({ length: 65 }, (_, i) => `a${i}`) }],
+        ] as const
+      ).map(
+        ([cas, params]) =>
+          [
+            `disposition : ${cas}`,
+            {
+              ...MISE_EN_PAGE,
+              // Seul le paramètre de disposition est fautif : le reste est valide
+              blocks: [
+                { ...BLOC_DISPOSE, params: { ...BLOC_DISPOSE.params, ...params } },
+                MISE_EN_PAGE.blocks[1],
+              ],
+            },
+          ] as [string, unknown],
+      ),
       // ~40 Ko : sous la limite du corps, au-delà de celle de la mise en page
       ['trop volumineuse', volumineuse(12)],
     ];

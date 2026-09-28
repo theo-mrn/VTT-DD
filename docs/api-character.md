@@ -92,7 +92,7 @@ La fiche du front est une grille de blocs (12 colonnes sur grand écran) que le 
 ```ts
 SheetLayout = {
   format: 1 | 2; // 2 : pas vertical de 4 px ; 1 : rangées de 32 px espacées de 16 (converti par le front)
-  blocks: { id: string; type: string; title: string; params: Record<string, string | number | boolean | string[]>; height?: 'auto' | 'fixed' }[]; // 40 au plus
+  blocks: { id: string; type: string; title: string; params: Record<string, string | number | boolean | string[]>; height?: 'auto' | 'fixed' }[]; // 40 au plus ; params : 16 au plus, dont colonnesTuiles, ordre, masques
   layouts: { lg?: Item[]; md?: Item[]; sm?: Item[]; xs?: Item[] }; // positions par largeur ; absente : déduite
 }
 Item = { i: string; x: number; y: number; w: number; h: number } // i : id d'un bloc, x + w <= 12 ; y <= 50 000, h <= 2 400
@@ -101,6 +101,8 @@ Item = { i: string; x: number; y: number; w: number; h: number } // i : id d'un 
 Le front écrit le format 2 : la grille avance par pas de 4 px, sans espace entre rangées (chaque bloc porte sa marge basse de 12 px), pour que les hauteurs automatiques épousent le contenu. Une mise en page au format 1 (rangées de 32 px espacées de 16) reste lisible : le front la convertit (`y × 12`, `h × 12 − 1`) et l'enregistre au format 2 au prochain changement.
 
 `height` règle la hauteur d'un bloc dans la grille : `auto`, elle suit son contenu (le `h` des positions n'est qu'une estimation, le front mesure) ; `fixed`, le `h` des positions s'applique et le contenu défile. Absent : préférence du type de bloc côté front (automatique, sauf l'arbre) ; les mises en page enregistrées avant ce champ suivent donc cette préférence.
+
+Un bloc de tuiles (attributs, ressources) peut porter sa **disposition interne**, réglée en personnalisation, dans trois paramètres réservés : `colonnesTuiles` (`'auto'` ou un entier de 1 à 6), `ordre` (clés des valeurs dans l'ordre voulu) et `masques` (clés des valeurs cachées). `ordre` et `masques` sont des listes non vides de 64 clés au plus, sans doublon, chaque clé faite de lettres, chiffres et `_` (60 caractères au plus) ; toute autre forme est refusée (400). Le service ne sait pas quelles valeurs le bloc montre : le front ignore une clé que la présentation ne donne pas au bloc, place à la suite celles que l'ordre ne cite pas, et garde toujours au moins une valeur affichée. Sans ces paramètres, le bloc suit la présentation : colonnes automatiques (autant que la largeur du bloc en permet, le `colonnes` de la présentation n'étant qu'un maximum préféré), ordre et valeurs du système.
 
 Un bloc est un widget de la présentation (`type`, `titre` → `title`, ses autres champs → `params`) : le service ne connaît aucun jeu, il vérifie la forme (schéma strict, clés inconnues refusées), les bornes, l'unicité des blocs et que chaque position désigne un bloc. 32 Ko au plus une fois sérialisée (400 au-delà ; 413 pour un corps de plus de 64 Ko). La `version` est obligatoire et incrémentée, comme pour toute écriture (409 `version_perimee` si elle est périmée). Propriétaire ou MJ de la table ; un joueur de la table reçoit 403.
 

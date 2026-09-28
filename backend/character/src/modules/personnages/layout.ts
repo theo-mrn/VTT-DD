@@ -25,16 +25,56 @@ const ParamValue = z.union([
   z.array(z.string().min(1).max(200)).max(100),
 ]);
 
+/** Colonnes fixes d'un bloc de tuiles, au plus. */
+export const MAX_TILE_COLUMNS = 6;
+/** Valeurs au plus dans l'ordre ou les masques d'un bloc de tuiles. */
+export const MAX_TILE_KEYS = 64;
+
+/** Clé d'une valeur du bloc (attribut du système), sans rien savoir du jeu. */
+const TileKey = z
+  .string()
+  .max(60)
+  .regex(/^[\p{L}_][\p{L}\p{N}_]*$/u, 'Clé de valeur : lettres, chiffres et « _ »');
+const TileKeys = z
+  .array(TileKey)
+  .min(1)
+  .max(MAX_TILE_KEYS)
+  .refine((l) => new Set(l).size === l.length, 'Valeur en double');
+
+/**
+ * Paramètres de la disposition interne d'un bloc de tuiles (attributs, ressources…), réglée
+ * en personnalisation : colonnes (`auto` ou 1 à 6), ordre des valeurs, valeurs masquées.
+ * Absents : le front suit la présentation du système.
+ */
+const TileParams = {
+  colonnesTuiles: z.union([z.literal('auto'), z.number().int().min(1).max(MAX_TILE_COLUMNS)]),
+  ordre: TileKeys,
+  masques: TileKeys,
+} as const;
+
+const BlockParams = z
+  .record(ParamKey, ParamValue)
+  .refine((p) => Object.keys(p).length <= 16, '16 paramètres au plus')
+  .superRefine((p, ctx) => {
+    for (const [cle, schema] of Object.entries(TileParams)) {
+      if (!(cle in p)) continue;
+      const r = schema.safeParse(p[cle]);
+      if (!r.success)
+        for (const issue of r.error.issues)
+          ctx.addIssue({ code: 'custom', path: [cle, ...issue.path], message: issue.message });
+    }
+  });
+
 export const SheetBlock = z.strictObject({
   id: BlockId,
   /** Type de widget de la présentation (`attributs`, `possessions`…). */
   type: z.string().regex(/^[a-z][a-zA-Z0-9]{0,39}$/, 'Type de bloc invalide'),
   title: z.string().trim().min(1, 'Titre requis').max(200),
-  /** Paramètres du widget (sorte, attributs, groupe…), sans le type ni le titre. */
-  params: z
-    .record(ParamKey, ParamValue)
-    .refine((p) => Object.keys(p).length <= 16, '16 paramètres au plus')
-    .default({}),
+  /**
+   * Paramètres du widget (sorte, attributs, groupe…), sans le type ni le titre, et ceux de
+   * la disposition interne d'un bloc de tuiles (`colonnesTuiles`, `ordre`, `masques`).
+   */
+  params: BlockParams.default({}),
   /**
    * Hauteur dans la grille : `auto` suit le contenu, `fixed` garde la hauteur des positions
    * (le contenu défile). Absente : préférence du type de bloc, choisie par le front.
