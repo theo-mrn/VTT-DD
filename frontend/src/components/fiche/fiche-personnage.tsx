@@ -4,6 +4,7 @@ import { calculer } from '@vtt/rules';
 import {
   Hammer,
   LayoutGrid,
+  SlidersHorizontal,
   MoreHorizontal,
   Pencil,
   Swords,
@@ -57,6 +58,7 @@ import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
 import { styleThemeSysteme } from './theme';
+import { ValuesDialog } from './values-dialog';
 import { widgetsDe, type ContexteFiche, type OperationsFiche } from './widgets';
 
 /**
@@ -231,6 +233,8 @@ function EnTeteFiche({
   const campagne = useCampagne(p.roomId);
   const [edition, setEdition] = useState(false);
   const [suppression, setSuppression] = useState(false);
+  const [valeurs, setValeurs] = useState(false);
+  const peutValeurs = Boolean(ctx?.operations) && (proprietaire || ctx?.mj === true);
   const details = ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined;
 
   return (
@@ -304,6 +308,12 @@ function EnTeteFiche({
                   <span className="hidden md:inline">Personnaliser</span>
                 </Button>
               )}
+              {peutValeurs && (
+                <Button variant="secondary" size="sm" onClick={() => setValeurs(true)}>
+                  <SlidersHorizontal />
+                  <span className="hidden md:inline">Valeurs</span>
+                </Button>
+              )}
               {proprietaire && (
                 <ActionsProprietaire
                   personnage={p}
@@ -329,6 +339,14 @@ function EnTeteFiche({
           )}
         </div>
       </div>
+      {ctx && peutValeurs && (
+        <ValuesDialog
+          ctx={ctx}
+          proprietaire={proprietaire}
+          open={valeurs}
+          onOpenChange={setValeurs}
+        />
+      )}
       {proprietaire && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
       {proprietaire && (
         <DialogueSuppression personnage={p} ouvert={suppression} onOuvert={setSuppression} />
