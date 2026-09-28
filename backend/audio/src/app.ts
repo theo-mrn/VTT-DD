@@ -10,6 +10,7 @@ import { register as catalog } from './modules/catalog/index.js';
 import { register as channels } from './modules/channels/index.js';
 import { register as clock } from './modules/clock/index.js';
 import { register as cues } from './modules/cues/index.js';
+import { register as mixer } from './modules/mixer/index.js';
 import { register as playlists } from './modules/playlists/index.js';
 import { createS3Storage, type AudioStorage } from './storage/s3.js';
 
@@ -84,7 +85,7 @@ export async function buildAudio(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [clock, catalog, assets, playlists, channels, cues]) {
+  for (const module of [clock, catalog, assets, playlists, channels, cues, mixer]) {
     await module(app, deps);
   }
 

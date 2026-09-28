@@ -30,7 +30,7 @@ describe('garde-fou : chaque route d’écriture émet un événement', () => {
   }, 60_000);
 
   it('trouve les routes et suit les helpers', () => {
-    expect(publiques().length).toBeGreaterThanOrEqual(11);
+    expect(publiques().length).toBeGreaterThanOrEqual(12);
     const del = routes.find(
       (r) => routeKey(r) === 'DELETE /v1/audio/campaigns/:id/assets/:assetId',
     );
