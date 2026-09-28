@@ -75,18 +75,12 @@ ressources:
 fiches:
   personnage:
     widgets:
-      - { type: details, titre: Profil, sortes: [race, profil], attributs: [] }
+      # Bandeau de la fiche : race, profil, puis niveau, dé de vie et initiative
+      - { type: details, titre: Profil, sortes: [race, profil], attributs: [niveau, deVie, INIT] }
       - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
       # PV en chiffres (« PV / PV max »), puis la Défense
       - { type: ressources, titre: Vitalité, attributs: [PV, Defense], affichage: valeur }
-      # Combat et progression réunis ; « Jets de dés de vie » (somme des dés de vie tirés, qui
-      # entre dans les PV max) reste dans l'explication des PV, pas en tuile
-      - {
-          type: attributs,
-          titre: Combat,
-          attributs: [Contact, Distance, Magie, INIT, niveau, deVie],
-          colonnes: 3,
-        }
+      - { type: attributs, titre: Combat, attributs: [Contact, Distance, Magie], colonnes: 3 }
       # Voies en tableau (vue Progression) et capacités acquises (vue Capacités, filtrées
       # par activation : passive, limitée…)
       - {
