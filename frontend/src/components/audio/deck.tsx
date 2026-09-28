@@ -16,6 +16,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  SlidersHorizontal,
   Square,
   Volume2,
   Wind,
@@ -23,6 +24,7 @@ import {
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
@@ -79,76 +81,181 @@ export function Deck({
         ? 'En pause'
         : 'Arrêté';
 
+  const pct = hasTrack && duration ? Math.min(100, ((dragging ?? position) / duration) * 100) : 0;
+
   return (
     <section
       aria-label={LABELS[channel]}
       className={cn(
-        'rounded-xl border p-3 transition-colors',
+        'rounded-lg border px-2.5 py-2 transition-colors',
         heard ? 'border-primary/40 bg-primary/[0.06]' : 'border-border bg-surface-2/60',
       )}
     >
-      <div className="flex items-center gap-3">
-        <span
+      <div className="flex items-center gap-2">
+        <Icon
           className={cn(
-            'grid size-10 shrink-0 place-items-center rounded-lg',
-            heard ? 'bg-primary/15 text-primary-strong' : 'bg-surface-3 text-muted-foreground',
+            'size-4 shrink-0',
+            heard ? 'animate-pulse text-primary-strong' : 'text-muted-foreground',
           )}
-        >
-          <Icon className={cn('size-5', heard && 'animate-pulse')} aria-hidden />
-        </span>
+          aria-hidden
+        />
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="font-medium uppercase tracking-wide">{LABELS[channel]}</span>
-            <span aria-hidden>·</span>
+          <p className="flex min-w-0 items-baseline gap-1.5 text-[13px]">
             <span
-              className={cn(
-                heard && 'text-primary-strong',
-                playing && !heard && needsUnlock && 'text-warning',
-              )}
+              className={cn('min-w-0 truncate', hasTrack ? 'font-medium' : 'text-muted-foreground')}
+              title={s?.track?.name}
             >
-              {status}
+              {s?.track?.deleted
+                ? 'Son supprimé'
+                : hasTrack
+                  ? s!.track!.name
+                  : `${LABELS[channel]} : rien en cours`}
             </span>
-            {isMusic && s && s.queueLength > 1 && s.queueIndex !== null && (
-              <span className="tabular-nums">
-                · {s.queueIndex + 1}/{s.queueLength}
+            {hasTrack && (
+              <span
+                className={cn(
+                  'shrink-0 text-[11px]',
+                  heard
+                    ? 'text-primary-strong'
+                    : playing && needsUnlock
+                      ? 'text-warning'
+                      : 'text-subtle',
+                )}
+              >
+                {status}
               </span>
             )}
           </p>
-          <p
-            className={cn(
-              'truncate text-sm font-semibold',
-              !hasTrack && 'font-normal text-muted-foreground',
-            )}
-            title={s?.track?.name}
-          >
-            {s?.track?.deleted
-              ? 'Son supprimé de la bibliothèque'
-              : hasTrack
-                ? s!.track!.name
-                : gm
-                  ? isMusic
-                    ? 'Choisissez une musique dans la bibliothèque'
-                    : 'Choisissez une ambiance dans la bibliothèque'
-                  : 'Silence'}
-          </p>
-          {isMusic && s?.next && hasTrack && (
-            <p className="truncate text-[11px] text-muted-foreground">Ensuite : {s.next.name}</p>
+          {hasTrack && (
+            <p className="flex items-center gap-1.5 text-[11px] tabular-nums text-subtle">
+              <span className="uppercase tracking-wide">{LABELS[channel]}</span>
+              {duration !== null && (
+                <span>
+                  · {formatTime(dragging ?? position)} / {formatTime(duration)}
+                </span>
+              )}
+              {isMusic && s && s.queueLength > 1 && s.queueIndex !== null && (
+                <span>
+                  · {s.queueIndex + 1}/{s.queueLength}
+                </span>
+              )}
+              {isMusic && s?.next && (
+                <span className="min-w-0 truncate">· ensuite {s.next.name}</span>
+              )}
+            </p>
           )}
         </div>
+
         {gm && hasTrack && (
-          <Button
-            size="icon"
-            aria-label={playing ? 'Mettre en pause' : 'Reprendre la lecture'}
-            disabled={c.pending}
-            onClick={() => void run(playing ? c.pause() : c.resume())}
-          >
-            {playing ? <Pause /> : <Play />}
-          </Button>
+          <div className="flex shrink-0 items-center">
+            {isMusic && (
+              <Info texte="Morceau précédent">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Morceau précédent"
+                  disabled={c.pending}
+                  onClick={() => void run(c.previous())}
+                >
+                  <SkipBack />
+                </Button>
+              </Info>
+            )}
+            <Info texte={playing ? 'Pause' : 'Lecture'}>
+              <Button
+                size="icon-sm"
+                aria-label={playing ? 'Mettre en pause' : 'Reprendre la lecture'}
+                disabled={c.pending}
+                onClick={() => void run(playing ? c.pause() : c.resume())}
+              >
+                {playing ? <Pause /> : <Play />}
+              </Button>
+            </Info>
+            {isMusic && (
+              <Info texte="Morceau suivant">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Morceau suivant"
+                  disabled={c.pending}
+                  onClick={() => void run(c.next())}
+                >
+                  <SkipForward />
+                </Button>
+              </Info>
+            )}
+            <Info texte="Arrêter">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Arrêter"
+                disabled={s?.status === 'stopped' || c.pending}
+                onClick={() => void run(c.stop())}
+              >
+                <Square />
+              </Button>
+            </Info>
+            <Popover>
+              <Info texte="Volume de la table et options">
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Volume et options de la ${LABELS[channel].toLowerCase()}`}
+                  >
+                    <SlidersHorizontal />
+                  </Button>
+                </PopoverTrigger>
+              </Info>
+              <PopoverContent align="end" className="w-64 space-y-3 p-3">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Volume pour toute la table
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                    <Slider
+                      aria-label={`Volume de la ${LABELS[channel].toLowerCase()} pour toute la table`}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={[volume ?? s?.volume ?? 1]}
+                      onValueChange={([v]) => setVolume(v ?? 1)}
+                      onValueCommit={([v]) => void run(c.configure({ volume: v ?? 1 }))}
+                    />
+                  </div>
+                </div>
+                {isMusic && (
+                  <div className="flex gap-1.5">
+                    <Button
+                      variant={repeat !== 'off' ? 'default' : 'secondary'}
+                      size="xs"
+                      aria-pressed={repeat !== 'off'}
+                      onClick={() => void run(c.configure({ repeat: NEXT_REPEAT[repeat] }))}
+                    >
+                      {repeat === 'track' ? <Repeat1 /> : <Repeat />}
+                      {REPEAT_LABELS[repeat]}
+                    </Button>
+                    <Button
+                      variant={s?.shuffle ? 'default' : 'secondary'}
+                      size="xs"
+                      aria-pressed={!!s?.shuffle}
+                      onClick={() => void run(c.configure({ shuffle: !s?.shuffle }))}
+                    >
+                      <Shuffle />
+                      Aléatoire
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         )}
       </div>
 
+      {/* Progression : fine ; le MJ la fait glisser pour se déplacer dans le morceau */}
       {hasTrack && duration !== null && (
-        <div className="mt-3">
+        <div className="mt-1.5">
           {gm ? (
             <Slider
               aria-label="Position dans le morceau"
@@ -161,101 +268,16 @@ export function Deck({
                 setDragging(null);
                 void run(c.seek(v ?? 0));
               }}
+              className="py-1 [&_[role=slider]]:size-3"
             />
           ) : (
-            <div className="relative h-1.5 overflow-hidden rounded-full bg-surface-3" aria-hidden>
+            <div className="relative h-1 overflow-hidden rounded-full bg-surface-3" aria-hidden>
               <div
                 className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-200"
-                style={{ width: `${Math.min(100, (position / duration) * 100)}%` }}
+                style={{ width: `${pct}%` }}
               />
             </div>
           )}
-          <div className="mt-1 flex justify-between text-[11px] tabular-nums text-muted-foreground">
-            <span>{formatTime(dragging ?? position)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-      )}
-
-      {gm && hasTrack && (
-        <div className="mt-2 flex items-center gap-1">
-          {isMusic && (
-            <>
-              <Info texte="Morceau précédent">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Morceau précédent"
-                  disabled={c.pending}
-                  onClick={() => void run(c.previous())}
-                >
-                  <SkipBack />
-                </Button>
-              </Info>
-              <Info texte="Morceau suivant">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Morceau suivant"
-                  disabled={c.pending}
-                  onClick={() => void run(c.next())}
-                >
-                  <SkipForward />
-                </Button>
-              </Info>
-            </>
-          )}
-          <Info texte="Arrêter">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Arrêter"
-              disabled={s?.status === 'stopped' || c.pending}
-              onClick={() => void run(c.stop())}
-            >
-              <Square />
-            </Button>
-          </Info>
-          {isMusic && (
-            <>
-              <Info texte={REPEAT_LABELS[repeat]}>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={REPEAT_LABELS[repeat]}
-                  aria-pressed={repeat !== 'off'}
-                  className={cn(repeat !== 'off' && 'text-primary-strong')}
-                  onClick={() => void run(c.configure({ repeat: NEXT_REPEAT[repeat] }))}
-                >
-                  {repeat === 'track' ? <Repeat1 /> : <Repeat />}
-                </Button>
-              </Info>
-              <Info texte={s?.shuffle ? 'Lecture aléatoire activée' : 'Lecture dans l’ordre'}>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Lecture aléatoire"
-                  aria-pressed={!!s?.shuffle}
-                  className={cn(s?.shuffle && 'text-primary-strong')}
-                  onClick={() => void run(c.configure({ shuffle: !s?.shuffle }))}
-                >
-                  <Shuffle />
-                </Button>
-              </Info>
-            </>
-          )}
-          <div className="ml-auto flex w-32 items-center gap-2">
-            <Volume2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-            <Slider
-              aria-label={`Volume de la ${LABELS[channel].toLowerCase()} pour toute la table`}
-              min={0}
-              max={1}
-              step={0.05}
-              value={[volume ?? s?.volume ?? 1]}
-              onValueChange={([v]) => setVolume(v ?? 1)}
-              onValueCommit={([v]) => void run(c.configure({ volume: v ?? 1 }))}
-            />
-          </div>
         </div>
       )}
     </section>
