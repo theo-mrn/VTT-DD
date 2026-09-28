@@ -4,6 +4,7 @@ import { MotionConfig } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EnTetePage, Page } from '@/components/commun/page';
+import { avecBonusChoisis, bonusDeJet, BonusJetListe } from '@/components/des/bonus-jet';
 import { useFichePersonnage } from '@/components/des/contexte-jet';
 import { Lanceur, type EtatPlateau } from '@/components/des/lanceur';
 import { useMacros } from '@/components/des/macros';
@@ -111,6 +112,27 @@ export function TableDes({
     () => verifierFormule(etat.formule, fiche.fiche),
     [etat.formule, fiche.fiche],
   );
+
+  // Bonus de jet du personnage (conditionnels) : cochés, ils s'ajoutent au prochain jet
+  const bonus = useMemo(() => bonusDeJet(fiche.fiche, etat.formule), [fiche.fiche, etat.formule]);
+  const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
+  const basculerBonus = (cle: string) =>
+    setChoisis((c) => {
+      const n = new Set(c);
+      if (!n.delete(cle)) n.add(cle);
+      return n;
+    });
+  function lancerPlateau() {
+    const retenus = bonus.filter((b) => b.terme !== null && choisis.has(b.cle));
+    if (!retenus.length) return void lancerFormule(etat.formule, etat.libelle);
+    // Le libellé garde la trace des bonus ajoutés (historique)
+    const sources = [...new Set(retenus.map((b) => b.source))].join(', ');
+    const libelle = etat.libelle.trim()
+      ? `${etat.libelle.trim()} (+ ${sources})`
+      : `Avec ${sources}`;
+    setChoisis(new Set());
+    void lancerFormule(avecBonusChoisis(etat.formule, bonus, choisis), libelle);
+  }
 
   // Le jet qu'on vient de lancer, sinon le plus récent du contexte (sans animation)
   const affiche = dernier ?? jets.data?.[0] ?? null;
@@ -245,7 +267,7 @@ export function TableDes({
                 ? { liste: contexte.personnage ? [contexte.personnage] : [], chargement: false }
                 : { liste: personnages.data ?? [], chargement: personnages.isPending }
             }
-            onLancer={() => void lancerFormule(etat.formule, etat.libelle)}
+            onLancer={lancerPlateau}
             enCours={lancer.isPending}
             onLancerMacro={(m) => void lancerFormule(m.formula, m.name)}
             onChargerMacro={(m) => {
@@ -257,6 +279,7 @@ export function TableDes({
             onRelancer={() => void relancer()}
           />
         </div>
+        <BonusJetListe bonus={bonus} choisis={choisis} onBasculer={basculerBonus} />
         {journal}
       </div>
     </div>

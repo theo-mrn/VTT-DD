@@ -185,18 +185,22 @@ export function texteCondition(fiche: Fiche, formule: string): string | null {
 
 /**
  * Condition qui ne fait que choisir la caractéristique du jet (`caracteristique == "DEX"`, ou
- * plusieurs) : les noms visés, pour écrire « +3 aux jets de DEX » plutôt qu'une condition.
- * `null` : la condition dit autre chose.
+ * plusieurs) : les clés visées. `null` : la condition dit autre chose.
  */
-export function jetsVises(fiche: Fiche, formule: string): string[] | null {
+export function clesJetsVises(fiche: Fiche, formule: string): string[] | null {
   const r = analyser(formule);
   if (!r.ok) return null;
-  const noms: string[] = [];
+  const cles: string[] = [];
   for (const f of chaine(r.noeud, 'ou')) {
     const e = egalite(f);
     if (!e?.egal || e.variable.includes('.')) return null;
     if (parametre(fiche, e.variable)?.type !== 'attribut') return null;
-    noms.push(nomAttribut(fiche, e.valeur));
+    cles.push(e.valeur);
   }
-  return noms.length ? noms : null;
+  return cles.length ? cles : null;
+}
+
+/** Noms des caractéristiques visées, pour écrire « +3 aux jets de DEX ». */
+export function jetsVises(fiche: Fiche, formule: string): string[] | null {
+  return clesJetsVises(fiche, formule)?.map((c) => nomAttribut(fiche, c)) ?? null;
 }
