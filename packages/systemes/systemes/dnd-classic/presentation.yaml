@@ -79,12 +79,13 @@ fiches:
       - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
       # PV en chiffres (« PV / PV max »), puis la Défense
       - { type: ressources, titre: Vitalité, attributs: [PV, Defense], affichage: valeur }
-      - { type: attributs, titre: Combat, attributs: [Contact, Distance, Magie], colonnes: 3 }
+      # Combat et progression réunis ; « Jets de dés de vie » (somme des dés de vie tirés, qui
+      # entre dans les PV max) reste dans l'explication des PV, pas en tuile
       - {
           type: attributs,
-          titre: Progression,
-          attributs: [niveau, deVie, jetsDeVie, INIT],
-          colonnes: 4,
+          titre: Combat,
+          attributs: [Contact, Distance, Magie, INIT, niveau, deVie],
+          colonnes: 3,
         }
       # Voies en tableau (vue Progression) et capacités acquises (vue Capacités, filtrées
       # par activation : passive, limitée…)
