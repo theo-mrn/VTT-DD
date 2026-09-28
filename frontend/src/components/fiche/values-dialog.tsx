@@ -7,7 +7,14 @@
  * d'enregistrer, ce que le changement entraîne (« PV max 28 → 30 »), calculé par le moteur.
  * Le service character refait les mêmes contrôles. Les ressources ont leur propre fenêtre.
  */
-import { calculer, refusSaisie, type Attribut, type EtatEntite, type Fiche } from '@vtt/rules';
+import {
+  calculer,
+  refusSaisie,
+  soldes,
+  type Attribut,
+  type EtatEntite,
+  type Fiche,
+} from '@vtt/rules';
 import { ArrowRight, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -51,6 +58,41 @@ function groupes(ctx: ContexteFiche) {
     else if (a.nature === 'derivee' && a.type === 'nombre') g.derivees.push(a);
   }
   return [...parGroupe.values(), autres].filter((g) => g.base.length || g.derivees.length);
+}
+
+export interface Difference {
+  cle: string;
+  nom: string;
+  avant: string;
+  apres: string;
+}
+
+/** Valeurs visibles qui changent d'une fiche à l'autre (« PV max 28 / 28 → 30 / 30 »). */
+export function differences(ctx: ContexteFiche, avant: Fiche, apres: Fiche): Difference[] {
+  const r: Difference[] = [];
+  for (const a of avant.entite.attributs.values()) {
+    if (!visiblePour(ctx, a.cle)) continue;
+    const av = avant.valeurs.get(a.cle);
+    const ap = apres.valeurs.get(a.cle);
+    if (!av || !ap) continue;
+    const texte = (v: typeof av) =>
+      `${afficherValeur(v)}${a.nature === 'ressource' && v.max !== undefined ? ` / ${v.max}` : ''}`;
+    if (texte(av) !== texte(ap))
+      r.push({ cle: a.cle, nom: a.nom, avant: texte(av), apres: texte(ap) });
+  }
+  // Monnaies gagnées avec la progression (points de capacité…) : leur solde
+  const soldesAvant = new Map(soldes(avant).map((m) => [m.monnaie.id, m]));
+  for (const m of soldes(apres)) {
+    const av = soldesAvant.get(m.monnaie.id);
+    if (av && av.solde !== m.solde)
+      r.push({
+        cle: `monnaie:${m.monnaie.id}`,
+        nom: m.monnaie.nom,
+        avant: String(av.solde),
+        apres: String(m.solde),
+      });
+  }
+  return r;
 }
 
 export function ValuesDialog({
@@ -108,17 +150,7 @@ export function ValuesDialog({
     } catch {
       return { apercu: null, impacts: [] };
     }
-    const impacts: { cle: string; nom: string; avant: string; apres: string }[] = [];
-    for (const a of fiche.entite.attributs.values()) {
-      if (changes[a.cle] !== undefined || !visiblePour(ctx, a.cle)) continue;
-      const av = fiche.valeurs.get(a.cle);
-      const ap = nouvelle.valeurs.get(a.cle);
-      if (!av || !ap) continue;
-      const texte = (v: typeof av) =>
-        `${afficherValeur(v)}${a.nature === 'ressource' && v.max !== undefined ? ` / ${v.max}` : ''}`;
-      if (texte(av) !== texte(ap))
-        impacts.push({ cle: a.cle, nom: a.nom, avant: texte(av), apres: texte(ap) });
-    }
+    const impacts = differences(ctx, fiche, nouvelle).filter((i) => changes[i.cle] === undefined);
     return { apercu: suivant, impacts };
   }, [changes, etat, systeme, fiche, ctx]);
 

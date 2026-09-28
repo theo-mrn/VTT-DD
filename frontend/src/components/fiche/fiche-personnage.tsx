@@ -5,6 +5,7 @@ import {
   Hammer,
   LayoutGrid,
   SlidersHorizontal,
+  TrendingUp,
   MoreHorizontal,
   Pencil,
   Swords,
@@ -58,6 +59,7 @@ import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import { BannerIdentity, BannerStats } from './banner';
 import { styleThemeSysteme } from './theme';
+import { actionsProgression, ProgressionDialog } from './progression-dialog';
 import { ValuesDialog } from './values-dialog';
 import { widgetsDe, type ContexteFiche, type OperationsFiche } from './widgets';
 
@@ -234,6 +236,9 @@ function EnTeteFiche({
   const [edition, setEdition] = useState(false);
   const [suppression, setSuppression] = useState(false);
   const [valeurs, setValeurs] = useState(false);
+  const [progression, setProgression] = useState<string | null>(null);
+  // Actions de progression (passage de niveau) : au MJ de la campagne
+  const progressions = ctx?.operations && ctx.mj ? actionsProgression(ctx) : [];
   const peutValeurs = Boolean(ctx?.operations) && (proprietaire || ctx?.mj === true);
   const details = ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined;
 
@@ -308,6 +313,12 @@ function EnTeteFiche({
                   <span className="hidden md:inline">Personnaliser</span>
                 </Button>
               )}
+              {progressions.map((a) => (
+                <Button key={a.id} size="sm" onClick={() => setProgression(a.id)}>
+                  <TrendingUp />
+                  <span className="hidden md:inline">{a.nom}</span>
+                </Button>
+              ))}
               {peutValeurs && (
                 <Button variant="secondary" size="sm" onClick={() => setValeurs(true)}>
                   <SlidersHorizontal />
@@ -339,6 +350,16 @@ function EnTeteFiche({
           )}
         </div>
       </div>
+      {ctx &&
+        progressions.map((a) => (
+          <ProgressionDialog
+            key={a.id}
+            ctx={ctx}
+            action={a}
+            open={progression === a.id}
+            onOpenChange={(o) => setProgression(o ? a.id : null)}
+          />
+        ))}
       {ctx && peutValeurs && (
         <ValuesDialog
           ctx={ctx}
