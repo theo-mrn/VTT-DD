@@ -23,7 +23,6 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { FittingLabel } from '@/components/ui/fitting-label';
-import { Input } from '@/components/ui/input';
 import { Info } from '@/components/ui/tooltip';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
@@ -39,6 +38,7 @@ import { ICONES } from './blocks/inventory/item-icon';
 import { arrangeTiles, type TileArrangement } from './blocks/tiles/model';
 import { TileGrid } from './blocks/tiles/tile-grid';
 import { LanceurAction } from './lanceur-action';
+import { ResourceDialog } from './resource-dialog';
 
 /**
  * Écritures de la fiche, enregistrées par le service character. `apercu` est
@@ -277,15 +277,18 @@ export function BlocRessources({
               <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
             </div>
             {modifier(c) && (
-              <EditeurValeur
+              <ResourceDialog
                 nom={fiche.entite.attributs.get(c)?.nom ?? c}
                 valeur={Number(fiche.valeurs.get(c)?.valeur ?? 0)}
+                min={fiche.valeurs.get(c)?.min}
+                max={fiche.valeurs.get(c)?.max}
+                {...apparenceAttribut(ctx, c)}
                 onAjuster={modifier(c)!}
               >
                 <Button variant="ghost" size="icon-xs" aria-label={`Modifier ${c}`}>
                   <Pencil />
                 </Button>
-              </EditeurValeur>
+              </ResourceDialog>
             )}
           </div>
         ))}
@@ -363,7 +366,15 @@ function ValeurChiffree({
           </span>
         </Info>
         {onAjuster && typeof v.valeur === 'number' ? (
-          <EditeurValeur nom={a.nom} valeur={v.valeur} onAjuster={onAjuster}>
+          <ResourceDialog
+            nom={a.nom}
+            valeur={v.valeur}
+            min={v.min}
+            max={v.max}
+            Icone={Icone}
+            couleur={couleur}
+            onAjuster={onAjuster}
+          >
             <button
               type="button"
               aria-label={`Modifier ${a.nom}`}
@@ -371,82 +382,12 @@ function ValeurChiffree({
             >
               {chiffres}
             </button>
-          </EditeurValeur>
+          </ResourceDialog>
         ) : (
           <p>{chiffres}</p>
         )}
       </div>
     </div>
-  );
-}
-
-/** Lit « -3 », « +5 » (écart) ou « =12 », « 12 » (nouvelle valeur) ; null si illisible. */
-function lireAjustement(texte: string, valeur: number): number | null {
-  const t = texte.replace(/\s+/g, '').replace('−', '-');
-  const ecart = /^([+-])(\d+)$/.exec(t);
-  if (ecart) return (ecart[1] === '-' ? -1 : 1) * Number(ecart[2]);
-  const fixe = /^=?(\d+)$/.exec(t);
-  if (fixe) return Number(fixe[1]) - valeur;
-  return null;
-}
-
-/** Petit éditeur d'une ressource : un écart (dégâts, soins) ou une nouvelle valeur. */
-function EditeurValeur({
-  nom,
-  valeur,
-  onAjuster,
-  children,
-}: {
-  nom: string;
-  valeur: number;
-  onAjuster: (delta: number) => void;
-  children: ReactNode;
-}) {
-  const [ouvert, setOuvert] = useState(false);
-  const [texte, setTexte] = useState('');
-  const delta = lireAjustement(texte, valeur);
-  const valider = () => {
-    if (delta === null || delta === 0) return;
-    onAjuster(delta);
-    setTexte('');
-    setOuvert(false);
-  };
-  return (
-    <Popover
-      open={ouvert}
-      onOpenChange={(o) => {
-        setOuvert(o);
-        if (!o) setTexte('');
-      }}
-    >
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="start" className="w-60 space-y-2 p-3">
-        <label className="block text-xs font-medium text-muted-foreground" htmlFor="ajuster-valeur">
-          {nom}
-        </label>
-        <div className="flex gap-1.5">
-          <Input
-            id="ajuster-valeur"
-            autoFocus
-            inputMode="numeric"
-            autoComplete="off"
-            value={texte}
-            placeholder="-3, +5 ou =12"
-            onChange={(e) => setTexte(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && valider()}
-            className="h-8 font-mono text-sm"
-          />
-          <Button size="sm" disabled={delta === null || delta === 0} onClick={valider}>
-            OK
-          </Button>
-        </div>
-        <p className="text-[11px] text-subtle">
-          {delta !== null && delta !== 0
-            ? `${valeur} → ${valeur + delta}`
-            : 'Un écart (dégâts, soins) ou une nouvelle valeur.'}
-        </p>
-      </PopoverContent>
-    </Popover>
   );
 }
 
