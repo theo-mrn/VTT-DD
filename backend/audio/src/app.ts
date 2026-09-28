@@ -7,7 +7,9 @@ import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
 import { register as assets } from './modules/assets/index.js';
 import { register as catalog } from './modules/catalog/index.js';
+import { register as channels } from './modules/channels/index.js';
 import { register as clock } from './modules/clock/index.js';
+import { register as cues } from './modules/cues/index.js';
 import { register as playlists } from './modules/playlists/index.js';
 import { createS3Storage, type AudioStorage } from './storage/s3.js';
 
@@ -82,7 +84,7 @@ export async function buildAudio(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [clock, catalog, assets, playlists]) {
+  for (const module of [clock, catalog, assets, playlists, channels, cues]) {
     await module(app, deps);
   }
 

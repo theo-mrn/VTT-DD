@@ -30,11 +30,15 @@ describe('garde-fou : chaque route d’écriture émet un événement', () => {
   }, 60_000);
 
   it('trouve les routes et suit les helpers', () => {
-    expect(publiques().length).toBeGreaterThanOrEqual(7);
+    expect(publiques().length).toBeGreaterThanOrEqual(11);
     const del = routes.find(
       (r) => routeKey(r) === 'DELETE /v1/audio/campaigns/:id/assets/:assetId',
     );
     expect(del?.emitPath[0]).toBe('deleteAsset');
+    const cmd = routes.find(
+      (r) => routeKey(r) === 'POST /v1/audio/campaigns/:id/channels/:channel/commands',
+    );
+    expect(cmd?.emitPath).toEqual(['saveTransition', 'appendEvent']);
   });
 
   it('chaque route publique émet un événement ou est une exception justifiée', () => {
