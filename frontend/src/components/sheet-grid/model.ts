@@ -298,6 +298,35 @@ export function completeLayouts(
   return r;
 }
 
+type ApiBlock = SheetLayout['blocks'][number];
+
+/**
+ * Anciens blocs de progression (Arbre, Compétences à une sorte) : réunis dans un seul bloc
+ * Compétences, à la place du premier d'entre eux, avec l'union de leurs sortes. Les autres
+ * sont retirés (leurs positions tombent avec eux).
+ */
+export function migrateBlocks(blocks: ApiBlock[]): ApiBlock[] {
+  const legacy = (b: ApiBlock) =>
+    b.type === 'arbres' || (b.type === 'competences' && typeof b.params.sorte === 'string');
+  const first = blocks.find(legacy);
+  if (!first) return blocks;
+  const olds = blocks.filter(legacy);
+  const sortes = [
+    ...new Set(olds.flatMap((b) => (typeof b.params.sorte === 'string' ? [b.params.sorte] : []))),
+  ];
+  // Un ancien Arbre seul montre toute la progression (sortes déduites)
+  const filtre = olds.map((b) => b.params.filtreChamp).find((f) => typeof f === 'string');
+  const merged: ApiBlock = {
+    ...first,
+    type: 'competences',
+    params: {
+      ...(sortes.length && !olds.some((b) => b.type === 'arbres') ? { sortes } : {}),
+      ...(filtre !== undefined ? { filtreChamp: filtre } : {}),
+    },
+  };
+  return blocks.flatMap((b) => (b === first ? [merged] : legacy(b) ? [] : [b]));
+}
+
 /** État de travail d'une mise en page enregistrée (ou par défaut, si `stored` est null). */
 export function stateFrom(
   stored: SheetLayout | null,
@@ -311,7 +340,9 @@ export function stateFrom(
     (stored?.format === 1 || stored?.format === LAYOUT_FORMAT) && Array.isArray(stored.blocks)
       ? stored
       : null;
-  const blocks = lisible ? lisible.blocks.map((b) => fromApiBlock(b, disponible)) : defaults();
+  const blocks = lisible
+    ? migrateBlocks(lisible.blocks).map((b) => fromApiBlock(b, disponible))
+    : defaults();
   const layouts = !lisible
     ? {}
     : lisible.format === 1

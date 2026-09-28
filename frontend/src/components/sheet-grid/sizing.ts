@@ -6,6 +6,8 @@
  */
 import { soldes, type Widget } from '@vtt/rules';
 import { blockDefinition } from '@/components/fiche/blocks/registry';
+import { skillSortes } from '@/components/fiche/blocks/skills/abilities';
+import { pathSortes } from '@/components/fiche/blocks/tree/model';
 import type { WidgetType } from '@/components/fiche/blocks/types';
 import {
   actionsDisponibles,
@@ -99,6 +101,20 @@ const CONTENU: Partial<Record<WidgetType, Estimation>> = {
     return Math.max(80, 56 + n * 52);
   },
   details: () => 120,
+  // Vue de départ du bloc Compétences : voies en tableau, arbre en grille, ou liste
+  competences: (ctx, w: Extract<Widget, { type: 'competences' }>) => {
+    const { fiche, systeme } = ctx;
+    const voies = new Set(pathSortes(systeme, fiche.etat.type).map((s) => s.id));
+    const lignes = [...fiche.possessions.values()].filter((p) => voies.has(p.sorte.id)).length;
+    const vue = w.vue ?? (lignes || systeme.arbres.size ? 'progression' : 'capacites');
+    if (vue === 'progression' && lignes) return 24 + lignes * 52;
+    if (vue === 'progression' && systeme.arbres.size) return 560;
+    const sortes = new Set(skillSortes(fiche, w));
+    const n = [...fiche.possessions.values()].filter(
+      (p) => sortes.has(p.sorte.id) && (p.rang > 0 || !p.sorte.rangs),
+    ).length;
+    return 52 + Math.max(1, vue === 'rangs' ? n + 12 : n) * 40;
+  },
 };
 
 /**

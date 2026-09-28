@@ -95,7 +95,7 @@ export function RankedList({
                         <Button
                           variant="secondary"
                           size="icon-xs"
-                          className="size-9 sm:size-7"
+                          className="size-11 sm:size-7"
                           disabled={!card.offer.possible}
                           onClick={() => writes.buy(card.offer!.achat, card.offer!.objet)}
                           aria-label={`Acheter le rang ${card.offer.cible} de ${card.entry.nom} : ${offerText(ctx, card)}`}

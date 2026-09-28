@@ -1,13 +1,12 @@
 'use client';
 
 /**
- * Navigation dans la progression du personnage : groupes de voies et arbres ouverts en
- * onglets, arbres encore fermés consultables (et débloquables par l'achat de l'entrée qui les
- * ouvre), soldes des monnaies dépensées. Utilisé par le bloc Arbre et par le bloc Compétences
- * (fenêtre ouverte depuis l'indicateur de points).
+ * Arbres de talents du personnage : arbres ouverts en onglets, arbres encore fermés
+ * consultables (et débloquables par l'achat de l'entrée qui les ouvre), grille du choisi et
+ * détail d'un nœud (achat, remboursement). Vue Progression du bloc Compétences, quand le
+ * système déclare des arbres.
  */
-import { solde } from '@vtt/rules';
-import { ChevronDown, Coins, GitBranch, Lock, Route } from 'lucide-react';
+import { ChevronDown, GitBranch, Lock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,72 +20,39 @@ import { cn } from '@/lib/utils';
 import type { ContexteFiche } from '../../widgets';
 import { TreeDetailDialog, type TreeSelection } from './detail-dialog';
 import { GridTree } from './grid-tree';
-import { buildPaths, buildTrees, currencyName, type PathGroup, type TreeView } from './model';
-import { PathsView } from './paths-view';
+import { currencyName, type TreeView } from './model';
 import type { SheetWrites } from './writes';
-
-type View =
-  { kind: 'paths'; id: string; group: PathGroup } | { kind: 'tree'; id: string; tree: TreeView };
-
-export function useTreeData(ctx: ContexteFiche) {
-  return useMemo(
-    () => ({ paths: buildPaths(ctx.fiche), trees: buildTrees(ctx.fiche) }),
-    [ctx.fiche],
-  );
-}
 
 export function TreeExplorer({
   ctx,
+  trees,
   writes,
-  initialView,
   className,
-  treesOnly = false,
 }: {
   ctx: ContexteFiche;
+  /** Arbres du système (`buildTrees`). */
+  trees: TreeView[];
   writes: SheetWrites | undefined;
-  /** Vue ouverte au départ (identifiant d'arbre ou `paths:<sorte>`). */
-  initialView?: string;
   className?: string;
-  /** Arbres seuls (les voies et les soldes sont montrés ailleurs, bloc Compétences). */
-  treesOnly?: boolean;
 }) {
-  const data = useTreeData(ctx);
-  const { trees } = data;
-  const paths = treesOnly ? [] : data.paths;
-  const views: View[] = useMemo(
-    () => [
-      ...paths.map((group) => ({ kind: 'paths' as const, id: `paths:${group.sorte.id}`, group })),
-      ...trees
-        .filter((t) => t.open || t.owned > 0)
-        .map((tree) => ({ kind: 'tree' as const, id: tree.tree.id, tree })),
-    ],
-    [paths, trees],
-  );
+  const views = useMemo(() => trees.filter((t) => t.open || t.owned > 0), [trees]);
   const closed = useMemo(() => trees.filter((t) => !t.open && t.owned === 0), [trees]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(initialView ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selection, setSelection] = useState<TreeSelection | null>(null);
 
   const preview = closed.find((t) => t.tree.id === selectedId);
-  const current: View | undefined = preview
-    ? { kind: 'tree', id: preview.tree.id, tree: preview }
-    : (views.find((v) => v.id === selectedId) ?? views[0]);
+  const current: TreeView | undefined =
+    preview ?? views.find((v) => v.tree.id === selectedId) ?? views[0];
 
   const cur = (id: string | undefined) => currencyName(ctx.systeme, id);
-  const currencies = [
-    ...new Set([
-      ...paths.flatMap((g) => g.currencies),
-      ...trees.flatMap((t) => t.currencies),
-      ...trees.flatMap((t) => (t.openerOffer ? [t.openerOffer.monnaie] : [])),
-    ]),
-  ];
 
   if (!views.length && !closed.length)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 py-8 text-center">
         <GitBranch className="size-6 text-subtle" />
         <p className="text-sm text-muted-foreground">
-          Ce système ne déclare ni arbre ni voie pour ce personnage.
+          Ce système ne déclare aucun arbre pour ce personnage.
         </p>
       </div>
     );
@@ -96,12 +62,13 @@ export function TreeExplorer({
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-lg border border-border bg-surface p-0.5">
           {views.map((v) => {
-            const on = current?.id === v.id;
+            const on = current?.tree.id === v.tree.id;
             return (
               <button
-                key={v.id}
+                key={v.tree.id}
                 type="button"
-                onClick={() => setSelectedId(v.id)}
+                aria-pressed={on}
+                onClick={() => setSelectedId(v.tree.id)}
                 className={cn(
                   'flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition-colors',
                   on
@@ -109,17 +76,9 @@ export function TreeExplorer({
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {v.kind === 'paths' ? (
-                  <Route className="size-3.5" />
-                ) : (
-                  <GitBranch className="size-3.5" />
-                )}
-                {v.kind === 'paths'
-                  ? (v.group.sorte.nomPluriel ?? v.group.sorte.nom)
-                  : v.tree.tree.nom}
-                {v.kind === 'tree' && (
-                  <span className="font-mono text-[11px] tabular text-subtle">{v.tree.owned}</span>
-                )}
+                <GitBranch className="size-3.5" />
+                {v.tree.nom}
+                <span className="font-mono text-[11px] tabular text-subtle">{v.owned}</span>
               </button>
             );
           })}
@@ -164,18 +123,6 @@ export function TreeExplorer({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {!treesOnly &&
-          currencies.map((m) => (
-            <span
-              key={m}
-              className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2 text-[12px]"
-              title={cur(m)}
-            >
-              <Coins className="size-3.5 text-primary" />
-              <span className="font-mono font-semibold tabular">{solde(ctx.fiche, m)}</span>
-              <span className="hidden text-subtle sm:inline">{cur(m)}</span>
-            </span>
-          ))}
       </div>
 
       {preview && (
@@ -202,22 +149,13 @@ export function TreeExplorer({
       )}
 
       <div className="min-h-0 flex-1">
-        {current?.kind === 'paths' && (
-          <div className="h-full overflow-auto">
-            <PathsView
-              group={current.group}
-              currencyName={cur}
-              onSelect={(path, rank) => setSelection({ kind: 'rank', path, rank })}
-            />
-          </div>
-        )}
-        {current?.kind === 'tree' && (
+        {current && (
           <GridTree
-            key={current.id}
-            view={current.tree}
+            key={current.tree.id}
+            view={current}
             geometry={ctx.presentation?.arbres}
             currencyName={cur}
-            onSelect={(node) => setSelection({ kind: 'node', tree: current.tree, node })}
+            onSelect={(node) => setSelection({ kind: 'node', tree: current, node })}
           />
         )}
       </div>

@@ -1,5 +1,6 @@
 /**
- * Données du bloc Arbre, calculées par le moteur sans rien connaître du jeu.
+ * Progression (voies et arbres) du bloc Compétences, calculée par le moteur sans rien
+ * connaître du jeu.
  *
  * Deux formes, déduites de ce que le système déclare :
  * - **arbres** (`systeme.arbres`) : grille de nœuds positionnés (`x`, `y`) et de liens,

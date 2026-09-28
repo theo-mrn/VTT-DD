@@ -87,9 +87,12 @@ export function defaultSkillSortes(systeme: SystemeCharge, entityType: string): 
   return [...ids];
 }
 
+/** Sortes de la vue Capacités (et des rangs) : déclarées, sinon déduites ; jamais les voies. */
 export function skillSortes(fiche: Fiche, widget: SkillsWidget): string[] {
   const declared = sortesCompetences(widget);
-  return declared.length ? declared : defaultSkillSortes(fiche.systeme, fiche.etat.type);
+  if (!declared.length) return defaultSkillSortes(fiche.systeme, fiche.etat.type);
+  const paths = new Set(pathSortes(fiche.systeme, fiche.etat.type).map((s) => s.id));
+  return declared.filter((id) => !paths.has(id));
 }
 
 /**
@@ -129,7 +132,7 @@ export function buildSkillsBlock(fiche: Fiche, widget: SkillsWidget): SkillsBloc
   const { systeme } = fiche;
   const pathGroups = buildPaths(fiche);
   const paths = pathRows(fiche, pathGroups);
-  const trees = buildTrees(fiche).filter((t) => t.open || t.owned > 0 || t.openerOffer);
+  const trees = buildTrees(fiche);
 
   // Voie et rang qui accordent chaque entrée (ordre des lignes du tableau)
   const grantedBy = new Map<string, { name: string; rank: number; order: number }>();

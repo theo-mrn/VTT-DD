@@ -73,7 +73,7 @@ export function ViewSwitch<T extends string>({
             onKeyDown={(e) => onKey(e, i)}
             title={o.label}
             className={cn(
-              'flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-md px-2 text-[12px] font-medium sm:h-6',
+              'flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2 text-[12px] font-medium sm:h-6 sm:min-w-7',
               'transition-colors duration-150 motion-reduce:transition-none',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               on

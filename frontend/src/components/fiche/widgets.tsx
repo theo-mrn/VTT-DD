@@ -15,7 +15,7 @@ import {
   type Widget,
   nouvellePossession,
 } from '@vtt/rules';
-import { ChevronRight, Coins, Dices, GitBranch, Minus, Plus } from 'lucide-react';
+import { ChevronRight, Coins, Dices, Minus, Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { JaugeRessource, TuileAttribut } from '@/components/creation/apercu-fiche';
 import { Badge } from '@/components/ui/badge';
@@ -550,7 +550,7 @@ export function BlocPossessions({
   );
 }
 
-// ─── Monnaies, arbres, texte ─────────────────────────────────────────────────
+// ─── Monnaies, texte ───────────────────────────────────────────────────────
 
 export function BlocMonnaies({
   ctx,
@@ -580,34 +580,6 @@ export function BlocMonnaies({
           </div>
         ))}
       </div>
-    </Bloc>
-  );
-}
-
-export function BlocArbres({
-  ctx,
-  widget,
-}: {
-  ctx: ContexteFiche;
-  widget: Extract<Widget, { type: 'arbres' }>;
-}) {
-  const arbres = [...ctx.systeme.arbres.values()].filter(
-    (a) => (ctx.fiche.etat.noeuds[a.id]?.length ?? 0) > 0,
-  );
-  if (arbres.length === 0) return null;
-  return (
-    <Bloc titre={widget.titre}>
-      <ul className="space-y-2">
-        {arbres.map((a) => (
-          <li key={a.id} className="flex items-center gap-3 text-sm">
-            <GitBranch className="size-4 text-primary" />
-            <span className="flex-1">{a.nom}</span>
-            <span className="font-mono text-xs text-muted-foreground">
-              {ctx.fiche.etat.noeuds[a.id]?.length} nœud(s)
-            </span>
-          </li>
-        ))}
-      </ul>
     </Bloc>
   );
 }

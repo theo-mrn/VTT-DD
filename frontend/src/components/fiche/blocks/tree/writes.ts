@@ -1,5 +1,5 @@
 /**
- * Écritures des blocs Compétences et Arbre, par les opérations de la fiche (service
+ * Écritures du bloc Compétences, par les opérations de la fiche (service
  * character) : l'aperçu est calculé ici par le moteur, la réponse du service le remplace.
  * Absent : lecture seule (pas d'opérations, ou grille en cours de personnalisation).
  */

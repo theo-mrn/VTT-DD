@@ -69,7 +69,6 @@ export const Widget = z.discriminatedUnion('type', [
     sorte: Cle,
     groupeChamp: Cle.optional(),
   }),
-  z.object({ type: z.literal('arbres'), titre: Libelle }),
   z.object({ type: z.literal('monnaies'), titre: Libelle }),
   /** Résumé : entrées uniques (espèce, carrière) et attributs texte. */
   z.object({
@@ -108,13 +107,13 @@ export const Widget = z.discriminatedUnion('type', [
    *   valeur de `filtreChamp`, ou par sorte) ;
    * - `rangs` : sortes dont les rangs s'achètent directement (catalogue complet, achat).
    * `sortes` absent : celles que la progression accorde ou dont les rangs s'achètent.
-   * `vue` : vue ouverte par défaut. `sorte` : ancien bloc à une sorte (= `sortes: [sorte]`).
+   * `vue` : vue ouverte par défaut. Remplace les anciens blocs `arbres` et `competences` à
+   * une `sorte` (le front convertit les mises en page enregistrées).
    */
   z.object({
     type: z.literal('competences'),
     titre: Libelle,
     sortes: z.array(Cle).min(1).optional(),
-    sorte: Cle.optional(),
     filtreChamp: Cle.optional(),
     vue: z.enum(['progression', 'capacites', 'rangs']).optional(),
   }),
@@ -130,9 +129,9 @@ export function champsGroupe(w: Extract<Widget, { type: 'inventaire' }>): string
       : w.groupeChamp;
 }
 
-/** Sortes déclarées par un bloc Compétences (`sortes`, ou l'ancienne `sorte`) ; vide : déduites. */
+/** Sortes déclarées par un bloc Compétences ; vide : déduites par le front. */
 export function sortesCompetences(w: Extract<Widget, { type: 'competences' }>): string[] {
-  return [...new Set([...(w.sortes ?? []), ...(w.sorte ? [w.sorte] : [])])];
+  return [...new Set(w.sortes ?? [])];
 }
 
 /**

@@ -13,7 +13,6 @@ import { possessionsBlock } from './possessions';
 import { resourcesBlock } from './resources';
 import { skillsBlock } from './skills';
 import { textBlock } from './text';
-import { treeBlock } from './tree';
 import type { SheetBlockDefinition, WidgetType } from './types';
 
 export const SHEET_BLOCKS: { [T in WidgetType]: SheetBlockDefinition<T> } = {
@@ -21,7 +20,6 @@ export const SHEET_BLOCKS: { [T in WidgetType]: SheetBlockDefinition<T> } = {
   attributs: attributesBlock,
   ressources: resourcesBlock,
   competences: skillsBlock,
-  arbres: treeBlock,
   inventaire: inventoryBlock,
   possessions: possessionsBlock,
   monnaies: currenciesBlock,

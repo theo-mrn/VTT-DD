@@ -106,9 +106,14 @@ fiches:
           titre: Défense active,
           attributs: [pasDeCote, postureDefensive, protection],
         }
-      - { type: possessions, titre: Compétences, sorte: competence }
-      - { type: arbres, titre: Talents }
-      - { type: possessions, titre: Talents acquis, sorte: talent }
+      # Compétences à rangs (vue par défaut), arbres de talents (vue Progression) et talents
+      # et capacités d'espèce acquis (vue Capacités)
+      - {
+          type: competences,
+          titre: Compétences et talents,
+          sortes: [competence, talent, capacite],
+          vue: rangs,
+        }
       - { type: monnaies, titre: Expérience et crédits }
       - { type: possessions, titre: Obligation, sorte: obligation }
       # Source unique de l'équipement, regroupé par sorte

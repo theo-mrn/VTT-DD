@@ -30,7 +30,7 @@ const valide = {
         { type: 'ressources', titre: 'Vitalité', attributs: ['Blessures'] },
         { type: 'possessions', titre: 'Compétences', sorte: 'competence' },
         { type: 'details', titre: 'Détails', sortes: ['espece', 'carriere'] },
-        { type: 'arbres', titre: 'Talents' },
+        { type: 'competences', titre: 'Talents', sortes: ['competence'], vue: 'progression' },
       ],
     },
   },
@@ -69,5 +69,41 @@ describe('présentation', () => {
       'fiches/personnage/1 : Sorte inconnue : arme',
       'images/wookiee : Entrée ou type d’entité inconnu : wookiee',
     ]);
+  });
+
+  it('vérifie les sortes et le champ de filtre du bloc Compétences', () => {
+    const r = verifierPresentation(
+      {
+        ...valide,
+        fiches: {
+          personnage: {
+            widgets: [
+              { type: 'competences', titre: 'A', sortes: ['arme'] },
+              { type: 'competences', titre: 'B', sortes: ['competence'], filtreChamp: 'poids' },
+              {
+                type: 'competences',
+                titre: 'C',
+                sortes: ['competence'],
+                filtreChamp: 'caracteristique',
+              },
+              { type: 'competences', titre: 'D' },
+            ],
+          },
+        },
+      },
+      systeme,
+    );
+    expect(!r.ok && r.erreurs.map((e) => `${e.chemin} : ${e.message}`)).toEqual([
+      'fiches/personnage/0 : Sorte inconnue : arme',
+      'fiches/personnage/1 : Champ inconnu des sortes competence : poids',
+    ]);
+  });
+
+  it('refuse l’ancien bloc Arbre, remplacé par le bloc Compétences', () => {
+    const r = verifierPresentation(
+      { ...valide, fiches: { personnage: { widgets: [{ type: 'arbres', titre: 'Talents' }] } } },
+      systeme,
+    );
+    expect(r.ok).toBe(false);
   });
 });

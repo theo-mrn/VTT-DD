@@ -92,13 +92,13 @@ function SearchField({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Rechercher…"
         aria-label={label}
-        className="h-9 w-full rounded-lg border border-input bg-surface-2/60 pl-8 pr-8 text-[13px] text-foreground placeholder:text-subtle focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 sm:h-8 [&::-webkit-search-cancel-button]:hidden"
+        className="h-11 w-full rounded-lg border border-input bg-surface-2/60 pl-8 pr-8 text-[13px] text-foreground placeholder:text-subtle focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10 sm:h-8 [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-subtle hover:text-foreground"
+          className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 sm:size-7 items-center justify-center rounded text-subtle hover:text-foreground"
           aria-label="Effacer la recherche"
         >
           <X className="size-3.5" />
@@ -207,7 +207,8 @@ function SkillsBlock({ ctx, widget, mode, height = 'auto' }: SheetBlockProps<'co
                           aria-pressed={on}
                           onClick={() => setFilter(on && f.key !== null ? null : f.key)}
                           className={cn(
-                            'flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium sm:h-6',
+                            'relative flex h-8 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium sm:h-6',
+                            "after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] sm:after:hidden",
                             'transition-colors duration-150 motion-reduce:transition-none',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                             on
@@ -254,7 +255,7 @@ function SkillsBlock({ ctx, widget, mode, height = 'auto' }: SheetBlockProps<'co
                     data.paths.length > 0 && 'mt-3',
                   )}
                 >
-                  <TreeExplorer ctx={ctx} writes={writes} treesOnly />
+                  <TreeExplorer ctx={ctx} trees={data.trees} writes={writes} />
                 </div>
               )}
             </>

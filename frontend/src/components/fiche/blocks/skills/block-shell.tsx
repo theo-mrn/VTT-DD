@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Cadre des blocs Compétences et Arbre : il remplit la cellule de la grille (hauteur imposée
+ * Cadre du bloc Compétences : il remplit la cellule de la grille (hauteur imposée
  * par le redimensionnement) et fait défiler son seul contenu, l'en-tête restant visible.
  */
 import type { ReactNode } from 'react';
