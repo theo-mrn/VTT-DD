@@ -27,7 +27,13 @@ import { BonusForm } from '../../bonus-editor/bonus-form';
 import { ECHAP_LOCAL } from '../../bonus-editor/escape';
 import { attributsBonus, type CibleBonusPropres } from '../../bonus-editor/model';
 import { rollEffectText } from '../skills/model';
-import { effetsDeLEntree, libelleEffet, precisionEffet, raisonInactif } from './model';
+import {
+  effetEstBonus,
+  effetsDeLEntree,
+  libelleEffet,
+  precisionEffet,
+  raisonInactif,
+} from './model';
 
 /** Écritures possibles depuis le détail d'une entrée acquise (absentes : lecture seule). */
 export interface EntryBonusEdit {
@@ -70,7 +76,7 @@ function lignes(fiche: Fiche, entry: Entree, sourcePropre: string | null): Ligne
   // Entrée pas encore possédée : ce que ses effets du catalogue donneraient
   const rang = Math.max(p?.rang ?? 0, 1);
   return entry.effets.flatMap((effet, i) => {
-    if (effet.sur === 'marque') return [];
+    if (!effetEstBonus(effet)) return [];
     const texte =
       effet.sur === 'jet' ? rollEffectText(fiche, effet, rang) : texteEffet(fiche, effet);
     return texte
@@ -106,9 +112,9 @@ export function EntryBonuses({
     () => !!own && attributsBonus(fiche, own.mj).length > 0,
     [fiche, own],
   );
-  // Marques d'entrées (compétences de carrière…) : des effets, pas des bonus
+  // Rangs offerts et marques d'entrées (compétences de carrière…) : des effets, pas des bonus
   const marques = entry.effets
-    .filter((e) => e.sur === 'marque')
+    .filter((e) => !effetEstBonus(e))
     .map((e) => texteEffet(fiche, e))
     .filter((t): t is string => !!t);
   if (!liste.length && !marques.length && !own) return null;

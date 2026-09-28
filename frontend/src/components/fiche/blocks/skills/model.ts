@@ -17,7 +17,7 @@ import {
   type Valeur,
 } from '@vtt/rules';
 import { texteEffet } from '@/lib/creation';
-import { effetsDuPersonnage } from '../effects/model';
+import { effetEstBonus, effetsDuPersonnage } from '../effects/model';
 import { maxRank, pathSortes } from '../tree/model';
 
 export interface BonusTag {
@@ -337,7 +337,7 @@ export function buildSkills(
       bonuses: [...applied, ...described],
       rolls,
       bonusCount: bonusParEntree.get(entry.id) ?? {
-        total: entry.effets.filter((e) => e.sur !== 'marque').length,
+        total: entry.effets.filter(effetEstBonus).length,
         active: 0,
       },
       fields: fieldsOf(fiche, sorte, entry, filtreChamp),

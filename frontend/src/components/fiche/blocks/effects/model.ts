@@ -62,7 +62,7 @@ export function famillesDuSysteme(fiche: Fiche): { familles: FamilleEffet[]; pro
   const { systeme, etat } = fiche;
   const avecBonus = new Set<string>();
   for (const e of systeme.entrees.values())
-    if (e.effets.some((x) => x.sur !== 'marque')) avecBonus.add(e.sorte);
+    if (e.effets.some(effetEstBonus)) avecBonus.add(e.sorte);
   const presentes = new Set<FamilleEffet>(['libres']);
   const profil: Sorte[] = [];
   for (const s of systeme.sortes.values()) {
@@ -89,9 +89,16 @@ export function ongletFamille(f: FamilleEffet, profil: readonly Sorte[]): string
   }
 }
 
-/** L'effet se lit comme un bonus (les marques d'entrées ne sont pas des bonus). */
+/**
+ * Vrai bonus : il modifie un attribut, un jet ou des dégâts. Les rangs offerts (« +1 rang en
+ * X ») et les marques d'entrées structurent le personnage : ce ne sont pas des bonus.
+ */
+export function effetEstBonus(effet: Effet): boolean {
+  return effet.sur !== 'marque' && effet.sur !== 'rang';
+}
+
 export function estBonus(e: EffetListe): boolean {
-  return e.effet.sur !== 'marque';
+  return effetEstBonus(e.effet);
 }
 
 /** Effets affichés : bonus des sources possédées (une entrée à rangs sans rang est ignorée). */
