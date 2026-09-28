@@ -492,6 +492,10 @@ export function useAudioLibrary(campaignId: string, options: { enabled?: boolean
         name,
         ...(assetIds ? { assetIds } : {}),
       });
+      // Visible tout de suite (on l'ouvre dans la foulée), puis relue
+      client.setQueryData<Playlist[]>(audioKeys.playlists(campaignId), (list) =>
+        list ? [...list.filter((x) => x.id !== p.id), p] : [p],
+      );
       void refreshPlaylists();
       return p;
     },
