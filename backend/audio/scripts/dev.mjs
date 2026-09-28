@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// `pnpm dev` du service audio (:3008), avec rechargement à chaud. Un seul processus pour turbo ; Ctrl+C arrête les deux.
+// `pnpm dev` du service audio : le service (:3008) et son worker ffmpeg (:3009), avec
+// rechargement à chaud. Un seul processus pour turbo ; Ctrl+C arrête les deux.
 import { spawn } from 'node:child_process';
 
-const children = ['dev:service'].map((script) =>
+const children = ['dev:service', 'dev:worker'].map((script) =>
   spawn('pnpm', ['run', '--silent', script], { stdio: 'inherit', shell: false }),
 );
 let exiting = false;

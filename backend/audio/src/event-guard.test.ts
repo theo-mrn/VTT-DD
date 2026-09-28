@@ -12,7 +12,10 @@ import { findWriteRoutes, routeKey, type WriteRoute } from '@vtt/platform/testin
 import { beforeAll, describe, expect, it } from 'vitest';
 
 /** Routes d'écriture sans événement, et pourquoi. */
-const EXCEPTIONS: Record<string, string> = {};
+const EXCEPTIONS: Record<string, string> = {
+  'POST /v1/audio/campaigns/:id/assets/uploads':
+    'URL PUT signée et jeton d’envoi : rien n’est écrit en base (docs/audio.md § 3.4)',
+};
 
 describe('garde-fou : chaque route d’écriture émet un événement', () => {
   let routes: WriteRoute[] = [];
@@ -25,6 +28,14 @@ describe('garde-fou : chaque route d’écriture émet un événement', () => {
       exclude: (f) => f.startsWith('src/test/'),
     });
   }, 60_000);
+
+  it('trouve les routes et suit les helpers', () => {
+    expect(publiques().length).toBeGreaterThanOrEqual(7);
+    const del = routes.find(
+      (r) => routeKey(r) === 'DELETE /v1/audio/campaigns/:id/assets/:assetId',
+    );
+    expect(del?.emitPath[0]).toBe('deleteAsset');
+  });
 
   it('chaque route publique émet un événement ou est une exception justifiée', () => {
     const manquantes = publiques()

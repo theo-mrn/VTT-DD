@@ -5,8 +5,10 @@ import { campaignRights, noCampaigns } from './clients/campaign.js';
 import type { AudioConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
+import { register as assets } from './modules/assets/index.js';
 import { register as catalog } from './modules/catalog/index.js';
 import { register as clock } from './modules/clock/index.js';
+import { register as playlists } from './modules/playlists/index.js';
 import { createS3Storage, type AudioStorage } from './storage/s3.js';
 
 /** URL publique du catalogue publié dans le bucket (sons Star Wars). */
@@ -80,7 +82,7 @@ export async function buildAudio(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [clock, catalog]) {
+  for (const module of [clock, catalog, assets, playlists]) {
     await module(app, deps);
   }
 
