@@ -8,8 +8,8 @@
  * dégâts, avantage…) restent un rappel. Rien n'est propre à un jeu : tout vient du moteur.
  */
 import { listerEffets, type Fiche } from '@vtt/rules';
-import { Check, Plus } from 'lucide-react';
-import { useMemo } from 'react';
+import { Check, ChevronDown, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { clesJetsVises } from '@/components/fiche/blocks/effects/condition-text';
 import { libelleEffet, precisionEffet } from '@/components/fiche/blocks/effects/model';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,8 @@ export interface BonusJet {
   source: string;
   libelle: string;
   precision: string | null;
+  /** Règle écrite de la source : c'est elle qui dit vraiment quand le bonus compte. */
+  description: string | null;
   /** Terme à ajouter à la formule (bonus chiffré), sinon rappel seulement. */
   terme: number | null;
   /** Vise une caractéristique présente dans la formule. */
@@ -52,6 +54,7 @@ export function bonusDeJet(fiche: Fiche | null, formule: string): BonusJet[] {
         source: e.nom,
         libelle: libelleEffet(fiche, e),
         precision: precisionEffet(fiche, e),
+        description: (effet.description ?? e.possession?.entree.description ?? '').trim() || null,
         terme: chiffre ? Math.round((e.valeur as number) * 100) / 100 : null,
         concerne: vises.some((c) => presentes.has(c)),
       };
@@ -94,73 +97,117 @@ export function BonusJetListe({
             : 'selon la situation, à ajouter vous-même'}
         </span>
       </div>
-      <ul className="max-h-56 overflow-y-auto px-1.5 pb-1.5 [scrollbar-width:thin]">
-        {bonus.map((b) => {
-          const coche = choisis.has(b.cle);
-          const contenu = (
-            <>
-              <span
-                aria-hidden
-                className={cn(
-                  'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
-                  b.terme === null
-                    ? 'border-transparent'
-                    : coche
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border-strong text-subtle',
-                )}
-              >
-                {b.terme !== null &&
-                  (coche ? <Check className="size-3.5" /> : <Plus className="size-3.5" />)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px]">
-                  <span className={b.concerne ? 'text-foreground' : 'text-muted-foreground'}>
-                    {b.libelle}
-                  </span>
-                  <span className="text-xs text-subtle"> · {b.source}</span>
-                </span>
-                {b.precision && (
-                  <span className="block truncate text-[11px] text-subtle" title={b.precision}>
-                    {b.precision}
-                  </span>
-                )}
-              </span>
-              {b.concerne && (
-                <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                  cette formule
-                </span>
-              )}
-            </>
-          );
-          return (
-            <li key={b.cle}>
-              {b.terme !== null ? (
-                <button
-                  type="button"
-                  aria-pressed={coche}
-                  onClick={() => onBasculer(b.cle)}
-                  className={cn(
-                    'flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-surface-2',
-                    coche && 'bg-primary/[0.06]',
-                    FOCUS,
-                    TACTILE,
-                  )}
-                >
-                  {contenu}
-                </button>
-              ) : (
-                <div
-                  className="flex items-center gap-2 px-1.5 py-1.5"
-                  title="Rappel : à appliquer à la main"
-                >
-                  {contenu}
-                </div>
-              )}
-            </li>
-          );
-        })}
+      <ul className="max-h-80 divide-y divide-border overflow-y-auto px-1.5 pb-1.5 [scrollbar-width:thin]">
+        {bonus.map((b) => (
+          <LigneBonus
+            key={b.cle}
+            b={b}
+            coche={choisis.has(b.cle)}
+            onBasculer={() => onBasculer(b.cle)}
+          />
+        ))}
       </ul>
     </section>
+  );
+}
+
+/** Au-delà, la règle se replie sur trois lignes et se déplie à la demande. */
+const REGLE_LONGUE = 180;
+
+function LigneBonus({
+  b,
+  coche,
+  onBasculer,
+}: {
+  b: BonusJet;
+  coche: boolean;
+  onBasculer: () => void;
+}) {
+  const [deplie, setDeplie] = useState(false);
+  const longue = (b.description?.length ?? 0) > REGLE_LONGUE;
+  const entete = (
+    <>
+      <span
+        aria-hidden
+        className={cn(
+          'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
+          b.terme === null
+            ? 'border-dashed border-border-strong'
+            : coche
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-border-strong text-subtle',
+        )}
+      >
+        {b.terme !== null &&
+          (coche ? <Check className="size-3.5" /> : <Plus className="size-3.5" />)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[13px]">
+        <span
+          className={cn('font-medium', b.concerne ? 'text-foreground' : 'text-muted-foreground')}
+        >
+          {b.libelle}
+        </span>
+        <span className="text-xs text-subtle"> · {b.source}</span>
+      </span>
+      {b.concerne && (
+        <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+          cette formule
+        </span>
+      )}
+      {b.terme === null && <span className="shrink-0 text-[10px] text-subtle">à la main</span>}
+    </>
+  );
+  return (
+    <li className="py-1">
+      {b.terme !== null ? (
+        <button
+          type="button"
+          aria-pressed={coche}
+          onClick={onBasculer}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-surface-2',
+            coche && 'bg-primary/[0.06]',
+            FOCUS,
+            TACTILE,
+          )}
+        >
+          {entete}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 px-1.5 py-1">{entete}</div>
+      )}
+      {(b.description || b.precision) && (
+        <div className="space-y-0.5 pl-9 pr-1.5">
+          {b.description && (
+            <p
+              className={cn(
+                'whitespace-pre-line text-xs leading-relaxed text-muted-foreground',
+                longue && !deplie && 'line-clamp-3',
+              )}
+            >
+              {b.description}
+            </p>
+          )}
+          {longue && (
+            <button
+              type="button"
+              aria-expanded={deplie}
+              onClick={() => setDeplie((d) => !d)}
+              className={cn(
+                'flex items-center gap-1 rounded text-[11px] text-subtle hover:text-foreground',
+                FOCUS,
+              )}
+            >
+              <ChevronDown
+                className={cn('size-3 transition-transform', deplie && 'rotate-180')}
+                aria-hidden
+              />
+              {deplie ? 'Réduire' : 'Toute la règle'}
+            </button>
+          )}
+          {b.precision && <p className="text-[11px] text-subtle">{b.precision}</p>}
+        </div>
+      )}
+    </li>
   );
 }
