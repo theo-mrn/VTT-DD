@@ -3,7 +3,9 @@
 /** Petits éléments partagés par les écrans du son. */
 import type { AssetKind } from '@vtt/contracts';
 import { AudioLines, Music, Wind, type LucideIcon } from 'lucide-react';
+import type { KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export const KIND_LABELS: Record<AssetKind, string> = {
   music: 'Musique',
@@ -15,6 +17,13 @@ export const KIND_ICONS: Record<AssetKind, LucideIcon> = {
   music: Music,
   ambience: Wind,
   sfx: AudioLines,
+};
+
+/** Ce que fait chaque type, en une phrase (ajout d'un son). */
+export const KIND_HINTS: Record<AssetKind, string> = {
+  music: 'Joue en fond pour toute la table, un morceau à la fois, avec les playlists.',
+  ambience: 'Tourne en boucle par-dessus la musique : pluie, taverne, forêt…',
+  sfx: 'Son court, déclenché d’un clic pour toute la table : épée, porte, explosion…',
 };
 
 export const KIND_OPTIONS = (['music', 'ambience', 'sfx'] as const).map((k) => ({
@@ -54,6 +63,65 @@ export function SectionTitle({
     <div className="mb-2 flex items-center justify-between gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-subtle">{children}</h3>
       {action}
+    </div>
+  );
+}
+
+/** Choix exclusif en boutons (clavier : flèches), pour peu d'options toujours visibles. */
+export function Segmented({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string; icon?: LucideIcon; count?: number }[];
+}) {
+  const clavier = (e: KeyboardEvent<HTMLDivElement>) => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const i = options.findIndex((o) => o.value === value);
+    const n = (i + d + options.length) % options.length;
+    onChange(options[n]!.value);
+    e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[n]?.focus();
+  };
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={clavier}
+      className="flex gap-1 rounded-xl border border-border bg-surface-2 p-1"
+    >
+      {options.map((o) => {
+        const actif = o.value === value;
+        const Icon = o.icon;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={actif}
+            tabIndex={actif ? 0 : -1}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              'flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-medium transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+              actif
+                ? 'bg-background text-foreground shadow-surface'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
+            <span className="truncate">{o.label}</span>
+            {o.count !== undefined && (
+              <span className="text-[11px] tabular-nums text-subtle">{o.count}</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

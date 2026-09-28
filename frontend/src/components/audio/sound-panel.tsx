@@ -1,24 +1,41 @@
 'use client';
 
 /**
- * Panneau « Son » de la table (touche S) : ce qui joue pour toute la table
- * (musique, ambiance), mon mixeur, et pour le MJ la bibliothèque, les
- * playlists et le catalogue. Les joueurs n'ont que la lecture et leur mixeur :
- * les titres de la bibliothèque peuvent divulguer l'intrigue.
+ * Panneau « Son » de la table (touche S), dans l'ordre où on s'en sert :
+ *   1. ce qui joue pour la table (musique, ambiance) ;
+ *   2. MJ : les effets, un clic pour toute la table ;
+ *   3. MJ : la bibliothèque rangée par type, avec « Ajouter un son ».
+ * Chacun règle son propre volume (« Mon volume ») sans toucher à la table. Les joueurs ne
+ * voient pas la bibliothèque : ses titres peuvent divulguer l'intrigue.
  */
+import type { AssetKind } from '@vtt/contracts';
 import { AlertTriangle } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Notice } from '@/components/resources/parts';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAudioLibrary } from '@/lib/audio';
-import { CatalogTab } from './catalog-tab';
-import { ChannelCard } from './channel-card';
-import { LibraryTab } from './library-tab';
-import { MixerPanel } from './mixer-panel';
+import { useAudioLibrary, useChannel, useSoundCues } from '@/lib/audio';
+import { AddSoundDialog } from './add-sound-dialog';
+import { Deck } from './deck';
+import { MixerButton, MixerPanel } from './mixer-panel';
 import { SectionTitle } from './parts';
-import { PlaylistsTab } from './playlists-tab';
+import { SoundLibrary, type LibraryView } from './sound-library';
+import { Soundboard } from './soundboard';
 
-function GmLibrary({ campaignId, systemId }: { campaignId: string; systemId: string }) {
+function GmSound({ campaignId, systemId }: { campaignId: string; systemId: string }) {
   const library = useAudioLibrary(campaignId);
+  const music = useChannel(campaignId, 'music');
+  const ambience = useChannel(campaignId, 'ambience');
+  const cues = useSoundCues(campaignId);
+  const [view, setView] = useState<LibraryView>('music');
+  const [adding, setAdding] = useState<AssetKind | null>(null);
+  const effects = useMemo(
+    () =>
+      library.assets
+        .filter((a) => a.kind === 'sfx' && a.status === 'ready')
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+    [library.assets],
+  );
+  const kindOfView: AssetKind = view === 'ambience' || view === 'sfx' ? view : 'music';
+
   if (library.error)
     return (
       <Notice
@@ -29,22 +46,27 @@ function GmLibrary({ campaignId, systemId }: { campaignId: string; systemId: str
       />
     );
   return (
-    <Tabs defaultValue="library">
-      <TabsList>
-        <TabsTrigger value="library">Bibliothèque</TabsTrigger>
-        <TabsTrigger value="playlists">Playlists</TabsTrigger>
-        <TabsTrigger value="catalog">Catalogue</TabsTrigger>
-      </TabsList>
-      <TabsContent value="library">
-        <LibraryTab campaignId={campaignId} library={library} />
-      </TabsContent>
-      <TabsContent value="playlists">
-        <PlaylistsTab campaignId={campaignId} library={library} />
-      </TabsContent>
-      <TabsContent value="catalog">
-        <CatalogTab library={library} systemId={systemId} />
-      </TabsContent>
-    </Tabs>
+    <>
+      <Soundboard effects={effects} cues={cues} onAdd={() => setAdding('sfx')} />
+      <SoundLibrary
+        campaignId={campaignId}
+        systemId={systemId}
+        library={library}
+        music={music}
+        ambience={ambience}
+        cues={cues}
+        view={view}
+        onView={setView}
+        onAdd={() => setAdding(kindOfView)}
+      />
+      <AddSoundDialog
+        key={adding ?? 'ferme'}
+        library={library}
+        open={adding !== null}
+        onOpenChange={(o) => !o && setAdding(null)}
+        defaultKind={adding ?? 'music'}
+      />
+    </>
   );
 }
 
@@ -59,13 +81,19 @@ export function SoundPanel({
 }) {
   return (
     <div className="space-y-6 px-4 py-5 sm:px-6">
-      <section aria-label="Lecture pour la table" className="space-y-2">
-        <SectionTitle>Pour toute la table</SectionTitle>
-        <ChannelCard campaignId={campaignId} channel="music" gm={gm} />
-        <ChannelCard campaignId={campaignId} channel="ambience" gm={gm} />
+      <section aria-label="En ce moment pour la table" className="space-y-2">
+        <SectionTitle action={gm ? <MixerButton /> : undefined}>
+          En ce moment pour la table
+        </SectionTitle>
+        <Deck campaignId={campaignId} channel="music" gm={gm} />
+        <Deck campaignId={campaignId} channel="ambience" gm={gm} />
+        {!gm && (
+          <p className="text-xs text-muted-foreground">
+            Le MJ choisit la musique et les effets ; vous réglez ce que vous entendez.
+          </p>
+        )}
       </section>
-      <MixerPanel />
-      {gm && <GmLibrary campaignId={campaignId} systemId={systemId} />}
+      {gm ? <GmSound campaignId={campaignId} systemId={systemId} /> : <MixerPanel />}
     </div>
   );
 }

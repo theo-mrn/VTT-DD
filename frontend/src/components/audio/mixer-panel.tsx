@@ -5,8 +5,9 @@
  * (tous mes appareils). Chacun règle ce qu'il entend, sans toucher à la table.
  */
 import type { BusName } from '@vtt/contracts';
-import { RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { RotateCcw, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { useMixer } from '@/lib/audio';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,7 @@ export function MixerPanel() {
   const m = useMixer();
   if (!m.volumes || !m.muted) return null;
   return (
-    <section aria-label="Mon mixeur">
+    <section aria-label="Mon volume">
       <SectionTitle
         action={
           <Button variant="ghost" size="xs" onClick={() => m.reset()}>
@@ -34,7 +35,7 @@ export function MixerPanel() {
           </Button>
         }
       >
-        Mon mixeur
+        Mon volume · pour moi seul
       </SectionTitle>
       <ul className="space-y-1.5">
         {BUSES.map(({ bus, label }) => {
@@ -75,5 +76,22 @@ export function MixerPanel() {
         })}
       </ul>
     </section>
+  );
+}
+
+/** « Mon volume » en bouton (MJ : le panneau est déjà chargé de commandes). */
+export function MixerButton() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="secondary" size="sm">
+          <SlidersHorizontal />
+          Mon volume
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-96">
+        <MixerPanel />
+      </PopoverContent>
+    </Popover>
   );
 }
