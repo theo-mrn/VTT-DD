@@ -72,6 +72,11 @@ marques:
 ressources:
   PV: { sens: descendant, couleur: '#dc2626' }
 
+# Icônes des tuiles de la fiche (Vitalité, bandeau)
+attributs:
+  PV: { icone: coeur, couleur: '#dc2626' }
+  Defense: { icone: bouclier, couleur: '#3b82f6' }
+
 fiches:
   personnage:
     widgets:
