@@ -3,36 +3,19 @@
 /**
  * Éditeurs partagés par le détail d'un objet (item-panel) et la configuration d'un objet
  * avant son ajout (item-config) : valeur d'un champ de la sorte, formule en clés nues
- * vérifiée en direct, bonus propres (liste et ajout). Tout vient de la sorte et du système.
+ * vérifiée en direct, liste des bonus propres (leur saisie : bonus-editor). Tout vient de la
+ * sorte et du système.
  */
-import type { Effet, Fiche, Sorte } from '@vtt/rules';
-import { Plus, Trash2 } from 'lucide-react';
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import type { Sorte } from '@vtt/rules';
+import { Trash2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { SelectField, type SelectOption, type SelectOptionGroup } from '@/components/ui/select';
-import { Input, styleChampBase } from '@/components/ui/input';
+import { SelectField } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import {
-  attributsBonus,
-  effetBonus,
-  erreursBonus,
-  type BonusPropre,
-  type FormuleVerifiee,
-  type ValeurChamp,
-} from './model';
-
-/**
- * Marque un élément qui traite Échap lui-même (formule en édition, bonus en saisie) : la
- * fenêtre qui le contient ne se ferme pas et ne revient pas en arrière (Radix écoute Échap
- * en capture, avant l'élément).
- */
-export const ECHAP_LOCAL = { 'data-echap-local': '' } as const;
-
-/** Échap vient d'un élément qui le traite lui-même (voir `ECHAP_LOCAL`). */
-export function echapLocal(e: KeyboardEvent): boolean {
-  return e.target instanceof Element && e.target.closest('[data-echap-local]') !== null;
-}
+import { ECHAP_LOCAL } from '../../bonus-editor/escape';
+import type { BonusPropre, FormuleVerifiee, ValeurChamp } from './model';
 
 type ChampModifiable = Extract<
   Sorte['champs'][number],
@@ -246,119 +229,5 @@ export function BonusPropresListe({
         </li>
       ))}
     </ul>
-  );
-}
-
-/**
- * Nouveau bonus propre : un attribut numérique du personnage et une valeur (nombre ou
- * formule), vérifiés par le moteur comme le fera le service.
- */
-export function BonusForm({
-  fiche,
-  sorte,
-  mj,
-  onAjouter,
-  onAnnuler,
-}: {
-  fiche: Fiche;
-  sorte: Sorte;
-  mj: boolean;
-  onAjouter(effet: Effet): void;
-  onAnnuler(): void;
-}) {
-  const id = useId();
-  const attributs = useMemo(() => attributsBonus(fiche, mj), [fiche, mj]);
-  const [attribut, setAttribut] = useState(attributs[0]?.cle ?? '');
-  const [valeur, setValeur] = useState('1');
-  const [description, setDescription] = useState('');
-  const effet = attribut && valeur.trim() ? effetBonus(attribut, valeur.trim(), description) : null;
-  const erreurs = useMemo(
-    () => (effet ? erreursBonus(fiche, sorte, effet) : []),
-    [effet, fiche, sorte],
-  );
-  const groupes = [...new Set(attributs.map((x) => x.groupe ?? ''))];
-  const valider = () => {
-    if (!effet || erreurs.length) return;
-    onAjouter(effet);
-    setValeur('1');
-    setDescription('');
-  };
-
-  return (
-    // Pas de <form> : ce formulaire vit aussi dans celui de l'ajout d'un objet
-    <div
-      role="group"
-      aria-label="Nouveau bonus"
-      {...ECHAP_LOCAL}
-      className="mt-3 space-y-2 rounded-xl border border-border p-3"
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
-          e.preventDefault();
-          valider();
-        }
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          onAnnuler();
-        }
-      }}
-    >
-      <div className="grid gap-2 sm:grid-cols-[1fr_7rem]">
-        <div className="space-y-1">
-          <label htmlFor={`${id}-a`} className="text-xs text-muted-foreground">
-            Attribut
-          </label>
-          <SelectField
-            id={`${id}-a`}
-            value={attribut}
-            onValueChange={setAttribut}
-            className="h-9 px-2 text-[13px]"
-            options={groupes.flatMap((g): (SelectOption | SelectOptionGroup)[] => {
-              const options = attributs
-                .filter((x) => (x.groupe ?? '') === g)
-                .map((x) => ({ valeur: x.cle, nom: x.nom }));
-              return g ? [{ groupe: g, options }] : options;
-            })}
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={`${id}-v`} className="text-xs text-muted-foreground">
-            Valeur
-          </label>
-          <Input
-            id={`${id}-v`}
-            value={valeur}
-            spellCheck={false}
-            aria-invalid={erreurs.length ? true : undefined}
-            aria-describedby={`${id}-e`}
-            onChange={(e) => setValeur(e.target.value)}
-            className="h-9 px-2 font-mono text-[13px]"
-          />
-        </div>
-      </div>
-      <Input
-        aria-label="Description (facultative)"
-        placeholder="Description (facultative)"
-        value={description}
-        maxLength={200}
-        onChange={(e) => setDescription(e.target.value)}
-        className="h-9 px-2 text-[13px]"
-      />
-      <p
-        id={`${id}-e`}
-        role={erreurs.length ? 'alert' : undefined}
-        className="min-h-4 text-xs text-destructive"
-      >
-        {erreurs.join(' ; ')}
-      </p>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onAnnuler}>
-          Annuler
-        </Button>
-        <Button type="button" size="sm" disabled={!effet || erreurs.length > 0} onClick={valider}>
-          <Plus /> Ajouter le bonus
-        </Button>
-      </div>
-    </div>
   );
 }

@@ -43,7 +43,7 @@ import {
   type ModeleLibre,
   type SaisieLibre,
 } from './model';
-import { ECHAP_LOCAL, echapLocal } from './editors';
+import { ECHAP_LOCAL, echapLocal } from '../../bonus-editor/escape';
 import { ItemConfig, type CibleAjout } from './item-config';
 import { BonusBadges, Thumbnail } from './parts';
 

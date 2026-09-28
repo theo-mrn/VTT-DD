@@ -37,19 +37,13 @@ import { Input, styleChampBase } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import {
-  BonusForm,
-  BonusPropresListe,
-  echapLocal,
-  ECHAP_LOCAL,
-  estModifiable,
-  FieldInput,
-  FormulaField,
-} from './editors';
+import { BonusForm } from '../../bonus-editor/bonus-form';
+import { echapLocal, ECHAP_LOCAL } from '../../bonus-editor/escape';
+import { attributsBonus } from '../../bonus-editor/model';
+import { BonusPropresListe, estModifiable, FieldInput, FormulaField } from './editors';
 import { ItemIcon, SectionTitle } from './item-icon';
 import { actionsDe, type ItemHandlers, type SectionDetail } from './item-menu';
 import {
-  attributsBonus,
   basculerBonus,
   bonusPropres,
   champsAffiches,

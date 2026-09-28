@@ -9,9 +9,7 @@
 import {
   achatsPossibles,
   apercuFormule,
-  compilerEffets,
   declarationsJetables,
-  variablesSource,
   champsGroupe,
   chemins,
   compilerFormuleChamp,
@@ -1220,28 +1218,6 @@ export function bonusDesEffets(fiche: Fiche, effets: readonly Effet[]): BonusPro
   });
 }
 
-/** Attributs qu'un bonus d'objet peut modifier : numériques et visibles de l'utilisateur. */
-export function attributsBonus(
-  fiche: Fiche,
-  mj = false,
-): { cle: string; nom: string; groupe?: string }[] {
-  return [...fiche.entite.attributs.values()]
-    .filter(
-      (a) =>
-        (mj || a.visibilite !== 'mj') &&
-        (a.nature === 'base' ||
-          a.nature === 'ressource' ||
-          (a.nature === 'derivee' && a.type === 'nombre')),
-    )
-    .map((a) => ({
-      cle: a.cle,
-      nom: a.abrege && a.abrege !== a.nom ? `${a.nom} (${a.abrege})` : a.nom,
-      ...(a.groupe
-        ? { groupe: fiche.entite.type.groupes.find((g) => g.id === a.groupe)?.nom ?? a.groupe }
-        : {}),
-    }));
-}
-
 /**
  * Clé d'attribut prise en exemple dans l'aide des formules : le premier attribut jetable du
  * système, sinon le premier attribut de base.
@@ -1251,17 +1227,6 @@ export function cleExemple(fiche: Fiche): string {
   if (jetable) return jetable.cle;
   const base = [...fiche.entite.attributs.values()].find((a) => a.nature === 'base');
   return base?.cle ?? 'X';
-}
-
-/** Bonus d'objet sur un attribut : « +2 en DEF ». */
-export function effetBonus(attribut: string, valeur: string, description?: string): Effet {
-  return {
-    sur: 'attribut',
-    attribut,
-    operation: 'ajouter',
-    valeur,
-    ...(description?.trim() ? { description: description.trim() } : {}),
-  } as Effet;
 }
 
 export function basculerBonus(item: InventoryItem, index: number): Effet[] {
@@ -1282,20 +1247,6 @@ export function basculerBonusDans(effets: readonly Effet[], index: number): Effe
 
 export function sansBonus(item: InventoryItem, index: number): Effet[] {
   return (item.possession?.effets ?? []).filter((_, i) => i !== index);
-}
-
-/**
- * Erreurs d'un bonus saisi, comme le service les donnera : effet compilé par le moteur
- * pour le type d'entité, avec les variables de la sorte (`source.<champ>`).
- */
-export function erreursBonus(fiche: Fiche, sorte: Sorte, effet: Effet): string[] {
-  return compilerEffets(
-    fiche.systeme,
-    fiche.etat.type,
-    [effet],
-    (i, x) => `bonus/${i}/${x}`,
-    variablesSource(sorte),
-  ).erreurs.map((e) => e.message);
 }
 
 // ─── Autres écritures de l'inventaire ────────────────────────────────────────

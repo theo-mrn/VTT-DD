@@ -17,10 +17,11 @@ import { Input, styleChampBase } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { BonusForm, BonusPropresListe, estModifiable, FieldInput, FormulaField } from './editors';
+import { BonusForm } from '../../bonus-editor/bonus-form';
+import { attributsBonus } from '../../bonus-editor/model';
+import { BonusPropresListe, estModifiable, FieldInput, FormulaField } from './editors';
 import { SectionTitle } from './item-icon';
 import {
-  attributsBonus,
   basculerBonusDans,
   bonusDe,
   bonusDesEffets,
