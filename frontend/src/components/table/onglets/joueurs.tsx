@@ -47,16 +47,9 @@ export function OngletJoueurs() {
     () => [...campagne.members].sort((a, b) => ORDRE_ROLE[a.role] - ORDRE_ROLE[b.role]),
     [campagne.members],
   );
-  // Le personnage que chaque membre incarne, et sa création en cours s'il en a une ; ses
-  // autres personnages ne sont pas à la table (ils se choisissent dans la page de choix)
-  const incarnes = new Set(campagne.members.map((m) => m.characterId).filter(Boolean));
-  const persosDe = (m: Membre): Personnage[] => {
-    const liste = personnages.data ?? [];
-    return [
-      ...liste.filter((p) => p.id === m.characterId),
-      ...liste.filter((p) => p.ownerId === m.userId && p.inCreation && !incarnes.has(p.id)),
-    ];
-  };
+  // Le seul personnage actif de chaque membre : celui qu'il incarne
+  const persosDe = (m: Membre): Personnage[] =>
+    (personnages.data ?? []).filter((p) => p.id === m.characterId);
 
   return (
     <Page large>
