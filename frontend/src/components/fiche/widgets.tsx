@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
+import { FittingLabel } from '@/components/ui/fitting-label';
 import { Info } from '@/components/ui/tooltip';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
@@ -332,9 +333,11 @@ function ValeurChiffree({
           tabIndex={0}
           className="min-w-0 cursor-help rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <p className="truncate text-[10px] font-medium uppercase tracking-wider text-subtle">
-            {a.abrege ?? a.nom}
-          </p>
+          <FittingLabel
+            long={a.nom}
+            short={a.abrege}
+            className="text-[10px] font-medium uppercase tracking-wider text-subtle"
+          />
           <p className="font-mono text-xl font-semibold leading-tight tabular">
             <span style={couleur ? { color: couleur } : undefined}>{afficherValeur(v)}</span>
             {a.nature === 'ressource' && v.max !== undefined && (

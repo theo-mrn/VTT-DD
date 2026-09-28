@@ -2,6 +2,7 @@
 
 import { soldes, type Fiche, type Presentation } from '@vtt/rules';
 import { Illustration } from '@/components/commun/illustration';
+import { FittingLabel } from '@/components/ui/fitting-label';
 import { Info } from '@/components/ui/tooltip';
 import {
   afficherModificateur,
@@ -35,10 +36,12 @@ export function TuileAttribut({
         compacte ? 'px-1.5 py-2' : 'px-2 py-3',
       )}
     >
-      {/* Une seule ligne : un nom long est tronqué, complet dans l'infobulle */}
-      <span className="max-w-full truncate text-[10px] font-medium uppercase tracking-wider text-subtle">
-        {a.abrege ?? a.nom}
-      </span>
+      {/* Nom entier s'il tient, sinon l'abréviation */}
+      <FittingLabel
+        long={a.nom}
+        short={a.abrege}
+        className="text-[10px] font-medium uppercase tracking-wider text-subtle"
+      />
       <span
         className={cn(
           'font-mono font-semibold leading-tight tabular',
