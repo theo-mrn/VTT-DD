@@ -102,7 +102,11 @@ function grouper(ctx: ContexteFiche, effets: EffetListe[]): GroupeSource[] {
     // Nom propre d'un exemplaire (objet personnalisé) plutôt que celui de l'entrée
     if (e.genre === 'exemplaire') g.nom = e.nom;
     if (e.statut === 'inactif' && !g.raison) g.raison = raisonInactif(e);
-    g.lignes.push({ e, libelle: libelleEffet(ctx.fiche, e), precision: precisionEffet(e) });
+    g.lignes.push({
+      e,
+      libelle: libelleEffet(ctx.fiche, e),
+      precision: precisionEffet(ctx.fiche, e),
+    });
   }
   return [...groupes.values()];
 }

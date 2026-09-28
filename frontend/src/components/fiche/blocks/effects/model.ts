@@ -15,6 +15,7 @@ import {
   type Sorte,
   type Valeur,
 } from '@vtt/rules';
+import { texteCondition } from './condition-text';
 
 export type FamilleEffet = 'objets' | 'capacites' | 'profil' | 'libres';
 
@@ -223,12 +224,13 @@ export function libelleEffet(fiche: Fiche, x: Pick<EffetListe, 'effet' | 'valeur
   }
 }
 
-/** Précision sous le libellé : condition, famille non cumulable, description de l'auteur. */
-export function precisionEffet(e: EffetListe): string | null {
+/** Précision sous le libellé : conditions en clair, famille non cumulable, description. */
+export function precisionEffet(fiche: Fiche, e: EffetListe): string | null {
   const morceaux: string[] = [];
+  const condition = (f: string) => `si ${texteCondition(fiche, f) ?? f}`;
   if (e.effet.description && e.effet.sur !== 'jet') morceaux.push(e.effet.description);
-  if (e.effet.condition !== undefined) morceaux.push('sous condition');
-  if (e.effet.sur === 'jet' && e.effet.si !== undefined) morceaux.push('sous condition');
+  if (e.effet.condition !== undefined) morceaux.push(condition(e.effet.condition));
+  if (e.effet.sur === 'jet' && e.effet.si !== undefined) morceaux.push(condition(e.effet.si));
   if (e.effet.famille) morceaux.push('non cumulable');
   return morceaux.length ? [...new Set(morceaux)].join(' · ') : null;
 }

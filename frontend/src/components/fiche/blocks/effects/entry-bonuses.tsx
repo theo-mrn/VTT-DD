@@ -68,7 +68,7 @@ function lignes(fiche: Fiche, entry: Entree, sourcePropre: string | null): Ligne
     return effetsDeLEntree(fiche, entry.id).map((e) => ({
       cle: e.cle,
       texte: libelleEffet(fiche, e),
-      precision: precisionEffet(e),
+      precision: precisionEffet(fiche, e),
       statut: e.statut,
       raison: e.statut === 'inactif' ? raisonInactif(e) : null,
       ...(e.genre === 'exemplaire' && e.source === sourcePropre ? { propre: e.index } : {}),
