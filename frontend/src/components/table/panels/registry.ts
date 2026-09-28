@@ -4,6 +4,7 @@ import {
   History,
   Library,
   MessagesSquare,
+  Music,
   NotebookPen,
   ScrollText,
   Settings2,
@@ -142,6 +143,18 @@ export const panelRegistry = [
     component: lazy(() =>
       import('../onglets/historique').then((m) => ({ default: m.OngletHistorique })),
     ),
+  },
+  {
+    id: 'son',
+    label: 'Son',
+    description: 'Musique et ambiance de la table, effets, bibliothèque et mixeur',
+    icon: Music,
+    // S comme son (Q, l'ancien raccourci du mixeur, reste libre)
+    shortcut: { code: 'KeyS', label: 'S' },
+    width: 'medium',
+    mode: 'side',
+    roles: ALL_ROLES,
+    component: lazy(() => import('../onglets/son').then((m) => ({ default: m.OngletSon }))),
   },
   {
     id: 'resources',

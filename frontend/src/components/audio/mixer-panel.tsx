@@ -1,0 +1,79 @@
+'use client';
+
+/**
+ * Mon mixeur : volumes et coupures par bus, enregistrés sur mon compte
+ * (tous mes appareils). Chacun règle ce qu'il entend, sans toucher à la table.
+ */
+import type { BusName } from '@vtt/contracts';
+import { RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { useMixer } from '@/lib/audio';
+import { cn } from '@/lib/utils';
+import { SectionTitle } from './parts';
+
+const BUSES: { bus: BusName; label: string }[] = [
+  { bus: 'master', label: 'Général' },
+  { bus: 'music', label: 'Musique' },
+  { bus: 'ambience', label: 'Ambiance' },
+  { bus: 'sfx', label: 'Effets' },
+  { bus: 'zones', label: 'Zones de la carte' },
+  { bus: 'dice', label: 'Dés' },
+];
+
+export function MixerPanel() {
+  const m = useMixer();
+  if (!m.volumes || !m.muted) return null;
+  return (
+    <section aria-label="Mon mixeur">
+      <SectionTitle
+        action={
+          <Button variant="ghost" size="xs" onClick={() => m.reset()}>
+            <RotateCcw />
+            Réinitialiser
+          </Button>
+        }
+      >
+        Mon mixeur
+      </SectionTitle>
+      <ul className="space-y-1.5">
+        {BUSES.map(({ bus, label }) => {
+          const muted = m.muted![bus];
+          const volume = m.volumes![bus];
+          return (
+            <li key={bus} className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={
+                  muted ? `Rétablir ${label.toLowerCase()}` : `Couper ${label.toLowerCase()}`
+                }
+                aria-pressed={muted}
+                onClick={() => m.toggleMute(bus)}
+                className={cn(muted && 'text-destructive')}
+              >
+                {muted ? <VolumeX /> : <Volume2 />}
+              </Button>
+              <span className={cn('w-32 shrink-0 text-[13px]', bus === 'master' && 'font-medium')}>
+                {label}
+              </span>
+              <Slider
+                aria-label={`Volume ${label.toLowerCase()}`}
+                min={0}
+                max={1}
+                step={0.01}
+                value={[volume]}
+                disabled={muted}
+                onValueChange={([v]) => m.setVolume(bus, v ?? 0)}
+                className={cn(muted && 'opacity-50')}
+              />
+              <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                {Math.round(volume * 100)}%
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
