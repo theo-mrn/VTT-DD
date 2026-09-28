@@ -6,7 +6,7 @@
  * une reste affichée) et retour à la présentation du système. Chaque réglage est appliqué
  * aussitôt au bloc (aperçu) et enregistré avec la mise en page.
  */
-import { ArrowDown, ArrowUp, Columns3, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, Columns3, GripVertical, RotateCcw, X } from 'lucide-react';
 import { useId, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import {
   MAX_TILE_COLUMNS,
@@ -19,6 +19,7 @@ import {
 } from '@/components/fiche/blocks/tiles/model';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,9 @@ export function ArrangementPopover({
   tiles,
   value,
   onChange,
+  addable = [],
+  onAdd,
+  onRemove,
 }: {
   title: string;
   /** Valeurs du bloc, dans l'ordre du système. */
@@ -42,6 +46,11 @@ export function ArrangementPopover({
   value?: TileArrangement;
   /** undefined : retour à la présentation du système. */
   onChange: (next: TileArrangement | undefined) => void;
+  /** Valeurs d'autres groupes qu'on peut ajouter au bloc. */
+  addable?: Tile[];
+  onAdd?: ((key: string) => void) | undefined;
+  /** Retire une valeur du bloc (il en garde au moins une). */
+  onRemove?: ((key: string) => void) | undefined;
 }) {
   const keys = tiles.map((t) => t.key);
   const parCle = new Map(tiles.map((t) => [t.key, t]));
@@ -289,10 +298,41 @@ export function ArrangementPopover({
                     >
                       <ArrowDown />
                     </Button>
+                    {onRemove && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        disabled={ordre.length <= 1}
+                        onClick={() => {
+                          onRemove(cle);
+                          setAnnonce(`${tuile?.label ?? cle} retirée du bloc.`);
+                        }}
+                        aria-label={`Retirer ${tuile?.label ?? cle} du bloc`}
+                      >
+                        <X />
+                      </Button>
+                    )}
                   </li>
                 );
               })}
             </ul>
+            {onAdd && addable.length > 0 && (
+              <SelectField
+                value=""
+                onValueChange={(k) => {
+                  if (!k) return;
+                  onAdd(k);
+                  setAnnonce(`${addable.find((t) => t.key === k)?.label ?? k} ajoutée au bloc.`);
+                }}
+                placeholder="Ajouter une valeur…"
+                aria-label={`Ajouter une valeur au bloc ${title}`}
+                className="h-8 text-xs"
+                options={addable.map((t) => ({
+                  valeur: t.key,
+                  nom: t.hint ? `${t.label} (${t.hint})` : t.label,
+                }))}
+              />
+            )}
           </section>
         </div>
 

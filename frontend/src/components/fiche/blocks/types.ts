@@ -61,5 +61,11 @@ export interface SheetBlockDefinition<T extends WidgetType = WidgetType> {
    * propose la disposition interne (colonnes, ordre, masquage).
    */
   tiles?: (ctx: ContexteFiche, widget: WidgetOf<T>) => Tile[];
+  /**
+   * Valeurs que la personnalisation peut ajouter au bloc (absentes de `tiles`), et le widget
+   * qui affiche exactement ces clés. Absents : la liste des valeurs est celle du système.
+   */
+  addableTiles?: (ctx: ContexteFiche, widget: WidgetOf<T>) => Tile[];
+  withTiles?: (widget: WidgetOf<T>, keys: string[]) => WidgetOf<T>;
   Component: ComponentType<SheetBlockProps<T>>;
 }

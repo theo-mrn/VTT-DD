@@ -5,6 +5,7 @@
  * fiche), état vide, et en personnalisation la surface de déplacement avec ses commandes.
  * Le bloc lui-même vient du registre (components/fiche/blocks) et ne sait rien de la grille.
  */
+import type { Widget } from '@vtt/rules';
 import { GripVertical, RotateCw, TriangleAlert, X } from 'lucide-react';
 import {
   Component,
@@ -194,6 +195,7 @@ export function BlockFrame({
   onMeasure,
   onHeightModeChange,
   onArrangementChange,
+  onWidgetChange,
   onRemove,
 }: {
   block: GridBlock;
@@ -210,6 +212,8 @@ export function BlockFrame({
   onHeightModeChange: (mode: HeightMode) => void;
   /** Disposition interne d'un bloc de tuiles (undefined : celle de la présentation). */
   onArrangementChange: (arrangement: TileArrangement | undefined) => void;
+  /** Nouveau widget du bloc (valeurs ajoutées ou retirées en personnalisation). */
+  onWidgetChange: (widget: Widget) => void;
   onRemove: () => void;
 }) {
   const auto = heightMode === 'auto';
@@ -237,6 +241,16 @@ export function BlockFrame({
     editing && !empty && definition?.tiles && block.widget
       ? definition.tiles(ctx, block.widget as never)
       : [];
+  // Valeurs qu'on peut ajouter au bloc, d'un autre groupe compris ; et le bloc avec d'autres clés
+  const ajoutables =
+    editing && !empty && definition?.addableTiles && block.widget
+      ? definition.addableTiles(ctx, block.widget as never)
+      : [];
+  const avecCles =
+    definition?.withTiles && block.widget
+      ? (keys: string[]) =>
+          onWidgetChange(definition.withTiles!(block.widget as never, keys) as Widget)
+      : undefined;
   // En personnalisation, le bloc reste lisible mais sans action (droits d'écriture retirés)
   const ctxBloc = editing ? { ...ctx, operations: undefined } : ctx;
 
@@ -293,12 +307,17 @@ export function BlockFrame({
             <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-border-strong bg-popover/95 py-0.5 pl-1.5 pr-0.5 text-xs shadow-elevated backdrop-blur">
               <GripVertical className="size-3.5 shrink-0 text-subtle" aria-hidden />
               <span className="min-w-0 truncate font-medium">{titre}</span>
-              {tuiles.length > 1 && (
+              {(tuiles.length > 1 || ajoutables.length > 0) && (
                 <ArrangementPopover
                   title={titre}
                   tiles={tuiles}
                   value={block.arrangement}
                   onChange={onArrangementChange}
+                  addable={ajoutables}
+                  onAdd={avecCles && ((k) => avecCles([...tuiles.map((t) => t.key), k]))}
+                  onRemove={
+                    avecCles && ((k) => avecCles(tuiles.map((t) => t.key).filter((x) => x !== k)))
+                  }
                 />
               )}
               <HeightSwitch title={titre} value={heightMode} onChange={onHeightModeChange} />

@@ -373,6 +373,18 @@ export function SheetGrid({
     [brouillon, changer],
   );
 
+  /** Valeurs ajoutées ou retirées d'un bloc de tuiles : le bloc affiche le nouveau widget. */
+  const changerWidget = useCallback(
+    (id: string, widget: Widget) => {
+      if (!brouillon) return;
+      changer({
+        ...brouillon,
+        blocks: brouillon.blocks.map((b) => (b.id === id ? { ...b, widget } : b)),
+      });
+    },
+    [brouillon, changer],
+  );
+
   const retirer = useCallback(
     (id: string) => {
       if (!brouillon) return;
@@ -572,6 +584,7 @@ export function SheetGrid({
                     onMeasure={(px) => mesurer(b.id, px)}
                     onHeightModeChange={(m) => changerHauteur(b.id, m)}
                     onArrangementChange={(a) => changerDisposition(b.id, a)}
+                    onWidgetChange={(w) => changerWidget(b.id, w)}
                     onRemove={() => retirer(b.id)}
                   />
                 </div>
