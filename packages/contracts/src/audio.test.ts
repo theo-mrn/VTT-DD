@@ -5,12 +5,11 @@ import {
   CreateAsset,
   importedAssetId,
   MixerPreferences,
-  nextIndex,
   normalizeSourceUrl,
   parseYoutubeId,
-  positionAt,
   uuidv5,
 } from './audio.js';
+import { nextIndex, positionAt } from './audio-sync.js';
 
 const T0 = Date.parse('2026-09-28T10:00:00.000Z');
 const state = (over: Partial<Parameters<typeof positionAt>[0]> = {}) => ({

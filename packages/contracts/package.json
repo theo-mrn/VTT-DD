@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./audio-sync": {
+      "types": "./dist/audio-sync.d.ts",
+      "default": "./dist/audio-sync.js"
     }
   },
   "files": [

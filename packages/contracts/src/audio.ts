@@ -24,8 +24,6 @@ export type RepeatMode = z.infer<typeof RepeatMode>;
 export const BusName = z.enum(['master', 'music', 'ambience', 'sfx', 'zones', 'dice']);
 export type BusName = z.infer<typeof BusName>;
 
-export const BUS_NAMES = BusName.options;
-
 /** Ce qu'il faut pour jouer un asset (tous les membres). */
 export const PlaybackAsset = z.object({
   id: z.uuid(),
@@ -191,11 +189,6 @@ export const MixerUpdate = z.object({
 });
 export type MixerUpdate = z.infer<typeof MixerUpdate>;
 
-export const DEFAULT_MIXER: Omit<MixerPreferences, 'version'> = {
-  volumes: { master: 1, music: 1, ambience: 1, sfx: 1, zones: 1, dice: 1 },
-  muted: { master: false, music: false, ambience: false, sfx: false, zones: false, dice: false },
-};
-
 /** Charges utiles des événements audio (docs/audio.md § 4.3). */
 export interface ChannelChangedPayload {
   state: ChannelState;
@@ -212,36 +205,7 @@ export interface CuePlayedPayload {
 }
 export type CuesStoppedPayload = { cueIds: string[] } | { all: true };
 
-/** Délai au-delà duquel un effet reçu n'est plus joué (rejeu, onglet endormi). */
-export const CUE_TTL_MS = 3_000;
-
-// ─── Ligne de temps ──────────────────────────────────────────────────────────
-
-/** Position à l'instant serverNowMs (horloge serveur). Pure, partagée serveur et front. */
-export function positionAt(
-  s: Pick<ChannelState, 'status' | 'positionMs' | 'anchorAt' | 'repeat'> & {
-    track: Pick<PlaybackAsset, 'durationMs'> | null;
-  },
-  serverNowMs: number,
-): { positionMs: number; ended: boolean } {
-  if (s.status !== 'playing') return { positionMs: s.positionMs, ended: false };
-  const p = s.positionMs + Math.max(0, serverNowMs - Date.parse(s.anchorAt));
-  const d = s.track?.durationMs ?? null;
-  if (d === null) return { positionMs: p, ended: false };
-  if (s.repeat === 'track') return { positionMs: p % d, ended: false };
-  return p >= d ? { positionMs: d, ended: true } : { positionMs: p, ended: false };
-}
-
-/**
- * Index suivant en fin de piste (enchaînement automatique) ; null : arrêt.
- * Les commandes next/previous reviennent toujours au début ou à la fin.
- */
-export function nextIndex(length: number, index: number, repeat: RepeatMode): number | null {
-  if (length <= 0) return null;
-  if (repeat === 'track') return Math.min(Math.max(index, 0), length - 1);
-  if (index + 1 < length) return index + 1;
-  return repeat === 'all' ? 0 : null;
-}
+// Ligne de temps, horloge, dérive, planification : ./audio-sync.ts (sans zod).
 
 // ─── Identifiants déterministes ─────────────────────────────────────────────
 
