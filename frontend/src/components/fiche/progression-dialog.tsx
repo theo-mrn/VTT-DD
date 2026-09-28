@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Actions de progression du MJ (passage de niveau…) : les actions du système dont les
- * conséquences changent une valeur réservée au MJ (`saisie: mj`). Le service tire le dé,
- * applique les conséquences et refuse un joueur ; la fenêtre montre le jet puis ce qui a
- * changé sur la fiche. Rien n'est propre à un jeu : l'action vient des règles.
+ * Actions de progression (passage de niveau…) : les actions du système dont les
+ * conséquences changent une valeur qui ne se saisit pas librement en jeu (`saisie` autre
+ * que `jeu`). Le joueur les lance lui-même ; le service tire le dé et applique les
+ * conséquences, et le MJ voit le jet dans l'historique. La fenêtre montre le jet puis ce
+ * qui a changé sur la fiche. Rien n'est propre à un jeu : l'action vient des règles.
  */
 import { calculer, type Action, type Fiche, type ResultatAction } from '@vtt/rules';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,7 +26,7 @@ import { marquerJetsPerimes } from '@/lib/jets';
 import { differences, type Difference } from './values-dialog';
 import type { ContexteFiche } from './widgets';
 
-/** Actions du type d'entité qui changent une valeur réservée au MJ : réservées au MJ. */
+/** Actions du type d'entité qui font progresser une valeur de base (niveau…). */
 export function actionsProgression(ctx: ContexteFiche): Action[] {
   const { systeme, fiche } = ctx;
   return [...systeme.actions.values()].filter(
@@ -34,7 +35,7 @@ export function actionsProgression(ctx: ContexteFiche): Action[] {
       a.consequences.some((c) => {
         if (!('attribut' in c) || c.entite !== 'acteur') return false;
         const attr = fiche.entite.attributs.get(c.attribut);
-        return attr?.nature === 'base' && attr.saisie === 'mj';
+        return attr?.nature === 'base' && attr.saisie !== 'jeu';
       }),
   );
 }

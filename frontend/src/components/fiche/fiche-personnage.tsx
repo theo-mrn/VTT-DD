@@ -237,8 +237,8 @@ function EnTeteFiche({
   const [suppression, setSuppression] = useState(false);
   const [valeurs, setValeurs] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
-  // Actions de progression (passage de niveau) : au MJ de la campagne
-  const progressions = ctx?.operations && ctx.mj ? actionsProgression(ctx) : [];
+  // Actions de progression (passage de niveau) : au joueur comme au MJ, qui voit tout passer
+  const progressions = ctx?.operations && (proprietaire || ctx.mj) ? actionsProgression(ctx) : [];
   const peutValeurs = Boolean(ctx?.operations) && (proprietaire || ctx?.mj === true);
   const details = ctx ? widgetsDe(ctx).find((w) => w.type === 'details') : undefined;
 

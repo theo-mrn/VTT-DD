@@ -31,7 +31,6 @@ import {
   retirerBonus,
   retirerPossession,
   saisieReserveeMj,
-  actionReserveeMj,
   terminer,
   Valeurs,
   verifierEtat,
@@ -757,20 +756,6 @@ export const register: Module = async (app, deps) => {
       if (cibleId && cibleId !== id)
         demandes.push({ id: cibleId, mode: appliquer ? 'ecriture' : 'lecture' });
       const role = await autoriser(db, deps.droits, moi(req), demandes);
-      // Une action qui change une valeur réservée au MJ (passage de niveau) : MJ seul
-      if (appliquer && role !== 'gm') {
-        const l = await lire(db, id);
-        if (
-          actionReserveeMj(systemeDe(catalogue, l), l.type, action) &&
-          !(await deps.droits.de(id, moi(req))).ecriture
-        )
-          throw new HttpError(
-            403,
-            'Accès refusé',
-            'saisie_reservee_mj',
-            'Cette action modifie une valeur réservée au MJ',
-          );
-      }
       return jouerAction(
         deps,
         contexte(req),

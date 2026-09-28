@@ -183,21 +183,14 @@ describe.skipIf(!TEST_DATABASE_URL)('exemplaires, quantités et saisie en jeu', 
     expect(niveau.json()).toMatchObject({ code: 'saisie_reservee_mj' });
   });
 
-  it('passage de niveau : action réservée au MJ, niveau, dés de vie et PV suivent', async () => {
+  it('passage de niveau par le joueur : niveau, dés de vie et PV suivent', async () => {
     const p = await o.nainGuerrier(proprietaire, 'Balin');
-    const joueur = await o.requete(proprietaire, 'POST', url(p, '/actions/monter-niveau'), {
-      appliquer: true,
-    });
-    expect(joueur.statusCode).toBe(403);
-    expect(joueur.json()).toMatchObject({ code: 'saisie_reservee_mj' });
-    // Sans l'appliquer, le jet reste permis (aperçu)
-    const apercu = await o.requete(proprietaire, 'POST', url(p, '/actions/monter-niveau'), {});
-    expect(apercu.statusCode).toBe(200);
-
-    salles.accorder(p.id, mj.id, { lecture: true, ecriture: true });
     const niveauAvant = Number(p.etat.valeurs.niveau ?? 1);
     const jetsAvant = Number(p.etat.valeurs.jetsDeVie ?? 0);
-    const r = await o.requete(mj, 'POST', url(p, '/actions/monter-niveau'), { appliquer: true });
+    // Le niveau ne se saisit pas à la main par le joueur, mais le passage de niveau lui est ouvert
+    const r = await o.requete(proprietaire, 'POST', url(p, '/actions/monter-niveau'), {
+      appliquer: true,
+    });
     expect(r.statusCode).toBe(200);
     const corps = r.json();
     expect(corps.personnage.etat.valeurs.niveau).toBe(niveauAvant + 1);
