@@ -34,6 +34,12 @@ const AttributCommun = {
   /** Identifiant d'un groupe déclaré sur le type d'entité. */
   groupe: Id.optional(),
   visibilite: z.enum(['tous', 'mj']).default('tous'),
+  /**
+   * Règle optionnelle (`options` du système) dont dépend l'attribut : option éteinte pour la
+   * campagne, il est absent de la fiche (ni calcul, ni tuile, ni lanceur) ; sa valeur saisie
+   * reste dans l'état.
+   */
+  option: Cle.optional(),
 };
 
 /**
@@ -116,15 +122,6 @@ export const Attribut = z.discriminatedUnion('nature', [
   }),
 ]);
 export type Attribut = z.output<typeof Attribut>;
-
-export const TypeEntite = z.object({
-  id: Id,
-  nom: Libelle,
-  description: Description,
-  groupes: z.array(z.object({ id: Id, nom: Libelle })).default([]),
-  attributs: z.array(Attribut),
-});
-export type TypeEntite = z.output<typeof TypeEntite>;
 
 // ─── Effets ──────────────────────────────────────────────────────────────────
 
@@ -215,12 +212,39 @@ export const Effet = z.discriminatedUnion('sur', [
 ]);
 export type Effet = z.output<typeof Effet>;
 
+// ─── Types d'entité ──────────────────────────────────────────────────────────
+
+export const TypeEntite = z.object({
+  id: Id,
+  nom: Libelle,
+  description: Description,
+  groupes: z.array(z.object({ id: Id, nom: Libelle })).default([]),
+  attributs: z.array(Attribut),
+  /**
+   * Effets de règle, portés par toute entité de ce type sans source possédée (surcharge,
+   * malus généraux) : toujours présents, ils ne s'appliquent que si leur condition est vraie
+   * (`option("encombrement") et @surcharge`).
+   */
+  effets: z.array(Effet).default([]),
+});
+export type TypeEntite = z.output<typeof TypeEntite>;
+
 // ─── Catalogues ──────────────────────────────────────────────────────────────
 
+const ChampCommun = {
+  id: Cle,
+  nom: Libelle,
+  /**
+   * Règle optionnelle dont dépend le champ : option éteinte pour la campagne, il est caché
+   * dans l'inventaire et à l'ajout ; les valeurs saisies restent dans l'état.
+   */
+  option: Cle.optional(),
+};
+
 export const Champ = z.discriminatedUnion('type', [
-  z.object({ id: Cle, nom: Libelle, type: z.literal('nombre'), defaut: z.number().optional() }),
-  z.object({ id: Cle, nom: Libelle, type: z.literal('texte'), defaut: z.string().optional() }),
-  z.object({ id: Cle, nom: Libelle, type: z.literal('booleen'), defaut: z.boolean().optional() }),
+  z.object({ ...ChampCommun, type: z.literal('nombre'), defaut: z.number().optional() }),
+  z.object({ ...ChampCommun, type: z.literal('texte'), defaut: z.string().optional() }),
+  z.object({ ...ChampCommun, type: z.literal('booleen'), defaut: z.boolean().optional() }),
   /**
    * Formule évaluée dans le contexte du porteur (dégâts `@vigueur + 2`…) ; elle lit aussi
    * les autres champs de l'objet (`source.<champ>`). `des` : formule de jet, qui peut lancer
@@ -228,24 +252,22 @@ export const Champ = z.discriminatedUnion('type', [
    * Un exemplaire peut la remplacer par la sienne (champ propre, voir `formuleChamp`).
    */
   z.object({
-    id: Cle,
-    nom: Libelle,
+    ...ChampCommun,
     type: z.literal('formule'),
     defaut: Formule.optional(),
     des: z.boolean().optional(),
   }),
   /** Clé d'un attribut d'un type d'entité (caractéristique liée d'une compétence). */
-  z.object({ id: Cle, nom: Libelle, type: z.literal('attribut'), entite: Id }),
+  z.object({ ...ChampCommun, type: z.literal('attribut'), entite: Id }),
   /** Référence vers une autre entrée (compétence utilisée par une arme). */
-  z.object({ id: Cle, nom: Libelle, type: z.literal('entree'), sorte: Id }),
-  z.object({ id: Cle, nom: Libelle, type: z.literal('entrees'), sorte: Id }),
+  z.object({ ...ChampCommun, type: z.literal('entree'), sorte: Id }),
+  z.object({ ...ChampCommun, type: z.literal('entrees'), sorte: Id }),
   /**
    * Valeur prise dans une liste déclarée par le système (catégorie d'objet : potions,
    * nourriture…). Lue comme un texte (la `valeur` de l'option) dans les formules.
    */
   z.object({
-    id: Cle,
-    nom: Libelle,
+    ...ChampCommun,
     type: z.literal('choix'),
     options: z.array(z.object({ valeur: Cle, nom: Libelle })).min(1),
     defaut: Cle.optional(),
@@ -661,6 +683,22 @@ export const Table = z.object({
 });
 export type Table = z.output<typeof Table>;
 
+// ─── Règles optionnelles ─────────────────────────────────────────────────────
+
+/**
+ * Règle optionnelle que le MJ allume ou éteint pour sa campagne (encombrement…). Les
+ * attributs, champs et blocs qui en dépendent la citent (`option: id`), les formules la
+ * lisent avec `option("id")`. Éteindre ne détruit rien : les données restent, sans effet.
+ */
+export const OptionRegle = z.object({
+  id: Cle,
+  nom: Libelle,
+  description: Description,
+  /** Valeur quand la campagne ne l'a pas réglée. */
+  defaut: z.boolean().default(false),
+});
+export type OptionRegle = z.output<typeof OptionRegle>;
+
 // ─── Système ─────────────────────────────────────────────────────────────────
 
 export const Systeme = z.object({
@@ -671,6 +709,8 @@ export const Systeme = z.object({
   description: Description,
   /** Formule de modificateur commune (variable `valeur`), pour les attributs `modificateur: true`. */
   modificateur: Formule.optional(),
+  /** Règles optionnelles, choisies par campagne. */
+  options: z.array(OptionRegle).default([]),
   entites: z.array(TypeEntite).min(1),
   sortes: z.array(Sorte).default([]),
   catalogue: z.array(Entree).default([]),

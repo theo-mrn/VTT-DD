@@ -7,7 +7,12 @@
  *
  * Fonctions pures : aucune clé de jeu n'est connue ici.
  */
-import type { SystemeCharge } from '../chargement/index.js';
+import {
+  optionPermet,
+  optionsResolues,
+  type ReglagesOptions,
+  type SystemeCharge,
+} from '../chargement/index.js';
 import type { Attribut, GroupeJets, JetAttribut, Presentation } from '../schema/index.js';
 import type { Fiche } from './fiche.js';
 
@@ -47,6 +52,11 @@ export interface OptionsJetables {
   retires?: Iterable<string>;
   /** Garder les attributs réservés au MJ (sinon écartés). */
   mj?: boolean;
+  /**
+   * Règles optionnelles (résolues) : un attribut d'une option éteinte n'est pas proposé.
+   * Absentes : celles du système (`optionsCampagne`, sinon les défauts).
+   */
+  options?: ReglagesOptions;
 }
 
 const jetDe = (a: Attribut): JetAttribut | undefined => ('jet' in a && a.jet ? a.jet : undefined);
@@ -69,11 +79,12 @@ export function declarationsJetables(
   const e = systeme.entites.get(entite);
   if (!e) return [];
   const retires = new Set(o.retires ?? []);
+  const options = o.options ?? optionsResolues(systeme);
   const nomsGroupes = new Map(e.type.groupes.map((g) => [g.id, g.nom]));
 
   const candidats = new Map<string, Attribut>();
   for (const a of e.attributs.values()) {
-    if (!jetDe(a) || retires.has(a.cle)) continue;
+    if (!jetDe(a) || retires.has(a.cle) || !optionPermet(a, options)) continue;
     if (a.visibilite === 'mj' && !o.mj) continue;
     candidats.set(a.cle, a);
   }
@@ -117,7 +128,10 @@ export function declarationsJetables(
 
 /** Attributs jetables d'une fiche calculée, avec leur apport (voir `declarationsJetables`). */
 export function attributsJetables(fiche: Fiche, o: OptionsJetables = {}): AttributJetable[] {
-  return declarationsJetables(fiche.systeme, fiche.entite.type.id, o).map((d) => ({
+  return declarationsJetables(fiche.systeme, fiche.entite.type.id, {
+    ...o,
+    options: fiche.options,
+  }).map((d) => ({
     ...d,
     apport: fiche.valeurs.get(d.cle)?.jet ?? 0,
   }));

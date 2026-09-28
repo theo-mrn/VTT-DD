@@ -6,7 +6,7 @@
  * Aucune règle propre à un jeu : les sources sont celles de `calculer` (entrées possédées,
  * exemplaires, bonus libres), toutes sortes confondues.
  */
-import { evaluer, type Valeur } from '../formules/index.js';
+import { evaluer, type FormuleVerifiee, type Valeur } from '../formules/index.js';
 import {
   cleEffet,
   lireCleEffet,
@@ -21,9 +21,11 @@ import { estEffective, type Fiche, type PossessionEffective } from './fiche.js';
  * Pourquoi un effet ne s'applique pas alors qu'il n'est pas coupé :
  * - `inactive`     : sa source est une possession activable non active (objet rangé) ;
  * - `non-effective`: l'entrée se possède par rangs et n'en a aucun ;
- * - `bonus-inactif`: bonus libre désactivé (son `actif`).
+ * - `bonus-inactif`: bonus libre désactivé (son `actif`) ;
+ * - `regle-desactivee` : sa condition lit une règle optionnelle éteinte pour la campagne
+ *   (`option("encombrement") et …`) et ne tient pas.
  */
-export type RaisonInactif = 'inactive' | 'non-effective' | 'bonus-inactif';
+export type RaisonInactif = 'inactive' | 'non-effective' | 'bonus-inactif' | 'regle-desactivee';
 
 export interface EffetListe {
   /** Clé stable de l'effet (`<source>/<index>`), celle de `etat.effetsDesactives`. */
@@ -32,7 +34,7 @@ export interface EffetListe {
   source: string;
   /** Nom affiché de la source (entrée, exemplaire nommé, bonus libre). */
   nom: string;
-  genre: 'entree' | 'exemplaire' | 'bonus';
+  genre: 'entree' | 'exemplaire' | 'bonus' | 'regle';
   index: number;
   effet: Effet;
   /**
@@ -41,7 +43,10 @@ export interface EffetListe {
    */
   statut: 'actif' | 'desactive' | 'inactif';
   raison?: RaisonInactif;
-  /** L'effet se coupe un à un (effets d'une entrée ou d'un exemplaire, pas d'un bonus libre). */
+  /**
+   * L'effet se coupe un à un (effets d'une entrée ou d'un exemplaire ; ni d'un bonus libre,
+   * ni d'une règle).
+   */
   basculable: boolean;
   /**
    * Valeur principale évaluée sur la fiche (modificateur d'un attribut, nombre de dés ou
@@ -93,9 +98,17 @@ export function listerEffets(fiche: Fiche): EffetListe[] {
             : p?.sorte.activable && !s.exemplaire?.actif
               ? 'inactive'
               : undefined;
-    const basculable = s.genre !== 'bonus';
+    const basculable = s.genre !== 'bonus' && s.genre !== 'regle';
     s.effets.forEach((effet, index) => {
       const cle = cleEffet(s.id, index);
+      // Condition qui lit une option éteinte et ne tient pas : la règle est désactivée
+      const cond = effet.condition !== undefined ? s.formule(index, 'condition') : undefined;
+      const regleEteinte =
+        !!cond &&
+        [...cond.options].some((o) => fiche.options[o] !== true) &&
+        evaluerSans(fiche, cond, s.variable) === false;
+      const raisonEffet: RaisonInactif | undefined =
+        raison ?? (regleEteinte ? 'regle-desactivee' : undefined);
       const coupe = basculable && coupes.has(cle);
       const champ = champValeur(effet);
       const f = champ ? s.formule(index, champ) : undefined;
@@ -114,8 +127,8 @@ export function listerEffets(fiche: Fiche): EffetListe[] {
         genre: s.genre,
         index,
         effet,
-        statut: coupe ? 'desactive' : raison ? 'inactif' : 'actif',
-        ...(raison ? { raison } : {}),
+        statut: coupe ? 'desactive' : raisonEffet ? 'inactif' : 'actif',
+        ...(raisonEffet ? { raison: raisonEffet } : {}),
         basculable,
         ...(valeur !== undefined ? { valeur } : {}),
         ...(p ? { possession: p } : {}),
@@ -125,6 +138,19 @@ export function listerEffets(fiche: Fiche): EffetListe[] {
     });
   }
   return r;
+}
+
+/** Valeur d'une formule sur la fiche, `undefined` si elle ne s'évalue pas. */
+function evaluerSans(
+  fiche: Fiche,
+  f: FormuleVerifiee,
+  variable: (nom: string) => Valeur,
+): Valeur | undefined {
+  try {
+    return evaluer(f.noeud, fiche.contexte({ variable })).valeur;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -189,7 +215,10 @@ export function basculerEffets(
     if (!effet.basculable)
       return {
         ok: false,
-        erreur: `${effet.nom} : un bonus libre s’active ou se désactive en entier`,
+        erreur:
+          effet.genre === 'regle'
+            ? `${effet.nom} : une règle ne se coupe pas à la main`
+            : `${effet.nom} : un bonus libre s’active ou se désactive en entier`,
       };
     effets.push(effet);
   }

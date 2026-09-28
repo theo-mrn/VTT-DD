@@ -169,7 +169,8 @@ function candidats(fiche: Fiche, achat: Achat): Candidat[] {
       const r: Candidat[] = [];
       for (const cle of cles) {
         const a = fiche.entite.attributs.get(cle);
-        if (a?.nature !== 'base') continue;
+        // Un attribut d'une règle optionnelle éteinte ne s'achète pas
+        if (a?.nature !== 'base' || !fiche.attributActif(cle)) continue;
         r.push({
           type: 'attribut',
           objet: cle,

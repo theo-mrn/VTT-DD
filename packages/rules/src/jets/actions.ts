@@ -15,7 +15,13 @@
  */
 import { type Fiche, type PossessionEffective, type SourceEffets } from '../calcul/index.js';
 import { reduireDegats } from './degats.js';
-import { chemins, formuleChamp, variablesObjet, type SystemeCharge } from '../chargement/index.js';
+import {
+  chemins,
+  formuleChamp,
+  systemeRacine,
+  variablesObjet,
+  type SystemeCharge,
+} from '../chargement/index.js';
 import { quantiteDe } from '../schema/index.js';
 import {
   ErreurEvaluation,
@@ -156,13 +162,14 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   // ─── Validation des entités et des paramètres ─────────────────────────────
 
   const refus: ErreurAction[] = [];
-  if (acteur.systeme !== systeme)
+  // Même système d'origine ; les réglages d'options de chaque fiche sont les siens
+  if (systemeRacine(acteur.systeme) !== systemeRacine(systeme))
     refus.push({ message: 'La fiche de l’acteur a été calculée avec un autre système' });
   if (!action.pour.includes(acteur.etat.type))
     refus.push({ message: `${action.nom} n’est pas permise à ${acteur.entite.type.nom}` });
   if (action.cible) {
     if (!cible) refus.push({ message: `${action.nom} demande une cible` });
-    else if (cible.systeme !== systeme)
+    else if (systemeRacine(cible.systeme) !== systemeRacine(systeme))
       refus.push({ message: 'La fiche de la cible a été calculée avec un autre système' });
     else if (!action.cible.includes(cible.etat.type)) {
       const attendu = action.cible.map((t) => systeme.entites.get(t)?.type.nom ?? t).join(' ou ');

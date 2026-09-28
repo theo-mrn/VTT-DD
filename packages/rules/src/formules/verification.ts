@@ -25,6 +25,11 @@ export interface EnvironnementTypes {
   variable(nom: string): TypeValeur | undefined;
   /** Entrée de catalogue connue (pour `rang("id")` et `possede("id")`). */
   entree?(id: string): boolean;
+  /**
+   * Règle optionnelle déclarée par le système (pour `option("id")`). Absent : `option()`
+   * n'est pas permis (formule évaluée hors d'une fiche).
+   */
+  option?(id: string): boolean;
   /** Fonctions propres au contexte, implémentées par le contexte d'évaluation. */
   fonctions?: Record<string, SignatureFonction>;
   /** Les dés sont-ils permis ? (non pour un attribut dérivé, oui pour un jet) */
@@ -43,6 +48,8 @@ export interface FormuleVerifiee {
   dependancesExternes: Map<string, Set<string>>;
   /** Entrées de catalogue lues par `rang`/`possede`. */
   entrees: Set<string>;
+  /** Règles optionnelles lues par `option("id")`. */
+  options: Set<string>;
   /** La formule lance des dés. */
   aleatoire: boolean;
   /** La formule lit un attribut désigné à l'exécution (`valeur(...)`). */
@@ -77,6 +84,7 @@ const NOMS_RESERVES = new Set([
   'mod',
   'rang',
   'possede',
+  'option',
   'valeur',
   'modificateur',
   ...Object.keys(FONCTIONS),
@@ -102,6 +110,7 @@ export function verifier(
   const dependances = new Set<string>();
   const dependancesExternes = new Map<string, Set<string>>();
   const entrees = new Set<string>();
+  const options = new Set<string>();
   let aleatoire = false;
   let dynamique = false;
 
@@ -228,6 +237,14 @@ export function verifier(
         }
         return retour;
       }
+      case 'option': {
+        // Toujours un identifiant littéral : l'option lue se connaît au chargement
+        const id = litteral('un identifiant d’option');
+        if (!env.option) erreur('option() n’est pas permis ici', n.pos);
+        else if (id !== null && !env.option(id)) erreur(`Option inconnue : ${id}`, n.pos);
+        if (id !== null) options.add(id);
+        return 'booleen';
+      }
       case 'valeur':
       case 'modificateur': {
         if (!env.dynamique) erreur(`${n.fn}() n’est pas permis ici`, n.pos);
@@ -271,6 +288,7 @@ export function verifier(
       dependances,
       dependancesExternes,
       entrees,
+      options,
       aleatoire,
       dynamique,
     },

@@ -45,10 +45,16 @@ export type GroupeJets = z.output<typeof GroupeJets>;
 const CiblesAttributs = { groupe: Id.optional(), attributs: z.array(Cle).optional() };
 
 /** Bloc de la fiche. Le front sait afficher chaque type sans connaître le jeu. */
+/**
+ * Commun à tous les blocs : titre, et règle optionnelle dont le bloc dépend (absent de la
+ * fiche quand la campagne l'éteint).
+ */
+const WidgetCommun = { titre: Libelle, option: Cle.optional() };
+
 export const Widget = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('attributs'),
-    titre: Libelle,
+    ...WidgetCommun,
     ...CiblesAttributs,
     /**
      * Colonnes au plus quand la disposition est automatique (préférence) : le bloc s'adapte
@@ -62,33 +68,33 @@ export const Widget = z.discriminatedUnion('type', [
    */
   z.object({
     type: z.literal('ressources'),
-    titre: Libelle,
+    ...WidgetCommun,
     attributs: z.array(Cle).min(1),
     affichage: z.enum(['jauge', 'valeur']).optional(),
   }),
   /** Entrées possédées d'une sorte (compétences, talents, équipement…), avec achat si un achat les vise. */
   z.object({
     type: z.literal('possessions'),
-    titre: Libelle,
+    ...WidgetCommun,
     sorte: Cle,
     groupeChamp: Cle.optional(),
   }),
-  z.object({ type: z.literal('monnaies'), titre: Libelle }),
+  z.object({ type: z.literal('monnaies'), ...WidgetCommun }),
   /** Résumé : entrées uniques (espèce, carrière) et attributs texte. */
   z.object({
     type: z.literal('details'),
-    titre: Libelle,
+    ...WidgetCommun,
     sortes: z.array(Cle).default([]),
     attributs: z.array(Cle).default([]),
   }),
-  z.object({ type: z.literal('actions'), titre: Libelle, actions: z.array(Id).optional() }),
-  z.object({ type: z.literal('texte'), titre: Libelle, attribut: Cle }),
+  z.object({ type: z.literal('actions'), ...WidgetCommun, actions: z.array(Id).optional() }),
+  z.object({ type: z.literal('texte'), ...WidgetCommun, attribut: Cle }),
   /**
    * Bonus actifs de toute provenance (bonus libres, effets propres aux
    * exemplaires) : liste, activation, ajout d'un bonus libre ciblant un
    * attribut, une entrée à rangs ou les jets qui impliquent une entrée ou un attribut.
    */
-  z.object({ type: z.literal('bonus'), titre: Libelle }),
+  z.object({ type: z.literal('bonus'), ...WidgetCommun }),
   /**
    * Inventaire : possessions de une ou plusieurs sortes (objets, armes, armures…), avec
    * quantités, exemplaires, état équipé ou actif, bonus des effets. Les catégories sont
@@ -99,7 +105,7 @@ export const Widget = z.discriminatedUnion('type', [
    */
   z.object({
     type: z.literal('inventaire'),
-    titre: Libelle,
+    ...WidgetCommun,
     sortes: z.array(Cle).min(1),
     groupeChamp: z.union([Cle, z.array(Cle).min(1)]).optional(),
   }),
@@ -116,7 +122,7 @@ export const Widget = z.discriminatedUnion('type', [
    */
   z.object({
     type: z.literal('competences'),
-    titre: Libelle,
+    ...WidgetCommun,
     sortes: z.array(Cle).min(1).optional(),
     filtreChamp: Cle.optional(),
     vue: z.enum(['progression', 'capacites', 'rangs']).optional(),
@@ -424,6 +430,8 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
   const e = systeme.entites.get(entite);
   if (!e) return [`Type d’entité inconnu : ${entite}`];
   const erreurs: string[] = [];
+  if (w.option !== undefined && !systeme.options.has(w.option))
+    erreurs.push(`Option inconnue : ${w.option}`);
   const attrs = 'attributs' in w ? (w.attributs ?? []) : 'attribut' in w ? [w.attribut] : [];
   for (const a of attrs)
     if (!e.attributs.has(a)) erreurs.push(`Attribut inconnu de ${entite} : ${a}`);

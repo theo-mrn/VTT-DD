@@ -222,7 +222,11 @@ export function compilerEffets(
     compiler(ch, texte, o, attendu) {
       const r = compilerFormule(
         texte,
-        env({ entree: (id) => systeme.entrees.has(id), ...o }),
+        env({
+          entree: (id) => systeme.entrees.has(id),
+          option: (id) => systeme.options.has(id),
+          ...o,
+        }),
         attendu,
       );
       if (!r.ok) {

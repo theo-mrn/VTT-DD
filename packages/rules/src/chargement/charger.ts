@@ -20,6 +20,7 @@ import {
   type Arbre,
   type Entree,
   type Monnaie,
+  type OptionRegle,
   type Sorte,
   type Table,
   type TypeEntite,
@@ -62,6 +63,13 @@ export interface SystemeCharge {
   actions: Map<string, Action>;
   tables: Map<string, Table>;
   monnaies: Map<string, Monnaie>;
+  /** Règles optionnelles déclarées par le système. */
+  options: Map<string, OptionRegle>;
+  /**
+   * Réglages d'une campagne pour ces options (écarts au `defaut` seulement) : vide pour
+   * le système tel que chargé, rempli par `avecOptions()` pour le système d'une campagne.
+   */
+  optionsCampagne: Readonly<Record<string, boolean>>;
   /** Marques utilisées par au moins un effet ou un choix. */
   marques: Set<string>;
   /** Formules compilées, par chemin (voir `chemins`). */
@@ -82,6 +90,9 @@ export const chemins = {
   ) => `entites/${entite}/${cle}/${champ}`,
   modificateurSysteme: () => 'modificateur',
   effet: (entree: string, i: number, champ: string) => `catalogue/${entree}/effets/${i}/${champ}`,
+  /** Effet de règle d'un type d'entité (`entites[].effets`). */
+  effetEntite: (entite: string, i: number, champ: string) =>
+    `entites/${entite}/effets/${i}/${champ}`,
   exige: (entree: string) => `catalogue/${entree}/exige`,
   champ: (entree: string, champ: string) => `catalogue/${entree}/champs/${champ}`,
   choix: (entree: string, choix: string) => `catalogue/${entree}/choix/${choix}/valeur`,
@@ -126,6 +137,7 @@ class Chargeur {
   private actions = new Map<string, Action>();
   private tables = new Map<string, Table>();
   private monnaies = new Map<string, Monnaie>();
+  private options = new Map<string, OptionRegle>();
   private marques = new Set<string>();
   private symboles = new Set<string>();
   private sortesDes = new Set<string>();
@@ -159,6 +171,8 @@ class Chargeur {
         actions: this.actions,
         tables: this.tables,
         monnaies: this.monnaies,
+        options: this.options,
+        optionsCampagne: {},
         marques: this.marques,
         formules,
         formule(chemin) {
@@ -183,7 +197,11 @@ class Chargeur {
     o: OptionsEnv,
     attendu?: TypeValeur,
   ): FormuleVerifiee | null {
-    const r = compiler(texte, env({ entree: (id) => this.entrees.has(id), ...o }), attendu);
+    const r = compiler(
+      texte,
+      env({ entree: (id) => this.entrees.has(id), option: (id) => this.options.has(id), ...o }),
+      attendu,
+    );
     if (!r.ok) {
       for (const e of r.erreurs) this.erreur(chemin, e.message, e.position);
       return null;
@@ -261,6 +279,12 @@ class Chargeur {
     return types.map((t) => this.entites.get(t)?.attributs).filter((a): a is Attributs => !!a);
   }
 
+  /** Règle optionnelle citée par un attribut, un champ ou un bloc : elle doit être déclarée. */
+  private verifierOption(chemin: string, option: string | undefined): void {
+    if (option !== undefined && !this.options.has(option))
+      this.erreur(`${chemin}/option`, `Option inconnue : ${option}`);
+  }
+
   private verifierTypes(chemin: string, types: string[]): void {
     for (const t of types)
       if (!this.entites.has(t)) this.erreur(chemin, `Type d’entité inconnu : ${t}`);
@@ -281,6 +305,7 @@ class Chargeur {
     this.actions = this.unique(s.actions, (x) => x.id, 'actions', 'Action');
     this.tables = this.unique(s.tables, (x) => x.id, 'tables', 'Table');
     this.monnaies = this.unique(s.monnaies, (x) => x.id, 'monnaies', 'Monnaie');
+    this.options = this.unique(s.options, (x) => x.id, 'options', 'Option');
     this.unique(s.textes, (x) => x.id, 'textes', 'Texte');
     this.typesDegats = new Set(
       this.unique(s.typesDegats, (x) => x.id, 'typesDegats', 'Type de dégâts').keys(),
@@ -317,6 +342,7 @@ class Chargeur {
         const ch = (c: Parameters<typeof chemins.attribut>[2]) => chemins.attribut(id, a.cle, c);
         if (a.groupe && !groupes.has(a.groupe))
           this.erreur(`entites/${id}/${a.cle}`, `Groupe inconnu : ${a.groupe}`);
+        this.verifierOption(`entites/${id}/${a.cle}`, a.option);
 
         switch (a.nature) {
           case 'base':
@@ -405,6 +431,7 @@ class Chargeur {
       this.verifierTypes(chemin, sorte.pour);
       this.unique(sorte.champs, (c) => c.id, chemin, 'Champ');
       for (const c of sorte.champs) {
+        this.verifierOption(`${chemin}/${c.id}`, c.option);
         if (c.type === 'entree' || c.type === 'entrees') {
           if (!this.sortes.has(c.sorte))
             this.erreur(`${chemin}/${c.id}`, `Sorte inconnue : ${c.sorte}`);
@@ -443,6 +470,16 @@ class Chargeur {
     }
 
     for (const e of this.entrees.values()) this.verifierEntree(e);
+
+    // Effets de règle des types d'entité : mêmes vérifications, sans variables de source
+    for (const [id, e] of this.entites)
+      verifierEffets(
+        this.contexteEffets(),
+        e.type.effets,
+        (i, x) => chemins.effetEntite(id, i, x),
+        [e.attributs],
+        {},
+      );
   }
 
   private verifierEntree(e: Entree): void {
@@ -1051,6 +1088,12 @@ class Chargeur {
           ajouter(f.attribut, this.formules.get(chemins.effet(entree.id, i, 'condition')));
         });
       }
+
+      e.type.effets.forEach((f, i) => {
+        if (f.sur !== 'attribut' || !e.attributs.has(f.attribut)) return;
+        ajouter(f.attribut, this.formules.get(chemins.effetEntite(id, i, 'valeur')));
+        ajouter(f.attribut, this.formules.get(chemins.effetEntite(id, i, 'condition')));
+      });
 
       const ordre: string[] = [];
       const etat = new Map<string, 'encours' | 'fait'>();

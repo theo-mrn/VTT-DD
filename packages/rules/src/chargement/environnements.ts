@@ -110,6 +110,11 @@ export interface OptionsEnv {
   des?: boolean;
   dynamique?: boolean;
   entree?: (id: string) => boolean;
+  /**
+   * Règle optionnelle déclarée par le système : `option("id")` n'est permis que dans une
+   * formule lue sur une entité (évaluée sur sa fiche, qui connaît les options de la campagne).
+   */
+  option?: (id: string) => boolean;
   /** Sans les agrégats sur les possessions (`compte`, `somme`…) : attributs seuls. */
   sansAgregats?: boolean;
 }
@@ -125,6 +130,7 @@ export function env(o: OptionsEnv): EnvironnementTypes {
           : undefined,
     variable: (nom) => o.variables?.[nom],
     ...(o.entree ? { entree: o.entree } : {}),
+    ...(o.option && avecEntite ? { option: o.option } : {}),
     fonctions: { ...(avecEntite ? FONCTIONS_ENTITE : {}), ...o.fonctions },
     des: o.des ?? false,
     dynamique: o.dynamique ?? false,

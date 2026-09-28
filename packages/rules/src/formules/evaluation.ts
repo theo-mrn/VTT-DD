@@ -26,6 +26,8 @@ export interface ContexteEvaluation {
   variable(nom: string, des?: ModeDes): Valeur;
   rang?(id: string): number;
   possede?(id: string): boolean;
+  /** Règle optionnelle allumée pour la campagne (`option("encombrement")`). */
+  option?(id: string): boolean;
   /** Implémentations des fonctions déclarées dans `EnvironnementTypes.fonctions`. */
   fonctions?: Record<string, (...args: Valeur[]) => Valeur>;
   aleatoire?: Generateur;
@@ -195,6 +197,13 @@ export function evaluer(noeud: Noeud, ctx: ContexteEvaluation): ResultatEvaluati
         const f = n.fn === 'rang' ? ctx.rang : ctx.possede;
         if (!f) throw new ErreurEvaluation(`${n.fn}() indisponible dans ce contexte`, n.pos);
         return f(id);
+      }
+      case 'option': {
+        const id = ev(n.args[0]!);
+        if (typeof id !== 'string') throw new ErreurEvaluation('option() attend un texte', n.pos);
+        if (!ctx.option)
+          throw new ErreurEvaluation('option() indisponible dans ce contexte', n.pos);
+        return ctx.option(id);
       }
       case 'valeur': {
         const cle = ev(n.args[0]!);

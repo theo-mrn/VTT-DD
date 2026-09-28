@@ -6,11 +6,19 @@
  * Le calcul ne lève jamais d'erreur pour une donnée de jeu : une formule qui
  * échoue (division par zéro…) donne 0 et une erreur listée dans `erreurs`.
  */
-import type { EffetsCompiles, EntiteChargee, SystemeCharge } from '../chargement/index.js';
+import type {
+  EffetsCompiles,
+  EntiteChargee,
+  ReglagesOptions,
+  SystemeCharge,
+} from '../chargement/index.js';
 import {
+  avecOptions,
   chemins,
   compilerEffets,
   formuleChamp,
+  optionPermet,
+  optionsResolues,
   variablesObjet,
   variablesSource as variablesDeSorte,
 } from '../chargement/index.js';
@@ -105,16 +113,20 @@ export function exemplairesDe(p: PossessionEffective): ExemplaireEffectif[] {
 }
 
 /**
- * Source d'effets active sur l'entité. Trois genres, un seul traitement :
+ * Source d'effets active sur l'entité. Quatre genres, un seul traitement :
  *   - `entree`     : effets du catalogue d'une entrée possédée (race, talent…) ;
  *   - `exemplaire` : effets propres à un exemplaire possédé (épée +1, bonus saisi) ;
- *   - `bonus`      : bonus libre posé sur l'entité (potion, bénédiction, MJ).
+ *   - `bonus`      : bonus libre posé sur l'entité (potion, bénédiction, MJ) ;
+ *   - `regle`      : effets de règle du type d'entité (surcharge…), toujours présents.
  */
 export interface SourceEffets {
-  /** Identifiant affiché dans les explications : `entree`, `entree#exemplaire`, `bonus:id`. */
+  /**
+   * Identifiant affiché dans les explications : `entree`, `entree#exemplaire`, `bonus:id`,
+   * `regles` pour les effets de règle.
+   */
   id: string;
   nom: string;
-  genre: 'entree' | 'exemplaire' | 'bonus';
+  genre: 'entree' | 'exemplaire' | 'bonus' | 'regle';
   effets: readonly Effet[];
   /** Formule compilée d'un effet (`undefined` si l'effet est invalide et ignoré). */
   formule(i: number, champ: string): FormuleVerifiee | undefined;
@@ -134,10 +146,30 @@ export interface ErreurCalcul {
   message: string;
 }
 
+/** Contexte d'un calcul, hors de l'état de l'entité. */
+export interface ContexteCalcul {
+  /**
+   * Réglages des règles optionnelles (ceux de la campagne) ; ils remplacent ceux que le
+   * système porte déjà (`avecOptions`). Absents : ceux du système, sinon les défauts.
+   */
+  options?: ReglagesOptions;
+}
+
+/** Identifiant de la source des effets de règle d'un type d'entité. */
+export const SOURCE_REGLES = 'regles';
+
 export interface Fiche {
+  /** Système du calcul, réglé avec les options de la campagne (voir `avecOptions`). */
   systeme: SystemeCharge;
   entite: EntiteChargee;
   etat: EtatEntite;
+  /** Valeur de chaque règle optionnelle du système pour ce calcul. */
+  options: Readonly<Record<string, boolean>>;
+  /**
+   * L'attribut est sur la fiche : connu, et sans option éteinte (un attribut d'une option
+   * éteinte n'est ni calculé ni affiché).
+   */
+  attributActif(cle: string): boolean;
   valeurs: Map<string, ValeurCalculee>;
   possessions: Map<string, PossessionEffective>;
   /** Marques posées, par entrée. */
@@ -185,7 +217,19 @@ function effetsCompiles(
 
 const PHASES: Operation[] = ['fixer', 'ajouter', 'multiplier', 'minimum', 'maximum'];
 
-export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
+export function calculer(
+  systemeDonne: SystemeCharge,
+  etat: EtatEntite,
+  contexteCalcul: ContexteCalcul = {},
+): Fiche {
+  const systeme = contexteCalcul.options
+    ? avecOptions(systemeDonne, { ...systemeDonne.optionsCampagne, ...contexteCalcul.options })
+    : systemeDonne;
+  const options = Object.freeze(optionsResolues(systeme));
+  const attributActif = (cle: string) => {
+    const a = systeme.entites.get(etat.type)?.attributs.get(cle);
+    return !!a && optionPermet(a, options);
+  };
   const entite = systeme.entites.get(etat.type);
   if (!entite)
     throw new Error(`Type d’entité inconnu du système ${systeme.source.id} : ${etat.type}`);
@@ -273,6 +317,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     },
     rang,
     possede,
+    option: (id) => options[id] === true,
     ...extra,
     fonctions: { ...fonctions, ...extra.fonctions },
   });
@@ -405,8 +450,28 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
         };
       });
 
-  /** Toutes les sources actives : possessions actives et effectives, bonus libres actifs. */
+  /** Effets de règle du type d'entité : une source, toujours présente, sans variables. */
+  const sourcesRegles = (): SourceEffets[] =>
+    entite.type.effets.length
+      ? [
+          {
+            id: SOURCE_REGLES,
+            nom: 'Règles',
+            genre: 'regle',
+            effets: entite.type.effets,
+            formule: (i, x) => systeme.formules.get(chemins.effetEntite(etat.type, i, x)),
+            // Une règle ne se coupe pas à la main : elle dépend de sa condition (et des options)
+            desactive: () => false,
+            variable: (nom) => {
+              throw new ErreurEvaluation(`Variable inconnue : ${nom}`, 0);
+            },
+          },
+        ]
+      : [];
+
+  /** Toutes les sources actives : règles, possessions actives et effectives, bonus libres actifs. */
   const sourcesActives = (): SourceEffets[] => [
+    ...sourcesRegles(),
     ...[...possessions.values()]
       .filter((p) => p.actif && estEffective(p))
       .flatMap((p) => sourcesDe(p)),
@@ -576,9 +641,9 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       const valeurF = s.formule(i, 'valeur');
       const condition = s.formule(i, 'condition');
       if (!valeurF || (f.condition !== undefined && !condition)) return;
-      // Un effet du catalogue est ordonné au chargement ; un effet posé sur
+      // Un effet du catalogue ou de règle est ordonné au chargement ; un effet posé sur
       // l'entité ne peut lire que des attributs calculés avant sa cible
-      if (s.genre !== 'entree') {
+      if (s.genre !== 'entree' && s.genre !== 'regle') {
         const lus = [...valeurF.dependances, ...(condition?.dependances ?? [])];
         const tardif = lus.find((d) => rangDans(d) >= rangDans(f.attribut));
         if (tardif) {
@@ -725,6 +790,8 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
 
   for (const cle of entite.ordre) {
     const a = entite.attributs.get(cle)!;
+    // Option éteinte : l'attribut n'est pas sur la fiche (sa valeur saisie reste dans l'état)
+    if (!optionPermet(a, options)) continue;
     const detail: LigneExplication[] = [];
     const stocke = etat.valeurs[cle];
     const calcule: ValeurCalculee = { cle, valeur: 0, detail };
@@ -852,6 +919,8 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
     systeme,
     entite,
     etat,
+    options,
+    attributActif,
     valeurs,
     possessions,
     marques,
@@ -865,6 +934,7 @@ export function calculer(systeme: SystemeCharge, etat: EtatEntite): Fiche {
       muet = true;
       try {
         return [
+          ...sourcesRegles(),
           ...[...possessions.values()].flatMap((p) => sourcesDe(p, true)),
           ...sourcesBonus(true),
         ];

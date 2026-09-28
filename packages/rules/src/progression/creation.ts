@@ -8,7 +8,7 @@
  * jamais l'état reçu.
  */
 import { calculer, type Fiche } from '../calcul/index.js';
-import { chemins, type SystemeCharge } from '../chargement/index.js';
+import { chemins, optionPermet, optionsResolues, type SystemeCharge } from '../chargement/index.js';
 import type { FormuleVerifiee, Generateur, JetDes, Valeur } from '../formules/index.js';
 import type {
   Attribut,
@@ -126,14 +126,24 @@ const echec = (erreurs: string[]): ResultatEtat => ({ ok: false, erreur: erreurs
 
 const estBase = (a: Attribut): a is Attribut & { nature: 'base' } => a.nature === 'base';
 
+/** Attributs sur la fiche avec les règles optionnelles du système (voir `avecOptions`). */
+const actifs = (systeme: SystemeCharge) => {
+  const options = optionsResolues(systeme);
+  return (a: Attribut) => optionPermet(a, options);
+};
+
 /** Attributs de base visés (répartition, tirage). */
 function ciblesBase(systeme: SystemeCharge, etat: EtatEntite, et: Etape<'repartir' | 'tirer'>) {
-  return attributsVises(systeme.entites.get(etat.type)!, et, estBase).filter(estBase);
+  return attributsVises(systeme.entites.get(etat.type)!, et, estBase)
+    .filter(estBase)
+    .filter(actifs(systeme));
 }
 
 /** Attributs saisissables visés (tout sauf les dérivées). */
 function ciblesSaisie(systeme: SystemeCharge, etat: EtatEntite, et: Etape<'saisir'>): Attribut[] {
-  return attributsVises(systeme.entites.get(etat.type)!, et, (a) => a.nature !== 'derivee');
+  return attributsVises(systeme.entites.get(etat.type)!, et, (a) => a.nature !== 'derivee').filter(
+    actifs(systeme),
+  );
 }
 
 function nombre(
