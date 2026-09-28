@@ -135,10 +135,10 @@ export function Bloc({
         className,
       )}
     >
-      <div className="flex min-h-9 shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1.5">
-        <h2 className="min-w-0 truncate text-[13px] font-semibold">{titre}</h2>
-        {action}
-      </div>
+      {/* Pas de bandeau de titre : il prenait de la place pour rien. Le titre reste lu par les
+          lecteurs d'écran ; seules les actions éventuelles gardent une ligne. */}
+      <h2 className="sr-only">{titre}</h2>
+      {action && <div className="flex shrink-0 justify-end px-3 pt-2">{action}</div>}
       <div className="min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]">{children}</div>
     </section>
   );
@@ -493,13 +493,7 @@ export function BlocPossessions({
   }
 
   return (
-    <Bloc
-      titre={
-        <span className="flex items-center gap-2">
-          {widget.titre} <span className="text-xs font-normal text-subtle">{liste.length}</span>
-        </span>
-      }
-    >
+    <Bloc titre={widget.titre}>
       <div className="space-y-4">
         {[...groupes].map(([groupe, items]) => (
           <div key={groupe}>

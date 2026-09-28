@@ -191,21 +191,8 @@ function EffectsBlock({ ctx, widget, mode }: SheetBlockProps<'bonus'>) {
     });
   }
 
-  const total = onglets[0]!;
-
   return (
-    <Bloc
-      titre={
-        <span className="flex items-center gap-2">
-          {widget.titre}
-          {total.total > 0 && (
-            <span className="font-mono text-xs font-normal tabular text-subtle">
-              {total.actifs}/{total.total}
-            </span>
-          )}
-        </span>
-      }
-    >
+    <Bloc titre={widget.titre}>
       <div
         id={ancreBonus(ctx.personnage.id)}
         tabIndex={-1}
