@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, Skull, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { BarChart3, Crown, Skull, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { messageErreur } from '@/lib/api';
@@ -94,7 +94,7 @@ export function StatsJets({
         </TuileStat>
         <TuileStat
           libelle="Critiques"
-          icone={<Sparkles className="size-3.5 text-primary" aria-hidden />}
+          icone={<Crown className="size-3.5 text-primary" aria-hidden />}
           valeur={nombre(stats.critiques, 0)}
         >
           {pourcent(stats.critiques, stats.nombre)} des jets

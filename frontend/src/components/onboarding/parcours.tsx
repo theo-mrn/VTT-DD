@@ -6,9 +6,9 @@ import {
   ArrowRight,
   Camera,
   ChevronDown,
+  Dices,
   Globe,
   LogIn,
-  Sparkles,
   Swords,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -190,7 +190,7 @@ function EtapeBienvenue({ nom, onCommencer }: { nom: string; onCommencer: () => 
           className="absolute inset-0 animate-glow-pulse rounded-3xl bg-primary/30 blur-2xl"
         />
         <span className="relative flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary-strong via-primary to-primary/50 shadow-glow">
-          <Sparkles className="size-9 text-primary-foreground" />
+          <Dices className="size-9 text-primary-foreground" />
         </span>
       </motion.div>
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">

@@ -10,7 +10,7 @@
  * Entrée non acquise : lecture seule.
  */
 import { sourceExemplaire, type Effet, type Entree, type Fiche } from '@vtt/rules';
-import { ArrowUpRight, MoreHorizontal, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowUpRight, BadgePlus, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -224,7 +224,7 @@ export function EntryBonuses({
             <div className="overflow-hidden rounded-lg border border-dashed border-border-strong">
               {formulaire ?? (
                 <div className="flex flex-col items-center gap-2 px-3 py-4 text-center">
-                  <Sparkles className="size-4 text-subtle" aria-hidden />
+                  <BadgePlus className="size-4 text-subtle" aria-hidden />
                   <p className="text-[13px] text-muted-foreground">
                     Aucun bonus sur cette compétence
                   </p>

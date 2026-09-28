@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { EyeOff, Sparkles, Skull } from 'lucide-react';
+import { Crown, EyeOff, Skull } from 'lucide-react';
 import type { Critique, GroupeDes } from '@/lib/jets';
 import { cn } from '@/lib/utils';
 import { DeVisuel, etatDe } from './de-visuel';
@@ -111,7 +111,7 @@ export function TotalJet({
               : 'border-destructive/30 bg-destructive/10 text-destructive',
           )}
         >
-          {critique === 'success' ? <Sparkles className="size-3" /> : <Skull className="size-3" />}
+          {critique === 'success' ? <Crown className="size-3" /> : <Skull className="size-3" />}
           {critique === 'success' ? 'Critique' : 'Échec critique'}
         </motion.span>
       )}

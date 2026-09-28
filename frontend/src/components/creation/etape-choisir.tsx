@@ -13,7 +13,7 @@ import {
   type Selection,
   type SystemeCharge,
 } from '@vtt/rules';
-import { Check, Lock, Search, Sparkles } from 'lucide-react';
+import { Check, Lightbulb, Lock, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Illustration } from '@/components/commun/illustration';
 import { Message } from '@/components/compte/elements';
@@ -147,7 +147,7 @@ export function EtapeChoisir({
 
       {!unique && suggerees.some((s) => !ids.includes(s)) && (
         <div className="flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/[0.06] p-3.5 sm:flex-row sm:items-center">
-          <Sparkles className="size-4 shrink-0 text-primary" />
+          <Lightbulb className="size-4 shrink-0 text-primary" />
           <p className="flex-1 text-[13px] text-foreground/85">
             {suggerees.length} suggestion(s) d&apos;après vos choix précédents.
           </p>
@@ -264,7 +264,7 @@ export function EtapeChoisir({
                       {e.nom}
                       {suggerees.includes(e.id) && (
                         <Badge ton="primaire">
-                          <Sparkles /> Suggérée
+                          <Lightbulb /> Suggérée
                         </Badge>
                       )}
                     </span>

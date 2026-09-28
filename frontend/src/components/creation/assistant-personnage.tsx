@@ -18,7 +18,6 @@ import {
   Hammer,
   Lock,
   RotateCcw,
-  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -510,7 +509,7 @@ export function AssistantPersonnage({
                     loading={envoi}
                     disabled={!toutesValides || !id}
                   >
-                    <Sparkles />
+                    <Check />
                     Créer le personnage
                   </Button>
                 ) : (

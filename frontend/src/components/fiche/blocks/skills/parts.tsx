@@ -5,7 +5,7 @@
  * tout (description assainie, bonus avec leur interrupteur et leur gestion, origine,
  * actions : activation, rang suivant) et renvoie au bloc Bonus.
  */
-import { Plus, Power, Sparkles } from 'lucide-react';
+import { Plus, Power, Route } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -102,7 +102,7 @@ export function SkillDialog({
                 )}
                 {card.origins.length > 0 && (
                   <Badge>
-                    <Sparkles />
+                    <Route />
                     {card.origins.join(', ')}
                   </Badge>
                 )}

@@ -25,11 +25,11 @@ import {
   Crown,
   Dice5,
   Dices,
+  Heart,
   Package,
   RotateCcw,
   Search,
   ShoppingCart,
-  Sparkles,
   Store,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -544,7 +544,7 @@ function Premium({ tousLesDes }: { tousLesDes: boolean }) {
   const avantages = [
     { Icone: Dice5, texte: 'Tous les dés 3D animés débloqués' },
     { Icone: Package, texte: 'Les futurs dés inclus' },
-    { Icone: Sparkles, texte: 'Soutien au développement' },
+    { Icone: Heart, texte: 'Soutien au développement' },
   ];
   return (
     <div className="mx-auto max-w-2xl">
@@ -580,7 +580,7 @@ function Premium({ tousLesDes }: { tousLesDes: boolean }) {
           </ul>
           <div className="flex flex-col items-center gap-2">
             <Button size="lg" disabled title={BIENTOT}>
-              <Sparkles aria-hidden />
+              <Crown aria-hidden />
               {tousLesDes ? 'Gérer l’abonnement' : 'Devenir Premium'}
             </Button>
             <p className="text-xs font-medium uppercase tracking-widest text-primary">{BIENTOT}</p>

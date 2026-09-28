@@ -10,7 +10,6 @@ import {
   ImagePlus,
   Info as IconeInfo,
   Lock,
-  Sparkles,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
@@ -175,7 +174,7 @@ export function AssistantCampagne() {
               </Button>
               {derniere ? (
                 <Button size="lg" onClick={() => void terminer()} loading={creer.isPending}>
-                  <Sparkles />
+                  <Check />
                   Créer la campagne
                 </Button>
               ) : (

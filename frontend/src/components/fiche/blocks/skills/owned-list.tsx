@@ -6,7 +6,7 @@
  * discret de bonus (ils se gèrent dans le bloc Bonus) et un interrupteur pour celles qui
  * s'activent. Le détail s'ouvre au clic sur le nom.
  */
-import { Sparkles } from 'lucide-react';
+import { BadgePlus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { SheetWrites } from '../tree/writes';
@@ -65,7 +65,7 @@ export function OwnedList({
               )}
               {total > 0 && (
                 <span title={bonusText} className="flex shrink-0 items-center">
-                  <Sparkles
+                  <BadgePlus
                     className={cn('size-3', active > 0 ? 'text-primary/70' : 'text-subtle/60')}
                     aria-hidden
                   />

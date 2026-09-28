@@ -9,6 +9,7 @@
  */
 import type { InventoryFolder } from '@vtt/rules';
 import {
+  BadgePlus,
   Check,
   Copy,
   Dices,
@@ -22,7 +23,6 @@ import {
   Minus,
   PanelRightOpen,
   Pencil,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
@@ -127,7 +127,7 @@ export function ItemMenuItems({
       )}
       {a.bonus && (
         <DropdownMenuItem onSelect={() => a.bonus!(item, 'bonus')}>
-          <Sparkles /> Bonus…
+          <BadgePlus /> Bonus…
         </DropdownMenuItem>
       )}
       {organiser && <DropdownMenuSeparator />}
