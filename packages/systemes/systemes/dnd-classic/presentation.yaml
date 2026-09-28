@@ -86,10 +86,16 @@ fiches:
           attributs: [niveau, deVie, jetsDeVie, INIT],
           colonnes: 4,
         }
-      - { type: possessions, titre: Voies, sorte: voie }
+      # Voies en tableau (vue Progression) et capacités acquises (vue Capacités, filtrées
+      # par activation : passive, limitée…)
+      - {
+          type: competences,
+          titre: Voies et capacités,
+          sortes: [capacite, capacite_active],
+          filtreChamp: activation,
+          vue: progression,
+        }
       - { type: monnaies, titre: Points de capacité }
-      - { type: possessions, titre: Capacités, sorte: capacite }
-      - { type: possessions, titre: Capacités à activer, sorte: capacite_active }
       # Source unique de l'équipement : armes (contact, distance), protections, objets
       # (potions, nourriture, bourse, autre)
       - {

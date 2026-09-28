@@ -98,11 +98,13 @@ function BlockContent({
   definition,
   ctx,
   mode,
+  height,
 }: {
   block: GridBlock;
   definition: SheetBlockDefinition;
   ctx: ContexteFiche;
   mode: 'read' | 'edit';
+  height: HeightMode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [vide, setVide] = useState(false);
@@ -119,7 +121,7 @@ function BlockContent({
   return (
     <>
       <div ref={ref} className={cn('h-full', vide && 'hidden')}>
-        <Bloc ctx={ctx} widget={block.widget as never} mode={mode} />
+        <Bloc ctx={ctx} widget={block.widget as never} mode={mode} height={height} />
       </div>
       {vide && (
         <EmptyCard title={block.widget?.titre ?? definition.label}>
@@ -247,6 +249,7 @@ export function BlockFrame({
             definition={definition}
             ctx={ctxBloc}
             mode={editing ? 'edit' : 'read'}
+            height={heightMode}
           />
         </Suspense>
       </BlockBoundary>

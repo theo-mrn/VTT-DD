@@ -4,7 +4,7 @@
  * Sélecteur de blocs : tout ce que la fiche de ce personnage peut afficher, par famille
  * (définitions du registre), avec recherche. Un bloc déjà présent est montré, pas proposé.
  */
-import type { Widget } from '@vtt/rules';
+import { sortesCompetences, type Widget } from '@vtt/rules';
 import { Check, LayoutGrid } from 'lucide-react';
 import { useMemo } from 'react';
 import { BLOCK_TYPE_ORDER, blockDefinition } from '@/components/fiche/blocks/registry';
@@ -34,8 +34,9 @@ function precision(ctx: ContexteFiche, w: Widget): string | null {
   const attribut = (cle: string) => fiche.entite.attributs.get(cle)?.nom ?? cle;
   switch (w.type) {
     case 'possessions':
-    case 'competences':
       return sorte(w.sorte);
+    case 'competences':
+      return sortesCompetences(w).map(sorte).join(', ') || null;
     case 'inventaire':
       return w.sortes.map(sorte).join(', ');
     case 'details':

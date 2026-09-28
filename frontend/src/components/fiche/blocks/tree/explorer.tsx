@@ -40,14 +40,19 @@ export function TreeExplorer({
   writes,
   initialView,
   className,
+  treesOnly = false,
 }: {
   ctx: ContexteFiche;
   writes: SheetWrites | undefined;
   /** Vue ouverte au départ (identifiant d'arbre ou `paths:<sorte>`). */
   initialView?: string;
   className?: string;
+  /** Arbres seuls (les voies et les soldes sont montrés ailleurs, bloc Compétences). */
+  treesOnly?: boolean;
 }) {
-  const { paths, trees } = useTreeData(ctx);
+  const data = useTreeData(ctx);
+  const { trees } = data;
+  const paths = treesOnly ? [] : data.paths;
   const views: View[] = useMemo(
     () => [
       ...paths.map((group) => ({ kind: 'paths' as const, id: `paths:${group.sorte.id}`, group })),
@@ -159,17 +164,18 @@ export function TreeExplorer({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {currencies.map((m) => (
-          <span
-            key={m}
-            className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2 text-[12px]"
-            title={cur(m)}
-          >
-            <Coins className="size-3.5 text-primary" />
-            <span className="font-mono font-semibold tabular">{solde(ctx.fiche, m)}</span>
-            <span className="hidden text-subtle sm:inline">{cur(m)}</span>
-          </span>
-        ))}
+        {!treesOnly &&
+          currencies.map((m) => (
+            <span
+              key={m}
+              className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2 text-[12px]"
+              title={cur(m)}
+            >
+              <Coins className="size-3.5 text-primary" />
+              <span className="font-mono font-semibold tabular">{solde(ctx.fiche, m)}</span>
+              <span className="hidden text-subtle sm:inline">{cur(m)}</span>
+            </span>
+          ))}
       </div>
 
       {preview && (

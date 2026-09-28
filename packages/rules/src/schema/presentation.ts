@@ -101,15 +101,22 @@ export const Widget = z.discriminatedUnion('type', [
     groupeChamp: z.union([Cle, z.array(Cle).min(1)]).optional(),
   }),
   /**
-   * Compétences en cartes : entrées d'une sorte (capacités, talents, compétences) en grille,
-   * actives mises en avant, bonus en étiquettes, recherche, filtres par la valeur d'un champ
-   * de la sorte (`filtreChamp`), détail et activation.
+   * Compétences : un seul bloc pour toute la progression du personnage, en plusieurs vues.
+   * - `progression` : voies (sortes à rangs qui accordent d'autres entrées rang par rang) en
+   *   tableau, ou arbres en grille (`arbres` du système), selon la forme des données ;
+   * - `capacites` : entrées acquises des `sortes` (activation, recherche, filtres par la
+   *   valeur de `filtreChamp`, ou par sorte) ;
+   * - `rangs` : sortes dont les rangs s'achètent directement (catalogue complet, achat).
+   * `sortes` absent : celles que la progression accorde ou dont les rangs s'achètent.
+   * `vue` : vue ouverte par défaut. `sorte` : ancien bloc à une sorte (= `sortes: [sorte]`).
    */
   z.object({
     type: z.literal('competences'),
     titre: Libelle,
-    sorte: Cle,
+    sortes: z.array(Cle).min(1).optional(),
+    sorte: Cle.optional(),
     filtreChamp: Cle.optional(),
+    vue: z.enum(['progression', 'capacites', 'rangs']).optional(),
   }),
 ]);
 export type Widget = z.output<typeof Widget>;
@@ -121,6 +128,11 @@ export function champsGroupe(w: Extract<Widget, { type: 'inventaire' }>): string
     : typeof w.groupeChamp === 'string'
       ? [w.groupeChamp]
       : w.groupeChamp;
+}
+
+/** Sortes déclarées par un bloc Compétences (`sortes`, ou l'ancienne `sorte`) ; vide : déduites. */
+export function sortesCompetences(w: Extract<Widget, { type: 'competences' }>): string[] {
+  return [...new Set([...(w.sortes ?? []), ...(w.sorte ? [w.sorte] : [])])];
 }
 
 /**
@@ -418,11 +430,13 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
     }
   }
   const sortes =
-    w.type === 'possessions' || w.type === 'competences'
+    w.type === 'possessions'
       ? [w.sorte]
-      : w.type === 'details' || w.type === 'inventaire'
-        ? w.sortes
-        : [];
+      : w.type === 'competences'
+        ? sortesCompetences(w)
+        : w.type === 'details' || w.type === 'inventaire'
+          ? w.sortes
+          : [];
   for (const so of sortes) {
     const sorte = systeme.sortes.get(so);
     if (!sorte) erreurs.push(`Sorte inconnue : ${so}`);
@@ -436,8 +450,11 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
     for (const c of champsGroupe(w))
       if (!w.sortes.some((so) => champDe(so, c)))
         erreurs.push(`Champ inconnu des sortes ${w.sortes.join(', ')} : ${c}`);
-  if (w.type === 'competences' && w.filtreChamp && !champDe(w.sorte, w.filtreChamp))
-    erreurs.push(`Champ inconnu sur ${w.sorte} : ${w.filtreChamp}`);
+  if (w.type === 'competences' && w.filtreChamp) {
+    const liste = sortesCompetences(w);
+    if (liste.length && !liste.some((so) => champDe(so, w.filtreChamp!)))
+      erreurs.push(`Champ inconnu des sortes ${liste.join(', ')} : ${w.filtreChamp}`);
+  }
   if (w.type === 'actions')
     for (const a of w.actions ?? [])
       if (!systeme.actions.has(a)) erreurs.push(`Action inconnue : ${a}`);

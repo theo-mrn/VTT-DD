@@ -73,6 +73,8 @@ export interface SkillsData {
   /** Origine des filtres : un champ de la sorte, ou les étiquettes des entrées. */
   filterLabel?: string;
   progress: Progress[];
+  /** Les rangs de la sorte s'achètent directement : tout le catalogue est listé (rang 0 compris). */
+  rankPurchase: boolean;
 }
 
 function signed(v: Valeur): string {
@@ -379,6 +381,7 @@ export function buildSkills(
     filters: filters.length > 1 || filtreChamp ? filters : [],
     ...(filterLabel ? { filterLabel } : {}),
     progress: [...progress.values()],
+    rankPurchase,
   };
 }
 

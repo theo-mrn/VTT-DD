@@ -20,6 +20,11 @@ export interface SheetBlockProps<T extends WidgetType = WidgetType> {
   widget: WidgetOf<T>;
   /** `edit` : la grille est en cours de personnalisation (le bloc reste lisible, sans action). */
   mode: 'read' | 'edit';
+  /**
+   * Hauteur de la case : `auto` suit le contenu (pas de hauteur imposée), `fixed` impose la
+   * hauteur réglée (le contenu défile). Absent : `auto`.
+   */
+  height?: 'auto' | 'fixed';
 }
 
 /**

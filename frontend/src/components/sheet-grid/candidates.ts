@@ -12,6 +12,7 @@ import {
   widgetsDe,
   type ContexteFiche,
 } from '@/components/fiche/widgets';
+import { defaultSkillSortes } from '@/components/fiche/blocks/skills/abilities';
 import { groupesAttributs } from '@/lib/creation';
 
 /** Disposition par défaut : les blocs de la présentation, sans le profil (montré en en-tête). */
@@ -34,16 +35,17 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
   );
   // Objets : sortes qu'on possède en quantité, ou en exemplaires qu'on équipe
   const objets = sortes.filter((s) => s.quantites || (s.activable && s.exemplaires));
-  // Arbres ou voies : des nœuds ou des rangs achetables que ce type d'entité peut posséder
   const possedable = (entree: string) => {
     const e = systeme.entrees.get(entree);
     return Boolean(e && systeme.sortes.get(e.sorte)?.pour.includes(type));
   };
-  const arbres =
+  // Progression : des nœuds d'arbre, des rangs achetables ou des entrées accordées par une voie
+  const competences =
     [...systeme.arbres.values()].some((a) => a.noeuds.some((n) => possedable(n.entree))) ||
     [...systeme.achats.values()].some(
       (a) => a.obtient.type === 'rang' && systeme.sortes.get(a.obtient.sorte)?.pour.includes(type),
-    );
+    ) ||
+    defaultSkillSortes(systeme, type).length > 0;
 
   const generes: Widget[] = [
     {
@@ -68,13 +70,10 @@ export function candidateWidgets(ctx: ContexteFiche): Widget[] {
           },
         ]
       : []),
-    ...sortes
-      .filter((s) => s.maximum !== 1)
-      .map((s) => ({ type: 'competences' as const, titre: nomDe(s), sorte: s.id })),
+    ...(competences ? [{ type: 'competences' as const, titre: 'Compétences' }] : []),
     ...(objets.length
       ? [{ type: 'inventaire' as const, titre: 'Inventaire', sortes: objets.map((s) => s.id) }]
       : []),
-    ...(arbres ? [{ type: 'arbres' as const, titre: 'Arbres' }] : []),
     ...sortes
       .filter((s) => s.maximum !== 1)
       .map((s) => ({ type: 'possessions' as const, titre: nomDe(s), sorte: s.id })),
@@ -108,7 +107,6 @@ export function cibleDe(w: Widget): string {
     case 'ressources':
       return `ressources:${trie(w.attributs)}`;
     case 'possessions':
-    case 'competences':
       return `${w.type}:${w.sorte}`;
     case 'inventaire':
     case 'details':
@@ -117,6 +115,7 @@ export function cibleDe(w: Widget): string {
       return `texte:${w.attribut}`;
     case 'actions':
       return `actions:${w.actions ? trie(w.actions) : '*'}`;
+    // Un seul bloc Compétences : il réunit toute la progression
     default:
       return w.type;
   }

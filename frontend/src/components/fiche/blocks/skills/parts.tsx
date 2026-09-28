@@ -27,7 +27,7 @@ import type { SheetWrites } from '../tree/writes';
 import { EntryDetails } from './entry-details';
 import type { SkillCard } from './model';
 
-function RankMarks({ rank, max }: { rank: number; max: number }) {
+export function RankMarks({ rank, max }: { rank: number; max: number }) {
   if (max > 6)
     return (
       <span className="font-mono text-[11px] tabular text-muted-foreground">
@@ -46,7 +46,7 @@ function RankMarks({ rank, max }: { rank: number; max: number }) {
   );
 }
 
-function offerText(ctx: ContexteFiche, card: SkillCard): string {
+export function offerText(ctx: ContexteFiche, card: SkillCard): string {
   const o = card.offer!;
   return o.possible
     ? `Rang ${o.cible} pour ${o.cout} ${currencyName(ctx.systeme, o.monnaie)}`
