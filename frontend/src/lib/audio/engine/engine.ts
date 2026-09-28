@@ -337,17 +337,32 @@ const holder = globalThis as unknown as { __vttAudioEngine?: unknown };
  * jamais deux moteurs qui jouent en même temps.
  */
 export function getAudioEngine(): AudioEngine {
-  const current = holder.__vttAudioEngine;
-  if (current instanceof AudioEngine) return current;
+  const current = holder.__vttAudioEngine as Partial<AudioEngine> | undefined;
+  // Le même moteur, même après un rechargement du code : il garde sa campagne et son état
+  if (current instanceof AudioEngine || (current && typeof current.scan === 'function'))
+    return current as AudioEngine;
+  const next = new AudioEngine();
   if (current) {
+    // Moteur trop ancien pour ce code : le nouveau reprend sa campagne et son état, puis l'ancien
+    // est coupé (jamais deux moteurs qui jouent, jamais un moteur détaché de la campagne)
+    const campaignId = current.campaignId ?? null;
+    const states = {
+      music: current.channelState?.('music') ?? null,
+      ambience: current.channelState?.('ambience') ?? null,
+    };
+    next.onYoutubeEnded = current.onYoutubeEnded ?? null;
+    next.onError = current.onError ?? null;
     try {
-      (current as { detachCampaign?: () => void }).detachCampaign?.();
+      current.detachCampaign?.();
     } catch {
       // Ancien moteur déjà hors d'usage
     }
     disposeAllVoices();
+    if (campaignId) {
+      next.attachCampaign(campaignId);
+      for (const s of [states.music, states.ambience]) if (s) next.applyChannel(s);
+    }
   }
-  const next = new AudioEngine();
   holder.__vttAudioEngine = next;
   return next;
 }

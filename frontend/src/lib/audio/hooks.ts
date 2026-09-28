@@ -194,13 +194,38 @@ export function useCampaignAudio(
       .catch((e: Error) => !cancelled && setError(e));
     // Après une reconnexion, l'horloge est remesurée
     if (generation > 1) void getAudioEngine().clock.resync();
+    // Filet de sécurité : l'état du serveur est relu régulièrement ; un événement perdu
+    // (réseau, onglet en veille, rechargement du code) est rattrapé en quelques secondes.
+    // Seul un état plus récent que le nôtre est appliqué (version).
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void audioApi
+        .channels(campaignId)
+        .then((r) => {
+          if (cancelled) return;
+          const engine = getAudioEngine();
+          engine.clock.hint(r.serverTime);
+          // Moteur détaché entre-temps (rechargement du code) : rattaché, puis état complet
+          if (engine.campaignId !== campaignId) {
+            engine.attachCampaign(campaignId);
+            engine.resetChannels(r.channels);
+            return;
+          }
+          for (const name of ['music', 'ambience'] as const) engine.applyChannel(r.channels[name]);
+        })
+        .catch(() => undefined);
+    }, CHANNELS_REFRESH_MS);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [campaignId, generation]);
 
   return { ready, error };
 }
+
+/** Relecture de l'état des canaux (filet de sécurité, en plus du temps réel). */
+const CHANNELS_REFRESH_MS = 10_000;
 
 function useEngineChannel(channel: ChannelName): ChannelState | null {
   const engine = typeof window === 'undefined' ? null : getAudioEngine();
