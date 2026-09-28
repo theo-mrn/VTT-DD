@@ -13,6 +13,36 @@ import { useRealtimeStatus } from '@/lib/realtime';
 
 type Snapshot = ReturnType<ReturnType<typeof getAudioEngine>['diagnostics']>;
 
+/** Bip grave et doux (196 Hz, fondu) par le moteur : la sortie Web Audio de l'onglet marche-t-elle ? */
+function beepThroughEngine() {
+  const engine = getAudioEngine();
+  void engine.unlock();
+  const ctx = engine.context();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 196;
+  const t = ctx.currentTime;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.35, t + 0.05);
+  gain.gain.linearRampToValueAtTime(0, t + 0.6);
+  osc.connect(gain);
+  gain.connect(engine.bus('preview'));
+  osc.start(t);
+  osc.stop(t + 0.65);
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
+}
+
+/** Le même genre de fichier lu directement par le navigateur, hors moteur. */
+function playWithoutEngine() {
+  const el = new Audio('https://assets.yner.fr/Audio/lockedoor.mp3');
+  el.volume = 0.6;
+  void el.play().catch(() => undefined);
+}
+
 export function AudioDiagnostics() {
   const [open, setOpen] = useState(false);
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -36,7 +66,21 @@ export function AudioDiagnostics() {
         Diagnostic du son
       </summary>
       {snap && (
-        <div className="flex justify-end border-t border-border px-3 pt-2">
+        <div className="flex flex-wrap justify-end gap-1 border-t border-border px-3 pt-2">
+          <button
+            type="button"
+            className="rounded px-2 py-0.5 text-[11px] text-primary-strong hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            onClick={beepThroughEngine}
+          >
+            Bip via le moteur
+          </button>
+          <button
+            type="button"
+            className="rounded px-2 py-0.5 text-[11px] text-primary-strong hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            onClick={playWithoutEngine}
+          >
+            Son sans le moteur
+          </button>
           <button
             type="button"
             className="rounded px-2 py-0.5 text-[11px] text-primary-strong hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
