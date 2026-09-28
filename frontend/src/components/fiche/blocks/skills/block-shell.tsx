@@ -31,15 +31,16 @@ export function BlockShell({
         className,
       )}
     >
-      <header className="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-1.5">
-        <h2 className="flex min-w-0 items-center gap-2 text-[13px] font-semibold">
-          <span className="truncate">{title}</span>
-          {count !== undefined && (
-            <span className="text-xs font-normal tabular text-subtle">{count}</span>
-          )}
-        </h2>
-        {actions && <div className="flex flex-wrap items-center gap-1.5">{actions}</div>}
-      </header>
+      {/* Pas de bandeau de titre (place perdue) : titre pour les lecteurs d'écran, actions seules */}
+      <h2 className="sr-only">
+        {title}
+        {count !== undefined && ` (${count})`}
+      </h2>
+      {actions && (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 px-3 pt-2">
+          {actions}
+        </div>
+      )}
       {toolbar && (
         <div className="shrink-0 space-y-2 border-b border-border px-3 py-2">{toolbar}</div>
       )}

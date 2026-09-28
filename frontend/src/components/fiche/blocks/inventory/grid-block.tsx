@@ -609,16 +609,6 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 bg-dots opacity-70 mask-radial"
       />
-      <header className="flex shrink-0 items-center gap-2 px-2.5 pb-1.5 pt-2.5">
-        <h2 className="flex min-w-0 flex-1 items-baseline gap-2 text-sm font-semibold">
-          <span className="truncate">{widget.titre}</span>
-          {inv.items.length > 0 && (
-            <span className="font-mono text-xs font-normal tabular-nums text-subtle">
-              {inv.items.length}
-            </span>
-          )}
-        </h2>
-      </header>
 
       {sortesInconnues.length > 0 && (
         <p className="mx-2.5 mb-1.5 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
@@ -630,7 +620,7 @@ export function InventoryGrid({ ctx, widget, mode }: SheetBlockProps<'inventaire
       {(inv.items.length > 0 || folders.length > 0 || editable) && (
         <div
           className={cn(
-            'flex shrink-0 items-center gap-1.5 px-2.5 pb-1.5',
+            'flex shrink-0 items-center gap-1.5 px-2.5 pb-1.5 pt-2.5',
             mode === 'edit' && 'pointer-events-none',
           )}
         >
