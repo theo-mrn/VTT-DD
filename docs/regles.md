@@ -258,6 +258,7 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
 | `marquee("entree", "marque")`, `a_etiquette(entree, "etiquette")`    | Marque posée par un effet ; étiquette d'une entrée du catalogue                |
 | `valeur(x)`, `modificateur(x)`, `rang(x)` avec `x` calculé           | Lecture dynamique, dans les actions uniquement                                 |
 | `cible_possede("id")`, `cible_rang("id")`                            | Possessions de la cible, dans une action qui en a une                          |
+| `option("encombrement")`                                             | Règle optionnelle allumée pour la campagne (formules lues sur une entité)      |
 
 ### Variables selon l'endroit
 
@@ -368,6 +369,16 @@ Le fichier `presentation.yaml` de chaque système décrit :
 - la géométrie des arbres, les images et les bibliothèques.
 
 Ce fichier est validé contre les règles au build (`erreursWidget` pour chaque bloc). Le front n'y ajoute aucune valeur propre à un jeu, et marque indisponible un bloc enregistré dans une mise en page que le système ne permet plus (attribut retiré).
+
+### Règles optionnelles
+
+Conception : [regles-optionnelles.md](regles-optionnelles.md). Le système déclare ses options (`options: [{ id, nom, description, defaut }]`) ; la campagne en règle certaines (`rules.options` des réglages de table, service campaign). Tout se lit par la donnée :
+
+- `option("id")` dans une formule, vérifiée au chargement (option déclarée, identifiant littéral) ;
+- `option: id` sur un attribut (éteinte : absent de la fiche, ni calcul, ni tuile, ni lanceur, ni achat ; sa valeur saisie reste dans l'état), sur un champ de sorte (caché dans l'inventaire et à l'ajout, `champsActifs`), sur un bloc de présentation (absent de la fiche) ;
+- effets de règle d'un type d'entité (`entites[].effets`, source `regles`) : toujours présents, conditionnés (`option("encombrement") et @surcharge`), jamais basculables ; une condition qui lit une option éteinte et ne tient pas les liste `inactif`, raison `regle-desactivee`.
+
+Calcul : `calculer(systeme, etat, { options })`, ou `avecOptions(systeme, options)` qui donne le système réglé pour une campagne (même objet pour les mêmes réglages), à passer aux achats, à la création et aux actions. `calculer(systeme, etat)` garde les défauts du système. `fiche.options` donne la valeur de chaque option, `fiche.attributActif(cle)` dit si l'attribut est sur la fiche.
 
 ## Ce qui relève de l'état de partie (services campaign et character)
 

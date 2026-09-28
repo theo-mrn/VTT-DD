@@ -24,7 +24,7 @@ Un personnage renvoyé par l'API a cette forme :
   nom: string;
   avatarUrl: string | null;
   etat: EtatEntite; // ce qui est saisi, acheté ou tiré (schéma @vtt/rules)
-  fiche: FicheJson; // valeurs calculées et expliquées (ficheJson de @vtt/rules)
+  fiche: FicheJson; // valeurs calculées et expliquées (ficheJson de @vtt/rules), avec les règles optionnelles de sa campagne
   details: {
     concept: string;
     appearance: string;
@@ -80,6 +80,10 @@ Corps des étapes de création, selon leur type :
 - `repartir` et `saisir` : `{ valeurs }`
 - `tirer` : `{ affectation? }`. Le serveur tire lui-même avec un générateur cryptographique ; la réponse porte le tirage retenu (`tirage`). En attribution `libre` sur plusieurs attributs, en deux temps : sans `affectation`, le serveur tire, garde le tirage en attente (colonne `pending_roll`) et ne change pas l'état ; le joueur voit les valeurs, puis `{ affectation }` (attribut → rang de la valeur) rejoue exactement ce tirage et l'attribue. Le client ne choisit jamais ses dés.
 - `acheter` : `{ achat, objet }`
+
+### Règles optionnelles de la campagne
+
+Chaque calcul d'autorité (fiche renvoyée, étapes de création, achats, actions, repos, fiche lue par dice) se fait avec les règles optionnelles de la campagne du personnage (encombrement…, voir [regles-optionnelles.md](regles-optionnelles.md)) : character les lit sur la route interne de campaign `GET /internal/characters/:id/rules` (la première campagne où il est engagé), avec le client et la durée de cache des droits (`DROITS_CACHE_MS`, 5 s par défaut ; character ne lit pas le bus). Hors campagne, ou si campaign ne répond pas, les défauts du système. Les listes (`GET /v1/characters`) résument avec les défauts. L'état enregistré ne porte jamais les options : éteindre une règle ne supprime aucune valeur saisie.
 
 ### Droits de l'appelant (`permissions`)
 
