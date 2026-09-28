@@ -56,7 +56,13 @@ ressources:
 fiches:
   personnage:
     widgets:
-      - { type: details, titre: Profil, sortes: [race, profil], attributs: [] }
+      # Bandeau : race, profil, puis niveau, dé de vie et initiative
+      - {
+          type: details,
+          titre: Profil,
+          sortes: [race, profil],
+          attributs: [niveau, facesDeVie, INIT],
+        }
       - { type: attributs, titre: Caractéristiques, groupe: caracteristiques, colonnes: 6 }
       - { type: ressources, titre: Vitalité, attributs: [PV] }
       - { type: attributs, titre: Combat, groupe: combat, colonnes: 5 }

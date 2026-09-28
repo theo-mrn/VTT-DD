@@ -34,7 +34,13 @@ describe('Nooblies Chroniques', () => {
     const parSorte = (s: string) => [...systeme.entrees.values()].filter((e) => e.sorte === s);
     expect(parSorte('race')).toHaveLength(8);
     expect(parSorte('profil')).toHaveLength(11);
-    expect([...systeme.actions.keys()]).toEqual(['attaque', 'coup-de-corne', 'initiative', 'test']);
+    expect([...systeme.actions.keys()]).toEqual([
+      'attaque',
+      'coup-de-corne',
+      'monter-niveau',
+      'initiative',
+      'test',
+    ]);
     expect(systeme.source.initiative?.action).toBe('initiative');
   });
 
@@ -83,9 +89,19 @@ describe('Nooblies Chroniques', () => {
     expect(f.valeur('PV')).toBe(5); // 20 ramené au maximum
   });
 
-  it('le jet de dé de vie ne dépasse pas le dé du profil', () => {
-    const f = fiche({ valeurs: { jetDeVie: 9 }, possessions: [{ entree: 'ensorceleur' }] });
-    expect(f.valeur('jetDeVie')).toBe(4);
+  it('niveau : +1 aux attaques, dé de vie + mod. CON aux PV max par niveau', () => {
+    const base = { FOR: 14, DEX: 12, CON: 14, SAG: 10, INT: 10, CHA: 12 };
+    const n1 = fiche({ valeurs: { ...base, jetDeVie: 6 }, possessions: [{ entree: 'guerrier' }] });
+    const n3 = fiche({
+      valeurs: { ...base, niveau: 3, jetDeVie: 6 + 5 + 8 },
+      possessions: [{ entree: 'guerrier' }],
+    });
+    expect(n1.valeur('niveau')).toBe(1);
+    expect(n1.valeur('Contact')).toBe(1 + 2); // niveau + mod. FOR
+    expect(n3.valeur('Contact')).toBe(3 + 2);
+    expect(n3.valeur('Distance')).toBe(3 + 1);
+    expect(n1.valeur('PV_Max')).toBe(1 + 2 + 6); // 1 + mod. CON + dé de vie
+    expect(n3.valeur('PV_Max')).toBe(1 + 3 * 2 + 19); // puis dé de vie + mod. CON par niveau
   });
 
   it('tirage relancé jusqu’à 3 valeurs paires et +6 de modificateurs', () => {

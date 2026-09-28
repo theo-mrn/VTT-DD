@@ -20,6 +20,7 @@ entites:
       - { id: caracteristiques, nom: Caractéristiques }
       - { id: combat, nom: Combat }
       - { id: vitaux, nom: Vitaux }
+      - { id: progression, nom: Progression }
     attributs:
       # ─── Caractéristiques ───────────────────────────────────────────────
       - {
@@ -103,7 +104,7 @@ entites:
           nom: Contact,
           abrege: Ctt,
           nature: derivee,
-          formule: '1 + mod(@FOR)',
+          formule: '@niveau + mod(@FOR)',
           groupe: combat,
           jet: { apport: valeur },
         }
@@ -112,7 +113,7 @@ entites:
           nom: Distance,
           abrege: Dst,
           nature: derivee,
-          formule: '1 + mod(@DEX)',
+          formule: '@niveau + mod(@DEX)',
           groupe: combat,
           jet: { apport: valeur },
         }
@@ -121,7 +122,7 @@ entites:
           nom: Magie,
           abrege: Mag,
           nature: derivee,
-          formule: '1 + mod(@CHA)',
+          formule: '@niveau + mod(@CHA)',
           groupe: combat,
           jet: { apport: valeur },
         }
@@ -135,6 +136,17 @@ entites:
           jet: { apport: valeur },
         }
 
+      # ─── Progression ────────────────────────────────────────────────────
+      # Attaques (+1 par niveau), PV max (dé de vie + mod. CON par niveau) en dépendent
+      - cle: niveau
+        nom: Niveau
+        description: Fixé par le MJ au passage de niveau.
+        nature: base
+        defaut: 1
+        min: 1
+        saisie: mj
+        groupe: progression
+
       # ─── Vitaux ─────────────────────────────────────────────────────────
       - cle: facesDeVie
         nom: Dé de vie
@@ -143,19 +155,20 @@ entites:
         formule: somme("profil", "deVie")
         groupe: vitaux
       - cle: jetDeVie
-        nom: Jet de dé de vie
-        description: Résultat du dé de vie, tiré une seule fois à la création puis conservé.
+        nom: Jets de dés de vie
+        description: >-
+          Somme des dés de vie tirés : un à la création, puis un à chaque passage de niveau.
         nature: base
         defaut: 0
         min: 0
-        max: '@facesDeVie'
+        saisie: mj
         groupe: vitaux
         visibilite: mj
       - {
           cle: PV_Max,
           nom: PV max,
           nature: derivee,
-          formule: '1 + mod(@CON) + @jetDeVie',
+          formule: '1 + @niveau * mod(@CON) + @jetDeVie',
           groupe: vitaux,
         }
       - {
@@ -230,7 +243,9 @@ creation:
         relancer: true
       - id: de-de-vie
         nom: Dé de vie
-        description: Le dé de vie du profil est lancé une fois ; PV max = 1 + mod(CON) + ce jet.
+        description: >-
+          Le dé de vie du profil est lancé ; PV max = 1 + mod(CON) + ce jet (puis dé de vie +
+          mod. CON à chaque niveau).
         type: tirer
         attributs: [jetDeVie]
         formule: des(1, @facesDeVie)
@@ -281,6 +296,20 @@ actions:
       - *subis
     consequences:
       - *retirer-pv
+
+  - id: monter-niveau
+    nom: Passage de niveau
+    description: >-
+      Lance le dé de vie : le niveau augmente de 1, les PV max du jet + mod. CON, et les PV
+      remontent au nouveau maximum.
+    pour: [personnage]
+    jet:
+      type: numerique
+      formule: des(1, @facesDeVie)
+    consequences:
+      - { entite: acteur, attribut: niveau, operation: ajouter, valeur: 1 }
+      - { entite: acteur, attribut: jetDeVie, operation: ajouter, valeur: total }
+      - { entite: acteur, attribut: PV, operation: fixer, valeur: '@PV_Max + total + mod(@CON)' }
 
   - id: initiative
     nom: Initiative
