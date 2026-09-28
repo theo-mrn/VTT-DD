@@ -48,7 +48,11 @@ export interface AudioEngineOptions {
 /** Fréquence du relevé réel de ce qui sonne (orphelines coupées, panneau à jour). */
 export const SCAN_EVERY_MS = 500;
 
-const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
+/**
+ * Gestes qui autorisent le son : le premier, n'importe où dans la page, débloque le contexte
+ * et relance les lecteurs YouTube bloqués (le bandeau « Activer le son » n'est qu'une aide).
+ */
+const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'click', 'keydown', 'touchend'] as const;
 
 export class AudioEngine implements EngineHost {
   readonly clock: ServerClock;
@@ -228,6 +232,7 @@ export class AudioEngine implements EngineHost {
       // Pendant le geste : les lecteurs YouTube bloqués repartent (ils l'exigent)
       kickAll();
       if (this.ctx?.state === 'running') return;
+      // Contexte créé ici au besoin : le geste courant l'autorise à démarrer
       void this.unlock();
     };
     for (const e of UNLOCK_EVENTS) document.addEventListener(e, handler, { capture: true });
@@ -269,6 +274,8 @@ export class AudioEngine implements EngineHost {
 
   /** Une campagne à la fois : attacher une autre libère toutes les voix. */
   attachCampaign(campaignId: string) {
+    // Le prochain geste de l'utilisateur débloquera le son, avant même le premier morceau
+    this.bindUnlock();
     if (this.campaignId === campaignId) return;
     this.detachCampaign();
     this.campaignId = campaignId;
