@@ -157,7 +157,10 @@ export const campaignSessions = campaignSchema.table('campaign_sessions', {
   createdAt: timestampTz('created_at').notNull().defaultNow(),
 });
 
-/** Messages de discussion (id UUIDv7 : ordre chronologique). */
+/**
+ * Messages de discussion (id UUIDv7 : ordre chronologique). Chuchotement : `whisperRecipients`
+ * non nul (membres destinataires), aux MJ aussi si `whisperGm` (0016-message-whispers.sql).
+ */
 export const campaignMessages = campaignSchema.table('campaign_messages', {
   id: uuid('id').primaryKey(),
   campaignId: uuid('campaign_id')
@@ -165,7 +168,10 @@ export const campaignMessages = campaignSchema.table('campaign_messages', {
     .references(() => campaigns.id, { onDelete: 'cascade' }),
   authorId: uuid('author_id').notNull(),
   body: text('body').notNull(),
+  whisperRecipients: uuid('whisper_recipients').array(),
+  whisperGm: boolean('whisper_gm').notNull().default(false),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
+  editedAt: timestampTz('edited_at'),
 });
 
 /** Anciens identifiants Firebase → campagnes (imports rejouables). */

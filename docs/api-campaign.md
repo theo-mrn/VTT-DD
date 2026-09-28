@@ -104,20 +104,30 @@ Les campagnes publiques (`GET /public`) donnent leur `code` (comme l'ancienne ap
 
 ## Sessions prévues et discussion
 
-| Méthode | Route                                              | Corps              | Réponse                                                                                                                                                                            |
-| ------- | -------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/campaigns/:id/sessions`                       | —                  | prochaines sessions `[{ id, date, title }]`, par date croissante (membres) ; une session passée n'est plus listée                                                                  |
-| POST    | `/v1/campaigns/:id/sessions`                       | `{ date, title? }` | 201 et la session (MJ) ; `date` ISO 8601 avec fuseau, dans le futur (400 `date_in_past`) ; titre de 100 caractères au plus ; 50 sessions à venir au plus (409 `too_many_sessions`) |
-| DELETE  | `/v1/campaigns/:id/sessions/:sessionId`            | —                  | 204 (MJ)                                                                                                                                                                           |
-| GET     | `/v1/campaigns/:id/messages?before=&after=&limit=` | —                  | messages `[{ id, author: { id, name, avatarUrl }, body, createdAt }]`, du plus ancien au plus récent (membres)                                                                     |
-| POST    | `/v1/campaigns/:id/messages`                       | `{ body }`         | 201 et le message (membres) ; 1 000 caractères au plus ; 20 messages par minute et par membre, sinon 429 `too_many_messages` (en-tête `retry-after`)                               |
-| DELETE  | `/v1/campaigns/:id/messages/:messageId`            | —                  | 204 ; auteur ou MJ                                                                                                                                                                 |
+| Méthode | Route                                              | Corps                   | Réponse                                                                                                                                                                                                         |
+| ------- | -------------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/sessions`                       | —                       | prochaines sessions `[{ id, date, title }]`, par date croissante (membres) ; une session passée n'est plus listée                                                                                               |
+| POST    | `/v1/campaigns/:id/sessions`                       | `{ date, title? }`      | 201 et la session (MJ) ; `date` ISO 8601 avec fuseau, dans le futur (400 `date_in_past`) ; titre de 100 caractères au plus ; 50 sessions à venir au plus (409 `too_many_sessions`)                              |
+| DELETE  | `/v1/campaigns/:id/sessions/:sessionId`            | —                       | 204 (MJ)                                                                                                                                                                                                        |
+| GET     | `/v1/campaigns/:id/messages?before=&after=&limit=` | —                       | messages lisibles par l'appelant `[Message]`, du plus ancien au plus récent (membres)                                                                                                                           |
+| GET     | `/v1/campaigns/:id/messages/:messageId`            | —                       | le message (membres qui le lisent ; 404 `message_not_found` sinon)                                                                                                                                              |
+| POST    | `/v1/campaigns/:id/messages`                       | `{ body, recipients? }` | 201 et le message (membres) ; 1 000 caractères au plus ; 20 messages par minute et par membre, sinon 429 `too_many_messages` (en-tête `retry-after` : secondes avant qu'un message sorte de la fenêtre, 1 à 60) |
+| PATCH   | `/v1/campaigns/:id/messages/:messageId`            | `{ body }`              | 200 et le message modifié (`editedAt`) ; l'auteur seul (403 `not_author`, même pour le MJ) ; un texte identique ne change rien                                                                                  |
+| DELETE  | `/v1/campaigns/:id/messages/:messageId`            | —                       | 204 ; auteur ou MJ, parmi ceux qui lisent le message                                                                                                                                                            |
 
-Lecture des messages, en polling en attendant le service realtime :
+`Message` : `{ id, author: { id, name, avatarUrl }, body, recipients, createdAt, editedAt }`. `editedAt` vaut `null` tant que l'auteur n'a pas modifié son texte.
+
+**Chuchotements.** `recipients` absent ou `null` : toute la table. Sinon `{ gm?: boolean, userIds?: [userId] }` (50 membres au plus) : le message est lu par son auteur, les membres listés, et les MJ de la campagne si `gm` vaut vrai (ceux du moment de la lecture : un joueur promu MJ lit les messages adressés au MJ). Le MJ n'a pas d'autre droit : un chuchotement entre joueurs ne lui est pas montré, comme dans l'ancienne app. Un chuchotement a au moins un destinataire (400 `recipients_required`) ; chaque destinataire est un membre de la campagne, jamais l'auteur (422 `invalid_recipient`). La réponse donne `recipients: { gm, users: [{ id, name, avatarUrl }] }`, ou `null`.
+
+Un message que l'appelant ne lit pas est introuvable (404), y compris pour le MJ. Les listes et le rattrapage n'en renvoient jamais.
+
+Lecture paginée :
 
 - sans curseur : les `limit` derniers messages (50 par défaut, 100 au plus) ;
 - `before=<id>` : la page précédente, plus ancienne que ce message ;
-- `after=<id>` : les messages arrivés après ce message (polling). `before` et `after` ne se combinent pas.
+- `after=<id>` : les messages arrivés après ce message (rattrapage après une coupure du temps réel). `before` et `after` ne se combinent pas.
+
+Le temps réel (`campaign.message_*`, voir [Événements](#événements)) ne porte jamais le texte : le client relit la suite de la liste (`after`) ou le message (`GET /messages/:messageId`).
 
 ## Personnages de la campagne
 
@@ -190,12 +200,12 @@ Le mode vaut `individual` par défaut ; le MJ passe `mode: 'slots'` pour Star Wa
 - `campaign.character_added`, `campaign.character_removed` (`reason: 'member_left'` au départ d'un membre), `campaign.character_played` (`previousCharacterId`, `takenFrom` : membre à qui le personnage a été repris, ou `null`)
 - `campaign.session_scheduled`, `campaign.session_cancelled`
 - `campaign.settings_updated` (`version`, `dice`, `rules`, et diff avant/après `changes`)
-- `campaign.message_posted`, `campaign.message_deleted`
+- `campaign.message_posted`, `campaign.message_updated` (`editedAt`), `campaign.message_deleted` : `{ id, authorId, recipients }` (`recipients` : `null`, ou `{ gm, userIds }`), **jamais le texte** (le journal history est en ajout seul : il ne fige pas ce qu'un joueur a écrit puis effacé). Message public : `public` ; chuchotement : `gm_only` + `visibleToUsers` (l'auteur et les membres destinataires). Le MJ reçoit donc l'id et les destinataires d'un chuchotement entre joueurs, sans pouvoir le lire ; `recipients.gm` dit au client si le message lui est adressé
 - `combat.started`, `combat.turn_changed` (`reason` : `initiative`, `next`, `new_round`, `participants_removed`), `combat.ended`
 
 ## Base de données
 
-Schéma `campaign` (Liquibase, `backend/campaign/db`) : `campaigns`, `campaign_members`, `campaign_invitations`, `campaign_invitees` (invitations nominatives, `0011-campaign-invitees.sql`), `campaign_bans`, `campaign_sessions`, `campaign_messages`, `campaign_characters`, `campaign_combats`, `campaign_combat_participants`, `legacy_ids`, `outbox`, `inbox`. Les tables `rooms`/`room_*` d'origine ont été renommées par le changeset `0005-campaigns.sql` (colonnes en anglais, rôles `gm`/`player`/`spectator`, camps `players`/`enemies`/`allies`, modes `individual`/`slots`). `0006-drop-max-players.sql` retire la limite de joueurs ; `0010-campaign-presentation.sql` ajoute `pitch`, `accent` et `tags`.
+Schéma `campaign` (Liquibase, `backend/campaign/db`) : `campaigns`, `campaign_members`, `campaign_invitations`, `campaign_invitees` (invitations nominatives, `0011-campaign-invitees.sql`), `campaign_bans`, `campaign_sessions`, `campaign_messages`, `campaign_characters`, `campaign_combats`, `campaign_combat_participants`, `legacy_ids`, `outbox`, `inbox`. Les tables `rooms`/`room_*` d'origine ont été renommées par le changeset `0005-campaigns.sql` (colonnes en anglais, rôles `gm`/`player`/`spectator`, camps `players`/`enemies`/`allies`, modes `individual`/`slots`). `0006-drop-max-players.sql` retire la limite de joueurs ; `0010-campaign-presentation.sql` ajoute `pitch`, `accent` et `tags`. `0016-message-whispers.sql` ajoute aux messages leurs destinataires (`whisper_recipients`, `whisper_gm`) et `edited_at`.
 
 ## Migration
 
