@@ -122,12 +122,12 @@ Lecture des messages, en polling en attendant le service realtime :
 
 Les personnages restent dans le service character. Campaign enregistre seulement leur **engagement** dans une campagne, avec un camp (`side`), et le membre qui l'incarne :
 
-| Méthode | Route                                       | Corps                                                        | Réponse                                                                                                                  |
-| ------- | ------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| GET     | `/v1/campaigns/:id/characters`              | —                                                            | personnages engagés : `[{ characterId, name, avatarUrl, type, side, ownerId, playedBy, inCreation, summary }]` (membres) |
-| POST    | `/v1/campaigns/:id/characters`              | `{ characterId, side?: 'players' \| 'enemies' \| 'allies' }` | 201 et la campagne ; engage un de mes personnages (le MJ engage ainsi ses PNJ)                                           |
-| DELETE  | `/v1/campaigns/:id/characters/:characterId` | —                                                            | 204 ; retire le personnage (son propriétaire ou le MJ), et le sort du combat en cours                                    |
-| PUT     | `/v1/campaigns/:id/me/character`            | `{ characterId: string \| null }`                            | la liste des personnages engagés (comme `GET /characters`) ; `null` libère le personnage incarné                         |
+| Méthode | Route                                       | Corps                                                        | Réponse                                                                                                                                                    |
+| ------- | ------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/characters?kind=`        | —                                                            | personnages engagés : `[{ characterId, name, avatarUrl, type, kind, side, ownerId, playedBy, inCreation, summary }]` (membres) ; `kind=pc` ou `npc` filtre |
+| POST    | `/v1/campaigns/:id/characters`              | `{ characterId, side?: 'players' \| 'enemies' \| 'allies' }` | 201 et la campagne ; engage un de mes personnages (le MJ engage ainsi ses PNJ)                                                                             |
+| DELETE  | `/v1/campaigns/:id/characters/:characterId` | —                                                            | 204 ; retire le personnage (son propriétaire ou le MJ), et le sort du combat en cours                                                                      |
+| PUT     | `/v1/campaigns/:id/me/character`            | `{ characterId: string \| null }`                            | la liste des personnages engagés (comme `GET /characters`) ; `null` libère le personnage incarné                                                           |
 
 Règles de l'engagement :
 
@@ -135,13 +135,15 @@ Règles de l'engagement :
 - camp par défaut : `players` pour un joueur, `enemies` pour le MJ ; seul le MJ engage des `enemies` ; un spectateur n'engage rien ;
 - character injoignable : 502 `character_unavailable`, rien n'est engagé.
 
-Dans `GET /characters`, `name`, `avatarUrl`, `type` et `summary` (résumé des listes : `{ tagline, highlights }`, voir [api-character.md](api-character.md)) viennent de character : ils valent `null` si character est injoignable ou si le personnage n'existe plus. `inCreation` vaut `true` tant que la fiche est en cours de création.
+Dans `GET /characters`, `name`, `avatarUrl`, `type`, `kind` (`pc` personnage joueur, `npc` PNJ) et `summary` (résumé des listes : `{ tagline, highlights }`, voir [api-character.md](api-character.md)) viennent de character : ils valent `null` si character est injoignable ou si le personnage n'existe plus. `inCreation` vaut `true` tant que la fiche est en cours de création. Le paramètre `kind` ne garde que les personnages dont character confirme la nature : un personnage dont character ne donne pas le résumé en est exclu (il reste dans la liste sans filtre). Le choix du personnage (`/campagnes/:id/personnage`) lit `?kind=pc`.
 
 Personnage incarné (ancien `users/{uid}.persoId`) :
 
 - un membre incarne au plus un personnage par campagne : en choisir un autre libère l'ancien ;
-- un joueur incarne un de ses personnages engagés ; le MJ incarne n'importe quel personnage engagé (PNJ ou personnage de joueur) ;
-- refus : 409 `character_taken` s'il est incarné par un autre membre, 404 `character_not_engaged`, 403 pour le personnage d'un autre joueur ou pour un spectateur ;
+- un joueur incarne n'importe quel personnage du camp `players` (le sien ou celui d'un autre joueur) ou un de ses personnages ; le MJ incarne n'importe quel personnage engagé (PNJ ou personnage de joueur) ;
+- pas de verrou (depuis 2026-09-28, comme l'ancienne app) : un personnage incarné par un autre membre se choisit quand même, il le lui reprend (l'autre n'incarne plus rien) ; l'événement le dit dans `takenFrom` ;
+- incarner n'est pas posséder : l'écriture sur la fiche reste au propriétaire et au MJ (droits de character) ;
+- refus : 404 `character_not_engaged`, 403 pour un PNJ d'un autre (camps `enemies` et `allies`) ou pour un spectateur ;
 - le personnage est libéré quand son membre quitte la campagne ou devient spectateur.
 
 « Créer un nouveau personnage » dans une campagne : le front crée le personnage dans character (`POST /v1/characters`, système de la campagne), l'engage (`POST /v1/campaigns/:id/characters`), l'incarne, puis ouvre la création (`/characters/:id/creation?campaign=<id>`).
@@ -182,7 +184,7 @@ Le mode vaut `individual` par défaut ; le MJ passe `mode: 'slots'` pour Star Wa
 - `campaign.member_joined` (`invitationId`, `byCampaignCode`, `byInvitee` ou `publicCampaign` selon le moyen), `campaign.member_left` (`kicked`, `banned`), `campaign.member_role_changed` (`previousRole`)
 - `campaign.member_invited` (`userId`) et `campaign.invitee_removed` (`userId`, `declined`) : invitations nominatives, visibles du MJ seulement
 - `campaign.member_unbanned` (visible du MJ seulement)
-- `campaign.character_added`, `campaign.character_removed` (`reason: 'member_left'` au départ d'un membre), `campaign.character_played` (`previousCharacterId`)
+- `campaign.character_added`, `campaign.character_removed` (`reason: 'member_left'` au départ d'un membre), `campaign.character_played` (`previousCharacterId`, `takenFrom` : membre à qui le personnage a été repris, ou `null`)
 - `campaign.session_scheduled`, `campaign.session_cancelled`
 - `campaign.settings_updated` (`version`, `dice`, et diff avant/après `changes`)
 - `campaign.message_posted`, `campaign.message_deleted`
@@ -206,7 +208,7 @@ Import des campagnes Firebase : `backend/campaign/src/import/`, lancé par `pnpm
 | `users/{uid}/rooms/{code}`, `users/{uid}.room_id`, `salles/{code}/Noms/{uid}` | `campaign_members` : `gm` pour le créateur seul ; les autres, y compris ceux entrés « MJ » dans l'ancienne app, sont `player` (le créateur les promeut ensuite) |
 | `bannedUsers`                                                                 | `campaign_bans` (banni par le propriétaire) ; un banni n'est pas membre                                                                                         |
 | `cartes/{code}/characters/{id}`                                               | `campaign_characters` : camp `players` si `type` vaut « joueurs », `enemies` sinon                                                                              |
-| `users/{uid}.persoId` (campagne active), sinon `Noms.nom` = `Nomperso`        | `played_by` (un joueur n'incarne que son propre personnage)                                                                                                     |
+| `users/{uid}.persoId` (campagne active), sinon `Noms.nom` = `Nomperso`        | `played_by` (un incarnateur par personnage, sans verrou)                                                                                                        |
 | `Salle/{code}/sessions` (`date`)                                              | `campaign_sessions` (créées par le propriétaire, sans titre)                                                                                                    |
 | `Salle/{code}/chat` (`uid`, `text`, `timestamp`)                              | `campaign_messages` (id UUIDv7 à la date d'envoi, `body` borné à 1 000 caractères)                                                                              |
 

@@ -3,8 +3,10 @@
  * personnages restent dans character ; campaign enregistre seulement leur
  * engagement, avec un camp, et le membre qui l'incarne.
  *
- *   GET    /v1/campaigns/:id/characters                personnages engagés, avec leur résumé
- *                                                       de character (membres)
+ *   GET    /v1/campaigns/:id/characters?kind=          personnages engagés, avec leur résumé
+ *                                                       de character (membres) ; `kind` (pc, npc)
+ *                                                       ne garde que les personnages joueurs ou
+ *                                                       les PNJ
  *   POST   /v1/campaigns/:id/characters                { characterId, side? }
  *   DELETE /v1/campaigns/:id/characters/:characterId
  *   PUT    /v1/campaigns/:id/me/character              { characterId | null } : incarner
@@ -16,13 +18,19 @@
  * `characterCreation` faux : un joueur n'engage pas un personnage dont la
  * création est en cours (créé pour l'occasion) ; il engage un personnage
  * terminé. Le MJ n'est pas concerné.
+ *
+ * Incarner n'est pas posséder : un joueur incarne n'importe quel personnage du
+ * camp des joueurs (ou un des siens), le MJ n'importe quel personnage engagé.
+ * Un personnage n'a qu'un incarnateur : le choisir le reprend à celui qui
+ * l'incarnait (plus de verrou). Les droits d'écriture sur la fiche restent au
+ * propriétaire et au MJ (décidés par character).
  */
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { CharacterError } from '../../clients/character.js';
+import { CharacterError, type CharacterKind } from '../../clients/character.js';
 import { campaignCharacters } from '../../db/schema.js';
 import type { Deps, Module } from '../../deps.js';
 import {
@@ -48,6 +56,8 @@ const CampaignCharacter = z.object({
   name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   type: z.string().nullable(),
+  /** Personnage joueur ou PNJ, depuis character ; null s'il ne le dit pas. */
+  kind: z.enum(['pc', 'npc']).nullable(),
   side: Side,
   ownerId: z.string(),
   playedBy: z.string().nullable(),
@@ -62,8 +72,17 @@ const CampaignCharacter = z.object({
     .nullable(),
 });
 
-/** Personnages engagés, complétés par leur résumé dans character (appels parallèles). */
-async function campaignCharactersOf(deps: Deps, a: Access, req: FastifyRequest) {
+/**
+ * Personnages engagés, complétés par leur résumé dans character (appels parallèles).
+ * `kind` ne garde que les personnages dont character confirme la nature : un
+ * personnage dont le résumé manque (character injoignable) en est alors exclu.
+ */
+async function campaignCharactersOf(
+  deps: Deps,
+  a: Access,
+  req: FastifyRequest,
+  kind?: CharacterKind,
+) {
   const engagements = await deps.db
     .select()
     .from(campaignCharacters)
@@ -83,17 +102,19 @@ async function campaignCharactersOf(deps: Deps, a: Access, req: FastifyRequest) 
       }),
     ),
   );
-  return engagements.map((e, i) => ({
+  const list = engagements.map((e, i) => ({
     characterId: e.characterId,
     name: summaries[i]?.name ?? null,
     avatarUrl: summaries[i]?.avatarUrl ?? null,
     type: summaries[i]?.type ?? null,
+    kind: summaries[i]?.kind ?? null,
     side: e.side,
     ownerId: e.ownerId,
     playedBy: e.playedBy,
     inCreation: summaries[i]?.inCreation ?? false,
     summary: summaries[i]?.summary ?? null,
   }));
+  return kind ? list.filter((c) => c.kind === kind) : list;
 }
 
 export const register: Module = async (app, deps) => {
@@ -107,11 +128,17 @@ export const register: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: z.object({ id: CampaignId }),
+        querystring: z.object({ kind: z.enum(['pc', 'npc']).optional() }),
         response: { 200: z.array(CampaignCharacter) },
       },
     },
     async (req) =>
-      campaignCharactersOf(deps, await access(db, req.params.id, currentUser(req)), req),
+      campaignCharactersOf(
+        deps,
+        await access(db, req.params.id, currentUser(req)),
+        req,
+        req.query.kind,
+      ),
   );
 
   r.post(
@@ -252,6 +279,7 @@ export const register: Module = async (app, deps) => {
           .from(campaignCharacters)
           .where(and(inCampaign, eq(campaignCharacters.playedBy, userId)));
         if ((current?.characterId ?? null) === characterId) return a;
+        let takenFrom: string | null = null;
 
         if (characterId) {
           const [engagement] = await tx
@@ -265,13 +293,12 @@ export const register: Module = async (app, deps) => {
               'character_not_engaged',
               'Personnage non engagé dans cette campagne',
             );
-          if (a.role !== 'gm' && engagement.ownerId !== userId)
-            throw HttpError.forbidden('Un joueur n’incarne que ses propres personnages');
-          if (engagement.playedBy && engagement.playedBy !== userId)
-            throw HttpError.conflict(
-              'Ce personnage est déjà incarné par un autre membre',
-              'character_taken',
+          if (a.role !== 'gm' && engagement.ownerId !== userId && engagement.side !== 'players')
+            throw HttpError.forbidden(
+              'Un joueur incarne un personnage du camp des joueurs, ou un des siens',
             );
+          // Incarné par un autre membre : il le lui reprend (plus de verrou)
+          takenFrom = engagement.playedBy;
         }
         // Un membre incarne un seul personnage : l'ancien est libéré
         await tx
@@ -288,7 +315,12 @@ export const register: Module = async (app, deps) => {
           campaignId: a.campaign.id,
           userId,
           role: a.role,
-          payload: { userId, characterId, previousCharacterId: current?.characterId ?? null },
+          payload: {
+            userId,
+            characterId,
+            previousCharacterId: current?.characterId ?? null,
+            takenFrom,
+          },
         });
         return a;
       });

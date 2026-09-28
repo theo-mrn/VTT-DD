@@ -21,6 +21,8 @@ const SummaryResponse = z.object({
   avatarUrl: z.string().nullable(),
   systeme: z.object({ id: z.string(), version: z.string() }),
   type: z.string(),
+  /** Personnage joueur ou PNJ ; absent des anciennes versions de character : inconnu. */
+  kind: z.enum(['pc', 'npc']).nullable().default(null),
   /**
    * Création en cours (`etat.creation` de character) : le personnage vient
    * d'être créé et sa fiche n'est pas terminée. Absent des anciennes versions
@@ -50,9 +52,13 @@ export interface CharacterSummary {
   avatarUrl: string | null;
   system: { id: string; version: string };
   type: string;
+  /** Personnage joueur (`pc`) ou PNJ (`npc`) ; null si character ne le dit pas. */
+  kind: CharacterKind | null;
   inCreation: boolean;
   summary: CharacterListSummary | null;
 }
+
+export type CharacterKind = 'pc' | 'npc';
 
 const ActionResponse = z.object({ resultat: z.unknown(), cles: z.array(z.number()).optional() });
 
@@ -194,6 +200,7 @@ export function characterClient(o: {
           avatarUrl: r.avatarUrl,
           system: r.systeme,
           type: r.type,
+          kind: r.kind,
           inCreation: r.creation,
           summary: r.summary,
         };

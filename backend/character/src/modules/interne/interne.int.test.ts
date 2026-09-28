@@ -51,7 +51,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
     }
   });
 
-  it('résumé d’un personnage : propriétaire et système', async () => {
+  it('résumé d’un personnage : propriétaire, système, joueur ou PNJ', async () => {
     const p = await o.nainGuerrier(alice, 'Thorin');
     const res = await t.app.inject({
       method: 'GET',
@@ -65,6 +65,7 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       avatarUrl: null,
       systeme: { id: 'dnd-classic', version: expect.any(String) },
       type: 'personnage',
+      kind: 'pc',
       creation: false, // nainGuerrier termine la création
       summary: { tagline: expect.stringContaining('Nain'), highlights: expect.any(Array) },
     });
@@ -74,6 +75,15 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       headers: interne,
     });
     expect(inconnu.statusCode).toBe(404);
+
+    // PNJ (reclassé par l'import de l'ancienne app)
+    await t.db!.update(characters).set({ kind: 'npc' }).where(eq(characters.id, p.id));
+    const pnj = await t.app.inject({
+      method: 'GET',
+      url: `/internal/characters/${p.id}`,
+      headers: interne,
+    });
+    expect(pnj.json()).toMatchObject({ kind: 'npc' });
   });
 
   it('initiative D&D : une clé, le total du d20 + INIT', async () => {

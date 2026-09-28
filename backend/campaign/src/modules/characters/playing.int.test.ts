@@ -1,6 +1,6 @@
 /**
- * Personnage incarné par un membre, liste des personnages engagés (résumés
- * de character) et règle `characterCreation`.
+ * Personnage incarné par un membre (sans verrou), liste des personnages
+ * engagés (résumés de character, filtre joueur / PNJ) et règle `characterCreation`.
  */
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -18,6 +18,7 @@ interface CampaignCharacter {
   name: string | null;
   avatarUrl: string | null;
   type: string | null;
+  kind: string | null;
   side: string;
   ownerId: string;
   playedBy: string | null;
@@ -45,8 +46,8 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
 
   const play = (u: TestUser, campaignId: string, characterId: string | null) =>
     h.request(u, 'PUT', `/v1/campaigns/${campaignId}/me/character`, { characterId });
-  const list = (u: TestUser, campaignId: string) =>
-    h.ok<CampaignCharacter[]>(u, 'GET', `/v1/campaigns/${campaignId}/characters`);
+  const list = (u: TestUser, campaignId: string, query = '') =>
+    h.ok<CampaignCharacter[]>(u, 'GET', `/v1/campaigns/${campaignId}/characters${query}`);
 
   it('liste des personnages engagés, avec leur résumé dans character', async () => {
     const id = await h.campaign(gm, 'dnd-classic', [alice]);
@@ -54,6 +55,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
     const hero = await h.engage(id, alice, {
       name: 'Aria',
       avatarUrl: 'https://img/aria.png',
+      kind: 'pc',
       summary,
     });
     const npc = await h.engage(id, gm, { name: 'Gobelin', type: 'pnj' });
@@ -63,6 +65,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         name: 'Aria',
         avatarUrl: 'https://img/aria.png',
         type: 'personnage',
+        kind: 'pc',
         side: 'players',
         ownerId: alice.id,
         playedBy: null,
@@ -74,11 +77,12 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         name: 'Gobelin',
         avatarUrl: null,
         type: 'pnj',
+        // Ancienne version de character : ni nature (joueur / PNJ) ni résumé
+        kind: null,
         side: 'enemies',
         ownerId: gm.id,
         playedBy: null,
         inCreation: false,
-        // Ancienne version de character, sans résumé
         summary: null,
       },
     ]);
@@ -91,6 +95,24 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
       summary: null,
     });
     expect((await h.request(bob, 'GET', `/v1/campaigns/${id}/characters`)).statusCode).toBe(404);
+  });
+
+  it('filtre joueur / PNJ : seulement les personnages dont character confirme la nature', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice]);
+    const hero = await h.engage(id, alice, { kind: 'pc' });
+    const npc = await h.engage(id, gm, { kind: 'npc' });
+    const unknown = await h.engage(id, gm);
+    const ids = (l: CampaignCharacter[]) => l.map((c) => c.characterId);
+
+    expect(ids(await list(alice, id, '?kind=pc'))).toEqual([hero]);
+    expect(ids(await list(gm, id, '?kind=npc'))).toEqual([npc]);
+    expect(ids(await list(gm, id))).toEqual([hero, npc, unknown]);
+    const invalid = await h.request(gm, 'GET', `/v1/campaigns/${id}/characters?kind=boss`);
+    expect(invalid.statusCode).toBe(400);
+    // Character ne répond plus pour ce personnage : exclu du filtre, gardé dans la liste
+    t.character.characters.delete(hero);
+    expect(ids(await list(alice, id, '?kind=pc'))).toEqual([]);
+    expect(ids(await list(alice, id))).toContain(hero);
   });
 
   it('un joueur incarne le sien, le MJ un PNJ ; un seul personnage chacun', async () => {
@@ -134,29 +156,56 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
         .orderBy(outbox.id)
     ).map((e) => (e.envelope as { payload: object }).payload);
     expect(payloads).toEqual([
-      { userId: alice.id, characterId: a1, previousCharacterId: null },
-      { userId: alice.id, characterId: a2, previousCharacterId: a1 },
-      { userId: gm.id, characterId: npc, previousCharacterId: null },
-      { userId: alice.id, characterId: null, previousCharacterId: a2 },
+      { userId: alice.id, characterId: a1, previousCharacterId: null, takenFrom: null },
+      { userId: alice.id, characterId: a2, previousCharacterId: a1, takenFrom: null },
+      { userId: gm.id, characterId: npc, previousCharacterId: null, takenFrom: null },
+      { userId: alice.id, characterId: null, previousCharacterId: a2, takenFrom: null },
     ]);
   });
 
-  it('refus : personnage pris, d’un autre joueur, non engagé, spectateur', async () => {
+  it('pas de verrou : un personnage de joueur se choisit même incarné par un autre', async () => {
     const id = await h.campaign(gm, 'dnd-classic', [alice, bob]);
     const hero = await h.engage(id, alice);
     const bobs = await h.engage(id, bob);
+    const playedBy = async (characterId: string) =>
+      (await list(gm, id)).find((c) => c.characterId === characterId)!.playedBy;
 
-    // Le MJ peut incarner un personnage de joueur… tant que personne ne le joue
-    expect((await play(gm, id, hero)).statusCode).toBe(200);
-    expect((await play(alice, id, hero)).json()).toMatchObject({
-      status: 409,
-      code: 'character_taken',
+    // Alice incarne le personnage de Bob, qui n'est pas pris
+    expect((await play(alice, id, bobs)).statusCode).toBe(200);
+    expect(await playedBy(bobs)).toBe(alice.id);
+    // Bob le reprend : Alice n'incarne plus rien
+    expect((await play(bob, id, bobs)).statusCode).toBe(200);
+    expect(await playedBy(bobs)).toBe(bob.id);
+    expect(await h.ok(alice, 'GET', `/v1/campaigns/${id}`)).toMatchObject({
+      playedCharacterId: null,
     });
-    await play(gm, id, null);
+    // Le MJ aussi, puis Alice le lui reprend
+    expect((await play(gm, id, hero)).statusCode).toBe(200);
     expect((await play(alice, id, hero)).statusCode).toBe(200);
-    expect((await play(gm, id, hero)).json()).toMatchObject({ code: 'character_taken' });
+    expect(await playedBy(hero)).toBe(alice.id);
 
-    expect((await play(alice, id, bobs)).statusCode).toBe(403);
+    const taken = (
+      await t
+        .db!.select({ envelope: outbox.envelope })
+        .from(outbox)
+        .where(
+          sql`${outbox.envelope}->>'roomId' = ${id} and ${outbox.envelope}->>'type' = 'campaign.character_played'`,
+        )
+        .orderBy(outbox.id)
+    ).map((e) => (e.envelope as { payload: { takenFrom: string | null } }).payload.takenFrom);
+    expect(taken).toEqual([null, alice.id, null, gm.id]);
+  });
+
+  it('refus : PNJ d’un autre, non engagé, spectateur', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice, bob]);
+    const hero = await h.engage(id, alice);
+    const bobs = await h.engage(id, bob);
+    const enemy = await h.engage(id, gm);
+    const ally = await h.engage(id, gm, { side: 'allies' });
+
+    // Les PNJ du MJ (adversaires, alliés) ne s'incarnent pas par un joueur
+    expect((await play(alice, id, enemy)).statusCode).toBe(403);
+    expect((await play(alice, id, ally)).statusCode).toBe(403);
     expect((await play(alice, id, crypto.randomUUID())).json()).toMatchObject({
       status: 404,
       code: 'character_not_engaged',

@@ -5,8 +5,8 @@
  * x-internal-secret) est exigé. Sans ce secret configuré, les routes
  * n'existent pas.
  *
- *   GET  /internal/characters/:id                    résumé (propriétaire, système, création en
- *        cours, et résumé des listes : entrées uniques et valeurs clés)
+ *   GET  /internal/characters/:id                    résumé (propriétaire, système, joueur ou
+ *        PNJ, création en cours, et résumé des listes : entrées uniques et valeurs clés)
  *   GET  /internal/characters/:id/sheet?userId=      valeurs calculées de la fiche, pour
  *        les variables des jets de dice (`1d20+FOR`) ; 404/403 si `userId` ne peut
  *        pas agir avec ce personnage (mêmes droits qu'une action)
@@ -101,6 +101,8 @@ export const register: Module = async (app, deps) => {
             avatarUrl: z.string().nullable(),
             systeme: z.object({ id: z.string(), version: z.string() }),
             type: z.string(),
+            /** Personnage joueur ou PNJ (campaign filtre ainsi ses listes). */
+            kind: z.enum(['pc', 'npc']),
             /** Création non terminée (campaign : `creationPersonnages`). */
             creation: z.boolean(),
             /** Résumé des listes (table de la campagne). */
@@ -118,6 +120,7 @@ export const register: Module = async (app, deps) => {
         avatarUrl: l.avatarUrl,
         systeme: { id: l.systemId, version: l.systemVersion },
         type: l.type,
+        kind: l.kind,
         creation: l.etat.creation,
         summary: resumeDe(catalogue, l),
       };

@@ -20,6 +20,8 @@ export interface FakeCharacter {
   /** Création en cours (fiche pas encore terminée). */
   inCreation?: boolean;
   type?: string;
+  /** Joueur ou PNJ ; absent : ancienne version de character, sans ce champ. */
+  kind?: 'pc' | 'npc';
   avatarUrl?: string | null;
   /** Résumé des listes renvoyé par character. */
   summary?: { tagline: string; highlights: { label: string; value: string }[] };
@@ -73,6 +75,7 @@ export async function fakeCharacter(secret: string) {
         avatarUrl: c.avatarUrl ?? null,
         systeme: { id: c.systemId, version: '1.0.0' },
         type: c.type ?? 'personnage',
+        ...(c.kind ? { kind: c.kind } : {}),
         creation: c.inCreation ?? false,
         ...(c.summary ? { summary: c.summary } : {}),
       });
