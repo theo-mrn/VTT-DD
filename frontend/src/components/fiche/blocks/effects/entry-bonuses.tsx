@@ -2,15 +2,23 @@
 
 /**
  * Bonus d'une entrée (fenêtre d'une compétence, d'un nœud d'arbre, d'une possession du
- * profil) : une ligne par effet, ceux du catalogue et ceux ajoutés à la main (effets propres
- * de sa possession). Entrée acquise et fiche modifiable : un interrupteur par effet, la même
- * opération que le bloc Bonus (`etat.effetsDesactives`), donc le même état des deux côtés ;
- * « Gérer les bonus » ajoute ou retire les bonus propres. Entrée non acquise : lecture seule.
+ * profil) : en-tête (titre, compteur, lien vers le bloc Bonus), puis une carte avec une ligne
+ * par effet, ceux du catalogue et ceux ajoutés à la main (effets propres de sa possession).
+ * Entrée acquise et fiche modifiable : un interrupteur par effet, la même opération que le
+ * bloc Bonus (`etat.effetsDesactives`), donc le même état des deux côtés ; un bonus propre se
+ * retire par son menu, après confirmation ; l'ajout se fait en ligne, en bas de la carte.
+ * Entrée non acquise : lecture seule.
  */
 import { sourceExemplaire, type Effet, type Entree, type Fiche } from '@vtt/rules';
-import { ArrowRight, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowUpRight, MoreHorizontal, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useId, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
 import { texteEffet } from '@/lib/creation';
@@ -71,7 +79,8 @@ function lignes(fiche: Fiche, entry: Entree, sourcePropre: string | null): Ligne
   });
 }
 
-const TITRE = 'mb-1 text-[11px] font-medium uppercase tracking-wider text-subtle';
+/** Titre d'une section du détail (même style que les autres titres du détail). */
+const TITRE = 'text-sm font-semibold text-foreground';
 
 export function EntryBonuses({
   fiche,
@@ -87,14 +96,15 @@ export function EntryBonuses({
   edit?: EntryBonusEdit | undefined;
 }) {
   const id = useId();
-  const [gestion, setGestion] = useState(false);
+  const [ajout, setAjout] = useState(false);
+  const boutonAjout = useRef<HTMLButtonElement>(null);
   const possedee = acquise(fiche, entry);
-  const cible = possedee ? edit?.own?.cible : undefined;
+  const own = possedee ? edit?.own : undefined;
+  const cible = own?.cible;
   const possession = cible?.ok ? cible.possession : undefined;
   const sourcePropre = possession ? sourceExemplaire(possession) : null;
   const liste = useMemo(() => lignes(fiche, entry, sourcePropre), [fiche, entry, sourcePropre]);
   const toggle = possedee ? edit?.toggle : undefined;
-  const own = possedee ? edit?.own : undefined;
   const peutAjouter = useMemo(
     () => !!own && attributsBonus(fiche, own.mj).length > 0,
     [fiche, own],
@@ -107,32 +117,81 @@ export function EntryBonuses({
   if (!liste.length && !marques.length && !own) return null;
 
   const propres = possession?.effets ?? [];
-  const bloque = own && !own.cible.ok ? own.cible.raison : null;
+  const bloque = !own
+    ? null
+    : !own.cible.ok
+      ? own.cible.raison
+      : !peutAjouter
+        ? 'Aucun attribut du personnage ne peut recevoir de bonus.'
+        : null;
   const retirer = (index: number) => own?.set(propres.filter((_, i) => i !== index));
+  const fermerAjout = () => {
+    setAjout(false);
+    window.setTimeout(() => boutonAjout.current?.focus(), 0);
+  };
+  const actifs = liste.filter((l) => l.statut === 'actif').length;
+
+  const formulaire =
+    own && ajout && !bloque && own.cible.ok ? (
+      <BonusForm
+        fiche={fiche}
+        sorte={own.cible.sorte}
+        mj={own.mj}
+        onAjouter={(effet) => {
+          own.set([...propres, effet]);
+          fermerAjout();
+        }}
+        onAnnuler={fermerAjout}
+        className="space-y-2 border-t border-border bg-surface p-3"
+      />
+    ) : null;
+
+  const boutonAjouter = (vide: boolean) =>
+    own && (
+      <Info texte={bloque ?? undefined}>
+        <Button
+          ref={boutonAjout}
+          type="button"
+          variant={vide ? 'secondary' : 'ghost'}
+          size="xs"
+          aria-disabled={bloque ? true : undefined}
+          aria-describedby={bloque ? `${id}-bloque` : undefined}
+          className={cn(
+            !vide && 'w-full justify-start text-muted-foreground',
+            bloque && 'cursor-not-allowed opacity-50',
+          )}
+          onClick={() => !bloque && setAjout(true)}
+        >
+          <Plus />
+          Ajouter un bonus
+        </Button>
+      </Info>
+    );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {(liste.length > 0 || own) && (
-        <section aria-labelledby={`${id}-titre`}>
-          <div className="mb-1 flex min-h-7 items-center justify-between gap-2">
-            <h3 id={`${id}-titre`} className={cn(TITRE, 'mb-0')}>
+        <section aria-labelledby={`${id}-titre`} className="space-y-2">
+          <div className="flex min-h-7 items-center gap-2">
+            <h3 id={`${id}-titre`} className={TITRE}>
               Bonus
             </h3>
-            {own && (
-              <Info texte={bloque ?? undefined}>
+            {possedee && liste.length > 0 && (
+              <span className="font-mono text-xs tabular text-subtle">
+                {actifs} actif{actifs > 1 ? 's' : ''} / {liste.length}
+              </span>
+            )}
+            {possedee && onManage && (
+              <Info texte="Ouvrir dans le bloc Bonus">
                 <Button
                   type="button"
                   variant="ghost"
-                  size="xs"
-                  aria-expanded={bloque ? undefined : gestion}
-                  aria-controls={bloque ? undefined : `${id}-gestion`}
-                  aria-disabled={bloque ? true : undefined}
-                  aria-describedby={bloque ? `${id}-bloque` : undefined}
-                  className={cn('-mr-1.5', bloque && 'cursor-not-allowed opacity-50')}
-                  onClick={() => !bloque && setGestion((g) => !g)}
+                  size="icon-xs"
+                  className="ml-auto text-muted-foreground"
+                  aria-label="Ouvrir dans le bloc Bonus"
+                  onClick={onManage}
                 >
-                  <SlidersHorizontal />
-                  {gestion ? 'Terminer' : 'Gérer les bonus'}
+                  <ArrowUpRight />
                 </Button>
               </Info>
             )}
@@ -142,77 +201,58 @@ export function EntryBonuses({
               {bloque}
             </p>
           )}
+
           {liste.length > 0 ? (
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {liste.map((l) => (
-                <LigneBonus
-                  key={l.cle}
-                  l={l}
-                  possedee={possedee}
-                  toggle={toggle}
-                  onRetirer={gestion && l.propre !== undefined ? retirer : undefined}
-                />
-              ))}
-            </ul>
+            <div className="overflow-hidden rounded-lg border border-border bg-surface-2">
+              <ul className="divide-y divide-border">
+                {liste.map((l) => (
+                  <LigneBonus
+                    key={l.cle}
+                    l={l}
+                    possedee={possedee}
+                    toggle={toggle}
+                    onRetirer={own && l.propre !== undefined ? retirer : undefined}
+                  />
+                ))}
+              </ul>
+              {formulaire ??
+                (own && (
+                  <div className="border-t border-border px-1.5 py-1">{boutonAjouter(false)}</div>
+                ))}
+            </div>
           ) : (
-            <p className="text-[13px] text-subtle">Aucun bonus.</p>
-          )}
-          {possedee && (
-            <p className="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-subtle">
-              {toggle
-                ? 'Mêmes réglages que dans le bloc Bonus.'
-                : 'Ces bonus s’activent ou se désactivent dans le bloc Bonus.'}
-              {onManage && (
-                <button
-                  type="button"
-                  onClick={onManage}
-                  className="inline-flex items-center gap-0.5 rounded font-medium text-primary-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-                >
-                  Y aller
-                  <ArrowRight className="size-3" aria-hidden />
-                </button>
-              )}
-            </p>
-          )}
-          {own && gestion && !bloque && own.cible.ok && (
-            <div id={`${id}-gestion`}>
-              {propres.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Les bonus ajoutés se retirent par la corbeille de leur ligne.
-                </p>
-              )}
-              {peutAjouter ? (
-                <BonusForm
-                  fiche={fiche}
-                  sorte={own.cible.sorte}
-                  mj={own.mj}
-                  onAjouter={(effet) => own.set([...propres, effet])}
-                  onAnnuler={() => setGestion(false)}
-                />
-              ) : (
-                <p className="mt-2 text-xs text-subtle">Aucun attribut à modifier par un bonus.</p>
+            <div className="overflow-hidden rounded-lg border border-dashed border-border-strong">
+              {formulaire ?? (
+                <div className="flex flex-col items-center gap-2 px-3 py-4 text-center">
+                  <Sparkles className="size-4 text-subtle" aria-hidden />
+                  <p className="text-[13px] text-muted-foreground">
+                    Aucun bonus sur cette compétence
+                  </p>
+                  {boutonAjouter(true)}
+                </div>
               )}
             </div>
           )}
         </section>
       )}
       {marques.length > 0 && (
-        <div>
-          <p className={TITRE}>Effets</p>
+        <section className="space-y-2">
+          <h3 className={TITRE}>Effets</h3>
           <ul className="space-y-0.5 text-[13px] text-muted-foreground">
             {marques.map((t, i) => (
               <li key={`${t}-${i}`}>{t}</li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
     </div>
   );
 }
 
 /**
- * Une ligne d'effet : texte court, état écrit (« désactivé », raison), interrupteur ; en
- * gestion, un bonus ajouté à la main se retire après confirmation sur la ligne même.
+ * Une ligne d'effet (~36 px) : texte court, provenance et état écrits (« ajouté »,
+ * « désactivé », raison), interrupteur ; un bonus propre a un menu « … » pour le retirer,
+ * après confirmation sur la ligne même.
  */
 function LigneBonus({
   l,
@@ -226,18 +266,18 @@ function LigneBonus({
   onRetirer: ((index: number) => void) | undefined;
 }) {
   const [confirme, setConfirme] = useState(false);
-  const corbeille = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLButtonElement>(null);
   const coupe = l.statut === 'desactive';
   const annuler = () => {
     setConfirme(false);
-    window.setTimeout(() => corbeille.current?.focus(), 0);
+    window.setTimeout(() => menu.current?.focus(), 0);
   };
 
   if (confirme && onRetirer && l.propre !== undefined)
     return (
       <li
         {...ECHAP_LOCAL}
-        className="flex min-h-9 items-center gap-2 bg-destructive/5 px-2.5 py-1 text-[13px]"
+        className="flex min-h-9 items-center gap-2 bg-destructive/5 px-3 py-1 text-[13px]"
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.preventDefault();
@@ -258,40 +298,50 @@ function LigneBonus({
       </li>
     );
 
+  const meta = [
+    l.propre !== undefined ? 'ajouté' : null,
+    l.precision,
+    possedee && coupe ? 'désactivé' : null,
+    l.raison,
+  ].filter(Boolean);
+
   return (
-    <li
-      className={cn(
-        'flex min-h-9 items-center gap-2 px-2.5 py-1 text-[13px]',
-        l.statut === 'actif' ? 'text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {!toggle && (
-        <span
-          className={cn(
-            'size-1.5 shrink-0 rounded-full',
-            l.statut === 'actif' ? 'bg-primary' : 'bg-surface-3',
-          )}
-          aria-hidden
-        />
-      )}
-      <span className="min-w-0 flex-1">
-        <span className={cn(coupe && 'line-through')}>{l.texte}</span>
-        {l.precision && <span className="text-xs text-subtle"> · {l.precision}</span>}
-        {l.propre !== undefined && <span className="text-xs text-subtle"> · ajouté</span>}
-        {possedee && coupe && <span className="text-xs text-subtle"> · désactivé</span>}
-        {l.raison && <span className="text-xs text-subtle"> · {l.raison}</span>}
+    <li className="flex min-h-9 items-center gap-2 px-3 py-1 text-[13px]">
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate',
+          l.statut === 'actif' ? 'text-foreground' : 'text-muted-foreground',
+          coupe && 'opacity-70',
+        )}
+        title={[l.texte, ...meta].join(' · ')}
+      >
+        {l.texte}
+        {meta.length > 0 && <span className="text-xs text-subtle"> · {meta.join(' · ')}</span>}
       </span>
       {onRetirer && l.propre !== undefined && (
-        <Button
-          ref={corbeille}
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label={`Retirer le bonus ${l.texte}`}
-          onClick={() => setConfirme(true)}
-        >
-          <Trash2 />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              ref={menu}
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground"
+              aria-label={`Actions du bonus ${l.texte}`}
+            >
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => setConfirme(true)}
+            >
+              <Trash2 />
+              Retirer…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
       {toggle && (
         <Switch

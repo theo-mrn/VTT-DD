@@ -23,12 +23,15 @@ export function BonusForm({
   mj,
   onAjouter,
   onAnnuler,
+  className = 'mt-3 space-y-2 rounded-xl border border-border p-3',
 }: {
   fiche: Fiche;
   sorte: Sorte;
   mj: boolean;
   onAjouter(effet: Effet): void;
   onAnnuler(): void;
+  /** Cadre du formulaire (par défaut : encadré, sous la liste des bonus). */
+  className?: string;
 }) {
   const id = useId();
   const attributs = useMemo(() => attributsBonus(fiche, mj), [fiche, mj]);
@@ -54,7 +57,7 @@ export function BonusForm({
       role="group"
       aria-label="Nouveau bonus"
       {...ECHAP_LOCAL}
-      className="mt-3 space-y-2 rounded-xl border border-border p-3"
+      className={className}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
           e.preventDefault();
