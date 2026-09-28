@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Info } from '@/components/ui/tooltip';
+import { echapLocal } from '../../bonus-editor/escape';
 import { EntryDetails } from '../skills/entry-details';
 import {
   currencyName,
@@ -97,7 +98,10 @@ export function TreeDetailDialog({
 
   return (
     <Dialog open={!!selection} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        onEscapeKeyDown={(e) => echapLocal(e) && e.preventDefault()}
+        className="sm:max-w-lg"
+      >
         {info && (
           <>
             <DialogHeader>
@@ -135,7 +139,7 @@ export function TreeDetailDialog({
                   {info.entries.length > 1 && (
                     <p className="text-sm font-semibold text-primary-strong">{e.nom}</p>
                   )}
-                  <EntryDetails fiche={fiche} entry={e} />
+                  <EntryDetails ctx={ctx} entry={e} writes={writes} onClose={onClose} />
                 </div>
               ))}
 

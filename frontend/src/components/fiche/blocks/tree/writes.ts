@@ -5,13 +5,17 @@
  */
 import {
   acheter,
+  estExemplaire,
   nouvellePossession,
   rembourser,
+  type Effet,
   type EtatEntite,
   type ResultatRemboursement,
 } from '@vtt/rules';
 import { toast } from 'sonner';
+import { cibleBonusPropres } from '../../bonus-editor/model';
 import type { ContexteFiche, OperationsFiche } from '../../widgets';
+import { envoyerBascule } from '../effects/model';
 
 /** Remboursement : exposé par les opérations de la fiche quand la page le fournit. */
 type WithRefund = OperationsFiche & {
@@ -26,6 +30,16 @@ export interface SheetWrites {
     run(index: number): void;
   };
   setActive(entree: string, actif: boolean): void;
+  /**
+   * Active ou coupe des effets (clés `<source>/<index>`) : la même opération que le bloc
+   * Bonus. Absent : la page ne fournit pas l'opération.
+   */
+  toggleEffects?(cles: string[], actif: boolean): void;
+  /**
+   * Remplace les effets propres (bonus ajoutés à la main) de l'entrée possédée, sur sa
+   * possession ou sur une possession créée au rang 0 (voir `cibleBonusPropres`).
+   */
+  setOwnEffects(entree: string, effets: Effet[]): void;
 }
 
 export function sheetWrites(ctx: ContexteFiche, mode: 'read' | 'edit'): SheetWrites | undefined {
@@ -61,6 +75,44 @@ export function sheetWrites(ctx: ContexteFiche, mode: 'read' | 'edit'): SheetWri
           possessions: existe
             ? etat.possessions.map((p) => (p.entree === entree ? { ...p, actif } : p))
             : [...etat.possessions, nouvellePossession(entree, 0, { actif })],
+        },
+      );
+    },
+    ...(ops.effet
+      ? {
+          toggleEffects: (cles: string[], actif: boolean) =>
+            envoyerBascule(ctx.fiche, ops.effet?.bind(ops), cles, actif),
+        }
+      : {}),
+    setOwnEffects(entree, effets) {
+      const cible = cibleBonusPropres(ctx.fiche, entree);
+      if (!cible.ok) {
+        toast.error(cible.raison);
+        return;
+      }
+      const p = cible.possession;
+      if (p) {
+        const ex = p.exemplaire;
+        ops.possession(
+          { entree, ...(ex !== undefined ? { exemplaire: ex } : {}), effets },
+          {
+            ...etat,
+            possessions: etat.possessions.map((x) =>
+              estExemplaire(x, entree, ex) ? { ...x, effets } : x,
+            ),
+          },
+        );
+        return;
+      }
+      // Possession créée : elle garde l'état actif de l'entrée (actif par défaut de la sorte)
+      ops.possession(
+        { entree, actif: cible.actif, effets },
+        {
+          ...etat,
+          possessions: [
+            ...etat.possessions,
+            nouvellePossession(entree, 0, { actif: cible.actif, effets }),
+          ],
         },
       );
     },

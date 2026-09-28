@@ -2,8 +2,8 @@
 
 /**
  * Fenêtre de détail d'une compétence ou d'une capacité, et marques de rang. Le détail montre
- * tout (description assainie, bonus et leur état, origine, actions : activation, rang
- * suivant) et renvoie au bloc Bonus, seul endroit où les bonus s'activent ou se coupent.
+ * tout (description assainie, bonus avec leur interrupteur et leur gestion, origine,
+ * actions : activation, rang suivant) et renvoie au bloc Bonus.
  */
 import { Plus, Power, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import {
 import { Info } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ContexteFiche } from '../../widgets';
-import { allerAuBlocBonus, ancreBonus } from '../effects/model';
+import { echapLocal } from '../../bonus-editor/escape';
 import { currencyName } from '../tree/model';
 import type { SheetWrites } from '../tree/writes';
 import { EntryDetails } from './entry-details';
@@ -66,7 +66,10 @@ export function SkillDialog({
   const on = !!card && card.activable && card.active;
   return (
     <Dialog open={!!card} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        onEscapeKeyDown={(e) => echapLocal(e) && e.preventDefault()}
+        className="sm:max-w-lg"
+      >
         {card && (
           <>
             <DialogHeader>
@@ -106,20 +109,7 @@ export function SkillDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <EntryDetails
-              fiche={ctx.fiche}
-              entry={card.entry}
-              onManageBonus={
-                typeof document !== 'undefined' &&
-                document.getElementById(ancreBonus(ctx.personnage.id))
-                  ? () => {
-                      onClose();
-                      // Après la fermeture : le focus revient d'abord à la carte, puis va au bloc
-                      window.setTimeout(() => allerAuBlocBonus(ctx.personnage.id), 150);
-                    }
-                  : undefined
-              }
-            />
+            <EntryDetails ctx={ctx} entry={card.entry} writes={writes} onClose={onClose} />
             {card.activable && !on && card.bonuses.some((b) => !b.applied) && (
               <p className="text-xs text-subtle">
                 Les effets s’appliquent une fois l’entrée active.

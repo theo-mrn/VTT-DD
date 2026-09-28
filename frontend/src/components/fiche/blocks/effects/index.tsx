@@ -35,8 +35,8 @@ import { Bloc, visiblePour, type ContexteFiche } from '../../widgets';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 import {
   ancreBonus,
-  apercuBascule,
   effetsDuPersonnage,
+  envoyerBascule,
   familleDe,
   famillesDuSysteme,
   libelleEffet,
@@ -163,9 +163,7 @@ function EffectsBlock({ ctx, widget, mode }: SheetBlockProps<'bonus'>) {
       : groupes.filter((g) => g.famille === onglet).length;
 
   function basculerEffets(cles: string[], actif: boolean) {
-    if (!operations?.effet || !cles.length) return;
-    const apercu = apercuBascule(fiche, cles, actif);
-    if (apercu) operations.effet(cles, actif, apercu);
+    envoyerBascule(fiche, operations?.effet?.bind(operations), cles, actif);
   }
 
   function basculerBonus(b: BonusLibre) {

@@ -241,6 +241,21 @@ export function apercuBascule(
   return r.ok ? r.etat : null;
 }
 
+/**
+ * Active ou coupe des effets par l'opération de la fiche, avec l'aperçu local : la même
+ * écriture pour le bloc Bonus et le détail d'une compétence (le service confirme ou corrige).
+ */
+export function envoyerBascule(
+  fiche: Fiche,
+  effet: ((cles: string[], actif: boolean, apercu: EtatEntite) => void) | undefined,
+  cles: string[],
+  actif: boolean,
+): void {
+  if (!effet || !cles.length) return;
+  const apercu = apercuBascule(fiche, cles, actif);
+  if (apercu) effet(cles, actif, apercu);
+}
+
 /** Effets d'une entrée possédée : ceux de son catalogue et de ses exemplaires. */
 export function effetsDeLEntree(fiche: Fiche, entree: string): EffetListe[] {
   return effetsDuPersonnage(fiche).filter(
