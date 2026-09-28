@@ -38,6 +38,9 @@ interface YTNamespace {
 
 const ENDED = 0;
 const PLAYING = 1;
+const BUFFERING = 3;
+/** Au-delà, un lecteur qui devait jouer et ne joue pas est bloqué (lecture automatique refusée). */
+const STALL_AFTER_MS = 2_000;
 
 let apiPromise: Promise<YTNamespace> | null = null;
 
@@ -118,7 +121,10 @@ export class YoutubeVoice implements Registered {
               }
             },
             onStateChange: (e) => {
-              if (e.data === ENDED) this.onEnded?.();
+              if (e.data === ENDED) {
+                this.wantPlaying = false;
+                this.onEnded?.();
+              }
               if (e.data === PLAYING) this.onPlaying?.();
             },
             onError: (e) => this.onError?.(e.data),
@@ -128,11 +134,17 @@ export class YoutubeVoice implements Registered {
       .catch(() => this.onError?.(-1));
   }
 
+  /** Le lecteur doit-il jouer (demandé par le moteur), et depuis quand. */
+  private wantPlaying = false;
+  private playRequestedAt = 0;
+
   private get ready() {
     return !!this.player && typeof this.player.seekTo === 'function';
   }
 
   private apply(positionMs: number, play: boolean) {
+    this.wantPlaying = play;
+    if (play) this.playRequestedAt = Date.now();
     if (!this.ready) {
       this.pending = { positionMs, play };
       return;
@@ -154,6 +166,7 @@ export class YoutubeVoice implements Registered {
   }
 
   pause() {
+    this.wantPlaying = false;
     if (this.ready) this.player!.pauseVideo();
     else if (this.pending) this.pending.play = false;
   }
@@ -178,6 +191,23 @@ export class YoutubeVoice implements Registered {
 
   get playing(): boolean {
     return this.ready && this.player!.getPlayerState() === PLAYING;
+  }
+
+  /**
+   * Devait jouer depuis un moment mais ne joue pas : le navigateur a refusé la lecture
+   * automatique (onglet sans clic). Le moteur affiche alors « Activer le son ».
+   */
+  stalled(): boolean {
+    if (this.disposed || !this.wantPlaying || !this.ready) return false;
+    if (Date.now() - this.playRequestedAt < STALL_AFTER_MS) return false;
+    const state = this.player!.getPlayerState();
+    return state !== PLAYING && state !== BUFFERING;
+  }
+
+  /** Relance la lecture pendant un geste de l'utilisateur (le recalage suit au relevé). */
+  kick() {
+    if (this.disposed || !this.wantPlaying || !this.ready) return;
+    if (this.player!.getPlayerState() !== PLAYING) this.player!.playVideo();
   }
 
   /** Lu sur le lecteur : en lecture avec un volume audible. */

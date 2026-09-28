@@ -17,7 +17,7 @@ import { ChannelPlayer } from './channel-player';
 import { CuePlayer } from './cue-player';
 import { AudioGraph, type AudioBus } from './graph';
 import type { EngineHost } from './host';
-import { disposeAllVoices, scanAudio, type LiveSound } from './registry';
+import { anyStalled, disposeAllVoices, kickAll, scanAudio, type LiveSound } from './registry';
 import { ElementPool } from './voices';
 
 export type EngineStatus = 'locked' | 'running' | 'unsupported';
@@ -57,6 +57,8 @@ export class AudioEngine implements EngineHost {
   private resyncTimer: ReturnType<typeof setInterval> | null = null;
   private scanTimer: ReturnType<typeof setInterval> | null = null;
   private liveSounds: LiveSound[] = [];
+  /** Une voix voulue est bloquée par le navigateur (YouTube sans geste) : bandeau d'activation. */
+  private blocked = false;
 
   // Campagne attachée
   campaignId: string | null = null;
@@ -93,6 +95,11 @@ export class AudioEngine implements EngineHost {
 
   /** Relevé : coupe les voix orphelines et publie ce qui sonne, s'il a changé. */
   scan() {
+    const blocked = anyStalled();
+    if (blocked !== this.blocked) {
+      this.blocked = blocked;
+      this.emit();
+    }
     const next = scanAudio();
     const same =
       next.length === this.liveSounds.length &&
@@ -121,7 +128,7 @@ export class AudioEngine implements EngineHost {
 
   /** Quelque chose devrait s'entendre mais le navigateur bloque le son. */
   get needsUnlock(): boolean {
-    return this.status === 'locked' && this.soundWanted;
+    return (this.status === 'locked' && this.soundWanted) || this.blocked;
   }
 
   // ── Contexte, graphe ──
@@ -193,6 +200,7 @@ export class AudioEngine implements EngineHost {
 
   /** Débloque le son (geste de l'utilisateur) ; true si le contexte tourne. */
   async unlock(): Promise<boolean> {
+    kickAll();
     const ctx = this.context();
     if (!ctx) return false;
     if (ctx.state !== 'running') await (ctx as AudioContext).resume?.().catch(() => undefined);
@@ -206,6 +214,8 @@ export class AudioEngine implements EngineHost {
     if (typeof document === 'undefined') return;
     this.unlockBound = true;
     const handler = () => {
+      // Pendant le geste : les lecteurs YouTube bloqués repartent (ils l'exigent)
+      kickAll();
       if (this.ctx?.state === 'running') return;
       void this.unlock();
     };

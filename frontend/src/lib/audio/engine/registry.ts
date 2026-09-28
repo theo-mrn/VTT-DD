@@ -21,6 +21,10 @@ export interface Registered {
   owned: () => boolean;
   /** La voix produit-elle du son en ce moment (lu sur l'élément, le lecteur, le contexte) ? */
   sounding(): boolean;
+  /** Devait jouer mais le navigateur bloque la lecture (YouTube sans geste de l'utilisateur). */
+  stalled?(): boolean;
+  /** Relance une lecture bloquée ; appelé pendant un geste de l'utilisateur. */
+  kick?(): void;
   dispose(): void;
 }
 
@@ -74,6 +78,29 @@ export function scanAudio(): LiveSound[] {
     if (sounding) live.push({ id: v.id, label: v.label, kind: v.kind });
   }
   return live;
+}
+
+/** Une voix voulue est-elle bloquée par le navigateur ? */
+export function anyStalled(): boolean {
+  for (const v of store.voices.values()) {
+    try {
+      if (!v.disposed && v.stalled?.()) return true;
+    } catch {
+      // Lecteur indisponible : pas un blocage à signaler
+    }
+  }
+  return false;
+}
+
+/** Relance les voix bloquées : à appeler pendant un geste de l'utilisateur (clic, touche). */
+export function kickAll(): void {
+  for (const v of store.voices.values()) {
+    try {
+      v.kick?.();
+    } catch {
+      // Lecteur indisponible
+    }
+  }
 }
 
 /** Coupe tout ce qui est inscrit (changement de moteur, « tout couper »). */
