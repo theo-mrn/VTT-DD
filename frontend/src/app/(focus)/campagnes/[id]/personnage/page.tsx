@@ -1,9 +1,9 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { ChoixHeros } from '@/components/personnages/choix-heros';
+import { CharacterPicker } from '@/components/personnages/character-picker';
 
-export default function PageChoixHeros() {
+export default function CharacterPickerPage() {
   const { id } = useParams<{ id: string }>();
-  return <ChoixHeros campagneId={id} />;
+  return <CharacterPicker campaignId={id} />;
 }

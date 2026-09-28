@@ -106,12 +106,17 @@ interface PublicPageApi {
   total: number;
 }
 
+/** Nature d'un personnage dans character : joueur (`pc`) ou PNJ (`npc`). */
+export type CharacterKindApi = 'pc' | 'npc';
+
 /** Personnage engagé (GET /v1/campaigns/:id/characters), lu par le domaine personnages. */
 export interface CampaignCharacterApi {
   characterId: string;
   name: string | null;
   avatarUrl: string | null;
   type: string | null;
+  /** Personnage joueur ou PNJ, selon character ; null s'il ne le dit pas. */
+  kind: CharacterKindApi | null;
   side: CampApi;
   ownerId: string;
   playedBy: string | null;
@@ -515,7 +520,11 @@ export const campagnes = {
   desengager: (id: string, characterId: string) =>
     api<void>(url(id, `/characters/${encodeURIComponent(characterId)}`), { method: 'DELETE' }),
 
-  personnages: (id: string) => api<CampaignCharacterApi[]>(url(id, '/characters')),
+  /** Personnages engagés ; `kind` : seulement les personnages joueurs (`pc`) ou les PNJ. */
+  personnages: (id: string, kind?: CharacterKindApi) =>
+    api<CampaignCharacterApi[]>(
+      url(id, `/characters${kind ? `?${new URLSearchParams({ kind })}` : ''}`),
+    ),
 
   nouveauCode: async (id: string) =>
     versDetail(await api<CampaignApi>(url(id, '/code'), { method: 'POST' })),

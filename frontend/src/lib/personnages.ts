@@ -388,6 +388,8 @@ export const clesPersonnages = {
   racine: ['personnages'] as const,
   miens: ['personnages', 'miens'] as const,
   campagne: clePersonnagesCampagne,
+  /** Personnages joueurs d'une campagne (filtrés par le service) : invalidés avec `campagne`. */
+  campaignPcs: (id: string) => [...clePersonnagesCampagne(id), 'pc'] as const,
   un: (id: string) => ['personnages', 'un', id] as const,
 };
 
@@ -712,6 +714,32 @@ export function usePersonnagesCampagne(roomId: string | null | undefined) {
   };
 }
 
+/**
+ * Personnages joueurs d'une campagne (`kind` pc dans character, tous joueurs confondus),
+ * filtrés par le service : le choix du personnage n'affiche jamais de PNJ.
+ */
+export function useCampaignPlayerCharacters(roomId: string | null | undefined) {
+  const query = useQuery({
+    queryKey: clesPersonnages.campaignPcs(roomId ?? ''),
+    queryFn: () => campagnes.personnages(roomId!, 'pc'),
+    enabled: Boolean(roomId),
+  });
+  const campagne = useCampagne(roomId);
+  const data = useMemo(
+    () =>
+      query.data && campagne.data ? query.data.map((e) => versEngage(e, campagne.data)) : undefined,
+    [query.data, campagne.data],
+  );
+  const error = query.error ?? campagne.error;
+  return {
+    data,
+    isLoading: Boolean(roomId) && data === undefined && !error,
+    isError: Boolean(error),
+    error,
+    refetch: query.refetch,
+  };
+}
+
 /** Fiche complète d'un personnage (le mien, ou un personnage d'une de mes campagnes). */
 export function usePersonnage(id: string | null | undefined) {
   const fiche = useQuery({
@@ -796,7 +824,8 @@ export function useModifierPersonnage(id: string) {
 
 /**
  * Joue un personnage dans une campagne : un héros libre y est d'abord engagé,
- * puis incarné ; `null` : jouer en MJ.
+ * puis incarné ; `null` : jouer en MJ. Un personnage incarné par un autre
+ * membre lui est repris (pas de verrou, voir docs/api-campaign.md).
  */
 export function useJouerPersonnage(campagneId: string) {
   const client = useQueryClient();
