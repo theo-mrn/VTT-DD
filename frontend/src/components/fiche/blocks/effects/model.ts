@@ -15,7 +15,7 @@ import {
   type Sorte,
   type Valeur,
 } from '@vtt/rules';
-import { texteCondition } from './condition-text';
+import { jetsVises, texteCondition } from './condition-text';
 
 export type FamilleEffet = 'objets' | 'capacites' | 'profil' | 'libres';
 
@@ -157,6 +157,10 @@ function cibleJet(fiche: Fiche, e: Extract<Effet, { sur: 'jet' }>): string {
     const noms = e.actions.map((id) => fiche.systeme.actions.get(id)?.nom ?? id);
     morceaux.push(`(${noms.join(', ')})`);
   }
+  if (!e.implique && e.si !== undefined) {
+    const vises = jetsVises(fiche, e.si);
+    if (vises) morceaux.push(`aux jets de ${vises.join(', ')}`);
+  }
   if (e.cote === 'cible') morceaux.push('en défense');
   return morceaux.join(' ');
 }
@@ -230,7 +234,13 @@ export function precisionEffet(fiche: Fiche, e: EffetListe): string | null {
   const condition = (f: string) => `si ${texteCondition(fiche, f) ?? f}`;
   if (e.effet.description && e.effet.sur !== 'jet') morceaux.push(e.effet.description);
   if (e.effet.condition !== undefined) morceaux.push(condition(e.effet.condition));
-  if (e.effet.sur === 'jet' && e.effet.si !== undefined) morceaux.push(condition(e.effet.si));
+  // Condition qui ne fait que choisir la caractéristique : déjà dans le libellé
+  if (
+    e.effet.sur === 'jet' &&
+    e.effet.si !== undefined &&
+    (e.effet.implique || !jetsVises(fiche, e.effet.si))
+  )
+    morceaux.push(condition(e.effet.si));
   if (e.effet.famille) morceaux.push('non cumulable');
   return morceaux.length ? [...new Set(morceaux)].join(' · ') : null;
 }

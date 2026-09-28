@@ -17,6 +17,7 @@ import {
   type Valeur,
 } from '@vtt/rules';
 import { texteEffet } from '@/lib/creation';
+import { jetsVises } from '../effects/condition-text';
 import { effetEstBonus, effetsDuPersonnage } from '../effects/model';
 import { maxRank, pathSortes } from '../tree/model';
 
@@ -174,13 +175,18 @@ export function rollEffectText(fiche: Fiche, e: Effet, rank: number): string | n
   else if ('retrograder' in a)
     base = `${n(a.nombre)} ${diceName(s, a.retrograder)} → ${diceName(s, a.vers)}`;
   else if ('retirer' in a) base = `−${n(a.nombre)} ${diceName(s, a.retirer)}`;
-  else if ('bonus' in a) base = `${/^[-−]/.test(a.bonus) ? '' : '+'}${n(a.bonus)} au jet`;
+  // Condition qui ne fait que choisir la caractéristique : « aux jets de DEX »
+  const vises = !e.implique && e.si !== undefined ? jetsVises(fiche, e.si) : null;
+  const jets = vises ? `aux jets de ${vises.join(', ')}` : 'au jet';
+  if (a && 'bonus' in a) base = `${/^[-−]/.test(a.bonus) ? '' : '+'}${n(a.bonus)} ${jets}`;
   if (!base) return null;
   const cible = e.implique?.entree
     ? s.entrees.get(e.implique.entree)?.nom
     : e.implique?.attribut
       ? fiche.entite.attributs.get(e.implique.attribut)?.nom
-      : undefined;
+      : vises && !(a && 'bonus' in a)
+        ? jets
+        : undefined;
   const cote = e.cote === 'cible' ? ' (en défense)' : '';
   return `${base}${cible ? ` · ${cible}` : ''}${cote}`;
 }
