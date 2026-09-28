@@ -155,13 +155,15 @@ export function ArrangementPopover({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-80 p-0"
+        collisionPadding={12}
+        // Jamais hors de l'écran : bornée à la hauteur disponible, le contenu défile
+        className="flex max-h-[min(36rem,var(--radix-popover-content-available-height))] w-80 flex-col p-0"
         aria-label={`Disposition du bloc ${title}`}
         // Rien ne remonte jusqu'à la grille (déplacement du bloc, raccourcis clavier)
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="space-y-4 p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 [scrollbar-width:thin]">
           <div>
             <p id={`${ids}-titre`} className="text-sm font-semibold">
               Disposition
@@ -336,7 +338,7 @@ export function ArrangementPopover({
           </section>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-2.5">
           <p className="text-[11px] text-subtle">
             {value ? 'Disposition personnalisée' : 'Présentation du système'}
           </p>
