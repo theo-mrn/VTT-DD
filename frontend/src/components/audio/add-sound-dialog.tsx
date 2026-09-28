@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { toast } from 'sonner';
-import { SearchField } from '@/components/resources/parts';
+import { Chips, SearchField } from '@/components/resources/parts';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -406,7 +406,27 @@ function CatalogSource({
   const catalog = useAudioCatalog(systemId);
   const preview = usePreview();
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
   const [busy, setBusy] = useState<string | null>(null);
+  const labels = useMemo(
+    () => new Map(catalog.categories.map((c) => [c.id, c.label])),
+    [catalog.categories],
+  );
+  // Catégories des sons fournis, celles du type de l'espace d'abord
+  const chips = useMemo(
+    () => [
+      { value: 'all', label: 'Tout', count: catalog.items.length },
+      ...[...catalog.categories]
+        .sort((a, b) => Number(b.kind === target) - Number(a.kind === target))
+        .map((c) => ({
+          value: c.id,
+          label: c.label,
+          count: catalog.items.filter((e) => e.category === c.id).length,
+        }))
+        .filter((c) => c.count > 0),
+    ],
+    [catalog.categories, catalog.items, target],
+  );
   const byCatalog = useMemo(
     () => new Map(library.assets.filter((a) => a.catalogId).map((a) => [a.catalogId!, a])),
     [library.assets],
@@ -415,13 +435,15 @@ function CatalogSource({
   const items = useMemo(() => {
     const q = plain(query.trim());
     return catalog.items
-      .filter((e) => !q || plain(e.name).includes(q))
+      .filter(
+        (e) => (category === 'all' || e.category === category) && (!q || plain(e.name).includes(q)),
+      )
       .sort(
         (a, b) =>
           Number(b.kind === target) - Number(a.kind === target) ||
           a.name.localeCompare(b.name, 'fr'),
       );
-  }, [catalog.items, query, target]);
+  }, [catalog.items, query, target, category]);
 
   async function ajouter(e: CatalogEntry) {
     setBusy(e.id);
@@ -445,6 +467,9 @@ function CatalogSource({
         label="Rechercher un son fourni"
         className="sm:w-full"
       />
+      {chips.length > 2 && (
+        <Chips label="Catégorie" value={category} onChange={setCategory} options={chips} />
+      )}
       {catalog.loading ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>
       ) : (
@@ -455,7 +480,9 @@ function CatalogSource({
               <ChoiceRow
                 key={e.id}
                 name={e.name}
-                meta={e.durationMs ? formatTime(e.durationMs) : undefined}
+                meta={[labels.get(e.category), e.durationMs ? formatTime(e.durationMs) : null]
+                  .filter(Boolean)
+                  .join(' · ')}
                 previewing={preview.playingId === e.id}
                 onPreview={() =>
                   preview.playingId === e.id
@@ -474,6 +501,19 @@ function CatalogSource({
   );
 }
 
+type Where = 'all' | 'music' | 'ambience' | 'sfx' | 'none';
+const WHERE: { value: Where; label: string; test: (a: Asset, board: Board) => boolean }[] = [
+  { value: 'all', label: 'Tous', test: () => true },
+  { value: 'music', label: 'Musique', test: (a) => a.sections.includes('music') },
+  { value: 'ambience', label: 'Ambiance', test: (a) => a.sections.includes('ambience') },
+  { value: 'sfx', label: 'Effets', test: (a, b) => b.has(a.id) },
+  {
+    value: 'none',
+    label: 'Rangés nulle part',
+    test: (a, b) => !a.sections.length && !b.has(a.id),
+  },
+];
+
 function MineSource({
   target,
   library,
@@ -487,17 +527,32 @@ function MineSource({
 }) {
   const preview = usePreview();
   const [query, setQuery] = useState('');
+  const [where, setWhere] = useState<Where>('all');
   const [busy, setBusy] = useState<string | null>(null);
+  const usable = useMemo(
+    () => library.assets.filter((a) => a.status !== 'rejected'),
+    [library.assets],
+  );
+  const chips = useMemo(
+    () =>
+      WHERE.map((w) => ({
+        value: w.value,
+        label: w.label,
+        count: usable.filter((a) => w.test(a, board)).length,
+      })).filter((c) => c.value === 'all' || c.count > 0),
+    [usable, board],
+  );
   const items = useMemo(() => {
     const q = plain(query.trim());
-    return library.assets
-      .filter((a) => a.status !== 'rejected' && (!q || plain(a.name).includes(q)))
+    const test = WHERE.find((w) => w.value === where)!.test;
+    return usable
+      .filter((a) => test(a, board) && (!q || plain(a.name).includes(q)))
       .sort(
         (a, b) =>
           Number(inTarget(a, target, board)) - Number(inTarget(b, target, board)) ||
           a.name.localeCompare(b.name, 'fr'),
       );
-  }, [library.assets, query, target, board]);
+  }, [usable, query, target, board, where]);
 
   async function ajouter(a: Asset) {
     setBusy(a.id);
@@ -533,9 +588,17 @@ function MineSource({
           className="sm:w-full"
         />
       )}
+      {chips.length > 2 && (
+        <Chips
+          label="Rangement"
+          value={where}
+          onChange={(v) => setWhere(v as Where)}
+          options={chips}
+        />
+      )}
       {items.length === 0 ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
-          Vous n’avez pas encore de sons.
+          {usable.length ? 'Aucun son ne correspond.' : 'Vous n’avez pas encore de sons.'}
         </p>
       ) : (
         <ul>
