@@ -170,3 +170,19 @@ Grille paginée, aperçu en grand (flèches du clavier), ouvrir l'original, copi
   (modèles sans React à part) ; `frontend/src/lib/bestiary.ts` (bestiaire de référence,
   modèles de PNJ).
 - `frontend/src/app/(app)/resources/page.tsx` ; `components/table/onglets/resources.tsx`.
+
+## Écarts assumés avec l'ancienne app
+
+- Le livre à tourner du bestiaire devient une grille de cartes et une fiche : même contenu
+  (image, type, statistiques, actions), lisible au clavier et sur mobile. Le « FP » valait le
+  niveau pour les 334 créatures : seul le niveau (attribut du système) est affiché.
+- Les onglets Races et Classes du bestiaire rejoignent l'onglet Capacités, qui les montrait
+  déjà sous une autre forme.
+- Le marché ne montre que des objets du catalogue (ceux que l'inventaire connaît) ; les tarifs
+  qui ne sont pas des objets sont un texte du système. Les prix en fourchette y restent en
+  texte, les prix des objets sont des nombres dans l'unité du champ.
+- Pas de bouton « Télécharger » : les images viennent d'un autre domaine (l'attribut
+  `download` n'y a pas d'effet) ; « Ouvrir l'original » et « Copier le lien » le remplacent.
+- Hors périmètre pour l'instant : copier une créature de référence dans les modèles de PNJ
+  de la campagne, créer ou modifier un modèle depuis le bestiaire (outil MJ de la carte), les
+  cartes animées (vidéos).
