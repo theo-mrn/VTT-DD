@@ -4,6 +4,7 @@ import {
   History,
   NotebookPen,
   ScrollText,
+  Settings2,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -130,6 +131,19 @@ export const panelRegistry = [
     mode: 'side',
     roles: ['gm'],
     component: lazy(() => import('../onglets/mj').then((m) => ({ default: m.OngletMj }))),
+  },
+  {
+    id: 'reglages',
+    label: 'Réglages',
+    description: 'Réglages de la campagne : règles optionnelles, lanceur, présentation',
+    icon: Settings2,
+    shortcut: { code: 'KeyO', label: 'O' },
+    width: 'medium',
+    mode: 'side',
+    roles: ['gm'],
+    component: lazy(() =>
+      import('../onglets/reglages').then((m) => ({ default: m.OngletReglages })),
+    ),
   },
 ] as const satisfies readonly PanelDefinition[];
 
