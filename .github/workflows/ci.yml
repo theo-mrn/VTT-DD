@@ -116,7 +116,7 @@ jobs:
       - run: >-
           pnpm install --frozen-lockfile --filter '@vtt/identity...' --filter '@vtt/character...'
           --filter '@vtt/campaign...' --filter '@vtt/dice...' --filter '@vtt/billing...'
-          --filter '@vtt/history...' --filter '@vtt/realtime...'
+          --filter '@vtt/history...' --filter '@vtt/realtime...' --filter '@vtt/audio...'
       # Relais d'outbox sur une table temporaire (rôle quelconque) et publication sur JetStream
       - name: Tests d'intégration platform (Postgres et NATS réels)
         env:
@@ -163,6 +163,15 @@ jobs:
         run: |
           pnpm turbo run build --filter '@vtt/history^...'
           pnpm --filter @vtt/history test
+      # ffmpeg du runner pour le worker ; SeaweedFS absent en CI : stockage en mémoire
+      - name: Tests d'intégration audio (Postgres, NATS et ffmpeg réels)
+        env:
+          TEST_DATABASE_URL: postgres://audio_svc:audio-dev@localhost:5432/vtt
+          NATS_URL: nats://localhost:4222
+        run: |
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          pnpm turbo run build --filter '@vtt/audio^...'
+          pnpm --filter @vtt/audio test
       # Pas de base : canal durable sur JetStream, plusieurs réplicas reliés par Valkey
       - name: Tests d'intégration realtime (NATS et Valkey réels)
         env:
@@ -307,6 +316,14 @@ jobs:
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=history',
             }
+          - { image: audio, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=audio' }
+          - {
+              image: audio-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=audio',
+            }
+          # Worker ffmpeg du service audio (même paquet, runtime Debian avec ffmpeg)
+          - { image: audio-worker, dockerfile: infra/docker/audio-worker.Dockerfile, args: '' }
           # Pas de base : ni migrations ni image de migration
           - {
               image: realtime,

@@ -78,6 +78,14 @@ jobs:
               dockerfile: infra/docker/migrations.Dockerfile,
               args: 'SERVICE=history',
             }
+          - { image: audio, dockerfile: infra/docker/service.Dockerfile, args: 'SERVICE=audio' }
+          - {
+              image: audio-migrations,
+              dockerfile: infra/docker/migrations.Dockerfile,
+              args: 'SERVICE=audio',
+            }
+          # Worker ffmpeg du service audio (même paquet, runtime Debian avec ffmpeg)
+          - { image: audio-worker, dockerfile: infra/docker/audio-worker.Dockerfile, args: '' }
           # Pas de base : ni migrations ni image de migration
           - {
               image: realtime,
@@ -100,6 +108,9 @@ jobs:
       digest-history: ${{ steps.out.outputs.digest-history }}
       digest-history-migrations: ${{ steps.out.outputs.digest-history-migrations }}
       digest-realtime: ${{ steps.out.outputs.digest-realtime }}
+      digest-audio: ${{ steps.out.outputs.digest-audio }}
+      digest-audio-migrations: ${{ steps.out.outputs.digest-audio-migrations }}
+      digest-audio-worker: ${{ steps.out.outputs.digest-audio-worker }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with: { egress-policy: audit }
@@ -197,11 +208,15 @@ jobs:
           DIGEST_HISTORY: ${{ needs.publish.outputs.digest-history }}
           DIGEST_HISTORY_MIGRATIONS: ${{ needs.publish.outputs.digest-history-migrations }}
           DIGEST_REALTIME: ${{ needs.publish.outputs.digest-realtime }}
+          DIGEST_AUDIO: ${{ needs.publish.outputs.digest-audio }}
+          DIGEST_AUDIO_MIGRATIONS: ${{ needs.publish.outputs.digest-audio-migrations }}
+          DIGEST_AUDIO_WORKER: ${{ needs.publish.outputs.digest-audio-worker }}
         run: |
           set -euo pipefail
           for pair in "gateway:$DIGEST_GATEWAY" "web:$DIGEST_WEB" "identity:$DIGEST_IDENTITY" \
             "character:$DIGEST_CHARACTER" "campaign:$DIGEST_CAMPAIGN" "dice:$DIGEST_DICE" \
-            "billing:$DIGEST_BILLING" "history:$DIGEST_HISTORY" "realtime:$DIGEST_REALTIME"; do
+            "billing:$DIGEST_BILLING" "history:$DIGEST_HISTORY" "realtime:$DIGEST_REALTIME" \
+            "audio:$DIGEST_AUDIO" "audio-worker:$DIGEST_AUDIO_WORKER"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"
@@ -209,7 +224,8 @@ jobs:
           # Images de migration : même commit que le service, lancées en PreSync
           for pair in "identity:$DIGEST_IDENTITY_MIGRATIONS" "character:$DIGEST_CHARACTER_MIGRATIONS" \
             "campaign:$DIGEST_CAMPAIGN_MIGRATIONS" "dice:$DIGEST_DICE_MIGRATIONS" \
-            "billing:$DIGEST_BILLING_MIGRATIONS" "history:$DIGEST_HISTORY_MIGRATIONS"; do
+            "billing:$DIGEST_BILLING_MIGRATIONS" "history:$DIGEST_HISTORY_MIGRATIONS" \
+            "audio:$DIGEST_AUDIO_MIGRATIONS"; do
             svc=${pair%%:*}; digest=${pair#*:}
             test -n "$digest"
             yq -i ".migrations.image.digest = \"$digest\"" "infra/gitops/$TARGET/$svc.yaml"

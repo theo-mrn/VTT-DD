@@ -23,6 +23,8 @@ env:
   UPSTREAM_REALTIME_URL: http://realtime.vtt-staging.svc
   # Journal d'historique : timeline d'une campagne, vérification de la chaîne de hash
   UPSTREAM_HISTORY_URL: http://history.vtt-staging.svc
+  # Son : bibliothèque, canaux, effets, horloge, mixeur
+  UPSTREAM_AUDIO_URL: http://audio.vtt-staging.svc
 # Mot de passe de valkey-staging (secret messaging-credentials), substitué dans REDIS_URL :
 # voir « Déploiement » dans docs/bus.md
 secretEnv:

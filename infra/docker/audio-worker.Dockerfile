@@ -1,15 +1,15 @@
 # syntax=docker/dockerfile:1.7
-# Image générique des services Node : docker build --build-arg SERVICE=gateway -f infra/docker/service.Dockerfile .
+# Worker audio (analyse ffmpeg, purge) : même paquet que le service audio, entrée dist/worker.js.
+#   docker build -f infra/docker/audio-worker.Dockerfile .
+# L'image distroless des services n'a pas ffmpeg : runtime Debian slim avec ffmpeg épinglé
+# (version majeure du dépôt Debian), utilisateur non root, racine en lecture seule côté k8s
+# (/tmp en emptyDir de 1 Gio, cf. infra/gitops/*/audio-worker.yaml).
 ARG NODE_VERSION=22
 
 FROM node:${NODE_VERSION}-trixie-slim AS build
-ARG SERVICE
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true
-# pnpm installé directement : le corepack livré avec Node 22 peut rejeter
-# les signatures des versions récentes de pnpm
 RUN npm install -g pnpm@10.28.0 --no-fund --no-audit
 WORKDIR /repo
-# Couche dépendances : ne se reconstruit que si les manifests changent
 # Tous les manifests du workspace : sans eux, --frozen-lockfile refuse le lockfile
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY frontend/package.json ./frontend/
@@ -29,24 +29,25 @@ COPY packages/rules/package.json ./packages/rules/
 COPY packages/systemes/package.json ./packages/systemes/
 COPY tools/firebase-export/package.json ./tools/firebase-export/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter "@vtt/${SERVICE}..." --ignore-scripts
+    pnpm install --frozen-lockfile --filter "@vtt/audio..." --ignore-scripts
 COPY packages ./packages
-COPY backend/${SERVICE} ./backend/${SERVICE}
-# Build du service et de ses dépendances internes, dans l'ordre topologique
-RUN pnpm --filter "@vtt/${SERVICE}..." run build
-# Bundle autonome : seulement les dépendances de prod du service
-RUN pnpm --filter "@vtt/${SERVICE}" deploy --prod --legacy /out
+COPY backend/audio ./backend/audio
+RUN pnpm --filter "@vtt/audio..." run build
+RUN pnpm --filter "@vtt/audio" deploy --prod --legacy /out
 
-FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
-ARG SERVICE
+FROM node:${NODE_VERSION}-trixie-slim AS runtime
 ARG VERSION=dev
 LABEL org.opencontainers.image.source="https://github.com/theo-mrn/VTT-DD" \
-      org.opencontainers.image.title="vtt-${SERVICE}" \
+      org.opencontainers.image.title="vtt-audio-worker" \
       org.opencontainers.image.version="${VERSION}"
-ENV NODE_ENV=production SERVICE_NAME=${SERVICE} SERVICE_VERSION=${VERSION} PORT=3000
+# ffmpeg 7.1 (Debian trixie) : ffprobe, ebur128, encodeur AAC natif
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends 'ffmpeg=7:7.1.*' \
+ && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production SERVICE_NAME=audio-worker SERVICE_VERSION=${VERSION} \
+    WORKER_PORT=3000 FFMPEG_PATH=/usr/bin/ffmpeg FFPROBE_PATH=/usr/bin/ffprobe WORKER_TMP_DIR=/tmp
 WORKDIR /app
-COPY --from=build --chown=nonroot:nonroot /out ./
-USER nonroot
+COPY --from=build --chown=node:node /out ./
+USER node
 EXPOSE 3000
-# distroless : pas de shell, l'entrypoint est déjà node
-CMD ["--enable-source-maps", "--import", "./dist/instrumentation.js", "dist/main.js"]
+CMD ["node", "--enable-source-maps", "--import", "./dist/instrumentation.js", "dist/worker.js"]

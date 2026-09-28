@@ -88,7 +88,7 @@ spec:
             {{- end }}
       volumes:
         - name: tmp
-          emptyDir: { sizeLimit: 64Mi }
+          emptyDir: { sizeLimit: {{ .Values.tmpSizeLimit | default "64Mi" }} }
         {{- range $i, $p := .Values.writablePaths }}
         - name: writable-{{ $i }}
           emptyDir: { sizeLimit: 512Mi }

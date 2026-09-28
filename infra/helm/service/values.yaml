@@ -74,6 +74,9 @@ cronJobs: {}
 # Image utilisée par les CronJob ci-dessus
 cronImage: 'curlimages/curl:8.11.1'
 
+# Taille de /tmp (emptyDir) : 64Mi par défaut ; le worker audio y traite ses fichiers
+tmpSizeLimit: 64Mi
+
 # Chemins inscriptibles en plus de /tmp (le système de fichiers racine est en lecture seule)
 writablePaths: []
 #  - /app/frontend/.next/cache

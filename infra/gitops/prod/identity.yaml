@@ -37,6 +37,8 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
+    # audio : JWKS
+    - podSelector: { matchLabels: { app.kubernetes.io/name: audio } }
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
     # character et campaign vérifient les jetons avec le JWKS d'identity
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }

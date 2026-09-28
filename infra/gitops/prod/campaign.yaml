@@ -44,6 +44,8 @@ ingress:
 networkPolicy:
   enabled: true
   allowFrom:
+    # audio demande le rôle de l'appelant (/internal, secret partagé)
+    - podSelector: { matchLabels: { app.kubernetes.io/name: audio } }
     - podSelector: { matchLabels: { app.kubernetes.io/name: gateway } }
     # character demande les droits des campagnes (/internal, secret partagé)
     - podSelector: { matchLabels: { app.kubernetes.io/name: character } }
