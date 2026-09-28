@@ -15,6 +15,7 @@ import { CampaignConfig } from '../config.js';
 import { createDb } from '../db/client.js';
 import { campaigns, outbox } from '../db/schema.js';
 import type { SignatureRequest } from '../storage/images.js';
+import type { Catalog } from '../systems/catalog.js';
 import { fakeCharacter } from './fake-character.js';
 
 export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -24,7 +25,11 @@ export const SECRET = 'secret-interne-de-test-0123456789abcdef';
 const ISSUER = 'https://auth.test.local';
 const AUDIENCE = 'vtt-api';
 
-export async function testApp(overrides: Record<string, string> = {}) {
+export async function testApp(
+  overrides: Record<string, string> = {},
+  /** Catalogue de systèmes à la place des systèmes de référence (règles optionnelles…). */
+  extra: { catalog?: Catalog } = {},
+) {
   const { privateKey, publicKey } = await generateKeyPair('EdDSA', { crv: 'Ed25519' });
   const connection = TEST_DATABASE_URL ? createDb(TEST_DATABASE_URL) : undefined;
   const character = await fakeCharacter(SECRET);
@@ -59,6 +64,7 @@ export async function testApp(overrides: Record<string, string> = {}) {
       now: () => new Date(Date.now() + offsetMs),
       profiles,
       signer,
+      ...(extra.catalog ? { catalog: extra.catalog } : {}),
       ...(connection ? { db: connection.db } : {}),
     },
   );

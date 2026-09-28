@@ -73,13 +73,14 @@ Précisions :
 
 Décidés par le MJ pour toute la table, versionnés à part de la campagne (modifier un réglage n'entre pas en conflit avec une modification du titre).
 
-| Méthode | Route                        | Corps                                      | Réponse                                                                                                                                                                          |
-| ------- | ---------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/campaigns/:id/settings` | —                                          | `{ version, dice: { hiddenAttributes }, updatedAt }` (membres) ; `version` 0 et défauts tant que le MJ n'a rien réglé                                                            |
-| PATCH   | `/v1/campaigns/:id/settings` | `{ version, dice?: { hiddenAttributes } }` | les réglages (MJ) ; `version` : celle lue, sinon 409 `version_conflict` ; 400 `not_rollable` pour une clé qui ne sert pas aux jets dans le système ; `campaign.settings_updated` |
+| Méthode | Route                        | Corps                                                           | Réponse                                                                                                                                                                                                                                 |
+| ------- | ---------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/settings` | —                                                               | `{ version, dice: { hiddenAttributes }, rules: { options }, updatedAt }` (membres) ; `version` 0 et défauts tant que le MJ n'a rien réglé                                                                                               |
+| PATCH   | `/v1/campaigns/:id/settings` | `{ version, dice?: { hiddenAttributes }, rules?: { options } }` | les réglages (MJ) ; `version` : celle lue, sinon 409 `version_conflict` ; 400 `not_rollable` pour une clé qui ne sert pas aux jets dans le système, `unknown_option` pour une option qu'il ne déclare pas ; `campaign.settings_updated` |
 
 - `dice.hiddenAttributes` : attributs retirés du lanceur de dés (200 au plus, doublons ignorés). Seuls les attributs dont les règles déclarent `jet` sont proposés (docs/regles.md, « Attributs jetables ») : le MJ ne peut qu'en retirer, jamais en ajouter. Après un changement de système, une clé qui ne sert plus aux jets est ignorée à la lecture.
-- Stockage : table `campaign_settings` (document `jsonb` validé par Zod, clés inconnues ignorées).
+- `rules.options` : règles optionnelles du système (`options` de `systeme.yaml`, voir [regles-optionnelles.md](regles-optionnelles.md)), allumées ou éteintes pour la campagne : `{ encombrement: true }`. Seuls les écarts au `defaut` du système sont gardés (une option remise à son défaut disparaît). Le PATCH règle les options envoyées, les autres gardent leur valeur. Après un changement de système, une option qu'il ne déclare pas est ignorée à la lecture.
+- Stockage : table `campaign_settings` (document `jsonb` validé par Zod, clés inconnues ignorées). Pas de migration : les deux réglages vivent dans le même document.
 
 ## Invitations et adhésion
 
@@ -158,6 +159,7 @@ Protégées par `INTERNAL_API_SECRET` (en-tête `x-internal-secret`, vérifié a
 
 - `GET /internal/characters/:characterId/campaigns-of?userId=` → `{ read, write, campaigns: [{ campaignId, role }] }` : utilisée par character pour savoir si un utilisateur est membre (lecture) ou MJ (écriture) d'une campagne où le personnage est engagé. Character garde la réponse quelques secondes en cache ; une panne de campaign n'ouvre aucun droit.
 - `GET /internal/campaigns/:campaignId/rights?userId=&characterId=` → `{ member, role, character?: { engaged, side, read, write } }` : les droits d'un utilisateur dans une campagne donnée, et sur un personnage engagé (lecture : membre ; écriture : MJ ou propriétaire).
+- `GET /internal/characters/:characterId/rules` → `{ campaignId, options }` : règles optionnelles réglées dans la campagne du personnage (écarts au défaut, comme `rules.options`), pour le calcul de sa fiche par character. Engagé dans plusieurs campagnes, la première où il l'a été fait foi ; engagé nulle part : `{ campaignId: null, options: {} }`.
 
 ## Combat
 
@@ -186,7 +188,7 @@ Le mode vaut `individual` par défaut ; le MJ passe `mode: 'slots'` pour Star Wa
 - `campaign.member_unbanned` (visible du MJ seulement)
 - `campaign.character_added`, `campaign.character_removed` (`reason: 'member_left'` au départ d'un membre), `campaign.character_played` (`previousCharacterId`, `takenFrom` : membre à qui le personnage a été repris, ou `null`)
 - `campaign.session_scheduled`, `campaign.session_cancelled`
-- `campaign.settings_updated` (`version`, `dice`, et diff avant/après `changes`)
+- `campaign.settings_updated` (`version`, `dice`, `rules`, et diff avant/après `changes`)
 - `campaign.message_posted`, `campaign.message_deleted`
 - `combat.started`, `combat.turn_changed` (`reason` : `initiative`, `next`, `new_round`, `participants_removed`), `combat.ended`
 

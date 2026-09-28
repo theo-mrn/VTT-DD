@@ -1,9 +1,9 @@
 /**
  * Systèmes de jeu connus de campaign : les systèmes de référence de
  * @vtt/systemes. campaign n'en lit que l'identité (id, version, nom), la
- * déclaration d'initiative (action à lancer, clés de tri) et les attributs
- * jetables (réglages du lanceur) : les règles elles-mêmes sont exécutées par
- * character.
+ * déclaration d'initiative (action à lancer, clés de tri), les attributs
+ * jetables (réglages du lanceur) et les règles optionnelles (réglages de table) :
+ * les règles elles-mêmes sont exécutées par character.
  */
 import { readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -21,6 +21,14 @@ export interface CampaignSystem {
    * les seuls que le MJ peut retirer du lanceur de dés.
    */
   rollAttributes?: string[];
+  /** Règles optionnelles déclarées par le système (que le MJ allume ou éteint). */
+  options?: SystemOption[];
+}
+
+/** Règle optionnelle d'un système : identifiant et valeur quand la campagne ne la règle pas. */
+export interface SystemOption {
+  id: string;
+  default: boolean;
 }
 
 export interface Catalog {
@@ -53,6 +61,7 @@ export function referenceCatalog(ids: string[] = referenceIds()): Catalog {
           version: string;
           nom: string;
           initiative?: { action: string; tri: string[] };
+          options?: { id: string; defaut?: boolean }[];
           entites?: { attributs?: { cle: string; jet?: unknown }[] }[];
         };
         const rollAttributes = new Set(
@@ -65,6 +74,7 @@ export function referenceCatalog(ids: string[] = referenceIds()): Catalog {
           version: doc.version,
           name: doc.nom,
           rollAttributes: [...rollAttributes],
+          options: (doc.options ?? []).map((o) => ({ id: o.id, default: o.defaut === true })),
           ...(doc.initiative
             ? { initiative: { action: doc.initiative.action, sortKeys: [...doc.initiative.tri] } }
             : {}),

@@ -17,6 +17,7 @@ import {
 interface Settings {
   version: number;
   dice: { hiddenAttributes: string[] };
+  rules: { options: Record<string, boolean> };
   updatedAt: string | null;
 }
 
@@ -55,6 +56,7 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : réglages de table', () => {
     expect(await h.ok<Settings>(alice, 'GET', url)).toEqual({
       version: 0,
       dice: { hiddenAttributes: [] },
+      rules: { options: {} },
       updatedAt: null,
     });
 
