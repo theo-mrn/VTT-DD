@@ -3,16 +3,16 @@
 /**
  * Panneau « Son » de la table (touche S), dans l'ordre où on s'en sert :
  *   1. ce qui joue pour la table (musique, ambiance) ;
- *   2. MJ : les effets, un clic pour toute la table ;
- *   3. MJ : la bibliothèque rangée par type, avec « Ajouter un son ».
+ *   2. MJ : sa table d'effets, personnalisable (n'importe quel son, un clic pour la table) ;
+ *   3. MJ : la bibliothèque, où chaque son se joue en musique, en ambiance ou sur la table
+ *      d'effets, quel que soit son type ou sa provenance.
  * Chacun règle son propre volume (« Mon volume ») sans toucher à la table. Les joueurs ne
  * voient pas la bibliothèque : ses titres peuvent divulguer l'intrigue.
  */
-import type { AssetKind } from '@vtt/contracts';
 import { AlertTriangle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Notice } from '@/components/resources/parts';
-import { useAudioLibrary, useChannel, useSoundCues } from '@/lib/audio';
+import { useAudioLibrary, useChannel, useSoundboard, useSoundCues } from '@/lib/audio';
 import { AddSoundDialog } from './add-sound-dialog';
 import { Deck } from './deck';
 import { LiveNow } from './live-now';
@@ -26,16 +26,9 @@ function GmSound({ campaignId, systemId }: { campaignId: string; systemId: strin
   const music = useChannel(campaignId, 'music');
   const ambience = useChannel(campaignId, 'ambience');
   const cues = useSoundCues(campaignId);
-  const [view, setView] = useState<LibraryView>('music');
-  const [adding, setAdding] = useState<AssetKind | null>(null);
-  const effects = useMemo(
-    () =>
-      library.assets
-        .filter((a) => a.kind === 'sfx' && a.status === 'ready')
-        .sort((a, b) => a.name.localeCompare(b.name, 'fr')),
-    [library.assets],
-  );
-  const kindOfView: AssetKind = view === 'ambience' || view === 'sfx' ? view : 'music';
+  const board = useSoundboard(campaignId);
+  const [view, setView] = useState<LibraryView>('sounds');
+  const [adding, setAdding] = useState(false);
 
   if (library.error)
     return (
@@ -48,25 +41,19 @@ function GmSound({ campaignId, systemId }: { campaignId: string; systemId: strin
     );
   return (
     <>
-      <Soundboard effects={effects} cues={cues} onAdd={() => setAdding('sfx')} />
+      <Soundboard board={board} library={library.assets} cues={cues} />
       <SoundLibrary
         campaignId={campaignId}
         systemId={systemId}
         library={library}
         music={music}
         ambience={ambience}
-        cues={cues}
+        board={board}
         view={view}
         onView={setView}
-        onAdd={() => setAdding(kindOfView)}
+        onAdd={() => setAdding(true)}
       />
-      <AddSoundDialog
-        key={adding ?? 'ferme'}
-        library={library}
-        open={adding !== null}
-        onOpenChange={(o) => !o && setAdding(null)}
-        defaultKind={adding ?? 'music'}
-      />
+      <AddSoundDialog library={library} open={adding} onOpenChange={setAdding} />
     </>
   );
 }

@@ -20,6 +20,7 @@ import type {
   MixerPreferences,
   PlaybackAsset,
   Playlist,
+  Soundboard,
 } from '@vtt/contracts';
 import { positionAt, type Point } from '@vtt/contracts/audio-sync';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -37,6 +38,7 @@ import { MixerStore } from './mixer';
 export const audioKeys = {
   assets: (campaignId: string) => ['audio', campaignId, 'assets'] as const,
   playlists: (campaignId: string) => ['audio', campaignId, 'playlists'] as const,
+  soundboard: (campaignId: string) => ['audio', campaignId, 'soundboard'] as const,
   resolve: (campaignId: string, ids: string) => ['audio', campaignId, 'resolve', ids] as const,
   catalog: (library: string | null, kind?: AssetKind) =>
     ['audio', 'catalog', library ?? 'default', kind ?? 'all'] as const,
@@ -163,6 +165,8 @@ export function useCampaignAudio(
         void client.invalidateQueries({ queryKey: ['audio', campaignId, 'resolve'] });
       } else if (type.startsWith('audio.playlist_')) {
         void client.invalidateQueries({ queryKey: audioKeys.playlists(campaignId) });
+      } else if (type === 'audio.soundboard_updated') {
+        void client.invalidateQueries({ queryKey: audioKeys.soundboard(campaignId) });
       }
     },
     { enabled: !!campaignId },
@@ -348,6 +352,56 @@ function putWithProgress(
     xhr.send(file);
   });
 }
+
+/**
+ * Table d'effets du MJ : les sons qu'il a choisis (toute source, tout type), dans son ordre.
+ * Chaque changement s'affiche tout de suite, puis s'enregistre ; en cas d'échec (ou de
+ * modification ailleurs), la version du serveur revient.
+ */
+export function useSoundboard(campaignId: string) {
+  const client = useQueryClient();
+  const key = audioKeys.soundboard(campaignId);
+  const query = useQuery({
+    queryKey: key,
+    queryFn: () => audioApi.soundboard(campaignId),
+    staleTime: 30_000,
+  });
+  const assetIds = query.data?.assetIds ?? EMPTY_IDS;
+  const save = useCallback(
+    async (next: string[]) => {
+      const before = client.getQueryData<Soundboard>(key);
+      client.setQueryData<Soundboard>(key, { assetIds: next, version: before?.version ?? 0 });
+      try {
+        client.setQueryData(key, await audioApi.setSoundboard(campaignId, { assetIds: next }));
+      } catch (e) {
+        void client.invalidateQueries({ queryKey: key });
+        throw e;
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [client, campaignId],
+  );
+  return useMemo(
+    () => ({
+      assetIds,
+      loading: query.isPending,
+      has: (id: string) => assetIds.includes(id),
+      add: (id: string) => (assetIds.includes(id) ? Promise.resolve() : save([...assetIds, id])),
+      remove: (id: string) => save(assetIds.filter((a) => a !== id)),
+      move: (id: string, delta: -1 | 1) => {
+        const i = assetIds.indexOf(id);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= assetIds.length) return Promise.resolve();
+        const next = [...assetIds];
+        [next[i], next[j]] = [next[j]!, next[i]!];
+        return save(next);
+      },
+    }),
+    [assetIds, query.isPending, save],
+  );
+}
+
+const EMPTY_IDS: string[] = [];
 
 export function useAudioLibrary(campaignId: string, options: { enabled?: boolean } = {}) {
   const client = useQueryClient();

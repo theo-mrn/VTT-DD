@@ -21,6 +21,7 @@ export {
   useMixer,
   usePreview,
   useLiveSounds,
+  useSoundboard,
   useSoundCues,
   useSpatialAudio,
   type SpatialSource,

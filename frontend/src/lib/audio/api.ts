@@ -14,6 +14,7 @@ import type {
   MixerPreferences,
   PlaybackAsset,
   Playlist,
+  Soundboard,
   UploadTicket,
 } from '@vtt/contracts';
 import { api } from '../api';
@@ -71,6 +72,9 @@ export const audioApi = {
   deleteAsset: (campaignId: string, assetId: string) =>
     api<void>(`${base(campaignId)}/assets/${assetId}`, { method: 'DELETE' }),
   playlists: (campaignId: string) => api<{ items: Playlist[] }>(`${base(campaignId)}/playlists`),
+  soundboard: (campaignId: string) => api<Soundboard>(`${base(campaignId)}/soundboard`),
+  setSoundboard: (campaignId: string, body: { assetIds: string[]; version?: number }) =>
+    api<Soundboard>(`${base(campaignId)}/soundboard`, json(body, 'PUT')),
   createPlaylist: (campaignId: string, body: { name: string; assetIds?: string[] }) =>
     api<Playlist>(`${base(campaignId)}/playlists`, json(body)),
   updatePlaylist: (

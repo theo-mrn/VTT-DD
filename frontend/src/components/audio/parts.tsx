@@ -19,11 +19,11 @@ export const KIND_ICONS: Record<AssetKind, LucideIcon> = {
   sfx: AudioLines,
 };
 
-/** Ce que fait chaque type, en une phrase (ajout d'un son). */
+/** Ce que désigne chaque type, en une phrase (ajout d'un son) : un simple repère. */
 export const KIND_HINTS: Record<AssetKind, string> = {
-  music: 'Joue en fond pour toute la table, un morceau à la fois, avec les playlists.',
-  ambience: 'Tourne en boucle par-dessus la musique : pluie, taverne, forêt…',
-  sfx: 'Son court, déclenché d’un clic pour toute la table : épée, porte, explosion…',
+  music: 'Un morceau. Repère seulement : tout son se joue partout (musique, ambiance, effets).',
+  ambience: 'Un fond sonore (pluie, taverne…). Repère seulement : tout son se joue partout.',
+  sfx: 'Un bruitage court (épée, porte…). Repère seulement : tout son se joue partout.',
 };
 
 export const KIND_OPTIONS = (['music', 'ambience', 'sfx'] as const).map((k) => ({

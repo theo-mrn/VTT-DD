@@ -1,26 +1,27 @@
 'use client';
 
 /**
- * Bibliothèque du MJ, rangée par type (musiques, ambiances, effets), plus les playlists et
- * les sons fournis. Une ligne = un son, une action principale claire selon son type
- * (« Jouer » la musique, « Lancer » l'ambiance, « Déclencher » l'effet), l'écoute pour soi
- * seul, et le reste dans « … » (jouer ailleurs, playlist, changer de type, supprimer).
- * Les canaux et les effets sont lus une fois ici, pas par ligne.
+ * Bibliothèque du MJ : une seule liste de tous ses sons, d'où qu'ils viennent (fichier,
+ * YouTube, sons fournis). Chaque son sert partout : « Musique » ou « Ambiance » le joue sur ce
+ * canal pour la table, l'étoile le place sur la table d'effets, le casque l'écoute pour soi
+ * seul. Le reste (playlist, renommer, supprimer) est dans « … ». Les playlists et les sons
+ * fournis ont leur onglet.
  */
-import type { Asset, AssetKind, Playlist } from '@vtt/contracts';
+import type { Asset, Playlist } from '@vtt/contracts';
 import {
   AlertTriangle,
-  AudioLines,
   Headphones,
   ListMusic,
   ListPlus,
   Loader2,
+  Library,
   MoreHorizontal,
   Music,
   Package,
-  Play,
+  Pencil,
   Plus,
   Square,
+  Star,
   Trash2,
   Wind,
 } from 'lucide-react';
@@ -36,26 +37,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
-import { usePreview, type useAudioLibrary, type useChannel, type useSoundCues } from '@/lib/audio';
+import { usePreview, type useAudioLibrary, type useChannel, type useSoundboard } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import { CatalogTab } from './catalog-tab';
-import { formatTime, KIND_ICONS, KIND_LABELS, Segmented, SectionTitle } from './parts';
+import { formatTime, KIND_ICONS, Segmented, SectionTitle } from './parts';
 import { PlaylistsTab } from './playlists-tab';
 
 type Library = ReturnType<typeof useAudioLibrary>;
 type Channel = ReturnType<typeof useChannel>;
-type Cues = ReturnType<typeof useSoundCues>;
-export type LibraryView = AssetKind | 'playlists' | 'catalog';
+type Board = ReturnType<typeof useSoundboard>;
+export type LibraryView = 'sounds' | 'playlists' | 'catalog';
 
 const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
-const PRIMARY: Record<AssetKind, { label: string; icon: typeof Play }> = {
-  music: { label: 'Jouer', icon: Play },
-  ambience: { label: 'Lancer', icon: Wind },
-  sfx: { label: 'Déclencher', icon: AudioLines },
-};
 
 export function SoundLibrary({
   campaignId,
@@ -63,7 +59,7 @@ export function SoundLibrary({
   library,
   music,
   ambience,
-  cues,
+  board,
   view,
   onView,
   onAdd,
@@ -73,7 +69,7 @@ export function SoundLibrary({
   library: Library;
   music: Channel;
   ambience: Channel;
-  cues: Cues;
+  board: Board;
   view: LibraryView;
   onView: (v: LibraryView) => void;
   onAdd: () => void;
@@ -81,30 +77,16 @@ export function SoundLibrary({
   const [query, setQuery] = useState('');
   const preview = usePreview();
 
-  const counts = useMemo(() => {
-    const c: Record<AssetKind, number> = { music: 0, ambience: 0, sfx: 0 };
-    for (const a of library.assets) c[a.kind] += 1;
-    return c;
-  }, [library.assets]);
-
-  const assetView = view === 'music' || view === 'ambience' || view === 'sfx';
   const list = useMemo(() => {
-    if (!assetView) return [];
     const q = plain(query.trim());
     return library.assets
-      .filter((a) => a.kind === view && (!q || plain(a.name).includes(q)))
+      .filter((a) => !q || plain(a.name).includes(q))
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [library.assets, query, view, assetView]);
+  }, [library.assets, query]);
 
-  const run = (label: string, p: Promise<unknown>) =>
-    void p.catch((e) => toast.error(label, { description: messageErreur(e) }));
-  const jouer = (a: Asset, sur: AssetKind = a.kind) =>
-    sur === 'sfx'
-      ? run('Effet impossible', cues.play(a))
-      : run('Lecture impossible', (sur === 'ambience' ? ambience : music).play({ assetId: a.id }));
-  const enCours = (a: Asset) =>
-    (a.kind === 'music' && music.state?.track?.id === a.id) ||
-    (a.kind === 'ambience' && ambience.state?.track?.id === a.id);
+  const fail = (label: string) => (e: unknown) =>
+    toast.error(label, { description: messageErreur(e) });
+  const run = (label: string, p: Promise<unknown>) => void p.catch(fail(label));
 
   return (
     <section aria-label="Bibliothèque" className="space-y-3">
@@ -120,18 +102,18 @@ export function SoundLibrary({
       </SectionTitle>
 
       <Segmented
-        label="Rayon de la bibliothèque"
+        label="Bibliothèque"
         value={view}
-        onChange={(v) => {
-          onView(v as LibraryView);
-          setQuery('');
-        }}
+        onChange={(v) => onView(v as LibraryView)}
         options={[
-          { value: 'music', label: 'Musiques', icon: Music, count: counts.music },
-          { value: 'ambience', label: 'Ambiances', icon: Wind, count: counts.ambience },
-          { value: 'sfx', label: 'Effets', icon: AudioLines, count: counts.sfx },
-          { value: 'playlists', label: 'Playlists', icon: ListMusic },
-          { value: 'catalog', label: 'Fournis', icon: Package },
+          { value: 'sounds', label: 'Mes sons', icon: Library, count: library.assets.length },
+          {
+            value: 'playlists',
+            label: 'Playlists',
+            icon: ListMusic,
+            count: library.playlists.length,
+          },
+          { value: 'catalog', label: 'Sons fournis', icon: Package },
         ]}
       />
 
@@ -139,20 +121,20 @@ export function SoundLibrary({
       {view === 'catalog' && (
         <>
           <p className="text-xs text-muted-foreground">
-            Sons prêts à l’emploi : écoutez-les, puis ajoutez ceux qui vous plaisent à la
-            bibliothèque.
+            Des sons prêts à l’emploi : écoutez-les, ajoutez ceux qui vous plaisent à vos sons, puis
+            jouez-les où vous voulez.
           </p>
           <CatalogTab library={library} systemId={systemId} />
         </>
       )}
 
-      {assetView && (
+      {view === 'sounds' && (
         <>
-          {counts[view] > 8 && (
+          {library.assets.length > 6 && (
             <SearchField
               value={query}
               onChange={setQuery}
-              placeholder={`Rechercher parmi les ${KIND_LABELS[view].toLowerCase()}s`}
+              placeholder="Rechercher un son"
               label="Rechercher un son"
               className="sm:w-full"
             />
@@ -162,11 +144,11 @@ export function SoundLibrary({
           ) : list.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center">
               <p className="text-[13px] text-muted-foreground">
-                {counts[view]
+                {library.assets.length
                   ? 'Aucun son ne correspond à la recherche.'
-                  : `Pas encore de ${KIND_LABELS[view].toLowerCase()} dans la bibliothèque.`}
+                  : 'Vous n’avez pas encore de sons.'}
               </p>
-              {!counts[view] && (
+              {!library.assets.length && (
                 <div className="mt-3 flex justify-center gap-2">
                   <Button size="sm" onClick={onAdd}>
                     <Plus />
@@ -186,9 +168,22 @@ export function SoundLibrary({
                   key={a.id}
                   asset={a}
                   playlists={library.playlists}
-                  playing={enCours(a)}
+                  onMusic={music.state?.track?.id === a.id}
+                  onAmbience={ambience.state?.track?.id === a.id}
+                  onBoard={board.has(a.id)}
                   previewing={preview.playingId === a.id}
-                  onPlay={(sur) => jouer(a, sur)}
+                  onPlay={(channel) =>
+                    run(
+                      'Lecture impossible',
+                      (channel === 'music' ? music : ambience).play({ assetId: a.id }),
+                    )
+                  }
+                  onToggleBoard={() =>
+                    run(
+                      'Table d’effets non modifiée',
+                      board.has(a.id) ? board.remove(a.id) : board.add(a.id),
+                    )
+                  }
                   onPreview={() => (preview.playingId === a.id ? preview.stop() : preview.play(a))}
                   onAddToPlaylist={(p) =>
                     run(
@@ -196,9 +191,7 @@ export function SoundLibrary({
                       library.updatePlaylist(p.id, { assetIds: [...p.assetIds, a.id] }),
                     )
                   }
-                  onChangeKind={(k) =>
-                    run('Modification impossible', library.update(a.id, { kind: k }))
-                  }
+                  onRename={(name) => run('Renommage impossible', library.update(a.id, { name }))}
                   onRemove={() => run('Suppression impossible', library.remove(a.id))}
                 />
               ))}
@@ -213,50 +206,72 @@ export function SoundLibrary({
 function AssetRow({
   asset,
   playlists,
-  playing,
+  onMusic,
+  onAmbience,
+  onBoard,
   previewing,
   onPlay,
+  onToggleBoard,
   onPreview,
   onAddToPlaylist,
-  onChangeKind,
+  onRename,
   onRemove,
 }: {
   asset: Asset;
   playlists: Playlist[];
-  playing: boolean;
+  onMusic: boolean;
+  onAmbience: boolean;
+  onBoard: boolean;
   previewing: boolean;
-  onPlay: (sur?: AssetKind) => void;
+  onPlay: (channel: 'music' | 'ambience') => void;
+  onToggleBoard: () => void;
   onPreview: () => void;
   onAddToPlaylist: (p: Playlist) => void;
-  onChangeKind: (k: AssetKind) => void;
+  onRename: (name: string) => void;
   onRemove: () => void;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const ready = asset.status === 'ready';
-  const primary = PRIMARY[asset.kind];
-  const PrimaryIcon = primary.icon;
-  const autres = (['music', 'ambience', 'sfx'] as const).filter((k) => k !== asset.kind);
+  const Icon = KIND_ICONS[asset.kind];
+
+  const valider = () => {
+    const name = renaming?.trim();
+    if (name && name !== asset.name) onRename(name);
+    setRenaming(null);
+  };
 
   return (
     <li
       className={cn(
-        'flex items-center gap-2 rounded-lg px-1.5 py-2',
-        playing && 'bg-primary/[0.06]',
+        'flex items-center gap-1.5 rounded-lg px-1.5 py-2',
+        (onMusic || onAmbience) && 'bg-primary/[0.06]',
       )}
     >
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p
-          className="flex items-center gap-1.5 truncate text-[13px] font-medium"
-          title={asset.name}
-        >
-          {playing && (
-            <span className="shrink-0 text-[11px] font-semibold text-primary-strong">
-              En cours ·
-            </span>
-          )}
-          <span className="truncate">{asset.name}</span>
-        </p>
+        {renaming !== null ? (
+          <Input
+            autoFocus
+            value={renaming}
+            maxLength={200}
+            aria-label="Nouveau nom"
+            onChange={(e) => setRenaming(e.target.value)}
+            onBlur={valider}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') valider();
+              if (e.key === 'Escape') setRenaming(null);
+            }}
+            className="h-7 text-[13px]"
+          />
+        ) : (
+          <p className="truncate text-[13px] font-medium" title={asset.name}>
+            {asset.name}
+          </p>
+        )}
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          {onMusic && <span className="font-semibold text-primary-strong">En musique</span>}
+          {onAmbience && <span className="font-semibold text-primary-strong">En ambiance</span>}
           {asset.durationMs ? (
             <span className="tabular-nums">{formatTime(asset.durationMs)}</span>
           ) : null}
@@ -292,16 +307,46 @@ function AssetRow({
           {previewing ? <Square /> : <Headphones />}
         </Button>
       </Info>
-      <Button
-        size="xs"
-        variant={playing ? 'secondary' : 'default'}
-        disabled={!ready}
-        onClick={() => onPlay()}
-        aria-label={`${primary.label} ${asset.name} pour la table`}
-      >
-        <PrimaryIcon />
-        {primary.label}
-      </Button>
+      <Info texte="Jouer en musique pour toute la table">
+        <Button
+          size="xs"
+          variant={onMusic ? 'default' : 'secondary'}
+          disabled={!ready}
+          aria-label={`Jouer ${asset.name} en musique pour la table`}
+          onClick={() => onPlay('music')}
+        >
+          <Music />
+          <span className="hidden sm:inline">Musique</span>
+        </Button>
+      </Info>
+      <Info texte="Jouer en ambiance (en boucle) pour toute la table">
+        <Button
+          size="xs"
+          variant={onAmbience ? 'default' : 'secondary'}
+          disabled={!ready}
+          aria-label={`Jouer ${asset.name} en ambiance pour la table`}
+          onClick={() => onPlay('ambience')}
+        >
+          <Wind />
+          <span className="hidden sm:inline">Ambiance</span>
+        </Button>
+      </Info>
+      <Info texte={onBoard ? 'Retirer de la table d’effets' : 'Placer sur la table d’effets'}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={
+            onBoard
+              ? `Retirer ${asset.name} de la table d’effets`
+              : `Placer ${asset.name} sur la table d’effets`
+          }
+          aria-pressed={onBoard}
+          onClick={onToggleBoard}
+          className={cn(onBoard && 'text-primary-strong')}
+        >
+          <Star className={cn(onBoard && 'fill-current')} />
+        </Button>
+      </Info>
 
       <DropdownMenu onOpenChange={(o) => !o && setConfirm(false)}>
         <DropdownMenuTrigger asChild>
@@ -310,27 +355,8 @@ function AssetRow({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
-          {ready && (
-            <>
-              <DropdownMenuLabel>Jouer pour la table</DropdownMenuLabel>
-              {autres.map((k) => {
-                const Icon = KIND_ICONS[k];
-                return (
-                  <DropdownMenuItem key={k} onSelect={() => onPlay(k)}>
-                    <Icon />
-                    {k === 'music'
-                      ? 'En musique'
-                      : k === 'ambience'
-                        ? 'En ambiance'
-                        : 'Comme effet'}
-                  </DropdownMenuItem>
-                );
-              })}
-            </>
-          )}
           {playlists.length > 0 && (
             <>
-              <DropdownMenuSeparator />
               <DropdownMenuLabel>Ajouter à une playlist</DropdownMenuLabel>
               {playlists.map((p) => (
                 <DropdownMenuItem
@@ -342,20 +368,13 @@ function AssetRow({
                   {p.name}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Ranger comme</DropdownMenuLabel>
-          {autres.map((k) => {
-            const Icon = KIND_ICONS[k];
-            return (
-              <DropdownMenuItem key={`kind-${k}`} onSelect={() => onChangeKind(k)}>
-                <Icon />
-                {KIND_LABELS[k]}
-              </DropdownMenuItem>
-            );
-          })}
-          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setRenaming(asset.name)}>
+            <Pencil />
+            Renommer
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onSelect={(e) => {

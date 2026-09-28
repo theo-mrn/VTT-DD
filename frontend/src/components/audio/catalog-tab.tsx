@@ -105,7 +105,7 @@ export function CatalogTab({ library, systemId }: { library: Library; systemId: 
                   onClick={() => void add(e)}
                 >
                   {inLibrary ? <Check /> : <Plus />}
-                  {inLibrary ? 'Ajouté' : 'Ajouter'}
+                  {inLibrary ? 'Dans mes sons' : 'Ajouter à mes sons'}
                 </Button>
               </li>
             );
