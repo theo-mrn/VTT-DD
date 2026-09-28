@@ -125,3 +125,51 @@ describe('rôle dans une campagne décidé par campaign', () => {
     expect(signaler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('règles optionnelles de la campagne d’un personnage', () => {
+  it('interroge la route des règles puis garde la réponse en cache', async () => {
+    let maintenant = 1_000;
+    const fetch = vi.fn(async (_url: URL | RequestInfo, _init?: RequestInit) =>
+      reponse({ campaignId: 'camp-1', options: { encombrement: true } }),
+    );
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 5_000,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      maintenant: () => maintenant,
+    });
+
+    expect(await droits.options('perso-1')).toEqual({ encombrement: true });
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(String(url)).toBe('http://campaign.local/internal/characters/perso-1/rules');
+    expect((init!.headers as Record<string, string>)['x-internal-secret']).toBe(SECRET);
+    await droits.options('perso-1');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    maintenant += 5_001;
+    await droits.options('perso-1');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('hors campagne : aucune ; panne : défauts du système, jamais mis en cache', async () => {
+    const signaler = vi.fn();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(reponse({ campaignId: null, options: {} }))
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValueOnce(reponse({ title: 'Erreur' }, 500))
+      .mockResolvedValueOnce(reponse({ campaignId: 'c', options: { encombrement: true } }));
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 5_000,
+      fetch,
+      signaler,
+    });
+    expect(await droits.options('seul')).toEqual({});
+    expect(await droits.options('p')).toEqual({});
+    expect(await droits.options('p')).toEqual({});
+    expect(await droits.options('p')).toEqual({ encombrement: true });
+    expect(signaler).toHaveBeenCalledTimes(2);
+  });
+});

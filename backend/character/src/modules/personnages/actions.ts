@@ -44,7 +44,7 @@ export interface ActionJouee {
 }
 
 export async function jouerAction(
-  deps: Pick<Deps, 'db' | 'catalogue' | 'aleatoire' | 'des'>,
+  deps: Pick<Deps, 'db' | 'catalogue' | 'aleatoire' | 'des' | 'droits'>,
   ctx: EventContext,
   appelant: Appelant,
   demande: DemandeAction,
@@ -53,6 +53,13 @@ export async function jouerAction(
   const { id, action, parametres, cibleId, appliquer } = demande;
   const memeEntite = cibleId === id;
   const ids = cibleId && !memeEntite ? [id, cibleId] : [id];
+
+  // Règles optionnelles de la campagne de chacun (réponses de campaign en cache)
+  const [optionsActeur, optionsCible] = await Promise.all([
+    deps.droits.options(id),
+    cibleId && !memeEntite ? deps.droits.options(cibleId) : undefined,
+  ]);
+  const optionsDe = (ligneId: string) => (ligneId === id ? optionsActeur : optionsCible);
 
   let jet: Parameters<typeof jetPourDes> | undefined;
   const joue = await db.transaction(async (tx): Promise<ActionJouee> => {
@@ -64,7 +71,7 @@ export async function jouerAction(
     const acteur = lignes[0]!;
     const cible = cibleId ? (memeEntite ? acteur : lignes[1]!) : undefined;
 
-    const systeme = systemeDe(catalogue, acteur);
+    const systeme = systemeDe(catalogue, acteur, optionsActeur);
     if (cible && cible.systemId !== acteur.systemId)
       throw HttpError.badRequest(
         'La cible appartient à un autre système de jeu',
@@ -74,7 +81,7 @@ export async function jouerAction(
     const ficheCible = cible
       ? memeEntite
         ? ficheActeur
-        : verifierEtat(systeme, cible.etat).fiche
+        : verifierEtat(systemeDe(catalogue, cible, optionsDe(cible.id)), cible.etat).fiche
       : undefined;
 
     const r = resoudreAction(systeme, {
@@ -97,6 +104,7 @@ export async function jouerAction(
           acteur,
           { etat: r.acteur },
           { operation: 'action', ...details },
+          optionsActeur,
         )
       : acteur;
     const cibleFinale =
@@ -109,6 +117,7 @@ export async function jouerAction(
             cible,
             { etat: r.cible },
             { operation: 'action.cible', ...details },
+            optionsDe(cible.id),
           )
         : cible;
 
@@ -137,8 +146,14 @@ export async function jouerAction(
     if (!appliquer) return base;
     return {
       ...base,
-      personnage: versApi(catalogue, acteurFinal),
-      ...(cibleFinale ? { cible: versApi(catalogue, memeEntite ? acteurFinal : cibleFinale) } : {}),
+      personnage: versApi(catalogue, acteurFinal, { options: optionsActeur }),
+      ...(cibleFinale
+        ? {
+            cible: versApi(catalogue, memeEntite ? acteurFinal : cibleFinale, {
+              options: optionsDe(cibleFinale.id),
+            }),
+          }
+        : {}),
     };
   });
 

@@ -4,8 +4,9 @@
  * « PV 12/14 »). Tout est lu dans le système et sa présentation : aucune clé
  * de jeu ici. Même règle que l'aperçu du front pendant la création.
  *
- * Le calcul demande la fiche : il est gardé en mémoire par personnage et par
- * version (une écriture incrémente la version, le résumé en cache reste juste).
+ * Le calcul demande la fiche : il est gardé en mémoire par personnage, par
+ * version et par réglage des règles optionnelles (une écriture incrémente la
+ * version, le résumé en cache reste juste).
  */
 import { Presentation, type Fiche, type ValeurCalculee } from '@vtt/rules';
 import { z } from 'zod';
@@ -78,7 +79,7 @@ export function presentationOf(catalogue: Catalogue, systemId: string): Presenta
   return presentations.get(documents) ?? null;
 }
 
-/** Résumés gardés en mémoire, par `id:version` (les plus anciens sortent d'abord). */
+/** Résumés gardés en mémoire, par `id:version:options` (les plus anciens sortent d'abord). */
 const CACHE_MAX = 5_000;
 const cache = new Map<string, CharacterSummary>();
 
@@ -90,8 +91,14 @@ export function summaryOf(
   catalogue: Catalogue,
   character: { id: string; version: number; systemId: string },
   fiche: () => Fiche,
+  /** Règles optionnelles du calcul : un autre réglage donne un autre résumé. */
+  options: Readonly<Record<string, boolean>> = {},
 ): CharacterSummary {
-  const key = `${character.id}:${character.version}`;
+  const reglages = Object.entries(options)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join(',');
+  const key = `${character.id}:${character.version}:${reglages}`;
   const known = cache.get(key);
   if (known) return known;
   const summary = summarize(fiche(), presentationOf(catalogue, character.systemId));

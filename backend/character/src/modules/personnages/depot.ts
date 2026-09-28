@@ -10,7 +10,14 @@
  */
 import { changesPayload, uuidv7, type ActorRole, type DiffOptions } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { EtatEntite, ficheJson, type FicheJson, type SystemeCharge } from '@vtt/rules';
+import {
+  avecOptions,
+  EtatEntite,
+  ficheJson,
+  type FicheJson,
+  type ReglagesOptions,
+  type SystemeCharge,
+} from '@vtt/rules';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import type { DroitsCampagnes } from '../../droits/campaign.js';
@@ -121,36 +128,47 @@ export async function autoriser(
   return role;
 }
 
-/** Système d'un personnage enregistré (introuvable : données incohérentes, erreur 500). */
-export function systemeDe(catalogue: Catalogue, ligne: Pick<Ligne, 'systemId'>): SystemeCharge {
+/**
+ * Système d'un personnage enregistré (introuvable : données incohérentes, erreur 500),
+ * réglé avec les règles optionnelles de sa campagne (`options`, voir `droits.options`) :
+ * tout calcul qui en part (fiche, achats, création, actions) les respecte.
+ */
+export function systemeDe(
+  catalogue: Catalogue,
+  ligne: Pick<Ligne, 'systemId'>,
+  options?: ReglagesOptions,
+): SystemeCharge {
   const s = catalogue.charge(ligne.systemId);
   if (!s) throw new Error(`Système ${ligne.systemId} absent du catalogue`);
-  return s;
+  return avecOptions(s, options);
 }
 
 /** Résumé d'un personnage enregistré (fiche recalculée seulement hors cache). */
 export function resumeDe(
   catalogue: Catalogue,
   ligne: Pick<Ligne, 'id' | 'version' | 'systemId' | 'etat'>,
+  options?: ReglagesOptions,
 ): CharacterSummary {
   return summaryOf(
     catalogue,
     ligne,
-    () => verifierEtat(systemeDe(catalogue, ligne), ligne.etat).fiche,
+    () => verifierEtat(systemeDe(catalogue, ligne, options), ligne.etat).fiche,
+    options,
   );
 }
 
 /**
  * Forme renvoyée par l'API : état enregistré, fiche recalculée, présentation et résumé.
  * `publique` : vue d'un joueur qui ne peut pas écrire sur le personnage, sans les
- * exemplaires cachés (la fiche est recalculée sans eux).
+ * exemplaires cachés (la fiche est recalculée sans eux). `options` : règles optionnelles
+ * de sa campagne (défauts du système sans elles).
  */
 export function versApi(
   catalogue: Catalogue,
   ligne: Ligne,
-  o: { publique?: boolean } = {},
+  o: { publique?: boolean; options?: ReglagesOptions } = {},
 ): Personnage {
-  const systeme = systemeDe(catalogue, ligne);
+  const systeme = systemeDe(catalogue, ligne, o.options);
   const complet = verifierEtat(systeme, ligne.etat);
   const { etat, fiche } = o.publique ? verifierEtat(systeme, vuePublique(complet.etat)) : complet;
   return {
@@ -161,7 +179,7 @@ export function versApi(
     etat,
     fiche: ficheJson(fiche),
     details: detailsApi(ligne.details),
-    summary: summaryOf(catalogue, ligne, () => complet.fiche),
+    summary: summaryOf(catalogue, ligne, () => complet.fiche, o.options),
     sheetLayout: ligne.sheetLayout ?? null,
     version: ligne.version,
     createdAt: ligne.createdAt.toISOString(),
@@ -326,9 +344,11 @@ export async function enregistrer(
   ligne: Ligne,
   changement: Changement,
   evenement: { operation: string; details?: Record<string, unknown> },
+  /** Règles optionnelles de la campagne du personnage (validation de l'état). */
+  options?: ReglagesOptions,
 ): Promise<Ligne> {
   const etat = changement.etat
-    ? verifierEtat(systemeDe(catalogue, ligne), changement.etat).etat
+    ? verifierEtat(systemeDe(catalogue, ligne, options), changement.etat).etat
     : undefined;
   if (etat) verifierInventaire(etat);
   const [suivante] = await tx
@@ -373,7 +393,8 @@ export async function enregistrer(
 
 /**
  * Lit le personnage, vérifie la version envoyée, calcule le changement et
- * l'enregistre, le tout dans une transaction.
+ * l'enregistre, le tout dans une transaction. `options` : règles optionnelles de sa
+ * campagne, portées par le système passé au calcul.
  */
 export async function modifier(
   db: Db,
@@ -390,15 +411,25 @@ export async function modifier(
     operation: string;
     details?: Record<string, unknown>;
   },
+  options?: ReglagesOptions,
 ): Promise<Ligne> {
   return db.transaction(async (tx) => {
     const [ligne] = await verrouiller(tx, [id]);
     verifierVersion(ligne!, version);
-    const { changement, operation, details } = calcul(ligne!, systemeDe(catalogue, ligne!));
-    return enregistrer(tx, ctx, catalogue, appelant, ligne!, changement, {
-      operation,
-      ...(details ? { details } : {}),
-    });
+    const { changement, operation, details } = calcul(
+      ligne!,
+      systemeDe(catalogue, ligne!, options),
+    );
+    return enregistrer(
+      tx,
+      ctx,
+      catalogue,
+      appelant,
+      ligne!,
+      changement,
+      { operation, ...(details ? { details } : {}) },
+      options,
+    );
   });
 }
 
@@ -406,7 +437,8 @@ export async function modifier(
  * Écriture sur deux personnages dans une transaction (don d'un objet) : les deux lignes
  * sont verrouillées (ordre des identifiants), la version du premier est vérifiée, chacune
  * est enregistrée avec son événement `character.updated`. Le second est annoncé dans
- * `roomId` (campagne commune), à son propriétaire et aux MJ.
+ * `roomId` (campagne commune), à son propriétaire et aux MJ. `options` : règles
+ * optionnelles de la campagne de chacun.
  */
 export async function modifierPaire(
   db: Db,
@@ -424,6 +456,7 @@ export async function modifierPaire(
     a: { etat: EtatEntite; operation: string; details?: Record<string, unknown> };
     b: { etat: EtatEntite; operation: string; details?: Record<string, unknown> };
   },
+  options: [ReglagesOptions, ReglagesOptions] = [{}, {}],
 ): Promise<Ligne> {
   return db.transaction(async (tx) => {
     const [a, b] = await verrouiller(tx, ids);
@@ -433,7 +466,7 @@ export async function modifierPaire(
         'Les deux personnages ont des systèmes différents',
         'systeme_different',
       );
-    const r = calcul(a!, b!, systemeDe(catalogue, a!));
+    const r = calcul(a!, b!, systemeDe(catalogue, a!, options[0]));
     const suivante = await enregistrer(
       tx,
       ctx,
@@ -445,6 +478,7 @@ export async function modifierPaire(
         operation: r.a.operation,
         ...(r.a.details ? { details: r.a.details } : {}),
       },
+      options[0],
     );
     await enregistrer(
       tx,
@@ -457,6 +491,7 @@ export async function modifierPaire(
         operation: r.b.operation,
         ...(r.b.details ? { details: r.b.details } : {}),
       },
+      options[1],
     );
     return suivante;
   });

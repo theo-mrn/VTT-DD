@@ -11,6 +11,11 @@
  * Rôle d'un utilisateur dans une campagne (modèles de PNJ et d'objets, réservés
  * au MJ) : GET /internal/campaigns/:id/rights?userId=, même cache. Une panne de
  * campaign fait échouer la requête (503) au lieu de passer pour un refus.
+ *
+ * Règles optionnelles de la campagne d'un personnage (encombrement…), pour
+ * calculer sa fiche : GET /internal/characters/:id/rules, même durée de cache
+ * (character ne lit pas le bus : un réglage du MJ compte au plus tard à
+ * l'expiration). Une panne de campaign donne les défauts du système, sans cache.
  */
 import { HttpError } from '@vtt/platform';
 import { z } from 'zod';
@@ -42,6 +47,11 @@ export interface DroitsCampagnes {
    * si elle n'existe pas). Lève une erreur 503 si campaign ne répond pas.
    */
   role(campaignId: string, userId: string): Promise<RoleCampagne | null>;
+  /**
+   * Règles optionnelles réglées dans la campagne du personnage (écarts au défaut du
+   * système) ; `{}` hors campagne, ou si campaign ne répond pas.
+   */
+  options(characterId: string): Promise<Record<string, boolean>>;
 }
 
 export const AUCUN_DROIT: Droits = Object.freeze({ lecture: false, ecriture: false });
@@ -61,6 +71,7 @@ export const sansCampagnes: DroitsCampagnes = {
   role: async () => {
     throw campaignIndisponible();
   },
+  options: async () => ({}),
 };
 
 /** Réponse de campaign (contrat en anglais : read, write, campaigns). */
@@ -73,6 +84,11 @@ const Reponse = z.object({
 const ReponseRole = z.object({
   member: z.boolean(),
   role: z.enum(['gm', 'player', 'spectator']).nullable(),
+});
+/** Réponse de GET /internal/characters/:id/rules. */
+const ReponseRegles = z.object({
+  campaignId: z.string().nullable(),
+  options: z.record(z.string(), z.boolean()),
 });
 
 /** Borne du cache : au-delà, les entrées les plus anciennes sont évincées. */
@@ -95,8 +111,36 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
   const maintenant = o.maintenant ?? Date.now;
   const cache = new Map<string, { droits: Droits; jusqua: number }>();
   const roles = new Map<string, { role: RoleCampagne | null; jusqua: number }>();
+  const reglages = new Map<string, { options: Record<string, boolean>; jusqua: number }>();
 
   return {
+    async options(characterId) {
+      const entree = reglages.get(characterId);
+      if (entree && entree.jusqua > maintenant()) return entree.options;
+      reglages.delete(characterId);
+
+      let options: Record<string, boolean>;
+      try {
+        const url = new URL(`/internal/characters/${encodeURIComponent(characterId)}/rules`, o.url);
+        const res = await appel(url, {
+          headers: { [EN_TETE_SECRET_INTERNE]: o.secret, accept: 'application/json' },
+          signal: AbortSignal.timeout(DELAI_MS),
+        });
+        if (!res.ok) throw new Error(`campaign a répondu ${res.status}`);
+        options = ReponseRegles.parse(await res.json()).options;
+      } catch (erreur) {
+        // Défauts du système, sans mise en cache : la prochaine requête réessaie
+        o.signaler?.(erreur);
+        return {};
+      }
+
+      if (o.cacheMs > 0) {
+        if (reglages.size >= TAILLE_MAX_CACHE) reglages.delete(reglages.keys().next().value!);
+        reglages.set(characterId, { options, jusqua: maintenant() + o.cacheMs });
+      }
+      return options;
+    },
+
     async role(campaignId, userId) {
       const cle = `${campaignId}:${userId}`;
       const entree = roles.get(cle);

@@ -83,7 +83,10 @@ function droitsDesCampagnes(
     secret: config.INTERNAL_API_SECRET,
     cacheMs: config.DROITS_CACHE_MS,
     signaler: (erreur) =>
-      log.warn({ erreur: (erreur as Error).message }, 'campaign injoignable : droits refusés'),
+      log.warn(
+        { erreur: (erreur as Error).message },
+        'campaign injoignable : droits refusés, règles optionnelles par défaut',
+      ),
   });
 }
 

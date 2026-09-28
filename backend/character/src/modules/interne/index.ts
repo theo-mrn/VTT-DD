@@ -122,7 +122,7 @@ export const register: Module = async (app, deps) => {
         type: l.type,
         kind: l.kind,
         creation: l.etat.creation,
-        summary: resumeDe(catalogue, l),
+        summary: resumeDe(catalogue, l, await deps.droits.options(l.id)),
       };
     },
   );
@@ -157,7 +157,8 @@ export const register: Module = async (app, deps) => {
       // Lancer avec un personnage, c'est agir avec lui : mêmes droits qu'une action
       await autoriser(db, deps.droits, req.query.userId, [{ id: req.params.id, mode: 'ecriture' }]);
       const l = await lire(db, req.params.id);
-      const { fiche } = versApi(catalogue, l);
+      // Valeurs de la fiche avec les règles optionnelles de sa campagne (Contact en surcharge…)
+      const { fiche } = versApi(catalogue, l, { options: await deps.droits.options(l.id) });
       const valeurs: Record<string, { valeur: Valeur; modificateur?: number }> = {};
       for (const [cle, v] of Object.entries(fiche.valeurs)) {
         valeurs[cle] = {
@@ -232,6 +233,7 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const ctx = contexte(req);
+      const options = await deps.droits.options(req.params.id);
       return db.transaction(async (tx) => {
         const [ligne] = await verrouiller(tx, [req.params.id]);
         const { etat, retirees } = decompterDurees(ligne!.etat);
@@ -244,12 +246,13 @@ export const register: Module = async (app, deps) => {
           ligne!,
           { etat },
           { operation: 'durees.decompte', details: { retirees } },
+          options,
         );
         return {
           modifie: true,
           retirees,
           version: suivante.version,
-          personnage: versApi(catalogue, suivante),
+          personnage: versApi(catalogue, suivante, { options }),
         };
       });
     },

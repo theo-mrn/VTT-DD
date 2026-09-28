@@ -56,11 +56,13 @@ export function aleatoirePilote() {
  * userId, droits)` ouvre la lecture ou l'écriture d'un personnage à un
  * utilisateur qui ne le possède pas ; `nommer(campaignId, userId, role)` fait
  * d'un utilisateur un membre d'une campagne. `panne(true)` simule campaign
- * injoignable pour les rôles (503).
+ * injoignable pour les rôles (503). `regler(characterId, options)` règle les
+ * options de la campagne d'un personnage.
  */
 export function droitsSimules() {
   const table = new Map<string, Droits>();
   const roles = new Map<string, RoleCampagne>();
+  const options = new Map<string, Record<string, boolean>>();
   let enPanne = false;
   const droits: DroitsCampagnes = {
     de: async (characterId, userId) =>
@@ -69,6 +71,7 @@ export function droitsSimules() {
       if (enPanne) throw campaignIndisponible();
       return roles.get(`${campaignId}:${userId}`) ?? null;
     },
+    options: async (characterId) => options.get(characterId) ?? {},
   };
   const accorder = (characterId: string, userId: string, d: Droits) =>
     table.set(`${characterId}:${userId}`, d);
@@ -77,7 +80,8 @@ export function droitsSimules() {
   const panne = (oui: boolean) => {
     enPanne = oui;
   };
-  return { droits, accorder, nommer, panne };
+  const regler = (characterId: string, o: Record<string, boolean>) => options.set(characterId, o);
+  return { droits, accorder, nommer, panne, regler };
 }
 
 export async function appDeTest(

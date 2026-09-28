@@ -106,7 +106,13 @@ export const register: Module = async (app, deps) => {
   // Jeton vérifié juste avant la validation du corps (un anonyme reçoit toujours
   // 401) et après les limites de débit (onRequest), qui comptent aussi les anonymes
   const auth = { preValidation: app.authenticate };
-  const api = (ligne: Ligne) => versApi(catalogue, ligne);
+  /**
+   * Règles optionnelles de la campagne du personnage (réponse de campaign en cache) :
+   * chaque calcul d'autorité (fiche, achats, création, actions) les respecte.
+   */
+  const optionsDe = (id: string) => deps.droits.options(id);
+  const api = async (ligne: Ligne, o: { publique?: boolean } = {}) =>
+    versApi(catalogue, ligne, { ...o, options: await optionsDe(ligne.id) });
   const date = () => deps.maintenant().toISOString();
 
   /** Personnage lisible par l'appelant (propriétaire, membre de sa salle). */
@@ -138,6 +144,7 @@ export const register: Module = async (app, deps) => {
       id,
       version,
       calcul,
+      await optionsDe(id),
     );
   };
 
@@ -210,7 +217,7 @@ export const register: Module = async (app, deps) => {
               layout: d.ecriture,
             }));
       // Un joueur qui ne peut pas écrire ne voit pas les objets cachés (propriétaire, MJ : si)
-      return { ...versApi(catalogue, ligne, { publique: !permissions.write }), permissions };
+      return { ...(await api(ligne, { publique: !permissions.write })), permissions };
     },
   );
 
@@ -242,7 +249,7 @@ export const register: Module = async (app, deps) => {
         req.body.version,
         req.body.layout,
       );
-      return { ...api(ligne), permissions: TOUS_DROITS };
+      return { ...(await api(ligne)), permissions: TOUS_DROITS };
     },
   );
 
@@ -323,6 +330,7 @@ export const register: Module = async (app, deps) => {
           operation: 'valeurs',
           details: { valeurs },
         }),
+        await optionsDe(id),
       );
       return api(ligne);
     },
@@ -351,7 +359,7 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const ligne = await lecture(req, req.params.id);
-      const systeme = systemeDe(catalogue, ligne);
+      const systeme = systemeDe(catalogue, ligne, await optionsDe(ligne.id));
       return etapesCreation(systeme, verifierEtat(systeme, ligne.etat).etat);
     },
   );
@@ -419,7 +427,7 @@ export const register: Module = async (app, deps) => {
           details: r.details,
         };
       });
-      return { ...api(ligne), ...(tirage ? { tirage } : {}) };
+      return { ...(await api(ligne)), ...(tirage ? { tirage } : {}) };
     },
   );
 
@@ -430,7 +438,7 @@ export const register: Module = async (app, deps) => {
     { ...auth, schema: { params: Params, response: { 200: z.array(z.unknown()) } } },
     async (req) => {
       const ligne = await lecture(req, req.params.id);
-      const systeme = systemeDe(catalogue, ligne);
+      const systeme = systemeDe(catalogue, ligne, await optionsDe(ligne.id));
       const etat = verifierEtat(systeme, ligne.etat).etat;
       // Lecteur sans droit d'écriture : sans les objets cachés
       const ecrit =
@@ -617,6 +625,7 @@ export const register: Module = async (app, deps) => {
             b: { etat: r.receveur, operation: 'possession.recue', details },
           };
         },
+        [await optionsDe(id), await optionsDe(to)],
       );
       return api(ligne);
     },
