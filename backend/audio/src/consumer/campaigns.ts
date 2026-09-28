@@ -10,7 +10,7 @@ import { consumeEvents, type Bus } from '@vtt/platform';
 import { uuidv7, type EventEnvelope } from '@vtt/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { assets, channels, cues, inbox, jobs, playlists } from '../db/schema.js';
+import { assets, channels, cues, inbox, jobs, playlists, soundboards } from '../db/schema.js';
 
 export const CONSUMER = 'audio-campaigns';
 
@@ -48,6 +48,7 @@ export async function handleCampaignDeleted(
       );
     await tx.delete(cues).where(eq(cues.campaignId, campaignId));
     await tx.delete(playlists).where(eq(playlists.campaignId, campaignId));
+    await tx.delete(soundboards).where(eq(soundboards.campaignId, campaignId));
     await tx
       .update(channels)
       .set({ status: 'stopped', endsAt: null, positionMs: 0, deletedAt: now, updatedAt: now })

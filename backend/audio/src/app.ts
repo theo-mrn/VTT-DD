@@ -12,6 +12,7 @@ import { register as clock } from './modules/clock/index.js';
 import { register as cues } from './modules/cues/index.js';
 import { register as mixer } from './modules/mixer/index.js';
 import { register as playlists } from './modules/playlists/index.js';
+import { register as soundboard } from './modules/soundboard/index.js';
 import { createS3Storage, type AudioStorage } from './storage/s3.js';
 
 /** URL publique du catalogue publié dans le bucket (sons Star Wars). */
@@ -85,7 +86,7 @@ export async function buildAudio(
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
-  for (const module of [clock, catalog, assets, playlists, channels, cues, mixer]) {
+  for (const module of [clock, catalog, assets, playlists, soundboard, channels, cues, mixer]) {
     await module(app, deps);
   }
 

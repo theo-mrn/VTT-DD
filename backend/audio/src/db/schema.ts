@@ -146,6 +146,15 @@ export const mixerPreferences = audioSchema.table('mixer_preferences', {
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
 });
 
+/** Table d'effets du MJ (une par campagne) : sons choisis, dans l'ordre. */
+export const soundboards = audioSchema.table('soundboards', {
+  campaignId: uuid('campaign_id').primaryKey(),
+  assetIds: uuid('asset_ids').array().notNull().default([]),
+  version: integer('version').notNull().default(1),
+  updatedBy: uuid('updated_by'),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
 export const jobs = audioSchema.table('jobs', {
   id: uuid('id').primaryKey(),
   assetId: uuid('asset_id').references(() => assets.id, { onDelete: 'cascade' }),

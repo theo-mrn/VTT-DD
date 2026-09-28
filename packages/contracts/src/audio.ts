@@ -104,6 +104,16 @@ export const Playlist = z.object({
 });
 export type Playlist = z.infer<typeof Playlist>;
 
+/** Table d'effets du MJ : sons de la bibliothèque qu'il a choisis (toute source), dans l'ordre. */
+export const Soundboard = z.object({
+  assetIds: z.array(z.uuid()),
+  version: z.number().int(),
+});
+export type Soundboard = z.infer<typeof Soundboard>;
+
+/** Taille maximale d'une table d'effets. */
+export const SOUNDBOARD_MAX = 60;
+
 export const CatalogCategory = z.object({ id: z.string(), label: z.string(), kind: AssetKind });
 export type CatalogCategory = z.infer<typeof CatalogCategory>;
 export const CatalogEntry = z.object({
