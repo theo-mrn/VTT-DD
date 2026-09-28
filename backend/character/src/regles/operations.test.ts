@@ -310,6 +310,32 @@ describe('possessions et repos', () => {
     expect(erreur(() => poser(e, { entree: 'wookiee' })).status).toBe(422);
   });
 
+  it('effets propres d’un talent obtenu par un nœud : possession au rang 0, coupes reportées', () => {
+    const plus = (valeur: string) => ({
+      sur: 'attribut' as const,
+      attribut: 'agilite',
+      operation: 'ajouter' as const,
+      valeur,
+    });
+    const base: EtatEntite = { ...bothan(), noeuds: { 'arbre-assassin': ['l1c1'] } };
+    let e = poser(base, { entree: 'cran', actif: true, effets: [plus('1'), plus('2')] });
+    expect(e.possessions.filter((p) => p.entree === 'cran')).toMatchObject([
+      { rang: 0, effets: [plus('1'), plus('2')] },
+    ]);
+    const f = verifierEtat(starWars, e).fiche;
+    // Le rang vient toujours du nœud ; la possession ne porte que les bonus
+    expect(f.possessions.get('cran')?.rang).toBe(1);
+    expect(f.valeurs.get('agilite')?.detail.map((l) => l.source)).toContain('cran#exemplaire');
+    // Retrait du premier bonus : le second, coupé, le reste à sa nouvelle position
+    e = poser(
+      { ...e, effetsDesactives: ['cran#exemplaire/1'] },
+      { entree: 'cran', effets: [plus('2')] },
+    );
+    expect(e.effetsDesactives).toEqual(['cran#exemplaire/0']);
+    e = poser(e, { entree: 'cran', effets: [] });
+    expect(e.effetsDesactives).toEqual([]);
+  });
+
   it('exemplaires : un second pistolet avec ses effets, chacun visé par son identifiant', () => {
     const bonusAgilite = [
       {

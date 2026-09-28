@@ -10,6 +10,7 @@ import {
   erreursEffetsDesactives,
   listerEffets,
   nettoyerEffetsDesactives,
+  reporterEffetsDesactives,
 } from './calcul/index.js';
 import { charger, type SystemeCharge } from './chargement/index.js';
 import { aleatoireImpose } from './formules/index.js';
@@ -234,6 +235,32 @@ describe('bascule et nettoyage', () => {
     expect(erreursEffetsDesactives(e)).toEqual([
       'Effet coupé en double : a/0',
       'bonus:x/0 : un bonus libre s’active ou se désactive en entier (actif)',
+    ]);
+  });
+
+  it('reporte les effets coupés quand les effets propres changent', () => {
+    const a = { ...plusUn, valeur: '1' };
+    const b = { ...plusUn, valeur: '2' };
+    const c = { ...plusUn, valeur: '3' };
+    const src = 'talent#exemplaire';
+    const coupes = ['armure-cuir/0', `${src}/1`, `${src}/2`];
+    // Retrait du premier : les deux coupés remontent d'un cran
+    expect(reporterEffetsDesactives(coupes, src, [a, b, c], [b, c])).toEqual([
+      'armure-cuir/0',
+      `${src}/0`,
+      `${src}/1`,
+    ]);
+    // Retrait d'un effet coupé : sa clé est oubliée, l'autre garde la sienne
+    expect(reporterEffetsDesactives(coupes, src, [a, b, c], [a, c])).toEqual([
+      'armure-cuir/0',
+      `${src}/1`,
+    ]);
+    // Ajout en fin : rien ne bouge ; clés d'une autre source intactes
+    expect(reporterEffetsDesactives(coupes, src, [a, b, c], [a, b, c, a])).toEqual(coupes);
+    // Doublons : chaque clé retrouve un effet distinct
+    expect(reporterEffetsDesactives([`${src}/0`, `${src}/1`], src, [a, a, b], [a, a])).toEqual([
+      `${src}/0`,
+      `${src}/1`,
     ]);
   });
 });

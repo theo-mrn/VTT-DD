@@ -24,6 +24,7 @@ import {
   nouvelExemplaire,
   nouvellePossession,
   quantiteDe,
+  reporterEffetsDesactives,
   soldes,
   sourceExemplaire,
   type Champ,
@@ -1251,9 +1252,27 @@ export function sansBonus(item: InventoryItem, index: number): Effet[] {
 
 // ─── Autres écritures de l'inventaire ────────────────────────────────────────
 
-/** Effets propres de l'exemplaire (remplacent les précédents). */
+/**
+ * Effets propres de l'exemplaire (remplacent les précédents) ; les effets coupés suivent
+ * leur effet, comme le fait le service.
+ */
 export function poserEffets(etat: EtatEntite, item: InventoryItem, effets: Effet[]): Ecriture {
-  return { demande: { ...viser(item), effets }, apercu: modifier(etat, item, { effets }) };
+  const apercu = modifier(etat, item, { effets });
+  const avant = item.possession;
+  return {
+    demande: { ...viser(item), effets },
+    apercu: avant
+      ? {
+          ...apercu,
+          effetsDesactives: reporterEffetsDesactives(
+            etat.effetsDesactives,
+            sourceExemplaire(avant),
+            avant.effets,
+            effets,
+          ),
+        }
+      : apercu,
+  };
 }
 
 /** Range l'exemplaire dans un dossier (null : à la racine). */

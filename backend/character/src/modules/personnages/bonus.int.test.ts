@@ -14,7 +14,7 @@ interface Personnage {
   version: number;
   etat: {
     bonus: { id: string; nom: string }[];
-    possessions: { entree: string; actif: boolean; effets: unknown[] }[];
+    possessions: { entree: string; actif: boolean; rang?: number; effets: unknown[] }[];
     effetsDesactives: string[];
   };
   fiche: {
@@ -99,6 +99,65 @@ describe.skipIf(!TEST_DATABASE_URL)('bonus par HTTP', () => {
     const q = res.json() as Personnage;
     expect(q.fiche.valeurs.Defense!.detail.map((l) => l.source)).toContain('cuir#exemplaire');
     expect(Number(q.fiche.valeurs.Defense!.valeur)).toBeGreaterThan(defense);
+  });
+
+  it('pose des bonus propres sur une capacité obtenue sans possession (rang gratuit)', async () => {
+    const p = await creer();
+    const race = (
+      await envoyer('POST', `/v1/characters/${p.id}/possessions`, {
+        version: p.version,
+        entree: 'elfe',
+      })
+    ).json() as Personnage;
+    const capacite = 'elfe-lumiere-des-etoiles';
+    const force = { sur: 'attribut', attribut: 'FOR', operation: 'ajouter', valeur: '2' };
+    const defense = { sur: 'attribut', attribut: 'Defense', operation: 'ajouter', valeur: '1' };
+    const res = await envoyer('POST', `/v1/characters/${p.id}/possessions`, {
+      version: race.version,
+      entree: capacite,
+      actif: true,
+      effets: [force, defense],
+    });
+    expect(res.statusCode).toBe(200);
+    const q = res.json() as Personnage;
+    expect(q.etat.possessions.filter((x) => x.entree === capacite)).toMatchObject([
+      { rang: 0, effets: [force, defense] },
+    ]);
+    expect(q.fiche.valeurs.FOR!.detail.map((l) => l.source)).toContain(`${capacite}#exemplaire`);
+
+    // Le second bonus coupé, puis le premier retiré : la coupe suit son effet
+    const coupe = (
+      await envoyer('PUT', `/v1/characters/${p.id}/effets`, {
+        version: q.version,
+        effet: `${capacite}#exemplaire/1`,
+        actif: false,
+      })
+    ).json() as Personnage;
+    expect(coupe.etat.effetsDesactives).toEqual([`${capacite}#exemplaire/1`]);
+    const retire = (
+      await envoyer('POST', `/v1/characters/${p.id}/possessions`, {
+        version: coupe.version,
+        entree: capacite,
+        effets: [defense],
+      })
+    ).json() as Personnage;
+    expect(retire.etat.effetsDesactives).toEqual([`${capacite}#exemplaire/0`]);
+    expect(retire.fiche.valeurs.Defense!.detail).toContainEqual(
+      expect.objectContaining({ source: `${capacite}#exemplaire`, desactive: true }),
+    );
+
+    // Un événement par écriture
+    const operations = (
+      await t
+        .db!.select()
+        .from(outbox)
+        .where(sql`${outbox.envelope}->'aggregate'->>'id' = ${p.id}`)
+    )
+      .map((l) => l.envelope as { type: string; payload: { operation?: string } })
+      .filter((e) => e.type === 'character.updated')
+      .map((e) => e.payload.operation);
+    expect(operations.filter((o) => o === 'possession')).toHaveLength(3);
+    expect(operations.filter((o) => o === 'effet')).toHaveLength(1);
   });
 
   describe('effets activés un à un', () => {

@@ -207,3 +207,51 @@ export function basculerEffets(
 export function basculerEffet(fiche: Fiche, cle: string, actif: boolean): ResultatBascule {
   return basculerEffets(fiche, [cle], actif);
 }
+
+/** Texte comparable d'une valeur JSON, clés triées (deux effets de même contenu). */
+function empreinte(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(empreinte).join(',')}]`;
+  if (v && typeof v === 'object')
+    return `{${Object.keys(v)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${empreinte((v as Record<string, unknown>)[k])}`)
+      .join(',')}}`;
+  return JSON.stringify(v) ?? 'null';
+}
+
+/**
+ * Effets coupés après le remplacement de la liste d'effets d'une source (`effets` propres
+ * d'un exemplaire) : un effet coupé qui reste dans la nouvelle liste (même contenu) garde
+ * son état à sa nouvelle position ; la clé d'un effet retiré est oubliée. Sans ce report,
+ * retirer un effet décalerait les positions et couperait son voisin. Les clés des autres
+ * sources ne changent pas, dans le même ordre.
+ */
+export function reporterEffetsDesactives(
+  effetsDesactives: readonly string[],
+  source: string,
+  avant: readonly Effet[],
+  apres: readonly Effet[],
+): string[] {
+  const nouvelles = apres.map(empreinte);
+  const prises = new Set<number>();
+  const r: string[] = [];
+  for (const cle of effetsDesactives) {
+    const k = lireCleEffet(cle);
+    if (!k || k.source !== source) {
+      r.push(cle);
+      continue;
+    }
+    const effet = avant[k.index];
+    if (!effet) continue;
+    const e = empreinte(effet);
+    // Même position si l'effet n'a pas bougé, sinon le premier effet identique libre
+    const j =
+      nouvelles[k.index] === e && !prises.has(k.index)
+        ? k.index
+        : nouvelles.findIndex((x, i) => x === e && !prises.has(i));
+    if (j < 0) continue;
+    prises.add(j);
+    r.push(cleEffet(source, j));
+  }
+  return r;
+}

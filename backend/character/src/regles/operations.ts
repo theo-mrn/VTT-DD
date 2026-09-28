@@ -20,6 +20,8 @@ import {
   nouvelExemplaire,
   prefixeExemplaire,
   refusSaisie,
+  reporterEffetsDesactives,
+  sourceExemplaire,
   variablesSource,
   verifierChampsExemplaire,
   appliquerModifications,
@@ -512,6 +514,16 @@ export function poserPossession(
   };
 
   if (existante) {
+    // Effets propres remplacés : les effets coupés suivent leur effet (positions décalées)
+    const effetsDesactives =
+      d.effets !== undefined
+        ? reporterEffetsDesactives(
+            etat.effetsDesactives,
+            sourceExemplaire(existante),
+            existante.effets,
+            d.effets,
+          )
+        : etat.effetsDesactives;
     if (d.effets !== undefined) existante.effets = d.effets;
     if (d.rang !== undefined) existante.rang = d.rang;
     if (d.actif !== undefined) existante.actif = d.actif;
@@ -520,7 +532,7 @@ export function poserPossession(
     if (d.quantite !== undefined) existante.quantite = d.quantite;
     rangement(existante);
     return {
-      etat: { ...etat, possessions },
+      etat: { ...etat, possessions, effetsDesactives },
       ...(exemplaire !== undefined ? { exemplaire } : {}),
       cree: false,
     };

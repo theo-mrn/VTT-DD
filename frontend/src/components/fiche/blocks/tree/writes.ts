@@ -8,6 +8,8 @@ import {
   estExemplaire,
   nouvellePossession,
   rembourser,
+  reporterEffetsDesactives,
+  sourceExemplaire,
   type Effet,
   type EtatEntite,
   type ResultatRemboursement,
@@ -99,6 +101,13 @@ export function sheetWrites(ctx: ContexteFiche, mode: 'read' | 'edit'): SheetWri
             ...etat,
             possessions: etat.possessions.map((x) =>
               estExemplaire(x, entree, ex) ? { ...x, effets } : x,
+            ),
+            // Les effets coupés suivent leur effet, comme le fait le service
+            effetsDesactives: reporterEffetsDesactives(
+              etat.effetsDesactives,
+              sourceExemplaire(p),
+              p.effets,
+              effets,
             ),
           },
         );
