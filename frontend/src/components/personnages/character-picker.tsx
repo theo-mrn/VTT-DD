@@ -513,8 +513,22 @@ function OptionCard({
   );
 }
 
-/** Où en est le personnage : en création, incarné (par moi ou un autre), hors campagne, à qui. */
+/** Où en est le personnage (en création, incarné, hors campagne), et à qui il est. */
 function OptionStatus({ option: o }: { option: CharacterOption }) {
+  return (
+    <>
+      <StatusBadge option={o} />
+      {!o.mine && o.owner && (
+        <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+          <AvatarJoueur nom={o.owner.name} url={o.owner.avatarUrl} taille="xs" />
+          <span className="truncate">{o.owner.name}</span>
+        </span>
+      )}
+    </>
+  );
+}
+
+function StatusBadge({ option: o }: { option: CharacterOption }) {
   if (o.character.inCreation)
     return (
       <Badge ton="alerte">
@@ -535,13 +549,6 @@ function OptionStatus({ option: o }: { option: CharacterOption }) {
       </Badge>
     );
   if (o.free) return <Badge ton="neutre">Hors campagne</Badge>;
-  if (!o.mine && o.owner)
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-        <AvatarJoueur nom={o.owner.name} url={o.owner.avatarUrl} taille="xs" />
-        {o.owner.name}
-      </span>
-    );
   return null;
 }
 
