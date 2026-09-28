@@ -306,33 +306,16 @@ function EnTeteFiche({
                 </p>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {personnaliser && (
-                <Button variant="secondary" size="sm" onClick={personnaliser}>
-                  <LayoutGrid />
-                  <span className="hidden md:inline">Personnaliser</span>
-                </Button>
-              )}
-              {progressions.map((a) => (
-                <Button key={a.id} size="sm" onClick={() => setProgression(a.id)}>
-                  <TrendingUp />
-                  <span className="hidden md:inline">{a.nom}</span>
-                </Button>
-              ))}
-              {peutValeurs && (
-                <Button variant="secondary" size="sm" onClick={() => setValeurs(true)}>
-                  <SlidersHorizontal />
-                  <span className="hidden md:inline">Valeurs</span>
-                </Button>
-              )}
-              {proprietaire && (
-                <ActionsProprietaire
-                  personnage={p}
-                  onModifier={() => setEdition(true)}
-                  onSupprimer={() => setSuppression(true)}
-                />
-              )}
-            </div>
+            <MenuFiche
+              personnage={p}
+              proprietaire={proprietaire}
+              progressions={progressions}
+              onProgression={setProgression}
+              onValeurs={peutValeurs ? () => setValeurs(true) : undefined}
+              onPersonnaliser={personnaliser}
+              onModifier={() => setEdition(true)}
+              onSupprimer={() => setSuppression(true)}
+            />
           </div>
           {ctx ? (
             <BannerStats ctx={ctx} widget={details?.type === 'details' ? details : undefined} />
@@ -376,50 +359,86 @@ function EnTeteFiche({
   );
 }
 
-function ActionsProprietaire({
+/**
+ * Actions de la fiche dans un seul menu « … » : progression (passage de niveau), valeurs,
+ * mise en page, identité ; puis la date de modification et la suppression (propriétaire).
+ */
+function MenuFiche({
   personnage: p,
+  proprietaire,
+  progressions,
+  onProgression,
+  onValeurs,
+  onPersonnaliser,
   onModifier,
   onSupprimer,
 }: {
   personnage: Fiche;
+  proprietaire: boolean;
+  progressions: { id: string; nom: string }[];
+  onProgression: (id: string) => void;
+  onValeurs?: (() => void) | undefined;
+  onPersonnaliser?: (() => void) | undefined;
   onModifier: () => void;
   onSupprimer: () => void;
 }) {
+  const creation = proprietaire && p.inCreation && p.roomId;
+  if (!progressions.length && !onValeurs && !onPersonnaliser && !proprietaire) return null;
   return (
-    <>
-      {p.inCreation && p.roomId && (
-        <Button asChild size="sm">
-          <Link href={lienPersonnage(p)}>
-            <Hammer />
-            Reprendre la création
-          </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" size="icon-sm" aria-label="Actions de la fiche">
+          <MoreHorizontal />
         </Button>
-      )}
-      <Button variant="secondary" size="sm" onClick={onModifier}>
-        <Pencil />
-        <span className="hidden md:inline">Modifier</span>
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="icon-sm" aria-label="Plus d'actions">
-            <MoreHorizontal />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled className="text-xs">
-            Modifié {formaterDepuis(p.updatedAt)}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-52">
+        {creation && (
+          <DropdownMenuItem asChild>
+            <Link href={lienPersonnage(p)}>
+              <Hammer />
+              Reprendre la création
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={onSupprimer}
-            className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
-          >
-            <Trash2 />
-            Supprimer
+        )}
+        {progressions.map((a) => (
+          <DropdownMenuItem key={a.id} onSelect={() => onProgression(a.id)}>
+            <TrendingUp />
+            {a.nom}
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+        ))}
+        {onValeurs && (
+          <DropdownMenuItem onSelect={onValeurs}>
+            <SlidersHorizontal />
+            Valeurs
+          </DropdownMenuItem>
+        )}
+        {onPersonnaliser && (
+          <DropdownMenuItem onSelect={onPersonnaliser}>
+            <LayoutGrid />
+            Personnaliser la fiche
+          </DropdownMenuItem>
+        )}
+        {proprietaire && (
+          <>
+            <DropdownMenuItem onSelect={onModifier}>
+              <Pencil />
+              Modifier l’identité
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled className="text-xs">
+              Modifié {formaterDepuis(p.updatedAt)}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={onSupprimer}
+              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+            >
+              <Trash2 />
+              Supprimer
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -428,7 +447,8 @@ function Histoire({ personnage: p }: { personnage: Fiche }) {
   if (vide)
     return (
       <p className="py-12 text-center text-sm text-subtle">
-        Aucune histoire écrite pour l&apos;instant. Utilisez « Modifier » pour la raconter.
+        Aucune histoire écrite pour l&apos;instant. Racontez-la avec « Modifier l’identité », dans
+        le menu … de la fiche.
       </p>
     );
   return (
