@@ -4,7 +4,6 @@
 import type { AssetKind } from '@vtt/contracts';
 import { AudioLines, Music, Wind, type LucideIcon } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export const KIND_LABELS: Record<AssetKind, string> = {
@@ -19,18 +18,6 @@ export const KIND_ICONS: Record<AssetKind, LucideIcon> = {
   sfx: AudioLines,
 };
 
-/** Ce que désigne chaque type, en une phrase (ajout d'un son) : un simple repère. */
-export const KIND_HINTS: Record<AssetKind, string> = {
-  music: 'Un morceau. Repère seulement : tout son se joue partout (musique, ambiance, effets).',
-  ambience: 'Un fond sonore (pluie, taverne…). Repère seulement : tout son se joue partout.',
-  sfx: 'Un bruitage court (épée, porte…). Repère seulement : tout son se joue partout.',
-};
-
-export const KIND_OPTIONS = (['music', 'ambience', 'sfx'] as const).map((k) => ({
-  valeur: k,
-  nom: KIND_LABELS[k],
-}));
-
 /** 83 000 ms → « 1:23 » ; au-delà d'une heure → « 1:02:03 ». */
 export function formatTime(ms: number | null | undefined): string {
   if (ms === null || ms === undefined || !Number.isFinite(ms)) return '–:––';
@@ -39,16 +26,6 @@ export function formatTime(ms: number | null | undefined): string {
   const m = Math.floor((total % 3600) / 60);
   const s = String(total % 60).padStart(2, '0');
   return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
-}
-
-export function KindBadge({ kind }: { kind: AssetKind }) {
-  const Icon = KIND_ICONS[kind];
-  return (
-    <Badge ton={kind === 'music' ? 'primaire' : kind === 'ambience' ? 'info' : 'arcane'}>
-      <Icon aria-hidden />
-      {KIND_LABELS[kind]}
-    </Badge>
-  );
 }
 
 /** Titre de section compact des panneaux. */

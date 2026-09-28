@@ -55,6 +55,10 @@ Le catalogue par défaut (89 entrées) est servi par `assets.yner.fr` (CORS `*`,
 
 MJ seul. Pistes : sons vivants de la campagne, sans doublon (422 `asset_not_found`). Une playlist modifiée pendant sa lecture recalcule la file du canal autour de la piste courante (cause `playlist_updated`).
 
+## Espaces d'un son
+
+`Asset.sections` : espaces du MJ où le son apparaît, `music` et/ou `ambience`, **indépendants de son type** (un même son peut servir aux deux, sans copie). Un son neuf rejoint l'espace de son type ; un effet (`sfx`) va sur la table d'effets. `PATCH …/assets/:assetId { sections }` range ou retire le son (400 si valeur inconnue ou doublon). La table d'effets tient lieu d'espace « effets ».
+
 ## Table d'effets
 
 | Méthode | Route                                | Corps → réponse                                 |

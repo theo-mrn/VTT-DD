@@ -9,6 +9,7 @@
 import type {
   Asset,
   AssetKind,
+  AssetSection,
   BusName,
   CatalogCategory,
   CatalogEntry,
@@ -472,7 +473,10 @@ export function useAudioLibrary(campaignId: string, options: { enabled?: boolean
         await audioApi.createAsset(campaignId, { source: 'youtube', url, name, kind }),
       );
     },
-    async update(assetId: string, patch: { name?: string; kind?: AssetKind; volume?: number }) {
+    async update(
+      assetId: string,
+      patch: { name?: string; kind?: AssetKind; volume?: number; sections?: AssetSection[] },
+    ) {
       return addAsset(await audioApi.updateAsset(campaignId, assetId, patch));
     },
     async remove(assetId: string) {

@@ -10,9 +10,7 @@ import type { Asset } from '@vtt/contracts';
 import { ArrowLeft, ArrowRight, Check, Pencil, Plus, Square, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { SearchField } from '@/components/resources/parts';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { messageErreur } from '@/lib/api';
 import type { useSoundboard, useSoundCues } from '@/lib/audio';
 import { cn } from '@/lib/utils';
@@ -21,17 +19,18 @@ import { formatTime, KIND_ICONS, SectionTitle } from './parts';
 type Cues = ReturnType<typeof useSoundCues>;
 type Board = ReturnType<typeof useSoundboard>;
 
-const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
 export function Soundboard({
   board,
   library,
   cues,
+  onAdd,
 }: {
   board: Board;
   /** Tous les sons de la bibliothèque. */
   library: Asset[];
   cues: Cues;
+  /** Ouvre « Ajouter un effet ». */
+  onAdd: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const byId = useMemo(() => new Map(library.map((a) => [a.id, a])), [library]);
@@ -70,17 +69,20 @@ export function Soundboard({
           </div>
         }
       >
-        Table d’effets
+        Un clic joue le son pour toute la table
       </SectionTitle>
 
       {sounds.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border-strong px-4 py-5 text-center">
           <p className="text-[13px] text-muted-foreground">
-            Placez ici les sons que vous voulez déclencher d’un clic pendant la partie : n’importe
-            quel son de la bibliothèque, musique ou bruitage, fichier ou YouTube.
+            Placez ici les sons à déclencher d’un clic pendant la partie : bruitages, cris, sorts…
+            depuis un fichier, YouTube, les sons fournis ou vos autres sons.
           </p>
           <div className="mt-3 flex justify-center">
-            <AddToBoard board={board} library={library} />
+            <Button size="sm" onClick={onAdd}>
+              <Plus />
+              Ajouter un effet
+            </Button>
           </div>
         </div>
       ) : (
@@ -161,99 +163,17 @@ export function Soundboard({
             );
           })}
           <li className="flex">
-            <AddToBoard board={board} library={library} tile />
+            <button
+              type="button"
+              onClick={onAdd}
+              className="flex h-12 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong text-[13px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            >
+              <Plus className="size-4" aria-hidden />
+              Ajouter
+            </button>
           </li>
         </ul>
       )}
     </section>
-  );
-}
-
-/** Choisir un son de la bibliothèque à placer sur la table d'effets. */
-function AddToBoard({
-  board,
-  library,
-  tile = false,
-}: {
-  board: Board;
-  library: Asset[];
-  tile?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const candidates = useMemo(() => {
-    const q = plain(query.trim());
-    return library
-      .filter((a) => !board.has(a.id) && (!q || plain(a.name).includes(q)))
-      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [library, board, query]);
-
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) setQuery('');
-      }}
-    >
-      <PopoverTrigger asChild>
-        {tile ? (
-          <button
-            type="button"
-            className="flex h-12 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong text-[13px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-          >
-            <Plus className="size-4" aria-hidden />
-            Ajouter
-          </button>
-        ) : (
-          <Button size="sm">
-            <Plus />
-            Ajouter un son à la table
-          </Button>
-        )}
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="flex max-h-[min(24rem,var(--radix-popover-content-available-height))] w-80 flex-col gap-2 p-3"
-      >
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          placeholder="Rechercher dans la bibliothèque"
-          label="Rechercher un son"
-          className="sm:w-full"
-        />
-        {candidates.length === 0 ? (
-          <p className="py-4 text-center text-[13px] text-muted-foreground">
-            {library.length ? 'Aucun autre son à ajouter.' : 'La bibliothèque est vide.'}
-          </p>
-        ) : (
-          <ul className="-mx-1 min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
-            {candidates.map((a) => {
-              const Icon = KIND_ICONS[a.kind];
-              return (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void board
-                        .add(a.id)
-                        .catch((e) =>
-                          toast.error('Ajout impossible', { description: messageErreur(e) }),
-                        )
-                    }
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
-                  >
-                    <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                    <Plus className="size-3.5 shrink-0 text-subtle" aria-hidden />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }

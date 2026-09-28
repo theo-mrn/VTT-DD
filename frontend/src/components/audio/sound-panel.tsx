@@ -1,24 +1,23 @@
 'use client';
 
 /**
- * Panneau « Son » de la table (touche S), dans l'ordre où on s'en sert :
- *   1. ce qui joue pour la table (musique, ambiance) ;
- *   2. MJ : sa table d'effets, personnalisable (n'importe quel son, un clic pour la table) ;
- *   3. MJ : la bibliothèque, où chaque son se joue en musique, en ambiance ou sur la table
- *      d'effets, quel que soit son type ou sa provenance.
- * Chacun règle son propre volume (« Mon volume ») sans toucher à la table. Les joueurs ne
- * voient pas la bibliothèque : ses titres peuvent divulguer l'intrigue.
+ * Panneau « Son » de la table (touche S). En haut, ce que vous entendez vraiment et votre
+ * volume. Pour le MJ, trois espaces séparés, chacun avec son lecteur, ses sons et son
+ * « Ajouter » : Musique (morceaux et playlists), Ambiance, Effets (table personnalisable).
+ * Les joueurs voient ce qui joue et règlent leur volume : la bibliothèque du MJ reste privée.
  */
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, AudioLines, ListMusic, Music, Wind } from 'lucide-react';
 import { useState } from 'react';
 import { Notice } from '@/components/resources/parts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAudioLibrary, useChannel, useSoundboard, useSoundCues } from '@/lib/audio';
-import { AddSoundDialog } from './add-sound-dialog';
+import { AddSoundDialog, type SoundTarget } from './add-sound-dialog';
 import { Deck } from './deck';
 import { LiveNow } from './live-now';
 import { MixerButton, MixerPanel } from './mixer-panel';
-import { SectionTitle } from './parts';
-import { SoundLibrary, type LibraryView } from './sound-library';
+import { Segmented } from './parts';
+import { PlaylistsTab } from './playlists-tab';
+import { SectionList } from './section-list';
 import { Soundboard } from './soundboard';
 
 function GmSound({ campaignId, systemId }: { campaignId: string; systemId: string }) {
@@ -27,8 +26,8 @@ function GmSound({ campaignId, systemId }: { campaignId: string; systemId: strin
   const ambience = useChannel(campaignId, 'ambience');
   const cues = useSoundCues(campaignId);
   const board = useSoundboard(campaignId);
-  const [view, setView] = useState<LibraryView>('sounds');
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<SoundTarget | null>(null);
+  const [musicView, setMusicView] = useState<'tracks' | 'playlists'>('tracks');
 
   if (library.error)
     return (
@@ -39,21 +38,82 @@ function GmSound({ campaignId, systemId }: { campaignId: string; systemId: strin
         description="Le service du son ne répond pas. Réessayez dans un instant."
       />
     );
+
   return (
     <>
-      <Soundboard board={board} library={library.assets} cues={cues} />
-      <SoundLibrary
-        campaignId={campaignId}
+      <Tabs defaultValue="music">
+        <TabsList variante="ligne" aria-label="Espaces du son" className="w-full">
+          <TabsTrigger value="music" className="flex-1">
+            <Music aria-hidden />
+            Musique
+          </TabsTrigger>
+          <TabsTrigger value="ambience" className="flex-1">
+            <Wind aria-hidden />
+            Ambiance
+          </TabsTrigger>
+          <TabsTrigger value="sfx" className="flex-1">
+            <AudioLines aria-hidden />
+            Effets
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="music" className="mt-4 space-y-3">
+          <Deck campaignId={campaignId} channel="music" gm />
+          <Segmented
+            label="Musique"
+            value={musicView}
+            onChange={(v) => setMusicView(v as typeof musicView)}
+            options={[
+              { value: 'tracks', label: 'Morceaux', icon: Music },
+              {
+                value: 'playlists',
+                label: 'Playlists',
+                icon: ListMusic,
+                count: library.playlists.length,
+              },
+            ]}
+          />
+          {musicView === 'tracks' ? (
+            <SectionList
+              section="music"
+              library={library}
+              channel={music}
+              board={board}
+              onAdd={() => setAdding('music')}
+            />
+          ) : (
+            <PlaylistsTab campaignId={campaignId} library={library} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="ambience" className="mt-4 space-y-3">
+          <Deck campaignId={campaignId} channel="ambience" gm />
+          <SectionList
+            section="ambience"
+            library={library}
+            channel={ambience}
+            board={board}
+            onAdd={() => setAdding('ambience')}
+          />
+        </TabsContent>
+
+        <TabsContent value="sfx" className="mt-4">
+          <Soundboard
+            board={board}
+            library={library.assets}
+            cues={cues}
+            onAdd={() => setAdding('sfx')}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <AddSoundDialog
+        target={adding}
         systemId={systemId}
         library={library}
-        music={music}
-        ambience={ambience}
         board={board}
-        view={view}
-        onView={setView}
-        onAdd={() => setAdding(true)}
+        onOpenChange={(o) => !o && setAdding(null)}
       />
-      <AddSoundDialog library={library} open={adding} onOpenChange={setAdding} />
     </>
   );
 }
@@ -68,21 +128,27 @@ export function SoundPanel({
   gm: boolean;
 }) {
   return (
-    <div className="space-y-6 px-4 py-5 sm:px-6">
-      <section aria-label="En ce moment pour la table" className="space-y-2">
-        <SectionTitle action={gm ? <MixerButton /> : undefined}>
-          En ce moment pour la table
-        </SectionTitle>
-        <LiveNow />
-        <Deck campaignId={campaignId} channel="music" gm={gm} />
-        <Deck campaignId={campaignId} channel="ambience" gm={gm} />
-        {!gm && (
-          <p className="text-xs text-muted-foreground">
-            Le MJ choisit la musique et les effets ; vous réglez ce que vous entendez.
-          </p>
-        )}
-      </section>
-      {gm ? <GmSound campaignId={campaignId} systemId={systemId} /> : <MixerPanel />}
+    <div className="space-y-4 px-4 py-4 sm:px-6">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <LiveNow />
+        </div>
+        {gm && <MixerButton />}
+      </div>
+      {gm ? (
+        <GmSound campaignId={campaignId} systemId={systemId} />
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Deck campaignId={campaignId} channel="music" gm={false} />
+            <Deck campaignId={campaignId} channel="ambience" gm={false} />
+            <p className="text-xs text-muted-foreground">
+              Le MJ choisit la musique et les effets ; vous réglez ce que vous entendez.
+            </p>
+          </div>
+          <MixerPanel />
+        </>
+      )}
     </div>
   );
 }
