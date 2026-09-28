@@ -383,8 +383,9 @@ async function requireTurn(
       'Indiquez le personnage qui a agi (characterId)',
       'character_required',
     );
+  // Le membre qui incarne le personnage (pas son propriétaire : un seul personnage actif)
   const [engagement] = await tx
-    .select({ ownerId: campaignCharacters.ownerId })
+    .select({ playedBy: campaignCharacters.playedBy })
     .from(campaignCharacters)
     .where(
       and(
@@ -392,8 +393,8 @@ async function requireTurn(
         eq(campaignCharacters.characterId, target),
       ),
     );
-  if (!engagement || engagement.ownerId !== userId)
-    throw HttpError.forbidden('Seul le MJ ou le propriétaire du personnage termine son tour');
+  if (!engagement || engagement.playedBy !== userId)
+    throw HttpError.forbidden('Seul le MJ ou le joueur qui incarne le personnage termine son tour');
 }
 
 function initiativeError(

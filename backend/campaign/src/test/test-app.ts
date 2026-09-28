@@ -173,5 +173,9 @@ export function helpers(t: TestContext) {
     return id;
   }
 
-  return { request, ok, campaign, engage };
+  /** `u` incarne le personnage dans la campagne (droits d'écriture, tours de combat). */
+  const play = (campaignId: string, u: TestUser, characterId: string | null) =>
+    ok(u, 'PUT', `/v1/campaigns/${campaignId}/me/character`, { characterId });
+
+  return { request, ok, campaign, engage, play };
 }

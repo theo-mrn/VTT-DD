@@ -12,18 +12,24 @@
  *   PUT    /v1/campaigns/:id/me/character              { characterId | null } : incarner
  *
  * On n'engage que ses propres personnages (le MJ engage ainsi ses PNJ), et
- * seulement du système de la campagne : engager un personnage donne au MJ le
- * droit de le modifier, il ne faut donc jamais pouvoir engager celui d'un autre.
+ * seulement du système de la campagne : engager un personnage donne au MJ, et
+ * à qui l'incarnera, le droit de le modifier, il ne faut donc jamais pouvoir
+ * engager celui d'un autre.
  *
  * `characterCreation` faux : un joueur n'engage pas un personnage dont la
  * création est en cours (créé pour l'occasion) ; il engage un personnage
  * terminé. Le MJ n'est pas concerné.
  *
- * Incarner n'est pas posséder : un joueur incarne n'importe quel personnage du
- * camp des joueurs (ou un des siens), le MJ n'importe quel personnage engagé.
- * Un personnage n'a qu'un incarnateur : le choisir le reprend à celui qui
- * l'incarnait (plus de verrou). Les droits d'écriture sur la fiche restent au
- * propriétaire et au MJ (décidés par character).
+ * Un seul personnage actif, pas de possession : un joueur incarne n'importe
+ * quel personnage du camp des joueurs (ou un des siens), le MJ n'importe quel
+ * personnage engagé. Un personnage n'a qu'un incarnateur : le choisir le
+ * reprend à celui qui l'incarnait (plus de verrou). La fiche s'écrit par celui
+ * qui l'incarne et par le MJ ; les autres membres, son propriétaire compris, la
+ * lisent (décidé par character, voir GET /internal/characters/:id/campaigns-of).
+ *
+ * Retirer un personnage : le MJ, ou son propriétaire tant qu'aucun autre membre
+ * ne l'incarne (409 `character_played` sinon : on ne retire pas la fiche que
+ * quelqu'un joue ; le MJ le peut).
  */
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq } from 'drizzle-orm';
@@ -241,6 +247,11 @@ export const register: Module = async (app, deps) => {
         if (!engagement) throw HttpError.notFound('Personnage non engagé dans cette campagne');
         if (a.role !== 'gm' && engagement.ownerId !== userId)
           throw HttpError.forbidden('Seul le MJ ou son propriétaire retire ce personnage');
+        if (a.role !== 'gm' && engagement.playedBy && engagement.playedBy !== userId)
+          throw HttpError.conflict(
+            'Un autre membre incarne ce personnage : seul le MJ peut le retirer de la campagne',
+            'character_played',
+          );
         const actor = { userId, role: a.role };
         await removeFromCombat(tx, eventContext(req), a.campaign.id, [characterId], actor);
         await tx.delete(campaignCharacters).where(inCampaign);

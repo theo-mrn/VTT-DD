@@ -167,6 +167,8 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     const aria = await h.engage(id, alice, { sortKeys: [18], durations: { beni: 1, rage: 2 } });
     const npc = await h.engage(id, gm, { sortKeys: [12], durations: { aveugle: 2 } });
     const brom = await h.engage(id, bob, { sortKeys: [5] });
+    await h.play(id, alice, aria);
+    await h.play(id, bob, brom);
     await h.ok(gm, 'POST', url(id), { participants: [aria, npc, brom] });
     await h.ok(gm, 'POST', url(id, '/initiative'), {});
 
@@ -244,6 +246,8 @@ describe.skipIf(!TEST_DATABASE_URL)('combat', () => {
     const vara = await h.engage(id, bob, { systemId: sw, sortKeys: keys([1, 0]) });
     const trooper = await h.engage(id, gm, { systemId: sw, sortKeys: [3, 0] });
     const probe = await h.engage(id, gm, { systemId: sw, sortKeys: [2, 1] });
+    await h.play(id, alice, kesh);
+    await h.play(id, bob, vara);
 
     await h.ok(gm, 'POST', url(id), {
       participants: [trooper, probe, kesh, vara],

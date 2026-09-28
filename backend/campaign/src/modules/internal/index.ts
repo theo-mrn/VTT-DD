@@ -7,10 +7,19 @@
  *
  *   GET /internal/campaigns/:campaignId/rights?userId=&characterId=
  *       rôle d'un utilisateur dans une campagne, et ses droits sur un
- *       personnage engagé (lecture : membre ; écriture : MJ ou propriétaire)
+ *       personnage engagé (lecture : membre ; écriture : MJ, ou membre qui
+ *       l'incarne)
  *   GET /internal/characters/:characterId/campaigns-of?userId=
- *       droits d'un utilisateur sur un personnage, toutes campagnes confondues
- *       (interrogé par character quand l'appelant n'est pas propriétaire)
+ *       droits d'un utilisateur sur un personnage, toutes campagnes confondues,
+ *       et ce que character doit savoir pour son propriétaire (personnage
+ *       engagé quelque part, incarné par un autre membre)
+ *
+ * Un seul personnage actif, pas de possession : dans une campagne, la fiche
+ * d'un personnage engagé s'écrit par le membre qui l'incarne
+ * (`campaign_characters.played_by`) et par le MJ ; les autres membres, son
+ * propriétaire compris, la lisent. Le propriétaire garde la main hors
+ * campagne et pendant la création : character le décide, lui seul connaît
+ * l'état de la fiche (docs/api-character.md, « Droits »).
  *   GET /internal/characters/:characterId/rules
  *       règles optionnelles de la campagne du personnage (la première où il a été
  *       engagé), pour le calcul de sa fiche par character ; hors campagne : aucune
@@ -92,7 +101,7 @@ export const register: Module = async (app, deps) => {
           engaged,
           side: engagement?.side ?? null,
           read: engaged && !!role,
-          write: engaged && (role === 'gm' || engagement.ownerId === userId),
+          write: engaged && !!role && (role === 'gm' || engagement.playedBy === userId),
         },
       };
     },
@@ -108,30 +117,54 @@ export const register: Module = async (app, deps) => {
         querystring: z.object({ userId: UserId }),
         response: {
           200: z.object({
+            /** Membre d'une campagne où le personnage est engagé. */
             read: z.boolean(),
+            /** MJ d'une de ces campagnes, ou il y incarne le personnage. */
             write: z.boolean(),
-            campaigns: z.array(z.object({ campaignId: z.string(), role: Role })),
+            /** Engagé dans au moins une campagne (que l'utilisateur en soit membre ou non). */
+            engaged: z.boolean(),
+            /** Il l'incarne dans une de ces campagnes. */
+            plays: z.boolean(),
+            /** Un autre membre l'incarne, dans n'importe quelle campagne. */
+            playedByOther: z.boolean(),
+            /** Campagnes où il est engagé et dont l'utilisateur est membre. */
+            campaigns: z.array(
+              z.object({ campaignId: z.string(), role: Role, playedBy: z.string().nullable() }),
+            ),
           }),
         },
       },
     },
     async (req) => {
-      // Campagnes où le personnage est engagé ET dont l'utilisateur est membre
-      const found = await db
-        .select({ campaignId: campaignCharacters.campaignId, role: campaignMembers.role })
+      const { userId } = req.query;
+      // Tous les engagements du personnage, avec le rôle de l'utilisateur s'il en est membre
+      const rows = await db
+        .select({
+          campaignId: campaignCharacters.campaignId,
+          playedBy: campaignCharacters.playedBy,
+          role: campaignMembers.role,
+        })
         .from(campaignCharacters)
-        .innerJoin(
+        .leftJoin(
           campaignMembers,
           and(
             eq(campaignMembers.campaignId, campaignCharacters.campaignId),
-            eq(campaignMembers.userId, req.query.userId),
+            eq(campaignMembers.userId, userId),
           ),
         )
-        .where(eq(campaignCharacters.characterId, req.params.characterId));
+        .where(eq(campaignCharacters.characterId, req.params.characterId))
+        .orderBy(asc(campaignCharacters.addedAt), asc(campaignCharacters.campaignId));
+      const campaignsOf = rows.flatMap((c) =>
+        c.role ? [{ campaignId: c.campaignId, role: c.role, playedBy: c.playedBy }] : [],
+      );
+      const plays = campaignsOf.some((c) => c.playedBy === userId);
       return {
-        read: found.length > 0,
-        write: found.some((c) => c.role === 'gm'),
-        campaigns: found,
+        read: campaignsOf.length > 0,
+        write: plays || campaignsOf.some((c) => c.role === 'gm'),
+        engaged: rows.length > 0,
+        plays,
+        playedByOther: rows.some((c) => c.playedBy !== null && c.playedBy !== userId),
+        campaigns: campaignsOf,
       };
     },
   );

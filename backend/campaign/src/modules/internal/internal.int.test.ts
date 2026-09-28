@@ -97,10 +97,13 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
       role: 'gm',
       character: { engaged: true, side: 'players', read: true, write: true },
     });
+    // Sa propriétaire ne l'incarne pas encore : elle le lit seulement
     expect(await rights(alice, hero)).toMatchObject({
       role: 'player',
-      character: { read: true, write: true },
+      character: { read: true, write: false },
     });
+    await h.ok(alice, 'PUT', `/v1/campaigns/${id}/me/character`, { characterId: hero });
+    expect(await rights(alice, hero)).toMatchObject({ character: { read: true, write: true } });
     expect(await rights(bob, hero)).toMatchObject({
       role: 'spectator',
       character: { read: true, write: false },
@@ -126,32 +129,86 @@ describe.skipIf(!TEST_DATABASE_URL)('routes internes', () => {
     const c2 = await h.campaign(bob, 'dnd-classic', [alice]);
     const hero = await h.engage(c1, alice);
     await h.ok(alice, 'POST', `/v1/campaigns/${c2}/characters`, { characterId: hero });
+    const stranger = await t.user();
     const campaignsOf = async (u: TestUser) =>
       (await get(`/internal/characters/${hero}/campaigns-of?userId=${u.id}`)).json() as {
         read: boolean;
         write: boolean;
-        campaigns: { campaignId: string; role: string }[];
+        engaged: boolean;
+        plays: boolean;
+        playedByOther: boolean;
+        campaigns: { campaignId: string; role: string; playedBy: string | null }[];
       };
 
     // Bob est joueur dans c1 et MJ de c2 : il écrit grâce à c2
     const b = await campaignsOf(bob);
-    expect(b).toMatchObject({ read: true, write: true });
+    expect(b).toMatchObject({ read: true, write: true, engaged: true, plays: false });
     expect(b.campaigns).toEqual(
       expect.arrayContaining([
-        { campaignId: c1, role: 'player' },
-        { campaignId: c2, role: 'gm' },
+        { campaignId: c1, role: 'player', playedBy: null },
+        { campaignId: c2, role: 'gm', playedBy: null },
       ]),
     );
     expect(await campaignsOf(gm)).toEqual({
       read: true,
       write: true,
-      campaigns: [{ campaignId: c1, role: 'gm' }],
+      engaged: true,
+      plays: false,
+      playedByOther: false,
+      campaigns: [{ campaignId: c1, role: 'gm', playedBy: null }],
     });
+    // Sa propriétaire, qui ne l'incarne nulle part, le lit seulement
+    expect(await campaignsOf(alice)).toMatchObject({ read: true, write: false, engaged: true });
+    // Engagé ailleurs, sans que l'utilisateur en soit membre : engagé, mais aucun droit
+    expect(await campaignsOf(stranger)).toEqual({
+      read: false,
+      write: false,
+      engaged: true,
+      plays: false,
+      playedByOther: false,
+      campaigns: [],
+    });
+
+    // Alice l'incarne dans c1 : elle l'écrit ; pour les autres, un autre membre l'incarne
+    await h.ok(alice, 'PUT', `/v1/campaigns/${c1}/me/character`, { characterId: hero });
+    expect(await campaignsOf(alice)).toMatchObject({
+      read: true,
+      write: true,
+      plays: true,
+      playedByOther: false,
+    });
+    expect(await campaignsOf(stranger)).toMatchObject({ engaged: true, playedByOther: true });
+    // Bob le reprend dans c1 : Alice ne l'écrit plus, Bob l'écrit (et le MJ de c1)
+    await h.ok(bob, 'PUT', `/v1/campaigns/${c1}/me/character`, { characterId: hero });
+    expect(await campaignsOf(alice)).toMatchObject({
+      write: false,
+      plays: false,
+      playedByOther: true,
+    });
+    expect(await campaignsOf(bob)).toMatchObject({ write: true, plays: true });
+
     await h.ok(bob, 'DELETE', `/v1/campaigns/${c2}/characters/${hero}`);
+    await h.ok(bob, 'PUT', `/v1/campaigns/${c1}/me/character`, { characterId: null });
     expect(await campaignsOf(bob)).toEqual({
       read: true,
       write: false,
-      campaigns: [{ campaignId: c1, role: 'player' }],
+      engaged: true,
+      plays: false,
+      playedByOther: false,
+      campaigns: [{ campaignId: c1, role: 'player', playedBy: null }],
+    });
+  });
+
+  it('campaigns-of : personnage jamais engagé, rien d’engagé', async () => {
+    const free = t.character.add({ ownerId: alice.id, systemId: 'dnd-classic' });
+    const res = await get(`/internal/characters/${free}/campaigns-of?userId=${alice.id}`);
+    expect(res.json()).toEqual({
+      read: false,
+      write: false,
+      engaged: false,
+      plays: false,
+      playedByOther: false,
+      campaigns: [],
     });
   });
 });

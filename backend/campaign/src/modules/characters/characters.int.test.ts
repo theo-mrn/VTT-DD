@@ -132,18 +132,49 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages engagés', () => {
     expect(c.characters).toEqual([]);
   });
 
-  it('droits : membre = lecture, MJ = écriture, rien hors de la campagne ni après retrait', async () => {
+  it('retrait : le propriétaire ne retire pas un personnage qu’un autre membre incarne', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice, bob]);
+    const hero = await h.engage(id, alice);
+    const url = `/v1/campaigns/${id}/characters/${hero}`;
+    await h.ok(bob, 'PUT', `/v1/campaigns/${id}/me/character`, { characterId: hero });
+    expect((await h.request(alice, 'DELETE', url)).json()).toMatchObject({
+      status: 409,
+      code: 'character_played',
+    });
+    // Incarné par sa propriétaire : elle le retire ; le MJ, lui, le retire toujours
+    await h.ok(alice, 'PUT', `/v1/campaigns/${id}/me/character`, { characterId: hero });
+    expect((await h.request(alice, 'DELETE', url)).statusCode).toBe(204);
+    const other = await h.engage(id, alice);
+    await h.ok(bob, 'PUT', `/v1/campaigns/${id}/me/character`, { characterId: other });
+    expect(
+      (await h.request(gm, 'DELETE', `/v1/campaigns/${id}/characters/${other}`)).statusCode,
+    ).toBe(204);
+  });
+
+  it('droits : membre = lecture, MJ et incarnateur = écriture, rien hors campagne ni après retrait', async () => {
     const id = await h.campaign(gm, 'dnd-classic', [alice, bob]);
     const hero = await h.engage(id, alice);
     const stranger = await t.user();
 
-    expect(await rights(hero, gm)).toEqual({
+    expect(await rights(hero, gm)).toMatchObject({
       read: true,
       write: true,
-      campaigns: [{ campaignId: id, role: 'gm' }],
+      campaigns: [{ campaignId: id, role: 'gm', playedBy: null }],
     });
     expect(await rights(hero, bob)).toMatchObject({ read: true, write: false });
-    expect(await rights(hero, stranger)).toEqual({ read: false, write: false, campaigns: [] });
+    expect(await rights(hero, stranger)).toMatchObject({
+      read: false,
+      write: false,
+      campaigns: [],
+    });
+    // Pas de possession : sa propriétaire lit tant qu'elle ne l'incarne pas, Bob l'écrit s'il l'incarne
+    expect(await rights(hero, alice)).toMatchObject({ read: true, write: false });
+    await h.ok(bob, 'PUT', `/v1/campaigns/${id}/me/character`, { characterId: hero });
+    expect(await rights(hero, bob)).toMatchObject({ read: true, write: true });
+    expect(await rights(hero, alice)).toMatchObject({ read: true, write: false });
+    await h.ok(alice, 'PUT', `/v1/campaigns/${id}/me/character`, { characterId: hero });
+    expect(await rights(hero, alice)).toMatchObject({ read: true, write: true });
+    expect(await rights(hero, bob)).toMatchObject({ read: true, write: false });
 
     // Un spectateur lit, un joueur promu MJ écrit
     await h.ok(gm, 'PATCH', `/v1/campaigns/${id}/members/${bob.id}`, { role: 'spectator' });
