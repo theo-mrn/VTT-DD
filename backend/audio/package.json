@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "node scripts/dev.mjs",
     "dev:service": "tsx watch --env-file-if-exists=.env src/main.ts",
-    "dev:worker": "tsx watch --env-file-if-exists=.env src/worker.ts",
+    "dev:worker": "tsx --env-file-if-exists=.env src/worker.ts",
     "start": "node --import ./dist/instrumentation.js dist/main.js",
     "start:worker": "node --import ./dist/instrumentation.js dist/worker.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

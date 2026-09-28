@@ -113,7 +113,4 @@ echo "  gateway  http://localhost:8080"
 echo "  temps réel ws://localhost:8080/v1/realtime/socket.io (service realtime :3006)"
 echo "  e-mails  http://localhost:8025"
 echo "  son      service audio :3008, worker ffmpeg :3009 (brew install ffmpeg)"
-# Onze processus surveillent leurs fichiers (tsx watch, Next) : la limite par défaut du
-# terminal macOS (256) ne suffit pas (EMFILE, Next qui redémarre en boucle)
-ulimit -n 65536 2>/dev/null || ulimit -n 10240 2>/dev/null || true
 exec pnpm turbo run dev --concurrency=20 --filter='./backend/*' --filter=@vtt/web

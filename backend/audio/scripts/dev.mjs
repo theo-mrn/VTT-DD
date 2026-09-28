@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// `pnpm dev` du service audio : le service (:3008) et son worker ffmpeg (:3009), avec
-// rechargement à chaud. Un seul processus pour turbo ; Ctrl+C arrête les deux.
+// `pnpm dev` du service audio : le service (:3008, rechargement à chaud) et son worker
+// ffmpeg (:3009, sans surveillance des fichiers : chaque surveillance de plus consomme les
+// flux FSEvents de macOS, partagés avec Next et les autres services ; relancer `pnpm dev`
+// après une modification du worker). Un seul processus pour turbo ; Ctrl+C arrête les deux.
 import { spawn } from 'node:child_process';
 
 const children = ['dev:service', 'dev:worker'].map((script) =>
