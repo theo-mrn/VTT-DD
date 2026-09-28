@@ -68,6 +68,12 @@ spec:
           login: true,
           passwordSecret: { name: pg-history-owner },
         }
+      - {
+          name: audio_owner,
+          ensure: present,
+          login: true,
+          passwordSecret: { name: pg-audio-owner },
+        }
       # Rôles des services : données uniquement (DML)
       - { name: identity_svc, ensure: present, login: true, passwordSecret: { name: pg-identity } }
       - { name: billing_svc, ensure: present, login: true, passwordSecret: { name: pg-billing } }
@@ -80,6 +86,7 @@ spec:
         }
       - { name: dice_svc, ensure: present, login: true, passwordSecret: { name: pg-dice } }
       - { name: history_svc, ensure: present, login: true, passwordSecret: { name: pg-history } }
+      - { name: audio_svc, ensure: present, login: true, passwordSecret: { name: pg-audio } }
       - {
           name: backup_ro,
           ensure: present,

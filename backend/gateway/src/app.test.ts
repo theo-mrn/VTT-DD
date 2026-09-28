@@ -117,6 +117,48 @@ describe('gateway', () => {
     }
   });
 
+  it('relaie /v1/audio vers le service audio, avec jeton', async () => {
+    const audio = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ service: 'audio', method: req.method, path: req.url }));
+    });
+    await new Promise<void>((r) => audio.listen(0, '127.0.0.1', r));
+    try {
+      const app = await buildGateway(
+        loadConfig(GatewayConfig, {
+          NODE_ENV: 'test',
+          LOG_LEVEL: 'silent',
+          JWT_ISSUER: 'https://identity.test',
+          JWT_AUDIENCE: 'vtt-api',
+          UPSTREAM_CAMPAIGN_URL: upstreamUrl,
+          UPSTREAM_AUDIO_URL: `http://127.0.0.1:${(audio.address() as AddressInfo).port}`,
+        }),
+        { authKeyResolver: async () => publicKey },
+      );
+      expect((await app.inject({ url: '/v1/audio/clock' })).statusCode).toBe(401);
+      const auth = { authorization: `Bearer ${await token()}` };
+      for (const [method, path] of [
+        ['GET', '/v1/audio/clock'],
+        ['GET', '/v1/audio/campaigns/c1/channels'],
+        ['POST', '/v1/audio/campaigns/c1/channels/music/commands'],
+        ['PUT', '/v1/audio/me/mixer'],
+      ] as const) {
+        const r = await app.inject({
+          method,
+          url: path,
+          headers: auth,
+          ...(method === 'GET' ? {} : { payload: {} }),
+        });
+        expect(r.json(), `${method} ${path}`).toEqual({ service: 'audio', method, path });
+      }
+      // Les routes internes du service ne sont jamais relayées
+      expect((await app.inject({ url: '/internal/audio', headers: auth })).statusCode).toBe(404);
+      await app.close();
+    } finally {
+      audio.close();
+    }
+  });
+
   it("laisse passer l'authentification sans jeton", async () => {
     const app = await gateway();
     const res = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {} });

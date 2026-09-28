@@ -15,7 +15,7 @@ DECLARE
   proprietaire text;
   service text;
 BEGIN
-  FOREACH svc IN ARRAY ARRAY['identity','billing','campaign','characters','dice','history'] LOOP
+  FOREACH svc IN ARRAY ARRAY['identity','billing','campaign','characters','dice','history','audio'] LOOP
     proprietaire := svc || '_owner';
     service := svc || '_svc';
 

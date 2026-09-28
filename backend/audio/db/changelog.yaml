@@ -1,0 +1,9 @@
+# Schéma du service audio (schéma SQL « audio »), appliqué par Liquibase
+# avec le rôle audio_owner. Conception : docs/audio.md § 3.2.
+# Un fichier par changement, jamais modifié une fois fusionné : on en ajoute un nouveau.
+databaseChangeLog:
+  - include: { file: changes/0001-library.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0002-playback.sql, relativeToChangelogFile: true }
+  - include: { file: changes/0003-jobs-outbox.sql, relativeToChangelogFile: true }
+  # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
+  - include: { file: changes/9999-liquibase-journal.sql, relativeToChangelogFile: true }

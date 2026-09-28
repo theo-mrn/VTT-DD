@@ -14,6 +14,7 @@ export const GatewayConfig = BaseConfig.extend({
   UPSTREAM_DICE_URL: z.string().url().optional(),
   UPSTREAM_HISTORY_URL: z.string().url().optional(),
   UPSTREAM_REALTIME_URL: z.string().url().optional(),
+  UPSTREAM_AUDIO_URL: z.string().url().optional(),
   /**
    * Secret partagé avec identity pour échanger les clés d'API (en-tête
    * x-internal-secret). Absent : « Authorization: ApiKey … » est refusé.
@@ -41,6 +42,8 @@ export const ROUTES = {
   // Jets de dés (remplace /api/roll-dice) : jeton ou clé d'API
   '/v1/dice': 'UPSTREAM_DICE_URL',
   '/v1/history': 'UPSTREAM_HISTORY_URL',
+  // Son : bibliothèque, canaux musique et ambiance, effets, horloge, mixeur (docs/audio.md)
+  '/v1/audio': 'UPSTREAM_AUDIO_URL',
   // Temps réel : WebSocket (Socket.IO) relayé, et routes HTTP du service
   '/v1/realtime': 'UPSTREAM_REALTIME_URL',
 } as const satisfies Record<string, keyof GatewayConfig>;
