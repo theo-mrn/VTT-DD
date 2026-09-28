@@ -47,13 +47,14 @@ export function OngletJoueurs() {
     () => [...campagne.members].sort((a, b) => ORDRE_ROLE[a.role] - ORDRE_ROLE[b.role]),
     [campagne.members],
   );
-  // Personnage incarné par chaque membre (campagne), puis ceux qu'il possède sans les jouer
+  // Le personnage que chaque membre incarne, et sa création en cours s'il en a une ; ses
+  // autres personnages ne sont pas à la table (ils se choisissent dans la page de choix)
   const incarnes = new Set(campagne.members.map((m) => m.characterId).filter(Boolean));
   const persosDe = (m: Membre): Personnage[] => {
     const liste = personnages.data ?? [];
     return [
       ...liste.filter((p) => p.id === m.characterId),
-      ...liste.filter((p) => p.ownerId === m.userId && !incarnes.has(p.id)),
+      ...liste.filter((p) => p.ownerId === m.userId && p.inCreation && !incarnes.has(p.id)),
     ];
   };
 
@@ -124,7 +125,7 @@ export function OngletJoueurs() {
               ) : persos.length > 0 ? (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {persos.map((p) => (
-                    <CarteHeros key={p.id} personnage={p} incarne={p.id === m.characterId} />
+                    <CarteHeros key={p.id} personnage={p} />
                   ))}
                 </div>
               ) : m.role === 'player' ? (
@@ -138,7 +139,7 @@ export function OngletJoueurs() {
   );
 }
 
-function CarteHeros({ personnage: p, incarne }: { personnage: Personnage; incarne: boolean }) {
+function CarteHeros({ personnage: p }: { personnage: Personnage }) {
   const jauges = p.summary.highlights
     .map((h) => ({ label: h.label, jauge: jaugeDeResume(h.value) }))
     .filter((h) => h.jauge !== null);
@@ -160,7 +161,6 @@ function CarteHeros({ personnage: p, incarne }: { personnage: Personnage; incarn
           <p className="flex items-center gap-2 truncate text-sm font-semibold group-hover:text-primary-strong">
             <span className="truncate">{p.name}</span>
             {p.inCreation && <Badge ton="alerte">En création</Badge>}
-            {!incarne && !p.inCreation && <Badge>Au repos</Badge>}
           </p>
           {p.summary.tagline && (
             <p className="truncate text-xs text-muted-foreground">{p.summary.tagline}</p>
