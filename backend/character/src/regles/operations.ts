@@ -212,6 +212,21 @@ export function saisieReserveeMj(
   });
 }
 
+/**
+ * Vrai si les conséquences de l'action modifient un attribut de base réservé au MJ
+ * (`saisie: mj`, le niveau d'un passage de niveau…) : l'appliquer demande d'être MJ,
+ * comme saisir cette valeur à la main.
+ */
+export function actionReserveeMj(systeme: SystemeCharge, type: string, action: string): boolean {
+  const a = systeme.actions.get(action);
+  const attributs = systeme.entites.get(type)?.attributs;
+  return (a?.consequences ?? []).some((c) => {
+    if (!('attribut' in c) || c.entite !== 'acteur') return false;
+    const attr = attributs?.get(c.attribut);
+    return attr?.nature === 'base' && attr.saisie === 'mj';
+  });
+}
+
 // ─── Création par étapes ──────────────────────────────────────────────────────
 
 const Id = z.string().min(1).max(200);
