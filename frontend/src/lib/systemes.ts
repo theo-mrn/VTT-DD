@@ -20,6 +20,8 @@ export interface ResumeSysteme {
   sortes: { id: string; nom: string; nombre: number }[];
   creation: { entite: string; etapes: string[] }[];
   desSymboles: boolean;
+  /** Créatures du bestiaire de référence (0 : aucun), voir docs/ressources.md. */
+  bestiaire?: number;
   /** Illustration et couleur d'accent de la présentation, si elle en déclare. */
   couverture: string | null;
   accent: string | null;

@@ -2,6 +2,7 @@ import {
   Dices,
   Home,
   KeyRound,
+  Library,
   Shield,
   Swords,
   User,
@@ -25,6 +26,7 @@ export const NAV_PRINCIPALE: LienNav[] = [
   { href: '/accueil', label: 'Accueil', icone: Home },
   { href: '/campagnes', label: 'Campagnes', icone: Swords },
   { href: '/personnages', label: 'Personnages', icone: UserRound },
+  { href: '/resources', label: 'Ressources', icone: Library },
   { href: '/des', label: 'Dés', icone: Dices },
 ];
 
@@ -51,6 +53,7 @@ export const LIBELLES_SEGMENTS: Record<string, string> = {
   personnages: 'Personnages',
   nouveau: 'Nouveau personnage',
   des: 'Dés',
+  resources: 'Ressources',
   notes: 'Notes',
   amis: 'Amis',
   profil: 'Profil',
