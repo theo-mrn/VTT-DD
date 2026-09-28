@@ -18,9 +18,7 @@ import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
 import { Chargement, formaterDepuis, Message } from '@/components/compte/elements';
-import { JaugeRessource } from '@/components/creation/apercu-fiche';
 import { SheetGrid } from '@/components/sheet-grid/sheet-grid';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -57,15 +55,9 @@ import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfil } from '@/lib/session';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
+import { BannerIdentity, BannerStats } from './banner';
 import { styleThemeSysteme } from './theme';
-import {
-  ChipsDetails,
-  estRessource,
-  visiblePour,
-  widgetsDe,
-  type ContexteFiche,
-  type OperationsFiche,
-} from './widgets';
+import { widgetsDe, type ContexteFiche, type OperationsFiche } from './widgets';
 
 /**
  * Fiche calculée d'un personnage et ses écritures : état lu dans character,
@@ -256,8 +248,8 @@ function EnTeteFiche({
       />
       <div
         className={cn(
-          'mx-auto flex max-w-7xl flex-col gap-6 px-4 pb-6 sm:flex-row sm:items-end sm:px-6 lg:px-8',
-          dansPanneau ? 'pt-6 lg:pt-8' : 'pt-8 lg:pt-12',
+          'mx-auto flex max-w-7xl gap-4 px-4 pb-6 sm:gap-6 sm:px-6 lg:px-8',
+          dansPanneau ? 'pt-5 lg:pt-6' : 'pt-8 lg:pt-10',
         )}
       >
         <Illustration
@@ -265,64 +257,76 @@ function EnTeteFiche({
           graine={p.name}
           position="top"
           className={cn(
-            'aspect-[3/4] shrink-0 rounded-2xl shadow-elevated ring-1 ring-white/10',
-            dansPanneau ? 'w-24 sm:w-32' : 'w-36 sm:w-44',
+            'aspect-[3/4] shrink-0 self-start rounded-xl shadow-elevated ring-1 ring-white/10',
+            dansPanneau ? 'w-20 sm:w-28' : 'w-28 sm:w-36',
           )}
         />
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Badge ton="verre">{nomSysteme}</Badge>
-            {campagne.data && (
-              <Link href={`/campagnes/${campagne.data.id}`}>
-                <Badge
-                  ton="verre"
-                  className="border-primary/40 text-primary-strong hover:bg-black/60"
-                >
-                  <Swords />
-                  {campagne.data.name}
-                </Badge>
-              </Link>
-            )}
-            {p.summary.highlights
-              .filter((h) => !h.value.includes('/'))
-              .map((h) => (
-                <Badge key={h.label} ton="verre">
-                  {h.label} {h.value}
-                </Badge>
-              ))}
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              {/* Contexte en une ligne discrète : système, campagne */}
+              <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                <span>{nomSysteme}</span>
+                {campagne.data && (
+                  <>
+                    <span aria-hidden className="text-subtle">
+                      ·
+                    </span>
+                    <Link
+                      href={`/campagnes/${campagne.data.id}`}
+                      className="inline-flex items-center gap-1 rounded text-primary-strong transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                    >
+                      <Swords className="size-3" aria-hidden />
+                      {campagne.data.name}
+                    </Link>
+                  </>
+                )}
+              </p>
+              <h1
+                className={cn(
+                  'text-balance font-display font-semibold leading-tight',
+                  dansPanneau ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl',
+                )}
+              >
+                {p.name}
+              </h1>
+              {ctx && details?.type === 'details' && <BannerIdentity ctx={ctx} widget={details} />}
+              {p.details.concept && (
+                <p className="max-w-2xl text-sm italic text-muted-foreground">
+                  {p.details.concept}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {personnaliser && (
+                <Button variant="secondary" size="sm" onClick={personnaliser}>
+                  <LayoutGrid />
+                  <span className="hidden md:inline">Personnaliser</span>
+                </Button>
+              )}
+              {proprietaire && (
+                <ActionsProprietaire
+                  personnage={p}
+                  onModifier={() => setEdition(true)}
+                  onSupprimer={() => setSuppression(true)}
+                />
+              )}
+            </div>
           </div>
-          <h1
-            className={cn(
-              'text-balance font-display font-semibold leading-tight',
-              dansPanneau ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl',
-            )}
-          >
-            {p.name}
-          </h1>
-          {p.details.concept && (
-            <p className="max-w-2xl text-[15px] italic text-muted-foreground">
-              {p.details.concept}
-            </p>
+          {ctx ? (
+            <BannerStats ctx={ctx} widget={details?.type === 'details' ? details : undefined} />
+          ) : (
+            // Fiche pas encore calculée : le résumé du service
+            p.summary.highlights.length > 0 && (
+              <p className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+                {p.summary.highlights.map((h) => (
+                  <span key={h.label}>
+                    <span className="text-subtle">{h.label}</span> {h.value}
+                  </span>
+                ))}
+              </p>
+            )
           )}
-          {ctx && details?.type === 'details' && <ChipsDetails ctx={ctx} widget={details} />}
-        </div>
-        <div className="flex shrink-0 flex-col gap-4 sm:items-end">
-          {ctx && <JaugesEnTete ctx={ctx} />}
-          <div className="flex flex-wrap gap-2 sm:justify-end">
-            {personnaliser && (
-              <Button variant="secondary" onClick={personnaliser}>
-                <LayoutGrid />
-                Personnaliser
-              </Button>
-            )}
-            {proprietaire && (
-              <ActionsProprietaire
-                personnage={p}
-                onModifier={() => setEdition(true)}
-                onSupprimer={() => setSuppression(true)}
-              />
-            )}
-          </div>
         </div>
       </div>
       {proprietaire && <EditionIdentite personnage={p} ouvert={edition} onOuvert={setEdition} />}
@@ -330,31 +334,6 @@ function EnTeteFiche({
         <DialogueSuppression personnage={p} ouvert={suppression} onOuvert={setSuppression} />
       )}
     </section>
-  );
-}
-
-/**
- * Ressources du personnage en tête de fiche (PV, stress…) : celles du premier bloc
- * « ressources » de la présentation, sinon toutes celles de son type, trois au plus.
- */
-function JaugesEnTete({ ctx }: { ctx: ContexteFiche }) {
-  const declarees = widgetsDe(ctx).find((w) => w.type === 'ressources');
-  const cles = (
-    declarees?.type === 'ressources'
-      ? declarees.attributs
-      : [...ctx.fiche.entite.attributs.values()]
-          .filter((a) => a.nature === 'ressource')
-          .map((a) => a.cle)
-  )
-    .filter((c) => visiblePour(ctx, c) && estRessource(ctx, c) && ctx.fiche.valeurs.has(c))
-    .slice(0, 3);
-  if (cles.length === 0) return null;
-  return (
-    <div className="grid w-full gap-2 sm:w-64" aria-label="Ressources">
-      {cles.map((c) => (
-        <JaugeRessource key={c} fiche={ctx.fiche} cle={c} presentation={ctx.presentation} />
-      ))}
-    </div>
   );
 }
 
@@ -370,20 +349,20 @@ function ActionsProprietaire({
   return (
     <>
       {p.inCreation && p.roomId && (
-        <Button asChild>
+        <Button asChild size="sm">
           <Link href={lienPersonnage(p)}>
             <Hammer />
             Reprendre la création
           </Link>
         </Button>
       )}
-      <Button variant="secondary" onClick={onModifier}>
+      <Button variant="secondary" size="sm" onClick={onModifier}>
         <Pencil />
-        Modifier
+        <span className="hidden md:inline">Modifier</span>
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="icon" aria-label="Plus d'actions">
+          <Button variant="secondary" size="icon-sm" aria-label="Plus d'actions">
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>

@@ -398,7 +398,7 @@ export function ChipsDetails({
 }
 
 /** Fenêtre de détail d'une entrée possédée (description, effets, champs). */
-function FichePossession({
+export function FichePossession({
   ctx,
   id,
   children,
