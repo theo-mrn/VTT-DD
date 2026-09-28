@@ -17,11 +17,13 @@ import {
   type ReactNode,
 } from 'react';
 import { blockDefinition } from '@/components/fiche/blocks/registry';
+import type { TileArrangement } from '@/components/fiche/blocks/tiles/model';
 import type { SheetBlockDefinition, WidgetType } from '@/components/fiche/blocks/types';
 import type { ContexteFiche } from '@/components/fiche/widgets';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { ArrangementPopover } from './arrangement-popover';
 import { MARGIN, type GridBlock, type HeightMode } from './model';
 
 class BlockBoundary extends Component<
@@ -121,7 +123,13 @@ function BlockContent({
   return (
     <>
       <div ref={ref} className={cn('h-full', vide && 'hidden')}>
-        <Bloc ctx={ctx} widget={block.widget as never} mode={mode} height={height} />
+        <Bloc
+          ctx={ctx}
+          widget={block.widget as never}
+          mode={mode}
+          height={height}
+          arrangement={definition.tiles ? block.arrangement : undefined}
+        />
       </div>
       {vide && (
         <EmptyCard title={block.widget?.titre ?? definition.label}>
@@ -185,6 +193,7 @@ export function BlockFrame({
   heightMode,
   onMeasure,
   onHeightModeChange,
+  onArrangementChange,
   onRemove,
 }: {
   block: GridBlock;
@@ -199,6 +208,8 @@ export function BlockFrame({
   heightMode: HeightMode;
   onMeasure: (px: number) => void;
   onHeightModeChange: (mode: HeightMode) => void;
+  /** Disposition interne d'un bloc de tuiles (undefined : celle de la présentation). */
+  onArrangementChange: (arrangement: TileArrangement | undefined) => void;
   onRemove: () => void;
 }) {
   const auto = heightMode === 'auto';
@@ -221,6 +232,11 @@ export function BlockFrame({
     ? (blockDefinition(block.widget.type as WidgetType) as SheetBlockDefinition)
     : null;
   const titre = block.widget?.titre ?? block.raw.title;
+  // Bloc de tuiles : sa disposition interne se règle en personnalisation (deux valeurs au moins)
+  const tuiles =
+    editing && !empty && definition?.tiles && block.widget
+      ? definition.tiles(ctx, block.widget as never)
+      : [];
   // En personnalisation, le bloc reste lisible mais sans action (droits d'écriture retirés)
   const ctxBloc = editing ? { ...ctx, operations: undefined } : ctx;
 
@@ -277,6 +293,14 @@ export function BlockFrame({
             <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-lg border border-border-strong bg-popover/95 py-0.5 pl-1.5 pr-0.5 text-xs shadow-elevated backdrop-blur">
               <GripVertical className="size-3.5 shrink-0 text-subtle" aria-hidden />
               <span className="min-w-0 truncate font-medium">{titre}</span>
+              {tuiles.length > 1 && (
+                <ArrangementPopover
+                  title={titre}
+                  tiles={tuiles}
+                  value={block.arrangement}
+                  onChange={onArrangementChange}
+                />
+              )}
               <HeightSwitch title={titre} value={heightMode} onChange={onHeightModeChange} />
               <Button
                 variant="ghost"

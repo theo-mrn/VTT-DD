@@ -33,6 +33,8 @@ import type {
 } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { EntryBonuses } from './blocks/effects/entry-bonuses';
+import { arrangeTiles, type TileArrangement } from './blocks/tiles/model';
+import { TileGrid } from './blocks/tiles/tile-grid';
 import { LanceurAction } from './lanceur-action';
 
 /**
@@ -144,40 +146,47 @@ export function Bloc({
 
 // ─── Attributs ───────────────────────────────────────────────────────────────
 
-/**
- * Grille de `colonnes` colonnes au plus, moins quand le conteneur est étroit (chaque
- * colonne garde `minimum`) : les blocs s'adaptent à leur largeur dans la fiche.
- */
-export function grilleColonnes(colonnes: number, minimum: string, espace = '0.5rem') {
-  const n = Math.max(1, colonnes);
-  return {
-    gridTemplateColumns: `repeat(auto-fill, minmax(max(${minimum}, calc((100% - ${n - 1} * ${espace}) / ${n})), 1fr))`,
-  };
+/** Clés affichées par un bloc d'attributs (liste ou groupe), visibles de l'utilisateur. */
+export function clesAttributs(
+  ctx: ContexteFiche,
+  widget: Extract<Widget, { type: 'attributs' }>,
+): string[] {
+  return (
+    widget.attributs ??
+    [...ctx.fiche.entite.attributs.values()]
+      .filter((a) => a.groupe === widget.groupe && a.nature !== 'texte' && a.nature !== 'ressource')
+      .map((a) => a.cle)
+  ).filter((c) => visiblePour(ctx, c));
 }
+
+/** Largeur minimale d'une tuile d'attribut (px, 4,5 rem). */
+export const TUILE_ATTRIBUT_MIN = 72;
 
 export function BlocAttributs({
   ctx,
   widget,
+  arrangement,
 }: {
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'attributs' }>;
+  /** Disposition réglée en personnalisation ; absente : celle de la présentation. */
+  arrangement?: TileArrangement;
 }) {
   const { fiche } = ctx;
-  const cles = (
-    widget.attributs ??
-    [...fiche.entite.attributs.values()]
-      .filter((a) => a.groupe === widget.groupe && a.nature !== 'texte' && a.nature !== 'ressource')
-      .map((a) => a.cle)
-  ).filter((c) => visiblePour(ctx, c));
-  const colonnes = widget.colonnes ?? Math.min(6, cles.length);
+  const cles = arrangeTiles(clesAttributs(ctx, widget), arrangement);
   return (
     <Bloc titre={widget.titre}>
-      {/* `colonnes` au plus, moins quand le bloc est étroit (tuiles de 4,5 rem au minimum) */}
-      <div className="grid gap-2" style={grilleColonnes(colonnes, '4.5rem')}>
+      {/* `colonnes` de la présentation : préférence (au plus) quand la disposition est auto */}
+      <TileGrid
+        columns={arrangement?.columns}
+        count={cles.length}
+        minPx={TUILE_ATTRIBUT_MIN}
+        cap={widget.colonnes}
+      >
         {cles.map((c) => (
           <TuileAttribut key={c} fiche={fiche} cle={c} compacte />
         ))}
-      </div>
+      </TileGrid>
     </Bloc>
   );
 }
@@ -199,12 +208,31 @@ export function estRessource(ctx: Pick<ContexteFiche, 'fiche'>, cle: string): bo
  * pour une ressource, valeur simple pour un autre attribut (Défense). Les ressources se
  * règlent par + et − pour qui peut modifier la fiche.
  */
+/**
+ * Clés affichées par un bloc de ressources : toutes celles qui ont une valeur en chiffres,
+ * les seules ressources en jauges.
+ */
+export function clesRessources(
+  ctx: ContexteFiche,
+  widget: Extract<Widget, { type: 'ressources' }>,
+): string[] {
+  return widget.attributs.filter(
+    (c) =>
+      visiblePour(ctx, c) &&
+      ctx.fiche.valeurs.has(c) &&
+      (widget.affichage === 'valeur' || estRessource(ctx, c)),
+  );
+}
+
 export function BlocRessources({
   ctx,
   widget,
+  arrangement,
 }: {
   ctx: ContexteFiche;
   widget: Extract<Widget, { type: 'ressources' }>;
+  /** Disposition réglée en personnalisation ; absente : celle de la présentation. */
+  arrangement?: TileArrangement;
 }) {
   const { fiche, operations: ecritures } = ctx;
   function ajuster(cle: string, delta: number) {
@@ -219,7 +247,7 @@ export function BlocRessources({
       { ...fiche.etat, valeurs: { ...fiche.etat.valeurs, [cle]: suivante } },
     );
   }
-  const cles = widget.attributs.filter((c) => visiblePour(ctx, c) && fiche.valeurs.has(c));
+  const cles = arrangeTiles(clesRessources(ctx, widget), arrangement);
   const reglage = (c: string) =>
     ecritures && estRessource(ctx, c) ? (
       <div className="flex shrink-0 gap-1">
@@ -245,28 +273,28 @@ export function BlocRessources({
   if (widget.affichage === 'valeur')
     return (
       <Bloc titre={widget.titre}>
-        <div className="grid gap-2" style={grilleColonnes(Math.min(3, cles.length), '8rem')}>
+        {/* Tuiles de 8 rem au moins, trois par ligne au plus en auto */}
+        <TileGrid columns={arrangement?.columns} count={cles.length} minPx={128} cap={3}>
           {cles.map((c) => (
             <ValeurChiffree key={c} ctx={ctx} cle={c} reglage={reglage(c)} />
           ))}
-        </div>
+        </TileGrid>
       </Bloc>
     );
 
   return (
     <Bloc titre={widget.titre}>
-      <div className="space-y-4">
-        {cles
-          .filter((c) => estRessource(ctx, c))
-          .map((c) => (
-            <div key={c} className="flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
-              </div>
-              {reglage(c)}
+      {/* Une jauge par ligne en auto (préférence du bloc) ; colonnes au choix sinon */}
+      <TileGrid columns={arrangement?.columns} count={cles.length} minPx={192} cap={1} gapPx={16}>
+        {cles.map((c) => (
+          <div key={c} className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
             </div>
-          ))}
-      </div>
+            {reglage(c)}
+          </div>
+        ))}
+      </TileGrid>
     </Bloc>
   );
 }

@@ -11,6 +11,7 @@
 import type { Widget } from '@vtt/rules';
 import type { ComponentType } from 'react';
 import type { ContexteFiche } from '../widgets';
+import type { Tile, TileArrangement } from './tiles/model';
 
 export type WidgetType = Widget['type'];
 export type WidgetOf<T extends WidgetType> = Extract<Widget, { type: T }>;
@@ -25,6 +26,12 @@ export interface SheetBlockProps<T extends WidgetType = WidgetType> {
    * hauteur réglée (le contenu défile). Absent : `auto`.
    */
   height?: 'auto' | 'fixed';
+  /**
+   * Disposition interne d'un bloc de tuiles (colonnes, ordre, valeurs masquées), réglée en
+   * personnalisation. Absente : celle de la présentation. Seuls les blocs qui déclarent
+   * `tiles` la reçoivent.
+   */
+  arrangement?: TileArrangement;
 }
 
 /**
@@ -48,5 +55,11 @@ export interface SheetBlockDefinition<T extends WidgetType = WidgetType> {
    * hauteur réglée au coin et fait défiler le contenu (blocs volumineux : arbre…).
    */
   defaultHeight?: 'auto' | 'fixed';
+  /**
+   * Bloc de tuiles : les valeurs qu'il peut afficher (celles que la présentation lui donne,
+   * visibles de l'utilisateur), dans l'ordre du système. Présent : la personnalisation
+   * propose la disposition interne (colonnes, ordre, masquage).
+   */
+  tiles?: (ctx: ContexteFiche, widget: WidgetOf<T>) => Tile[];
   Component: ComponentType<SheetBlockProps<T>>;
 }

@@ -50,6 +50,10 @@ export const Widget = z.discriminatedUnion('type', [
     type: z.literal('attributs'),
     titre: Libelle,
     ...CiblesAttributs,
+    /**
+     * Colonnes au plus quand la disposition est automatique (préférence) : le bloc s'adapte
+     * à sa largeur, et le joueur peut fixer les siennes en personnalisant sa fiche.
+     */
     colonnes: z.number().int().min(1).max(6).optional(),
   }),
   /**

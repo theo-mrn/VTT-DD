@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import type { TileArrangement } from '@/components/fiche/blocks/tiles/model';
 import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApiError, messageErreur } from '@/lib/api';
@@ -355,6 +356,23 @@ export function SheetGrid({
     [brouillon, layouts, bp, changer],
   );
 
+  /** Disposition interne d'un bloc de tuiles ; la hauteur automatique suit d'elle-même. */
+  const changerDisposition = useCallback(
+    (id: string, arrangement: TileArrangement | undefined) => {
+      if (!brouillon) return;
+      changer({
+        ...brouillon,
+        blocks: brouillon.blocks.map((b) => {
+          if (b.id !== id) return b;
+          const { arrangement: _ancienne, ...reste } = b;
+          return arrangement ? { ...reste, arrangement } : reste;
+        }),
+      });
+      if (!arrangement) setAnnonce('Disposition du bloc rétablie : celle du système.');
+    },
+    [brouillon, changer],
+  );
+
   const retirer = useCallback(
     (id: string) => {
       if (!brouillon) return;
@@ -553,6 +571,7 @@ export function SheetGrid({
                     heightMode={modes.get(b.id) ?? 'auto'}
                     onMeasure={(px) => mesurer(b.id, px)}
                     onHeightModeChange={(m) => changerHauteur(b.id, m)}
+                    onArrangementChange={(a) => changerDisposition(b.id, a)}
                     onRemove={() => retirer(b.id)}
                   />
                 </div>

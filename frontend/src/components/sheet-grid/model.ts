@@ -9,6 +9,12 @@
  * enregistrée, dans son ordre de lecture.
  */
 import { Widget } from '@vtt/rules';
+import {
+  arrangementParams,
+  isArrangementParam,
+  readArrangement,
+  type TileArrangement,
+} from '@/components/fiche/blocks/tiles/model';
 import type { SheetBreakpoint, SheetLayout, SheetLayoutItem } from '@/lib/personnages';
 
 export const BREAKPOINT_ORDER: SheetBreakpoint[] = ['lg', 'md', 'sm', 'xs'];
@@ -47,6 +53,11 @@ export interface GridBlock {
   widget: Widget | null;
   /** Hauteur choisie en personnalisation ; absente : préférence du type de bloc. */
   height?: HeightMode;
+  /**
+   * Disposition interne d'un bloc de tuiles (colonnes, ordre, masques), enregistrée dans
+   * ses paramètres ; absente : celle de la présentation.
+   */
+  arrangement?: TileArrangement;
   /** Bloc tel qu'enregistré, gardé tel quel s'il n'est plus lisible. */
   raw: SheetLayout['blocks'][number];
 }
@@ -195,9 +206,20 @@ export function fromApiBlock(
   b: SheetLayout['blocks'][number],
   disponible?: Availability,
 ): GridBlock {
-  const r = Widget.safeParse({ ...b.params, type: b.type, titre: b.title });
+  // Les paramètres de disposition ne sont pas ceux du widget de la présentation
+  const params = Object.fromEntries(
+    Object.entries(b.params).filter(([k]) => !isArrangementParam(k)),
+  );
+  const r = Widget.safeParse({ ...params, type: b.type, titre: b.title });
   const widget = r.success && (!disponible || disponible(r.data)) ? r.data : null;
-  return { id: b.id, widget, raw: b, ...(b.height ? { height: b.height } : {}) };
+  const arrangement = readArrangement(b.params);
+  return {
+    id: b.id,
+    widget,
+    raw: b,
+    ...(b.height ? { height: b.height } : {}),
+    ...(arrangement ? { arrangement } : {}),
+  };
 }
 
 export function gridBlock(id: string, widget: Widget): GridBlock {
@@ -363,11 +385,21 @@ export function toApiLayout(state: GridState): SheetLayout {
   return {
     format: LAYOUT_FORMAT,
     blocks: state.blocks.map((b) => {
-      const api = b.widget ? toApiBlock(b.id, b.widget) : b.raw;
+      // Bloc illisible : gardé tel qu'enregistré, sa disposition comprise
+      const api = b.widget
+        ? withParams(toApiBlock(b.id, b.widget), arrangementParams(b.arrangement))
+        : b.raw;
       return b.height ? { ...api, height: b.height } : api;
     }),
     layouts,
   };
+}
+
+function withParams(
+  block: SheetLayout['blocks'][number],
+  extra: Record<string, ParamValue>,
+): SheetLayout['blocks'][number] {
+  return Object.keys(extra).length ? { ...block, params: { ...block.params, ...extra } } : block;
 }
 
 /** Positions ramenées aux champs du contrat (sans les métadonnées de react-grid-layout). */

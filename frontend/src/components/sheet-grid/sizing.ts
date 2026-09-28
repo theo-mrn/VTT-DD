@@ -8,11 +8,18 @@ import { soldes, type Widget } from '@vtt/rules';
 import { blockDefinition } from '@/components/fiche/blocks/registry';
 import { skillSortes } from '@/components/fiche/blocks/skills/abilities';
 import { pathSortes } from '@/components/fiche/blocks/tree/model';
+import {
+  arrangeTiles,
+  autoColumns,
+  resolveColumns,
+  type TileArrangement,
+} from '@/components/fiche/blocks/tiles/model';
 import type { WidgetType } from '@/components/fiche/blocks/types';
 import {
   actionsDisponibles,
-  estRessource,
-  visiblePour,
+  clesAttributs,
+  clesRessources,
+  TUILE_ATTRIBUT_MIN,
   type ContexteFiche,
 } from '@/components/fiche/widgets';
 import {
@@ -29,16 +36,26 @@ import {
 /** En-tête (titre), marges intérieures et bordure d'un bloc, en px. */
 const CHROME = 37 + 24 + 2;
 
-type Estimation = (ctx: ContexteFiche, widget: never, widthPx: number) => number | null;
+type Estimation = (
+  ctx: ContexteFiche,
+  widget: never,
+  widthPx: number,
+  arrangement?: TileArrangement,
+) => number | null;
 
-/** Clés d'attributs affichées par un bloc d'attributs (liste ou groupe, visibles de l'utilisateur). */
-function clesAttributs(ctx: ContexteFiche, w: Extract<Widget, { type: 'attributs' }>): string[] {
-  const cles =
-    w.attributs ??
-    [...ctx.fiche.entite.attributs.values()]
-      .filter((a) => a.groupe === w.groupe && a.nature !== 'texte' && a.nature !== 'ressource')
-      .map((a) => a.cle);
-  return cles.filter((c) => visiblePour(ctx, c));
+/** Rangées d'une grille de tuiles (même calcul que TileGrid, largeur intérieure estimée). */
+function rangeesTuiles(
+  n: number,
+  largeur: number,
+  minPx: number,
+  gapPx: number,
+  cap: number | undefined,
+  arrangement?: TileArrangement,
+): number {
+  const colonnes = resolveColumns(arrangement?.columns, n, () =>
+    autoColumns(n, largeur - 26, minPx, gapPx, cap),
+  );
+  return Math.max(1, Math.ceil(n / colonnes));
 }
 
 function possessionsListees(ctx: ContexteFiche, sorte: string) {
@@ -54,23 +71,20 @@ function texteDe(ctx: ContexteFiche, attribut: string): string {
 
 /** Hauteur du contenu (px, sans le chrome) par type de bloc ; null : taille déclarée. */
 const CONTENU: Partial<Record<WidgetType, Estimation>> = {
-  attributs: (ctx, w: Extract<Widget, { type: 'attributs' }>, largeur) => {
-    const n = clesAttributs(ctx, w).length;
-    const colonnes = w.colonnes ?? Math.min(6, n);
-    const parLigne = Math.max(1, Math.min(colonnes, Math.floor((largeur - 40 + 8) / (72 + 8))));
-    const lignes = Math.max(1, Math.ceil(n / parLigne));
+  attributs: (ctx, w: Extract<Widget, { type: 'attributs' }>, largeur, arrangement) => {
+    const n = arrangeTiles(clesAttributs(ctx, w), arrangement).length;
+    const lignes = rangeesTuiles(n, largeur, TUILE_ATTRIBUT_MIN, 8, w.colonnes, arrangement);
     return lignes * 72 + (lignes - 1) * 8;
   },
-  ressources: (ctx, w: Extract<Widget, { type: 'ressources' }>, largeur) => {
-    const cles = w.attributs.filter((c) => visiblePour(ctx, c));
+  ressources: (ctx, w: Extract<Widget, { type: 'ressources' }>, largeur, arrangement) => {
+    const n = Math.max(1, arrangeTiles(clesRessources(ctx, w), arrangement).length);
     if (w.affichage === 'valeur') {
-      // Tuiles de 8 rem au moins, trois par ligne au plus
-      const parLigne = Math.max(1, Math.min(3, cles.length, Math.floor((largeur - 40) / 136)));
-      const lignes = Math.max(1, Math.ceil(cles.length / parLigne));
+      // Tuiles de 8 rem au moins, trois par ligne au plus en auto
+      const lignes = rangeesTuiles(n, largeur, 128, 8, 3, arrangement);
       return lignes * 54 + (lignes - 1) * 8;
     }
-    const n = Math.max(1, cles.filter((c) => estRessource(ctx, c)).length);
-    return n * 38 + (n - 1) * 16;
+    const lignes = rangeesTuiles(n, largeur, 192, 16, 1, arrangement);
+    return lignes * 38 + (lignes - 1) * 16;
   },
   possessions: (ctx, w: Extract<Widget, { type: 'possessions' }>) => {
     const liste = possessionsListees(ctx, w.sorte);
@@ -124,7 +138,7 @@ const CONTENU: Partial<Record<WidgetType, Estimation>> = {
 const VIDE: Partial<Record<WidgetType, (ctx: ContexteFiche, widget: never) => boolean>> = {
   attributs: (ctx, w: Extract<Widget, { type: 'attributs' }>) => clesAttributs(ctx, w).length === 0,
   ressources: (ctx, w: Extract<Widget, { type: 'ressources' }>) =>
-    !w.attributs.some((c) => visiblePour(ctx, c) && ctx.fiche.valeurs.has(c)),
+    clesRessources(ctx, w).length === 0,
   possessions: (ctx, w: Extract<Widget, { type: 'possessions' }>) =>
     !ctx.systeme.sortes.has(w.sorte) || possessionsListees(ctx, w.sorte).length === 0,
   monnaies: (ctx) => soldes(ctx.fiche).length === 0,
@@ -144,7 +158,8 @@ export function sizeFor(ctx: ContexteFiche): SizeOf {
   return (block, _bp, widthPx) => {
     if (!block.widget) return { w: 6, h: legacyRows(3) };
     const def = blockDefinition(block.widget.type);
-    const contenu = CONTENU[block.widget.type]?.(ctx, block.widget as never, widthPx) ?? null;
+    const contenu =
+      CONTENU[block.widget.type]?.(ctx, block.widget as never, widthPx, block.arrangement) ?? null;
     const h =
       contenu === null
         ? legacyRows(def.defaultSize.h)
