@@ -19,6 +19,21 @@ import { io, type Socket } from 'socket.io-client';
 import { api, refreshSession } from './api';
 
 const PATH = '/v1/realtime/socket.io';
+
+/**
+ * Où ouvrir la WebSocket. En production, la même origine (l'ingress relaie les WebSocket).
+ * En développement, le serveur Next ne relaie pas l'upgrade WebSocket de ses rewrites : la
+ * connexion n'aboutissait jamais et aucun événement n'arrivait. On vise alors directement
+ * la gateway, sur le même hôte que la page (aussi depuis un autre appareil du réseau).
+ * `NEXT_PUBLIC_REALTIME_ORIGIN` force une origine précise.
+ */
+function realtimeOrigin(): string | undefined {
+  const explicit = process.env.NEXT_PUBLIC_REALTIME_ORIGIN;
+  if (explicit) return explicit;
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return undefined;
+  const port = process.env.NEXT_PUBLIC_GATEWAY_PORT ?? '8080';
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
 /** Sans hook monté, la connexion reste ouverte un moment (navigation, remontage). */
 const IDLE_CLOSE_MS = 10_000;
 /** Désabonnement différé : un démontage suivi d'un remontage (StrictMode) ne coupe rien. */
@@ -167,7 +182,8 @@ class RealtimeClient {
 
   private open() {
     if (this.socket) return;
-    const socket = io({
+    const origin = realtimeOrigin();
+    const socket = io(origin ?? undefined, {
       path: PATH,
       // Pas de long polling : il exigerait des sessions collantes entre réplicas
       transports: ['websocket'],
