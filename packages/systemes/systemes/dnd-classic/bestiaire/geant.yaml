@@ -1,0 +1,353 @@
+# Bestiaire de référence — Géant (10).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: ettin
+  nom: Ettin
+  entite: personnage
+  categorie: Géant
+  type: Géant (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ettin.png
+  valeurs:
+    niveau: 4
+    PV_Max: 85
+    Defense: 12
+    INIT: -1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 21
+    DEX: 8
+    CON: 17
+    INT: 6
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: "L'ettin porte deux attaques : une avec sa hache de guerre et une avec son étoile du matin."
+    - nom: Hache de guerre
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d8 + 5) points de dégâts tranchants."
+      toucher: 7
+    - nom: Morningstar
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d8 + 5) points de dégâts perforants."
+      toucher: 7
+- id: fire-giant
+  nom: Géant de feu
+  entite: personnage
+  categorie: Géant
+  type: Géant (très grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/fire-giant.png
+  valeurs:
+    niveau: 9
+    PV_Max: 162
+    Defense: 18
+    INIT: -1
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 25
+    DEX: 9
+    CON: 23
+    INT: 10
+    SAG: 14
+    CHA: 13
+  actions:
+    - nom: Multi-attaques
+      description: Le géant effectue deux attaques d'épée grise.
+    - nom: Épée de guerre
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 28
+        (6d6 + 7) points de dégâts tranchants."
+      toucher: 11
+    - nom: Le rocher
+      description: "Attaque d'arme à distance : +11 pour toucher, portée de 60/240 pieds, une cible.
+        Touché : 29 (4d10 + 7) dégâts de matraquage."
+      toucher: 11
+- id: frost-giant
+  nom: Géant de givre
+  entite: personnage
+  categorie: Géant
+  type: Géant (très grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/frost-giant.png
+  valeurs:
+    niveau: 8
+    PV_Max: 138
+    Defense: 15
+    INIT: -1
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 23
+    DEX: 9
+    CON: 21
+    INT: 9
+    SAG: 10
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: Le géant fait deux attaques de grande hache.
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 25
+        (3d12 + 6) points de dégâts tranchants."
+      toucher: 9
+    - nom: Le rocher
+      description:
+        "Attaque d'arme à distance : +9 pour toucher, portée de 60/240 pieds, une cible. Touché
+        : 28 (4d10 + 6) points de dégâts de matraquage."
+      toucher: 9
+- id: stone-giant
+  nom: Géant de pierre
+  entite: personnage
+  categorie: Géant
+  type: Géant (très grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/stone-giant.png
+  valeurs:
+    niveau: 7
+    PV_Max: 126
+    Defense: 17
+    INIT: 2
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 23
+    DEX: 15
+    CON: 20
+    INT: 10
+    SAG: 12
+    CHA: 9
+  actions:
+    - nom: Multi-attaques
+      description: Le géant fait deux attaques de grand gourdin.
+    - nom: Grand club
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 15 pieds, une cible. Touché : 19
+        (3d8 + 6) points de dégâts de matraquage."
+      toucher: 9
+    - nom: Le rocher
+      description:
+        "Attaque d'arme à distance : +9 pour toucher, portée de 60/240 pieds, une cible. Touché
+        : 28 (4d10 + 6) dégâts de matraquage. Si la cible est une créature, elle doit réussir un jet
+        de sauvegarde de Force DC 17 ou être mise à terre."
+      toucher: 9
+- id: hill-giant
+  nom: Géant des collines
+  entite: personnage
+  categorie: Géant
+  type: Géant (très grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/hill-giant.png
+  valeurs:
+    niveau: 5
+    PV_Max: 105
+    Defense: 13
+    INIT: -1
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 21
+    DEX: 8
+    CON: 19
+    INT: 5
+    SAG: 9
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description: Le géant fait deux attaques de grand gourdin.
+    - nom: Grand club
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 18
+        (3d8 + 5) points de dégâts de matraquage."
+      toucher: 8
+    - nom: Le rocher
+      description:
+        "Attaque d'arme à distance : +8 pour toucher, portée de 60/240 pieds, une cible. Touché
+        : 21 (3d10 + 5) points de dégâts de matraquage."
+      toucher: 8
+- id: cloud-giant
+  nom: Géant des nuages
+  entite: personnage
+  categorie: Géant
+  type: Géant (très grande)
+  description: 'Alignement : neutre bon (50 %) ou neutre mauvais (50 %).'
+  image: https://assets.yner.fr/bestaire/cloud-giant.png
+  valeurs:
+    niveau: 9
+    PV_Max: 200
+    Defense: 14
+    INIT: 0
+    Contact: 12
+    Distance: 12
+    Magie: 0
+    FOR: 27
+    DEX: 10
+    CON: 22
+    INT: 12
+    SAG: 16
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description: Le géant fait deux attaques d'étoile du matin.
+    - nom: Morningstar
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 10 pieds, une cible. Touché : 21
+        (3d8 + 8) points de dégâts perforants."
+      toucher: 12
+    - nom: Le rocher
+      description: "Attaque d'arme à distance : +12 pour toucher, portée de 60/240 pieds, une cible.
+        Touché : 30 (4d10 + 8) points de dégâts de matraquage."
+      toucher: 12
+- id: storm-giant
+  nom: Géant des tempêtes
+  entite: personnage
+  categorie: Géant
+  type: Géant (très grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/storm-giant.png
+  valeurs:
+    niveau: 13
+    PV_Max: 230
+    Defense: 16
+    INIT: 2
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 29
+    DEX: 14
+    CON: 20
+    INT: 16
+    SAG: 18
+    CHA: 18
+  actions:
+    - nom: Multi-attaques
+      description: Le géant effectue deux attaques d'épée grise.
+    - nom: Épée de guerre
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 30
+        (6d6 + 9) points de dégâts tranchants."
+      toucher: 14
+    - nom: Le rocher
+      description: "Attaque d'arme à distance : +14 pour toucher, portée de 60/240 pieds, une cible.
+        Touché : 35 (4d12 + 9) points de dégâts de matraquage."
+      toucher: 14
+    - nom: Coup de foudre
+      description:
+        Le géant lance un éclair magique sur un point qu'il peut voir dans un rayon de 500
+        pieds. Chaque créature située à moins de 10 pieds de ce point doit effectuer un jet de
+        sauvegarde de Dextérité DC 17, subissant 54 (12d8) points de dégâts de foudre en cas de
+        sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: ogre
+  nom: Ogre
+  entite: personnage
+  categorie: Géant
+  type: Géant (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ogre.png
+  valeurs:
+    niveau: 2
+    PV_Max: 59
+    Defense: 11
+    INIT: -1
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 8
+    CON: 16
+    INT: 5
+    SAG: 7
+    CHA: 7
+  actions:
+    - nom: Grand club
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) dégâts de matraquage."
+      toucher: 6
+    - nom: Javelot
+      description: 'Attaque en mêlée ou à distance : +6 pour toucher, portée de 5 pieds ou de 30/120
+        pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts perforants.'
+      toucher: 6
+- id: oni
+  nom: Oni
+  entite: personnage
+  categorie: Géant
+  type: Géant (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/oni.png
+  valeurs:
+    niveau: 7
+    PV_Max: 110
+    Defense: 16
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 11
+    CON: 16
+    INT: 14
+    SAG: 12
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: L'oni effectue deux attaques, soit avec ses griffes, soit avec son glaive.
+    - nom: Griffe (Forme Oni uniquement)
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Glaive
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts tranchants, ou 9 (1d10 + 4) points de dégâts tranchants en forme
+        petite ou moyenne."
+      toucher: 7
+    - nom: Changer de forme
+      description:
+        L'oni se transforme magiquement en un humanoïde de petite ou moyenne taille, en un
+        grand géant ou reprend sa véritable forme. Hormis sa taille, ses statistiques sont les mêmes
+        sous chaque forme. Le seul équipement transformé est son glaive, qui rétrécit pour pouvoir
+        être manié sous forme humanoïde. Si l'oni meurt, il reprend sa forme réelle et son glaive
+        reprend sa taille normale.
+- id: troll
+  nom: Troll
+  entite: personnage
+  categorie: Géant
+  type: Géant (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/troll.png
+  valeurs:
+    niveau: 5
+    PV_Max: 84
+    Defense: 15
+    INIT: 1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 13
+    CON: 20
+    INT: 7
+    SAG: 9
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: 'Le troll effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d6 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7

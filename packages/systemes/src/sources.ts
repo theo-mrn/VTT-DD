@@ -8,6 +8,7 @@
  *   tables/*.yaml      listes de tables   → tables
  *   textes/*.md        un texte par fichier (titre = premier titre « # »)
  *   presentation.yaml  présentation (skins, couleurs, fiche) : document séparé
+ *   bestiaire/*.yaml   créatures de référence (docs/ressources.md) : document séparé
  *
  * Découper en fichiers ne sert qu'à la lisibilité : le résultat est un seul
  * document, validé par `charger()` de @vtt/rules.
@@ -64,6 +65,15 @@ export function lireSysteme(id: string, racine = RACINE): Record<string, unknown
 export function lirePresentation(id: string, racine = RACINE): unknown {
   const f = join(racine, id, 'presentation.yaml');
   return existsSync(f) ? (parse(readFileSync(f, 'utf8')) as unknown) : undefined;
+}
+
+/**
+ * Bestiaire de référence (`bestiaire/*.yaml`, listes de créatures), s'il y en a un (non
+ * validé) : document séparé, chargé seulement par l'onglet Bestiaire des ressources.
+ */
+export function lireBestiaire(id: string, racine = RACINE): unknown {
+  const creatures = lireListes(join(racine, id, 'bestiaire'));
+  return creatures.length ? { format: 1, systeme: id, creatures } : undefined;
 }
 
 export function idsSystemes(racine = RACINE): string[] {

@@ -1,0 +1,190 @@
+# Bestiaire de référence — Plante (6).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: awakened-tree
+  nom: Arbre éveillé
+  entite: personnage
+  categorie: Plante
+  type: Plante (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/awakened-tree.png
+  valeurs:
+    niveau: 2
+    PV_Max: 59
+    Defense: 13
+    INIT: -2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 6
+    CON: 15
+    INT: 10
+    SAG: 10
+    CHA: 7
+  actions:
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 14
+        (3d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+- id: awakened-shrub
+  nom: Arbuste éveillé
+  entite: personnage
+  categorie: Plante
+  type: Plante (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/awakened-shrub.png
+  valeurs:
+    niveau: 0
+    PV_Max: 10
+    Defense: 9
+    INIT: -1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 8
+    CON: 11
+    INT: 10
+    SAG: 10
+    CHA: 6
+  actions:
+    - nom: Râteau
+      description:
+        "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 1 (1d4
+        - 1) points de dégâts tranchants."
+      toucher: 1
+- id: violet-fungus
+  nom: Champignon violet
+  entite: personnage
+  categorie: Plante
+  type: Plante (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/violet-fungus.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 18
+    Defense: 5
+    INIT: -5
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 1
+    CON: 10
+    INT: 1
+    SAG: 3
+    CHA: 1
+  actions:
+    - nom: Multi-attaques
+      description: Le champignon effectue 1d4 attaques de Toucher pourri.
+    - nom: Rotting Touch
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 10 pieds, une créature. Touché : 4
+        (1d8) points de dégâts nécrotiques."
+      toucher: 2
+- id: shambling-mound
+  nom: Le tumulus
+  entite: personnage
+  categorie: Plante
+  type: Plante (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/shambling-mound.png
+  valeurs:
+    niveau: 5
+    PV_Max: 136
+    Defense: 15
+    INIT: -1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 8
+    CON: 16
+    INT: 5
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le monticule branlant effectue deux attaques de fronde. Si les deux attaques touchent
+        une cible de taille moyenne ou plus petite, la cible est agrippée (DC 14), et le monticule
+        informe la cible de son Engloutissement.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) dégâts de matraquage."
+      toucher: 7
+    - nom: Engloutir
+      description:
+        Le monticule informe engloutit une créature de taille moyenne ou plus petite qu'il
+        agrippe. La cible engloutie est aveuglée, entravée et incapable de respirer, et elle doit
+        réussir un jet de sauvegarde de Constitution DC 14 au début de chaque tour du monticule ou
+        subir 13 (2d8 + 4) dégâts de matraquage. Si le monticule se déplace, la cible engloutie se
+        déplace avec lui. Le monticule ne peut engloutir qu'une seule créature à la fois.
+- id: shrieker
+  nom: Shrieker
+  entite: personnage
+  categorie: Plante
+  type: Plante (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/shrieker.png
+  valeurs:
+    niveau: 0
+    PV_Max: 13
+    Defense: 5
+    INIT: -5
+    Contact: -4
+    Distance: -4
+    Magie: 0
+    FOR: 1
+    DEX: 1
+    CON: 10
+    INT: 1
+    SAG: 3
+    CHA: 1
+- id: treant
+  nom: Tréant
+  entite: personnage
+  categorie: Plante
+  type: Plante (très grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/treant.png
+  valeurs:
+    niveau: 9
+    PV_Max: 138
+    Defense: 16
+    INIT: -1
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 23
+    DEX: 8
+    CON: 21
+    INT: 12
+    SAG: 16
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: Le tréant effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 16
+        (3d6 + 6) points de dégâts de matraquage."
+      toucher: 10
+    - nom: Le rocher
+      description:
+        "Attaque d'arme à distance : +10 pour toucher, portée 60/180 pieds, une cible. Touché :
+        28 (4d10 + 6) points de dégâts de matraquage."
+      toucher: 10
+    - nom: Animer les arbres
+      description:
+        Le tréant anime magiquement un ou deux arbres qu'il peut voir dans un rayon de 60 pieds
+        autour de lui. Ces arbres ont les mêmes statistiques que le tréant, sauf qu'ils ont des
+        scores d'Intelligence et de Charisme de 1, qu'ils ne peuvent pas parler et qu'ils n'ont que
+        l'option d'action Cheveux d'argile. Un arbre animé agit comme un allié du tréant. L'arbre
+        reste animé pendant 1 jour ou jusqu'à ce qu'il meure, jusqu'à ce que l'écorcheur meure ou se
+        trouve à plus de 120 pieds de l'arbre, ou jusqu'à ce que l'écorcheur entreprenne une action
+        bonus pour le retransformer en arbre inanimé. L'arbre prend alors racine si possible.

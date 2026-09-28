@@ -151,3 +151,37 @@ iconesObjets:
   - { sorte: accessoire, icone: outil }
   - { sorte: devise, icone: pieces }
   - { sorte: objet, icone: paquet }
+
+# Ressources consultables : panneau Ressources de la table et page Ressources de l'accueil
+# (docs/ressources.md). Pas de bibliothèque d'images : celle de l'app est médiévale.
+references:
+  capacites:
+    sections:
+      - { titre: Espèces, sorte: espece }
+      - { titre: Carrières, sorte: carriere }
+      - { titre: Spécialisations, sorte: specialisation, groupePar: { champ: carriere } }
+      - { titre: Talents, sorte: talent }
+      - { titre: Compétences, sorte: competence, groupePar: { champ: caracteristique } }
+  marche:
+    prix: prix
+    sortes:
+      - {
+          sorte: arme,
+          colonnes: [competence, degats, critique, portee, rarete],
+          groupeChamp: competence,
+        }
+      - { sorte: armure, colonnes: [defense, encaissement, encombrement, rarete] }
+      - { sorte: objet, colonnes: [encombrement, rarete] }
+      - { sorte: accessoire, colonnes: [pourType, pointsFixation, rarete] }
+  # Modèles de PNJ de la campagne (le système n'a pas de bestiaire de référence)
+  bestiaire:
+    statistiques:
+      personnage:
+        - {
+            titre: Caractéristiques,
+            attributs: [vigueur, agilite, intellect, ruse, volonte, presence],
+          }
+        - {
+            titre: Seuils et défense,
+            attributs: [seuilBlessure, seuilStress, encaissement, defenseMelee, defenseDistance],
+          }

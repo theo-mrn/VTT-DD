@@ -30,6 +30,16 @@ function apparence(id) {
   };
 }
 
+/** Bestiaire de référence copié, et son nombre de créatures (0 : aucun). */
+const bestiaires = join(source, 'bestiaires');
+mkdirSync(join(cible, 'bestiaires'), { recursive: true });
+function bestiaire(id) {
+  const fichier = join(bestiaires, `${id}.json`);
+  if (!existsSync(fichier)) return 0;
+  copyFileSync(fichier, join(cible, 'bestiaires', `${id}.json`));
+  return JSON.parse(readFileSync(fichier, 'utf8')).creatures?.length ?? 0;
+}
+
 const index = [];
 for (const fichier of readdirSync(source)
   .filter((f) => f.endsWith('.json'))
@@ -53,6 +63,7 @@ for (const fichier of readdirSync(source)
       etapes: c.etapes.map((e) => e.nom),
     })),
     desSymboles: Boolean(s.des),
+    bestiaire: bestiaire(s.id),
     ...apparence(s.id),
   });
 }

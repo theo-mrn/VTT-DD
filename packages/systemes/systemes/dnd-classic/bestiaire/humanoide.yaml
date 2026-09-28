@@ -1,0 +1,1674 @@
+# Bestiaire de référence — Humanoïde (50).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: acolyte
+  nom: Acolyte
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/acolyte.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 9
+    Defense: 10
+    INIT: 0
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 10
+    CON: 10
+    INT: 10
+    SAG: 14
+    CHA: 11
+  actions:
+    - nom: Club
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 2
+        (1d4) points de dégâts de matraquage."
+      toucher: 2
+- id: archmage
+  nom: Archimage
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/archmage.png
+  valeurs:
+    niveau: 12
+    PV_Max: 99
+    Defense: 12
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 10
+    DEX: 14
+    CON: 12
+    INT: 20
+    SAG: 15
+    CHA: 16
+  actions:
+    - nom: Poignard
+      description:
+        'Attaque en mêlée ou à distance : +6 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants.'
+      toucher: 6
+- id: assassin
+  nom: Assassin
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement non bon.'
+  image: https://assets.yner.fr/bestaire/assassin.png
+  valeurs:
+    niveau: 8
+    PV_Max: 78
+    Defense: 15
+    INIT: 3
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 11
+    DEX: 16
+    CON: 14
+    INT: 13
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description: L'assassin porte deux attaques d'épée courte.
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 15, subissant 24 (7d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 6
+    - nom: Arbalète légère
+      description:
+        "Attaque d'arme à distance : +6 pour toucher, portée 80/320 pieds, une cible. Touché :
+        7 (1d8 + 3) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 15, subissant 24 (7d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 6
+- id: bandit
+  nom: Bandit
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement non loyal.'
+  image: https://assets.yner.fr/bestaire/bandit.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 11
+    Defense: 12
+    INIT: 1
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 12
+    CON: 12
+    INT: 10
+    SAG: 10
+    CHA: 10
+  actions:
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts tranchants."
+      toucher: 3
+    - nom: Arbalète légère
+      description:
+        "Attaque d'arme à distance : +3 pour toucher, portée 80 pieds/320 pieds, une cible.
+        Touché : 5 (1d8 + 1) points de dégâts perforants."
+      toucher: 3
+- id: berserker
+  nom: Berserker
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement chaotique.'
+  image: https://assets.yner.fr/bestaire/berserker.png
+  valeurs:
+    niveau: 2
+    PV_Max: 67
+    Defense: 13
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 12
+    CON: 17
+    INT: 9
+    SAG: 11
+    CHA: 9
+  actions:
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (1d12 + 3) points de dégâts tranchants."
+      toucher: 5
+- id: bugbear
+  nom: Bugbear
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/bugbear.png
+  valeurs:
+    niveau: 1
+    PV_Max: 27
+    Defense: 16
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 14
+    CON: 13
+    INT: 8
+    SAG: 11
+    CHA: 9
+  actions:
+    - nom: Morningstar
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d8 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Javelot
+      description: 'Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou de 30/120
+        pieds, une cible. Touché : 9 (2d6 + 2) points de dégâts perforants en mêlée ou 5 (1d6 + 2)
+        points de dégâts perforants à distance.'
+      toucher: 4
+- id: bandit-captain
+  nom: Capitaine des bandits
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement non loyal.'
+  image: https://assets.yner.fr/bestaire/bandit-captain.png
+  valeurs:
+    niveau: 2
+    PV_Max: 65
+    Defense: 15
+    INIT: 3
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 16
+    CON: 14
+    INT: 14
+    SAG: 11
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le capitaine effectue trois attaques de mêlée : deux avec son cimeterre et une avec sa
+        dague. Ou le capitaine effectue deux attaques à distance avec ses dagues.'
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Poignard
+      description:
+        'Attaque en mêlée ou à distance : +5 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 5 (1d4 + 3) points de dégâts perforants.'
+      toucher: 5
+- id: knight
+  nom: Chevalier
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/knight.png
+  valeurs:
+    niveau: 3
+    PV_Max: 52
+    Defense: 18
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 11
+    CON: 14
+    INT: 11
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: Le chevalier effectue deux attaques de mêlée.
+    - nom: Épée de guerre
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Arbalète lourde
+      description:
+        "Attaque d'arme à distance : +2 au toucher, portée de 100/400 pieds, une cible. Touché
+        : 5 (1d10) points de dégâts perforants."
+      toucher: 2
+    - nom: Leadership
+      description: Pendant 1 minute, le chevalier peut prononcer un commandement spécial ou un
+        avertissement chaque fois qu'une créature non hostile qu'il peut voir dans un rayon de 30
+        pieds fait un jet d'attaque ou un jet de sauvegarde. La créature peut ajouter un d4 à son
+        jet à condition qu'elle puisse entendre et comprendre le chevalier. Une créature ne peut
+        bénéficier que d'un seul dé de direction à la fois. Cet effet prend fin si le chevalier est
+        frappé d'incapacité.
+- id: cultist
+  nom: Cultiste
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement non bon.'
+  image: https://assets.yner.fr/bestaire/cultist.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 9
+    Defense: 12
+    INIT: 1
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 12
+    CON: 10
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d6 + 1) points de dégâts tranchants."
+      toucher: 3
+- id: half-red-dragon-veteran
+  nom: Dragon demi-rouge vétéran
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/half-red-dragon-veteran.png
+  valeurs:
+    niveau: 5
+    PV_Max: 65
+    Defense: 18
+    INIT: 1
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 16
+    DEX: 13
+    CON: 14
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le vétéran effectue deux attaques d'épée longue. S'il a tiré une épée courte, il peut
+        également effectuer une attaque d'épée courte.
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts tranchants, ou 8 (1d10 + 3) points de dégâts tranchants si l'arme
+        est utilisée à deux mains."
+      toucher: 5
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Arbalète lourde
+      description: "Attaque d'arme à distance : +3 pour toucher, portée de 100/400 pieds, une cible.
+        Touché : 6 (1d10 + 1) points de dégâts perforants."
+      toucher: 3
+    - nom: Souffle de feu
+      description:
+        Le vétéran exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 15, subissant 24 (7d6) dégâts de feu en cas de
+        sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.
+- id: drow
+  nom: Drow
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/drow.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 15
+    INIT: 2
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 14
+    CON: 10
+    INT: 11
+    SAG: 11
+    CHA: 12
+  actions:
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Arbalète à main
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché :
+        5 (1d6 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 13 ou être empoisonnée pendant 1 heure. Si le jet de sauvegarde échoue de 5
+        ou plus, la cible est également inconsciente tant qu'elle est empoisonnée de cette manière.
+        La cible se réveille si elle subit des dégâts ou si une autre créature entreprend une action
+        pour la secouer."
+      toucher: 4
+- id: druid
+  nom: Druide
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/druid.png
+  valeurs:
+    niveau: 2
+    PV_Max: 27
+    Defense: 11
+    INIT: 1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 12
+    CON: 13
+    INT: 12
+    SAG: 15
+    CHA: 11
+  actions:
+    - nom: Couteau de quart
+      description:
+        "Arme de mêlée Attaque : +2 au toucher (+4 au toucher avec un shillelagh), portée de 5
+        pieds, une cible. Touché : 3 (1d6) dégâts de matraquage, 4 (1d8) dégâts de matraquage si
+        l'arme est maniée à deux mains, ou 6 (1d8 + 2) dégâts de matraquage avec le shillelagh."
+      toucher: 2
+- id: duergar
+  nom: Duergar
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://www.dnd5eapi.co/api/images/monsters/duergar.png
+  valeurs:
+    niveau: 1
+    PV_Max: 26
+    Defense: 16
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 11
+    CON: 14
+    INT: 11
+    SAG: 10
+    CHA: 9
+  actions:
+    - nom: Agrandir
+      description:
+        Pendant 1 minute, le duergar augmente magiquement de taille, ainsi que tout ce qu'il
+        porte ou transporte. Lorsqu'il est agrandi, le duergar est Grand, double ses dés de dégâts
+        sur les attaques d'armes basées sur la Force (incluses dans les attaques), et effectue les
+        tests de Force et les jets de sauvegarde de Force avec avantage. Si le duergar manque de
+        place pour devenir Grand, il atteint la taille maximale possible dans l'espace disponible.
+    - nom: Choix de la guerre
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts perforants, ou 11 (2d8 + 2) points de dégâts perforants en cas
+        d'agrandissement."
+      toucher: 4
+    - nom: Javelot
+      description: "Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou de 30/120
+        pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants, ou 9 (2d6 + 2) points de
+        dégâts perforants lorsque l'arme est agrandie."
+      toucher: 4
+    - nom: Invisibilité
+      description:
+        Le duergar devient magiquement invisible jusqu'à ce qu'il attaque, lance un sort ou
+        utilise son Agrandissement, ou jusqu'à ce que sa concentration soit rompue, jusqu'à 1 heure
+        (comme s'il se concentrait sur un sort). Tout équipement que le duergar porte ou transporte
+        est invisible avec lui.
+- id: scout
+  nom: Éclaireur
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/scout.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 16
+    Defense: 13
+    INIT: 2
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 14
+    CON: 12
+    INT: 11
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: L'éclaireur effectue deux attaques de mêlée ou deux attaques à distance.
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 6 (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: spy
+  nom: Espion
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/spy.png
+  valeurs:
+    niveau: 1
+    PV_Max: 27
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 15
+    CON: 10
+    INT: 12
+    SAG: 14
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description: L'espion effectue deux attaques de mêlée.
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Arbalète à main
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché :
+        5 (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: cult-fanatic
+  nom: Fanatique de la secte
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement non bon.'
+  image: https://assets.yner.fr/bestaire/cult-fanatic.png
+  valeurs:
+    niveau: 2
+    PV_Max: 22
+    Defense: 13
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 11
+    DEX: 14
+    CON: 12
+    INT: 10
+    SAG: 13
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description: Le fanatique effectue deux attaques de mêlée.
+    - nom: Poignard
+      description:
+        'Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une créature. Touché : 4 (1d4 + 2) points de dégâts perforants.'
+      toucher: 4
+- id: guard
+  nom: Garde
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/guard.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 11
+    Defense: 16
+    INIT: 1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 12
+    CON: 12
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +3 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants ou 5 (1d8 + 1) points de
+        dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 3
+- id: wereboar-human
+  nom: Garou garou, forme humaine
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/wereboar-human.png
+  valeurs:
+    niveau: 4
+    PV_Max: 78
+    Defense: 10
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 15
+    INT: 10
+    SAG: 11
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: Le garou effectue deux attaques, dont une seule peut être effectuée avec ses défenses.
+    - nom: Maul
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts de matraquage."
+      toucher: 5
+- id: wereboar-hybrid
+  nom: Garou-garou, forme hybride
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/wereboar-hybrid.png
+  valeurs:
+    niveau: 4
+    PV_Max: 78
+    Defense: 11
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 15
+    INT: 10
+    SAG: 11
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: Le garou effectue deux attaques, dont une seule peut être effectuée avec ses défenses.
+    - nom: Maul
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts de matraquage."
+      toucher: 5
+    - nom: Tusks
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du garou."
+      toucher: 5
+- id: gladiator
+  nom: Gladiateur
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/gladiator.png
+  valeurs:
+    niveau: 5
+    PV_Max: 112
+    Defense: 16
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 10
+    SAG: 12
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: Le gladiateur effectue trois attaques de mêlée ou deux attaques à distance.
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +7 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts perforants, ou 13 (2d8 + 4) points
+        de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 7
+    - nom: Coup de bouclier
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une créature. Touché : 9
+        (2d4 + 4) points de dégâts de matraquage. Si la cible est une créature moyenne ou plus
+        petite, elle doit réussir un jet de sauvegarde de Force DC 15 ou être mise à terre."
+      toucher: 7
+- id: gnoll
+  nom: Gnoll
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/gnoll.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 15
+    INIT: 1
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 14
+    DEX: 12
+    CON: 11
+    INT: 6
+    SAG: 10
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d4 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants, ou 6 (1d8 + 2) points de
+        dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 4
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +3 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 5 (1d8 + 1) points de dégâts perforants."
+      toucher: 3
+- id: deep-gnome-svirfneblin
+  nom: Gnome profond (Svirfneblin)
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (petite)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/deep-gnome-svirfneblin.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 16
+    Defense: 15
+    INIT: 2
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 14
+    CON: 14
+    INT: 12
+    SAG: 10
+    CHA: 9
+  actions:
+    - nom: Choix de la guerre
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Fléchette empoisonnée
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une créature. Touché
+        : 4 (1d4 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 12 ou être empoisonnée pendant 1 minute. La cible peut répéter le jet de
+        sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de
+        réussite"
+      toucher: 4
+- id: goblin
+  nom: Gobelin
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (petite)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/goblin.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 7
+    Defense: 15
+    INIT: 2
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 8
+    DEX: 14
+    CON: 10
+    INT: 10
+    SAG: 8
+    CHA: 8
+  actions:
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts tranchants."
+      toucher: 4
+    - nom: Arc court
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 80/320 pieds, une cible. Touché :
+        5 (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: grimlock
+  nom: Grimlock
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/grimlock.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 11
+    Defense: 11
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 12
+    CON: 12
+    INT: 9
+    SAG: 8
+    CHA: 6
+  actions:
+    - nom: Spiked Bone Club
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d4 + 3) points de dégâts de matraquage plus 2 (1d4) points de dégâts perforants."
+      toucher: 5
+- id: tribal-warrior
+  nom: Guerrier tribal
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/tribal-warrior.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 11
+    Defense: 12
+    INIT: 0
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 11
+    CON: 12
+    INT: 8
+    SAG: 11
+    CHA: 8
+  actions:
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +3 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants, ou 5 (1d8 + 1) points de
+        dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 3
+- id: hobgoblin
+  nom: Hobgobelin
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/hobgoblin.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 11
+    Defense: 18
+    INIT: 1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 12
+    CON: 12
+    INT: 10
+    SAG: 10
+    CHA: 9
+  actions:
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d8 + 1) points de dégâts tranchants, ou 6 (1d10 + 1) points de dégâts tranchants si l'arme
+        est utilisée à deux mains."
+      toucher: 3
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +3 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 5 (1d8 + 1) points de dégâts perforants."
+      toucher: 3
+- id: kobold
+  nom: Kobold
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (petite)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/kobold.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 5
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 7
+    DEX: 15
+    CON: 9
+    INT: 8
+    SAG: 7
+    CHA: 8
+  actions:
+    - nom: Poignard
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Élingue
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché :
+        4 (1d4 + 2) points de dégâts de matraquage."
+      toucher: 4
+- id: lizardfolk
+  nom: Le peuple des lézards
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/lizardfolk.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 13
+    INIT: 0
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 10
+    CON: 13
+    INT: 7
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: Le lézard effectue deux attaques de mêlée, chacune avec une arme différente.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Club lourd
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts de matraquage."
+      toucher: 4
+    - nom: Javelot
+      description: 'Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou portée de
+        30/120 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.'
+      toucher: 4
+    - nom: Bouclier à pointes
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: werewolf-wolf
+  nom: Loup-garou, forme de loup
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/werewolf-wolf.png
+  valeurs:
+    niveau: 3
+    PV_Max: 58
+    Defense: 12
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 13
+    CON: 14
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du loup-garou."
+      toucher: 4
+- id: werewolf-human
+  nom: Loup-garou, forme humaine
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/werewolf-human.png
+  valeurs:
+    niveau: 3
+    PV_Max: 58
+    Defense: 11
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 13
+    CON: 14
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le loup-garou effectue deux attaques : deux avec sa lance (forme humanoïde) ou une
+        avec sa morsure et une avec ses griffes (forme hybride).'
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une créature. Touché : 5 (1d6 + 2) points de dégâts perforants, ou 6 (1d8 + 2) points
+        de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 4
+- id: werewolf-hybrid
+  nom: Loup-garou, forme hybride
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/werewolf-hybrid.png
+  valeurs:
+    niveau: 3
+    PV_Max: 58
+    Defense: 12
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 13
+    CON: 14
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le loup-garou effectue deux attaques : deux avec sa lance (forme humanoïde) ou une
+        avec sa morsure et une avec ses griffes (forme hybride).'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du loup-garou."
+      toucher: 4
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7
+        (2d4 + 2) points de dégâts tranchants."
+      toucher: 4
+- id: mage
+  nom: Mage
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/mage.png
+  valeurs:
+    niveau: 6
+    PV_Max: 40
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 9
+    DEX: 14
+    CON: 11
+    INT: 17
+    SAG: 12
+    CHA: 11
+  actions:
+    - nom: Poignard
+      description:
+        'Attaque en mêlée ou à distance : +5 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants.'
+      toucher: 5
+- id: merfolk
+  nom: Merfolk
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/merfolk.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 11
+    Defense: 11
+    INIT: 1
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 13
+    CON: 12
+    INT: 11
+    SAG: 11
+    CHA: 12
+  actions:
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +2 au toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 3 (1d6) points de dégâts perforants, ou 4 (1d8) points de dégâts
+        perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 2
+- id: noble
+  nom: Noble
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/noble.png
+  valeurs:
+    niveau: 0.125
+    PV_Max: 9
+    Defense: 15
+    INIT: 1
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 11
+    DEX: 12
+    CON: 11
+    INT: 12
+    SAG: 14
+    CHA: 16
+  actions:
+    - nom: Rapière
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d8 + 1) points de dégâts perforants."
+      toucher: 3
+- id: orc
+  nom: Orque
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/orc.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 15
+    Defense: 13
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 12
+    CON: 16
+    INT: 7
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (1d12 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Javelot
+      description: 'Attaque en mêlée ou à distance : +5 pour toucher, portée de 5 pieds ou portée de
+        30/120 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts perforants.'
+      toucher: 5
+- id: werebear-bear
+  nom: Ours-garou, forme d'ours
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/werebear-bear.png
+  valeurs:
+    niveau: 5
+    PV_Max: 135
+    Defense: 11
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 17
+    INT: 11
+    SAG: 12
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: Sous forme d'ours, l'ours-garou effectue deux attaques de griffes. Sous forme
+        humanoïde, il effectue deux attaques de grande hache. Sous forme hybride, il peut attaquer
+        comme un ours ou un humanoïde.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 14 ou être maudite par la lycanthropie de
+        l'ours-garou."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 7
+- id: werebear-human
+  nom: Ours-garou, forme humaine
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/werebear-human.png
+  valeurs:
+    niveau: 5
+    PV_Max: 135
+    Defense: 10
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 17
+    INT: 11
+    SAG: 12
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: Sous forme d'ours, l'ours-garou effectue deux attaques de griffes. Sous forme
+        humanoïde, il effectue deux attaques de grande hache. Sous forme hybride, il peut attaquer
+        comme un ours ou un humanoïde.
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (1d12 + 4) points de dégâts tranchants."
+      toucher: 7
+- id: werebear-hybrid
+  nom: Ours-garou, forme hybride
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/werebear-hybrid.png
+  valeurs:
+    niveau: 5
+    PV_Max: 135
+    Defense: 11
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 17
+    INT: 11
+    SAG: 12
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: Sous forme d'ours, l'ours-garou effectue deux attaques de griffes. Sous forme
+        humanoïde, il effectue deux attaques de grande hache. Sous forme hybride, il peut attaquer
+        comme un ours ou un humanoïde.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 14 ou être maudite par la lycanthropie de
+        l'ours-garou."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (1d12 + 4) points de dégâts tranchants."
+      toucher: 7
+- id: priest
+  nom: Prêtre
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/priest.png
+  valeurs:
+    niveau: 2
+    PV_Max: 27
+    Defense: 13
+    INIT: 0
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 10
+    CON: 12
+    INT: 13
+    SAG: 16
+    CHA: 13
+  actions:
+    - nom: Masse
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d6) points de dégâts de matraquage."
+      toucher: 2
+- id: commoner
+  nom: Roturier
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/commoner.png
+  valeurs:
+    niveau: 0
+    PV_Max: 4
+    Defense: 10
+    INIT: 0
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 10
+    CON: 10
+    INT: 10
+    SAG: 10
+    CHA: 10
+  actions:
+    - nom: Club
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 2
+        (1d4) points de dégâts de matraquage."
+      toucher: 2
+- id: sahuagin
+  nom: Sahuagin
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/sahuagin.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 0
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 11
+    CON: 12
+    INT: 12
+    SAG: 13
+    CHA: 9
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le sahuagin effectue deux attaques de mêlée : une avec sa morsure et une avec ses
+        griffes ou sa lance.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d4 + 1) points de dégâts perforants."
+      toucher: 3
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d4 + 1) points de dégâts tranchants."
+      toucher: 3
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +3 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants, ou 5 (1d8 + 1) points de
+        dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée."
+      toucher: 3
+- id: wereboar-boar
+  nom: Sanglier-garou, forme de sanglier
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/wereboar-boar.png
+  valeurs:
+    niveau: 4
+    PV_Max: 78
+    Defense: 11
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 15
+    INT: 10
+    SAG: 11
+    CHA: 8
+  actions:
+    - nom: Tusks
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du garou."
+      toucher: 5
+- id: veteran
+  nom: Vétéran
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/veteran.png
+  valeurs:
+    niveau: 3
+    PV_Max: 58
+    Defense: 17
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 13
+    CON: 14
+    INT: 10
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le vétéran effectue deux attaques d'épée longue. S'il a tiré une épée courte, il peut
+        également effectuer une attaque d'épée courte.
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts tranchants, ou 8 (1d10 + 3) points de dégâts tranchants si l'arme
+        est utilisée à deux mains."
+      toucher: 5
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Arbalète lourde
+      description: "Attaque d'arme à distance : +3 pour toucher, portée de 100/400 pieds, une cible.
+        Touché : 6 (1d10 + 1) points de dégâts perforants."
+      toucher: 3
+- id: thug
+  nom: Voyou
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : tout alignement non bon.'
+  image: https://assets.yner.fr/bestaire/thug.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 32
+    Defense: 11
+    INIT: 0
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 15
+    DEX: 11
+    CON: 14
+    INT: 10
+    SAG: 10
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: Le voyou effectue deux attaques de mêlée.
+    - nom: Masse
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5
+        (1d6 + 2) points de dégâts de matraquage."
+      toucher: 4
+    - nom: Arbalète lourde
+      description:
+        "Attaque d'arme à distance : +2 au toucher, portée de 100/400 pieds, une cible. Touché
+        : 5 (1d10) points de dégâts perforants."
+      toucher: 2
+- id: wererat-rat
+  nom: Wererat, forme de rat
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/wererat-rat.png
+  valeurs:
+    niveau: 2
+    PV_Max: 33
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 15
+    CON: 12
+    INT: 11
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 11 ou être maudite par la lycanthropie wererat."
+      toucher: 4
+- id: wererat-human
+  nom: Wererat, Forme humaine
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/wererat-human.png
+  valeurs:
+    niveau: 2
+    PV_Max: 33
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 15
+    CON: 12
+    INT: 11
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: Le wererat effectue deux attaques, dont une seule peut être une morsure.
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Arbalète à main
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché :
+        5 (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: wererat-hybrid
+  nom: Wererat, forme hybride
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/wererat-hybrid.png
+  valeurs:
+    niveau: 2
+    PV_Max: 33
+    Defense: 12
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 15
+    CON: 12
+    INT: 11
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: Le wererat effectue deux attaques, dont une seule peut être une morsure.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 11 ou être maudite par la lycanthropie wererat."
+      toucher: 4
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Arbalète à main
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché :
+        5 (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: weretiger-human
+  nom: Weretiger, forme humaine
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/weretiger-human.png
+  valeurs:
+    niveau: 4
+    PV_Max: 120
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 16
+    INT: 10
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: Sous forme humanoïde, le tigre-garou effectue deux attaques de cimeterre ou deux
+        attaques d'arc long. Sous forme hybride, il peut attaquer comme un humanoïde ou effectuer
+        deux attaques de griffes.
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 6 (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: weretiger-hybrid
+  nom: Weretiger, forme hybride
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/weretiger-hybrid.png
+  valeurs:
+    niveau: 4
+    PV_Max: 120
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 16
+    INT: 10
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: Sous forme humanoïde, le tigre-garou effectue deux attaques de cimeterre ou deux
+        attaques d'arc long. Sous forme hybride, il peut attaquer comme un humanoïde ou effectuer
+        deux attaques de griffes.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 13 ou être maudite par la lycanthropie du tigre-garou."
+      toucher: 5
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 6 (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: weretiger-tiger
+  nom: Weretiger, forme tigre
+  entite: personnage
+  categorie: Humanoïde
+  type: Humanoïde (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/weretiger-tiger.png
+  valeurs:
+    niveau: 4
+    PV_Max: 120
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 15
+    CON: 16
+    INT: 10
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un
+        jet de sauvegarde de Constitution DC 13 ou être maudite par la lycanthropie du tigre-garou."
+      toucher: 5
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts tranchants."
+      toucher: 5

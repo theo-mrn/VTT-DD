@@ -1,0 +1,254 @@
+# Bestiaire de référence — Fée (6).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: blink-dog
+  nom: Chien esquiveur
+  entite: personnage
+  categorie: Fée
+  type: Fée (moyenne)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/blink-dog.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 22
+    Defense: 13
+    INIT: 3
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 17
+    CON: 12
+    INT: 10
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) points de dégâts perforants."
+      toucher: 3
+    - nom: Téléportation
+      description:
+        Le chien se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 40 pieds
+        dans un espace inoccupé qu'il peut voir. Avant ou après la téléportation, le chien peut
+        effectuer une attaque de morsure.
+- id: dryad
+  nom: Dryade
+  entite: personnage
+  categorie: Fée
+  type: Fée (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/dryad.png
+  valeurs:
+    niveau: 1
+    PV_Max: 22
+    Defense: 11
+    INIT: 1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 10
+    DEX: 12
+    CON: 11
+    INT: 14
+    SAG: 15
+    CHA: 18
+  actions:
+    - nom: Club
+      description:
+        'Arme de mêlée Attaque : +2 pour toucher (+6 pour toucher avec le shillelagh), portée
+        de 5 pieds, une cible. Touché : 2 (1 d4) dégâts de matraquage, ou 8 (1d8 + 4) dégâts de
+        matraquage avec le shillelagh.'
+      toucher: 2
+    - nom: Charme de Fey
+      description: >-
+        La dryade cible un humanoïde ou une bête qu'elle peut voir dans un rayon de 30 pieds autour
+        d'elle. Si la cible peut voir la dryade, elle doit réussir un jet de sauvegarde de sagesse
+        DC 14 ou être magiquement charmée. La créature charmée considère la dryade comme une amie de
+        confiance qu'il faut écouter et protéger. Bien que la cible ne soit pas sous le contrôle de
+        la dryade, elle prend les demandes ou les actions de la dryade de la façon la plus favorable
+        possible.
+
+        Chaque fois que la dryade ou ses alliés font quelque chose de nuisible à la cible, elle peut
+        répéter le jet de sauvegarde, mettant fin à l'effet sur elle-même en cas de succès. Sinon,
+        l'effet dure 24 heures ou jusqu'à ce que la dryade meure, se trouve sur un plan d'existence
+        différent de celui de la cible ou mette fin à l'effet par une action bonus. Si le jet de
+        sauvegarde de la cible est réussi, la cible est immunisée contre le charme feint de la
+        dryade pour les 24 heures suivantes.
+
+        La dryade ne peut charmer plus d'un humanoïde et jusqu'à trois bêtes à la fois.
+- id: green-hag
+  nom: Hag vert
+  entite: personnage
+  categorie: Fée
+  type: Fée (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/green-hag.png
+  valeurs:
+    niveau: 3
+    PV_Max: 82
+    Defense: 17
+    INIT: 1
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 12
+    CON: 16
+    INT: 13
+    SAG: 14
+    CHA: 14
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 6
+    - nom: Apparence illusoire
+      description: >-
+        La sorcière se couvre et couvre tout ce qu'elle porte ou transporte d'une illusion magique
+        qui la fait ressembler à une autre créature de sa taille générale et de forme humanoïde.
+        L'illusion prend fin si la sorcière entreprend une action bonus pour y mettre fin ou si elle
+        meurt.
+
+        Les changements provoqués par cet effet ne résistent pas à une inspection physique. Par
+        exemple, la sorcière peut sembler avoir une peau lisse, mais quelqu'un qui la toucherait
+        sentirait sa chair rugueuse. Sinon, une créature doit entreprendre une action pour inspecter
+        visuellement l'illusion et réussir un test d'Intelligence (Investigation) DC 20 pour
+        discerner que la sorcière est déguisée.
+    - nom: Passage invisible
+      description:
+        La sorcière devient magiquement invisible jusqu'à ce qu'elle attaque ou lance un sort,
+        ou jusqu'à ce que sa concentration prenne fin (comme si elle se concentrait sur un sort).
+        Pendant qu'elle est invisible, elle ne laisse aucune trace physique de son passage, de sorte
+        qu'on ne peut la suivre que par magie. Tout équipement qu'elle porte est invisible avec
+        elle.
+- id: sea-hag
+  nom: Le chien de mer
+  entite: personnage
+  categorie: Fée
+  type: Fée (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/sea-hag.png
+  valeurs:
+    niveau: 2
+    PV_Max: 52
+    Defense: 14
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 13
+    CON: 16
+    INT: 12
+    SAG: 12
+    CHA: 13
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Éblouissement mortel
+      description:
+        La sorcière cible une créature effrayée qu'elle peut voir dans un rayon de 30 pieds
+        autour d'elle. Si la cible peut voir la sorcière, elle doit réussir un jet de sauvegarde de
+        sagesse DC 11 contre cette magie ou tomber à 0 point de vie.
+    - nom: Apparence illusoire
+      description: >-
+        La sorcière se couvre et couvre tout ce qu'elle porte ou transporte d'une illusion magique
+        qui la fait ressembler à une créature laide de sa taille générale et de forme humanoïde.
+        L'effet prend fin si la sorcière entreprend une action bonus pour y mettre fin ou si elle
+        meurt.
+
+        Les changements provoqués par cet effet ne résistent pas à une inspection physique. Par
+        exemple, la sorcière peut sembler ne pas avoir de griffes, mais quelqu'un qui touche sa main
+        peut sentir les griffes. Sinon, une créature doit entreprendre une action pour inspecter
+        visuellement l'illusion et réussir un test d'Intelligence (Investigation) DC 16 pour
+        discerner que la sorcière est déguisée.
+- id: satyr
+  nom: Satyre
+  entite: personnage
+  categorie: Fée
+  type: Fée (moyenne)
+  description: 'Alignement : chaotique neutre.'
+  image: https://assets.yner.fr/bestaire/satyr.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 31
+    Defense: 14
+    INIT: 3
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 16
+    CON: 11
+    INT: 12
+    SAG: 10
+    CHA: 14
+  actions:
+    - nom: Ram
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (2d4 + 1) dégâts de matraquage."
+      toucher: 3
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1
+        d6 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Arc court
+      description:
+        "Attaque d'arme à distance : +5 pour toucher, portée 80/320 pieds, une cible. Touché :
+        6 (1d6 + 3) points de dégâts perforants."
+      toucher: 5
+- id: sprite
+  nom: Sprite
+  entite: personnage
+  categorie: Fée
+  type: Fée (très petite)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/sprite.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 2
+    Defense: 15
+    INIT: 4
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 18
+    CON: 10
+    INT: 14
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 1
+        point de dégâts tranchants."
+      toucher: 2
+    - nom: Arc court
+      description:
+        "Attaque d'arme à distance : +6 pour toucher, portée 40/160 pieds, une cible. Touché :
+        1 dégât perforant, et la cible doit réussir un jet de sauvegarde de Constitution DC 10 ou
+        être empoisonnée pendant 1 minute. Si le résultat de son jet de sauvegarde est inférieur ou
+        égal à 5, la cible empoisonnée tombe inconsciente pour la même durée, ou jusqu'à ce qu'elle
+        subisse des dégâts ou qu'une autre créature entreprenne une action pour la réveiller."
+      toucher: 6
+    - nom: Vue du cœur
+      description:
+        Le lutin touche une créature et connaît magiquement son état émotionnel actuel. Si la
+        cible échoue à un jet de sauvegarde DC 10 de Charisme, le lutin connaît également
+        l'alignement de la créature. Les célestes, les démons et les morts-vivants échouent
+        automatiquement au jet de sauvegarde.
+    - nom: Invisibilité
+      description:
+        Le lutin devient magiquement invisible jusqu'à ce qu'il attaque ou lance un sort, ou
+        jusqu'à la fin de sa concentration (comme s'il se concentrait sur un sort). Tout équipement
+        que le lutin porte ou transporte est invisible avec lui.

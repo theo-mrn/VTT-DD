@@ -1,0 +1,2160 @@
+# Bestiaire de référence — Dragon (43).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: ancient-white-dragon
+  nom: Ancien dragon blanc
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ancient-white-dragon.png
+  valeurs:
+    niveau: 20
+    PV_Max: 333
+    Defense: 20
+    INIT: 0
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 26
+    DEX: 10
+    CON: 26
+    INT: 10
+    SAG: 13
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 15 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants plus 9 (2d8) points de dégâts de froid."
+      toucher: 14
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 14
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 20 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 14
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 16 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Souffle froid
+      description:
+        Le dragon exhale un souffle glacé dans un cône de 90 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 22, subissant 72 (l6d8) points de
+        dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: ancient-blue-dragon
+  nom: Ancien dragon bleu
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/ancient-blue-dragon.png
+  valeurs:
+    niveau: 23
+    PV_Max: 481
+    Defense: 22
+    INIT: 0
+    Contact: 16
+    Distance: 16
+    Magie: 0
+    FOR: 29
+    DEX: 10
+    CON: 27
+    INT: 18
+    SAG: 17
+    CHA: 21
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +16 pour toucher, portée de 15 pieds, une cible. Touché : 20
+        (2d10 + 9) points de dégâts perforants plus 11 (2d10) points de dégâts de foudre."
+      toucher: 16
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +16 pour toucher, portée de 10 pieds, une cible. Touché : 16
+        (2d6 + 9) points de dégâts tranchants."
+      toucher: 16
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +16 pour toucher, portée de 20 pieds, une cible. Touché : 18
+        (2d8 + 9) points de dégâts de matraquage."
+      toucher: 16
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 20 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Le souffle de la foudre
+      description:
+        Le dragon exhale des éclairs sur une ligne de 120 pieds de long et 10 pieds de large.
+        Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 23, subissant
+        88 (16d10) dégâts de foudre en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de
+        sauvegarde réussie.
+- id: ancient-silver-dragon
+  nom: Ancien dragon d'argent
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/ancient-silver-dragon.png
+  valeurs:
+    niveau: 23
+    PV_Max: 487
+    Defense: 22
+    INIT: 0
+    Contact: 17
+    Distance: 17
+    Magie: 0
+    FOR: 30
+    DEX: 10
+    CON: 29
+    INT: 18
+    SAG: 15
+    CHA: 23
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 15 pieds, une cible. Touché : 21
+        (2d10 + 10) points de dégâts perforants."
+      toucher: 17
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d6 + 10) points de dégâts tranchants."
+      toucher: 17
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 20 pieds, une cible. Touché : 19
+        (2d8 + 10) points de dégâts de matraquage."
+      toucher: 17
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 21 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à souffle
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle froid. Le dragon exhale un souffle glacé dans un cône de 90 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Constitution DC 24, subissant 67 (15d8)
+        points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde
+        réussie.
+
+        Souffle paralysant. Le dragon exhale un gaz paralysant dans un cône de 90 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 24 ou être
+        paralysée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de
+        chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.
+    - nom: Changer de forme
+      description: >-
+        Le dragon se transforme magiquement en un humanoïde ou une bête dont la valeur de défi n'est
+        pas supérieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle s'il
+        meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du
+        dragon).
+
+        Sous une nouvelle forme, le dragon conserve son alignement, ses points de vie, ses dés de
+        réussite, sa capacité à parler, ses compétences, sa résistance légendaire, ses actions de
+        repaire et ses scores d'Intelligence, de Sagesse et de Charisme, ainsi que cette action. Ses
+        statistiques et capacités sont remplacées par celles de sa nouvelle forme, à l'exception des
+        caractéristiques de classe et des actions légendaires de cette forme.
+- id: ancient-copper-dragon
+  nom: Ancien dragon de cuivre
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/ancient-copper-dragon.png
+  valeurs:
+    niveau: 21
+    PV_Max: 350
+    Defense: 21
+    INIT: 1
+    Contact: 15
+    Distance: 15
+    Magie: 0
+    FOR: 27
+    DEX: 12
+    CON: 25
+    INT: 20
+    SAG: 17
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 15 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants."
+      toucher: 15
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 15
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 20 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 15
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 19 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle d'acide. Le dragon exhale de l'acide sur une ligne de 90 pieds de long et 10 pieds
+        de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 22,
+        subissant 63 (14d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas
+        de sauvegarde réussie.
+
+        Souffle ralenti. Le dragon exhale du gaz dans un cône de 90 pieds. Chaque créature dans
+        cette zone doit réussir un jet de sauvegarde de Constitution DC 22. En cas d'échec, la
+        créature ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut
+        pas faire plus d'une attaque à son tour. De plus, la créature peut utiliser une action ou un
+        bonus d'action à son tour, mais pas les deux. Ces effets durent 1 minute. La créature peut
+        répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur
+        elle-même en cas de sauvegarde réussie.
+    - nom: Changer de forme
+      description: >-
+        Le dragon se transforme magiquement en un humanoïde ou une bête dont la valeur de défi n'est
+        pas supérieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle s'il
+        meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du
+        dragon).
+
+        Sous une nouvelle forme, le dragon conserve son alignement, ses points de vie, ses dés de
+        réussite, sa capacité à parler, ses compétences, sa résistance légendaire, ses actions de
+        repaire et ses scores d'Intelligence, de Sagesse et de Charisme, ainsi que cette action. Ses
+        statistiques et capacités sont remplacées par celles de sa nouvelle forme, à l'exception des
+        caractéristiques de classe et des actions légendaires de cette forme.
+- id: ancient-black-dragon
+  nom: Ancien dragon noir
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ancient-black-dragon.png
+  valeurs:
+    niveau: 21
+    PV_Max: 367
+    Defense: 22
+    INIT: 2
+    Contact: 15
+    Distance: 15
+    Magie: 0
+    FOR: 27
+    DEX: 14
+    CON: 25
+    INT: 16
+    SAG: 15
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : + 15 pour toucher, portée de 15 pieds, une cible. Touché :
+        19 (2d10 + 8) points de dégâts perforants plus 9 (2d8) points de dégâts d'acide."
+      toucher: 15
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 15
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 20 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 15
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 19 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Haleine acide
+      description:
+        Le dragon exhale de l'acide sur une ligne de 90 pieds de long et 10 pieds de large.
+        Chaque créature de cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 22,
+        subissant 67 (15d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas
+        de sauvegarde réussie.
+- id: ancient-red-dragon
+  nom: Ancien dragon rouge
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ancient-red-dragon.png
+  valeurs:
+    niveau: 24
+    PV_Max: 546
+    Defense: 22
+    INIT: 0
+    Contact: 17
+    Distance: 17
+    Magie: 0
+    FOR: 30
+    DEX: 10
+    CON: 29
+    INT: 18
+    SAG: 15
+    CHA: 23
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 15 pieds, une cible. Touché : 21
+        (2d10 + 10) points de dégâts perforants plus 14 (4d6) points de dégâts de feu."
+      toucher: 17
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d6 + 10) points de dégâts tranchants."
+      toucher: 17
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 20 pieds, une cible. Touché : 19
+        (2d8 + 10) points de dégâts de matraquage."
+      toucher: 17
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 21 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Souffle de feu
+      description:
+        Le dragon exhale du feu dans un cône de 90 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 24, subissant 91 (26d6) dégâts de feu en cas de
+        sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: ancient-green-dragon
+  nom: Ancien dragon vert
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/ancient-green-dragon.png
+  valeurs:
+    niveau: 22
+    PV_Max: 385
+    Defense: 21
+    INIT: 1
+    Contact: 15
+    Distance: 15
+    Magie: 0
+    FOR: 27
+    DEX: 12
+    CON: 25
+    INT: 20
+    SAG: 17
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 15 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants plus 10 (3d6) points de dégâts de poison."
+      toucher: 15
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 10 pieds, une cible. Touché : 22
+        (4d6 + 8) points de dégâts tranchants."
+      toucher: 15
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 20 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 15
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 19 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Haleine empoisonnée
+      description:
+        Le dragon exhale un gaz empoisonné dans un cône de 90 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 22, subissant 77 (22d6) points de
+        dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: adult-brass-dragon
+  nom: Dragon adulte en laiton
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/adult-brass-dragon.png
+  valeurs:
+    niveau: 13
+    PV_Max: 172
+    Defense: 18
+    INIT: 0
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 23
+    DEX: 10
+    CON: 21
+    INT: 14
+    SAG: 13
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants."
+      toucher: 11
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 11
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 15 pieds, une cible. Touché : 15
+        (2d8 + 6) points de dégâts de matraquage."
+      toucher: 11
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 16 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à souffle
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu sur une ligne de 60 pieds de long et de 5 pieds de
+        large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 18,
+        subissant 45 (13d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de
+        dégâts en cas de sauvegarde réussie.
+
+        Souffle de sommeil. Le dragon exhale un gaz de sommeil dans un cône de 60 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 18 ou tomber
+        inconsciente pendant 10 minutes. Cet effet prend fin pour une créature si elle subit des
+        dégâts ou si quelqu'un utilise une action pour la réveiller.
+- id: ancient-brass-dragon
+  nom: Dragon antique en laiton
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/ancient-brass-dragon.png
+  valeurs:
+    niveau: 20
+    PV_Max: 297
+    Defense: 20
+    INIT: 0
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 27
+    DEX: 10
+    CON: 25
+    INT: 16
+    SAG: 15
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 15 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants."
+      toucher: 14
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 14
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 20 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 14
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 18 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes :
+
+        Souffle de feu. Le dragon exhale du feu sur une ligne de 90 pieds de long et 10 pieds de
+        large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 21,
+        subissant 56 (16d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de
+        dégâts en cas de sauvegarde réussie.
+
+        Souffle de sommeil. Le dragon exhale un gaz de sommeil dans un cône de 90 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 21 ou tomber
+        inconsciente pendant 10 minutes. Cet effet prend fin pour une créature si elle subit des
+        dégâts ou si quelqu'un utilise une action pour la réveiller.
+    - nom: Changer de forme
+      description: >-
+        Le dragon se transforme magiquement en un humanoïde ou une bête dont la valeur de défi n'est
+        pas supérieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle s'il
+        meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du
+        dragon).
+
+        Sous une nouvelle forme, le dragon conserve son alignement, ses points de vie, ses dés de
+        réussite, sa capacité à parler, ses compétences, sa résistance légendaire, ses actions de
+        repaire et ses scores d'Intelligence, de Sagesse et de Charisme, ainsi que cette action. Ses
+        statistiques et capacités sont remplacées par celles de sa nouvelle forme, à l'exception des
+        caractéristiques de classe et des actions légendaires de cette forme.
+- id: adult-white-dragon
+  nom: Dragon blanc adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/adult-white-dragon.png
+  valeurs:
+    niveau: 13
+    PV_Max: 200
+    Defense: 18
+    INIT: 0
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 22
+    DEX: 10
+    CON: 22
+    INT: 8
+    SAG: 12
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants plus 4 (1d8) points de dégâts de froid."
+      toucher: 11
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 11
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 15 pieds, une cible. Touché : 15
+        (2d8 + 6) points de dégâts de matraquage."
+      toucher: 11
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 14 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Souffle froid
+      description:
+        Le dragon exhale un souffle glacé dans un cône de 60 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 19, subissant 54 (12d8) dégâts de
+        froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: adult-blue-dragon
+  nom: Dragon bleu adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/adult-blue-dragon.png
+  valeurs:
+    niveau: 16
+    PV_Max: 225
+    Defense: 19
+    INIT: 0
+    Contact: 12
+    Distance: 12
+    Magie: 0
+    FOR: 25
+    DEX: 10
+    CON: 23
+    INT: 16
+    SAG: 15
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 10 pieds, une cible. Touché : 18
+        (2d10 + 7) points de dégâts perforants plus 5 (1d10) points de dégâts de foudre."
+      toucher: 12
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d6 + 7) points de dégâts tranchants."
+      toucher: 12
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 15 pieds, une cible. Touché : 16
+        (2d8 + 7) points de dégâts de matraquage."
+      toucher: 12
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 17 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si le jet de sauvegarde d'une
+        créature est réussi ou si l'effet prend fin pour elle, la créature est immunisée contre la
+        Présence effrayante du dragon pour les 24 heures suivantes.
+    - nom: Le souffle de la foudre
+      description:
+        Le dragon exhale des éclairs sur une ligne de 90 pieds de long et de 5 pieds de large.
+        Chaque créature située sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC
+        19, subissant 66 (12d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié
+        moins de dégâts en cas de sauvegarde réussie.
+- id: adult-copper-dragon
+  nom: Dragon cuivré adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/adult-copper-dragon.png
+  valeurs:
+    niveau: 14
+    PV_Max: 184
+    Defense: 18
+    INIT: 1
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 23
+    DEX: 12
+    CON: 21
+    INT: 18
+    SAG: 15
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants."
+      toucher: 11
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 11
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 15 pieds, une cible. Touché : 15
+        (2d8 + 6) points de dégâts de matraquage."
+      toucher: 11
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 16 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle d'acide. Le dragon exhale de l'acide sur une ligne de 60 pieds de long et de 5 pieds
+        de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 18,
+        subissant 54 (12d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas
+        de sauvegarde réussie.
+
+        Souffle ralenti. Le dragon exhale du gaz dans un cône de 60 pieds. Chaque créature dans
+        cette zone doit réussir un jet de sauvegarde de Constitution DC 18. En cas d'échec, la
+        créature ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut
+        pas faire plus d'une attaque à son tour. De plus, la créature peut utiliser une action ou un
+        bonus d'action à son tour, mais pas les deux. Ces effets durent 1 minute. La créature peut
+        répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur
+        elle-même en cas de sauvegarde réussie.
+- id: adult-silver-dragon
+  nom: Dragon d'argent adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/adult-silver-dragon.png
+  valeurs:
+    niveau: 16
+    PV_Max: 243
+    Defense: 19
+    INIT: 0
+    Contact: 13
+    Distance: 13
+    Magie: 0
+    FOR: 27
+    DEX: 10
+    CON: 25
+    INT: 16
+    SAG: 13
+    CHA: 21
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 10 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants."
+      toucher: 13
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 5 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 13
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 15 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 13
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 18 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle froid. Le dragon exhale un souffle glacé dans un cône de 60 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Constitution DC 20, subissant 58 (13d8)
+        points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde
+        réussie.
+
+        Souffle paralysant. Le dragon exhale un gaz paralysant dans un cône de 60 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 20 ou être
+        paralysée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de
+        chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.
+- id: silver-dragon-wyrmling
+  nom: Dragon d'argent Wyrmling
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/silver-dragon-wyrmling.png
+  valeurs:
+    niveau: 2
+    PV_Max: 45
+    Defense: 17
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 17
+    INT: 12
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (1d10 + 4) points de dégâts perforants."
+      toucher: 6
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle froid. Le dragon exhale un souffle glacé dans un cône de 15 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Constitution DC 13, subissant 18 (4d8)
+        points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde
+        réussie.
+
+        Souffle paralysant. Le dragon exhale un gaz paralysant dans un cône de 15 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 13 ou être
+        paralysée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de
+        chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.
+- id: adult-gold-dragon
+  nom: Dragon d'or adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/adult-gold-dragon.png
+  valeurs:
+    niveau: 17
+    PV_Max: 256
+    Defense: 19
+    INIT: 2
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 27
+    DEX: 14
+    CON: 25
+    INT: 16
+    SAG: 15
+    CHA: 24
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants."
+      toucher: 14
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 5 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 14
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 15 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 14
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 21 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu dans un cône de 60 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Dextérité DC 21, subissant 66 (12d10) points de
+        dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+
+        Souffle d'affaiblissement. Le dragon exhale du gaz dans un cône de 60 pieds. Chaque créature
+        dans cette zone doit réussir un jet de sauvegarde de Force DC 21 ou avoir un désavantage sur
+        les jets d'attaque basés sur la Force, les tests de Force et les jets de sauvegarde de Force
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de réussite.
+- id: ancient-gold-dragon
+  nom: Dragon d'or ancien
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/ancient-gold-dragon.png
+  valeurs:
+    niveau: 24
+    PV_Max: 546
+    Defense: 22
+    INIT: 2
+    Contact: 17
+    Distance: 17
+    Magie: 0
+    FOR: 30
+    DEX: 14
+    CON: 29
+    INT: 18
+    SAG: 17
+    CHA: 28
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 15 pieds, une cible. Touché : 21
+        (2d10 + 10) points de dégâts perforants."
+      toucher: 17
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d6 + 10) points de dégâts tranchants."
+      toucher: 17
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +17 pour toucher, portée de 20 pieds, une cible. Touché : 19
+        (2d8 + 10) points de dégâts de matraquage."
+      toucher: 17
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 24 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu dans un cône de 90 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Dextérité DC 24, subissant 71 (13d10) points de
+        dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+
+        Souffle d'affaiblissement. Le dragon exhale du gaz dans un cône de 90 pieds. Chaque créature
+        dans cette zone doit réussir un jet de sauvegarde de Force DC 24 ou avoir un désavantage sur
+        les jets d'attaque basés sur la Force, les tests de Force et les jets de sauvegarde de Force
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de réussite.
+    - nom: Changer de forme
+      description: >-
+        Le dragon se transforme magiquement en un humanoïde ou une bête dont la valeur de défi n'est
+        pas supérieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle s'il
+        meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du
+        dragon).
+
+        Sous une nouvelle forme, le dragon conserve son alignement, ses points de vie, ses dés de
+        réussite, sa capacité à parler, ses compétences, sa résistance légendaire, ses actions de
+        repaire et ses scores d'Intelligence, de Sagesse et de Charisme, ainsi que cette action. Ses
+        statistiques et capacités sont remplacées par celles de sa nouvelle forme, à l'exception des
+        caractéristiques de classe et des actions légendaires de cette forme.
+- id: gold-dragon-wyrmling
+  nom: Dragon d'or Wyrmling
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/gold-dragon-wyrmling.png
+  valeurs:
+    niveau: 3
+    PV_Max: 60
+    Defense: 17
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 14
+    CON: 17
+    INT: 14
+    SAG: 11
+    CHA: 16
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (1d10 + 4) points de dégâts perforants."
+      toucher: 6
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu dans un cône de 15 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Dextérité DC 13, subissant 22 (4d10) points de
+        dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde
+        réussie.
+
+        Souffle d'affaiblissement. Le dragon exhale du gaz dans un cône de 15 pieds. Chaque créature
+        dans cette zone doit réussir un jet de sauvegarde de Force DC 13 ou avoir un désavantage sur
+        les jets d'attaque basés sur la Force, les tests de Force et les jets de sauvegarde de Force
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de réussite.
+- id: adult-bronze-dragon
+  nom: Dragon de bronze adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/adult-bronze-dragon.png
+  valeurs:
+    niveau: 15
+    PV_Max: 212
+    Defense: 19
+    INIT: 0
+    Contact: 12
+    Distance: 12
+    Magie: 0
+    FOR: 25
+    DEX: 10
+    CON: 23
+    INT: 16
+    SAG: 15
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 10 pieds, une cible. Touché : 18
+        (2d10 + 7) points de dégâts perforants."
+      toucher: 12
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d6 + 7) points de dégâts tranchants."
+      toucher: 12
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 15 pieds, une cible. Touché : 16
+        (2d8 + 7) points de dégâts de matraquage."
+      toucher: 12
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 17 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à souffle
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de foudre. Le dragon exhale des éclairs sur une ligne de 90 pieds de long et de 5
+        pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité
+        DC 19, subissant 66 (12d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié
+        moins de dégâts en cas de sauvegarde réussie.
+
+        Souffle de répulsion. Le dragon exhale de l'énergie de répulsion dans un cône de 30 pieds.
+        Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 19. En cas de
+        sauvegarde ratée, la créature est repoussée à 60 pieds du dragon.
+- id: ancient-bronze-dragon
+  nom: Dragon de bronze ancien
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/ancient-bronze-dragon.png
+  valeurs:
+    niveau: 22
+    PV_Max: 444
+    Defense: 22
+    INIT: 0
+    Contact: 16
+    Distance: 16
+    Magie: 0
+    FOR: 29
+    DEX: 10
+    CON: 27
+    INT: 18
+    SAG: 17
+    CHA: 21
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +16 pour toucher, portée de 15 pieds, une cible. Touché : 20
+        (2d10 + 9) points de dégâts perforants."
+      toucher: 16
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +16 pour toucher, portée de 10 pieds, une cible. Touché : 16
+        (2d6 + 9) points de dégâts tranchants."
+      toucher: 16
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +16 pour toucher, portée de 20 pieds, une cible. Touché : 18
+        (2d8 + 9) points de dégâts de matraquage."
+      toucher: 16
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 20 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de foudre. Le dragon exhale des éclairs sur une ligne de 120 pieds de long et 10
+        pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité
+        DC 23, subissant 88 (16d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié
+        moins de dégâts en cas de sauvegarde réussie.
+
+        Souffle de répulsion. Le dragon exhale de l'énergie de répulsion dans un cône de 30 pieds.
+        Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 23. En cas de
+        sauvegarde ratée, la créature est repoussée à 60 pieds du dragon.
+    - nom: Changer de forme
+      description: >-
+        Le dragon se transforme magiquement en un humanoïde ou une bête dont la valeur de défi n'est
+        pas supérieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle s'il
+        meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du
+        dragon).
+
+        Sous une nouvelle forme, le dragon conserve son alignement, ses points de vie, ses dés de
+        réussite, sa capacité à parler, ses compétences, sa résistance légendaire, ses actions de
+        repaire et ses scores d'Intelligence, de Sagesse et de Charisme, ainsi que cette action. Ses
+        statistiques et capacités sont remplacées par celles de sa nouvelle forme, à l'exception des
+        caractéristiques de classe et des actions légendaires de cette forme.
+- id: bronze-dragon-wyrmling
+  nom: Dragon de bronze Wyrmling
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/bronze-dragon-wyrmling.png
+  valeurs:
+    niveau: 2
+    PV_Max: 32
+    Defense: 17
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 15
+    INT: 12
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de foudre. Le dragon exhale des éclairs sur une ligne de 40 pieds de long et de 5
+        pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité
+        DC 12, subissant 16 (3d10) points de dégâts de foudre en cas de sauvegarde ratée, ou la
+        moitié des dégâts en cas de sauvegarde réussie.
+
+        Souffle de répulsion. Le dragon exhale de l'énergie de répulsion dans un cône de 30 pieds.
+        Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 12. En cas
+        d'échec, la créature est repoussée à 30 pieds du dragon.
+- id: copper-dragon-wyrmling
+  nom: Dragon de cuivre Wyrmling
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/copper-dragon-wyrmling.png
+  valeurs:
+    niveau: 1
+    PV_Max: 22
+    Defense: 16
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 12
+    CON: 13
+    INT: 14
+    SAG: 11
+    CHA: 13
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d10 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle d'acide. Le dragon exhale de l'acide sur une ligne de 20 pieds de long et de 5 pieds
+        de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 11,
+        subissant 18 (4d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié des
+        dégâts en cas de sauvegarde réussie.
+
+        Souffle ralenti. Le dragon exhale du gaz dans un cône de 15 pieds. Chaque créature dans
+        cette zone doit réussir un jet de sauvegarde de Constitution DC 11. En cas d'échec, la
+        créature ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut
+        pas faire plus d'une attaque à son tour. De plus, la créature peut utiliser une action ou un
+        bonus d'action à son tour, mais pas les deux. Ces effets durent 1 minute. La créature peut
+        répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur
+        elle-même en cas de sauvegarde réussie.
+- id: adult-black-dragon
+  nom: Dragon noir adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/adult-black-dragon.png
+  valeurs:
+    niveau: 14
+    PV_Max: 195
+    Defense: 19
+    INIT: 2
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 23
+    DEX: 14
+    CON: 21
+    INT: 14
+    SAG: 13
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants plus 4 (1d8) points de dégâts d'acide."
+      toucher: 11
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 11
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 15 pieds, une cible. Touché : 15
+        (2d8 + 6) points de dégâts de matraquage."
+      toucher: 11
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 16 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Haleine acide
+      description:
+        Le dragon exhale de l'acide sur une ligne de 60 pieds de long et de 5 pieds de large.
+        Chaque créature sur cette ligne doit faire un jet de sauvegarde de Dextérité DC 18,
+        subissant 54 (12d8) points de dégâts d'acide en cas d'échec, ou la moitié en cas de
+        réussite.
+- id: adult-red-dragon
+  nom: Dragon rouge adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/adult-red-dragon.png
+  valeurs:
+    niveau: 17
+    PV_Max: 256
+    Defense: 19
+    INIT: 0
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 27
+    DEX: 10
+    CON: 25
+    INT: 16
+    SAG: 13
+    CHA: 21
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 19
+        (2d10 + 8) points de dégâts perforants plus 7 (2d6) points de dégâts de feu."
+      toucher: 14
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 5 pieds, une cible. Touché : 15
+        (2d6 + 8) points de dégâts tranchants."
+      toucher: 14
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +14 pour toucher, portée de 15 pieds, une cible. Touché : 17
+        (2d8 + 8) points de dégâts de matraquage."
+      toucher: 14
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 19 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si le jet de sauvegarde d'une
+        créature est réussi ou si l'effet prend fin pour elle, la créature est immunisée contre la
+        Présence effrayante du dragon pour les 24 heures suivantes.
+    - nom: Souffle de feu
+      description:
+        Le dragon exhale du feu dans un cône de 60 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 21, subissant 63 (18d6) points de dégâts de feu
+        en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: adult-green-dragon
+  nom: Dragon vert adulte
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/adult-green-dragon.png
+  valeurs:
+    niveau: 15
+    PV_Max: 207
+    Defense: 19
+    INIT: 1
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 23
+    DEX: 12
+    CON: 21
+    INT: 18
+    SAG: 15
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le dragon peut utiliser sa Présence Effrayante. Il effectue ensuite trois attaques :
+        une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants plus 7 (2d6) points de dégâts de poison."
+      toucher: 11
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 11
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 15 pieds, une cible. Touché : 15
+        (2d8 + 6) points de dégâts de matraquage."
+      toucher: 11
+    - nom: Présence effrayante
+      description:
+        Chaque créature au choix du dragon qui se trouve dans un rayon de 120 pieds du dragon
+        et qui en est consciente doit réussir un jet de sauvegarde de Sagesse DC 16 ou être effrayée
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès. Si une créature réussit son jet
+        de sauvegarde ou si l'effet prend fin pour elle, elle est immunisée contre la Présence
+        effrayante du dragon pour les 24 heures suivantes.
+    - nom: Souffle de poison
+      description:
+        Le dragon exhale un gaz empoisonné dans un cône de 60 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 18, subissant 56 (16d6) points de
+        dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: white-dragon-wyrmling
+  nom: Dragon Wyrmling blanc
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/white-dragon-wyrmling.png
+  valeurs:
+    niveau: 2
+    PV_Max: 32
+    Defense: 16
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 10
+    CON: 14
+    INT: 5
+    SAG: 10
+    CHA: 11
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d10 + 2) points de dégâts perforants plus 2 (1d4) points de dégâts de froid."
+      toucher: 4
+    - nom: Souffle froid
+      description:
+        Le dragon exhale un souffle glacé de grêle dans un cône de 15 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Constitution DC 12, subissant 22 (5d8)
+        points de dégâts de froid en cas de sauvegarde ratée, ou la moitié de ces dégâts en cas de
+        sauvegarde réussie.
+- id: blue-dragon-wyrmling
+  nom: Dragon Wyrmling bleu
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/blue-dragon-wyrmling.png
+  valeurs:
+    niveau: 3
+    PV_Max: 52
+    Defense: 17
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 15
+    INT: 12
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts perforants plus 3 (1d6) points de dégâts de foudre."
+      toucher: 5
+    - nom: Le souffle de la foudre
+      description:
+        Le dragon exhale des éclairs sur une ligne de 30 pieds de long et de 5 pieds de large.
+        Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 12,
+        subissant 22 (4d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié moins
+        de dégâts en cas de sauvegarde réussie.
+- id: brass-dragon-wyrmling
+  nom: Dragon Wyrmling de laiton
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/brass-dragon-wyrmling.png
+  valeurs:
+    niveau: 1
+    PV_Max: 16
+    Defense: 16
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 10
+    CON: 13
+    INT: 10
+    SAG: 11
+    CHA: 13
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d10 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Armes à souffle
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu sur une ligne de 20 pieds de long et de 5 pieds de
+        large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 11,
+        subissant 14 (4d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de
+        dégâts en cas de sauvegarde réussie.
+
+        Souffle de sommeil. Le dragon exhale un gaz de sommeil dans un cône de 15 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 11 ou tomber
+        inconsciente pendant 1 minute. Cet effet prend fin pour une créature si elle subit des
+        dégâts ou si quelqu'un utilise une action pour la réveiller.
+- id: black-dragon-wyrmling
+  nom: Dragon Wyrmling noir
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/black-dragon-wyrmling.png
+  valeurs:
+    niveau: 2
+    PV_Max: 33
+    Defense: 17
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 14
+    CON: 13
+    INT: 10
+    SAG: 11
+    CHA: 13
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d10 + 2) points de dégâts perforants plus 2 (1d4) points de dégâts acides."
+      toucher: 4
+    - nom: Haleine acide
+      description:
+        Le dragon exhale de l'acide sur une ligne de 15 pieds de long et de 5 pieds de large.
+        Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 11,
+        subissant 22 (5d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas
+        de sauvegarde réussie.
+- id: red-dragon-wyrmling
+  nom: Dragon Wyrmling rouge
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/red-dragon-wyrmling.png
+  valeurs:
+    niveau: 4
+    PV_Max: 75
+    Defense: 17
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 17
+    INT: 12
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (1d10 + 4) points de dégâts perforants plus 3 (1d6) points de dégâts de feu."
+      toucher: 6
+    - nom: Souffle de feu
+      description:
+        Le dragon exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 13, subissant 24 (7d6) dégâts de feu en cas de
+        sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: green-dragon-wyrmling
+  nom: Dragon Wyrmling vert
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/green-dragon-wyrmling.png
+  valeurs:
+    niveau: 2
+    PV_Max: 38
+    Defense: 17
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 12
+    CON: 13
+    INT: 14
+    SAG: 11
+    CHA: 13
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d10 + 2) points de dégâts perforants plus 3 (1d6) points de dégâts de poison."
+      toucher: 4
+    - nom: Haleine empoisonnée
+      description:
+        Le dragon exhale un gaz empoisonné dans un cône de 15 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 11, subissant 21 (6d6) points de
+        dégâts de poison en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde
+        réussie.
+- id: young-white-dragon
+  nom: Jeune dragon blanc
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/young-white-dragon.png
+  valeurs:
+    niveau: 6
+    PV_Max: 133
+    Defense: 17
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 10
+    CON: 18
+    INT: 6
+    SAG: 11
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants plus 4 (1d8) points de dégâts de froid."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Souffle froid
+      description:
+        Le dragon exhale un souffle glacé dans un cône de 30 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 15, subissant 45 (10d8) points de
+        dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: young-blue-dragon
+  nom: Jeune dragon bleu
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/young-blue-dragon.png
+  valeurs:
+    niveau: 9
+    PV_Max: 152
+    Defense: 18
+    INIT: 0
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 21
+    DEX: 10
+    CON: 19
+    INT: 14
+    SAG: 13
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 16
+        (2d10 + 5) points de dégâts perforants plus 5 (1d10) points de dégâts de foudre."
+      toucher: 9
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts tranchants."
+      toucher: 9
+    - nom: Le souffle de la foudre
+      description:
+        Le dragon exhale des éclairs sur une ligne de 60 pieds de long et de 5 pieds de large.
+        Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 16,
+        subissant 55 (10d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié moins
+        de dégâts en cas de sauvegarde réussie.
+- id: young-silver-dragon
+  nom: Jeune dragon d'argent
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/young-silver-dragon.png
+  valeurs:
+    niveau: 9
+    PV_Max: 168
+    Defense: 18
+    INIT: 0
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 23
+    DEX: 10
+    CON: 21
+    INT: 14
+    SAG: 11
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants."
+      toucher: 10
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 10
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle froid. Le dragon exhale un souffle glacé dans un cône de 30 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Constitution DC 17, subissant 54 (12d8)
+        points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde
+        réussie.
+
+        Souffle paralysant. Le dragon exhale un gaz paralysant dans un cône de 30 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 17 ou être
+        paralysée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de
+        chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.
+- id: young-gold-dragon
+  nom: Jeune dragon d'or
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/young-gold-dragon.png
+  valeurs:
+    niveau: 10
+    PV_Max: 178
+    Defense: 18
+    INIT: 2
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 23
+    DEX: 14
+    CON: 21
+    INT: 16
+    SAG: 13
+    CHA: 20
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants."
+      toucher: 10
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 10
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu dans un cône de 30 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Dextérité DC 17, subissant 55 (10d10) points de
+        dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+
+        Souffle d'affaiblissement. Le dragon exhale du gaz dans un cône de 30 pieds. Chaque créature
+        dans cette zone doit réussir un jet de sauvegarde de Force DC 17 ou avoir un désavantage sur
+        les jets d'attaque basés sur la Force, les tests de Force et les jets de sauvegarde de Force
+        pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de réussite.
+- id: young-bronze-dragon
+  nom: Jeune dragon de bronze
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/young-bronze-dragon.png
+  valeurs:
+    niveau: 8
+    PV_Max: 142
+    Defense: 18
+    INIT: 0
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 21
+    DEX: 10
+    CON: 19
+    INT: 14
+    SAG: 13
+    CHA: 17
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 16
+        (2d10 + 5) points de dégâts perforants."
+      toucher: 8
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts tranchants."
+      toucher: 8
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de foudre. Le dragon exhale des éclairs sur une ligne de 60 pieds de long et de 5
+        pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité
+        DC 15, subissant 55 (10d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié
+        moins de dégâts en cas de sauvegarde réussie.
+
+        Souffle de répulsion. Le dragon exhale de l'énergie de répulsion dans un cône de 30 pieds.
+        Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 15. En cas de
+        sauvegarde ratée, la créature est repoussée à 40 pieds du dragon.
+- id: young-copper-dragon
+  nom: Jeune dragon de cuivre
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/young-copper-dragon.png
+  valeurs:
+    niveau: 7
+    PV_Max: 119
+    Defense: 17
+    INIT: 1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 12
+    CON: 17
+    INT: 16
+    SAG: 13
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Armes à souffle
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle d'acide. Le dragon exhale de l'acide sur une ligne de 40 pieds de long et de 5 pieds
+        de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 14,
+        subissant 40 (9d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas
+        de sauvegarde réussie.
+
+        Souffle ralenti. Le dragon exhale du gaz dans un cône de 30 pieds. Chaque créature dans
+        cette zone doit réussir un jet de sauvegarde de Constitution DC 14. En cas d'échec, la
+        créature ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut
+        pas faire plus d'une attaque à son tour. De plus, la créature peut utiliser une action ou un
+        bonus d'action à son tour, mais pas les deux. Ces effets durent 1 minute. La créature peut
+        répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur
+        elle-même en cas de sauvegarde réussie.
+- id: young-brass-dragon
+  nom: Jeune dragon en laiton
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/young-brass-dragon.png
+  valeurs:
+    niveau: 6
+    PV_Max: 110
+    Defense: 17
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 17
+    INT: 12
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Armes à haleine
+      description: >-
+        Le dragon utilise l'une des armes respiratoires suivantes.
+
+        Souffle de feu. Le dragon exhale du feu sur une ligne de 40 pieds de long et 5 pieds de
+        large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 14,
+        subissant 42 (12d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de
+        dégâts en cas de sauvegarde réussie.
+
+        Souffle de sommeil. Le dragon exhale un gaz de sommeil dans un cône de 30 pieds. Chaque
+        créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 14 ou tomber
+        inconsciente pendant 5 minutes. Cet effet prend fin pour une créature si elle subit des
+        dégâts ou si quelqu'un utilise une action pour la réveiller.
+- id: young-black-dragon
+  nom: Jeune dragon noir
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/young-black-dragon.png
+  valeurs:
+    niveau: 7
+    PV_Max: 127
+    Defense: 18
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 14
+    CON: 17
+    INT: 12
+    SAG: 11
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants plus 4 (1d8) points de dégâts d'acide."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Haleine acide
+      description:
+        Le dragon exhale de l'acide sur une ligne de 30 pieds de long et de 5 pieds de large.
+        Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 14,
+        subissant 49 (11d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas
+        de sauvegarde réussie.
+- id: young-red-dragon
+  nom: Jeune dragon rouge
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/young-red-dragon.png
+  valeurs:
+    niveau: 10
+    PV_Max: 178
+    Defense: 18
+    INIT: 0
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 23
+    DEX: 10
+    CON: 21
+    INT: 14
+    SAG: 11
+    CHA: 19
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts perforants plus 3 (1d6) points de dégâts de feu."
+      toucher: 10
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants."
+      toucher: 10
+    - nom: Souffle de feu
+      description:
+        Le dragon exhale du feu dans un cône de 30 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 17, subissant 56 (16d6) points de dégâts de feu
+        en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.
+- id: young-green-dragon
+  nom: Jeune dragon vert
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/young-green-dragon.png
+  valeurs:
+    niveau: 8
+    PV_Max: 136
+    Defense: 18
+    INIT: 1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 12
+    CON: 17
+    INT: 16
+    SAG: 13
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description: 'Le dragon effectue trois attaques : une avec sa morsure et deux avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 15
+        (2d10 + 4) points de dégâts perforants plus 7 (2d6) points de dégâts de poison."
+      toucher: 7
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Haleine empoisonnée
+      description:
+        Le dragon exhale un gaz empoisonné dans un cône de 30 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 14, subissant 42 (12d6) points de
+        dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: pseudodragon
+  nom: Pseudodragon
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (très petite)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/pseudodragon.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 7
+    Defense: 13
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 6
+    DEX: 15
+    CON: 13
+    INT: 10
+    SAG: 12
+    CHA: 10
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d4 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Sting
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d4 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 11 ou être empoisonnée pendant 1 heure. Si le jet de sauvegarde échoue de 5
+        ou plus, la cible tombe inconsciente pour la même durée, ou jusqu'à ce qu'elle subisse des
+        dégâts ou qu'une autre créature utilise une action pour la réveiller."
+      toucher: 4
+- id: dragon-turtle
+  nom: Tortue Dragon
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (gigantesque)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/dragon-turtle.png
+  valeurs:
+    niveau: 17
+    PV_Max: 341
+    Defense: 20
+    INIT: 0
+    Contact: 13
+    Distance: 13
+    Magie: 0
+    FOR: 25
+    DEX: 10
+    CON: 20
+    INT: 10
+    SAG: 12
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: 'La tortue dragon effectue trois attaques : une avec sa morsure et deux avec ses
+        griffes. Elle peut effectuer une attaque de queue à la place de ses deux attaques de
+        griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 15 pieds, une cible. Touché : 26
+        (3d12 + 7) points de dégâts perforants."
+      toucher: 13
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 10 pieds, une cible. Touché : 16
+        (2d8 + 7) points de dégâts tranchants."
+      toucher: 13
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 15 pieds, une cible. Touché : 26
+        (3d12 + 7) dégâts de matraquage. Si la cible est une créature, elle doit réussir un jet de
+        sauvegarde de Force DC 20 ou être repoussée jusqu'à 10 pieds de la tortue dragon et mise à
+        terre."
+      toucher: 13
+    - nom: Souffle de vapeur
+      description:
+        La tortue dragon exhale de la vapeur brûlante dans un cône de 60 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Constitution DC 18, subissant 52 (15d6)
+        points de dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde
+        réussie. Le fait d'être sous l'eau ne confère pas de résistance à ces dégâts.
+- id: wyvern
+  nom: Wyvern
+  entite: personnage
+  categorie: Dragon
+  type: Dragon (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/wyvern.png
+  valeurs:
+    niveau: 6
+    PV_Max: 110
+    Defense: 13
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 10
+    CON: 16
+    INT: 5
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description:
+        "La wyverne effectue deux attaques : une avec sa morsure et une avec son dard. En vol,
+        elle peut utiliser ses griffes à la place d'une autre attaque."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une créature. Touché :
+        11 (2d6 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Stinger
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une créature. Touché :
+        11 (2d6 + 4) points de dégâts perforants. La cible doit faire un jet de sauvegarde de
+        Constitution DC 15, subissant 24 (7d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 7

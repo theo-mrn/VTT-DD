@@ -1,0 +1,548 @@
+# Bestiaire de référence — Élémentaire (16).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: gargoyle
+  nom: Argon
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/gargoyle.png
+  valeurs:
+    niveau: 2
+    PV_Max: 52
+    Defense: 15
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 11
+    CON: 16
+    INT: 6
+    SAG: 11
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: 'La gargouille effectue deux attaques : une avec sa morsure et une avec ses griffes.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts tranchants."
+      toucher: 4
+- id: azer
+  nom: Azer
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (moyenne)
+  description: 'Alignement : loyal neutre.'
+  image: https://assets.yner.fr/bestaire/azer.png
+  valeurs:
+    niveau: 2
+    PV_Max: 39
+    Defense: 15
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 12
+    CON: 15
+    INT: 12
+    SAG: 13
+    CHA: 10
+  actions:
+    - nom: Warhammer
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts de matraquage, ou 8 (1d10 + 3) points de dégâts de matraquage si
+        l'arme est utilisée à deux mains pour faire une attaque de mêlée, plus 3 (1d6) points de
+        dégâts de feu."
+      toucher: 5
+- id: djinni
+  nom: Djinni
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/djinni.png
+  valeurs:
+    niveau: 11
+    PV_Max: 161
+    Defense: 17
+    INIT: 2
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 21
+    DEX: 15
+    CON: 22
+    INT: 15
+    SAG: 16
+    CHA: 20
+  actions:
+    - nom: Multi-attaques
+      description: Le djinni effectue trois attaques de cimeterre.
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 12
+        (2d6 + 5) points de dégâts tranchants plus 3 (1d6) points de dégâts de foudre ou de tonnerre
+        (au choix du djinni)."
+      toucher: 9
+    - nom: Créer un tourbillon
+      description: >-
+        Un cylindre d'air tourbillonnant de 5 pieds de rayon et de 30 pieds de haut se forme
+        magiquement sur un point que le djinni peut voir dans un rayon de 120 pieds. Le tourbillon
+        dure tant que le djinni reste concentré (comme s'il se concentrait sur un sort). Toute
+        créature entrant dans le tourbillon, à l'exception du djinni, doit réussir un jet de
+        sauvegarde de Force DC 18 ou être retenue par le tourbillon. Le djinni peut déplacer le
+        tourbillon jusqu'à 60 pieds comme action, et les créatures retenues par le tourbillon se
+        déplacent avec lui. Le tourbillon prend fin si le djinni le perd de vue.
+
+        Une créature peut utiliser son action pour libérer une créature retenue par le tourbillon, y
+        compris elle-même, en réussissant un test de Force DC 18. Si le test est réussi, la créature
+        n'est plus retenue et se déplace dans l'espace le plus proche hors du tourbillon.
+- id: efreeti
+  nom: Efreeti
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://www.dnd5eapi.co/api/images/monsters/efreeti.png
+  valeurs:
+    niveau: 11
+    PV_Max: 200
+    Defense: 17
+    INIT: 1
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 22
+    DEX: 12
+    CON: 24
+    INT: 16
+    SAG: 15
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description: L'efreeti effectue deux attaques de cimeterre ou utilise deux fois son Hurl Flame.
+    - nom: Cimeterre
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d6 + 6) points de dégâts tranchants plus 7 (2d6) points de dégâts de feu."
+      toucher: 10
+    - nom: Flamme de Hurl
+      description:
+        'Attaque magique à distance : +7 pour toucher, portée de 120 pieds, une cible. Touché :
+        17 (5d6) points de dégâts de feu.'
+      toucher: 7
+- id: fire-elemental
+  nom: Élémentaire de feu
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/fire-elemental.png
+  valeurs:
+    niveau: 5
+    PV_Max: 102
+    Defense: 13
+    INIT: 3
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 10
+    DEX: 17
+    CON: 16
+    INT: 6
+    SAG: 10
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: L'élémentaire effectue deux attaques au toucher.
+    - nom: Toucher
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts de feu. Si la cible est une créature ou un objet inflammable,
+        elle s'enflamme. Jusqu'à ce qu'une créature entreprenne une action pour éteindre le feu, la
+        cible subit 5 (1d10) points de dégâts de feu au début de chacun de ses tours."
+      toucher: 6
+- id: air-elemental
+  nom: Élémentaire de l'air
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/air-elemental.png
+  valeurs:
+    niveau: 5
+    PV_Max: 90
+    Defense: 15
+    INIT: 5
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 14
+    DEX: 20
+    CON: 14
+    INT: 6
+    SAG: 10
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description: L'élémentaire effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d8 + 5) points de dégâts de matraquage."
+      toucher: 8
+    - nom: Tourbillon
+      description: >-
+        Chaque créature se trouvant dans l'espace de l'élémentaire doit effectuer un jet de
+        sauvegarde de Force DC 13. En cas d'échec, la cible subit 15 (3d8 + 2) points de dégâts de
+        matraquage et est projetée à 20 pieds de l'élémentaire dans une direction aléatoire et mise
+        à terre. Si une cible projetée heurte un objet, comme un mur ou le sol, elle subit 3 (1d6)
+        points de dégâts de matraquage par tranche de 3 mètres. Si la cible est lancée sur une autre
+        créature, celle-ci doit réussir un jet de sauvegarde de Dextérité DC 13 ou subir les mêmes
+        dégâts et être mise à terre.
+
+        Si le jet de sauvegarde est réussi, la cible subit la moitié des dégâts de matraquage et
+        n'est pas projetée ou mise à terre.
+- id: water-elemental
+  nom: Élémentaire de l'eau
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/water-elemental.png
+  valeurs:
+    niveau: 5
+    PV_Max: 114
+    Defense: 14
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 14
+    CON: 18
+    INT: 5
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: L'élémentaire effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) dégâts de matraquage."
+      toucher: 7
+    - nom: Whelm
+      description: >-
+        Chaque créature se trouvant dans l'espace de l'élémentaire doit effectuer un jet de
+        sauvegarde de Force DC 15. En cas d'échec, la cible subit 13 (2d8 + 4) points de dégâts de
+        matraquage. Si elle est Grande ou plus petite, elle est également agrippée (évasion DC 14).
+        Jusqu'à la fin de cette prise, la cible est entravée et incapable de respirer, sauf si elle
+        peut respirer de l'eau. Si le jet de sauvegarde est réussi, la cible est poussée hors de
+        l'espace de l'élémentaire.
+
+        L'élémentaire peut agripper une créature de grande taille ou jusqu'à deux créatures de
+        taille moyenne ou inférieure à la fois. Au début de chaque tour de l'élémentaire, chaque
+        cible agrippée subit 13 (2d8 + 4) dégâts de matraquage. Une créature située à moins de 5
+        pieds de l'élémentaire peut tirer une créature ou un objet hors de lui en effectuant une
+        action pour faire un DC 14 de Force et en réussissant.
+- id: earth-elemental
+  nom: Élémentaire de terre
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/earth-elemental.png
+  valeurs:
+    niveau: 5
+    PV_Max: 126
+    Defense: 17
+    INIT: -1
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 20
+    DEX: 8
+    CON: 20
+    INT: 5
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Multi-attaques
+      description: L'élémentaire effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 14
+        (2d8 + 5) points de dégâts de matraquage."
+      toucher: 8
+- id: invisible-stalker
+  nom: Harceleur invisible
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/invisible-stalker.png
+  valeurs:
+    niveau: 6
+    PV_Max: 104
+    Defense: 14
+    INIT: 4
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 16
+    DEX: 19
+    CON: 14
+    INT: 10
+    SAG: 15
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: Le rôdeur effectue deux attaques de type "slam".
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts de matraquage."
+      toucher: 6
+- id: magmin
+  nom: Magmin
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (petite)
+  description: 'Alignement : chaotique neutre.'
+  image: https://assets.yner.fr/bestaire/magmin.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 9
+    Defense: 14
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 7
+    DEX: 15
+    CON: 12
+    INT: 8
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Toucher
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d6) points de dégâts de feu. Si la cible est une créature ou un objet inflammable, elle
+        s'enflamme. Jusqu'à ce qu'une cible entreprenne une action pour éteindre le feu, la cible
+        subit 3 (1d6) points de dégâts de feu à la fin de chacun de ses tours."
+      toucher: 4
+- id: steam-mephit
+  nom: Méphite à vapeur
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (petite)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/steam-mephit.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 21
+    Defense: 10
+    INIT: 0
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 5
+    DEX: 11
+    CON: 10
+    INT: 11
+    SAG: 10
+    CHA: 12
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une créature. Touché : 2
+        (1d4) points de dégâts tranchants plus 2 (1d4) points de dégâts de feu."
+      toucher: 2
+    - nom: Souffle de vapeur
+      description:
+        Le méphite exhale un cône de vapeur brûlante de 15 pieds. Chaque créature dans cette
+        zone doit réussir un jet de sauvegarde de Dextérité DC 10, subissant 4 (1d8) points de
+        dégâts de feu en cas d'échec, ou moitié moins de dégâts en cas de réussite.
+- id: ice-mephit
+  nom: Méphite de glace
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (petite)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/ice-mephit.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 21
+    Defense: 11
+    INIT: 1
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 7
+    DEX: 13
+    CON: 10
+    INT: 9
+    SAG: 11
+    CHA: 12
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 3
+        (1d4 + 1) points de dégâts tranchants plus 2 (1d4) points de dégâts de froid."
+      toucher: 3
+    - nom: Souffle de givre
+      description:
+        Le méphite exhale un cône d'air froid de 15 pieds. Chaque créature dans cette zone doit
+        réussir un jet de sauvegarde de Dextérité DC 10, subissant 5 (2d4) points de dégâts de froid
+        en cas d'échec, ou la moitié en cas de réussite.
+- id: magma-mephit
+  nom: Méphite de Magma
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (petite)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/magma-mephit.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 11
+    INIT: 1
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 8
+    DEX: 12
+    CON: 12
+    INT: 7
+    SAG: 10
+    CHA: 10
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 3
+        (1d4 + 1) points de dégâts tranchants plus 2 (1d4) points de dégâts de feu."
+      toucher: 3
+    - nom: Souffle de feu
+      description:
+        Le méphite exhale un cône de feu de 15 pieds. Chaque créature dans cette zone doit
+        faire un jet de sauvegarde de Dextérité DC 11, subissant 7 (2d6) points de dégâts de feu en
+        cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.
+- id: dust-mephit
+  nom: Poussière Méphite
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (petite)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/dust-mephit.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 17
+    Defense: 12
+    INIT: 2
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 5
+    DEX: 14
+    CON: 10
+    INT: 9
+    SAG: 11
+    CHA: 10
+  actions:
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d4 + 2) points de dégâts tranchants."
+      toucher: 4
+    - nom: Souffle aveuglant
+      description:
+        Le méphite exhale un cône de 15 pieds de poussière aveuglante. Chaque créature dans
+        cette zone doit réussir un jet de sauvegarde de Dextérité DC 10 ou être aveuglée pendant 1
+        minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours,
+        mettant fin à l'effet sur elle-même en cas de succès.
+- id: salamander
+  nom: Salamandre
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/salamander.png
+  valeurs:
+    niveau: 5
+    PV_Max: 90
+    Defense: 15
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 14
+    CON: 15
+    INT: 11
+    SAG: 10
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: 'La salamandre effectue deux attaques : une avec sa lance et une avec sa queue.'
+    - nom: Lance
+      description:
+        "Attaque en mêlée ou à distance : +7 pour toucher, portée de 5 pieds ou de 20 pieds/60
+        pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts perforants, ou 13 (2d8 + 4) points
+        de dégâts perforants si l'arme est utilisée à deux mains pour faire une attaque de mêlée,
+        plus 3 (1d6) points de dégâts de feu."
+      toucher: 7
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage plus 7 (2d6) points de dégâts de feu, et la cible
+        est agrippée (échappatoire DC 14). Jusqu'à la fin de ce grappin, la cible est immobilisée,
+        la salamandre peut automatiquement la frapper avec sa queue, et la salamandre ne peut pas
+        faire d'attaques de queue contre d'autres cibles."
+      toucher: 7
+- id: xorn
+  nom: Xorn
+  entite: personnage
+  categorie: Élémentaire
+  type: Élémentaire (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/xorn.png
+  valeurs:
+    niveau: 5
+    PV_Max: 73
+    Defense: 19
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 17
+    DEX: 10
+    CON: 22
+    INT: 11
+    SAG: 10
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description: Le xorn effectue trois attaques de griffes et une attaque de morsure.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (3d6 + 3) points de dégâts perforants."
+      toucher: 6
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 6

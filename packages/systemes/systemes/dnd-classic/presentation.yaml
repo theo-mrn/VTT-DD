@@ -115,3 +115,34 @@ iconesObjets:
   - { champ: categorie, valeur: nourriture, icone: nourriture }
   - { champ: categorie, valeur: bourse, icone: pieces }
   - { sorte: objet, icone: sac }
+
+# Ressources consultables : panneau Ressources de la table et page Ressources de l'accueil
+# (docs/ressources.md). Un onglet absent ici n'apparaît pas.
+references:
+  capacites:
+    sections:
+      # Race : description, modificateurs, capacités raciales et voie raciale dépliée
+      - { titre: Races, sorte: race }
+      # Profil : dé de vie et ses cinq voies, chacune avec ses capacités
+      - { titre: Profils, sorte: profil }
+      # Voies de prestige, groupées par leur profil (étiquette autre que « prestige »)
+      - { titre: Prestiges, sorte: voie, etiquette: prestige, groupePar: etiquette }
+  marche:
+    prix: prix
+    sortes:
+      - { sorte: arme, colonnes: [attaque, degats, portee], groupeChamp: attaque }
+      - { sorte: armure, colonnes: [def, bouclier] }
+      - { sorte: objet, colonnes: [categorie], groupeChamp: categorie }
+    # Services, logement, montures… : des tarifs, pas des objets de l'inventaire
+    textes: [tarifs]
+  bestiaire:
+    statistiques:
+      personnage:
+        - { titre: Combat, attributs: [niveau, PV_Max, Defense, INIT] }
+        - { titre: Attaques, attributs: [Contact, Distance, Magie] }
+        - { titre: Caractéristiques, attributs: [FOR, DEX, CON, INT, SAG, CHA] }
+  images:
+    collections:
+      - { titre: Personnages, dossiers: [Assets] }
+      - { titre: Cartes, dossiers: [Map, Cartes] }
+      - { titre: Photos, dossiers: [Photos] }

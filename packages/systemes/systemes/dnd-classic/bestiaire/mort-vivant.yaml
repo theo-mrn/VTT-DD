@@ -1,0 +1,753 @@
+# Bestiaire de référence — Mort-vivant (20).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: ghost
+  nom: Fantôme
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : tout alignement.'
+  image: https://assets.yner.fr/bestaire/ghost.png
+  valeurs:
+    niveau: 4
+    PV_Max: 45
+    Defense: 11
+    INIT: 1
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 7
+    DEX: 13
+    CON: 10
+    INT: 10
+    SAG: 12
+    CHA: 17
+  actions:
+    - nom: Effet de flétrissure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 17
+        (4d6 + 3) points de dégâts nécrotiques."
+      toucher: 5
+    - nom: L'éthéré
+      description:
+        Le fantôme entre dans le plan éthéré à partir du plan matériel, ou vice versa. Il est
+        visible sur le plan matériel lorsqu'il se trouve dans la frontière éthérée, et vice versa,
+        mais il ne peut ni affecter ni être affecté par quoi que ce soit sur l'autre plan.
+    - nom: Visage horrifiant
+      description:
+        Chaque créature non-morte située à moins de 60 pieds du fantôme et qui peut le voir
+        doit réussir un jet de sauvegarde de Sagesse DC 13 ou être effrayée pendant 1 minute. Si la
+        sauvegarde échoue de 5 ou plus, la cible vieillit également de 1d4 × 10 ans. Une cible
+        effrayée peut répéter son jet de sauvegarde à la fin de chacun de ses tours, mettant fin à
+        la condition d'effroi sur elle-même en cas de succès. Si le jet de sauvegarde d'une cible
+        est réussi ou si l'effet prend fin pour elle, la cible est immunisée contre le Visage
+        horrifiant de ce fantôme pendant les 24 heures suivantes. L'effet de vieillissement peut
+        être annulé par un sort de restauration supérieur, mais seulement dans les 24 heures qui
+        suivent.
+    - nom: Possession
+      description: >-
+        Un humanoïde que le fantôme peut voir dans un rayon de 5 pieds doit réussir un jet de
+        sauvegarde de Charisme DC 13 ou être possédé par le fantôme ; le fantôme disparaît alors, et
+        la cible est incapacité et perd le contrôle de son corps. Le fantôme contrôle désormais le
+        corps mais ne prive pas la cible de conscience. Le fantôme ne peut être la cible d'aucune
+        attaque, d'aucun sort ni d'aucun autre effet, à l'exception de ceux qui transforment les
+        morts-vivants, et il conserve son alignement, son Intelligence, sa Sagesse, son Charisme et
+        son immunité au charme et à l'effroi. Il utilise les statistiques de la cible possédée, mais
+        n'a pas accès à ses connaissances, ses caractéristiques de classe ou ses compétences.
+
+        La possession dure jusqu'à ce que le corps tombe à 0 point de vie, que le fantôme y mette
+        fin par une action bonus ou qu'il soit repoussé par un effet tel que le sort dissipation du
+        mal et du bien. Lorsque la possession prend fin, le fantôme réapparaît dans un espace
+        inoccupé à moins de 5 pieds du corps. La cible est immunisée contre la possession de ce
+        fantôme pendant 24 heures après avoir réussi le jet de sauvegarde ou après la fin de la
+        possession.
+- id: ghast
+  nom: Ghast
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ghast.png
+  valeurs:
+    niveau: 2
+    PV_Max: 36
+    Defense: 13
+    INIT: 3
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 17
+    CON: 10
+    INT: 11
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché :
+        12 (2d8 + 3) points de dégâts perforants."
+      toucher: 3
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants. Si la cible est une créature autre qu'un mort-vivant,
+        elle doit réussir un jet de sauvegarde de Constitution DC 10 ou être paralysée pendant 1
+        minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant
+        fin à l'effet sur elle-même en cas de réussite."
+      toucher: 5
+- id: ghoul
+  nom: La goule
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/ghoul.png
+  valeurs:
+    niveau: 1
+    PV_Max: 22
+    Defense: 12
+    INIT: 2
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 13
+    DEX: 15
+    CON: 10
+    INT: 7
+    SAG: 10
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une créature. Touché : 9
+        (2d6 + 2) points de dégâts perforants."
+      toucher: 2
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts tranchants. Si la cible est une créature autre qu'un elfe ou un
+        mort-vivant, elle doit réussir un jet de sauvegarde de Constitution DC 10 ou être paralysée
+        pendant 1 minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès."
+      toucher: 4
+- id: mummy-lord
+  nom: Le seigneur des momies
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/mummy-lord.png
+  valeurs:
+    niveau: 15
+    PV_Max: 97
+    Defense: 17
+    INIT: 0
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 18
+    DEX: 10
+    CON: 17
+    INT: 11
+    SAG: 18
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description:
+        La momie peut utiliser son Éblouissement redoutable et effectuer une attaque avec son
+        poing pourri.
+    - nom: Poing pourri
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (3d6 + 4) points de dégâts de matraquage plus 21 (6d6) points de dégâts nécrotiques. Si la
+        cible est une créature, elle doit réussir un jet de sauvegarde de Constitution DC 16 ou être
+        maudite par la pourriture de la momie. La cible maudite ne peut pas regagner de points de
+        vie, et son maximum de points de vie diminue de 10 (3d6) par tranche de 24 heures. Si la
+        malédiction réduit le maximum de points de vie de la cible à 0, la cible meurt et son corps
+        est réduit en poussière. La malédiction dure jusqu'à ce qu'elle soit levée par le sort de
+        levée de malédiction ou une autre magie."
+      toucher: 9
+    - nom: Éblouissement redoutable
+      description:
+        Le seigneur momie cible une créature qu'il peut voir dans un rayon de 60 pieds. Si la
+        cible peut voir le seigneur momie, elle doit réussir un jet de sauvegarde de Sagesse DC 16
+        contre cette magie ou être effrayée jusqu'à la fin du prochain tour de la momie. Si la cible
+        rate son jet de sauvegarde de 5 ou plus, elle est également paralysée pour la même durée.
+        Une cible qui réussit son jet de sauvegarde est immunisée contre l'Effroyable Regard de
+        toutes les momies et de tous les seigneurs momies pour les prochaines 24 heures.
+- id: lich
+  nom: Lich
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : tout alignement mauvais.'
+  image: https://assets.yner.fr/bestaire/lich.png
+  valeurs:
+    niveau: 21
+    PV_Max: 135
+    Defense: 17
+    INIT: 3
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 11
+    DEX: 16
+    CON: 16
+    INT: 20
+    SAG: 14
+    CHA: 16
+  actions:
+    - nom: Toucher paralysant
+      description:
+        "Mêlée Attaque magique : +12 pour toucher, portée de 5 pieds, une créature. Touché : 10
+        (3d6) points de dégâts de froid. La cible doit réussir un jet de sauvegarde de Constitution
+        DC 18 ou être paralysée pendant 1 minute. La cible peut répéter le jet de sauvegarde à la
+        fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès."
+      toucher: 12
+- id: mummy
+  nom: Momie
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/mummy.png
+  valeurs:
+    niveau: 3
+    PV_Max: 58
+    Defense: 11
+    INIT: -1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 8
+    CON: 15
+    INT: 6
+    SAG: 10
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description:
+        La momie peut utiliser son Éblouissement redoutable et effectue une attaque avec son
+        poing pourri.
+    - nom: Poing pourri
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts de matraquage plus 10 (3d6) points de dégâts nécrotiques. Si la
+        cible est une créature, elle doit réussir un jet de sauvegarde de Constitution DC 12 ou être
+        maudite par la pourriture de momie. La cible maudite ne peut pas regagner de points de vie,
+        et son maximum de points de vie diminue de 10 (3d6) par tranche de 24 heures. Si la
+        malédiction réduit le maximum de points de vie de la cible à 0, la cible meurt et son corps
+        est réduit en poussière. La malédiction dure jusqu'à ce qu'elle soit levée par le sort de
+        levée de malédiction ou une autre magie."
+      toucher: 5
+    - nom: Éblouissement redoutable
+      description:
+        La momie cible une créature qu'elle peut voir dans un rayon de 60 pieds. Si la cible
+        peut voir la momie, elle doit réussir un jet de sauvegarde de sagesse DC 11 contre cette
+        magie ou être effrayée jusqu'à la fin du prochain tour de la momie. Si la cible rate son jet
+        de sauvegarde de 5 ou plus, elle est également paralysée pour la même durée. Une cible qui
+        réussit son jet de sauvegarde est immunisée contre l'Effroyable Regard de toutes les momies
+        (mais pas des seigneurs momies) pour les prochaines 24 heures.
+- id: ogre-zombie
+  nom: Ogre Zombie
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/ogre-zombie.png
+  valeurs:
+    niveau: 2
+    PV_Max: 85
+    Defense: 8
+    INIT: -2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 19
+    DEX: 6
+    CON: 18
+    INT: 3
+    SAG: 6
+    CHA: 5
+  actions:
+    - nom: Morningstar
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) dégâts de matraquage."
+      toucher: 6
+- id: shadow
+  nom: Ombre
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/shadow.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 16
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 6
+    DEX: 14
+    CON: 13
+    INT: 6
+    SAG: 10
+    CHA: 8
+  actions:
+    - nom: Drain de force
+      description: >-
+        Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 9 (2d6
+        + 2) points de dégâts nécrotiques, et le score de Force de la cible est réduit de 1d4. La
+        cible meurt si cela réduit sa Force à 0. Sinon, la réduction dure jusqu'à ce que la cible
+        termine un repos court ou long.
+
+        Si un humanoïde non-maléfique meurt de cette attaque, une nouvelle ombre surgit du cadavre
+        1d4 heures plus tard.
+      toucher: 4
+- id: specter
+  nom: Spectre
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/specter.png
+  valeurs:
+    niveau: 1
+    PV_Max: 22
+    Defense: 12
+    INIT: 2
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 1
+    DEX: 14
+    CON: 11
+    INT: 10
+    SAG: 10
+    CHA: 11
+  actions:
+    - nom: Drain de vie
+      description:
+        "Mêlée Attaque magique : +4 pour toucher, portée de 5 pieds, une créature. Touché : 10
+        (3d6) points de dégâts nécrotiques. La cible doit réussir un jet de sauvegarde de
+        Constitution DC 10 ou son maximum de points de vie est réduit d'un montant égal aux dégâts
+        subis. Cette réduction dure jusqu'à ce que la créature termine un long repos. La cible meurt
+        si cet effet réduit son maximum de points de vie à 0."
+      toucher: 4
+- id: skeleton
+  nom: Squelette
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/skeleton.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 13
+    Defense: 13
+    INIT: 2
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 10
+    DEX: 14
+    CON: 15
+    INT: 6
+    SAG: 8
+    CHA: 5
+  actions:
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+    - nom: Arc court
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 80/320 pieds, une cible. Touché :
+        5 (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: warhorse-skeleton
+  nom: Squelette de cheval de guerre
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/warhorse-skeleton.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 13
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 18
+    DEX: 12
+    CON: 15
+    INT: 2
+    SAG: 8
+    CHA: 5
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+- id: minotaur-skeleton
+  nom: Squelette de minotaure
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/minotaur-skeleton.png
+  valeurs:
+    niveau: 2
+    PV_Max: 67
+    Defense: 12
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 11
+    CON: 15
+    INT: 6
+    SAG: 8
+    CHA: 5
+  actions:
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 17
+        (2d12 + 4) points de dégâts tranchants."
+      toucher: 6
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts perforants."
+      toucher: 6
+- id: vampire-spawn
+  nom: Vampire Spawn
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/vampire-spawn.png
+  valeurs:
+    niveau: 5
+    PV_Max: 82
+    Defense: 15
+    INIT: 3
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 16
+    DEX: 16
+    CON: 16
+    INT: 11
+    SAG: 10
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: Le vampire effectue deux attaques, dont une seule peut être une attaque de morsure.
+    - nom: Morsure
+      description: "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature
+        consentante, ou une créature qui est agrippée par le vampire, incapacité ou retenue. Touché
+        : 6 (1d6 + 3) points de dégâts perforants plus 7 (2d6) points de dégâts nécrotiques. Le
+        maximum de points de vie de la cible est réduit d'un montant égal aux dégâts nécrotiques
+        subis, et le vampire regagne un nombre de points de vie égal à ce montant. La réduction dure
+        jusqu'à ce que la cible termine un long repos. La cible meurt si cet effet réduit son
+        maximum de points de vie à 0."
+      toucher: 6
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché : 8
+        (2d4 + 3) points de dégâts tranchants. Au lieu d'infliger des dégâts, le vampire peut
+        agripper la cible (évasion DC 13)."
+      toucher: 6
+- id: vampire-mist
+  nom: Vampire, forme brumeuse
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/vampire-mist.png
+  valeurs:
+    niveau: 13
+    PV_Max: 144
+    Defense: 16
+    INIT: 4
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 18
+    DEX: 18
+    CON: 18
+    INT: 17
+    SAG: 15
+    CHA: 18
+- id: vampire-bat
+  nom: Vampire, forme de chauve-souris
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/vampire-bat.png
+  valeurs:
+    niveau: 13
+    PV_Max: 144
+    Defense: 16
+    INIT: 4
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 18
+    DEX: 18
+    CON: 18
+    INT: 17
+    SAG: 15
+    CHA: 18
+  actions:
+    - nom: Morsure
+      description: "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une créature
+        consentante, ou une créature qui est agrippée par le vampire, incapacité ou retenue. Touché
+        : 7 (1d6 + 4) points de dégâts perforants plus 10 (3d6) points de dégâts nécrotiques. Le
+        maximum de points de vie de la cible est réduit d'un montant égal aux dégâts nécrotiques
+        subis, et le vampire regagne un nombre de points de vie égal à ce montant. La réduction dure
+        jusqu'à ce que la cible termine un long repos. La cible meurt si cet effet réduit son
+        maximum de points de vie à 0. Un humanoïde tué de cette façon et enterré dans le sol se
+        réveille la nuit suivante en tant qu'engeance vampirique sous le contrôle du vampire."
+      toucher: 9
+    - nom: Charme
+      description: >-
+        Le vampire cible un humanoïde qu'il peut voir dans un rayon de 30 pieds. Si la cible peut
+        voir le vampire, elle doit réussir un jet de sauvegarde de sagesse DC 17 contre cette magie
+        ou être charmée par le vampire. La cible charmée considère le vampire comme un ami de
+        confiance dont il faut tenir compte et qu'il faut protéger. Bien que la cible ne soit pas
+        sous le contrôle du vampire, elle prend les demandes ou les actions du vampire de la manière
+        la plus favorable possible, et elle est une cible consentante pour l'attaque de morsure du
+        vampire.
+
+        Chaque fois que le vampire ou ses compagnons font quelque chose de nuisible à la cible,
+        celle-ci peut répéter le jet de sauvegarde, mettant fin à l'effet sur elle-même en cas de
+        succès. Sinon, l'effet dure 24 heures ou jusqu'à ce que le vampire soit détruit, qu'il se
+        trouve sur un plan d'existence différent de celui de la cible ou qu'il entreprenne une
+        action bonus pour mettre fin à l'effet.
+    - nom: Les enfants de la nuit
+      description:
+        Le vampire appelle magiquement 2d4 essaims de chauves-souris ou de rats, à condition
+        que le soleil ne soit pas levé. En extérieur, le vampire peut appeler 3d6 loups à la place.
+        Les créatures appelées arrivent en 1d4 rounds, agissant comme des alliés du vampire et
+        obéissant à ses ordres. Les bêtes restent pendant 1 heure, jusqu'à la mort du vampire, ou
+        jusqu'à ce que le vampire les rejette par une action bonus.
+- id: vampire-vampire
+  nom: Vampire, forme vampirique
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/vampire-vampire.png
+  valeurs:
+    niveau: 13
+    PV_Max: 144
+    Defense: 16
+    INIT: 4
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 18
+    DEX: 18
+    CON: 18
+    INT: 17
+    SAG: 15
+    CHA: 18
+  actions:
+    - nom: Multi-attaques
+      description: Le vampire effectue deux attaques, dont une seule peut être une attaque de morsure.
+    - nom: Frappe à mains nues
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une créature. Touché : 8
+        (1d8 + 4) points de dégâts de matraquage. Au lieu d'infliger des dégâts, le vampire peut
+        agripper la cible (évasion DC 18)."
+      toucher: 9
+    - nom: Morsure
+      description: "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une créature
+        consentante, ou une créature qui est agrippée par le vampire, incapacité ou retenue. Touché
+        : 7 (1d6 + 4) points de dégâts perforants plus 10 (3d6) points de dégâts nécrotiques. Le
+        maximum de points de vie de la cible est réduit d'un montant égal aux dégâts nécrotiques
+        subis, et le vampire regagne un nombre de points de vie égal à ce montant. La réduction dure
+        jusqu'à ce que la cible termine un long repos. La cible meurt si cet effet réduit son
+        maximum de points de vie à 0. Un humanoïde tué de cette façon et enterré dans le sol se
+        réveille la nuit suivante en tant qu'engeance vampirique sous le contrôle du vampire."
+      toucher: 9
+    - nom: Charme
+      description: >-
+        Le vampire cible un humanoïde qu'il peut voir dans un rayon de 30 pieds. Si la cible peut
+        voir le vampire, elle doit réussir un jet de sauvegarde de sagesse DC 17 contre cette magie
+        ou être charmée par le vampire. La cible charmée considère le vampire comme un ami de
+        confiance dont il faut tenir compte et qu'il faut protéger. Bien que la cible ne soit pas
+        sous le contrôle du vampire, elle prend les demandes ou les actions du vampire de la manière
+        la plus favorable possible, et elle est une cible consentante pour l'attaque de morsure du
+        vampire.
+
+        Chaque fois que le vampire ou ses compagnons font quelque chose de nuisible à la cible,
+        celle-ci peut répéter le jet de sauvegarde, mettant fin à l'effet sur elle-même en cas de
+        succès. Sinon, l'effet dure 24 heures ou jusqu'à ce que le vampire soit détruit, qu'il se
+        trouve sur un plan d'existence différent de celui de la cible ou qu'il entreprenne une
+        action bonus pour mettre fin à l'effet.
+    - nom: Les enfants de la nuit
+      description:
+        Le vampire appelle magiquement 2d4 essaims de chauves-souris ou de rats, à condition
+        que le soleil ne soit pas levé. En extérieur, le vampire peut appeler 3d6 loups à la place.
+        Les créatures appelées arrivent en 1d4 rounds, agissant comme des alliés du vampire et
+        obéissant à ses ordres. Les bêtes restent pendant 1 heure, jusqu'à la mort du vampire, ou
+        jusqu'à ce que le vampire les rejette par une action bonus.
+- id: wight
+  nom: Wight
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/wight.png
+  valeurs:
+    niveau: 3
+    PV_Max: 45
+    Defense: 14
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 14
+    CON: 16
+    INT: 10
+    SAG: 13
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le chevalier effectue deux attaques à l'épée longue ou deux attaques à l'arc long. Il
+        peut utiliser son drain de vie à la place d'une attaque d'épée longue.
+    - nom: Drain de vie
+      description: >-
+        Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5 (1d6
+        + 2) points de dégâts nécrotiques. La cible doit réussir un jet de sauvegarde de
+        Constitution DC 13 ou son maximum de points de vie est réduit d'un montant égal aux dégâts
+        subis. Cette réduction dure jusqu'à ce que la cible termine un long repos. La cible meurt si
+        cet effet réduit son maximum de points de vie à 0.
+
+        Un humanoïde tué par cette attaque se réveille 24 heures plus tard sous la forme d'un zombie
+        sous le contrôle du wight, à moins que l'humanoïde ne soit ramené à la vie ou que son corps
+        ne soit détruit. Le sorcier ne peut avoir plus de douze zombies sous son contrôle à la fois.
+      toucher: 4
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d8 + 2) points de dégâts tranchants, ou 7 (1d10 + 2) points de dégâts tranchants si l'arme
+        est utilisée à deux mains."
+      toucher: 4
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 6 (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: will-o-wisp
+  nom: Will-o'-Wisp
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (très petite)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/will-o-wisp.png
+  valeurs:
+    niveau: 2
+    PV_Max: 22
+    Defense: 19
+    INIT: 9
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 1
+    DEX: 28
+    CON: 10
+    INT: 13
+    SAG: 14
+    CHA: 11
+  actions:
+    - nom: Choc
+      description:
+        'Mêlée Attaque magique : +4 pour toucher, portée de 5 pieds, une créature. Touché : 9
+        (2d8) points de dégâts de foudre.'
+      toucher: 4
+    - nom: Invisibilité
+      description:
+        Le feu follet et sa lumière deviennent magiquement invisibles jusqu'à ce qu'il attaque
+        ou qu'il utilise sa fonction de consommation de vie, ou jusqu'à ce que sa concentration
+        prenne fin (comme s'il se concentrait sur un sort).
+- id: wraith
+  nom: Wraith
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/wraith.png
+  valeurs:
+    niveau: 5
+    PV_Max: 67
+    Defense: 13
+    INIT: 3
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 6
+    DEX: 16
+    CON: 16
+    INT: 12
+    SAG: 14
+    CHA: 15
+  actions:
+    - nom: Drain de vie
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché :
+        21 (4d8 + 3) points de dégâts nécrotiques. La cible doit réussir un jet de sauvegarde de
+        Constitution DC 14 ou son maximum de points de vie est réduit d'un montant égal aux dégâts
+        subis. Cette réduction dure jusqu'à ce que la cible termine un long repos. La cible meurt si
+        cet effet réduit son maximum de points de vie à 0."
+      toucher: 6
+    - nom: Créer un spectre
+      description:
+        Le spectre cible un humanoïde situé à moins de 3 mètres de lui, mort depuis 1 minute au
+        maximum et décédé violemment. L'esprit de la cible s'élève sous la forme d'un spectre dans
+        l'espace de son cadavre ou dans l'espace inoccupé le plus proche. Le spectre est sous le
+        contrôle du spectre. Le spectre ne peut avoir plus de sept spectres sous son contrôle à la
+        fois.
+- id: zombie
+  nom: Zombie
+  entite: personnage
+  categorie: Mort-vivant
+  type: Mort-vivant (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/zombie.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 22
+    Defense: 8
+    INIT: -2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 6
+    CON: 16
+    INT: 3
+    SAG: 6
+    CHA: 5
+  actions:
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4
+        (1d6 + 1) dégâts de matraquage."
+      toucher: 3

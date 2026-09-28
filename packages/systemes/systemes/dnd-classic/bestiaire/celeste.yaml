@@ -1,0 +1,250 @@
+# Bestiaire de référence — Céleste (6).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: couatl
+  nom: Couatl
+  entite: personnage
+  categorie: Céleste
+  type: Céleste (moyenne)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/couatl.png
+  valeurs:
+    niveau: 4
+    PV_Max: 97
+    Defense: 19
+    INIT: 5
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 20
+    CON: 17
+    INT: 18
+    SAG: 20
+    CHA: 18
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une créature. Touché : 8
+        (1d6 + 5) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 13 ou être empoisonnée pendant 24 heures. Jusqu'à ce que ce poison prenne
+        fin, la cible est inconsciente. Une autre créature peut utiliser une action pour la
+        réveiller."
+      toucher: 8
+    - nom: Constrict
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une créature moyenne ou
+        plus petite. Touché : 10 (2d6 + 3) points de dégâts de matraquage, et la cible est agrippée
+        (échappatoire DC 15). Jusqu'à la fin de cette prise, la cible est immobilisée et le couatl
+        ne peut pas immobiliser une autre cible."
+      toucher: 6
+    - nom: Changer de forme
+      description: >-
+        Le couatl se transforme magiquement en un humanoïde ou une bête dont la valeur de défi est
+        égale ou inférieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle
+        s'il meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix
+        du couatl).
+
+        Sous une nouvelle forme, le couatl conserve ses statistiques de jeu et sa capacité à parler,
+        mais sa CA, ses modes de déplacement, sa Force, sa Dextérité et ses autres actions sont
+        remplacés par ceux de la nouvelle forme, et il gagne toutes les statistiques et capacités (à
+        l'exception des caractéristiques de classe, des actions légendaires et des actions de
+        repaire) que la nouvelle forme possède mais qui lui manquent. Si la nouvelle forme possède
+        une attaque de morsure, le couatl peut utiliser sa morsure sous cette forme.
+- id: deva
+  nom: Deva
+  entite: personnage
+  categorie: Céleste
+  type: Céleste (moyenne)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/deva.png
+  valeurs:
+    niveau: 10
+    PV_Max: 136
+    Defense: 17
+    INIT: 4
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 18
+    DEX: 18
+    CON: 18
+    INT: 17
+    SAG: 20
+    CHA: 20
+  actions:
+    - nom: Multi-attaques
+      description: Le deva effectue deux attaques de mêlée.
+    - nom: Masse
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d6 + 4) points de dégâts de matraquage plus 18 (4d8) points de dégâts radiants."
+      toucher: 8
+    - nom: Toucher de guérison
+      description:
+        Le deva touche une autre créature. La cible regagne magiquement 20 (4d8 + 2) points de
+        vie et est libérée de toute malédiction, maladie, poison, cécité ou surdité.
+    - nom: Changer de forme
+      description: >-
+        Le deva se transforme magiquement en un humanoïde ou une bête ayant une valeur de défi égale
+        ou inférieure à la sienne, ou reprend sa véritable forme. Il reprend sa vraie forme s'il
+        meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du
+        deva).
+
+        Sous une nouvelle forme, le deva conserve ses statistiques de jeu et sa capacité à parler,
+        mais sa CA, ses modes de déplacement, sa Force, sa Dextérité et ses sens spéciaux sont
+        remplacés par ceux de la nouvelle forme, et il gagne toutes les statistiques et capacités (à
+        l'exception des caractéristiques de classe, des actions légendaires et des actions de
+        repaire) que la nouvelle forme possède et qui lui manquent.
+- id: unicorn
+  nom: Licorne
+  entite: personnage
+  categorie: Céleste
+  type: Céleste (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/unicorn.png
+  valeurs:
+    niveau: 5
+    PV_Max: 67
+    Defense: 12
+    INIT: 2
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 14
+    CON: 15
+    INT: 11
+    SAG: 17
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description: 'La licorne effectue deux attaques : une avec ses sabots et une avec sa corne.'
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 7
+    - nom: Corne
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Toucher de guérison
+      description:
+        La licorne touche une autre créature avec sa corne. La cible regagne magiquement 11
+        (2d8 + 2) points de vie. De plus, le toucher fait disparaître toutes les maladies et
+        neutralise tous les poisons qui affligent la cible.
+    - nom: Téléportation
+      description:
+        La licorne se téléporte magiquement, ainsi que jusqu'à trois créatures consentantes
+        qu'elle peut voir dans un rayon de 5 pieds, avec l'équipement qu'elles portent, vers un
+        endroit qui lui est familier, jusqu'à 1 mile de distance.
+- id: pegasus
+  nom: Pegasus
+  entite: personnage
+  categorie: Céleste
+  type: Céleste (grande)
+  description: 'Alignement : chaotique bon.'
+  image: https://assets.yner.fr/bestaire/pegasus.png
+  valeurs:
+    niveau: 2
+    PV_Max: 59
+    Defense: 12
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 10
+    SAG: 15
+    CHA: 13
+  actions:
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+- id: planetar
+  nom: Planetar
+  entite: personnage
+  categorie: Céleste
+  type: Céleste (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/planetar.png
+  valeurs:
+    niveau: 16
+    PV_Max: 200
+    Defense: 19
+    INIT: 5
+    Contact: 12
+    Distance: 12
+    Magie: 0
+    FOR: 24
+    DEX: 20
+    CON: 24
+    INT: 19
+    SAG: 22
+    CHA: 25
+  actions:
+    - nom: Multi-attaques
+      description: Le planétar effectue deux attaques de mêlée.
+    - nom: Épée de guerre
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 5 pieds, une cible. Touché : 21
+        (4d6 + 7) points de dégâts tranchants plus 22 (5d8) points de dégâts radiants."
+      toucher: 12
+    - nom: Toucher de guérison
+      description:
+        Le planétar touche une autre créature. La cible regagne magiquement 30 (6d8 + 3) points
+        de vie et est libérée de toute malédiction, maladie, poison, cécité ou surdité.
+- id: solar
+  nom: Solaire
+  entite: personnage
+  categorie: Céleste
+  type: Céleste (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/solar.png
+  valeurs:
+    niveau: 21
+    PV_Max: 243
+    Defense: 21
+    INIT: 6
+    Contact: 15
+    Distance: 15
+    Magie: 0
+    FOR: 26
+    DEX: 22
+    CON: 26
+    INT: 25
+    SAG: 25
+    CHA: 30
+  actions:
+    - nom: Multi-attaques
+      description: Le solaire effectue deux attaques d'épée grise.
+    - nom: Épée de guerre
+      description:
+        "Attaque d'arme de mêlée : +15 pour toucher, portée de 5 pieds, une cible. Touché : 22
+        (4d6 + 8) points de dégâts tranchants plus 27 (6d8) points de dégâts radiants."
+      toucher: 15
+    - nom: Arc long meurtrier
+      description:
+        "Attaque d'arme à distance : +13 pour toucher, portée 150/600 pieds, une cible. Touché
+        : 15 (2d8 + 6) points de dégâts perforants plus 27 (6d8) points de dégâts radiants. Si la
+        cible est une créature ayant 190 points de vie ou moins, elle doit réussir un jet de
+        sauvegarde de Constitution DC 15 ou mourir."
+      toucher: 13
+    - nom: L'épée volante
+      description:
+        Le solaire libère son épée pour qu'elle plane magiquement dans un espace inoccupé à
+        moins de 5 pieds de lui. Si le solaire peut voir l'épée, il peut mentalement lui ordonner
+        comme action bonus de voler jusqu'à 50 pieds et d'effectuer une attaque contre une cible ou
+        de retourner dans ses mains. Si l'épée planante est ciblée par un effet, le solaire est
+        considéré comme la tenant. L'épée tombe si le solaire meurt.
+    - nom: Toucher de guérison
+      description:
+        Le solaire touche une autre créature. La cible regagne magiquement 40 (8d8 + 4) points
+        de vie et est libérée de toute malédiction, maladie, poison, cécité ou surdité.

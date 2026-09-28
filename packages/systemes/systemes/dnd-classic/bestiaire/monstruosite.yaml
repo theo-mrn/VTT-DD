@@ -1,0 +1,1548 @@
+# Bestiaire de référence — Monstruosité (39).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: androsphinx
+  nom: Androsphinx
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : loyal neutre.'
+  image: https://assets.yner.fr/bestaire/androsphinx.png
+  valeurs:
+    niveau: 17
+    PV_Max: 199
+    Defense: 17
+    INIT: 0
+    Contact: 12
+    Distance: 12
+    Magie: 0
+    FOR: 22
+    DEX: 10
+    CON: 20
+    INT: 16
+    SAG: 18
+    CHA: 23
+  actions:
+    - nom: Multi-attaques
+      description: Le sphinx effectue deux attaques de griffes.
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +12 pour toucher, portée de 5 pieds, une cible. Touché : 17
+        (2d10 + 6) points de dégâts tranchants."
+      toucher: 12
+    - nom: Rugissement
+      description: >-
+        Le sphinx émet un rugissement magique. Chaque fois qu'il rugit avant de terminer un long
+        repos, le rugissement est plus fort et l'effet est différent, comme détaillé ci-dessous.
+        Chaque créature située à moins de 500 pieds du sphinx et capable d'entendre le rugissement
+        doit effectuer un jet de sauvegarde.
+
+
+        Premier rugissement. Chaque créature qui échoue à un jet de sauvegarde de sagesse DC 18 est
+        effrayée pendant 1 minute. Une créature effrayée peut répéter son jet de sauvegarde à la fin
+        de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.
+
+
+        Deuxième rugissement. Chaque créature qui échoue à un jet de sauvegarde de sagesse DC 18 est
+        assourdie et effrayée pendant 1 minute. Une créature effrayée est paralysée et peut répéter
+        le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en
+        cas de succès.
+
+
+        Troisième rugissement. Chaque créature fait un jet de sauvegarde DC 18 de Constitution. En
+        cas de sauvegarde ratée, la créature subit 44 (8d10) points de dégâts de tonnerre et est
+        mise à terre. En cas de sauvegarde réussie, la créature subit la moitié des dégâts et n'est
+        pas mise à terre.
+- id: ankheg
+  nom: Ankheg
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/ankheg.png
+  valeurs:
+    niveau: 2
+    PV_Max: 39
+    Defense: 14
+    INIT: 0
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 11
+    CON: 13
+    INT: 1
+    SAG: 13
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants plus 3 (1d6) points de dégâts acides. Si la cible est
+        une créature de grande taille ou plus petite, elle est agrippée (échappatoire DC 13).
+        Jusqu'à la fin de cette prise, l'ankheg ne peut mordre que la créature saisie et a
+        l'avantage aux jets d'attaque pour le faire."
+      toucher: 5
+    - nom: Vaporisateur d'acide
+      description:
+        L'ankheg crache de l'acide sur une ligne de 30 pieds de long et 5 pieds de large, à
+        condition qu'aucune créature ne soit agrippée. Chaque créature de cette ligne doit effectuer
+        un jet de sauvegarde de Dextérité DC 13, subissant 10 (3d6) points de dégâts d'acide en cas
+        de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: basilisk
+  nom: Basilic
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/basilisk.png
+  valeurs:
+    niveau: 3
+    PV_Max: 52
+    Defense: 12
+    INIT: -1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 8
+    CON: 15
+    INT: 2
+    SAG: 8
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts perforants plus 7 (2d6) points de dégâts de poison."
+      toucher: 5
+- id: behir
+  nom: Behir
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (très grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/behir.png
+  valeurs:
+    niveau: 11
+    PV_Max: 168
+    Defense: 17
+    INIT: 3
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 23
+    DEX: 16
+    CON: 18
+    INT: 7
+    SAG: 14
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description: "Le behir effectue deux attaques : l'une avec sa morsure et l'autre pour étrangler."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 22
+        (3d10 + 6) points de dégâts perforants."
+      toucher: 10
+    - nom: Constrict
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une créature grande ou
+        plus petite. Touché : 17 (2d10 + 6) points de dégâts de matraquage plus 17 (2d10 + 6) points
+        de dégâts tranchants. La cible est agrippée (échappatoire DC 16) si le behir n'est pas déjà
+        en train d'étrangler une créature, et la cible est immobilisée jusqu'à la fin de
+        l'agrippement."
+      toucher: 10
+    - nom: Le souffle de la foudre
+      description:
+        Le behir exhale une ligne d'éclairs de 20 pieds de long et 5 pieds de large. Chaque
+        créature située dans cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 16,
+        subissant 66 (12d10) points de dégâts de foudre en cas de sauvegarde ratée, ou la moitié en
+        cas de sauvegarde réussie.
+    - nom: Avalez
+      description: >-
+        Le behir effectue une attaque de morsure contre une cible de taille moyenne ou plus petite
+        qu'il agrippe. Si l'attaque touche, la cible est également avalée et la prise se termine.
+        Pendant qu'elle est avalée, la cible est aveuglée et entravée, elle bénéficie d'une
+        couverture totale contre les attaques et autres effets extérieurs au behir, et elle subit 21
+        (6d6) points de dégâts d'acide au début de chacun des tours du behir. Un behir ne peut
+        avaler qu'une seule créature à la fois.
+
+        Si le behir subit 30 points de dégâts ou plus en un seul tour à cause de la créature avalée,
+        il doit réussir un jet de sauvegarde de Constitution DC 14 à la fin de ce tour ou régurgiter
+        la créature, qui tombe à plat ventre dans un espace situé à moins de 10 pieds du behir. Si
+        le behir meurt, la créature avalée n'est plus retenue par lui et peut s'échapper du cadavre
+        en utilisant 15 pieds de mouvement, en sortant à plat ventre.
+- id: bulette
+  nom: Bulette
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/bulette.png
+  valeurs:
+    niveau: 5
+    PV_Max: 94
+    Defense: 17
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 11
+    CON: 21
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 30
+        (4d12 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Saut mortel
+      description:
+        Si la bulette saute d'au moins 15 pieds dans le cadre de son mouvement, elle peut alors
+        utiliser cette action pour atterrir sur ses pieds dans un espace contenant une ou plusieurs
+        autres créatures. Chacune de ces créatures doit réussir un jet de sauvegarde de Force ou de
+        Dextérité DC 16 (au choix de la cible) ou être mise à terre et subir 14 (3d6 + 4) dégâts de
+        matraquage plus 14 (3d6 + 4) dégâts d'entaille. Si elle réussit son jet de sauvegarde, la
+        créature ne subit que la moitié des dégâts, n'est pas mise à terre et est repoussée de 5
+        pieds hors de l'espace de la bulette, dans un espace inoccupé de son choix. Si aucun espace
+        inoccupé n'est à portée, la créature tombe à plat ventre dans l'espace de la bulette.
+- id: centaur
+  nom: Centaure
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : neutre bon.'
+  image: https://assets.yner.fr/bestaire/centaur.png
+  valeurs:
+    niveau: 2
+    PV_Max: 45
+    Defense: 12
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 14
+    CON: 14
+    INT: 9
+    SAG: 13
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le centaure effectue deux attaques : une avec sa pique et une avec ses sabots ou deux
+        avec son arc long.'
+    - nom: Brochet
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 9
+        (1d10 + 4) points de dégâts perforants."
+      toucher: 6
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 6 (1d8 + 2) points de dégâts perforants."
+      toucher: 4
+- id: death-dog
+  nom: Chien de la mort
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/death-dog.png
+  valeurs:
+    niveau: 1
+    PV_Max: 39
+    Defense: 12
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 14
+    CON: 14
+    INT: 3
+    SAG: 13
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description: Le chien effectue deux morsures.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Constitution DC 12 contre la maladie ou être empoisonnée jusqu'à ce que
+        la maladie soit guérie. Toutes les 24 heures, la créature doit répéter le jet de sauvegarde,
+        réduisant son maximum de points de vie de 5 (1d10) en cas d'échec. Cette réduction dure
+        jusqu'à ce que la maladie soit guérie. La créature meurt si la maladie réduit son maximum de
+        points de vie à 0."
+      toucher: 4
+- id: chimera
+  nom: Chimère
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/chimera.png
+  valeurs:
+    niveau: 6
+    PV_Max: 114
+    Defense: 14
+    INIT: 0
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 11
+    CON: 19
+    INT: 3
+    SAG: 14
+    CHA: 10
+  actions:
+    - nom: Multi-attaques
+      description:
+        "La chimère effectue trois attaques : une avec sa morsure, une avec ses cornes et une
+        avec ses griffes. Lorsque son souffle de feu est disponible, elle peut l'utiliser à la place
+        de sa morsure ou de ses cornes."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Cornes
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (1d12 + 4) points de dégâts de matraquage."
+      toucher: 7
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 7
+    - nom: Souffle de feu
+      description:
+        La tête de dragon exhale du feu dans un cône de 15 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Dextérité DC 15, subissant 31 (7d8) points de dégâts
+        de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: cockatrice
+  nom: Cockatrice
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/cockatrice.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 27
+    Defense: 11
+    INIT: 1
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 6
+    DEX: 12
+    CON: 12
+    INT: 2
+    SAG: 13
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 3
+        (1d4 + 1) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de
+        Constitution DC 11 contre la pétrification magique. En cas d'échec, la créature commence à
+        se transformer en pierre et est immobilisée. Elle doit refaire le jet de sauvegarde à la fin
+        de son prochain tour. En cas de réussite, l'effet prend fin. En cas d'échec, la créature est
+        pétrifiée pendant 24 heures."
+      toucher: 3
+- id: darkmantle
+  nom: Darkmantle
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/darkmantle.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 11
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 12
+    CON: 13
+    INT: 2
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Béguin
+      description: >-
+        Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 6 (1d6
+        + 3) points de dégâts de matraquage, et le darkmantle s'attache à la cible. Si la cible est
+        de taille moyenne ou plus petite et que le darkmantle a l'avantage sur le jet d'attaque, il
+        s'attache en engloutissant la tête de la cible, qui est également aveuglée et incapable de
+        respirer tant que le darkmantle est attaché de cette façon.
+
+        Tant qu'il est attaché à la cible, le darkmantle ne peut attaquer aucune autre créature que
+        la cible, mais il a l'avantage sur ses jets d'attaque. La vitesse du darkmantle devient
+        également 0, il ne peut bénéficier d'aucun bonus à sa vitesse, et il se déplace avec la
+        cible.
+
+        Une créature peut détacher le darkmantle en réussissant un test de Force DC 13 en tant
+        qu'action. A son tour, le darkmantle peut se détacher de la cible en utilisant 5 pieds de
+        mouvement.
+      toucher: 5
+    - nom: Aura de ténèbres
+      description:
+        Un rayon de 15 pieds de ténèbres magiques s'étend à partir du manteau noir, se déplace
+        avec lui et se répand dans les coins. Les ténèbres durent aussi longtemps que le darkmantle
+        reste concentré, jusqu'à 10 minutes (comme s'il se concentrait sur un sort). La vision dans
+        le noir ne peut pas pénétrer ces ténèbres, et aucune lumière naturelle ne peut les éclairer.
+        Si une partie des ténèbres chevauche une zone de lumière créée par un sort de 2e niveau ou
+        moins, le sort créant la lumière est dissipé.
+- id: drider
+  nom: Drider
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/drider.png
+  valeurs:
+    niveau: 6
+    PV_Max: 123
+    Defense: 19
+    INIT: 3
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 16
+    DEX: 16
+    CON: 18
+    INT: 13
+    SAG: 14
+    CHA: 12
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le drider effectue trois attaques, soit avec son épée longue, soit avec son arc long.
+        Il peut remplacer l'une de ces attaques par une attaque de morsure.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché : 2
+        (1d4) points de dégâts perforants plus 9 (2d8) points de dégâts de poison."
+      toucher: 6
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts tranchants, ou 8 (1d10 + 3) points de dégâts tranchants si l'arme
+        est utilisée à deux mains."
+      toucher: 6
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +6 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 7 (1d8 + 3) points de dégâts perforants plus 4 (1d8) points de dégâts de poison."
+      toucher: 6
+- id: spirit-naga
+  nom: Esprit Naga
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/spirit-naga.png
+  valeurs:
+    niveau: 8
+    PV_Max: 75
+    Defense: 15
+    INIT: 3
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 17
+    CON: 14
+    INT: 16
+    SAG: 15
+    CHA: 16
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une créature. Touché :
+        7 (1d6 + 4) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 13, subissant 31 (7d8) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 7
+- id: ettercap
+  nom: Ettercap
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/ettercap.png
+  valeurs:
+    niveau: 2
+    PV_Max: 44
+    Defense: 13
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 15
+    CON: 13
+    INT: 7
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: "L'ettercap effectue deux attaques : une avec sa morsure et une avec ses griffes."
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 6
+        (1d8 + 2) points de dégâts perforants plus 4 (1d8) points de dégâts de poison. La cible doit
+        réussir un jet de sauvegarde de Constitution DC 11 ou être empoisonnée pendant 1 minute. La
+        créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à
+        l'effet sur elle-même en cas de réussite."
+      toucher: 4
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (2d4 + 2) points de dégâts tranchants."
+      toucher: 4
+    - nom: Web
+      description:
+        "Attaque d'arme à distance : +4 pour toucher, portée 30/60 pieds, une créature grande
+        ou plus petite. Touché : La créature est retenue par une toile. Comme action, la créature
+        retenue peut faire un test de Force DC 11 et s'échapper de la toile en cas de succès.
+        L'effet prend fin si la toile est détruite. La toile a une CA de 10, 5 points de vie, est
+        vulnérable aux dégâts de feu et immunisée contre les dégâts de matraquage."
+      toucher: 4
+- id: guardian-naga
+  nom: Gardien Naga
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : loyal bon.'
+  image: https://assets.yner.fr/bestaire/guardian-naga.png
+  valeurs:
+    niveau: 10
+    PV_Max: 127
+    Defense: 18
+    INIT: 4
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 19
+    DEX: 18
+    CON: 16
+    INT: 16
+    SAG: 19
+    CHA: 18
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une créature. Touché :
+        8 (1d8 + 4) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 15, subissant 45 (10d8) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 8
+    - nom: Cracher du poison
+      description:
+        "Attaque d'arme à distance : +8 pour toucher, portée 15/30 pieds, une créature. Touché
+        : La cible doit faire un jet de sauvegarde de Constitution DC 15, subissant 45 (10d8) points
+        de dégâts de poison en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de
+        sauvegarde réussie."
+      toucher: 8
+- id: gorgon
+  nom: Gorgone
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/gorgon.png
+  valeurs:
+    niveau: 5
+    PV_Max: 114
+    Defense: 19
+    INIT: 0
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 20
+    DEX: 11
+    CON: 18
+    INT: 2
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 18
+        (2d12 + 5) points de dégâts perforants."
+      toucher: 8
+    - nom: Sabots
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 16
+        (2d10 + 5) points de dégâts de matraquage."
+      toucher: 8
+    - nom: Souffle pétrifiant
+      description:
+        La gorgone exhale du gaz pétrifiant dans un cône de 30 pieds. Chaque créature dans
+        cette zone doit réussir un jet de sauvegarde de Constitution DC 13. En cas d'échec, la cible
+        commence à se transformer en pierre et est immobilisée. La cible entravée doit refaire le
+        jet de sauvegarde à la fin de son prochain tour. En cas de réussite, l'effet prend fin sur
+        la cible. En cas d'échec, la cible est pétrifiée jusqu'à ce qu'elle soit libérée par le sort
+        restauration supérieure ou une autre magie.
+- id: grick
+  nom: Grick
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/grick.png
+  valeurs:
+    niveau: 2
+    PV_Max: 27
+    Defense: 14
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 14
+    CON: 11
+    INT: 3
+    SAG: 14
+    CHA: 5
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le grick effectue une attaque avec ses tentacules. Si cette attaque touche, le grick
+        peut effectuer une attaque de bec contre la même cible.
+    - nom: Tentacules
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (2d6 + 2) points de dégâts tranchants."
+      toucher: 4
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 4
+- id: griffon
+  nom: Griffon
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/griffon.png
+  valeurs:
+    niveau: 2
+    PV_Max: 59
+    Defense: 12
+    INIT: 2
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 2
+    SAG: 13
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: 'Le griffon effectue deux attaques : une avec son bec et une avec ses griffes.'
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts perforants."
+      toucher: 6
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts tranchants."
+      toucher: 6
+- id: gynosphinx
+  nom: Gynosphinx
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : loyal neutre.'
+  image: https://assets.yner.fr/bestaire/gynosphinx.png
+  valeurs:
+    niveau: 11
+    PV_Max: 136
+    Defense: 17
+    INIT: 2
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 18
+    DEX: 15
+    CON: 16
+    INT: 18
+    SAG: 18
+    CHA: 18
+  actions:
+    - nom: Multi-attaques
+      description: Le sphinx effectue deux attaques de griffes.
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts tranchants."
+      toucher: 9
+- id: harpy
+  nom: Harpie
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/harpy.png
+  valeurs:
+    niveau: 1
+    PV_Max: 38
+    Defense: 11
+    INIT: 1
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 12
+    DEX: 13
+    CON: 12
+    INT: 7
+    SAG: 10
+    CHA: 13
+  actions:
+    - nom: Multi-attaques
+      description: 'La harpie effectue deux attaques : une avec ses griffes et une avec sa massue.'
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (2d4 + 1) points de dégâts tranchants."
+      toucher: 3
+    - nom: Club
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 3
+        (1d4 + 1) dégâts de matraquage."
+      toucher: 3
+    - nom: Chant de séduction
+      description: >-
+        La harpie chante une mélodie magique. Tous les humanoïdes et géants situés à moins de 300
+        pieds de la harpie qui peuvent entendre le chant doivent réussir un jet de sauvegarde de
+        Sagesse DC 11 ou être charmés jusqu'à la fin du chant. La harpie doit entreprendre une
+        action bonus lors de ses tours suivants pour continuer à chanter. Elle peut arrêter de
+        chanter à tout moment. Le chant se termine si la harpie est incapable de s'exprimer.
+
+        Lorsqu'elle est charmée par la harpie, la cible est incapable de chanter et ignore les
+        chants des autres harpies. Si la cible charmée se trouve à plus de 5 pieds de la harpie,
+        elle doit se déplacer à son tour vers la harpie par le chemin le plus direct. Elle n'évite
+        pas les attaques d'opportunité, mais avant de se déplacer dans un terrain dommageable, comme
+        de la lave ou une fosse, et chaque fois qu'elle subit des dégâts d'une source autre que la
+        harpie, une cible peut répéter le jet de sauvegarde. Une créature peut également répéter son
+        jet de sauvegarde à la fin de chacun de ses tours. Si le jet de sauvegarde d'une créature
+        est réussi, l'effet prend fin sur elle.
+
+        Une cible qui réussit son jet de sauvegarde est immunisée contre le chant de cette harpie
+        pour les 24 heures à venir.
+- id: hippogriff
+  nom: Hippogriffe
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/hippogriff.png
+  valeurs:
+    niveau: 1
+    PV_Max: 19
+    Defense: 11
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 13
+    CON: 13
+    INT: 2
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description: "L'hippogriffe effectue deux attaques : une avec son bec et une avec ses griffes."
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d10 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts tranchants."
+      toucher: 5
+- id: hydra
+  nom: Hydra
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/hydra.png
+  valeurs:
+    niveau: 8
+    PV_Max: 172
+    Defense: 15
+    INIT: 1
+    Contact: 8
+    Distance: 8
+    Magie: 0
+    FOR: 20
+    DEX: 12
+    CON: 20
+    INT: 2
+    SAG: 10
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: L'hydre effectue autant d'attaques de morsure qu'elle a de têtes.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 10
+        (1d10 + 5) points de dégâts perforants."
+      toucher: 8
+- id: kraken
+  nom: Kraken
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (gigantesque)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/kraken.png
+  valeurs:
+    niveau: 23
+    PV_Max: 472
+    Defense: 18
+    INIT: 0
+    Contact: 17
+    Distance: 17
+    Magie: 0
+    FOR: 30
+    DEX: 11
+    CON: 25
+    INT: 22
+    SAG: 18
+    CHA: 20
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le kraken effectue trois attaques de tentacules, chacune pouvant être remplacée par une
+        utilisation de Fling.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 23
+        (3d8 + 10) points de dégâts perforants. Si la cible est une créature Grande ou plus petite
+        agrippée par le kraken, cette créature est avalée et l'agrippement prend fin. Pendant
+        qu'elle est avalée, la créature est aveuglée et entravée, elle bénéficie d'une couverture
+        totale contre les attaques et autres effets extérieurs au kraken, et elle subit 42 (12d6)
+        points de dégâts d'acide au début de chacun des tours du kraken. Si le kraken subit 50
+        points de dégâts ou plus en un seul tour de la part d'une créature à l'intérieur de lui, il
+        doit réussir un jet de sauvegarde de Constitution DC 25 à la fin de ce tour ou régurgiter
+        toutes les créatures avalées, qui tombent à plat dans un espace de 10 pieds autour du
+        kraken. Si le kraken meurt, une créature avalée n'est plus retenue par lui et peut
+        s'échapper du cadavre en se déplaçant sur 15 pieds, en sortant à plat ventre."
+      toucher: 7
+    - nom: Tentacule
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 30 pieds, une cible. Touché : 20
+        (3d6 + 10) points de dégâts de matraquage, et la cible est agrippée (échappatoire DC 18).
+        Jusqu'à la fin de cette prise, la cible est immobilisée. Le kraken possède dix tentacules,
+        chacun pouvant saisir une cible."
+      toucher: 7
+    - nom: Fling
+      description:
+        Un objet grand ou petit tenu ou une créature agrippée par le kraken est projeté jusqu'à
+        60 pieds dans une direction aléatoire et mis à terre. Si une cible projetée heurte une
+        surface solide, elle subit 3 (1d6) points de dégâts de matraquage par tranche de 10 pieds de
+        distance parcourue. Si la cible est projetée sur une autre créature, celle-ci doit réussir
+        un jet de sauvegarde de Dextérité DC 18 ou subir les mêmes dégâts et être mise à terre.
+    - nom: Orage
+      description: Le kraken crée magiquement trois éclairs, chacun pouvant frapper une cible que le
+        kraken peut voir dans un rayon de 120 pieds. La cible doit effectuer un jet de sauvegarde de
+        Dextérité DC 23, subissant 22 (4d10) points de dégâts de foudre en cas d'échec, ou la moitié
+        en cas de réussite.
+- id: lamia
+  nom: Lamia
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/lamia.png
+  valeurs:
+    niveau: 4
+    PV_Max: 97
+    Defense: 13
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 16
+    DEX: 13
+    CON: 15
+    INT: 14
+    SAG: 15
+    CHA: 16
+  actions:
+    - nom: Multi-attaques
+      description: 'La lamia effectue deux attaques : une avec ses griffes et une avec sa dague ou
+        Intoxicating Touch.'
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d10 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Poignard
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d4 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Toucher enivrant
+      description:
+        "Mêlée Attaque magique : +5 pour toucher, portée de 5 pieds, une créature. Touché : La
+        cible est maudite pendant 1 heure. Jusqu'à la fin de la malédiction, la cible a un
+        désavantage aux jets de sauvegarde de Sagesse et à tous les tests de capacité."
+      toucher: 5
+- id: winter-wolf
+  nom: Loup d'hiver
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/winter-wolf.png
+  valeurs:
+    niveau: 3
+    PV_Max: 75
+    Defense: 13
+    INIT: 1
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 13
+    CON: 14
+    INT: 7
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Force DC 14 ou être mise à terre."
+      toucher: 6
+    - nom: Souffle froid
+      description:
+        Le loup exhale un souffle de vent glacial dans un cône de 15 pieds. Chaque créature
+        dans cette zone doit faire un jet de sauvegarde de Dextérité DC 12, subissant 18 (4d8)
+        dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: manticore
+  nom: Manticore
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/manticore.png
+  valeurs:
+    niveau: 3
+    PV_Max: 68
+    Defense: 14
+    INIT: 3
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 16
+    CON: 17
+    INT: 7
+    SAG: 12
+    CHA: 8
+  actions:
+    - nom: Multi-attaques
+      description:
+        'La manticore effectue trois attaques : une avec sa morsure et deux avec ses griffes ou
+        trois avec les pointes de sa queue.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts perforants."
+      toucher: 5
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6
+        (1d6 + 3) points de dégâts tranchants."
+      toucher: 5
+    - nom: Pointes de queue
+      description:
+        "Attaque d'arme à distance : +5 pour toucher, portée 100/200 pieds, une cible. Touché :
+        7 (1d8 + 3) points de dégâts perforants."
+      toucher: 5
+- id: medusa
+  nom: Méduse
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : loyal mauvais.'
+  image: https://assets.yner.fr/bestaire/medusa.png
+  valeurs:
+    niveau: 6
+    PV_Max: 127
+    Defense: 15
+    INIT: 2
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 10
+    DEX: 15
+    CON: 16
+    INT: 12
+    SAG: 13
+    CHA: 15
+  actions:
+    - nom: Multi-attaques
+      description:
+        La méduse effectue soit trois attaques de mêlée - une avec ses poils de serpent et deux
+        avec son épée courte - soit deux attaques à distance avec son arc long.
+    - nom: Poils de serpent
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 4
+        (1d4 + 2) points de dégâts perforants plus 14 (4d6) points de dégâts de poison."
+      toucher: 5
+    - nom: Épée courte
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts perforants."
+      toucher: 5
+    - nom: Arc long
+      description: "Attaque d'arme à distance : +5 pour toucher, portée de 150/600 pieds, une cible.
+        Touché : 6 (1d8 + 2) points de dégâts perforants plus 7 (2d6) points de dégâts de poison."
+      toucher: 5
+- id: merrow
+  nom: Merrow
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/merrow.png
+  valeurs:
+    niveau: 2
+    PV_Max: 45
+    Defense: 13
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 10
+    CON: 15
+    INT: 8
+    SAG: 10
+    CHA: 9
+  actions:
+    - nom: Multi-attaques
+      description:
+        'Le merrow effectue deux attaques : une avec sa morsure et une avec ses griffes ou son
+        harpon.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 8
+        (1d8 + 4) points de dégâts perforants."
+      toucher: 6
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 9
+        (2d4 + 4) points de dégâts tranchants."
+      toucher: 6
+    - nom: Harpon
+      description:
+        "Attaque en mêlée ou à distance : +6 pour toucher, portée de 5 pieds ou portée de 20/60
+        pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts perforants. Si la cible est une
+        créature énorme ou plus petite, elle doit réussir un concours de Force contre le merrow ou
+        être tirée jusqu'à 20 pieds vers le merrow."
+      toucher: 6
+- id: mimic
+  nom: Mimique
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/mimic.png
+  valeurs:
+    niveau: 2
+    PV_Max: 58
+    Defense: 12
+    INIT: 1
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 12
+    CON: 15
+    INT: 5
+    SAG: 13
+    CHA: 8
+  actions:
+    - nom: Pseudopode
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) dégâts de matraquage. Si le mime est sous forme d'objet, la cible est soumise à
+        son trait Adhésif."
+      toucher: 5
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d8 + 3) points de dégâts perforants plus 4 (1d8) points de dégâts acides."
+      toucher: 5
+- id: minotaur
+  nom: Minotaure
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : chaotique mauvais.'
+  image: https://assets.yner.fr/bestaire/minotaur.png
+  valeurs:
+    niveau: 3
+    PV_Max: 76
+    Defense: 14
+    INIT: 0
+    Contact: 6
+    Distance: 6
+    Magie: 0
+    FOR: 18
+    DEX: 11
+    CON: 16
+    INT: 6
+    SAG: 16
+    CHA: 9
+  actions:
+    - nom: Grande hache
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 17
+        (2d12 + 4) points de dégâts tranchants."
+      toucher: 6
+    - nom: Gore
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) points de dégâts perforants."
+      toucher: 6
+- id: rust-monster
+  nom: Monstre de rouille
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/rust-monster.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 27
+    Defense: 14
+    INIT: 1
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 13
+    DEX: 12
+    CON: 13
+    INT: 2
+    SAG: 13
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d8 + 1) points de dégâts perforants."
+      toucher: 3
+    - nom: Antennes
+      description: >-
+        Le monstre rouille corrode un objet non magique en métal ferreux qu'il peut voir dans un
+        rayon de 5 pieds. Si l'objet n'est pas porté ou transporté, le toucher détruit un cube de 1
+        pied autour de lui. Si l'objet est porté par une créature, celle-ci peut faire un jet de
+        sauvegarde de Dextérité DC 11 pour éviter le toucher du monstre de rouille.
+
+        Si l'objet touché est une armure ou un bouclier métallique porté ou transporté, il subit une
+        pénalité permanente et cumulative de -1 à la CA qu'il offre. Une armure dont la CA est
+        réduite à 10 ou un bouclier dont le bonus est de +0 est détruit. Si l'objet touché est une
+        arme en métal tenue, il rouille comme décrit dans le trait Rouille du métal.
+- id: owlbear
+  nom: Ourson
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/owlbear.png
+  valeurs:
+    niveau: 3
+    PV_Max: 59
+    Defense: 13
+    INIT: 1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 20
+    DEX: 12
+    CON: 17
+    INT: 3
+    SAG: 12
+    CHA: 7
+  actions:
+    - nom: Multi-attaques
+      description: "L'ours-chouette effectue deux attaques : une avec son bec et une avec ses griffes."
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une créature. Touché :
+        10 (1d10 + 5) points de dégâts perforants."
+      toucher: 7
+    - nom: Griffes
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14
+        (2d8 + 5) points de dégâts tranchants."
+      toucher: 7
+- id: phase-spider
+  nom: Phase Spider
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/phase-spider.png
+  valeurs:
+    niveau: 3
+    PV_Max: 32
+    Defense: 13
+    INIT: 2
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 15
+    DEX: 15
+    CON: 12
+    INT: 6
+    SAG: 10
+    CHA: 6
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7
+        (1d10 + 2) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 11, subissant 18 (4d8) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie. Si les dégâts de poison réduisent la cible
+        à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir regagné
+        des points de vie, et est paralysée tant qu'elle est empoisonnée de cette façon."
+      toucher: 4
+- id: remorhaz
+  nom: Remorhaz
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (très grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/remorhaz.png
+  valeurs:
+    niveau: 11
+    PV_Max: 195
+    Defense: 17
+    INIT: 1
+    Contact: 11
+    Distance: 11
+    Magie: 0
+    FOR: 24
+    DEX: 13
+    CON: 21
+    INT: 4
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +11 pour toucher, portée de 10 pieds, une cible. Touché : 40
+        (6d10 + 7) points de dégâts perforants plus 10 (3d6) points de dégâts de feu. Si la cible
+        est une créature, elle est agrippée (échappatoire DC 17). Jusqu'à la fin de cette prise, la
+        cible est immobilisée et le remorhaz ne peut pas mordre une autre cible."
+      toucher: 11
+    - nom: Avalez
+      description: >-
+        Le remorhaz effectue une attaque de morsure contre une créature de taille moyenne ou plus
+        petite qu'il agrippe. Si l'attaque touche, la créature subit les dégâts de la morsure et est
+        avalée, et l'empoignade prend fin. Pendant qu'elle est avalée, la créature est aveuglée et
+        entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets
+        extérieurs au remorhaz, et elle subit 21 (6d6) points de dégâts d'acide au début de chacun
+        des tours du remorhaz.
+
+        Si le remorhaz subit 30 points de dégâts ou plus en un seul tour de la part d'une créature à
+        l'intérieur de lui, il doit réussir un jet de sauvegarde de Constitution DC 15 à la fin de
+        ce tour ou régurgiter toutes les créatures avalées, qui tombent à plat dans un espace de 10
+        pieds autour du remorhaz. Si le rémorhaz meurt, une créature avalée n'est plus retenue par
+        lui et peut s'échapper du cadavre en se déplaçant sur 15 pieds, en sortant à plat ventre.
+- id: roc
+  nom: Roc
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (gigantesque)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/roc.png
+  valeurs:
+    niveau: 11
+    PV_Max: 248
+    Defense: 15
+    INIT: 0
+    Contact: 13
+    Distance: 13
+    Magie: 0
+    FOR: 28
+    DEX: 10
+    CON: 20
+    INT: 3
+    SAG: 10
+    CHA: 9
+  actions:
+    - nom: Multi-attaques
+      description: 'Le roc effectue deux attaques : une avec son bec et une avec ses serres.'
+    - nom: Bec
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 10 pieds, une cible. Touché : 27
+        (4d8 + 9) points de dégâts perforants."
+      toucher: 13
+    - nom: Talons
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 5 pieds, une cible. Touché : 23
+        (4d6 + 9) points de dégâts tranchants, et la cible est agrippée (échappatoire DC 19).
+        Jusqu'à la fin de cette prise, la cible est immobilisée et le roc ne peut pas utiliser ses
+        serres sur une autre cible."
+      toucher: 13
+- id: roper
+  nom: Roper
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/roper.png
+  valeurs:
+    niveau: 5
+    PV_Max: 93
+    Defense: 20
+    INIT: -1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 8
+    CON: 17
+    INT: 7
+    SAG: 16
+    CHA: 6
+  actions:
+    - nom: Multi-attaques
+      description:
+        Le rôdeur effectue quatre attaques avec ses vrilles, utilise Reel, et effectue une
+        attaque avec sa morsure.
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 22
+        (4d8 + 4) points de dégâts perforants."
+      toucher: 7
+    - nom: Tendril
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 50 pieds, une créature. Touché :
+        la cible est agrippée (échappatoire DC 15). Jusqu'à la fin du grappin, la cible est entravée
+        et a un désavantage sur les tests de Force et les jets de sauvegarde de Force, et le rôdeur
+        ne peut pas utiliser la même vrille sur une autre cible."
+      toucher: 7
+    - nom: Enrouleur
+      description: Le rôdeur tire chaque créature agrippée par lui jusqu'à 25 pieds en ligne droite vers lui.
+- id: doppelganger
+  nom: Sosie
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/doppelganger.png
+  valeurs:
+    niveau: 3
+    PV_Max: 52
+    Defense: 14
+    INIT: 4
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 11
+    DEX: 18
+    CON: 14
+    INT: 11
+    SAG: 12
+    CHA: 14
+  actions:
+    - nom: Multi-attaques
+      description: Le sosie effectue deux attaques de mêlée.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 7
+        (1d6 + 4) points de dégâts de matraquage."
+      toucher: 6
+    - nom: Lire les réflexions
+      description:
+        Le double lit magiquement les pensées de surface d'une créature située à moins de 60
+        pieds de lui. L'effet peut traverser les barrières, mais il est bloqué par 3 pieds de bois
+        ou de terre, 2 pieds de pierre, 2 pouces de métal ou une fine feuille de plomb. Tant que la
+        cible est à portée, le double peut continuer à lire ses pensées, tant que sa concentration
+        n'est pas rompue (comme s'il se concentrait sur un sort). Pendant qu'il lit dans les pensées
+        de la cible, le double a l'avantage aux tests de Sagesse (perspicacité) et de Charisme
+        (tromperie, intimidation et persuasion) contre la cible.
+- id: tarrasque
+  nom: Tarrasque
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (gigantesque)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/tarrasque.png
+  valeurs:
+    niveau: 30
+    PV_Max: 676
+    Defense: 25
+    INIT: 0
+    Contact: 19
+    Distance: 19
+    Magie: 0
+    FOR: 30
+    DEX: 11
+    CON: 30
+    INT: 3
+    SAG: 11
+    CHA: 11
+  actions:
+    - nom: Multi-attaques
+      description:
+        'La tarrasque peut utiliser sa Présence Effrayante. Elle effectue alors cinq attaques :
+        une avec sa morsure, deux avec ses griffes, une avec ses cornes et une avec sa queue. Elle
+        peut utiliser son hirondelle à la place de sa morsure.'
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +19 pour toucher, portée de 10 pieds, une cible. Touché : 36
+        (4d12 + 10) points de dégâts perforants. Si la cible est une créature, elle est agrippée
+        (échappatoire DC 20). Jusqu'à la fin de ce grappin, la cible est entravée et la tarrasque ne
+        peut pas mordre une autre cible."
+      toucher: 19
+    - nom: Griffe
+      description:
+        "Attaque d'arme de mêlée : +19 pour toucher, portée de 15 pieds, une cible. Touché : 28
+        (4d8 + 10) points de dégâts tranchants."
+      toucher: 19
+    - nom: Cornes
+      description:
+        "Attaque d'arme de mêlée : +19 pour toucher, portée de 10 pieds, une cible. Touché : 32
+        (4d10 + 10) points de dégâts perforants."
+      toucher: 19
+    - nom: Queue
+      description:
+        "Attaque d'arme de mêlée : +19 pour toucher, portée de 20 pieds, une cible. Touché : 24
+        (4d6 + 10) dégâts de matraquage. Si la cible est une créature, elle doit réussir un jet de
+        sauvegarde de Force DC 20 ou être mise à terre."
+      toucher: 19
+    - nom: Présence effrayante
+      description:
+        Chaque créature choisie par la tarrasque dans un rayon de 120 pieds et consciente de
+        son existence doit réussir un jet de sauvegarde de Sagesse DC 17 ou être effrayée pendant 1
+        minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, avec
+        un désavantage si la tarrasque est en ligne de vue, mettant fin à l'effet sur elle-même en
+        cas de succès. Si une créature réussit son jet de sauvegarde ou si l'effet prend fin pour
+        elle, elle est immunisée contre la Présence effrayante de la tarrasque pendant les 24 heures
+        suivantes.
+    - nom: Avalez
+      description: >-
+        La tarrasque effectue une attaque de morsure contre une créature Grande ou plus petite
+        qu'elle agrippe. Si l'attaque touche, la cible subit les dégâts de la morsure, elle est
+        avalée et le grappin prend fin. Pendant qu'elle est avalée, la créature est aveuglée et
+        entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets
+        extérieurs à la tarrasque, et elle subit 56 (16d6) points de dégâts d'acide au début de
+        chacun des tours de la tarrasque.
+
+        Si la tarrasque subit 60 points de dégâts ou plus en un seul tour de la part d'une créature
+        à l'intérieur d'elle, elle doit réussir un jet de sauvegarde de Constitution DC 20 à la fin
+        de ce tour ou régurgiter toutes les créatures avalées, qui tombent à plat dans un espace de
+        10 pieds autour de la tarrasque. Si la tarrasque meurt, une créature avalée n'est plus
+        retenue par elle et peut s'échapper du cadavre en utilisant 30 pieds de mouvement, en
+        sortant à plat ventre.
+- id: purple-worm
+  nom: Ver violet
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (gigantesque)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/purple-worm.png
+  valeurs:
+    niveau: 15
+    PV_Max: 247
+    Defense: 18
+    INIT: -2
+    Contact: 14
+    Distance: 14
+    Magie: 0
+    FOR: 28
+    DEX: 7
+    CON: 22
+    INT: 1
+    SAG: 8
+    CHA: 4
+  actions:
+    - nom: Multi-attaques
+      description: 'Le ver effectue deux attaques : une avec sa morsure et une avec son dard.'
+    - nom: Morsure
+      description: >-
+        Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une cible. Touché : 22 (3d8 +
+        9) points de dégâts perforants. Si la cible est une créature de grande taille ou plus
+        petite, elle doit réussir un jet de sauvegarde de Dextérité DC 19 ou être avalée par le ver.
+        Une créature avalée est aveuglée et entravée, elle bénéficie d'une couverture totale contre
+        les attaques et autres effets extérieurs au ver, et elle subit 21 (6d6) points de dégâts
+        d'acide au début de chaque tour du ver.
+
+        Si le ver subit 30 points de dégâts ou plus en un seul tour de la part d'une créature à
+        l'intérieur de lui, il doit réussir un jet de sauvegarde de Constitution DC 21 à la fin de
+        ce tour ou régurgiter toutes les créatures avalées, qui tombent à plat dans un espace de 10
+        pieds autour du ver. Si le ver meurt, une créature avalée n'est plus retenue par lui et peut
+        s'échapper du cadavre en utilisant 20 pieds de mouvement, en sortant à plat ventre.
+      toucher: 9
+    - nom: Dard de queue
+      description:
+        "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une créature. Touché :
+        19 (3d6 + 9) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de
+        Constitution DC 19, subissant 42 (12d6) points de dégâts de poison en cas de sauvegarde
+        ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 9
+- id: worg
+  nom: Worg
+  entite: personnage
+  categorie: Monstruosité
+  type: Monstruosité (grande)
+  description: 'Alignement : neutre mauvais.'
+  image: https://assets.yner.fr/bestaire/worg.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 26
+    Defense: 13
+    INIT: 1
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 16
+    DEX: 13
+    CON: 13
+    INT: 7
+    SAG: 11
+    CHA: 8
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10
+        (2d6 + 3) points de dégâts perforants. Si la cible est une créature, elle doit réussir un
+        jet de sauvegarde de Force DC 13 ou être mise à terre."
+      toucher: 5

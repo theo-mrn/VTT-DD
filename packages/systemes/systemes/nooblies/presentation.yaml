@@ -79,3 +79,24 @@ fiches:
 # Icônes des objets de l'inventaire.
 iconesObjets:
   - { sorte: objet, icone: sac }
+
+# Ressources consultables : panneau Ressources de la table et page Ressources de l'accueil
+# (docs/ressources.md). Pas de marché : le système n'a pas de catalogue d'équipement.
+references:
+  capacites:
+    sections:
+      - { titre: Races, sorte: race }
+      - { titre: Profils, sorte: profil }
+      - { titre: Capacités raciales, sorte: capacite }
+  # Modèles de PNJ de la campagne (le système n'a pas de bestiaire de référence)
+  bestiaire:
+    statistiques:
+      personnage:
+        - { titre: Combat, attributs: [niveau, PV_Max, Defense, INIT] }
+        - { titre: Attaques, attributs: [Contact, Distance, Magie] }
+        - { titre: Caractéristiques, attributs: [FOR, DEX, CON, INT, SAG, CHA] }
+  images:
+    collections:
+      - { titre: Personnages, dossiers: [Assets] }
+      - { titre: Cartes, dossiers: [Map, Cartes] }
+      - { titre: Photos, dossiers: [Photos] }

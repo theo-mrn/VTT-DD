@@ -1,13 +1,16 @@
 /**
  * Build : assemble chaque système, le valide entièrement et écrit
  * `dist/<id>.json`. Le build échoue à la moindre erreur de règle.
+ * Bestiaires dans un sous-dossier (`dist/systemes/bestiaires/<id>.json`) : les services
+ * qui listent `dist/systemes/*.json` n'y voient que des systèmes.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { charger, verifierPresentation } from '@vtt/rules';
-import { idsSystemes, lirePresentation, lireSysteme } from './sources.js';
+import { charger, checkBestiary, verifierPresentation } from '@vtt/rules';
+import { idsSystemes, lireBestiaire, lirePresentation, lireSysteme } from './sources.js';
 
 const sortie = new URL('../dist/systemes/', import.meta.url).pathname;
-mkdirSync(sortie, { recursive: true });
+const sortieBestiaires = `${sortie}bestiaires/`;
+mkdirSync(sortieBestiaires, { recursive: true });
 
 let echec = false;
 for (const id of idsSystemes()) {
@@ -28,6 +31,19 @@ for (const id of idsSystemes()) {
   console.log(
     `✓ ${id} ${s.source.version} : ${s.entrees.size} entrées, ${s.formules.size} formules`,
   );
+
+  const bestiaire = lireBestiaire(id);
+  if (bestiaire !== undefined) {
+    const b = checkBestiary(bestiaire, s);
+    if (!b.ok) {
+      echec = true;
+      console.error(`✗ ${id} : bestiaire, ${b.erreurs.length} erreur(s)`);
+      for (const e of b.erreurs) console.error(`  ${e.chemin} : ${e.message}`);
+    } else {
+      writeFileSync(`${sortieBestiaires}${id}.json`, JSON.stringify(b.bestiary));
+      console.log(`✓ ${id} : bestiaire, ${b.bestiary.creatures.length} créatures`);
+    }
+  }
 
   const presentation = lirePresentation(id);
   if (presentation === undefined) continue;

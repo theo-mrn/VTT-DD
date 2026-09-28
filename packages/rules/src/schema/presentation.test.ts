@@ -106,4 +106,68 @@ describe('présentation', () => {
     );
     expect(r.ok).toBe(false);
   });
+
+  it('vérifie les ressources déclarées : sortes, champs, étiquettes, prix, attributs', () => {
+    const ok = verifierPresentation(
+      {
+        ...valide,
+        references: {
+          capacites: {
+            sections: [
+              { titre: 'Espèces', sorte: 'espece' },
+              {
+                titre: 'Compétences',
+                sorte: 'competence',
+                groupePar: { champ: 'caracteristique' },
+              },
+            ],
+          },
+          marche: { prix: 'valeur', sortes: [{ sorte: 'obligation', colonnes: ['valeur'] }] },
+          bestiaire: {
+            statistiques: { personnage: [{ titre: 'Profil', attributs: ['vigueur'] }] },
+          },
+          images: { collections: [{ titre: 'Cartes', dossiers: ['Map'] }] },
+        },
+      },
+      systeme,
+    );
+    expect(ok.ok).toBe(true);
+
+    const r = verifierPresentation(
+      {
+        ...valide,
+        references: {
+          capacites: {
+            sections: [
+              { titre: 'A', sorte: 'arme' },
+              { titre: 'B', sorte: 'talent', etiquette: 'prestige' },
+              { titre: 'C', sorte: 'competence', groupePar: { champ: 'poids' } },
+            ],
+          },
+          marche: {
+            prix: 'prix',
+            sortes: [{ sorte: 'competence', colonnes: ['degats'] }],
+            textes: ['tarifs'],
+          },
+          bestiaire: {
+            statistiques: {
+              vehicule: [{ titre: 'X', attributs: ['coque'] }],
+              personnage: [{ titre: 'Y', attributs: ['FOR'] }],
+            },
+          },
+        },
+      },
+      systeme,
+    );
+    expect(!r.ok && r.erreurs.map((e) => `${e.chemin} : ${e.message}`)).toEqual([
+      'references/capacites/sections/0 : Sorte inconnue : arme',
+      'references/capacites/sections/1 : Aucune entrée talent n’a l’étiquette prestige',
+      'references/capacites/sections/2 : Champ inconnu sur competence : poids',
+      'references/marche/sortes/0 : Champ inconnu sur competence : degats',
+      'references/marche/prix : Aucune sorte du marché n’a le champ prix',
+      'references/marche/textes : Texte inconnu : tarifs',
+      'references/bestiaire/statistiques/vehicule : Type d’entité inconnu : vehicule',
+      'references/bestiaire/statistiques/personnage/0 : Attribut inconnu de personnage : FOR',
+    ]);
+  });
 });

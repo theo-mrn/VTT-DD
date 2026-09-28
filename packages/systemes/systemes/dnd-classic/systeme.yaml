@@ -421,6 +421,7 @@ sortes:
           - { valeur: bourse, nom: Bourse }
           - { valeur: autre, nom: Autre }
         defaut: autre
+      - { id: prix, nom: Prix (pa), type: nombre }
       - { id: poids, nom: Poids (kg), type: nombre, defaut: 0, option: encombrement }
       - { id: nom, nom: Nom propre, type: texte }
       - { id: description, nom: Description propre, type: texte }

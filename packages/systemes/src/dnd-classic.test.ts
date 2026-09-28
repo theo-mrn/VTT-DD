@@ -121,8 +121,10 @@ describe('dnd-classic : chargement', () => {
     );
     expect(parSorte('arme')).toHaveLength(20); // 19 + arme personnalisée
     expect(parSorte('armure')).toHaveLength(19); // 18 + protection personnalisée
-    expect(parSorte('objet')).toHaveLength(47); // potions, nourriture, pièces, matériel, objet libre
+    // Potions, nourriture, pièces, matériel, vêtements et matériaux du marché, objet libre
+    expect(parSorte('objet')).toHaveLength(53);
     expect(systeme.source.textes.map((t) => t.titre)).toContain('Glossaire des règles');
+    expect(systeme.source.textes.map((t) => t.id)).toContain('tarifs');
   });
 
   it('chaque profil a son dé de vie et 5 voies, chaque race sa voie raciale', () => {

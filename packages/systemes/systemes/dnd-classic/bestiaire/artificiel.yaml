@@ -1,0 +1,293 @@
+# Bestiaire de référence — Artificiel (9).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: animated-armor
+  nom: Armure animée
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/animated-armor.png
+  valeurs:
+    niveau: 1
+    PV_Max: 33
+    Defense: 18
+    INIT: 0
+    Contact: 4
+    Distance: 4
+    Magie: 0
+    FOR: 14
+    DEX: 11
+    CON: 13
+    INT: 1
+    SAG: 3
+    CHA: 1
+  actions:
+    - nom: Multi-attaques
+      description: L'armure effectue deux attaques de mêlée.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d6 + 2) points de dégâts de matraquage."
+      toucher: 4
+- id: shield-guardian
+  nom: Gardien du bouclier
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/shield-guardian.png
+  valeurs:
+    niveau: 7
+    PV_Max: 142
+    Defense: 17
+    INIT: -1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 18
+    DEX: 8
+    CON: 18
+    INT: 7
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Multi-attaques
+      description: Le gardien effectue deux attaques de poing.
+    - nom: Poing
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11
+        (2d6 + 4) points de dégâts de matraquage."
+      toucher: 7
+- id: clay-golem
+  nom: Golem d'argile
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/clay-golem.png
+  valeurs:
+    niveau: 9
+    PV_Max: 133
+    Defense: 14
+    INIT: -1
+    Contact: 9
+    Distance: 9
+    Magie: 0
+    FOR: 20
+    DEX: 9
+    CON: 18
+    INT: 3
+    SAG: 8
+    CHA: 1
+  actions:
+    - nom: Multi-attaques
+      description: Le golem effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une cible. Touché : 16
+        (2d10 + 5) points de dégâts de matraquage. Si la cible est une créature, elle doit réussir
+        un jet de sauvegarde de Constitution DC 15 ou voir son maximum de points de vie réduit d'un
+        montant égal aux dégâts subis. La cible meurt si cette attaque réduit son maximum de points
+        de vie à 0. La réduction dure jusqu'à ce qu'elle soit supprimée par le sort restauration
+        supérieure ou une autre magie."
+      toucher: 8
+    - nom: Hâte
+      description:
+        Jusqu'à la fin de son prochain tour, le golem bénéficie magiquement d'un bonus de +2 à
+        sa CA, d'un avantage aux jets de sauvegarde de Dextérité et peut utiliser son attaque de
+        fronde comme action bonus.
+- id: flesh-golem
+  nom: Golem de chair
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (moyenne)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/flesh-golem.png
+  valeurs:
+    niveau: 5
+    PV_Max: 93
+    Defense: 9
+    INIT: -1
+    Contact: 7
+    Distance: 7
+    Magie: 0
+    FOR: 19
+    DEX: 9
+    CON: 18
+    INT: 6
+    SAG: 10
+    CHA: 5
+  actions:
+    - nom: Multi-attaques
+      description: Le golem effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13
+        (2d8 + 4) dégâts de matraquage."
+      toucher: 7
+- id: iron-golem
+  nom: Golem de fer
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/iron-golem.png
+  valeurs:
+    niveau: 16
+    PV_Max: 210
+    Defense: 20
+    INIT: -1
+    Contact: 12
+    Distance: 12
+    Magie: 0
+    FOR: 24
+    DEX: 9
+    CON: 20
+    INT: 3
+    SAG: 11
+    CHA: 1
+  actions:
+    - nom: Multi-attaques
+      description: Le golem effectue deux attaques de mêlée.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 5 pieds, une cible. Touché : 20
+        (3d8 + 7) points de dégâts de matraquage."
+      toucher: 13
+    - nom: L'épée
+      description:
+        "Attaque d'arme de mêlée : +13 pour toucher, portée de 10 pieds, une cible. Touché : 23
+        (3d10 + 7) points de dégâts tranchants."
+      toucher: 13
+    - nom: Souffle de poison
+      description:
+        Le golem exhale un gaz toxique dans un cône de 15 pieds. Chaque créature dans cette
+        zone doit faire un jet de sauvegarde de Constitution DC 19, subissant 45 (10d8) points de
+        dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.
+- id: stone-golem
+  nom: Golem de pierre
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/stone-golem.png
+  valeurs:
+    niveau: 10
+    PV_Max: 178
+    Defense: 17
+    INIT: -1
+    Contact: 10
+    Distance: 10
+    Magie: 0
+    FOR: 22
+    DEX: 9
+    CON: 20
+    INT: 3
+    SAG: 11
+    CHA: 1
+  actions:
+    - nom: Multi-attaques
+      description: Le golem effectue deux attaques de type slam.
+    - nom: Chelem
+      description:
+        "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une cible. Touché : 19
+        (3d8 + 6) points de dégâts de matraquage."
+      toucher: 10
+    - nom: Lenteur
+      description:
+        Le golem cible une ou plusieurs créatures qu'il peut voir dans un rayon de 10 pieds.
+        Chaque cible doit effectuer un jet de sauvegarde de sagesse DC 17 contre cette magie. En cas
+        de sauvegarde ratée, la cible ne peut pas utiliser de réactions, sa vitesse est réduite de
+        moitié et elle ne peut pas faire plus d'une attaque à son tour. De plus, la cible peut
+        effectuer soit une action, soit une action bonus à son tour, mais pas les deux. Ces effets
+        durent 1 minute. Une cible peut répéter le jet de sauvegarde à la fin de chacun de ses
+        tours, mettant fin à l'effet sur elle-même en cas de succès.
+- id: homunculus
+  nom: Homunculus
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (très petite)
+  description: 'Alignement : neutre.'
+  image: https://assets.yner.fr/bestaire/homunculus.png
+  valeurs:
+    niveau: 0
+    PV_Max: 5
+    Defense: 13
+    INIT: 2
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 4
+    DEX: 15
+    CON: 11
+    INT: 10
+    SAG: 10
+    CHA: 7
+  actions:
+    - nom: Morsure
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 1
+        dégât perforant, et la cible doit réussir un jet de sauvegarde de Constitution DC 10 ou être
+        empoisonnée pendant 1 minute. Si le jet de sauvegarde échoue de 5 ou plus, la cible est
+        empoisonnée pendant 5 (1d10) minutes et inconsciente tant qu'elle est empoisonnée de cette
+        façon."
+      toucher: 4
+- id: flying-sword
+  nom: L'épée volante
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (petite)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/flying-sword.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 17
+    Defense: 17
+    INIT: 2
+    Contact: 2
+    Distance: 2
+    Magie: 0
+    FOR: 12
+    DEX: 15
+    CON: 11
+    INT: 1
+    SAG: 5
+    CHA: 1
+  actions:
+    - nom: Épée longue
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5
+        (1d8 + 1) points de dégâts tranchants."
+      toucher: 3
+- id: rug-of-smothering
+  nom: Tapis d'étouffement
+  entite: personnage
+  categorie: Artificiel
+  type: Artificiel (grande)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/rug-of-smothering.png
+  valeurs:
+    niveau: 2
+    PV_Max: 33
+    Defense: 12
+    INIT: 2
+    Contact: 5
+    Distance: 5
+    Magie: 0
+    FOR: 17
+    DEX: 14
+    CON: 10
+    INT: 1
+    SAG: 3
+    CHA: 1
+  actions:
+    - nom: L'étouffement
+      description:
+        "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature moyenne ou
+        plus petite. Touché : la créature est agrippée (échappatoire DC 13). Jusqu'à la fin de ce
+        grappin, la cible est entravée, aveuglée et risque de suffoquer, et le tapis ne peut pas
+        étouffer une autre cible. De plus, au début de chacun de ses tours, la cible subit 10 (2d6 +
+        3) dégâts de matraquage."
+      toucher: 5

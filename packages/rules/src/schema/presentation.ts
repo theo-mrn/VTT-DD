@@ -201,6 +201,70 @@ export const RegleIconeObjet = z
   );
 export type RegleIconeObjet = z.output<typeof RegleIconeObjet>;
 
+/**
+ * Ressources consultables (panneau « Ressources » de la table, page Ressources) : chaque
+ * onglet n'existe que si le système le déclare ici. Voir docs/ressources.md.
+ */
+
+/** Section de l'onglet Capacités : les entrées d'une sorte, filtrées par étiquette. */
+export const SectionCapacites = z.object({
+  titre: Libelle,
+  sorte: Cle,
+  etiquette: Id.optional(),
+  /**
+   * Regroupement : par la valeur d'un champ de la sorte (carrière d'origine), ou par
+   * l'étiquette de l'entrée autre que `etiquette` (voie de prestige « voleur »).
+   */
+  groupePar: z.union([z.literal('etiquette'), z.object({ champ: Cle })]).optional(),
+});
+export type SectionCapacites = z.output<typeof SectionCapacites>;
+
+/** Sorte proposée au marché : colonnes de la table et champ de catégorie (filtre). */
+export const SorteMarche = z.object({
+  sorte: Cle,
+  colonnes: z.array(Cle).default([]),
+  groupeChamp: Cle.optional(),
+});
+export type SorteMarche = z.output<typeof SorteMarche>;
+
+/** Groupe de statistiques d'une créature du bestiaire ou d'un modèle de PNJ. */
+export const GroupeStatistiques = z.object({ titre: Libelle, attributs: z.array(Cle).min(1) });
+export type GroupeStatistiques = z.output<typeof GroupeStatistiques>;
+
+/** Collection d'images : dossiers de la bibliothèque d'actifs (`Map`, `Photos`…). */
+export const CollectionImages = z.object({
+  titre: Libelle,
+  dossiers: z.array(z.string().min(1).max(200)).min(1),
+});
+export type CollectionImages = z.output<typeof CollectionImages>;
+
+export const References = z.object({
+  capacites: z
+    .object({ titre: Libelle.optional(), sections: z.array(SectionCapacites).min(1) })
+    .optional(),
+  marche: z
+    .object({
+      titre: Libelle.optional(),
+      /** Champ du prix, sur tout ou partie des sortes ; son nom donne l'unité. */
+      prix: Cle.optional(),
+      sortes: z.array(SorteMarche).min(1),
+      /** Textes du système affichés sous le catalogue (tarifs des services…). */
+      textes: z.array(Id).default([]),
+    })
+    .optional(),
+  bestiaire: z
+    .object({
+      titre: Libelle.optional(),
+      /** Par type d'entité ; sans déclaration, les blocs d'attributs de sa fiche. */
+      statistiques: z.record(z.string(), z.array(GroupeStatistiques)).default({}),
+    })
+    .optional(),
+  images: z
+    .object({ titre: Libelle.optional(), collections: z.array(CollectionImages).min(1) })
+    .optional(),
+});
+export type References = z.output<typeof References>;
+
 export const Presentation = z.object({
   format: z.literal(1),
   systeme: Id,
@@ -278,6 +342,8 @@ export const Presentation = z.object({
   bibliotheques: z
     .object({ objets: z.string().optional(), sons: z.string().optional() })
     .default({}),
+  /** Ressources consultables : capacités, marché, bestiaire, images (docs/ressources.md). */
+  references: References.default({}),
 });
 export type Presentation = z.output<typeof Presentation>;
 
@@ -362,6 +428,8 @@ export function verifierPresentation(
   p.iconesObjets.forEach((r, i) => {
     for (const m of erreursRegleIcone(systeme, r)) erreur(`iconesObjets/${i}`, m);
   });
+
+  for (const e of erreursReferences(systeme, p.references)) erreur(e.chemin, e.message);
 
   return erreurs.length ? { ok: false, erreurs } : { ok: true, presentation: p };
 }
@@ -478,5 +546,52 @@ export function erreursWidget(systeme: SystemeCharge, entite: string, w: Widget)
   if (w.type === 'actions')
     for (const a of w.actions ?? [])
       if (!systeme.actions.has(a)) erreurs.push(`Action inconnue : ${a}`);
+  return erreurs;
+}
+
+/** Références des ressources vérifiées contre le système : sortes, champs, textes, attributs. */
+export function erreursReferences(systeme: SystemeCharge, r: References): ErreurPresentation[] {
+  const erreurs: ErreurPresentation[] = [];
+  const erreur = (chemin: string, message: string) =>
+    erreurs.push({ chemin: `references/${chemin}`, message });
+  const champDe = (sorte: string, champ: string) =>
+    systeme.sortes.get(sorte)?.champs.find((c) => c.id === champ);
+
+  r.capacites?.sections.forEach((s, i) => {
+    const chemin = `capacites/sections/${i}`;
+    if (!systeme.sortes.has(s.sorte)) return erreur(chemin, `Sorte inconnue : ${s.sorte}`);
+    const entrees = [...systeme.entrees.values()].filter((e) => e.sorte === s.sorte);
+    if (s.etiquette !== undefined && !entrees.some((e) => e.etiquettes.includes(s.etiquette!)))
+      erreur(chemin, `Aucune entrée ${s.sorte} n’a l’étiquette ${s.etiquette}`);
+    if (typeof s.groupePar === 'object' && !champDe(s.sorte, s.groupePar.champ))
+      erreur(chemin, `Champ inconnu sur ${s.sorte} : ${s.groupePar.champ}`);
+  });
+
+  if (r.marche) {
+    const m = r.marche;
+    m.sortes.forEach((x, i) => {
+      const chemin = `marche/sortes/${i}`;
+      if (!systeme.sortes.has(x.sorte)) return erreur(chemin, `Sorte inconnue : ${x.sorte}`);
+      for (const c of [...x.colonnes, ...(x.groupeChamp ? [x.groupeChamp] : [])])
+        if (!champDe(x.sorte, c)) erreur(chemin, `Champ inconnu sur ${x.sorte} : ${c}`);
+    });
+    if (m.prix !== undefined && !m.sortes.some((x) => champDe(x.sorte, m.prix!)))
+      erreur('marche/prix', `Aucune sorte du marché n’a le champ ${m.prix}`);
+    const textes = new Set(systeme.source.textes.map((t) => t.id));
+    for (const t of m.textes) if (!textes.has(t)) erreur('marche/textes', `Texte inconnu : ${t}`);
+  }
+
+  for (const [entite, groupes] of Object.entries(r.bestiaire?.statistiques ?? {})) {
+    const e = systeme.entites.get(entite);
+    if (!e) {
+      erreur(`bestiaire/statistiques/${entite}`, `Type d’entité inconnu : ${entite}`);
+      continue;
+    }
+    groupes.forEach((g, i) => {
+      for (const a of g.attributs)
+        if (!e.attributs.has(a))
+          erreur(`bestiaire/statistiques/${entite}/${i}`, `Attribut inconnu de ${entite} : ${a}`);
+    });
+  }
   return erreurs;
 }

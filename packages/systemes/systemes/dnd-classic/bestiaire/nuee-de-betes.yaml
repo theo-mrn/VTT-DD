@@ -1,0 +1,287 @@
+# Bestiaire de référence — Nuée de bêtes (10).
+# Repris de l'ancienne app (legacy/public/tabs/bestiairy.json) : valeurs imprimées, pas un
+# état calculable ; catégories, tailles et alignements traduits (voir docs/ressources.md).
+
+- id: swarm-of-spiders
+  nom: Essaim d'araignées
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-spiders.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 13
+    CON: 10
+    INT: 1
+    SAG: 7
+    CHA: 1
+  actions:
+    - nom: Morsures
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace
+        de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 3
+- id: swarm-of-insects
+  nom: Essaim d'insectes
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-insects.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 13
+    CON: 10
+    INT: 1
+    SAG: 7
+    CHA: 1
+  actions:
+    - nom: Morsures
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace
+        de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 3
+- id: swarm-of-bats
+  nom: Essaim de chauves-souris
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-bats.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 22
+    Defense: 12
+    INIT: 2
+    Contact: -2
+    Distance: -2
+    Magie: 0
+    FOR: 5
+    DEX: 15
+    CON: 10
+    INT: 2
+    SAG: 12
+    CHA: 4
+  actions:
+    - nom: Morsures
+      description: "Attaque d'arme de mêlée : +4 pour toucher, portée de 0 pied, une créature dans
+        l'espace de l'essaim. Touché : 5 (2d4) points de dégâts perforants, ou 2 (1d4) points de
+        dégâts perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 4
+- id: swarm-of-beetles
+  nom: Essaim de coléoptères
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-beetles.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 13
+    CON: 10
+    INT: 1
+    SAG: 7
+    CHA: 1
+  actions:
+    - nom: Morsures
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace
+        de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 3
+- id: swarm-of-ravens
+  nom: Essaim de corbeaux
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-ravens.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 24
+    Defense: 12
+    INIT: 2
+    Contact: -1
+    Distance: -1
+    Magie: 0
+    FOR: 6
+    DEX: 14
+    CON: 8
+    INT: 3
+    SAG: 12
+    CHA: 6
+  actions:
+    - nom: Bêtes de somme
+      description:
+        "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible dans l'espace
+        de l'essaim. Touché : 7 (2d6) points de dégâts perforants, ou 3 (1d6) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 4
+- id: swarm-of-wasps
+  nom: Essaim de guêpes
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-wasps.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 13
+    CON: 10
+    INT: 1
+    SAG: 7
+    CHA: 1
+  actions:
+    - nom: Morsures
+      description:
+        "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace
+        de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 3
+- id: swarm-of-centipedes
+  nom: Essaim de mille-pattes
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-centipedes.png
+  valeurs:
+    niveau: 0.5
+    PV_Max: 22
+    Defense: 12
+    INIT: 1
+    Contact: -3
+    Distance: -3
+    Magie: 0
+    FOR: 3
+    DEX: 13
+    CON: 10
+    INT: 1
+    SAG: 7
+    CHA: 1
+  actions:
+    - nom: Morsures
+      description: >-
+        Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace de
+        l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins.
+
+        Une créature réduite à 0 point de vie par un essaim de mille-pattes est stable mais
+        empoisonnée pendant 1 heure, même après avoir regagné ses points de vie, et paralysée tant
+        qu'elle est empoisonnée de cette façon.
+      toucher: 3
+- id: swarm-of-quippers
+  nom: Essaim de Quippers
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-quippers.png
+  valeurs:
+    niveau: 1
+    PV_Max: 28
+    Defense: 13
+    INIT: 3
+    Contact: 3
+    Distance: 3
+    Magie: 0
+    FOR: 13
+    DEX: 16
+    CON: 9
+    INT: 1
+    SAG: 7
+    CHA: 2
+  actions:
+    - nom: Morsures
+      description: "Attaque d'arme de mêlée : +5 pour toucher, portée de 0 pied, une créature dans
+        l'espace de l'essaim. Touché : 14 (4d6) points de dégâts perforants, ou 7 (2d6) points de
+        dégâts perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 5
+- id: swarm-of-rats
+  nom: Essaim de rats
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-rats.png
+  valeurs:
+    niveau: 0.25
+    PV_Max: 24
+    Defense: 10
+    INIT: 0
+    Contact: 0
+    Distance: 0
+    Magie: 0
+    FOR: 9
+    DEX: 11
+    CON: 9
+    INT: 2
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsures
+      description:
+        "Attaque d'arme de mêlée : +2 au toucher, portée de 0 pied, une cible dans l'espace de
+        l'essaim. Touché : 7 (2d6) points de dégâts perforants, ou 3 (1d6) points de dégâts
+        perforants si l'essaim a la moitié de ses points de vie ou moins."
+      toucher: 2
+- id: swarm-of-poisonous-snakes
+  nom: Essaim de serpents venimeux
+  entite: personnage
+  categorie: Nuée de bêtes
+  type: Nuée de bêtes (moyenne)
+  description: 'Alignement : sans alignement.'
+  image: https://assets.yner.fr/bestaire/swarm-of-poisonous-snakes.png
+  valeurs:
+    niveau: 2
+    PV_Max: 36
+    Defense: 14
+    INIT: 4
+    Contact: 1
+    Distance: 1
+    Magie: 0
+    FOR: 8
+    DEX: 18
+    CON: 11
+    INT: 1
+    SAG: 10
+    CHA: 3
+  actions:
+    - nom: Morsures
+      description: "Attaque d'arme de mêlée : +6 pour toucher, portée de 0 pied, une créature dans
+        l'espace de l'essaim. Touché : 7 (2d6) points de dégâts perforants, ou 3 (1d6) points de
+        dégâts perforants si l'essaim a la moitié de ses points de vie ou moins. La cible doit
+        effectuer un jet de sauvegarde de Constitution DC 10, subissant 14 (4d6) points de dégâts de
+        poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie."
+      toucher: 6
