@@ -34,6 +34,8 @@ export const assets = audioSchema.table('assets', {
   id: uuid('id').primaryKey(),
   campaignId: uuid('campaign_id').notNull(),
   kind: text('kind', { enum: ASSET_KINDS }).notNull(),
+  /** Espaces du MJ où le son apparaît (musique, ambiance), indépendants du type. */
+  sections: text('sections').array().$type<('music' | 'ambience')[]>().notNull().default([]),
   name: text('name').notNull(),
   source: text('source', { enum: ASSET_SOURCES }).notNull(),
   status: text('status', { enum: ASSET_STATUSES }).notNull(),

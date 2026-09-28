@@ -51,4 +51,33 @@ describe.skipIf(!TEST_DATABASE_URL)('soundboard', () => {
     expect(events).toHaveLength(1);
     expect(events[0]!.visibility).toBe('gm_only');
   });
+
+  it('un son peut apparaître en musique et en ambiance, sans copie', async () => {
+    const a = await h.ok(c.gm, 'POST', `/v1/audio/campaigns/${c.id}/assets`, {
+      source: 'youtube',
+      url: 'ccccccccccc',
+      name: 'Pluie',
+      kind: 'ambience',
+    });
+    expect(a.sections).toEqual(['ambience']);
+    const both = await h.ok(c.gm, 'PATCH', `/v1/audio/campaigns/${c.id}/assets/${a.id}`, {
+      sections: ['ambience', 'music'],
+    });
+    expect(both.sections).toEqual(['ambience', 'music']);
+    expect(
+      (
+        await h.request(c.gm, 'PATCH', `/v1/audio/campaigns/${c.id}/assets/${a.id}`, {
+          sections: ['sfx'],
+        })
+      ).statusCode,
+    ).toBe(400);
+    // Un effet neuf n'a pas d'espace : il va sur la table d'effets
+    const e = await h.ok(c.gm, 'POST', `/v1/audio/campaigns/${c.id}/assets`, {
+      source: 'youtube',
+      url: 'ddddddddddd',
+      name: 'Épée',
+      kind: 'sfx',
+    });
+    expect(e.sections).toEqual([]);
+  });
 });

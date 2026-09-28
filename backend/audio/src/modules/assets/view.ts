@@ -29,6 +29,7 @@ export function toPlaybackAsset(row: AssetRow, storage: AudioStorage | undefined
 export function toAsset(row: AssetRow, storage: AudioStorage | undefined): Asset {
   return {
     ...toPlaybackAsset(row, storage),
+    sections: row.sections ?? [],
     catalogId: row.catalogId,
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
@@ -43,6 +44,7 @@ export function toAsset(row: AssetRow, storage: AudioStorage | undefined): Asset
 export const trackedFields = (a: Asset) => ({
   name: a.name,
   kind: a.kind,
+  sections: a.sections,
   volume: a.volume,
   durationMs: a.durationMs,
   status: a.status,

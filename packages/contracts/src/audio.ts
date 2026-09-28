@@ -43,8 +43,13 @@ export const PlaybackAsset = z.object({
 });
 export type PlaybackAsset = z.infer<typeof PlaybackAsset>;
 
+/** Espaces du MJ où un son apparaît (indépendants de son type) ; les effets : la table d'effets. */
+export const AssetSection = z.enum(['music', 'ambience']);
+export type AssetSection = z.infer<typeof AssetSection>;
+
 /** Vue MJ : PlaybackAsset + métadonnées. */
 export const Asset = PlaybackAsset.extend({
+  sections: z.array(AssetSection),
   catalogId: z.string().nullable(),
   mimeType: z.string().nullable(),
   sizeBytes: z.number().int().nullable(),

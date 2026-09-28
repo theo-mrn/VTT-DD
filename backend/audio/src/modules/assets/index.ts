@@ -11,6 +11,7 @@
 import {
   Asset,
   AssetKind,
+  AssetSection,
   type Actor,
   changesPayload,
   CreateAsset,
@@ -87,12 +88,20 @@ function assetEvent(
   });
 }
 
+/** Espace d'un son neuf : celui de son type (musique, ambiance) ; un effet va sur la table d'effets. */
+const sectionsOf = (kind: AssetKind): AssetSection[] =>
+  kind === 'music' || kind === 'ambience' ? [kind] : [];
+
 /** Crée ou ranime (supprimé puis rajouté) un asset à id déterministe (catalogue, YouTube). */
 async function upsertDeterministic(
   tx: Tx,
   values: typeof assets.$inferInsert,
 ): Promise<{ row: AssetRow; created: boolean }> {
-  const [inserted] = await tx.insert(assets).values(values).onConflictDoNothing().returning();
+  const [inserted] = await tx
+    .insert(assets)
+    .values({ sections: sectionsOf(values.kind), ...values })
+    .onConflictDoNothing()
+    .returning();
   if (inserted) return { row: inserted, created: true };
   const [existing] = await tx.select().from(assets).where(eq(assets.id, values.id)).for('update');
   if (!existing) throw new Error('asset introuvable après conflit');
@@ -104,6 +113,7 @@ async function upsertDeterministic(
       deletedAt: null,
       name: values.name,
       kind: values.kind,
+      sections: sectionsOf(values.kind),
       durationMs: values.durationMs ?? existing.durationMs,
       createdBy: values.createdBy ?? null,
       version: sql`${assets.version} + 1`,
@@ -418,6 +428,7 @@ export const register: Module = async (app, deps) => {
               id: claims.assetId,
               campaignId,
               kind: body.kind,
+              sections: sectionsOf(body.kind),
               name: body.name,
               source: 'upload',
               status: 'processing',
@@ -515,6 +526,11 @@ export const register: Module = async (app, deps) => {
           .object({
             name: z.string().trim().min(1).max(200).optional(),
             kind: AssetKind.optional(),
+            sections: z
+              .array(AssetSection)
+              .max(2)
+              .refine((a) => new Set(a).size === a.length, 'Un espace en double')
+              .optional(),
             volume: z.number().min(0).max(1).optional(),
             durationMs: z.number().int().positive().optional(),
             version: z.number().int().positive().optional(),
@@ -542,7 +558,7 @@ export const register: Module = async (app, deps) => {
         if (!row) throw HttpError.notFound('Son introuvable');
         if (req.body.version !== undefined && req.body.version !== row.version)
           return { conflict: toAsset(row, deps.storage) } as const;
-        const { name, kind, volume, durationMs } = req.body;
+        const { name, kind, sections, volume, durationMs } = req.body;
         if (durationMs !== undefined && row.source !== 'youtube')
           throw new HttpError(
             422,
@@ -554,12 +570,16 @@ export const register: Module = async (app, deps) => {
         const patch = {
           ...(name !== undefined ? { name } : {}),
           ...(kind !== undefined ? { kind } : {}),
+          ...(sections !== undefined ? { sections } : {}),
           ...(volume !== undefined ? { volume } : {}),
           ...(durationMs !== undefined ? { durationMs } : {}),
         };
-        const same = Object.entries(patch).every(
-          ([k, v]) => (row as Record<string, unknown>)[k] === v,
-        );
+        const same = Object.entries(patch).every(([k, v]) => {
+          const cur = (row as Record<string, unknown>)[k];
+          return Array.isArray(v) && Array.isArray(cur)
+            ? v.length === cur.length && v.every((x) => cur.includes(x))
+            : cur === v;
+        });
         if (same) return { asset: before } as const;
         const [updated] = await tx
           .update(assets)
