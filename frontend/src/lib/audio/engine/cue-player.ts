@@ -79,6 +79,7 @@ export class CuePlayer {
     const gain = cue.volume * asset.volume;
     if (asset.source === 'youtube' && asset.youtubeId) {
       const voice = new YoutubeVoice(asset.youtubeId);
+      this.tag(voice, cue.cueId, asset.name);
       voice.setVolume(gain * this.host.externalGain('sfx'));
       voice.onEnded = () => this.finish(cue.cueId);
       entry.voice = voice;
@@ -102,6 +103,7 @@ export class CuePlayer {
         normalized,
         ctx.currentTime + remaining / 1000,
       );
+      this.tag(voice, cue.cueId, asset.name);
       voice.onEnded = () => this.finish(cue.cueId);
       entry.voice = voice;
       return;
@@ -109,9 +111,20 @@ export class CuePlayer {
     const voice = new MediaVoice(ctx, this.host.pool(), asset.url, this.host.bus('sfx'), {
       initialGain: normalized,
     });
+    this.tag(voice, cue.cueId, asset.name);
     voice.onEnded = () => this.finish(cue.cueId);
     entry.voice = voice;
     voice.start(0, delayMs);
+  }
+
+  /** Nom et type pour le relevé ; la voix n'est voulue que tant que l'effet est actif. */
+  private tag(voice: CueVoice, cueId: string, name: string) {
+    voice.label = name;
+    voice.kind = 'sfx';
+    voice.owned = () => {
+      const entry = this.active.get(cueId);
+      return !!entry && (entry.voice === null || entry.voice === voice);
+    };
   }
 
   private finish(cueId: string) {

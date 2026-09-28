@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
-import { useChannel, useChannelPosition } from '@/lib/audio';
+import { useAudioStatus, useChannel, useChannelPosition, useLiveSounds } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import { formatTime } from './parts';
 
@@ -60,13 +60,21 @@ export function Deck({
 
   const Icon = channel === 'music' ? Music : Wind;
   const playing = s?.status === 'playing';
+  // Ce qui s'entend vraiment ici (relevé du moteur), pas seulement ce que dit le serveur
+  const live = useLiveSounds();
+  const { needsUnlock } = useAudioStatus();
+  const heard = live.some((l) => l.kind === channel);
   const hasTrack = !!s?.track && !s.track.deleted;
   const isMusic = channel === 'music';
   const repeat = s?.repeat ?? 'all';
   const status = !hasTrack
     ? 'Rien en cours'
     : playing
-      ? 'En lecture'
+      ? heard
+        ? 'En lecture'
+        : needsUnlock
+          ? 'Son bloqué par le navigateur'
+          : 'Démarrage…'
       : s?.status === 'paused'
         ? 'En pause'
         : 'Arrêté';
@@ -76,23 +84,30 @@ export function Deck({
       aria-label={LABELS[channel]}
       className={cn(
         'rounded-xl border p-3 transition-colors',
-        playing ? 'border-primary/40 bg-primary/[0.06]' : 'border-border bg-surface-2/60',
+        heard ? 'border-primary/40 bg-primary/[0.06]' : 'border-border bg-surface-2/60',
       )}
     >
       <div className="flex items-center gap-3">
         <span
           className={cn(
             'grid size-10 shrink-0 place-items-center rounded-lg',
-            playing ? 'bg-primary/15 text-primary-strong' : 'bg-surface-3 text-muted-foreground',
+            heard ? 'bg-primary/15 text-primary-strong' : 'bg-surface-3 text-muted-foreground',
           )}
         >
-          <Icon className="size-5" aria-hidden />
+          <Icon className={cn('size-5', heard && 'animate-pulse')} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="font-medium uppercase tracking-wide">{LABELS[channel]}</span>
             <span aria-hidden>·</span>
-            <span className={cn(playing && 'text-primary-strong')}>{status}</span>
+            <span
+              className={cn(
+                heard && 'text-primary-strong',
+                playing && !heard && needsUnlock && 'text-warning',
+              )}
+            >
+              {status}
+            </span>
             {isMusic && s && s.queueLength > 1 && s.queueIndex !== null && (
               <span className="tabular-nums">
                 · {s.queueIndex + 1}/{s.queueLength}

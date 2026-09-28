@@ -20,7 +20,9 @@ export {
   useChannelPosition,
   useMixer,
   usePreview,
+  useLiveSounds,
   useSoundCues,
   useSpatialAudio,
   type SpatialSource,
 } from './hooks';
+export type { LiveKind, LiveSound } from './engine/registry';

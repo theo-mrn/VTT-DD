@@ -29,6 +29,7 @@ import { useCampaignEvents } from '../realtime';
 import { audioApi } from './api';
 import { getAudioEngine, type EngineStatus } from './engine/engine';
 import { SpatialPlayer, type ResolvedSource } from './engine/spatial-player';
+import type { LiveSound } from './engine/registry';
 import { MediaVoice } from './engine/voices';
 import { YoutubeVoice } from './engine/youtube';
 import { MixerStore } from './mixer';
@@ -63,6 +64,20 @@ export function useAudioStatus(): {
   );
   const unlock = useCallback(() => getAudioEngine().unlock(), []);
   return { status, unlock, needsUnlock };
+}
+
+// ─── Ce qui sonne vraiment ─────────────────────────────────────────────────
+
+const NO_SOUND: LiveSound[] = [];
+
+/** Sons qui s'entendent réellement dans l'onglet (relevé du moteur, deux fois par seconde). */
+export function useLiveSounds(): LiveSound[] {
+  const engine = typeof window === 'undefined' ? null : getAudioEngine();
+  return useSyncExternalStore(
+    engine ? (l) => engine.subscribe(l) : noopSubscribe,
+    () => engine?.live ?? NO_SOUND,
+    () => NO_SOUND,
+  );
 }
 
 // ─── Mixeur ─────────────────────────────────────────────────────────────────
@@ -229,12 +244,14 @@ export function useChannel(campaignId: string, channel: ChannelName) {
       send,
       play: (t: { assetId: string } | { playlistId: string; index?: number }) =>
         send({ type: 'play', ...t }),
-      pause: () => send({ type: 'pause', expectedVersion: state?.version }),
-      resume: () => send({ type: 'resume', expectedVersion: state?.version }),
+      // Commandes du MJ : elles s'appliquent à l'état courant du serveur, quel qu'il soit
+      // (pas de `expectedVersion` : une pause passe même si le morceau a changé entre-temps)
+      pause: () => send({ type: 'pause' }),
+      resume: () => send({ type: 'resume' }),
       seek: (ms: number) => send({ type: 'seek', positionMs: Math.max(0, Math.round(ms)) }),
       stop: () => send({ type: 'stop' }),
-      next: () => send({ type: 'next', expectedVersion: state?.version }),
-      previous: () => send({ type: 'previous', expectedVersion: state?.version }),
+      next: () => send({ type: 'next' }),
+      previous: () => send({ type: 'previous' }),
       configure: (c: Omit<Extract<ChannelCommand, { type: 'configure' }>, 'type'>) =>
         send({ type: 'configure', ...c }),
     }),
@@ -478,7 +495,9 @@ export function usePreview() {
   useEffect(() => stop, [stop]);
   const play = useCallback(
     (
-      src: Pick<PlaybackAsset, 'id' | 'url' | 'youtubeId' | 'gainDb'> | { id: string; url: string },
+      src: (
+        Pick<PlaybackAsset, 'id' | 'url' | 'youtubeId' | 'gainDb'> | { id: string; url: string }
+      ) & { name?: string },
     ) => {
       stop();
       const engine = getAudioEngine();
@@ -486,6 +505,9 @@ export function usePreview() {
       const youtubeId = 'youtubeId' in src ? src.youtubeId : null;
       if (youtubeId) {
         const v = new YoutubeVoice(youtubeId);
+        v.label = src.name ?? 'Écoute';
+        v.kind = 'preview';
+        v.owned = () => voice.current === v;
         v.setVolume(0.8);
         v.onEnded = stop;
         v.start(0);
@@ -497,6 +519,9 @@ export function usePreview() {
         const v = new MediaVoice(ctx, engine.pool(), src.url, engine.bus('preview'), {
           initialGain: 10 ** (gainDb / 20),
         });
+        v.label = src.name ?? 'Écoute';
+        v.kind = 'preview';
+        v.owned = () => voice.current === v;
         v.onEnded = stop;
         v.start(0);
         voice.current = v;

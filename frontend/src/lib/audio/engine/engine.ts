@@ -17,6 +17,7 @@ import { ChannelPlayer } from './channel-player';
 import { CuePlayer } from './cue-player';
 import { AudioGraph, type AudioBus } from './graph';
 import type { EngineHost } from './host';
+import { disposeAllVoices, scanAudio, type LiveSound } from './registry';
 import { ElementPool } from './voices';
 
 export type EngineStatus = 'locked' | 'running' | 'unsupported';
@@ -32,7 +33,12 @@ export interface AudioEngineOptions {
   clock?: ServerClock;
   /** Branche les écouteurs de déverrouillage sur `document` (désactivé en test). */
   listenForUnlock?: boolean;
+  /** Relevé périodique de ce qui sonne (désactivé en test). */
+  scan?: boolean;
 }
+
+/** Fréquence du relevé réel de ce qui sonne (orphelines coupées, panneau à jour). */
+export const SCAN_EVERY_MS = 500;
 
 const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchend'] as const;
 
@@ -49,6 +55,8 @@ export class AudioEngine implements EngineHost {
   private soundWanted = false;
   private unlockBound = false;
   private resyncTimer: ReturnType<typeof setInterval> | null = null;
+  private scanTimer: ReturnType<typeof setInterval> | null = null;
+  private liveSounds: LiveSound[] = [];
 
   // Campagne attachée
   campaignId: string | null = null;
@@ -72,6 +80,28 @@ export class AudioEngine implements EngineHost {
     for (const player of Object.values(this.channels))
       player.onYoutubeEnded = (s) => this.onYoutubeEnded?.(s);
     this.cues = new CuePlayer(this);
+    if (typeof window !== 'undefined' && options.scan !== false)
+      this.scanTimer = setInterval(() => this.scan(), SCAN_EVERY_MS);
+  }
+
+  // ── Ce qui sonne vraiment ──
+
+  /** Sons qui s'entendent en ce moment dans l'onglet (relevé réel, pas l'état supposé). */
+  get live(): LiveSound[] {
+    return this.liveSounds;
+  }
+
+  /** Relevé : coupe les voix orphelines et publie ce qui sonne, s'il a changé. */
+  scan() {
+    const next = scanAudio();
+    const same =
+      next.length === this.liveSounds.length &&
+      next.every(
+        (s, i) => s.id === this.liveSounds[i]!.id && s.label === this.liveSounds[i]!.label,
+      );
+    if (same) return;
+    this.liveSounds = next;
+    this.emit();
   }
 
   // ── État observable ──
@@ -288,10 +318,26 @@ export class AudioEngine implements EngineHost {
   }
 }
 
-let engine: AudioEngine | null = null;
+const holder = globalThis as unknown as { __vttAudioEngine?: unknown };
 
-/** Le moteur de l'onglet (créé au premier usage, jamais côté serveur). */
+/**
+ * Le moteur de l'onglet (créé au premier usage, jamais côté serveur). Unique même après un
+ * rechargement à chaud du code : il vit sur `globalThis`. Si le rechargement a remplacé sa
+ * classe, l'ancien moteur est détaché et toutes ses voix coupées avant d'en créer un neuf :
+ * jamais deux moteurs qui jouent en même temps.
+ */
 export function getAudioEngine(): AudioEngine {
-  engine ??= new AudioEngine();
-  return engine;
+  const current = holder.__vttAudioEngine;
+  if (current instanceof AudioEngine) return current;
+  if (current) {
+    try {
+      (current as { detachCampaign?: () => void }).detachCampaign?.();
+    } catch {
+      // Ancien moteur déjà hors d'usage
+    }
+    disposeAllVoices();
+  }
+  const next = new AudioEngine();
+  holder.__vttAudioEngine = next;
+  return next;
 }

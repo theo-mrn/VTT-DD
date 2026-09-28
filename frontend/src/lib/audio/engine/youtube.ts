@@ -6,6 +6,7 @@
  * synchronisation est grossière (seek au-delà de 2 s d'écart). Publicités et
  * vidéos non intégrables échappent à notre contrôle (`onError`).
  */
+import { registerVoice, unregisterVoice, type LiveKind, type Registered } from './registry';
 
 interface YTPlayer {
   playVideo(): void;
@@ -79,9 +80,12 @@ function hiddenHost(): HTMLElement {
 
 let counter = 0;
 
-export class YoutubeVoice {
+export class YoutubeVoice implements Registered {
   readonly id = `youtube-${++counter}`;
   disposed = false;
+  label = '';
+  kind: LiveKind = 'music';
+  owned: () => boolean = () => true;
   private player: YTPlayer | null = null;
   private readonly el: HTMLElement;
   private volume = 0;
@@ -94,6 +98,7 @@ export class YoutubeVoice {
   constructor(readonly videoId: string) {
     this.el = document.createElement('div');
     hiddenHost().appendChild(this.el);
+    registerVoice(this);
     loadApi()
       .then((YT) => {
         if (this.disposed) return;
@@ -175,6 +180,11 @@ export class YoutubeVoice {
     return this.ready && this.player!.getPlayerState() === PLAYING;
   }
 
+  /** Lu sur le lecteur : en lecture avec un volume audible. */
+  sounding(): boolean {
+    return !this.disposed && this.volume > 0 && this.playing;
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
@@ -185,5 +195,6 @@ export class YoutubeVoice {
       // Lecteur jamais prêt
     }
     this.el.remove();
+    unregisterVoice(this.id);
   }
 }

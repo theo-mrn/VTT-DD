@@ -61,6 +61,10 @@ export class SpatialPlayer {
           loop: true,
           pan: true,
         });
+        voice.label = source.id;
+        voice.kind = 'zones';
+        const id = source.id;
+        voice.owned = () => this.voices.get(id)?.voice === voice;
         const d = source.durationMs ?? voice.durationMs;
         voice.start(d ? loopPosition(this.host.clock.now(), d) : 0);
         entry = { voice, silentSince: null, url: source.url };

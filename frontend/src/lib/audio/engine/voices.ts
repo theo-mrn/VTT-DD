@@ -9,6 +9,7 @@
  * `removeAttribute('src')` + `load()` pour libérer le décodeur, retour au pool.
  */
 import { nodeStats, rampGain } from './graph';
+import { registerVoice, unregisterVoice, type LiveKind, type Registered } from './registry';
 
 export const POOL_SIZE = 16;
 
@@ -76,9 +77,16 @@ export class ElementPool {
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${++counter}`;
 
-export class MediaVoice implements Voice {
+/** Gain au-dessous duquel une voix est considérée muette. */
+const AUDIBLE = 0.001;
+
+export class MediaVoice implements Voice, Registered {
   readonly id = nextId('media');
   disposed = false;
+  label = '';
+  kind: LiveKind = 'music';
+  owned: () => boolean = () => true;
+  private lastScanTime = -1;
   private readonly item: PooledElement;
   private readonly gain: GainNode;
   private readonly panner: StereoPannerNode | null;
@@ -113,6 +121,23 @@ export class MediaVoice implements Voice {
       el.src = url;
       el.load?.();
     }
+    registerVoice(this);
+  }
+
+  /** Lu sur l'élément : en lecture, temps qui avance, contexte actif, gain audible. */
+  sounding(): boolean {
+    const el = this.item.el;
+    const t = el.currentTime;
+    const moved = t !== this.lastScanTime;
+    this.lastScanTime = t;
+    return (
+      !this.disposed &&
+      !el.paused &&
+      !el.ended &&
+      moved &&
+      this.ctx.state === 'running' &&
+      this.gain.gain.value > AUDIBLE
+    );
   }
 
   get element(): HTMLAudioElement {
@@ -206,6 +231,7 @@ export class MediaVoice implements Voice {
       el.removeAttribute('src');
       el.load?.();
       this.pool.release(this.item);
+      unregisterVoice(this.id);
     };
     if (fadeMs > 0) {
       rampGain(this.gain.gain, this.ctx, 0, fadeMs);
@@ -214,9 +240,14 @@ export class MediaVoice implements Voice {
   }
 }
 
-export class BufferVoice implements Voice {
+export class BufferVoice implements Voice, Registered {
   readonly id = nextId('buffer');
   disposed = false;
+  label = '';
+  kind: LiveKind = 'sfx';
+  owned: () => boolean = () => true;
+  private readonly startCtx: number;
+  private readonly endCtx: number;
   private readonly source: AudioBufferSourceNode;
   private readonly gain: GainNode;
   onEnded: (() => void) | null = null;
@@ -239,7 +270,22 @@ export class BufferVoice implements Voice {
       this.onEnded?.();
       this.dispose();
     };
-    this.source.start(Math.max(ctx.currentTime, whenCtx));
+    this.startCtx = Math.max(ctx.currentTime, whenCtx);
+    this.endCtx = this.startCtx + buffer.duration;
+    this.source.start(this.startCtx);
+    registerVoice(this);
+  }
+
+  /** Dans sa fenêtre de lecture sur un contexte actif, avec un gain audible. */
+  sounding(): boolean {
+    const t = this.ctx.currentTime;
+    return (
+      !this.disposed &&
+      this.ctx.state === 'running' &&
+      t >= this.startCtx &&
+      t < this.endCtx &&
+      this.gain.gain.value > AUDIBLE
+    );
   }
 
   setGain(value: number, ms = 0) {
@@ -259,6 +305,7 @@ export class BufferVoice implements Voice {
       this.source.disconnect();
       this.gain.disconnect();
       nodeStats.live -= 2;
+      unregisterVoice(this.id);
     };
     if (fadeMs > 0) {
       rampGain(this.gain.gain, this.ctx, 0, fadeMs);

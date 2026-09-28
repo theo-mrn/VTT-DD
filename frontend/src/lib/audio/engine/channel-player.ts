@@ -107,6 +107,7 @@ export class ChannelPlayer {
     const delay = Math.max(0, planned.startAtMs - now);
     if (planned.asset.source === 'youtube' && planned.asset.youtubeId) {
       const voice = new YoutubeVoice(planned.asset.youtubeId);
+      this.tag(voice, key, planned);
       const live: Live = { kind: 'youtube', key, plan: planned, voice };
       voice.onEnded = () => {
         if (this.state && planned.asset.durationMs === null) this.onYoutubeEnded?.(this.state);
@@ -128,12 +129,20 @@ export class ChannelPlayer {
         loop: planned.loop,
       },
     );
+    this.tag(voice, key, planned);
     const live: Live = { kind: 'media', key, plan: planned, voice, correcting: false };
     // Après une mise en mémoire tampon : recalage immédiat
     voice.onPlaying = () => this.correct(live, this.host.clock.now(), false);
     this.voices.set(key, live);
     this.applyGain(live, now);
     voice.start(planned.positionMs, delay);
+  }
+
+  /** Nom et type pour le relevé ; la voix n'est voulue que tant que ce canal la garde. */
+  private tag(voice: MediaVoice | YoutubeVoice, key: string, planned: PlannedVoice) {
+    voice.label = planned.asset.name;
+    voice.kind = this.channel;
+    voice.owned = () => this.voices.get(key)?.voice === voice;
   }
 
   /** Gain cible : asset × normalisation × canal ; fondus d'entrée et de sortie à l'heure prévue. */

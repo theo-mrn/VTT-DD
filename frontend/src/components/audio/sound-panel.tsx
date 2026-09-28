@@ -15,6 +15,7 @@ import { Notice } from '@/components/resources/parts';
 import { useAudioLibrary, useChannel, useSoundCues } from '@/lib/audio';
 import { AddSoundDialog } from './add-sound-dialog';
 import { Deck } from './deck';
+import { LiveNow } from './live-now';
 import { MixerButton, MixerPanel } from './mixer-panel';
 import { SectionTitle } from './parts';
 import { SoundLibrary, type LibraryView } from './sound-library';
@@ -85,6 +86,7 @@ export function SoundPanel({
         <SectionTitle action={gm ? <MixerButton /> : undefined}>
           En ce moment pour la table
         </SectionTitle>
+        <LiveNow />
         <Deck campaignId={campaignId} channel="music" gm={gm} />
         <Deck campaignId={campaignId} channel="ambience" gm={gm} />
         {!gm && (
