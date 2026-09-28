@@ -5,6 +5,7 @@
 // Frequencies stay in the audible-on-laptop band (~150 Hz – 3 kHz) and levels
 // are low so rapid bounces during a roll never become harsh.
 
+import { getAudioEngine } from '@/lib/audio/engine/engine';
 import { diceSoundEnabled, useDiceThrowStore } from '@/lib/dice-throw';
 
 let sharedAudioContext: AudioContext | null = null;
@@ -25,14 +26,19 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Le contexte est celui du moteur audio de l'app (un seul AudioContext, docs/audio.md § 3.8) :
+// les dés sortent sur son bus « dice », réglé par le mixeur et protégé par son limiteur.
 export const getAudioContext = (): AudioContext | null => {
   try {
-    if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
-      sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const engine = getAudioEngine();
+    const ctx = engine.context() as AudioContext | null;
+    if (!ctx) return null;
+    if (sharedAudioContext !== ctx) {
+      sharedAudioContext = ctx;
       echoInput = null;
-      masterGainNode = sharedAudioContext.createGain();
+      masterGainNode = ctx.createGain();
       masterGainNode.gain.value = masterVolume();
-      masterGainNode.connect(sharedAudioContext.destination);
+      masterGainNode.connect(engine.bus('dice'));
     }
     return sharedAudioContext;
   } catch {
