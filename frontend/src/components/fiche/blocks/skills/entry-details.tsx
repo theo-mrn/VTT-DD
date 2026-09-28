@@ -10,6 +10,7 @@
 import type { Entree } from '@vtt/rules';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { cibleBonusPropres } from '../../bonus-editor/model';
 import type { ContexteFiche } from '../../widgets';
 import { EntryBonuses, type EntryBonusEdit } from '../effects/entry-bonuses';
@@ -31,6 +32,9 @@ export function EntryDetails({
 }) {
   const { fiche } = ctx;
   const d = useMemo(() => describeEntry(fiche, entry), [fiche, entry]);
+  // Entrée acquise à activer (capacité à activer…) : ses bonus ne s'appliquent qu'active
+  const p = fiche.possessions.get(entry.id);
+  const activable = p?.sorte.activable && (!p.sorte.rangs || p.rang > 0) ? p : null;
   const edit = useMemo((): EntryBonusEdit | undefined => {
     if (!writes) return undefined;
     return {
@@ -56,6 +60,22 @@ export function EntryDetails({
       {showDescription && entry.description && (
         <div className="max-h-64 overflow-y-auto pr-1">
           <RichText text={entry.description} />
+        </div>
+      )}
+      {activable && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{activable.actif ? 'Active' : 'Inactive'}</p>
+            <p className="text-xs text-subtle">
+              Ses bonus ne s’appliquent que lorsqu’elle est active.
+            </p>
+          </div>
+          <Switch
+            checked={activable.actif}
+            disabled={!writes}
+            onCheckedChange={(v) => writes?.setActive(entry.id, v)}
+            aria-label={`${activable.actif ? 'Désactiver' : 'Activer'} ${entry.nom}`}
+          />
         </div>
       )}
       <EntryBonuses fiche={fiche} entry={entry} edit={edit} />

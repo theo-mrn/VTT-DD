@@ -32,6 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { groupesAttributs } from '@/lib/creation';
 import { cn } from '@/lib/utils';
 import { Bloc, visiblePour, type ContexteFiche } from '../../widgets';
+import { sheetWrites } from '../tree/writes';
 import type { SheetBlockDefinition, SheetBlockProps } from '../types';
 import {
   ancreBonus,
@@ -72,6 +73,8 @@ interface GroupeSource {
   /** Pourquoi la source ne s'applique pas (objet rangé…), sinon null. */
   raison: string | null;
   bonus?: BonusLibre;
+  /** Source activable (capacité à activer…) : son interrupteur l'active, ses bonus suivent. */
+  activation?: { entree: string; actif: boolean };
   lignes: LigneEffet[];
 }
 
@@ -95,6 +98,9 @@ function grouper(ctx: ContexteFiche, effets: EffetListe[]): GroupeSource[] {
         famille: familleDe(e),
         raison: e.statut === 'inactif' ? raisonInactif(e) : null,
         ...(e.bonus ? { bonus: e.bonus } : {}),
+        ...(e.genre !== 'bonus' && p?.sorte.activable
+          ? { activation: { entree: p.entree.id, actif: p.actif } }
+          : {}),
         lignes: [],
       };
       groupes.set(cle, g);
@@ -165,6 +171,8 @@ function EffectsBlock({ ctx, widget, mode }: SheetBlockProps<'bonus'>) {
     onglet === 'actifs'
       ? groupes.filter((g) => g.lignes.some((l) => l.e.statut === 'actif')).length
       : groupes.filter((g) => g.famille === onglet).length;
+
+  const writes = useMemo(() => sheetWrites(ctx, mode), [ctx, mode]);
 
   function basculerEffets(cles: string[], actif: boolean) {
     envoyerBascule(fiche, operations?.effet?.bind(operations), cles, actif);
@@ -281,6 +289,7 @@ function EffectsBlock({ ctx, widget, mode }: SheetBlockProps<'bonus'>) {
                       ecriture={!!operations}
                       peutBasculer={!!operations?.effet}
                       onEffets={basculerEffets}
+                      onActiver={writes ? (entree, v) => writes.setActive(entree, v) : undefined}
                       onBonus={basculerBonus}
                       onRetirer={retirer}
                     />
@@ -319,6 +328,7 @@ function Source({
   ecriture,
   peutBasculer,
   onEffets,
+  onActiver,
   onBonus,
   onRetirer,
 }: {
@@ -328,10 +338,13 @@ function Source({
   ecriture: boolean;
   peutBasculer: boolean;
   onEffets: (cles: string[], actif: boolean) => void;
+  /** Active ou désactive une source activable (absent : lecture seule). */
+  onActiver: ((entree: string, actif: boolean) => void) | undefined;
   onBonus: (b: BonusLibre) => void;
   onRetirer: (b: BonusLibre) => void;
 }) {
   const b = g.bonus;
+  const act = g.activation;
   const eteinte = g.raison !== null;
   const basculables = g.lignes.filter((l) => l.e.basculable).map((l) => l.e.cle);
   const coupes = g.lignes.filter((l) => l.e.statut === 'desactive').length;
@@ -395,11 +408,19 @@ function Source({
               </Button>
             )}
           </>
+        ) : act ? (
+          <Switch
+            className="scale-90"
+            checked={act.actif}
+            disabled={!onActiver}
+            onCheckedChange={(v) => onActiver?.(act.entree, v)}
+            aria-label={`${act.actif ? 'Désactiver' : 'Activer'} ${g.nom}`}
+          />
         ) : (
           basculables.length > 0 && (
             <Switch
               className="scale-90"
-              checked={allume}
+              checked={allume && !eteinte}
               disabled={!peutBasculer || eteinte}
               onCheckedChange={(v) => onEffets(basculables, v)}
               aria-label={`${allume ? 'Désactiver' : 'Activer'} les bonus de ${g.nom}${
@@ -438,7 +459,7 @@ function Source({
                 {e.basculable && (
                   <Switch
                     className="scale-75"
-                    checked={!coupe}
+                    checked={!coupe && !eteinte}
                     disabled={!peutBasculer || eteinte}
                     onCheckedChange={(v) => onEffets([e.cle], v)}
                     aria-label={`${coupe ? 'Activer' : 'Désactiver'} ${libelle} (${g.nom})`}

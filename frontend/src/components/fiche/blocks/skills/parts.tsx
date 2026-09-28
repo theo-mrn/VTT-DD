@@ -5,7 +5,7 @@
  * tout (description assainie, bonus avec leur interrupteur et leur gestion, origine,
  * actions : activation, rang suivant) et renvoie au bloc Bonus.
  */
-import { Plus, Power, Route } from 'lucide-react';
+import { Plus, Route } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -110,11 +110,6 @@ export function SkillDialog({
             </DialogHeader>
 
             <EntryDetails ctx={ctx} entry={card.entry} writes={writes} />
-            {card.activable && !on && card.bonuses.some((b) => !b.applied) && (
-              <p className="text-xs text-subtle">
-                Les effets s’appliquent une fois l’entrée active.
-              </p>
-            )}
 
             <DialogFooter>
               <Button variant="ghost" onClick={onClose}>
@@ -134,18 +129,6 @@ export function SkillDialog({
                     </Button>
                   </span>
                 </Info>
-              )}
-              {writes && card.activable && (card.rank > 0 || !card.maxRank || card.possession) && (
-                <Button
-                  variant={on ? 'destructive' : 'default'}
-                  onClick={() => {
-                    writes.setActive(card.entry.id, !on);
-                    onClose();
-                  }}
-                >
-                  <Power />
-                  {on ? 'Désactiver' : 'Activer'}
-                </Button>
               )}
             </DialogFooter>
           </>
