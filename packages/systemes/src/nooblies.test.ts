@@ -216,3 +216,31 @@ describe('Nooblies Chroniques', () => {
     expect(test(minotaure(), 'coup-de-corne').ok).toBe(false); // pas un bonus de test
   });
 });
+
+describe('Nooblies : encombrement (règle optionnelle)', () => {
+  const lourd = EtatEntite.parse({
+    type: 'personnage',
+    systeme: { id: 'nooblies', version: '1.0.0' },
+    valeurs: { FOR: 8 },
+    possessions: [
+      { entree: 'objet-libre', exemplaire: 'a', quantite: 3, champs: { nom: 'Pierre', poids: 15 } },
+    ],
+  });
+
+  it('éteinte par défaut : pas de charge, Défense et Contact intacts', () => {
+    const f = calculer(systeme, lourd);
+    expect(f.erreurs).toEqual([]);
+    expect(f.valeurs.has('charge')).toBe(false);
+    expect(systeme.options.get('encombrement')?.defaut).toBe(false);
+  });
+
+  it('allumée : charge 45 kg > FOR × 5 = 40, −2 en Défense et en Contact', () => {
+    const f = calculer(systeme, lourd, { options: { encombrement: true } });
+    const sans = calculer(systeme, lourd);
+    expect(f.erreurs).toEqual([]);
+    expect(f.valeur('charge')).toBe(45);
+    expect(f.valeur('chargeMax')).toBe(40);
+    expect(f.valeur('Defense')).toBe(Number(sans.valeur('Defense')) - 2);
+    expect(f.valeur('Contact')).toBe(Number(sans.valeur('Contact')) - 2);
+  });
+});

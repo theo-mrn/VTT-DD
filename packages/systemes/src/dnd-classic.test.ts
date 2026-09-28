@@ -463,6 +463,59 @@ describe('dnd-classic : inventaire', () => {
   });
 });
 
+describe('dnd-classic : encombrement (règle optionnelle)', () => {
+  const etat = (saisi: Omit<EtatEntiteSaisi, 'type' | 'systeme'>) =>
+    EtatEntite.parse({
+      type: 'personnage',
+      systeme: { id: 'dnd-classic', version: '1.0.0' },
+      ...saisi,
+    });
+  // FOR 10 : charge maximale 50 kg ; plaque complète (30) + 2 épées longues (3) + 20 torches (10)
+  const charge = etat({
+    valeurs: { FOR: 10, DEX: 12 },
+    possessions: [
+      { entree: 'plaque-complete', exemplaire: 'a' },
+      { entree: 'epee-longue', exemplaire: 'b', quantite: 2 },
+      { entree: 'torche', exemplaire: 'c', quantite: 20 },
+    ],
+  });
+
+  it('déclarée, éteinte par défaut : ni charge, ni malus, les poids restent au catalogue', () => {
+    expect(systeme.options.get('encombrement')).toMatchObject({ defaut: false });
+    const f = calculer(systeme, charge);
+    expect(f.erreurs).toEqual([]);
+    for (const cle of ['charge', 'chargeMax', 'surcharge']) expect(f.valeurs.has(cle)).toBe(false);
+    expect(systeme.entrees.get('plaque-complete')!.champs.poids).toBe(30);
+    for (const sorte of ['arme', 'armure', 'objet'])
+      expect(systeme.sortes.get(sorte)!.champs.find((c) => c.id === 'poids')?.option).toBe(
+        'encombrement',
+      );
+  });
+
+  it('allumée : charge des objets possédés (quantités comprises), FOR × 5, malus au-delà', () => {
+    const f = calculer(systeme, charge, { options: { encombrement: true } });
+    expect(f.erreurs).toEqual([]);
+    expect(f.valeur('charge')).toBe(43);
+    expect(f.valeur('chargeMax')).toBe(50);
+    expect(f.valeur('surcharge')).toBe(false);
+    const sans = calculer(systeme, charge);
+    expect(f.valeur('Defense')).toBe(sans.valeur('Defense'));
+
+    // 20 torches de plus : 53 kg, surchargé
+    const lourd = etat({
+      ...charge,
+      possessions: [...charge.possessions, { entree: 'torche', exemplaire: 'd', quantite: 20 }],
+    });
+    const g = calculer(systeme, lourd, { options: { encombrement: true } });
+    const h = calculer(systeme, lourd);
+    expect(g.valeur('charge')).toBe(53);
+    expect(g.valeur('surcharge')).toBe(true);
+    expect(g.valeur('Defense')).toBe(Number(h.valeur('Defense')) - 2);
+    expect(g.valeur('Contact')).toBe(Number(h.valeur('Contact')) - 2);
+    expect(g.valeur('Distance')).toBe(h.valeur('Distance'));
+  });
+});
+
 // ─── Progression ────────────────────────────────────────────────────────────
 
 describe('dnd-classic : voies et création', () => {

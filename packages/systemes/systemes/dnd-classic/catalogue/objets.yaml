@@ -28,196 +28,226 @@
 - id: petite-potion-de-vie
   sorte: objet
   nom: Petite potion de vie
-  champs: { categorie: potions }
+  champs: { categorie: potions, poids: 0.5 }
 - id: grande-potion-de-vie
   sorte: objet
   nom: Grande potion de vie
-  champs: { categorie: potions }
+  champs: { categorie: potions, poids: 0.5 }
 - id: fortifiant
   sorte: objet
   nom: Fortifiant
-  champs: { categorie: potions }
+  champs: { categorie: potions, poids: 0.5 }
 - id: potion-de-degats
   sorte: objet
   nom: Potion de dégâts
-  champs: { categorie: potions }
+  champs: { categorie: potions, poids: 0.5 }
 - id: potion-de-soin
   sorte: objet
   nom: Potion de soin
   description: Restaure 1d8 points de vie lorsqu'elle est consommée.
-  champs: { categorie: potions }
+  champs: { categorie: potions, poids: 0.5 }
 
 # ─── Nourriture ───
 - id: pomme
   sorte: objet
   nom: Pomme
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 0.2 }
 - id: pain
   sorte: objet
   nom: Pain
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 0.5 }
 - id: fromage
   sorte: objet
   nom: Fromage
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 0.5 }
 - id: champignon
   sorte: objet
   nom: Champignon
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 0.1 }
 - id: pomme-de-terre
   sorte: objet
   nom: Pomme de terre
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 0.2 }
 - id: viande
   sorte: objet
   nom: Viande
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 0.5 }
 - id: viande-de-minotaure
   sorte: objet
   nom: Viande de minotaure
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 1 }
 - id: ration
   sorte: objet
   nom: Ration (1 semaine)
   description: Contient assez de nourriture pour nourrir une personne pendant une semaine.
-  champs: { categorie: nourriture }
+  champs: { categorie: nourriture, poids: 1 }
 
 # ─── Bourse ───
 - id: piece-d-or
   sorte: objet
   nom: Pièce d'or
   description: Vaut 10 pièces d'argent.
-  champs: { categorie: bourse }
+  champs: { categorie: bourse, poids: 0.01 }
 - id: piece-d-argent
   sorte: objet
   nom: Pièce d'argent
   description: Vaut 10 pièces de cuivre.
-  champs: { categorie: bourse }
+  champs: { categorie: bourse, poids: 0.01 }
 - id: piece-de-cuivre
   sorte: objet
   nom: Pièce de cuivre
-  champs: { categorie: bourse }
+  champs: { categorie: bourse, poids: 0.01 }
 
 # ─── Matériel ───
 - id: briquet-a-silex
   sorte: objet
   nom: Briquet à silex
   description: Permet d'allumer un feu dans des conditions normales.
+  champs: { poids: 0.1 }
 - id: carquois
   sorte: objet
   nom: Carquois (20 flèches)
   description: Stocke jusqu'à 20 flèches pour les arcs ou arbalètes.
+  champs: { poids: 0.5 }
 - id: corde
   sorte: objet
   nom: Corde (15 m)
   description: Utile pour escalader ou attacher des objets.
+  champs: { poids: 5 }
 - id: couverture
   sorte: objet
   nom: Couverture
   description: Protège du froid lors des nuits en extérieur.
+  champs: { poids: 1.5 }
 - id: grappin
   sorte: objet
   nom: Grappin
   description: Permet de grimper ou d'ancrer une corde sur une surface élevée.
+  champs: { poids: 2 }
 - id: huile
   sorte: objet
   nom: Huile (6 heures)
   description: Alimente une lanterne pour 6 heures de lumière.
+  champs: { poids: 0.5 }
 - id: lanterne-a-huile
   sorte: objet
   nom: Lanterne à huile
   description: Fournit une source de lumière jusqu'à 10 mètres.
+  champs: { poids: 1 }
 - id: materiel-d-ecriture
   sorte: objet
   nom: Matériel d'écriture
   description: Contient un encrier et une plume pour écrire des lettres ou documents.
+  champs: { poids: 0.5 }
 - id: outils-de-crochetage
   sorte: objet
   nom: Outils de crochetage
   description: >-
     Permet d'ouvrir des serrures avec un test de dextérité (pénalité de −10 au
     test de DEX sans outils).
+  champs: { poids: 0.5 }
 - id: sac-a-dos
   sorte: objet
   nom: Sac à dos
   description: Permet de transporter jusqu'à 15 kg d'équipement.
+  champs: { poids: 2.5 }
 - id: torche
   sorte: objet
   nom: Torche
   description: Brûle pendant 1 heure et éclaire jusqu'à 10 mètres.
+  champs: { poids: 0.5 }
 - id: tente
   sorte: objet
   nom: Tente de voyage
   description: Abri pour 2 personnes.
+  champs: { poids: 10 }
 - id: trousse-de-premiers-soins
   sorte: objet
   nom: Trousse de premiers soins
   description: Soigne les blessures légères.
+  champs: { poids: 1.5 }
 - id: sac-de-couchage
   sorte: objet
   nom: Sac de couchage
   description: Permet de dormir confortablement même sur un sol dur.
+  champs: { poids: 3 }
 - id: couteau-de-survie
   sorte: objet
   nom: Couteau de survie
   description: Outil multi-usage pour couper des cordes, préparer des repas, etc.
+  champs: { poids: 0.3 }
 - id: kit-de-cuisine
   sorte: objet
   nom: Kit de cuisine de campagne
   description: Permet de préparer des repas simples en extérieur.
+  champs: { poids: 2 }
 - id: gourde
   sorte: objet
   nom: Gourde en cuir
   description: Contient jusqu'à 2 litres d'eau.
+  champs: { poids: 2 }
 - id: lampe-tempete
   sorte: objet
   nom: Lampe-tempête
   description: Source de lumière résistante au vent et à la pluie.
+  champs: { poids: 1 }
 - id: sifflet
   sorte: objet
   nom: Sifflet d'urgence
   description: Permet d'appeler à l'aide à longue distance.
+  champs: { poids: 0.05 }
 - id: bottes-impermeables
   sorte: objet
   nom: Bottes imperméables
   description: Protège contre l'humidité et la boue.
+  champs: { poids: 1.5 }
 - id: sangle-de-transport
   sorte: objet
   nom: Sangle de transport
   description: Utile pour attacher ou transporter des objets encombrants.
+  champs: { poids: 0.5 }
 - id: filet-de-peche
   sorte: objet
   nom: Filet de pêche
   description: Permet de pêcher dans les rivières ou lacs.
+  champs: { poids: 1.5 }
 - id: chaudiere-en-cuivre
   sorte: objet
   nom: Chaudière en cuivre
   description: Utile pour faire bouillir de l'eau ou préparer des potions simples.
+  champs: { poids: 5 }
 - id: cape-de-pluie
   sorte: objet
   nom: Cape de pluie
   description: Protège contre la pluie et le vent lors de déplacements.
+  champs: { poids: 1 }
 - id: baudrier-de-voyage
   sorte: objet
   nom: Baudrier de voyage
   description: Permet de transporter facilement des armes et outils.
+  champs: { poids: 0.5 }
 - id: selle-de-voyage
   sorte: objet
   nom: Selle de voyage
   description: Rend les longs voyages à cheval plus confortables.
+  champs: { poids: 12 }
 - id: carte-locale
   sorte: objet
   nom: Carte locale
   description: Aide à naviguer dans une région spécifique.
+  champs: { poids: 0.05 }
 - id: chaine
   sorte: objet
   nom: Chaîne (3 m)
   description: Peut être utilisée pour sécuriser des objets ou capturer des animaux.
+  champs: { poids: 5 }
 - id: sacoche-d-herbes-medicinales
   sorte: objet
   nom: Sacoche d'herbes médicinales
   description: Contient des herbes de base pour traiter des blessures ou maladies mineures.
+  champs: { poids: 0.5 }
 - id: bidon-de-reserve
   sorte: objet
   nom: Bidon de réserve
   description: Contient jusqu'à 10 litres de liquide pour de longs voyages.
+  champs: { poids: 2 }

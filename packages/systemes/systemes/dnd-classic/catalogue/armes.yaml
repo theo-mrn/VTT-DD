@@ -11,6 +11,7 @@
     faces: 6
     portee: 10 m
     prix: 8
+    poids: 1.5
 - id: arbalete-legere
   sorte: arme
   nom: Arbalète légère
@@ -23,6 +24,7 @@
     faces: 4
     portee: 30 m
     prix: 10
+    poids: 2.5
 - id: arbalete-lourde
   sorte: arme
   nom: Arbalète lourde
@@ -35,6 +37,7 @@
     faces: 4
     portee: 60 m
     prix: 12
+    poids: 9
 - id: arc-court
   sorte: arme
   nom: Arc court
@@ -47,6 +50,7 @@
     faces: 6
     portee: 30 m
     prix: 4
+    poids: 1
 - id: arc-long
   sorte: arme
   nom: Arc long
@@ -59,6 +63,7 @@
     faces: 8
     portee: 50 m
     prix: 5
+    poids: 1.5
 - id: baton
   sorte: arme
   nom: Bâton
@@ -71,6 +76,7 @@
     faces: 4
     portee: '-'
     prix: 1
+    poids: 2
 - id: baton-ferre
   sorte: arme
   nom: Bâton ferré
@@ -83,6 +89,7 @@
     faces: 6
     portee: '-'
     prix: 2
+    poids: 2.5
 - id: dague
   sorte: arme
   nom: Dague
@@ -95,6 +102,7 @@
     faces: 4
     portee: 5 m
     prix: 3
+    poids: 0.5
 - id: epee-a-2-mains
   sorte: arme
   nom: Épée à 2 mains
@@ -108,6 +116,7 @@
     faces: 6
     portee: '-'
     prix: 10
+    poids: 3
 - id: epee-batarde
   sorte: arme
   nom: Épée bâtarde
@@ -121,6 +130,7 @@
     faces: 8
     portee: '-'
     prix: 9
+    poids: 3
 - id: epee-courte
   sorte: arme
   nom: Épée courte
@@ -134,6 +144,7 @@
     faces: 6
     portee: '-'
     prix: 5
+    poids: 1
 - id: epee-longue
   sorte: arme
   nom: Épée longue
@@ -146,6 +157,7 @@
     faces: 8
     portee: '-'
     prix: 6
+    poids: 1.5
 - id: fronde
   sorte: arme
   nom: Fronde
@@ -157,6 +169,7 @@
     faces: 4
     portee: 20 m
     prix: 1
+    poids: 0.1
 - id: gourdin
   sorte: arme
   nom: Gourdin
@@ -168,6 +181,7 @@
     faces: 4
     portee: '-'
     prix: 1
+    poids: 1
 - id: hache-a-1-main
   sorte: arme
   nom: Hache à 1 main
@@ -180,6 +194,7 @@
     faces: 8
     portee: '-'
     prix: 6
+    poids: 2
 - id: hache-a-2-mains
   sorte: arme
   nom: Hache à 2 mains
@@ -193,6 +208,7 @@
     faces: 6
     portee: '-'
     prix: 10
+    poids: 3.5
 - id: hachette
   sorte: arme
   nom: Hachette
@@ -205,6 +221,7 @@
     faces: 6
     portee: 5 m
     prix: 2
+    poids: 1
 - id: javelot
   sorte: arme
   nom: Javelot
@@ -216,6 +233,7 @@
     faces: 6
     portee: 20 m
     prix: 6
+    poids: 1
 - id: katana
   sorte: arme
   nom: Katana
@@ -229,3 +247,4 @@
     faces: 10
     portee: '-'
     prix: 12
+    poids: 1.5

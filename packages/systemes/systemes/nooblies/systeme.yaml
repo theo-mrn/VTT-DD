@@ -13,6 +13,15 @@ description: >-
 # Modificateur commun à toutes les caractéristiques
 modificateur: floor((valeur - 10) / 2)
 
+# Règles optionnelles : le MJ les allume ou les éteint pour sa campagne
+options:
+  - id: encombrement
+    nom: Encombrement
+    description: >-
+      Chaque objet a un poids (kg). La charge, somme des poids des objets possédés (quantités
+      comprises), ne doit pas dépasser FOR × 5 kg ; au-delà, −2 en Défense et en Contact.
+    defaut: false
+
 entites:
   - id: personnage
     nom: Personnage
@@ -21,6 +30,7 @@ entites:
       - { id: combat, nom: Combat }
       - { id: vitaux, nom: Vitaux }
       - { id: progression, nom: Progression }
+      - { id: equipement, nom: Équipement }
     attributs:
       # ─── Caractéristiques ───────────────────────────────────────────────
       - {
@@ -182,6 +192,45 @@ entites:
           groupe: vitaux,
         }
 
+      # ─── Encombrement (règle optionnelle) ───────────────────────────────
+      - cle: charge
+        nom: Charge
+        description: Poids des objets possédés, quantités comprises (kg).
+        nature: derivee
+        formule: somme("objet", "poids")
+        groupe: equipement
+        option: encombrement
+      - cle: chargeMax
+        nom: Charge maximale
+        description: FOR × 5 kg ; au-delà, −2 en Défense et en Contact.
+        nature: derivee
+        formule: '@FOR * 5'
+        groupe: equipement
+        option: encombrement
+      - cle: surcharge
+        nom: Surchargé
+        description: La charge dépasse la charge maximale.
+        nature: derivee
+        type: booleen
+        formule: '@charge > @chargeMax'
+        groupe: equipement
+        option: encombrement
+
+    # Effets de règle : la surcharge coûte 2 points de Défense et de Contact
+    effets:
+      - sur: attribut
+        attribut: Defense
+        operation: ajouter
+        valeur: -2
+        condition: option("encombrement") et @surcharge
+        description: Surcharge
+      - sur: attribut
+        attribut: Contact
+        operation: ajouter
+        valeur: -2
+        condition: option("encombrement") et @surcharge
+        description: Surcharge
+
 sortes:
   - id: race
     nom: Race
@@ -222,6 +271,7 @@ sortes:
     champs:
       - { id: nom, nom: Nom propre, type: texte }
       - { id: description, nom: Description propre, type: texte }
+      - { id: poids, nom: Poids (kg), type: nombre, defaut: 0, option: encombrement }
 
 creation:
   - entite: personnage

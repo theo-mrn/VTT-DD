@@ -9,6 +9,7 @@
     bouclier: true
     def: 1
     prix: 2
+    poids: 3
   effets:
     - sur: attribut
       attribut: Defense
@@ -25,6 +26,7 @@
     bouclier: true
     def: 3
     prix: 8
+    poids: 6
   effets:
     - sur: attribut
       attribut: Defense
@@ -39,6 +41,7 @@
   champs:
     def: 1
     prix: 2
+    poids: 4
   effets:
     - sur: attribut
       attribut: Defense
@@ -53,6 +56,7 @@
   champs:
     def: 2
     prix: 4
+    poids: 5
   effets:
     - sur: attribut
       attribut: Defense
@@ -69,6 +73,7 @@
     bouclier: true
     def: 2
     prix: 4
+    poids: 6
   effets:
     - sur: attribut
       attribut: Defense
@@ -83,6 +88,7 @@
   champs:
     def: 3
     prix: 8
+    poids: 7
   effets:
     - sur: attribut
       attribut: Defense
@@ -98,6 +104,7 @@
     def: 4
     metallique: true
     prix: 15
+    poids: 10
   effets:
     - sur: attribut
       attribut: Defense
@@ -113,6 +120,7 @@
     def: 5
     metallique: true
     prix: 20
+    poids: 20
   effets:
     - sur: attribut
       attribut: Defense
@@ -130,6 +138,7 @@
     metallique: true
     lourde: true
     prix: 50
+    poids: 20
   effets:
     - sur: attribut
       attribut: Defense
@@ -147,6 +156,7 @@
     metallique: true
     lourde: true
     prix: 200
+    poids: 30
   effets:
     - sur: attribut
       attribut: Defense
@@ -167,6 +177,7 @@
   champs:
     def: 3
     prix: 10
+    poids: 6.5
   effets:
     - sur: attribut
       attribut: Defense
@@ -182,6 +193,7 @@
   champs:
     def: 4
     prix: 50
+    poids: 5
   effets:
     - sur: attribut
       attribut: Defense
@@ -198,6 +210,7 @@
     def: 5
     metallique: true
     prix: 25
+    poids: 18
   effets:
     - sur: attribut
       attribut: Defense
@@ -214,6 +227,7 @@
     def: 4
     metallique: true
     prix: 18
+    poids: 15
   effets:
     - sur: attribut
       attribut: Defense
@@ -230,6 +244,7 @@
     def: 5
     metallique: true
     prix: 30
+    poids: 12
   effets:
     - sur: attribut
       attribut: Defense
@@ -247,6 +262,7 @@
     metallique: true
     lourde: true
     prix: 45
+    poids: 22
   effets:
     - sur: attribut
       attribut: Defense
@@ -264,6 +280,7 @@
     metallique: true
     lourde: true
     prix: 100
+    poids: 25
   effets:
     - sur: attribut
       attribut: Defense
@@ -281,6 +298,7 @@
     metallique: true
     lourde: true
     prix: 120
+    poids: 20
   effets:
     - sur: attribut
       attribut: Defense
