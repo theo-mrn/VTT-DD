@@ -33,6 +33,7 @@ import {
   Hammer,
   KeyRound,
   Layers,
+  Heart,
   Map as Carte,
   Package,
   Pill,
@@ -84,6 +85,7 @@ export const ICONES: Record<IconeObjet, LucideIcon> = {
   plume: Feather,
   os: Bone,
   objet: Box,
+  coeur: Heart,
 };
 
 /**

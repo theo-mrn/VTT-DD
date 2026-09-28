@@ -15,7 +15,7 @@ import {
   type Widget,
   nouvellePossession,
 } from '@vtt/rules';
-import { ChevronRight, Coins, Dices, Minus, Plus } from 'lucide-react';
+import { ChevronRight, Coins, Dices, Pencil, Plus } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { JaugeRessource, TuileAttribut } from '@/components/creation/apercu-fiche';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { FittingLabel } from '@/components/ui/fitting-label';
+import { Input } from '@/components/ui/input';
 import { Info } from '@/components/ui/tooltip';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
@@ -34,6 +35,7 @@ import type {
 } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import { EntryBonuses } from './blocks/effects/entry-bonuses';
+import { ICONES } from './blocks/inventory/item-icon';
 import { arrangeTiles, type TileArrangement } from './blocks/tiles/model';
 import { TileGrid } from './blocks/tiles/tile-grid';
 import { LanceurAction } from './lanceur-action';
@@ -249,27 +251,9 @@ export function BlocRessources({
     );
   }
   const cles = arrangeTiles(clesRessources(ctx, widget), arrangement);
-  const reglage = (c: string) =>
-    ecritures && estRessource(ctx, c) ? (
-      <div className="flex shrink-0 gap-1">
-        <Button
-          variant="secondary"
-          size="icon-xs"
-          onClick={() => ajuster(c, -1)}
-          aria-label={`Retirer 1 à ${fiche.entite.attributs.get(c)?.nom ?? c}`}
-        >
-          <Minus />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon-xs"
-          onClick={() => ajuster(c, 1)}
-          aria-label={`Ajouter 1 à ${fiche.entite.attributs.get(c)?.nom ?? c}`}
-        >
-          <Plus />
-        </Button>
-      </div>
-    ) : null;
+  // Ressource modifiable : sa valeur ouvre un petit éditeur (« -3 », « +5 », « =12 »)
+  const modifier = (c: string) =>
+    ecritures && estRessource(ctx, c) ? (d: number) => ajuster(c, d) : undefined;
 
   if (widget.affichage === 'valeur')
     return (
@@ -277,7 +261,7 @@ export function BlocRessources({
         {/* Tuiles de 8 rem au moins, trois par ligne au plus en auto */}
         <TileGrid columns={arrangement?.columns} count={cles.length} minPx={128} cap={3}>
           {cles.map((c) => (
-            <ValeurChiffree key={c} ctx={ctx} cle={c} reglage={reglage(c)} />
+            <ValeurChiffree key={c} ctx={ctx} cle={c} onAjuster={modifier(c)} />
           ))}
         </TileGrid>
       </Bloc>
@@ -292,7 +276,17 @@ export function BlocRessources({
             <div className="min-w-0 flex-1">
               <JaugeRessource fiche={fiche} cle={c} presentation={ctx.presentation} />
             </div>
-            {reglage(c)}
+            {modifier(c) && (
+              <EditeurValeur
+                nom={fiche.entite.attributs.get(c)?.nom ?? c}
+                valeur={Number(fiche.valeurs.get(c)?.valeur ?? 0)}
+                onAjuster={modifier(c)!}
+              >
+                <Button variant="ghost" size="icon-xs" aria-label={`Modifier ${c}`}>
+                  <Pencil />
+                </Button>
+              </EditeurValeur>
+            )}
           </div>
         ))}
       </TileGrid>
@@ -300,54 +294,159 @@ export function BlocRessources({
   );
 }
 
-/** Valeur en chiffres : « courante / max » pour une ressource, sinon la valeur seule. */
+/** Icône d'un attribut déclarée par la présentation (cœur des PV…), et sa couleur. */
+function apparenceAttribut(ctx: ContexteFiche, cle: string) {
+  const ap = ctx.presentation?.attributs[cle];
+  return {
+    Icone: ap?.icone ? ICONES[ap.icone] : null,
+    couleur: ap?.couleur ?? ctx.presentation?.ressources[cle]?.couleur,
+  };
+}
+
+/**
+ * Valeur en chiffres : « courante / max » pour une ressource, sinon la valeur seule ; icône
+ * de la présentation à gauche. Une ressource modifiable s'ajuste en cliquant sa valeur.
+ */
 function ValeurChiffree({
   ctx,
   cle,
-  reglage,
+  onAjuster,
 }: {
   ctx: ContexteFiche;
   cle: string;
-  reglage: ReactNode;
+  onAjuster?: ((delta: number) => void) | undefined;
 }) {
   const a = ctx.fiche.entite.attributs.get(cle);
   const v = ctx.fiche.valeurs.get(cle);
   if (!a || !v) return null;
-  const couleur = ctx.presentation?.ressources[cle]?.couleur;
+  const { Icone, couleur } = apparenceAttribut(ctx, cle);
   const lignes = explication(v);
+  const chiffres = (
+    <span className="font-mono text-xl font-semibold leading-tight tabular">
+      {afficherValeur(v)}
+      {a.nature === 'ressource' && v.max !== undefined && (
+        <span className="text-sm font-normal text-subtle"> / {v.max}</span>
+      )}
+    </span>
+  );
   return (
-    <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border bg-surface-2/70 px-2.5 py-1.5">
-      <Info
-        texte={
-          <span className="block space-y-0.5">
-            <span className="block font-medium">{a.nom}</span>
-            {lignes.map((l) => (
-              <span key={l} className="block font-mono text-[11px] text-muted-foreground">
-                {l}
-              </span>
-            ))}
-          </span>
-        }
-      >
-        <div
-          tabIndex={0}
-          className="min-w-0 cursor-help rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-surface-2/70 px-3 py-2">
+      {Icone && (
+        <Icone
+          aria-hidden
+          className={cn('size-5 shrink-0', !couleur && 'text-subtle')}
+          style={couleur ? { color: couleur } : undefined}
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <Info
+          texte={
+            <span className="block space-y-0.5">
+              <span className="block font-medium">{a.nom}</span>
+              {lignes.map((l) => (
+                <span key={l} className="block font-mono text-[11px] text-muted-foreground">
+                  {l}
+                </span>
+              ))}
+            </span>
+          }
         >
-          <FittingLabel
-            long={a.nom}
-            short={a.abrege}
-            className="text-[10px] font-medium uppercase tracking-wider text-subtle"
-          />
-          <p className="font-mono text-xl font-semibold leading-tight tabular">
-            <span style={couleur ? { color: couleur } : undefined}>{afficherValeur(v)}</span>
-            {a.nature === 'ressource' && v.max !== undefined && (
-              <span className="text-sm font-normal text-subtle"> / {v.max}</span>
-            )}
-          </p>
-        </div>
-      </Info>
-      {reglage}
+          <span
+            tabIndex={0}
+            className="block min-w-0 cursor-help rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <FittingLabel
+              long={a.nom}
+              short={a.abrege}
+              className="text-[10px] font-medium uppercase tracking-wider text-subtle"
+            />
+          </span>
+        </Info>
+        {onAjuster && typeof v.valeur === 'number' ? (
+          <EditeurValeur nom={a.nom} valeur={v.valeur} onAjuster={onAjuster}>
+            <button
+              type="button"
+              aria-label={`Modifier ${a.nom}`}
+              className="-mx-1 rounded-md px-1 transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            >
+              {chiffres}
+            </button>
+          </EditeurValeur>
+        ) : (
+          <p>{chiffres}</p>
+        )}
+      </div>
     </div>
+  );
+}
+
+/** Lit « -3 », « +5 » (écart) ou « =12 », « 12 » (nouvelle valeur) ; null si illisible. */
+function lireAjustement(texte: string, valeur: number): number | null {
+  const t = texte.replace(/\s+/g, '').replace('−', '-');
+  const ecart = /^([+-])(\d+)$/.exec(t);
+  if (ecart) return (ecart[1] === '-' ? -1 : 1) * Number(ecart[2]);
+  const fixe = /^=?(\d+)$/.exec(t);
+  if (fixe) return Number(fixe[1]) - valeur;
+  return null;
+}
+
+/** Petit éditeur d'une ressource : un écart (dégâts, soins) ou une nouvelle valeur. */
+function EditeurValeur({
+  nom,
+  valeur,
+  onAjuster,
+  children,
+}: {
+  nom: string;
+  valeur: number;
+  onAjuster: (delta: number) => void;
+  children: ReactNode;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const [texte, setTexte] = useState('');
+  const delta = lireAjustement(texte, valeur);
+  const valider = () => {
+    if (delta === null || delta === 0) return;
+    onAjuster(delta);
+    setTexte('');
+    setOuvert(false);
+  };
+  return (
+    <Popover
+      open={ouvert}
+      onOpenChange={(o) => {
+        setOuvert(o);
+        if (!o) setTexte('');
+      }}
+    >
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent align="start" className="w-60 space-y-2 p-3">
+        <label className="block text-xs font-medium text-muted-foreground" htmlFor="ajuster-valeur">
+          {nom}
+        </label>
+        <div className="flex gap-1.5">
+          <Input
+            id="ajuster-valeur"
+            autoFocus
+            inputMode="numeric"
+            autoComplete="off"
+            value={texte}
+            placeholder="-3, +5 ou =12"
+            onChange={(e) => setTexte(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && valider()}
+            className="h-8 font-mono text-sm"
+          />
+          <Button size="sm" disabled={delta === null || delta === 0} onClick={valider}>
+            OK
+          </Button>
+        </div>
+        <p className="text-[11px] text-subtle">
+          {delta !== null && delta !== 0
+            ? `${valeur} → ${valeur + delta}`
+            : 'Un écart (dégâts, soins) ou une nouvelle valeur.'}
+        </p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
