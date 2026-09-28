@@ -2,6 +2,7 @@ import {
   Crown,
   Dices,
   History,
+  Library,
   MessagesSquare,
   NotebookPen,
   ScrollText,
@@ -140,6 +141,20 @@ export const panelRegistry = [
     roles: ALL_ROLES,
     component: lazy(() =>
       import('../onglets/historique').then((m) => ({ default: m.OngletHistorique })),
+    ),
+  },
+  {
+    id: 'resources',
+    label: 'Ressources',
+    description: 'Capacités, marché, bestiaire et images du système de la campagne',
+    icon: Library,
+    // R relance le dernier jet dans le panneau Dés : B comme bibliothèque
+    shortcut: { code: 'KeyB', label: 'B' },
+    width: 'full',
+    mode: 'side',
+    roles: ALL_ROLES,
+    component: lazy(() =>
+      import('../onglets/resources').then((m) => ({ default: m.OngletResources })),
     ),
   },
   {
