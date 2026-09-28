@@ -25,6 +25,7 @@ entites:
       - { id: equipement, nom: Équipement }
     attributs:
       # ─── Caractéristiques (tirées à 3d6, bonus raciaux en effets de la race) ───
+      # Après la création, seul le MJ les change (aucun achat ne les fait évoluer)
       - {
           cle: FOR,
           nom: Force,
@@ -34,6 +35,7 @@ entites:
           min: 1,
           modificateur: true,
           jet: { apport: modificateur },
+          saisie: mj,
           groupe: caracteristiques,
         }
       - {
@@ -45,6 +47,7 @@ entites:
           min: 1,
           modificateur: true,
           jet: { apport: modificateur },
+          saisie: mj,
           groupe: caracteristiques,
         }
       - {
@@ -56,6 +59,7 @@ entites:
           min: 1,
           modificateur: true,
           jet: { apport: modificateur },
+          saisie: mj,
           groupe: caracteristiques,
         }
       - {
@@ -67,6 +71,7 @@ entites:
           min: 1,
           modificateur: true,
           jet: { apport: modificateur },
+          saisie: mj,
           groupe: caracteristiques,
         }
       - {
@@ -78,6 +83,7 @@ entites:
           min: 1,
           modificateur: true,
           jet: { apport: modificateur },
+          saisie: mj,
           groupe: caracteristiques,
         }
       - {
@@ -89,6 +95,7 @@ entites:
           min: 1,
           modificateur: true,
           jet: { apport: modificateur },
+          saisie: mj,
           groupe: caracteristiques,
         }
 
