@@ -52,6 +52,8 @@ export class FakeElement {
   duration = NaN;
   crossOrigin: string | null = null;
   preload = '';
+  volume = 1;
+  ended = false;
   onended: (() => void) | null = null;
   onplaying: (() => void) | null = null;
   play() {

@@ -27,6 +27,8 @@ export interface Registered {
   kick?(): void;
   /** État lisible pour le diagnostic (élément, lecteur, gain, dernière erreur). */
   describe?(): string;
+  /** Mixeur changé : une voix lue hors graphe (mode direct) recalcule son volume. */
+  refreshOutput?(): void;
   dispose(): void;
 }
 
@@ -161,6 +163,17 @@ export function kickAll(): void {
       v.kick?.();
     } catch {
       // Lecteur indisponible
+    }
+  }
+}
+
+/** Mixeur changé : chaque voix hors graphe recalcule son volume. */
+export function refreshAllOutputs(): void {
+  for (const v of store.voices.values()) {
+    try {
+      v.refreshOutput?.();
+    } catch {
+      // Voix hors d'usage
     }
   }
 }

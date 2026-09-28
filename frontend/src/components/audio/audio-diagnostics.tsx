@@ -100,6 +100,8 @@ export function AudioDiagnostics() {
           <dd>{realtime}</dd>
           <dt className="text-subtle">Campagne</dt>
           <dd className="truncate">{snap.campagne}</dd>
+          <dt className="text-subtle">Lecture</dt>
+          <dd>{snap.lecture}</dd>
           <dt className="text-subtle">Contexte audio</dt>
           <dd>{snap.contexte}</dd>
           <dt className="text-subtle">Déblocage</dt>

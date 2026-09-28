@@ -54,6 +54,12 @@ export class AudioGraph {
     return this.buses.get(name)!;
   }
 
+  /** Nom du bus d'un nœud (mode direct : quel réglage du mixeur appliquer). */
+  nameOf(node: AudioNode): AudioBus | null {
+    for (const [name, g] of this.buses) if (g === node) return name;
+    return null;
+  }
+
   /** Volume d'un bus, lissé. */
   setBusGain(name: AudioBus, value: number) {
     const p = this.bus(name).gain;

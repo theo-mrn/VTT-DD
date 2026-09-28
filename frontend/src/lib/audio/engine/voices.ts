@@ -23,8 +23,15 @@ export interface Voice {
 
 interface PooledElement {
   el: HTMLAudioElement;
-  source: MediaElementAudioSourceNode;
+  /** Absent en mode direct : l'élément n'est pas branché sur le graphe. */
+  source: MediaElementAudioSourceNode | null;
   owner: MediaVoice | null;
+}
+
+/** Lecture directe (Safari) : volume de l'élément, multiplié par le gain hors graphe du bus. */
+export interface DirectMode {
+  /** Gain du mixeur pour la destination voulue (bus du graphe) : volume × général. */
+  gainFor(destination: AudioNode): number;
 }
 
 /** Pool d'éléments audio d'un contexte : un `MediaElementAudioSourceNode` par élément, à vie. */
@@ -37,6 +44,8 @@ export class ElementPool {
     private readonly ctx: BaseAudioContext,
     private readonly createElement: () => HTMLAudioElement = () => new Audio(),
     readonly size = POOL_SIZE,
+    /** Présent : les éléments ne sont jamais branchés sur Web Audio (voir compat.ts). */
+    readonly direct: DirectMode | null = null,
   ) {}
 
   /** Sources créées (au plus une par élément). */
@@ -52,7 +61,7 @@ export class ElementPool {
       el.preload = 'auto';
       item = {
         el,
-        source: (this.ctx as AudioContext).createMediaElementSource(el),
+        source: this.direct ? null : (this.ctx as AudioContext).createMediaElementSource(el),
         owner: null,
       };
       this.items.push(item);
@@ -90,8 +99,14 @@ export class MediaVoice implements Voice, Registered {
   /** Dernier refus de `play()` (lecture automatique bloquée, fichier illisible…). */
   lastPlayError: string | null = null;
   private readonly item: PooledElement;
-  private readonly gain: GainNode;
+  /** Absents en mode direct (volume de l'élément). */
+  private readonly gain: GainNode | null;
   private readonly panner: StereoPannerNode | null;
+  private readonly destination: AudioNode;
+  /** Mode direct : gain voulu de la voix (hors mixeur) et fondu en cours. */
+  private directGain = 0;
+  private directRamp: ReturnType<typeof setInterval> | null = null;
+  private directDelay: ReturnType<typeof setTimeout> | null = null;
   onEnded: (() => void) | null = null;
   onPlaying: (() => void) | null = null;
   private startTimer: ReturnType<typeof setTimeout> | null = null;
@@ -104,17 +119,26 @@ export class MediaVoice implements Voice, Registered {
     o: { pan?: boolean; loop?: boolean; initialGain?: number } = {},
   ) {
     this.item = pool.acquire(this);
+    this.destination = destination;
     const el = this.item.el;
-    this.gain = ctx.createGain();
-    nodeStats.live += 1;
-    this.gain.gain.value = o.initialGain ?? 0;
-    this.panner = o.pan ? ctx.createStereoPanner() : null;
-    if (this.panner) nodeStats.live += 1;
-    this.item.source.connect(this.gain);
-    if (this.panner) {
-      this.gain.connect(this.panner);
-      this.panner.connect(destination);
-    } else this.gain.connect(destination);
+    if (pool.direct || !this.item.source) {
+      // Lecture directe : ni nœud ni panoramique, le volume de l'élément fait tout
+      this.gain = null;
+      this.panner = null;
+      this.directGain = o.initialGain ?? 0;
+      this.applyDirect();
+    } else {
+      this.gain = ctx.createGain();
+      nodeStats.live += 1;
+      this.gain.gain.value = o.initialGain ?? 0;
+      this.panner = o.pan ? ctx.createStereoPanner() : null;
+      if (this.panner) nodeStats.live += 1;
+      this.item.source.connect(this.gain);
+      if (this.panner) {
+        this.gain.connect(this.panner);
+        this.panner.connect(destination);
+      } else this.gain.connect(destination);
+    }
     el.loop = !!o.loop;
     el.playbackRate = 1;
     el.onended = () => this.onEnded?.();
@@ -126,13 +150,31 @@ export class MediaVoice implements Voice, Registered {
     registerVoice(this);
   }
 
+  /** Volume effectif en mode direct : gain de la voix × mixeur du bus visé. */
+  private applyDirect() {
+    const out = this.pool.direct?.gainFor(this.destination) ?? 1;
+    this.item.el.volume = Math.max(0, Math.min(1, this.directGain * out));
+  }
+
+  /** Mixeur changé : le volume direct suit (sans effet dans le graphe, où le bus s'en charge). */
+  refreshOutput() {
+    if (!this.gain && !this.disposed) this.applyDirect();
+  }
+
+  /** Gain actuel de la voix (hors mixeur). */
+  private get currentGain(): number {
+    return this.gain ? this.gain.gain.value : this.directGain;
+  }
+
   describe(): string {
     const el = this.item.el;
     return [
+      this.gain ? 'graphe' : 'direct',
       el.paused ? 'élément en pause' : 'élément en lecture',
       `t=${el.currentTime.toFixed(1)}s`,
       `prêt=${el.readyState}`,
-      `gain=${this.gain.gain.value.toFixed(2)}`,
+      `gain=${this.currentGain.toFixed(2)}`,
+      this.gain ? null : `volume=${el.volume.toFixed(2)}`,
       `contexte=${this.ctx.state}`,
       el.error ? `erreur média ${el.error.code}` : null,
       this.lastPlayError ? `lecture refusée (${this.lastPlayError})` : null,
@@ -147,6 +189,8 @@ export class MediaVoice implements Voice, Registered {
     const t = el.currentTime;
     const moved = t !== this.lastScanTime;
     this.lastScanTime = t;
+    if (!this.gain)
+      return !this.disposed && !el.paused && !el.ended && moved && el.volume > AUDIBLE;
     return (
       !this.disposed &&
       !el.paused &&
@@ -218,12 +262,46 @@ export class MediaVoice implements Voice, Registered {
 
   setGain(value: number, ms = 0, atCtx?: number) {
     if (this.disposed) return;
-    rampGain(this.gain.gain, this.ctx, value, ms, atCtx);
+    if (this.gain) {
+      rampGain(this.gain.gain, this.ctx, value, ms, atCtx);
+      return;
+    }
+    // Mode direct : même fondu, piloté par minuterie (heure du contexte convertie en délai)
+    if (this.directDelay) clearTimeout(this.directDelay);
+    this.directDelay = null;
+    const delayMs = atCtx !== undefined ? Math.max(0, (atCtx - this.ctx.currentTime) * 1000) : 0;
+    if (delayMs > 4) this.directDelay = setTimeout(() => this.rampDirect(value, ms), delayMs);
+    else this.rampDirect(value, ms);
+  }
+
+  private rampDirect(to: number, ms: number) {
+    if (this.directRamp) clearInterval(this.directRamp);
+    this.directRamp = null;
+    const from = this.directGain;
+    if (ms <= 0) {
+      this.directGain = to;
+      this.applyDirect();
+      return;
+    }
+    const start = Date.now();
+    this.directRamp = setInterval(() => {
+      const k = Math.min(1, (Date.now() - start) / ms);
+      this.directGain = from + (to - from) * k;
+      this.applyDirect();
+      if (k >= 1 && this.directRamp) {
+        clearInterval(this.directRamp);
+        this.directRamp = null;
+      }
+    }, 25);
   }
 
   /** Glissement continu du gain (spatialisation, à chaque image) : jamais `.value =`. */
   glideGain(value: number, timeConstantS = 0.05) {
     if (this.disposed) return;
+    if (!this.gain) {
+      this.rampDirect(Math.max(0, value), timeConstantS * 3000);
+      return;
+    }
     const t = this.ctx.currentTime;
     this.gain.gain.cancelScheduledValues(t);
     this.gain.gain.setTargetAtTime(Math.max(0, value), t, timeConstantS);
@@ -238,16 +316,26 @@ export class MediaVoice implements Voice, Registered {
 
   dispose(fadeMs = 0) {
     if (this.disposed) return;
-    this.disposed = true;
     if (this.startTimer) clearTimeout(this.startTimer);
+    if (this.directDelay) clearTimeout(this.directDelay);
+    // Fondu de sortie avant de marquer la voix libérée (setGain l'ignorerait ensuite)
+    if (fadeMs > 0) {
+      if (this.gain) rampGain(this.gain.gain, this.ctx, 0, fadeMs);
+      else this.rampDirect(0, fadeMs);
+    }
+    this.disposed = true;
     const release = () => {
+      if (this.directRamp) clearInterval(this.directRamp);
+      this.directRamp = null;
       const el = this.item.el;
       el.pause();
       el.onended = null;
       el.onplaying = null;
-      this.item.source.disconnect();
-      this.gain.disconnect();
-      nodeStats.live -= 1;
+      if (this.gain) {
+        this.item.source?.disconnect();
+        this.gain.disconnect();
+        nodeStats.live -= 1;
+      }
       if (this.panner) {
         this.panner.disconnect();
         nodeStats.live -= 1;
@@ -257,10 +345,8 @@ export class MediaVoice implements Voice, Registered {
       this.pool.release(this.item);
       unregisterVoice(this.id);
     };
-    if (fadeMs > 0) {
-      rampGain(this.gain.gain, this.ctx, 0, fadeMs);
-      setTimeout(release, fadeMs + 20);
-    } else release();
+    if (fadeMs > 0) setTimeout(release, fadeMs + 20);
+    else release();
   }
 }
 

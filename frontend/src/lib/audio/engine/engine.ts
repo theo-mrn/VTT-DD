@@ -22,11 +22,13 @@ import {
   anyStalled,
   disposeAllVoices,
   kickAll,
+  refreshAllOutputs,
   reportVoices,
   scanAudio,
   sweepYoutubeHost,
   type LiveSound,
 } from './registry';
+import { needsDirectMedia } from './compat';
 import { ElementPool } from './voices';
 
 export type EngineStatus = 'locked' | 'running' | 'unsupported';
@@ -44,6 +46,8 @@ export interface AudioEngineOptions {
   listenForUnlock?: boolean;
   /** Relevé périodique de ce qui sonne (désactivé en test). */
   scan?: boolean;
+  /** Fichiers hors graphe (Safari) ; absent : détection du navigateur. */
+  directMedia?: boolean;
 }
 
 /** Fréquence du relevé réel de ce qui sonne (orphelines coupées, panneau à jour). */
@@ -86,6 +90,7 @@ export class AudioEngine implements EngineHost {
   onError: ((message: string) => void) | null = null;
 
   constructor(private readonly options: AudioEngineOptions = {}) {
+    this.directMedia = options.directMedia ?? needsDirectMedia();
     this.clock = options.clock ?? new ServerClock(() => audioApi.clock());
     this.clock.subscribe(() => this.reconcile());
     this.channels = {
@@ -116,6 +121,7 @@ export class AudioEngine implements EngineHost {
     };
     return {
       campagne: this.campaignId ?? 'aucune (moteur détaché)',
+      lecture: this.directMedia ? 'directe (compatibilité Safari)' : 'graphe Web Audio',
       contexte: this.ctx
         ? this.ctx.state
         : this.unsupported
@@ -225,9 +231,25 @@ export class AudioEngine implements EngineHost {
   }
 
   pool(): ElementPool {
-    this.elementPool ??= new ElementPool(this.context()!, this.options.createElement);
+    this.elementPool ??= new ElementPool(
+      this.context()!,
+      this.options.createElement,
+      undefined,
+      this.directMedia
+        ? {
+            // Hors graphe : le volume du bus visé (preview : le général seul)
+            gainFor: (node) => {
+              const name = this.graph?.nameOf(node) ?? 'master';
+              return this.externalGain(name === 'preview' ? 'master' : name);
+            },
+          }
+        : null,
+    );
     return this.elementPool;
   }
+
+  /** Fichiers lus hors graphe (Safari) : voir compat.ts. */
+  readonly directMedia: boolean;
 
   cache(): BufferCache {
     this.buffers ??= new BufferCache(this.context()!);
@@ -294,6 +316,8 @@ export class AudioEngine implements EngineHost {
       for (const bus of Object.keys(this.mixer.volumes) as BusName[])
         this.graph.setBusGain(bus, this.gainOf(bus));
     for (const p of Object.values(this.channels)) p.mixerChanged();
+    // Voix hors graphe (Safari) : leur volume suit le mixeur
+    refreshAllOutputs();
   }
 
   externalGain(bus: BusName): number {
