@@ -63,6 +63,39 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
   const newMap = (body: Record<string, unknown> = {}) =>
     h.ok<Item>(gm, 'POST', url('/maps'), { name: 'Taverne', width: 1000, height: 1000, ...body });
 
+  it('textes : rotation autour du début de la ligne de base, droits par défaut', async () => {
+    const map = await newMap();
+    const base = url(`/maps/${map.id}`);
+    const note = await h.ok<Item>(alice, 'POST', `${base}/notes`, {
+      text: 'Ici',
+      pos: { x: 5, y: 5 },
+    });
+    expect(note.rotation).toBe(0);
+    const turned = await h.ok<Item>(alice, 'PATCH', `${base}/notes/${note.id}`, {
+      rotation: 30,
+      version: note.version,
+    });
+    expect(turned).toMatchObject({ rotation: 30, version: note.version + 1 });
+    expect(
+      (await h.request(alice, 'PATCH', `${base}/notes/${note.id}`, { rotation: 'penché' }))
+        .statusCode,
+    ).toBe(400);
+    // Le texte d'Alice ne tourne pas sous la main de Bob ; le MJ, si
+    expect(
+      (await h.request(bob, 'PATCH', `${base}/notes/${note.id}`, { rotation: 45 })).statusCode,
+    ).toBe(403);
+    await h.ok(gm, 'PATCH', `${base}/notes/${note.id}`, { rotation: -90 });
+    const created = await h.ok<Item>(bob, 'POST', `${base}/notes`, {
+      text: 'Là',
+      pos: { x: 1, y: 1 },
+      rotation: 12.5,
+    });
+    expect(created.rotation).toBe(12.5);
+    const snap = await h.ok<Record<string, Item[]>>(bob, 'GET', base);
+    expect(MapSnapshot.safeParse(snap).error).toBeUndefined();
+    expect(snap.notes!.map((n) => n.rotation as number).sort((a, b) => a - b)).toEqual([-90, 12.5]);
+  });
+
   const tokens = async (u: TestUser, mapId: string) =>
     (await h.ok<{ items: Token[] }>(u, 'GET', url(`/maps/${mapId}/tokens`))).items;
 

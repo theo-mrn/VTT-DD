@@ -1,7 +1,8 @@
 /**
  * Sorte d'entité `note` (couche `notes`, docs/carte.md § 10) : un texte posé sur la carte.
- * Déplacer, taille (la taille de la police suit les poignées, proportions gardées), dupliquer,
- * ordre et calque, supprimer ; double clic : édition en place. Auteur ou MJ.
+ * Déplacer, pivoter (autour du début de la ligne de base), taille (la taille de la police suit
+ * les poignées, proportions gardées), dupliquer, ordre et calque, supprimer ; double clic :
+ * édition en place. Auteur ou MJ.
  *
  * Rendu : un `Text` Pixi par texte, liseré sombre pour rester lisible sur n'importe quel fond,
  * dans une boîte mesurée comme le moteur la mesure (`text-layout.ts`). Sa résolution suit le
@@ -11,7 +12,7 @@ import type * as Pixi from 'pixi.js';
 import type { Text } from 'pixi.js';
 import { authorOrGm, field, type EntityKind } from '../../engine/entities/entity-kind';
 import type { MapEntity } from '../../engine/entities/entity';
-import type { EntityGeometry } from '../../engine/geometry';
+import { normalizeDegrees, type EntityGeometry, type Point } from '../../engine/geometry';
 import type { MapEngine } from '../../engine/map-engine';
 import { annotationMenuItem } from './drawing-kind';
 import { FONT_SIZE_RANGE } from './palette';
@@ -20,44 +21,61 @@ import type { DrawingsRuntime } from './runtime';
 import { layoutNote, LINE_HEIGHT, resolveFontFamily } from './text-layout';
 import { NOTE_KIND, NOTES_COLLECTION, type NoteData } from './types';
 
-/** Boîte d'un texte : `pos` est sur la ligne de base de la première ligne. */
+/** Rotation d'un texte (degrés ; absente dans une donnée ancienne : droit). */
+const rotationOf = (n: NoteData) => (typeof n.rotation === 'number' ? n.rotation : 0);
+
+/**
+ * Du début de la ligne de base (`pos`) au centre de la boîte, tourné de `rotation` : le texte
+ * tourne autour de `pos`, la boîte autour de son centre, et les deux coïncident.
+ */
+function centerOffset(width: number, height: number, baseline: number, rotation: number): Point {
+  const a = (rotation * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const x = width / 2;
+  const y = height / 2 - baseline;
+  return { x: x * cos - y * sin, y: x * sin + y * cos };
+}
+
+/** Boîte d'un texte : `pos` est sur la ligne de base de la première ligne, `rotation` autour de lui. */
 export function noteGeometry(n: NoteData): EntityGeometry {
   const l = layoutNote(n.text, n.fontSize, n.fontFamily);
   const width = Math.max(l.width, n.fontSize * 0.5);
-  const top = n.pos.y - l.baseline;
-  return {
-    x: n.pos.x + width / 2,
-    y: top + l.height / 2,
-    width,
-    height: l.height,
-    rotation: 0,
-  };
+  const rotation = rotationOf(n);
+  const off = centerOffset(width, l.height, l.baseline, rotation);
+  return { x: n.pos.x + off.x, y: n.pos.y + off.y, width, height: l.height, rotation };
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Texte après un glisser (translation) ou les poignées (nouvelle taille de police). */
+/** Texte après un glisser (translation), la poignée de rotation, ou les poignées de taille. */
 export function applyNoteGeometry(n: NoteData, next: EntityGeometry): NoteData {
   const g = noteGeometry(n);
-  if (Math.abs(next.width - g.width) < 1e-6 && Math.abs(next.height - g.height) < 1e-6) {
+  const rotation = normalizeDegrees(next.rotation);
+  const sameSize = Math.abs(next.width - g.width) < 1e-6 && Math.abs(next.height - g.height) < 1e-6;
+  if (sameSize && Math.abs(rotation - g.rotation) < 1e-9) {
     const dx = next.x - g.x;
     const dy = next.y - g.y;
     if (!dx && !dy) return n;
     return { ...n, pos: { x: round2(n.pos.x + dx), y: round2(n.pos.y + dy) } };
   }
-  const k = g.height > 1e-6 ? next.height / g.height : 1;
-  const fontSize = Math.min(
-    1000,
-    Math.max(FONT_SIZE_RANGE.min / 2, Math.round(n.fontSize * k * 10) / 10),
-  );
+  // Tourné ou retaillé : le centre de la boîte est `next`, `pos` s'en déduit
+  let fontSize = n.fontSize;
+  if (!sameSize) {
+    const k = g.height > 1e-6 ? next.height / g.height : 1;
+    fontSize = Math.min(
+      1000,
+      Math.max(FONT_SIZE_RANGE.min / 2, Math.round(n.fontSize * k * 10) / 10),
+    );
+  }
   const l = layoutNote(n.text, fontSize, n.fontFamily);
+  const width = Math.max(l.width, fontSize * 0.5);
+  const off = centerOffset(width, l.height, l.baseline, rotation);
   return {
     ...n,
     fontSize,
-    pos: {
-      x: round2(next.x - next.width / 2),
-      y: round2(next.y - next.height / 2 + l.baseline),
-    },
+    rotation,
+    pos: { x: round2(next.x - off.x), y: round2(next.y - off.y) },
   };
 }
 
@@ -115,7 +133,7 @@ export function noteKind(rt: DrawingsRuntime): EntityKind<NoteData> {
     id: NOTE_KIND,
     label: 'Texte',
     collection: NOTES_COLLECTION,
-    capabilities: ['select', 'move', 'resize', 'duplicate', 'delete', 'inspect', 'order'],
+    capabilities: ['select', 'move', 'rotate', 'resize', 'duplicate', 'delete', 'inspect', 'order'],
     plane: 'annotations',
     stacking: {
       arrangeKind: 'note',

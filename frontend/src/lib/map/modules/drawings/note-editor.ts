@@ -34,6 +34,8 @@ export interface NoteSession {
   id: string | null;
   /** Début de la ligne de base de la première ligne (monde). */
   pos: Point;
+  /** Rotation du texte (degrés, autour de `pos`) : le champ tourne avec lui. */
+  rotation: number;
   text: string;
   color: string;
   fontSize: number;
@@ -75,6 +77,7 @@ export class NoteEditor {
       session: {
         id: null,
         pos: roundPoint({ x: topLeft.x, y: topLeft.y + layout.baseline }),
+        rotation: 0,
         text: '',
         color: s.text.color,
         fontSize: s.text.fontSize,
@@ -93,6 +96,7 @@ export class NoteEditor {
       session: {
         id: entity.id,
         pos: { ...n.pos },
+        rotation: typeof n.rotation === 'number' ? n.rotation : 0,
         text: n.text.replace(/<br\s*\/?>/gi, '\n'),
         color: n.color,
         fontSize: n.fontSize,

@@ -186,6 +186,7 @@ export function noteDraft(engine: MapEngine, fields: NoteFields, place: Placemen
     createdBy: engine.viewer.userId,
     layerId: place.layerId,
     z: place.z,
+    rotation: 0,
     ...fields,
     pos: { x: fields.pos.x, y: fields.pos.y },
   };

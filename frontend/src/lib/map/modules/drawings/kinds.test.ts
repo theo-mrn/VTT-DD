@@ -47,6 +47,7 @@ function note(id: string, createdBy: string, extra: Partial<NoteData> = {}): Not
     z: 2,
     text: 'Taverne',
     pos: { x: 500, y: 500 },
+    rotation: 0,
     color: '#f5f1e8',
     fontSize: 32,
     fontFamily: null,
@@ -190,6 +191,43 @@ describe('glisser et poignées', () => {
     const next = noteGeometry(out);
     expect(next.x - next.width / 2).toBeCloseTo(g.x - g.width / 2, 1);
     expect(next.y - next.height / 2).toBeCloseTo(g.y - g.height / 2, 1);
+  });
+
+  it('un texte pivote autour du début de sa ligne de base (poignée, R, menu)', async () => {
+    const n = note('n', 'mj');
+    const g = noteGeometry(n);
+    // La poignée tourne la boîte autour de son centre : `pos` tourne avec elle
+    const out = applyNoteGeometry(n, { ...g, rotation: 90 });
+    expect(out.rotation).toBe(90);
+    expect(out.fontSize).toBe(n.fontSize);
+    const turned = noteGeometry(out);
+    expect(turned.x).toBeCloseTo(g.x, 1);
+    expect(turned.y).toBeCloseTo(g.y, 1);
+    // `pos` est à la même distance du centre, tourné d'un quart de tour
+    const before = { x: n.pos.x - g.x, y: n.pos.y - g.y };
+    expect(out.pos.x - g.x).toBeCloseTo(-before.y, 1);
+    expect(out.pos.y - g.y).toBeCloseTo(before.x, 1);
+    // Glisser un texte tourné : seule la translation change
+    const moved = applyNoteGeometry(out, { ...turned, x: turned.x + 10, y: turned.y - 5 });
+    expect(moved.pos).toEqual({ x: out.pos.x + 10, y: out.pos.y - 5 });
+    expect(moved.rotation).toBe(90);
+    // Taille d'un texte tourné : le centre reste où le veut la poignée, la rotation aussi
+    const bigger = applyNoteGeometry(out, {
+      ...turned,
+      width: turned.width * 2,
+      height: turned.height * 2,
+    });
+    expect(bigger.fontSize).toBe(64);
+    expect(noteGeometry(bigger)).toMatchObject({ rotation: 90 });
+    expect(noteGeometry(bigger).x).toBeCloseTo(turned.x, 1);
+
+    // Pivoter (R) : une commande, envoyée au serveur avec la rotation
+    const t = kindsSetup();
+    t.store.getState().upsert('notes', [note('n', 'mj')]);
+    const e = t.engine.entity('n')!;
+    expect(e.kind.capabilities).toContain('rotate');
+    await t.engine.rotateEntities([e], 15);
+    expect((t.store.getState().collections.notes!.get('n') as NoteData).rotation).toBe(15);
   });
 
   it('pos est sur la ligne de base de la première ligne', () => {

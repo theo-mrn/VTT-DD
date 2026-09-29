@@ -675,7 +675,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   - `line` : `[a, b]` ; `rectangle` : `[coin, coin opposé]` ; `circle` avec `closed` : la boîte de
     l'ellipse ; `circle` sans `closed` (ancienne carte) : `[centre, point du cercle]`, converti à
     la première transformation ;
-  - texte : `pos` est le début de la ligne de base de la première ligne ; interligne 1,25.
+  - texte : `pos` est le début de la ligne de base de la première ligne, `rotation` (degrés)
+    tourne autour de lui ; interligne 1,25.
 - **Direct** : le tracé en cours part dans `map.live.stroke` (points ajoutés depuis le dernier
   envoi ; une forme envoie son origine puis son extrémité), avec la couleur de l'auteur et le
   remplissage d'une forme remplie ; rien ne part pour un calque masqué aux joueurs. Au lâcher, `POST drawings` par une commande annulable ;
@@ -686,8 +687,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   de police pour un texte), dupliquer, supprimer, ordre et calque, « Passer en annotation » ;
   auteur ou MJ (`authorOrGm`). Les annotations s'ordonnent entre elles (dessins et textes
   confondus). Toucher d'un tracé : distance au trait ≤ épaisseur / 2 + 6 px d'écran, ou
-  intérieur d'une forme remplie. Un texte ne pivote pas : le contrat n'a pas de `rotation` pour
-  `notes`.
+  intérieur d'une forme remplie. Un texte pivote (poignée, R, « Pivoter ») : `rotation` en
+  degrés autour de `pos`, le champ d'édition en place tourne avec lui.
 - **Effacer mes dessins**, **Tout effacer** (MJ, confirmation) : une commande annulable (⌘Z les
   fait revenir), par `/batch`, plutôt que `DELETE …/drawings` qui ne se défait pas.
 

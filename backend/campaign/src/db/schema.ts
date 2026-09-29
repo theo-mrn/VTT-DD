@@ -573,6 +573,8 @@ export const mapNotes = campaignSchema.table('map_notes', {
   ...annotation(),
   text: text('text').notNull(),
   pos: point('pos').notNull(),
+  /** Degrés, autour de `pos` (début de la ligne de base). */
+  rotation: real('rotation').notNull().default(0),
   color: text('color').notNull().default('yellow'),
   fontSize: real('font_size').notNull().default(16),
   fontFamily: text('font_family'),

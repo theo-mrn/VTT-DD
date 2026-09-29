@@ -32,5 +32,7 @@ databaseChangeLog:
   - include: { file: changes/0017-map-visibility.sql, relativeToChangelogFile: true }
   # Calques du MJ : pile ordonnée par carte, calque et ordre de chaque élément (docs/carte.md)
   - include: { file: changes/0018-map-layers.sql, relativeToChangelogFile: true }
+  # Rotation des textes de la carte (docs/carte.md § 10)
+  - include: { file: changes/0019-map-note-rotation.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

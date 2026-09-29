@@ -770,7 +770,10 @@ export const MapNote = z.object({
   layerId: Id.nullable(),
   z: z.number(),
   text: z.string(),
+  /** Début de la ligne de base de la première ligne. */
   pos: MapPoint,
+  /** Rotation en degrés, autour de `pos`. */
+  rotation: z.number(),
   color: z.string(),
   fontSize: z.number(),
   fontFamily: z.string().nullable(),
@@ -783,6 +786,7 @@ export const MapNoteFields = z.strictObject({
   z: LayerZ,
   text: z.string().max(5000),
   pos: MapPoint,
+  rotation: z.number().finite(),
   color: MapColor,
   fontSize: z.number().positive().max(1000),
   fontFamily: z.string().trim().max(100).nullable(),

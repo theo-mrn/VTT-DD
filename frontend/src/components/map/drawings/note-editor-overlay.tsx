@@ -57,10 +57,10 @@ function NoteField({ engine, session }: { engine: MapEngine; session: NoteSessio
 
   const zoom = engine.camera.zoom;
   const layout = layoutNote(session.text, session.fontSize, session.fontFamily);
-  const topLeft = engine.camera.worldToScreen({
-    x: session.pos.x,
-    y: session.pos.y - layout.baseline,
-  });
+  // Coin haut gauche du texte droit ; le champ tourne autour du début de la ligne de base
+  const anchor = engine.camera.worldToScreen(session.pos);
+  const baselinePx = layout.baseline * zoom;
+  const topLeft = { x: anchor.x, y: anchor.y - baselinePx };
   const fontPx = session.fontSize * zoom;
   // Place pour le curseur et le prochain caractère
   const width = Math.max(layout.width, session.fontSize) * zoom + fontPx * 0.75;
@@ -82,6 +82,8 @@ function NoteField({ engine, session }: { engine: MapEngine; session: NoteSessio
         style={{
           width,
           height,
+          transform: session.rotation ? `rotate(${session.rotation}deg)` : undefined,
+          transformOrigin: `0 ${baselinePx}px`,
           fontSize: fontPx,
           lineHeight: LINE_HEIGHT,
           fontFamily: noteFontValue(session.fontFamily),
