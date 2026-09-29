@@ -21,6 +21,7 @@
  */
 import type * as Pixi from 'pixi.js';
 import type { FogZone, Polygon, Vec } from '@vtt/vision';
+import { destroyDisplay } from '../../engine/destroy-display';
 import type { MapTheme } from '../../engine/entities/entity-kind';
 import type { LightLayer, ViewerLayer, VisionPicture } from './vision-state';
 
@@ -315,7 +316,7 @@ class ViewerNode {
    * translucide (masquée par son ombre).
    */
   private rebuildBody(layer: ViewerLayer) {
-    for (const child of this.body.removeChildren()) child.destroy({ children: true });
+    for (const child of this.body.removeChildren()) destroyDisplay(child);
     const shadows = layer.translucent;
     const open = this.makeContent();
     this.contents = [open];
@@ -343,7 +344,7 @@ class ViewerNode {
   destroy() {
     this.root.mask = null;
     this.los.destroy();
-    this.root.destroy({ children: true });
+    destroyDisplay(this.root);
   }
 }
 
@@ -677,12 +678,11 @@ export class VisionRenderer {
     const key = p.topDown ? p.topDown.map((r) => r.join(',')).join('|') : null;
     if (key === null) {
       if (this.topDownNode) {
-        this.topDownNode.root.removeFromParent();
-        this.topDownNode.root.destroy({ children: true });
+        destroyDisplay(this.topDownNode.root);
         this.topDownNode = null;
       }
     } else if (!this.topDownNode || this.topDownNode.key !== key) {
-      if (this.topDownNode) this.topDownNode.root.destroy({ children: true });
+      if (this.topDownNode) destroyDisplay(this.topDownNode.root);
       const root = new this.pixi.Container({ label: 'vision:top-down' });
       const body = new this.pixi.Container();
       if (p.topDown!.length) {
@@ -767,7 +767,7 @@ export class VisionRenderer {
       e.shader.destroy();
     }
     for (const root of [this.rangeRoot, this.fogRoot, this.glowRoot, this.visRoot])
-      root.destroy({ children: true });
+      destroyDisplay(root);
     for (const t of Object.values(this.targets)) t.rt.destroy(true);
     this.discTexture.destroy(true);
   }

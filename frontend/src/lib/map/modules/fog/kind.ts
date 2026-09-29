@@ -122,9 +122,8 @@ export class FogView {
   }
 
   unmount(e: MapEntity) {
+    // Son dessin est un enfant de `e.display` : le moteur le libère avec lui (`destroyDisplay`)
     this.redraw.untrack(e);
-    // Son dessin lui appartient : libéré avec lui (le conteneur seul ne le libère pas)
-    (e.renderState.fog as Graphics | undefined)?.destroy({ context: true });
     e.renderState = {};
   }
 

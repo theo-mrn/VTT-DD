@@ -15,6 +15,7 @@
 import * as PIXI from 'pixi.js';
 import { Application, Assets, Container, Graphics, Text, type Texture } from 'pixi.js';
 import { MapBackground } from './background';
+import { destroyDisplay } from './destroy-display';
 import type { EntityChange, MapTheme, RenderContext } from './entities/entity-kind';
 import type { MapEntity } from './entities/entity';
 import { geometryCorners, toWorld, type Point } from './geometry';
@@ -270,7 +271,7 @@ class PixiView implements EngineView {
     if (!d || this.destroyed) return;
     if (change.previous !== undefined && !e.kind.update) {
       // Sans mise à jour incrémentale : on vide et on redessine
-      for (const child of d.removeChildren()) child.destroy({ children: true });
+      for (const child of d.removeChildren()) destroyDisplay(child);
       e.kind.render?.(e, this.renderContext());
     } else {
       e.kind.update?.(e, this.renderContext(), change);
@@ -281,9 +282,8 @@ class PixiView implements EngineView {
   removeEntity(e: MapEntity) {
     const d = e.display;
     e.display = null;
-    if (!d) return;
-    d.removeFromParent();
-    d.destroy({ children: true });
+    // Dessins propres des enfants libérés, dessins et textures partagés gardés
+    if (d) destroyDisplay(d);
   }
 
   placeEntity(e: MapEntity) {
@@ -564,8 +564,7 @@ class PixiView implements EngineView {
     }
     for (const [userId, s] of this.cursors) {
       if (seen.has(userId)) continue;
-      s.root.removeFromParent();
-      s.root.destroy({ children: true });
+      destroyDisplay(s.root);
       this.cursors.delete(userId);
     }
   }

@@ -13,6 +13,7 @@
  * sont ceux de l'aperçu d'un geste (`setPreview`), sinon ceux de la donnée.
  */
 import type { Container, Graphics, GraphicsContext, Text } from 'pixi.js';
+import { destroyDisplay } from '../../engine/destroy-display';
 import type { MapEntity } from '../../engine/entities/entity';
 import { isGm, type MapTheme } from '../../engine/entities/entity-kind';
 import { distance, type Point } from '../../engine/geometry';
@@ -140,21 +141,10 @@ export class ObstacleView {
   unmount(e: MapEntity) {
     this.entities.delete(e.id);
     this.redraw.untrack(e);
-    // Les dessins propres sont libérés ici (le conteneur seul ne libère pas leur géométrie) ;
-    // les icônes de porte partagent leurs dessins : seul l'objet part
-    const o = e.renderState.obstacle as ObstacleVisual | undefined;
-    if (o) {
-      o.unregister?.();
-      o.line.destroy({ context: true });
-      o.icon?.destroy({ children: true });
-    }
-    const r = e.renderState.room as RoomVisual | undefined;
-    if (r) {
-      r.unregister();
-      r.shape.destroy({ context: true });
-      r.pill.destroy({ context: true });
-      r.label.destroy({ children: true });
-    }
+    // Les dessins sont des enfants de `e.display` : le moteur les libère avec lui
+    // (`destroyDisplay` : dessins propres libérés, dessins partagés des icônes gardés)
+    (e.renderState.obstacle as ObstacleVisual | undefined)?.unregister?.();
+    (e.renderState.room as RoomVisual | undefined)?.unregister();
     e.renderState = {};
   }
 
@@ -230,8 +220,7 @@ export class ObstacleView {
     if (o.kind === 'door') this.ensureIcon(e, v, o, pts);
     else if (v.icon) {
       v.unregister?.();
-      v.icon.removeFromParent();
-      v.icon.destroy({ children: true });
+      destroyDisplay(v.icon);
       v.icon = null;
       v.glyph = null;
       v.unregister = null;

@@ -7,6 +7,7 @@
 import { Pencil, Type } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { Container, Graphics } from 'pixi.js';
+import { destroyDisplay } from '../../engine/destroy-display';
 import type { InspectorSectionProps, MapEngine } from '../../engine/map-engine';
 import { drawingKind } from './drawing-kind';
 import { DrawTool } from './draw-tool';
@@ -199,8 +200,7 @@ export function mountLiveStrokes(engine: MapEngine): () => void {
       }
       for (const [key, entry] of drawn) {
         if (alive.has(key)) continue;
-        entry.g.removeFromParent();
-        entry.g.destroy();
+        destroyDisplay(entry.g);
         drawn.delete(key);
       }
     };
@@ -210,10 +210,8 @@ export function mountLiveStrokes(engine: MapEngine): () => void {
     });
     return () => {
       unFrame();
-      for (const entry of drawn.values()) entry.g.destroy();
       drawn.clear();
-      root.removeFromParent();
-      root.destroy({ children: true });
+      destroyDisplay(root);
     };
   });
 

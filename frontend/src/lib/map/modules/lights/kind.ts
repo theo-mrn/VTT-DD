@@ -138,13 +138,9 @@ export class LightView {
   }
 
   unmount(e: MapEntity) {
-    const v = e.renderState.light as LightVisual | undefined;
-    if (v) {
-      v.unregister();
-      // Le cercle lui appartient ; l'icône partage ses dessins : seul l'objet part
-      v.area.destroy({ context: true });
-      v.icon.destroy({ children: true });
-    }
+    // Cercle et icône sont des enfants de `e.display` : le moteur les libère avec lui
+    // (`destroyDisplay` : le cercle propre libéré, les dessins partagés de l'icône gardés)
+    (e.renderState.light as LightVisual | undefined)?.unregister();
     this.redraw.untrack(e);
     this.entities.delete(e.id);
     e.renderState = {};
