@@ -87,6 +87,13 @@ export function newPlan(engine: MapEngine): EditPlan {
 const gmOnlyStrict = (action: EntityAction, _e: MapEntity, viewer: MapViewer) =>
   action === 'view' || isGm(viewer);
 
+/** Droits, et le déplacement seulement dans l'outil W (curseur juste sur une icône de porte). */
+const obstacleRights =
+  (engine: MapEngine) => (action: EntityAction, e: MapEntity, viewer: MapViewer) =>
+    action === 'move'
+      ? isGm(viewer) && engine.tools.getActiveId() === OBSTACLES_TOOL_ID
+      : gmOnlyStrict(action, e, viewer);
+
 function boxGeometry(pts: Pts): EntityGeometry {
   if (!pts.length) return { x: 0, y: 0, width: 0, height: 0, rotation: 0 };
   const [minX, minY, maxX, maxY] = bbox(pts);
@@ -168,7 +175,7 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
       if (d.kind !== 'door') return OBSTACLE_LABELS[d.kind];
       return d.isLocked ? 'Porte verrouillée' : d.isOpen ? 'Porte ouverte' : 'Porte fermée';
     },
-    can: gmOnlyStrict,
+    can: obstacleRights(engine),
     hitTest(e, p, tol) {
       const pts = view.pointsOf(e);
       if (obstacleOf(e).kind === 'door' && doorIconHit(engine, pts, p)) return true;
@@ -378,7 +385,7 @@ export function roomKind(ctx: ObstacleContext): EntityKind<MapDto> {
       return { ...d, points: shifted(d.points, g.x - before.x, g.y - before.y) };
     },
     name: (r) => (r as RoomData).name?.trim() || 'Pièce',
-    can: gmOnlyStrict,
+    can: obstacleRights(engine),
     hitTest(e, p, tol) {
       const pts = view.pointsOf(e);
       if (roomLabelHit(engine, pts, p)) return true;
