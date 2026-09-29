@@ -162,8 +162,7 @@ function setup(
   const fades = new Fades(engine);
   const run = () => {
     const changed = state.sync();
-    if (state.mode === 'gm') fades.reset();
-    else applyDecisions(engine, state, fades, 0);
+    applyDecisions(engine, state, fades, 0);
     fades.step(1_000);
     return changed;
   };
@@ -346,6 +345,16 @@ describe('MJ : voile et « Vue de… »', () => {
     t.engine.setViewAs(null);
     t.run();
     expect(t.masked('orc')).toBe(false);
+  });
+
+  it('retour à la vue du MJ : plus de plan forcé ni de masque', () => {
+    const t = setup({ viewer: GM, tokens: [token('barde', 400, 400, { characterId: 'c-barde' })] });
+    t.engine.setViewAs('alice');
+    t.run();
+    expect(t.engine.entity('barde')!.plane).toBe('allies');
+    t.engine.setViewAs(null);
+    t.run();
+    expect(t.engine.entity('barde')!.plane).toBe('content');
   });
 });
 

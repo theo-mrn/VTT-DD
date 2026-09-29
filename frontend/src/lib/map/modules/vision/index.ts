@@ -29,7 +29,10 @@ export const ALLIES_ALPHA = 0.6;
 /** Cadence de l'animation de la brume (images par seconde). */
 export const FOG_FPS = 20;
 
-/** Applique masques et plans forcés décidés par l'état de la visibilité. */
+/**
+ * Applique masques et plans forcés décidés par l'état de la visibilité ; une entité sans
+ * décision (vue du MJ) est montrée et garde son plan.
+ */
 export function applyDecisions(engine: MapEngine, state: VisionState, fades: Fades, now: number) {
   const alive = new Set<string>();
   const decisions = state.decisions();
@@ -96,9 +99,8 @@ export const visionModule: MapModule = {
       engine.onFrame((now) => {
         const started = performance.now();
         state.sync();
-        const gm = state.mode === 'gm';
-        if (gm) fades.reset();
-        else applyDecisions(engine, state, fades, now);
+        // Vue du MJ : aucune décision, tout se remontre et retrouve son plan
+        applyDecisions(engine, state, fades, now);
         const fading = fades.step(now);
         if (renderer) {
           // Horloge de la brume : avance seulement quand elle est animée
