@@ -28,7 +28,7 @@ import type { ComponentType } from 'react';
 import type * as Pixi from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { LiveChannel } from '../live/live-channel';
+import { CURSOR_KEEPALIVE_MS, LIVE_EXPIRE_MS, type LiveChannel } from '../live/live-channel';
 import {
   arrangeCommand,
   createCommand,
@@ -251,6 +251,9 @@ export interface MapEngineOptions {
 /** Couche des calques du MJ dans le magasin. */
 export const LAYERS_COLLECTION = 'layers';
 
+/** Taille du monde d'une scène sans fond ni taille connue. */
+export const DEFAULT_WORLD = 2048;
+
 /** Tolérance du test de toucher, en pixels d'écran. */
 export const HIT_TOLERANCE_PX = 4;
 /** Délai de l'info-bulle du nom au survol. */
@@ -310,6 +313,7 @@ export class MapEngine {
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private currentCursor = '';
   private cameraSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private expiryTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly cameraKey: string | null;
 
   constructor(opts: MapEngineOptions) {
@@ -360,7 +364,18 @@ export class MapEngine {
     );
     if (this.live) {
       this.cleanups.push(
-        this.live.onActivity(() => this.invalidate()),
+        this.live.onActivity(() => {
+          this.invalidate();
+          // Un fantôme ou un curseur muet doit disparaître, même si plus rien ne bouge
+          if (this.expiryTimer) clearTimeout(this.expiryTimer);
+          this.expiryTimer = setTimeout(
+            () => {
+              this.expiryTimer = null;
+              this.invalidate();
+            },
+            LIVE_EXPIRE_MS + CURSOR_KEEPALIVE_MS + 50,
+          );
+        }),
         this.live.onPing((p) => {
           this.view?.showPing({ x: p.x, y: p.y }, 'other');
           if (p.focus) this.camera.flyTo({ x: p.x, y: p.y }, this.now());
@@ -501,6 +516,8 @@ export class MapEngine {
     if (this.frameHandle !== null) cancelAnimationFrame(this.frameHandle);
     this.frameHandle = null;
     if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
+    if (this.expiryTimer) clearTimeout(this.expiryTimer);
+    if (this.cursorTimer) clearInterval(this.cursorTimer);
     if (this.cameraSaveTimer) {
       clearTimeout(this.cameraSaveTimer);
       this.saveCameraNow();
@@ -785,6 +802,10 @@ export class MapEngine {
 
   private applyScene(scene: SceneLike | null, prev: SceneLike | null) {
     if (scene?.width && scene?.height) this.camera.setWorld(scene.width, scene.height);
+    else if (scene && !scene.backgroundUrl && !this.camera.world.width)
+      // Ni fond ni taille connue : un monde par défaut, pour cadrer quand même
+      this.camera.setWorld(DEFAULT_WORLD, DEFAULT_WORLD);
+    this.restoreCamera();
     if (scene?.backgroundUrl !== prev?.backgroundUrl)
       this.view?.setBackground(scene?.backgroundUrl ?? null);
     if (displayOf(scene) !== displayOf(prev)) {
@@ -1080,9 +1101,17 @@ export class MapEngine {
     this.invalidate();
   }
 
+  private cameraRestored = false;
+
+  /**
+   * Première vue de cette carte, dès que le rendu est monté et la taille du monde connue : la
+   * dernière vue gardée, sinon le cadrage « contenir ».
+   */
   private restoreCamera() {
+    if (this.cameraRestored || !this.view || !this.camera.world.width) return;
+    this.cameraRestored = true;
     const saved = this.cameraKey ? loadCamera(this.cameraKey) : null;
-    if (saved && this.camera.world.width) this.camera.set(saved);
+    if (saved) this.camera.set(saved);
     else this.camera.fit();
   }
 
@@ -1117,6 +1146,7 @@ export class MapEngine {
   /** Le fond a sa taille naturelle : c'est la taille du monde (le MJ la corrige au serveur). */
   backgroundLoaded(width: number, height: number) {
     this.camera.setWorld(width, height);
+    this.restoreCamera();
     const scene = this.store.getState().scene;
     if (!scene || this.viewer.role !== 'gm' || !this.backend) return;
     if (scene.width === width && scene.height === height) return;
@@ -1219,8 +1249,7 @@ export class MapEngine {
     }
     this.remoteIds.clear();
     for (const id of seen) this.remoteIds.add(id);
-    live.keepAlive();
-    return live.active;
+    return live.animating(now);
   }
 
   /** Audience du direct d'une entité (§ 8) : jamais de fuite d'un élément caché. */
@@ -1253,8 +1282,14 @@ export class MapEngine {
     if (this.ui.getState().shareCursor) this.live?.cursor(world);
   }
 
+  private cursorTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** « Montrer mon curseur » : un curseur immobile est rappelé chaque seconde aux autres. */
   setShareCursor(on: boolean) {
     this.ui.setState({ shareCursor: on });
+    if (this.cursorTimer) clearInterval(this.cursorTimer);
+    this.cursorTimer = null;
+    if (on && this.live) this.cursorTimer = setInterval(() => this.live?.keepAlive(), 1_000);
     if (!on) this.live?.cursor(null);
   }
 

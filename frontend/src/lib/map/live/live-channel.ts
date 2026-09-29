@@ -520,9 +520,20 @@ export class LiveChannel {
     this.tracks.delete(entityId);
   }
 
-  /** Il y a des fantômes ou des curseurs à animer. */
+  /** Il y a des fantômes ou des curseurs connus. */
   get active(): boolean {
     return this.tracks.size > 0 || this.cursors.size > 0;
+  }
+
+  /**
+   * Il reste du mouvement à interpoler (un message récent, lu avec 100 ms de retard) : la boucle
+   * d'images du moteur tourne ; sinon elle s'arrête, même avec un curseur immobile.
+   */
+  animating(now = this.now()): boolean {
+    const recent = (last: number) => now - last <= LIVE_BUFFER_MS + 250;
+    for (const t of this.tracks.values()) if (recent(t.last)) return true;
+    for (const c of this.cursors.values()) if (recent(c.last)) return true;
+    return false;
   }
 
   /** Positions interpolées des fantômes à l'instant `now` (expire les fantômes muets). */

@@ -74,19 +74,25 @@ aucune ombre qui clignote ni ne perce entre deux murs soudés.
 ```
 frontend/src/lib/map/
   engine/
-    map-engine.ts        MapEngine : Application Pixi, montage, destruction, rendu à la demande
+    map-engine.ts        MapEngine : modules, entités, rendu à la demande, commandes communes
+    pixi-view.ts         rendu PixiJS (Application, plans, calques, fond image ou vidéo),
+                         chargé au montage seulement : le moteur tourne « à blanc » sans lui
     camera.ts            Camera : monde ⇄ écran, zoom, pan, cadrage, bornes, animations
-    planes.ts            plans de rendu techniques et leur ordre (§ 5)
+    planes.ts            plans de rendu techniques et leur ordre, réglage « Affichage » (§ 5)
     layers.ts            calques du MJ : pile ordonnée, ordre des entités (§ 5, Calques)
-    background.ts        fond image ou vidéo, taille du monde
+    layer-operations.ts  panneau Calques : créer, renommer, réordonner, supprimer (commandes)
     screen-space.ts      éléments à taille constante à l'écran (étiquettes, poignées)
     spatial-index.ts     grille spatiale : test de toucher, sélection au lasso, culling
+    geometry.ts          points, rectangles tournés, segments
+    test-kit.ts          banc d'essai des tests (moteur à blanc, sorte factice)
     entities/
       entity.ts          MapEntity (base) et EntityState
       entity-kind.ts     EntityKind : fabrique, rendu, capacités, droits, actions
+      common-actions.ts  actions communes du menu, générées par les capacités
       registry.ts        registre des sortes
     interaction/
       controller.ts      pointeur, souris, tactile, clavier → gestes communs
+      dom-input.ts       branchement du DOM sur le contrôleur (seul fichier qui écoute le navigateur)
       selection.ts       sélection (simple, multiple, lasso)
       drag.ts            glisser (seuil, grille, annulation, direct)
       transform-gizmo.ts poignées communes de rotation et de taille
@@ -97,13 +103,16 @@ frontend/src/lib/map/
       select-tool.ts     outil par défaut : sélection et gestes communs
   store/
     map-store.ts         état normalisé (zustand vanilla), hors React
+    collections.ts       couches : clé du magasin, segment d'URL, domaine des événements
     sync.ts              chargement REST, événements du bus, relecture (`generation`)
     commands.ts          commandes do/undo, optimisme, annuler/refaire
   live/
     live-channel.ts      canal éphémère : émission cadencée, réception, interpolation
   api.ts                 client REST typé (@vtt/contracts)
+  active-map.ts          carte affichée dans l'onglet (pour les panneaux hors de la carte)
   modules/
     index.ts             liste des modules chargés par le moteur
+    scene/               moteur : point d'apparition (outil lancé par le panneau Scènes)
     drawings/            dessins et textes
     tokens/              personnages et PNJ
     objects/             objets
@@ -112,19 +121,26 @@ frontend/src/lib/map/
     lights/              lumières
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
 frontend/src/components/map/
-  map-canvas.tsx         monte le moteur dans MapStage
+  table-map.tsx          la carte à la table : choix de la scène, montage dans MapStage
+  use-table-map.ts       quelle scène afficher (joueur : celle de son personnage ; MJ : `?scene=`)
+  map-canvas.tsx         monte le moteur (client seulement, `next/dynamic`) et ses surcouches
+  engine-context.tsx     hooks React du moteur (sélecteurs à instantané stable)
   toolbar.tsx            barre d'outils (outils fournis par les modules)
   context-menu.tsx       menu contextuel commun (Radix), ancré au point de l'écran
   inspector.tsx          panneau d'inspection de la sélection (sections fournies par les modules)
-  scenes/                gestion des scènes (liste, dossiers, fond, groupe) : ex-CitiesManager
+  confirm-dialog.tsx     confirmations demandées par le moteur
+  layers/                panneau des calques du MJ (K)
+  scenes/                panneau Scènes (E) : liste, dossiers, fond, groupe (ex-CitiesManager)
   <module>/              UI propre à un module (bibliothèque de PNJ, propriétés d'un objet…)
 packages/vision/         géométrie de la visibilité (§ 9), sans DOM
 ```
 
-Un module exporte
-`register(engine: MapEngine): void`. Il y enregistre ses `EntityKind`, ses `Tool`, ses
-sections d'inspecteur, ses entrées de barre d'outils et ses abonnements au store.
-`modules/index.ts` les liste, une ligne par module.
+Un module exporte un `MapModule` : `register(engine: MapEngine)` y enregistre ses `EntityKind`
+(`registerKind`), ses `Tool` (`registerTool`), ses sections d'inspecteur
+(`registerInspectorSection`), ses entrées de barre d'outils (`registerToolbarItem`), ses entrées
+de menu (`registerMenuProvider`), ses animations (`onFrame`), ses objets Pixi (`whenMounted`,
+`plane(id)`, `pixi`, `theme`) et ses abonnements au store, et renvoie son nettoyage.
+`modules/index.ts` les liste, une ligne par module, avec un exemple complet.
 
 ## 4. Coordonnées, caméra, échelle
 
@@ -260,7 +276,8 @@ Classe de base de tout ce qui est posé. Elle porte :
 Chaque sorte d'entité déclare :
 
 - `capabilities` : `select`, `move`, `rotate`, `resize`, `lock`, `hide`, `restrictTo`
-  (visible pour certains joueurs), `duplicate`, `delete`, `inspect` ;
+  (visible pour certains joueurs), `duplicate`, `delete`, `inspect`, `order` (ordre et calque,
+  pour les sortes rangées dans les calques : `stacking`) ;
 - `can(action, entity, viewer)` : les droits, miroir exact du backend ;
 - `render(entity, display, ctx)`, puis `update(...)` incrémental ;
 - `actions(entity, ctx)` : les entrées propres au menu contextuel.
@@ -300,8 +317,9 @@ Règles de ces gestes :
 - **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
   pendant la saisie.
-- **Lettres réservées** : A, E, G, I, K, L, P, Q, R, T, U, V, W, X, Y, Z et les chiffres sont
-  libres (K : panneau Calques). F, D, C, N, J, H, S, B, M et O appartiennent aux panneaux de la table.
+- **Lettres réservées** : la carte prend V, P, T, W, G, L (outils), R (pivoter) et K (calques,
+  MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la table.
+  Encore libres : A, I, Q, U, X, Y, Z et les chiffres.
 
 ### Outils (`tools/`)
 
@@ -395,7 +413,8 @@ de messages seulement.
 - Budget côté client : 12 messages par seconde en tout.
 - La limite du serveur passe à 30/s (rafale 60) pour absorber un glisser et un curseur ensemble
   (§ 12).
-- Curseurs : désactivés par défaut, bouton « Montrer mon curseur ».
+- Curseurs : désactivés par défaut, bouton « Montrer mon curseur ». Un curseur immobile est
+  rappelé chaque seconde ; sans nouvelles pendant 3 s, il disparaît.
 
 ## 9. Visibilité
 
@@ -528,12 +547,21 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 ### Fond et scènes (moteur)
 
 - **Fond.**
-  - Image : png, jpeg, webp, avif, gif. Vidéo : webm, mp4, muette, en boucle, `playsinline`.
+  - Image : png, jpeg, webp, avif, gif (première image seulement : pas d'animation). Vidéo :
+    webm, mp4, muette, en boucle, `playsinline`.
+  - Les médias sont servis avec les en-têtes CORS : WebGL refuse une image d'une autre origine
+    sans `Access-Control-Allow-Origin`.
   - Envoi par URL présignée (`/media`, § 12).
   - La taille naturelle fixe la taille du monde ; le client du MJ envoie `width/height` au
     serveur s'ils manquent ou s'ils changent.
 - **Scènes** (ex-CitiesManager) : liste, dossiers, créer, renommer, supprimer, fond, visible des
-  joueurs, scène du groupe, `travel`, point d'apparition. Panneau MJ `components/map/scenes/`.
+  joueurs, scène du groupe, `travel`, point d'apparition. Panneau MJ `components/map/scenes/`
+  (touche E).
+  - Le MJ affiche la scène du groupe ; « Ouvrir pour moi » en affiche une autre (`?scene=` dans
+    l'adresse), sans déplacer personne.
+  - Un joueur suit la carte où se trouve son personnage (celui qu'il incarne d'abord), sinon
+    celle du groupe ; un `token.moved` de son personnage fait suivre la carte tout de suite.
+  - Point d'apparition : outil `spawn` du module `scene`, sur la scène affichée.
 
 ### Dessins et textes (`drawings`)
 
