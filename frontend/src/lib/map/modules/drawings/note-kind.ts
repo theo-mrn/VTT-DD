@@ -18,7 +18,7 @@ import { annotationMenuItem } from './drawing-kind';
 import { FONT_SIZE_RANGE } from './palette';
 import { pixiColor } from './render';
 import type { DrawingsRuntime } from './runtime';
-import { layoutNote, LINE_HEIGHT, resolveFontFamily } from './text-layout';
+import { fontGeneration, layoutNote, LINE_HEIGHT, resolveFontFamily } from './text-layout';
 import { NOTE_KIND, NOTES_COLLECTION, type NoteData } from './types';
 
 /** Rotation d'un texte (degrés ; absente dans une donnée ancienne : droit). */
@@ -95,6 +95,8 @@ interface NoteRender {
   text: Text;
   /** Donnée dessinée (pour ne refaire le texte que si ce qui se voit a changé). */
   drawn: NoteData;
+  /** Génération des polices au dessin (une police arrivée depuis : le texte se refait). */
+  fonts: number;
 }
 
 function paint(
@@ -153,14 +155,22 @@ export function noteKind(rt: DrawingsRuntime): EntityKind<NoteData> {
       const text = new ctx.pixi.Text({ text: '', label: 'note' });
       entity.display!.addChild(text);
       paint(entity, text, ctx.zoom, ctx.theme.background, ctx.pixi);
-      entity.renderState.note = { text, drawn: entity.data } satisfies NoteRender;
+      entity.renderState.note = {
+        text,
+        drawn: entity.data,
+        fonts: fontGeneration(),
+      } satisfies NoteRender;
     },
     update(entity, ctx, change) {
       const r = entity.renderState.note as NoteRender | undefined;
       if (!r || r.text.destroyed) return;
-      if (change.previous && looksDifferent(r.drawn, entity.data)) {
+      if (
+        change.previous &&
+        (looksDifferent(r.drawn, entity.data) || r.fonts !== fontGeneration())
+      ) {
         paint(entity, r.text, ctx.zoom, ctx.theme.background, ctx.pixi);
         r.drawn = entity.data;
+        r.fonts = fontGeneration();
       } else if (change.previous) {
         // Déplacé seulement : le conteneur suit, le texte ne se refait pas
         r.drawn = entity.data;

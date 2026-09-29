@@ -30,6 +30,7 @@ import {
   type DrawingData,
   type NoteData,
 } from './types';
+import { onFontsLoaded } from './text-layout';
 
 /** Interface React du module (absente dans les tests). */
 export interface DrawingsUi {
@@ -61,6 +62,8 @@ export function registerDrawings(engine: MapEngine, opts: RegisterOptions = {}):
     attachRuntime(rt),
     engine.registerKind(drawingKind(rt)),
     engine.registerKind(noteKind(rt)),
+    // Une police arrivée (catalogue, système) : les textes se remesurent et se redessinent
+    onFontsLoaded(() => engine.refreshCollection(NOTES_COLLECTION)),
     engine.registerTool({
       id: DRAW_TOOL_ID,
       label: 'Dessin',

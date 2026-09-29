@@ -5,6 +5,7 @@
  * ou calque). S'applique aux nouveaux textes ; un texte posé se règle dans l'inspecteur.
  */
 import { ALargeSmall, Type } from 'lucide-react';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,19 +13,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
+import { useCampagne } from '@/lib/campagnes';
 import {
   FONT_SIZE_PRESETS,
   FONT_SIZE_RANGE,
+  NOTE_FONT_GROUPS,
   NOTE_FONTS,
   noteFontOf,
+  systemNoteFont,
+  type NoteFont,
 } from '@/lib/map/modules/drawings/palette';
+import { useSystemFontFamilies } from '@/lib/system-fonts';
+import { useSysteme } from '@/lib/systemes';
 import { ColorDot, ColorPalette } from './color-palette';
 import { OptionSeparator, RangeSetting, TargetMenu } from './option-controls';
+import { useMapEngine } from '../engine-context';
 import { useDrawingsRuntime, useDrawSettings } from './use-drawings';
 
 export function TextOptions({ engine }: { engine: MapEngine }) {
@@ -75,7 +84,6 @@ export function TextStyleControls({
   onFontSizeCommit?(size: number): void;
   onFont(font: string): void;
 }) {
-  const font = noteFontOf(fontFamily);
   return (
     <div className="flex items-center gap-1">
       <Popover>
@@ -126,29 +134,80 @@ export function TextStyleControls({
         </PopoverContent>
       </Popover>
 
-      <DropdownMenu>
-        <Info texte="Police">
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" disabled={disabled} className="px-2">
-              <span style={{ fontFamily: font?.value ?? fontFamily ?? undefined }}>
-                {font?.label ?? 'Police'}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-        </Info>
-        <DropdownMenuContent side="top" className="w-48">
-          <DropdownMenuLabel>Police</DropdownMenuLabel>
-          <DropdownMenuRadioGroup value={font?.value ?? ''} onValueChange={onFont}>
-            {NOTE_FONTS.map((f) => (
-              <DropdownMenuRadioItem key={f.id} value={f.value}>
-                <span className="text-sm text-foreground" style={{ fontFamily: f.value }}>
-                  {f.label}
-                </span>
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <FontMenu fontFamily={fontFamily} disabled={disabled} onFont={onFont} />
     </div>
+  );
+}
+
+/** Polices du système de la campagne (déclarées au navigateur), en tête du sélecteur. */
+function useSystemNoteFonts(): NoteFont[] {
+  const engine = useMapEngine();
+  const campagne = useCampagne(engine.store.getState().campaignId);
+  const systemId = campagne.data?.system ?? null;
+  const systeme = useSysteme(systemId);
+  const families = useSystemFontFamilies(systemId, systeme.data?.presentation ?? null);
+  return useMemo(() => families.map(systemNoteFont), [families]);
+}
+
+/** Choix de la police : celles du système, puis le catalogue par groupes, chacune en elle-même. */
+function FontMenu({
+  fontFamily,
+  disabled,
+  onFont,
+}: {
+  fontFamily: string | null;
+  disabled?: boolean;
+  onFont(font: string): void;
+}) {
+  const system = useSystemNoteFonts();
+  const font = noteFontOf(fontFamily, system);
+  const groups = useMemo(
+    () =>
+      [
+        { title: 'Polices du système', fonts: system },
+        ...NOTE_FONT_GROUPS.map((g) => ({
+          title: g,
+          fonts: NOTE_FONTS.filter((f) => f.group === g),
+        })),
+      ].filter((g) => g.fonts.length),
+    [system],
+  );
+  return (
+    <DropdownMenu>
+      <Info texte="Police">
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" disabled={disabled} className="max-w-40 px-2">
+            <span
+              className="truncate"
+              style={{ fontFamily: font?.value ?? fontFamily ?? undefined }}
+            >
+              {font?.label ?? 'Police'}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+      </Info>
+      <DropdownMenuContent side="top" className="max-h-[min(28rem,70vh)] w-56 overflow-y-auto">
+        <DropdownMenuRadioGroup value={font?.value ?? ''} onValueChange={onFont}>
+          {groups.map((g, i) => (
+            <div key={g.title}>
+              {i > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">
+                {g.title}
+              </DropdownMenuLabel>
+              {g.fonts.map((f) => (
+                <DropdownMenuRadioItem key={f.id} value={f.value}>
+                  <span
+                    className="truncate text-[15px] text-foreground"
+                    style={{ fontFamily: f.value }}
+                  >
+                    {f.label}
+                  </span>
+                </DropdownMenuRadioItem>
+              ))}
+            </div>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

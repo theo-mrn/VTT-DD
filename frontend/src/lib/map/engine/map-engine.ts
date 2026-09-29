@@ -792,6 +792,15 @@ export class MapEngine {
     if (state.pending !== prev.pending) this.syncPending(state.pending, prev.pending);
   }
 
+  /**
+   * Recalcule toutes les entités d'une couche (géométrie et rendu), sans changement de donnée :
+   * une police arrivée change la taille des textes.
+   */
+  refreshCollection(key: string) {
+    this.syncCollection(key, true);
+    this.invalidate();
+  }
+
   /** Aligne les entités d'une couche sur le magasin (ajouts, changements, retraits). */
   private syncCollection(key: string, force = false) {
     const items = collectionOf(this.store.getState(), key);

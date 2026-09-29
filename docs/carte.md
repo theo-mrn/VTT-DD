@@ -749,6 +749,14 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   sur la carte (Entrée valide, ⇧ Entrée va à la ligne, Échap annule, cliquer ailleurs valide) ;
   double clic sur un texte (outil sélection, `EntityKind.doubleClick`) ou clic avec l'outil
   Texte : le modifier ; vidé, il est supprimé.
+- **Polices des textes** : une vingtaine, par groupes (lisibles, fantastique, manuscrites,
+  affiches, science-fiction, machine, horreur), auto-hébergées par `next/font`
+  (`app/map-fonts.ts`, `preload: false` : rien n'est téléchargé tant qu'un texte ne s'en sert
+  pas), et en tête celles du système de la campagne (`theme.polices.fichiers` de sa
+  présentation, déclarées au navigateur par `lib/system-fonts.ts`). Un canevas ne charge pas
+  seul une police CSS : chaque police utilisée est chargée (`ensureFontLoaded`), et à son
+  arrivée les textes se remesurent et se redessinent (`onFontsLoaded`, `refreshCollection`).
+  La valeur enregistrée reste une pile CSS stable (`var(--font-map-<id>)`, `"Orbitron"`).
 - **Réglages** (mémorisés dans le navigateur) : palette de couleurs (données, `palette.ts`),
   couleur personnalisée, épaisseur (pixels du monde), opacité, remplissage, taille et police des
   textes, et destination : **annotation** (défaut, au-dessus de l'ombre) ou **calque** (le calque

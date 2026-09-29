@@ -120,9 +120,57 @@ export function clearTextMetrics() {
   resolvedFonts.clear();
 }
 
+// ─── Chargement des polices ──────────────────────────────────────────────────
+
+/**
+ * Un canevas ne télécharge pas une police déclarée en CSS : il dessine avec celle de secours.
+ * Chaque police utilisée est donc chargée (`document.fonts.load`) ; à son arrivée, les mesures
+ * sont oubliées, la génération avance et les textes se refont (`onFontsLoaded`).
+ */
+let generation = 0;
+const loading = new Set<string>();
+const fontListeners = new Set<() => void>();
+
+/** Génération des polices : change à chaque police arrivée (textes à redessiner). */
+export const fontGeneration = () => generation;
+
+/** Prévenu quand une police utilisée par un texte vient d'arriver. Renvoie le désabonnement. */
+export function onFontsLoaded(listener: () => void): () => void {
+  fontListeners.add(listener);
+  return () => void fontListeners.delete(listener);
+}
+
+/** Les polices ont changé ailleurs (typographie du système) : tout se remesure. */
+export function fontsChanged() {
+  generation += 1;
+  clearTextMetrics();
+  for (const l of fontListeners) l();
+}
+
+/** Charge la police d'une pile (sa première famille) si elle ne l'est pas encore. */
+export function ensureFontLoaded(family: string) {
+  const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+  if (!fonts || loading.has(family)) return;
+  const probe = `32px ${family}`;
+  try {
+    if (fonts.check(probe)) return;
+  } catch {
+    return;
+  }
+  loading.add(family);
+  fonts.load(probe).then(
+    (faces) => {
+      loading.delete(family);
+      if (faces.length) fontsChanged();
+    },
+    () => loading.delete(family),
+  );
+}
+
 /** Mise en page d'un texte (mêmes règles que `Text` de Pixi avec `lineHeight`). */
 export function layoutNote(text: string, fontSize: number, fontFamily: string | null): NoteLayout {
   const family = resolveFontFamily(fontFamily);
+  ensureFontLoaded(family);
   const lines = noteLines(text);
   const { ascent, descent } = metricsOf(family);
   const a = ascent * fontSize;

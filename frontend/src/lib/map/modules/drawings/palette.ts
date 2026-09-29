@@ -65,19 +65,82 @@ export interface NoteFont {
   label: string;
   /** Valeur enregistrée (`fontFamily`) : une pile CSS, variables du thème permises. */
   value: string;
+  /** Groupe du sélecteur. */
+  group: NoteFontGroup;
 }
 
-/** Polices lisibles des textes posés sur la carte. */
+export const NOTE_FONT_GROUPS = [
+  'Lisibles',
+  'Fantastique',
+  'Manuscrites',
+  'Affiches',
+  'Science-fiction',
+  'Machine',
+  'Horreur',
+] as const;
+export type NoteFontGroup = (typeof NOTE_FONT_GROUPS)[number] | 'Système';
+
+const font = (id: string, label: string, group: NoteFontGroup, fallback: string): NoteFont => ({
+  id,
+  label,
+  group,
+  value: `var(--font-map-${id}), ${fallback}`,
+});
+
+/**
+ * Polices des textes posés sur la carte. Les quatre premières gardent leurs valeurs d'origine
+ * (textes déjà posés) ; les autres sont servies par `next/font` (`app/map-fonts.ts`), sans
+ * téléchargement tant qu'elles ne servent pas.
+ */
 export const NOTE_FONTS: readonly NoteFont[] = [
-  { id: 'sans', label: 'Lisible', value: 'var(--font-sans)' },
-  { id: 'display', label: 'Titre', value: 'var(--font-display)' },
+  { id: 'sans', label: 'Lisible', value: 'var(--font-sans)', group: 'Lisibles' },
+  { id: 'display', label: 'Titre', value: 'var(--font-display)', group: 'Fantastique' },
   {
     id: 'hand',
     label: 'Manuscrit',
     value: '"Bradley Hand", "Segoe Print", "Comic Sans MS", cursive',
+    group: 'Manuscrites',
   },
-  { id: 'mono', label: 'Machine', value: 'var(--font-mono)' },
+  { id: 'mono', label: 'Machine', value: 'var(--font-mono)', group: 'Machine' },
+  font('lora', 'Livre', 'Lisibles', 'serif'),
+  font('im-fell', 'Grimoire', 'Fantastique', 'serif'),
+  font('medieval-sharp', 'Médiéval', 'Fantastique', 'serif'),
+  font('uncial', 'Onciale', 'Fantastique', 'serif'),
+  font('almendra', 'Almendra', 'Fantastique', 'serif'),
+  font('cinzel-decorative', 'Enluminure', 'Fantastique', 'serif'),
+  font('unifraktur', 'Gothique', 'Fantastique', 'serif'),
+  font('pirata', 'Pirate', 'Fantastique', 'serif'),
+  font('caveat', 'Carnet', 'Manuscrites', 'cursive'),
+  font('kalam', 'Plume', 'Manuscrites', 'cursive'),
+  font('dancing', 'Calligraphie', 'Manuscrites', 'cursive'),
+  font('indie-flower', 'Griffonnage', 'Manuscrites', 'cursive'),
+  font('shadows', 'Craie', 'Manuscrites', 'cursive'),
+  font('bebas', 'Affiche', 'Affiches', 'sans-serif'),
+  {
+    id: 'aclonica',
+    label: 'Titre rond',
+    value: 'var(--font-aclonica), sans-serif',
+    group: 'Affiches',
+  },
+  font('orbitron', 'Orbitron', 'Science-fiction', 'sans-serif'),
+  font('audiowide', 'Néon', 'Science-fiction', 'sans-serif'),
+  font('share-tech', 'Terminal', 'Science-fiction', 'monospace'),
+  font('special-elite', 'Machine à écrire', 'Machine', 'monospace'),
+  font('creepster', 'Épouvante', 'Horreur', 'cursive'),
+  font('nosifer', 'Sanglant', 'Horreur', 'cursive'),
 ];
+
+/** Police d'un système (fichier déclaré par sa présentation, chargé à la table). */
+export function systemNoteFont(famille: string): NoteFont {
+  const safe = famille.replace(/["\\]/g, '');
+  return {
+    id: `system:${safe}`,
+    label: safe,
+    group: 'Système',
+    value: `"${safe}", var(--font-sans)`,
+  };
+}
+
 export const DEFAULT_FONT = NOTE_FONTS[0]!.value;
 
 /** Polices de l'ancienne carte (`var(--font-body)`…), lues avec leur équivalent d'aujourd'hui. */
@@ -95,10 +158,10 @@ export function noteFontValue(stored: string | null | undefined): string {
   return LEGACY_FONTS[stored] ?? stored;
 }
 
-/** Police du préréglage correspondant, s'il y en a un. */
-export const noteFontOf = (stored: string | null | undefined) => {
+/** Police du préréglage correspondant (catalogue, puis polices du système), s'il y en a un. */
+export const noteFontOf = (stored: string | null | undefined, extra: readonly NoteFont[] = []) => {
   const value = noteFontValue(stored);
-  return NOTE_FONTS.find((f) => f.value === value) ?? null;
+  return NOTE_FONTS.find((f) => f.value === value) ?? extra.find((f) => f.value === value) ?? null;
 };
 
 // ─── Couleurs (chaînes CSS) ──────────────────────────────────────────────────

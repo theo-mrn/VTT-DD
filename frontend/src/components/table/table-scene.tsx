@@ -14,6 +14,8 @@ import { useCampagne } from '@/lib/campagnes';
 import { usePersonnagesCampagne } from '@/lib/personnages';
 import { useSynchroCampagne } from '@/lib/realtime-sync';
 import { useProfilRequis } from '@/lib/session';
+import { useSystemTypography } from '@/lib/system-fonts';
+import { useSysteme } from '@/lib/systemes';
 import { FournisseurTable, type Table } from './contexte';
 import { HudCampaign, HudHero } from './hud';
 import { usePanelLocationSync } from './panels/navigation';
@@ -43,6 +45,9 @@ export function TableScene({ id, children }: { id: string; children: ReactNode }
   const herosId = c?.playedCharacterId ?? null;
   // Table, héros et membres tenus à jour en direct
   useSynchroCampagne(c ? id : null, { personnage: herosId });
+  // Polices et typographie du système de la campagne sur toute la table
+  const systeme = useSysteme(c?.system ?? null);
+  useSystemTypography(c?.system ?? null, systeme.data?.presentation ?? null);
 
   const refuse = campagne.error instanceof ApiError && [403, 404].includes(campagne.error.status);
   const sansHeros = Boolean(c && moi && moi.role === 'player' && !herosId);

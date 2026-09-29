@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Aclonica, Cinzel, Geist, Geist_Mono } from 'next/font/google';
 import { Fournisseurs } from '@/components/fournisseurs';
 import './globals.css';
+import { MAP_FONT_VARIABLES } from './map-fonts';
 
 /** Interface. */
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`dark ${geist.variable} ${geistMono.variable} ${cinzel.variable} ${aclonica.variable}`}
+      className={`dark ${geist.variable} ${geistMono.variable} ${cinzel.variable} ${aclonica.variable} ${MAP_FONT_VARIABLES}`}
     >
       <body suppressHydrationWarning>
         <Fournisseurs>{children}</Fournisseurs>
