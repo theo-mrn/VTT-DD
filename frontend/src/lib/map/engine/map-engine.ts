@@ -24,6 +24,7 @@
  * - `onFrame(cb)` : une animation (renvoyer vrai tant qu'elle continue) ;
  * - `plane(id)` : le conteneur Pixi d'un plan (vision, gm…), après le montage.
  */
+import { playGridOf, scenePixelsPerUnit, type MapGrid } from '@vtt/contracts';
 import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type * as Pixi from 'pixi.js';
@@ -714,10 +715,11 @@ export class MapEngine {
       viewer: this.viewer,
       scene: s.scene,
       settings,
-      pixelsPerUnit:
-        typeof settings?.pixelsPerUnit === 'number' && settings.pixelsPerUnit > 0
-          ? settings.pixelsPerUnit
-          : 50,
+      // Case de la scène : sa grille de jeu, sinon le réglage de la campagne (comme le serveur)
+      pixelsPerUnit: scenePixelsPerUnit(
+        s.scene as { grids?: MapGrid[] } | null,
+        settings as { pixelsPerUnit?: number } | null,
+      ),
       tokenScale:
         typeof settings?.tokenScale === 'number' && settings.tokenScale > 0
           ? settings.tokenScale
@@ -733,9 +735,14 @@ export class MapEngine {
 
   private onStore(state: MapStoreState, prev: MapStoreState) {
     if (this.destroyed) return;
-    const settingsChanged = state.settings !== prev.settings;
-    if (settingsChanged || state.scene !== prev.scene)
+    const before = this.kindCtx;
+    if (state.settings !== prev.settings || state.scene !== prev.scene)
       this.kindCtx = this.computeKindContext(state);
+    // Échelle changée (réglages, ou grille de jeu de la scène) : toutes les géométries changent
+    const settingsChanged =
+      state.settings !== prev.settings ||
+      this.kindCtx.pixelsPerUnit !== before.pixelsPerUnit ||
+      this.kindCtx.tokenScale !== before.tokenScale;
     if (state.scene !== prev.scene) this.applyScene(state.scene, prev.scene);
     if (state.collections[LAYERS_COLLECTION] !== prev.collections[LAYERS_COLLECTION])
       this.syncLayers(state);
@@ -1023,7 +1030,10 @@ export class MapEngine {
   /** Grille de la carte (une case de `pixelsPerUnit` pixels du monde). */
   grid(): GridSpec | null {
     const size = this.kindCtx.pixelsPerUnit;
-    return size > 0 ? { size } : null;
+    if (!(size > 0)) return null;
+    // L'origine de la grille de jeu : l'aimantation tombe sur ses lignes, comme on les voit
+    const play = playGridOf(this.kindCtx.scene as { grids?: MapGrid[] } | null);
+    return play ? { size, offsetX: play.offsetX, offsetY: play.offsetY } : { size };
   }
 
   /**

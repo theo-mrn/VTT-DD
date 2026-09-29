@@ -6,6 +6,7 @@
  * Données du magasin telles que le serveur les rend : les champs absents prennent la valeur
  * par défaut du contrat, sans jamais inventer de visibilité.
  */
+import { scenePixelsPerUnit, type MapGrid } from '@vtt/contracts';
 import type { Vec } from '@vtt/vision';
 import { displayOf } from '../../engine/planes';
 import { collectionOf, type MapDto, type MapStoreState } from '../../store/map-store';
@@ -117,11 +118,14 @@ export function hiddenLayers(state: MapStoreState): Set<string> {
   return out;
 }
 
-/** Échelle de la carte (`map_settings`). */
+/** Échelle de la carte : case de la scène (grille de jeu, sinon `map_settings`), comme le serveur. */
 export function scaleOf(state: MapStoreState) {
   const s = state.settings;
   return {
-    pixelsPerUnit: num(s?.pixelsPerUnit, 50) > 0 ? num(s?.pixelsPerUnit, 50) : 50,
+    pixelsPerUnit: scenePixelsPerUnit(
+      state.scene as { grids?: MapGrid[] } | null,
+      s as { pixelsPerUnit?: number } | null,
+    ),
     tokenScale: num(s?.tokenScale, 1) > 0 ? num(s?.tokenScale, 1) : 1,
   };
 }

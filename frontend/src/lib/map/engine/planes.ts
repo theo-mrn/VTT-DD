@@ -10,6 +10,8 @@
 export const MAP_PLANES = [
   /** Image ou vidéo de fond. */
   'background',
+  /** Quadrillages de la scène (module `grid`), en pixels du monde, sous tout le reste. */
+  'grid',
   /** Les calques du MJ, du plus bas au plus haut ; dans chacun, les entités par `z` croissant. */
   'content',
   /** Obscurité, brouillard, lueurs (§ 9), pour les joueurs et la « vue joueur » du MJ. */

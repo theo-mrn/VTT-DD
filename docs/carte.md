@@ -153,7 +153,24 @@ abonnements au store, et renvoie son nettoyage.
 - **Monde = pixels du fond.** Coordonnées du monde = pixels de l'image ou de la vidéo de fond,
   à sa taille naturelle (`maps.width/height`), comme le backend. Aucune coordonnée d'écran n'est
   stockée.
-- **Unité de jeu.** `map_settings.pixelsPerUnit` pixels du monde = une case (unité `unitName`).
+- **Unité de jeu.** Une case (unité `unitName`) mesure, en pixels du monde, la case de la grille
+  de jeu de la scène si elle en a une, sinon `map_settings.pixelsPerUnit` (réglage de la
+  campagne) : `scenePixelsPerUnit` (@vtt/contracts), même règle pour le client et le serveur.
+  Ci-dessous, `pixelsPerUnit` désigne cette case de la scène.
+- **Quadrillages** (`maps.grids`, quatre au plus par scène, menu « Quadrillage » du MJ).
+  - Chacun est défini en pixels du monde : case (`size`), origine (`offsetX`, `offsetY`, par
+    où passent une ligne verticale et une horizontale), couleur, opacité, épaisseur du trait
+    (pixels d'écran, la même à tous les zooms), montré ou non aux joueurs. Il tombe donc au même
+    endroit de l'image pour tous, quels que soient l'écran et le zoom.
+  - La **grille de jeu** (une au plus) donne la case de la scène : taille des jetons, rayons en
+    unités (lumières, fouille), aimantation, qui tombe sur ses lignes. Les autres sont décoratifs
+    (grandes zones, repères).
+  - « Ajuster sur l'image » : glisser sur 1 à 10 × 1 à 10 cases dessinées dans le fond ; la case
+    et l'origine s'y alignent (une commande annulable).
+  - Dessin (module `grid`, plan `grid` entre le fond et les calques) : seules les lignes dans la
+    vue et dans la carte, redessinées quand la caméra ou les quadrillages changent ; sous 6 px
+    à l'écran par case, le quadrillage s'efface. Le MJ voit à moitié ceux cachés aux joueurs.
+  - Mise à l'échelle du fond (`rescale`) : case × √(sx·sy), origine × (sx, sy).
 - **Taille des éléments.**
   - Un token mesure `pixelsPerUnit × token.scale × tokenScale` pixels du monde.
   - Les rayons (vision, lumière) sont stockés en pixels du monde (tokens) ou en unités

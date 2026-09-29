@@ -54,6 +54,7 @@
  * ```
  */
 import type { MapModule } from '../engine/map-engine';
+import { gridModule } from './grid';
 import { sceneModule } from './scene';
 import { drawingsModule } from './drawings';
 import { tokensModule } from './tokens';
@@ -66,6 +67,8 @@ import { visionModule } from './vision';
 export const MAP_MODULES: readonly MapModule[] = [
   // Moteur : point d'apparition de la scène
   sceneModule,
+  // Quadrillages de la scène et leur calibrage sur l'image
+  gridModule,
   // Lot 2 « Dessins » : main levée, formes, gomme, textes (P, T)
   drawingsModule,
   // Lot 2 « Personnages » : tokens, PNJ, bibliothèque du MJ
