@@ -15,6 +15,7 @@
 import * as PIXI from 'pixi.js';
 import { Application, Assets, Container, Graphics, Text, type Texture } from 'pixi.js';
 import { MapBackground } from './background';
+import { CursorLayer } from './cursors';
 import { destroyDisplay } from './destroy-display';
 import type { EntityChange, MapTheme, RenderContext } from './entities/entity-kind';
 import type { MapEntity } from './entities/entity';
@@ -117,13 +118,6 @@ interface Ping {
   color: number;
 }
 
-interface CursorSprite {
-  root: Container;
-  arrow: Graphics;
-  label: Text;
-  name: string;
-}
-
 class PixiView implements EngineView {
   readonly canvas: HTMLCanvasElement;
   readonly pixi = PIXI;
@@ -144,7 +138,7 @@ class PixiView implements EngineView {
   private readonly tooltipBack = new Graphics({ label: 'tooltip' });
   private readonly lassoGfx = new Graphics({ label: 'lasso' });
   private readonly pingGfx = new Graphics({ label: 'pings' });
-  private readonly cursors = new Map<string, CursorSprite>();
+  private readonly cursorLayer: CursorLayer;
   private pings: Ping[] = [];
   /** Surcouches communes à refaire (voir `drawAdornments`). */
   private adornDirty = true;
@@ -174,6 +168,7 @@ class PixiView implements EngineView {
       this.world.addChild(plane);
     }
     this.plane('adornments').addChild(this.adorn, this.tooltipBack);
+    this.cursorLayer = new CursorLayer(PIXI, this.plane('live'));
     this.tooltip = new Text({
       text: '',
       style: {
@@ -554,45 +549,11 @@ class PixiView implements EngineView {
     }
 
     const live = this.engine.live;
-    const positions = live ? live.cursorPositions(now) : [];
-    const seen = new Set<string>();
-    for (const c of positions) {
-      seen.add(c.userId);
-      let s = this.cursors.get(c.userId);
-      const name = this.engine.directory.userName(c.userId) ?? 'Joueur';
-      if (!s) {
-        const root = new Container({ label: `cursor:${c.userId}` });
-        const arrow = new Graphics()
-          .poly([0, 0, 0, 16, 4.5, 12, 8, 19, 10.5, 18, 7, 11, 12, 11], true)
-          .fill({ color: this.theme.primary })
-          .stroke({ width: 1.2, color: this.theme.background });
-        const label = new Text({
-          text: name,
-          style: {
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: 11,
-            fill: this.theme.foreground,
-          },
-          resolution: 2,
-        });
-        label.position.set(14, 14);
-        root.addChild(arrow, label);
-        this.plane('live').addChild(root);
-        s = { root, arrow, label, name };
-        this.cursors.set(c.userId, s);
-      }
-      if (s.name !== name) {
-        s.name = name;
-        s.label.text = name;
-      }
-      s.root.position.set(c.x, c.y);
-      s.root.scale.set(1 / zoom);
-    }
-    for (const [userId, s] of this.cursors) {
-      if (seen.has(userId)) continue;
-      destroyDisplay(s.root);
-      this.cursors.delete(userId);
-    }
+    this.cursorLayer.sync(
+      live ? live.cursorPositions(now) : [],
+      zoom,
+      (userId) => this.engine.directory.userName(userId) ?? 'Joueur',
+    );
   }
 
   /** Aperçu de l'outil actif : lasso de la sélection, ou dessin de l'outil. */
@@ -624,7 +585,7 @@ class PixiView implements EngineView {
     for (const url of this.textures.keys()) void Assets.unload(url).catch(() => undefined);
     this.textures.clear();
     this.layerContainers.clear();
-    this.cursors.clear();
+    this.cursorLayer.destroy();
     // Rendre le contexte WebGL tout de suite (HMR, changement de scène) : pas de fuite
     try {
       if (gl && !gl.isContextLost()) gl.getExtension('WEBGL_lose_context')?.loseContext();
