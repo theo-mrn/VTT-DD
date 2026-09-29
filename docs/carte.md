@@ -77,6 +77,7 @@ frontend/src/lib/map/
     map-engine.ts        MapEngine : modules, entités, rendu à la demande, commandes communes
     pixi-view.ts         rendu PixiJS (Application, plans, calques, surcouches), chargé au
                          montage seulement : le moteur tourne « à blanc » sans lui
+    destroy-display.ts   destruction d'un sous-arbre Pixi (dessins propres libérés, partagés gardés)
     background.ts        fond image ou vidéo, taille du monde
     camera.ts            Camera : monde ⇄ écran, zoom, pan, cadrage, bornes, animations
     planes.ts            plans de rendu techniques et leur ordre, réglage « Affichage » (§ 5)
@@ -126,6 +127,7 @@ frontend/src/components/map/
   use-table-map.ts       quelle scène afficher (joueur : celle de son personnage ; MJ : `?scene=`)
   map-canvas.tsx         monte le moteur (client seulement, `next/dynamic`) et ses surcouches
   engine-context.tsx     hooks React du moteur (sélecteurs à instantané stable)
+  character-choice.tsx   choix de personnages « Visible pour… » (objets, tokens), depuis l'annuaire
   toolbar.tsx            barre d'outils (outils fournis par les modules)
   context-menu.tsx       menu contextuel commun (Radix), ancré au point de l'écran
   inspector.tsx          panneau d'inspection de la sélection (sections fournies par les modules)
@@ -203,11 +205,17 @@ abonnements au store, et renvoie son nettoyage.
   | 9   | `tool`        | aperçu de l'outil actif                                                                                                                     |
 
 - **Portes pour les joueurs.** Les icônes de porte sont dessinées dans `adornments` pour qu'un
-  joueur puisse ouvrir une porte proche.
+  joueur puisse ouvrir une porte proche ; celles des portes hors de sa vue sont masquées (et ne
+  s'ouvrent pas), § 9.
 - **Affichage.** `map.display` (ex-`map.layers`, réglage MJ) masque des familles entières
   (lumières, obstacles, brouillard…), comme avant. Ce n'est pas la même chose que les calques.
 - **Aucune allocation par image** dans les boucles chaudes (réutiliser les `Graphics`, tableaux
   typés), et **aucun `Graphics` recréé** si l'entité n'a pas changé.
+- **Destruction** : tout sous-arbre Pixi part par `destroyDisplay` (`engine/destroy-display.ts`).
+  `destroy({ children: true })` seul ne libère pas la géométrie des `Graphics` enfants (Pixi 8) ;
+  `destroyDisplay` détruit chaque nœud sans options : un contexte propre est libéré, un contexte
+  partagé (icônes de porte, de lumière) et les textures (partagées par adresse, libérées à la
+  destruction du rendu) sont gardés.
 
 ### Calques du MJ (niveaux)
 
@@ -291,7 +299,10 @@ Chaque sorte d'entité déclare :
 - `click` (facultatif) : l'action d'un clic simple, pour tous, même hors de son outil (ouvrir ou
   fermer une porte, sur son icône) ; la sélection ne change pas ;
 - `selfOutline` : la sorte dessine elle-même son survol et sa sélection (trait d'un mur, contour
-  d'une zone) au lieu du rectangle commun.
+  d'une zone) au lieu du rectangle commun ;
+- `visionSamples` (facultatif) : des points du monde ; pour un joueur, le module vision ne montre
+  l'entité (et elle ne se touche) que si l'un d'eux est dans sa vue (porte : son milieu, et un
+  point de chaque côté).
 
 Un outil peut aussi dire ce qu'il touche (`Tool.targets`) : l'outil obstacles ne touche que murs
 et pièces, l'outil brouillard que les zones, l'outil lumières que les lumières.
@@ -352,24 +363,34 @@ Règles de ces gestes :
 - **Échap** revient toujours à un état sûr, sans écriture partielle.
 - **Barre d'outils** (MJ, et joueurs pour le dessin et les textes) :
 
-  | Touche | Outil       | Module      |
-  | ------ | ----------- | ----------- |
-  | V      | sélection   | moteur      |
-  | P      | dessin      | `drawings`  |
-  | T      | texte       | `drawings`  |
-  | W      | obstacles   | `obstacles` |
-  | G      | brouillard  | `fog`       |
-  | L      | lumières    | `lights`    |
-  | I      | objets      | `objects`   |
-  | A      | personnages | `tokens`    |
+  | Touche | Outil       | Module      | Qui                     |
+  | ------ | ----------- | ----------- | ----------------------- |
+  | V      | sélection   | moteur      | tous                    |
+  | P      | dessin      | `drawings`  | MJ et joueurs           |
+  | T      | texte       | `drawings`  | MJ et joueurs           |
+  | I      | objets      | `objects`   | MJ                      |
+  | A      | personnages | `tokens`    | MJ                      |
+  | W      | obstacles   | `obstacles` | MJ                      |
+  | G      | brouillard  | `fog`       | MJ                      |
+  | L      | lumières    | `lights`    | MJ                      |
+  | K      | calques     | moteur      | MJ (panneau, pas outil) |
+
+  Dans cet ordre dans la barre : sélection, outils de pose, puis outils de visibilité. Chaque
+  bouton a son info-bulle (nom et touche) ; un spectateur n'a que la sélection.
 
   La barre d'outils porte aussi « Vue » (MJ / vue d'un joueur, § 9), « Calques » (panneau des
   calques du MJ, K) et « Affichage » (familles affichées, `map.display`).
 
-- **Sous-modes par chiffres** quand l'outil actif en a : obstacles (W) 1 Mur, 2 Rectangle de
-  murs, 3 Porte, 4 Fenêtre, 5 Sens unique, 6 Pièce, 7 Édition ; brouillard (G) 1 Rectangle,
-  2 Cercle, 3 Main levée, 4 Sélection. La barre contextuelle les montre avec leur touche et un
-  rappel des gestes.
+- **Chiffres** (rangée du haut ou pavé numérique), pris par l'outil actif quand il en a l'usage :
+  dessin (P) 1 Main levée, 2 Ligne, 3 Rectangle, 4 Ellipse, 5 Gomme ; personnages (A), une carte
+  armée : nombre d'exemplaires, 1 à 9, 0 pour 10 ; obstacles (W) 1 Mur, 2 Rectangle de murs,
+  3 Porte, 4 Fenêtre, 5 Sens unique, 6 Pièce, 7 Édition ; brouillard (G) 1 Rectangle, 2 Cercle,
+  3 Main levée, 4 Sélection. La barre contextuelle les montre avec leur touche et un rappel des
+  gestes.
+- **Échap**, dans chaque outil : d'abord le geste en cours (rien n'est écrit ; seuls les segments
+  de mur déjà posés restent), puis ce que l'outil tient (objet ou PNJ armé, chaîne de murs),
+  puis le menu et l'inspecteur, puis retour à la sélection, enfin la sélection vidée. Un panneau
+  de la table ouvert se ferme avant.
 
 ## 7. Données, synchronisation, annuler
 
@@ -387,6 +408,9 @@ Règles de ces gestes :
     nécessaire.
   - Un joueur relit tokens et objets (filtrés par le serveur) après le déplacement d'un de ses
     tokens et après une porte ouverte ou fermée, car son champ de vision a changé.
+  - Voyage (`travel`) : le token d'arrivée n'a pas l'identifiant de celui de départ ; sur la
+    carte quittée, `token.moved` retire tous les tokens du personnage (un personnage n'est
+    présent que sur une carte), sans fantôme chez le MJ.
 - **`commands.ts`**.
   - Une commande est `{ label, apply(store), revert(store), send(api) }`.
   - `apply` est optimiste, puis la réponse REST remplace l'élément.
@@ -543,7 +567,10 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   MJ (plan `gm`) restent au-dessus.
 - **Masquage des entités** : PNJ et objets (hors `decor`) non vus : masque `vision` du moteur,
   avec un fondu de 150 ms quand une entité déjà affichée apparaît ou disparaît ; une entité qui
-  arrive non vue est masquée avant sa première image.
+  arrive non vue est masquée avant sa première image. Pour un joueur, les sortes à points
+  d'échantillon (`EntityKind.visionSamples`) aussi : une icône de porte n'est montrée, et ne
+  s'ouvre, que si le milieu de la porte, ou un point à 2 px de part et d'autre, est dans sa vue.
+  En « Vue de… », les portes restent aux surcouches du MJ, comme les murs.
 - **Audience du direct** (`setLiveAudienceResolver`) : token ou objet vu de tous les joueurs →
   public, de certains → `toUsers`, de personne → MJ seul, à sa position affichée, avec la vue de
   chaque joueur (gardée : un PNJ glissé ne refait aucune vue).
@@ -752,8 +779,9 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   « Visible pour… » ne s'affichent pas : Visibilité ▸ les remplace.
 - **Inspecteur** : « Personnage » (portrait, camp, ressource, « Ouvrir la fiche » :
   `FichePersonnage` dans un panneau de la colonne de gauche, droits habituels) et « Token »
-  (visibilité, rayon de vision, vision augmentée, taille, forme, image du token). Chaque
-  réglage est une commande annulable pour toute la sélection.
+  (visibilité, et pour « pour certains joueurs » le même choix de personnages que les objets,
+  `character-choice.tsx` ; rayon de vision, vision augmentée, taille, forme, image du token).
+  Chaque réglage est une commande annulable pour toute la sélection.
 - **Joueurs** : ils déplacent leurs personnages (`/tokens/move`), ouvrent leur fiche et
   activent leur vision augmentée ; direct du glisser par le moteur.
 - **Direct** : audience publique pour un personnage joueur et un PNJ `visible` ou `ally`,
@@ -795,7 +823,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   les autres ne se sélectionnent pas, son clic passe au travers (il déplace la vue). Un
   spectateur regarde.
 - **Inspecteur du MJ** : nom, sorte, image (remplacer, retirer), taille en unités, rotation,
-  verrou, masqué, « Visible pour… » (personnages joueurs), notes du MJ ; section « Fouille » :
+  verrou, masqué, « Visible pour… » (personnages joueurs, `character-choice.tsx`), notes du MJ ;
+  section « Fouille » :
   activer, portée (unités), contenu (ajouter depuis le marché du système, référencé par `ref`,
   ou un objet libre ; quantité ; retirer). Sélection multiple : verrou, masqué, fouille, sorte,
   taille.
@@ -810,7 +839,9 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     portée, sinon le plus proche ; un autre au choix) ; « Prendre » (une partie ou tout) passe
     par `…/take` et relit la fiche du personnage. Refus en clair : trop loin, déjà pris (le
     contenu est relu), service des personnages injoignable.
-  - Le MJ est prévenu par un toast (`map_object.searched`, `map_object.looted`).
+  - Le MJ est prévenu par un toast (`map_object.searched`, `map_object.looted`). « Fouiller »,
+    la fenêtre et ces avis sont une surcouche sans emplacement (`registerOverlay`,
+    `objects-host.tsx`).
 
 ### Obstacles (`obstacles`), outils de pose
 
@@ -840,7 +871,7 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
   - Ailleurs : porte libre en deux clics.
   - Icône de porte (tous, taille constante) : un clic ouvre ou ferme, hors de la pile
     d'annulation ; porte verrouillée : un joueur est refusé (toast). Clic droit (MJ) :
-    « Verrouiller la porte ».
+    « Verrouiller la porte ». Un joueur ne voit que les icônes des portes dans sa vue (§ 9).
 - **Fenêtre** (4), **mur à sens unique** (5) : mêmes gestes que le mur. La flèche, au milieu de
   chaque segment, montre le sens où l'on voit. Menu : « Inverser le sens ».
 - **Pièce** (6).
@@ -867,7 +898,7 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
 - **Rendu MJ** (plan `gm`) : murs épais (liseré sombre, trait clair ou à leur couleur, intensité
   selon `opacity`), fenêtres en tirets, portes (trait plein fermées, tirets ouvertes), sens
   unique (flèches), pièces (contour pointillé, nom au centre). Survol et sélection : halo sous
-  le trait. Portes : plan `adornments`, icône vue de tous.
+  le trait. Portes : plan `adornments`, icône vue du MJ, et des joueurs qui voient la porte.
 
 ### Brouillard (`fog`) et lumières (`lights`)
 
@@ -1009,6 +1040,16 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
     - Événements `map_layer.created | updated | deleted | hidden`.
     - Renommage du réglage d'affichage `map.layers` en `map.display` dans le contrat, puisque le
       nouveau front n'en dépend pas encore.
+13. **Intégration** (lot 3).
+    - Textes : `rotation` (degrés, autour de `pos`) sur `map_notes` (changeset
+      `0019-map-note-rotation.sql`), au contrat et dans le service.
+    - `map.live.stroke.fill` : le remplissage d'une forme en cours.
+    - `CreateMapNpcs.layerId` : les PNJ posés vont dans le calque choisi (422 `unknown_layer`
+      avant toute création).
+    - Non-fuite : détail de la campagne filtré pour les joueurs comme la liste des personnages
+      (`characters/visibility.ts`), `campaign.character_added` d'un PNJ en `gm_only`, et
+      `token.deleted` d'un personnage retiré adressé par la vision (`deleteToken`, partagé avec
+      la carte).
 
 ## 13. Découpage du chantier
 
