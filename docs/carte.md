@@ -75,8 +75,9 @@ aucune ombre qui clignote ni ne perce entre deux murs soudés.
 frontend/src/lib/map/
   engine/
     map-engine.ts        MapEngine : modules, entités, rendu à la demande, commandes communes
-    pixi-view.ts         rendu PixiJS (Application, plans, calques, fond image ou vidéo),
-                         chargé au montage seulement : le moteur tourne « à blanc » sans lui
+    pixi-view.ts         rendu PixiJS (Application, plans, calques, surcouches), chargé au
+                         montage seulement : le moteur tourne « à blanc » sans lui
+    background.ts        fond image ou vidéo, taille du monde
     camera.ts            Camera : monde ⇄ écran, zoom, pan, cadrage, bornes, animations
     planes.ts            plans de rendu techniques et leur ordre, réglage « Affichage » (§ 5)
     layers.ts            calques du MJ : pile ordonnée, ordre des entités (§ 5, Calques)

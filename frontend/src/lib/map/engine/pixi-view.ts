@@ -9,21 +9,12 @@
  * - Un conteneur par plan (`planes.ts`) ; le plan `content` contient un conteneur par calque du
  *   MJ, trié par `sortOrder`, et chaque calque trie ses entités par `z` (tri refait seulement
  *   quand un `z` change).
- * - Fond : image ou vidéo muette en boucle (`playsinline`), 30 i/s au plus, à sa taille
- *   naturelle (la taille du monde).
+ * - Fond : `background.ts` (image ou vidéo muette en boucle, 30 i/s au plus, taille du monde).
  * - Destruction complète : scène, textures chargées, contexte WebGL rendu au navigateur.
  */
 import * as PIXI from 'pixi.js';
-import {
-  Application,
-  Assets,
-  Container,
-  Graphics,
-  Sprite,
-  Text,
-  type Texture,
-  type VideoSource,
-} from 'pixi.js';
+import { Application, Assets, Container, Graphics, Text, type Texture } from 'pixi.js';
+import { MapBackground } from './background';
 import type { EntityChange, MapTheme, RenderContext } from './entities/entity-kind';
 import type { MapEntity } from './entities/entity';
 import { geometryCorners, toWorld, type Point } from './geometry';
@@ -35,8 +26,6 @@ import { SelectTool } from './tools/select-tool';
 import type { Tool } from './tools/tool';
 import type { MapDto } from '../store/map-store';
 
-/** Vidéo de fond : 30 images par seconde au plus. */
-const VIDEO_FPS = 30;
 const PING_MS = 1_400;
 /** Opacité des calques estompés quand un calque est isolé. */
 const ISOLATED_DIM = 0.2;
@@ -47,9 +36,6 @@ const isWindows = () => {
     /win/i.test(nav.userAgentData?.platform ?? nav.platform ?? '') || /Windows/i.test(nav.userAgent)
   );
 };
-
-const VIDEO_EXT = /\.(webm|mp4|m4v|mov)(\?|#|$)/i;
-export const isVideoUrl = (url: string) => VIDEO_EXT.test(url);
 
 // ─── Couleurs du thème (variables CSS « h s% l% ») ───────────────────────────
 
@@ -146,11 +132,7 @@ class PixiView implements EngineView {
   readonly theme: MapTheme;
   private destroyed = false;
 
-  // Fond
-  private background: Sprite | null = null;
-  private backgroundUrl: string | null = null;
-  private backgroundSeq = 0;
-  private stopVideo: (() => void) | null = null;
+  private readonly background: MapBackground;
 
   // Textures chargées par le moteur et les sortes (libérées à la destruction)
   private readonly textures = new Map<string, Promise<Texture>>();
@@ -200,6 +182,17 @@ class PixiView implements EngineView {
     this.plane('adornments').addChild(this.tooltip);
     this.plane('live').addChild(this.pingGfx);
     this.plane('tool').addChild(this.lassoGfx);
+    this.background = new MapBackground({
+      plane: this.plane('background'),
+      texture: (url) => this.texture(url),
+      onLoaded: (w, h) => engine.backgroundLoaded(w, h),
+      onError: (url, err) => {
+        console.warn('[carte] fond illisible', url, err);
+        engine.notify('Le fond de la carte n’a pas pu être chargé.');
+      },
+      invalidate: () => engine.invalidate(),
+      onFrame: (cb) => engine.onFrame(cb),
+    });
     this.applyCamera();
   }
 
@@ -356,101 +349,7 @@ class PixiView implements EngineView {
   // ─── Fond ──────────────────────────────────────────────────────────────────
 
   setBackground(url: string | null) {
-    if (this.destroyed || url === this.backgroundUrl) return;
-    this.backgroundUrl = url;
-    const seq = ++this.backgroundSeq;
-    this.clearBackground();
-    if (!url) return;
-    const video = isVideoUrl(url);
-    const load = video
-      ? Assets.load<Texture>({
-          src: url,
-          parser: 'video',
-          data: {
-            autoPlay: true,
-            loop: true,
-            muted: true,
-            playsinline: true,
-            preload: true,
-            crossorigin: true,
-          },
-        })
-      : this.texture(url);
-    load.then(
-      (texture) => {
-        if (this.destroyed || seq !== this.backgroundSeq) {
-          if (video) void Assets.unload(url).catch(() => undefined);
-          return;
-        }
-        const sprite = new Sprite(texture);
-        sprite.label = 'background';
-        this.background = sprite;
-        this.plane('background').addChild(sprite);
-        if (video) this.driveVideo(texture.source as VideoSource, url);
-        this.engine.backgroundLoaded(Math.round(texture.width), Math.round(texture.height));
-        this.engine.invalidate();
-      },
-      (err: unknown) => {
-        console.warn('[carte] fond illisible', url, err);
-        if (seq === this.backgroundSeq)
-          this.engine.notify('Le fond de la carte n’a pas pu être chargé.');
-      },
-    );
-  }
-
-  /**
-   * Vidéo de fond sans le ticker partagé de Pixi : une nouvelle image de la vidéo (au plus
-   * 30 par seconde) met la texture à jour et demande un rendu.
-   */
-  private driveVideo(source: VideoSource, url: string) {
-    source.autoUpdate = false;
-    const video = source.resource as HTMLVideoElement;
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    void video.play().catch(() => undefined);
-    let last = 0;
-    /** Nouvelle image si la précédente date d'au moins 1/30 s. */
-    const frame = (now: number) => {
-      if (now - last < 1000 / VIDEO_FPS - 2) return;
-      last = now;
-      source.update();
-      this.engine.invalidate();
-    };
-    let handle: number | null = null;
-    let stop: () => void;
-    if (typeof video.requestVideoFrameCallback === 'function') {
-      const onFrame = (now: number) => {
-        if (this.destroyed) return;
-        frame(now);
-        handle = video.requestVideoFrameCallback(onFrame);
-      };
-      handle = video.requestVideoFrameCallback(onFrame);
-      stop = () => {
-        if (handle !== null) video.cancelVideoFrameCallback(handle);
-      };
-    } else {
-      // Repli : la boucle du moteur tourne tant que la vidéo joue
-      stop = this.engine.onFrame((now) => {
-        if (!video.paused) frame(now);
-        return !video.paused;
-      });
-    }
-    this.stopVideo = () => {
-      stop();
-      video.pause();
-      void Assets.unload(url).catch(() => undefined);
-    };
-  }
-
-  private clearBackground() {
-    this.stopVideo?.();
-    this.stopVideo = null;
-    if (this.background) {
-      this.background.removeFromParent();
-      this.background.destroy();
-      this.background = null;
-    }
+    if (!this.destroyed) this.background.set(url);
   }
 
   // ─── Curseur, pings ────────────────────────────────────────────────────────
@@ -685,7 +584,7 @@ class PixiView implements EngineView {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.clearBackground();
+    this.background.destroy();
     this.pingFrame?.();
     const gl = (this.app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;
     // Textures du cache Assets : libérées par `unload`, pas par la destruction de la scène
