@@ -1198,9 +1198,11 @@ comme les autres, et le serveur décide qui passe et où.
   (liste ; arrivée de la scène ou point choisi sur l'aperçu) ; retour : « Relié à … »
   (sélectionner s'il est sur la carte, délier), sinon « Poser le retour ».
 - **Menus.**
-  - Portail (MJ) : « Faire passer tout le groupe », « Faire passer les tokens de la zone »,
-    « Aller à l'arrivée » (caméra, ou le retour sélectionné) ou « Ouvrir la scène d'arrivée »,
-    « Automatique », « Sélectionner le retour », « Poser le retour », « Délier le retour ».
+  - Portail (MJ) : « Faire passer tout le groupe », « Faire passer la zone (n) » (les tokens
+    dans sa zone), « Aller à l'arrivée » (caméra) ou « Aller au retour » (caméra, retour
+    sélectionné) ou « Ouvrir « <scène> » », « Poser le retour » ou « Délier le retour »,
+    « Automatique ». Aucune n'est l'action principale de la barre : faire passer le groupe par
+    mégarde doit rester impossible d'un clic.
   - Token ou sélection de tokens (MJ) : « Emprunter un portail ▸ » (portails de la carte).
   - Joueur : « Emprunter » (barre de la sélection, `forPlayers`) sur un portail où se trouve un
     de ses tokens, « Trop loin » grisé sinon ; sur son token dans un portail, au clic droit.
