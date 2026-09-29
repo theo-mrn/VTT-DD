@@ -23,7 +23,8 @@ import type { MenuItem } from '@/lib/map/engine/entities/entity-kind';
 import { cn } from '@/lib/utils';
 import { useMapEngine, useMapUi } from './engine-context';
 
-function Items({ items }: { items: readonly MenuItem[] }) {
+/** Entrées de menu (menu du clic droit, barre de la sélection). */
+export function MenuItems({ items }: { items: readonly MenuItem[] }) {
   return (
     <>
       {items.map((item) => {
@@ -37,7 +38,7 @@ function Items({ items }: { items: readonly MenuItem[] }) {
                 {item.label}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
-                <Items items={item.children} />
+                <MenuItems items={item.children} />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           );
@@ -108,7 +109,7 @@ export function MapContextMenu({ hostRef }: { hostRef: RefObject<HTMLElement | n
         }}
       >
         {items.length ? (
-          <Items items={items} />
+          <MenuItems items={items} />
         ) : (
           <DropdownMenuLabel>Aucune action ici</DropdownMenuLabel>
         )}

@@ -170,6 +170,8 @@ export interface MenuItem {
   shortcut?: string;
   /** Action destructrice (rouge). */
   danger?: boolean;
+  /** Action principale de la sorte : bouton libellé dans la barre de la sélection. */
+  primary?: boolean;
   disabled?: boolean;
   /** Case cochée (bascule). */
   checked?: boolean;

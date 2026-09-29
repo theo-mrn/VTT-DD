@@ -4,7 +4,7 @@
  * ne se glisse pas hors de l'outil murs (soudures) et le lasso ne le prend pas.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { SELECT_TOOL_ID } from '../../engine/tools/select-tool';
+import { SELECT_TOOL_ID } from '../../engine/tools/tool-manager';
 import { box, setup, spyPersistence } from '../../engine/test-kit';
 import type { BatchWrite } from '../../store/commands';
 import type { MapDto } from '../../store/map-store';

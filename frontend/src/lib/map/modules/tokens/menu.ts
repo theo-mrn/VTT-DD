@@ -39,6 +39,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
       id: 'token:sheet',
       label: 'Fiche',
       icon: IdCard,
+      primary: true,
       run: () => tokens.library.setState({ sheetFor: single.data.characterId }),
     });
 
