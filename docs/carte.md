@@ -724,6 +724,12 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 - **Scènes** (ex-CitiesManager) : liste, dossiers, créer, renommer, supprimer, fond, visible des
   joueurs, scène du groupe, `travel`, point d'apparition. Panneau MJ `components/map/scenes/`
   (touche E).
+  - **Point d'arrivée des joueurs** (`scene.spawn`, module `scene`) : pour le MJ, un élément
+    comme les autres (sorte `spawn`, couche synthétique tirée de la scène) : drapeau
+    « Arrivée des joueurs », glisser pour le déplacer, Suppr pour l'enlever, ⌘Z ; sous tout
+    le reste, un token posé dessus reste prioritaire au clic. Clic droit dans le vide :
+    « Arrivée des joueurs ici ». Invisible des joueurs. Un personnage qui arrive sur une
+    carte sans point d'arrivée ni position mémorisée arrive au centre de la carte.
   - Le MJ affiche la scène du groupe ; « Ouvrir pour moi » en affiche une autre (`?scene=` dans
     l'adresse), sans déplacer personne.
   - Un joueur suit la carte où se trouve son personnage (celui qu'il incarne d'abord), sinon

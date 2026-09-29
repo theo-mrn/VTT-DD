@@ -108,7 +108,7 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
   `null` ; `interactions` : marchand, jeu, butin (forme de l'ancienne app).
 - Un personnage est sur une seule carte à la fois ; en changeant de scène il garde sa dernière
   position sur les autres. Position à l'arrivée d'un `travel` : `pos`, sinon le `spawn` de la carte,
-  sinon sa dernière position connue sur cette carte, sinon l'origine. Un joueur ne déplace que ses
+  sinon sa dernière position connue sur cette carte, sinon le centre de la carte. Un joueur ne déplace que ses
   personnages, vers une carte qu'il voit.
 - Positions **pendant** un drag : canal éphémère du service realtime (`map.live`) ; seul l'état
   final passe ici.

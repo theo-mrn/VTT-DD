@@ -333,7 +333,7 @@ async function engaged(tx: Tx, campaignId: string, ids: string[]) {
  * Amène un personnage sur la carte : sa position mémorisée sur cette carte est
  * reprise (sinon un token est créé avec l'apparence de son token actuel), et
  * il quitte la carte où il était. Position : `pos`, sinon le point
- * d'apparition, sinon la dernière position connue ici, sinon l'origine.
+ * d'apparition, sinon la dernière position connue ici, sinon le centre de la carte.
  */
 async function travel(
   tx: Tx,
@@ -359,7 +359,12 @@ async function travel(
     .from(mapTokens)
     .where(and(eq(mapTokens.mapId, map.id), eq(mapTokens.characterId, characterId)))
     .for('update');
-  const to = pos ?? map.spawn ?? remembered?.pos ?? { x: 0, y: 0 };
+  // Sans point d'arrivée ni position mémorisée : le centre de la carte, jamais son coin
+  const to =
+    pos ??
+    map.spawn ??
+    remembered?.pos ??
+    (map.width && map.height ? { x: map.width / 2, y: map.height / 2 } : { x: 0, y: 0 });
   // Qui voyait le personnage là où il était
   const seenBefore = current
     ? await tokenAudience(tx, { id: current.mapId, campaignId: current.campaignId }, current.id)

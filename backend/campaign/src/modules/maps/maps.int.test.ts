@@ -551,6 +551,17 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     expect(await tokens(gm, road.id)).toEqual([]);
   });
 
+  it('voyage vers une carte sans point d’arrivée : au centre, jamais dans le coin', async () => {
+    const heroId = await h.engage(campaignId, alice);
+    const hall = await newMap({ name: 'Hall' });
+    const [arrived] = (
+      await h.ok<{ items: Token[] }>(gm, 'POST', url(`/maps/${hall.id}/travel`), {
+        characterIds: [heroId],
+      })
+    ).items;
+    expect(arrived!.pos).toEqual({ x: 500, y: 500 });
+  });
+
   it('voyage entre scènes, carte du groupe et suppression protégée', async () => {
     const { map: tavern, hero, heroId } = await scene();
     const road = await newMap({ name: 'Route', spawn: { x: 5, y: 6 } });
