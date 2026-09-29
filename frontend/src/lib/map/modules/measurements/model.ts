@@ -188,6 +188,15 @@ export function coneRecord(c: ConeOptions): Record<string, unknown> {
   };
 }
 
+/** Options d'un gabarit avec ces réglages de cône (une largeur ou une longueur vidée part). */
+export function withCone(
+  options: Readonly<Record<string, unknown>>,
+  c: ConeOptions,
+): Record<string, unknown> {
+  const { coneWidth: _w, fixedLength: _l, ...rest } = options;
+  return { ...rest, ...coneRecord(c) };
+}
+
 /** Longueur (pixels du monde) et direction (radians) de l'origine vers l'extrémité. */
 export function reach(spec: Pick<MeasureSpec, 'start' | 'end'>): { length: number; angle: number } {
   const dx = spec.end.x - spec.start.x;
