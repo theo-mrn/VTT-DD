@@ -136,7 +136,7 @@ describe('gestes communs', () => {
         'Verrouiller',
         'Pivoter',
         'Dupliquer',
-        'Ordre',
+        'Disposition',
         'Supprimer',
       ]),
     );

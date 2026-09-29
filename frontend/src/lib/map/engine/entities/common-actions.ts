@@ -1,8 +1,8 @@
 /**
  * Actions communes du menu contextuel (docs/carte.md § 6), générées à partir des capacités,
  * avec les mêmes libellés partout : Inspecter, Verrouiller / Déverrouiller, Masquer aux joueurs /
- * Montrer, Visible pour…, Pivoter, Dupliquer, Ordre ▸ (avancer, reculer, premier plan,
- * arrière-plan), Calque ▸ (liste, au-dessus, en dessous), Supprimer.
+ * Montrer, Visible pour…, Pivoter, Dupliquer, Disposition ▸ (devant ou derrière dans son calque,
+ * puis le calque lui-même), Supprimer.
  * Sélection multiple : seules les actions permises pour toutes les entités apparaissent.
  */
 import {
@@ -144,73 +144,69 @@ export function commonActions(engine: MapEngine, entities: readonly MapEntity[])
     });
 
   if (allCan(engine, entities, 'order') && entities.every((e) => e.kind.stacking)) {
+    // Un seul menu pour l'empilement : devant ou derrière dans son calque, puis le calque
+    // lui-même (l'étage : tout ce qui est dans un calque plus haut passe devant)
+    const layers = engine.layersTopDown();
+    const current = new Set(entities.map((e) => e.layerId));
+    const home = current.size === 1 ? layers.find((l) => current.has(l.id)) : undefined;
     items.push({
-      id: 'order',
-      label: 'Ordre',
+      id: 'arrange',
+      label: 'Disposition',
       icon: Layers2,
       children: [
         {
-          id: 'order:forward',
-          label: 'Avancer',
-          icon: ArrowUp,
-          shortcut: `${MOD}↑`,
-          run: () => void engine.arrange(entities, 'forward'),
+          id: 'label:arrange-order',
+          label: home
+            ? `Devant ou derrière, dans « ${home.name} »`
+            : 'Devant ou derrière, dans son calque',
         },
         {
-          id: 'order:backward',
-          label: 'Reculer',
-          icon: ArrowDown,
-          shortcut: `${MOD}↓`,
-          run: () => void engine.arrange(entities, 'backward'),
-        },
-        {
-          id: 'order:front',
-          label: 'Premier plan',
+          id: 'arrange:front',
+          label: 'Tout devant',
           icon: ArrowUpToLine,
           shortcut: `${MOD}⇧↑`,
           run: () => void engine.arrange(entities, 'front'),
         },
         {
-          id: 'order:back',
-          label: 'Arrière-plan',
+          id: 'arrange:forward',
+          label: 'Un cran devant',
+          icon: ArrowUp,
+          shortcut: `${MOD}↑`,
+          run: () => void engine.arrange(entities, 'forward'),
+        },
+        {
+          id: 'arrange:backward',
+          label: 'Un cran derrière',
+          icon: ArrowDown,
+          shortcut: `${MOD}↓`,
+          run: () => void engine.arrange(entities, 'backward'),
+        },
+        {
+          id: 'arrange:back',
+          label: 'Tout derrière',
           icon: ArrowDownToLine,
           shortcut: `${MOD}⇧↓`,
           run: () => void engine.arrange(entities, 'back'),
         },
+        ...(layers.length
+          ? [
+              { id: 'sep:arrange-layers', label: '' },
+              {
+                id: 'label:arrange-layers',
+                label: 'Calque (du plus haut au plus bas)',
+              },
+              ...layers.map((l) => ({
+                id: `arrange:layer:${l.id}`,
+                label: l.name,
+                icon: Layers,
+                checked: current.size === 1 && current.has(l.id),
+                disabled: l.locked,
+                run: () => void engine.moveToLayer(entities, l.id),
+              })),
+            ]
+          : []),
       ],
     });
-    const layers = engine.layersTopDown();
-    if (layers.length) {
-      const current = new Set(entities.map((e) => e.layerId));
-      items.push({
-        id: 'layer',
-        label: 'Calque',
-        icon: Layers,
-        children: [
-          ...layers.map((l) => ({
-            id: `layer:${l.id}`,
-            label: l.name,
-            checked: current.size === 1 && current.has(l.id),
-            disabled: l.locked,
-            run: () => void engine.moveToLayer(entities, l.id),
-          })),
-          {
-            id: 'layer:above',
-            label: 'Calque au-dessus',
-            icon: ArrowUp,
-            shortcut: `⌥${MOD}↑`,
-            run: () => void engine.moveToLayer(entities, 'above'),
-          },
-          {
-            id: 'layer:below',
-            label: 'Calque en dessous',
-            icon: ArrowDown,
-            shortcut: `⌥${MOD}↓`,
-            run: () => void engine.moveToLayer(entities, 'below'),
-          },
-        ],
-      });
-    }
   }
 
   if (allCan(engine, entities, 'delete'))

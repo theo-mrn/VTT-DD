@@ -163,6 +163,10 @@ export interface EntityChange<D> {
 // ─── Menu contextuel ─────────────────────────────────────────────────────────
 
 export interface MenuItem {
+  /**
+   * Identifiant ; deux préfixes réservés : `sep:` (séparateur) et `label:` (titre de section,
+   * non cliquable, dans un sous-menu).
+   */
   id: string;
   label: string;
   icon?: ComponentType<{ className?: string }>;

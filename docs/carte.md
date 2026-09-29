@@ -256,9 +256,9 @@ en dessous de n'importe quoi d'autre.
     (`z` pris entre ses voisins), jamais toute la pile.
 - **Gestes communs**, pour toutes les sortes, sélection multiple comprise (l'ordre relatif est
   gardé) :
-  - menu contextuel « Ordre ▸ » : Avancer, Reculer, Premier plan, Arrière-plan (dans le calque) ;
-  - menu contextuel « Calque ▸ » : la liste des calques (coche sur l'actuel), Calque au-dessus,
-    Calque en dessous ;
+  - un seul menu contextuel « Disposition ▸ » : d'abord « Devant ou derrière, dans « Objets » »
+    (Tout devant, Un cran devant, Un cran derrière, Tout derrière), puis « Calque (du plus haut
+    au plus bas) » avec la liste des calques, coche sur l'actuel ;
   - clavier : ⌘/Ctrl+↑ et ↓ avancent et reculent d'un cran, ⌘/Ctrl+⇧+↑ et ↓ mettent au premier
     plan et à l'arrière-plan, ⌥+⌘/Ctrl+↑ et ↓ changent de calque. Pas de [ et ], peu pratiques
     en AZERTY.
@@ -335,7 +335,7 @@ même ordre partout (`entities/common-actions.ts`) :
 - Visible pour… ;
 - Pivoter ;
 - Dupliquer ;
-- Ordre ▸ (avancer, reculer, premier plan, arrière-plan) et Calque ▸ (§ 5, Calques) ;
+- Disposition ▸ : devant ou derrière dans son calque, puis le calque (§ 5, Calques) ;
 - puis les actions propres à la sorte (une seule sorte sélectionnée) ;
 - Supprimer, toujours en dernier.
 

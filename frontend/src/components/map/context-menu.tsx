@@ -29,6 +29,15 @@ export function MenuItems({ items }: { items: readonly MenuItem[] }) {
     <>
       {items.map((item) => {
         if (item.id.startsWith('sep:')) return <DropdownMenuSeparator key={item.id} />;
+        if (item.id.startsWith('label:'))
+          return (
+            <DropdownMenuLabel
+              key={item.id}
+              className="px-2 pb-1 pt-1.5 text-[11px] font-medium text-muted-foreground"
+            >
+              {item.label}
+            </DropdownMenuLabel>
+          );
         const Icon = item.icon;
         if (item.children?.length)
           return (

@@ -205,7 +205,7 @@ describe('sorte « objet »', () => {
       'restrictTo',
       'rotate',
       'duplicate',
-      'order',
+      'arrange',
       'delete',
     ])
       expect(ids).toContain(id);

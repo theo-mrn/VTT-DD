@@ -52,8 +52,7 @@ describe('menu d’un token (MJ)', () => {
     expect(ids).toEqual([
       'inspect',
       'duplicate',
-      'order',
-      'layer',
+      'arrange',
       'token:sheet',
       'token:visibility',
       'token:vision',

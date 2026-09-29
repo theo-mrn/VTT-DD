@@ -37,7 +37,7 @@ describe('MapEngine', () => {
       'lock',
       'rotate',
       'duplicate',
-      'order',
+      'arrange',
       'box:open',
       'delete',
     ]);
@@ -54,7 +54,7 @@ describe('MapEngine', () => {
     expect(mixed).not.toContain('box:open');
     expect(mixed).not.toContain('crate:open');
     expect(mixed[mixed.length - 1]).toBe('delete');
-    expect(mixed).toEqual(['lock', 'rotate', 'duplicate', 'order', 'delete']);
+    expect(mixed).toEqual(['lock', 'rotate', 'duplicate', 'arrange', 'delete']);
   });
 
   it('contexte des sortes : échelle et nom de l’unité, défauts du serveur', () => {

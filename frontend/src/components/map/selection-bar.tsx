@@ -52,7 +52,7 @@ interface BarLayout {
  * clique sans cesse son token pour le déplacer, ses autres actions restent au clic droit.
  */
 export function barLayout(items: readonly MenuItem[], gm = true): BarLayout {
-  const leaves = items.filter((i) => !i.id.startsWith('sep:'));
+  const leaves = items.filter((i) => !i.id.startsWith('sep:') && !i.id.startsWith('label:'));
   if (!gm) return { primary: leaves.filter((i) => i.forPlayers), quick: [], remove: null, all: [] };
   const remove = leaves.find((i) => i.id === 'delete') ?? null;
   const primary = leaves.filter((i) => i.primary && i !== remove);
