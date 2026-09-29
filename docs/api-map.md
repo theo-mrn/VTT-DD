@@ -140,6 +140,10 @@ possédé par le MJ, engagé dans la campagne, avec son token.
 - Événements : `campaign.character_added` (`gm_only` : le nom d'un PNJ caché ne fuit pas),
   `token.created` (visibilité du token), `campaign.character_removed`, `token.deleted` ; côté
   character, `character.created` / `character.deleted` dans la campagne, `gm_only`.
+- Liste des personnages de la campagne (`GET /v1/campaigns/:id/characters`,
+  [api-campaign.md](api-campaign.md)) : un joueur n'y voit que les PNJ dont un token lui est
+  visible (même filtre que les tokens). Retirer un personnage de la campagne supprime ses
+  tokens de toutes les cartes, avec un `token.deleted` chacun.
 
 ## Calques du MJ
 

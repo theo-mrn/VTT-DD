@@ -59,7 +59,9 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
       summary,
     });
     const npc = await h.engage(id, gm, { name: 'Gobelin', type: 'pnj' });
-    expect(await list(alice, id)).toEqual([
+    // Un joueur ne voit pas le PNJ, posé sur aucune carte (la liste ne le nomme pas)
+    expect((await list(alice, id)).map((c) => c.characterId)).toEqual([hero]);
+    expect(await list(gm, id)).toEqual([
       {
         characterId: hero,
         name: 'Aria',
@@ -88,7 +90,7 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
     ]);
     // Personnage disparu de character : l'engagement reste, sans résumé
     t.character.characters.delete(npc);
-    expect((await list(alice, id))[1]).toMatchObject({
+    expect((await list(gm, id))[1]).toMatchObject({
       characterId: npc,
       name: null,
       type: null,
@@ -126,12 +128,11 @@ describe.skipIf(!TEST_DATABASE_URL)('personnage incarné', () => {
     expect((res.json() as CampaignCharacter[]).find((c) => c.characterId === a1)!.playedBy).toBe(
       alice.id,
     );
-    // Changer de personnage libère l'ancien
+    // Changer de personnage libère l'ancien (le PNJ, posé nulle part, n'est pas listé)
     const after = (await play(alice, id, a2)).json() as CampaignCharacter[];
     expect(after.map((c) => [c.characterId, c.playedBy])).toEqual([
       [a1, null],
       [a2, alice.id],
-      [npc, null],
     ]);
     expect((await play(gm, id, npc)).statusCode).toBe(200);
     expect(await h.ok(alice, 'GET', `/v1/campaigns/${id}`)).toMatchObject({

@@ -148,6 +148,10 @@ Règles de l'engagement :
 
 Dans `GET /characters`, `name`, `avatarUrl`, `type`, `kind` (`pc` personnage joueur, `npc` PNJ) et `summary` (résumé des listes : `{ tagline, highlights }`, voir [api-character.md](api-character.md)) viennent de character : ils valent `null` si character est injoignable ou si le personnage n'existe plus. `inCreation` vaut `true` tant que la fiche est en cours de création. Le paramètre `kind` ne garde que les personnages dont character confirme la nature : un personnage dont character ne donne pas le résumé en est exclu (il reste dans la liste sans filtre). Le choix du personnage (`/campagnes/:id/personnage`) lit `?kind=pc`.
 
+Un joueur ou un spectateur ne voit dans cette liste (et dans la réponse de `PUT /me/character`) que les personnages du camp des joueurs, les siens (possédés ou incarnés) et les PNJ dont un token lui est visible sur une carte qu'il voit, selon le filtre de la carte ([api-map.md](api-map.md)) : le nom d'un PNJ caché ne fuit pas. Le MJ voit tout. Un PNJ qui apparaît au joueur sur la carte y entre à la relecture suivante de la liste.
+
+Retirer un personnage retire aussi ses tokens de toutes les cartes, avec un `token.deleted { id, mapId, characterId }` par token, public si le token était visible des joueurs, réservé aux MJ sinon (comme `DELETE …/tokens/:tokenId`).
+
 Personnage incarné (ancien `users/{uid}.persoId`) :
 
 - un membre incarne au plus un personnage par campagne : en choisir un autre libère l'ancien ;

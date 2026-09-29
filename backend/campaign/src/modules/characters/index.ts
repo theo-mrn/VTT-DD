@@ -6,7 +6,10 @@
  *   GET    /v1/campaigns/:id/characters?kind=          personnages engagés, avec leur résumé
  *                                                       de character (membres) ; `kind` (pc, npc)
  *                                                       ne garde que les personnages joueurs ou
- *                                                       les PNJ
+ *                                                       les PNJ. Un joueur ou un spectateur n'y
+ *                                                       voit que le camp des joueurs, ses
+ *                                                       personnages et les PNJ dont un token lui
+ *                                                       est visible (filtre de la carte)
  *   POST   /v1/campaigns/:id/characters                { characterId, side? }
  *   DELETE /v1/campaigns/:id/characters/:characterId
  *   PUT    /v1/campaigns/:id/me/character              { characterId | null } : incarner
@@ -29,15 +32,17 @@
  *
  * Retirer un personnage : le MJ, ou son propriétaire tant qu'aucun autre membre
  * ne l'incarne (409 `character_played` sinon : on ne retire pas la fiche que
- * quelqu'un joue ; le MJ le peut).
+ * quelqu'un joue ; le MJ le peut). Ses tokens quittent toutes les cartes, chacun
+ * avec son `token.deleted`.
  */
 import { HttpError } from '@vtt/platform';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { CharacterError, type CharacterKind } from '../../clients/character.js';
-import { campaignCharacters } from '../../db/schema.js';
+import type { EventContext, Tx } from '../../db/outbox.js';
+import { campaignCharacters, maps, mapTokens } from '../../db/schema.js';
 import type { Deps, Module } from '../../deps.js';
 import {
   access,
@@ -47,6 +52,8 @@ import {
   type Access,
 } from '../campaigns/repository.js';
 import { removeFromCombat } from '../combat/repository.js';
+import { canSeeMap, mapEvent, viewerOf, type Viewer } from '../maps/common.js';
+import { isPublicToken, visibleTokenIds } from '../maps/tokens.js';
 import {
   CampaignId,
   CampaignResponse,
@@ -78,10 +85,103 @@ const CampaignCharacter = z.object({
     .nullable(),
 });
 
+type Engagement = typeof campaignCharacters.$inferSelect;
+
 /**
- * Personnages engagés, complétés par leur résumé dans character (appels parallèles).
- * `kind` ne garde que les personnages dont character confirme la nature : un
- * personnage dont le résumé manque (character injoignable) en est alors exclu.
+ * PNJ (hors camp des joueurs, hors personnages de l'appelant) dont un token est visible de
+ * ce joueur, sur une carte qu'il voit. Le filtre est celui de la carte (`canSeeMap`,
+ * `visibleTokenIds`) : la liste ne nomme jamais un PNJ que la carte lui cache.
+ */
+async function npcsSeenBy(
+  deps: Deps,
+  a: Access,
+  userId: string,
+  candidates: readonly Engagement[],
+): Promise<Set<string>> {
+  const seen = new Set<string>();
+  if (!candidates.length) return seen;
+  const tokens = await deps.db
+    .select({ id: mapTokens.id, mapId: mapTokens.mapId, characterId: mapTokens.characterId })
+    .from(mapTokens)
+    .where(
+      and(
+        eq(mapTokens.campaignId, a.campaign.id),
+        eq(mapTokens.present, true),
+        inArray(
+          mapTokens.characterId,
+          candidates.map((c) => c.characterId),
+        ),
+      ),
+    );
+  if (!tokens.length) return seen;
+  const v = await viewerOf(deps.db, a.campaign.id, userId);
+  const mapIds = [...new Set(tokens.map((t) => t.mapId))];
+  const rows = await deps.db.select().from(maps).where(inArray(maps.id, mapIds));
+  for (const map of rows) {
+    if (!(await canSeeMap(deps.db, v, map))) continue;
+    const visible = await visibleTokenIds(deps.db, v, map.id);
+    for (const t of tokens)
+      if (t.mapId === map.id && (!visible || visible.has(t.id))) seen.add(t.characterId);
+  }
+  return seen;
+}
+
+/**
+ * Engagements que l'appelant peut voir : tous pour le MJ ; pour un joueur ou un
+ * spectateur, le camp des joueurs, ses propres personnages (possédés ou incarnés) et les
+ * PNJ dont un token lui est visible. Le nom d'un PNJ caché ne fuit pas.
+ */
+async function visibleEngagements(
+  deps: Deps,
+  a: Access,
+  userId: string,
+  engagements: Engagement[],
+): Promise<Engagement[]> {
+  if (a.role === 'gm') return engagements;
+  const known = (e: Engagement) =>
+    e.side === 'players' || e.ownerId === userId || e.playedBy === userId;
+  const seen = await npcsSeenBy(
+    deps,
+    a,
+    userId,
+    engagements.filter((e) => !known(e)),
+  );
+  return engagements.filter((e) => known(e) || seen.has(e.characterId));
+}
+
+/**
+ * Retire de toutes les cartes les tokens d'un personnage qui quitte la campagne, avec un
+ * `token.deleted` par token (public s'il était visible des joueurs, comme à la carte) : sans
+ * lui, les cartes ouvertes garderaient un token fantôme jusqu'à leur prochaine relecture.
+ */
+async function removeTokensOf(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  campaignId: string,
+  characterId: string,
+) {
+  const tokens = await tx
+    .select()
+    .from(mapTokens)
+    .where(and(eq(mapTokens.campaignId, campaignId), eq(mapTokens.characterId, characterId)))
+    .for('update');
+  for (const t of tokens) {
+    const wasPublic = t.present ? await isPublicToken(tx, t) : false;
+    await tx.delete(mapTokens).where(eq(mapTokens.id, t.id));
+    await mapEvent(tx, ctx, v, {
+      type: 'token.deleted',
+      aggregate: { type: 'token', id: t.id },
+      payload: { id: t.id, mapId: t.mapId, characterId: t.characterId },
+      visibility: wasPublic ? 'public' : 'gm_only',
+    });
+  }
+}
+
+/**
+ * Personnages engagés visibles de l'appelant, complétés par leur résumé dans character
+ * (appels parallèles). `kind` ne garde que les personnages dont character confirme la
+ * nature : un personnage dont le résumé manque (character injoignable) en est alors exclu.
  */
 async function campaignCharactersOf(
   deps: Deps,
@@ -89,11 +189,12 @@ async function campaignCharactersOf(
   req: FastifyRequest,
   kind?: CharacterKind,
 ) {
-  const engagements = await deps.db
+  const all = await deps.db
     .select()
     .from(campaignCharacters)
     .where(eq(campaignCharacters.campaignId, a.campaign.id))
     .orderBy(asc(campaignCharacters.addedAt), asc(campaignCharacters.characterId));
+  const engagements = await visibleEngagements(deps, a, currentUser(req), all);
   const origin = {
     userId: currentUser(req),
     campaignId: a.campaign.id,
@@ -254,6 +355,8 @@ export const register: Module = async (app, deps) => {
           );
         const actor = { userId, role: a.role };
         await removeFromCombat(tx, eventContext(req), a.campaign.id, [characterId], actor);
+        const v = await viewerOf(tx, a.campaign.id, userId);
+        await removeTokensOf(tx, eventContext(req), v, a.campaign.id, characterId);
         await tx.delete(campaignCharacters).where(inCampaign);
         await campaignEvent(tx, eventContext(req), {
           type: 'campaign.character_removed',
