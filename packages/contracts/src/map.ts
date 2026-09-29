@@ -107,9 +107,12 @@ export const MapWeather = z.strictObject({
 });
 export type MapWeather = z.infer<typeof MapWeather>;
 
-/** Calques affichés (réglage MJ) : lights, obstacles, notes, drawings, objects, characters, fog, music. */
-export const MapLayersSetting = z.record(z.string().regex(/^[a-z_]{1,30}$/), z.boolean());
-export type MapLayersSetting = z.infer<typeof MapLayersSetting>;
+/**
+ * Familles affichées (réglage MJ, ex-`layers`) : lights, obstacles, notes, drawings, objects,
+ * characters, fog, music. À ne pas confondre avec les calques du MJ (`MapLayer`).
+ */
+export const MapDisplaySetting = z.record(z.string().regex(/^[a-z_]{1,30}$/), z.boolean());
+export type MapDisplaySetting = z.infer<typeof MapDisplaySetting>;
 
 export const MapScene = z.object({
   id: Id,
@@ -126,7 +129,7 @@ export const MapScene = z.object({
   width: z.number().int().nullable(),
   height: z.number().int().nullable(),
   weather: MapWeather.nullable(),
-  layers: MapLayersSetting,
+  display: MapDisplaySetting,
   /** Toute la carte est sous le brouillard au départ ; les zones s'appliquent ensuite. */
   fogFull: z.boolean(),
   version: z.number().int(),
@@ -145,7 +148,7 @@ export const MapSceneFields = z.strictObject({
   width: z.number().int().min(1).max(100_000).nullable(),
   height: z.number().int().min(1).max(100_000).nullable(),
   weather: MapWeather.nullable(),
-  layers: MapLayersSetting,
+  display: MapDisplaySetting,
   fogFull: z.boolean(),
 });
 
@@ -188,6 +191,89 @@ export const CreateMapGroup = MapGroupFields.partial().required({ name: true });
 export type CreateMapGroup = z.input<typeof CreateMapGroup>;
 export const UpdateMapGroup = MapGroupFields.partial().extend({ version: ExpectedVersion });
 export type UpdateMapGroup = z.input<typeof UpdateMapGroup>;
+
+// ─── Calques du MJ (niveaux) ─────────────────────────────────────────────────
+
+/**
+ * Calque du MJ : pile ordonnée par carte (`sortOrder` croissant : du bas vers le haut).
+ * Tokens et objets appartiennent à un calque (`layerId`) et y ont un ordre `z` ; dessins
+ * et textes aussi, ou aucun (`layerId` nul : annotation au-dessus de l'ombre). Une carte
+ * naît avec « Sol », « Objets » et « Personnages ». Le contenu d'un calque masqué aux
+ * joueurs ne leur est jamais envoyé (sauf leurs propres tokens).
+ */
+export const MapLayer = z.object({
+  ...element,
+  name: z.string(),
+  sortOrder: z.number(),
+  visibleToPlayers: z.boolean(),
+  /** Ses éléments ne se sélectionnent plus (on clique à travers). */
+  locked: z.boolean(),
+  /** 0 à 1. */
+  opacity: z.number(),
+  /**
+   * Calque par défaut d'une sorte : `ground` (Sol), `objects` (objet posé sans calque),
+   * `tokens` (token posé sans calque) ; null sinon. Sans calque de ce rôle, le plus haut.
+   */
+  role: z.enum(['ground', 'objects', 'tokens']).nullable(),
+});
+export type MapLayer = z.infer<typeof MapLayer>;
+
+export const MapLayerFields = z.strictObject({
+  name: z.string().trim().min(1, 'Nom requis').max(100),
+  sortOrder: z.number().finite(),
+  visibleToPlayers: z.boolean(),
+  locked: z.boolean(),
+  opacity: z.number().min(0).max(1),
+});
+/** Sans `sortOrder` : en haut de la pile. */
+export const CreateMapLayer = MapLayerFields.partial().required({ name: true });
+export type CreateMapLayer = z.input<typeof CreateMapLayer>;
+export const UpdateMapLayer = MapLayerFields.partial().extend({ version: ExpectedVersion });
+export type UpdateMapLayer = z.input<typeof UpdateMapLayer>;
+
+/**
+ * `DELETE …/layers/:itemId?moveTo=` : le contenu descend dans le calque du dessous (celui
+ * du dessus pour le plus bas), ou va dans `moveTo`. Le dernier calque ne se supprime pas.
+ */
+export const DeleteMapLayerQuery = z.object({
+  moveTo: InputId('Identifiant de calque invalide').optional(),
+});
+export type DeleteMapLayerQuery = z.infer<typeof DeleteMapLayerQuery>;
+
+/** Sortes d'éléments rangés dans les calques. */
+export const MapArrangeKind = z.enum(['token', 'object', 'drawing', 'note']);
+export type MapArrangeKind = z.infer<typeof MapArrangeKind>;
+
+/** Ordre dans un calque : nombre réel (un réordonnancement prend un `z` entre deux voisins). */
+const LayerZ = z.number().finite().min(-1e12).max(1e12);
+
+/**
+ * `POST /maps/:mapId/arrange` : calque et ordre d'une sélection, en une transaction (MJ ;
+ * un joueur : ses dessins et textes, vers un calque ni verrouillé ni masqué, ou aucun).
+ */
+export const ArrangeMapItems = z.strictObject({
+  items: z
+    .array(
+      z.strictObject({
+        kind: MapArrangeKind,
+        id: InputId(),
+        /** Nul : annotation (dessins et textes seulement). */
+        layerId: InputId('Identifiant de calque invalide').nullable(),
+        z: LayerZ,
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+export type ArrangeMapItems = z.input<typeof ArrangeMapItems>;
+
+/** Réponse de `…/arrange` : les éléments modifiés, par sorte. */
+export interface MapArrangeResult {
+  tokens: MapToken[];
+  objects: MapObject[];
+  drawings: MapDrawing[];
+  notes: MapNote[];
+}
 
 // ─── Réglages de carte (campagne) ────────────────────────────────────────────
 
@@ -242,6 +328,9 @@ export type MapTokenAudio = z.infer<typeof MapTokenAudio>;
 export const MapToken = z.object({
   ...element,
   characterId: Id,
+  /** Calque du MJ et ordre dans ce calque. */
+  layerId: Id,
+  z: z.number(),
   pos: MapPoint,
   scale: z.number(),
   shape: MapTokenShape,
@@ -259,6 +348,9 @@ export const MapToken = z.object({
 export type MapToken = z.infer<typeof MapToken>;
 
 export const MapTokenFields = z.strictObject({
+  /** Absent à la création : calque par défaut des tokens, en haut de la pile. */
+  layerId: InputId('Identifiant de calque invalide'),
+  z: LayerZ,
   pos: MapPoint,
   scale: z.number().positive().max(100),
   shape: MapTokenShape,
@@ -410,10 +502,11 @@ export const MapObject = z.object({
   pos: MapPoint,
   width: z.number(),
   height: z.number(),
-  /** Degrés. */
+  /** Degrés, autour du centre. */
   rotation: z.number(),
-  /** Décor d'arrière-plan : jamais filtré, couvert par l'obscurité. */
-  isBackground: z.boolean(),
+  /** Calque du MJ et ordre dans ce calque (remplacent `isBackground`). */
+  layerId: Id,
+  z: z.number(),
   isLocked: z.boolean(),
   visibility: MapObjectVisibility,
   visibleTo: z.array(Id),
@@ -423,10 +516,8 @@ export const MapObject = z.object({
   groupEntityId: z.string().nullable(),
   /** « Fouiller » ouvert aux joueurs dont un personnage est à `searchRadius` unités au plus. */
   searchable: z.boolean(),
-  /** En unités de jeu (× `pixelsPerUnit`), depuis le centre de l'objet. */
+  /** En unités de jeu (× `pixelsPerUnit`), du centre du token au rectangle de l'objet. */
   searchRadius: z.number(),
-  /** Ordre d'affichage (croissant : du dessous vers le dessus). */
-  zIndex: z.number().int(),
 });
 export type MapObject = z.infer<typeof MapObject>;
 
@@ -438,7 +529,9 @@ export const MapObjectFields = z.strictObject({
   width: z.number().positive().max(100_000),
   height: z.number().positive().max(100_000),
   rotation: z.number().finite(),
-  isBackground: z.boolean(),
+  /** Absent à la création : calque par défaut des objets, en haut de la pile. */
+  layerId: InputId('Identifiant de calque invalide'),
+  z: LayerZ,
   isLocked: z.boolean(),
   visibility: MapObjectVisibility,
   visibleTo: z.array(InputId('Identifiant de personnage invalide')).max(100),
@@ -448,7 +541,6 @@ export const MapObjectFields = z.strictObject({
   groupEntityId: z.string().max(200).nullable(),
   searchable: z.boolean(),
   searchRadius: z.number().min(0).max(10_000),
-  zIndex: z.number().int().min(-1_000_000).max(1_000_000),
 });
 export const CreateMapObject = MapObjectFields.partial().required({ pos: true });
 export type CreateMapObject = z.input<typeof CreateMapObject>;
@@ -636,6 +728,9 @@ export type UpdateMapFogZone = z.input<typeof UpdateMapFogZone>;
 
 export const MapDrawing = z.object({
   ...element,
+  /** Calque du MJ ; nul : annotation, au-dessus de l'ombre. */
+  layerId: Id.nullable(),
+  z: z.number(),
   tool: MapDrawingTool,
   points: z.array(MapPoint),
   color: z.string(),
@@ -648,6 +743,8 @@ export const MapDrawing = z.object({
 export type MapDrawing = z.infer<typeof MapDrawing>;
 
 export const MapDrawingFields = z.strictObject({
+  layerId: InputId('Identifiant de calque invalide').nullable(),
+  z: LayerZ,
   tool: MapDrawingTool,
   points: mapPoints(1, 20_000),
   color: MapColor,
@@ -663,6 +760,9 @@ export type UpdateMapDrawing = z.input<typeof UpdateMapDrawing>;
 
 export const MapNote = z.object({
   ...element,
+  /** Calque du MJ ; nul : annotation, au-dessus de l'ombre. */
+  layerId: Id.nullable(),
+  z: z.number(),
   text: z.string(),
   pos: MapPoint,
   color: z.string(),
@@ -673,6 +773,8 @@ export const MapNote = z.object({
 export type MapNote = z.infer<typeof MapNote>;
 
 export const MapNoteFields = z.strictObject({
+  layerId: InputId('Identifiant de calque invalide').nullable(),
+  z: LayerZ,
   text: z.string().max(5000),
   pos: MapPoint,
   color: MapColor,
@@ -787,6 +889,13 @@ export type UpdateMapMeasurement = z.input<typeof UpdateMapMeasurement>;
  * schémas. Les tokens ont leurs propres routes.
  */
 export const MAP_LAYERS = {
+  layers: {
+    key: 'layers',
+    domain: 'map_layer',
+    item: MapLayer,
+    create: CreateMapLayer,
+    update: UpdateMapLayer,
+  },
   objects: {
     key: 'objects',
     domain: 'map_object',
@@ -888,6 +997,8 @@ export interface MapLayerBatchResult<T> {
 /** `GET /v1/campaigns/:id/maps/:mapId?bbox=` : tout, filtré pour l'appelant. */
 export const MapSnapshot = z.object({
   map: MapScene,
+  /** Calques du MJ, du bas vers le haut (joueur : ceux qui lui sont visibles). */
+  layers: z.array(MapLayer),
   tokens: z.array(MapToken),
   objects: z.array(MapObject),
   lights: z.array(MapLight),
@@ -1018,6 +1129,10 @@ export const MapEventPayloads = {
   'map_group.updated': MapGroup,
   'map_group.deleted': MapRefPayload,
   'map_settings.updated': MapSettings,
+  'map_layer.created': MapLayer,
+  'map_layer.updated': MapLayer,
+  'map_layer.deleted': MapElementRef,
+  'map_layer.hidden': MapElementRef,
   'token.created': MapToken,
   'token.updated': MapToken,
   'token.moved': TokenMovedPayload,
