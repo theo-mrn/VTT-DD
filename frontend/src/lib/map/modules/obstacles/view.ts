@@ -140,10 +140,21 @@ export class ObstacleView {
   unmount(e: MapEntity) {
     this.entities.delete(e.id);
     this.redraw.untrack(e);
+    // Les dessins propres sont libérés ici (le conteneur seul ne libère pas leur géométrie) ;
+    // les icônes de porte partagent leurs dessins : seul l'objet part
     const o = e.renderState.obstacle as ObstacleVisual | undefined;
-    o?.unregister?.();
+    if (o) {
+      o.unregister?.();
+      o.line.destroy({ context: true });
+      o.icon?.destroy({ children: true });
+    }
     const r = e.renderState.room as RoomVisual | undefined;
-    r?.unregister();
+    if (r) {
+      r.unregister();
+      r.shape.destroy({ context: true });
+      r.pill.destroy({ context: true });
+      r.label.destroy({ children: true });
+    }
     e.renderState = {};
   }
 
