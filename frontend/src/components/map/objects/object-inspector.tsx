@@ -36,6 +36,7 @@ import {
 } from '@/lib/map/modules/objects/placement';
 import type { ObjectData } from '@/lib/map/modules/objects/types';
 import { cn } from '@/lib/utils';
+import { CharacterChoice } from '../character-choice';
 import { useMapState } from '../engine-context';
 import {
   CommitInput,
@@ -349,7 +350,6 @@ function ImageField({ engine, entity }: { engine: MapEngine; entity: MapEntity }
 /** « Visible pour… » : tous les joueurs, ou certains personnages seulement. */
 function VisibleFor({ engine, entity }: { engine: MapEngine; entity: MapEntity }) {
   const o = entity.data as ObjectData;
-  const characters = engine.directory.characters();
   const restricted = o.visibility === 'custom';
   const chosen = new Set(restricted ? (o.visibleTo ?? []) : []);
   const toggle = (id: string) => {
@@ -358,42 +358,18 @@ function VisibleFor({ engine, entity }: { engine: MapEngine; entity: MapEntity }
     else next.add(id);
     void engine.setRestrictedTo([entity], [...next]);
   };
-  const chip = (pressed: boolean) =>
-    cn(
-      'h-7 rounded-full border px-2.5 text-xs transition-colors',
-      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-      pressed
-        ? 'border-primary/50 bg-primary/15 text-primary-strong'
-        : 'border-border-strong text-muted-foreground hover:text-foreground',
-    );
   return (
     <div className="space-y-1.5">
       <FieldLabel>Visible pour…</FieldLabel>
-      {characters.length ? (
-        <div role="group" aria-label="Visible pour" className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            aria-pressed={o.visibility === 'visible'}
-            className={chip(o.visibility === 'visible')}
-            onClick={() => void engine.setRestrictedTo([entity], null)}
-          >
-            Tous les joueurs
-          </button>
-          {characters.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              aria-pressed={chosen.has(c.id)}
-              className={chip(chosen.has(c.id))}
-              onClick={() => toggle(c.id)}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">Aucun personnage joueur dans la campagne.</p>
-      )}
+      <CharacterChoice
+        label="Visible pour"
+        isChosen={(id) => chosen.has(id)}
+        onToggle={toggle}
+        all={{
+          checked: o.visibility === 'visible',
+          onSelect: () => void engine.setRestrictedTo([entity], null),
+        }}
+      />
       {o.visibility === 'hidden' && (
         <p className="text-xs text-muted-foreground">
           Masqué : aucun joueur ne le voit. Choisir des personnages le leur montre.

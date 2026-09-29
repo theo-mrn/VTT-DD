@@ -42,6 +42,7 @@ import {
 } from '@/lib/map/modules/tokens/model';
 import type { TokensState } from '@/lib/map/modules/tokens/state';
 import { cn } from '@/lib/utils';
+import { CharacterChoice } from '../character-choice';
 import { useCharacterInfo, useTokens } from './use-tokens';
 
 type TokenEntity = MapEntity<TokenData>;
@@ -195,10 +196,8 @@ interface FieldProps {
 }
 
 function VisibilityField({ tokens, entities: es }: FieldProps) {
-  const { engine } = tokens;
   const id = useId();
   const value = common(es, (d) => d.visibility);
-  const characters = engine.directory.characters();
   return (
     <Field label="Visibilité" htmlFor={id}>
       <SelectField
@@ -219,25 +218,13 @@ function VisibilityField({ tokens, entities: es }: FieldProps) {
       />
       {value && <p className="text-xs text-muted-foreground">{VISIBILITY_LABELS[value].hint}</p>}
       {value === 'custom' && (
-        <ul aria-label="Personnages qui voient le token" className="space-y-1 pt-1">
-          {characters.length ? (
-            characters.map((c) => {
-              const on = es.every((e) => e.data.visibleTo.includes(c.id));
-              return (
-                <li key={c.id} className="flex items-center justify-between gap-3">
-                  <span className="truncate text-[13px]">{c.name}</span>
-                  <Switch
-                    checked={on}
-                    aria-label={`Visible pour ${c.name}`}
-                    onCheckedChange={() => void toggleVisibleTo(tokens, es, c.id)}
-                  />
-                </li>
-              );
-            })
-          ) : (
-            <li className="text-xs text-muted-foreground">Aucun personnage joueur.</li>
-          )}
-        </ul>
+        <div className="pt-1">
+          <CharacterChoice
+            label="Personnages qui voient le token"
+            isChosen={(cid) => es.every((e) => e.data.visibleTo.includes(cid))}
+            onToggle={(cid) => void toggleVisibleTo(tokens, es, cid)}
+          />
+        </div>
       )}
     </Field>
   );

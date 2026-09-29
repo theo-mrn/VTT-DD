@@ -13,7 +13,7 @@ import {
 import { createMapStore, type MapDto } from '../store/map-store';
 import { field, gmOnly, type EntityKind, type MapViewer } from './entities/entity-kind';
 import type { Point } from './geometry';
-import { MapEngine, type EngineBackend } from './map-engine';
+import { MapEngine, type EngineBackend, type MapDirectory } from './map-engine';
 import type { MapKey, MapPointer } from './tools/tool';
 
 export interface Box extends MapDto {
@@ -105,6 +105,7 @@ export function setup(
     layers?: MapDto[];
     viewer?: MapViewer;
     kind?: Partial<EntityKind<Box>>;
+    directory?: MapDirectory;
   } = {},
 ) {
   const store = createMapStore('campagne', 'carte');
@@ -125,6 +126,7 @@ export function setup(
     backend,
     rememberCamera: false,
     notify,
+    directory: opts.directory,
   });
   engine.registerKind(boxKind(persistence, opts.kind));
   engine.resize(1000, 1000);
