@@ -34,12 +34,13 @@ La gateway laisse passer sans jeton la seule poignée de main WebSocket vers `/v
 
 ## Rooms
 
-| Room               | Qui                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| `user:<id>`        | toutes les connexions d'un utilisateur, dès le handshake                             |
-| `campaign:<id>`    | les abonnés de la campagne (appartenance vérifiée auprès de campaign)                |
-| `campaign:<id>:gm` | les abonnés MJ de la campagne                                                        |
-| `replay:<id>`      | interne : connexions en cours de rejeu (exclues du direct, événements mis en tampon) |
+| Room                          | Qui                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| `user:<id>`                   | toutes les connexions d'un utilisateur, dès le handshake                             |
+| `campaign:<id>`               | les abonnés de la campagne (appartenance vérifiée auprès de campaign)                |
+| `campaign:<id>:gm`            | les abonnés MJ de la campagne                                                        |
+| `campaign:<id>:user:<userId>` | les connexions d'un utilisateur abonnées à la campagne (éphémère adressé, `toUsers`) |
+| `replay:<id>`                 | interne : connexions en cours de rejeu (exclues du direct, événements mis en tampon) |
 
 ## Messages du client
 
@@ -68,11 +69,13 @@ Les accusés (`ack`) sont facultatifs.
 
 ### `ephemeral` — canal éphémère
 
-`{ campaignId, kind, data, gmOnly? }`, sans accusé :
+`{ campaignId, kind, data, gmOnly?, toUsers? }`, sans accusé :
 
-- relayé aux **autres** abonnés de la campagne (`gmOnly` : aux MJ seulement, ex. glissement d'un jeton caché), jamais stocké ;
+- relayé aux **autres** abonnés de la campagne, jamais stocké ;
+- `gmOnly` : aux MJ seulement (ex. glissement d'un jeton caché) ;
+- `toUsers` (identifiants d'utilisateurs, 50 au plus) : à ces utilisateurs s'ils suivent la campagne, et aux MJ ; jamais aux autres (ex. PNJ `custom`, ou visible derrière un mur pour certains joueurs seulement : la liste est calculée par le client du MJ, [carte.md](carte.md) § 8). Un utilisateur nommé qui ne suit pas la campagne ne reçoit rien. Ignoré avec `gmOnly` ; plus de 50 : message ignoré ;
 - `kind` : `[a-z][a-z0-9_.:-]{0,39}` (`cursor`, `drag`, `ping`, `chat.typing` pour « X écrit… »…) ; `data` : 4 Kio au plus en JSON (`EPHEMERAL_MAX_BYTES`) ;
-- débit par connexion : 20 messages par seconde, rafale de 40 (`EPHEMERAL_RATE_PER_SECOND`, `EPHEMERAL_BURST`) ; au-delà, messages ignorés et `rate_limited` (au plus un par seconde) ;
+- débit par connexion : 30 messages par seconde, rafale de 60 (`EPHEMERAL_RATE_PER_SECOND`, `EPHEMERAL_BURST`), pour un glisser de la carte et un curseur ensemble ; au-delà, messages ignorés et `rate_limited` (au plus un par seconde) ;
 - volatile : perdu plutôt que mis en file si la connexion du destinataire est occupée. Dernier état gagne : un message porte `at` (horloge du serveur).
 
 ## Messages du serveur
@@ -131,7 +134,7 @@ Exemple : l'historique des dés (`use-roll-history.ts`) relit le jet en REST sur
 | `RIGHTS_CACHE_SECONDS` (30)                                                            | durée du cache des droits                                                         |
 | `REPLAY_MAX_EVENTS` (1000)                                                             | au-delà, `resync` au lieu du rejeu                                                |
 | `MAX_SUBSCRIPTIONS` (20)                                                               | campagnes par connexion                                                           |
-| `EPHEMERAL_RATE_PER_SECOND` (20), `EPHEMERAL_BURST` (40), `EPHEMERAL_MAX_BYTES` (4096) | limites du canal éphémère                                                         |
+| `EPHEMERAL_RATE_PER_SECOND` (30), `EPHEMERAL_BURST` (60), `EPHEMERAL_MAX_BYTES` (4096) | limites du canal éphémère                                                         |
 
 Secrets déployés (SOPS, `realtime-secrets`) : `INTERNAL_API_SECRET` seulement, même valeur que campaign. Pas de base de données ni de migrations. NetworkPolicy : entrées depuis la gateway seulement ; sorties vers NATS et Valkey (namespace `messaging`) et campaign (déjà permises par le chart).
 

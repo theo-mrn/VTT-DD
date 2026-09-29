@@ -30,8 +30,8 @@ env:
   # Au-delà, un client qui se reconnecte recharge son état en REST au lieu du rejeu
   REPLAY_MAX_EVENTS: '1000'
   # Canal éphémère : messages par seconde et par connexion, rafale, taille maximale (octets)
-  EPHEMERAL_RATE_PER_SECOND: '20'
-  EPHEMERAL_BURST: '40'
+  EPHEMERAL_RATE_PER_SECOND: '30'
+  EPHEMERAL_BURST: '60'
   EPHEMERAL_MAX_BYTES: '4096'
 # Mots de passe du compte NATS PROD et de valkey-prod (secret messaging-credentials),
 # substitués dans NATS_URL et REDIS_URL : voir « Déploiement » dans docs/bus.md

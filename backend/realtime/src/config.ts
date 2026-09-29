@@ -38,8 +38,9 @@ export const RealtimeConfig = BaseConfig.extend({
   MAX_SUBSCRIPTIONS: z.coerce.number().int().positive().default(20),
 
   /** Canal éphémère : messages par seconde et par connexion, rafale tolérée, taille maximale. */
-  EPHEMERAL_RATE_PER_SECOND: z.coerce.number().positive().default(20),
-  EPHEMERAL_BURST: z.coerce.number().int().positive().default(40),
+  // Un glisser de la carte et un curseur ensemble (docs/carte.md § 8)
+  EPHEMERAL_RATE_PER_SECOND: z.coerce.number().positive().default(30),
+  EPHEMERAL_BURST: z.coerce.number().int().positive().default(60),
   EPHEMERAL_MAX_BYTES: z.coerce.number().int().positive().default(4096),
 });
 export type RealtimeConfig = z.infer<typeof RealtimeConfig>;

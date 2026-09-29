@@ -8,6 +8,8 @@
  *  - `user:<id>`          toutes les connexions d'un utilisateur (rejointe au handshake) ;
  *  - `campaign:<id>`      les abonnés d'une campagne (membres vérifiés auprès de campaign) ;
  *  - `campaign:<id>:gm`   les abonnés MJ de la campagne ;
+ *  - `campaign:<id>:user:<userId>`  les connexions d'un utilisateur abonnées à la campagne
+ *                         (canal éphémère adressé à des joueurs nommés, `toUsers`) ;
  *  - `replay:<id>`        les connexions en cours de rejeu de la campagne : exclues
  *                         de la diffusion directe, leurs événements passent par un tampon.
  *
@@ -31,6 +33,7 @@ export const rooms = {
   user: (userId: string) => `user:${userId}`,
   campaign: (campaignId: string) => `campaign:${campaignId}`,
   gm: (campaignId: string) => `campaign:${campaignId}:gm`,
+  member: (campaignId: string, userId: string) => `campaign:${campaignId}:user:${userId}`,
   replaying: (campaignId: string) => `replay:${campaignId}`,
 };
 

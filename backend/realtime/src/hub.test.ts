@@ -249,6 +249,45 @@ describe('canal éphémère et présence', () => {
     expect(p2.all('ephemeral')).toEqual([]);
   });
 
+  it('toUsers : les joueurs nommés abonnés et les MJ, jamais les autres', async () => {
+    const [gm, p1, p2, voisin] = await Promise.all([
+      t.connect(),
+      t.connect(),
+      t.connect(),
+      t.connect(),
+    ]);
+    const onglet = await t.connect(p1.userId);
+    const c = t.campaign.campaign({
+      [gm.userId]: 'gm',
+      [p1.userId]: 'player',
+      [p2.userId]: 'player',
+    });
+    // voisin suit une autre campagne : même nommé, il ne reçoit rien de celle-ci
+    const ailleurs = t.campaign.campaign({ [voisin.userId]: 'player' });
+    for (const s of [gm, p1, onglet, p2]) await s.request('subscribe', { campaignId: c });
+    await voisin.request('subscribe', { campaignId: ailleurs });
+    gm.emit('ephemeral', {
+      campaignId: c,
+      kind: 'map.live',
+      data: { m: 'carte', s: 1 },
+      toUsers: [p1.userId.toUpperCase(), voisin.userId],
+    });
+    expect(await p1.waitFor('ephemeral')).toMatchObject({ kind: 'map.live', data: { s: 1 } });
+    await onglet.waitFor('ephemeral');
+    // Un joueur qui nomme des destinataires : les MJ reçoivent aussi
+    p1.emit('ephemeral', { campaignId: c, kind: 'map.ping', data: { x: 1 }, toUsers: [p2.userId] });
+    await p2.waitFor('ephemeral');
+    await gm.waitFor('ephemeral');
+    await settle();
+    expect(voisin.all('ephemeral')).toEqual([]);
+    expect(p2.all('ephemeral')).toHaveLength(1);
+    // Plus de 50 destinataires : refusé
+    const trop = Array.from({ length: 51 }, () => crypto.randomUUID());
+    gm.emit('ephemeral', { campaignId: c, kind: 'map.live', data: {}, toUsers: trop });
+    await settle();
+    expect(p1.all('ephemeral')).toHaveLength(1);
+  });
+
   it('limite le débit par connexion et ignore les messages trop gros', async () => {
     const [a, b] = await Promise.all([t.connect(), t.connect()]);
     const c = t.campaign.campaign({ [a.userId]: 'player', [b.userId]: 'player' });

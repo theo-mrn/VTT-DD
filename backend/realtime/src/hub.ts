@@ -185,6 +185,7 @@ export function createHub(o: HubOptions): Hub {
     for (const room of [
       rooms.campaign(campaignId),
       rooms.gm(campaignId),
+      rooms.member(campaignId, socket.data.userId),
       rooms.replaying(campaignId),
     ])
       void socket.leave(room);
@@ -220,7 +221,7 @@ export function createHub(o: HubOptions): Hub {
     if (bufferOf(socket, campaignId)) return { ok: false, error: 'busy' };
 
     data.campaigns[campaignId] = role;
-    const joined = [rooms.campaign(campaignId)];
+    const joined = [rooms.campaign(campaignId), rooms.member(campaignId, data.userId)];
     if (role === 'gm') joined.push(rooms.gm(campaignId));
     else void socket.leave(rooms.gm(campaignId));
     schedulePresence(campaignId);
@@ -434,19 +435,23 @@ export function createHub(o: HubOptions): Hub {
       }
       const parsed = EphemeralInput.safeParse(input);
       if (!parsed.success) return;
-      const { campaignId, kind, data, gmOnly } = parsed.data;
+      const { campaignId, kind, data, gmOnly, toUsers } = parsed.data;
       const role = socket.data.campaigns[campaignId];
       if (!role) return;
       if (Buffer.byteLength(JSON.stringify(data ?? null)) > limits.ephemeralMaxBytes) return;
-      socket
-        .to(gmOnly ? rooms.gm(campaignId) : rooms.campaign(campaignId))
-        .volatile.emit('ephemeral', {
-          campaignId,
-          kind,
-          data: data ?? null,
-          from: { userId: socket.data.userId, role },
-          at: Date.now(),
-        });
+      // MJ seulement ; sinon les destinataires nommés abonnés à la campagne et les MJ ; sinon tous
+      const audience = gmOnly
+        ? [rooms.gm(campaignId)]
+        : toUsers
+          ? [rooms.gm(campaignId), ...toUsers.map((u) => rooms.member(campaignId, u))]
+          : [rooms.campaign(campaignId)];
+      socket.to(audience).volatile.emit('ephemeral', {
+        campaignId,
+        kind,
+        data: data ?? null,
+        from: { userId: socket.data.userId, role },
+        at: Date.now(),
+      });
     });
 
     socket.on('disconnect', () => {

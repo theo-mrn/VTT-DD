@@ -25,6 +25,14 @@ export const EphemeralInput = z.object({
   data: z.unknown().optional(),
   /** Réservé aux MJ de la campagne (ex. déplacement d'un jeton caché). */
   gmOnly: z.boolean().optional(),
+  /**
+   * Destinataires nommés (50 au plus) : ces utilisateurs, s'ils suivent la campagne, et les
+   * MJ ; jamais les autres (ex. PNJ vu de certains joueurs seulement). Ignoré avec `gmOnly`.
+   */
+  toUsers: z
+    .array(z.uuid().transform((s) => s.toLowerCase()))
+    .max(50)
+    .optional(),
 });
 
 export type SubscribeError =
