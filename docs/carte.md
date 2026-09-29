@@ -369,6 +369,10 @@ Règles de ces gestes :
   (glisser, poser un jeton, un objet, une lumière, tracer un mur ou une zone). Les extrémités et
   segments des murs existants s'aimantent toujours, pour les souder. Les flèches du clavier
   avancent toujours d'une case.
+- **Barre de la sélection** (MJ) : au clic, les actions de l'élément apparaissent au-dessus de
+  lui (mêmes entrées que le clic droit). Un joueur n'en a pas au clic, il clique sans cesse son
+  token pour le déplacer : seules les actions marquées pour lui (`forPlayers`, « Fouiller »)
+  s'y montrent, le reste est au clic droit.
 - **Verrouillé** : un élément verrouillé se sélectionne et s'inspecte, mais ne bouge pas.
 - **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais

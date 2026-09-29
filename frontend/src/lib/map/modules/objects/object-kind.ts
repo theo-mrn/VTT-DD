@@ -117,6 +117,7 @@ function playerActions(
       label: inRange ? 'Fouiller' : 'Fouiller (trop loin)',
       icon: PackageSearch,
       primary: true,
+      forPlayers: true,
       disabled: !inRange,
       run: () => opts.openSearch?.(e.id),
     },

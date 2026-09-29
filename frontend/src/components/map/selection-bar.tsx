@@ -46,9 +46,14 @@ interface BarLayout {
   all: MenuItem[];
 }
 
-/** Répartit les entrées du menu dans la barre (l'ordre du menu est gardé). */
-export function barLayout(items: readonly MenuItem[]): BarLayout {
+/**
+ * Répartit les entrées du menu dans la barre (l'ordre du menu est gardé). Un joueur n'a que les
+ * actions marquées pour lui (`forPlayers` : « Fouiller »), sans « … » ni « Supprimer » : il
+ * clique sans cesse son token pour le déplacer, ses autres actions restent au clic droit.
+ */
+export function barLayout(items: readonly MenuItem[], gm = true): BarLayout {
   const leaves = items.filter((i) => !i.id.startsWith('sep:'));
+  if (!gm) return { primary: leaves.filter((i) => i.forPlayers), quick: [], remove: null, all: [] };
   const remove = leaves.find((i) => i.id === 'delete') ?? null;
   const primary = leaves.filter((i) => i.primary && i !== remove);
   const quick = leaves
@@ -76,7 +81,7 @@ export function SelectionBar({ hostRef }: { hostRef: RefObject<HTMLElement | nul
       entities.map((e) => e.id),
       { x: center.x + center.width / 2, y: center.y + center.height / 2 },
     );
-    const l = barLayout(items);
+    const l = barLayout(items, engine.viewer.role === 'gm');
     return l.primary.length || l.quick.length || l.remove || l.all.length ? l : null;
     // `layers` et `activeLayer` : recalcul quand les calques changent
   }, [engine, entities, layers, activeLayer]);
@@ -198,26 +203,28 @@ export function SelectionBar({ hostRef }: { hostRef: RefObject<HTMLElement | nul
         ),
       )}
 
-      <DropdownMenu>
-        <Info texte="Toutes les actions">
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Toutes les actions">
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-        </Info>
-        <DropdownMenuContent
-          side="top"
-          align="end"
-          className="max-h-96 w-60 overflow-y-auto"
-          onCloseAutoFocus={(e) => {
-            e.preventDefault();
-            focusMap(engine);
-          }}
-        >
-          <MenuItems items={layout.all} />
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {layout.all.length > 0 && (
+        <DropdownMenu>
+          <Info texte="Toutes les actions">
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Toutes les actions">
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+          </Info>
+          <DropdownMenuContent
+            side="top"
+            align="end"
+            className="max-h-96 w-60 overflow-y-auto"
+            onCloseAutoFocus={(e) => {
+              e.preventDefault();
+              focusMap(engine);
+            }}
+          >
+            <MenuItems items={layout.all} />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {layout.remove && (
         <>

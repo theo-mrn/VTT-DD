@@ -38,4 +38,17 @@ describe('barre de la sélection', () => {
     expect(l.quick).toHaveLength(6);
     expect(l.all).toHaveLength(9);
   });
+
+  it('joueur : pas de barre au clic, sauf les actions marquées pour lui (« Fouiller »)', () => {
+    const items = [item('lock'), item('token:sheet', { primary: true }), item('delete')];
+    const none = barLayout(items, false);
+    expect([...none.primary, ...none.quick, ...none.all]).toEqual([]);
+    expect(none.remove).toBeNull();
+    const search = barLayout(
+      [...items, item('object:search', { primary: true, forPlayers: true })],
+      false,
+    );
+    expect(search.primary.map((i) => i.id)).toEqual(['object:search']);
+    expect(search.all).toEqual([]);
+  });
 });
