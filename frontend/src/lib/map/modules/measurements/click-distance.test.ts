@@ -166,7 +166,8 @@ describe('distance au clic : effacement', () => {
     const mid = b.cd.resolve(at + CLICK_HOLD_MS + CLICK_FADE_MS / 2)!;
     expect(mid.fading).toBe(true);
     expect(mid.alpha).toBeCloseTo(0.5);
-    expect(b.cd.resolve(at + CLICK_HOLD_MS + CLICK_FADE_MS)).toBeNull();
+    // Juste après l'échéance (l'heure de départ est fractionnaire : pas d'égalité exacte)
+    expect(b.cd.resolve(at + CLICK_HOLD_MS + CLICK_FADE_MS + 1)).toBeNull();
     expect(b.cd.active).toBeNull();
 
     b.click(P(600, 100));
