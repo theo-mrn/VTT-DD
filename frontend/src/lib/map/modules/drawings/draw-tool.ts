@@ -119,6 +119,8 @@ export class DrawTool implements Tool {
     this.place = placement(engine, s.target);
     this.strokeId = tempId();
     this.broadcasting = false;
+    // La fin du tracé précédent part avant le nouveau (sinon le canal la confondrait)
+    engine.live?.flush();
     if (s.shape === 'pen') {
       this.state = 'drawing';
       this.flat.length = 0;
@@ -279,7 +281,11 @@ export class DrawTool implements Tool {
   }
 
   private finishErase() {
-    const items = [...this.erased.values()].map((e) => e.data as DrawingData);
+    const engine = this.engine;
+    // Seulement ce qui existe encore (un autre a pu l'effacer pendant le geste)
+    const items = [...this.erased.values()]
+      .filter((e) => engine.entity(e.id) === e)
+      .map((e) => e.data as DrawingData);
     this.restoreErased();
     void eraseDrawings(this.rt, items);
   }
