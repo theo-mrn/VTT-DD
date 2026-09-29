@@ -717,15 +717,17 @@ export class MapEngine {
     if (state.collections[LAYERS_COLLECTION] !== prev.collections[LAYERS_COLLECTION])
       this.syncLayers(state);
 
-    if (settingsChanged) {
+    // Toutes les couches connues du moteur ou du magasin : au premier chargement, les réglages
+    // arrivent avec les couches, et le moteur ne connaît encore aucune entité
+    const keys = new Set([
+      ...this.byCollection.keys(),
+      ...Object.keys(state.collections),
+      ...Object.keys(prev.collections),
+    ]);
+    for (const key of keys) {
       // Échelle ou taille des cases : toutes les géométries changent
-      for (const key of this.byCollection.keys()) this.syncCollection(key, true);
-    } else {
-      for (const key of new Set([
-        ...Object.keys(state.collections),
-        ...Object.keys(prev.collections),
-      ]))
-        if (state.collections[key] !== prev.collections[key]) this.syncCollection(key);
+      if (settingsChanged) this.syncCollection(key, true);
+      else if (state.collections[key] !== prev.collections[key]) this.syncCollection(key);
     }
     if (state.pending !== prev.pending) this.syncPending(state.pending, prev.pending);
   }
