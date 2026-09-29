@@ -107,9 +107,25 @@ export async function visibleTokenIds(
   return new Set(vision ? vision.visibleTokens().map((t) => t.id) : []);
 }
 
-/** Le token est-il vu de tous les membres non MJ (événement `public`) ? */
-export async function isPublicToken(tx: Db | Tx, t: TokenRow) {
-  return (await tokenAudience(tx, { id: t.mapId, campaignId: t.campaignId }, t.id)).public;
+/**
+ * Supprime un token et publie `token.deleted` aux joueurs qui le voyaient (public s'ils le
+ * voyaient tous, audience de la vision) ; un observateur ou une torche qui disparaît fait
+ * relire ses joueurs. Seule écriture de `token.deleted` (carte, PNJ supprimé, personnage
+ * retiré de la campagne).
+ */
+export async function deleteToken(tx: Tx, ctx: EventContext, v: Viewer, t: TokenRow) {
+  const map = { id: t.mapId, campaignId: t.campaignId };
+  const seen = t.present ? await tokenAudience(tx, map, t.id) : null;
+  const observers = t.present ? await observersUsers(tx, map, t) : null;
+  await tx.delete(mapTokens).where(eq(mapTokens.id, t.id));
+  await mapEvent(tx, ctx, v, {
+    type: 'token.deleted',
+    aggregate: { type: 'token', id: t.id },
+    payload: { id: t.id, mapId: t.mapId, characterId: t.characterId },
+    ...(seen ? eventTarget(seen) : { visibility: 'gm_only' as const }),
+  });
+  if (observers)
+    await notifyVisibilityChanged(tx, ctx, v, map, observers === 'all' ? undefined : observers);
 }
 
 /** Champs du token dont dépend la vue de ses joueurs (observateur). */

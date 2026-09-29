@@ -24,6 +24,7 @@ import {
   type Side,
 } from '../../db/schema.js';
 import type { Deps } from '../../deps.js';
+import { visibleEngagements } from '../characters/visibility.js';
 import { combatApi, type CombatApi } from '../combat/api.js';
 import { currentUser } from '../schemas.js';
 
@@ -366,6 +367,9 @@ export async function campaignDetail(
       : Promise.resolve([]),
   ]);
   const c = campaign ?? a.campaign;
+  // Joueur ou spectateur : les engagements qu'il peut connaître (même règle que la liste des
+  // personnages), jamais l'identifiant ni le camp d'un PNJ caché
+  const known = await visibleEngagements(db, a, userId, characters);
   const profiles = await deps.profiles.profiles(
     [...new Set([c.ownerId, ...members.map((m) => m.userId), ...invitees.map((i) => i.userId)])],
     req.headers.authorization,
@@ -381,7 +385,7 @@ export async function campaignDetail(
       avatarUrl: profiles.get(m.userId)?.avatarUrl ?? null,
       role: m.role,
     })),
-    characters: characters.map((p) => ({
+    characters: known.map((p) => ({
       characterId: p.characterId,
       ownerId: p.ownerId,
       side: p.side,

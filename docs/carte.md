@@ -961,8 +961,11 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
      reste à moitié créé.
    - `DELETE …/tokens/:tokenId?character=delete` supprime aussi l'instance (un PNJ seulement :
      422 `not_an_npc`) : campaign la retire d'abord de la campagne, puis character la supprime.
-   - Engagement d'un PNJ posé : `campaign.character_added` en `gm_only`, pour qu'un PNJ caché ne
-     se nomme pas aux joueurs.
+   - Engagement d'un PNJ (posé, ou par `POST /characters` hors du camp des joueurs) :
+     `campaign.character_added` en `gm_only`, pour qu'un PNJ caché ne se nomme pas aux joueurs.
+     Le détail de la campagne (`GET /v1/campaigns/:id`) ne donne à un joueur que les
+     engagements de sa liste des personnages. Un personnage retiré de la campagne quitte les
+     cartes avec un `token.deleted` adressé comme à la carte (`deleteToken`).
    - `POST …/tokens/:tokenId/duplicate { pos, count }` clone l'état actuel.
 8. **Médias** : `POST /v1/campaigns/:id/media { kind: 'image' | 'video', contentType, size }`
    rend une URL présignée (MJ). Images de 10 Mo au plus, vidéos webm ou mp4 de 100 Mo au plus.

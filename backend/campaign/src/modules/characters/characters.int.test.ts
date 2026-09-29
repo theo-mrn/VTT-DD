@@ -301,6 +301,133 @@ describe.skipIf(!TEST_DATABASE_URL)('personnages engagés', () => {
     );
   });
 
+  it('détail de la campagne : un joueur n’y connaît que les engagements de sa liste', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice, bob]);
+    const url = (rest: string) => `/v1/campaigns/${id}${rest}`;
+    const hero = await h.engage(id, alice, { name: 'Aria' });
+    const friend = await h.engage(id, bob, { name: 'Brom' });
+    const spy = await h.engage(id, gm, { name: 'Espion' });
+    const map = await h.ok<{ id: string }>(gm, 'POST', url('/maps'), {
+      name: 'Taverne',
+      width: 1000,
+      height: 1000,
+    });
+    await h.ok(gm, 'POST', url(`/maps/${map.id}/tokens`), {
+      characterId: hero,
+      pos: { x: 100, y: 100 },
+    });
+    const [goblin] = (
+      await h.ok<{ items: { characterId: string }[] }>(gm, 'POST', url(`/maps/${map.id}/npcs`), {
+        source: { quick: { name: 'Gobelin', type: 'personnage' } },
+        pos: { x: 300, y: 300 },
+      })
+    ).items;
+    const [shadow] = (
+      await h.ok<{ items: { characterId: string }[] }>(gm, 'POST', url(`/maps/${map.id}/npcs`), {
+        source: { quick: { name: 'Ombre', type: 'personnage' } },
+        pos: { x: 400, y: 300 },
+        visibility: 'invisible',
+      })
+    ).items;
+    const ids = async (u: TestUser) =>
+      (await h.ok<Campaign>(u, 'GET', url(''))).characters.map((c) => c.characterId);
+    expect(await ids(gm)).toEqual([hero, friend, spy, goblin!.characterId, shadow!.characterId]);
+    // Ni l'espion (sans token), ni l'ombre (invisible) : ni leur identifiant, ni leur camp
+    expect(await ids(alice)).toEqual([hero, friend, goblin!.characterId]);
+    const listed = (await h.ok<{ characterId: string }[]>(alice, 'GET', url('/characters'))).map(
+      (c) => c.characterId,
+    );
+    expect(await ids(alice)).toEqual(listed);
+    // Même filtre dans la réponse d'un engagement par un joueur
+    const engaged = await h.ok<Campaign>(alice, 'POST', url('/characters'), {
+      characterId: newCharacter(alice),
+    });
+    expect(engaged.characters.map((c) => c.characterId)).not.toContain(spy);
+    expect(engaged.characters.map((c) => c.characterId)).not.toContain(shadow!.characterId);
+  });
+
+  it('engagement : un PNJ ne se nomme qu’au MJ (et à son propriétaire), comme par la carte', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice]);
+    const added = async () =>
+      t
+        .db!.select({
+          visibility: sql<string>`${outbox.envelope}->>'visibility'`,
+          payload: sql<Record<string, unknown>>`${outbox.envelope}->'payload'`,
+        })
+        .from(outbox)
+        .where(
+          sql`${outbox.envelope}->>'roomId' = ${id} and ${outbox.envelope}->>'type' = 'campaign.character_added'`,
+        )
+        .orderBy(outbox.id);
+    const hero = newCharacter(alice);
+    const npc = newCharacter(gm);
+    const pet = newCharacter(alice);
+    expect((await engage(id, alice, { characterId: hero })).statusCode).toBe(201);
+    expect((await engage(id, gm, { characterId: npc })).statusCode).toBe(201);
+    expect((await engage(id, alice, { characterId: pet, side: 'allies' })).statusCode).toBe(201);
+    const events = await added();
+    expect(events.map((e) => [e.payload.characterId, e.visibility])).toEqual([
+      [hero, 'public'],
+      [npc, 'gm_only'],
+      [pet, 'gm_only'],
+    ]);
+    // Le PNJ du MJ ne part à aucun joueur ; l'allié d'Alice, à elle seule
+    expect(events[1]!.payload.visibleToUsers).toBeUndefined();
+    expect(events[2]!.payload.visibleToUsers).toEqual([alice.id]);
+  });
+
+  it('retrait d’un PNJ : token.deleted aux seuls joueurs qui le voyaient', async () => {
+    const id = await h.campaign(gm, 'dnd-classic', [alice, bob]);
+    const url = (rest: string) => `/v1/campaigns/${id}${rest}`;
+    const hero = await h.engage(id, alice);
+    const map = await h.ok<{ id: string }>(gm, 'POST', url('/maps'), {
+      name: 'Taverne',
+      width: 1000,
+      height: 1000,
+    });
+    const place = (name: string, extra: object) =>
+      h.ok<{ items: { id: string; characterId: string }[] }>(
+        gm,
+        'POST',
+        url(`/maps/${map.id}/npcs`),
+        { source: { quick: { name, type: 'personnage' } }, pos: { x: 300, y: 300 }, ...extra },
+      );
+    // Vu d'Alice seule (pour certains joueurs), vu de personne (invisible)
+    const [spy] = (await place('Espion', { visibility: 'invisible' })).items;
+    const [guide] = (await place('Guide', {})).items;
+    await h.ok(gm, 'PATCH', url(`/maps/${map.id}/tokens/${guide!.id}`), {
+      visibility: 'custom',
+      visibleTo: [hero],
+    });
+    await h.ok(gm, 'DELETE', url(`/characters/${guide!.characterId}`));
+    await h.ok(gm, 'DELETE', url(`/characters/${spy!.characterId}`));
+    const deleted = await t
+      .db!.select({
+        visibility: sql<string>`${outbox.envelope}->>'visibility'`,
+        payload: sql<Record<string, unknown>>`${outbox.envelope}->'payload'`,
+      })
+      .from(outbox)
+      .where(
+        sql`${outbox.envelope}->>'roomId' = ${id} and ${outbox.envelope}->>'type' = 'token.deleted'`,
+      )
+      .orderBy(outbox.id);
+    expect(deleted).toEqual([
+      {
+        visibility: 'gm_only',
+        payload: {
+          id: guide!.id,
+          mapId: map.id,
+          characterId: guide!.characterId,
+          visibleToUsers: [alice.id],
+        },
+      },
+      {
+        visibility: 'gm_only',
+        payload: { id: spy!.id, mapId: map.id, characterId: spy!.characterId },
+      },
+    ]);
+  });
+
   it('character injoignable : 502, rien n’est engagé', async () => {
     const down = await testApp({ CHARACTER_URL: 'http://127.0.0.1:9' });
     try {
