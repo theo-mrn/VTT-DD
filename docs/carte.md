@@ -1176,7 +1176,7 @@ comme les autres, et le serveur décide qui passe et où.
   | État          | Entrée                                                      | Sortie                                                        |
   | ------------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
   | `idle`        | poignée de rayon → `radius` ; poignée d'arrivée → `arrival` | portail : gestes communs (`select`) ; vide → `pressing`       |
-  | `pressing`    | +4 px : lasso (gestes communs)                              | lâcher : entrée posée (brouillon) → `destination`             |
+  | `pressing`    | +4 px : gestes communs (la vue se déplace ; ⇧ : lasso)      | lâcher : entrée posée (brouillon) → `destination`             |
   | `destination` | clic sur la carte : arrivée ici ; panneau : une autre scène | le portail (et son retour) en **une** commande ; Échap : rien |
   | `pick`        | « Choisir l'arrivée sur la carte » (inspecteur)             | clic : arrivée du portail (commande) ; Échap : rien           |
   | `radius`      | rayon par demi-case (Alt : libre), valeur affichée          | lâcher : une commande ; Échap : rien                          |

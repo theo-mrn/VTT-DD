@@ -325,6 +325,19 @@ export const TOOLTIP_DELAY_MS = 400;
 
 type Change = { entity: MapEntity; next: EntityGeometry };
 
+/** Entité déplacée ici par un geste (glisser, flèches) : centre avant et après. */
+export interface MovedEntity {
+  entity: MapEntity;
+  from: Point;
+  to: Point;
+}
+
+/**
+ * Écoute des déplacements faits ici (`onEntitiesMoved`) : `done` est la commande envoyée (vraie
+ * si le serveur l'a acceptée). Portails : un token lâché dans un portail.
+ */
+export type MovedListener = (moves: readonly MovedEntity[], done: Promise<boolean>) => void;
+
 export class MapEngine {
   readonly store: MapStore;
   viewer: MapViewer;
@@ -1641,7 +1654,32 @@ export class MapEngine {
         : [],
     );
     const cmd = this.updateEntities(label, pairs);
-    return cmd ? this.execute(cmd) : null;
+    if (!cmd) return null;
+    // Centres avant l'écriture : la commande met la géométrie à jour tout de suite
+    const moves = this.movedListeners.size
+      ? changes.flatMap(({ entity, next }) =>
+          next.x !== entity.geometry.x || next.y !== entity.geometry.y
+            ? [
+                {
+                  entity,
+                  from: { x: entity.geometry.x, y: entity.geometry.y },
+                  to: { x: next.x, y: next.y },
+                },
+              ]
+            : [],
+        )
+      : [];
+    const done = this.execute(cmd);
+    if (moves.length) for (const listener of this.movedListeners) listener(moves, done);
+    return done;
+  }
+
+  private readonly movedListeners = new Set<MovedListener>();
+
+  /** Écoute les déplacements faits ici par un geste (glisser, flèches) ; renvoie le retrait. */
+  onEntitiesMoved(listener: MovedListener): () => void {
+    this.movedListeners.add(listener);
+    return () => void this.movedListeners.delete(listener);
   }
 
   /** Entités où l'action commune est permise. */
