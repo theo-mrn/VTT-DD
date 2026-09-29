@@ -498,6 +498,14 @@ export class VisionRenderer {
     return c;
   }
 
+  /**
+   * Les textures ont perdu leur contenu (contexte WebGL rendu par le GPU puis restauré) : la
+   * prochaine image les refait toutes.
+   */
+  redrawAll() {
+    this.shown = false;
+  }
+
   /** Dessine l'image ; ne refait que les textures dont un terme a changé. */
   draw(picture: VisionPicture | null, cam: CameraView, time: number) {
     if (this.destroyed) return;

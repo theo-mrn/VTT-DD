@@ -157,6 +157,9 @@ class PixiView implements EngineView {
     this.canvas.style.display = 'block';
     this.canvas.style.touchAction = 'none';
     this.canvas.setAttribute('aria-hidden', 'true');
+    // Contexte WebGL restauré par Pixi après une perte (GPU réinitialisé) : rien ne bouge, mais
+    // l'image est à refaire (rendu à la demande)
+    this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     host.appendChild(this.canvas);
     this.theme = readTheme(host);
 
@@ -196,6 +199,8 @@ class PixiView implements EngineView {
     });
     this.applyCamera();
   }
+
+  private readonly onContextRestored = () => this.engine.invalidate();
 
   plane(id: PlaneId): Container {
     return this.planes.get(id)!;
@@ -589,6 +594,7 @@ class PixiView implements EngineView {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     this.background.destroy();
     this.pingFrame?.();
     const gl = (this.app.renderer as unknown as { gl?: WebGLRenderingContext }).gl;

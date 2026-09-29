@@ -130,6 +130,17 @@ describe('rendu de la visibilité (sans WebGL)', () => {
     expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:vis']);
   });
 
+  it('contexte WebGL restauré : toutes les textures refaites à l’image suivante', () => {
+    const h = harness({
+      extra: { lights: [light('l', 600, 600)], fogZones: [fogZone('z', 700, 700)] },
+    });
+    h.draw();
+    expect(h.draw()).toEqual([]);
+    h.r.redrawAll();
+    expect(h.draw()).toEqual(['vision:range', 'vision:fog', 'vision:glow', 'vision:vis']);
+    expect(h.draw()).toEqual([]);
+  });
+
   it('sans brouillard ni lumière : ni brume ni lueurs', () => {
     const h = harness();
     expect(h.draw()).toEqual(['vision:range', 'vision:vis']);

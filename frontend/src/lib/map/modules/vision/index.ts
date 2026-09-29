@@ -146,7 +146,16 @@ export const visionModule: MapModule = {
           renderer = null;
         }
         engine.invalidate();
+        // Contexte WebGL perdu puis restauré (réinitialisation du GPU) : les textures de la vue
+        // sont vides, on les refait toutes à l'image suivante
+        const canvas = engine.canvas;
+        const onRestored = () => {
+          renderer?.redrawAll();
+          engine.invalidate();
+        };
+        canvas?.addEventListener('webglcontextrestored', onRestored);
         return () => {
+          canvas?.removeEventListener('webglcontextrestored', onRestored);
           renderer?.destroy();
           renderer = null;
           if (allies) allies.alpha = 1;

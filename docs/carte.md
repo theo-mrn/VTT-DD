@@ -211,6 +211,8 @@ abonnements au store, et renvoie son nettoyage.
   (lumières, obstacles, brouillard…), comme avant. Ce n'est pas la même chose que les calques.
 - **Aucune allocation par image** dans les boucles chaudes (réutiliser les `Graphics`, tableaux
   typés), et **aucun `Graphics` recréé** si l'entité n'a pas changé.
+- **Contexte WebGL perdu puis restauré** (GPU réinitialisé, fréquent sous Windows) : Pixi le
+  restaure ; le moteur redemande une image et la vision refait toutes ses textures.
 - **Destruction** : tout sous-arbre Pixi part par `destroyDisplay` (`engine/destroy-display.ts`).
   `destroy({ children: true })` seul ne libère pas la géométrie des `Graphics` enfants (Pixi 8) ;
   `destroyDisplay` détruit chaque nœud sans options : un contexte propre est libéré, un contexte
