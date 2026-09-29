@@ -481,6 +481,34 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     }
   });
 
+  it('personnages joueurs : sur la scène du groupe dès leur arrivée, sans s’empiler', async () => {
+    const road = await newMap({ name: 'Route', spawn: { x: 500, y: 500 } });
+    await h.ok(gm, 'PATCH', url('/map-settings'), { partyMapId: road.id });
+    const aliceHero = await h.engage(campaignId, alice);
+    const bobHero = await h.engage(campaignId, bob);
+    const npc = await h.engage(campaignId, gm, { side: 'enemies' });
+    const onRoad = await tokens(gm, road.id);
+    expect(onRoad.map((x) => x.characterId).sort()).toEqual([aliceHero, bobHero].sort());
+    // Le premier sur le point d'apparition, le suivant une case plus loin
+    expect(onRoad.find((x) => x.characterId === aliceHero)?.pos).toEqual({ x: 500, y: 500 });
+    const [a, b] = onRoad;
+    expect(Math.hypot(a!.pos.x - b!.pos.x, a!.pos.y - b!.pos.y)).toBeGreaterThanOrEqual(50);
+    expect(onRoad.some((x) => x.characterId === npc)).toBe(false);
+
+    // Un personnage incarné, même hors du camp des joueurs, rejoint aussi le groupe
+    const ally = await h.engage(campaignId, alice, { side: 'allies' });
+    expect((await tokens(gm, road.id)).some((x) => x.characterId === ally)).toBe(false);
+    await h.play(campaignId, alice, ally);
+    expect((await tokens(gm, road.id)).some((x) => x.characterId === ally)).toBe(true);
+
+    // Tout le groupe ailleurs : chacun sa case autour du point d'arrivée
+    const camp = await newMap({ name: 'Camp', spawn: { x: 200, y: 200 } });
+    const party = await h.ok<{ items: Token[] }>(gm, 'POST', url(`/maps/${camp.id}/travel`), {});
+    expect(party.items.map((x) => x.characterId).sort()).toEqual([aliceHero, bobHero, ally].sort());
+    expect(new Set(party.items.map((x) => `${x.pos.x},${x.pos.y}`)).size).toBe(3);
+    expect(await tokens(gm, road.id)).toEqual([]);
+  });
+
   it('voyage entre scènes, carte du groupe et suppression protégée', async () => {
     const { map: tavern, hero, heroId } = await scene();
     const road = await newMap({ name: 'Route', spawn: { x: 5, y: 6 } });

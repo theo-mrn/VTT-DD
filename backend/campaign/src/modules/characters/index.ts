@@ -53,7 +53,7 @@ import {
 } from '../campaigns/repository.js';
 import { removeFromCombat } from '../combat/repository.js';
 import { viewerOf, type Viewer } from '../maps/common.js';
-import { deleteToken } from '../maps/tokens.js';
+import { deleteToken, placeOnPartyMap } from '../maps/tokens.js';
 import { visibleEngagements } from './visibility.js';
 import {
   CampaignId,
@@ -264,6 +264,15 @@ export const register: Module = async (app, deps) => {
           },
           ...(open ? {} : { visibility: 'gm_only' as const }),
         });
+        // Personnage joueur : sur la scène du groupe dès son arrivée (docs/carte.md § 10)
+        if (open)
+          await placeOnPartyMap(
+            tx,
+            eventContext(req),
+            await viewerOf(tx, a.campaign.id, userId),
+            a.campaign.id,
+            [characterId],
+          );
       });
       reply.code(201);
       return campaignDetail(deps, a, req);
@@ -375,6 +384,15 @@ export const register: Module = async (app, deps) => {
             takenFrom,
           },
         });
+        // Personnage incarné sans token : il rejoint la scène du groupe
+        if (characterId)
+          await placeOnPartyMap(
+            tx,
+            eventContext(req),
+            await viewerOf(tx, a.campaign.id, userId),
+            a.campaign.id,
+            [characterId],
+          );
         return a;
       });
       return campaignCharactersOf(deps, a, req);

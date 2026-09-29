@@ -22,12 +22,18 @@ import {
   type MapToken,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, ne, notInArray, or, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
 import type { EventContext, Tx } from '../../db/outbox.js';
-import { campaignCharacters, mapSettings, mapTokens, type MapPoint } from '../../db/schema.js';
+import {
+  campaignCharacters,
+  maps,
+  mapSettings,
+  mapTokens,
+  type MapPoint,
+} from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import {
   Bbox,
@@ -415,6 +421,123 @@ async function travel(
   return after;
 }
 
+// ─── Groupe sur la carte ─────────────────────────────────────────────────────
+
+/**
+ * Places libres autour d'un point, en spirale carrée d'une case d'écart (le centre d'abord),
+ * sans empiéter sur les places prises (moins de ¾ de case). Carte saturée : au centre.
+ */
+export function spreadAround(
+  center: MapPoint,
+  count: number,
+  cell: number,
+  taken: readonly MapPoint[],
+): MapPoint[] {
+  const out: MapPoint[] = [];
+  const busy = [...taken];
+  const free = (p: MapPoint) => busy.every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= cell * 0.75);
+  for (let ring = 0; out.length < count && ring <= 50; ring++)
+    for (let dy = -ring; dy <= ring && out.length < count; dy++)
+      for (let dx = -ring; dx <= ring && out.length < count; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+        const p = { x: center.x + dx * cell, y: center.y + dy * cell };
+        if (!free(p)) continue;
+        out.push(p);
+        busy.push(p);
+      }
+  while (out.length < count) out.push({ ...center });
+  return out;
+}
+
+/**
+ * Places d'arrivée de `count` personnages sur une carte : autour de `around`, sinon du point
+ * d'apparition, sinon du centre de la carte ; hors des tokens déjà présents (sauf ceux qui
+ * voyagent, qui libèrent la leur).
+ */
+async function arrivalSpots(
+  tx: Tx,
+  map: MapRow,
+  count: number,
+  around: MapPoint | undefined,
+  travellers: readonly string[],
+): Promise<MapPoint[]> {
+  const { pixelsPerUnit } = await mapSettingsOf(tx, map.campaignId);
+  const cell = pixelsPerUnit > 0 ? pixelsPerUnit : 50;
+  const center =
+    around ??
+    map.spawn ??
+    (map.width && map.height ? { x: map.width / 2, y: map.height / 2 } : { x: cell, y: cell });
+  const taken = await tx
+    .select({ pos: mapTokens.pos })
+    .from(mapTokens)
+    .where(
+      and(
+        eq(mapTokens.mapId, map.id),
+        eq(mapTokens.present, true),
+        travellers.length ? notInArray(mapTokens.characterId, [...travellers]) : undefined,
+      ),
+    );
+  return spreadAround(
+    center,
+    count,
+    cell,
+    taken.map((t) => t.pos),
+  );
+}
+
+/** Scène du groupe, sinon le fond global ; null sans l'une ni l'autre. */
+async function partyMapOf(tx: Tx, campaignId: string): Promise<MapRow | null> {
+  const [settings] = await tx
+    .select({ partyMapId: mapSettings.partyMapId })
+    .from(mapSettings)
+    .where(eq(mapSettings.campaignId, campaignId));
+  const [map] = await tx
+    .select()
+    .from(maps)
+    .where(
+      settings?.partyMapId
+        ? and(eq(maps.id, settings.partyMapId), eq(maps.campaignId, campaignId))
+        : and(eq(maps.campaignId, campaignId), eq(maps.isDefault, true)),
+    )
+    .limit(1);
+  return map ?? null;
+}
+
+/**
+ * Tous les personnages joueurs sont sur la carte : ceux de `characterIds` qui n'ont de token
+ * présent sur aucune scène arrivent sur la scène du groupe, répartis autour de son point
+ * d'apparition (événements comme un voyage). Rien sans scène du groupe ni fond global.
+ */
+export async function placeOnPartyMap(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  campaignId: string,
+  characterIds: readonly string[],
+): Promise<TokenRow[]> {
+  const ids = [...new Set(characterIds)];
+  if (!ids.length) return [];
+  const present = await tx
+    .select({ characterId: mapTokens.characterId })
+    .from(mapTokens)
+    .where(
+      and(
+        eq(mapTokens.campaignId, campaignId),
+        eq(mapTokens.present, true),
+        inArray(mapTokens.characterId, ids),
+      ),
+    );
+  const placed = new Set(present.map((p) => p.characterId));
+  const missing = ids.filter((id) => !placed.has(id));
+  if (!missing.length) return [];
+  const map = await partyMapOf(tx, campaignId);
+  if (!map) return [];
+  const spots = await arrivalSpots(tx, map, missing.length, undefined, missing);
+  const out: TokenRow[] = [];
+  for (const [i, id] of missing.entries()) out.push(await travel(tx, ctx, v, map, id, spots[i]));
+  return out;
+}
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 export const registerTokens: Module = async (app, deps) => {
@@ -623,7 +746,11 @@ export const registerTokens: Module = async (app, deps) => {
                 .where(
                   and(
                     eq(campaignCharacters.campaignId, map.campaignId),
-                    eq(campaignCharacters.side, 'players'),
+                    // Le groupe : le camp des joueurs, et tout personnage incarné par un membre
+                    or(
+                      eq(campaignCharacters.side, 'players'),
+                      isNotNull(campaignCharacters.playedBy),
+                    ),
                   ),
                 )
                 .orderBy(asc(campaignCharacters.characterId))
@@ -635,8 +762,12 @@ export const registerTokens: Module = async (app, deps) => {
           if (others.length)
             throw HttpError.forbidden('Un joueur ne déplace que ses propres personnages');
         }
+        // Tout le groupe : réparti autour du point d'arrivée, jamais empilé sur une seule case
+        const spots = party
+          ? await arrivalSpots(tx, map, ids.length, req.body.pos, ids)
+          : ids.map(() => req.body.pos);
         const out: TokenRow[] = [];
-        for (const id of ids) out.push(await travel(tx, ctx, v, map, id, req.body.pos));
+        for (const [i, id] of ids.entries()) out.push(await travel(tx, ctx, v, map, id, spots[i]));
         if (party) {
           await tx
             .insert(mapSettings)

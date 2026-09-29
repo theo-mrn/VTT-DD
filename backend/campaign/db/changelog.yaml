@@ -34,5 +34,7 @@ databaseChangeLog:
   - include: { file: changes/0018-map-layers.sql, relativeToChangelogFile: true }
   # Rotation des textes de la carte (docs/carte.md § 10)
   - include: { file: changes/0019-map-note-rotation.sql, relativeToChangelogFile: true }
+  # Tous les personnages joueurs sur la scène du groupe (docs/carte.md § 10)
+  - include: { file: changes/0020-party-tokens.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }
