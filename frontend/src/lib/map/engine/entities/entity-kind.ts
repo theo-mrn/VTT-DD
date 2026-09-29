@@ -77,8 +77,11 @@ export type Capability = (typeof CAPABILITIES)[number];
 export type EntityAction = Capability | 'view';
 
 /** Droits courants : tout le monde sélectionne et inspecte, le MJ fait le reste. */
-export const gmOnly = (action: EntityAction, _entity: MapEntity, viewer: MapViewer): boolean =>
-  action === 'view' || action === 'select' || action === 'inspect' || isGm(viewer);
+export const gmOnly = <D extends MapDto>(
+  action: EntityAction,
+  _entity: MapEntity<D>,
+  viewer: MapViewer,
+): boolean => action === 'view' || action === 'select' || action === 'inspect' || isGm(viewer);
 
 /**
  * Droits d'un élément créé par un membre (dessins, textes, gabarits) : l'auteur ou le MJ le
@@ -86,7 +89,7 @@ export const gmOnly = (action: EntityAction, _entity: MapEntity, viewer: MapView
  */
 export const authorOrGm =
   (authorField = 'createdBy') =>
-  (action: EntityAction, entity: MapEntity, viewer: MapViewer): boolean => {
+  <D extends MapDto>(action: EntityAction, entity: MapEntity<D>, viewer: MapViewer): boolean => {
     if (action === 'view' || action === 'select' || action === 'inspect') return true;
     if (viewer.role === 'spectator') return false;
     return isGm(viewer) || entity.data[authorField] === viewer.userId;

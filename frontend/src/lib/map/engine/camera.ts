@@ -222,7 +222,13 @@ export class Camera {
     this.y = f.from.y + (f.to.y - f.from.y) * k;
     // Zoom interpolé en échelle logarithmique : la vitesse perçue reste constante
     this.zoom = Math.exp(Math.log(f.from.zoom) + (Math.log(f.to.zoom) - Math.log(f.from.zoom)) * k);
-    if (t >= 1) this.flight = null;
+    if (t >= 1) {
+      // Arrivée exacte (pas d'erreur d'arrondi du zoom logarithmique)
+      this.x = f.to.x;
+      this.y = f.to.y;
+      this.zoom = f.to.zoom;
+      this.flight = null;
+    }
     this.clamp();
     this.emit();
     return this.flight !== null;

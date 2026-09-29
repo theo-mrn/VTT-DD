@@ -80,6 +80,11 @@ export class SelectTool implements Tool {
       case 'pressing': {
         if (!this.start || !this.target) return;
         if (!exceedsThreshold(this.start.screen, e.screen)) return;
+        // Alt + glisser d'une entité non sélectionnée : elle rejoint la sélection
+        if (!engine.selection.has(this.target.id)) {
+          if (this.start.shift) engine.selection.add([this.target.id]);
+          else engine.selection.replace([this.target.id]);
+        }
         const movable = engine.movableSelection(this.target);
         if (!movable.length) {
           // Verrouillée ou sans droit : le geste n'est plus qu'un clic manqué
