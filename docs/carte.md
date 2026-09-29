@@ -451,7 +451,7 @@ de messages seulement.
 | Pièce `room`                     | polygone fermé, sans effet de mur par lui-même. **Fermée** si aucune porte ouverte ne se trouve sur son contour (extrémités et milieu à 3 px au plus : une porte en travers de la pièce n'en fait pas partie) ; une fenêtre ne l'ouvre pas                                |
 | Zone de brouillard               | `circle`, `rect`, `polygon` (main levée), en mode `fog` (ajoute) ou `clear` (retire), appliquées dans l'ordre de création ; `maps.fogFull` : toute la carte au départ                                                                                                     |
 | Lumière                          | cercle de rayon `radius` (unités) et `falloff` ; sa portée est coupée par les murs (polygone de vue depuis la lumière) ; éteinte : sans effet ; peut suivre un token (`attachedTokenId`)                                                                                  |
-| Observateur                      | chaque token d'un joueur (ses personnages et les `ally`), `visionRadius` en pixels, ×3 avec `visionBoost`                                                                                                                                                                 |
+| Observateur                      | chaque token d'un joueur (ses personnages, sauf `invisible`, et les `ally` hors calque masqué), `visionRadius` en pixels tel qu'enregistré : « Vision augmentée » (`visionBoost`) le triple à l'activation, le serveur l'enregistre déjà multiplié                        |
 
 Le mur à sens unique est porté par `blocksFrom`, relatif au sens de tracé. Il remplace
 `direction: north|south|east|west` : un changeset le convertit à partir de l'orientation du
@@ -477,7 +477,21 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   - objet : centre, coins et milieux des bords du rectangle tourné.
     Un PNJ ou un objet non vu n'est ni rendu ni envoyé au joueur (serveur, § 12).
     Un objet de sorte `decor` n'est pas filtré : l'obscurité le couvre, comme le fond.
-- **Personnages joueurs** : toujours vus. Hors de ma vue, ils sont dans le calque `allies` à 60 %.
+- **Token `hidden`** : vu seulement dans un rayon de vision ou une zone éclairée : même formule,
+  toute la carte sous le brouillard (`fogFull`, sans zone).
+- **Sans observateur sur la carte** (spectateur, personnage sur une autre scène, carte du monde
+  sans token) : vue « d'en haut » = hors brouillard et hors pièces fermées, plus les zones
+  éclairées ; aucune ombre de mur. Sans cette règle, une carte sans token serait noire.
+- **Occlusion coupée** : le réglage d'affichage `obstacles: false` du MJ rend murs et pièces
+  sans effet, comme l'ancienne carte. Les réglages `fog` et `lights` ne cachent que le dessin
+  (brume, lueurs), jamais la règle.
+- **Une seule écriture des règles** : `packages/vision` pour la géométrie ; conversion et règles
+  des entités dans `backend/campaign/src/modules/maps/vision-rules.ts`, dont
+  `frontend/src/lib/map/modules/vision/rules.ts` est la copie exacte (un test compare les deux
+  fichiers et rejoue les mêmes cas des deux côtés).
+- **Personnages joueurs** : toujours vus. Hors de ma vue, ils sont dans le plan `allies` à 60 %
+  (moteur : `setPlaneOverride`), comme les alliés, mes propres tokens et les `custom` qui me
+  visent.
 - **Vue du MJ.**
   - Par défaut, tout est visible. L'ombre des joueurs est montrée en voile léger (25 %) pour
     qu'il sache ce qu'ils voient, sans rien lui cacher.
@@ -486,20 +500,57 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
 
 ### Rendu (module `vision`)
 
-- **Masque de vision** : une `RenderTexture` à 0,5 × la résolution de la vue, recalculée quand
-  un observateur, une porte, un mur, une zone ou une lumière change, et pendant un glisser
-  (direct local).
-  - Les polygones de vue y sont peints en blanc, les pièces appliquées en masque ou en `ERASE`.
-  - Un flou léger (2 px) donne des bords doux sans percer les murs : le flou est appliqué
-    avant le découpage par les murs, ou les murs sont épaissis de 1 px.
-- **Obscurité** : un voile de `shadowOpacity` partout où le masque est noir.
-- **Brouillard** : une texture de brouillard (bruit animé lent, désactivable) dans les zones de
-  brouillard, sauf dans (disques de vision ∪ lumières) ∩ LOS.
-- **Lumières** : un dégradé radial additif, coupé par leur LOS.
-- **Ombres partielles** : quadrilatères projetés derrière les murs `opacity < 1`, à cette
-  opacité.
-- **Masquage des entités** : `entity.display.visible = vu(entity)` pour le joueur (et en vue
-  joueur MJ), avec une transition de 150 ms.
+- **État à blanc** (`vision-state.ts`, testé sans WebGL) : à chaque image où quelque chose a pu
+  changer, il compare ses entrées et ne refait que le nécessaire :
+  - `prepareScene` quand murs, portes, pièces, zones, `fogFull`, taille ou occlusion changent
+    (couches du magasin comparées par référence) ;
+  - `withLights` quand une lumière change ou qu'une torche suit son token (positions en direct) ;
+  - une vue par observateur (`viewerView`), gardée tant qu'il ne bouge pas : un glisser ne refait
+    que la sienne ; Vu(joueur) est l'union de ces vues, sans recalcul.
+    Positions affichées : aperçu d'un glisser local, direct interpolé des autres.
+- **Textures** à l'échelle de l'écran, refaites seulement quand un de leurs termes change
+  (caméra, zones, lumières, observateurs) :
+  - `range` (¼ de la résolution, floutée de 3 px) : la portée hors observateur, hors brouillard
+    (zones dans l'ordre : `fog` en `ERASE`, `clear` en blanc) ∪ zones éclairées ;
+  - `fog` (¼, floutée de 10 px) : le brouillard lui-même, où dessiner la brume ;
+  - `glow` (¼) : lueurs additives (couleur, intensité, dégradé `falloff`), un éventail par
+    lumière coupé par sa ligne de vue ;
+  - `vis` (½) : Vu = ⋃ observateurs, chacun sous masques stencil (sa ligne de vue en éventail
+    exact depuis son origine, sa pièce de confinement, moins les pièces fermées qui ne le
+    contiennent pas), avec dedans `range` ∪ son disque de vision (bord doux sur 12 % du rayon),
+    en mélange `max`. Le flou ne touche que `range` et `fog`, avant le découpage par les murs :
+    le bord de la vue suit les murs, aucun mur soudé n'est percé.
+- **Ombres partielles** : derrière un mur translucide, la même portée atténuée de son opacité,
+  masquée par le polygone d'ombre et toujours dans la ligne de vue. Deux murs translucides
+  l'un derrière l'autre : l'ombre la plus claire des deux (pas le produit), écart assumé.
+- **Composition** : un seul quadrilatère (le rectangle visible de la carte, rien hors de la
+  carte) et un shader, en alpha prémultiplié : obscurité `shadowOpacity × (1 − vu)`, brume
+  (bruit fractal ancré au monde, période de 3 cases, octaves plus fines que 3 pixels effacées,
+  dérive lente à 20 i/s, désactivable : « Animer la brume » dans « Vue », préférence locale,
+  éteinte par défaut avec « mouvement réduit ») là où il y a du brouillard et pas de vue,
+  lueurs × vu. Une seule passe obscurcit et éclaire.
+- **MJ** : tout visible, l'ombre des joueurs (union de leurs observateurs) en voile à 25 %,
+  brume à 25 %, lueurs presque entières ; « Vue de … » (sélecteur « Vue », emplacement `view`
+  de la barre d'outils) : rendu exact de ce joueur, entités non vues masquées. Les surcouches
+  MJ (plan `gm`) restent au-dessus.
+- **Masquage des entités** : PNJ et objets (hors `decor`) non vus : masque `vision` du moteur,
+  avec un fondu de 150 ms quand une entité déjà affichée apparaît ou disparaît ; une entité qui
+  arrive non vue est masquée avant sa première image.
+- **Audience du direct** (`setLiveAudienceResolver`) : token ou objet vu de tous les joueurs →
+  public, de certains → `toUsers`, de personne → MJ seul, à sa position affichée, avec la vue de
+  chaque joueur (gardée : un PNJ glissé ne refait aucune vue).
+- **Mesures** (`vision-drag.bench.ts`, Apple Silicon, Node 24 ; donjon de 2 600 × 2 600 px,
+  1 252 murs et portes, 30 pièces, 63 tokens, 40 objets, 10 lumières dont une torche sur le
+  héros, 10 zones) :
+
+  | Par image de glisser (CPU)                                  | Budget | Mesuré              |
+  | ----------------------------------------------------------- | ------ | ------------------- |
+  | joueur : son héros bouge, vue refaite, 103 entités décidées | < 4 ms | 1,5 ms (p99 1,8 ms) |
+  | MJ : un PNJ glissé, audience pour 4 joueurs                 | —      | 0,02 ms             |
+
+  En développement, `window.__vttVision.summary()` donne les durées de chaque étape dans le
+  navigateur (`prepare`, `views`, `masking`, `sync`, `render` : rendu dans les textures,
+  `frame` : tout le module), et un résumé part dans la console toutes les 5 s.
 
 ### `@vtt/vision` (paquet pur)
 
@@ -550,19 +601,36 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 
 ### Serveur
 
-- **Filtrage.** Le service campaign filtre avec `@vtt/vision` au lieu de `ST_Intersects`. Scène
-  préparée gardée en mémoire par carte et par version (LRU). Sont filtrés :
-  - les tokens `visible` et `hidden` ;
-  - les objets (non décor) ;
-  - la ligne de vue.
-- **Événements ciblés.** `token.moved`, `token.updated` et `map_object.*` sont routés joueur par
-  joueur (`gm_only` + `visibleToUsers`) :
-  - ceux qui voient l'élément à l'arrivée reçoivent l'événement complet ;
-  - ceux qui le voyaient au départ mais plus à l'arrivée reçoivent `*.hidden { id, mapId }`.
+- **Filtrage** (`backend/campaign/src/modules/maps/vision.ts`, règles : `vision-rules.ts`) sur
+  `@vtt/vision`, plus de `ST_Intersects` : tokens `visible` et `hidden`, objets (non décor),
+  calques masqués, `GET …/line-of-sight`. Le chargement garde le filtre `bbox` sur les index
+  GiST. La scène préparée est gardée en mémoire par carte (LRU de 64) sous une empreinte relue
+  à chaque appel (version de la carte, condensé des `(id, version)` des obstacles, pièces et
+  zones) : toute écriture, d'où qu'elle vienne, la refait ; une scène lue dans une transaction
+  d'écriture sert sans être gardée. Lumières, tokens, calques masqués et échelle sont relus à
+  chaque appel.
+- **Contenu des objets** : un joueur ne reçoit jamais `items` (REST, bus, rejeu) ; seule la
+  fouille le donne (`POST …/objects/:id/search`, objet vu et à portée).
+- **Événements ciblés.** `token.created | updated | moved | deleted` et `map_object.*` sont routés
+  joueur par joueur (`gm_only` + `visibleToUsers`, `public` si tous le voient), la vue de chaque
+  membre non MJ étant calculée avant et après l'écriture :
+  - ceux qui voient l'élément après reçoivent l'événement complet (un objet sans son contenu :
+    le contenu part aux MJ seuls, dans un événement de même version) ;
+  - ceux qui le voyaient avant mais plus après reçoivent `*.hidden { id, mapId }` ; le client du
+    MJ ignore les `*.hidden`.
+- **Relire quand la vue change** : `map.visibility_changed { mapId }`, ciblé : un mur, une porte,
+  une pièce, une zone ou une lumière change (champs utiles à la vue), `fogFull`, la taille ou
+  l'occlusion de la carte changent (tous les joueurs) ; un observateur bouge ou change de rayon
+  (ses joueurs ; tous pour un allié ou une torche). Au plus un par joueur, par carte et par
+  transaction ; le client relit tokens et objets, regroupés en une relecture par 100 ms.
 - **Pas de rafraîchissement pendant un glisser.** Quand un joueur déplace son token, les PNJ
   nouvellement visibles arrivent à la relecture qui suit le lâcher, environ 100 ms. Pendant le
   glisser, l'ombre suit en direct, calculée localement : les murs, pièces, zones et lumières
-  allumées sont envoyés aux joueurs.
+  allumées sont envoyés aux joueurs ; les PNJ qu'il voyait et ne voit plus s'effacent tout de
+  suite (masquage local).
+- **Tests de non-fuite** (`vision.int.test.ts`) : aucun PNJ derrière un mur, dans une pièce
+  fermée, dans le brouillard hors de portée ou dans un calque masqué n'est reçu par un joueur,
+  ni en REST ni par événement ; porte ouverte : il l'est ; `items` jamais envoyé.
 
 ## 10. Modules
 
@@ -806,7 +874,9 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
 
 ### Vision (`vision`)
 
-- Rendu du § 9 et sélecteur « Vue » du MJ.
+- Rendu du § 9 (`modules/vision/renderer.ts`), état testable à blanc (`vision-state.ts`),
+  masquage et plan `allies`, audience du direct, sélecteur « Vue » (MJ : vue du MJ ou
+  « Vue de … » ; tous : « Animer la brume »), `components/map/vision/view-menu.tsx`.
 - Branchement du serveur sur `@vtt/vision`, filtrage et événements ciblés (§ 9, Serveur).
 
 ## 11. Hors de ce lot, conservé
@@ -886,8 +956,8 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
     - `toUsers?: uuid[]` (50 au plus) sur `ephemeral` : relayé à ces utilisateurs abonnés, et aux
       MJ ;
     - `EPHEMERAL_RATE_PER_SECOND` passe à 30 et `EPHEMERAL_BURST` à 60.
-11. **Visibilité serveur sur `@vtt/vision`** : fait par le module vision, après les lots 1 et 2
-    (§ 9, Serveur).
+11. **Visibilité serveur sur `@vtt/vision`** : fait (§ 9, Serveur) ; `map.visibility_changed`
+    ajouté au contrat ; `items` jamais envoyé à un joueur.
 
 12. **Calques du MJ** (§ 5, Calques).
     - Table `map_layers` : `name`, `sort_order` (réel), `visible_to_players`, `locked`, `opacity`,
