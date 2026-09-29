@@ -334,6 +334,7 @@ export class MapEngine {
   private frameHandle: number | null = null;
   private continuous = 0;
   private readonly frameCallbacks = new Set<(now: number) => boolean | void>();
+  private readonly frameList: ((now: number) => boolean | void)[] = [];
   private cullDirty = true;
   private inView = new Set<string>();
   private readonly remoteIds = new Set<string>();
@@ -655,7 +656,19 @@ export class MapEngine {
     let again = this.continuous > 0;
     if (this.camera.animating) again = this.camera.step(now) || again;
     if (this.live) again = this.applyLive(now) || again;
-    for (const cb of [...this.frameCallbacks]) if (cb(now) === true) again = true;
+    // Liste figée avant les appels (un rappel ajouté attend l'image suivante), dans un tableau
+    // réutilisé : aucune allocation par image
+    const list = this.frameList;
+    for (const cb of this.frameCallbacks) list.push(cb);
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const cb = list[i]!;
+        // Retiré par un rappel précédent de cette image : plus appelé
+        if (this.frameCallbacks.has(cb) && cb(now) === true) again = true;
+      }
+    } finally {
+      list.length = 0;
+    }
     if (this.cullDirty) this.cull();
     return again;
   }
