@@ -670,7 +670,9 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   taille.
 - **Fouiller**, activé par le MJ (`searchable`, `searchRadius` en unités).
   - Portée, au calcul près celle du serveur : distance du centre du token (`pos`) au rectangle
-    de l'objet tourné autour de son centre, au plus `searchRadius × pixelsPerUnit`.
+    de l'objet tourné autour de son centre, au plus `searchRadius × pixelsPerUnit`. Un objet à
+    fouiller seul sélectionné montre cette zone (rectangle arrondi, tourné avec lui), au MJ comme
+    au joueur.
   - Un joueur qui clique un objet à fouiller voit « Fouiller » au-dessus de lui (« Trop loin »,
     grisé, hors de portée) ; aussi dans son menu et son inspecteur. La fenêtre montre le contenu
     rendu par `…/search`, avec le personnage qui fouille (celui qu'il incarne s'il est à

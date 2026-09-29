@@ -8,7 +8,8 @@
  *   envoyée, zone à fouiller) au-dessus de la barre ; clic puis clic, ou glisser vers la carte.
  * - Inspecteur : propriétés de l'objet et fouille (portée, contenu du marché ou libre) pour le
  *   MJ ; « Fouiller » pour un joueur.
- * - Fouille des joueurs : fenêtre du contenu, « Prendre » ; le MJ est prévenu.
+ * - Fouille des joueurs : fenêtre du contenu, « Prendre » ; le MJ est prévenu. Un objet à
+ *   fouiller sélectionné montre sa zone de portée.
  */
 import { Box } from 'lucide-react';
 import { ObjectInspector } from '@/components/map/objects/object-inspector';
@@ -24,6 +25,7 @@ import { createSearchApi } from './api';
 import { createObjectKinds } from './object-kind';
 import { ObjectPlaceTool } from './place-tool';
 import { isObjectEntity } from './placement';
+import { mountReachRing } from './reach-ring';
 import { attachSearchController, SearchController } from './search';
 import { OBJECTS_COLLECTION, OBJECTS_TOOL_ID, type ObjectData } from './types';
 
@@ -51,6 +53,7 @@ export const objectsModule: MapModule = {
       attachSearchController(engine, search),
       engine.registerKind(objectKind),
       engine.registerKind(decorKind),
+      mountReachRing(engine),
       engine.registerTool({
         id: OBJECTS_TOOL_ID,
         label: 'Objets',
