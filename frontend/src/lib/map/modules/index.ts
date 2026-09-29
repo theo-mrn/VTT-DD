@@ -61,7 +61,7 @@ import { objectsModule } from './objects';
 import { obstaclesModule } from './obstacles';
 // import { fogModule } from './fog';
 // import { lightsModule } from './lights';
-// import { visionModule } from './vision';
+import { visionModule } from './vision';
 
 export const MAP_MODULES: readonly MapModule[] = [
   // Moteur : point d'apparition de la scène
@@ -79,5 +79,5 @@ export const MAP_MODULES: readonly MapModule[] = [
   // Lot 2 « Outils de visibilité » : lumières (L)
   // lightsModule,
   // Lot 2 « Rendu de la visibilité » : ombres, brouillard, lueurs, masquage, sélecteur « Vue »
-  // visionModule,
+  visionModule,
 ];
