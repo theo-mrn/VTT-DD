@@ -146,6 +146,9 @@ class PixiView implements EngineView {
   private readonly pingGfx = new Graphics({ label: 'pings' });
   private readonly cursors = new Map<string, CursorSprite>();
   private pings: Ping[] = [];
+  /** Surcouches communes à refaire (voir `drawAdornments`). */
+  private adornDirty = true;
+  private adornZoom = 0;
   private pingFrame: (() => void) | null = null;
 
   constructor(
@@ -212,6 +215,7 @@ class PixiView implements EngineView {
 
   resize(width: number, height: number) {
     if (this.destroyed) return;
+    this.adornDirty = true;
     this.app.renderer.resize(Math.max(1, width), Math.max(1, height));
   }
 
@@ -261,6 +265,7 @@ class PixiView implements EngineView {
 
   addEntity(e: MapEntity) {
     if (this.destroyed || e.display) return;
+    this.adornDirty = true;
     const d = new Container({ label: `${e.kind.id}:${e.id}` });
     e.display = d;
     d.zIndex = e.z;
@@ -274,6 +279,7 @@ class PixiView implements EngineView {
   updateEntity(e: MapEntity, change: EntityChange<MapDto>) {
     const d = e.display;
     if (!d || this.destroyed) return;
+    this.adornDirty = true;
     if (change.previous !== undefined && !e.kind.update) {
       // Sans mise à jour incrémentale : on vide et on redessine
       for (const child of d.removeChildren()) destroyDisplay(child);
@@ -287,6 +293,7 @@ class PixiView implements EngineView {
   removeEntity(e: MapEntity) {
     const d = e.display;
     e.display = null;
+    this.adornDirty = true;
     // Dessins propres des enfants libérés, dessins et textures partagés gardés
     if (d) destroyDisplay(d);
   }
@@ -294,6 +301,7 @@ class PixiView implements EngineView {
   placeEntity(e: MapEntity) {
     const d = e.display;
     if (!d) return;
+    this.adornDirty = true;
     const parent = this.containerFor(e);
     if (d.parent !== parent) parent.addChild(d);
     if (d.zIndex !== e.z) d.zIndex = e.z;
@@ -302,6 +310,7 @@ class PixiView implements EngineView {
   syncTransform(e: MapEntity) {
     const d = e.display;
     if (!d) return;
+    this.adornDirty = true;
     const g = e.geometry;
     const c = e.current;
     const sx = g.width ? c.width / g.width : 1;
@@ -320,7 +329,10 @@ class PixiView implements EngineView {
   }
 
   setEntityVisible(e: MapEntity, visible: boolean) {
-    if (e.display && e.display.visible !== visible) e.display.visible = visible;
+    if (e.display && e.display.visible !== visible) {
+      e.display.visible = visible;
+      this.adornDirty = true;
+    }
   }
 
   /** Opacité commune : masqué aux joueurs (vue MJ) à 50 %, fantôme d'un autre à 85 %. */
@@ -335,6 +347,7 @@ class PixiView implements EngineView {
 
   syncLayers() {
     if (this.destroyed) return;
+    this.adornDirty = true;
     const ui = this.engine.ui.getState();
     const layers = this.engine.layersBottomUp();
     const alive = new Set(layers.map((l) => l.id));
@@ -396,10 +409,18 @@ class PixiView implements EngineView {
     this.app.render();
   }
 
+  /**
+   * Contours, hachures et poignées : refaits seulement si une entité, son état, sa place ou sa
+   * visibilité ont changé (le moteur passe par les méthodes de la vue), ou le zoom. Une image
+   * demandée par autre chose (fond vidéo, brume animée, curseurs, fondus) ne les retesselle pas.
+   */
   private drawAdornments() {
     const g = this.adorn;
     const engine = this.engine;
     const zoom = engine.camera.zoom;
+    if (!this.adornDirty && zoom === this.adornZoom) return;
+    this.adornDirty = false;
+    this.adornZoom = zoom;
     const px = 1 / zoom;
     const { primary, muted, background, foreground } = this.theme;
     g.clear();
