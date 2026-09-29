@@ -4,3 +4,4 @@ export * from './ids.js';
 export * from './changes.js';
 export * from './audio.js';
 export * from './audio-sync.js';
+export * from './map.js';
