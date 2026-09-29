@@ -28,6 +28,7 @@ import type { EventContext, Tx } from '../../db/outbox.js';
 import {
   campaignCharacters,
   mapFogZones,
+  mapLayers,
   mapLights,
   mapObstacles,
   mapRooms,
@@ -333,8 +334,39 @@ export async function tokenAudience(
 ): Promise<Audience> {
   const members = await campaignPlayers(tx, map.campaignId);
   if (!members.length) return nobody(members);
+  // Sans ligne de vue en jeu (personnage joueur, allié, custom, invisible, calque masqué) :
+  // les règles tranchent sans charger la scène
+  const [row] = await tx
+    .select({
+      token: mapTokens,
+      side: campaignCharacters.side,
+      layerVisible: mapLayers.visibleToPlayers,
+    })
+    .from(mapTokens)
+    .leftJoin(
+      campaignCharacters,
+      and(
+        eq(campaignCharacters.campaignId, mapTokens.campaignId),
+        eq(campaignCharacters.characterId, mapTokens.characterId),
+      ),
+    )
+    .leftJoin(mapLayers, eq(mapLayers.id, mapTokens.layerId))
+    .where(
+      and(eq(mapTokens.id, tokenId), eq(mapTokens.mapId, map.id), eq(mapTokens.present, true)),
+    );
+  if (!row) return nobody(members);
+  const t = visionToken(row.token, row.side);
+  const own = (m: VisionMember) => m.characterIds.includes(t.characterId);
+  if (t.visibility === 'invisible') return nobody(members);
+  if (row.layerVisible === false) return audienceFrom(members, own);
+  if (t.playerSide || t.visibility === 'ally') return audienceFrom(members, () => true);
+  if (t.visibility === 'custom')
+    return audienceFrom(
+      members,
+      (m) => own(m) || t.visibleTo.some((id) => m.characterIds.includes(id)),
+    );
   const vision = await loadMapVision(tx, map.id, map.campaignId);
-  const token = vision?.tokens.find((t) => t.id === tokenId);
+  const token = vision?.tokens.find((x) => x.id === tokenId);
   if (!vision || !token) return nobody(members);
   return audienceFrom(members, (m) => vision.forMember(m).seesToken(token));
 }
