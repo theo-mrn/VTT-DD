@@ -63,6 +63,7 @@ import { obstaclesModule } from './obstacles';
 import { fogModule } from './fog';
 import { lightsModule } from './lights';
 import { visionModule } from './vision';
+import { weatherModule } from './weather';
 
 export const MAP_MODULES: readonly MapModule[] = [
   // Moteur : point d'apparition de la scène
@@ -83,4 +84,6 @@ export const MAP_MODULES: readonly MapModule[] = [
   lightsModule,
   // Lot 2 « Rendu de la visibilité » : ombres, brouillard, lueurs, masquage, sélecteur « Vue »
   visionModule,
+  // Météo de la scène : pluie, neige, brouillard… (plan weather, espace écran)
+  weatherModule,
 ];

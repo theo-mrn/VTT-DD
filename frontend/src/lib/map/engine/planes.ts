@@ -18,6 +18,8 @@ export const MAP_PLANES = [
   'vision',
   /** Personnages joueurs hors de ma vue : toujours vus, au-dessus de l'ombre à 60 %. */
   'allies',
+  /** Météo de la scène (module `weather`), en pixels d'écran, sous annotations et surcouches. */
+  'weather',
   /** Dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre. */
   'annotations',
   /** Surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. */
