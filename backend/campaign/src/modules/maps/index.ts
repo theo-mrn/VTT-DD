@@ -9,6 +9,7 @@ import { registerLayers } from './layers.js';
 import { registerNpcs } from './npcs.js';
 import { registerObjectSearch } from './objects.js';
 import { registerMaps } from './maps.js';
+import { registerPortalUse } from './portals.js';
 import { registerTokens } from './tokens.js';
 
 export const register: Module = async (app, deps) => {
@@ -18,4 +19,5 @@ export const register: Module = async (app, deps) => {
   await registerArrange(app, deps);
   await registerNpcs(app, deps);
   await registerObjectSearch(app, deps);
+  await registerPortalUse(app, deps);
 };

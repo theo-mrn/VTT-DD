@@ -915,6 +915,14 @@ export const MapPortal = z.object({
   icon: MapPortalIcon.nullable(),
   color: z.string().nullable(),
   visible: z.boolean(),
+  /** Franchi dès qu'un joueur y lâche son token, sans question. */
+  auto: z.boolean(),
+  /**
+   * Retour relié (aller-retour), sur cette carte ou une autre : son arrivée est la place de
+   * celui-ci, et inversement (lien tenu par le serveur). `target`, `targetMapId` et
+   * `linkedPortalId` sont nuls pour un joueur : il ne sait où mène un portail qu'en l'empruntant.
+   */
+  linkedPortalId: Id.nullable(),
 });
 export type MapPortal = z.infer<typeof MapPortal>;
 
@@ -928,11 +936,33 @@ export const MapPortalFields = z.strictObject({
   icon: MapPortalIcon.nullable(),
   color: MapColor.nullable(),
   visible: z.boolean(),
+  auto: z.boolean(),
+  /** Relier à ce portail (même campagne) : sa destination et la sienne s'alignent. */
+  linkedPortalId: InputId('Identifiant de portail invalide').nullable(),
 });
 export const CreateMapPortal = MapPortalFields.partial().required({ pos: true });
 export type CreateMapPortal = z.input<typeof CreateMapPortal>;
 export const UpdateMapPortal = MapPortalFields.partial().extend({ version: ExpectedVersion });
 export type UpdateMapPortal = z.input<typeof UpdateMapPortal>;
+
+/**
+ * Emprunter un portail (`POST …/portals/:itemId/use`) : ces personnages (un joueur : les
+ * siens, dont le token est dans la zone du portail), ou tout le groupe (MJ).
+ */
+export const UseMapPortal = z.union([
+  z.strictObject({
+    characterIds: z.array(InputId('Identifiant de personnage invalide')).min(1).max(200),
+  }),
+  z.strictObject({ party: z.literal(true) }),
+]);
+export type UseMapPortal = z.input<typeof UseMapPortal>;
+
+/** Après le passage : la carte d'arrivée et les tokens des voyageurs, à leur place d'arrivée. */
+export const MapPortalUseResult = z.object({
+  mapId: Id,
+  items: z.array(MapToken),
+});
+export type MapPortalUseResult = z.infer<typeof MapPortalUseResult>;
 
 export const MapMeasurement = z.object({
   ...element,
@@ -1210,6 +1240,21 @@ export const MapObjectLootedPayload = z.object({
 });
 export type MapObjectLootedPayload = z.infer<typeof MapObjectLootedPayload>;
 
+/** `map_portal.used` (MJ seul) : des personnages ont emprunté le portail. */
+export const MapPortalUsedPayload = z.object({
+  id: Id,
+  mapId: Id,
+  name: z.string(),
+  kind: MapPortalKind,
+  /** Carte d'arrivée (celle du portail pour une téléportation). */
+  toMapId: Id,
+  characterIds: z.array(Id),
+  /** Tout le groupe (MJ). */
+  party: z.boolean(),
+  userId: Id,
+});
+export type MapPortalUsedPayload = z.infer<typeof MapPortalUsedPayload>;
+
 /**
  * Charge de chaque événement de carte. Les événements `gm_only` d'un élément en visibilité
  * `custom` portent en plus `visibleToUsers` (joueurs autorisés, pour realtime).
@@ -1267,6 +1312,7 @@ export const MapEventPayloads = {
   'map_portal.updated': MapPortal,
   'map_portal.deleted': MapElementRef,
   'map_portal.hidden': MapElementRef,
+  'map_portal.used': MapPortalUsedPayload,
   'map_measurement.created': MapMeasurement,
   'map_measurement.updated': MapMeasurement,
   'map_measurement.deleted': MapElementRef,

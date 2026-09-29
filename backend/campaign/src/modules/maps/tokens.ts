@@ -306,7 +306,7 @@ export async function updateToken(
 }
 
 /** Personnages engagés dans la campagne (côté et propriétaire), 422 sinon. */
-async function engaged(tx: Tx, campaignId: string, ids: string[]) {
+export async function engaged(tx: Tx, campaignId: string, ids: string[]) {
   const rows = ids.length
     ? await tx
         .select()
@@ -335,7 +335,7 @@ async function engaged(tx: Tx, campaignId: string, ids: string[]) {
  * il quitte la carte où il était. Position : `pos`, sinon le point
  * d'apparition, sinon la dernière position connue ici, sinon le centre de la carte.
  */
-async function travel(
+export async function travel(
   tx: Tx,
   ctx: EventContext,
   v: Viewer,
@@ -460,7 +460,7 @@ export function spreadAround(
  * d'apparition, sinon du centre de la carte ; hors des tokens déjà présents (sauf ceux qui
  * voyagent, qui libèrent la leur).
  */
-async function arrivalSpots(
+export async function arrivalSpots(
   tx: Tx,
   map: MapRow,
   count: number,
@@ -489,6 +489,41 @@ async function arrivalSpots(
     cell,
     taken.map((t) => t.pos),
   );
+}
+
+/** Le groupe : le camp des joueurs, et tout personnage incarné par un membre. */
+export async function partyCharacterIds(tx: Tx, campaignId: string): Promise<string[]> {
+  const rows = await tx
+    .select({ id: campaignCharacters.characterId })
+    .from(campaignCharacters)
+    .where(
+      and(
+        eq(campaignCharacters.campaignId, campaignId),
+        or(eq(campaignCharacters.side, 'players'), isNotNull(campaignCharacters.playedBy)),
+      ),
+    )
+    .orderBy(asc(campaignCharacters.characterId));
+  return rows.map((x) => x.id);
+}
+
+/** La carte devient celle du groupe (`map_settings.updated`). */
+export async function setPartyMap(tx: Tx, ctx: EventContext, v: Viewer, map: MapRow) {
+  await tx
+    .insert(mapSettings)
+    .values({ campaignId: map.campaignId, partyMapId: map.id })
+    .onConflictDoUpdate({
+      target: mapSettings.campaignId,
+      set: {
+        partyMapId: map.id,
+        version: sql`${mapSettings.version} + 1`,
+        updatedAt: sql`now()`,
+      },
+    });
+  await mapEvent(tx, ctx, v, {
+    type: 'map_settings.updated',
+    aggregate: { type: 'map_settings', id: map.campaignId },
+    payload: await mapSettingsOf(tx, map.campaignId),
+  });
 }
 
 /** Scène du groupe, sinon le fond global ; null sans l'une ni l'autre. */
@@ -745,22 +780,7 @@ export const registerTokens: Module = async (app, deps) => {
         const party = !req.body.characterIds;
         if (party) requireGm(v);
         const ids = party
-          ? (
-              await tx
-                .select({ id: campaignCharacters.characterId })
-                .from(campaignCharacters)
-                .where(
-                  and(
-                    eq(campaignCharacters.campaignId, map.campaignId),
-                    // Le groupe : le camp des joueurs, et tout personnage incarné par un membre
-                    or(
-                      eq(campaignCharacters.side, 'players'),
-                      isNotNull(campaignCharacters.playedBy),
-                    ),
-                  ),
-                )
-                .orderBy(asc(campaignCharacters.characterId))
-            ).map((x) => x.id)
+          ? await partyCharacterIds(tx, map.campaignId)
           : [...new Set(req.body.characterIds)];
         await engaged(tx, map.campaignId, ids);
         if (!v.isGm) {
@@ -774,24 +794,7 @@ export const registerTokens: Module = async (app, deps) => {
           : ids.map(() => req.body.pos);
         const out: TokenRow[] = [];
         for (const [i, id] of ids.entries()) out.push(await travel(tx, ctx, v, map, id, spots[i]));
-        if (party) {
-          await tx
-            .insert(mapSettings)
-            .values({ campaignId: map.campaignId, partyMapId: map.id })
-            .onConflictDoUpdate({
-              target: mapSettings.campaignId,
-              set: {
-                partyMapId: map.id,
-                version: sql`${mapSettings.version} + 1`,
-                updatedAt: sql`now()`,
-              },
-            });
-          await mapEvent(tx, ctx, v, {
-            type: 'map_settings.updated',
-            aggregate: { type: 'map_settings', id: map.campaignId },
-            payload: await mapSettingsOf(tx, map.campaignId),
-          });
-        }
+        if (party) await setPartyMap(tx, ctx, v, map);
         return out;
       });
       return { items: moved.map(tokenApi) };

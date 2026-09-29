@@ -66,7 +66,7 @@ import {
 import {
   LAYERS,
   layerDef,
-  layerItemApi,
+  layerItemFor,
   layerKey,
   listLayer,
   visibleFor,
@@ -434,7 +434,7 @@ export const registerMaps: Module = async (app, deps) => {
         const def = layerDef(path);
         return (rows as LayerRow[])
           .filter((row) => visibleFor(def, v, row, new Set()))
-          .map((row) => layerItemApi(def, row));
+          .map((row) => layerItemFor(def, v, row));
       };
       return {
         musicZones: pick('music-zones', zones),

@@ -579,6 +579,9 @@ export function transformRoom(
     if (targetCity && !targetMapId) warn(`Portail ${d.path} : scène cible supprimée`);
     const tx = coord(p.targetX);
     const ty = coord(p.targetY);
+    const sceneChange = p.portalType !== 'same-map';
+    // Changement de scène vers (0, 0) : l'ancienne app y lisait « le point d'arrivée de la scène »
+    const spawn = sceneChange && tx === 0 && ty === 0;
     portals.push({
       id: legacyUuid(d.path),
       campaignId,
@@ -586,9 +589,9 @@ export function transformRoom(
       name: text(p.name, 200) ?? '',
       pos,
       radius: bounded(p.radius, 0, 100_000, 50),
-      kind: p.portalType === 'same-map' ? 'same_map' : 'scene_change',
+      kind: sceneChange ? 'scene_change' : 'same_map',
       targetMapId: targetMapId ?? null,
-      target: tx !== undefined && ty !== undefined ? { x: tx, y: ty } : null,
+      target: tx !== undefined && ty !== undefined && !spawn ? { x: tx, y: ty } : null,
       icon: oneOf(p.iconType, PORTAL_ICONS) ?? null,
       color: toText(p.color)?.slice(0, 50) ?? null,
       visible: bool(p.visible, true),

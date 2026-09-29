@@ -605,6 +605,10 @@ export const mapPortals = campaignSchema.table('map_portals', {
   icon: text('icon').$type<MapPortalIcon | null>(),
   color: text('color'),
   visible: boolean('visible').notNull().default(true),
+  /** Franchi dès qu'un joueur y lâche son token (0022). */
+  auto: boolean('auto').notNull().default(false),
+  /** Retour relié, même campagne (0022) ; lien symétrique tenu par le service. */
+  linkedPortalId: uuid('linked_portal_id'),
 });
 
 export const mapMeasurements = campaignSchema.table('map_measurements', {

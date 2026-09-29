@@ -64,6 +64,13 @@ import {
   type Viewer,
 } from './common.js';
 import { moveLayerContent } from './arrange.js';
+import {
+  checkPortalTarget,
+  portalAfterWrite,
+  portalBeforeDelete,
+  portalBeforeWrite,
+  portalForPlayer,
+} from './portal-links.js';
 import type { MemberVision } from './vision-rules.js';
 import {
   eventTarget,
@@ -86,6 +93,12 @@ export type LayerRow = Record<string, unknown> & {
 };
 type Row = LayerRow;
 type Input = Record<string, unknown>;
+
+/**
+ * Écrit un autre élément de la même couche (le retour d'un portail, sur sa propre carte), avec
+ * ses événements mais sans les crochets de la couche : aucune écriture en chaîne.
+ */
+export type SiblingWrite = (row: Row, columns: Input) => Promise<Input>;
 
 /** Table d'une couche (colonnes communes : id, campaign_id, map_id, version, dates). */
 type LayerTable = typeof mapLights;
@@ -120,7 +133,7 @@ export interface LayerDef {
   toApi?: (row: Row) => Input;
   /** Contrôles qui demandent la base (cible d'un portail, token suivi, calque). */
   check?: (db: Db | Tx, map: MapRow, input: Input, v: Viewer) => Promise<void>;
-  /** Avant une suppression (calque : son contenu change de calque). */
+  /** Avant une suppression (calque : son contenu change de calque ; portail : retour délié). */
   beforeDelete?: (
     tx: Tx,
     ctx: EventContext,
@@ -128,6 +141,22 @@ export interface LayerDef {
     map: MapRow,
     row: Row,
     o: { moveTo?: string },
+    write: SiblingWrite,
+  ) => Promise<void>;
+  /**
+   * Élément tel qu'un joueur le reçoit (REST, chargement initial, bus) : un portail sans sa
+   * destination. L'événement complet part alors aux MJ seuls, l'autre (même version) à tous.
+   */
+  forPlayer?: (api: Input) => Input;
+  /** Colonnes d'une écriture ajustées à la base (portail relié : destination alignée). */
+  beforeWrite?: (tx: Tx, map: MapRow, before: Row | null, columns: Input) => Promise<Input>;
+  /** Après une écriture et ses événements (portail relié : son retour suit). */
+  afterWrite?: (
+    tx: Tx,
+    map: MapRow,
+    before: Row | null,
+    after: Row,
+    write: SiblingWrite,
   ) => Promise<void>;
   /** DELETE sur la collection : effacer toute la couche de la carte. */
   clearable?: boolean;
@@ -324,14 +353,11 @@ export const LAYERS: LayerDef[] = [
     geom: mapPortals.pos,
     write: 'gm',
     isPublic: (r) => r.visible === true,
-    check: async (db, map, input) => {
-      if (!input.targetMapId) return;
-      const [target] = await db
-        .select({ id: maps.id })
-        .from(maps)
-        .where(and(eq(maps.id, input.targetMapId as string), eq(maps.campaignId, map.campaignId)));
-      if (!target) throw refused('Carte cible introuvable', 'unknown_target_map');
-    },
+    check: checkPortalTarget,
+    forPlayer: portalForPlayer,
+    beforeWrite: portalBeforeWrite,
+    afterWrite: portalAfterWrite,
+    beforeDelete: portalBeforeDelete,
   },
   {
     path: 'measurements',
@@ -411,7 +437,7 @@ export async function listLayer(
     )
     .orderBy(...(def.order ?? [t.createdAt, t.id]).map((c) => asc(c)))) as unknown as Row[];
   const shown = rows.filter((r) => visibleFor(def, v, r, hidden));
-  if (!isObjects(def) || v.isGm) return shown.map((r) => toApi(def, r));
+  if (!isObjects(def) || v.isGm) return shown.map((r) => layerItemFor(def, v, r));
   const seen = await (vision ?? viewerVision(db, v, mapId));
   return shown
     .filter((r) => seen?.seesObject(visionObject(r)) ?? false)
@@ -419,6 +445,60 @@ export async function listLayer(
 }
 
 const isObjects = (def: LayerDef) => def.path === 'objects';
+
+/** Élément tel que l'appelant le reçoit (un joueur : sans ce que la couche lui cache). */
+export const layerItemFor = (def: LayerDef, v: Viewer, row: Row) => {
+  const api = toApi(def, row);
+  return !v.isGm && def.forPlayer ? def.forPlayer(api) : api;
+};
+
+/**
+ * `<domaine>.created | updated` d'un élément public ou non : complet pour les MJ, et, si la
+ * couche cache une partie de l'élément aux joueurs (`forPlayer`), une version réduite de même
+ * version pour tous (le client du MJ garde la première).
+ */
+async function layerEvent(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  def: LayerDef,
+  action: 'created' | 'updated',
+  api: Input,
+  o: { visible: boolean; restricted: boolean },
+) {
+  const type = `${layerDomain(def)}.${action}`;
+  const aggregate = { type: layerDomain(def), id: api.id as string };
+  if (o.visible && def.forPlayer) {
+    await mapEvent(tx, ctx, v, { type, aggregate, payload: api, visibility: 'gm_only' });
+    await mapEvent(tx, ctx, v, {
+      type,
+      aggregate,
+      payload: def.forPlayer(api),
+      visibility: 'public',
+      restricted: o.restricted,
+    });
+    return;
+  }
+  await mapEvent(tx, ctx, v, {
+    type,
+    aggregate,
+    payload: api,
+    visibility: o.visible ? 'public' : 'gm_only',
+    restricted: o.restricted,
+  });
+}
+
+/** Écriture d'un autre élément de la couche, sans crochets (`SiblingWrite`). */
+function siblingWriter(tx: Tx, ctx: EventContext, def: LayerDef, v: Viewer): SiblingWrite {
+  return async (row, columns) => {
+    const [map] = await tx
+      .select()
+      .from(maps)
+      .where(and(eq(maps.id, row.mapId), eq(maps.campaignId, row.campaignId)));
+    if (!map) throw notFound('Carte');
+    return writeItem(tx, ctx, def, v, map, row, columns, { hooks: false });
+  };
+}
 
 /** Objet tel qu'un joueur le reçoit : sans son contenu (la fouille le donne). */
 export const forPlayers = (api: Input): Input =>
@@ -436,8 +516,9 @@ async function createItem(
   else requireWriter(v);
   const withDefaults = def.defaults ? await def.defaults(tx, map, input) : input;
   await def.check?.(tx, map, withDefaults, v);
+  const columns = (def.toColumns ?? ((x: Input) => x))(withDefaults);
   const values = {
-    ...(def.toColumns ?? ((x: Input) => x))(withDefaults),
+    ...(def.beforeWrite ? await def.beforeWrite(tx, map, null, columns) : columns),
     id: uuidv7(),
     campaignId: map.campaignId,
     mapId: map.id,
@@ -453,14 +534,12 @@ async function createItem(
     return api;
   }
   const hidden = await hiddenFor(tx, def, map.id);
-  await mapEvent(tx, ctx, v, {
-    type: `${layerDomain(def)}.created`,
-    aggregate: { type: layerDomain(def), id: row!.id },
-    payload: api,
-    visibility: isPublic(def, row!, hidden) ? 'public' : 'gm_only',
+  await layerEvent(tx, ctx, v, def, 'created', api, {
+    visible: isPublic(def, row!, hidden),
     restricted: inHiddenLayer(def, row!, hidden),
   });
   await visionChanged(tx, ctx, v, map, def, 'all');
+  await def.afterWrite?.(tx, map, null, row!, siblingWriter(tx, ctx, def, v));
   return api;
 }
 
@@ -573,8 +652,11 @@ export async function writeItem(
   v: Viewer,
   map: MapRow,
   before: Row,
-  columns: Input,
+  input: Input,
+  o: { hooks?: boolean } = {},
 ) {
+  const hooks = o.hooks !== false;
+  const columns = hooks && def.beforeWrite ? await def.beforeWrite(tx, map, before, input) : input;
   const t = table(def);
   // Objet : qui le voyait avant (ceux qui ne le voient plus reçoivent `map_object.hidden`)
   const seenBefore = isObjects(def) ? await objectAudience(tx, map, toApi(def, before)) : null;
@@ -590,11 +672,8 @@ export async function writeItem(
   }
   const hidden = await hiddenFor(tx, def, map.id);
   const visible = isPublic(def, after!, hidden);
-  await mapEvent(tx, ctx, v, {
-    type: `${layerDomain(def)}.updated`,
-    aggregate: { type: layerDomain(def), id: before.id },
-    payload: api,
-    visibility: visible ? 'public' : 'gm_only',
+  await layerEvent(tx, ctx, v, def, 'updated', api, {
+    visible,
     restricted: inHiddenLayer(def, after!, hidden),
   });
   // Élément qui vient d'être caché (visibilité, calque masqué) : les joueurs le retirent
@@ -605,6 +684,7 @@ export async function writeItem(
       payload: { id: before.id, mapId: map.id },
     });
   await visionChanged(tx, ctx, v, map, def, Object.keys(columns));
+  if (hooks) await def.afterWrite?.(tx, map, before, after!, siblingWriter(tx, ctx, def, v));
   return api;
 }
 
@@ -637,7 +717,7 @@ async function deleteItem(
 ) {
   const before = await lockItem(tx, def, v, map.id, itemId);
   requireEdit(def, v, before);
-  await def.beforeDelete?.(tx, ctx, v, map, before, o);
+  await def.beforeDelete?.(tx, ctx, v, map, before, o, siblingWriter(tx, ctx, def, v));
   const t = table(def);
   const hidden = await hiddenFor(tx, def, map.id);
   // Objet : ceux qui le voyaient le retirent

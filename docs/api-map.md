@@ -213,19 +213,19 @@ contrat, `fogZones`, `musicZones`…) :
 
 Éléments (tous ont aussi `id`, `mapId`, `version`, `updatedAt`) :
 
-| Couche         | Obligatoire             | Champs                                                                                                                                                                                                                                                                                                    | Écriture                                           |
-| -------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `layers`       | `name`                  | `name`, `sortOrder`, `visibleToPlayers`, `locked`, `opacity` (0 à 1), `role` (lu seul)                                                                                                                                                                                                                    | MJ                                                 |
-| `objects`      | `pos`                   | `name`, `kind: decor\|weapon\|item`, `imageUrl`, `pos` (coin haut gauche), `width`, `height`, `rotation` (degrés, autour du centre), `layerId`, `z`, `isLocked`, `visibility: visible\|hidden\|custom`, `visibleTo`, `notes`, `items`, `linkedId`, `groupEntityId`, `searchable`, `searchRadius` (unités) | MJ                                                 |
-| `lights`       | `pos`                   | `name`, `pos`, `radius` (unités, × `pixelsPerUnit`), `visible` (allumée), `color`, `intensity` (0 à 1), `falloff` (0 à 1, part du rayon en dégradé), `attachedTokenId` (token de la carte, 422 `unknown_token`)                                                                                           | MJ                                                 |
-| `obstacles`    | `points` (2 et plus)    | `kind: wall\|one_way_wall\|door\|window`, `points`, `blocksFrom: left\|right` (mur à sens unique, `left` par défaut), `isOpen`, `isLocked`, `color`, `opacity` (1 par défaut : bloque ; en dessous, ombre partielle), `roomMode: room\|individual`                                                        | MJ ; joueur : `isOpen` d'une porte non verrouillée |
-| `rooms`        | `points` (3 et plus)    | `name`, `points` (contour, sans répéter le premier point)                                                                                                                                                                                                                                                 | MJ                                                 |
-| `fog-zones`    | `shape` et sa géométrie | `shape: circle\|rect\|polygon`, `mode: fog\|clear` (défaut `fog`), `center` et `radius` (cercle), `points` (4 pour `rect`, 3 à 5 000 pour `polygon`), `order` et `createdBy` (lus seuls)                                                                                                                  | MJ                                                 |
-| `drawings`     | `points`                | `tool: pen\|brush\|eraser\|line\|rectangle\|circle`, `points`, `color`, `width`, `fill`, `closed`, `smooth`, `layerId` (nul : annotation), `z`, `createdBy` (lu seul)                                                                                                                                     | membres ; auteur ou MJ                             |
-| `notes`        | `text`, `pos`           | `text`, `pos` (début de la ligne de base), `rotation` (degrés, autour de `pos`), `color`, `fontSize`, `fontFamily`, `layerId` (nul : annotation), `z`, `createdBy`                                                                                                                                        | membres ; auteur ou MJ                             |
-| `music-zones`  | `pos`                   | `name`, `pos`, `radius` (pixels), `url` (fichier audio ou id YouTube), `volume` (0 à 1), `color`                                                                                                                                                                                                          | MJ                                                 |
-| `portals`      | `pos`                   | `name`, `pos`, `radius`, `kind: scene_change\|same_map`, `targetMapId` (même campagne, 422 `unknown_target_map`), `target` (point d'arrivée), `icon: stairs\|door\|portal\|ladder`, `color`, `visible`                                                                                                    | MJ                                                 |
-| `measurements` | `shape`, `start`, `end` | `shape: line\|cone\|circle\|cube`, `start`, `end`, `color`, `skin`, `options` (cône : `coneWidth`, `coneAngle`, `coneShape`, `coneMode`, `fixedLength`…), `createdBy`                                                                                                                                     | membres ; auteur ou MJ                             |
+| Couche         | Obligatoire             | Champs                                                                                                                                                                                                                                                                                                                          | Écriture                                           |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `layers`       | `name`                  | `name`, `sortOrder`, `visibleToPlayers`, `locked`, `opacity` (0 à 1), `role` (lu seul)                                                                                                                                                                                                                                          | MJ                                                 |
+| `objects`      | `pos`                   | `name`, `kind: decor\|weapon\|item`, `imageUrl`, `pos` (coin haut gauche), `width`, `height`, `rotation` (degrés, autour du centre), `layerId`, `z`, `isLocked`, `visibility: visible\|hidden\|custom`, `visibleTo`, `notes`, `items`, `linkedId`, `groupEntityId`, `searchable`, `searchRadius` (unités)                       | MJ                                                 |
+| `lights`       | `pos`                   | `name`, `pos`, `radius` (unités, × `pixelsPerUnit`), `visible` (allumée), `color`, `intensity` (0 à 1), `falloff` (0 à 1, part du rayon en dégradé), `attachedTokenId` (token de la carte, 422 `unknown_token`)                                                                                                                 | MJ                                                 |
+| `obstacles`    | `points` (2 et plus)    | `kind: wall\|one_way_wall\|door\|window`, `points`, `blocksFrom: left\|right` (mur à sens unique, `left` par défaut), `isOpen`, `isLocked`, `color`, `opacity` (1 par défaut : bloque ; en dessous, ombre partielle), `roomMode: room\|individual`                                                                              | MJ ; joueur : `isOpen` d'une porte non verrouillée |
+| `rooms`        | `points` (3 et plus)    | `name`, `points` (contour, sans répéter le premier point)                                                                                                                                                                                                                                                                       | MJ                                                 |
+| `fog-zones`    | `shape` et sa géométrie | `shape: circle\|rect\|polygon`, `mode: fog\|clear` (défaut `fog`), `center` et `radius` (cercle), `points` (4 pour `rect`, 3 à 5 000 pour `polygon`), `order` et `createdBy` (lus seuls)                                                                                                                                        | MJ                                                 |
+| `drawings`     | `points`                | `tool: pen\|brush\|eraser\|line\|rectangle\|circle`, `points`, `color`, `width`, `fill`, `closed`, `smooth`, `layerId` (nul : annotation), `z`, `createdBy` (lu seul)                                                                                                                                                           | membres ; auteur ou MJ                             |
+| `notes`        | `text`, `pos`           | `text`, `pos` (début de la ligne de base), `rotation` (degrés, autour de `pos`), `color`, `fontSize`, `fontFamily`, `layerId` (nul : annotation), `z`, `createdBy`                                                                                                                                                              | membres ; auteur ou MJ                             |
+| `music-zones`  | `pos`                   | `name`, `pos`, `radius` (pixels), `url` (fichier audio ou id YouTube), `volume` (0 à 1), `color`                                                                                                                                                                                                                                | MJ                                                 |
+| `portals`      | `pos`                   | `name`, `pos`, `radius` (pixels), `kind: scene_change\|same_map`, `targetMapId` (même campagne, 422 `unknown_target_map`), `target` (point d'arrivée ; nul vers une autre scène : son point d'arrivée), `icon: stairs\|door\|portal\|ladder`, `color`, `visible`, `auto`, `linkedPortalId` (retour relié, 422 `unknown_portal`) | MJ                                                 |
+| `measurements` | `shape`, `start`, `end` | `shape: line\|cone\|circle\|cube`, `start`, `end`, `color`, `skin`, `options` (cône : `coneWidth`, `coneAngle`, `coneShape`, `coneMode`, `fixedLength`…), `createdBy`                                                                                                                                                           | membres ; auteur ou MJ                             |
 
 - **Contenu d'un objet** (`items`, coffre, cadavre) : `[{ id, name, quantity, imageUrl?, description?, ref?, legacy? }]`,
   500 au plus. `ref` : entrée du catalogue du système (`entree`) ; absent, objet libre. `legacy` :
@@ -236,12 +236,51 @@ contrat, `fogZones`, `musicZones`…) :
   `points: []`, les autres `center` et `radius` nuls.
 - **Mur à sens unique** : `blocksFrom` est relatif au sens de tracé a→b : il bloque la vue d'un
   observateur situé de ce côté ; côté gauche : `cross(b − a, p − a) < 0` (y vers le bas).
-- Filtrage pour un joueur : objets `hidden` et `custom` hors `visibleTo`, lumières et portails
+- Filtrage pour un joueur : portails sans destination (`target`, `targetMapId` et
+  `linkedPortalId` nuls, voir Portails) ; objets `hidden` et `custom` hors `visibleTo`, lumières et portails
   `visible: false`, calques masqués et leur contenu sont absents ; un objet (hors `decor`) n'est
   envoyé que s'il est vu (`@vtt/vision`, centre, coins et milieux des bords), et **jamais avec
   son contenu** : `items` vaut `[]` pour un joueur (REST, événements, rejeu), seule la fouille le
   donne. Les gabarits posés ici sont permanents ; les mesures éphémères (6 s) passent par
   realtime.
+
+## Portails
+
+Un portail est une entrée : téléportation sur la carte (`same_map`, arrivée `target`) ou
+changement de scène (`scene_change`, `targetMapId`, arrivée `target` sur cette scène, sinon son
+point d'arrivée des joueurs, sinon son centre). `auto` : franchi dès qu'un joueur y lâche son
+token. Conception : [carte.md](carte.md) § 10, Portails.
+
+| Méthode | Route                                               | Corps                                             | Réponse                                                            |
+| ------- | --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| POST    | `/v1/campaigns/:id/maps/:mapId/portals/:itemId/use` | `{ characterIds }` (1 à 200) ou `{ party: true }` | `{ mapId, items: [Token] }` : carte d'arrivée et voyageurs arrivés |
+
+- **Aller-retour** (`linkedPortalId`) : lien symétrique tenu par le service, dans la transaction de
+  l'écriture. Relier A à B aligne leurs destinations (celle de A : la place de B, et
+  inversement, `kind` et `targetMapId` compris) et délie leurs anciens partenaires ; déplacer A
+  déplace l'arrivée de B ; changer l'arrivée de A (`target`) déplace B ; changer la scène visée
+  de A (ou sa sorte) le délie ; supprimer A délie B (qui reste à sens unique). Chaque portail
+  touché, même sur une autre carte, a son `map_portal.updated`. Relier un portail à lui-même :
+  422 `invalid_link`. Une carte visée qui est celle du portail en fait une téléportation
+  (`targetMapId` nul).
+- **Non-fuite** : un joueur reçoit `target`, `targetMapId` et `linkedPortalId` nuls (liste,
+  chargement initial, `…/at`, événements : l'événement complet part aux MJ seuls, sa version
+  réduite, de même version, à tous). Un portail `visible: false` ne lui est jamais envoyé.
+- **Emprunter** (`use`) :
+  - joueur : un portail visible (404 sinon), ses personnages seulement (403), engagés (422
+    `character_not_engaged`), dont le token est présent sur la carte (422 `not_on_map`) et dans la
+    zone (centre du token à `radius` au plus du centre du portail ; 422 `out_of_range`). Le
+    portail lui ouvre la scène visée, même cachée aux joueurs ; `/travel` reste limité aux
+    scènes qu'il voit ;
+  - MJ : tout personnage engagé présent sur la carte, sans condition de zone ; `{ party: true }`
+    (MJ seul, 403 sinon) : téléportation, les personnages du groupe présents sur la carte ; autre
+    scène, tout le groupe, et la scène devient celle du groupe (`map_settings.updated`, comme
+    `POST …/travel {}`) ;
+  - arrivée autour du point d'arrivée, une case d'écart, sans empiler sur les tokens présents ;
+    portail sans destination : 422 `portal_without_destination` ; personne à faire passer : 422
+    `no_travellers` ;
+  - événements : un `token.moved` par voyageur (routé comme tout déplacement), et
+    `map_portal.used { id, mapId, name, kind, toMapId, characterIds, party, userId }`, MJ seul.
 
 ## Fouille des objets
 

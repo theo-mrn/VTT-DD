@@ -138,7 +138,14 @@ describe.skipIf(!TEST_DATABASE_URL)('import des cartes', () => {
     expect(snap.fogZones).toMatchObject([{ shape: 'polygon', mode: 'fog' }]);
     expect(snap.fogZones[0]!.points).toHaveLength(4);
     expect(snap.layers.map((l) => l.name)).toEqual(['Sol', 'Objets', 'Personnages']);
-    expect(snap.portals[0]!.targetMapId).toBe(legacyUuid(`cartes/${R}/cities/c2`));
+    // Un joueur ne reçoit pas la destination d'un portail ; le MJ, si
+    expect(snap.portals[0]!.targetMapId).toBeNull();
+    const gmSnap = await h.ok<{ portals: { targetMapId: string }[] }>(
+      gm,
+      'GET',
+      `/v1/campaigns/${campaignId}/maps/${taverne}`,
+    );
+    expect(gmSnap.portals[0]!.targetMapId).toBe(legacyUuid(`cartes/${R}/cities/c2`));
     const settings = await h.ok<{ partyMapId: string }>(
       alice,
       'GET',
