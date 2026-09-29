@@ -17,10 +17,14 @@ theme:
     bordure: '#232326'
     accent: '#ffe81f'
     accentSurvol: '#fff566'
+  # Polices de l'ancienne app (starwars-bundle/assets/fonts), dans polices/
   polices:
     corps: Orbitron
     titres: Orbitron
     decorative: Aurebesh
+    fichiers:
+      - { famille: Orbitron, fichier: Orbitron.woff2, graisse: '400 900' }
+      - { famille: Aurebesh, fichier: Aurebesh-Italic.ttf, graisse: '400', style: italic }
   fond:
     type: modele3d
     source: star-wars-eote/3d/holotable.glb

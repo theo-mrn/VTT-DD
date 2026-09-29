@@ -2,11 +2,12 @@
  * Build : assemble chaque système, le valide entièrement et écrit
  * `dist/<id>.json`. Le build échoue à la moindre erreur de règle.
  * Bestiaires dans un sous-dossier (`dist/systemes/bestiaires/<id>.json`) : les services
- * qui listent `dist/systemes/*.json` n'y voient que des systèmes.
+ * qui listent `dist/systemes/*.json` n'y voient que des systèmes. Polices déclarées par la
+ * présentation copiées dans `dist/systemes/polices/<id>/` (build en échec si l'une manque).
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { charger, checkBestiary, verifierPresentation } from '@vtt/rules';
-import { idsSystemes, lireBestiaire, lirePresentation, lireSysteme } from './sources.js';
+import { idsSystemes, lireBestiaire, lirePresentation, lireSysteme, RACINE } from './sources.js';
 
 const sortie = new URL('../dist/systemes/', import.meta.url).pathname;
 const sortieBestiaires = `${sortie}bestiaires/`;
@@ -54,7 +55,21 @@ for (const id of idsSystemes()) {
     for (const e of p.erreurs) console.error(`  ${e.chemin} : ${e.message}`);
     continue;
   }
+  // Polices apportées par le système : `systemes/<id>/polices/` → `dist/systemes/polices/<id>/`
+  const fichiers = p.presentation.theme?.polices.fichiers ?? [];
+  const manquants = fichiers.filter((f) => !existsSync(`${RACINE}${id}/polices/${f.fichier}`));
+  if (manquants.length) {
+    echec = true;
+    for (const f of manquants)
+      console.error(`✗ ${id} : police introuvable, polices/${f.fichier} (${f.famille})`);
+    continue;
+  }
+  if (fichiers.length) {
+    mkdirSync(`${sortie}polices/${id}/`, { recursive: true });
+    for (const f of fichiers)
+      copyFileSync(`${RACINE}${id}/polices/${f.fichier}`, `${sortie}polices/${id}/${f.fichier}`);
+  }
   writeFileSync(`${sortie}${id}.presentation.json`, JSON.stringify(p.presentation));
-  console.log(`✓ ${id} : présentation`);
+  console.log(`✓ ${id} : présentation${fichiers.length ? `, ${fichiers.length} police(s)` : ''}`);
 }
 if (echec) process.exit(1);

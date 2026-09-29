@@ -150,6 +150,16 @@ Objets de la carte (voir [carte.md](carte.md) § 10). dnd-classic et nooblies re
 liste d'objets de l'ancienne app (`legacy/src/lib/suggested-objects.ts`), star-wars-eote la
 sienne (`suggested-objects-starwars.ts`).
 
+### Polices des systèmes
+
+`theme.polices` de la présentation : `corps` (texte courant), `titres`, `decorative`, et
+`fichiers` (`famille`, `fichier`, `graisse`, `style`) : les fichiers du dossier `polices/` du
+système, vérifiés et copiés par l'assembleur (`dist/systemes/polices/<id>/`), puis par
+`frontend/scripts/systemes.mjs` (`public/systemes/polices/<id>/`). À la table, le front les
+déclare au navigateur et applique `corps` et `titres` à toute la page, comme l'ancienne app ;
+toutes sont proposées pour les textes de la carte. star-wars-eote : Orbitron et Aurebesh ;
+dnd-classic : Hobbiton Brush Hand (décorative).
+
 ## Droits et écrans
 
 | Onglet    | Accueil (`/resources`)              | Table (panneau « Ressources », touche B)         |

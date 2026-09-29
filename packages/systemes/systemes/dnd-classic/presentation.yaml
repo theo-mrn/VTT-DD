@@ -18,6 +18,12 @@ theme:
     texteSecondaire: '#7a706a'
     accent: '#c2956a'
     accentSurvol: '#d0ad8b'
+  # Police manuscrite de l'ancienne app (public/fonts), dans polices/ : décorative seulement,
+  # le texte courant et les titres gardent les polices de l'application
+  polices:
+    decorative: Hobbiton Brush Hand
+    fichiers:
+      - { famille: Hobbiton Brush Hand, fichier: HobbitonBrushHand.ttf }
   fond:
     type: image
     source: 'https://assets.yner.fr/Map/Chateau/Illustration/Cragwind Castle_Day02_static.webp'

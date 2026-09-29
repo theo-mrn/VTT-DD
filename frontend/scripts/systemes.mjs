@@ -40,6 +40,22 @@ function bestiaire(id) {
   return JSON.parse(readFileSync(fichier, 'utf8')).creatures?.length ?? 0;
 }
 
+/** Polices des systèmes (fichiers déclarés par leur présentation), servies telles quelles. */
+function copierDossier(de, vers) {
+  if (!existsSync(de)) return 0;
+  mkdirSync(vers, { recursive: true });
+  let n = 0;
+  for (const nom of readdirSync(de, { withFileTypes: true })) {
+    if (nom.isDirectory()) n += copierDossier(join(de, nom.name), join(vers, nom.name));
+    else {
+      copyFileSync(join(de, nom.name), join(vers, nom.name));
+      n += 1;
+    }
+  }
+  return n;
+}
+const polices = copierDossier(join(source, 'polices'), join(cible, 'polices'));
+
 const index = [];
 for (const fichier of readdirSync(source)
   .filter((f) => f.endsWith('.json'))
@@ -68,4 +84,6 @@ for (const fichier of readdirSync(source)
   });
 }
 writeFileSync(join(cible, 'index.json'), JSON.stringify(index));
-console.log(`✓ ${index.length} système(s) copiés dans public/systemes`);
+console.log(
+  `✓ ${index.length} système(s) copiés dans public/systemes${polices ? `, ${polices} police(s)` : ''}`,
+);

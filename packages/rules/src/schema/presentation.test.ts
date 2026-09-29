@@ -42,6 +42,22 @@ describe('présentation', () => {
     expect(verifierPresentation(valide, systeme).ok).toBe(true);
   });
 
+  it('polices du système : fichiers déclarés (woff2, woff, ttf, otf), rien d’autre', () => {
+    const avec = (fichiers: unknown[]) =>
+      verifierPresentation(
+        { ...valide, theme: { ...valide.theme, polices: { titres: 'Orbitron', fichiers } } },
+        systeme,
+      );
+    const ok = avec([
+      { famille: 'Orbitron', fichier: 'Orbitron.woff2', graisse: '400 900' },
+      { famille: 'Aurebesh', fichier: 'Aurebesh-Italic.ttf', style: 'italic' },
+    ]);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.presentation.theme?.polices.fichiers).toHaveLength(2);
+    expect(avec([{ famille: 'X', fichier: '../secret.ttf' }]).ok).toBe(false);
+    expect(avec([{ famille: 'X', fichier: 'police.exe' }]).ok).toBe(false);
+  });
+
   it('refuse les références inconnues', () => {
     const r = verifierPresentation(
       {

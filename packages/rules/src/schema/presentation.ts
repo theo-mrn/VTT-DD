@@ -272,6 +272,20 @@ export const References = z.object({
 });
 export type References = z.output<typeof References>;
 
+/** Un fichier de police apporté par le système (`polices/<fichier>` à côté de ses règles). */
+export const FichierPolice = z.object({
+  /** Nom de famille CSS (« Orbitron »), repris par `corps`, `titres` ou `decorative`. */
+  famille: z.string().min(1).max(100),
+  /** Nom du fichier dans le dossier `polices/` du système. */
+  fichier: z
+    .string()
+    .regex(/^[\w.-]+\.(woff2|woff|ttf|otf)$/i, 'Fichier .woff2, .woff, .ttf ou .otf'),
+  /** Graisse CSS (`400`, `400 900` pour une police variable). */
+  graisse: z.string().max(20).optional(),
+  style: z.enum(['normal', 'italic']).optional(),
+});
+export type FichierPolice = z.output<typeof FichierPolice>;
+
 export const Presentation = z.object({
   format: z.literal(1),
   systeme: Id,
@@ -279,13 +293,19 @@ export const Presentation = z.object({
     .object({
       /** Variables de couleur du thème (`fond`, `carte`, `bordure`, `accent`…). */
       couleurs: z.record(z.string(), Couleur).default({}),
+      /**
+       * Typographie du système : familles du texte courant, des titres et décorative, et les
+       * fichiers de polices qu'il apporte (dossier `polices/` du système, chargés à la table
+       * et proposés pour les textes de la carte).
+       */
       polices: z
         .object({
           corps: z.string().optional(),
           titres: z.string().optional(),
           decorative: z.string().optional(),
+          fichiers: z.array(FichierPolice).default([]),
         })
-        .default({}),
+        .default({ fichiers: [] }),
       fond: z
         .discriminatedUnion('type', [
           z.object({ type: z.literal('image'), source: Url }),
