@@ -25,6 +25,9 @@ import { IMPLICIT_LAYER_ID } from './layers';
 import type { EngineView, MapEngine } from './map-engine';
 import { MAP_PLANES, type PlaneId } from './planes';
 import { drawVisibilityBadge, HIDDEN_VEIL, WHITE } from './visibility-badge';
+
+/** Opacité d'un élément mis de côté après un choix entre éléments superposés. */
+const SIDELINED_ALPHA = 0.3;
 import { SelectTool } from './tools/select-tool';
 import type { Tool } from './tools/tool';
 import type { MapDto } from '../store/map-store';
@@ -318,7 +321,8 @@ class PixiView implements EngineView {
     const d = e.display;
     if (!d) return;
     const hidden = e.state.hiddenForPlayers && this.engine.viewer.role === 'gm';
-    d.alpha = hidden ? 0.5 : e.state.remote ? 0.85 : 1;
+    d.alpha =
+      (hidden ? 0.5 : e.state.remote ? 0.85 : 1) * (e.state.sidelined ? SIDELINED_ALPHA : 1);
   }
 
   // ─── Calques ───────────────────────────────────────────────────────────────

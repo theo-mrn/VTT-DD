@@ -43,6 +43,11 @@ export interface EntityState {
   remote: boolean;
   /** Écriture optimiste pas encore confirmée par le serveur. */
   pending: boolean;
+  /**
+   * Mise de côté après un choix entre éléments superposés : estompée, elle ne se touche plus
+   * jusqu'à ce que la sélection change.
+   */
+  sidelined: boolean;
 }
 
 export const initialState = (): EntityState => ({
@@ -53,6 +58,7 @@ export const initialState = (): EntityState => ({
   hiddenForPlayers: false,
   remote: false,
   pending: false,
+  sidelined: false,
 });
 
 export class MapEntity<D extends MapDto = MapDto> {

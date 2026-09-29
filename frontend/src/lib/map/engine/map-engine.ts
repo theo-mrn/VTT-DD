@@ -68,12 +68,13 @@ import {
 } from './entities/entity-kind';
 import { KindRegistry } from './entities/registry';
 import {
+  type EntityGeometry,
   inflateRect,
   normalizeDegrees,
-  rectsIntersect,
-  type EntityGeometry,
   type Point,
   type Rect,
+  rectsConfusable,
+  rectsIntersect,
 } from './geometry';
 import { InteractionController, type ControllerTimers } from './interaction/controller';
 import { Selection } from './interaction/selection';
@@ -212,6 +213,8 @@ export interface MapUiState {
   /** Le rendu n'a pas pu démarrer (WebGL indisponible…). */
   failure: string | null;
   menu: MenuRequest | null;
+  /** Choix entre éléments superposés (clic sur une pile d'éléments presque confondus). */
+  picker: MenuRequest | null;
   /** Entités de l'inspecteur ouvert. */
   inspector: readonly string[] | null;
   confirm: ConfirmRequest | null;
@@ -349,6 +352,9 @@ export class MapEngine {
   private view: EngineView | null = null;
   private destroyed = false;
   private readonly cleanups: (() => void)[] = [];
+  /** Éléments mis de côté après un choix dans une pile, et l'élément choisi. */
+  private readonly sidelined = new Set<string>();
+  private chosenId: string | null = null;
   private readonly moduleCleanups: (() => void)[] = [];
 
   // Extensions
@@ -397,6 +403,7 @@ export class MapEngine {
       mounted: false,
       failure: null,
       menu: null,
+      picker: null,
       inspector: null,
       confirm: null,
       layersPanel: false,
@@ -857,6 +864,7 @@ export class MapEngine {
 
   private removeEntity(entity: MapEntity | undefined) {
     if (!entity) return;
+    this.sidelined.delete(entity.id);
     this.entityMap.delete(entity.id);
     this.planeOverrides.delete(entity.id);
     for (const set of this.byCollection.values()) set.delete(entity.id);
@@ -1088,7 +1096,7 @@ export class MapEngine {
    * verrouillé, caché localement ou estompé (sauf ses propres tokens pour un joueur).
    */
   isInteractive(e: MapEntity): boolean {
-    if (e.masks.size) return false;
+    if (e.masks.size || e.state.sidelined) return false;
     // L'outil actif choisit ce qu'il touche ; sinon, une sorte réservée à son outil ne se touche
     // pas, sauf en dernier recours si elle le permet (`pickOutsideTool`)
     const tool = this.tools.active;
@@ -1117,6 +1125,78 @@ export class MapEngine {
       a.z - b.z ||
       a.sequence - b.sequence
     );
+  }
+
+  /**
+   * Entités touchables sous ce point, de la plus haute à la plus basse, sans celles touchées en
+   * dernier recours (murs, lumières hors de leur outil) ni les actions de clic seules (portes).
+   */
+  hitCandidates(world: Point, tolerancePx = HIT_TOLERANCE_PX): MapEntity[] {
+    const tol = this.camera.screenToWorldLength(tolerancePx);
+    const out: MapEntity[] = [];
+    for (const id of this.index.queryPoint(world, tol * 2)) {
+      const e = this.entityMap.get(id);
+      if (!e || !this.isInteractive(e) || this.isFallbackPick(e)) continue;
+      if (e.hitTest(world, tol)) out.push(e);
+    }
+    return out.sort((a, b) => this.compareStack(b, a));
+  }
+
+  /**
+   * Éléments presque confondus sous ce point : le plus haut et ceux qui le recouvrent presque
+   * (taille comparable, boîtes recouvertes à 60 %). Un token sur un grand tapis n'en fait pas
+   * partie. null s'il n'y a pas d'ambiguïté.
+   */
+  confusablesAt(world: Point): MapEntity[] | null {
+    const [top, ...rest] = this.hitCandidates(world);
+    if (!top) return null;
+    const box = top.bounds();
+    const stack = [top, ...rest.filter((e) => rectsConfusable(box, e.bounds()))];
+    return stack.length > 1 ? stack : null;
+  }
+
+  /** Propose de choisir parmi des éléments superposés (menu ancré au point de l'écran). */
+  openPicker(request: MenuRequest) {
+    this.ui.setState({ picker: request, menu: null });
+  }
+
+  closePicker() {
+    if (this.ui.getState().picker) this.ui.setState({ picker: null });
+  }
+
+  /**
+   * L'élément choisi dans une pile est sélectionné ; les autres de la pile sont mis de côté
+   * (estompés, intouchables) tant qu'il reste sélectionné.
+   */
+  chooseAmong(id: string, stack: readonly string[]) {
+    this.releaseSidelined();
+    this.closePicker();
+    this.selection.replace([id]);
+    this.chosenId = id;
+    for (const other of stack) {
+      const e = other === id ? undefined : this.entityMap.get(other);
+      if (!e) continue;
+      this.sidelined.add(e.id);
+      e.state.sidelined = true;
+      if (this.hoveredId === e.id) this.setHovered(null);
+      this.view?.updateEntity(e, { state: true });
+    }
+    this.cullDirty = true;
+    this.invalidate();
+  }
+
+  /** Les éléments mis de côté reviennent. */
+  releaseSidelined() {
+    this.chosenId = null;
+    if (!this.sidelined.size) return;
+    for (const id of this.sidelined) {
+      const e = this.entityMap.get(id);
+      if (!e) continue;
+      e.state.sidelined = false;
+      this.view?.updateEntity(e, { state: true });
+    }
+    this.sidelined.clear();
+    this.invalidate();
   }
 
   /** Entité touchable la plus haute sous ce point du monde. */
@@ -1214,6 +1294,8 @@ export class MapEngine {
 
   private onSelection() {
     const ids = new Set(this.selection.ids);
+    // L'élément choisi dans une pile n'est plus sélectionné : les autres reviennent
+    if (this.chosenId && !ids.has(this.chosenId)) this.releaseSidelined();
     for (const e of this.entityMap.values()) {
       const selected = ids.has(e.id);
       if (e.state.selected !== selected) {
@@ -1899,8 +1981,8 @@ export class MapEngine {
   /** Échap : ferme menu et inspecteur ; renvoie vrai s'il y en avait un. */
   closeOverlays(): boolean {
     const s = this.ui.getState();
-    if (!s.menu && !s.inspector) return false;
-    this.ui.setState({ menu: null, inspector: null });
+    if (!s.menu && !s.inspector && !s.picker) return false;
+    this.ui.setState({ menu: null, inspector: null, picker: null });
     return true;
   }
 

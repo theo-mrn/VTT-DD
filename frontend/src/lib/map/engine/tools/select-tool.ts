@@ -13,6 +13,10 @@
  * | `lasso`     | rectangle (⇧ + glisser dans le vide)     | lâcher → sélection, ajoutée à l'actuelle |
  * | `handle`    | rotation ou taille                       | lâcher → une commande ; Échap → annule   |
  *
+ * Plusieurs éléments presque confondus sous le pointeur (`confusablesAt`) : un menu demande
+ * lequel prendre ; l'élément choisi est sélectionné, les autres mis de côté (estompés,
+ * intouchables) tant qu'il le reste. Si l'un d'eux est déjà sélectionné, il est pris.
+ *
  * Une sorte à action de clic (`EntityKind.click` : porte) la reçoit au lâcher d'un clic simple,
  * sans que la sélection change ; hors de son outil, elle ne se sélectionne ni ne se glisse.
  */
@@ -62,7 +66,19 @@ export class SelectTool implements Tool {
       return true;
     }
 
-    const hit = engine.hitTest(e.world);
+    let hit = engine.hitTest(e.world);
+    // Éléments presque confondus : celui déjà sélectionné s'il y en a un, sinon on demande
+    const stack = hit && !e.shift && !e.alt ? engine.confusablesAt(e.world) : null;
+    if (stack) {
+      const selected = stack.find((x) => engine.selection.has(x.id));
+      if (!selected) {
+        engine.openPicker({ screen: e.screen, world: e.world, ids: stack.map((x) => x.id) });
+        this.target = null;
+        this.state = 'idle';
+        return true;
+      }
+      hit = selected;
+    }
     if (hit) {
       this.target = hit;
       this.selectedOnDown = false;

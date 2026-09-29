@@ -250,6 +250,8 @@ export interface EntityKind<D extends MapDto = MapDto> {
   readonly selfHiddenMark?: boolean;
   /** Le nom est déjà écrit sur l'entité (token) : pas d'info-bulle du nom au survol. */
   readonly showsName?: boolean;
+  /** Image qui la représente (menu de choix entre éléments superposés), si elle en a une. */
+  thumbnail?(data: D): string | null;
   /**
    * Action d'un clic simple (sans glisser ni modificateur), pour tous : ouvrir ou fermer une
    * porte. Renvoie vrai si le clic est pris (la sélection ne change pas). Une sorte qui la

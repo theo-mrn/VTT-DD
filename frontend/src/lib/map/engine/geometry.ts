@@ -66,6 +66,21 @@ export const rectContainsPoint = (r: Rect, p: Point, tolerance = 0) =>
   p.y >= r.y - tolerance &&
   p.y <= r.y + r.height + tolerance;
 
+/**
+ * Deux boîtes presque confondues : de taille comparable (la plus petite fait au moins `ratio`
+ * de la plus grande) et recouvertes à `overlap` au moins de la plus petite.
+ */
+export function rectsConfusable(a: Rect, b: Rect, overlap = 0.6, ratio = 0.4): boolean {
+  const areaA = a.width * a.height;
+  const areaB = b.width * b.height;
+  const small = Math.min(areaA, areaB);
+  const large = Math.max(areaA, areaB);
+  if (!(small > 0) || small / large < ratio) return false;
+  const w = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 && (w * h) / small >= overlap;
+}
+
 export const rectsIntersect = (a: Rect, b: Rect) =>
   a.x <= b.x + b.width && a.x + a.width >= b.x && a.y <= b.y + b.height && a.y + a.height >= b.y;
 

@@ -230,6 +230,7 @@ export function createObjectKinds(
     hidden: objectHidden,
     restrictedTo: objectRestrictedTo,
     name: (o) => o.name?.trim() || null,
+    thumbnail: (o) => o.imageUrl || null,
     can: objectCan,
     render: (entity, ctx) => renderObject(asEntity(entity), ctx),
     update: (entity, ctx, change) => updateObject(asEntity(entity), ctx, change),

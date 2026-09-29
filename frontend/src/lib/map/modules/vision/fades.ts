@@ -28,8 +28,9 @@ export class Fades {
 
   /** Opacité commune du moteur (pixi-view : masqué aux joueurs, fantôme d'un autre). */
   private base(e: MapEntity) {
-    if (e.state.hiddenForPlayers && this.engine.viewer.role === 'gm') return 0.5;
-    return e.state.remote ? 0.85 : 1;
+    const side = e.state.sidelined ? 0.3 : 1;
+    if (e.state.hiddenForPlayers && this.engine.viewer.role === 'gm') return 0.5 * side;
+    return (e.state.remote ? 0.85 : 1) * side;
   }
 
   private factor(e: MapEntity, now: number) {

@@ -375,6 +375,12 @@ Règles de ces gestes :
   lui (mêmes entrées que le clic droit). Un joueur n'en a pas au clic, il clique sans cesse son
   token pour le déplacer : seules les actions marquées pour lui (`forPlayers`, « Fouiller »)
   s'y montrent, le reste est au clic droit.
+- **Éléments superposés** : un clic (sans ⇧ ni Alt) sur plusieurs éléments presque confondus
+  (taille comparable, boîtes recouvertes à 60 % au moins de la plus petite ; un token sur un
+  grand tapis n'est pas concerné) ouvre un menu « Lequel voulez-vous prendre ? » avec image et
+  nom ; survoler une ligne surligne l'élément. Le choix le sélectionne ; les autres de la pile
+  sont mis de côté (à 30 %, intouchables) tant qu'il reste sélectionné. Si l'un d'eux est déjà
+  sélectionné, il est pris sans menu.
 - **Verrouillé** : un élément verrouillé se sélectionne et s'inspecte, mais ne bouge pas.
 - **Élément masqué aux joueurs** : le MJ le voit sous un voile blanc, à 50 %, avec un badge « œil
   barré » de taille constante à l'écran (`engine/visibility-badge.ts`, commun à toutes les sortes).

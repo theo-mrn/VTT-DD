@@ -109,6 +109,7 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
     },
     isOwn: ownsToken,
     name: (d) => info(d)?.name ?? d.draft?.name ?? null,
+    thumbnail: (d) => d.imageUrl ?? info(d)?.portraitUrl ?? d.draft?.imageUrl ?? null,
     can: (action, e, viewer) => tokenCan(action, e.data, viewer, info(e.data)),
     hitTest: (e, p, tolerance) => tokenContains(e.data.shape, e.current, p, tolerance),
     render: (e, ctx) => renderToken(e, ctx, lookOf),

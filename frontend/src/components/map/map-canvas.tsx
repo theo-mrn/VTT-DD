@@ -29,6 +29,7 @@ import { useMapSync, type MapSync } from '@/lib/map/store/sync';
 import { useCampaignEphemeral } from '@/lib/realtime';
 import { MapConfirmDialog } from './confirm-dialog';
 import { MapContextMenu } from './context-menu';
+import { EntityPicker } from './entity-picker';
 import { MapEngineProvider } from './engine-context';
 import { MapInspector } from './inspector';
 import { LayersPanel } from './layers/layers-panel';
@@ -251,6 +252,7 @@ function MapRuntime({
         </>
       )}
       <MapContextMenu hostRef={hostRef} />
+      <EntityPicker hostRef={hostRef} />
       <MapConfirmDialog />
     </div>
   );
