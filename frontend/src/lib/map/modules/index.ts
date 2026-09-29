@@ -56,7 +56,7 @@
 import type { MapModule } from '../engine/map-engine';
 import { sceneModule } from './scene';
 import { drawingsModule } from './drawings';
-// import { tokensModule } from './tokens';
+import { tokensModule } from './tokens';
 import { objectsModule } from './objects';
 // import { obstaclesModule } from './obstacles';
 // import { fogModule } from './fog';
@@ -69,7 +69,7 @@ export const MAP_MODULES: readonly MapModule[] = [
   // Lot 2 « Dessins » : main levée, formes, gomme, textes (P, T)
   drawingsModule,
   // Lot 2 « Personnages » : tokens, PNJ, bibliothèque du MJ
-  // tokensModule,
+  tokensModule,
   // Lot 2 « Objets » : objets, fouille
   objectsModule,
   // Lot 2 « Outils de visibilité » : murs, portes, fenêtres, sens unique, pièces (W)

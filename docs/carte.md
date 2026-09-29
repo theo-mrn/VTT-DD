@@ -130,6 +130,7 @@ frontend/src/components/map/
   context-menu.tsx       menu contextuel commun (Radix), ancré au point de l'écran
   inspector.tsx          panneau d'inspection de la sélection (sections fournies par les modules)
   confirm-dialog.tsx     confirmations demandées par le moteur
+  overlays.tsx           surcouches des modules (`registerOverlay`) : colonne de gauche, composants sans rendu
   layers/                panneau des calques du MJ (K)
   scenes/                panneau Scènes (E) : liste, dossiers, fond, groupe (ex-CitiesManager)
   <module>/              UI propre à un module (bibliothèque de PNJ, propriétés d'un objet…)
@@ -138,9 +139,11 @@ packages/vision/         géométrie de la visibilité (§ 9), sans DOM
 
 Un module exporte un `MapModule` : `register(engine: MapEngine)` y enregistre ses `EntityKind`
 (`registerKind`), ses `Tool` (`registerTool`), ses sections d'inspecteur
-(`registerInspectorSection`), ses entrées de barre d'outils (`registerToolbarItem`), ses entrées
-de menu (`registerMenuProvider`), ses animations (`onFrame`), ses objets Pixi (`whenMounted`,
-`plane(id)`, `pixi`, `theme`) et ses abonnements au store, et renvoie son nettoyage.
+(`registerInspectorSection`), ses entrées de barre d'outils (`registerToolbarItem`), ses
+surcouches React (`registerOverlay` : panneau de la colonne de gauche, ou composant sans rendu
+qui relie des données React au module), ses entrées de menu (`registerMenuProvider`), ses
+animations (`onFrame`), ses objets Pixi (`whenMounted`, `plane(id)`, `pixi`, `theme`) et ses
+abonnements au store, et renvoie son nettoyage.
 `modules/index.ts` les liste, une ligne par module, avec un exemple complet.
 
 ## 4. Coordonnées, caméra, échelle
@@ -318,9 +321,10 @@ Règles de ces gestes :
 - **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
   pendant la saisie.
-- **Lettres réservées** : la carte prend V, P, T, W, G, L, I (outils), R (pivoter) et K
+- **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A (outils), R (pivoter) et K
   (calques, MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
-  table. Encore libres : A, Q, U, X, Y, Z et les chiffres.
+  table. Encore libres : Q, U, X, Y, Z et les chiffres (pris par l'outil actif quand il en a
+  l'usage : nombre d'exemplaires d'une pose de PNJ).
 
 ### Outils (`tools/`)
 
@@ -330,15 +334,16 @@ Règles de ces gestes :
 - **Échap** revient toujours à un état sûr, sans écriture partielle.
 - **Barre d'outils** (MJ, et joueurs pour le dessin et les textes) :
 
-  | Touche | Outil      | Module      |
-  | ------ | ---------- | ----------- |
-  | V      | sélection  | moteur      |
-  | P      | dessin     | `drawings`  |
-  | T      | texte      | `drawings`  |
-  | W      | obstacles  | `obstacles` |
-  | G      | brouillard | `fog`       |
-  | L      | lumières   | `lights`    |
-  | I      | objets     | `objects`   |
+  | Touche | Outil       | Module      |
+  | ------ | ----------- | ----------- |
+  | V      | sélection   | moteur      |
+  | P      | dessin      | `drawings`  |
+  | T      | texte       | `drawings`  |
+  | W      | obstacles   | `obstacles` |
+  | G      | brouillard  | `fog`       |
+  | L      | lumières    | `lights`    |
+  | I      | objets      | `objects`   |
+  | A      | personnages | `tokens`    |
 
   La barre d'outils porte aussi « Vue » (MJ / vue d'un joueur, § 9), « Calques » (panneau des
   calques du MJ, K) et « Affichage » (familles affichées, `map.display`).
@@ -605,29 +610,62 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 
 ### Personnages et PNJ (`tokens`)
 
-- **Rendu du token.**
-  - Portrait rond ou carré, anneau à la couleur du camp (joueurs, alliés, ennemis).
-  - Nom à taille constante.
-  - Barre de la ressource principale : première ressource de la présentation du système,
-    visible du MJ ; les joueurs la voient pour leurs personnages.
-  - Anneau de sélection.
-- **Bibliothèque MJ** (panneau). Onglets :
-  - « Modèles de la campagne » : `npc-templates` et leurs catégories ;
+- **Rendu du token** (sorte `token`, plan `content`, calque par défaut « Personnages »).
+  - Portrait rond ou carré : un `Graphics` rempli par la texture (cadrage « couvrir »), sans
+    masque, donc regroupé avec les autres tokens en un appel de dessin ; texture chargée une fois
+    par URL et partagée ; silhouette en attendant ou sans image (CORS, vidéo).
+  - Anneau à la couleur du camp, prise dans le thème : joueurs `primary`, alliés `success`,
+    ennemis `destructive`.
+  - Sous le token, à taille constante : la jauge de la ressource principale, puis le nom
+    (`BitmapText`, police installée une fois).
+  - Ressource principale : lue comme le bandeau de la fiche (premier bloc « ressources » de la
+    présentation, sinon première ressource du type d'entité), couleur de la présentation. Le MJ
+    la voit partout ; un joueur, sur ses personnages.
+  - Anneau de survol et de sélection dessiné par la sorte (`selfOutline`). MJ : pastille pour
+    « caché » et « pour certains joueurs » ; « invisible » est le masquage commun (hachures).
+  - Chaque partie n'est redessinée que si ce qui la décrit a changé.
+- **Annuaire.** Le token ne porte que `characterId` ; nom, portrait, camp, nature et
+  ressource viennent de React (surcouche sans rendu `TokenCharacterFeed`) : liste de la
+  campagne (filtrée par le serveur : un joueur n'y voit que les PNJ dont un token lui est
+  visible) et fiches calculées par `@vtt/rules` (MJ : tous les personnages posés ; joueur : les
+  siens). Un personnage modifié redessine ses seuls tokens. Un token dont le personnage manque
+  à la liste la fait relire.
+- **Bibliothèque MJ** : l'outil « Personnages » (A) l'ouvre dans la colonne de gauche ; sans
+  carte choisie, l'outil garde les gestes de la sélection. Onglets :
+  - « Modèles » : `npc-templates` et leurs catégories ;
   - « Bestiaire » du système ;
-  - « Création rapide » : nom, image, type d'entité et valeurs clés, lus dans la présentation
-    du système.
-    Glisser vers la carte, ou clic puis clic sur la carte. Nombre d'exemplaires : placés en grille
-    serrée autour du point, noms suffixés « Gobelin 2 ».
+  - « Création rapide » : nom, image, type d'entité et valeurs clés. Les valeurs clés sont les
+    attributs des statistiques du bestiaire déclarées pour ce type (sinon les blocs de sa
+    fiche) que l'on peut saisir ; les valeurs calculées (défense, maximums) suivent les règles.
+  - Recherche, filtre par catégorie. Glisser une carte vers la scène (point de dépôt converti
+    par la caméra), ou clic puis clic sur la carte (⇧ : en poser d'autres, Échap : annuler).
+    Nombre d'exemplaires (1 à 20, chiffres du clavier), camp (ennemis, alliés), visibilité à la
+    pose. Placés en grille serrée autour du point (même calcul que le serveur), le premier au
+    centre d'une case, noms suffixés « Gobelin 2 ».
 - **Instance.**
   - Un seul appel : `POST …/npcs` (§ 12). Chaque exemplaire est un vrai personnage : fiche
     complète copiée du modèle, possédé par le MJ, engagé dans la campagne (camp `enemies` par
-    défaut), avec son token.
-  - Supprimer le PNJ supprime aussi le personnage (confirmation). « Retirer de la carte » garde
-    le personnage.
-- **Inspecteur** : la fiche (`FichePersonnage`, droits habituels), la vision (rayon, bonus), la
-  visibilité (visible, caché, allié, pour certains, invisible), la taille, la forme, l'image du
-  token.
-- **Joueurs** : ils déplacent leurs personnages, voient leur fiche et leur vision.
+    défaut), avec son token. Des fantômes (brouillons optimistes) s'affichent pendant l'appel ;
+    échec : ils disparaissent, message du serveur. Annuler la pose supprime ces PNJ avec leur
+    personnage ; refaire les recrée.
+  - « Supprimer » (Suppr) sur un PNJ : confirmation, puis `?character=delete` ; définitif,
+    donc hors de la pile d'annulation (`EntityKind.remove`). Sur un personnage joueur : il est
+    retiré de la carte (annulable). « Retirer de la carte » garde toujours le personnage.
+  - « Dupliquer » (⌘D) : `…/duplicate` (fiche comprise) ; annuler supprime la copie avec son
+    personnage. Un personnage joueur ne se duplique pas.
+- **Menu**, après les actions communes : Fiche, Visibilité ▸ (visible, caché, allié, pour
+  certains joueurs ▸ personnages à cocher, invisible), Vision ▸ (vision augmentée, rayon en
+  cases de la carte), Retirer de la carte. Les actions communes « Masquer aux joueurs » et
+  « Visible pour… » ne s'affichent pas : Visibilité ▸ les remplace.
+- **Inspecteur** : « Personnage » (portrait, camp, ressource, « Ouvrir la fiche » :
+  `FichePersonnage` dans un panneau de la colonne de gauche, droits habituels) et « Token »
+  (visibilité, rayon de vision, vision augmentée, taille, forme, image du token). Chaque
+  réglage est une commande annulable pour toute la sélection.
+- **Joueurs** : ils déplacent leurs personnages (`/tokens/move`), ouvrent leur fiche et
+  activent leur vision augmentée ; direct du glisser par le moteur.
+- **Direct** : audience publique pour un personnage joueur et un PNJ `visible` ou `ally`,
+  `gmOnly` pour `hidden` et `invisible`, `toUsers` (propriétaires et incarnateurs) pour
+  `custom` ; le module vision affine l'audience d'un PNJ derrière un mur.
 
 ### Objets (`objects`)
 
