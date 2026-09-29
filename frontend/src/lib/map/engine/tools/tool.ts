@@ -38,7 +38,11 @@ export interface MapPointer {
 /** Touche normalisée. */
 export interface MapKey {
   key: string;
-  /** `KeyboardEvent.code`, indépendant de la disposition du clavier. */
+  /**
+   * Code de raccourci (`shortcutCode`) : `KeyX` pour la lettre tapée (la disposition du clavier
+   * compte : AZERTY ou QWERTY, la touche A donne `KeyA`), sinon `KeyboardEvent.code` (chiffres
+   * de la rangée du haut, pavé numérique, flèches, Espace).
+   */
   code: string;
   shift: boolean;
   alt: boolean;

@@ -205,7 +205,7 @@ export class DrawTool implements Tool {
   /** 1 à 5 : main levée, ligne, rectangle, ellipse, gomme. */
   key(k: MapKey): boolean {
     if (k.ctrl || k.meta || k.alt || k.repeat || this.state !== 'idle') return false;
-    const m = /^Digit([1-5])$/.exec(k.code);
+    const m = /^(?:Digit|Numpad)([1-5])$/.exec(k.code);
     if (!m) return false;
     this.rt.settings.patch({ shape: DRAW_SHAPES[Number(m[1]) - 1]! });
     this.changed();

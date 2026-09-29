@@ -330,7 +330,9 @@ Règles de ces gestes :
 - **Verrouillé** : un élément verrouillé se sélectionne et s'inspecte, mais ne bouge pas.
 - **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
-  pendant la saisie.
+  pendant la saisie. Une lettre est celle que la touche tape (`shortcutCode`, `lib/keyboard.ts`,
+  comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
+  annule. Les chiffres comptent par leur position (sans ⇧ en AZERTY), pavé numérique compris.
 - **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A (outils), R (pivoter) et K
   (calques, MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
   table. Encore libres : Q, U, X, Y, Z et les chiffres (pris par l'outil actif quand il en a

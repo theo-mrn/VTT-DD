@@ -8,6 +8,7 @@
  * avant ; seul Échap pendant un geste de la carte est pris plus tôt (capture sur la fenêtre),
  * pour annuler le geste plutôt que fermer un panneau.
  */
+import { shortcutCode } from '@/lib/keyboard';
 import type { MapEngine } from '../map-engine';
 import type { MapKey, MapPointer } from '../tools/tool';
 
@@ -24,7 +25,8 @@ export function isTyping(target: EventTarget | null): boolean {
 
 const toKey = (e: KeyboardEvent): MapKey => ({
   key: e.key,
-  code: e.code,
+  // Lettre tapée plutôt que position (AZERTY : la touche A pose des personnages, ⌘Z annule)
+  code: shortcutCode(e),
   shift: e.shiftKey,
   alt: e.altKey,
   ctrl: e.ctrlKey,

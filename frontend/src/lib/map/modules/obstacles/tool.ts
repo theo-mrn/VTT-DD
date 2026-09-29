@@ -460,7 +460,7 @@ export class ObstacleTool implements Tool {
 
   key(k: MapKey, engine: MapEngine): boolean {
     if (k.ctrl || k.meta) return false;
-    const digit = /^Digit([1-7])$/.exec(k.code) ?? /^Numpad([1-7])$/.exec(k.code);
+    const digit = /^(?:Digit|Numpad)([1-7])$/.exec(k.code);
     if (digit && !k.alt && !k.shift) {
       this.setMode(OBSTACLE_MODES[Number(digit[1]) - 1]!.id);
       return true;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { shortcutCode } from '@/lib/keyboard';
 import { TABLE_PARAMS, type TablePanel } from './registry';
 import { usePanelStoreApi } from './store';
 
@@ -42,15 +43,17 @@ export function useTableShortcuts(panels: TablePanel[]) {
         return;
       }
 
+      // Lettre tapée, pas sa position : les mêmes touches en AZERTY qu'en QWERTY (M, comme la carte)
+      const code = shortcutCode(e);
       if (e.shiftKey) {
-        if (e.code !== QUICK_NOTE_SHORTCUT.code) return;
+        if (code !== QUICK_NOTE_SHORTCUT.code) return;
         if (!liste.current.some((p) => p.id === 'notes')) return;
         e.preventDefault();
         etat.open('notes', { [TABLE_PARAMS.newNote]: '1', [TABLE_PARAMS.note]: null });
         return;
       }
 
-      const panneau = liste.current.find((p) => p.shortcut.code === e.code);
+      const panneau = liste.current.find((p) => p.shortcut.code === code);
       if (!panneau) return;
       e.preventDefault();
       etat.toggle(panneau.id);

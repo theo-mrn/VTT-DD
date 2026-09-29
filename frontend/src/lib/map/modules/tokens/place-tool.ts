@@ -121,7 +121,7 @@ export class TokenPlaceTool implements Tool {
 
   key(k: MapKey): boolean {
     if (this.state !== 'armed' || k.ctrl || k.meta || k.alt) return false;
-    const m = /^Digit(\d)$/.exec(k.code);
+    const m = /^(?:Digit|Numpad)(\d)$/.exec(k.code);
     if (!m) return false;
     const n = Number(m[1]);
     this.tokens.library.setState({ count: clampCount(n === 0 ? 10 : n) });

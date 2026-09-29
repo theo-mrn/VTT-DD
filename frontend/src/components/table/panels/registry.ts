@@ -39,7 +39,7 @@ export type PanelWidth = 'compact' | 'fit' | 'narrow' | 'medium' | 'wide' | 'ful
 export type PanelMode = 'side' | 'centered' | 'floating';
 
 export interface PanelShortcut {
-  /** `KeyboardEvent.code`, indépendant de la disposition du clavier. */
+  /** Code de raccourci (`shortcutCode` : `KeyX` pour la lettre tapée, AZERTY comme QWERTY). */
   code: string;
   /** Touche affichée et annoncée (`aria-keyshortcuts`). */
   label: string;
