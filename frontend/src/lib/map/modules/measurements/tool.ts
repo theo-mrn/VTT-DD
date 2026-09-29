@@ -326,7 +326,8 @@ export class MeasureTool implements Tool {
   // ─── Aperçu (plan `tool`) : poignée d'extrémité du gabarit sélectionné ──────
 
   private preview: Graphics | null = null;
-  private drawn = { key: '' };
+  /** Ce que montre la poignée dessinée (redessinée seulement si cela change). */
+  private readonly drawn = { x: NaN, y: NaN, zoom: 0, hover: false };
 
   renderPreview(layer: Container, rc: RenderContext) {
     const engine = this.ctx.engine;
@@ -336,9 +337,16 @@ export class MeasureTool implements Tool {
     g.visible = true;
     const e = this.state === 'reshaping' ? null : this.editableSelection(engine);
     const end = e ? specOfEntity(e).end : null;
-    const key = end ? `${end.x}:${end.y}:${rc.zoom}:${this.hoverHandle}` : '';
-    if (key === this.drawn.key) return;
-    this.drawn.key = key;
+    const d = this.drawn;
+    const x = end?.x ?? NaN;
+    const y = end?.y ?? NaN;
+    // NaN ≠ NaN : sans poignée, on ne vide qu'une fois
+    if (!end && Number.isNaN(d.x) && d.zoom === -1) return;
+    if (end && d.x === x && d.y === y && d.zoom === rc.zoom && d.hover === this.hoverHandle) return;
+    d.x = x;
+    d.y = y;
+    d.zoom = end ? rc.zoom : -1;
+    d.hover = this.hoverHandle;
     g.clear();
     if (!end) return;
     const u = 1 / rc.zoom;
