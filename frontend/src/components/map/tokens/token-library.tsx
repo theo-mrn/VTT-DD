@@ -98,6 +98,13 @@ function Library({ engine }: { engine: MapEngine }) {
   return (
     <aside
       aria-label="Bibliothèque des personnages"
+      onKeyDown={(e) => {
+        // Échap dans le panneau : la carte choisie est rendue (la carte n'a pas le focus)
+        if (e.key === 'Escape' && tokens.library.getState().armed) {
+          e.stopPropagation();
+          arm(null);
+        }
+      }}
       className="pointer-events-auto flex max-h-full w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background/95 shadow-elevated backdrop-blur-md"
     >
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
