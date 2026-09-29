@@ -490,8 +490,9 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 - Robustesse :
   - points colinéaires, sommets exactement sur un rayon ;
   - jonctions en T, segments nuls ou confondus, murs qui se croisent (découpés au croisement) ;
-  - observateur sur un mur ou une extrémité : décalé d'un epsilon (10⁻⁷ × la taille de la
-    carte), dans une direction fixe ; hors de la carte : ramené dedans ;
+  - observateur à moins de 10⁻⁷ × la taille de la carte d'un mur ou d'une extrémité : décalé de
+    4 × 10⁻⁷ × cette taille, dans la première de 16 directions fixes qui l'en éloigne ; hors de
+    la carte : ramené dedans ;
   - grandes coordonnées (carte de 1 000 000 px).
 - Aucune fuite entre deux murs soudés : extrémités soudées à 0,5 px près (`snap`), extrémité à
   0,5 px de l'intérieur d'un mur soudée dessus. Une fente plus étroite ne laisse pas passer la
