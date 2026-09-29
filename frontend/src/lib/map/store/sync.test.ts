@@ -78,6 +78,23 @@ describe('MapSync', () => {
     expect(s.extras.fog).toEqual({ cells: [] });
   });
 
+  it('mode strict de React : éteinte puis remise en service, elle charge la scène', async () => {
+    const t = setup();
+    // Premier montage de l'effet, démontage aussitôt, second montage
+    const first = t.sync.load();
+    t.sync.dispose();
+    t.sync.resume();
+    await Promise.all([first, t.sync.load()]);
+    expect(t.store.getState().status).toBe('ready');
+  });
+
+  it('éteinte, elle ne touche plus au store', async () => {
+    const t = setup();
+    t.sync.dispose();
+    await t.sync.load();
+    expect(t.store.getState().status).toBe('loading');
+  });
+
   it('ignore un événement dont la version n’est pas plus récente', async () => {
     const t = setup();
     await t.sync.load();

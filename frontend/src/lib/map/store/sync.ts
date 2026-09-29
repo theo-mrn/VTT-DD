@@ -317,6 +317,15 @@ export class MapSync {
     }
   }
 
+  /**
+   * Remet la synchronisation en service. React (mode strict, en développement) monte chaque
+   * effet, le démonte puis le remonte : sans cette remise en route, l'objet créé une fois par
+   * `useState` restait éteint et jetait tous ses chargements (scène bloquée sur « Chargement »).
+   */
+  resume() {
+    this.disposed = false;
+  }
+
   dispose() {
     this.disposed = true;
     if (this.refetchTimer !== null) this.clearTimer(this.refetchTimer);
@@ -349,7 +358,11 @@ export function useMapSync(opts: {
         onEvent: (e) => onEventRef.current?.(e),
       }),
   );
-  useEffect(() => () => sync.dispose(), [sync]);
+  // Déclaré avant le chargement : à chaque montage de l'effet, la synchronisation est en service
+  useEffect(() => {
+    sync.resume();
+    return () => sync.dispose();
+  }, [sync]);
 
   const { live, generation } = useCampaignEvents(opts.campaignId, MAP_EVENT_TYPES, (e) =>
     sync.handle(e),

@@ -525,9 +525,19 @@ export class MapEngine {
 
   // ─── Montage ───────────────────────────────────────────────────────────────
 
+  /** Montage en cours : un second appel (mode strict de React) attend le même, sans second canvas. */
+  private mounting: Promise<void> | null = null;
+
   /** Monte le rendu Pixi dans `host` (client seulement). */
-  async mount(host: HTMLElement): Promise<void> {
-    if (this.view || this.destroyed) return;
+  mount(host: HTMLElement): Promise<void> {
+    if (this.view || this.destroyed) return Promise.resolve();
+    this.mounting ??= this.mountView(host).finally(() => {
+      this.mounting = null;
+    });
+    return this.mounting;
+  }
+
+  private async mountView(host: HTMLElement): Promise<void> {
     try {
       const { createPixiView } = await import('./pixi-view');
       const view = await createPixiView(this, host);
