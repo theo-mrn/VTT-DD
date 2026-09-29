@@ -1470,6 +1470,10 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
       chargement initial, `…/at`, événements : l'événement complet part aux MJ, l'autre, de même
       version, aux joueurs).
 
+15. **Mesures** (§ 10, Mesures) : `map.live.measure` au contrat (mesure en cours de l'outil
+    Mesurer, `null` pour l'effacer, `pinned` quand elle devient un gabarit) ; les gabarits
+    durables gardent la couche `measurements` (auteur ou MJ, `start` et `end` ensemble).
+
 ## 13. Découpage du chantier
 
 | Lot | Agent                           | Possède                                                                                                                                                   |

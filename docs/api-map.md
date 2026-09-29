@@ -329,9 +329,12 @@ couche `fog-zones` le remplacent ; les cases enregistrées ont été converties 
 Messages relayés par realtime, jamais stockés ([api-realtime.md](api-realtime.md),
 [carte.md](carte.md) § 8), schémas du contrat :
 
-- `map.live` (`MapLiveMessage`) : `{ m, s, drag?, cursor?, stroke?, transform?, end? }`, 15 Hz
-  au plus pendant un geste, 4 Kio au plus ; `stroke` : `{ id, tool, color, width, fill?, points }`
-  (`fill` : remplissage d'une forme fermée) ;
+- `map.live` (`MapLiveMessage`) : `{ m, s, drag?, cursor?, stroke?, transform?, measure?, end? }`,
+  15 Hz au plus pendant un geste, 4 Kio au plus ; `stroke` : `{ id, tool, color, width, fill?,
+points }` (`fill` : remplissage d'une forme fermée) ; `measure` : la mesure en cours de l'outil
+  Mesurer, une par auteur, `{ id, shape, from: [x, y], to: [x, y], color, skin?, options?,
+pinned? }` (`options` : nombres et textes courts, comme le gabarit ; `pinned` : le gabarit
+  durable suit), ou `null` (effacée) ;
 - `map.ping` (`MapPingMessage`) : `{ m, x, y, focus? }`.
 
 Audience : public ; `gmOnly` pour une entité cachée ; `toUsers` (50 au plus) pour une entité vue
