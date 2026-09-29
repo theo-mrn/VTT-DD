@@ -1,6 +1,7 @@
 /**
  * Préférences locales de la visibilité (confort de chacun, jamais partagées) : animation de la
- * brume. Gardées dans `localStorage` quand il répond ; « mouvement réduit » l'éteint par défaut.
+ * brume (« mouvement réduit » l'éteint par défaut) et rayons de vision (montrés par défaut).
+ * Gardées dans `localStorage` quand il répond.
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { MapEngine } from '../../engine/map-engine';
@@ -8,21 +9,29 @@ import type { MapEngine } from '../../engine/map-engine';
 export interface VisionPrefs {
   /** La brume dérive lentement (sinon figée). */
   fogAnimation: boolean;
+  /** Cercle du rayon de vision autour des observateurs (les siens, ceux des joueurs pour le MJ). */
+  visionRadius: boolean;
 }
 
 const KEY = 'vtt:carte:brume-animee';
+const RADIUS_KEY = 'vtt:carte:rayons-vision';
+
+function read(key: string): string | null {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
 
 function initial(): VisionPrefs {
-  let stored: string | null = null;
-  try {
-    stored = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-  } catch {
-    stored = null;
-  }
-  if (stored === '0' || stored === '1') return { fogAnimation: stored === '1' };
+  const stored = read(KEY);
   const reduced =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  return { fogAnimation: !reduced };
+  return {
+    fogAnimation: stored === '0' || stored === '1' ? stored === '1' : !reduced,
+    visionRadius: read(RADIUS_KEY) !== '0',
+  };
 }
 
 const stores = new WeakMap<MapEngine, StoreApi<VisionPrefs>>();
@@ -35,6 +44,16 @@ export function visionPrefs(engine: MapEngine): StoreApi<VisionPrefs> {
     stores.set(engine, store);
   }
   return store;
+}
+
+export function setVisionRadiusShown(engine: MapEngine, on: boolean) {
+  visionPrefs(engine).setState({ visionRadius: on });
+  try {
+    localStorage.setItem(RADIUS_KEY, on ? '1' : '0');
+  } catch {
+    // Stockage indisponible : la préférence vaut pour la session
+  }
+  engine.invalidate();
 }
 
 export function setFogAnimation(engine: MapEngine, on: boolean) {

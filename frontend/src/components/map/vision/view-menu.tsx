@@ -3,9 +3,10 @@
 /**
  * « Vue » de la barre d'outils (docs/carte.md § 9) : le MJ choisit « Vue du MJ » (tout visible,
  * ombre des joueurs en voile léger) ou « Vue de <joueur> » (rendu exact de ce joueur, entités
- * non vues masquées). Chacun peut figer la brume (préférence locale).
+ * non vues masquées). Chacun peut figer la brume et montrer les rayons de vision (préférences
+ * locales).
  */
-import { Cloudy, Eye, ScanEye } from 'lucide-react';
+import { CircleDashed, Cloudy, Eye, ScanEye } from 'lucide-react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { setFogAnimation, visionPrefs } from '@/lib/map/modules/vision/prefs';
+import { setFogAnimation, setVisionRadiusShown, visionPrefs } from '@/lib/map/modules/vision/prefs';
 import { cn } from '@/lib/utils';
 
 const GM_VIEW = '__mj__';
@@ -29,6 +30,7 @@ export function VisionViewMenu({ engine }: { engine: MapEngine }) {
   const gm = engine.viewer.role === 'gm';
   const viewAs = useStore(engine.ui, (s) => s.viewAs);
   const fogAnimation = useStore(visionPrefs(engine), (s) => s.fogAnimation);
+  const radius = useStore(visionPrefs(engine), (s) => s.visionRadius);
   const players = gm ? (engine.directory.players?.() ?? []) : [];
   const current = players.find((p) => p.userId === viewAs);
   const label = current ? `Vue de ${current.name}` : gm ? 'Vue du MJ' : 'Vue';
@@ -80,6 +82,13 @@ export function VisionViewMenu({ engine }: { engine: MapEngine }) {
             <DropdownMenuSeparator />
           </>
         )}
+        <DropdownMenuCheckboxItem
+          checked={radius}
+          onCheckedChange={(on) => setVisionRadiusShown(engine, on === true)}
+        >
+          <CircleDashed className="size-4 text-muted-foreground" />
+          {gm ? 'Rayons de vision des joueurs' : 'Mon rayon de vision'}
+        </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           checked={fogAnimation}
           onCheckedChange={(on) => setFogAnimation(engine, on === true)}

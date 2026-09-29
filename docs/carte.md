@@ -560,6 +560,10 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
     qu'il sache ce qu'ils voient, sans rien lui cacher.
   - « Vue de … » (sélecteur de joueur) : rendu exact de ce joueur, et entités non vues masquées.
 - **`shadowOpacity`** (réglage MJ) : opacité de l'obscurité hors de vue (1 = noir).
+- **Rayons de vision** (menu « Vue », préférence locale, montrés par défaut) : un liseré doux,
+  clair et estompé vers l'intérieur, au bord du rayon de vision de chaque observateur : les siens
+  pour un joueur, ceux du joueur montré en « Vue de… », tous ceux des joueurs pour le MJ. Au-dessus
+  de l'ombre, il suit les tokens pendant le glisser.
 
 ### Rendu (module `vision`)
 

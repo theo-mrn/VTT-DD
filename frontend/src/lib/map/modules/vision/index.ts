@@ -20,6 +20,7 @@
 import type { MapEngine, MapModule } from '../../engine/map-engine';
 import { VisionViewMenu } from '@/components/map/vision/view-menu';
 import { Fades, VISION_MASK } from './fades';
+import { VisionRings } from './radius-rings';
 import { visionPrefs } from './prefs';
 import { VisionRenderer } from './renderer';
 import { exposeStats, VisionStats } from './stats';
@@ -57,6 +58,7 @@ export const visionModule: MapModule = {
     const fades = new Fades(engine);
     const prefs = visionPrefs(engine);
     let renderer: VisionRenderer | null = null;
+    let rings: VisionRings | null = null;
     let fogClock = 0;
     let lastTick = 0;
     let fogTimer: ReturnType<typeof setTimeout> | null = null;
@@ -125,6 +127,7 @@ export const visionModule: MapModule = {
           );
           scheduleFog();
         }
+        rings?.draw(state.picture(), engine.camera.zoom, prefs.getState().visionRadius);
         stats.record('frame', performance.now() - started);
         return fading;
       }),
@@ -145,6 +148,8 @@ export const visionModule: MapModule = {
           console.error('[carte] rendu de la visibilité impossible', err);
           renderer = null;
         }
+        const adornments = engine.plane('adornments');
+        if (adornments) rings = new VisionRings(pixi, adornments, theme);
         engine.invalidate();
         // Contexte WebGL perdu puis restauré (réinitialisation du GPU) : les textures de la vue
         // sont vides, on les refait toutes à l'image suivante
@@ -158,6 +163,8 @@ export const visionModule: MapModule = {
           canvas?.removeEventListener('webglcontextrestored', onRestored);
           renderer?.destroy();
           renderer = null;
+          rings?.destroy();
+          rings = null;
           if (allies) allies.alpha = 1;
         };
       }),
