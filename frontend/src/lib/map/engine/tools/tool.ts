@@ -11,6 +11,7 @@
 import type { ComponentType } from 'react';
 import type { Container } from 'pixi.js';
 import type { Point } from '../geometry';
+import type { MapEntity } from '../entities/entity';
 import type { MapViewer, RenderContext } from '../entities/entity-kind';
 import type { MapEngine } from '../map-engine';
 
@@ -68,6 +69,12 @@ export interface Tool {
   cancel?(engine: MapEngine): boolean;
   /** Aperçu dans le calque `tool` ; appelé à chaque image quand `engine.invalidate()` a été demandé. */
   renderPreview?(layer: Container, ctx: RenderContext): void;
+  /**
+   * Entités que l'outil actif laisse toucher (clic, lasso, menu) ; absent : toutes, sauf les
+   * sortes réservées à leur outil (`EntityKind.editTool`). L'outil obstacles (W) ne touche que
+   * murs et pièces : un token posé contre un mur ne lui vole pas le clic.
+   */
+  targets?(entity: MapEntity): boolean;
 }
 
 /** Un outil et son entrée de barre d'outils. */

@@ -66,6 +66,19 @@ export interface Persistence<D extends MapDto = MapDto> {
   /** Modifie ; renvoie les éléments à jour, dans l'ordre. */
   update(updates: readonly EntityUpdate<D>[]): Promise<D[]>;
   remove?(items: readonly D[]): Promise<void>;
+  /**
+   * Créer, modifier et supprimer en une transaction (`POST …/<couche>/batch`) : un mur scindé
+   * pour une porte ne reste jamais à moitié écrit. Renvoie les éléments créés et modifiés, dans
+   * l'ordre.
+   */
+  batch?(write: BatchWrite<D>): Promise<{ created: D[]; updated: D[] }>;
+}
+
+/** Écritures d'une couche envoyées ensemble (`batchCommand`). */
+export interface BatchWrite<D extends MapDto = MapDto> {
+  create: readonly D[];
+  update: readonly EntityUpdate<D>[];
+  remove: readonly D[];
 }
 
 // ─── Outils ──────────────────────────────────────────────────────────────────
@@ -341,6 +354,117 @@ export function arrangeCommand(opts: {
           from: c.to,
           to: c.from,
         })),
+      }),
+  };
+}
+
+/**
+ * Créer, modifier et supprimer des éléments d'une couche en **un** envoi (`persistence.batch`,
+ * une transaction au serveur) : tout ou rien. Poser une porte dans un mur (le mur raccourci, la
+ * porte et la suite du mur créées), souder un mur neuf dans un autre… Sans `batch` (tests), les
+ * trois écritures partent l'une après l'autre. L'inverse recrée ce qui a été supprimé (nouvel
+ * identifiant, suivi par `resolve`) et supprime ce qui a été créé.
+ */
+export function batchCommand<D extends MapDto>(
+  opts: CollectionCommand<D> & {
+    create?: readonly D[];
+    update?: readonly { before: D; after: D }[];
+    remove?: readonly D[];
+  },
+): Command {
+  const { label, collection, persistence } = opts;
+  const create = opts.create ?? [];
+  const update = opts.update ?? [];
+  const remove = opts.remove ?? [];
+  const withId = (ctx: CommandContext, i: D): D => ({ ...i, id: ctx.resolve(i.id) });
+  return {
+    label,
+    targets: (ctx) =>
+      [...create, ...update.map((c) => c.after), ...remove].map((i) => ({
+        collection,
+        id: ctx.resolve(i.id),
+      })),
+    apply(ctx) {
+      const s = ctx.store.getState();
+      s.upsert(
+        collection,
+        [
+          ...create.map((i) => withId(ctx, i)),
+          ...update.map((c) => rebased(ctx, collection, c.after)),
+        ],
+        { force: true },
+      );
+      s.remove(
+        collection,
+        remove.map((i) => ctx.resolve(i.id)),
+      );
+    },
+    revert(ctx) {
+      const s = ctx.store.getState();
+      s.remove(
+        collection,
+        create.map((i) => ctx.resolve(i.id)),
+      );
+      s.upsert(
+        collection,
+        [
+          ...update.map((c) => rebased(ctx, collection, c.before)),
+          ...remove.map((i) => withId(ctx, i)),
+        ],
+        { force: true },
+      );
+    },
+    async send(ctx) {
+      const drafts = create.map((i) => withId(ctx, i));
+      const updates: EntityUpdate<D>[] = update.map((c) => {
+        const id = ctx.resolve(c.after.id);
+        const version = current(ctx, collection, id)?.version ?? c.after.version;
+        return {
+          before: { ...c.before, id },
+          after: { ...c.after, id, version },
+          changes: diffFields(c.before, c.after),
+          version,
+        };
+      });
+      const removed = remove.map((i) => withId(ctx, i));
+      let created: D[] = [];
+      let updated: D[] = [];
+      if (persistence.batch) {
+        ({ created, updated } = await persistence.batch({
+          create: drafts,
+          update: updates,
+          remove: removed,
+        }));
+      } else {
+        if (drafts.length) {
+          if (!persistence.create) throw new Error(`Création impossible : ${collection}`);
+          created = await persistence.create(drafts);
+        }
+        if (updates.length) updated = await persistence.update(updates);
+        if (removed.length) {
+          if (!persistence.remove) throw new Error(`Suppression impossible : ${collection}`);
+          await persistence.remove(removed);
+        }
+      }
+      created.forEach((c, i) => {
+        if (c && c.id !== drafts[i]!.id) ctx.alias(drafts[i]!.id, c.id);
+      });
+      const store = ctx.store.getState();
+      store.remove(
+        collection,
+        drafts.map((d) => d.id).filter((id, i) => created[i] && created[i]!.id !== id),
+      );
+      store.upsert(collection, created, { force: true });
+      if (updated.length) applyServer(ctx, collection, updated);
+    },
+    inverse: () =>
+      batchCommand({
+        label,
+        collection,
+        persistence,
+        create: remove,
+        update: update.map((c) => ({ before: c.after, after: c.before })),
+        remove: create,
       }),
   };
 }

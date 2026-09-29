@@ -428,10 +428,12 @@ class PixiView implements EngineView {
           .stroke({ width: 1.2 * px, color: foreground });
       }
 
-    if (hovered && !hovered.state.selected && hovered.display?.visible)
+    // Une sorte qui dessine elle-même son survol et sa sélection (mur, zone) n'a pas de contour
+    if (hovered && !hovered.state.selected && hovered.display?.visible && !hovered.kind.selfOutline)
       this.outline(g, hovered.current, 1.5 * px, primary, 0.6);
 
     for (const e of selected) {
+      if (e.kind.selfOutline) continue;
       if (!e.display?.visible && !e.state.dragging) continue;
       this.outline(g, e.current, 1.5 * px, e.state.locked ? muted : primary, 1);
     }

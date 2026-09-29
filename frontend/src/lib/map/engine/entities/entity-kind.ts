@@ -185,6 +185,11 @@ export interface ActionContext {
 
 export type { LiveAudience };
 
+/** Ce que reçoit `click` : le moteur, qui regarde, et le pointeur. */
+export interface ClickContext extends ActionContext {
+  world: Point;
+}
+
 // ─── La sorte ────────────────────────────────────────────────────────────────
 
 export interface EntityKind<D extends MapDto = MapDto> {
@@ -210,6 +215,23 @@ export interface EntityKind<D extends MapDto = MapDto> {
   readonly stacking?: Stacking<D>;
   /** Famille du réglage « Affichage » (`map.display`) qui masque cette sorte. */
   readonly display?: DisplayKey;
+  /**
+   * Outil qui édite cette sorte (murs et pièces : `obstacles`, W) : hors de lui, elle ne se
+   * sélectionne pas (ni clic, ni lasso, ni menu) ; seule son action de clic (`click`) reste
+   * permise. Un mur ne vole ainsi jamais le clic d'un token posé contre lui.
+   */
+  readonly editTool?: string;
+  /**
+   * Action d'un clic simple (sans glisser ni modificateur), pour tous : ouvrir ou fermer une
+   * porte. Renvoie vrai si le clic est pris (la sélection ne change pas). Une sorte qui la
+   * déclare reste touchable hors de son outil là où son `hitTest` le dit (icône de porte).
+   */
+  click?(entity: MapEntity<D>, ctx: ClickContext): boolean;
+  /**
+   * La sorte dessine elle-même son survol et sa sélection (mur, zone, lumière) : pas de contour
+   * rectangulaire commun.
+   */
+  readonly selfOutline?: boolean;
 
   /** Géométrie (centre, taille, rotation en degrés) lue dans la donnée. */
   geometry(data: D, ctx: KindContext): EntityGeometry;

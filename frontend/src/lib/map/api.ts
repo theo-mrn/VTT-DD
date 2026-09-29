@@ -115,6 +115,29 @@ export function layerPersistence(base: string, path: MapLayerPath): Persistence<
           ...json({ delete: part.map((i) => i.id) }),
         });
     },
+    /** Créer, modifier et supprimer en un envoi (une transaction ; 500 de chaque au plus). */
+    async batch({ create, update, remove }) {
+      const created: MapDto[] = [];
+      const updated = new Map<string, MapDto>();
+      const total = Math.max(create.length, update.length, remove.length, 1);
+      for (let i = 0; i < total; i += MAP_BATCH_MAX) {
+        const r = await api<MapLayerBatchResult<MapDto>>(url, {
+          method: 'POST',
+          ...json({
+            create: create.slice(i, i + MAP_BATCH_MAX).map((d) => pick(d, createKeys)),
+            update: update.slice(i, i + MAP_BATCH_MAX).map((u) => ({
+              ...pick(u.changes as Record<string, unknown>, updateKeys),
+              id: u.after.id,
+              version: u.version,
+            })),
+            delete: remove.slice(i, i + MAP_BATCH_MAX).map((x) => x.id),
+          }),
+        });
+        created.push(...r.created);
+        for (const item of r.updated) updated.set(item.id, item);
+      }
+      return { created, updated: update.map((u) => updated.get(u.after.id) ?? u.after) };
+    },
   };
 }
 

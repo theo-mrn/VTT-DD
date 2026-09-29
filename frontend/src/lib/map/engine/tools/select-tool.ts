@@ -11,6 +11,9 @@
  * | `void`      | +4 px → `lasso`                          | lâcher → désélectionne (Alt : ping)      |
  * | `lasso`     | rectangle                                | lâcher → sélection (⇧ : ajoute)          |
  * | `handle`    | rotation ou taille                       | lâcher → une commande ; Échap → annule   |
+ *
+ * Une sorte à action de clic (`EntityKind.click` : porte) la reçoit au lâcher d'un clic simple,
+ * sans que la sélection change ; hors de son outil, elle ne se sélectionne ni ne se glisse.
  */
 import { rectFromPoints, type Rect } from '../geometry';
 import type { MapEntity } from '../entities/entity';
@@ -58,7 +61,9 @@ export class SelectTool implements Tool {
     if (hit) {
       this.target = hit;
       this.selectedOnDown = false;
-      if (!e.alt && !engine.selection.has(hit.id)) {
+      // Action de clic (porte) : décidée au lâcher, sans sélectionner au bouton
+      const clickAction = !!hit.kind.click && !e.shift && !e.alt;
+      if (!clickAction && !e.alt && !engine.selection.has(hit.id) && engine.isInteractive(hit)) {
         if (e.shift) engine.selection.add([hit.id]);
         else engine.selection.replace([hit.id]);
         this.selectedOnDown = true;
@@ -80,6 +85,13 @@ export class SelectTool implements Tool {
       case 'pressing': {
         if (!this.start || !this.target) return;
         if (!exceedsThreshold(this.start.screen, e.screen)) return;
+        // Touchée pour son seul clic (porte hors de l'outil obstacles) : ni sélection ni glisser
+        if (!engine.isInteractive(this.target)) {
+          this.state = 'idle';
+          this.target = null;
+          engine.refreshCursor();
+          return;
+        }
         // Alt + glisser d'une entité non sélectionnée : elle rejoint la sélection
         if (!engine.selection.has(this.target.id)) {
           if (this.start.shift) engine.selection.add([this.target.id]);
@@ -135,6 +147,13 @@ export class SelectTool implements Tool {
           engine.ping(e.world);
           break;
         }
+        // Action de clic de la sorte (ouvrir une porte) : la sélection ne change pas
+        if (
+          !e.shift &&
+          target.kind.click?.(target, { viewer: engine.viewer, engine, world: e.world })
+        )
+          break;
+        if (!engine.isInteractive(target)) break;
         // Clic sur une entité déjà sélectionnée : ⇧ la retire, sinon elle reste seule
         if (!this.selectedOnDown) {
           if (e.shift) engine.selection.toggle(target.id);
@@ -169,6 +188,11 @@ export class SelectTool implements Tool {
 
   doubleClick(e: MapPointer, engine: MapEngine): boolean {
     const hit = engine.hitTest(e.world);
+    // Touchée pour son seul clic (porte) : chaque clic compte, le second aussi
+    if (hit && !engine.isInteractive(hit)) {
+      hit.kind.click?.(hit, { viewer: engine.viewer, engine, world: e.world });
+      return true;
+    }
     // La sorte prend le double clic (texte édité en place), sinon l'inspecteur
     if (hit?.kind.doubleClick?.(hit, { viewer: engine.viewer, engine, world: e.world })) {
       engine.selection.replace([hit.id]);

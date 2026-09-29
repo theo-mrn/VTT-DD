@@ -951,6 +951,9 @@ export class MapEngine {
    */
   isInteractive(e: MapEntity): boolean {
     if (e.masks.size) return false;
+    // L'outil actif choisit ce qu'il touche ; sinon, une sorte réservée à son outil ne se touche pas
+    const tool = this.tools.active;
+    if (tool.targets ? !tool.targets(e) : !!e.kind.editTool) return false;
     if (!hasCapability(e.kind, 'select') || !e.kind.can('select', e, this.viewer)) return false;
     if (e.layerId) {
       const ui = this.ui.getState();
@@ -986,12 +989,23 @@ export class MapEngine {
     // L'index ne fait que dégrossir : une sorte peut toucher un peu au-delà de sa boîte (trait)
     for (const id of this.index.queryPoint(world, tol * 2)) {
       const e = this.entityMap.get(id);
-      if (!e || !this.isInteractive(e)) continue;
+      // Une sorte à action de clic (porte) reste touchable pour ce clic, même hors de son outil
+      if (!e || !(this.isInteractive(e) || this.isClickable(e))) continue;
       if (opts.filter && !opts.filter(e)) continue;
       if (!e.hitTest(world, tol)) continue;
       if (!best || this.compareStack(e, best) > 0) best = e;
     }
     return best;
+  }
+
+  /**
+   * L'entité se touche pour sa seule action de clic (`EntityKind.click` : ouvrir une porte),
+   * sans être sélectionnable : visible, et l'outil actif ne l'exclut pas.
+   */
+  isClickable(e: MapEntity): boolean {
+    if (!e.kind.click || e.masks.size) return false;
+    const tool = this.tools.active;
+    return !tool.targets || tool.targets(e);
   }
 
   /** Entités touchables dont la boîte touche le rectangle (lasso). */
@@ -1515,6 +1529,15 @@ export class MapEngine {
    * envoyée par `PATCH /maps/:mapId`.
    */
   updateScene(label: string, patch: Record<string, unknown>): Promise<boolean> | null {
+    const cmd = this.sceneCommand(label, patch);
+    return cmd ? this.execute(cmd) : null;
+  }
+
+  /**
+   * Commande de modification de la scène, sans l'exécuter : un module la groupe avec d'autres
+   * (« Tout découvrir » : `fogFull` et suppression des zones, en une commande).
+   */
+  sceneCommand(label: string, patch: Record<string, unknown>): Command | null {
     const scene = this.store.getState().scene;
     const backend = this.backend;
     if (!scene || !backend) return null;
@@ -1537,7 +1560,7 @@ export class MapEngine {
       },
       inverse: () => make(to, from),
     });
-    return this.execute(make(before, patch));
+    return make(before, patch);
   }
 
   // ── Ordre et calque (§ 5, Calques) ──
