@@ -117,6 +117,27 @@ const boundsCache = new WeakMap<object, Rect>();
 
 // ─── Portes ──────────────────────────────────────────────────────────────────
 
+/** Écart des échantillons de part et d'autre d'une porte (pixels du monde). */
+export const DOOR_SAMPLE_OFFSET = 2;
+
+const doorSamplesCache = new WeakMap<object, Float64Array>();
+
+/**
+ * Points où la vision cherche une porte pour un joueur (docs/carte.md § 9) : son milieu, et
+ * juste devant et derrière lui. Fermée, la porte borde la vue : le milieu lui-même est sur la
+ * limite, un point de son côté est vu.
+ */
+export function doorSamples(pts: Pts): Float64Array {
+  const a = pts[0]!;
+  const b = pts[pts.length - 1]!;
+  const m = doorCenter(pts);
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (len === 0) return Float64Array.of(m.x, m.y);
+  const nx = (-(b.y - a.y) / len) * DOOR_SAMPLE_OFFSET;
+  const ny = ((b.x - a.x) / len) * DOOR_SAMPLE_OFFSET;
+  return Float64Array.of(m.x, m.y, m.x + nx, m.y + ny, m.x - nx, m.y - ny);
+}
+
 /** L'icône de la porte est sous ce point (rayon à taille constante). */
 export function doorIconHit(engine: MapEngine, pts: Pts, p: Point): boolean {
   return distance(doorCenter(pts), p) <= (DOOR_ICON_PX + 2) / engine.camera.zoom;
@@ -202,6 +223,17 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
     update: (e) => view.draw(e),
     dispose: (e) => view.unmount(e),
     click: (e) => obstacleOf(e).kind === 'door' && toggleDoors(ctx, [e]),
+    // Icône de porte : un joueur ne la voit (et ne l'ouvre) que si la porte est dans sa vue
+    visionSamples(e) {
+      const d = obstacleOf(e);
+      if (d.kind !== 'door' || d.points.length < 2) return null;
+      let samples = doorSamplesCache.get(e.data);
+      if (!samples) {
+        samples = doorSamples(d.points);
+        doorSamplesCache.set(e.data, samples);
+      }
+      return samples;
+    },
     actions: (entities) => obstacleActions(ctx, entities),
     duplicate: (o, offset) => {
       const d = o as ObstacleData;

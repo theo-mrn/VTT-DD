@@ -391,13 +391,16 @@ export class VisionState {
     }
 
     // Entités décidées (une entité arrivée, partie ou remplacée compte)
-    // Tokens et objets ; en « Vue de… », aussi ce qui est rangé dans un calque (dessins, textes)
+    // Tokens et objets ; en « Vue de… », aussi ce qui est rangé dans un calque (dessins, textes) ;
+    // pour un joueur, aussi les sortes à points d'échantillon (icônes de porte)
     const viewAs = this.mode === 'view-as';
+    const player = this.mode === 'player';
     const entities = [...this.engine.entities()].filter(
       (e) =>
         e.kind.collection === TOKENS ||
         e.kind.collection === OBJECTS ||
-        (viewAs && e.layerId !== null),
+        (viewAs && e.layerId !== null) ||
+        (player && e.kind.visionSamples !== undefined),
     );
     const entitiesChanged =
       entities.length !== this.entityRefs.length ||
@@ -531,6 +534,11 @@ export class VisionState {
         } else if (e.kind.collection === OBJECTS) {
           const o = visionObject(e.data, e.current);
           next.set(e.id, { masked: !mv.seesObject(o), allies: false });
+        } else if (this.mode === 'player' && e.kind.visionSamples) {
+          // Icône de porte : montrée (et cliquable) seulement si la porte est dans ma vue. En
+          // « Vue de… », les portes restent aux surcouches du MJ, comme les murs
+          const samples = e.kind.visionSamples(e);
+          if (samples) next.set(e.id, { masked: !mv.seesSamples(samples), allies: false });
         } else if (e.layerId && this.hidden.has(e.layerId)) {
           // « Vue de… » : un calque masqué aux joueurs ne leur est jamais envoyé
           next.set(e.id, { masked: true, allies: false });

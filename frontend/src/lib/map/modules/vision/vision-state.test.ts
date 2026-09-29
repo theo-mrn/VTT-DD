@@ -3,6 +3,7 @@
  * observateurs, masquage, plan `allies`, audience du direct, et ce qui déclenche un calcul.
  */
 import { describe, expect, it } from 'vitest';
+import { registerObstacles } from '../obstacles/register';
 import { geometryInput, lightInput, visionObject, visionToken } from './scene-adapter';
 import { GM_VEIL } from './vision-state';
 import { ALICE, GM, object, setup, token, wall } from './vision-test-kit';
@@ -142,6 +143,38 @@ describe('observateurs et masquage (joueur)', () => {
     u.engine.setPreview(heros, null);
     u.run();
     expect(u.masked('orc')).toBe(true);
+  });
+
+  it('icône de porte : masquée (et sans clic) hors de ma vue ; le MJ les voit toutes', () => {
+    const doors = [
+      wall('mur', 200, 0, 1000),
+      // Devant le héros, dans sa vue
+      wall('proche', 150, 60, 140, { kind: 'door' }),
+      // Derrière le mur
+      wall('loin', 600, 500, 560, { kind: 'door' }),
+    ];
+    const t = setup({ obstacles: doors });
+    registerObstacles(t.engine);
+    t.run();
+    expect(t.masked('proche')).toBe(false);
+    expect(t.masked('loin')).toBe(true);
+    expect(t.engine.isClickable(t.engine.entity('loin')!)).toBe(false);
+    expect(t.engine.isClickable(t.engine.entity('proche')!)).toBe(true);
+    // Porte fermée : le point de mon côté est vu, même si elle me cache ce qui est derrière
+    t.store
+      .getState()
+      .upsert('obstacles', [wall('mur', 200, 0, 1000, { kind: 'door', isOpen: true, version: 2 })]);
+    t.run();
+    expect(t.masked('loin')).toBe(false);
+
+    const gm = setup({ viewer: GM, obstacles: doors });
+    registerObstacles(gm.engine);
+    gm.run();
+    expect(gm.masked('loin')).toBe(false);
+    // « Vue de… » : les portes restent aux surcouches du MJ, comme les murs
+    gm.engine.setViewAs('alice');
+    gm.run();
+    expect(gm.masked('loin')).toBe(false);
   });
 
   it('obscurité, brume et vue d’en haut dans l’image à dessiner', () => {

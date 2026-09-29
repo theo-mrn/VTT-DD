@@ -232,6 +232,13 @@ export interface EntityKind<D extends MapDto = MapDto> {
    * rectangulaire commun.
    */
   readonly selfOutline?: boolean;
+  /**
+   * Points d'échantillon de la visibilité, à plat (`x0, y0, x1, y1…`, pixels du monde) : pour
+   * un joueur, le module vision ne montre l'entité (et elle ne se touche) que si l'un d'eux est
+   * dans sa vue (icône de porte : son milieu, un peu de chaque côté). null ou absent : la vision
+   * ne la masque pas (tokens et objets suivent leurs propres règles, § 9).
+   */
+  visionSamples?(entity: MapEntity<D>): Float64Array | null;
 
   /** Géométrie (centre, taille, rotation en degrés) lue dans la donnée. */
   geometry(data: D, ctx: KindContext): EntityGeometry;

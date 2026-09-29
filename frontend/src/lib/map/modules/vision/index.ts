@@ -3,7 +3,8 @@
  * masquage de ce qui n'est pas vu, sélecteur « Vue » du MJ, audience du direct.
  *
  * - Joueur : obscurité à `shadowOpacity` hors de sa vue, brume dans le brouillard, lueurs des
- *   lumières ; PNJ et objets (hors décor) non vus masqués (fondu de 150 ms) ; personnages
+ *   lumières ; PNJ, objets (hors décor) et icônes de porte non vus masqués (fondu de 150 ms,
+ *   une porte masquée ne s'ouvre plus) ; personnages
  *   joueurs hors de sa vue au-dessus de l'ombre, à 60 % (plan `allies`). Pendant un glisser, la
  *   vue suit la position en direct (aperçu local, direct interpolé des autres).
  * - MJ : tout est visible, l'ombre des joueurs en voile léger (25 %) ; « Vue de … » : le rendu
