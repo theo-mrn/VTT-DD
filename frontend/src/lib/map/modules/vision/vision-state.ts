@@ -391,8 +391,13 @@ export class VisionState {
     }
 
     // Entités décidées (une entité arrivée, partie ou remplacée compte)
+    // Tokens et objets ; en « Vue de… », aussi ce qui est rangé dans un calque (dessins, textes)
+    const viewAs = this.mode === 'view-as';
     const entities = [...this.engine.entities()].filter(
-      (e) => e.kind.collection === TOKENS || e.kind.collection === OBJECTS,
+      (e) =>
+        e.kind.collection === TOKENS ||
+        e.kind.collection === OBJECTS ||
+        (viewAs && e.layerId !== null),
     );
     const entitiesChanged =
       entities.length !== this.entityRefs.length ||
@@ -523,9 +528,12 @@ export class VisionState {
               member!.characterIds.includes(t.characterId));
           const inView = always ? mv.seesSamples(this.map!.tokenSamples(t)) : seen;
           next.set(e.id, { masked: !seen, allies: always && !inView });
-        } else {
+        } else if (e.kind.collection === OBJECTS) {
           const o = visionObject(e.data, e.current);
           next.set(e.id, { masked: !mv.seesObject(o), allies: false });
+        } else if (e.layerId && this.hidden.has(e.layerId)) {
+          // « Vue de… » : un calque masqué aux joueurs ne leur est jamais envoyé
+          next.set(e.id, { masked: true, allies: false });
         }
       }
     }

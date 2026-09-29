@@ -179,6 +179,49 @@ describe('MJ : voile et « Vue de… »', () => {
     expect(t.masked('orc')).toBe(false);
   });
 
+  it('« Vue de… » : ce qui est rangé dans un calque masqué aux joueurs disparaît aussi', () => {
+    const t = setup({ viewer: GM, tokens: [token('gob', 150, 150, { layerId: 'secret' })] });
+    t.store
+      .getState()
+      .upsert('layers', [
+        { id: 'secret', version: 1, name: 'Secret', sortOrder: 3, visibleToPlayers: false },
+      ]);
+    t.engine.registerKind({
+      id: 'drawing',
+      label: 'Dessin',
+      collection: 'drawings',
+      capabilities: ['select'],
+      plane: 'annotations',
+      stacking: {
+        arrangeKind: 'drawing',
+        layerId: {
+          get: (d) => (d.layerId as string) ?? null,
+          set: (d, v) => ({ ...d, layerId: v }),
+        },
+        z: { get: () => 0, set: (d) => d },
+        optional: true,
+      },
+      geometry: () => ({ x: 10, y: 10, width: 5, height: 5, rotation: 0 }),
+      can: () => true,
+      persistence: {} as never,
+    });
+    t.store.getState().upsert('drawings', [
+      { id: 'plan', version: 1, layerId: 'secret' },
+      { id: 'note', version: 1, layerId: null },
+    ]);
+    t.run();
+    expect(t.masked('gob')).toBe(false);
+    expect(t.masked('plan')).toBe(false);
+    t.engine.setViewAs('alice');
+    t.run();
+    expect(t.masked('gob')).toBe(true);
+    expect(t.masked('plan')).toBe(true);
+    expect(t.masked('note')).toBe(false);
+    t.engine.setViewAs(null);
+    t.run();
+    expect(t.masked('plan')).toBe(false);
+  });
+
   it('retour à la vue du MJ : plus de plan forcé ni de masque', () => {
     const t = setup({ viewer: GM, tokens: [token('barde', 400, 400, { characterId: 'c-barde' })] });
     t.engine.setViewAs('alice');

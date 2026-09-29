@@ -18,7 +18,7 @@
  */
 import type { MapEngine, MapModule } from '../../engine/map-engine';
 import { VisionViewMenu } from '@/components/map/vision/view-menu';
-import { Fades } from './fades';
+import { Fades, VISION_MASK } from './fades';
 import { visionPrefs } from './prefs';
 import { VisionRenderer } from './renderer';
 import { exposeStats, VisionStats } from './stats';
@@ -37,11 +37,13 @@ export function applyDecisions(engine: MapEngine, state: VisionState, fades: Fad
   const alive = new Set<string>();
   const decisions = state.decisions();
   for (const e of engine.entities()) {
-    if (e.kind.collection !== 'tokens' && e.kind.collection !== 'objects') continue;
-    alive.add(e.id);
     const d = decisions.get(e.id);
+    const decided = e.kind.collection === 'tokens' || e.kind.collection === 'objects';
+    // Autres sortes : seulement celles que la vision a masquées (« Vue de… ») ou masque
+    if (!decided && !d && !e.masks.has(VISION_MASK)) continue;
+    alive.add(e.id);
     fades.set(e, d?.masked === true, now);
-    engine.setPlaneOverride(e, d?.allies ? 'allies' : null);
+    if (decided) engine.setPlaneOverride(e, d?.allies ? 'allies' : null);
   }
   fades.prune(alive);
 }
