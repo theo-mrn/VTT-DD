@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Présence du module « objets » à la table (entrée de barre d'outils sans bouton) :
+ * Présence du module « objets » à la table (surcouche sans emplacement, `registerOverlay`) :
  *
  * - joueur : « Fouiller » flotte au-dessus d'un objet à fouiller qu'il a cliqué (grisé s'il est
  *   trop loin), et la fenêtre de fouille ; la fiche du personnage qui a pris un objet est relue ;

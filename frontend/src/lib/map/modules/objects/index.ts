@@ -88,10 +88,10 @@ export const objectsModule: MapModule = {
           es.every((e) => isObjectEntity(e) && (e.data as ObjectData).searchable === true),
         component: PlayerSearchSection,
       }),
-      engine.registerToolbarItem({
+      // Fouille des joueurs (« Fouiller », fenêtre) et avis du MJ : surcouche sans emplacement
+      engine.registerOverlay({
         id: 'objects-host',
-        slot: 'end',
-        order: 100,
+        slot: 'none',
         available: (viewer) => viewer.role !== 'spectator',
         component: ObjectsHost,
       }),
