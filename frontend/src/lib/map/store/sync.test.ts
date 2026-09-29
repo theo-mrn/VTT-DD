@@ -124,6 +124,17 @@ describe('MapSync', () => {
       }),
     );
     expect(t.get('tokens', 'b')).toBeUndefined();
+    // Voyage vers une autre carte : le token d'arrivée a un autre identifiant (sa place gardée
+    // là-bas) ; celui d'ici part quand même, sans fantôme chez le MJ
+    t.sync.handle(
+      event('token.moved', {
+        tokenId: 'a-la-bas',
+        characterId: 'perso-a',
+        from: { mapId: 'carte', x: 3, y: 4 },
+        to: { mapId: 'ailleurs', x: 0, y: 0 },
+      }),
+    );
+    expect(t.get('tokens', 'a')).toBeUndefined();
     // Inconnu qui arrive : relecture des tokens
     t.sync.handle(
       event('token.moved', {

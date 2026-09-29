@@ -239,7 +239,16 @@ export class MapSync {
             else store.patchItem('tokens', tokenId, { pos: { x: to.x, y: to.y } });
           } else this.refetch(['tokens']);
         } else if (from?.mapId === this.mapId) {
-          store.remove('tokens', [tokenId]);
+          // Voyage (`travel`) : le token d'arrivée n'a pas l'identifiant de celui d'ici (sa place
+          // gardée sur l'autre carte, ou un token neuf) ; un personnage n'est présent que sur
+          // une carte à la fois : tous ses tokens d'ici partent
+          const here = store.collections.tokens;
+          const gone = here
+            ? [...here.values()]
+                .filter((t) => t.id === tokenId || t.characterId === payload.characterId)
+                .map((t) => t.id)
+            : [];
+          if (gone.length) store.remove('tokens', gone);
         }
         if (this.isMine(payload.characterId)) this.visionChanged();
         return;
