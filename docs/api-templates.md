@@ -6,7 +6,10 @@ Bibliothèque du MJ d'une campagne, reprise de l'ancienne app : modèles de PNJ 
 `characters` (changeset `0003-templates.sql`), à côté des personnages.
 
 Périmètre : les **données** et un CRUD minimal réservé au MJ. Le placement sur la carte (glisser un
-modèle, nombre d'exemplaires, visibilité, PNJ en jeu) n'est pas couvert ici.
+modèle, nombre d'exemplaires, visibilité) passe par `POST /v1/campaigns/:id/maps/:mapId/npcs`
+([api-map.md](api-map.md), PNJ) : chaque exemplaire est un vrai personnage, copie complète de
+l'état du modèle, qui garde son `templateId` (voir [api-character.md](api-character.md),
+« Instances de PNJ »). Les `actions` legacy d'un modèle restent sur le modèle.
 
 > Routage : la gateway relaie ces trois préfixes vers character (`SUB_ROUTES` dans
 > backend/gateway/src/app.ts), le reste de `/v1/campaigns/*` allant à campaign.

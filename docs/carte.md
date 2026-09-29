@@ -662,18 +662,26 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
    - Front et back les importent. Plus de doublon local.
 2. **Brouillard en zones.**
    - Table `map_fog_zones` : `shape` (`circle | rect | polygon`), `geom` Polygon, `center` et
-     `radius` pour un cercle, `mode` (`fog | clear`), `created_by`.
+     `radius` pour un cercle, `mode` (`fog | clear`), `created_by`, et `seq` (identité) : l'ordre
+     d'application ne dépend pas d'horloges ou d'identifiants égaux dans un lot (API : `order`).
    - Colonne `maps.fog_full`.
-   - Les cases `map_fog.cells` sont converties en zones (union des cases).
-   - Couche `fog-zones` au contrat commun des couches.
+   - Les cases `map_fog.cells` sont converties en zones (union des cases ; un trou devient une
+     zone du mode inverse ; avec `fullMap`, les cases étaient les cases découvertes : zones
+     `clear`). `map_fog` reste en base, obsolète, jusqu'à une migration de nettoyage.
+   - Couche `fog-zones` au contrat commun des couches ; les routes `/fog` disparaissent.
 3. **Pièces** : table `map_rooms` (`geom` Polygon, `name`), couche `rooms`.
-4. **Obstacles** : `blocks_from` (`left | right`), converti depuis `direction`. `opacity` à 1 par
-   défaut.
-5. **Lumières** : `color`, `intensity` (0 à 1), `falloff` (0 à 1), `attached_token_id`.
+4. **Obstacles** : `blocks_from` (`left | right`), converti depuis `direction` (colonne gardée,
+   obsolète, hors contrat). `opacity` à 1 par défaut, non nulle.
+5. **Lumières** : `color`, `intensity` (0 à 1), `falloff` (0 à 1), `attached_token_id` (token de
+   la même carte, clé étrangère composite ; la lumière est là où il est, `pos` ignorée).
 6. **Objets.**
    - `searchable`, `search_radius` (l'ordre passe par `layer_id` et `z`, point 12).
-   - `items` typés : `[{ id, name, quantity, imageUrl?, ref? }]`, où `ref` est une référence au
-     catalogue du système.
+   - `items` typés : `[{ id, name, quantity, imageUrl?, description?, ref?, legacy? }]`, où `ref`
+     est une référence au catalogue du système ; `description` sert à l'objet libre donné au
+     personnage, `legacy` garde les champs de l'ancien `LootItem`.
+   - Portée : du centre du token au rectangle de l'objet tourné autour de son centre. Le MJ
+     fouille et prend pour tout personnage engagé, sans condition. Pendant `take`, l'objet reste
+     verrouillé le temps de l'appel à character : un refus ne change rien.
    - Routes :
      - `POST …/objects/:id/search { characterId }` : joueur à portée, objet vu ; évènement
        `map_object.searched`, MJ seul ;
@@ -681,16 +689,20 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
        au personnage, par une route interne de character ; évènement `map_object.looted`.
 7. **PNJ en une fois**.
    - `POST /v1/campaigns/:id/maps/:mapId/npcs` avec le corps
-     `{ source, count (1 à 20), pos, side?, visibility? }`, où `source` vaut
+     `{ source, count (1 à 20), pos, side?, visibility?, scale?, shape? }`, où `source` vaut
      `{ templateId } | { bestiary: { systemeId, key } } | { quick: { name, imageUrl?, type, valeurs? } }`.
    - character crée les personnages (route interne, propriétaire le MJ, PNJ, `templateId`
      gardé), campaign les engage et pose les tokens. En cas d'échec, compensation : rien ne
      reste à moitié créé.
-   - `DELETE …/tokens/:tokenId?character=delete` supprime aussi l'instance.
+   - `DELETE …/tokens/:tokenId?character=delete` supprime aussi l'instance (un PNJ seulement :
+     422 `not_an_npc`) : campaign la retire d'abord de la campagne, puis character la supprime.
+   - Engagement d'un PNJ posé : `campaign.character_added` en `gm_only`, pour qu'un PNJ caché ne
+     se nomme pas aux joueurs.
    - `POST …/tokens/:tokenId/duplicate { pos, count }` clone l'état actuel.
 8. **Médias** : `POST /v1/campaigns/:id/media { kind: 'image' | 'video', contentType, size }`
-   rend une URL présignée. Images de 10 Mo au plus, vidéos webm ou mp4 de 100 Mo au plus. C'est
-   une extension de `/image`, sans doublon.
+   rend une URL présignée (MJ). Images de 10 Mo au plus, vidéos webm ou mp4 de 100 Mo au plus.
+   C'est une extension de `/image`, sans doublon : une seule signature (`signUpload`) pour
+   `/image`, `/notes/upload` et `/media`.
 9. **Mise à l'échelle** : `POST …/maps/:mapId/rescale { sx, sy }` (MJ) met toute la géométrie et
    les tailles à l'échelle, en une transaction.
 10. **Realtime** :
@@ -701,7 +713,11 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
     (§ 9, Serveur).
 
 12. **Calques du MJ** (§ 5, Calques).
-    - Table `map_layers` : `name`, `sort_order` (réel), `visible_to_players`, `locked`, `opacity`.
+    - Table `map_layers` : `name`, `sort_order` (réel), `visible_to_players`, `locked`, `opacity`,
+      et `role` (`ground`, `objects`, `tokens`) : le calque par défaut d'une sorte se retrouve même
+      renommé ; sans calque de ce rôle, le plus haut.
+    - Calques par défaut, calque et `z` d'un élément inséré sans eux : déclencheurs de la base,
+      pour tout écrivain (service, import).
     - Colonnes `layer_id` et `z` (double) sur `map_tokens` et `map_objects` (obligatoires après
       migration), sur `map_drawings` et `map_notes` (facultatives).
     - Migration : trois calques par carte existante, contenu réparti selon `is_background`.
@@ -712,7 +728,8 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
       - `POST /maps/:mapId/arrange { items: [{ kind, id, layerId, z }] }` : réordonnancement d'une
         sélection, en une transaction.
     - Filtrage : le contenu d'un calque `visible_to_players = false` n'est jamais envoyé à un
-      joueur (REST, bus, rejeu).
+      joueur (REST, bus, rejeu), sauf ses propres tokens.
+    - `z_index` (ajouté un temps sur les objets) disparaît au profit de `layer_id` et `z`.
     - Événements `map_layer.created | updated | deleted | hidden`.
     - Renommage du réglage d'affichage `map.layers` en `map.display` dans le contrat, puisque le
       nouveau front n'en dépend pas encore.

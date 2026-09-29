@@ -183,6 +183,42 @@ Un exemplaire `hidden: true` n'est visible que de qui peut écrire sur le person
 
 En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre.
 
+### Instances de PNJ et butin de la carte (routes internes)
+
+Appelées par campaign seulement (secret `INTERNAL_API_SECRET`, jamais relayées par la gateway),
+qui a déjà vérifié les droits ([api-map.md](api-map.md), PNJ et fouille) :
+
+| Méthode | Route                                          | Corps                                                                         | Réponse                                                         |
+| ------- | ---------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| POST    | `/internal/npcs`                               | `{ ownerId, campaignId, systemId, count (1 à 20), source }`                   | 201 `{ items: [{ id, nom, avatarUrl, tokenUrl, templateId }] }` |
+| POST    | `/internal/npcs/delete`                        | `{ ids, userId, roomId }`                                                     | `{ deleted }`                                                   |
+| POST    | `/internal/characters/:id/possessions/receive` | `{ item: { ref?, name, description?, quantity }, userId, roomId, playerId? }` | `{ version, entree, exemplaire? }`                              |
+
+- Une **instance de PNJ** est un personnage `kind: npc` possédé par le MJ (`ownerId`), à l'état
+  complet (création terminée), avec son origine : `template_id` (modèle copié, trace sans clé
+  étrangère) et `campaign_id` (campagne pour laquelle elle a été créée, changeset
+  `0009-npc-instances.sql`). `source` : `{ templateId }` (modèle de la campagne, même système),
+  `{ bestiary: { systemeId, key } }` (créature du bestiaire de référence : valeurs saisissables
+  posées telles quelles, valeurs dérivées imprimées gardées par le bonus « Valeurs du modèle »,
+  type et description dans la présentation libre), `{ quick: { name, imageUrl?, type, valeurs? } }`
+  (état vide du type, valeurs saisies avec les droits du MJ) ou `{ characterId }` (copie de
+  l'état actuel d'une instance du même MJ : fiche, présentation, mise en page). Système différent
+  de celui de la campagne : 422 `system_mismatch` ; modèle, créature ou instance introuvable : 404.
+- Noms : « Gobelin », « Gobelin 2 »… ; la numérotation reprend après le plus grand numéro des PNJ
+  de ce nom dans la campagne (verrou consultatif par campagne : deux poses simultanées ne
+  prennent pas le même numéro).
+- `delete` supprime (suppression douce) les PNJ listés de cette campagne (`campaign_id`) ou du MJ
+  qui le demande ; un personnage joueur n'est jamais supprimé ainsi.
+- `possessions/receive` ajoute un objet pris sur la carte, comme un don (`ajouterObjetRecu`, voir
+  « Dons ») : `ref` désigne une entrée du catalogue ; sans `ref`, l'entrée libre du système
+  (`libre: true`, possédable par ce type d'entité, à quantités de préférence) reçoit le nom et la
+  description dans ses champs `nomExemplaire` et `descriptionExemplaire`. Une sorte sans
+  quantités reçoit un exemplaire par unité. Pas d'objet libre : 422 `objet_libre_indisponible` ;
+  entrée inconnue : 422 `entree_inconnue`.
+- Événements : `character.created` et `character.deleted` dans la campagne (`roomId`), `gm_only` ;
+  le butin produit `character.updated` (opération `possession.butin`, `butin: { entree,
+exemplaire?, quantity, name }`), `gm_only` avec `visibleToUsers: [playerId]`.
+
 ### Actions
 
 Les jets d'action sont tirés par le serveur avec `aleatoireCrypto()`. Avec `appliquer: true`, les modifications de l'acteur et de la cible sont appliquées dans la même transaction, à deux conditions :

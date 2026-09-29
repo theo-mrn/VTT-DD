@@ -17,7 +17,7 @@ le **fond global** (pas de scène sélectionnée).
 | `cartes/{r}/groups/{id}`                                       | dossiers de scènes (`name`, `order`)                                                                                                                                                                       | `map_groups`                                          |
 | `cartes/{r}/settings/general`                                  | `globalTokenScale`, `pixelsPerUnit`, `unitName`, `shadowOpacity`, `donjon`, `currentCityId`                                                                                                                | `map_settings`                                        |
 | `cartes/{r}/settings/layers[_{cityId}]`                        | calques affichés (réglage MJ par scène)                                                                                                                                                                    | `maps.layers`                                         |
-| `cartes/{r}/fog/fog_{cityId}` · `fogData`                      | brouillard : `fullMapFog` + cases `"cx,cy"`                                                                                                                                                                | `map_fog`                                             |
+| `cartes/{r}/fog/fog_{cityId}` · `fogData`                      | brouillard : `fullMapFog` + cases `"cx,cy"`                                                                                                                                                                | `maps.fog_full` + `map_fog_zones`                     |
 | `cartes/{r}/characters/{id}` (champs de carte)                 | `x/y`, `positions{cityId}`, `cityId`, `currentSceneId`, `visibility`, `visibilityRadius`, `visibleToPlayerIds`, `scale`, `shape`, `imageURL2/Final`, `visionBoostActive`, `audio`, `interactions`, `notes` | `map_tokens` (la fiche est déjà dans character)       |
 | RTDB `rooms/{r}/positions/{charId}`                            | position durable (`x/y`, `positions{cityId}`), prioritaire sur Firestore                                                                                                                                   | `map_tokens.pos`                                      |
 | `cartes/{r}/objects/{id}`                                      | objets, décors, coffres (`items`), `visibility`, `visibleToPlayerIds`, `isBackground`, `isLocked`                                                                                                          | `map_objects`                                         |
@@ -44,65 +44,101 @@ Toutes les tables portent `campaign_id` ; chaque élément référence sa carte 
 `(map_id, campaign_id)` (clé étrangère composite) : un élément ne peut pas pointer vers la
 carte d'une autre campagne. Supprimer une carte supprime ses éléments (cascade).
 
-| Table              | Géométrie              | Notes                                                                                                                                                                                                                                         |
-| ------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `map_groups`       | —                      | dossiers de scènes                                                                                                                                                                                                                            |
-| `maps`             | `spawn` Point          | scène ; `is_default` (un par campagne) = fond global ; `width/height` de l'image (taille des cases de brouillard) ; `layers` jsonb ; `weather` jsonb                                                                                          |
-| `map_settings`     | —                      | une ligne par campagne : échelle, unité, ombres, mode donjon, `party_map_id` (scène du groupe), musique                                                                                                                                       |
-| `map_fog`          | —                      | `full_map` + `cells` (`"cx,cy"`), case = `round(min(width, height) / 20)` px (100 si inconnu)                                                                                                                                                 |
-| `map_tokens`       | `pos` Point            | un personnage **engagé** (FK `campaign_characters`) sur une carte ; `present` : une seule carte à la fois par personnage (index unique partiel), les autres lignes gardent la dernière position sur chaque scène (legacy `positions[cityId]`) |
-| `map_objects`      | `pos` Point            | coin haut gauche, `width/height/rotation`                                                                                                                                                                                                     |
-| `map_lights`       | `pos` Point            | `radius` en unités (× `pixels_per_unit`)                                                                                                                                                                                                      |
-| `map_obstacles`    | `geom` LineString      | `kind` : `wall`, `one_way_wall`, `door`, `window` ; `is_open`, `is_locked`, `direction`                                                                                                                                                       |
-| `map_drawings`     | `geom` LineString      | `tool`, couleur, épaisseur ; `created_by`                                                                                                                                                                                                     |
-| `map_notes`        | `pos` Point            | texte, couleur, police ; `created_by`                                                                                                                                                                                                         |
-| `map_music_zones`  | `pos` Point + `radius` | cercle : `ST_DWithin(pos, point, radius)`                                                                                                                                                                                                     |
-| `map_portals`      | `pos` Point + `radius` | `kind` `scene_change`/`same_map`, `target_map_id`, `target` Point                                                                                                                                                                             |
-| `map_measurements` | `geom` LineString      | gabarit permanent (`shape`, origine → extrémité, options)                                                                                                                                                                                     |
+| Table              | Géométrie              | Notes                                                                                                                                                                                                                                                            |
+| ------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `map_groups`       | —                      | dossiers de scènes                                                                                                                                                                                                                                               |
+| `maps`             | `spawn` Point          | scène ; `is_default` (un par campagne) = fond global ; `width/height` du fond (taille du monde) ; `layers` jsonb (réglage d'affichage, `display` dans l'API) ; `fog_full` ; `weather` jsonb                                                                      |
+| `map_settings`     | —                      | une ligne par campagne : échelle, unité, ombres, mode donjon, `party_map_id` (scène du groupe), musique                                                                                                                                                          |
+| `map_layers`       | —                      | calques du MJ (0018) : `name`, `sort_order` (réel, du bas vers le haut), `visible_to_players`, `locked`, `opacity`, `role` (`ground`, `objects`, `tokens` : calque par défaut d'une sorte, un par carte)                                                         |
+| `map_tokens`       | `pos` Point            | un personnage **engagé** (FK `campaign_characters`) sur une carte ; `present` : une seule carte à la fois par personnage (index unique partiel), les autres lignes gardent la dernière position sur chaque scène (legacy `positions[cityId]`) ; `layer_id` + `z` |
+| `map_objects`      | `pos` Point            | coin haut gauche, `width/height/rotation` (autour du centre) ; `layer_id` + `z` ; `items` typés ; `searchable`, `search_radius` (unités) ; `is_background` : legacy, sert au calque par défaut (Sol) à l'insertion                                               |
+| `map_lights`       | `pos` Point            | `radius` en unités (× `pixels_per_unit`), `color`, `intensity`, `falloff`, `attached_token_id` (token de la même carte, FK composite)                                                                                                                            |
+| `map_obstacles`    | `geom` LineString      | `kind` : `wall`, `one_way_wall`, `door`, `window` ; `is_open`, `is_locked`, `blocks_from` (`left`/`right`, relatif au tracé), `opacity` (1 : opaque) ; `direction` obsolète (0017)                                                                               |
+| `map_rooms`        | `geom` Polygon         | pièces (0017) : contour fermé, `name`                                                                                                                                                                                                                            |
+| `map_fog_zones`    | `geom` Polygon         | zones de brouillard (0017) : `shape` (`circle`, `rect`, `polygon`), `mode` (`fog`, `clear`), `center` + `radius` (cercle ; `geom` en est l'approximation), `seq` (ordre d'application), `created_by`                                                             |
+| `map_drawings`     | `geom` LineString      | `tool`, couleur, épaisseur ; `created_by` ; `layer_id` (nul : annotation) + `z`                                                                                                                                                                                  |
+| `map_notes`        | `pos` Point            | texte, couleur, police ; `created_by` ; `layer_id` (nul : annotation) + `z`                                                                                                                                                                                      |
+| `map_music_zones`  | `pos` Point + `radius` | cercle : `ST_DWithin(pos, point, radius)`                                                                                                                                                                                                                        |
+| `map_portals`      | `pos` Point + `radius` | `kind` `scene_change`/`same_map`, `target_map_id`, `target` Point                                                                                                                                                                                                |
+| `map_measurements` | `geom` LineString      | gabarit permanent (`shape`, origine → extrémité, options)                                                                                                                                                                                                        |
+| `map_fog`          | —                      | obsolète (0017) : ancien brouillard par cases (`full_map`, `cells`), converti en zones ; plus lu ni écrit                                                                                                                                                        |
+
+Invariants tenus par la base (déclencheurs de 0018), quel que soit l'écrivain (service, import) :
+une carte naît avec « Sol », « Objets » et « Personnages » ; un token ou un objet inséré sans
+calque va dans le calque de son rôle (objet `is_background` : Sol ; sans calque de ce rôle, le
+plus haut) ; un élément inséré sans `z` va en haut de son calque (`campaign.map_layer_top_z`).
+
+**Migration 0017** (sans perte) : les cases `map_fog.cells` deviennent des zones `polygon`
+(union des cases, sommets alignés retirés ; chaque trou devient une zone du mode inverse posée
+juste après) ; avec `full_map`, `maps.fog_full` passe à vrai et les cases, qui étaient les cases
+**découvertes** (rendu de l'ancienne carte), deviennent des zones `clear`. `direction` des murs à
+sens unique devient `blocks_from` (normale du premier segment orientée vers `direction`, nord par
+défaut ; côté gauche du tracé : `cross(b − a, p − a) < 0`). Le contenu des objets (`LootItem`)
+devient typé, ses autres champs rangés dans `legacy`. **Migration 0018** : trois calques par
+carte existante, objets `is_background` → Sol, autres objets → Objets, tokens → Personnages,
+`z` dans l'ordre de création.
 
 Chaque ligne a un `version` (verrou optimiste facultatif, `409 version_conflict`).
 
 ## Visibilité (côté serveur)
 
 Le MJ voit tout. Pour un joueur ou un spectateur, le serveur reprend
-`utils/visibility-checks.ts` avant de répondre :
+`utils/visibility-checks.ts` avant de répondre (remplacé par `@vtt/vision` au lot 2,
+[carte.md](carte.md) § 9) :
 
+- calques masqués aux joueurs (`visible_to_players = false`) : ni le calque ni son contenu
+  (tokens, objets, dessins, textes) ne sont envoyés, en REST, sur le bus ou au rejeu ; exception :
+  les tokens de ses propres personnages ;
 - tokens `invisible` : jamais envoyés ; `custom` : seulement aux joueurs dont un personnage est
   dans `visible_to` ; personnages joueurs et `ally` : toujours ;
-- ligne de vue (si le calque obstacles est affiché) : caché si le segment entre chacun de mes
-  tokens et la cible coupe un mur, un mur à sens unique ou une porte fermée (`ST_Intersects`) ;
-- éclairé par une lumière allumée (`ST_DWithin`) : visible ;
+- ligne de vue (si l'affichage des obstacles est actif) : caché si le segment entre chacun de mes
+  tokens et la cible coupe un mur opaque (`opacity` 1), une porte fermée, ou un mur à sens unique
+  vu depuis son côté bloquant (premier segment) ; fenêtres et murs translucides laissent voir ;
+- éclairé par une lumière allumée (`ST_DWithin`, rayon en unités ; une lumière attachée est là
+  où est son token) : visible ;
 - dans le brouillard (ou `hidden`) : visible seulement dans le rayon de vision d'un de mes tokens
-  ou d'un allié (`ST_DWithin`, rayon + demi-diagonale de case) ;
+  ou d'un allié (`ST_DWithin`). Un point est sous le brouillard si la dernière zone qui le couvre
+  (`seq`) est `fog`, ou, sans zone, si `maps.fog_full` ;
 - objets `hidden` et lumières, portails éteints (`visible = false`) : MJ seulement ;
 - cartes : celles `visible_to_players` et celle où se trouve un de mes personnages.
 
-Écart assumé : les ombres de pièce (`roomMode`) et le sens bloquant des murs à sens unique
-ne sont pas modélisés côté serveur (un mur à sens unique bloque dans les deux sens).
+Écart assumé jusqu'au lot 2 : les pièces fermées ne sont pas encore appliquées côté serveur, et
+le contenu d'un objet visible (`items`) est lu par les joueurs qui voient l'objet (« Fouiller »
+n'est qu'un geste d'interface, la prise est vérifiée par le serveur).
 
 ## Événements (outbox, sujet `vtt.<campaignId>.<domaine>.<action>`)
 
-| Domaine                                                         | Actions                                            | Visibilité                                                                          |
-| --------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `map`                                                           | `created`, `updated`, `deleted`, `hidden`          | `public` si `visible_to_players`, sinon `gm_only` ; `imported` (import) : `gm_only` |
-| `map_group`                                                     | `created`, `updated`, `deleted`                    | `gm_only`                                                                           |
-| `map_settings`, `map_fog`                                       | `updated`                                          | `public`                                                                            |
-| `token`                                                         | `created`, `updated`, `moved`, `deleted`, `hidden` | `public` : joueur, `ally`, ou `visible` hors brouillard ; sinon `gm_only`           |
-| `map_object`, `map_light`, `map_portal`                         | `created`, `updated`, `deleted`, `hidden`          | `gm_only` pour les éléments cachés (`hidden`, `custom`, éteints)                    |
-| `map_obstacle`, `map_note`, `map_music_zone`, `map_measurement` | `created`, `updated`, `deleted`                    | `public`                                                                            |
-| `map_drawing`                                                   | `created`, `updated`, `deleted`, `cleared`         | `public`                                                                            |
+| Domaine                                                                         | Actions                                               | Visibilité                                                                                    |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `map`                                                                           | `created`, `updated`, `deleted`, `hidden`, `rescaled` | `public` si `visible_to_players`, sinon `gm_only` ; `imported` (import) : `gm_only`           |
+| `map_group`                                                                     | `created`, `updated`, `deleted`                       | `gm_only`                                                                                     |
+| `map_settings`                                                                  | `updated`                                             | `public`                                                                                      |
+| `map_layer`                                                                     | `created`, `updated`, `deleted`, `hidden`             | `public` si visible des joueurs, sinon `gm_only` ; masqué : `hidden` public                   |
+| `token`                                                                         | `created`, `updated`, `moved`, `deleted`, `hidden`    | `public` : joueur, `ally`, ou `visible` hors brouillard, hors calque masqué ; sinon `gm_only` |
+| `map_object`, `map_light`, `map_portal`                                         | `created`, `updated`, `deleted`, `hidden`             | `gm_only` pour les éléments cachés (`hidden`, `custom`, éteints, calque masqué)               |
+| `map_object`                                                                    | `searched`, `looted`                                  | `gm_only` (le MJ est prévenu d'une fouille et d'une prise)                                    |
+| `map_obstacle`, `map_room`, `map_fog_zone`, `map_music_zone`, `map_measurement` | `created`, `updated`, `deleted`                       | `public`                                                                                      |
+| `map_note`                                                                      | `created`, `updated`, `deleted`, `hidden`             | `public`, sauf dans un calque masqué                                                          |
+| `map_drawing`                                                                   | `created`, `updated`, `deleted`, `cleared`, `hidden`  | `public`, sauf dans un calque masqué                                                          |
 
+- Charges : `MapEventPayloads` du contrat (`packages/contracts/src/map.ts`).
 - `token.moved` : un seul événement par déplacement (fin de drag, voyage entre scènes),
   `{ tokenId, characterId, from: { mapId, x, y } | null, to: { mapId, x, y } }` ; `public` si le
   token est visible au départ ou à l'arrivée.
-- Un élément qui devient caché produit l'événement complet en `gm_only` **et** un `<domaine>.hidden`
-  public `{ id, mapId }` pour que les clients joueurs le retirent.
+- Un élément qui devient caché (visibilité, calque masqué) produit l'événement complet en
+  `gm_only` **et** un `<domaine>.hidden` public `{ id, mapId }` pour que les clients joueurs le
+  retirent. Un calque masqué produit `map_layer.hidden` : les joueurs retirent aussi son contenu.
 - `custom` : événement `gm_only`, `visibleTo` (ids de personnages) dans le payload, et
-  `visibleToUsers` (propriétaires et incarnateurs de ces personnages, ajoutés par `mapEvent`) que
-  realtime utilise pour envoyer l'événement à ces joueurs en plus des MJ ; les tokens `hidden` restent `gm_only` : les clients joueurs
-  relisent `GET …/tokens` (filtré) quand un de leurs tokens bouge.
-- `map_drawing.cleared` : `{ mapId, ids }` (effacement groupé) ; `map_settings.updated` est aussi
-  émis quand le groupe change de scène (`partyMapId`).
+  `visibleToUsers` (propriétaires et incarnateurs de ces personnages, ajoutés par `mapEvent`)
+  que realtime utilise pour envoyer l'événement à ces joueurs en plus des MJ ; jamais pour un
+  élément d'un calque masqué ni pour une autre visibilité ; les tokens `hidden` restent
+  `gm_only` : les clients joueurs relisent `GET …/tokens` (filtré) quand un de leurs tokens bouge.
+- `map_drawing.cleared` : `{ mapId, ids }` (effacement groupé) ; `map_settings.updated` (réglages
+  complets) est aussi émis quand le groupe change de scène (`partyMapId`).
+- `map.rescaled` : `{ mapId, sx, sy, version }`, après `map.updated` : les clients relisent la
+  carte (les éléments n'ont pas d'événement propre).
+- PNJ posés : `campaign.character_added` en `gm_only` (le nom d'un PNJ caché ne fuit pas), puis
+  `token.created`.
 
 ## Import Firebase
 
@@ -133,4 +169,8 @@ node --env-file=backend/campaign/.env backend/campaign/dist/import/cli.js maps \
   `visibleToPlayerIds` sont traduits (`characters.legacy_ids`) ; un joueur a un token présent sur
   sa scène (`currentSceneId`, sinon celle du groupe) et un token mémorisé par autre scène connue ;
 - non importés (avertissements du rapport) : combat de scène, rapports d'attaque, parties
-  d'échecs, scénario, entités de groupe, mesures éphémères.
+  d'échecs, scénario, entités de groupe, mesures éphémères ;
+- modèle de la refonte (`src/import/maps/legacy-model.ts`, mêmes règles que 0017) : `direction`
+  des murs à sens unique → `blocksFrom`, contenu des objets typé, brouillard par cases écrit dans
+  `map_fog` puis converti en zones dans la même transaction ; calques créés avec chaque carte et
+  contenu rangé par les déclencheurs (objets `isBackground` → Sol).
