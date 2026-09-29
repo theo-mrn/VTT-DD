@@ -12,6 +12,10 @@
  * | `panning`   | la carte suit le pointeur                | lâcher → la vue reste là                 |
  * | `lasso`     | rectangle (⇧ + glisser dans le vide)     | lâcher → sélection, ajoutée à l'actuelle |
  * | `handle`    | rotation ou taille                       | lâcher → une commande ; Échap → annule   |
+ * | `measure`   | ⌘/Ctrl + bouton ; +4 px → `panning`      | lâcher → clic de mesure, sélection gardée |
+ *
+ * Un clic simple (`pressing`, `void`, `measure` lâchés sans glisser) est signalé aux modules
+ * après son effet (`engine.emitMapClick`) : la distance au clic s'y branche (§ 10, Mesures).
  *
  * Plusieurs éléments presque confondus sous le pointeur (`confusablesAt`) : un menu demande
  * lequel prendre ; l'élément choisi est sélectionné, les autres mis de côté (estompés,
@@ -29,7 +33,7 @@ import type { MapPointer, Tool } from './tool';
 import { SELECT_TOOL_ID } from './tool-manager';
 
 export type SelectState =
-  'idle' | 'pressing' | 'dragging' | 'void' | 'panning' | 'lasso' | 'handle';
+  'idle' | 'pressing' | 'dragging' | 'void' | 'panning' | 'lasso' | 'handle' | 'measure';
 
 export class SelectTool implements Tool {
   readonly id = SELECT_TOOL_ID;
@@ -45,6 +49,8 @@ export class SelectTool implements Tool {
   private lassoAdditive = false;
   /** Dernier point d'écran du glisser de la vue. */
   private panFrom: { x: number; y: number } | null = null;
+  /** Sélection au bouton (avant que le clic la change), pour le clic signalé aux modules. */
+  private selectionBefore: readonly string[] = [];
 
   cursor(engine: MapEngine): string | null {
     if (this.state === 'dragging' || this.state === 'handle' || this.state === 'panning')
@@ -56,6 +62,7 @@ export class SelectTool implements Tool {
   down(e: MapPointer, engine: MapEngine): boolean {
     if (e.button !== 0) return false;
     this.start = e;
+    this.selectionBefore = engine.selection.ids;
 
     // Poignée de l'entité seule sélectionnée
     const handle = engine.gizmoAt(e.world);
@@ -63,6 +70,13 @@ export class SelectTool implements Tool {
       this.state = 'handle';
       this.transform = new TransformSession(engine, handle.entity, handle.handle, e.world);
       engine.refreshCursor();
+      return true;
+    }
+
+    // ⌘/Ctrl + clic : clic de mesure, la sélection ne change pas (glisser : la vue se déplace)
+    if ((e.ctrl || e.meta) && !e.alt) {
+      this.target = engine.hitTest(e.world);
+      this.state = 'measure';
       return true;
     }
 
@@ -133,6 +147,10 @@ export class SelectTool implements Tool {
       case 'dragging':
         this.drag?.update(e.world, { snap: !e.alt });
         return;
+      case 'measure':
+        if (this.start && exceedsThreshold(this.start.screen, e.screen))
+          this.startPanning(e, engine);
+        return;
       case 'void':
         if (!this.start || !exceedsThreshold(this.start.screen, e.screen)) return;
         // ⇧ + glisser dans le vide : lasso ; sinon la carte se déplace, comme on s'y attend
@@ -166,6 +184,7 @@ export class SelectTool implements Tool {
     const state = this.state;
     const target = this.target;
     const start = this.start;
+    const selectionBefore = this.selectionBefore;
     this.reset();
     switch (state) {
       case 'pressing':
@@ -214,6 +233,16 @@ export class SelectTool implements Tool {
     this.transform = null;
     engine.setHovered(engine.hitTest(e.world)?.id ?? null, e);
     engine.refreshCursor();
+    // Clic simple : signalé aux modules après son effet (distance au clic)
+    if (state === 'pressing' || state === 'void' || state === 'measure')
+      engine.emitMapClick({
+        world: e.world,
+        target,
+        measure: state === 'measure',
+        shift: e.shift,
+        alt: e.alt,
+        selectionBefore,
+      });
   }
 
   doubleClick(e: MapPointer, engine: MapEngine): boolean {
@@ -271,5 +300,6 @@ export class SelectTool implements Tool {
     this.target = null;
     this.lasso = null;
     this.panFrom = null;
+    this.selectionBefore = [];
   }
 }

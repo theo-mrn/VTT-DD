@@ -338,6 +338,22 @@ export interface MovedEntity {
  */
 export type MovedListener = (moves: readonly MovedEntity[], done: Promise<boolean>) => void;
 
+/**
+ * Clic simple (sans glisser) de l'outil sélection, signalé **après** son effet (sélection,
+ * porte, ping) : la distance au clic (§ 10, Mesures) s'y branche sans rien changer au clic.
+ */
+export interface MapClick {
+  world: Point;
+  /** Entité touchée (null : le vide). */
+  target: MapEntity | null;
+  /** ⌘/Ctrl + clic : clic de mesure, la sélection n'a pas changé. */
+  measure: boolean;
+  shift: boolean;
+  alt: boolean;
+  /** Sélection au moment du bouton, avant le clic. */
+  selectionBefore: readonly string[];
+}
+
 export class MapEngine {
   readonly store: MapStore;
   viewer: MapViewer;
@@ -1680,6 +1696,19 @@ export class MapEngine {
   onEntitiesMoved(listener: MovedListener): () => void {
     this.movedListeners.add(listener);
     return () => void this.movedListeners.delete(listener);
+  }
+
+  private readonly clickListeners = new Set<(click: MapClick) => void>();
+
+  /** Écoute les clics simples de l'outil sélection (après leur effet) ; renvoie le retrait. */
+  onMapClick(listener: (click: MapClick) => void): () => void {
+    this.clickListeners.add(listener);
+    return () => void this.clickListeners.delete(listener);
+  }
+
+  /** Signale un clic simple (outil sélection). */
+  emitMapClick(click: MapClick) {
+    for (const listener of this.clickListeners) listener(click);
   }
 
   /** Entités où l'action commune est permise. */

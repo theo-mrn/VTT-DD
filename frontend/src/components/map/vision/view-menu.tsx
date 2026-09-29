@@ -3,10 +3,10 @@
 /**
  * « Vue » de la barre d'outils (docs/carte.md § 9) : le MJ choisit « Vue du MJ » (tout visible,
  * ombre des joueurs en voile léger) ou « Vue de <joueur> » (rendu exact de ce joueur, entités
- * non vues masquées). Chacun peut figer la brume et montrer les rayons de vision (préférences
- * locales).
+ * non vues masquées). Chacun peut figer la brume, montrer les rayons de vision et la distance au
+ * clic (préférences locales).
  */
-import { CircleDashed, Cloudy, Eye, ScanEye } from 'lucide-react';
+import { CircleDashed, Cloudy, Eye, Ruler, ScanEye } from 'lucide-react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
+import { measurePrefs, setClickDistance } from '@/lib/map/modules/measurements/prefs';
 import { setFogAnimation, setVisionRadiusShown, visionPrefs } from '@/lib/map/modules/vision/prefs';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +32,7 @@ export function VisionViewMenu({ engine }: { engine: MapEngine }) {
   const viewAs = useStore(engine.ui, (s) => s.viewAs);
   const fogAnimation = useStore(visionPrefs(engine), (s) => s.fogAnimation);
   const radius = useStore(visionPrefs(engine), (s) => s.visionRadius);
+  const clickDistance = useStore(measurePrefs(engine), (s) => s.clickDistance);
   const players = gm ? (engine.directory.players?.() ?? []) : [];
   const current = players.find((p) => p.userId === viewAs);
   const label = current ? `Vue de ${current.name}` : gm ? 'Vue du MJ' : 'Vue';
@@ -95,6 +97,18 @@ export function VisionViewMenu({ engine }: { engine: MapEngine }) {
         >
           <Cloudy className="size-4 text-muted-foreground" />
           Animer la brume
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={clickDistance}
+          onCheckedChange={(on) => setClickDistance(engine, on === true)}
+        >
+          <Ruler className="size-4 text-muted-foreground" />
+          <span className="flex flex-col">
+            Distance au clic
+            <span className="text-xs text-muted-foreground">
+              {gm ? '⌘/Ctrl + clic : depuis le token sélectionné' : 'Depuis mon personnage'}
+            </span>
+          </span>
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>

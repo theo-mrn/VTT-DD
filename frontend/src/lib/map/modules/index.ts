@@ -63,6 +63,7 @@ import { obstaclesModule } from './obstacles';
 import { fogModule } from './fog';
 import { lightsModule } from './lights';
 import { portalsModule } from './portals';
+import { measurementsModule } from './measurements';
 import { visionModule } from './vision';
 import { weatherModule } from './weather';
 
@@ -85,6 +86,8 @@ export const MAP_MODULES: readonly MapModule[] = [
   lightsModule,
   // Portails : même carte, autre scène, aller-retour, emprunt (X)
   portalsModule,
+  // Mesures : distance au clic, outil Mesurer (Z), gabarits épinglés
+  measurementsModule,
   // Lot 2 « Rendu de la visibilité » : ombres, brouillard, lueurs, masquage, sélecteur « Vue »
   visionModule,
   // Météo de la scène : pluie, neige, brouillard… (plan weather, espace écran)
