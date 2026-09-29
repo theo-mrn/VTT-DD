@@ -6,10 +6,11 @@
  * | ----------- | ---------------------------------------- | ---------------------------------------- |
  * | `idle`      | survol → contour, curseur                | bouton sur une entité → `pressing`       |
  * |             | bouton sur une poignée → `handle`        | bouton dans le vide → `void`             |
- * | `pressing`  | +4 px → `dragging` (si déplaçable)       | lâcher → clic (sélection, ⇧ bascule)     |
+ * | `pressing`  | +4 px → `dragging` (sinon `panning`)     | lâcher → clic (sélection, ⇧ bascule)     |
  * | `dragging`  | aperçu, direct, aimantation (Alt : sans) | lâcher → une commande ; Échap → annule   |
- * | `void`      | +4 px → `lasso`                          | lâcher → désélectionne (Alt : ping)      |
- * | `lasso`     | rectangle                                | lâcher → sélection (⇧ : ajoute)          |
+ * | `void`      | +4 px → `panning` (⇧ : `lasso`)          | lâcher → désélectionne (Alt : ping)      |
+ * | `panning`   | la carte suit le pointeur                | lâcher → la vue reste là                 |
+ * | `lasso`     | rectangle (⇧ + glisser dans le vide)     | lâcher → sélection, ajoutée à l'actuelle |
  * | `handle`    | rotation ou taille                       | lâcher → une commande ; Échap → annule   |
  *
  * Une sorte à action de clic (`EntityKind.click` : porte) la reçoit au lâcher d'un clic simple,
@@ -23,7 +24,8 @@ import type { MapEngine } from '../map-engine';
 import type { MapPointer, Tool } from './tool';
 import { SELECT_TOOL_ID } from './tool-manager';
 
-export type SelectState = 'idle' | 'pressing' | 'dragging' | 'void' | 'lasso' | 'handle';
+export type SelectState =
+  'idle' | 'pressing' | 'dragging' | 'void' | 'panning' | 'lasso' | 'handle';
 
 export class SelectTool implements Tool {
   readonly id = SELECT_TOOL_ID;
@@ -37,9 +39,12 @@ export class SelectTool implements Tool {
   /** Rectangle du lasso (monde), lu par le rendu. */
   lasso: Rect | null = null;
   private lassoAdditive = false;
+  /** Dernier point d'écran du glisser de la vue. */
+  private panFrom: { x: number; y: number } | null = null;
 
   cursor(engine: MapEngine): string | null {
-    if (this.state === 'dragging' || this.state === 'handle') return 'grabbing';
+    if (this.state === 'dragging' || this.state === 'handle' || this.state === 'panning')
+      return 'grabbing';
     if (this.state === 'lasso') return 'crosshair';
     return engine.hoverCursor();
   }
@@ -85,11 +90,9 @@ export class SelectTool implements Tool {
       case 'pressing': {
         if (!this.start || !this.target) return;
         if (!exceedsThreshold(this.start.screen, e.screen)) return;
-        // Touchée pour son seul clic (porte hors de l'outil obstacles) : ni sélection ni glisser
+        // Touchée pour son seul clic (porte hors de l'outil obstacles) : la carte se déplace
         if (!engine.isInteractive(this.target)) {
-          this.state = 'idle';
-          this.target = null;
-          engine.refreshCursor();
+          this.startPanning(e, engine);
           return;
         }
         // Alt + glisser d'une entité non sélectionnée : elle rejoint la sélection
@@ -99,10 +102,8 @@ export class SelectTool implements Tool {
         }
         const movable = engine.movableSelection(this.target);
         if (!movable.length) {
-          // Verrouillée ou sans droit : le geste n'est plus qu'un clic manqué
-          this.state = 'idle';
-          this.target = null;
-          engine.refreshCursor();
+          // Verrouillée, sans droit ou mur hors de son outil : c'est la carte qui se déplace
+          this.startPanning(e, engine);
           return;
         }
         this.state = 'dragging';
@@ -118,11 +119,21 @@ export class SelectTool implements Tool {
         return;
       case 'void':
         if (!this.start || !exceedsThreshold(this.start.screen, e.screen)) return;
+        // ⇧ + glisser dans le vide : lasso ; sinon la carte se déplace, comme on s'y attend
+        if (!this.start.shift) {
+          this.startPanning(e, engine);
+          return;
+        }
         this.state = 'lasso';
-        this.lassoAdditive = this.start.shift;
+        this.lassoAdditive = true;
         this.lasso = rectFromPoints(this.start.world, e.world);
         engine.invalidate();
         engine.refreshCursor();
+        return;
+      case 'panning':
+        if (!this.panFrom) return;
+        engine.camera.panBy(e.screen.x - this.panFrom.x, e.screen.y - this.panFrom.y);
+        this.panFrom = e.screen;
         return;
       case 'lasso':
         if (!this.start) return;
@@ -166,6 +177,9 @@ export class SelectTool implements Tool {
       case 'void':
         if (e.alt) engine.ping(e.world);
         else if (!start?.shift) engine.selection.clear();
+        break;
+      case 'panning':
+        engine.cameraSettled();
         break;
       case 'lasso': {
         if (!start) break;
@@ -213,6 +227,7 @@ export class SelectTool implements Tool {
     this.drag = null;
     this.transform = null;
     if (state === 'lasso') engine.invalidate();
+    if (state === 'panning') engine.cameraSettled();
     engine.refreshCursor();
     return state !== 'idle';
   }
@@ -222,10 +237,23 @@ export class SelectTool implements Tool {
     engine.setHovered(null);
   }
 
+  /** Le glisser déplace la carte depuis le point de départ (seuil franchi). */
+  private startPanning(e: MapPointer, engine: MapEngine) {
+    const from = this.start?.screen ?? e.screen;
+    this.state = 'panning';
+    this.target = null;
+    engine.setHovered(null);
+    engine.camera.cancelAnimation();
+    engine.camera.panBy(e.screen.x - from.x, e.screen.y - from.y);
+    this.panFrom = e.screen;
+    engine.refreshCursor();
+  }
+
   private reset() {
     this.state = 'idle';
     this.start = null;
     this.target = null;
     this.lasso = null;
+    this.panFrom = null;
   }
 }

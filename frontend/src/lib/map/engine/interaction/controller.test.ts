@@ -103,14 +103,47 @@ describe('gestes communs', () => {
     expect(t.engine.entity('a')?.current.x).toBe(100);
   });
 
-  it('glisser dans le vide trace un lasso (⇧ : ajoute)', () => {
+  it('⇧ + glisser dans le vide trace un lasso, qui ajoute à la sélection', () => {
     const t = setup({
       boxes: [box('a', 100, 100), box('b', 200, 150), box('c', 800, 800)],
     });
-    t.drag({ x: 50, y: 50 }, { x: 250, y: 250 });
+    t.drag({ x: 50, y: 50 }, { x: 250, y: 250 }, { shift: true });
     expect([...t.engine.selection.ids].sort()).toEqual(['a', 'b']);
     t.drag({ x: 750, y: 750 }, { x: 900, y: 900 }, { shift: true });
     expect([...t.engine.selection.ids].sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('glisser dans le vide déplace la carte, sans toucher à la sélection', () => {
+    const t = setup({ boxes: [box('a', 100, 100)] });
+    t.click({ x: 100, y: 100 });
+    const cam = t.engine.camera;
+    const before = { x: cam.x, y: cam.y };
+    const c = t.engine.controller;
+    // Positions d'écran fixes : la carte suit le pointeur de 100 px vers la droite, 50 vers le bas
+    const down = t.pointer({ x: 500, y: 500 });
+    c.pointerDown(down);
+    const screen = { x: down.screen.x + 100, y: down.screen.y + 50 };
+    c.pointerMove({ ...down, screen, world: cam.screenToWorld(screen) });
+    c.pointerUp({ ...down, screen, world: cam.screenToWorld(screen), buttons: 0 });
+    expect(cam.x).toBeCloseTo(before.x - 100 / cam.zoom);
+    expect(cam.y).toBeCloseTo(before.y - 50 / cam.zoom);
+    expect(t.engine.selection.ids).toEqual(['a']);
+    expect(t.persistence.update).not.toHaveBeenCalled();
+  });
+
+  it('glisser un élément qui ne bouge pas (verrouillé) déplace la carte', () => {
+    const t = setup({ boxes: [box('a', 500, 500, { locked: true })] });
+    const cam = t.engine.camera;
+    const before = cam.x;
+    const c = t.engine.controller;
+    const down = t.pointer({ x: 500, y: 500 });
+    c.pointerDown(down);
+    const screen = { x: down.screen.x - 80, y: down.screen.y };
+    c.pointerMove({ ...down, screen, world: cam.screenToWorld(screen) });
+    c.pointerUp({ ...down, screen, world: cam.screenToWorld(screen), buttons: 0 });
+    expect(cam.x).toBeCloseTo(before + 80 / cam.zoom);
+    expect(t.engine.entity('a')?.current.x).toBe(500);
+    expect(t.persistence.update).not.toHaveBeenCalled();
   });
 
   it('double clic : ouvre l’inspecteur', () => {

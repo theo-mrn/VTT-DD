@@ -61,13 +61,13 @@ describe('murs avec l’outil sélection', () => {
     expect(b.engine.selection.ids).toEqual(['mur']);
   });
 
-  it('le mur ne se glisse pas hors de l’outil murs, et le lasso ne le prend pas', async () => {
+  it('le mur ne se glisse pas hors de l’outil murs (la carte bouge), le lasso ne le prend pas', async () => {
     const b = bench([box('t', 300, 250)]);
     b.drag(P(450, 300), P(450, 450));
     await b.commands.idle();
     expect(b.points()).toEqual([P(100, 300), P(500, 300)]);
     b.engine.selection.replace([]);
-    b.drag(P(50, 200), P(600, 400));
+    b.drag(P(50, 200), P(600, 400), { shift: true });
     expect(b.engine.selection.ids).toEqual(['t']);
   });
 });
