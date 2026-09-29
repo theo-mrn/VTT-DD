@@ -12,6 +12,7 @@ import {
   Users,
   Volume2,
   type LucideIcon,
+  Skull,
 } from 'lucide-react';
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import { isChatEventForMe } from '@/lib/campaign-chat';
@@ -184,6 +185,17 @@ export const panelRegistry = [
     component: lazy(() =>
       import('../onglets/resources').then((m) => ({ default: m.OngletResources })),
     ),
+  },
+  {
+    id: 'pnj',
+    label: 'Mes PNJ',
+    description: 'Vos modèles de PNJ, rangés par catégories, à poser sur la carte',
+    icon: Skull,
+    shortcut: { code: 'KeyU', label: 'U' },
+    width: 'wide',
+    mode: 'side',
+    roles: ['gm'],
+    component: lazy(() => import('../onglets/pnj').then((m) => ({ default: m.OngletPnj }))),
   },
   {
     id: 'scenes',

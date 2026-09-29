@@ -114,7 +114,7 @@ function Library({ engine }: { engine: MapEngine }) {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="templates">Modèles</TabsTrigger>
             <TabsTrigger value="bestiary">Bestiaire</TabsTrigger>
-            <TabsTrigger value="quick">Rapide</TabsTrigger>
+            <TabsTrigger value="quick">Nouveau</TabsTrigger>
           </TabsList>
           {tab !== 'quick' && (
             <SearchField
@@ -165,14 +165,16 @@ function Library({ engine }: { engine: MapEngine }) {
                 />
               </TabsContent>
               <TabsContent value="quick" className="mt-0">
-                <QuickCreate
-                  campaignId={campaignId}
-                  systeme={sys.data.systeme}
-                  presentation={sys.data.presentation}
-                  armedKey={armed?.key ?? null}
-                  drag={drag}
-                  onArm={arm}
-                />
+                {systemId && (
+                  <QuickCreate
+                    campaignId={campaignId}
+                    systemId={systemId}
+                    systeme={sys.data.systeme}
+                    presentation={sys.data.presentation}
+                    onArm={arm}
+                    onCreated={() => tokens.library.setState({ tab: 'templates' })}
+                  />
+                )}
               </TabsContent>
             </>
           )}
@@ -249,10 +251,10 @@ function TemplatesTab({
       <Notice
         icon={Skull}
         title="Aucun modèle de PNJ"
-        description="Les modèles de PNJ de la campagne apparaîtront ici. En attendant, la création rapide pose un PNJ en quelques secondes."
+        description="Créez vos PNJ dans « Mes PNJ » (U), ou ici en quelques secondes : chacun reste un modèle, à poser autant de fois qu’il le faut."
         action={
           <Button variant="secondary" size="sm" onClick={onQuick}>
-            Création rapide
+            Nouveau PNJ
           </Button>
         }
       />

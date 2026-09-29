@@ -157,8 +157,8 @@ export function confirmNpcDeletion(
     ? ` Les personnages joueurs sélectionnés sont seulement retirés de la carte.`
     : '';
   if (npcs.length === 1)
-    return `Supprimer « ${names[0]} » ? Sa fiche est supprimée avec son token, définitivement.${suffix}`;
+    return `Supprimer « ${names[0]} » de la carte ? Sa fiche de jeu (PV, état) disparaît avec lui ; son modèle reste dans « Mes PNJ ».${suffix}`;
   const shown = names.slice(0, 3).join(', ');
   const more = names.length > 3 ? ` et ${names.length - 3} autres` : '';
-  return `Supprimer ${npcs.length} PNJ (${shown}${more}) ? Leurs fiches sont supprimées avec leurs tokens, définitivement.${suffix}`;
+  return `Supprimer ${npcs.length} PNJ (${shown}${more}) de la carte ? Leurs fiches de jeu disparaissent avec eux ; leurs modèles restent dans « Mes PNJ ».${suffix}`;
 }

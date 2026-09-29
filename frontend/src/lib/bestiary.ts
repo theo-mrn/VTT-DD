@@ -7,7 +7,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bestiary, EtatEntite } from '@vtt/rules';
+import { Bestiary, EtatEntite, type Valeur } from '@vtt/rules';
 import { api } from './api';
 import { useCampaignEvents } from './realtime';
 
@@ -47,6 +47,7 @@ export interface NpcTemplate {
   actions: NpcTemplateAction[];
   /** Statistiques dans le système de la campagne ; null si l'état reçu est illisible. */
   etat: EtatEntite | null;
+  version: number;
   updatedAt: string;
 }
 
@@ -54,6 +55,7 @@ export interface NpcTemplateCategory {
   id: string;
   name: string;
   color: string | null;
+  version: number;
 }
 
 interface NpcTemplateApi extends Omit<NpcTemplate, 'etat'> {
@@ -83,10 +85,16 @@ async function readNpcTemplates(
         tokenUrl: t.tokenUrl,
         actions: t.actions ?? [],
         etat: etat.success ? etat.data : null,
+        version: t.version,
         updatedAt: t.updatedAt,
       };
     }),
-    categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    categories: categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      version: c.version,
+    })),
   };
 }
 
@@ -108,4 +116,62 @@ export function useNpcTemplates(campaignId: string | null | undefined, enabled =
     queryFn: () => readNpcTemplates(campaignId!),
     enabled: actif,
   });
+}
+
+// ─── Écritures (MJ) ──────────────────────────────────────────────────────────
+
+/** Ce qu'on écrit d'un modèle de PNJ (docs/api-templates.md). */
+export interface NpcTemplateWrite {
+  name?: string;
+  categoryId?: string | null;
+  imageUrl?: string | null;
+  tokenUrl?: string | null;
+  /** Valeurs saisissables (création : sur l'état vide du type ; modification : sur l'état actuel). */
+  valeurs?: Record<string, Valeur>;
+  /** Création : système et type d'entité ; ou un état complet (copie d'un modèle). */
+  systemeId?: string;
+  type?: string;
+  etat?: EtatEntite;
+}
+
+const templatesBase = (campaignId: string) => `/v1/campaigns/${encodeURIComponent(campaignId)}`;
+const send = (method: string, body?: unknown): RequestInit => ({
+  method,
+  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+});
+
+export const npcTemplatesApi = {
+  create: (campaignId: string, body: NpcTemplateWrite & { name: string }) =>
+    api<NpcTemplateApi>(`${templatesBase(campaignId)}/npc-templates`, send('POST', body)),
+  update: (campaignId: string, id: string, version: number, body: NpcTemplateWrite) =>
+    api<NpcTemplateApi>(
+      `${templatesBase(campaignId)}/npc-templates/${encodeURIComponent(id)}`,
+      send('PATCH', { version, ...body }),
+    ),
+  remove: (campaignId: string, id: string) =>
+    api<void>(
+      `${templatesBase(campaignId)}/npc-templates/${encodeURIComponent(id)}`,
+      send('DELETE'),
+    ),
+  createCategory: (campaignId: string, name: string) =>
+    api<NpcTemplateCategory>(
+      `${templatesBase(campaignId)}/npc-template-categories`,
+      send('POST', { name }),
+    ),
+  renameCategory: (campaignId: string, id: string, version: number, name: string) =>
+    api<NpcTemplateCategory>(
+      `${templatesBase(campaignId)}/npc-template-categories/${encodeURIComponent(id)}`,
+      send('PATCH', { version, name }),
+    ),
+  removeCategory: (campaignId: string, id: string) =>
+    api<void>(
+      `${templatesBase(campaignId)}/npc-template-categories/${encodeURIComponent(id)}`,
+      send('DELETE'),
+    ),
+};
+
+/** Relit les modèles et catégories tout de suite (sans attendre l'événement). */
+export function useRefreshNpcTemplates(campaignId: string) {
+  const client = useQueryClient();
+  return () => void client.invalidateQueries({ queryKey: npcTemplateKeys.all(campaignId) });
 }

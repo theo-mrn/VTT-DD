@@ -43,7 +43,7 @@ function setup(viewer = undefined as typeof ALICE | undefined) {
 }
 
 describe('menu d’un token (MJ)', () => {
-  it('actions communes, puis Fiche, Visibilité, Vision, Retirer de la carte, Supprimer en dernier', () => {
+  it('PNJ : actions communes, puis Fiche, Visibilité, Vision, Supprimer en dernier (pas de retrait)', () => {
     const t = setup();
     const ids = t
       .menu('g1')
@@ -56,9 +56,10 @@ describe('menu d’un token (MJ)', () => {
       'token:sheet',
       'token:visibility',
       'token:vision',
-      'token:remove-from-map',
       'delete',
     ]);
+    // Un personnage joueur, lui, se retire de la carte
+    expect(t.menu('h1').some((i) => i.id === 'token:remove-from-map')).toBe(true);
     // Un personnage joueur ne se duplique pas
     expect(t.menu('h1').some((i) => i.id === 'duplicate')).toBe(false);
   });
@@ -113,11 +114,11 @@ describe('menu d’un token (MJ)', () => {
     expect(t.data('g1')).toMatchObject({ visionRadius: 300, visionBoost: true });
   });
 
-  it('Retirer de la carte : le personnage reste, annulable', async () => {
+  it('Retirer de la carte (personnage joueur) : le personnage reste, annulable', async () => {
     const t = setup();
-    find(t.menu('g1'), 'token:remove-from-map')!.run!();
+    find(t.menu('h1'), 'token:remove-from-map')!.run!();
     await t.commands.idle();
-    expect(t.data('g1')).toBeUndefined();
+    expect(t.data('h1')).toBeUndefined();
     expect(t.base.remove).toHaveBeenCalledTimes(1);
     expect(t.api.removeWithCharacter).not.toHaveBeenCalled();
     await t.commands.undo();

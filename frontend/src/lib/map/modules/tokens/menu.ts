@@ -3,7 +3,8 @@
  * communes (Inspecter, Dupliquer, Ordre, Calque, Supprimer) :
  * - Fiche (MJ ; joueur : ses personnages) ;
  * - MJ : Visibilité ▸ (visible, caché, allié, pour certains joueurs ▸, invisible), Vision ▸
- *   (vision augmentée, rayon en cases), Retirer de la carte (le personnage reste engagé) ;
+ *   (vision augmentée, rayon en cases), Retirer de la carte (personnages joueurs : il reste
+ *   engagé ; un PNJ se supprime, son modèle de « Mes PNJ » reste) ;
  * - joueur : Vision augmentée de ses personnages.
  */
 import { Eye, IdCard, MapPinOff, ScanEye, UsersRound } from 'lucide-react';
@@ -17,7 +18,7 @@ import {
   settled,
   toggleVisibleTo,
 } from './edit';
-import { ownsToken, VISIBILITY_LABELS, VISIBILITY_ORDER, type TokenData } from './model';
+import { isNpc, ownsToken, VISIBILITY_LABELS, VISIBILITY_ORDER, type TokenData } from './model';
 import type { TokensState } from './state';
 
 /** Rayons de vision proposés, en cases (× `pixelsPerUnit`). */
@@ -119,12 +120,15 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
     ],
   });
 
-  items.push({
-    id: 'token:remove-from-map',
-    label: 'Retirer de la carte',
-    icon: MapPinOff,
-    run: () => void removeFromMap(tokens, entities),
-  });
+  // Personnages joueurs seulement : un PNJ est une instance de modèle (« Mes PNJ »), on le
+  // supprime (le modèle reste) plutôt que de laisser une fiche sans token
+  if (entities.every((e) => !isNpc(tokens.directory.get(e.data.characterId))))
+    items.push({
+      id: 'token:remove-from-map',
+      label: 'Retirer de la carte',
+      icon: MapPinOff,
+      run: () => void removeFromMap(tokens, entities),
+    });
 
   return items;
 }

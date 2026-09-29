@@ -389,8 +389,8 @@ Règles de ces gestes :
   comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
   annule. Les chiffres comptent par leur position (sans ⇧ en AZERTY), pavé numérique compris.
 - **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A (outils), R (pivoter) et K
-  (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
-  table. Encore libres : U, X, Y, Z et les chiffres (pris par l'outil actif quand il en a
+  (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O, E (Scènes, MJ) et U (Mes
+  PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : X, Y, Z et les chiffres (pris par l'outil actif quand il en a
   l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes des outils W et G).
 
 ### Outils (`tools/`)
@@ -794,13 +794,22 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   visible) et fiches calculées par `@vtt/rules` (MJ : tous les personnages posés ; joueur : les
   siens). Un personnage modifié redessine ses seuls tokens. Un token dont le personnage manque
   à la liste la fait relire.
+- **Des modèles, puis des instances.** Un PNJ se crée comme modèle, puis se pose autant de
+  fois qu'il le faut ; le modèle reste. Les modèles vivent dans le panneau **« Mes PNJ »**
+  (MJ, U, `components/table/onglets/pnj.tsx`), comme l'ancien gestionnaire de PNJ :
+  recherche, catégories (ajouter, renommer, supprimer : leurs modèles restent), créer,
+  modifier (nom, catégorie, image, valeurs clés : `PATCH … { valeurs }`, seules les valeurs
+  changées partent), dupliquer (état complet), ranger, supprimer (les PNJ posés restent).
+  Formulaire commun `components/personnages/npc-form.tsx`.
 - **Bibliothèque MJ** : l'outil « Personnages » (A) l'ouvre dans la colonne de gauche ; sans
   carte choisie, l'outil garde les gestes de la sélection. Onglets :
   - « Modèles » : `npc-templates` et leurs catégories ;
   - « Bestiaire » du système ;
-  - « Création rapide » : nom, image, type d'entité et valeurs clés. Les valeurs clés sont les
-    attributs des statistiques du bestiaire déclarées pour ce type (sinon les blocs de sa
-    fiche) que l'on peut saisir ; les valeurs calculées (défense, maximums) suivent les règles.
+  - « Nouveau » : le formulaire des modèles (nom, catégorie, image, type d'entité, valeurs
+    clés) crée un modèle dans « Mes PNJ » (`POST npc-templates { systemeId, type, valeurs }`),
+    puis le choisit pour la pose. Les valeurs clés sont les attributs des statistiques du
+    bestiaire déclarées pour ce type (sinon les blocs de sa fiche) que l'on peut saisir ; les
+    valeurs calculées (défense, maximums) suivent les règles.
   - Recherche, filtre par catégorie. Glisser une carte vers la scène (point de dépôt converti
     par la caméra), ou clic puis clic sur la carte (⇧ : en poser d'autres, Échap : annuler).
     Nombre d'exemplaires (1 à 20, chiffres du clavier), camp (ennemis, alliés), visibilité à la
@@ -813,14 +822,16 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     défaut), avec son token. Des fantômes (brouillons optimistes) s'affichent pendant l'appel ;
     échec : ils disparaissent, message du serveur. Annuler la pose supprime ces PNJ avec leur
     personnage ; refaire les recrée.
-  - « Supprimer » (Suppr) sur un PNJ : confirmation, puis `?character=delete` ; définitif,
-    donc hors de la pile d'annulation (`EntityKind.remove`). Sur un personnage joueur : il est
-    retiré de la carte (annulable). « Retirer de la carte » garde toujours le personnage.
+  - « Supprimer » (Suppr) sur un PNJ : confirmation, puis `?character=delete` : le token et
+    la fiche de jeu de cette instance (PV, état) disparaissent, le modèle reste dans « Mes
+    PNJ » ; hors de la pile d'annulation (`EntityKind.remove`). Sur un personnage joueur : il
+    est retiré de la carte (annulable). « Retirer de la carte » n'existe que pour les
+    personnages joueurs : un PNJ sans token serait une fiche perdue.
   - « Dupliquer » (⌘D) : `…/duplicate` (fiche comprise) ; annuler supprime la copie avec son
     personnage. Un personnage joueur ne se duplique pas.
 - **Menu**, après les actions communes : Fiche, Visibilité ▸ (visible, caché, allié, pour
   certains joueurs ▸ personnages à cocher, invisible), Vision ▸ (vision augmentée, rayon en
-  cases de la carte), Retirer de la carte. Les actions communes « Masquer aux joueurs » et
+  cases de la carte), Retirer de la carte (personnages joueurs). Les actions communes « Masquer aux joueurs » et
   « Visible pour… » ne s'affichent pas : Visibilité ▸ les remplace.
 - **Inspecteur** : « Personnage » (portrait, camp, ressource, « Ouvrir la fiche » :
   `FichePersonnage` dans un panneau de la colonne de gauche, droits habituels) et « Token »
