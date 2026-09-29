@@ -89,6 +89,11 @@ export interface MapStoreState {
    */
   upsert(collection: string, items: readonly MapDto[], options?: { force?: boolean }): void;
   remove(collection: string, ids: readonly string[]): void;
+  /**
+   * Modifie des champs d'un élément sans version (événement qui n'en porte pas, comme
+   * `token.moved`) ; ignoré si l'élément est inconnu ou en attente.
+   */
+  patchItem(collection: string, id: string, patch: Record<string, unknown>): void;
   /** Liste complète d'une couche relue en REST : fait autorité, sauf l'optimiste en cours. */
   replaceCollection(collection: string, items: readonly MapDto[]): void;
   setExtra(key: string, value: unknown): void;
@@ -203,6 +208,15 @@ export function createMapStore(campaignId: string, mapId: string): MapStore {
         if (!current || !ids.some((id) => current.has(id))) return;
         const next = new Map(current);
         for (const id of ids) next.delete(id);
+        set((s) => ({ collections: { ...s.collections, [collection]: next } }));
+      },
+
+      patchItem(collection, id, patch) {
+        const current = get().collections[collection];
+        const item = current?.get(id);
+        if (!current || !item || get().pending.has(id)) return;
+        const next = new Map(current);
+        next.set(id, { ...item, ...patch });
         set((s) => ({ collections: { ...s.collections, [collection]: next } }));
       },
 

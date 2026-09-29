@@ -25,6 +25,7 @@
  */
 import { Crosshair, Focus, MousePointer2, Radio } from 'lucide-react';
 import type { ComponentType } from 'react';
+import type * as Pixi from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { LiveChannel } from '../live/live-channel';
@@ -58,6 +59,7 @@ import {
   type EntityKind,
   type KindContext,
   type LiveAudience,
+  type MapTheme,
   type MapViewer,
   type MenuItem,
 } from './entities/entity-kind';
@@ -188,6 +190,10 @@ const NO_LAYERS: ReadonlySet<string> = new Set();
 /** Ce que le moteur demande au rendu Pixi, chargé au montage. */
 export interface EngineView {
   readonly canvas: HTMLCanvasElement;
+  /** Module `pixi.js` chargé (pour les modules qui dessinent dans un plan). */
+  readonly pixi: typeof Pixi;
+  /** Couleurs du thème, lues dans les variables CSS. */
+  readonly theme: MapTheme;
   resize(width: number, height: number): void;
   addEntity(entity: MapEntity): void;
   updateEntity(entity: MapEntity, change: EntityChange<MapDto>): void;
@@ -431,6 +437,26 @@ export class MapEngine {
     for (const l of this.extensionListeners) l();
   }
 
+  /**
+   * Appelé quand le rendu est prêt (tout de suite s'il l'est déjà) : un module y crée ses objets
+   * Pixi dans un plan. Le nettoyage renvoyé est appelé à la destruction.
+   */
+  whenMounted(cb: () => void | (() => void)): () => void {
+    const entry = { cb, cleanup: null as null | (() => void) };
+    this.mountedCallbacks.add(entry);
+    if (this.view) entry.cleanup = cb() ?? null;
+    return () => {
+      this.mountedCallbacks.delete(entry);
+      entry.cleanup?.();
+      entry.cleanup = null;
+    };
+  }
+
+  private readonly mountedCallbacks = new Set<{
+    cb: () => void | (() => void);
+    cleanup: (() => void) | null;
+  }>();
+
   /** Animation d'un module : appelée à chaque image, tant qu'elle renvoie vrai. */
   onFrame(cb: (now: number) => boolean | void): () => void {
     this.frameCallbacks.add(cb);
@@ -457,6 +483,7 @@ export class MapEngine {
       this.restoreCamera();
       this.cullDirty = true;
       this.ui.setState({ mounted: true, failure: null });
+      for (const entry of this.mountedCallbacks) entry.cleanup = entry.cb() ?? null;
       this.refreshCursor();
       this.invalidate();
     } catch (err) {
@@ -483,6 +510,8 @@ export class MapEngine {
     for (const c of this.moduleCleanups.splice(0)) c();
     for (const c of this.cleanups.splice(0)) c();
     for (const e of this.entityMap.values()) e.kind.dispose?.(e);
+    for (const entry of this.mountedCallbacks) entry.cleanup?.();
+    this.mountedCallbacks.clear();
     this.view?.destroy();
     this.view = null;
     this.screenSpace.clear();
@@ -509,6 +538,16 @@ export class MapEngine {
   /** Conteneur d'un plan (null avant le montage). */
   plane(id: PlaneId): Container | null {
     return this.view?.plane(id) ?? null;
+  }
+
+  /** Module `pixi.js` (null avant le montage) : les modules y prennent `Graphics`, `Sprite`… */
+  get pixi(): typeof Pixi | null {
+    return this.view?.pixi ?? null;
+  }
+
+  /** Couleurs du thème (null avant le montage). */
+  get theme(): MapTheme | null {
+    return this.view?.theme ?? null;
   }
 
   /** Élément DOM du canevas (null avant le montage). */
@@ -1387,10 +1426,40 @@ export class MapEngine {
     return this.deleteEntities(this.selectedEntities());
   }
 
+  /**
+   * Modifie la scène (point d'apparition, affichage…) : une commande annulable, optimiste,
+   * envoyée par `PATCH /maps/:mapId`.
+   */
+  updateScene(label: string, patch: Record<string, unknown>): Promise<boolean> | null {
+    const scene = this.store.getState().scene;
+    const backend = this.backend;
+    if (!scene || !backend) return null;
+    const before: Record<string, unknown> = {};
+    for (const k of Object.keys(patch)) before[k] = scene[k] ?? null;
+    const make = (from: Record<string, unknown>, to: Record<string, unknown>): Command => ({
+      label,
+      targets: () => [{ collection: 'scene', id: scene.id }],
+      apply: (ctx) => {
+        const cur = ctx.store.getState().scene;
+        if (cur) ctx.store.getState().setScene({ ...cur, ...to }, { force: true });
+      },
+      revert: (ctx) => {
+        const cur = ctx.store.getState().scene;
+        if (cur) ctx.store.getState().setScene({ ...cur, ...from }, { force: true });
+      },
+      send: async (ctx) => {
+        const saved = await backend.updateScene(to, ctx.store.getState().scene?.version);
+        ctx.store.getState().setScene(saved, { force: true });
+      },
+      inverse: () => make(to, from),
+    });
+    return this.execute(make(before, patch));
+  }
+
   // ── Ordre et calque (§ 5, Calques) ──
 
-  /** Donnée d'une entité rangée à cette place. */
-  private placed(e: MapEntity, layerId: string | null, z: number): MapDto {
+  /** Donnée d'une entité rangée à cette place (calque, `z`). */
+  placed(e: MapEntity, layerId: string | null, z: number): MapDto {
     const s = e.kind.stacking!;
     return s.z.set(s.layerId.set(e.data, layerId), z);
   }

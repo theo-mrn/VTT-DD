@@ -376,13 +376,21 @@ class RealtimeClient {
     return () => void this.ephemeralListeners.delete(listener);
   }
 
-  sendEphemeral(campaignId: string, kind: string, data: unknown, gmOnly = false) {
+  sendEphemeral(
+    campaignId: string,
+    kind: string,
+    data: unknown,
+    gmOnly = false,
+    toUsers?: readonly string[],
+  ) {
     // Volatile : perdu plutôt que mis en file si la connexion est coupée
     this.socket?.volatile.emit('ephemeral', {
       campaignId,
       kind,
       data,
       ...(gmOnly ? { gmOnly } : {}),
+      // Destinataires nommés (et les MJ) : carte, élément vu de certains joueurs seulement
+      ...(!gmOnly && toUsers?.length ? { toUsers: [...toUsers] } : {}),
     });
   }
 }
@@ -498,12 +506,17 @@ export function useCampaignPresence(campaignId: string | null): {
  * Canal éphémère d'une campagne (curseurs, jeton en cours de glissement,
  * pings) : jamais enregistré, perdu si la connexion sature, débit limité par
  * le serveur. `send` n'envoie rien tant que l'abonnement n'est pas actif.
+ * Audience : tous (défaut), `gmOnly` (MJ seulement), ou `toUsers` (ces
+ * utilisateurs et les MJ, 50 au plus).
  */
 export function useCampaignEphemeral<D = unknown>(
   campaignId: string | null,
   kinds: readonly string[],
   handler: (m: EphemeralMessage<D>) => void,
-): { send(kind: string, data: D, options?: { gmOnly?: boolean }): void; live: boolean } {
+): {
+  send(kind: string, data: D, options?: { gmOnly?: boolean; toUsers?: readonly string[] }): void;
+  live: boolean;
+} {
   const handlerRef = useRef(handler);
   handlerRef.current = handler;
   const kindsKey = kinds.join('|');
@@ -522,7 +535,8 @@ export function useCampaignEphemeral<D = unknown>(
   return {
     live,
     send(kind, data, options) {
-      if (campaignId && live) realtime().sendEphemeral(campaignId, kind, data, options?.gmOnly);
+      if (campaignId && live)
+        realtime().sendEphemeral(campaignId, kind, data, options?.gmOnly, options?.toUsers);
     },
   };
 }

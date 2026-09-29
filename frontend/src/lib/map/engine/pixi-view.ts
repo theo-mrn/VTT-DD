@@ -139,10 +139,11 @@ interface CursorSprite {
 
 class PixiView implements EngineView {
   readonly canvas: HTMLCanvasElement;
+  readonly pixi = PIXI;
   private readonly world = new Container({ label: 'world' });
   private readonly planes = new Map<PlaneId, Container>();
   private readonly layerContainers = new Map<string, Container>();
-  private readonly theme: MapTheme;
+  readonly theme: MapTheme;
   private destroyed = false;
 
   // Fond

@@ -84,6 +84,8 @@ export interface ToolDefinition {
   available?(viewer: MapViewer): boolean;
   /** Fabrique de l'outil (une instance par moteur). */
   create(engine: MapEngine): Tool;
+  /** Hors de la barre d'outils : l'outil est lancé ailleurs (panneau Scènes…). */
+  hidden?: boolean;
   /** Réglages de l'outil actif, sous la barre (couleurs, épaisseur…). */
   options?: ComponentType<{ engine: MapEngine }>;
 }

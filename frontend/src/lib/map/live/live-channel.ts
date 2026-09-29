@@ -17,61 +17,39 @@
  *
  * Aucune dépendance au DOM ni à Pixi : le transport et l'horloge sont injectés.
  */
+import {
+  EPHEMERAL_TO_USERS_MAX,
+  MAP_LIVE_HZ,
+  MAP_LIVE_KIND,
+  MAP_LIVE_MAX_BYTES,
+  MAP_PING_KIND,
+  MapLiveMessage,
+  MapPingMessage,
+} from '@vtt/contracts';
 import type { Point } from '../engine/geometry';
 
-export const LIVE_KIND = 'map.live';
-export const PING_KIND = 'map.ping';
+export const LIVE_KIND = MAP_LIVE_KIND;
+export const PING_KIND = MAP_PING_KIND;
 
 /** Cadence d'émission maximale pendant un geste. */
-export const LIVE_RATE_HZ = 15;
+export const LIVE_RATE_HZ = MAP_LIVE_HZ;
 /** Messages par seconde, tous genres confondus, côté client. */
 export const LIVE_BUDGET_PER_SECOND = 12;
 /** Retard de lecture : on interpole entre deux positions reçues. */
 export const LIVE_BUFFER_MS = 100;
 /** Sans nouvelles, un fantôme (ou un curseur) disparaît. */
 export const LIVE_EXPIRE_MS = 2_000;
-/** Taille maximale de `data` (le serveur refuse au-delà de 4 Kio, enveloppe comprise). */
-export const LIVE_MAX_BYTES = 3_800;
+/** Taille visée de `data` : sous les 4 Kio du serveur (`MAP_LIVE_MAX_BYTES`), marge comprise. */
+export const LIVE_MAX_BYTES = MAP_LIVE_MAX_BYTES - 300;
 /** Curseur immobile : rappel de sa position, pour qu'il n'expire pas chez les autres. */
 export const CURSOR_KEEPALIVE_MS = 1_000;
 
-export type DragEntry = [id: string, x: number, y: number, rotation?: number];
-export type TransformEntry = [
-  id: string,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  rotation: number,
-];
-
-export interface LiveStroke {
-  id: string;
-  tool: string;
-  color: string;
-  width: number;
-  /** Points ajoutés depuis le dernier envoi, à plat : x0, y0, x1, y1… */
-  points: number[];
-}
-
-export interface LiveMessage {
-  /** Carte. */
-  m: string;
-  /** Compteur de l'émetteur. */
-  s: number;
-  drag?: DragEntry[];
-  cursor?: [x: number, y: number];
-  stroke?: LiveStroke;
-  transform?: TransformEntry[];
-  end?: true;
-}
-
-export interface PingMessage {
-  m: string;
-  x: number;
-  y: number;
-  focus?: true;
-}
+/** Messages du contrat (`@vtt/contracts`, docs/carte.md § 8). */
+export type LiveMessage = MapLiveMessage;
+export type PingMessage = MapPingMessage;
+export type DragEntry = NonNullable<LiveMessage['drag']>[number];
+export type TransformEntry = NonNullable<LiveMessage['transform']>[number];
+export type LiveStroke = NonNullable<LiveMessage['stroke']>;
 
 /** Audience d'un élément qui bouge (§ 8, aucune fuite). */
 export type LiveAudience = 'public' | 'gm' | { users: readonly string[] };
@@ -163,6 +141,17 @@ const audienceKey = (a: LiveAudience) =>
 const sendOptions = (a: LiveAudience): LiveSendOptions =>
   a === 'public' ? {} : a === 'gm' ? { gmOnly: true } : { toUsers: a.users };
 
+/** Le serveur ignore un `toUsers` de plus de 50 noms : on découpe. Liste vide : MJ seulement. */
+function expandAudience(a: LiveAudience): LiveAudience[] {
+  if (a === 'public' || a === 'gm') return [a];
+  const users = [...new Set(a.users)].sort();
+  if (!users.length) return ['gm'];
+  const out: LiveAudience[] = [];
+  for (let i = 0; i < users.length; i += EPHEMERAL_TO_USERS_MAX)
+    out.push({ users: users.slice(i, i + EPHEMERAL_TO_USERS_MAX) });
+  return out;
+}
+
 const MAX_SAMPLES = 8;
 
 function lerpAngle(a: number, b: number, t: number) {
@@ -195,6 +184,7 @@ export class LiveChannel {
 
   // Réception
   private readonly tracks = new Map<string, Track>();
+  private readonly lastSeq = new Map<string, { s: number; t: number }>();
   private readonly cursors = new Map<string, { samples: Sample[]; last: number }>();
   private readonly pingListeners = new Set<(p: PingEvent) => void>();
   private readonly strokeListeners = new Set<(s: StrokeEvent) => void>();
@@ -224,11 +214,14 @@ export class LiveChannel {
 
   /** Positions des éléments que je glisse (dernier état). */
   drag(entries: readonly DragEntry[]) {
-    for (const [id, x, y, rotation] of entries)
+    for (const e of entries) {
+      const [id, x, y] = e;
+      const rotation = e[3];
       this.drags.set(
         id,
         rotation === undefined ? [id, r1(x), r1(y)] : [id, r1(x), r1(y), r1(rotation)],
       );
+    }
     this.ending = false;
     this.request();
   }
@@ -325,24 +318,26 @@ export class LiveChannel {
   /** Construit les messages de cet envoi, un par audience. */
   private build(): { audience: LiveAudience; msg: LiveMessage }[] {
     const groups = new Map<string, { audience: LiveAudience; msg: LiveMessage }>();
-    const group = (a: LiveAudience) => {
-      const key = audienceKey(a);
-      let g = groups.get(key);
-      if (!g) {
-        g = { audience: a, msg: { m: this.opts.mapId, s: 0 } };
-        groups.set(key, g);
-      }
-      return g.msg;
-    };
+    /** Messages d'une audience (plusieurs si `toUsers` dépasse 50 destinataires). */
+    const group = (a: LiveAudience): LiveMessage[] =>
+      expandAudience(a).map((part) => {
+        const key = audienceKey(part);
+        let g = groups.get(key);
+        if (!g) {
+          g = { audience: part, msg: { m: this.opts.mapId, s: 0 } };
+          groups.set(key, g);
+        }
+        return g.msg;
+      });
     for (const entry of this.drags.values())
-      (group(this.opts.audienceOf(entry[0])).drag ??= []).push(entry);
+      for (const msg of group(this.opts.audienceOf(entry[0]))) (msg.drag ??= []).push(entry);
     for (const entry of this.transforms.values())
-      (group(this.opts.audienceOf(entry[0])).transform ??= []).push(entry);
-    if (this.cursorDirty && this.cursorPos) group('public').cursor = this.cursorPos;
+      for (const msg of group(this.opts.audienceOf(entry[0]))) (msg.transform ??= []).push(entry);
+    if (this.cursorDirty && this.cursorPos) group('public')[0]!.cursor = this.cursorPos;
     if (this.strokeMeta && this.strokePoints.length)
-      group('public').stroke = { ...this.strokeMeta, points: this.strokePoints };
+      group('public')[0]!.stroke = { ...this.strokeMeta, points: this.strokePoints };
     if (this.ending) {
-      for (const a of this.gestureAudiences.values()) group(a).end = true;
+      for (const a of this.gestureAudiences.values()) for (const msg of group(a)) msg.end = true;
       for (const g of groups.values())
         if (g.msg.drag || g.msg.transform || g.msg.stroke) g.msg.end = true;
     }
@@ -451,8 +446,9 @@ export class LiveChannel {
   receive(m: LiveIncoming) {
     if (m.from.userId === this.opts.selfId) return;
     if (m.kind === PING_KIND) {
-      const p = m.data as PingMessage;
-      if (!p || p.m !== this.opts.mapId || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+      const parsed = MapPingMessage.safeParse(m.data);
+      if (!parsed.success || parsed.data.m !== this.opts.mapId) return;
+      const p = parsed.data;
       for (const l of this.pingListeners)
         l({
           userId: m.from.userId,
@@ -464,12 +460,18 @@ export class LiveChannel {
       return;
     }
     if (m.kind !== LIVE_KIND) return;
-    const msg = m.data as LiveMessage;
-    if (!msg || msg.m !== this.opts.mapId) return;
+    // Relayé tel quel depuis un autre client : on vérifie la forme
+    const parsed = MapLiveMessage.safeParse(m.data);
+    if (!parsed.success || parsed.data.m !== this.opts.mapId) return;
+    const msg = parsed.data;
     const t = this.now();
     const user = m.from.userId;
+    // Message plus ancien que le dernier reçu de cet émetteur : ignoré (sauf après un silence :
+    // l'émetteur a rechargé la page et repart de 1)
+    const last = this.lastSeq.get(user);
+    if (last && msg.s <= last.s && t - last.t < LIVE_EXPIRE_MS) return;
+    this.lastSeq.set(user, { s: msg.s, t });
     for (const e of msg.drag ?? []) {
-      if (!Array.isArray(e) || typeof e[0] !== 'string') continue;
       this.push(e[0], user, {
         t,
         x: e[1],
@@ -478,7 +480,6 @@ export class LiveChannel {
       });
     }
     for (const e of msg.transform ?? []) {
-      if (!Array.isArray(e) || typeof e[0] !== 'string') continue;
       this.push(e[0], user, { t, x: e[1], y: e[2], width: e[3], height: e[4], rotation: e[5] });
     }
     if (msg.cursor) {
