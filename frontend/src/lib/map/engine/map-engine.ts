@@ -19,6 +19,7 @@
  * - `registerTool(def)` : un outil et son entrée de barre d'outils (`ToolDefinition`) ;
  * - `registerInspectorSection(section)` : une section de l'inspecteur ;
  * - `registerToolbarItem(item)` : un composant dans la barre (emplacement « Vue » ou fin) ;
+ * - `registerOverlay(overlay)` : une surcouche React (panneau flottant, composant sans rendu) ;
  * - `registerMenuProvider(provider)` : des entrées du menu contextuel (vide ou sélection) ;
  * - `onFrame(cb)` : une animation (renvoyer vrai tant qu'elle continue) ;
  * - `plane(id)` : le conteneur Pixi d'un plan (vision, gm…), après le montage.
@@ -127,6 +128,20 @@ export interface ToolbarItem {
   component: ComponentType<{ engine: MapEngine }>;
 }
 
+/**
+ * Surcouche React d'un module, montée sur la carte tant qu'elle est prête : panneau flottant
+ * (bibliothèque des PNJ, fiche), ou composant sans rendu qui relie des données React (liste de
+ * la campagne, fiches) au module.
+ */
+export interface MapOverlay {
+  id: string;
+  /** `left` : colonne de gauche de la carte ; `none` : sans emplacement (rendu libre ou nul). */
+  slot: 'left' | 'none';
+  order?: number;
+  available?(viewer: MapViewer): boolean;
+  component: ComponentType<{ engine: MapEngine }>;
+}
+
 export interface MenuContext {
   engine: MapEngine;
   /** Entités visées (vide : clic droit dans le vide). */
@@ -141,6 +156,7 @@ export type MenuProvider = (ctx: MenuContext) => MenuItem[];
 export interface EngineExtensions {
   inspectorSections: readonly InspectorSection[];
   toolbarItems: readonly ToolbarItem[];
+  overlays: readonly MapOverlay[];
 }
 
 // ─── État de l'interface (React) ─────────────────────────────────────────────
@@ -304,8 +320,13 @@ export class MapEngine {
   // Extensions
   private inspectorSections: InspectorSection[] = [];
   private toolbarItems: ToolbarItem[] = [];
+  private overlays: MapOverlay[] = [];
   private readonly menuProviders = new Set<MenuProvider>();
-  private extensionsSnapshot: EngineExtensions = { inspectorSections: [], toolbarItems: [] };
+  private extensionsSnapshot: EngineExtensions = {
+    inspectorSections: [],
+    toolbarItems: [],
+    overlays: [],
+  };
   private readonly extensionListeners = new Set<() => void>();
 
   // Rendu à la demande
@@ -455,10 +476,20 @@ export class MapEngine {
 
   getExtensions = (): EngineExtensions => this.extensionsSnapshot;
 
+  registerOverlay(overlay: MapOverlay): () => void {
+    this.overlays = [...this.overlays, overlay].sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+    this.extensionsChanged();
+    return () => {
+      this.overlays = this.overlays.filter((o) => o !== overlay);
+      this.extensionsChanged();
+    };
+  }
+
   private extensionsChanged() {
     this.extensionsSnapshot = {
       inspectorSections: this.inspectorSections,
       toolbarItems: this.toolbarItems,
+      overlays: this.overlays,
     };
     for (const l of this.extensionListeners) l();
   }
@@ -1507,17 +1538,22 @@ export class MapEngine {
         if (!ok) return false;
       }
     }
+    // Sortes qui suppriment elles-mêmes (instance de PNJ, définitive) : à part
+    const own = [...byKind].filter(([kind]) => kind.remove);
+    const common = targets.filter((e) => !e.kind.remove);
+    const runs = own.map(([kind, list]) => kind.remove!(list));
     const groups = new Map<string, { kind: EntityKind; items: MapDto[] }>();
-    for (const e of targets) {
+    for (const e of common) {
       const g = groups.get(e.kind.collection) ?? { kind: e.kind, items: [] };
       g.items.push(e.data);
       groups.set(e.kind.collection, g);
     }
-    const label = targets.length > 1 ? `Supprimer ${targets.length} éléments` : 'Supprimer';
+    const label = common.length > 1 ? `Supprimer ${common.length} éléments` : 'Supprimer';
     const cmds = [...groups.entries()].map(([collection, g]) =>
       deleteCommand({ label, collection, persistence: g.kind.persistence, items: g.items }),
     );
-    return this.execute(groupCommands(label, cmds));
+    if (cmds.length) runs.push(this.execute(groupCommands(label, cmds)));
+    return (await Promise.all(runs)).every(Boolean);
   }
 
   deleteSelection() {

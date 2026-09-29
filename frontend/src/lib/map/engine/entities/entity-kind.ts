@@ -291,6 +291,12 @@ export interface EntityKind<D extends MapDto = MapDto> {
   duplicate?(data: D, offset: Point, ctx: KindContext): D;
   /** Message de confirmation avant suppression (instance de PNJ), ou null. */
   confirmDelete?(entities: readonly MapEntity<D>[]): string | null;
+  /**
+   * Suppression propre à la sorte, après la confirmation (instance de PNJ : supprimée avec son
+   * personnage, définitivement, hors de la pile d'annulation). Absente : suppression commune,
+   * annulable, par `persistence.remove`.
+   */
+  remove?(entities: readonly MapEntity<D>[]): Promise<boolean>;
   /** Audience du direct (défaut : `gm` si masqué aux joueurs, sinon `public`). */
   liveAudience?(entity: MapEntity<D>, viewer: MapViewer): LiveAudience;
 

@@ -32,6 +32,7 @@ import { MapContextMenu } from './context-menu';
 import { MapEngineProvider } from './engine-context';
 import { MapInspector } from './inspector';
 import { LayersPanel } from './layers/layers-panel';
+import { MapOverlays } from './overlays';
 import { MapToolbar } from './toolbar';
 
 export interface MapCanvasProps {
@@ -240,6 +241,7 @@ function MapRuntime({
       {status === 'ready' && !failure && (
         <>
           <MapToolbar />
+          <MapOverlays />
           <div className="pointer-events-none absolute bottom-24 right-3 top-20 z-10 flex items-start justify-end gap-3">
             <MapInspector />
             <LayersPanel />
