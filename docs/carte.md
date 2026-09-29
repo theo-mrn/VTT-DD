@@ -122,6 +122,7 @@ frontend/src/lib/map/
     fog/                 zones de brouillard
     lights/              lumières
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
+    weather/             météo de la scène (pluie, neige, brouillard…), plan `weather`, espace écran
 frontend/src/components/map/
   table-map.tsx          la carte à la table : choix de la scène, montage dans MapStage
   use-table-map.ts       quelle scène afficher (joueur : celle de son personnage ; MJ : `?scene=`)
@@ -217,11 +218,12 @@ abonnements au store, et renvoie son nettoyage.
   | 2   | `content`     | les **calques du MJ** (ci-dessous), du plus bas au plus haut ; dans chaque calque, les entités par `z` croissant                            |
   | 3   | `vision`      | obscurité, brouillard, lueurs (§ 9), pour les joueurs et la « vue joueur » du MJ                                                            |
   | 4   | `allies`      | personnages joueurs hors de ma vue : toujours vus, dessinés au-dessus de l'ombre à 60 %                                                     |
-  | 5   | `annotations` | dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre                                                            |
-  | 6   | `gm`          | surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. Toujours au-dessus de l'ombre, quel que soit le réglage d'affichage |
-  | 7   | `adornments`  | survol, sélection, poignées, étiquettes (taille constante)                                                                                  |
-  | 8   | `live`        | fantômes des glissers des autres, tracés en cours, curseurs, pings                                                                          |
-  | 9   | `tool`        | aperçu de l'outil actif                                                                                                                     |
+  | 5   | `weather`     | météo de la scène (§ 10, Météo), en pixels d'écran : sur le décor, les personnages et l'ombre, sous les annotations et les surcouches       |
+  | 6   | `annotations` | dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre                                                            |
+  | 7   | `gm`          | surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. Toujours au-dessus de l'ombre, quel que soit le réglage d'affichage |
+  | 8   | `adornments`  | survol, sélection, poignées, étiquettes (taille constante)                                                                                  |
+  | 9   | `live`        | fantômes des glissers des autres, tracés en cours, curseurs, pings                                                                          |
+  | 10  | `tool`        | aperçu de l'outil actif                                                                                                                     |
 
 - **Portes pour les joueurs.** Les icônes de porte sont dessinées dans `adornments` pour qu'un
   joueur puisse ouvrir une porte proche ; celles des portes hors de sa vue sont masquées (et ne
@@ -1012,6 +1014,106 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
   « Vue de … » ; tous : « Animer la brume »), `components/map/vision/view-menu.tsx`.
 - Branchement du serveur sur `@vtt/vision`, filtrage et événements ciblés (§ 9, Serveur).
 
+### Météo (`weather`)
+
+Refonte de la météo de l'ancienne carte (`WeatherCanvas`, `WeatherPicker`) : un canevas 2D
+plein écran redessiné à 60 i/s tant qu'une météo était choisie, sans plafond sous Windows ni
+pause en arrière-plan. Ici, le même rendu que le reste de la carte (Pixi, rendu à la demande),
+plafonné, et arrêté dès qu'il ne sert à rien.
+
+- **Données** : état durable de la scène, le même pour tous. `maps.weather`, contrat
+  `MapWeather` :
+  - `type` : l'effet (tableau ci-dessous) ; `null` : aucune. Un type inconnu (données
+    anciennes) est gardé tel quel et n'affiche rien ;
+  - `intensity` : 0 à 1. L'import de l'ancienne app a pu écrire jusqu'à 10 : au-delà de 1,
+    compris comme 1 ;
+  - `wind` (facultatif, ajout rétrocompatible) : `{ direction, strength }`. `direction` : où
+    va le vent, en degrés (0 vers l'est, 90 vers le sud, sens horaire à l'écran) ; `strength` :
+    0 à 1. Absent : le vent propre à l'effet (la pluie penche un peu vers l'est comme avant, le
+    sable file vers l'est) ;
+  - écriture : `PATCH /maps/:mapId { weather }` par une commande annulable
+    (`engine.updateScene`), diffusée à tous par `map.updated`. Même effet, même intensité, même
+    vent chez chacun ; seules les particules, tirées au hasard, diffèrent d'un écran à l'autre.
+- **Effets** (données, `modules/weather/effects.ts`) :
+
+  | Type        | Nom                | Contenu                                                                                       |
+  | ----------- | ------------------ | --------------------------------------------------------------------------------------------- |
+  | `rain`      | Pluie              | traînées bleutées penchées par le vent, ronds d'éclaboussure au sol, voile froid léger        |
+  | `storm`     | Orage              | pluie plus dense et plus rapide, ciel assombri, éclairs doux                                  |
+  | `snow`      | Neige              | flocons sur deux profondeurs (petits et lents, gros et plus rapides) qui se balancent         |
+  | `blizzard`  | Blizzard           | flocons et traînées fouettés par le vent, rafales de bruit blanc, voile blanc                 |
+  | `fog`       | Brouillard         | deux nappes de bruit qui dérivent à des vitesses différentes et respirent, voile gris         |
+  | `leaves`    | Feuilles au vent   | feuilles d'automne (trois formes, quatre teintes) qui tournoient et se retournent             |
+  | `embers`    | Cendres et braises | cendres grises qui tombent, braises qui montent en scintillant (fusion additive), voile chaud |
+  | `sandstorm` | Tempête de sable   | grains en traînées, deux rafales de bruit ocre, voile ocre qui respire                        |
+  | `alert`     | Alerte rouge       | vignette rouge sur les bords, qui pulse lentement                                             |
+  | `static`    | Parasites          | grain de télévision, trames qui défilent, bandes de brouillage                                |
+
+  `alert` et `static` venaient du bundle Star Wars de l'ancienne app. Ils sont offerts à toutes
+  les campagnes, rangés à part (« Science-fiction ») dans le choix : aucune clé de système en dur.
+
+- **Plan `weather`** (§ 5), au-dessus de `vision` et `allies`, sous `annotations`, `gm` et les
+  surcouches : la météo tombe sur le décor, sur les personnages et dans l'obscurité ; les
+  annotations, les surcouches du MJ, la sélection et les curseurs restent nets.
+- **Espace écran, ancré à la carte au déplacement.**
+  - Tout est dessiné en pixels d'écran (le conteneur du module annule la caméra) : même taille
+    de goutte et même densité à tous les zooms, nombre de particules proportionnel à la surface
+    de la vue. En espace monde, un zoom arrière sur une grande carte ferait des milliers de
+    gouttes minuscules, un zoom avant des flocons géants, et le budget dépendrait de la carte.
+  - Collée à l'écran, une météo « flotte » quand on déplace la carte. Au déplacement (zoom
+    inchangé), particules et nappes suivent donc la carte du même écart, et ce qui sort par un
+    bord revient par l'autre (tore). Au zoom, elles restent : une couche d'air entre la caméra
+    et le sol.
+- **Composition**, 8 appels de dessin au plus :
+  - voile : un sprite blanc teinté, plein écran ;
+  - nappes : 1 ou 2 `TilingSprite` d'un bruit fractal périodique (256 × 256, calculé une
+    fois), agrandis 3 à 6 fois, qui dérivent avec le vent ;
+  - émetteurs : un `ParticleContainer` par émetteur (2 au plus par effet). Les particules sont
+    les objets de la simulation eux-mêmes (compatibles `IParticle`, aucune copie), tous sur un
+    **atlas unique** (traînée, point doux, flocon, trois feuilles, anneau) dessiné une fois au
+    montage sur un canevas 2D. Seules les propriétés animées remontent au GPU à chaque image
+    (`dynamicProperties` : la position ; rotation, couleur ou taille selon l'émetteur) ;
+  - vignette, éclair, grain, trames, bandes : sprites et `TilingSprite` sur des textures faites
+    une fois ;
+  - ni filtre, ni mode de fusion avancé, ni second contexte WebGL.
+- **Budget** (`particleBudget`, testé) : densité de l'émetteur (particules par million de
+  pixels CSS, à intensité 1) × surface de la vue × intensité ; le total est ramené
+  proportionnellement sous **1 400 particules**, **600 sous Windows**. Animation coupée ou
+  « mouvement réduit » : 35 % des particules, à 60 % de leur opacité, immobiles.
+- **Cadence et arrêt** (`WeatherDriver`, testé sans WebGL) :
+  - la simulation avance à chaque image rendue (à 60 i/s pendant un glisser, puisque l'image
+    est rendue de toute façon) ; la météo ne demande elle-même une image que 33 ms après la
+    précédente : **30 i/s au plus**. Pas de temps borné à 0,1 s (retour sur l'onglet) ;
+  - **arrêt complet** (plan caché, ni minuteur, ni simulation, particules rendues) : aucune
+    météo, type inconnu, intensité nulle ;
+  - **pause** (aucun minuteur) : onglet en arrière-plan (`visibilitychange`), vue de taille
+    nulle, animation coupée ou « mouvement réduit » : une image fixe et discrète, qui suit encore
+    la carte au déplacement ;
+  - **aucune allocation par image** : tableaux et particules sont créés au changement de réglage
+    ou de taille de la vue ; le rappel du minuteur est créé une fois.
+- **Pas de clignotement brutal.** Éclair : un voile bleu-blanc qui monte en 90 ms jusqu'à 0,28
+  d'opacité au plus et s'éteint en 0,7 s, parfois doublé 0,2 s plus tard, toutes les 4 à 12 s ;
+  l'alerte pulse en 2,2 s ; les bandes des parasites sautent toutes les 120 ms à faible
+  opacité. Préférence « Éclairs et clignotements » coupée : ni éclair ni bande, alerte fixe,
+  grain plus lent.
+- **Préférences locales** (confort de chacun, `localStorage`) : « Animer la météo » et
+  « Éclairs et clignotements », éteintes par défaut avec « mouvement réduit ».
+- **Réglage du MJ** : bouton « Météo » (emplacement `view` de la barre, icône de la météo en
+  cours, allumé quand il y en a une), popover `components/map/weather/weather-menu.tsx` :
+  - vignettes des effets (icône et nom), « Aucune » en tête, « Science-fiction » à part ; choisir
+    un effet garde l'intensité en cours (60 % depuis « Aucune ») ;
+  - intensité : curseur, aperçu local pendant le geste, une commande au lâcher (comme le
+    quadrillage) ;
+  - vent, pour les effets qui en ont l'usage : rose des vents à 8 directions (le centre : sans
+    vent) et force ; « Vent de l'effet » revient au vent par défaut ;
+  - chaque changement est une commande annulable (« Météo », ⌘Z) ;
+  - en bas, les préférences locales.
+- **Joueurs** : le bouton n'apparaît que quand la scène a une météo : son nom, son intensité et
+  les préférences locales.
+- **Mesures** : en développement, `window.__vttWeather.summary()` (étapes `step` : simulation,
+  `frame` : tout le module) et un résumé dans la console toutes les 5 s ; `weather.bench.ts`
+  mesure la simulation à blanc.
+
 ## 11. Hors de ce lot, conservé
 
 Les données et routes restent, et le lot suivant les rebranche sur le même modèle d'entité :
@@ -1019,7 +1121,6 @@ Les données et routes restent, et le lot suivant les rebranche sur le même mod
 - portails et changement de scène par portail ;
 - zones sonores (service audio) ;
 - gabarits et mesures (règle, cône…) ;
-- météo ;
 - partage d'écran ;
 - attaque et combat depuis la carte ;
 - interactions marchand, jeu et butin ;
