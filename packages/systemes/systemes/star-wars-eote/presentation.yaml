@@ -185,3 +185,14 @@ references:
             titre: Seuils et défense,
             attributs: [seuilBlessure, seuilStress, encaissement, defenseMelee, defenseDistance],
           }
+  # Objets à poser sur la carte (outil Objets, I) : dossiers de la bibliothèque d'actifs
+  objets:
+    categories:
+      - { titre: Véhicules, dossiers: [items/starwars-vehicules] }
+      - { titre: Stockage, dossiers: [items/starwars-stockage] }
+      - { titre: Stations, dossiers: [items/starwars-stations] }
+      - { titre: Général, dossiers: [items/starwars-general] }
+      - { titre: Tables, dossiers: [items/starwars-tables] }
+      - { titre: Environnement, dossiers: [items/starwars-environnement] }
+      - { titre: Fournitures, dossiers: [items/starwars-fournitures] }
+      - { titre: Armes, dossiers: [items/starwars-armes] }

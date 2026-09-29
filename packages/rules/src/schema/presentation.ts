@@ -262,6 +262,13 @@ export const References = z.object({
   images: z
     .object({ titre: Libelle.optional(), collections: z.array(CollectionImages).min(1) })
     .optional(),
+  /**
+   * Bibliothèque d'objets à poser sur la carte (docs/carte.md § 10, Objets) : des catégories,
+   * chacune faite de dossiers de la bibliothèque d'actifs (`objets/fourniture`, `items/chest`…).
+   */
+  objets: z
+    .object({ titre: Libelle.optional(), categories: z.array(CollectionImages).min(1) })
+    .optional(),
 });
 export type References = z.output<typeof References>;
 

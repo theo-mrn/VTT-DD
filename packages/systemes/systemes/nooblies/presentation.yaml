@@ -100,3 +100,22 @@ references:
       - { titre: Personnages, dossiers: [Assets] }
       - { titre: Cartes, dossiers: [Map, Cartes] }
       - { titre: Photos, dossiers: [Photos] }
+  # Objets à poser sur la carte (outil Objets, I) : dossiers de la bibliothèque d'actifs
+  objets:
+    categories:
+      - { titre: Mobilier, dossiers: [objets/fourniture, items/furniture, items/decorations] }
+      - { titre: Campement, dossiers: [objets/camps, objets/travel] }
+      - { titre: Ferme, dossiers: [objets/farm] }
+      - { titre: Marché, dossiers: [objets/marché] }
+      - { titre: Conteneurs, dossiers: [items/chest, items/bag, items/barrel, items/containers] }
+      - { titre: Nature, dossiers: [objets/water, items/arbre, items/fire, items/feu] }
+      - { titre: Trésors, dossiers: [items/gem, items/keys] }
+      - { titre: Potions, dossiers: [items/potions] }
+      - { titre: Armes, dossiers: [items/arme] }
+      - { titre: Armures, dossiers: [items/armure] }
+      - { titre: Livres, dossiers: [items/book] }
+      - { titre: Architecture, dossiers: [items/stairs, items/ladder] }
+      - { titre: Véhicules, dossiers: [items/vehicles] }
+      - { titre: Équipement, dossiers: [items/equipment] }
+      - { titre: Macabre, dossiers: [items/dark] }
+      - { titre: Divers, dossiers: [items/misc] }

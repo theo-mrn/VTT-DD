@@ -142,6 +142,14 @@ suit le dossier (`Map/Foret/Static` → « Foret »), ou le nom du fichier sans 
 (`Assets/Elfe3.png` → « Elfe »). Images seulement (les cartes animées restent à la carte).
 Grille paginée, aperçu en grand (flèches du clavier), ouvrir l'original, copier le lien.
 
+### Objets de la carte
+
+`references.objets` : catégories (`titre`, `dossiers`) de l'index des actifs, comme les
+collections d'images. Ce n'est pas un onglet des ressources : c'est la bibliothèque de l'outil
+Objets de la carte (voir [carte.md](carte.md) § 10). dnd-classic et nooblies reprennent la
+liste d'objets de l'ancienne app (`legacy/src/lib/suggested-objects.ts`), star-wars-eote la
+sienne (`suggested-objects-starwars.ts`).
+
 ## Droits et écrans
 
 | Onglet    | Accueil (`/resources`)              | Table (panneau « Ressources », touche B)         |
