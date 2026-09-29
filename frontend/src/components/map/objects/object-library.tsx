@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Bibliothèque d'objets du MJ (docs/carte.md § 10, Objets) : réglages de l'outil « Objets » (I),
- * au-dessus de la barre d'outils.
+ * Bibliothèque d'objets du MJ (docs/carte.md § 10, Objets) : panneau déplaçable à gauche, ouvert
+ * avec l'outil « Objets » (I), comme la bibliothèque des personnages.
  *
  * - Deux bibliothèques : les objets du système de la campagne (catégories déclarées par sa
  *   présentation, `references.objets`, images de l'index des actifs) et les modèles d'objets de
@@ -14,7 +14,7 @@
  *   puis posée là où elle tombe.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImagePlus, LoaderCircle, Package, SquareDashed, Trash2 } from 'lucide-react';
+import { Box, ImagePlus, LoaderCircle, Package, SquareDashed, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from 'react';
 import { toast } from 'sonner';
 import { SearchField } from '@/components/resources/parts';
@@ -22,10 +22,12 @@ import { normaliser } from '@/components/resources/model/catalogue';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { messageErreur } from '@/lib/api';
 import { useAssets } from '@/lib/assets';
 import { useCampagne } from '@/lib/campagnes';
 import { mapsApi } from '@/lib/map/api';
+import { SELECT_TOOL_ID } from '@/lib/map/engine/tools/tool-manager';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import {
   objectTemplateKeys,
@@ -35,9 +37,12 @@ import {
 import { ObjectPlaceTool } from '@/lib/map/modules/objects/place-tool';
 import { ZONE_SOURCE, type ObjectSource } from '@/lib/map/modules/objects/placement';
 import { systemObjects } from '@/lib/map/modules/objects/system-library';
+import { OBJECTS_TOOL_ID } from '@/lib/map/modules/objects/types';
 import { useCampaignEvents } from '@/lib/realtime';
 import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
+import { useActiveToolId } from '../engine-context';
+import { MapPanel } from '../map-panel';
 
 /** Type des données glissées depuis la bibliothèque. */
 const DRAG_TYPE = 'application/x-vtt-map-object';
@@ -123,7 +128,14 @@ interface Card {
   template?: ObjectTemplate;
 }
 
-export function ObjectLibrary({ engine }: { engine: MapEngine }) {
+/** Panneau de la bibliothèque (surcouche de gauche) : ouvert tant que l'outil Objets l'est. */
+export function ObjectLibraryPanel({ engine }: { engine: MapEngine }) {
+  const active = useActiveToolId() === OBJECTS_TOOL_ID;
+  if (!active || engine.viewer.role !== 'gm') return null;
+  return <ObjectLibrary engine={engine} />;
+}
+
+function ObjectLibrary({ engine }: { engine: MapEngine }) {
   const tool = useObjectTool(engine);
   const campaignId = engine.store.getState().campaignId;
   const client = useQueryClient();
@@ -212,7 +224,7 @@ export function ObjectLibrary({ engine }: { engine: MapEngine }) {
   useEffect(() => setLimit(PAGE), [current, query, category]);
 
   // La suite en défilant (dernière vignette visible dans la grille)
-  const gridRef = useRef<HTMLUListElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);
   const hasMore = visible.length > limit;
   useEffect(() => {
@@ -222,7 +234,7 @@ export function ObjectLibrary({ engine }: { engine: MapEngine }) {
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) setLimit((l) => l + PAGE);
       },
-      { root: gridRef.current, rootMargin: '200px' },
+      { root: scrollRef.current, rootMargin: '200px' },
     );
     observer.observe(more);
     return () => observer.disconnect();
@@ -331,58 +343,182 @@ export function ObjectLibrary({ engine }: { engine: MapEngine }) {
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     ...(declared
-      ? [
-          {
-            id: 'system' as const,
-            label: declared.titre ?? 'Objets du système',
-            count: systemCards.length,
-          },
-        ]
+      ? [{ id: 'system' as const, label: declared.titre ?? 'Système', count: systemCards.length }]
       : []),
-    { id: 'campaign', label: 'Modèles de la campagne', count: templateCards.length },
+    { id: 'campaign', label: 'Campagne', count: templateCards.length },
   ];
 
   return (
-    <div className="flex w-[min(48rem,calc(100vw-3rem))] flex-col gap-2 p-0.5">
-      <div className="flex flex-wrap items-center gap-2">
+    <MapPanel
+      id="object-library"
+      label="Bibliothèque des objets"
+      icon={Box}
+      title="Objets"
+      shortcut="I"
+      closeLabel="Fermer la bibliothèque"
+      onClose={() => engine.tools.activate(SELECT_TOOL_ID)}
+      onKeyDown={(e) => {
+        // Échap dans le panneau : l'objet choisi est rendu (la carte n'a pas le focus)
+        if (e.key === 'Escape' && armed) {
+          e.stopPropagation();
+          tool?.disarm(engine);
+        }
+      }}
+      className="w-[22rem]"
+    >
+      <div className="space-y-2 px-3 pt-3">
         {tabs.length > 1 && (
-          <div
-            role="tablist"
-            aria-label="Bibliothèques"
-            className="flex items-center rounded-lg border border-border p-0.5"
-          >
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={current === t.id}
-                onClick={() => switchTab(t.id)}
-                className={cn(
-                  'flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-                  current === t.id
-                    ? 'bg-primary/15 text-primary-strong'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t.label}
-                <span className="tabular-nums text-[11px] opacity-70">{t.count}</span>
-              </button>
-            ))}
-          </div>
+          <Tabs value={current} onValueChange={(v) => switchTab(v as Tab)}>
+            <TabsList className="grid w-full grid-cols-2">
+              {tabs.map((t) => (
+                <TabsTrigger key={t.id} value={t.id} className="gap-1.5">
+                  {t.label}
+                  <span className="tabular-nums text-[11px] opacity-60">{t.count}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         )}
         <SearchField
           value={query}
           onChange={setQuery}
           label="Rechercher un objet"
-          placeholder="Rechercher un objet…"
-          className="sm:w-52"
+          placeholder="Rechercher…"
+          className="sm:w-full"
         />
-        <div className="ml-auto flex items-center gap-1.5">
+        {categories.length > 1 && (
+          <div
+            role="group"
+            aria-label="Catégories"
+            className="-mx-3 flex items-center gap-1 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none]"
+          >
+            {[ALL, ...categories].map((c) => (
+              <button
+                key={c || 'all'}
+                type="button"
+                aria-pressed={category === c}
+                onClick={() => setCategory(c)}
+                className={cn(
+                  'h-7 shrink-0 rounded-full border px-2.5 text-xs transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                  category === c
+                    ? 'border-primary/50 bg-primary/15 text-primary-strong'
+                    : 'border-border-strong text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {c === ALL ? 'Tout' : c === NO_CATEGORY ? 'Sans catégorie' : c}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [scrollbar-width:thin]"
+      >
+        {loading ? (
+          <div
+            className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
+            aria-label="Chargement des objets"
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <Skeleton key={i} className="aspect-[4/5]" />
+            ))}
+          </div>
+        ) : failed ? (
+          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
+            {current === 'system'
+              ? 'La bibliothèque d’objets n’a pas pu être chargée.'
+              : 'Les modèles d’objets n’ont pas pu être chargés.'}
+            <Button
+              variant="secondary"
+              size="xs"
+              onClick={() => void (current === 'system' ? assets.refetch() : templates.refetch())}
+            >
+              Réessayer
+            </Button>
+          </div>
+        ) : !visible.length ? (
+          <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-[13px] text-muted-foreground">
+            {cards.length
+              ? 'Aucun objet ne correspond.'
+              : current === 'campaign'
+                ? 'Aucun modèle d’objet dans cette campagne : envoyez une image pour en créer un.'
+                : 'Ce système ne déclare pas encore d’objets.'}
+          </p>
+        ) : (
+          <ul
+            aria-label={current === 'system' ? 'Objets du système' : 'Modèles d’objets'}
+            className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5"
+          >
+            {visible.slice(0, limit).map((card) => {
+              const active = armed?.key === card.key;
+              return (
+                <li key={card.key} className="group relative">
+                  <button
+                    type="button"
+                    draggable
+                    aria-pressed={active}
+                    title={card.category ? `${card.name} · ${card.category}` : card.name}
+                    onDragStart={(e) => startDrag(e, card.source)}
+                    onClick={(e) =>
+                      arm({
+                        ...card.source,
+                        aspect: aspectOf(e.currentTarget.querySelector('img')),
+                      })
+                    }
+                    className={cn(
+                      'flex w-full flex-col items-center gap-1 rounded-xl border p-1.5 text-left transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                      active
+                        ? 'border-primary/60 bg-primary/15'
+                        : 'border-transparent hover:border-border-strong hover:bg-surface-2',
+                    )}
+                  >
+                    <span className="grid aspect-square w-full place-items-center overflow-hidden rounded-lg bg-surface-2">
+                      {card.imageUrl ? (
+                        <img
+                          src={card.imageUrl}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          draggable={false}
+                          className="size-full object-contain p-0.5"
+                        />
+                      ) : (
+                        <Package className="size-6 text-subtle" aria-hidden />
+                      )}
+                    </span>
+                    <span className="w-full truncate text-center text-[11px] leading-tight text-foreground">
+                      {card.name}
+                    </span>
+                  </button>
+                  {card.template && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon-xs"
+                      aria-label={`Retirer « ${card.name} » de la bibliothèque`}
+                      onClick={() => void remove(card.template!)}
+                      className="absolute right-0.5 top-0.5 size-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+            {hasMore && <li ref={moreRef} aria-hidden className="col-span-full h-px" />}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-2 border-t border-border px-3 py-2.5">
+        <div className="grid grid-cols-2 gap-1.5">
           <Button
             type="button"
-            variant={armed?.key === ZONE_SOURCE.key ? 'default' : 'ghost'}
+            variant={armed?.key === ZONE_SOURCE.key ? 'default' : 'secondary'}
             size="sm"
             aria-pressed={armed?.key === ZONE_SOURCE.key}
             draggable
@@ -410,141 +546,17 @@ export function ObjectLibrary({ engine }: { engine: MapEngine }) {
             </label>
           </Button>
         </div>
-      </div>
-
-      {categories.length > 1 && (
-        <div
-          role="group"
-          aria-label="Catégories"
-          className="flex max-w-full items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none]"
-        >
-          {[ALL, ...categories].map((c) => (
-            <button
-              key={c || 'all'}
-              type="button"
-              aria-pressed={category === c}
-              onClick={() => setCategory(c)}
-              className={cn(
-                'h-7 shrink-0 rounded-full border px-2.5 text-xs transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                category === c
-                  ? 'border-primary/50 bg-primary/15 text-primary-strong'
-                  : 'border-border-strong text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {c === ALL ? 'Tout' : c === NO_CATEGORY ? 'Sans catégorie' : c}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {loading ? (
-        <div
-          className="grid grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5"
-          aria-label="Chargement des objets"
-        >
-          {Array.from({ length: 16 }, (_, i) => (
-            <Skeleton key={i} className="h-[5.5rem]" />
-          ))}
-        </div>
-      ) : failed ? (
-        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
-          {current === 'system'
-            ? 'La bibliothèque d’objets n’a pas pu être chargée.'
-            : 'Les modèles d’objets n’ont pas pu être chargés.'}
-          <Button
-            variant="secondary"
-            size="xs"
-            onClick={() => void (current === 'system' ? assets.refetch() : templates.refetch())}
-          >
-            Réessayer
-          </Button>
-        </div>
-      ) : !visible.length ? (
-        <p className="rounded-lg border border-dashed border-border-strong px-3 py-3 text-center text-[13px] text-muted-foreground">
-          {cards.length
-            ? 'Aucun objet ne correspond.'
-            : current === 'campaign'
-              ? 'Aucun modèle d’objet dans cette campagne : envoyez une image pour en créer un.'
-              : 'Ce système ne déclare pas encore d’objets.'}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {armed ? (
+            <>
+              Cliquez sur la carte pour poser « {armed.name} ». <Kbd>⇧</Kbd> en poser plusieurs,{' '}
+              <Kbd>Alt</Kbd> aimantation inversée, <Kbd>Échap</Kbd> annuler.
+            </>
+          ) : (
+            'Choisissez un objet puis cliquez sur la carte, ou glissez-le dessus. Une image de l’ordinateur peut aussi y être déposée.'
+          )}
         </p>
-      ) : (
-        <ul
-          ref={gridRef}
-          aria-label={current === 'system' ? 'Objets du système' : 'Modèles d’objets'}
-          className="grid max-h-[16.5rem] grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
-        >
-          {visible.slice(0, limit).map((card) => {
-            const active = armed?.key === card.key;
-            return (
-              <li key={card.key} className="group relative">
-                <button
-                  type="button"
-                  draggable
-                  aria-pressed={active}
-                  title={card.category ? `${card.name} · ${card.category}` : card.name}
-                  onDragStart={(e) => startDrag(e, card.source)}
-                  onClick={(e) =>
-                    arm({ ...card.source, aspect: aspectOf(e.currentTarget.querySelector('img')) })
-                  }
-                  className={cn(
-                    'flex w-full flex-col items-center gap-1 rounded-xl border p-1.5 text-left transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    active
-                      ? 'border-primary/60 bg-primary/15'
-                      : 'border-transparent hover:border-border-strong hover:bg-surface-2',
-                  )}
-                >
-                  <span className="grid aspect-square w-full place-items-center overflow-hidden rounded-lg bg-surface-2">
-                    {card.imageUrl ? (
-                      <img
-                        src={card.imageUrl}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        className="size-full object-contain p-0.5"
-                      />
-                    ) : (
-                      <Package className="size-6 text-subtle" aria-hidden />
-                    )}
-                  </span>
-                  <span className="w-full truncate text-center text-[11px] leading-tight text-foreground">
-                    {card.name}
-                  </span>
-                </button>
-                {card.template && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon-xs"
-                    aria-label={`Retirer « ${card.name} » de la bibliothèque`}
-                    onClick={() => void remove(card.template!)}
-                    className="absolute right-0.5 top-0.5 size-6 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-          {hasMore && <li ref={moreRef} aria-hidden className="col-span-full h-px" />}
-        </ul>
-      )}
-
-      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-0.5 text-xs text-muted-foreground">
-        {armed ? (
-          <>
-            Cliquez sur la carte pour poser « {armed.name} ».
-            <span className="inline-flex items-center gap-1">
-              <Kbd>⇧</Kbd> en poser plusieurs, <Kbd>Alt</Kbd> aimantation inversée, <Kbd>Échap</Kbd>{' '}
-              annuler.
-            </span>
-          </>
-        ) : (
-          'Choisissez un objet puis cliquez sur la carte, ou glissez-le dessus. Une image de l’ordinateur peut aussi y être déposée.'
-        )}
-      </p>
-    </div>
+      </div>
+    </MapPanel>
   );
 }

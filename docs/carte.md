@@ -837,8 +837,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   sans image, posé sur un coffre peint dans le fond) : un cadre pour le MJ, rien pour les
   joueurs hors du repère de fouille. Repères à taille constante : cadenas (MJ, verrouillé), loupe
   (à fouiller, pour tous). Le masquage aux joueurs (hachures, œil barré) est celui du moteur.
-- **Pose** : outil « Objets » (I, MJ). Sa bibliothèque s'affiche au-dessus de la barre, en
-  deux onglets :
+- **Pose** : outil « Objets » (I, MJ). Sa bibliothèque est un panneau déplaçable à gauche
+  (comme celle des personnages), en deux onglets :
   - **objets du système** : les catégories que la présentation du système déclare
     (`references.objets` : titre et dossiers de l'index des actifs `/asset-mappings.json`),
     1 311 objets pour dnd-classic et nooblies (mobilier, campement, ferme, marché, conteneurs…),

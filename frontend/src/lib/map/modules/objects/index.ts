@@ -13,7 +13,7 @@
  */
 import { Box } from 'lucide-react';
 import { ObjectInspector } from '@/components/map/objects/object-inspector';
-import { ObjectLibrary } from '@/components/map/objects/object-library';
+import { ObjectLibraryPanel } from '@/components/map/objects/object-library';
 import { ObjectsHost } from '@/components/map/objects/objects-host';
 import { PlayerSearchSection } from '@/components/map/objects/player-search-section';
 import { SearchInspector } from '@/components/map/objects/search-inspector';
@@ -62,7 +62,14 @@ export const objectsModule: MapModule = {
         order: 40,
         available: isGm,
         create: () => new ObjectPlaceTool(),
-        options: ObjectLibrary,
+      }),
+      // Bibliothèque : panneau déplaçable à gauche, tant que l'outil est actif
+      engine.registerOverlay({
+        id: 'object-library',
+        slot: 'left',
+        order: 15,
+        available: isGm,
+        component: ObjectLibraryPanel,
       }),
       engine.registerInspectorSection({
         id: 'object',
