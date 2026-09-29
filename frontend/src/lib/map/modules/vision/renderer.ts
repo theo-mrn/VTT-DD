@@ -758,8 +758,12 @@ export class VisionRenderer {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    // Le shader de composition tient les textures : il part avant elles, avec sa géométrie
+    const shader = this.composite.shader;
     this.composite.removeFromParent();
     this.composite.destroy();
+    shader?.destroy();
+    this.compositeGeometry.destroy();
     for (const node of this.viewerNodes.splice(0)) node.destroy();
     for (const fan of this.lightFans.splice(0)) fan.destroy();
     for (const e of this.glowFans.splice(0)) {
