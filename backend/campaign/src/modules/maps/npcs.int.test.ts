@@ -109,6 +109,45 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : PNJ et fouille', () => {
     expect(denied.statusCode).toBe(403);
   });
 
+  it('pose dans le calque choisi ; calque d’une autre carte refusé avant toute création', async () => {
+    const map = await newMap();
+    const layers = (await h.ok<{ items: Item[] }>(gm, 'GET', url(`/maps/${map.id}/layers`))).items;
+    const sol = layers.find((l) => l.role === 'ground')!;
+    // Un calque masqué aux joueurs et verrouillé reste permis au MJ (mêmes règles que les tokens)
+    await h.ok(gm, 'PATCH', url(`/maps/${map.id}/layers/${sol.id}`), {
+      locked: true,
+      visibleToPlayers: false,
+    });
+    const placed = await h.ok<{ items: Token[] }>(gm, 'POST', url(`/maps/${map.id}/npcs`), {
+      source: { quick: { name: 'Rat', type: 'personnage' } },
+      count: 2,
+      pos: { x: 300, y: 300 },
+      layerId: sol.id,
+    });
+    expect(placed.items.map((x) => x.layerId)).toEqual([sol.id, sol.id]);
+    // Sans calque : celui des tokens
+    const [plain] = (
+      await h.ok<{ items: Token[] }>(gm, 'POST', url(`/maps/${map.id}/npcs`), {
+        source: { quick: { name: 'Loup', type: 'personnage' } },
+        pos: { x: 400, y: 400 },
+      })
+    ).items;
+    expect(plain!.layerId).toBe(layers.find((l) => l.role === 'tokens')!.id);
+
+    const other = await newMap();
+    const [foreign] = (await h.ok<{ items: Item[] }>(gm, 'GET', url(`/maps/${other.id}/layers`)))
+      .items;
+    const calls = t.character.calls.length;
+    const refused = await h.request(gm, 'POST', url(`/maps/${map.id}/npcs`), {
+      source: { quick: { name: 'Ours', type: 'personnage' } },
+      pos: { x: 0, y: 0 },
+      layerId: foreign!.id,
+    });
+    expect(refused.statusCode).toBe(422);
+    expect(refused.json()).toMatchObject({ code: 'unknown_layer' });
+    expect(t.character.calls.length).toBe(calls);
+  });
+
   it('compensation : rien ne reste si la pose échoue ; refus de character relayé', async () => {
     const map = await newMap();
     const npcs = url(`/maps/${map.id}/npcs`);

@@ -112,11 +112,11 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 Chaque PNJ posé est un **vrai personnage** (fiche complète, stats calculées par `@vtt/rules`),
 possédé par le MJ, engagé dans la campagne, avec son token.
 
-| Méthode | Route                                                            | Corps                                                                           | Réponse                                                                          |
-| ------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| POST    | `/v1/campaigns/:id/maps/:mapId/npcs`                             | `CreateMapNpcs` : `{ source, count?, pos, side?, visibility?, scale?, shape? }` | 201 `{ items: [Token], characters: [{ id, name, avatarUrl, templateId }] }` (MJ) |
-| POST    | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId/duplicate`        | `{ pos, count? }`                                                               | 201, même forme (MJ)                                                             |
-| DELETE  | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId?character=delete` | —                                                                               | 204 (MJ)                                                                         |
+| Méthode | Route                                                            | Corps                                                                                                                                                                     | Réponse                                                                          |
+| ------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| POST    | `/v1/campaigns/:id/maps/:mapId/npcs`                             | `CreateMapNpcs` : `{ source, count?, pos, side?, visibility?, scale?, shape?, layerId? }` (calque : 422 `unknown_layer` s'il n'est pas de la carte, avant toute création) | 201 `{ items: [Token], characters: [{ id, name, avatarUrl, templateId }] }` (MJ) |
+| POST    | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId/duplicate`        | `{ pos, count? }`                                                                                                                                                         | 201, même forme (MJ)                                                             |
+| DELETE  | `/v1/campaigns/:id/maps/:mapId/tokens/:tokenId?character=delete` | —                                                                                                                                                                         | 204 (MJ)                                                                         |
 
 - `source` : `{ templateId }` (modèle de PNJ de la campagne, `npc-templates`),
   `{ bestiary: { systemeId, key } }` (créature du bestiaire de référence du système de la

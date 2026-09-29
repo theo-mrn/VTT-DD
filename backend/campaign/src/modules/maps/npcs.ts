@@ -32,6 +32,7 @@ import type { Deps, Module } from '../../deps.js';
 import { campaignEvent, lockCampaign } from '../campaigns/repository.js';
 import { removeFromCombat } from '../combat/repository.js';
 import {
+  checkLayer,
   ItemParams,
   loadMap,
   MapParams,
@@ -216,11 +217,14 @@ export const registerNpcs: Module = async (app, deps: Deps) => {
       const v = await viewerOf(db, req.params.id, userId);
       requireGm(v);
       await loadMap(db, v, req.params.mapId);
-      const { source, count, pos, side, visibility, scale, shape } = req.body;
+      const { source, count, pos, side, visibility, scale, shape, layerId } = req.body;
+      // Calque inconnu : refusé avant de créer quoi que ce soit (et revu dans la transaction)
+      await checkLayer(db, v, req.params.mapId, layerId);
       const result = await createAndPlace(req, v, source, count, async (tx, ctx, _v, created) => {
         const current = await viewerOf(tx, req.params.id, userId);
         requireGm(current);
         const map = await loadMap(tx, current, req.params.mapId, true);
+        await checkLayer(tx, current, map.id, layerId);
         return engageAndPlace(tx, ctx, current, map, created, {
           side: side ?? 'enemies',
           pos,
@@ -228,6 +232,7 @@ export const registerNpcs: Module = async (app, deps: Deps) => {
             ...(visibility ? { visibility } : {}),
             ...(scale ? { scale } : {}),
             ...(shape ? { shape } : {}),
+            ...(layerId ? { layerId } : {}),
           },
         });
       });

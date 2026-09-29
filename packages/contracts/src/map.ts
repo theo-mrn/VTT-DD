@@ -447,6 +447,8 @@ export const CreateMapNpcs = z.strictObject({
   source: NpcSource,
   count: z.number().int().min(1).max(20).default(1),
   pos: MapPoint,
+  /** Calque où les poser (absent : le calque par défaut des tokens), en haut de sa pile. */
+  layerId: InputId('Identifiant de calque invalide').optional(),
   side: CampaignSide.optional(),
   visibility: MapTokenVisibility.optional(),
   scale: z.number().positive().max(100).optional(),

@@ -725,8 +725,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     par la caméra), ou clic puis clic sur la carte (⇧ : en poser d'autres, Échap : annuler).
     Nombre d'exemplaires (1 à 20, chiffres du clavier), camp (ennemis, alliés), visibilité à la
     pose. Placés en grille serrée autour du point (même calcul que le serveur), le premier au
-    centre d'une case, noms suffixés « Gobelin 2 ». Ils vont dans le calque « Personnages » :
-    `CreateMapNpcs` ne prend pas de calque, le calque actif ne s'applique pas encore à eux.
+    centre d'une case, noms suffixés « Gobelin 2 ». Ils vont dans le calque actif s'il y en a
+    un (`CreateMapNpcs.layerId`), sinon dans « Personnages », fantômes compris.
 - **Instance.**
   - Un seul appel : `POST …/npcs` (§ 12). Chaque exemplaire est un vrai personnage : fiche
     complète copiée du modèle, possédé par le MJ, engagé dans la campagne (camp `enemies` par
@@ -954,7 +954,7 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
        au personnage, par une route interne de character ; évènement `map_object.looted`.
 7. **PNJ en une fois**.
    - `POST /v1/campaigns/:id/maps/:mapId/npcs` avec le corps
-     `{ source, count (1 à 20), pos, side?, visibility?, scale?, shape? }`, où `source` vaut
+     `{ source, count (1 à 20), pos, side?, visibility?, scale?, shape?, layerId? }`, où `source` vaut
      `{ templateId } | { bestiary: { systemeId, key } } | { quick: { name, imageUrl?, type, valeurs? } }`.
    - character crée les personnages (route interne, propriétaire le MJ, PNJ, `templateId`
      gardé), campaign les engage et pose les tokens. En cas d'échec, compensation : rien ne

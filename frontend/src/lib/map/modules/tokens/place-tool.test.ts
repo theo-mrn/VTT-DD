@@ -74,6 +74,7 @@ describe('outil de pose : machine à états', () => {
       side: 'allies',
       visibility: 'hidden',
       shape: 'circle',
+      layerId: 'personnages',
     });
     // Les tokens du serveur remplacent les brouillons ; la sélection les suit
     const placed = t.all();
@@ -191,6 +192,37 @@ describe('outil de pose : machine à états', () => {
     await t.commands.idle();
     expect(t.api.place).toHaveBeenCalledTimes(2);
     expect(t.all().map((x) => x.id)).toEqual(['srv-3', 'srv-4']);
+  });
+
+  it('pose dans le calque actif s’il y en a un (fantômes compris), sinon « Personnages »', async () => {
+    const t = setupTokens();
+    t.store.getState().upsert('layers', [
+      {
+        id: 'sol',
+        version: 1,
+        name: 'Sol',
+        sortOrder: 1,
+        visibleToPlayers: true,
+        locked: false,
+        opacity: 1,
+        role: 'ground',
+      },
+    ]);
+    t.engine.setActiveLayer('sol');
+    const tool = t.activateTool();
+    tool.arm(goblins);
+    t.click({ x: 300, y: 300 });
+    expect(t.all().map((d) => d.layerId)).toEqual(['sol']);
+    await t.commands.idle();
+    expect(t.api.place).toHaveBeenLastCalledWith(expect.objectContaining({ layerId: 'sol' }));
+    // Plus de calque actif : celui des tokens
+    t.engine.setActiveLayer(null);
+    tool.arm(goblins);
+    t.click({ x: 600, y: 600 });
+    await t.commands.idle();
+    expect(t.api.place).toHaveBeenLastCalledWith(
+      expect.objectContaining({ layerId: 'personnages' }),
+    );
   });
 
   it('réservé au MJ', () => {
