@@ -6,7 +6,7 @@ import type { MapGrid } from '@vtt/contracts';
 import { describe, expect, it } from 'vitest';
 import { box, setup } from '../../engine/test-kit';
 import { SELECT_TOOL_ID } from '../../engine/tools/tool-manager';
-import { CalibrateTool } from './index';
+import { CalibrateTool, gridModule } from './index';
 import {
   calibrate,
   densityFade,
@@ -16,7 +16,7 @@ import {
   visibleGrids,
   withGrid,
 } from './model';
-import { calibrateSettings } from './state';
+import { calibrateSettings, gridDisplay, setGridShown } from './state';
 
 const grid = (id: string, extra: Partial<MapGrid> = {}): MapGrid => ({
   id,
@@ -107,5 +107,16 @@ describe('quadrillage dans le moteur', () => {
     const saved = (t.store.getState().scene?.grids as MapGrid[])[0]!;
     expect(saved).toMatchObject({ size: 100, offsetX: 30, offsetY: 45, primary: true });
     expect(t.engine.tools.getActiveId()).toBe(SELECT_TOOL_ID);
+  });
+
+  it('Q affiche ou masque le quadrillage sur mon écran, pour tous les rôles', () => {
+    const t = setup({ viewer: { userId: 'joueur', role: 'player', characterIds: [] } });
+    t.engine.use(gridModule);
+    setGridShown(true);
+    expect(t.engine.controller.keyDown(t.key('q', { code: 'KeyQ' }))).toBe(true);
+    expect(gridDisplay.getState().shown).toBe(false);
+    t.engine.controller.keyDown(t.key('q', { code: 'KeyQ' }));
+    expect(gridDisplay.getState().shown).toBe(true);
+    t.engine.destroy();
   });
 });

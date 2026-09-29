@@ -382,6 +382,12 @@ export class InteractionController {
     if (!k.shift && !k.repeat) {
       const def = tools.byShortcut(k.code);
       if (def) return tools.activate(def.id);
+      // Raccourcis des modules (Q : quadrillage)
+      const shortcut = engine.shortcutFor(k.code);
+      if (shortcut) {
+        shortcut.run();
+        return true;
+      }
     }
     return false;
   }

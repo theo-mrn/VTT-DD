@@ -121,6 +121,16 @@ export interface InspectorSection {
   component: ComponentType<InspectorSectionProps>;
 }
 
+/**
+ * Raccourci clavier d'un module (hors outil) : une lettre, sans ⇧ ni répétition, quand la carte a
+ * le focus (« Q » : quadrillage). `code` : `KeyX`, la lettre tapée (`shortcutCode`).
+ */
+export interface MapShortcut {
+  code: string;
+  available?(viewer: MapViewer): boolean;
+  run(): void;
+}
+
 export interface ToolbarItem {
   id: string;
   /** `view` : emplacement « Vue » (module vision) ; `end` : après les outils. */
@@ -346,6 +356,7 @@ export class MapEngine {
   private toolbarItems: ToolbarItem[] = [];
   private overlays: MapOverlay[] = [];
   private readonly menuProviders = new Set<MenuProvider>();
+  private readonly shortcuts = new Set<MapShortcut>();
   private extensionsSnapshot: EngineExtensions = {
     inspectorSections: [],
     toolbarItems: [],
@@ -488,6 +499,18 @@ export class MapEngine {
       this.toolbarItems = this.toolbarItems.filter((i) => i !== item);
       this.extensionsChanged();
     };
+  }
+
+  registerShortcut(shortcut: MapShortcut): () => void {
+    this.shortcuts.add(shortcut);
+    return () => void this.shortcuts.delete(shortcut);
+  }
+
+  /** Raccourci d'un module pour cette touche, s'il vaut pour ce viewer. */
+  shortcutFor(code: string): MapShortcut | null {
+    for (const s of this.shortcuts)
+      if (s.code === code && (!s.available || s.available(this.viewer))) return s;
+    return null;
   }
 
   registerMenuProvider(provider: MenuProvider): () => void {

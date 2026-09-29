@@ -1,25 +1,33 @@
 'use client';
 
 /**
- * « Quadrillage » (MJ, barre d'outils) : les quadrillages de la scène (docs/carte.md § 4).
+ * « Quadrillage » (barre d'outils) : l'interrupteur d'affichage sur son écran (tous, Q) et, pour
+ * le MJ, les réglages des quadrillages de la scène (docs/carte.md § 4).
  * Chacun a sa case, son origine, sa couleur, son opacité, son épaisseur, et se montre ou non
  * aux joueurs ; la grille de jeu donne la case de la scène (tokens, rayons, aimantation).
  * « Ajuster sur l'image » : glisser sur des cases dessinées dans le fond pour caler case et
  * origine. Chaque changement est une commande annulable (`PATCH /maps/:mapId`).
  */
 import { MAP_GRIDS_MAX, type MapGrid } from '@vtt/contracts';
-import { Check, Grid3x3, Plus, Ruler, Trash2 } from 'lucide-react';
+import { Check, ChevronUp, Grid3x3, Plus, Ruler, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { calibrateSettings, saveGrids } from '@/lib/map/modules/grid/state';
+import {
+  calibrateSettings,
+  gridDisplay,
+  GRID_TOGGLE_SHORTCUT,
+  saveGrids,
+  setGridShown,
+} from '@/lib/map/modules/grid/state';
 import {
   CALIBRATE_CELLS,
   GRID_CALIBRATE_TOOL_ID,
@@ -32,36 +40,91 @@ import { useMapState } from '../engine-context';
 
 const NO_GRIDS: readonly MapGrid[] = [];
 
-export function GridMenu({ engine }: { engine: MapEngine }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Dans la barre : l'interrupteur (tous, sur son écran, Q) et, pour le MJ, les réglages à côté.
+ * Un joueur sans quadrillage montré n'a rien ; un MJ sans quadrillage n'a que les réglages.
+ */
+export function GridControls({ engine }: { engine: MapEngine }) {
+  const gm = engine.viewer.role === 'gm';
   const grids = useMapState((s) => (s.scene?.grids as MapGrid[] | undefined) ?? NO_GRIDS);
-  const shown = grids.some((g) => g.visibleToPlayers);
+  const mine = gm ? grids : grids.filter((g) => g.visibleToPlayers);
+  const shown = useStore(gridDisplay, (s) => s.shown);
+  if (!gm && !mine.length) return null;
+  return (
+    <div className="flex items-center">
+      {mine.length > 0 && (
+        <Info
+          texte={
+            <span className="flex items-center gap-2">
+              {shown ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
+              <Kbd>{GRID_TOGGLE_SHORTCUT.label}</Kbd>
+            </span>
+          }
+        >
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={shown ? 'Masquer le quadrillage' : 'Afficher le quadrillage'}
+            aria-pressed={shown}
+            aria-keyshortcuts={GRID_TOGGLE_SHORTCUT.label}
+            onClick={() => setGridShown(!shown)}
+            className={cn(shown && 'bg-primary/10 text-primary')}
+          >
+            <Grid3x3 />
+          </Button>
+        </Info>
+      )}
+      {gm && <GridSettings engine={engine} grids={grids} compact={mine.length > 0} />}
+    </div>
+  );
+}
 
+/** Réglages des quadrillages de la scène (MJ). */
+function GridSettings({
+  engine,
+  grids,
+  compact,
+}: {
+  engine: MapEngine;
+  grids: readonly MapGrid[];
+  /** À côté de l'interrupteur : un chevron ; seul (aucun quadrillage) : l'icône du quadrillage. */
+  compact: boolean;
+}) {
+  const [open, setOpen] = useState(false);
   const save = (label: string, next: MapGrid[]) => void saveGrids(engine, label, next);
   const add = () => {
     const grid = newGrid(grids, engine.kindContext().pixelsPerUnit);
-    if (grid) save('Ajouter un quadrillage', [...grids, grid]);
+    if (grid) {
+      save('Ajouter un quadrillage', [...grids, grid]);
+      setGridShown(true);
+    }
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Info texte="Quadrillage">
+      <Info texte="Réglages du quadrillage">
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Quadrillage"
-            className={cn(shown && 'text-primary')}
+            aria-label="Réglages du quadrillage"
+            className={cn(compact && 'w-5 px-0 text-muted-foreground')}
           >
-            <Grid3x3 />
+            {compact ? <ChevronUp /> : <Grid3x3 />}
           </Button>
         </PopoverTrigger>
       </Info>
-      <PopoverContent side="top" className="max-h-[70vh] w-80 overflow-y-auto p-3">
+      <PopoverContent
+        side="top"
+        className="max-h-[70vh] w-80 overflow-y-auto p-3"
+        // Rien de sélectionné à l'ouverture : une touche ne renomme pas le quadrillage
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <p className="text-sm font-semibold">Quadrillage</p>
         <p className="mb-3 text-xs text-muted-foreground">
           Aligné sur l’image : le même pour tous, à tous les zooms. La grille de jeu donne la case
-          de la scène (taille des jetons, rayons, aimantation).
+          de la scène (taille des jetons, rayons, aimantation). <Kbd>Q</Kbd> l’affiche ou le masque
+          sur votre écran.
         </p>
         <div className="space-y-3">
           {grids.map((grid) => (

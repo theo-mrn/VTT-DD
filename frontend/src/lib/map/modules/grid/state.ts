@@ -15,6 +15,36 @@ export interface CalibrateSettings {
 
 const calibrations = new WeakMap<MapEngine, StoreApi<CalibrateSettings>>();
 
+/** Raccourci d'affichage du quadrillage (Q comme Quadrillage). */
+export const GRID_TOGGLE_SHORTCUT = { code: 'KeyQ', label: 'Q' } as const;
+const SHOWN_KEY = 'vtt:map:grid:shown';
+
+function readShown(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(SHOWN_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Quadrillage affiché sur mon écran (tous les rôles) : un interrupteur local, gardé dans ce
+ * navigateur, sans toucher à la scène. Pour le cacher aux joueurs, le MJ règle « Visible des
+ * joueurs » dans le menu du quadrillage.
+ */
+export const gridDisplay: StoreApi<{ shown: boolean }> = createStore<{ shown: boolean }>()(() => ({
+  shown: readShown(),
+}));
+
+export function setGridShown(shown: boolean) {
+  gridDisplay.setState({ shown });
+  try {
+    globalThis.localStorage?.setItem(SHOWN_KEY, shown ? '1' : '0');
+  } catch {
+    // Stockage indisponible : le réglage vaut pour la session
+  }
+}
+
 /** Réglages du calibrage de ce moteur (partagés par le menu et l'outil). */
 export function calibrateSettings(engine: MapEngine): StoreApi<CalibrateSettings> {
   let store = calibrations.get(engine);

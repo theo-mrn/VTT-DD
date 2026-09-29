@@ -14,7 +14,7 @@ import type { MapGrid } from '@vtt/contracts';
 import { Ruler } from 'lucide-react';
 import type { Container, Graphics } from 'pixi.js';
 import type { StoreApi } from 'zustand/vanilla';
-import { GridMenu } from '@/components/map/grid/grid-menu';
+import { GridControls } from '@/components/map/grid/grid-menu';
 import { isGm, type RenderContext } from '../../engine/entities/entity-kind';
 import { destroyDisplay } from '../../engine/destroy-display';
 import type { Point } from '../../engine/geometry';
@@ -29,7 +29,15 @@ import {
   visibleGrids,
   withGrid,
 } from './model';
-import { calibrateSettings, gridsOf, saveGrids, type CalibrateSettings } from './state';
+import {
+  calibrateSettings,
+  gridDisplay,
+  gridsOf,
+  GRID_TOGGLE_SHORTCUT,
+  saveGrids,
+  setGridShown,
+  type CalibrateSettings,
+} from './state';
 
 /** Calibrage : `idle` → `dragging` (glisser sur les cases) → retour à la sélection. */
 export class CalibrateTool implements Tool {
@@ -124,7 +132,10 @@ function mountGridRenderer(engine: MapEngine, plane: Container): () => void {
   const draw = () => {
     const scene = engine.store.getState().scene;
     const gm = isGm(engine.viewer);
-    const grids = visibleGrids(scene?.grids as MapGrid[] | undefined, gm);
+    // Interrupteur local (Q) : rien de dessiné sur mon écran
+    const grids = gridDisplay.getState().shown
+      ? visibleGrids(scene?.grids as MapGrid[] | undefined, gm)
+      : [];
     const cam = engine.camera;
     const view = cam.visibleRect();
     const key = [
@@ -181,9 +192,14 @@ function mountGridRenderer(engine: MapEngine, plane: Container): () => void {
     }
   });
   const unCamera = engine.camera.onChange(draw);
+  const unDisplay = gridDisplay.subscribe(() => {
+    draw();
+    engine.invalidate();
+  });
   return () => {
     unsubscribe();
     unCamera();
+    unDisplay();
     root.removeFromParent();
     destroyDisplay(root);
   };
@@ -202,12 +218,16 @@ export const gridModule: MapModule = {
         available: isGm,
         create: () => new CalibrateTool(settings),
       }),
+      // Afficher ou masquer (tous, sur son écran) ; réglages à côté (MJ)
       engine.registerToolbarItem({
         id: 'grid:menu',
         slot: 'view',
         order: 20,
-        available: isGm,
-        component: GridMenu,
+        component: GridControls,
+      }),
+      engine.registerShortcut({
+        code: GRID_TOGGLE_SHORTCUT.code,
+        run: () => setGridShown(!gridDisplay.getState().shown),
       }),
       engine.whenMounted(() => {
         const plane = engine.plane('grid');

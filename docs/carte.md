@@ -165,6 +165,8 @@ abonnements au store, et renvoie son nettoyage.
   - La **grille de jeu** (une au plus) donne la case de la scène : taille des jetons, rayons en
     unités (lumières, fouille), aimantation, qui tombe sur ses lignes. Les autres sont décoratifs
     (grandes zones, repères).
+  - Barre d'outils : un interrupteur « Afficher / Masquer le quadrillage » (tous, sur son écran
+    seulement, gardé dans le navigateur, touche Q) et, à côté pour le MJ, les réglages.
   - « Ajuster sur l'image » : glisser sur 1 à 10 × 1 à 10 cases dessinées dans le fond ; la case
     et l'origine s'y alignent (une commande annulable).
   - Dessin (module `grid`, plan `grid` entre le fond et les calques) : seules les lignes dans la
@@ -380,8 +382,8 @@ Règles de ces gestes :
   comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
   annule. Les chiffres comptent par leur position (sans ⇧ en AZERTY), pavé numérique compris.
 - **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A (outils), R (pivoter) et K
-  (calques, MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
-  table. Encore libres : Q, U, X, Y, Z et les chiffres (pris par l'outil actif quand il en a
+  (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
+  table. Encore libres : U, X, Y, Z et les chiffres (pris par l'outil actif quand il en a
   l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes des outils W et G).
 
 ### Outils (`tools/`)
