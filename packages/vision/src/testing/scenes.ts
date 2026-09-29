@@ -100,18 +100,19 @@ function randomKind(rng: Prng, id: string, a: Vec, b: Vec): Segment {
 
 /**
  * Donjon réaliste : grille de salles murées, portes (ouvertes ou fermées) au milieu des murs,
- * piliers, pièces, brouillard et lumières. Environ `target` segments.
+ * piliers, pièces, brouillard et lumières. Exactement `target` segments (piliers ajoutés au
+ * besoin).
  */
 export function dungeon(rng: Prng, target = 2000): VisionScene {
-  // Chaque salle apporte ~12 segments (4 murs coupés par des portes, un pilier).
-  const side = Math.max(2, Math.round(Math.sqrt(target / 12)));
+  // Chaque salle apporte ~7,4 segments (murs coupés par des portes, piliers).
+  const side = Math.max(2, Math.floor(Math.sqrt(target / 7.4)));
   const cell = 300;
   const size = side * cell;
   const segments: Segment[] = [];
   const rooms: Room[] = [];
   let n = 0;
   const wall = (a: Vec, b: Vec) => segments.push({ id: `w${n++}`, a, b, kind: 'wall' });
-  // Murs horizontaux et verticaux de la grille, chacun coupé par une porte au milieu.
+  // Murs horizontaux et verticaux de la grille, la plupart coupés par une porte.
   for (let i = 0; i <= side; i++) {
     for (let j = 0; j < side; j++) {
       for (const horizontal of [true, false]) {
@@ -129,19 +130,21 @@ export function dungeon(rng: Prng, target = 2000): VisionScene {
       }
     }
   }
+  const pillar = (i: number, j: number) => {
+    const px = i * cell + rng.range(30, 240);
+    const py = j * cell + rng.range(30, 240);
+    const w = rng.range(15, 40);
+    for (const s of boxWalls(`p${n++}`, px, py, w, w)) segments.push(s);
+  };
   for (let i = 0; i < side; i++) {
     for (let j = 0; j < side; j++) {
-      const x = i * cell;
-      const y = j * cell;
-      if (rng.chance(0.6)) {
-        const px = x + rng.range(60, 200);
-        const py = y + rng.range(60, 200);
-        const w = rng.range(15, 40);
-        for (const s of boxWalls(`p${n++}`, px, py, w, w)) segments.push(s);
-      }
-      if (rng.chance(0.3)) rooms.push({ id: `r${i}-${j}`, points: rectPoints(x, y, cell, cell) });
+      if (rng.chance(0.6)) pillar(i, j);
+      if (rng.chance(0.3))
+        rooms.push({ id: `r${i}-${j}`, points: rectPoints(i * cell, j * cell, cell, cell) });
     }
   }
+  while (segments.length < target) pillar(rng.int(0, side - 1), rng.int(0, side - 1));
+  segments.length = target;
   const fogZones: FogZone[] = [];
   for (let k = 0; k < 20; k++) {
     fogZones.push(

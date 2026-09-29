@@ -225,6 +225,47 @@ class I32List {
   }
 }
 
+/** Segments en cours de construction (tableaux parallèles qui grandissent). */
+class SegList {
+  a: Int32Array;
+  b: Int32Array;
+  flags: Int32Array;
+  source: Int32Array;
+  /** 1 : morceau créé par la dernière découpe, à revérifier ; 0 : déjà vérifié. */
+  dirty: Uint8Array;
+  length = 0;
+
+  constructor(capacity: number) {
+    const c = Math.max(16, capacity);
+    this.a = new Int32Array(c);
+    this.b = new Int32Array(c);
+    this.flags = new Int32Array(c);
+    this.source = new Int32Array(c);
+    this.dirty = new Uint8Array(c);
+  }
+
+  push(a: number, b: number, flags: number, source: number, dirty: number) {
+    if (this.length === this.a.length) {
+      const grow = <T extends Int32Array | Uint8Array>(arr: T): T => {
+        const next = new (arr.constructor as new (n: number) => T)(arr.length * 2);
+        next.set(arr);
+        return next;
+      };
+      this.a = grow(this.a);
+      this.b = grow(this.b);
+      this.flags = grow(this.flags);
+      this.source = grow(this.source);
+      this.dirty = grow(this.dirty);
+    }
+    const n = this.length++;
+    this.a[n] = a;
+    this.b[n] = b;
+    this.flags[n] = flags;
+    this.source[n] = source;
+    this.dirty[n] = dirty;
+  }
+}
+
 /** Soudure, découpe et index : voir l'en-tête du fichier. */
 function buildWalls(
   width: number,
@@ -258,63 +299,51 @@ function buildWalls(
   }
   const rawCount = flags0.length;
 
-  // 2. Soudure des extrémités : un sommet par groupe d'extrémités à `snap` près (le premier
-  // rencontré dans l'ordre des données donne ses coordonnées : résultat déterministe).
+  // 2. Soudure des extrémités : un sommet par groupe d'extrémités à `snap` près (le plus proche
+  // des sommets déjà créés, dans l'ordre des données : résultat déterministe).
   const pts = ex.data;
   const epCount = rawCount * 2;
   const vx = new F64List(epCount + 16);
   const vy = new F64List(epCount + 16);
-  const vertexOf = weldPoints(width, height, pts, epCount, snap, vx, vy, null);
+  const vertexOf = weldPoints(width, height, pts, epCount, snap, vx, vy, 0);
 
-  let segA = new I32List(rawCount);
-  let segB = new I32List(rawCount);
-  let segFlags = new I32List(rawCount);
-  let segSource = new I32List(rawCount);
+  let segs = new SegList(rawCount);
   for (let i = 0; i < rawCount; i++) {
     const a = vertexOf[2 * i]!;
     const b = vertexOf[2 * i + 1]!;
     if (a === b) continue; // segment nul (plus court que la tolérance)
-    segA.push(a);
-    segB.push(b);
-    segFlags.push(flags0[i]!);
-    segSource.push(source0[i]!);
+    segs.push(a, b, flags0[i]!, source0[i]!, 1);
   }
-  ({ segA, segB, segFlags, segSource } = dedupe(segA, segB, segFlags, segSource, vx.length));
+  segs = dedupe(segs, vx.length);
 
-  // 3 à 5. Jonctions en T et croisements, jusqu'à stabilité.
-  let grid = segmentGrid(width, height, vx.data, vy.data, segA, segB, snap);
+  // 3 à 5. Jonctions en T et croisements, jusqu'à stabilité. Après une découpe, seules les
+  // paires qui touchent un morceau neuf sont revérifiées (les autres n'ont pas changé).
+  let grid = segmentGrid(width, height, vx.data, vy.data, segs, snap);
   for (let pass = 0; pass < 4; pass++) {
-    const found = findSplits(grid, vx, vy, segA, segB, snap, width, height);
+    const found = findSplits(grid, vx, vy, segs, snap, width, height);
     if (!found) break;
-    const next = applySplits(found, vx.data, vy.data, segA, segB, segFlags, segSource);
-    ({ segA, segB, segFlags, segSource } = dedupe(
-      next.segA,
-      next.segB,
-      next.segFlags,
-      next.segSource,
-      vx.length,
-    ));
-    grid = segmentGrid(width, height, vx.data, vy.data, segA, segB, snap);
+    segs = dedupe(applySplits(found, vx.data, vy.data, segs), vx.length);
+    grid = segmentGrid(width, height, vx.data, vy.data, segs, snap);
   }
 
-  const S = segA.length;
+  const S = segs.length;
   const flagsOut = new Uint8Array(S);
-  for (let s = 0; s < S; s++) flagsOut[s] = segFlags.data[s]!;
+  for (let s = 0; s < S; s++) flagsOut[s] = segs.flags[s]!;
   return {
     vx: vx.data.slice(0, vx.length),
     vy: vy.data.slice(0, vy.length),
-    segA: segA.data.slice(0, S),
-    segB: segB.data.slice(0, S),
+    segA: segs.a.slice(0, S),
+    segB: segs.b.slice(0, S),
     segFlags: flagsOut,
-    segSource: segSource.data.slice(0, S),
+    segSource: segs.source.slice(0, S),
     grid,
   };
 }
 
 /**
- * Soude `count` points (`pts` à plat) : chaque point reçoit l'indice d'un sommet existant à
- * moins de `snap`, sinon un nouveau sommet. `fixed` : sommets déjà existants à considérer en
- * premier (et qu'on ne crée pas), ou null.
+ * Soude `count` points (`pts` à plat) : chaque point reçoit l'indice du sommet le plus proche à
+ * moins de `snap` (sommets existants `0..fixedCount − 1`, puis ceux créés pour les points
+ * précédents), sinon un nouveau sommet.
  */
 function weldPoints(
   width: number,
@@ -324,12 +353,13 @@ function weldPoints(
   snap: number,
   vx: F64List,
   vy: F64List,
-  fixed: { count: number } | null,
+  fixedCount: number,
 ): Int32Array {
-  const fixedCount = fixed ? fixed.count : 0;
   const total = fixedCount + count;
-  const px = (k: number) => (k < fixedCount ? vx.data[k]! : pts[2 * (k - fixedCount)]!);
-  const py = (k: number) => (k < fixedCount ? vy.data[k]! : pts[2 * (k - fixedCount) + 1]!);
+  const X = vx.data;
+  const Y = vy.data;
+  const px = (k: number) => (k < fixedCount ? X[k]! : pts[2 * (k - fixedCount)]!);
+  const py = (k: number) => (k < fixedCount ? Y[k]! : pts[2 * (k - fixedCount) + 1]!);
   const dims = gridDims(width + 2 * snap, height + 2 * snap, total, 2, 1024, 4 * snap);
   const grid = buildGrid(-snap, -snap, dims.cell, dims.cols, dims.rows, total, (k, emit) => {
     emit(dimsRow(dims, -snap, py(k)) * dims.cols + dimsCol(dims, -snap, px(k)));
@@ -351,8 +381,7 @@ function weldPoints(
       for (let c = c1; c <= c2; c++) {
         const cell = r * grid.cols + c;
         for (let e = grid.start[cell]!, end = grid.start[cell + 1]!; e < end; e++) {
-          const j = grid.items[e]!;
-          const vj = vertexOfAll[j]!;
+          const vj = vertexOfAll[grid.items[e]!]!;
           if (vj < 0) continue; // pas encore traité
           const dx = vx.data[vj]! - x;
           const dy = vy.data[vj]! - y;
@@ -390,11 +419,10 @@ function segmentGrid(
   height: number,
   vx: Float64Array,
   vy: Float64Array,
-  segA: I32List,
-  segB: I32List,
+  segs: SegList,
   snap: number,
 ): Grid {
-  const S = segA.length;
+  const S = segs.length;
   const dims = gridDims(width, height, S, 2, 512, 4 * snap);
   const margin = snap * 1.5;
   // Grille vide qui ne sert qu'à calculer les cases pendant la construction.
@@ -407,9 +435,11 @@ function segmentGrid(
     new Int32Array(1),
     new Int32Array(0),
   );
+  const A = segs.a;
+  const B = segs.b;
   return buildGrid(0, 0, dims.cell, dims.cols, dims.rows, S, (s, emit) => {
-    const a = segA.data[s]!;
-    const b = segB.data[s]!;
+    const a = A[s]!;
+    const b = B[s]!;
     visitSegment(shell, vx[a]!, vy[a]!, vx[b]!, vy[b]!, margin, emit);
   });
 }
@@ -419,156 +449,182 @@ interface Splits {
   bySeg: Map<number, number[]>;
 }
 
+function addSplit(splits: Map<number, number[]>, s: number, v: number) {
+  const list = splits.get(s);
+  if (list) {
+    if (!list.includes(v)) list.push(v);
+  } else splits.set(s, [v]);
+}
+
+/**
+ * Le sommet v est-il sur l'intérieur du segment [a, b], à `snap` près (et à plus de `snap` de
+ * ses extrémités) ?
+ */
+function onInterior(
+  X: Float64Array,
+  Y: Float64Array,
+  v: number,
+  a: number,
+  b: number,
+  snap2: number,
+): boolean {
+  const px = X[v]!;
+  const py = Y[v]!;
+  const ax = X[a]!;
+  const ay = Y[a]!;
+  const bx = X[b]!;
+  const by = Y[b]!;
+  if (distToSegmentSq(px, py, ax, ay, bx, by) > snap2) return false;
+  const dxa = px - ax;
+  const dya = py - ay;
+  const dxb = px - bx;
+  const dyb = py - by;
+  return dxa * dxa + dya * dya > snap2 && dxb * dxb + dyb * dyb > snap2;
+}
+
+/** Cases d'un segment, collectées dans un tampon réutilisé. */
+let cellBuf = new Int32Array(256);
+let cellCount = 0;
+function collectCell(c: number) {
+  if (cellCount === cellBuf.length) {
+    const next = new Int32Array(cellBuf.length * 2);
+    next.set(cellBuf);
+    cellBuf = next;
+  }
+  cellBuf[cellCount++] = c;
+}
+
 /**
  * Cherche les jonctions en T et les croisements francs entre segments voisins (mêmes cases de
- * la grille, chaque paire testée une fois). Rend null si rien n'est à couper.
+ * la grille, boîtes englobantes qui se touchent, chaque paire testée une fois, au moins un des
+ * deux segments à revérifier). Rend null si rien n'est à couper.
  */
 function findSplits(
   grid: Grid,
   vx: F64List,
   vy: F64List,
-  segA: I32List,
-  segB: I32List,
+  segs: SegList,
   snap: number,
   width: number,
   height: number,
 ): Splits | null {
-  const S = segA.length;
+  const S = segs.length;
   const X = vx.data;
   const Y = vy.data;
+  const A = segs.a;
+  const B = segs.b;
+  const dirty = segs.dirty;
+  // Boîtes englobantes élargies de snap.
+  const minX = new Float64Array(S);
+  const minY = new Float64Array(S);
+  const maxX = new Float64Array(S);
+  const maxY = new Float64Array(S);
+  for (let s = 0; s < S; s++) {
+    const ax = X[A[s]!]!;
+    const ay = Y[A[s]!]!;
+    const bx = X[B[s]!]!;
+    const by = Y[B[s]!]!;
+    minX[s] = (ax < bx ? ax : bx) - snap;
+    maxX[s] = (ax < bx ? bx : ax) + snap;
+    minY[s] = (ay < by ? ay : by) - snap;
+    maxY[s] = (ay < by ? by : ay) + snap;
+  }
   const pairStamp = new Int32Array(S).fill(-1);
   const bySeg = new Map<number, number[]>();
-  const addSplit = (s: number, v: number) => {
-    const list = bySeg.get(s);
-    if (list) {
-      if (!list.includes(v)) list.push(v);
-    } else bySeg.set(s, [v]);
-  };
   // Croisements : points à souder ensuite, avec leurs deux segments.
   const crossPts = new F64List(64);
   const crossSegs: number[] = [];
   const snap2 = snap * snap;
+  const margin = snap * 1.5;
 
-  // Extrémité v sur l'intérieur du segment s (à snap près, hors des extrémités de s).
-  const onInterior = (v: number, s: number): boolean => {
-    const a = segA.data[s]!;
-    const b = segB.data[s]!;
-    const px = X[v]!;
-    const py = Y[v]!;
+  for (let i = 0; i < S; i++) {
+    if (dirty[i] === 0) continue;
+    const a = A[i]!;
+    const b = B[i]!;
     const ax = X[a]!;
     const ay = Y[a]!;
     const bx = X[b]!;
     const by = Y[b]!;
-    if (distToSegmentSq(px, py, ax, ay, bx, by) > snap2) return false;
-    const dxa = px - ax;
-    const dya = py - ay;
-    const dxb = px - bx;
-    const dyb = py - by;
-    return dxa * dxa + dya * dya > snap2 && dxb * dxb + dyb * dyb > snap2;
-  };
-
-  const margin = snap * 1.5;
-  let current = 0;
-  const visitCell = (cell: number) => {
-    const i = current;
-    for (let k = grid.start[cell]!, end = grid.start[cell + 1]!; k < end; k++) {
-      const j = grid.items[k]!;
-      if (j <= i || pairStamp[j] === i) continue;
-      pairStamp[j] = i;
-      const a = segA.data[i]!;
-      const b = segB.data[i]!;
-      const c = segA.data[j]!;
-      const d = segB.data[j]!;
-      let touched = false;
-      if (c !== a && c !== b && onInterior(c, i)) {
-        addSplit(i, c);
-        touched = true;
+    cellCount = 0;
+    visitSegment(grid, ax, ay, bx, by, margin, collectCell);
+    for (let ci = 0; ci < cellCount; ci++) {
+      const cell = cellBuf[ci]!;
+      for (let k = grid.start[cell]!, end = grid.start[cell + 1]!; k < end; k++) {
+        const j = grid.items[k]!;
+        // Paire déjà vue, ou vue depuis j (j à revérifier et plus petit).
+        if (j === i || pairStamp[j] === i || (dirty[j] === 1 && j < i)) continue;
+        pairStamp[j] = i;
+        if (maxX[i]! < minX[j]! || maxX[j]! < minX[i]! || maxY[i]! < minY[j]!) continue;
+        if (maxY[j]! < minY[i]!) continue;
+        const c = A[j]!;
+        const d = B[j]!;
+        let touched = false;
+        if (c !== a && c !== b && onInterior(X, Y, c, a, b, snap2)) {
+          addSplit(bySeg, i, c);
+          touched = true;
+        }
+        if (d !== a && d !== b && onInterior(X, Y, d, a, b, snap2)) {
+          addSplit(bySeg, i, d);
+          touched = true;
+        }
+        if (a !== c && a !== d && onInterior(X, Y, a, c, d, snap2)) {
+          addSplit(bySeg, j, a);
+          touched = true;
+        }
+        if (b !== c && b !== d && onInterior(X, Y, b, c, d, snap2)) {
+          addSplit(bySeg, j, b);
+          touched = true;
+        }
+        if (touched || a === c || a === d || b === c || b === d) continue;
+        const cx = X[c]!;
+        const cy = Y[c]!;
+        const dx = X[d]!;
+        const dy = Y[d]!;
+        const o1 = orient(ax, ay, bx, by, cx, cy);
+        const o2 = orient(ax, ay, bx, by, dx, dy);
+        if (!((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0))) continue;
+        const o3 = orient(cx, cy, dx, dy, ax, ay);
+        const o4 = orient(cx, cy, dx, dy, bx, by);
+        if (!((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))) continue;
+        // Croisement franc : t le long de [a, b], rapport des distances signées à la droite cd.
+        const t = o3 / (o3 - o4);
+        crossPts.push(ax + t * (bx - ax));
+        crossPts.push(ay + t * (by - ay));
+        crossSegs.push(i, j);
       }
-      if (d !== a && d !== b && onInterior(d, i)) {
-        addSplit(i, d);
-        touched = true;
-      }
-      if (a !== c && a !== d && onInterior(a, j)) {
-        addSplit(j, a);
-        touched = true;
-      }
-      if (b !== c && b !== d && onInterior(b, j)) {
-        addSplit(j, b);
-        touched = true;
-      }
-      if (touched || a === c || a === d || b === c || b === d) continue;
-      const ax = X[a]!;
-      const ay = Y[a]!;
-      const bx = X[b]!;
-      const by = Y[b]!;
-      const cx = X[c]!;
-      const cy = Y[c]!;
-      const dx = X[d]!;
-      const dy = Y[d]!;
-      const o1 = orient(ax, ay, bx, by, cx, cy);
-      const o2 = orient(ax, ay, bx, by, dx, dy);
-      if (!((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0))) continue;
-      const o3 = orient(cx, cy, dx, dy, ax, ay);
-      const o4 = orient(cx, cy, dx, dy, bx, by);
-      if (!((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))) continue;
-      // Croisement franc : t le long de [a, b], rapport des distances signées à la droite cd.
-      const t = o3 / (o3 - o4);
-      crossPts.push(ax + t * (bx - ax));
-      crossPts.push(ay + t * (by - ay));
-      crossSegs.push(i, j);
     }
-  };
-  for (let i = 0; i < S; i++) {
-    current = i;
-    const a = segA.data[i]!;
-    const b = segB.data[i]!;
-    visitSegment(grid, X[a]!, Y[a]!, X[b]!, Y[b]!, margin, visitCell);
   }
 
   const crossCount = crossSegs.length >> 1;
   if (crossCount > 0) {
     // Soudure des points de croisement aux sommets existants (et entre eux).
-    const fixedCount = vx.length;
-    const vOf = weldPoints(width, height, crossPts.data, crossCount, snap, vx, vy, {
-      count: fixedCount,
-    });
+    const vOf = weldPoints(width, height, crossPts.data, crossCount, snap, vx, vy, vx.length);
     for (let k = 0; k < crossCount; k++) {
       const v = vOf[k]!;
       const i = crossSegs[2 * k]!;
       const j = crossSegs[2 * k + 1]!;
-      if (v !== segA.data[i] && v !== segB.data[i]) addSplit(i, v);
-      if (v !== segA.data[j] && v !== segB.data[j]) addSplit(j, v);
+      if (v !== A[i] && v !== B[i]) addSplit(bySeg, i, v);
+      if (v !== A[j] && v !== B[j]) addSplit(bySeg, j, v);
     }
   }
   return bySeg.size > 0 ? { bySeg } : null;
 }
 
-/** Coupe chaque segment en ses sommets de coupe, rangés le long du segment. */
-function applySplits(
-  splits: Splits,
-  X: Float64Array,
-  Y: Float64Array,
-  segA: I32List,
-  segB: I32List,
-  segFlags: I32List,
-  segSource: I32List,
-) {
-  const S = segA.length;
-  const outA = new I32List(S + splits.bySeg.size * 2);
-  const outB = new I32List(S + splits.bySeg.size * 2);
-  const outF = new I32List(S + splits.bySeg.size * 2);
-  const outS = new I32List(S + splits.bySeg.size * 2);
+/**
+ * Coupe chaque segment en ses sommets de coupe, rangés le long du segment. Les morceaux sont à
+ * revérifier ; les segments intacts ne le sont plus.
+ */
+function applySplits(splits: Splits, X: Float64Array, Y: Float64Array, segs: SegList): SegList {
+  const S = segs.length;
+  const out = new SegList(S + splits.bySeg.size * 2);
   for (let s = 0; s < S; s++) {
-    const a = segA.data[s]!;
-    const b = segB.data[s]!;
-    const f = segFlags.data[s]!;
-    const src = segSource.data[s]!;
+    const a = segs.a[s]!;
+    const b = segs.b[s]!;
+    const f = segs.flags[s]!;
+    const src = segs.source[s]!;
     const list = splits.bySeg.get(s);
     if (!list) {
-      outA.push(a);
-      outB.push(b);
-      outF.push(f);
-      outS.push(src);
+      out.push(a, b, f, src, 0);
       continue;
     }
     // Paramètre de chaque sommet de coupe le long de a→b (projection), puis tri.
@@ -582,20 +638,12 @@ function applySplits(
     let prev = a;
     for (const { v } of withT) {
       if (v === prev || v === b) continue;
-      outA.push(prev);
-      outB.push(v);
-      outF.push(f);
-      outS.push(src);
+      out.push(prev, v, f, src, 1);
       prev = v;
     }
-    if (prev !== b) {
-      outA.push(prev);
-      outB.push(b);
-      outF.push(f);
-      outS.push(src);
-    }
+    if (prev !== b) out.push(prev, b, f, src, 1);
   }
-  return { segA: outA, segB: outB, segFlags: outF, segSource: outS };
+  return out;
 }
 
 /**
@@ -604,17 +652,14 @@ function applySplits(
  * sens uniques et bords identiques qui le suivent ; un sens unique suivi d'un mur identique est
  * gardé (sans effet : le mur le couvre).
  */
-function dedupe(segA: I32List, segB: I32List, segFlags: I32List, segSource: I32List, V: number) {
-  const S = segA.length;
+function dedupe(segs: SegList, V: number): SegList {
+  const S = segs.length;
   const seen = new Map<number, number>();
-  const outA = new I32List(S);
-  const outB = new I32List(S);
-  const outF = new I32List(S);
-  const outS = new I32List(S);
+  const out = new SegList(S);
   for (let s = 0; s < S; s++) {
-    const a = segA.data[s]!;
-    const b = segB.data[s]!;
-    const f = segFlags.data[s]!;
+    const a = segs.a[s]!;
+    const b = segs.b[s]!;
+    const f = segs.flags[s]!;
     const lo = a < b ? a : b;
     const hi = a < b ? b : a;
     const key = lo * V + hi;
@@ -627,10 +672,7 @@ function dedupe(segA: I32List, segB: I32List, segFlags: I32List, segSource: I32L
     const mask = seen.get(key) ?? 0;
     if ((mask & 1) !== 0 || (mask & cls) !== 0) continue;
     seen.set(key, mask | cls);
-    outA.push(a);
-    outB.push(b);
-    outF.push(f);
-    outS.push(segSource.data[s]!);
+    out.push(a, b, f, segs.source[s]!, segs.dirty[s]!);
   }
-  return { segA: outA, segB: outB, segFlags: outF, segSource: outS };
+  return out;
 }

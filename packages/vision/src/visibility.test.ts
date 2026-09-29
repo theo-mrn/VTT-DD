@@ -306,14 +306,16 @@ describe('murs presque soudés', () => {
   });
 
   it('extrémité à 0,3 px de l’intérieur d’un mur : soudée dessus (T)', () => {
+    // Le pied du T s'arrête à 0,3 px de la barre. Seul un rayon rasant, parallèle à la barre,
+    // passerait par la fente : l'observateur est donc à la hauteur de la fente (y = 199,8).
+    // Soudée, la barre passe par l'extrémité du pied (200, 199,7) : le rayon la touche.
     const t = [wall('barre', 100, 200, 300, 200), wall('pied', 200, 199.7, 200, 50)];
-    const view = viewerView(prepareScene({ bounds, segments: t }), {
-      id: 'o',
-      pos: { x: 150, y: 100 },
-      visionRadius: 0,
-    });
-    expect(view.contains({ x: 250, y: 100 })).toBe(false);
-    expect(view.contains({ x: 250, y: 150 })).toBe(false);
+    const o = { id: 'o', pos: { x: 150, y: 199.8 }, visionRadius: 0 };
+    const behind = { x: 250, y: 199.8 };
+    expect(viewerView(prepareScene({ bounds, segments: t }), o).contains(behind)).toBe(false);
+    expect(viewerView(prepareScene({ bounds, segments: t }, { snap: 0 }), o).contains(behind)).toBe(
+      true,
+    );
   });
 });
 
