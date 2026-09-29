@@ -837,9 +837,15 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   sans image, posé sur un coffre peint dans le fond) : un cadre pour le MJ, rien pour les
   joueurs hors du repère de fouille. Repères à taille constante : cadenas (MJ, verrouillé), loupe
   (à fouiller, pour tous). Le masquage aux joueurs (hachures, œil barré) est celui du moteur.
-- **Pose** : outil « Objets » (I, MJ). Sa bibliothèque s'affiche au-dessus de la barre : modèles
-  d'objets de la campagne (`object-templates`, recherche, catégories, retirer), « Envoyer une
-  image » (`/media`, gardée aussi comme modèle), « Zone à fouiller ».
+- **Pose** : outil « Objets » (I, MJ). Sa bibliothèque s'affiche au-dessus de la barre, en
+  deux onglets :
+  - **objets du système** : les catégories que la présentation du système déclare
+    (`references.objets` : titre et dossiers de l'index des actifs `/asset-mappings.json`),
+    1 311 objets pour dnd-classic et nooblies (mobilier, campement, ferme, marché, conteneurs…),
+    200 pour star-wars-eote, les listes de l'ancienne app ; aucune liste en dur dans le code ;
+  - **modèles de la campagne** (`object-templates`, retirer au survol).
+    Recherche (nom et catégorie), catégories en pastilles, grille qui se charge par pages de 60
+    en défilant. « Envoyer une image » (`/media`, gardée aussi comme modèle), « Zone à fouiller ».
   - Choisir un objet puis cliquer sur la carte (⇧ : en poser plusieurs, Alt : aimantation inversée,
     Échap : annuler), ou le glisser sur la carte ; une image de l'ordinateur déposée sur la
     carte est envoyée puis posée là.
