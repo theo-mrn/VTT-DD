@@ -30,12 +30,19 @@ export function mountArrival(
 
     let target: string | null = null;
     let stopFrames: (() => void) | null = null;
-    let drawn = '';
+    // Ce qui est dessiné : rien n'est refait (ni alloué) sans changement
+    const drawn = {
+      data: null as PortalData | null,
+      fromX: NaN,
+      fromY: NaN,
+      to: null as Point | null,
+      zoom: NaN,
+    };
 
     const hide = () => {
       if (!g.visible) return;
       g.visible = false;
-      drawn = '';
+      drawn.data = null;
       engine.invalidate();
     };
 
@@ -49,9 +56,19 @@ export function mountArrival(
       const from = e.current;
       const to = dragged(e.id) ?? p.target;
       const zoom = engine.camera.zoom;
-      const key = `${from.x}:${from.y}:${to.x}:${to.y}:${zoom}:${p.color}:${p.linkedPortalId}`;
-      if (key === drawn) return;
-      drawn = key;
+      if (
+        drawn.data === p &&
+        drawn.fromX === from.x &&
+        drawn.fromY === from.y &&
+        drawn.to === to &&
+        drawn.zoom === zoom
+      )
+        return;
+      drawn.data = p;
+      drawn.fromX = from.x;
+      drawn.fromY = from.y;
+      drawn.to = to;
+      drawn.zoom = zoom;
       const u = 1 / zoom;
       const color = dataColor(pixi, p.color, theme.primary);
       g.clear();

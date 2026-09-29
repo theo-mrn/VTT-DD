@@ -158,7 +158,7 @@ export class PortalTool implements Tool {
     if (portals.length) engine.selection.remove(portals.map((e) => e.id));
     this.hoverHandle = null;
     if (this.root) this.root.visible = false;
-    this.drawn = '';
+    this.drawn.ui = null;
     engine.invalidate();
   }
 
@@ -500,7 +500,23 @@ export class PortalTool implements Tool {
   private root: Container | null = null;
   private gfx: Graphics | null = null;
   private label: BitmapText | null = null;
-  private drawn = '';
+  /** Ce qui est dessiné : rien n'est refait (ni alloué) sans changement. */
+  private readonly drawn = {
+    ui: null as PortalToolUi | null,
+    settings: null as PortalDefaults | null,
+    lasso: null as unknown,
+    px: NaN,
+    py: NaN,
+    entity: null as MapEntity | null,
+    x: NaN,
+    y: NaN,
+    radius: NaN,
+    arrival: null as Point | null,
+    pickX: NaN,
+    pickY: NaN,
+    hover: null as string | null,
+    zoom: NaN,
+  };
 
   renderPreview(layer: Container, rc: RenderContext) {
     if (!this.root) {
@@ -520,33 +536,65 @@ export class PortalTool implements Tool {
     this.root.visible = true;
     const engine = this.ctx.engine;
     const ui = this.ui.getState();
+    const settings = this.settings.getState();
     const lasso = this.select.lasso;
+    const single = this.single(engine);
+    const pick = ui.pickFor ? engine.entity(ui.pickFor) : undefined;
+    const tracking = ui.state === 'destination' || ui.state === 'pick';
+    const p = this.pointer;
+    const d = this.drawn;
+    // Redessiné seulement si ce qu'il montre a changé
+    const arrivalAt = single
+      ? this.arrivalDrag?.entity === single
+        ? this.arrivalDrag.target
+        : portalOf(single).target
+      : null;
+    const px = tracking && p ? p.x : NaN;
+    const py = tracking && p ? p.y : NaN;
+    const x = single?.current.x ?? NaN;
+    const y = single?.current.y ?? NaN;
+    const r = single ? this.ctx.view.radiusOf(single) : NaN;
+    const pickX = pick?.current.x ?? NaN;
+    const pickY = pick?.current.y ?? NaN;
+    if (
+      d.ui === ui &&
+      d.settings === settings &&
+      d.lasso === lasso &&
+      Object.is(d.px, px) &&
+      Object.is(d.py, py) &&
+      d.entity === single &&
+      Object.is(d.x, x) &&
+      Object.is(d.y, y) &&
+      Object.is(d.radius, r) &&
+      d.arrival === arrivalAt &&
+      Object.is(d.pickX, pickX) &&
+      Object.is(d.pickY, pickY) &&
+      d.hover === this.hoverHandle &&
+      d.zoom === rc.zoom
+    )
+      return;
+    d.ui = ui;
+    d.settings = settings;
+    d.lasso = lasso;
+    d.px = px;
+    d.py = py;
+    d.entity = single;
+    d.x = x;
+    d.y = y;
+    d.radius = r;
+    d.arrival = arrivalAt;
+    d.pickX = pickX;
+    d.pickY = pickY;
+    d.hover = this.hoverHandle;
+    d.zoom = rc.zoom;
     const radius = this.radiusHandle(engine);
     const arrival = this.arrivalHandle(engine);
-    const pick = ui.pickFor ? engine.entity(ui.pickFor) : undefined;
-    const p = this.pointer;
-    // Redessiné seulement si ce qu'il montre a changé
-    const key = JSON.stringify([
-      ui.state,
-      ui.entry,
-      p && (ui.state === 'destination' || ui.state === 'pick') ? [p.x, p.y] : null,
-      lasso,
-      radius && [radius.entity.id, radius.at.x, radius.at.y, this.radiusDrag?.units],
-      arrival && [arrival.at.x, arrival.at.y],
-      pick && [pick.current.x, pick.current.y],
-      this.hoverHandle,
-      rc.zoom,
-      this.settings.getState(),
-    ]);
-    if (key === this.drawn) return;
-    this.drawn = key;
     const g = this.gfx!;
     const text = this.label!;
     g.clear();
     text.visible = false;
     const u = 1 / rc.zoom;
     const { primary, background } = rc.theme;
-    const settings = this.settings.getState();
     const color = dataColor(rc.pixi, settings.color, primary);
 
     if (lasso)
