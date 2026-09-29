@@ -8,9 +8,11 @@
  *   élément en attente (écriture optimiste) n'est pas touché.
  * - `generation` (premier abonnement, reconnexion, `resync`) : relecture complète.
  * - Événement expurgé, élément inconnu qui arrive : la couche est relue.
- * - Joueur : ses tokens bougent, une porte s'ouvre ou se ferme, un calque redevient visible :
- *   son champ de vision a changé, le serveur filtre autrement ; tokens et objets sont relus
- *   (regroupés en une relecture par 100 ms).
+ * - Joueur : ses tokens bougent, une porte s'ouvre ou se ferme, un calque redevient visible,
+ *   l'échelle change, ou le serveur l'en prévient (`map.visibility_changed`, ciblé) : son champ
+ *   de vision a changé, le serveur filtre autrement ; tokens et objets sont relus (regroupés en
+ *   une relecture par 100 ms).
+ * - `*.hidden` ne concerne que les joueurs qui voyaient l'élément : le MJ l'ignore.
  *
  * `MapSync` est une classe pure (testable) ; `useMapSync` la branche sur le temps réel.
  */
@@ -138,8 +140,18 @@ export class MapSync {
 
     if (domain === 'map') this.handleMap(action, aggregate.id, payload, gm, e.redacted);
     else if (domain === 'map_settings') {
-      if (isObject(payload) && !e.redacted)
+      if (isObject(payload) && !e.redacted) {
+        const before = this.store.settings;
         this.store.patchSettings(payload as Partial<SettingsLike>);
+        const after = this.store.settings;
+        // Échelle changée : rayons des lumières et tailles des tokens, donc la vue d'un joueur
+        if (
+          before &&
+          after !== before &&
+          (after?.pixelsPerUnit !== before.pixelsPerUnit || after?.tokenScale !== before.tokenScale)
+        )
+          this.visionChanged();
+      }
     } else if (domain === 'token') this.handleToken(action, payload, e.redacted, aggregate.id);
     else {
       const def = collectionByDomain(domain);
@@ -173,6 +185,10 @@ export class MapSync {
       case 'rescaled':
         // Toute la géométrie a changé
         void this.load();
+        return;
+      case 'visibility_changed':
+        // Ciblé par le serveur : un observateur, une porte, un mur ou une lumière a changé
+        this.visionChanged();
         return;
     }
   }
@@ -228,8 +244,12 @@ export class MapSync {
         if (this.isMine(payload.characterId)) this.visionChanged();
         return;
       }
-      case 'deleted':
       case 'hidden':
+        // Le MJ voit tout : `hidden` ne concerne que les joueurs qui le voyaient
+        if (this.opts.viewer().role === 'gm') return;
+        store.remove('tokens', [String(payload.id ?? id)]);
+        return;
+      case 'deleted':
         store.remove('tokens', [String(payload.id ?? id)]);
         return;
     }
@@ -268,6 +288,8 @@ export class MapSync {
         store.remove(key, [String(payload.id ?? id)]);
         return;
       case 'hidden': {
+        // Le MJ voit tout : `hidden` ne concerne que les joueurs qui le voyaient
+        if (gm) return;
         const hiddenId = String(payload.id ?? id);
         store.remove(key, [hiddenId]);
         // Calque masqué aux joueurs : tout son contenu disparaît

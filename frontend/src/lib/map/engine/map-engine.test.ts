@@ -124,6 +124,33 @@ describe('MapEngine', () => {
     expect(t.engine.liveAudience('inconnu')).toBe('gm');
   });
 
+  it('un plan forcé (vision) passe devant, puis l’entité retrouve son calque', () => {
+    const t = setup({
+      boxes: [box('a', 100, 100, { layerId: 'sol' }), box('b', 100, 100, { layerId: 'sol', z: 5 })],
+      layers: [{ id: 'sol', version: 1, name: 'Sol', sortOrder: 0 }],
+      kind: {
+        stacking: {
+          arrangeKind: 'object',
+          layerId: field<Box, string | null>('layerId'),
+          z: field<Box, number>('z'),
+        },
+      },
+    });
+    const a = t.engine.entity('a')!;
+    expect(a.plane).toBe('content');
+    expect(t.engine.hitTest({ x: 100, y: 100 })?.id).toBe('b');
+    t.engine.setPlaneOverride(a, 'allies');
+    expect(a.plane).toBe('allies');
+    expect(a.layerId).toBe('sol');
+    expect(t.engine.hitTest({ x: 100, y: 100 })?.id).toBe('a');
+    // Une donnée nouvelle garde le forçage
+    t.store.getState().upsert('boxes', [box('a', 100, 100, { layerId: 'sol', version: 2 })]);
+    expect(a.plane).toBe('allies');
+    t.engine.setPlaneOverride(a, null);
+    expect(a.plane).toBe('content');
+    expect(t.engine.hitTest({ x: 100, y: 100 })?.id).toBe('b');
+  });
+
   it('se construit et se détruit sans rendu (aucune fuite d’abonnement)', () => {
     const t = setup({ boxes: [box('a', 1, 1)] });
     t.engine.destroy();

@@ -45,6 +45,20 @@ export function TableMap() {
     () => campagne.members.map((m) => ({ userId: m.userId, name: m.name })),
     [campagne.members],
   );
+  // Joueurs et spectateurs, avec les personnages qu'ils possèdent ou incarnent (vision)
+  const players = useMemo(
+    () =>
+      campagne.members
+        .filter((m) => m.role !== 'gm')
+        .map((m) => ({
+          userId: m.userId,
+          name: m.name,
+          characterIds: campagne.characters
+            .filter((c) => c.ownerId === m.userId || c.playedBy === m.userId)
+            .map((c) => c.characterId),
+        })),
+    [campagne.members, campagne.characters],
+  );
 
   const empty = target.loading
     ? 'Ouverture de la scène…'
@@ -64,6 +78,7 @@ export function TableMap() {
           viewer={viewer}
           characters={characters}
           members={members}
+          players={players}
         />
       ) : null}
     </MapStage>

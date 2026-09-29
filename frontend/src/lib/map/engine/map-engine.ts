@@ -204,6 +204,8 @@ export interface EngineView {
   setEntityVisible(entity: MapEntity, visible: boolean): void;
   /** Calques changés (ordre, opacité, œil local, isolement). */
   syncLayers(): void;
+  /** Rendu Pixi (module vision : rendu dans des textures avant l'image). */
+  readonly renderer?: Pixi.Renderer;
   setBackground(url: string | null): void;
   showPing(p: Point, color: 'mine' | 'other'): void;
   setCursor(css: string): void;
@@ -225,10 +227,19 @@ export interface EngineBackend {
   rescale(sx: number, sy: number): Promise<void>;
 }
 
+/** Membre non MJ de la campagne et les personnages qu'il possède ou incarne. */
+export interface MapPlayer {
+  userId: string;
+  name: string;
+  characterIds: readonly string[];
+}
+
 /** Joueurs et personnages de la campagne (menus « Visible pour… », noms des curseurs). */
 export interface MapDirectory {
   characters(): readonly { id: string; name: string }[];
   userName(userId: string): string | null;
+  /** Joueurs et spectateurs (module vision : vue de chacun, audience du direct). */
+  players?(): readonly MapPlayer[];
 }
 
 const EMPTY_DIRECTORY: MapDirectory = { characters: () => [], userName: () => null };
@@ -567,6 +578,11 @@ export class MapEngine {
     return this.view?.theme ?? null;
   }
 
+  /** Rendu Pixi (null avant le montage) : rendu dans une texture avant l'image (vision). */
+  get renderer(): Pixi.Renderer | null {
+    return this.view?.renderer ?? null;
+  }
+
   /** Élément DOM du canevas (null avant le montage). */
   get canvas(): HTMLCanvasElement | null {
     return this.view?.canvas ?? null;
@@ -731,6 +747,7 @@ export class MapEngine {
   private removeEntity(entity: MapEntity | undefined) {
     if (!entity) return;
     this.entityMap.delete(entity.id);
+    this.planeOverrides.delete(entity.id);
     for (const set of this.byCollection.values()) set.delete(entity.id);
     this.index.remove(entity.id);
     this.inView.delete(entity.id);
@@ -748,8 +765,14 @@ export class MapEngine {
     this.invalidate();
   }
 
-  /** Plan, calque et `z` de l'entité d'après sa donnée. */
+  /** Plan, calque et `z` de l'entité d'après sa donnée, puis le plan forcé s'il y en a un. */
   private place(entity: MapEntity) {
+    this.placeFromData(entity);
+    const forced = this.planeOverrides.get(entity.id);
+    if (forced) entity.plane = forced;
+  }
+
+  private placeFromData(entity: MapEntity) {
     const stacking = entity.kind.stacking;
     if (!stacking) {
       entity.plane = planeOf(entity.kind, entity.data);
@@ -766,6 +789,26 @@ export class MapEngine {
     }
     entity.plane = 'content';
     entity.layerId = this.resolveLayer(raw, stacking.defaultRole);
+  }
+
+  /** Plans forcés par un module (vision : personnage joueur hors de ma vue → `allies`). */
+  private readonly planeOverrides = new Map<string, PlaneId>();
+
+  /**
+   * Force le plan de rendu d'une entité (null : celui de sa donnée). Elle garde son calque et
+   * son `z`, et y revient quand le forçage cesse.
+   */
+  setPlaneOverride(entity: MapEntity, plane: PlaneId | null) {
+    if ((this.planeOverrides.get(entity.id) ?? null) === plane) return;
+    if (plane) this.planeOverrides.set(entity.id, plane);
+    else this.planeOverrides.delete(entity.id);
+    if (this.entityMap.get(entity.id) !== entity) return;
+    const before = entity.plane;
+    this.place(entity);
+    if (before !== entity.plane) {
+      this.view?.placeEntity(entity);
+      this.invalidate();
+    }
   }
 
   /** Calque connu, sinon celui du rôle, sinon le plus haut, sinon le calque implicite. */

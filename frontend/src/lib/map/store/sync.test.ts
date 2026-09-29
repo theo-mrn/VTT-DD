@@ -152,8 +152,44 @@ describe('MapSync', () => {
     expect([...t.store.getState().collections.drawings!.keys()]).toEqual(['d1', 'd2']);
     t.sync.handle(event('map_drawing.cleared', { mapId: 'carte', ids: ['d1', 'd2'] }));
     expect(t.store.getState().collections.drawings!.size).toBe(0);
+    // Le MJ voit tout : `hidden` ne le concerne pas
     t.sync.handle(event('map_object.hidden', { id: 'o', mapId: 'carte' }));
+    t.sync.handle(event('token.hidden', { id: 'a', mapId: 'carte' }));
+    t.sync.handle(event('map_layer.hidden', { id: 'persos', mapId: 'carte' }));
+    expect(t.get('objects', 'o')).toBeDefined();
+    expect(t.get('tokens', 'a')).toBeDefined();
+    expect(t.get('layers', 'persos')).toBeDefined();
+  });
+
+  it('joueur : un élément qui lui devient caché est retiré', async () => {
+    const t = setup({ role: 'player', characterIds: [] });
+    await t.sync.load();
+    t.sync.handle(event('map_object.hidden', { id: 'o', mapId: 'carte' }));
+    t.sync.handle(event('token.hidden', { id: 'a', mapId: 'carte' }));
     expect(t.get('objects', 'o')).toBeUndefined();
+    expect(t.get('tokens', 'a')).toBeUndefined();
+  });
+
+  it('joueur : map.visibility_changed ou une échelle nouvelle relisent tokens et objets', async () => {
+    const t = setup({ role: 'player', characterIds: [] });
+    await t.sync.load();
+    t.sync.handle(event('map.visibility_changed', { mapId: 'carte' }));
+    t.sync.handle(event('map.visibility_changed', { mapId: 'carte' }, true));
+    await vi.advanceTimersByTimeAsync(REFETCH_DEBOUNCE_MS + 1);
+    expect(t.reader.list.mock.calls.map((c) => c[0]).sort()).toEqual(['objects', 'tokens']);
+    t.reader.list.mockClear();
+    t.sync.handle(event('map_settings.updated', { version: 2, pixelsPerUnit: 50, unitName: 'm' }));
+    await vi.advanceTimersByTimeAsync(REFETCH_DEBOUNCE_MS + 1);
+    expect(t.reader.list).not.toHaveBeenCalled();
+    t.sync.handle(event('map_settings.updated', { version: 3, pixelsPerUnit: 70 }));
+    await vi.advanceTimersByTimeAsync(REFETCH_DEBOUNCE_MS + 1);
+    expect(t.reader.list).toHaveBeenCalledTimes(2);
+    // Le MJ ne relit pas : il voit tout
+    const gm = setup();
+    await gm.sync.load();
+    gm.sync.handle(event('map.visibility_changed', { mapId: 'carte' }));
+    await vi.advanceTimersByTimeAsync(REFETCH_DEBOUNCE_MS + 1);
+    expect(gm.reader.list).not.toHaveBeenCalled();
   });
 
   it('événement expurgé : la couche est relue (une fois pour une rafale)', async () => {

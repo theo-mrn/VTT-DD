@@ -20,7 +20,7 @@ import { setActiveMap } from '@/lib/map/active-map';
 import { createMapApi, type MapApiClient } from '@/lib/map/api';
 import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
 import { bindDomInput } from '@/lib/map/engine/interaction/dom-input';
-import { MapEngine, type MapDirectory } from '@/lib/map/engine/map-engine';
+import { MapEngine, type MapDirectory, type MapPlayer } from '@/lib/map/engine/map-engine';
 import { LIVE_KIND, LiveChannel, PING_KIND } from '@/lib/map/live/live-channel';
 import { MAP_MODULES } from '@/lib/map/modules';
 import { CommandManager, historyFor } from '@/lib/map/store/commands';
@@ -42,6 +42,8 @@ export interface MapCanvasProps {
   characters: readonly { id: string; name: string }[];
   /** Noms des membres (curseurs, pings). */
   members: readonly { userId: string; name: string | null }[];
+  /** Joueurs et spectateurs, et leurs personnages (vision : vue de chacun, audience du direct). */
+  players?: readonly MapPlayer[];
 }
 
 interface Runtime {
@@ -80,6 +82,7 @@ export default function MapCanvas(props: MapCanvasProps) {
       characters: () => directoryData.current.characters,
       userName: (userId) =>
         directoryData.current.members.find((m) => m.userId === userId)?.name ?? null,
+      players: () => directoryData.current.players ?? [],
     };
     const engineRef: { current: MapEngine | null } = { current: null };
     const live = new LiveChannel({

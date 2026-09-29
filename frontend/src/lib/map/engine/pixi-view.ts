@@ -200,6 +200,10 @@ class PixiView implements EngineView {
     return this.planes.get(id)!;
   }
 
+  get renderer() {
+    return this.app.renderer;
+  }
+
   resize(width: number, height: number) {
     if (this.destroyed) return;
     this.app.renderer.resize(Math.max(1, width), Math.max(1, height));
