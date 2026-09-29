@@ -3,6 +3,7 @@ import {
   Dices,
   History,
   Library,
+  MapPinned,
   MessagesSquare,
   Music,
   NotebookPen,
@@ -185,6 +186,20 @@ export const panelRegistry = [
     ),
   },
   {
+    id: 'scenes',
+    label: 'Scènes',
+    description: 'Les scènes de la campagne : ouvrir, faire venir le groupe, fonds et dossiers',
+    icon: MapPinned,
+    // E comme scènE : ni un panneau (F D C N J H S B M O) ni un outil de la carte (V P T W G L R K)
+    shortcut: { code: 'KeyE', label: 'E' },
+    width: 'narrow',
+    mode: 'side',
+    roles: ['gm'],
+    component: lazy(() =>
+      import('../../map/scenes/scenes-panel').then((m) => ({ default: m.ScenesPanel })),
+    ),
+  },
+  {
     id: 'mj',
     label: 'MJ',
     description: 'Les héros de la table d’un coup d’œil',
@@ -242,4 +257,6 @@ export const TABLE_PARAMS = {
   character: 'personnage',
   /** Chat ouvert sur un chuchotement à ce membre (« Chuchoter » depuis Joueurs). */
   whisper: 'chuchoter',
+  /** Scène ouverte par le MJ à la table (sinon celle du groupe). */
+  scene: 'scene',
 } as const;
