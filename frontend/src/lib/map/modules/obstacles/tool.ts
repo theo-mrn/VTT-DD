@@ -43,6 +43,7 @@ import {
   addVertex,
   deleteSegment,
   deleteVertex,
+  dropDuplicateSegments,
   moveOneVertex,
   moveVertices,
   rectanglePoints,
@@ -498,6 +499,7 @@ export class ObstacleTool implements Tool {
       const dy = k.key === 'ArrowUp' ? -step : k.key === 'ArrowDown' ? step : 0;
       const plan = newPlan(engine);
       translate(plan, ids, { x: dx, y: dy }, true);
+      dropDuplicateSegments(plan, ids.obstacles);
       void this.execute(engine, 'Déplacer', plan);
       this.sub = null;
       return true;
@@ -905,8 +907,9 @@ export class ObstacleTool implements Tool {
     this.ctx.view.setPreviews(null);
     if (!drag || samePoint(drag.target.point, drag.origin)) return;
     const plan = this.vertexPlan(engine, drag);
-    if (drag.target.kind === 'segment')
-      weldPoints(plan, [drag.target.point], new Set(drag.affected.map((a) => a.id)));
+    const moved = drag.affected.map((a) => a.id);
+    if (drag.target.kind === 'segment') weldPoints(plan, [drag.target.point], new Set(moved));
+    dropDuplicateSegments(plan, moved);
     void this.execute(engine, 'Déplacer un sommet', plan);
     if (this.sub?.type === 'vertex' && samePoint(this.sub.point, drag.origin))
       this.sub = { ...this.sub, point: drag.target.point };
@@ -985,8 +988,9 @@ export class ObstacleTool implements Tool {
     if (!drag || (!drag.delta.x && !drag.delta.y)) return;
     const plan = newPlan(engine);
     translate(plan, drag.ids, drag.delta, drag.stretch);
-    if (drag.target?.kind === 'segment')
-      weldPoints(plan, [drag.target.point], new Set(drag.affected.map((a) => a.id)));
+    const moved = drag.affected.map((a) => a.id);
+    if (drag.target?.kind === 'segment') weldPoints(plan, [drag.target.point], new Set(moved));
+    dropDuplicateSegments(plan, moved);
     const n = drag.ids.obstacles.size + drag.ids.rooms.size;
     void this.execute(engine, n > 1 ? `Déplacer ${n} éléments` : 'Déplacer', plan);
   }

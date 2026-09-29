@@ -380,6 +380,30 @@ export function translate(
   moveVertices(plan, moves, stretch ? undefined : ids);
 }
 
+/**
+ * Doublons après un déplacement : un segment de ces murs posé exactement sur le segment d'un
+ * autre mur disparaît (le mur se scinde ou disparaît), comme pour un mur neuf.
+ */
+export function dropDuplicateSegments(plan: EditPlan, ids: Iterable<string>) {
+  for (const id of ids) {
+    const o = plan.obstacle(id);
+    if (!o) continue;
+    const others = new Set<string>();
+    for (const x of plan.obstacles())
+      if (x.id !== id)
+        for (const [a, b] of polylineSegments(x.points)) others.add(segmentKey(a, b));
+    const keep = polylineSegments(o.points).map(([a, b]) => !others.has(segmentKey(a, b)));
+    if (keep.every(Boolean)) continue;
+    const pieces = splitPolyline(o.points, (i) => keep[i]!);
+    if (!pieces.length) {
+      plan.removeObstacle(id);
+      continue;
+    }
+    plan.patchObstacle(id, { points: pieces[0]! });
+    for (const piece of pieces.slice(1)) plan.createObstacle(propsOf(o), piece);
+  }
+}
+
 // ─── Sommets et segments ─────────────────────────────────────────────────────
 
 /** Valide un mur ou une pièce après modification : segments trop courts fondus, dégénéré supprimé. */

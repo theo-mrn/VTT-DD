@@ -5,6 +5,7 @@ import {
   addRoom,
   deleteSegment,
   deleteVertex,
+  dropDuplicateSegments,
   EditPlan,
   loopOf,
   moveOneVertex,
@@ -154,6 +155,19 @@ describe('déplacer', () => {
     const detached = plan(base);
     translate(detached, { obstacles: new Set(['a']), rooms: new Set() }, P(0, 10), false);
     expect(detached.obstacle('b')!.points).toEqual([P(100, 0), P(100, 100)]);
+  });
+});
+
+describe('doublons après un déplacement', () => {
+  it('un segment posé sur un segment existant disparaît du mur déplacé', () => {
+    const p = plan([
+      wall('a', [P(0, 0), P(100, 0)]),
+      wall('b', [P(0, 50), P(100, 50), P(100, 100)]),
+    ]);
+    translate(p, { obstacles: new Set(['b']), rooms: new Set() }, P(0, -50), false);
+    dropDuplicateSegments(p, ['b']);
+    expect(p.obstacle('b')!.points).toEqual([P(100, 0), P(100, 50)]);
+    expect(p.obstacle('a')!.points).toEqual([P(0, 0), P(100, 0)]);
   });
 });
 
