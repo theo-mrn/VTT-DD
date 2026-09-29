@@ -120,7 +120,10 @@ export function placeArmed(
   const ctx = engine.kindContext();
   const count = clampCount(lib.count);
   const center = snapPlacement(world, count, ctx, opts.snap === false ? null : engine.grid());
-  const layerId = engine.targetLayer('tokens');
+  // Le service pose les PNJ dans le calque « Personnages » (le contrat ne prend pas de calque) :
+  // les fantômes y sont aussi, pour ne pas changer de calque à la réponse
+  const layerId =
+    engine.layersBottomUp().find((l) => l.role === 'tokens')?.id ?? engine.targetLayer('tokens');
   const { body, drafts } = planPlacement({
     source,
     count,

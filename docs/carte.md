@@ -656,7 +656,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     par la caméra), ou clic puis clic sur la carte (⇧ : en poser d'autres, Échap : annuler).
     Nombre d'exemplaires (1 à 20, chiffres du clavier), camp (ennemis, alliés), visibilité à la
     pose. Placés en grille serrée autour du point (même calcul que le serveur), le premier au
-    centre d'une case, noms suffixés « Gobelin 2 ».
+    centre d'une case, noms suffixés « Gobelin 2 ». Ils vont dans le calque « Personnages » :
+    `CreateMapNpcs` ne prend pas de calque, le calque actif ne s'applique pas encore à eux.
 - **Instance.**
   - Un seul appel : `POST …/npcs` (§ 12). Chaque exemplaire est un vrai personnage : fiche
     complète copiée du modèle, possédé par le MJ, engagé dans la campagne (camp `enemies` par
