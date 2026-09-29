@@ -64,6 +64,16 @@ import {
   type Viewer,
 } from './common.js';
 import { moveLayerContent } from './arrange.js';
+import type { MemberVision } from './vision-rules.js';
+import {
+  eventTarget,
+  lostSight,
+  notifyVisibilityChanged,
+  objectAudience,
+  viewerVision,
+  visionObject,
+  type Audience,
+} from './vision.js';
 
 export type LayerRow = Record<string, unknown> & {
   id: string;
@@ -378,13 +388,18 @@ export function visibleFor(def: LayerDef, v: Viewer, row: Row, hidden: Set<strin
 export const hiddenFor = (db: Db | Tx, def: LayerDef, mapId: string) =>
   def.layered ? hiddenLayerIds(db, mapId) : Promise.resolve(new Set<string>());
 
-/** Éléments d'une couche sur une carte, filtrés pour l'appelant. */
+/**
+ * Éléments d'une couche sur une carte, filtrés pour l'appelant. Objets, pour un joueur : vus
+ * (`vision.ts` : ligne de vue, pièces, brouillard ; un décor visible n'est pas filtré), et
+ * jamais leur contenu (`items`), que seule la fouille donne.
+ */
 export async function listLayer(
   db: Db | Tx,
   def: LayerDef,
   v: Viewer,
   mapId: string,
   bbox?: [number, number, number, number],
+  vision?: Promise<MemberVision | null>,
 ) {
   const t = table(def);
   const hidden = await hiddenFor(db, def, mapId);
@@ -395,8 +410,19 @@ export async function listLayer(
       and(eq(t.mapId, mapId), bbox && def.geom ? sql`${def.geom} && ${envelope(bbox)}` : undefined),
     )
     .orderBy(...(def.order ?? [t.createdAt, t.id]).map((c) => asc(c)))) as unknown as Row[];
-  return rows.filter((r) => visibleFor(def, v, r, hidden)).map((r) => toApi(def, r));
+  const shown = rows.filter((r) => visibleFor(def, v, r, hidden));
+  if (!isObjects(def) || v.isGm) return shown.map((r) => toApi(def, r));
+  const seen = await (vision ?? viewerVision(db, v, mapId));
+  return shown
+    .filter((r) => seen?.seesObject(visionObject(r)) ?? false)
+    .map((r) => forPlayers(toApi(def, r)));
 }
+
+const isObjects = (def: LayerDef) => def.path === 'objects';
+
+/** Objet tel qu'un joueur le reçoit : sans son contenu (la fouille le donne). */
+export const forPlayers = (api: Input): Input =>
+  Array.isArray(api.items) ? { ...api, items: [] } : api;
 
 async function createItem(
   tx: Tx,
@@ -422,6 +448,10 @@ async function createItem(
     .values(values as never)
     .returning()) as unknown as Row[];
   const api = toApi(def, row!);
+  if (isObjects(def)) {
+    await objectEvent(tx, ctx, v, map, 'created', api, null);
+    return api;
+  }
   const hidden = await hiddenFor(tx, def, map.id);
   await mapEvent(tx, ctx, v, {
     type: `${layerDomain(def)}.created`,
@@ -430,7 +460,75 @@ async function createItem(
     visibility: isPublic(def, row!, hidden) ? 'public' : 'gm_only',
     restricted: inHiddenLayer(def, row!, hidden),
   });
+  await visionChanged(tx, ctx, v, map, def, 'all');
   return api;
+}
+
+/** Couches dont dépend la vue des joueurs, et les champs qui comptent. */
+const VISION_LAYERS: Partial<Record<MapLayerPath, readonly string[] | 'all'>> = {
+  obstacles: ['kind', 'points', 'geom', 'blocksFrom', 'isOpen', 'opacity'],
+  rooms: ['points', 'geom'],
+  'fog-zones': 'all',
+  lights: ['pos', 'radius', 'visible', 'attachedTokenId'],
+};
+
+/** Mur, porte, pièce, zone ou lumière changés : les joueurs relisent (une fois par transaction). */
+async function visionChanged(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  map: MapRow,
+  def: LayerDef,
+  fields: readonly string[] | 'all',
+) {
+  const relevant = VISION_LAYERS[def.path];
+  if (!relevant) return;
+  if (fields !== 'all' && relevant !== 'all' && !fields.some((f) => relevant.includes(f))) return;
+  await notifyVisibilityChanged(tx, ctx, v, map);
+}
+
+/** `*.hidden` : public si tous le voyaient, sinon ciblé. */
+const hiddenTarget = (lost: readonly string[], everyone: readonly string[]) =>
+  lost.length === everyone.length
+    ? ({ visibility: 'public' } as const)
+    : ({ visibility: 'gm_only', toUsers: lost } as const);
+
+/**
+ * Événement d'un objet, routé joueur par joueur (docs/carte.md § 9, Serveur) : ceux qui le
+ * voient le reçoivent, sans son contenu ; le contenu (`items`) ne part qu'aux MJ, dans un
+ * événement à part de même version (le client garde le premier). Ceux qui le voyaient
+ * (`before`) et plus maintenant reçoivent `map_object.hidden`.
+ */
+async function objectEvent(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  map: MapRow,
+  action: 'created' | 'updated',
+  api: Input,
+  before: Audience | null,
+) {
+  const type = `map_object.${action}`;
+  const aggregate = { type: 'map_object', id: api.id as string };
+  const after = await objectAudience(tx, map, api);
+  const withItems = Array.isArray(api.items) && api.items.length > 0;
+  if (withItems)
+    await mapEvent(tx, ctx, v, { type, aggregate, payload: api, visibility: 'gm_only' });
+  if (!withItems || after.users.length)
+    await mapEvent(tx, ctx, v, {
+      type,
+      aggregate,
+      payload: forPlayers(api),
+      ...eventTarget(after),
+    });
+  const lost = before ? lostSight(before, after) : [];
+  if (lost.length)
+    await mapEvent(tx, ctx, v, {
+      type: 'map_object.hidden',
+      aggregate,
+      payload: { id: api.id, mapId: map.id },
+      ...hiddenTarget(lost, after.everyone),
+    });
 }
 
 export async function lockItem(tx: Tx, def: LayerDef, v: Viewer, mapId: string, itemId: string) {
@@ -441,6 +539,11 @@ export async function lockItem(tx: Tx, def: LayerDef, v: Viewer, mapId: string, 
     .where(and(eq(t.id, itemId), eq(t.mapId, mapId)))
     .for('update')) as unknown as Row[];
   if (!row || !visibleFor(def, v, row, await hiddenFor(tx, def, mapId))) throw notFound(def.label);
+  // Objet hors de la vue d'un joueur : introuvable pour lui (fouille comprise)
+  if (isObjects(def) && !v.isGm) {
+    const seen = await viewerVision(tx, v, mapId);
+    if (!seen?.seesObject(visionObject(row))) throw notFound(def.label);
+  }
   return row;
 }
 
@@ -459,7 +562,9 @@ function requireEdit(def: LayerDef, v: Viewer, row: Row, patch?: Input) {
 
 /**
  * Écrit la nouvelle version d'un élément verrouillé (`before`) et ses événements :
- * `<domaine>.updated`, et `<domaine>.hidden` public s'il vient d'être caché.
+ * `<domaine>.updated`, et `<domaine>.hidden` public s'il vient d'être caché ; un objet est
+ * routé joueur par joueur (`objectEvent`) ; un mur, une porte, une pièce, une zone ou une
+ * lumière fait relire les joueurs (`map.visibility_changed`).
  */
 export async function writeItem(
   tx: Tx,
@@ -471,12 +576,18 @@ export async function writeItem(
   columns: Input,
 ) {
   const t = table(def);
+  // Objet : qui le voyait avant (ceux qui ne le voient plus reçoivent `map_object.hidden`)
+  const seenBefore = isObjects(def) ? await objectAudience(tx, map, toApi(def, before)) : null;
   const [after] = (await tx
     .update(t)
     .set({ ...columns, version: sql`${t.version} + 1`, updatedAt: sql`now()` } as never)
     .where(eq(t.id, before.id))
     .returning()) as unknown as Row[];
   const api = toApi(def, after!);
+  if (isObjects(def)) {
+    await objectEvent(tx, ctx, v, map, 'updated', api, seenBefore ?? null);
+    return api;
+  }
   const hidden = await hiddenFor(tx, def, map.id);
   const visible = isPublic(def, after!, hidden);
   await mapEvent(tx, ctx, v, {
@@ -493,6 +604,7 @@ export async function writeItem(
       aggregate: { type: layerDomain(def), id: before.id },
       payload: { id: before.id, mapId: map.id },
     });
+  await visionChanged(tx, ctx, v, map, def, Object.keys(columns));
   return api;
 }
 
@@ -528,13 +640,18 @@ async function deleteItem(
   await def.beforeDelete?.(tx, ctx, v, map, before, o);
   const t = table(def);
   const hidden = await hiddenFor(tx, def, map.id);
+  // Objet : ceux qui le voyaient le retirent
+  const seen = isObjects(def) ? await objectAudience(tx, map, toApi(def, before)) : null;
   await tx.delete(t).where(eq(t.id, itemId));
   await mapEvent(tx, ctx, v, {
     type: `${layerDomain(def)}.deleted`,
     aggregate: { type: layerDomain(def), id: itemId },
     payload: { id: itemId, mapId: map.id },
-    visibility: isPublic(def, before, hidden) ? 'public' : 'gm_only',
+    ...(seen
+      ? eventTarget(seen)
+      : { visibility: isPublic(def, before, hidden) ? ('public' as const) : ('gm_only' as const) }),
   });
+  await visionChanged(tx, ctx, v, map, def, 'all');
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────

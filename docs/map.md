@@ -82,57 +82,85 @@ Chaque ligne a un `version` (verrou optimiste facultatif, `409 version_conflict`
 
 ## Visibilité (côté serveur)
 
-Le MJ voit tout. Pour un joueur ou un spectateur, le serveur reprend
-`utils/visibility-checks.ts` avant de répondre (remplacé par `@vtt/vision` au lot 2,
-[carte.md](carte.md) § 9) :
+Le MJ voit tout. Pour un joueur ou un spectateur, le service filtre avec `@vtt/vision`, le même
+paquet que le rendu du navigateur ([carte.md](carte.md) § 9 ; règles :
+`backend/campaign/src/modules/maps/vision-rules.ts`, miroir exact de
+`frontend/src/lib/map/modules/vision/rules.ts`) :
 
 - calques masqués aux joueurs (`visible_to_players = false`) : ni le calque ni son contenu
   (tokens, objets, dessins, textes) ne sont envoyés, en REST, sur le bus ou au rejeu ; exception :
   les tokens de ses propres personnages ;
 - tokens `invisible` : jamais envoyés ; `custom` : seulement aux joueurs dont un personnage est
-  dans `visible_to` ; personnages joueurs et `ally` : toujours ;
-- ligne de vue (si l'affichage des obstacles est actif) : caché si le segment entre chacun de mes
-  tokens et la cible coupe un mur opaque (`opacity` 1), une porte fermée, ou un mur à sens unique
-  vu depuis son côté bloquant (premier segment) ; fenêtres et murs translucides laissent voir ;
-- éclairé par une lumière allumée (`ST_DWithin`, rayon en unités ; une lumière attachée est là
-  où est son token) : visible ;
-- dans le brouillard (ou `hidden`) : visible seulement dans le rayon de vision d'un de mes tokens
-  ou d'un allié (`ST_DWithin`). Un point est sous le brouillard si la dernière zone qui le couvre
-  (`seq`) est `fog`, ou, sans zone, si `maps.fog_full` ;
-- objets `hidden` et lumières, portails éteints (`visible = false`) : MJ seulement ;
+  dans `visible_to` ; personnages joueurs, ses propres tokens et `ally` : toujours ;
+- observateurs d'un joueur : ses tokens (possédés ou incarnés) et les `ally` hors calque masqué,
+  rayon `vision_radius` (déjà triplé par « Vision augmentée ») ;
+- un PNJ `visible` est envoyé s'il est vu : `Vu(joueur) = ⋃ Vu(O)`, ligne de vue (murs opaques,
+  portes fermées, sens unique vus de leur côté bloquant, murs soudés sans fuite), pièces fermées
+  (de dedans on ne voit pas dehors, de dehors pas dedans), brouillard (dans une zone, seulement
+  dans un rayon de vision ou éclairé ; les zones s'appliquent par `seq`, en partant de
+  `maps.fog_full`), lumières (rayon × `pixels_per_unit`, coupé par les murs ; une lumière
+  attachée est là où est son token). Un token est vu si l'un de ses 9 points (centre et 8 points
+  à 0,7 × rayon, rayon = `pixels_per_unit × scale × token_scale / 2`) l'est ;
+- un PNJ `hidden` n'est vu que dans un rayon de vision ou une zone éclairée (même formule, toute
+  la carte sous le brouillard) ;
+- objets : `hidden` jamais, `custom` pour les joueurs visés, `decor` toujours (l'obscurité le
+  couvre), les autres s'ils sont vus (centre, coins et milieux des bords du rectangle tourné) ;
+  leur contenu (`items`) n'est **jamais** envoyé à un joueur (`[]`), seule la fouille le donne ;
+- sans observateur sur la carte (spectateur, personnage ailleurs) : vue « d'en haut », hors
+  brouillard et hors pièces fermées, plus les zones éclairées, sans ombre de mur ;
+- réglage d'affichage `obstacles: false` (MJ) : murs et pièces sans effet, comme avant ;
+- lumières et portails éteints (`visible = false`) : MJ seulement ;
 - cartes : celles `visible_to_players` et celle où se trouve un de mes personnages.
 
-Écart assumé jusqu'au lot 2 : les pièces fermées ne sont pas encore appliquées côté serveur, et
-le contenu d'un objet visible (`items`) est lu par les joueurs qui voient l'objet (« Fouiller »
-n'est qu'un geste d'interface, la prise est vérifiée par le serveur).
+Scène préparée en mémoire par carte (LRU de 64 cartes) sous une empreinte relue à chaque appel :
+version de la carte et condensé des `(id, version)` des obstacles, pièces et zones. Toute
+écriture, d'où qu'elle vienne (autre réplique, import, mise à l'échelle), change l'empreinte ;
+une scène lue dans une transaction d'écriture sert sans être gardée. Lumières, tokens, calques
+masqués et échelle sont relus à chaque appel. Le chargement garde le filtre `bbox` sur les index
+GiST.
 
 ## Événements (outbox, sujet `vtt.<campaignId>.<domaine>.<action>`)
 
-| Domaine                                                                         | Actions                                               | Visibilité                                                                                    |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `map`                                                                           | `created`, `updated`, `deleted`, `hidden`, `rescaled` | `public` si `visible_to_players`, sinon `gm_only` ; `imported` (import) : `gm_only`           |
-| `map_group`                                                                     | `created`, `updated`, `deleted`                       | `gm_only`                                                                                     |
-| `map_settings`                                                                  | `updated`                                             | `public`                                                                                      |
-| `map_layer`                                                                     | `created`, `updated`, `deleted`, `hidden`             | `public` si visible des joueurs, sinon `gm_only` ; masqué : `hidden` public                   |
-| `token`                                                                         | `created`, `updated`, `moved`, `deleted`, `hidden`    | `public` : joueur, `ally`, ou `visible` hors brouillard, hors calque masqué ; sinon `gm_only` |
-| `map_object`, `map_light`, `map_portal`                                         | `created`, `updated`, `deleted`, `hidden`             | `gm_only` pour les éléments cachés (`hidden`, `custom`, éteints, calque masqué)               |
-| `map_object`                                                                    | `searched`, `looted`                                  | `gm_only` (le MJ est prévenu d'une fouille et d'une prise)                                    |
-| `map_obstacle`, `map_room`, `map_fog_zone`, `map_music_zone`, `map_measurement` | `created`, `updated`, `deleted`                       | `public`                                                                                      |
-| `map_note`                                                                      | `created`, `updated`, `deleted`, `hidden`             | `public`, sauf dans un calque masqué                                                          |
-| `map_drawing`                                                                   | `created`, `updated`, `deleted`, `cleared`, `hidden`  | `public`, sauf dans un calque masqué                                                          |
+| Domaine                                                                         | Actions                                               | Visibilité                                                                                             |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `map`                                                                           | `created`, `updated`, `deleted`, `hidden`, `rescaled` | `public` si `visible_to_players`, sinon `gm_only` ; `imported` (import) : `gm_only`                    |
+| `map_group`                                                                     | `created`, `updated`, `deleted`                       | `gm_only`                                                                                              |
+| `map_settings`                                                                  | `updated`                                             | `public`                                                                                               |
+| `map_layer`                                                                     | `created`, `updated`, `deleted`, `hidden`             | `public` si visible des joueurs, sinon `gm_only` ; masqué : `hidden` public                            |
+| `map`                                                                           | `visibility_changed`                                  | ciblé : `public` si tous les joueurs, sinon `gm_only` + `visibleToUsers`                               |
+| `token`                                                                         | `created`, `updated`, `moved`, `deleted`, `hidden`    | routés joueur par joueur (ci-dessous) : `public` si tous le voient, sinon `gm_only` + `visibleToUsers` |
+| `map_object`                                                                    | `created`, `updated`, `deleted`, `hidden`             | routés joueur par joueur, sans contenu ; le contenu part aux MJ seuls                                  |
+| `map_light`, `map_portal`                                                       | `created`, `updated`, `deleted`, `hidden`             | `gm_only` pour les éléments cachés (éteints)                                                           |
+| `map_object`                                                                    | `searched`, `looted`                                  | `gm_only` (le MJ est prévenu d'une fouille et d'une prise)                                             |
+| `map_obstacle`, `map_room`, `map_fog_zone`, `map_music_zone`, `map_measurement` | `created`, `updated`, `deleted`                       | `public`                                                                                               |
+| `map_note`                                                                      | `created`, `updated`, `deleted`, `hidden`             | `public`, sauf dans un calque masqué                                                                   |
+| `map_drawing`                                                                   | `created`, `updated`, `deleted`, `cleared`, `hidden`  | `public`, sauf dans un calque masqué                                                                   |
 
 - Charges : `MapEventPayloads` du contrat (`packages/contracts/src/map.ts`).
 - `token.moved` : un seul événement par déplacement (fin de drag, voyage entre scènes),
-  `{ tokenId, characterId, from: { mapId, x, y } | null, to: { mapId, x, y } }` ; `public` si le
-  token est visible au départ ou à l'arrivée.
+  `{ tokenId, characterId, from: { mapId, x, y } | null, to: { mapId, x, y } }`.
+- **Routage joueur par joueur** ([carte.md](carte.md) § 9, Serveur) de `token.created`,
+  `token.updated`, `token.moved`, `token.deleted` et `map_object.*` : la visibilité est calculée
+  pour chaque membre non MJ avant et après l'écriture (`vision.ts`). Ceux qui voient l'élément
+  après reçoivent l'événement complet (`public` s'ils le voient tous, sinon `gm_only` avec
+  `visibleToUsers`) ; ceux qui le voyaient avant et plus après reçoivent `<domaine>.hidden
+{ id, mapId }` (public s'ils le perdent tous). Un token qui change de carte : `token.hidden`
+  de l'ancien token à ceux qui le voyaient. Un joueur qui reçoit `token.moved` d'un token
+  inconnu relit ses tokens.
+- **Contenu des objets** : un objet avec des `items` produit deux événements de même version :
+  l'un complet, `gm_only` sans `visibleToUsers` (les MJ seuls), l'autre avec `items: []` pour ceux
+  qui le voient (le client du MJ garde le premier, version égale). Sans contenu, un seul.
+- **`map.visibility_changed { mapId }`** : un mur, une porte, une pièce, une zone de brouillard
+  ou une lumière change (champs qui comptent pour la vue), `fogFull`, la taille ou l'occlusion de
+  la carte changent, un observateur ou une torche bouge (ses joueurs : propriétaire et
+  incarnateur, ou tous pour un allié ou une torche) : ces joueurs relisent tokens et objets. Au
+  plus un par joueur, par carte et par transaction.
 - Un élément qui devient caché (visibilité, calque masqué) produit l'événement complet en
   `gm_only` **et** un `<domaine>.hidden` public `{ id, mapId }` pour que les clients joueurs le
   retirent. Un calque masqué produit `map_layer.hidden` : les joueurs retirent aussi son contenu.
-- `custom` : événement `gm_only`, `visibleTo` (ids de personnages) dans le payload, et
-  `visibleToUsers` (propriétaires et incarnateurs de ces personnages, ajoutés par `mapEvent`)
-  que realtime utilise pour envoyer l'événement à ces joueurs en plus des MJ ; jamais pour un
-  élément d'un calque masqué ni pour une autre visibilité ; les tokens `hidden` restent
-  `gm_only` : les clients joueurs relisent `GET …/tokens` (filtré) quand un de leurs tokens bouge.
+- `custom` : les joueurs visés sont ceux dont un personnage est dans `visibleTo` (propriétaires et
+  incarnateurs) ; realtime suit `visibleToUsers` pour envoyer un événement `gm_only` à ces
+  joueurs en plus des MJ ; jamais pour un élément d'un calque masqué (sauf ses propres tokens).
 - `map_drawing.cleared` : `{ mapId, ids }` (effacement groupé) ; `map_settings.updated` (réglages
   complets) est aussi émis quand le groupe change de scène (`partyMapId`).
 - `map.rescaled` : `{ mapId, sx, sy, version }`, après `map.updated` : les clients relisent la

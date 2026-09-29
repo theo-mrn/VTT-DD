@@ -7,7 +7,7 @@
  *   PATCH  /v1/campaigns/:id/maps/:mapId                        modifier (MJ)
  *   DELETE /v1/campaigns/:id/maps/:mapId                        supprimer (MJ, aucun joueur dessus)
  *   POST   /v1/campaigns/:id/maps/:mapId/rescale                mettre à l'échelle toute la géométrie (MJ)
- *   GET    /v1/campaigns/:id/maps/:mapId/line-of-sight?from=&to= segment coupé par un obstacle ?
+ *   GET    /v1/campaigns/:id/maps/:mapId/line-of-sight?from=&to= segment coupé (@vtt/vision) ?
  *   GET    /v1/campaigns/:id/maps/:mapId/at?x=&y=               zones sonores, portails, lumières sous un point
  *   GET    /v1/campaigns/:id/map-settings                       réglages de carte de la campagne
  *   PATCH  /v1/campaigns/:id/map-settings                       modifier (MJ)
@@ -54,7 +54,6 @@ import {
   requestContext,
   requireGm,
   settingsApi,
-  sqlBlocksSight,
   sqlPoint,
   sqlUuids,
   versionConflict,
@@ -73,6 +72,8 @@ import {
 } from './layers.js';
 import { rescaleMap } from './rescale.js';
 import { listTokens } from './tokens.js';
+import { lineOfSight, notifyVisibilityChanged, viewerVision } from './vision.js';
+import { occlusionOn } from './vision-rules.js';
 
 export const mapApi = (m: MapRow): MapScene => ({
   id: m.id,
@@ -140,9 +141,11 @@ export async function mapSnapshot(
   map: MapRow,
   bbox?: [number, number, number, number],
 ) {
+  // Une seule lecture de la visibilité pour tokens et objets (joueur)
+  const vision = viewerVision(db, v, map.id);
   const [tokens, ...layers] = await Promise.all([
-    listTokens(db, v, map.id, bbox),
-    ...LAYERS.map((def) => listLayer(db, def, v, map.id, bbox)),
+    listTokens(db, v, map.id, bbox, vision),
+    ...LAYERS.map((def) => listLayer(db, def, v, map.id, bbox, vision)),
   ]);
   return {
     map: mapApi(map),
@@ -260,6 +263,14 @@ export const registerMaps: Module = async (app, deps) => {
               aggregate: { type: 'map', id: before.id },
               payload: { id: before.id },
             });
+          // Brouillard, taille ou occlusion changés : la vue des joueurs aussi
+          if (
+            before.fogFull !== after!.fogFull ||
+            before.width !== after!.width ||
+            before.height !== after!.height ||
+            occlusionOn(before.layers) !== occlusionOn(after!.layers)
+          )
+            await notifyVisibilityChanged(tx, ctx, v, after!);
           return after!;
         })
         .catch(mapWriteError);
@@ -360,12 +371,7 @@ export const registerMaps: Module = async (app, deps) => {
       const { userId } = requestContext(req);
       const v = await viewerOf(db, req.params.id, userId);
       const map = await loadMap(db, v, req.params.mapId);
-      const from = sqlPoint(req.query.from);
-      const { rows: blocking } = await db.execute<{ id: string }>(sql`
-        SELECT o.id FROM campaign.map_obstacles o
-         WHERE o.map_id = ${map.id} AND ${sqlBlocksSight(from, sqlPoint(req.query.to))}
-         ORDER BY o.id`);
-      return { blocked: blocking.length > 0, obstacleIds: blocking.map((o) => o.id) };
+      return lineOfSight(db, map.id, req.query.from, req.query.to);
     },
   );
 

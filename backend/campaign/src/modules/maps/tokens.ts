@@ -27,13 +27,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
 import type { EventContext, Tx } from '../../db/outbox.js';
-import {
-  campaignCharacters,
-  mapLayers,
-  mapSettings,
-  mapTokens,
-  type MapPoint,
-} from '../../db/schema.js';
+import { campaignCharacters, mapSettings, mapTokens, type MapPoint } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import {
   Bbox,
@@ -48,15 +42,22 @@ import {
   requireGm,
   mapSettingsOf,
   requireWriter,
-  sqlBlocksSight,
-  sqlInFog,
   sqlPoint,
-  sqlUuids,
   versionConflict,
   viewerOf,
   type MapRow,
   type Viewer,
 } from './common.js';
+import {
+  eventTarget,
+  lostSight,
+  notifyVisibilityChanged,
+  observersUsers,
+  tokenAudience,
+  viewerVision,
+  type Audience,
+} from './vision.js';
+import type { MemberVision } from './vision-rules.js';
 
 export type TokenRow = typeof mapTokens.$inferSelect;
 
@@ -90,13 +91,11 @@ const PLAYER_FIELDS = new Set(['pos', 'visionBoost', 'version']);
 /** Vision augmentée (ancienne carte) : rayon triplé à l'activation, divisé par 3 ensuite. */
 const BOOST = 3;
 
-// ─── Visibilité côté serveur (reprise de utils/visibility-checks.ts) ────────
+// ─── Visibilité côté serveur (@vtt/vision, docs/carte.md § 9) ───────────────
 
 /**
- * Tokens présents sur la carte que l'appelant voit ; `null` pour le MJ (tout). Règles de
- * l'ancienne carte (utils/visibility-checks.ts), sur les zones de brouillard, la
- * transparence des murs et le côté bloquant des murs à sens unique. Remplacé par
- * @vtt/vision au lot 2 (docs/carte.md § 9).
+ * Tokens présents sur la carte que l'appelant voit ; `null` pour le MJ (tout). Règles :
+ * `vision-rules.ts` (ligne de vue, pièces fermées, brouillard, lumières, calques masqués).
  */
 export async function visibleTokenIds(
   db: Db | Tx,
@@ -104,128 +103,113 @@ export async function visibleTokenIds(
   mapId: string,
 ): Promise<Set<string> | null> {
   if (v.isGm) return null;
-  const mine = sqlUuids(v.characterIds);
-  const { rows } = await db.execute<{ id: string }>(sql`
-    WITH m AS (
-      SELECT coalesce((layers->>'obstacles')::boolean, true) AS walls
-        FROM campaign.maps WHERE id = ${mapId}
-    ),
-    t AS (
-      -- contenu d'un calque masqué aux joueurs : jamais envoyé (sauf ses propres tokens)
-      SELECT t.id, t.pos, t.visibility, t.visible_to, t.vision_radius,
-             cc.side = 'players' AS player, t.character_id = ANY(${mine}) AS mine
-        FROM campaign.map_tokens t
-        JOIN campaign.campaign_characters cc
-          ON cc.campaign_id = t.campaign_id AND cc.character_id = t.character_id
-        JOIN campaign.map_layers ly ON ly.id = t.layer_id
-       WHERE t.map_id = ${mapId} AND t.present
-         AND (ly.visible_to_players OR t.character_id = ANY(${mine}))
-    ),
-    eyes AS (SELECT pos, vision_radius, mine FROM t WHERE mine OR visibility = 'ally'),
-    lit AS (
-      -- une lumière attachée à un token est là où il est
-      SELECT coalesce(tk.pos, l.pos) AS pos, l.radius * coalesce(s.pixels_per_unit, 50) AS r
-        FROM campaign.map_lights l
-        LEFT JOIN campaign.map_tokens tk ON tk.id = l.attached_token_id AND tk.present
-        LEFT JOIN campaign.map_settings s ON s.campaign_id = l.campaign_id
-       WHERE l.map_id = ${mapId} AND l.visible
-    )
-    SELECT t.id FROM t, m
-     WHERE t.visibility <> 'invisible' AND (
-       t.player OR t.mine OR t.visibility = 'ally'
-       OR (t.visibility = 'custom' AND t.visible_to && ${mine})
-       OR (t.visibility IN ('visible', 'hidden')
-         -- ligne de vue : cachée si chacun de mes tokens la voit coupée par un obstacle
-         AND NOT (m.walls AND EXISTS (SELECT 1 FROM eyes WHERE eyes.mine) AND NOT EXISTS (
-           SELECT 1 FROM eyes e WHERE e.mine AND NOT EXISTS (
-             SELECT 1 FROM campaign.map_obstacles o
-              WHERE o.map_id = ${mapId} AND ${sqlBlocksSight(sql`e.pos`, sql`t.pos`)})))
-         AND (
-           -- éclairé par une lumière allumée
-           EXISTS (SELECT 1 FROM lit WHERE ST_DWithin(lit.pos, t.pos, lit.r))
-           -- hors du brouillard
-           OR (t.visibility = 'visible' AND NOT ${sqlInFog(mapId, sql`t.pos`)})
-           -- dans le rayon de vision d'un de mes tokens ou d'un allié
-           OR EXISTS (SELECT 1 FROM eyes e WHERE ST_DWithin(e.pos, t.pos, e.vision_radius))
-         ))
-     )`);
-  return new Set(rows.map((r) => r.id));
+  const vision = await viewerVision(db, v, mapId);
+  return new Set(vision ? vision.visibleTokens().map((t) => t.id) : []);
 }
+
+/** Le token est-il vu de tous les membres non MJ (événement `public`) ? */
+export async function isPublicToken(tx: Db | Tx, t: TokenRow) {
+  return (await tokenAudience(tx, { id: t.mapId, campaignId: t.campaignId }, t.id)).public;
+}
+
+/** Champs du token dont dépend la vue de ses joueurs (observateur). */
+const VISION_FIELDS = ['visionRadius', 'visionBoost', 'visibility', 'layerId'];
 
 /**
- * Un token est diffusé à tous (événement `public`) s'il est d'un personnage
- * joueur, allié, ou visible hors du brouillard ; sinon au MJ seulement.
+ * Joueurs dont la vue change quand ce token bouge ou change (observateur, torche) : ils sont
+ * prévenus de relire (`map.visibility_changed`).
  */
-export async function isPublicToken(tx: Db | Tx, t: TokenRow) {
-  if (await inHiddenLayer(tx, t)) return false;
-  if (t.visibility === 'ally') return true;
-  if (t.visibility === 'invisible' || t.visibility === 'custom') return false;
-  // visible ou hidden : personnage joueur, ou visible hors du brouillard
-  const { rows } = await tx.execute<{ public: boolean }>(sql`
-    SELECT cc.side = 'players'
-           OR (${t.visibility} = 'visible' AND NOT ${sqlInFog(t.mapId, sqlPoint(t.pos))}) AS public
-      FROM campaign.campaign_characters cc
-     WHERE cc.campaign_id = ${t.campaignId} AND cc.character_id = ${t.characterId}`);
-  return rows[0]?.public ?? false;
-}
-
-/** Token d'un calque masqué aux joueurs : ses événements sont réservés aux MJ. */
-async function inHiddenLayer(tx: Db | Tx, t: Pick<TokenRow, 'layerId'>) {
-  const [layer] = await tx
-    .select({ visible: mapLayers.visibleToPlayers })
-    .from(mapLayers)
-    .where(eq(mapLayers.id, t.layerId));
-  return layer ? !layer.visible : false;
+async function notifyObservers(
+  tx: Tx,
+  ctx: EventContext,
+  v: Viewer,
+  map: { id: string; campaignId: string },
+  tokens: readonly Pick<TokenRow, 'id' | 'characterId' | 'visibility'>[],
+) {
+  const users = new Set<string>();
+  for (const t of tokens) {
+    const who = await observersUsers(tx, map, t);
+    if (who === 'all') return notifyVisibilityChanged(tx, ctx, v, map);
+    for (const u of who ?? []) users.add(u);
+  }
+  if (users.size) await notifyVisibilityChanged(tx, ctx, v, map, [...users]);
 }
 
 // ─── Opérations ──────────────────────────────────────────────────────────────
 
+/**
+ * `token.created` ou `token.updated`, routé joueur par joueur : ceux qui voient le token le
+ * reçoivent (public s'ils le voient tous) ; ceux qui le voyaient (`before`) et ne le voient
+ * plus reçoivent `token.hidden`.
+ */
 export async function tokenEvent(
   tx: Tx,
   ctx: EventContext,
   v: Viewer,
   t: TokenRow,
   type: 'token.created' | 'token.updated',
-  wasPublic?: boolean,
+  before?: Audience | null,
+  known?: Audience,
 ) {
-  const visible = await isPublicToken(tx, t);
+  const map = { id: t.mapId, campaignId: t.campaignId };
+  const after = known ?? (await tokenAudience(tx, map, t.id));
   await mapEvent(tx, ctx, v, {
     type,
     aggregate: { type: 'token', id: t.id },
     payload: tokenApi(t),
-    visibility: visible ? 'public' : 'gm_only',
-    restricted: await inHiddenLayer(tx, t),
+    ...eventTarget(after),
   });
-  if (wasPublic && !visible)
+  const lost = before ? lostSight(before, after) : [];
+  if (lost.length)
     await mapEvent(tx, ctx, v, {
       type: 'token.hidden',
       aggregate: { type: 'token', id: t.id },
       payload: { id: t.id, mapId: t.mapId },
+      visibility: 'gm_only',
+      toUsers: lost,
     });
-  return visible;
+  return after;
 }
 
+/**
+ * Un seul `token.moved` par déplacement, routé joueur par joueur : ceux qui voient le token
+ * à l'arrivée le reçoivent ; ceux qui le voyaient au départ (`before`, sur l'ancienne carte
+ * s'il en change) et plus à l'arrivée reçoivent `token.hidden` (l'ancien token).
+ */
 async function movedEvent(
   tx: Tx,
   ctx: EventContext,
   v: Viewer,
-  before: { mapId: string; pos: MapPoint } | null,
+  before: { token: TokenRow; audience: Audience } | null,
   after: TokenRow,
+  known?: Audience,
 ) {
-  const wasPublic = before ? await isPublicToken(tx, { ...after, ...before }) : false;
-  const visible = await isPublicToken(tx, after);
+  const audience =
+    known ?? (await tokenAudience(tx, { id: after.mapId, campaignId: after.campaignId }, after.id));
   await mapEvent(tx, ctx, v, {
     type: 'token.moved',
     aggregate: { type: 'token', id: after.id },
     payload: {
       tokenId: after.id,
       characterId: after.characterId,
-      from: before ? { mapId: before.mapId, ...before.pos } : null,
+      from: before ? { mapId: before.token.mapId, ...before.token.pos } : null,
       to: { mapId: after.mapId, ...after.pos },
     },
-    // Visible au départ ou à l'arrivée : les joueurs le voient bouger (entrer ou sortir du brouillard)
-    visibility: visible || wasPublic ? 'public' : 'gm_only',
+    ...eventTarget(audience),
   });
+  if (before) {
+    const sameToken = before.token.id === after.id;
+    const lost = sameToken ? lostSight(before.audience, audience) : before.audience.users;
+    if (lost.length)
+      await mapEvent(tx, ctx, v, {
+        type: 'token.hidden',
+        aggregate: { type: 'token', id: before.token.id },
+        payload: { id: before.token.id, mapId: before.token.mapId },
+        visibility: 'gm_only',
+        toUsers: lost,
+      });
+  }
+  return audience;
 }
 
 export async function lockToken(tx: Tx, v: Viewer, mapId: string, tokenId: string) {
@@ -235,7 +219,9 @@ export async function lockToken(tx: Tx, v: Viewer, mapId: string, tokenId: strin
     .where(and(eq(mapTokens.id, tokenId), eq(mapTokens.mapId, mapId), eq(mapTokens.present, true)))
     .for('update');
   if (!t) throw notFound('Token');
-  if (!v.isGm) {
+  // Son propre token (sauf invisible) : toujours vu, pas besoin de la scène
+  const own = v.characterIds.includes(t.characterId) && t.visibility !== 'invisible';
+  if (!v.isGm && !own) {
     const visible = await visibleTokenIds(tx, v, mapId);
     if (!visible!.has(t.id)) throw notFound('Token');
   }
@@ -270,7 +256,11 @@ export async function updateToken(
     );
   if (version !== undefined && version !== before.version) throw versionConflict();
   if (changes.layerId !== undefined) await checkLayer(tx, v, mapId, changes.layerId);
-  const wasPublic = Object.keys(changes).length ? await isPublicToken(tx, before) : false;
+  const moved = !!pos && (pos.x !== before.pos.x || pos.y !== before.pos.y);
+  const changed = Object.keys(changes).length > 0;
+  const map = { id: mapId, campaignId: before.campaignId };
+  // Qui voyait le token avant : ceux qui ne le voient plus reçoivent `token.hidden`
+  const seenBefore = moved || changed ? await tokenAudience(tx, map, before.id) : null;
   const [after] = await tx
     .update(mapTokens)
     .set({
@@ -281,9 +271,14 @@ export async function updateToken(
     })
     .where(eq(mapTokens.id, tokenId))
     .returning();
-  if (pos && (pos.x !== before.pos.x || pos.y !== before.pos.y))
-    await movedEvent(tx, ctx, v, { mapId: before.mapId, pos: before.pos }, after!);
-  if (Object.keys(changes).length) await tokenEvent(tx, ctx, v, after!, 'token.updated', wasPublic);
+  let seenAfter: Audience | undefined;
+  if (moved)
+    seenAfter = await movedEvent(tx, ctx, v, { token: before, audience: seenBefore! }, after!);
+  if (changed)
+    await tokenEvent(tx, ctx, v, after!, 'token.updated', moved ? null : seenBefore, seenAfter);
+  // Observateur ou torche qui bouge, rayon ou visibilité changés : ses joueurs relisent
+  if (moved || VISION_FIELDS.some((f) => f in changes))
+    await notifyObservers(tx, ctx, v, map, [before, after!]);
   return after!;
 }
 
@@ -342,6 +337,10 @@ async function travel(
     .where(and(eq(mapTokens.mapId, map.id), eq(mapTokens.characterId, characterId)))
     .for('update');
   const to = pos ?? map.spawn ?? remembered?.pos ?? { x: 0, y: 0 };
+  // Qui voyait le personnage là où il était
+  const seenBefore = current
+    ? await tokenAudience(tx, { id: current.mapId, campaignId: current.campaignId }, current.id)
+    : null;
   if (current && current.mapId !== map.id)
     await tx
       .update(mapTokens)
@@ -386,9 +385,17 @@ async function travel(
       })
       .returning()) as [TokenRow];
   }
-  const from = current ? { mapId: current.mapId, pos: current.pos } : null;
-  if (!from || from.mapId !== after.mapId || from.pos.x !== to.x || from.pos.y !== to.y)
-    await movedEvent(tx, ctx, v, from, after);
+  if (
+    !current ||
+    current.mapId !== after.mapId ||
+    current.pos.x !== to.x ||
+    current.pos.y !== to.y
+  ) {
+    await movedEvent(tx, ctx, v, current ? { token: current, audience: seenBefore! } : null, after);
+    const places = [map.id, ...(current && current.mapId !== map.id ? [current.mapId] : [])];
+    for (const id of places)
+      await notifyObservers(tx, ctx, v, { id, campaignId: map.campaignId }, [after]);
+  }
   return after;
 }
 
@@ -645,6 +652,7 @@ export async function listTokens(
   v: Viewer,
   mapId: string,
   bbox?: [number, number, number, number],
+  vision?: Promise<MemberVision | null>,
 ) {
   const rows = await db
     .select()
@@ -657,6 +665,8 @@ export async function listTokens(
       ),
     )
     .orderBy(asc(mapTokens.createdAt), asc(mapTokens.id));
-  const visible = await visibleTokenIds(db, v, mapId);
-  return rows.filter((t) => !visible || visible.has(t.id)).map(tokenApi);
+  if (v.isGm) return rows.map(tokenApi);
+  const seen = await (vision ?? viewerVision(db, v, mapId));
+  const visible = new Set(seen ? seen.visibleTokens().map((t) => t.id) : []);
+  return rows.filter((t) => visible.has(t.id)).map(tokenApi);
 }

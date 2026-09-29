@@ -93,7 +93,12 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 - `visibility` : `visible` (défaut), `hidden` (vu seulement dans un rayon de vision ou éclairé),
   `ally` (toujours vu, et voit pour les joueurs), `custom` (vu des joueurs dont un personnage est
   dans `visibleTo`), `invisible` (MJ seulement). Les personnages joueurs sont toujours vus.
-- `visionRadius` en pixels (défaut 100) ; `audio` : `{ url, radius, volume, loop?, name? }` ou
+- Filtrage pour un joueur (`@vtt/vision`, [carte.md](carte.md) § 9) : un PNJ `visible` ou
+  `hidden` n'est envoyé que s'il est vu (ligne de vue, pièces fermées, brouillard, lumières ; un
+  de ses 9 points d'échantillon suffit) ; jamais le contenu d'un calque masqué, sauf ses propres
+  tokens. Un token inconnu du joueur répond 404.
+- `visionRadius` en pixels (défaut 100), tel qu'enregistré : « Vision augmentée » le triple à
+  l'activation ; `audio` : `{ url, radius, volume, loop?, name? }` ou
   `null` ; `interactions` : marchand, jeu, butin (forme de l'ancienne app).
 - Un personnage est sur une seule carte à la fois ; en changeant de scène il garde sa dernière
   position sur les autres. Position à l'arrivée d'un `travel` : `pos`, sinon le `spawn` de la carte,
@@ -220,8 +225,11 @@ contrat, `fogZones`, `musicZones`…) :
 - **Mur à sens unique** : `blocksFrom` est relatif au sens de tracé a→b : il bloque la vue d'un
   observateur situé de ce côté ; côté gauche : `cross(b − a, p − a) < 0` (y vers le bas).
 - Filtrage pour un joueur : objets `hidden` et `custom` hors `visibleTo`, lumières et portails
-  `visible: false`, calques masqués et leur contenu sont absents. Les gabarits posés ici sont
-  permanents ; les mesures éphémères (6 s) passent par realtime.
+  `visible: false`, calques masqués et leur contenu sont absents ; un objet (hors `decor`) n'est
+  envoyé que s'il est vu (`@vtt/vision`, centre, coins et milieux des bords), et **jamais avec
+  son contenu** : `items` vaut `[]` pour un joueur (REST, événements, rejeu), seule la fouille le
+  donne. Les gabarits posés ici sont permanents ; les mesures éphémères (6 s) passent par
+  realtime.
 
 ## Fouille des objets
 
@@ -230,7 +238,7 @@ contrat, `fogZones`, `musicZones`…) :
 | POST    | `/v1/campaigns/:id/maps/:mapId/objects/:itemId/search` | `{ characterId }`                    | `{ id, mapId, name, items, version }` : le contenu                                                     |
 | POST    | `/v1/campaigns/:id/maps/:mapId/objects/:itemId/take`   | `{ characterId, itemId, quantity? }` | `{ object: { id, mapId, name, items, version }, taken: { itemId, name, quantity }, characterVersion }` |
 
-- Joueur : un de ses personnages (403 sinon), engagé, objet visible et `searchable` (403
+- Joueur : un de ses personnages (403 sinon), engagé, objet vu (404 sinon) et `searchable` (403
   `not_searchable`), token du personnage présent sur la carte à `searchRadius` unités au plus du
   rectangle de l'objet (tourné autour de son centre) : sinon 422 `out_of_range`. Le MJ fouille et
   prend pour tout personnage engagé, sans condition.
@@ -258,11 +266,11 @@ couche `fog-zones` le remplacent ; les cases enregistrées ont été converties 
 
 ## Requêtes spatiales
 
-| Méthode | Route                                                         | Réponse                                                                                                                          |
-| ------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/campaigns/:id/maps/:mapId/line-of-sight?from=x,y&to=x,y` | `{ blocked, obstacleIds }` : murs opaques, portes fermées et murs à sens unique vus de leur côté bloquant qui coupent le segment |
-| GET     | `/v1/campaigns/:id/maps/:mapId/at?x=&y=`                      | `{ musicZones, portals, lights }` sous ce point (zone sonore à jouer, portail à proposer après un déplacement)                   |
-| GET     | `/v1/campaigns/:id/maps/:mapId/tokens/near?x=&y=&radius=`     | voir Tokens                                                                                                                      |
+| Méthode | Route                                                         | Réponse                                                                                                                                                                                                                                                          |
+| ------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/maps/:mapId/line-of-sight?from=x,y&to=x,y` | `{ blocked, obstacleIds }` : `blocked` si `to` est hors de la ligne de vue depuis `from` (`@vtt/vision` : murs soudés, portes fermées, sens unique vu de son côté bloquant, bords de la carte) ; `obstacleIds` : les obstacles bloquants que le segment traverse |
+| GET     | `/v1/campaigns/:id/maps/:mapId/at?x=&y=`                      | `{ musicZones, portals, lights }` sous ce point (zone sonore à jouer, portail à proposer après un déplacement)                                                                                                                                                   |
+| GET     | `/v1/campaigns/:id/maps/:mapId/tokens/near?x=&y=&radius=`     | voir Tokens                                                                                                                                                                                                                                                      |
 
 ## Direct (canal éphémère)
 
@@ -281,18 +289,20 @@ de certains joueurs seulement.
 Chargement : `GET /maps` puis `GET /maps/:mapId` (`MapSnapshot`, tout d'un coup) et
 `GET /map-settings`, puis les événements `map.*`, `token.*`, `map_*` du WebSocket (liste et
 visibilités : [map.md](map.md)). Sur `map.rescaled` et quand un calque redevient visible
-(`map_layer.updated` d'un calque inconnu), relire la carte. Correspondance avec l'ancienne carte :
+(`map_layer.updated` d'un calque inconnu), relire la carte ; sur `map.visibility_changed`
+(ciblé), un joueur relit tokens et objets ; le MJ ignore les `*.hidden`. Correspondance avec
+l'ancienne carte :
 
-| Ancien                                                               | Nouveau                                                                             |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `cities` (CitiesManager), `groups`                                   | `/maps`, `/map-groups`                                                              |
-| `settings/general`, `rooms/{r}/music`                                | `/map-settings`                                                                     |
-| `settings/layers_{cityId}`                                           | `map.display` (`PATCH /maps/:mapId`)                                                |
-| `fond/fond1`                                                         | carte `isDefault`                                                                   |
-| `characters.{x,y,positions,cityId,currentSceneId}`, RTDB `positions` | tokens, `/tokens/move`, `/travel`                                                   |
-| « déplacer tout le groupe » (CitiesManager)                          | `POST /maps/:mapId/travel {}`                                                       |
-| `fog/fog_{cityId}` (`fullMapFog`, cases)                             | `map.fogFull`, couche `fog-zones`                                                   |
-| objets `isBackground`                                                | calque « Sol » (`layerId`)                                                          |
-| `objects`, `lights`, `musicZones`, `portals`                         | couches `objects`, `lights`, `music-zones`, `portals`                               |
-| RTDB `obstacles`, `drawings`, `notes`, `measurements` (permanentes)  | couches `obstacles`, `drawings`, `notes`, `measurements`                            |
-| `visibility-checks.ts`                                               | filtrage serveur (le MJ reçoit tout, le mode « vue joueur » reste un filtre client) |
+| Ancien                                                               | Nouveau                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `cities` (CitiesManager), `groups`                                   | `/maps`, `/map-groups`                                                          |
+| `settings/general`, `rooms/{r}/music`                                | `/map-settings`                                                                 |
+| `settings/layers_{cityId}`                                           | `map.display` (`PATCH /maps/:mapId`)                                            |
+| `fond/fond1`                                                         | carte `isDefault`                                                               |
+| `characters.{x,y,positions,cityId,currentSceneId}`, RTDB `positions` | tokens, `/tokens/move`, `/travel`                                               |
+| « déplacer tout le groupe » (CitiesManager)                          | `POST /maps/:mapId/travel {}`                                                   |
+| `fog/fog_{cityId}` (`fullMapFog`, cases)                             | `map.fogFull`, couche `fog-zones`                                               |
+| objets `isBackground`                                                | calque « Sol » (`layerId`)                                                      |
+| `objects`, `lights`, `musicZones`, `portals`                         | couches `objects`, `lights`, `music-zones`, `portals`                           |
+| RTDB `obstacles`, `drawings`, `notes`, `measurements` (permanentes)  | couches `obstacles`, `drawings`, `notes`, `measurements`                        |
+| `visibility-checks.ts`                                               | filtrage serveur sur `@vtt/vision` (le MJ reçoit tout ; « Vue de… » est client) |

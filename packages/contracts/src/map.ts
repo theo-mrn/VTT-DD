@@ -1087,6 +1087,15 @@ export const MapRescaledPayload = z.object({
 });
 export type MapRescaledPayload = z.infer<typeof MapRescaledPayload>;
 
+/**
+ * `map.visibility_changed` (ciblé : `public` pour tous les joueurs, sinon `gm_only` et
+ * `visibleToUsers`) : un observateur, une porte, un mur, une pièce, une zone de brouillard ou
+ * une lumière a changé ; ces joueurs relisent tokens et objets, que le serveur filtre
+ * autrement (docs/carte.md § 9, Serveur).
+ */
+export const MapVisibilityChangedPayload = z.object({ mapId: Id });
+export type MapVisibilityChangedPayload = z.infer<typeof MapVisibilityChangedPayload>;
+
 /** `map_object.searched` (MJ seul) : un joueur a fouillé l'objet. */
 export const MapObjectSearchedPayload = z.object({
   id: Id,
@@ -1125,6 +1134,7 @@ export const MapEventPayloads = {
   'map.deleted': MapRefPayload,
   'map.hidden': MapRefPayload,
   'map.rescaled': MapRescaledPayload,
+  'map.visibility_changed': MapVisibilityChangedPayload,
   'map_group.created': MapGroup,
   'map_group.updated': MapGroup,
   'map_group.deleted': MapRefPayload,

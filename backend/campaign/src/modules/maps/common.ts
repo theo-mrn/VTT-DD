@@ -15,7 +15,7 @@ import {
   type Visibility,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, eq, or, sql, type SQL } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
@@ -118,10 +118,12 @@ async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: strin
 }
 
 /**
- * Événement de carte, écrit dans l'outbox avec la donnée. Un événement `gm_only` d'un
- * élément en visibilité `custom` reçoit aussi `visibleToUsers` (propriétaires et
- * incarnateurs des personnages de `visibleTo`) : realtime l'envoie à ces joueurs en plus
- * des MJ. `restricted` : réservé aux MJ quoi qu'il arrive (élément d'un calque masqué).
+ * Événement de carte, écrit dans l'outbox avec la donnée. Un événement `gm_only` peut viser
+ * des joueurs en plus des MJ (`payload.visibleToUsers`, que realtime suit) :
+ * - `toUsers` : ces joueurs, calculés par la visibilité (`vision.ts`) ;
+ * - sinon, un élément en visibilité `custom` : propriétaires et incarnateurs des personnages
+ *   de `visibleTo`.
+ * `restricted` : réservé aux MJ quoi qu'il arrive (élément d'un calque masqué).
  */
 export async function mapEvent(
   tx: Tx,
@@ -133,20 +135,26 @@ export async function mapEvent(
     payload: Record<string, unknown>;
     visibility?: Visibility;
     restricted?: boolean;
+    toUsers?: readonly string[];
   },
 ) {
   const visibility = e.visibility ?? 'public';
   const characterIds =
-    !e.restricted && e.payload.visibility === 'custom' && Array.isArray(e.payload.visibleTo)
+    !e.restricted &&
+    !e.toUsers &&
+    e.payload.visibility === 'custom' &&
+    Array.isArray(e.payload.visibleTo)
       ? e.payload.visibleTo.filter((id): id is string => typeof id === 'string')
       : [];
-  const payload =
-    visibility === 'gm_only' && characterIds.length
-      ? {
-          ...e.payload,
-          visibleToUsers: await usersOfCharacters(tx, v.access.campaign.id, characterIds),
-        }
-      : e.payload;
+  const users =
+    visibility !== 'gm_only' || e.restricted
+      ? []
+      : e.toUsers
+        ? [...new Set(e.toUsers)].sort()
+        : characterIds.length
+          ? await usersOfCharacters(tx, v.access.campaign.id, characterIds)
+          : [];
+  const payload = users.length ? { ...e.payload, visibleToUsers: users } : e.payload;
   return appendEvent(tx, ctx, {
     type: e.type,
     campaignId: v.access.campaign.id,
@@ -226,34 +234,6 @@ export const sqlPoint = (p: MapPoint) =>
 /** Polygone approché d'un cercle (zone de brouillard) : index spatial et fenêtre d'affichage. */
 export const sqlCircle = (center: MapPoint, radius: number) =>
   sql`ST_Buffer(${sqlPoint(center)}, ${radius}::float8, 'quad_segs=16')`;
-
-/**
- * Le point `p` (expression SQL) est-il sous le brouillard de la carte `mapId` ? La dernière
- * zone qui le couvre (`seq`) décide (`fog` ou `clear`), sinon `maps.fog_full`. Un cercle
- * se teste sur son centre et son rayon exacts.
- */
-export const sqlInFog = (mapId: SQL | string, p: SQL) => sql`coalesce((
-  SELECT z.mode = 'fog' FROM campaign.map_fog_zones z
-   WHERE z.map_id = ${mapId}
-     AND CASE WHEN z.shape = 'circle' THEN ST_DWithin(z.center, ${p}, z.radius)
-              ELSE ST_Covers(z.geom, ${p}) END
-   ORDER BY z.seq DESC LIMIT 1),
-  (SELECT m.fog_full FROM campaign.maps m WHERE m.id = ${mapId}), false)`;
-
-/**
- * L'obstacle `o` (alias SQL) coupe-t-il la vue de l'œil `eye` vers `target` ? Mur opaque
- * (`opacity` 1), porte fermée, ou mur à sens unique vu depuis son côté bloquant (premier
- * segment : gauche si `cross(b − a, eye − a) < 0`). Une fenêtre, un mur translucide ou une
- * porte ouverte laissent voir. Passage à @vtt/vision au lot 2 (docs/carte.md § 9).
- */
-export const sqlBlocksSight = (eye: SQL, target: SQL) => sql`(
-  (o.kind = 'wall' AND o.opacity >= 1)
-  OR (o.kind = 'door' AND NOT o.is_open)
-  OR (o.kind = 'one_way_wall' AND (
-    (ST_X(ST_PointN(o.geom, 2)) - ST_X(ST_PointN(o.geom, 1))) * (ST_Y(${eye}) - ST_Y(ST_PointN(o.geom, 1)))
-    - (ST_Y(ST_PointN(o.geom, 2)) - ST_Y(ST_PointN(o.geom, 1))) * (ST_X(${eye}) - ST_X(ST_PointN(o.geom, 1)))
-  ) * CASE WHEN o.blocks_from = 'right' THEN -1 ELSE 1 END < 0)
-) AND ST_Intersects(o.geom, ST_MakeLine(${eye}, ${target}))`;
 
 // ─── Réglages de carte ───────────────────────────────────────────────────────
 
