@@ -13,7 +13,7 @@
  * reste est réservé au MJ. Un déplacement produit un seul `token.moved`
  * (from/to) : les positions intermédiaires du drag passent par realtime.
  */
-import { uuidv7 } from '@vtt/contracts';
+import { CreateMapToken, MoveMapTokens, TravelToMap, UpdateMapToken, uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -22,31 +22,29 @@ import type { Db } from '../../db/client.js';
 import type { EventContext, Tx } from '../../db/outbox.js';
 import {
   campaignCharacters,
+  mapLayers,
   mapSettings,
   mapTokens,
-  TOKEN_SHAPES,
-  TOKEN_VISIBILITIES,
   type MapPoint,
 } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { CharacterId } from '../schemas.js';
 import {
   Bbox,
+  checkLayer,
   envelope,
-  ItemId,
   ItemParams,
   loadMap,
   MapParams,
   mapEvent,
-  MediaUrl,
   notFound,
-  Point,
   requestContext,
   requireGm,
+  mapSettingsOf,
   requireWriter,
+  sqlBlocksSight,
+  sqlInFog,
   sqlPoint,
   sqlUuids,
-  Version,
   versionConflict,
   viewerOf,
   type MapRow,
@@ -59,6 +57,8 @@ export const tokenApi = (t: TokenRow) => ({
   id: t.id,
   mapId: t.mapId,
   characterId: t.characterId,
+  layerId: t.layerId,
+  z: t.z,
   pos: t.pos,
   scale: t.scale,
   shape: t.shape,
@@ -74,27 +74,6 @@ export const tokenApi = (t: TokenRow) => ({
   updatedAt: t.updatedAt.toISOString(),
 });
 
-const TokenFields = {
-  scale: z.number().positive().max(100),
-  shape: z.enum(TOKEN_SHAPES),
-  imageUrl: MediaUrl.nullable(),
-  visibility: z.enum(TOKEN_VISIBILITIES),
-  visibleTo: z.array(CharacterId).max(100),
-  visionRadius: z.number().min(0).max(100_000),
-  visionBoost: z.boolean(),
-  notes: z.string().max(10_000).nullable(),
-  audio: z
-    .object({
-      url: MediaUrl,
-      radius: z.number().min(0).max(100_000),
-      volume: z.number().min(0).max(1),
-      loop: z.boolean().optional(),
-      name: z.string().max(200).optional(),
-    })
-    .nullable(),
-  interactions: z.array(z.record(z.string(), z.unknown())).max(50).nullable(),
-};
-
 /**
  * Champs qu'un joueur modifie sur le token de son personnage. Pas le rayon de
  * vision : il verrait les tokens cachés ; « Vision augmentée » le triple.
@@ -107,9 +86,10 @@ const BOOST = 3;
 // ─── Visibilité côté serveur (reprise de utils/visibility-checks.ts) ────────
 
 /**
- * Tokens présents sur la carte que l'appelant voit ; `null` pour le MJ (tout).
- * Taille de case du brouillard : round(min(largeur, hauteur) / 20), 100 px si
- * la taille de l'image est inconnue, comme l'ancienne carte.
+ * Tokens présents sur la carte que l'appelant voit ; `null` pour le MJ (tout). Règles de
+ * l'ancienne carte (utils/visibility-checks.ts), sur les zones de brouillard, la
+ * transparence des murs et le côté bloquant des murs à sens unique. Remplacé par
+ * @vtt/vision au lot 2 (docs/carte.md § 9).
  */
 export async function visibleTokenIds(
   db: Db | Tx,
@@ -118,25 +98,28 @@ export async function visibleTokenIds(
 ): Promise<Set<string> | null> {
   if (v.isGm) return null;
   const mine = sqlUuids(v.characterIds);
-  const fog = sql`(SELECT f FROM campaign.map_fog f WHERE f.map_id = ${mapId})`;
   const { rows } = await db.execute<{ id: string }>(sql`
     WITH m AS (
-      SELECT greatest(coalesce(round(least(width, height) / 20.0), 100), 1)::float8 AS cell,
-             coalesce((layers->>'obstacles')::boolean, true) AS walls
+      SELECT coalesce((layers->>'obstacles')::boolean, true) AS walls
         FROM campaign.maps WHERE id = ${mapId}
     ),
     t AS (
+      -- contenu d'un calque masqué aux joueurs : jamais envoyé (sauf ses propres tokens)
       SELECT t.id, t.pos, t.visibility, t.visible_to, t.vision_radius,
              cc.side = 'players' AS player, t.character_id = ANY(${mine}) AS mine
         FROM campaign.map_tokens t
         JOIN campaign.campaign_characters cc
           ON cc.campaign_id = t.campaign_id AND cc.character_id = t.character_id
+        JOIN campaign.map_layers ly ON ly.id = t.layer_id
        WHERE t.map_id = ${mapId} AND t.present
+         AND (ly.visible_to_players OR t.character_id = ANY(${mine}))
     ),
     eyes AS (SELECT pos, vision_radius, mine FROM t WHERE mine OR visibility = 'ally'),
     lit AS (
-      SELECT l.pos, l.radius * coalesce(s.pixels_per_unit, 50) AS r
+      -- une lumière attachée à un token est là où il est
+      SELECT coalesce(tk.pos, l.pos) AS pos, l.radius * coalesce(s.pixels_per_unit, 50) AS r
         FROM campaign.map_lights l
+        LEFT JOIN campaign.map_tokens tk ON tk.id = l.attached_token_id AND tk.present
         LEFT JOIN campaign.map_settings s ON s.campaign_id = l.campaign_id
        WHERE l.map_id = ${mapId} AND l.visible
     )
@@ -145,24 +128,18 @@ export async function visibleTokenIds(
        t.player OR t.mine OR t.visibility = 'ally'
        OR (t.visibility = 'custom' AND t.visible_to && ${mine})
        OR (t.visibility IN ('visible', 'hidden')
-         -- ligne de vue : cachée si chacun de mes tokens la voit coupée par un mur ou une porte fermée
+         -- ligne de vue : cachée si chacun de mes tokens la voit coupée par un obstacle
          AND NOT (m.walls AND EXISTS (SELECT 1 FROM eyes WHERE eyes.mine) AND NOT EXISTS (
            SELECT 1 FROM eyes e WHERE e.mine AND NOT EXISTS (
              SELECT 1 FROM campaign.map_obstacles o
-              WHERE o.map_id = ${mapId}
-                AND (o.kind IN ('wall', 'one_way_wall') OR (o.kind = 'door' AND NOT o.is_open))
-                AND ST_Intersects(o.geom, ST_MakeLine(e.pos, t.pos)))))
+              WHERE o.map_id = ${mapId} AND ${sqlBlocksSight(sql`e.pos`, sql`t.pos`)})))
          AND (
            -- éclairé par une lumière allumée
            EXISTS (SELECT 1 FROM lit WHERE ST_DWithin(lit.pos, t.pos, lit.r))
            -- hors du brouillard
-           OR (t.visibility = 'visible' AND NOT (
-             coalesce((${fog}).full_map, false)
-             OR (floor(ST_X(t.pos) / m.cell)::bigint || ',' || floor(ST_Y(t.pos) / m.cell)::bigint)
-                = ANY(coalesce((${fog}).cells, '{}'))))
+           OR (t.visibility = 'visible' AND NOT ${sqlInFog(mapId, sql`t.pos`)})
            -- dans le rayon de vision d'un de mes tokens ou d'un allié
-           OR EXISTS (SELECT 1 FROM eyes e
-                       WHERE ST_DWithin(e.pos, t.pos, e.vision_radius + m.cell * sqrt(2) / 2))
+           OR EXISTS (SELECT 1 FROM eyes e WHERE ST_DWithin(e.pos, t.pos, e.vision_radius))
          ))
      )`);
   return new Set(rows.map((r) => r.id));
@@ -172,21 +149,26 @@ export async function visibleTokenIds(
  * Un token est diffusé à tous (événement `public`) s'il est d'un personnage
  * joueur, allié, ou visible hors du brouillard ; sinon au MJ seulement.
  */
-async function isPublicToken(tx: Tx, t: TokenRow) {
+export async function isPublicToken(tx: Db | Tx, t: TokenRow) {
+  if (await inHiddenLayer(tx, t)) return false;
   if (t.visibility === 'ally') return true;
   if (t.visibility === 'invisible' || t.visibility === 'custom') return false;
   // visible ou hidden : personnage joueur, ou visible hors du brouillard
   const { rows } = await tx.execute<{ public: boolean }>(sql`
-    SELECT cc.side = 'players' OR (${t.visibility} = 'visible' AND NOT coalesce((
-      SELECT f.full_map OR (floor(${t.pos.x}::float8 / m.cell)::bigint || ','
-               || floor(${t.pos.y}::float8 / m.cell)::bigint) = ANY(f.cells)
-        FROM campaign.map_fog f,
-             (SELECT greatest(coalesce(round(least(width, height) / 20.0), 100), 1)::float8 AS cell
-                FROM campaign.maps WHERE id = ${t.mapId}) m
-       WHERE f.map_id = ${t.mapId}), false)) AS public
+    SELECT cc.side = 'players'
+           OR (${t.visibility} = 'visible' AND NOT ${sqlInFog(t.mapId, sqlPoint(t.pos))}) AS public
       FROM campaign.campaign_characters cc
      WHERE cc.campaign_id = ${t.campaignId} AND cc.character_id = ${t.characterId}`);
   return rows[0]?.public ?? false;
+}
+
+/** Token d'un calque masqué aux joueurs : ses événements sont réservés aux MJ. */
+async function inHiddenLayer(tx: Db | Tx, t: Pick<TokenRow, 'layerId'>) {
+  const [layer] = await tx
+    .select({ visible: mapLayers.visibleToPlayers })
+    .from(mapLayers)
+    .where(eq(mapLayers.id, t.layerId));
+  return layer ? !layer.visible : false;
 }
 
 // ─── Opérations ──────────────────────────────────────────────────────────────
@@ -205,6 +187,7 @@ async function tokenEvent(
     aggregate: { type: 'token', id: t.id },
     payload: tokenApi(t),
     visibility: visible ? 'public' : 'gm_only',
+    restricted: await inHiddenLayer(tx, t),
   });
   if (wasPublic && !visible)
     await mapEvent(tx, ctx, v, {
@@ -252,7 +235,7 @@ async function lockToken(tx: Tx, v: Viewer, mapId: string, tokenId: string) {
   return t;
 }
 
-async function updateToken(
+export async function updateToken(
   tx: Tx,
   ctx: EventContext,
   v: Viewer,
@@ -279,6 +262,7 @@ async function updateToken(
       changes.visionBoost ? before.visionRadius * BOOST : before.visionRadius / BOOST,
     );
   if (version !== undefined && version !== before.version) throw versionConflict();
+  if (changes.layerId !== undefined) await checkLayer(tx, v, mapId, changes.layerId);
   const wasPublic = Object.keys(changes).length ? await isPublicToken(tx, before) : false;
   const [after] = await tx
     .update(mapTokens)
@@ -467,11 +451,7 @@ export const registerTokens: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: MapParams,
-        body: z.strictObject({
-          characterId: CharacterId,
-          pos: Point,
-          ...Object.fromEntries(Object.entries(TokenFields).map(([k, s]) => [k, s.optional()])),
-        }),
+        body: CreateMapToken,
       },
     },
     async (req, reply) => {
@@ -482,6 +462,7 @@ export const registerTokens: Module = async (app, deps) => {
         const map = await loadMap(tx, v, req.params.mapId);
         const { characterId, pos, ...look } = req.body;
         await engaged(tx, map.campaignId, [characterId]);
+        if (look.layerId !== undefined) await checkLayer(tx, v, map.id, look.layerId);
         const [elsewhere] = await tx
           .select({ mapId: mapTokens.mapId })
           .from(mapTokens)
@@ -543,10 +524,7 @@ export const registerTokens: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: ItemParams,
-        body: z
-          .strictObject({ pos: Point, ...TokenFields })
-          .partial()
-          .extend({ version: Version }),
+        body: UpdateMapToken,
       },
     },
     async (req) => {
@@ -585,12 +563,7 @@ export const registerTokens: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: MapParams,
-        body: z.strictObject({
-          moves: z
-            .array(z.strictObject({ tokenId: ItemId, pos: Point, version: Version }))
-            .min(1)
-            .max(200),
-        }),
+        body: MoveMapTokens,
       },
     },
     async (req) => {
@@ -618,11 +591,7 @@ export const registerTokens: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: MapParams,
-        body: z.strictObject({
-          /** Absent : tous les personnages joueurs, et la carte devient celle du groupe (MJ). */
-          characterIds: z.array(CharacterId).min(1).max(200).optional(),
-          pos: Point.optional(),
-        }),
+        body: TravelToMap,
       },
     },
     async (req) => {
@@ -656,7 +625,7 @@ export const registerTokens: Module = async (app, deps) => {
         const out: TokenRow[] = [];
         for (const id of ids) out.push(await travel(tx, ctx, v, map, id, req.body.pos));
         if (party) {
-          const [settings] = await tx
+          await tx
             .insert(mapSettings)
             .values({ campaignId: map.campaignId, partyMapId: map.id })
             .onConflictDoUpdate({
@@ -666,12 +635,11 @@ export const registerTokens: Module = async (app, deps) => {
                 version: sql`${mapSettings.version} + 1`,
                 updatedAt: sql`now()`,
               },
-            })
-            .returning();
+            });
           await mapEvent(tx, ctx, v, {
             type: 'map_settings.updated',
             aggregate: { type: 'map_settings', id: map.campaignId },
-            payload: { partyMapId: map.id, version: settings!.version },
+            payload: await mapSettingsOf(tx, map.campaignId),
           });
         }
         return out;

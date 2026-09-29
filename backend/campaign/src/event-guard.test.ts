@@ -35,8 +35,11 @@ describe('garde-fou : chaque route d’écriture émet un événement', () => {
 
   it('trouve les routes et suit les helpers', () => {
     expect(publiques().length).toBeGreaterThanOrEqual(35);
-    const patch = routes.find((r) => routeKey(r) === 'PATCH /v1/campaigns/:id/maps/:mapId/fog');
-    expect(patch?.emitPath).toEqual(['writeFog', 'mapEvent', 'appendEvent']);
+    const arrange = routes.find(
+      (r) => routeKey(r) === 'POST /v1/campaigns/:id/maps/:mapId/arrange',
+    );
+    expect(arrange?.emitPath.slice(0, 1)).toEqual(['arrangeItems']);
+    expect(arrange?.emitPath.at(-1)).toBe('appendEvent');
   });
 
   it('chaque route publique émet un événement ou est une exception justifiée', () => {

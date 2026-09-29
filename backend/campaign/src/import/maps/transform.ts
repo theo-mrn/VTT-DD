@@ -35,6 +35,7 @@ import type {
   ObstacleKind,
   TokenVisibility,
 } from '../../db/schema.js';
+import { blocksFromDirection, legacyItems } from './legacy-model.js';
 import { toText, type FirestoreDoc } from '../legacy.js';
 
 /** UUID version 5 (SHA-1) d'un chemin legacy : stable d'un import à l'autre. */
@@ -446,7 +447,9 @@ export function transformRoom(
               ...(toText(audio.name) ? { name: toText(audio.name)!.slice(0, 200) } : {}),
             }
           : null,
-      interactions: Array.isArray(c.interactions) ? (c.interactions as unknown[]) : null,
+      interactions: Array.isArray(c.interactions)
+        ? (c.interactions.filter((x) => obj(x)) as Record<string, unknown>[])
+        : null,
     };
     if (!player) {
       const mapId = mapOf(c.cityId, `Token ${d.path}`);
@@ -523,7 +526,7 @@ export function transformRoom(
       visibility: objectVisibility(o.visibility),
       visibleTo: translateIds(o.visibleToPlayerIds, `Objet ${d.path}`),
       notes: text(o.notes, 10_000) ?? null,
-      items: Array.isArray(o.items) ? (o.items as unknown[]) : [],
+      items: legacyItems(o.items),
       linkedId: toText(o.linkedId) ?? null,
       groupEntityId: toText(o.groupEntityId) ?? null,
     });
@@ -630,7 +633,7 @@ export function transformRoom(
     const common = { campaignId, mapId };
     const extra = {
       color: toText(o.color)?.slice(0, 50) ?? null,
-      opacity: num(o.opacity) !== undefined ? bounded(o.opacity, 0, 1, 1) : null,
+      opacity: num(o.opacity) !== undefined ? bounded(o.opacity, 0, 1, 1) : 1,
       roomMode: oneOf(o.roomMode, ROOM_MODES) ?? null,
     };
     // Polygones et rectangles : éclatés en murs, comme la migration de l'ancienne carte
@@ -642,13 +645,17 @@ export function transformRoom(
       const edges = Array.isArray(o.edges) ? o.edges : [];
       ring.forEach((p, i) => {
         const edge = obj(edges[i]);
+        const kind = (o.type === 'polygon' && obstacleKind(edge?.type)) || 'wall';
+        const geom = [p, ring[(i + 1) % ring.length]!];
+        const direction = oneOf(edge?.direction, DIRECTIONS) ?? null;
         obstacles.push({
           ...common,
           ...extra,
           id: legacyUuid(`${key}_e${i}`),
-          kind: (o.type === 'polygon' && obstacleKind(edge?.type)) || 'wall',
-          geom: [p, ring[(i + 1) % ring.length]!],
-          direction: oneOf(edge?.direction, DIRECTIONS) ?? null,
+          kind,
+          geom,
+          direction,
+          blocksFrom: kind === 'one_way_wall' ? blocksFromDirection(geom, direction) : null,
           isOpen: bool(edge?.isOpen, false),
         });
       });
@@ -659,13 +666,15 @@ export function transformRoom(
       warn(`Obstacle ${key} de type inconnu : ignoré`);
       continue;
     }
+    const direction = oneOf(o.direction, DIRECTIONS) ?? null;
     obstacles.push({
       ...common,
       ...extra,
       id: legacyUuid(key),
       kind,
       geom: pts,
-      direction: oneOf(o.direction, DIRECTIONS) ?? null,
+      direction,
+      blocksFrom: kind === 'one_way_wall' ? blocksFromDirection(pts, direction) : null,
       isOpen: bool(o.isOpen, false),
       isLocked: bool(o.isLocked, false),
     });

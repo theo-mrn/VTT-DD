@@ -6,16 +6,25 @@
  *   GET    /v1/campaigns/:id/maps/:mapId?bbox=                  carte complète (chargement initial)
  *   PATCH  /v1/campaigns/:id/maps/:mapId                        modifier (MJ)
  *   DELETE /v1/campaigns/:id/maps/:mapId                        supprimer (MJ, aucun joueur dessus)
- *   GET    /v1/campaigns/:id/maps/:mapId/fog                    brouillard
- *   PUT    /v1/campaigns/:id/maps/:mapId/fog                    remplacer (MJ)
- *   PATCH  /v1/campaigns/:id/maps/:mapId/fog                    ajouter / retirer des cases (MJ)
+ *   POST   /v1/campaigns/:id/maps/:mapId/rescale                mettre à l'échelle toute la géométrie (MJ)
  *   GET    /v1/campaigns/:id/maps/:mapId/line-of-sight?from=&to= segment coupé par un obstacle ?
  *   GET    /v1/campaigns/:id/maps/:mapId/at?x=&y=               zones sonores, portails, lumières sous un point
  *   GET    /v1/campaigns/:id/map-settings                       réglages de carte de la campagne
  *   PATCH  /v1/campaigns/:id/map-settings                       modifier (MJ)
  *   GET|POST /v1/campaigns/:id/map-groups, PATCH|DELETE …/:groupId   dossiers de scènes (MJ)
+ *
+ * Brouillard : `fogFull` de la carte (PATCH) et couche `fog-zones` (layers.ts). L'ancien
+ * brouillard par cases (`/fog`, table map_fog) est converti en zones par 0017-map-visibility.sql.
  */
-import { uuidv7 } from '@vtt/contracts';
+import {
+  CreateMapGroup,
+  CreateMapScene,
+  RescaleMap,
+  UpdateMapGroup,
+  UpdateMapScene,
+  UpdateMapSettings,
+  uuidv7,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq, or, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -24,37 +33,43 @@ import type { Db } from '../../db/client.js';
 import type { Tx } from '../../db/outbox.js';
 import {
   campaignCharacters,
-  mapFog,
   mapGroups,
   mapLights,
   mapMusicZones,
-  mapObstacles,
   mapPortals,
   maps,
   mapSettings,
   mapTokens,
 } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { CampaignId, Description, Uuid } from '../schemas.js';
+import { CampaignId, Uuid } from '../schemas.js';
 import {
   Bbox,
   loadMap,
   MapParams,
   mapEvent,
-  MediaUrl,
   notFound,
-  Point,
   requestContext,
   requireGm,
+  settingsApi,
+  sqlBlocksSight,
   sqlPoint,
   sqlUuids,
-  Version,
   versionConflict,
   viewerOf,
   type MapRow,
   type Viewer,
 } from './common.js';
-import { LAYERS, layerItemApi, listLayer, visibleFor, type LayerRow } from './layers.js';
+import {
+  LAYERS,
+  layerDef,
+  layerItemApi,
+  layerKey,
+  listLayer,
+  visibleFor,
+  type LayerRow,
+} from './layers.js';
+import { rescaleMap } from './rescale.js';
 import { listTokens } from './tokens.js';
 
 export const mapApi = (m: MapRow) => ({
@@ -69,35 +84,10 @@ export const mapApi = (m: MapRow) => ({
   width: m.width,
   height: m.height,
   weather: m.weather,
-  layers: m.layers,
+  display: m.layers,
+  fogFull: m.fogFull,
   version: m.version,
   updatedAt: m.updatedAt.toISOString(),
-});
-
-/** Taille d'une case de brouillard, comme l'ancienne carte (100 px si l'image est inconnue). */
-export const fogCellSize = (m: Pick<MapRow, 'width' | 'height'>) =>
-  m.width && m.height ? Math.max(1, Math.round(Math.min(m.width, m.height) / 20)) : 100;
-
-type FogRow = typeof mapFog.$inferSelect;
-const fogApi = (map: MapRow, f: FogRow | undefined) => ({
-  mapId: map.id,
-  fullMap: f?.fullMap ?? false,
-  cells: f?.cells ?? [],
-  cellSize: fogCellSize(map),
-  version: f?.version ?? 0,
-});
-
-type SettingsRow = typeof mapSettings.$inferSelect;
-const settingsApi = (campaignId: string, s: SettingsRow | undefined) => ({
-  campaignId,
-  partyMapId: s?.partyMapId ?? null,
-  tokenScale: s?.tokenScale ?? 1,
-  pixelsPerUnit: s?.pixelsPerUnit ?? 50,
-  unitName: s?.unitName ?? 'm',
-  shadowOpacity: s?.shadowOpacity ?? 1,
-  dungeonMode: s?.dungeonMode ?? false,
-  music: s?.music ?? null,
-  version: s?.version ?? 0,
 });
 
 type GroupRow = typeof mapGroups.$inferSelect;
@@ -108,37 +98,7 @@ const groupApi = (g: GroupRow) => ({
   version: g.version,
 });
 
-const Weather = z.strictObject({
-  type: z.string().trim().min(1).max(50),
-  intensity: z.number().min(0).max(10),
-});
-
-const MapFields = {
-  name: z.string().trim().min(1, 'Nom requis').max(100),
-  description: Description,
-  groupId: Uuid('Identifiant de dossier invalide').nullable(),
-  backgroundUrl: MediaUrl.nullable(),
-  isDefault: z.boolean(),
-  visibleToPlayers: z.boolean(),
-  spawn: Point.nullable(),
-  width: z.number().int().min(1).max(100_000).nullable(),
-  height: z.number().int().min(1).max(100_000).nullable(),
-  weather: Weather.nullable(),
-  /** Calques affichés (réglage MJ) : lights, obstacles, notes, drawings, objects, characters, fog, music. */
-  layers: z.record(z.string().regex(/^[a-z_]{1,30}$/), z.boolean()),
-};
-
-/** Case de brouillard « cx,cy » (l'ancienne app ajoutait une espace finale). */
-const Cell = z
-  .string()
-  .trim()
-  .regex(/^-?\d{1,7},-?\d{1,7}$/, 'case attendue : cx,cy');
-const Cells = z.array(Cell).max(100_000);
-
 const GroupParams = z.object({ id: CampaignId, groupId: Uuid('Identifiant de dossier invalide') });
-
-/** Clé de réponse d'une couche (`music-zones` → `musicZones`). */
-const layerKey = (path: string) => path.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
 /** Contraintes uniques et étrangères de `maps` traduites en erreurs HTTP. */
 function mapWriteError(err: unknown): never {
@@ -171,6 +131,24 @@ async function listMaps(db: Db | Tx, v: Viewer) {
   return rows.map(mapApi);
 }
 
+/** Chargement initial : la carte et toutes ses couches, filtrées pour l'appelant. */
+export async function mapSnapshot(
+  db: Db | Tx,
+  v: Viewer,
+  map: MapRow,
+  bbox?: [number, number, number, number],
+) {
+  const [tokens, ...layers] = await Promise.all([
+    listTokens(db, v, map.id, bbox),
+    ...LAYERS.map((def) => listLayer(db, def, v, map.id, bbox)),
+  ]);
+  return {
+    map: mapApi(map),
+    tokens,
+    ...Object.fromEntries(LAYERS.map((def, i) => [layerKey(def), layers[i]])),
+  };
+}
+
 export const registerMaps: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const { db } = deps;
@@ -191,13 +169,7 @@ export const registerMaps: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: Params,
-        body: z
-          .strictObject(MapFields)
-          .partial()
-          .required({ name: true })
-          .refine((b) => (b.width == null) === (b.height == null), {
-            message: 'width et height vont ensemble',
-          }),
+        body: CreateMapScene,
       },
     },
     async (req, reply) => {
@@ -206,9 +178,16 @@ export const registerMaps: Module = async (app, deps) => {
         .transaction(async (tx) => {
           const v = await viewerOf(tx, req.params.id, userId);
           requireGm(v);
+          const { display, ...fields } = req.body;
+          // Les calques Sol, Objets et Personnages naissent avec la carte (déclencheur 0018)
           const [row] = await tx
             .insert(maps)
-            .values({ ...req.body, id: uuidv7(), campaignId: v.access.campaign.id })
+            .values({
+              ...fields,
+              ...(display !== undefined ? { layers: display } : {}),
+              id: uuidv7(),
+              campaignId: v.access.campaign.id,
+            })
             .returning();
           await mapEvent(tx, ctx, v, {
             type: 'map.created',
@@ -231,18 +210,7 @@ export const registerMaps: Module = async (app, deps) => {
       const { userId } = requestContext(req);
       const v = await viewerOf(db, req.params.id, userId);
       const map = await loadMap(db, v, req.params.mapId);
-      const bbox = req.query.bbox;
-      const [[fog], tokens, ...layers] = await Promise.all([
-        db.select().from(mapFog).where(eq(mapFog.mapId, map.id)),
-        listTokens(db, v, map.id, bbox),
-        ...LAYERS.map((def) => listLayer(db, def, v, map.id, bbox)),
-      ]);
-      return {
-        map: mapApi(map),
-        fog: fogApi(map, fog),
-        tokens,
-        ...Object.fromEntries(LAYERS.map((def, i) => [layerKey(def.path), layers[i]])),
-      };
+      return mapSnapshot(db, v, map, req.query.bbox);
     },
   );
 
@@ -252,7 +220,7 @@ export const registerMaps: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: MapParams,
-        body: z.strictObject(MapFields).partial().extend({ version: Version }),
+        body: UpdateMapScene,
       },
     },
     async (req) => {
@@ -262,7 +230,7 @@ export const registerMaps: Module = async (app, deps) => {
           const v = await viewerOf(tx, req.params.id, userId);
           requireGm(v);
           const before = await loadMap(tx, v, req.params.mapId, true);
-          const { version, ...changes } = req.body;
+          const { version, display, ...changes } = req.body;
           if (version !== undefined && version !== before.version) throw versionConflict();
           const width = changes.width !== undefined ? changes.width : before.width;
           const height = changes.height !== undefined ? changes.height : before.height;
@@ -270,7 +238,12 @@ export const registerMaps: Module = async (app, deps) => {
             throw HttpError.badRequest('width et height vont ensemble', 'size_incomplete');
           const [after] = await tx
             .update(maps)
-            .set({ ...changes, version: sql`${maps.version} + 1`, updatedAt: sql`now()` })
+            .set({
+              ...changes,
+              ...(display !== undefined ? { layers: display } : {}),
+              version: sql`${maps.version} + 1`,
+              updatedAt: sql`now()`,
+            })
             .where(eq(maps.id, before.id))
             .returning();
           await mapEvent(tx, ctx, v, {
@@ -337,102 +310,34 @@ export const registerMaps: Module = async (app, deps) => {
     },
   );
 
-  // ─── Brouillard ──────────────────────────────────────────────────────────
+  // ─── Mise à l'échelle ────────────────────────────────────────────────────
 
-  r.get(
-    '/v1/campaigns/:id/maps/:mapId/fog',
-    { ...auth, schema: { params: MapParams } },
+  r.post(
+    '/v1/campaigns/:id/maps/:mapId/rescale',
+    { ...auth, schema: { params: MapParams, body: RescaleMap } },
     async (req) => {
-      const { userId } = requestContext(req);
-      const v = await viewerOf(db, req.params.id, userId);
-      const map = await loadMap(db, v, req.params.mapId);
-      const [fog] = await db.select().from(mapFog).where(eq(mapFog.mapId, map.id));
-      return fogApi(map, fog);
-    },
-  );
-
-  /** Écrit le brouillard (nouvel état calculé depuis l'ancien) et son événement. */
-  const writeFog = (
-    req: { params: { id: string; mapId: string } },
-    userId: string,
-    ctx: ReturnType<typeof requestContext>['ctx'],
-    next: (f: { fullMap: boolean; cells: string[] }) => { fullMap: boolean; cells: string[] },
-    version: number | undefined,
-  ) =>
-    db.transaction(async (tx) => {
-      const v = await viewerOf(tx, req.params.id, userId);
-      requireGm(v);
-      const map = await loadMap(tx, v, req.params.mapId);
-      const [before] = await tx.select().from(mapFog).where(eq(mapFog.mapId, map.id)).for('update');
-      if (version !== undefined && version !== (before?.version ?? 0)) throw versionConflict();
-      const state = next({ fullMap: before?.fullMap ?? false, cells: before?.cells ?? [] });
-      const cells = [...new Set(state.cells)].sort();
-      const [fog] = await tx
-        .insert(mapFog)
-        .values({ mapId: map.id, campaignId: map.campaignId, fullMap: state.fullMap, cells })
-        .onConflictDoUpdate({
-          target: mapFog.mapId,
-          set: {
-            fullMap: state.fullMap,
-            cells,
-            version: sql`${mapFog.version} + 1`,
-            updatedAt: sql`now()`,
-          },
-        })
-        .returning();
-      const api = fogApi(map, fog);
-      await mapEvent(tx, ctx, v, {
-        type: 'map_fog.updated',
-        aggregate: { type: 'map', id: map.id },
-        payload: api,
+      const { userId, ctx } = requestContext(req);
+      const { v, after } = await db.transaction(async (tx) => {
+        const v = await viewerOf(tx, req.params.id, userId);
+        requireGm(v);
+        const before = await loadMap(tx, v, req.params.mapId, true);
+        const after = await rescaleMap(tx, before, req.body);
+        await mapEvent(tx, ctx, v, {
+          type: 'map.updated',
+          aggregate: { type: 'map', id: after.id },
+          payload: mapApi(after),
+          visibility: after.visibleToPlayers ? 'public' : 'gm_only',
+        });
+        await mapEvent(tx, ctx, v, {
+          type: 'map.rescaled',
+          aggregate: { type: 'map', id: after.id },
+          payload: { mapId: after.id, ...req.body, version: after.version },
+          visibility: after.visibleToPlayers ? 'public' : 'gm_only',
+        });
+        return { v, after };
       });
-      return api;
-    });
-
-  r.put(
-    '/v1/campaigns/:id/maps/:mapId/fog',
-    {
-      ...auth,
-      schema: {
-        params: MapParams,
-        body: z.strictObject({ fullMap: z.boolean().optional(), cells: Cells, version: Version }),
-      },
-    },
-    async (req) => {
-      const { userId, ctx } = requestContext(req);
-      const { fullMap, cells, version } = req.body;
-      return writeFog(req, userId, ctx, (f) => ({ fullMap: fullMap ?? f.fullMap, cells }), version);
-    },
-  );
-
-  r.patch(
-    '/v1/campaigns/:id/maps/:mapId/fog',
-    {
-      ...auth,
-      schema: {
-        params: MapParams,
-        body: z.strictObject({
-          fullMap: z.boolean().optional(),
-          add: Cells.default([]),
-          remove: Cells.default([]),
-          version: Version,
-        }),
-      },
-    },
-    async (req) => {
-      const { userId, ctx } = requestContext(req);
-      const { fullMap, add, remove, version } = req.body;
-      const removed = new Set(remove);
-      return writeFog(
-        req,
-        userId,
-        ctx,
-        (f) => ({
-          fullMap: fullMap ?? f.fullMap,
-          cells: [...f.cells.filter((c) => !removed.has(c)), ...add],
-        }),
-        version,
-      );
+      // La carte relue après validation (lectures parallèles sur le pool)
+      return mapSnapshot(db, v, after);
     },
   );
 
@@ -453,19 +358,11 @@ export const registerMaps: Module = async (app, deps) => {
       const { userId } = requestContext(req);
       const v = await viewerOf(db, req.params.id, userId);
       const map = await loadMap(db, v, req.params.mapId);
-      const segment = sql`ST_MakeLine(${sqlPoint(req.query.from)}, ${sqlPoint(req.query.to)})`;
-      const blocking = await db
-        .select({ id: mapObstacles.id })
-        .from(mapObstacles)
-        .where(
-          and(
-            eq(mapObstacles.mapId, map.id),
-            sql`(${mapObstacles.kind} in ('wall', 'one_way_wall')
-                 or (${mapObstacles.kind} = 'door' and not ${mapObstacles.isOpen}))`,
-            sql`ST_Intersects(${mapObstacles.geom}, ${segment})`,
-          ),
-        )
-        .orderBy(asc(mapObstacles.id));
+      const from = sqlPoint(req.query.from);
+      const { rows: blocking } = await db.execute<{ id: string }>(sql`
+        SELECT o.id FROM campaign.map_obstacles o
+         WHERE o.map_id = ${map.id} AND ${sqlBlocksSight(from, sqlPoint(req.query.to))}
+         ORDER BY o.id`);
       return { blocked: blocking.length > 0, obstacleIds: blocking.map((o) => o.id) };
     },
   );
@@ -508,20 +405,26 @@ export const registerMaps: Module = async (app, deps) => {
               sql`ST_DWithin(${mapPortals.pos}, ${p}, ${mapPortals.radius})`,
             ),
           ),
+        // Lumière attachée à un token : elle est où il est
         db
-          .select()
+          .select({ light: mapLights })
           .from(mapLights)
+          .leftJoin(
+            mapTokens,
+            and(eq(mapTokens.id, mapLights.attachedTokenId), eq(mapTokens.present, true)),
+          )
           .where(
             and(
               eq(mapLights.mapId, map.id),
-              sql`ST_DWithin(${mapLights.pos}, ${p}, ${mapLights.radius} * ${ppu}::float8)`,
+              sql`ST_DWithin(coalesce(${mapTokens.pos}, ${mapLights.pos}), ${p}, ${mapLights.radius} * ${ppu}::float8)`,
             ),
-          ),
+          )
+          .then((rows) => rows.map((x) => x.light)),
       ]);
-      const pick = (path: string, rows: object[]) => {
-        const def = LAYERS.find((d) => d.path === path)!;
+      const pick = (path: 'music-zones' | 'portals' | 'lights', rows: object[]) => {
+        const def = layerDef(path);
         return (rows as LayerRow[])
-          .filter((row) => visibleFor(def, v, row))
+          .filter((row) => visibleFor(def, v, row, new Set()))
           .map((row) => layerItemApi(def, row));
       };
       return {
@@ -550,19 +453,7 @@ export const registerMaps: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: Params,
-        body: z
-          .strictObject({
-            partyMapId: Uuid('Identifiant de carte invalide').nullable(),
-            tokenScale: z.number().positive().max(100),
-            pixelsPerUnit: z.number().positive().max(100_000),
-            unitName: z.string().trim().min(1).max(20),
-            shadowOpacity: z.number().min(0).max(1),
-            dungeonMode: z.boolean(),
-            /** Musique d'ambiance en cours : { videoId, videoTitle, templateId, isPlaying, … }. */
-            music: z.record(z.string(), z.unknown()).nullable(),
-          })
-          .partial()
-          .extend({ version: Version }),
+        body: UpdateMapSettings,
       },
     },
     async (req) => {
@@ -606,11 +497,6 @@ export const registerMaps: Module = async (app, deps) => {
 
   // ─── Dossiers de scènes (MJ) ─────────────────────────────────────────────
 
-  const GroupFields = {
-    name: z.string().trim().min(1, 'Nom requis').max(100),
-    sortOrder: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
-  };
-
   r.get('/v1/campaigns/:id/map-groups', { ...auth, schema: { params: Params } }, async (req) => {
     const { userId } = requestContext(req);
     const v = await viewerOf(db, req.params.id, userId);
@@ -629,10 +515,7 @@ export const registerMaps: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: Params,
-        body: z.strictObject({
-          name: GroupFields.name,
-          sortOrder: GroupFields.sortOrder.optional(),
-        }),
+        body: CreateMapGroup,
       },
     },
     async (req, reply) => {
@@ -663,7 +546,7 @@ export const registerMaps: Module = async (app, deps) => {
       ...auth,
       schema: {
         params: GroupParams,
-        body: z.strictObject(GroupFields).partial().extend({ version: Version }),
+        body: UpdateMapGroup,
       },
     },
     async (req) => {

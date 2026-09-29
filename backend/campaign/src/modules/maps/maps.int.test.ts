@@ -236,13 +236,14 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     expect(bad.statusCode).toBe(422);
 
     // Chargement initial : tout d'un coup, filtré pour le joueur
-    const snap = await h.ok<Record<string, Item[]> & { fog: Item }>(alice, 'GET', base);
+    const snap = await h.ok<Record<string, Item[]>>(alice, 'GET', base);
     expect(snap.objects).toHaveLength(1);
     expect(snap.obstacles).toHaveLength(3);
     expect(snap.measurements).toHaveLength(1);
     expect(snap.notes).toHaveLength(1);
     expect(snap.musicZones).toHaveLength(1);
-    expect(snap.fog).toMatchObject({ fullMap: false, cells: [], cellSize: 50 });
+    expect(snap.fogZones).toEqual([]);
+    expect(snap.layers!.map((l) => l.name)).toEqual(['Sol', 'Objets', 'Personnages']);
     // Fenêtre d'affichage : seuls les éléments qui la touchent
     const view = await h.ok<Record<string, Item[]>>(gm, 'GET', `${base}?bbox=0,0,30,30`);
     expect(view.objects!.map((o) => o.name)).toEqual(['Coffre']);
@@ -351,9 +352,9 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     );
     expect(los).toEqual({ blocked: true, obstacleIds: [wall.id] });
     // Calque obstacles masqué par le MJ : plus d'occlusion
-    await h.ok(gm, 'PATCH', base, { layers: { obstacles: false } });
+    await h.ok(gm, 'PATCH', base, { display: { obstacles: false } });
     expect(await ids(alice)).toContain(npcId);
-    await h.ok(gm, 'PATCH', base, { layers: { obstacles: true } });
+    await h.ok(gm, 'PATCH', base, { display: { obstacles: true } });
     await h.ok(gm, 'PATCH', `${base}/obstacles/${wall.id}`, { kind: 'door', isOpen: true });
     expect(await ids(alice)).toContain(npcId);
 
@@ -370,15 +371,37 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     await h.ok(gm, 'PATCH', `${base}/lights/${light.id}`, { visible: false });
     expect(await ids(alice)).not.toContain(npcId);
 
-    // Visible, mais dans une case de brouillard (case 50 px : 600,600 → 12,12)
+    // Visible, mais dans une zone de brouillard ; une zone « clear » posée après la découvre
     await h.ok(gm, 'PATCH', `${base}/tokens/${orc.id}`, { visibility: 'visible' });
     expect(await ids(alice)).toContain(npcId);
-    const fog = await h.ok<Item>(gm, 'PATCH', `${base}/fog`, { add: ['12,12 ', '0,0'] });
-    expect(fog).toMatchObject({ cells: ['0,0', '12,12'], version: 1 });
+    const square = (x: number, y: number, w: number) => [
+      { x, y },
+      { x: x + w, y },
+      { x: x + w, y: y + w },
+      { x, y: y + w },
+    ];
+    const fog = await h.ok<Item>(gm, 'POST', `${base}/fog-zones`, {
+      shape: 'rect',
+      points: square(550, 550, 100),
+    });
+    expect(fog).toMatchObject({ shape: 'rect', mode: 'fog', center: null, createdBy: gm.id });
     expect(await ids(alice)).not.toContain(npcId);
-    await h.ok(gm, 'PUT', `${base}/fog`, { cells: [], fullMap: true, version: 1 });
+    const hole = await h.ok<Item>(gm, 'POST', `${base}/fog-zones`, {
+      shape: 'circle',
+      mode: 'clear',
+      center: { x: 600, y: 600 },
+      radius: 10,
+    });
+    expect(hole.order).toBeGreaterThan(fog.order as number);
+    expect(hole).toMatchObject({ points: [], radius: 10 });
+    expect(await ids(alice)).toContain(npcId);
+    await h.ok(gm, 'DELETE', `${base}/fog-zones/${hole.id}`);
     expect(await ids(alice)).not.toContain(npcId);
-    await h.ok(gm, 'PATCH', `${base}/fog`, { fullMap: false });
+    await h.ok(gm, 'DELETE', `${base}/fog-zones/${fog.id}`);
+    // Toute la carte sous le brouillard
+    await h.ok(gm, 'PATCH', base, { fogFull: true });
+    expect(await ids(alice)).not.toContain(npcId);
+    await h.ok(gm, 'PATCH', base, { fogFull: false });
 
     // Invisible : jamais ; custom : seulement les joueurs visés
     await h.ok(gm, 'PATCH', `${base}/tokens/${orc.id}`, { visibility: 'invisible' });

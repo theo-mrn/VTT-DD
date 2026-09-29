@@ -129,11 +129,15 @@ describe.skipIf(!TEST_DATABASE_URL)('import des cartes', () => {
     const taverne = legacyUuid(`cartes/${R}/cities/c1`);
     const snap = await h.ok<{
       tokens: { characterId: string; pos: unknown }[];
-      fog: { cells: string[] };
+      fogZones: { shape: string; mode: string; points: unknown[] }[];
+      layers: { name: string }[];
       portals: { targetMapId: string }[];
     }>(alice, 'GET', `/v1/campaigns/${campaignId}/maps/${taverne}`);
     expect(snap.tokens.map((x) => x.characterId)).toEqual([hero]);
-    expect(snap.fog.cells).toEqual(['0,0']);
+    // Case de brouillard « 0,0 » convertie en zone ; calques créés avec la carte
+    expect(snap.fogZones).toMatchObject([{ shape: 'polygon', mode: 'fog' }]);
+    expect(snap.fogZones[0]!.points).toHaveLength(4);
+    expect(snap.layers.map((l) => l.name)).toEqual(['Sol', 'Objets', 'Personnages']);
     expect(snap.portals[0]!.targetMapId).toBe(legacyUuid(`cartes/${R}/cities/c2`));
     const settings = await h.ok<{ partyMapId: string }>(
       alice,

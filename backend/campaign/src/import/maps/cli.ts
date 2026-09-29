@@ -199,7 +199,7 @@ async function rehostMedia(m: MigratedMaps, warn: (w: string) => void) {
     const audio = t.audio as { url?: string } | null | undefined;
     if (audio?.url && needsRehost(audio.url)) {
       const url = await one(audio.url, `Son du token ${t.id}`);
-      t.audio = url ? { ...audio, url } : null;
+      t.audio = url && t.audio ? { ...t.audio, url } : null;
     }
   }
   for (const o of m.objects) o.imageUrl = (await one(o.imageUrl, `Objet ${o.id}`)) ?? '';

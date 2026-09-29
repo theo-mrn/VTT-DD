@@ -5,8 +5,26 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  MapBlocksFrom,
+  MapDrawingTool,
+  MapFogMode,
+  MapFogShape,
+  MapMeasurementShape,
+  MapObjectKind,
+  MapObjectVisibility,
+  MapObstacleKind,
+  MapPortalIcon,
+  MapPortalKind,
+  MapRoomMode,
+  MapTokenShape,
+  MapTokenVisibility,
+  type MapObjectItem,
+  type MapToken,
+} from '@vtt/contracts';
+import {
   bigint,
   boolean,
+  doublePrecision,
   customType,
   index,
   integer,
@@ -242,30 +260,48 @@ export interface MapPoint {
   y: number;
 }
 
-/** Lit un point ou une ligne 2D en EWKB hexadécimal (sortie texte de PostGIS). */
-export function parseEwkb(hex: string): MapPoint[] {
+/**
+ * Lit un point, une ligne ou un polygone 2D en EWKB hexadécimal (sortie texte de PostGIS).
+ * Polygone : ses anneaux, le contour d'abord, chacun fermé (dernier point = premier).
+ */
+export function parseEwkbRings(hex: string): MapPoint[][] {
   const bytes = Buffer.from(hex, 'hex');
   const little = bytes[0] === 1;
   const u32 = (o: number) => (little ? bytes.readUInt32LE(o) : bytes.readUInt32BE(o));
   const f64 = (o: number) => (little ? bytes.readDoubleLE(o) : bytes.readDoubleBE(o));
   const type = u32(1);
   let offset = 5 + (type & 0x20000000 ? 4 : 0); // SRID facultatif
-  const read = (count: number) =>
-    Array.from({ length: count }, (_, i) => ({
+  const read = (count: number) => {
+    const points = Array.from({ length: count }, (_, i) => ({
       x: f64(offset + i * 16),
       y: f64(offset + i * 16 + 8),
     }));
+    offset += count * 16;
+    return points;
+  };
+  const counted = () => {
+    const count = u32(offset);
+    offset += 4;
+    return read(count);
+  };
   switch (type & 0xffff) {
     case 1:
-      return read(1);
-    case 2: {
-      const count = u32(offset);
+      return [read(1)];
+    case 2:
+      return [counted()];
+    case 3: {
+      const rings = u32(offset);
       offset += 4;
-      return read(count);
+      return Array.from({ length: rings }, counted);
     }
     default:
       throw new Error(`Géométrie non prise en charge (type ${type & 0xffff})`);
   }
+}
+
+/** Lit un point ou une ligne 2D en EWKB hexadécimal (sortie texte de PostGIS). */
+export function parseEwkb(hex: string): MapPoint[] {
+  return parseEwkbRings(hex)[0] ?? [];
 }
 
 const coords = (p: MapPoint) => `${p.x} ${p.y}`;
@@ -284,20 +320,31 @@ const lineString = customType<{ data: MapPoint[]; driverData: string }>({
   fromDriver: (hex) => parseEwkb(hex),
 });
 
-export const TOKEN_VISIBILITIES = ['visible', 'hidden', 'ally', 'custom', 'invisible'] as const;
-export type TokenVisibility = (typeof TOKEN_VISIBILITIES)[number];
-export const OBJECT_VISIBILITIES = ['visible', 'hidden', 'custom'] as const;
-export type ObjectVisibility = (typeof OBJECT_VISIBILITIES)[number];
-export const TOKEN_SHAPES = ['circle', 'square'] as const;
-export const OBJECT_KINDS = ['decor', 'weapon', 'item'] as const;
-export const OBSTACLE_KINDS = ['wall', 'one_way_wall', 'door', 'window'] as const;
-export type ObstacleKind = (typeof OBSTACLE_KINDS)[number];
+/**
+ * geometry(Polygon, 0) ⇄ contour [{ x, y }, …] sans répéter le premier point (trois points
+ * au moins). Les trous éventuels ne sont pas lus : pièces et zones n'en ont pas.
+ */
+const polygon = customType<{ data: MapPoint[]; driverData: string }>({
+  dataType: () => 'geometry(Polygon, 0)',
+  toDriver: (points) => {
+    const first = points[0]!;
+    const last = points[points.length - 1]!;
+    const closed = first.x === last.x && first.y === last.y ? points : [...points, first];
+    return `POLYGON((${closed.map(coords).join(', ')}))`;
+  },
+  fromDriver: (hex) => {
+    const ring = parseEwkbRings(hex)[0] ?? [];
+    return ring.slice(0, -1);
+  },
+});
+
+export const TOKEN_VISIBILITIES = MapTokenVisibility.options;
+export type TokenVisibility = MapTokenVisibility;
+export const OBJECT_VISIBILITIES = MapObjectVisibility.options;
+export type ObjectVisibility = MapObjectVisibility;
+export type ObstacleKind = MapObstacleKind;
+/** Ancien côté bloquant d'un mur à sens unique (colonne obsolète depuis 0017, voir blocks_from). */
 export const DIRECTIONS = ['north', 'south', 'east', 'west'] as const;
-export const ROOM_MODES = ['room', 'individual'] as const;
-export const DRAWING_TOOLS = ['pen', 'brush', 'eraser', 'line', 'rectangle', 'circle'] as const;
-export const PORTAL_KINDS = ['scene_change', 'same_map'] as const;
-export const PORTAL_ICONS = ['stairs', 'door', 'portal', 'ladder'] as const;
-export const MEASUREMENT_SHAPES = ['line', 'cone', 'circle', 'cube'] as const;
 
 /** Colonnes communes aux éléments d'une carte. */
 const mapElement = () => ({
@@ -321,6 +368,27 @@ export const mapGroups = campaignSchema.table('map_groups', {
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
 });
 
+/**
+ * Élément rangé dans un calque du MJ (0018) : sans valeur à l'insertion, le déclencheur de la
+ * base choisit le calque par défaut de sa sorte et le haut de sa pile (pas de valeur par défaut
+ * en base : `default(NULL)` ne sert qu'à rendre la colonne facultative à l'insertion).
+ */
+const layered = () => ({
+  layerId: uuid('layer_id')
+    .notNull()
+    .default(sql`NULL`),
+  z: doublePrecision('z')
+    .notNull()
+    .default(sql`NULL`),
+});
+/** Dessins et textes : calque facultatif (null : annotation au-dessus de l'ombre). */
+const annotation = () => ({
+  layerId: uuid('layer_id'),
+  z: doublePrecision('z')
+    .notNull()
+    .default(sql`NULL`),
+});
+
 /** Scènes ; `isDefault` : le fond global de l'ancienne app (aucune scène). */
 export const maps = campaignSchema.table('maps', {
   id: uuid('id').primaryKey(),
@@ -338,9 +406,23 @@ export const maps = campaignSchema.table('maps', {
   height: integer('height'),
   weather: jsonb('weather').$type<{ type: string; intensity: number } | null>(),
   layers: jsonb('layers').$type<Record<string, boolean>>().notNull().default({}),
+  /** Toute la carte sous le brouillard au départ (0017) ; les zones s'appliquent ensuite. */
+  fogFull: boolean('fog_full').notNull().default(false),
   version: integer('version').notNull().default(1),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+});
+
+/** Calques du MJ (0018) : pile ordonnée par carte ; une carte naît avec Sol, Objets, Personnages. */
+export const mapLayers = campaignSchema.table('map_layers', {
+  ...mapElement(),
+  name: text('name').notNull(),
+  sortOrder: doublePrecision('sort_order').notNull().default(0),
+  visibleToPlayers: boolean('visible_to_players').notNull().default(true),
+  locked: boolean('locked').notNull().default(false),
+  opacity: real('opacity').notNull().default(1),
+  /** Calque par défaut d'une sorte (un par carte et par rôle). */
+  role: text('role').$type<'ground' | 'objects' | 'tokens' | null>(),
 });
 
 export const mapSettings = campaignSchema.table('map_settings', {
@@ -358,6 +440,7 @@ export const mapSettings = campaignSchema.table('map_settings', {
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
 });
 
+/** Obsolète (0017) : converti en `mapFogZones` et `maps.fogFull`, plus lu ni écrit. */
 export const mapFog = campaignSchema.table('map_fog', {
   mapId: uuid('map_id').primaryKey(),
   campaignId: uuid('campaign_id').notNull(),
@@ -372,22 +455,24 @@ export const mapTokens = campaignSchema.table(
   {
     ...mapElement(),
     characterId: uuid('character_id').notNull(),
+    ...layered(),
     pos: point('pos').notNull(),
     /** La carte où se trouve le personnage (une seule) ; sinon sa dernière position ici. */
     present: boolean('present').notNull().default(true),
     scale: real('scale').notNull().default(1),
-    shape: text('shape').$type<(typeof TOKEN_SHAPES)[number]>().notNull().default('circle'),
+    shape: text('shape').$type<MapTokenShape>().notNull().default('circle'),
     imageUrl: text('image_url'),
     visibility: text('visibility').$type<TokenVisibility>().notNull().default('visible'),
     visibleTo: uuid('visible_to').array().notNull().default([]),
     visionRadius: real('vision_radius').notNull().default(100),
     visionBoost: boolean('vision_boost').notNull().default(false),
     notes: text('notes'),
-    audio: jsonb('audio').$type<Record<string, unknown> | null>(),
-    interactions: jsonb('interactions').$type<unknown[] | null>(),
+    audio: jsonb('audio').$type<MapToken['audio']>(),
+    interactions: jsonb('interactions').$type<MapToken['interactions']>(),
   },
   (t) => [
     unique('map_tokens_map_character').on(t.mapId, t.characterId),
+    unique('map_tokens_id_map').on(t.id, t.mapId),
     index('map_tokens_map_pos').using('gist', t.mapId, t.pos),
   ],
 );
@@ -395,20 +480,25 @@ export const mapTokens = campaignSchema.table(
 export const mapObjects = campaignSchema.table('map_objects', {
   ...mapElement(),
   name: text('name').notNull().default(''),
-  kind: text('kind').$type<(typeof OBJECT_KINDS)[number]>().notNull().default('decor'),
+  kind: text('kind').$type<MapObjectKind>().notNull().default('decor'),
   imageUrl: text('image_url').notNull().default(''),
   pos: point('pos').notNull(),
   width: real('width').notNull().default(100),
   height: real('height').notNull().default(100),
   rotation: real('rotation').notNull().default(0),
+  /** Legacy : décor d'arrière-plan ; ne sert plus qu'au calque par défaut (Sol) à l'insertion. */
   isBackground: boolean('is_background').notNull().default(false),
+  ...layered(),
   isLocked: boolean('is_locked').notNull().default(false),
   visibility: text('visibility').$type<ObjectVisibility>().notNull().default('visible'),
   visibleTo: uuid('visible_to').array().notNull().default([]),
   notes: text('notes'),
-  items: jsonb('items').$type<unknown[]>().notNull().default([]),
+  items: jsonb('items').$type<MapObjectItem[]>().notNull().default([]),
   linkedId: text('linked_id'),
   groupEntityId: text('group_entity_id'),
+  searchable: boolean('searchable').notNull().default(false),
+  /** En unités de la carte (× pixels_per_unit), depuis le rectangle de l'objet. */
+  searchRadius: real('search_radius').notNull().default(1.5),
 });
 
 export const mapLights = campaignSchema.table('map_lights', {
@@ -418,24 +508,56 @@ export const mapLights = campaignSchema.table('map_lights', {
   /** En unités de la carte (× pixels_per_unit). */
   radius: real('radius').notNull().default(10),
   visible: boolean('visible').notNull().default(true),
+  color: text('color').notNull().default('#ffd08a'),
+  intensity: real('intensity').notNull().default(1),
+  falloff: real('falloff').notNull().default(0.5),
+  /** Token suivi (torche), sur la même carte ; null : lumière fixe. */
+  attachedTokenId: uuid('attached_token_id'),
 });
 
 export const mapObstacles = campaignSchema.table('map_obstacles', {
   ...mapElement(),
   kind: text('kind').$type<ObstacleKind>().notNull().default('wall'),
   geom: lineString('geom').notNull(),
+  /** Obsolète (0017) : remplacée par `blocksFrom`, plus lue ni écrite. */
   direction: text('direction').$type<(typeof DIRECTIONS)[number] | null>(),
+  /** Mur à sens unique : côté du tracé d'où la vue est bloquée. */
+  blocksFrom: text('blocks_from').$type<MapBlocksFrom | null>(),
   isOpen: boolean('is_open').notNull().default(false),
   isLocked: boolean('is_locked').notNull().default(false),
   color: text('color'),
-  opacity: real('opacity'),
-  roomMode: text('room_mode').$type<(typeof ROOM_MODES)[number] | null>(),
+  opacity: real('opacity').notNull().default(1),
+  roomMode: text('room_mode').$type<MapRoomMode | null>(),
+});
+
+/** Pièces : polygones fermés, sans effet de mur par eux-mêmes (0017). */
+export const mapRooms = campaignSchema.table('map_rooms', {
+  ...mapElement(),
+  name: text('name').notNull().default(''),
+  geom: polygon('geom').notNull(),
+});
+
+/**
+ * Zones de brouillard (0017), appliquées par `seq` croissant à partir de `maps.fogFull`.
+ * Cercle : `center` et `radius` font foi, `geom` en est l'approximation (index, bbox).
+ */
+export const mapFogZones = campaignSchema.table('map_fog_zones', {
+  ...mapElement(),
+  seq: bigint('seq', { mode: 'number' }).generatedAlwaysAsIdentity(),
+  shape: text('shape').$type<MapFogShape>().notNull(),
+  mode: text('mode').$type<MapFogMode>().notNull().default('fog'),
+  geom: polygon('geom').notNull(),
+  center: point('center'),
+  radius: doublePrecision('radius'),
+  createdBy: uuid('created_by').notNull(),
 });
 
 export const mapDrawings = campaignSchema.table('map_drawings', {
   ...mapElement(),
   createdBy: uuid('created_by').notNull(),
-  tool: text('tool').$type<(typeof DRAWING_TOOLS)[number]>().notNull().default('pen'),
+  /** Calque du MJ ; null : annotation au-dessus de l'ombre. */
+  ...annotation(),
+  tool: text('tool').$type<MapDrawingTool>().notNull().default('pen'),
   geom: lineString('geom').notNull(),
   color: text('color').notNull().default('#000000'),
   width: real('width').notNull().default(5),
@@ -447,6 +569,8 @@ export const mapDrawings = campaignSchema.table('map_drawings', {
 export const mapNotes = campaignSchema.table('map_notes', {
   ...mapElement(),
   createdBy: uuid('created_by').notNull(),
+  /** Calque du MJ ; null : annotation au-dessus de l'ombre. */
+  ...annotation(),
   text: text('text').notNull(),
   pos: point('pos').notNull(),
   color: text('color').notNull().default('yellow'),
@@ -469,10 +593,10 @@ export const mapPortals = campaignSchema.table('map_portals', {
   name: text('name').notNull().default(''),
   pos: point('pos').notNull(),
   radius: real('radius').notNull().default(50),
-  kind: text('kind').$type<(typeof PORTAL_KINDS)[number]>().notNull().default('scene_change'),
+  kind: text('kind').$type<MapPortalKind>().notNull().default('scene_change'),
   targetMapId: uuid('target_map_id'),
   target: point('target'),
-  icon: text('icon').$type<(typeof PORTAL_ICONS)[number] | null>(),
+  icon: text('icon').$type<MapPortalIcon | null>(),
   color: text('color'),
   visible: boolean('visible').notNull().default(true),
 });
@@ -480,7 +604,7 @@ export const mapPortals = campaignSchema.table('map_portals', {
 export const mapMeasurements = campaignSchema.table('map_measurements', {
   ...mapElement(),
   createdBy: uuid('created_by').notNull(),
-  shape: text('shape').$type<(typeof MEASUREMENT_SHAPES)[number]>().notNull(),
+  shape: text('shape').$type<MapMeasurementShape>().notNull(),
   geom: lineString('geom').notNull(),
   color: text('color').notNull().default('#ffffff'),
   skin: text('skin'),

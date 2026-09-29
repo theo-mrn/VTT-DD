@@ -23,6 +23,7 @@ import {
   mapSettings,
   mapTokens,
 } from '../../db/schema.js';
+import { convertLegacyFog } from './legacy-model.js';
 import type { MigratedMaps } from './transform.js';
 
 /** Tables dans l'ordre d'écriture (clés étrangères : dossiers, cartes, puis le reste). */
@@ -108,6 +109,11 @@ export async function loadMaps(
   return db.transaction(async (tx) => {
     const counts = emptyCounts();
     for (const [name] of TABLES) counts[name] = await insertAll(tx, name, rowsOf(m, name));
+    // Brouillard par cases de l'ancienne carte : converti en zones (0017-map-visibility.sql)
+    await convertLegacyFog(
+      tx,
+      m.fog.map((f) => f.mapId as string),
+    );
     if (Object.values(counts).some((n) => n > 0))
       await appendEvent(
         tx,

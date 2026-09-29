@@ -1,6 +1,7 @@
 /**
- * Couches simples de la carte : objets, lumières, obstacles, dessins, textes,
- * zones sonores, portails et gabarits. Même contrat pour toutes :
+ * Couches de la carte au contrat commun : objets, lumières, obstacles, pièces, zones de
+ * brouillard, dessins, textes, zones sonores, portails et gabarits. Schémas : contrat
+ * `MAP_LAYERS` de @vtt/contracts (docs/api-map.md).
  *
  *   GET    /v1/campaigns/:id/maps/:mapId/<couche>?bbox=x1,y1,x2,y2   liste (filtrée pour les joueurs)
  *   POST   /v1/campaigns/:id/maps/:mapId/<couche>                    créer
@@ -13,7 +14,13 @@
  * spectateur ; modification et suppression par l'auteur ou le MJ) et portes
  * (un joueur ouvre ou ferme une porte non verrouillée).
  */
-import { uuidv7 } from '@vtt/contracts';
+import {
+  DeleteMapLayerQuery,
+  MAP_LAYERS,
+  mapLayerBatch,
+  uuidv7,
+  type MapLayerPath,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq, sql, type AnyColumn } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -21,16 +28,9 @@ import { z } from 'zod';
 import type { Db } from '../../db/client.js';
 import type { EventContext, Tx } from '../../db/outbox.js';
 import {
-  DIRECTIONS,
-  DRAWING_TOOLS,
-  MEASUREMENT_SHAPES,
-  OBJECT_KINDS,
-  OBJECT_VISIBILITIES,
-  OBSTACLE_KINDS,
-  PORTAL_ICONS,
-  PORTAL_KINDS,
-  ROOM_MODES,
   mapDrawings,
+  mapFogZones,
+  mapLayers,
   mapLights,
   mapMeasurements,
   mapMusicZones,
@@ -38,33 +38,32 @@ import {
   mapObjects,
   mapObstacles,
   mapPortals,
+  mapRooms,
   maps,
+  mapTokens,
   type MapPoint,
 } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
 import {
   Bbox,
-  Color,
+  checkLayer,
   envelope,
-  ItemId,
-  ItemParams,
+  hiddenLayerIds,
   loadMap,
   MapParams,
+  ItemParams,
   mapEvent,
-  MediaUrl,
-  Name,
   notFound,
-  Point,
-  Points,
   requestContext,
   requireGm,
   requireWriter,
-  Version,
+  sqlCircle,
   versionConflict,
   viewerOf,
   type MapRow,
   type Viewer,
 } from './common.js';
+import { moveLayerContent } from './arrange.js';
 
 export type LayerRow = Record<string, unknown> & {
   id: string;
@@ -81,34 +80,45 @@ type Input = Record<string, unknown>;
 /** Table d'une couche (colonnes communes : id, campaign_id, map_id, version, dates). */
 type LayerTable = typeof mapLights;
 
-interface LayerDef {
-  /** Segment d'URL. */
-  path: string;
-  /** Domaine des événements (`<domaine>.created`…). */
-  domain: string;
+export interface LayerDef {
+  /** Segment d'URL (clé de `MAP_LAYERS`). */
+  path: MapLayerPath;
   /** Nom affiché dans les erreurs. */
   label: string;
   table: unknown;
-  /** Colonne géométrique (filtre ?bbox=). */
-  geom: AnyColumn;
-  /** Champs de l'API (tous modifiables). */
-  fields: z.ZodRawShape;
-  /** Champs obligatoires à la création. */
-  required: string[];
+  /** Colonne géométrique (filtre ?bbox=) ; absente : pas de filtre (calques). */
+  geom?: AnyColumn;
+  /** Rangé dans un calque du MJ (`layerId`) : invisible des joueurs si le calque leur est masqué. */
+  layered?: boolean;
+  /** Ordre des listes (défaut : création, puis identifiant). */
+  order?: AnyColumn[];
   /** Qui écrit : le MJ, ou tout membre (l'auteur modifie et supprime ses éléments). */
   write: 'gm' | 'author';
+  /** L'auteur est enregistré (`created_by`) même si seul le MJ écrit. */
+  author?: boolean;
   /** Visible de tous les membres (sinon MJ seulement, sauf `visibleTo`). */
   isPublic?: (row: Row) => boolean;
   /** Personnages qui voient un élément non public (visibilité `custom`). */
   visibleTo?: (row: Row) => string[];
   /** Modification permise à un joueur non auteur (porte non verrouillée). */
   playerPatch?: (row: Row, patch: Input) => boolean;
-  /** Champs API → colonnes. */
-  toColumns?: (input: Input) => Input;
+  /** Valeurs par défaut d'une création (mur à sens unique : bloque à gauche). */
+  defaults?: (db: Db | Tx, map: MapRow, input: Input) => Input | Promise<Input>;
+  /** Champs API → colonnes (`before` : ligne modifiée, absente à la création). */
+  toColumns?: (input: Input, before?: Row) => Input;
   /** Ligne → API (dates et géométries converties). */
   toApi?: (row: Row) => Input;
-  /** Contrôles qui demandent la base (cible d'un portail dans la campagne). */
-  check?: (db: Db | Tx, map: MapRow, input: Input) => Promise<void>;
+  /** Contrôles qui demandent la base (cible d'un portail, token suivi, calque). */
+  check?: (db: Db | Tx, map: MapRow, input: Input, v: Viewer) => Promise<void>;
+  /** Avant une suppression (calque : son contenu change de calque). */
+  beforeDelete?: (
+    tx: Tx,
+    ctx: EventContext,
+    v: Viewer,
+    map: MapRow,
+    row: Row,
+    o: { moveTo?: string },
+  ) => Promise<void>;
   /** DELETE sur la collection : effacer toute la couche de la carte. */
   clearable?: boolean;
 }
@@ -128,155 +138,180 @@ const baseApi = (row: Row): Input => {
   return { ...rest, ...(geom ? { points: geom } : {}), updatedAt: updatedAt.toISOString() };
 };
 
-const Visibility = z.enum(OBJECT_VISIBILITIES);
-const CharacterIds = z.array(z.uuid().transform((s) => s.toLowerCase())).max(100);
+const refused = (message: string, code: string) => new HttpError(422, 'Refusé', code, message);
 
 // ─── Couches ─────────────────────────────────────────────────────────────────
 
+/** Calque cible d'un élément créé ou modifié (`layerId`). */
+const layerCheck = (db: Db | Tx, map: MapRow, input: Input, v: Viewer) =>
+  input.layerId !== undefined ? checkLayer(db, v, map.id, input.layerId) : Promise.resolve();
+
 export const LAYERS: LayerDef[] = [
   {
+    path: 'layers',
+    label: 'Calque',
+    table: mapLayers,
+    order: [mapLayers.sortOrder, mapLayers.id],
+    write: 'gm',
+    isPublic: (r) => r.visibleToPlayers === true,
+    // Sans ordre : en haut de la pile
+    defaults: async (db, map, input) => {
+      if (input.sortOrder !== undefined) return input;
+      const [top] = await db
+        .select({ top: sql<number | null>`max(${mapLayers.sortOrder})` })
+        .from(mapLayers)
+        .where(eq(mapLayers.mapId, map.id));
+      return { ...input, sortOrder: (top?.top ?? -1) + 1 };
+    },
+    beforeDelete: (tx, ctx, v, map, row, o) => moveLayerContent(tx, ctx, v, map, row, o.moveTo),
+  },
+  {
     path: 'objects',
-    domain: 'map_object',
     label: 'Objet',
     table: mapObjects,
     geom: mapObjects.pos,
-    fields: {
-      name: Name,
-      kind: z.enum(OBJECT_KINDS),
-      imageUrl: MediaUrl.or(z.literal('')),
-      pos: Point,
-      width: z.number().positive().max(100_000),
-      height: z.number().positive().max(100_000),
-      rotation: z.number().finite(),
-      isBackground: z.boolean(),
-      isLocked: z.boolean(),
-      visibility: Visibility,
-      visibleTo: CharacterIds,
-      notes: z.string().max(10_000).nullable(),
-      items: z.array(z.record(z.string(), z.unknown())).max(500),
-      linkedId: z.string().max(200).nullable(),
-      groupEntityId: z.string().max(200).nullable(),
-    },
-    required: ['pos'],
+    layered: true,
     write: 'gm',
+    check: layerCheck,
     isPublic: (r) => r.visibility === 'visible',
     visibleTo: (r) => (r.visibility === 'custom' ? (r.visibleTo as string[]) : []),
+    // `isBackground` : colonne legacy (calque par défaut à l'insertion), hors contrat
+    toApi: (row) => {
+      const { isBackground: _b, ...rest } = baseApi(row);
+      return rest;
+    },
   },
   {
     path: 'lights',
-    domain: 'map_light',
     label: 'Lumière',
     table: mapLights,
     geom: mapLights.pos,
-    fields: {
-      name: Name,
-      pos: Point,
-      radius: z.number().min(0).max(100_000),
-      visible: z.boolean(),
-    },
-    required: ['pos'],
     write: 'gm',
     isPublic: (r) => r.visible === true,
+    check: async (db, map, input) => {
+      if (!input.attachedTokenId) return;
+      const [token] = await db
+        .select({ id: mapTokens.id })
+        .from(mapTokens)
+        .where(
+          and(
+            eq(mapTokens.id, input.attachedTokenId as string),
+            eq(mapTokens.mapId, map.id),
+            eq(mapTokens.present, true),
+          ),
+        );
+      if (!token) throw refused('Token introuvable sur cette carte', 'unknown_token');
+    },
   },
   {
     path: 'obstacles',
-    domain: 'map_obstacle',
     label: 'Obstacle',
     table: mapObstacles,
     geom: mapObstacles.geom,
-    fields: {
-      kind: z.enum(OBSTACLE_KINDS),
-      points: Points(2, 1000),
-      direction: z.enum(DIRECTIONS).nullable(),
-      isOpen: z.boolean(),
-      isLocked: z.boolean(),
-      color: Color.nullable(),
-      opacity: z.number().min(0).max(1).nullable(),
-      roomMode: z.enum(ROOM_MODES).nullable(),
-    },
-    required: ['points'],
     write: 'gm',
     playerPatch: (r, patch) =>
       r.kind === 'door' &&
       !r.isLocked &&
       Object.keys(patch).every((k) => k === 'isOpen' || k === 'version'),
+    defaults: (_db, _map, input) =>
+      input.kind === 'one_way_wall' && input.blocksFrom == null
+        ? { ...input, blocksFrom: 'left' }
+        : input,
     toColumns: pointsToGeom,
+    // `direction` : colonne obsolète (0017), remplacée par `blocksFrom`
+    toApi: (row) => {
+      const { direction: _d, ...rest } = baseApi(row);
+      return rest;
+    },
+  },
+  {
+    path: 'rooms',
+    label: 'Pièce',
+    table: mapRooms,
+    geom: mapRooms.geom,
+    write: 'gm',
+    toColumns: (input) => {
+      const { points, ...rest } = input;
+      return points ? { ...rest, geom: points } : rest;
+    },
+  },
+  {
+    path: 'fog-zones',
+    label: 'Zone de brouillard',
+    table: mapFogZones,
+    geom: mapFogZones.geom,
+    order: [mapFogZones.seq],
+    write: 'gm',
+    author: true,
+    toColumns: (input, before) => {
+      const { points, center, radius, ...rest } = input as Input & {
+        points?: MapPoint[];
+        center?: MapPoint;
+        radius?: number;
+      };
+      const shape = (before?.shape ?? input.shape) as string;
+      if (shape === 'circle') {
+        if (points !== undefined)
+          throw refused('Un cercle se règle par center et radius', 'fog_zone_shape');
+        if (center === undefined && radius === undefined) return rest;
+        const c = center ?? (before!.center as MapPoint);
+        const r = radius ?? (before!.radius as number);
+        return { ...rest, center: c, radius: r, geom: sqlCircle(c, r) };
+      }
+      if (center !== undefined || radius !== undefined)
+        throw refused('Seul un cercle a un centre et un rayon', 'fog_zone_shape');
+      if (points === undefined) return rest;
+      if (shape === 'rect' && points.length !== 4)
+        throw refused('Un rectangle a 4 points', 'fog_zone_shape');
+      return { ...rest, geom: points };
+    },
+    toApi: (row) => {
+      const { seq, geom, center, radius, ...rest } = row as Row & {
+        seq: number;
+        geom: MapPoint[];
+      };
+      const circle = rest.shape === 'circle';
+      return {
+        ...baseApi(rest as Row),
+        points: circle ? [] : geom,
+        center: circle ? center : null,
+        radius: circle ? radius : null,
+        order: Number(seq),
+      };
+    },
   },
   {
     path: 'drawings',
-    domain: 'map_drawing',
     label: 'Dessin',
     table: mapDrawings,
     geom: mapDrawings.geom,
-    fields: {
-      tool: z.enum(DRAWING_TOOLS),
-      points: Points(1, 20_000),
-      color: Color,
-      width: z.number().positive().max(1000),
-      fill: Color.nullable(),
-      closed: z.boolean(),
-      smooth: z.boolean(),
-    },
-    required: ['points'],
+    layered: true,
     write: 'author',
+    check: layerCheck,
     toColumns: pointsToGeom,
     clearable: true,
   },
   {
     path: 'notes',
-    domain: 'map_note',
     label: 'Texte',
     table: mapNotes,
     geom: mapNotes.pos,
-    fields: {
-      text: z.string().max(5000),
-      pos: Point,
-      color: Color,
-      fontSize: z.number().positive().max(1000),
-      fontFamily: z.string().trim().max(100).nullable(),
-    },
-    required: ['text', 'pos'],
+    layered: true,
     write: 'author',
+    check: layerCheck,
   },
   {
     path: 'music-zones',
-    domain: 'map_music_zone',
     label: 'Zone sonore',
     table: mapMusicZones,
     geom: mapMusicZones.pos,
-    fields: {
-      name: Name,
-      pos: Point,
-      radius: z.number().min(0).max(100_000),
-      /** Fichier audio (https) ou identifiant de vidéo YouTube. */
-      url: MediaUrl.or(z.string().regex(/^[\w-]{6,20}$/, 'URL ou id YouTube attendu')).nullable(),
-      volume: z.number().min(0).max(1),
-      color: Color.nullable(),
-    },
-    required: ['pos'],
     write: 'gm',
   },
   {
     path: 'portals',
-    domain: 'map_portal',
     label: 'Portail',
     table: mapPortals,
     geom: mapPortals.pos,
-    fields: {
-      name: Name,
-      pos: Point,
-      radius: z.number().min(0).max(100_000),
-      kind: z.enum(PORTAL_KINDS),
-      targetMapId: z
-        .uuid()
-        .transform((s) => s.toLowerCase())
-        .nullable(),
-      target: Point.nullable(),
-      icon: z.enum(PORTAL_ICONS).nullable(),
-      color: Color.nullable(),
-      visible: z.boolean(),
-    },
-    required: ['pos'],
     write: 'gm',
     isPublic: (r) => r.visible === true,
     check: async (db, map, input) => {
@@ -285,26 +320,14 @@ export const LAYERS: LayerDef[] = [
         .select({ id: maps.id })
         .from(maps)
         .where(and(eq(maps.id, input.targetMapId as string), eq(maps.campaignId, map.campaignId)));
-      if (!target)
-        throw new HttpError(422, 'Refusé', 'unknown_target_map', 'Carte cible introuvable');
+      if (!target) throw refused('Carte cible introuvable', 'unknown_target_map');
     },
   },
   {
     path: 'measurements',
-    domain: 'map_measurement',
     label: 'Gabarit',
     table: mapMeasurements,
     geom: mapMeasurements.geom,
-    fields: {
-      shape: z.enum(MEASUREMENT_SHAPES),
-      start: Point,
-      end: Point,
-      color: Color,
-      skin: z.string().trim().max(200).nullable(),
-      /** Réglages du gabarit (cône : coneWidth, coneAngle, coneShape, coneMode, fixedLength…). */
-      options: z.record(z.string(), z.unknown()),
-    },
-    required: ['shape', 'start', 'end'],
     write: 'author',
     toColumns: ({ start, end, ...rest }) => {
       if (!start !== !end)
@@ -318,21 +341,42 @@ export const LAYERS: LayerDef[] = [
   },
 ];
 
+export const layerDef = (path: MapLayerPath) => LAYERS.find((d) => d.path === path)!;
+/** Domaine des événements d'une couche (`map_object`…). */
+export const layerDomain = (def: LayerDef) => MAP_LAYERS[def.path].domain;
+/** Clé d'une couche dans le chargement initial (`fogZones`…). */
+export const layerKey = (def: LayerDef) => MAP_LAYERS[def.path].key;
+
 // ─── Opérations ──────────────────────────────────────────────────────────────
 
 const table = (def: LayerDef) => def.table as LayerTable;
 export const layerItemApi = (def: LayerDef, row: Row) => (def.toApi ?? baseApi)(row);
 const toApi = layerItemApi;
-const isPublic = (def: LayerDef, row: Row) => def.isPublic?.(row) ?? true;
+/** Élément d'un calque masqué aux joueurs. */
+const inHiddenLayer = (def: LayerDef, row: Row, hidden: Set<string>) =>
+  def.layered === true && typeof row.layerId === 'string' && hidden.has(row.layerId);
 
-/** Un joueur voit les éléments publics et ceux `custom` qui visent un de ses personnages. */
-export function visibleFor(def: LayerDef, v: Viewer, row: Row) {
+/** Visible de tous les membres : public par sa couche et hors d'un calque masqué. */
+export const isPublicItem = (def: LayerDef, row: Row, hidden: Set<string>) =>
+  (def.isPublic?.(row) ?? true) && !inHiddenLayer(def, row, hidden);
+const isPublic = isPublicItem;
+
+/**
+ * Un joueur voit les éléments publics et ceux `custom` qui visent un de ses personnages,
+ * jamais le contenu d'un calque qui lui est masqué.
+ */
+export function visibleFor(def: LayerDef, v: Viewer, row: Row, hidden: Set<string>) {
+  if (v.isGm) return true;
+  if (inHiddenLayer(def, row, hidden)) return false;
   return (
-    v.isGm ||
-    isPublic(def, row) ||
+    (def.isPublic?.(row) ?? true) ||
     (def.visibleTo?.(row) ?? []).some((id) => v.characterIds.includes(id))
   );
 }
+
+/** Calques masqués de la carte, si la couche en dépend. */
+export const hiddenFor = (db: Db | Tx, def: LayerDef, mapId: string) =>
+  def.layered ? hiddenLayerIds(db, mapId) : Promise.resolve(new Set<string>());
 
 /** Éléments d'une couche sur une carte, filtrés pour l'appelant. */
 export async function listLayer(
@@ -343,12 +387,15 @@ export async function listLayer(
   bbox?: [number, number, number, number],
 ) {
   const t = table(def);
+  const hidden = await hiddenFor(db, def, mapId);
   const rows = (await db
     .select()
     .from(t)
-    .where(and(eq(t.mapId, mapId), bbox ? sql`${def.geom} && ${envelope(bbox)}` : undefined))
-    .orderBy(asc(t.createdAt), asc(t.id))) as unknown as Row[];
-  return rows.filter((r) => visibleFor(def, v, r)).map((r) => toApi(def, r));
+    .where(
+      and(eq(t.mapId, mapId), bbox && def.geom ? sql`${def.geom} && ${envelope(bbox)}` : undefined),
+    )
+    .orderBy(...(def.order ?? [t.createdAt, t.id]).map((c) => asc(c)))) as unknown as Row[];
+  return rows.filter((r) => visibleFor(def, v, r, hidden)).map((r) => toApi(def, r));
 }
 
 async function createItem(
@@ -361,36 +408,39 @@ async function createItem(
 ) {
   if (def.write === 'gm') requireGm(v);
   else requireWriter(v);
-  await def.check?.(tx, map, input);
+  const withDefaults = def.defaults ? await def.defaults(tx, map, input) : input;
+  await def.check?.(tx, map, withDefaults, v);
   const values = {
-    ...(def.toColumns ?? ((x: Input) => x))(input),
+    ...(def.toColumns ?? ((x: Input) => x))(withDefaults),
     id: uuidv7(),
     campaignId: map.campaignId,
     mapId: map.id,
-    ...(def.write === 'author' ? { createdBy: v.userId } : {}),
+    ...(def.write === 'author' || def.author ? { createdBy: v.userId } : {}),
   };
   const [row] = (await tx
     .insert(table(def))
     .values(values as never)
     .returning()) as unknown as Row[];
   const api = toApi(def, row!);
+  const hidden = await hiddenFor(tx, def, map.id);
   await mapEvent(tx, ctx, v, {
-    type: `${def.domain}.created`,
-    aggregate: { type: def.domain, id: row!.id },
+    type: `${layerDomain(def)}.created`,
+    aggregate: { type: layerDomain(def), id: row!.id },
     payload: api,
-    visibility: isPublic(def, row!) ? 'public' : 'gm_only',
+    visibility: isPublic(def, row!, hidden) ? 'public' : 'gm_only',
+    restricted: inHiddenLayer(def, row!, hidden),
   });
   return api;
 }
 
-async function lockItem(tx: Tx, def: LayerDef, v: Viewer, mapId: string, itemId: string) {
+export async function lockItem(tx: Tx, def: LayerDef, v: Viewer, mapId: string, itemId: string) {
   const t = table(def);
   const [row] = (await tx
     .select()
     .from(t)
     .where(and(eq(t.id, itemId), eq(t.mapId, mapId)))
     .for('update')) as unknown as Row[];
-  if (!row || !visibleFor(def, v, row)) throw notFound(def.label);
+  if (!row || !visibleFor(def, v, row, await hiddenFor(tx, def, mapId))) throw notFound(def.label);
   return row;
 }
 
@@ -407,7 +457,46 @@ function requireEdit(def: LayerDef, v: Viewer, row: Row, patch?: Input) {
   );
 }
 
-async function updateItem(
+/**
+ * Écrit la nouvelle version d'un élément verrouillé (`before`) et ses événements :
+ * `<domaine>.updated`, et `<domaine>.hidden` public s'il vient d'être caché.
+ */
+export async function writeItem(
+  tx: Tx,
+  ctx: EventContext,
+  def: LayerDef,
+  v: Viewer,
+  map: MapRow,
+  before: Row,
+  columns: Input,
+) {
+  const t = table(def);
+  const [after] = (await tx
+    .update(t)
+    .set({ ...columns, version: sql`${t.version} + 1`, updatedAt: sql`now()` } as never)
+    .where(eq(t.id, before.id))
+    .returning()) as unknown as Row[];
+  const api = toApi(def, after!);
+  const hidden = await hiddenFor(tx, def, map.id);
+  const visible = isPublic(def, after!, hidden);
+  await mapEvent(tx, ctx, v, {
+    type: `${layerDomain(def)}.updated`,
+    aggregate: { type: layerDomain(def), id: before.id },
+    payload: api,
+    visibility: visible ? 'public' : 'gm_only',
+    restricted: inHiddenLayer(def, after!, hidden),
+  });
+  // Élément qui vient d'être caché (visibilité, calque masqué) : les joueurs le retirent
+  if (isPublic(def, before, hidden) && !visible)
+    await mapEvent(tx, ctx, v, {
+      type: `${layerDomain(def)}.hidden`,
+      aggregate: { type: layerDomain(def), id: before.id },
+      payload: { id: before.id, mapId: map.id },
+    });
+  return api;
+}
+
+export async function updateItem(
   tx: Tx,
   ctx: EventContext,
   def: LayerDef,
@@ -420,33 +509,9 @@ async function updateItem(
   requireEdit(def, v, before, patch);
   const { version, ...changes } = patch;
   if (version !== undefined && version !== before.version) throw versionConflict();
-  await def.check?.(tx, map, changes);
-  const t = table(def);
-  const [after] = (await tx
-    .update(t)
-    .set({
-      ...(def.toColumns ?? ((x: Input) => x))(changes),
-      version: sql`${t.version} + 1`,
-      updatedAt: sql`now()`,
-    } as never)
-    .where(eq(t.id, itemId))
-    .returning()) as unknown as Row[];
-  const api = toApi(def, after!);
-  const visible = isPublic(def, after!);
-  await mapEvent(tx, ctx, v, {
-    type: `${def.domain}.updated`,
-    aggregate: { type: def.domain, id: itemId },
-    payload: api,
-    visibility: visible ? 'public' : 'gm_only',
-  });
-  // Élément qui vient d'être caché : les joueurs le retirent
-  if (isPublic(def, before) && !visible)
-    await mapEvent(tx, ctx, v, {
-      type: `${def.domain}.hidden`,
-      aggregate: { type: def.domain, id: itemId },
-      payload: { id: itemId, mapId: map.id },
-    });
-  return api;
+  await def.check?.(tx, map, changes, v);
+  const columns = (def.toColumns ?? ((x: Input) => x))(changes, before);
+  return writeItem(tx, ctx, def, v, map, before, columns);
 }
 
 async function deleteItem(
@@ -456,31 +521,23 @@ async function deleteItem(
   v: Viewer,
   map: MapRow,
   itemId: string,
+  o: { moveTo?: string } = {},
 ) {
   const before = await lockItem(tx, def, v, map.id, itemId);
   requireEdit(def, v, before);
+  await def.beforeDelete?.(tx, ctx, v, map, before, o);
   const t = table(def);
+  const hidden = await hiddenFor(tx, def, map.id);
   await tx.delete(t).where(eq(t.id, itemId));
   await mapEvent(tx, ctx, v, {
-    type: `${def.domain}.deleted`,
-    aggregate: { type: def.domain, id: itemId },
+    type: `${layerDomain(def)}.deleted`,
+    aggregate: { type: layerDomain(def), id: itemId },
     payload: { id: itemId, mapId: map.id },
-    visibility: isPublic(def, before) ? 'public' : 'gm_only',
+    visibility: isPublic(def, before, hidden) ? 'public' : 'gm_only',
   });
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-
-/** Schéma de création : champs obligatoires, les autres facultatifs (valeurs par défaut en base). */
-function createSchema(def: LayerDef) {
-  const shape: Record<string, z.ZodType> = {};
-  for (const [k, s] of Object.entries(def.fields))
-    shape[k] = def.required.includes(k) ? (s as z.ZodType) : (s as z.ZodType).optional();
-  return z.strictObject(shape);
-}
-
-const patchSchema = (def: LayerDef) =>
-  z.strictObject(def.fields).partial().extend({ version: Version });
 
 export const registerLayers: Module = async (app, deps) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -489,8 +546,7 @@ export const registerLayers: Module = async (app, deps) => {
 
   for (const def of LAYERS) {
     const base = `/v1/campaigns/:id/maps/:mapId/${def.path}`;
-    const Create = createSchema(def);
-    const Patch = patchSchema(def);
+    const { create: Create, update: Patch } = MAP_LAYERS[def.path];
 
     r.get(
       base,
@@ -508,7 +564,7 @@ export const registerLayers: Module = async (app, deps) => {
       const created = await db.transaction(async (tx) => {
         const v = await viewerOf(tx, req.params.id, userId);
         const map = await loadMap(tx, v, req.params.mapId);
-        return createItem(tx, ctx, def, v, map, req.body);
+        return createItem(tx, ctx, def, v, map, req.body as Input);
       });
       reply.code(201);
       return created;
@@ -522,37 +578,35 @@ export const registerLayers: Module = async (app, deps) => {
         return db.transaction(async (tx) => {
           const v = await viewerOf(tx, req.params.id, userId);
           const map = await loadMap(tx, v, req.params.mapId);
-          return updateItem(tx, ctx, def, v, map, req.params.itemId, req.body);
+          return updateItem(tx, ctx, def, v, map, req.params.itemId, req.body as Input);
         });
       },
     );
 
-    r.delete(`${base}/:itemId`, { ...auth, schema: { params: ItemParams } }, async (req, reply) => {
-      const { userId, ctx } = requestContext(req);
-      await db.transaction(async (tx) => {
-        const v = await viewerOf(tx, req.params.id, userId);
-        const map = await loadMap(tx, v, req.params.mapId);
-        await deleteItem(tx, ctx, def, v, map, req.params.itemId);
-      });
-      reply.code(204);
-    });
-
-    r.post(
-      `${base}/batch`,
+    r.delete(
+      `${base}/:itemId`,
       {
         ...auth,
         schema: {
-          params: MapParams,
-          body: z.strictObject({
-            create: z.array(Create).max(500).default([]),
-            update: z
-              .array(Patch.extend({ id: ItemId }))
-              .max(500)
-              .default([]),
-            delete: z.array(ItemId).max(500).default([]),
-          }),
+          params: ItemParams,
+          querystring: def.beforeDelete ? DeleteMapLayerQuery : z.object({}),
         },
       },
+      async (req, reply) => {
+        const { userId, ctx } = requestContext(req);
+        const { moveTo } = req.query as { moveTo?: string };
+        await db.transaction(async (tx) => {
+          const v = await viewerOf(tx, req.params.id, userId);
+          const map = await loadMap(tx, v, req.params.mapId);
+          await deleteItem(tx, ctx, def, v, map, req.params.itemId, moveTo ? { moveTo } : {});
+        });
+        reply.code(204);
+      },
+    );
+
+    r.post(
+      `${base}/batch`,
+      { ...auth, schema: { params: MapParams, body: mapLayerBatch(Create, Patch) } },
       async (req) => {
         const { userId, ctx } = requestContext(req);
         return db.transaction(async (tx) => {
@@ -560,10 +614,10 @@ export const registerLayers: Module = async (app, deps) => {
           const map = await loadMap(tx, v, req.params.mapId);
           const created = [];
           for (const input of req.body.create)
-            created.push(await createItem(tx, ctx, def, v, map, input));
+            created.push(await createItem(tx, ctx, def, v, map, input as Input));
           const updated = [];
           for (const { id, ...patch } of req.body.update)
-            updated.push(await updateItem(tx, ctx, def, v, map, id as string, patch));
+            updated.push(await updateItem(tx, ctx, def, v, map, id as string, patch as Input));
           for (const id of req.body.delete) await deleteItem(tx, ctx, def, v, map, id);
           return { created, updated, deleted: req.body.delete };
         });
@@ -584,7 +638,7 @@ export const registerLayers: Module = async (app, deps) => {
             .returning({ id: t.id });
           if (removed.length)
             await mapEvent(tx, ctx, v, {
-              type: `${def.domain}.cleared`,
+              type: `${layerDomain(def)}.cleared`,
               aggregate: { type: 'map', id: map.id },
               payload: { mapId: map.id, ids: removed.map((x) => x.id) },
             });

@@ -5,14 +5,21 @@
  * Un joueur (ou un spectateur) ne voit que les cartes visibles des joueurs et
  * celle où se trouve un de ses personnages : les autres sont introuvables (404).
  */
-import type { Visibility } from '@vtt/contracts';
+import {
+  ExpectedVersion,
+  MapColor,
+  MapPoint,
+  mapPoints,
+  MediaUrl as ContractMediaUrl,
+  type Visibility,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, eq, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { Db } from '../../db/client.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
-import { campaignCharacters, mapTokens, maps, type MapPoint } from '../../db/schema.js';
+import { campaignCharacters, mapLayers, mapSettings, mapTokens, maps } from '../../db/schema.js';
 import { access, actorRole, type Access } from '../campaigns/repository.js';
 import { CampaignId, currentUser, eventContext, Uuid } from '../schemas.js';
 
@@ -110,9 +117,10 @@ async function usersOfCharacters(tx: Tx, campaignId: string, characterIds: strin
 }
 
 /**
- * Événement de carte, écrit dans l'outbox avec la donnée. Un événement
- * `gm_only` dont le payload liste des personnages (`visibleTo`) reçoit aussi
- * `visibleToUsers` : les joueurs autorisés, à qui realtime l'envoie en plus des MJ.
+ * Événement de carte, écrit dans l'outbox avec la donnée. Un événement `gm_only` d'un
+ * élément en visibilité `custom` reçoit aussi `visibleToUsers` (propriétaires et
+ * incarnateurs des personnages de `visibleTo`) : realtime l'envoie à ces joueurs en plus
+ * des MJ. `restricted` : réservé aux MJ quoi qu'il arrive (élément d'un calque masqué).
  */
 export async function mapEvent(
   tx: Tx,
@@ -123,12 +131,14 @@ export async function mapEvent(
     aggregate: { type: string; id: string };
     payload: Record<string, unknown>;
     visibility?: Visibility;
+    restricted?: boolean;
   },
 ) {
   const visibility = e.visibility ?? 'public';
-  const characterIds = Array.isArray(e.payload.visibleTo)
-    ? e.payload.visibleTo.filter((id): id is string => typeof id === 'string')
-    : [];
+  const characterIds =
+    !e.restricted && e.payload.visibility === 'custom' && Array.isArray(e.payload.visibleTo)
+      ? e.payload.visibleTo.filter((id): id is string => typeof id === 'string')
+      : [];
   const payload =
     visibility === 'gm_only' && characterIds.length
       ? {
@@ -146,6 +156,34 @@ export async function mapEvent(
   });
 }
 
+// ─── Calques du MJ ───────────────────────────────────────────────────────────
+
+/** Calques de la carte masqués aux joueurs : leur contenu ne leur est jamais envoyé. */
+export async function hiddenLayerIds(db: Db | Tx, mapId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ id: mapLayers.id })
+    .from(mapLayers)
+    .where(and(eq(mapLayers.mapId, mapId), eq(mapLayers.visibleToPlayers, false)));
+  return new Set(rows.map((r) => r.id));
+}
+
+export const unknownLayer = () =>
+  new HttpError(422, 'Refusé', 'unknown_layer', 'Calque introuvable sur cette carte');
+
+/**
+ * Calque cible d'un élément : de cette carte (422 sinon) ; pour un joueur, ni verrouillé
+ * ni masqué (403). `null` : aucun calque (annotation).
+ */
+export async function checkLayer(db: Db | Tx, v: Viewer, mapId: string, layerId: unknown) {
+  if (layerId == null) return;
+  const [layer] = await db
+    .select()
+    .from(mapLayers)
+    .where(and(eq(mapLayers.id, layerId as string), eq(mapLayers.mapId, mapId)));
+  if (!layer || (!v.isGm && !layer.visibleToPlayers)) throw unknownLayer();
+  if (!v.isGm && layer.locked) throw HttpError.forbidden('Ce calque est verrouillé');
+}
+
 /** Contexte d'une requête : appelant et contexte d'événement. */
 export const requestContext = (req: FastifyRequest) => ({
   userId: currentUser(req),
@@ -159,26 +197,16 @@ export const ItemId = Uuid('Identifiant invalide');
 export const MapParams = z.object({ id: CampaignId, mapId: MapId });
 export const ItemParams = z.object({ id: CampaignId, mapId: MapId, itemId: ItemId });
 
-const Coordinate = z.number().finite().min(-1_000_000).max(1_000_000);
-export const Point = z.object({ x: Coordinate, y: Coordinate });
-export const Points = (min: number, max: number) => z.array(Point).min(min).max(max);
+export const Point = MapPoint;
+export const Points = mapPoints;
 
 /** Verrou optimiste facultatif : version lue par le client. */
-export const Version = z.number().int().positive().optional();
+export const Version = ExpectedVersion;
 
-/**
- * Média (image, audio) : URL https ou chemin absolu du site (bibliothèque
- * d'assets). Comme l'ancienne carte, le MJ peut pointer vers un hébergeur tiers.
- */
-export const MediaUrl = z
-  .string()
-  .trim()
-  .max(2048, '2048 caractères au plus')
-  .refine((u) => /^https:\/\/\S+$/.test(u) || /^\/[^/]\S*$/.test(u), {
-    message: 'URL https ou chemin absolu attendu',
-  });
+/** Média (image, audio, vidéo) : URL https ou chemin absolu du site (contrat de la carte). */
+export const MediaUrl = ContractMediaUrl;
 
-export const Color = z.string().trim().max(50);
+export const Color = MapColor;
 export const Name = z.string().trim().max(200);
 
 /** Rectangle d'affichage `x1,y1,x2,y2` (?bbox=) : ne renvoie que ce qui le touche. */
@@ -193,5 +221,58 @@ export const envelope = (b: [number, number, number, number]) =>
 /** Point SQL (paramètres numériques). */
 export const sqlPoint = (p: MapPoint) =>
   sql`ST_SetSRID(ST_MakePoint(${p.x}::float8, ${p.y}::float8), 0)`;
+
+/** Polygone approché d'un cercle (zone de brouillard) : index spatial et fenêtre d'affichage. */
+export const sqlCircle = (center: MapPoint, radius: number) =>
+  sql`ST_Buffer(${sqlPoint(center)}, ${radius}::float8, 'quad_segs=16')`;
+
+/**
+ * Le point `p` (expression SQL) est-il sous le brouillard de la carte `mapId` ? La dernière
+ * zone qui le couvre (`seq`) décide (`fog` ou `clear`), sinon `maps.fog_full`. Un cercle
+ * se teste sur son centre et son rayon exacts.
+ */
+export const sqlInFog = (mapId: SQL | string, p: SQL) => sql`coalesce((
+  SELECT z.mode = 'fog' FROM campaign.map_fog_zones z
+   WHERE z.map_id = ${mapId}
+     AND CASE WHEN z.shape = 'circle' THEN ST_DWithin(z.center, ${p}, z.radius)
+              ELSE ST_Covers(z.geom, ${p}) END
+   ORDER BY z.seq DESC LIMIT 1),
+  (SELECT m.fog_full FROM campaign.maps m WHERE m.id = ${mapId}), false)`;
+
+/**
+ * L'obstacle `o` (alias SQL) coupe-t-il la vue de l'œil `eye` vers `target` ? Mur opaque
+ * (`opacity` 1), porte fermée, ou mur à sens unique vu depuis son côté bloquant (premier
+ * segment : gauche si `cross(b − a, eye − a) < 0`). Une fenêtre, un mur translucide ou une
+ * porte ouverte laissent voir. Passage à @vtt/vision au lot 2 (docs/carte.md § 9).
+ */
+export const sqlBlocksSight = (eye: SQL, target: SQL) => sql`(
+  (o.kind = 'wall' AND o.opacity >= 1)
+  OR (o.kind = 'door' AND NOT o.is_open)
+  OR (o.kind = 'one_way_wall' AND (
+    (ST_X(ST_PointN(o.geom, 2)) - ST_X(ST_PointN(o.geom, 1))) * (ST_Y(${eye}) - ST_Y(ST_PointN(o.geom, 1)))
+    - (ST_Y(ST_PointN(o.geom, 2)) - ST_Y(ST_PointN(o.geom, 1))) * (ST_X(${eye}) - ST_X(ST_PointN(o.geom, 1)))
+  ) * CASE WHEN o.blocks_from = 'right' THEN -1 ELSE 1 END < 0)
+) AND ST_Intersects(o.geom, ST_MakeLine(${eye}, ${target}))`;
+
+// ─── Réglages de carte ───────────────────────────────────────────────────────
+
+type SettingsRow = typeof mapSettings.$inferSelect;
+export const settingsApi = (campaignId: string, s: SettingsRow | undefined) => ({
+  campaignId,
+  partyMapId: s?.partyMapId ?? null,
+  tokenScale: s?.tokenScale ?? 1,
+  pixelsPerUnit: s?.pixelsPerUnit ?? 50,
+  unitName: s?.unitName ?? 'm',
+  shadowOpacity: s?.shadowOpacity ?? 1,
+  dungeonMode: s?.dungeonMode ?? false,
+  music: s?.music ?? null,
+  version: s?.version ?? 0,
+});
+
+/** Réglages de carte de la campagne (valeurs par défaut sans réglage enregistré). */
+export async function mapSettingsOf(db: Db | Tx, campaignId: string) {
+  const [s] = await db.select().from(mapSettings).where(eq(mapSettings.campaignId, campaignId));
+  return settingsApi(campaignId, s);
+}
 
 export const iso = (d: Date) => d.toISOString();
