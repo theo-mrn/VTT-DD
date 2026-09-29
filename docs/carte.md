@@ -301,7 +301,7 @@ Les actions **communes** sont générées à partir des capacités, avec les mê
 | Clic                                       | sélectionne (⇧ : ajoute ou retire) ; clic dans le vide : désélectionne                                                                                                                                    |
 | Glisser (seuil de 4 px écran)              | déplace la sélection si `move` et `can` ; aperçu local, direct (§ 8), aimantation (grille, Alt pour s'en passer) ; au lâcher : **une** commande pour toute la sélection ; Échap pendant le geste : annule |
 | Glisser dans le vide (outil sélection)     | lasso rectangulaire (⇧ : ajoute)                                                                                                                                                                          |
-| Double clic                                | inspecteur (fiche du PNJ, propriétés de l'objet…)                                                                                                                                                         |
+| Double clic                                | inspecteur (fiche du PNJ, propriétés de l'objet…) ; un texte s'édite en place                                                                                                                             |
 | Clic droit ou appui long (500 ms, tactile) | menu contextuel : actions communes et actions de la sorte ; sélection multiple : actions communes à toutes                                                                                                |
 | Poignées (`transform-gizmo.ts`)            | rotation (⇧ : pas de 15°), taille par les coins (⇧ : garde les proportions) ; mêmes poignées pour objets, tokens et textes                                                                                |
 | Suppr / Retour arrière                     | supprime la sélection (confirmation pour une instance de PNJ)                                                                                                                                             |
@@ -567,16 +567,41 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 
 ### Dessins et textes (`drawings`)
 
-- **Outils** :
-  - main levée, lissée (Ramer-Douglas-Peucker, puis Catmull-Rom au rendu) ;
-  - ligne ;
-  - rectangle et cercle (⇧ : carré ou cercle parfait ; remplissage facultatif) ;
-  - gomme (supprime les tracés touchés) ;
-  - texte (couche `notes`).
-- **Réglages** : palette de couleurs (données), épaisseur, opacité.
-- **Direct** : le tracé en cours part dans `map.live.stroke`. Au lâcher, `POST drawings`.
-- **Entités** : les tracés sont des entités comme les autres (sélection, glisser, supprimer),
-  modifiables par leur auteur ou le MJ. Effacer mes dessins, ou tous (MJ).
+- **Outil Dessin (P)**, formes au clavier 1 à 5 :
+  - main levée : points bruts pendant le geste (1,5 px d'écran d'écart au moins), simplifiés au
+    lâcher (Ramer-Douglas-Peucker, 0,8 px d'écran), lissés au rendu (Catmull-Rom) ;
+  - ligne (⇧ : par pas de 15°) ;
+  - rectangle et ellipse (⇧ : carré ou cercle ; remplissage facultatif) ;
+  - gomme : les tracés touchés disparaissent pendant le geste, **une** commande au lâcher ;
+    Échap les rend.
+- **Outil Texte (T)** : un clic pose un texte (couche `notes`), édité en place par un champ DOM
+  sur la carte (Entrée valide, ⇧ Entrée va à la ligne, Échap annule, cliquer ailleurs valide) ;
+  double clic sur un texte (outil sélection, `EntityKind.doubleClick`) ou clic avec l'outil
+  Texte : le modifier ; vidé, il est supprimé.
+- **Réglages** (mémorisés dans le navigateur) : palette de couleurs (données, `palette.ts`),
+  couleur personnalisée, épaisseur (pixels du monde), opacité, remplissage, taille et police des
+  textes, et destination : **annotation** (défaut, au-dessus de l'ombre) ou **calque** (le calque
+  actif, sinon « Sol », jamais un calque verrouillé).
+- **Encodage** (compatible avec l'ancienne carte) :
+  - l'opacité est dans la couleur (`#rrggbbaa`), le remplissage reprend la couleur à 35 % ;
+  - `line` : `[a, b]` ; `rectangle` : `[coin, coin opposé]` ; `circle` avec `closed` : la boîte de
+    l'ellipse ; `circle` sans `closed` (ancienne carte) : `[centre, point du cercle]`, converti à
+    la première transformation ;
+  - texte : `pos` est le début de la ligne de base de la première ligne ; interligne 1,25.
+- **Direct** : le tracé en cours part dans `map.live.stroke` (points ajoutés depuis le dernier
+  envoi ; une forme envoie son origine puis son extrémité), avec la couleur de l'auteur ; rien ne
+  part pour un calque masqué aux joueurs. Au lâcher, `POST drawings` par une commande annulable ;
+  chez les autres, le fantôme reste jusqu'à l'arrivée du dessin du même auteur parti du même
+  point (3 s au plus). Un tracé abandonné (Échap) se termine par un dernier message
+  `tool: 'eraser'` : le fantôme disparaît.
+- **Entités** `drawing` et `note` : sélection, glisser, taille (points mis à l'échelle ; taille
+  de police pour un texte), dupliquer, supprimer, ordre et calque, « Passer en annotation » ;
+  auteur ou MJ (`authorOrGm`). Les annotations s'ordonnent entre elles (dessins et textes
+  confondus). Toucher d'un tracé : distance au trait ≤ épaisseur / 2 + 6 px d'écran, ou
+  intérieur d'une forme remplie. Un texte ne pivote pas : le contrat n'a pas de `rotation` pour
+  `notes`.
+- **Effacer mes dessins**, **Tout effacer** (MJ, confirmation) : une commande annulable (⌘Z les
+  fait revenir), par `/batch`, plutôt que `DELETE …/drawings` qui ne se défait pas.
 
 ### Personnages et PNJ (`tokens`)
 

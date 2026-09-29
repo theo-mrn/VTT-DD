@@ -169,6 +169,11 @@ export class SelectTool implements Tool {
 
   doubleClick(e: MapPointer, engine: MapEngine): boolean {
     const hit = engine.hitTest(e.world);
+    // La sorte prend le double clic (texte édité en place), sinon l'inspecteur
+    if (hit?.kind.doubleClick?.(hit, { viewer: engine.viewer, engine, world: e.world })) {
+      engine.selection.replace([hit.id]);
+      return true;
+    }
     if (!hit || !hasCapability(hit.kind, 'inspect') || !hit.kind.can('inspect', hit, engine.viewer))
       return false;
     engine.selection.replace([hit.id]);

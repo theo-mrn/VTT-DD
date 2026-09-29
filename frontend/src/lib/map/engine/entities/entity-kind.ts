@@ -260,6 +260,11 @@ export interface EntityKind<D extends MapDto = MapDto> {
 
   /** Entrées propres au menu contextuel (après les actions communes). */
   actions?(entities: readonly MapEntity<D>[], ctx: ActionContext): MenuItem[];
+  /**
+   * Double clic sur l'entité avec l'outil sélection : la sorte le prend (éditer un texte en
+   * place) en renvoyant vrai ; sinon, l'inspecteur s'ouvre.
+   */
+  doubleClick?(entity: MapEntity<D>, ctx: ActionContext & { world: Point }): boolean;
   /** Copie à dupliquer, décalée (capacité `duplicate`) ; l'identifiant est fourni par le moteur. */
   duplicate?(data: D, offset: Point, ctx: KindContext): D;
   /** Message de confirmation avant suppression (instance de PNJ), ou null. */

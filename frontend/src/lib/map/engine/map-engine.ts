@@ -913,6 +913,11 @@ export class MapEngine {
     return sortStack([...this.entityMap.values()].filter((e) => e.layerId === layerId));
   }
 
+  /** Annotations (dessins et textes hors calque, plan `annotations`), du dessous vers le dessus. */
+  annotationContent(): MapEntity[] {
+    return sortStack([...this.entityMap.values()].filter(isAnnotation));
+  }
+
   // ─── Monde ─────────────────────────────────────────────────────────────────
 
   entity(id: string): MapEntity | undefined {
@@ -978,7 +983,8 @@ export class MapEngine {
   ): MapEntity | null {
     const tol = this.camera.screenToWorldLength(opts.tolerancePx ?? HIT_TOLERANCE_PX);
     let best: MapEntity | null = null;
-    for (const id of this.index.queryPoint(world, tol)) {
+    // L'index ne fait que dégrossir : une sorte peut toucher un peu au-delà de sa boîte (trait)
+    for (const id of this.index.queryPoint(world, tol * 2)) {
       const e = this.entityMap.get(id);
       if (!e || !this.isInteractive(e)) continue;
       if (opts.filter && !opts.filter(e)) continue;
@@ -1568,11 +1574,14 @@ export class MapEngine {
 
   /** Avancer, reculer, premier plan, arrière-plan, dans le calque de chacun (ordre relatif gardé). */
   arrange(entities: readonly MapEntity[], op: OrderOp) {
-    const targets = this.allowed(entities, 'order').filter((e) => e.kind.stacking && e.layerId);
+    // Dans un calque, ou parmi les annotations (dessins et textes hors calque)
+    const targets = this.allowed(entities, 'order').filter(
+      (e) => e.kind.stacking && (e.layerId || isAnnotation(e)),
+    );
     if (!targets.length) return null;
     const moves: { entity: MapEntity; layerId: string | null; z: number }[] = [];
-    for (const layerId of new Set(targets.map((e) => e.layerId!))) {
-      const stack = this.layerContent(layerId);
+    for (const layerId of new Set(targets.map((e) => e.layerId))) {
+      const stack = layerId ? this.layerContent(layerId) : this.annotationContent();
       const selected = new Set(targets.filter((e) => e.layerId === layerId).map((e) => e.id));
       const order = reorderStack(
         stack.map((e) => e.id),
@@ -1768,6 +1777,10 @@ const selectIcon = MousePointer2;
 const pingIcon = Radio;
 const focusIcon = Crosshair;
 const fitIcon = Focus;
+
+/** Dessin ou texte hors calque : une annotation, ordonnée parmi les autres annotations. */
+const isAnnotation = (e: MapEntity) =>
+  e.layerId === null && e.plane === 'annotations' && e.kind.stacking?.optional === true;
 
 function separator(id: string): MenuItem {
   return { id: `sep:${id}`, label: '' };
