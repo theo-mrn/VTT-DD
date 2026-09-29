@@ -99,10 +99,10 @@ export function registerDrawings(engine: MapEngine, opts: RegisterOptions = {}):
         appliesTo: (es) => es.length > 0 && es.every((e) => e.kind.id === NOTE_KIND),
         component: ui.NoteInspector,
       }),
-      engine.registerToolbarItem({
+      // Champ d'édition des textes, posé sur la carte (rendu libre)
+      engine.registerOverlay({
         id: 'drawings:note-editor',
-        slot: 'end',
-        order: 1000,
+        slot: 'none',
         available: canAnnotate,
         component: ui.NoteEditorOverlay,
       }),
