@@ -145,6 +145,7 @@ export function RangeSetting({
   unit,
   presets,
   format = (v) => String(v),
+  disabled,
   onChange,
   onCommit,
 }: {
@@ -156,6 +157,7 @@ export function RangeSetting({
   unit?: string;
   presets?: readonly { label: string; value: number }[];
   format?(v: number): string;
+  disabled?: boolean;
   onChange(v: number): void;
   onCommit?(v: number): void;
 }) {
@@ -174,6 +176,7 @@ export function RangeSetting({
         max={max}
         step={step}
         value={[value]}
+        disabled={disabled}
         onValueChange={([v]) => v !== undefined && onChange(v)}
         onValueCommit={([v]) => v !== undefined && onCommit?.(v)}
       />
@@ -185,6 +188,7 @@ export function RangeSetting({
               type="button"
               variant={p.value === value ? 'secondary' : 'ghost'}
               size="xs"
+              disabled={disabled}
               aria-pressed={p.value === value}
               onClick={() => {
                 onChange(p.value);

@@ -107,6 +107,7 @@ export function DrawingInspector({ engine, entities }: InspectorSectionProps) {
           max={OPACITY_RANGE.max * 100}
           step={OPACITY_RANGE.step * 100}
           unit="%"
+          disabled={!canEdit}
           onChange={(v) => setOpacityDraft(v / 100)}
           onCommit={(v) => {
             setOpacityDraft(null);
@@ -121,6 +122,7 @@ export function DrawingInspector({ engine, entities }: InspectorSectionProps) {
           step={WIDTH_RANGE.step}
           unit="px"
           presets={WIDTH_PRESETS}
+          disabled={!canEdit}
           onChange={setWidthDraft}
           onCommit={(v) => {
             setWidthDraft(null);
