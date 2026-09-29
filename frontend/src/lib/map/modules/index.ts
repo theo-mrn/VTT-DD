@@ -55,9 +55,9 @@
  */
 import type { MapModule } from '../engine/map-engine';
 import { sceneModule } from './scene';
-// import { drawingsModule } from './drawings';
+import { drawingsModule } from './drawings';
 // import { tokensModule } from './tokens';
-// import { objectsModule } from './objects';
+import { objectsModule } from './objects';
 // import { obstaclesModule } from './obstacles';
 // import { fogModule } from './fog';
 // import { lightsModule } from './lights';
@@ -67,11 +67,11 @@ export const MAP_MODULES: readonly MapModule[] = [
   // Moteur : point d'apparition de la scène
   sceneModule,
   // Lot 2 « Dessins » : main levée, formes, gomme, textes (P, T)
-  // drawingsModule,
+  drawingsModule,
   // Lot 2 « Personnages » : tokens, PNJ, bibliothèque du MJ
   // tokensModule,
   // Lot 2 « Objets » : objets, fouille
-  // objectsModule,
+  objectsModule,
   // Lot 2 « Outils de visibilité » : murs, portes, fenêtres, sens unique, pièces (W)
   // obstaclesModule,
   // Lot 2 « Outils de visibilité » : zones de brouillard (G)

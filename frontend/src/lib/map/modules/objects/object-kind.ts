@@ -11,8 +11,8 @@
  * - Droits, miroir du serveur : le MJ fait tout ; un joueur ne touche qu'un objet à fouiller
  *   (pour le fouiller), les autres ne se sélectionnent pas (le clic passe au travers) ; un
  *   spectateur regarde.
- * - Direct : un objet masqué, réservé à certains ou dans un calque masqué aux joueurs ne part
- *   qu'au MJ.
+ * - Direct : un objet masqué ou dans un calque masqué aux joueurs ne part qu'au MJ ; un objet
+ *   « pour certains », qu'aux joueurs de ces personnages (et au MJ).
  */
 import {
   Maximize2,
@@ -240,9 +240,17 @@ export function createObjectKinds(
     },
     duplicate: (o, offset) => ({ ...o, pos: { x: o.pos.x + offset.x, y: o.pos.y + offset.y } }),
     liveAudience(entity) {
-      if (entity.data.visibility !== 'visible') return 'gm';
+      const o = entity.data;
       if (entity.layerId && engine.layer(entity.layerId)?.visibleToPlayers === false) return 'gm';
-      return 'public';
+      if (o.visibility === 'custom') {
+        // Les joueurs dont un personnage le voit (et le MJ)
+        const allowed = new Set(o.visibleTo ?? []);
+        const users = (engine.directory.players?.() ?? [])
+          .filter((p) => p.characterIds.some((id) => allowed.has(id)))
+          .map((p) => p.userId);
+        return users.length ? { users } : 'gm';
+      }
+      return o.visibility === 'visible' ? 'public' : 'gm';
     },
     persistence: opts.persistence,
   };

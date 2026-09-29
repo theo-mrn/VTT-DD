@@ -114,18 +114,30 @@ describe('sorte « objet »', () => {
     expect(e().state.locked).toBe(true);
   });
 
-  it('direct : masqué, pour certains ou dans un calque masqué aux joueurs → MJ seulement', () => {
+  it('direct : masqué ou calque masqué → MJ ; pour certains → leurs joueurs seulement', () => {
     const t = setupObjects({
       objects: [
         obj('vu', 0, 0),
         obj('cache', 200, 0, { visibility: 'hidden' }),
         obj('certains', 400, 0, { visibility: 'custom', visibleTo: ['aldric'] }),
+        obj('personne', 500, 0, { visibility: 'custom', visibleTo: [] }),
         obj('sous-sol', 600, 0, { layerId: 'sol' }),
       ],
     });
+    Object.assign(t.engine, {
+      directory: {
+        characters: () => [],
+        userName: () => null,
+        players: () => [
+          { userId: 'joueuse', name: 'Joueuse', characterIds: ['aldric'] },
+          { userId: 'autre', name: 'Autre', characterIds: ['bree'] },
+        ],
+      },
+    });
     expect(t.engine.liveAudience('vu')).toBe('public');
     expect(t.engine.liveAudience('cache')).toBe('gm');
-    expect(t.engine.liveAudience('certains')).toBe('gm');
+    expect(t.engine.liveAudience('certains')).toEqual({ users: ['joueuse'] });
+    expect(t.engine.liveAudience('personne')).toBe('gm');
     expect(t.engine.liveAudience('sous-sol')).toBe('public');
     const sol = t.store.getState().collections.layers!.get('sol')!;
     t.store.getState().upsert('layers', [{ ...sol, version: 2, visibleToPlayers: false }]);

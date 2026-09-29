@@ -318,9 +318,9 @@ Règles de ces gestes :
 - **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
   pendant la saisie.
-- **Lettres réservées** : la carte prend V, P, T, W, G, L (outils), R (pivoter) et K (calques,
-  MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la table.
-  Encore libres : A, I, Q, U, X, Y, Z et les chiffres.
+- **Lettres réservées** : la carte prend V, P, T, W, G, L, I (outils), R (pivoter) et K
+  (calques, MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
+  table. Encore libres : A, Q, U, X, Y, Z et les chiffres.
 
 ### Outils (`tools/`)
 
@@ -338,6 +338,7 @@ Règles de ces gestes :
   | W      | obstacles  | `obstacles` |
   | G      | brouillard | `fog`       |
   | L      | lumières   | `lights`    |
+  | I      | objets     | `objects`   |
 
   La barre d'outils porte aussi « Vue » (MJ / vue d'un joueur, § 9), « Calques » (panneau des
   calques du MJ, K) et « Affichage » (familles affichées, `map.display`).
@@ -605,15 +606,53 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 
 ### Objets (`objects`)
 
-- **Pose** : depuis les modèles d'objets (`object-templates`) ou une image envoyée ; glisser vers
-  la carte.
+- **Deux sortes d'entités**, choisies par le champ `kind` du contrat, sur la même couche :
+  - `object` (`item`, `weapon`) : coffres, armes, butin ; masqués par la vision derrière les
+    murs (§ 9) ;
+  - `decor` : jamais filtrés par la vision, l'obscurité les couvre comme le fond. Le rendu de la
+    visibilité le reconnaît à `entity.kind.id === 'decor'` ;
+  - changer de sorte (menu « Sorte ▸ », inspecteur) garde la sélection et l'inspecteur.
+- **Rendu** : un `Sprite` par objet, jamais recréé (retexturé si l'image change, retaillé si la
+  taille change) ; texture chargée une fois par adresse et partagée (`ctx.texture`). Image en
+  chargement : cadre discret ; illisible : cadre barré, pour tous. **Zone à fouiller** (objet
+  sans image, posé sur un coffre peint dans le fond) : un cadre pour le MJ, rien pour les
+  joueurs hors du repère de fouille. Repères à taille constante : cadenas (MJ, verrouillé), loupe
+  (à fouiller, pour tous). Le masquage aux joueurs (hachures, œil barré) est celui du moteur.
+- **Pose** : outil « Objets » (I, MJ). Sa bibliothèque s'affiche au-dessus de la barre : modèles
+  d'objets de la campagne (`object-templates`, recherche, catégories, retirer), « Envoyer une
+  image » (`/media`, gardée aussi comme modèle), « Zone à fouiller ».
+  - Choisir un objet puis cliquer sur la carte (⇧ : en poser plusieurs, Alt : sans la grille,
+    Échap : annuler), ou le glisser sur la carte ; une image de l'ordinateur déposée sur la
+    carte est envoyée puis posée là.
+  - Taille par défaut : une case sur le petit côté, l'autre selon les proportions de l'image
+    (6 cases au plus). Aimanté comme un glisser, dans le calque actif ou « Objets », en haut de
+    la pile. L'objet posé est sélectionné (poignées prêtes). « Poser un objet » s'annule.
+  - Sans objet choisi, l'outil garde tous les gestes de la sélection.
 - **Gestes** : tous les gestes communs (glisser, poignées de rotation et de taille, verrou,
-  masquer, visible pour…, ordre et calque).
+  masquer, visible pour…, dupliquer avec le contenu, ordre et calque).
+  - Menu du MJ : « Taille ▸ » (Agrandir × 1,25, Rétrécir × 0,8, Une case aux proportions de
+    l'image), « Les joueurs peuvent fouiller », « Contenu et fouille… », « Sorte ▸ ».
+  - Visibilité : `visible`, `hidden` (masqué), `custom` (« Visible pour… » : `visibleTo`).
+    Masquer garde la liste : « Montrer » la rétablit. Direct : un objet masqué ou dans un
+    calque masqué aux joueurs ne part qu'au MJ ; « pour certains », qu'à leurs joueurs.
+- **Droits** : le MJ fait tout. Un joueur ne touche qu'un objet à fouiller (pour le fouiller) :
+  les autres ne se sélectionnent pas, son clic passe au travers (il déplace la vue). Un
+  spectateur regarde.
+- **Inspecteur du MJ** : nom, sorte, image (remplacer, retirer), taille en unités, rotation,
+  verrou, masqué, « Visible pour… » (personnages joueurs), notes du MJ ; section « Fouille » :
+  activer, portée (unités), contenu (ajouter depuis le marché du système, référencé par `ref`,
+  ou un objet libre ; quantité ; retirer). Sélection multiple : verrou, masqué, fouille, sorte,
+  taille.
 - **Fouiller**, activé par le MJ (`searchable`, `searchRadius` en unités).
-  - Un joueur dont un personnage est à portée voit « Fouiller ». Le contenu (`items`) s'ouvre
-    dans une fenêtre, et « Prendre » ajoute l'objet à l'inventaire du personnage (§ 12).
-  - Le MJ est prévenu, et gère le contenu dans l'inspecteur (catalogue du marché du système ou
-    objet libre).
+  - Portée, au calcul près celle du serveur : distance du centre du token (`pos`) au rectangle
+    de l'objet tourné autour de son centre, au plus `searchRadius × pixelsPerUnit`.
+  - Un joueur qui clique un objet à fouiller voit « Fouiller » au-dessus de lui (« Trop loin »,
+    grisé, hors de portée) ; aussi dans son menu et son inspecteur. La fenêtre montre le contenu
+    rendu par `…/search`, avec le personnage qui fouille (celui qu'il incarne s'il est à
+    portée, sinon le plus proche ; un autre au choix) ; « Prendre » (une partie ou tout) passe
+    par `…/take` et relit la fiche du personnage. Refus en clair : trop loin, déjà pris (le
+    contenu est relu), service des personnages injoignable.
+  - Le MJ est prévenu par un toast (`map_object.searched`, `map_object.looted`).
 
 ### Obstacles (`obstacles`), outils de pose
 
