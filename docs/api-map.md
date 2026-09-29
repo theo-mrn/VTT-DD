@@ -37,7 +37,13 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 - `isDefault` : le fond global de l'ancienne app (aucune scène sélectionnée), une par campagne au plus.
 - `backgroundUrl` : image (png, jpeg, webp, avif, gif) ou vidéo (webm, mp4). `width`/`height` :
   taille naturelle du fond, envoyée par le client du MJ une fois le fond chargé (taille du monde).
-- `weather` : `{ type, intensity }` ou `null`.
+- `weather` : `{ type, intensity, wind? }` ou `null` (lu par tous, réglé par le MJ, diffusé par
+  `map.updated`). `type` : `rain`, `storm`, `snow`, `blizzard`, `fog`, `leaves`, `embers`,
+  `sandstorm`, `alert`, `static` (texte libre de 50 caractères au plus : un type inconnu est gardé,
+  le client n'affiche rien) ; `intensity` : 0 à 10, comprise de 0 à 1 (au-delà : 1, valeurs de
+  l'ancienne app) ; `wind` facultatif, `{ direction, strength }` : direction où va le vent en
+  degrés (0 à 360 ; 0 vers l'est, 90 vers le sud), force de 0 à 1 ; absent : le vent propre à
+  l'effet. Rendu : [carte.md](carte.md) § 10, Météo.
 - `display` (ex-`layers`) : familles affichées, réglage du MJ,
   `{ lights, obstacles, notes, drawings, objects, characters, fog, music: boolean }` ;
   `obstacles: false` coupe aussi l'occlusion côté serveur. Ce ne sont pas les calques du MJ.

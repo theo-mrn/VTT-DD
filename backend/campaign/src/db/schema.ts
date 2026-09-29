@@ -3,7 +3,7 @@
  * La source de vérité est le changelog Liquibase (backend/campaign/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
-import type { MapGrid } from '@vtt/contracts';
+import type { MapGrid, MapWeather } from '@vtt/contracts';
 import { sql } from 'drizzle-orm';
 import {
   MapBlocksFrom,
@@ -405,7 +405,8 @@ export const maps = campaignSchema.table('maps', {
   spawn: point('spawn'),
   width: integer('width'),
   height: integer('height'),
-  weather: jsonb('weather').$type<{ type: string; intensity: number } | null>(),
+  /** Météo de la scène (`MapWeather`, @vtt/contracts) ; `wind` facultatif, sans changeset. */
+  weather: jsonb('weather').$type<MapWeather | null>(),
   layers: jsonb('layers').$type<Record<string, boolean>>().notNull().default({}),
   /** Toute la carte sous le brouillard au départ (0017) ; les zones s'appliquent ensuite. */
   fogFull: boolean('fog_full').notNull().default(false),

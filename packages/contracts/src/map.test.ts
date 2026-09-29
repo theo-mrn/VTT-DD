@@ -9,6 +9,7 @@ import {
   CreateMapScene,
   MAP_LAYERS,
   MapLiveMessage,
+  MapWeather,
   mapLayerBatch,
   MediaUploadRequest,
   UpdateMapObstacle,
@@ -152,5 +153,22 @@ describe('contrat de la carte', () => {
     expect(scenePixelsPerUnit({ grids: [grid('a', false), grid('b', true, 88)] }, null)).toBe(88);
     expect(scenePixelsPerUnit({ grids: [grid('a', false)] }, { pixelsPerUnit: 64 })).toBe(64);
     expect(scenePixelsPerUnit(null, null)).toBe(50);
+  });
+
+  it('météo : vent facultatif (données anciennes), borné, sans clé inconnue', () => {
+    expect(MapWeather.safeParse({ type: 'rain', intensity: 2 }).success).toBe(true);
+    expect(
+      MapWeather.safeParse({ type: 'snow', intensity: 0.5, wind: { direction: 90, strength: 1 } })
+        .success,
+    ).toBe(true);
+    const bad = [
+      { type: 'rain', intensity: 0.5, wind: { direction: 400, strength: 0.5 } },
+      { type: 'rain', intensity: 0.5, wind: { direction: 0, strength: 2 } },
+      { type: 'rain', intensity: 0.5, wind: { direction: 0 } },
+      { type: 'rain', intensity: 0.5, lightning: true },
+      { type: '', intensity: 0.5 },
+    ];
+    for (const w of bad) expect(MapWeather.safeParse(w).success).toBe(false);
+    expect(CreateMapScene.safeParse({ name: 'Plaine', weather: null }).success).toBe(true);
   });
 });

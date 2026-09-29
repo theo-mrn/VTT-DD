@@ -107,9 +107,26 @@ export type CampaignSide = z.infer<typeof CampaignSide>;
 
 // ─── Scènes (cartes) ─────────────────────────────────────────────────────────
 
+/**
+ * Vent de la météo : `direction`, où va le vent, en degrés (0 vers l'est, 90 vers le sud, sens
+ * horaire à l'écran) ; `strength`, 0 (calme) à 1 (tempête).
+ */
+export const MapWeatherWind = z.strictObject({
+  direction: z.number().min(0).max(360),
+  strength: z.number().min(0).max(1),
+});
+export type MapWeatherWind = z.infer<typeof MapWeatherWind>;
+
+/**
+ * Météo d'une scène (docs/carte.md § 10, Météo), la même pour tous. `type` : l'effet (`rain`,
+ * `storm`, `snow`, `blizzard`, `fog`, `leaves`, `embers`, `sandstorm`, `alert`, `static`) ; un
+ * type inconnu est gardé et n'affiche rien. `intensity` : 0 à 1 (l'ancienne app a pu écrire
+ * jusqu'à 10, compris comme 1). `wind` absent : le vent propre à l'effet.
+ */
 export const MapWeather = z.strictObject({
   type: z.string().trim().min(1).max(50),
   intensity: z.number().min(0).max(10),
+  wind: MapWeatherWind.optional(),
 });
 export type MapWeather = z.infer<typeof MapWeather>;
 
