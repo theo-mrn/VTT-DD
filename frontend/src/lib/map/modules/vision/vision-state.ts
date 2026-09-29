@@ -184,6 +184,9 @@ class ObserverViews {
 
 // ─── État ────────────────────────────────────────────────────────────────────
 
+/** Parties de `geometryKey` dont dépendent les murs : largeur, hauteur, occlusion, obstacles. */
+const WALL_KEYS = [0, 1, 3, 4];
+
 const TOKENS = 'tokens';
 const OBJECTS = 'objects';
 
@@ -282,8 +285,12 @@ export class VisionState {
 
     // Géométrie
     const key = geometryKey(state);
+    let wallsChanged = false;
     if (!sameKey(this.geoKey, key)) {
       const tp = performance.now();
+      // Les aires des lumières ne dépendent que des murs et des bornes (pas des zones ni des
+      // pièces) : sans eux, les lueurs restent telles quelles
+      wallsChanged = !this.geoKey || WALL_KEYS.some((i) => this.geoKey![i] !== key[i]);
       this.geoKey = key;
       this.geoScene = geometryScene(geometryInput(state));
       this.geoPrep = prepareScene(this.geoScene);
@@ -318,11 +325,11 @@ export class VisionState {
     );
     const lk = lightsKey(lights);
     if (lk !== this.lightKey || !this.litPrep) {
+      if (lk !== this.lightKey || wallsChanged) this.lightVersion += 1;
       this.lights = lights;
       this.lightKey = lk;
       this.litPrep = withLights(this.geoPrep!, lights);
       this.foggedLit = null;
-      this.lightVersion += 1;
       changed = true;
     }
 

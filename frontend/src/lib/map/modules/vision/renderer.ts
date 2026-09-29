@@ -433,7 +433,13 @@ export class VisionRenderer {
       uTime: { value: 0, type: 'f32' },
     });
     const shader = pixi.Shader.from({
-      gl: { vertex: VERTEX, fragment: COMPOSITE_FRAGMENT, name: 'vision-composite' },
+      // Coordonnées du monde dans le bruit : pleine précision (sinon des bandes sur mobile)
+      gl: {
+        vertex: VERTEX,
+        fragment: COMPOSITE_FRAGMENT,
+        name: 'vision-composite',
+        preferredFragmentPrecision: 'highp',
+      },
       resources: {
         visionUniforms: this.uniforms,
         uVis: this.targets.vis.rt.source,
@@ -459,9 +465,7 @@ export class VisionRenderer {
   /** Disque de vision au bord doux (dégradé radial blanc), dessiné une fois. */
   private makeDiscTexture(): Pixi.Texture {
     const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    const canvas = this.pixi.DOMAdapter.get().createCanvas(size, size);
     const ctx = canvas.getContext('2d')!;
     const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
     g.addColorStop(0, 'rgba(255,255,255,1)');
@@ -554,12 +558,6 @@ export class VisionRenderer {
     this.updateComposite(picture, cam, time, left, top);
     this.shown = true;
     this.onRender?.(performance.now() - started);
-  }
-
-  /** Temps de la brume seul (animation) : aucune texture refaite. */
-  setTime(time: number) {
-    this.uniforms.uniforms.uTime = time;
-    this.uniforms.update();
   }
 
   /** Portée hors observateur : hors brouillard (zones dans l'ordre), refaite avec les zones. */
