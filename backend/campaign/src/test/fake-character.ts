@@ -25,6 +25,11 @@ export interface FakeCharacter {
   avatarUrl?: string | null;
   /** Résumé des listes renvoyé par character. */
   summary?: { tagline: string; highlights: { label: string; value: string }[] };
+  /** Instance de PNJ : campagne de création et modèle copié. */
+  campaignId?: string;
+  templateId?: string | null;
+  /** Supprimé (introuvable ensuite). */
+  deleted?: boolean;
 }
 
 export interface Call {
@@ -41,9 +46,22 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
   return text ? (JSON.parse(text) as Record<string, unknown>) : {};
 }
 
+/** Réglages des routes des PNJ et du butin (pannes simulées). */
+export interface FakeCharacterBehaviour {
+  /** Réponse d'erreur de POST /internal/npcs (status, code). */
+  failNpcs?: { status: number; code: string };
+  /** Réponse d'erreur de POST /internal/characters/:id/possessions/receive. */
+  failReceive?: { status: number; code: string };
+  /** Identifiants imposés aux instances créées (un personnage existant est gardé tel quel). */
+  npcIds?: string[];
+}
+
 export async function fakeCharacter(secret: string) {
   const characters = new Map<string, FakeCharacter>();
   const calls: Call[] = [];
+  const behaviour: FakeCharacterBehaviour = {};
+  /** Objets reçus par personnage (butin). */
+  const loot = new Map<string, Record<string, unknown>[]>();
 
   const server = createServer(async (req, res) => {
     const body = await readBody(req);
@@ -61,9 +79,58 @@ export async function fakeCharacter(secret: string) {
     };
     if (received !== secret) return reply(401, { title: 'Authentification requise' });
 
+    // Instances de PNJ : de vrais personnages du faux service, numérotés comme character
+    if (req.method === 'POST' && path === '/internal/npcs') {
+      if (behaviour.failNpcs)
+        return reply(behaviour.failNpcs.status, {
+          title: 'Refusé',
+          code: behaviour.failNpcs.code,
+          detail: 'Refus simulé',
+        });
+      const source = body.source as Record<string, Record<string, string>>;
+      const copied = source.characterId
+        ? characters.get(source.characterId as unknown as string)
+        : undefined;
+      const name = source.quick?.name ?? copied?.name?.replace(/ \d+$/, '') ?? 'PNJ';
+      const taken = [...characters.values()].filter(
+        (c) => c.campaignId === body.campaignId && c.name?.startsWith(name),
+      ).length;
+      const items = Array.from({ length: body.count as number }, (_, i) => {
+        const id = behaviour.npcIds?.[i] ?? crypto.randomUUID();
+        const k = taken + i + 1;
+        const c: FakeCharacter = {
+          ownerId: body.ownerId as string,
+          name: k === 1 ? name : `${name} ${k}`,
+          systemId: body.systemId as string,
+          kind: 'npc',
+          campaignId: body.campaignId as string,
+          templateId: (source.templateId as unknown as string) ?? copied?.templateId ?? null,
+        };
+        if (!characters.has(id)) characters.set(id, c);
+        return {
+          id,
+          nom: c.name,
+          avatarUrl: null,
+          tokenUrl: source.quick?.imageUrl ?? null,
+          templateId: c.templateId ?? null,
+        };
+      });
+      return reply(201, { items });
+    }
+    if (req.method === 'POST' && path === '/internal/npcs/delete') {
+      const deleted = (body.ids as string[]).filter((id) => {
+        const c = characters.get(id);
+        if (!c || c.kind !== 'npc' || c.deleted) return false;
+        c.deleted = true;
+        return true;
+      });
+      return reply(200, { deleted });
+    }
+
     const m = /^\/internal\/characters\/([^/]+)(\/.*)?$/.exec(path);
     const c = m ? characters.get(m[1]!) : undefined;
-    if (!m || !c) return reply(404, { title: 'Ressource introuvable', code: 'not_found' });
+    if (!m || !c || c.deleted)
+      return reply(404, { title: 'Ressource introuvable', code: 'not_found' });
     const id = m[1]!;
     const rest = m[2] ?? '';
 
@@ -87,6 +154,17 @@ export async function fakeCharacter(secret: string) {
       const cles = typeof c.sortKeys === 'function' ? c.sortKeys(params) : (c.sortKeys ?? [0]);
       return reply(200, { resultat: { action: rest.slice(9), parametres: params }, cles });
     }
+    if (req.method === 'POST' && rest === '/possessions/receive') {
+      if (behaviour.failReceive)
+        return reply(behaviour.failReceive.status, {
+          title: 'Refusé',
+          code: behaviour.failReceive.code,
+          detail: 'Refus simulé',
+        });
+      const item = body.item as Record<string, unknown>;
+      loot.set(id, [...(loot.get(id) ?? []), { ...item, playerId: body.playerId }]);
+      return reply(200, { version: 2, entree: (item.ref as string) ?? 'objet-libre' });
+    }
     if (req.method === 'POST' && rest === '/durees/decompter') {
       const durations = c.durations ?? {};
       const retirees: string[] = [];
@@ -108,6 +186,8 @@ export async function fakeCharacter(secret: string) {
     url: `http://127.0.0.1:${port}`,
     characters,
     calls,
+    behaviour,
+    loot,
     /** Ajoute un personnage et renvoie son identifiant. */
     add(c: FakeCharacter): string {
       const id = crypto.randomUUID();

@@ -5,7 +5,7 @@
  *   GET    /v1/campaigns/:id/maps/:mapId/tokens/near?x=&y=&radius= tokens dans un rayon (ST_DWithin)
  *   POST   /v1/campaigns/:id/maps/:mapId/tokens                    poser un personnage (MJ)
  *   PATCH  /v1/campaigns/:id/maps/:mapId/tokens/:itemId            modifier / déplacer
- *   DELETE /v1/campaigns/:id/maps/:mapId/tokens/:itemId            retirer (MJ)
+ *   DELETE /v1/campaigns/:id/maps/:mapId/tokens/:itemId            retirer (MJ) : npcs.ts
  *   POST   /v1/campaigns/:id/maps/:mapId/tokens/move               déplacer plusieurs tokens (fin de drag)
  *   POST   /v1/campaigns/:id/maps/:mapId/travel                    amener des personnages sur la carte
  *
@@ -173,7 +173,7 @@ async function inHiddenLayer(tx: Db | Tx, t: Pick<TokenRow, 'layerId'>) {
 
 // ─── Opérations ──────────────────────────────────────────────────────────────
 
-async function tokenEvent(
+export async function tokenEvent(
   tx: Tx,
   ctx: EventContext,
   v: Viewer,
@@ -221,7 +221,7 @@ async function movedEvent(
   });
 }
 
-async function lockToken(tx: Tx, v: Viewer, mapId: string, tokenId: string) {
+export async function lockToken(tx: Tx, v: Viewer, mapId: string, tokenId: string) {
   const [t] = await tx
     .select()
     .from(mapTokens)
@@ -538,24 +538,7 @@ export const registerTokens: Module = async (app, deps) => {
     },
   );
 
-  r.delete(`${base}/:itemId`, { ...auth, schema: { params: ItemParams } }, async (req, reply) => {
-    const { userId, ctx } = requestContext(req);
-    await db.transaction(async (tx) => {
-      const v = await viewerOf(tx, req.params.id, userId);
-      requireGm(v);
-      const map = await loadMap(tx, v, req.params.mapId);
-      const before = await lockToken(tx, v, map.id, req.params.itemId);
-      const wasPublic = await isPublicToken(tx, before);
-      await tx.delete(mapTokens).where(eq(mapTokens.id, before.id));
-      await mapEvent(tx, ctx, v, {
-        type: 'token.deleted',
-        aggregate: { type: 'token', id: before.id },
-        payload: { id: before.id, mapId: map.id, characterId: before.characterId },
-        visibility: wasPublic ? 'public' : 'gm_only',
-      });
-    });
-    reply.code(204);
-  });
+  // DELETE …/tokens/:itemId (et ?character=delete) : npcs.ts
 
   r.post(
     `${base}/move`,

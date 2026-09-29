@@ -6,6 +6,8 @@
 import type { Module } from '../../deps.js';
 import { registerArrange } from './arrange.js';
 import { registerLayers } from './layers.js';
+import { registerNpcs } from './npcs.js';
+import { registerObjectSearch } from './objects.js';
 import { registerMaps } from './maps.js';
 import { registerTokens } from './tokens.js';
 
@@ -14,4 +16,6 @@ export const register: Module = async (app, deps) => {
   await registerTokens(app, deps);
   await registerLayers(app, deps);
   await registerArrange(app, deps);
+  await registerNpcs(app, deps);
+  await registerObjectSearch(app, deps);
 };

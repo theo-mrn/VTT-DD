@@ -3,7 +3,8 @@
  * partagé INTERNAL_API_SECRET, jamais relayées par la gateway) :
  *  - résumé d'un personnage (propriétaire, système) avant de l'engager ;
  *  - action d'initiative d'un participant (clés de tri renvoyées) ;
- *  - décompte des durées en fin de round.
+ *  - décompte des durées en fin de round ;
+ *  - instances de PNJ posées sur la carte (création, suppression) et butin d'un objet.
  *
  * Le contrat de ces routes appartient à character (champs en français) : ce
  * client le traduit en types anglais pour le reste du service.
@@ -102,6 +103,48 @@ export class CharacterError extends Error {
   }
 }
 
+const NpcsResponse = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      nom: z.string(),
+      avatarUrl: z.string().nullable(),
+      tokenUrl: z.string().nullable(),
+      templateId: z.string().nullable(),
+    }),
+  ),
+});
+
+/** Instance de PNJ créée par character pour la carte. */
+export interface NpcInstance {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  /** Image du token (modèle) ; null : l'avatar. */
+  tokenUrl: string | null;
+  templateId: string | null;
+}
+
+/** Origine d'une instance : modèle, bestiaire, création rapide ou copie d'une instance. */
+export type NpcSourceInput =
+  | { templateId: string }
+  | { bestiary: { systemeId: string; key: string } }
+  | {
+      quick: {
+        name: string;
+        imageUrl?: string | null;
+        type: string;
+        valeurs?: Record<string, number | string | boolean>;
+      };
+    }
+  | { characterId: string };
+
+const ReceiveResponse = z.object({
+  version: z.number(),
+  entree: z.string(),
+  exemplaire: z.string().optional(),
+});
+
 export interface CharacterClient {
   /** Résumé d'un personnage actif ; `null` s'il n'existe pas (ou plus). */
   summary(id: string, origin?: CallOrigin): Promise<CharacterSummary | null>;
@@ -112,6 +155,25 @@ export interface CharacterClient {
     origin?: CallOrigin,
   ): Promise<PlayedAction>;
   tickDurations(id: string, origin?: CallOrigin): Promise<DurationsTick>;
+  /** Crée `count` personnages PNJ du MJ (`origin.userId`) pour la campagne (`origin.campaignId`). */
+  createNpcs(
+    input: { systemId: string; count: number; source: NpcSourceInput },
+    origin: Required<Pick<CallOrigin, 'userId' | 'campaignId'>> & CallOrigin,
+  ): Promise<NpcInstance[]>;
+  /** Supprime des instances de PNJ (compensation, suppression avec le token) ; renvoie les supprimées. */
+  deleteNpcs(
+    ids: string[],
+    origin: Required<Pick<CallOrigin, 'userId' | 'campaignId'>> & CallOrigin,
+  ): Promise<string[]>;
+  /** Ajoute à l'inventaire d'un personnage un objet pris sur la carte. */
+  receiveItem(
+    characterId: string,
+    body: {
+      item: { ref?: string; name: string; description?: string; quantity: number };
+      playerId: string | null;
+    },
+    origin: Required<Pick<CallOrigin, 'userId' | 'campaignId'>> & CallOrigin,
+  ): Promise<{ version: number; entree: string; exemplaire?: string }>;
 }
 
 /** Sans CHARACTER_URL ou sans secret : toute demande répond 503. */
@@ -123,6 +185,15 @@ export const characterUnavailable: CharacterClient = {
     throw unavailable();
   },
   tickDurations: async () => {
+    throw unavailable();
+  },
+  createNpcs: async () => {
+    throw unavailable();
+  },
+  deleteNpcs: async () => {
+    throw unavailable();
+  },
+  receiveItem: async () => {
     throw unavailable();
   },
 };
@@ -232,6 +303,39 @@ export function characterClient(o: {
         originBody(origin),
       );
       return { changed: r.modifie, expired: r.retirees, version: r.version };
+    },
+    async createNpcs(input, origin) {
+      const r = await request('POST', '/internal/npcs', NpcsResponse, origin, {
+        ownerId: origin.userId,
+        campaignId: origin.campaignId,
+        ...input,
+      });
+      return r.items.map((c) => ({
+        id: c.id,
+        name: c.nom,
+        avatarUrl: c.avatarUrl,
+        tokenUrl: c.tokenUrl,
+        templateId: c.templateId,
+      }));
+    },
+    async deleteNpcs(ids, origin) {
+      const r = await request(
+        'POST',
+        '/internal/npcs/delete',
+        z.object({ deleted: z.array(z.string()) }),
+        origin,
+        { ids, userId: origin.userId, roomId: origin.campaignId },
+      );
+      return r.deleted;
+    },
+    async receiveItem(characterId, body, origin) {
+      return request(
+        'POST',
+        `/internal/characters/${id(characterId)}/possessions/receive`,
+        ReceiveResponse,
+        origin,
+        { ...body, userId: origin.userId, roomId: origin.campaignId },
+      );
     },
   };
 }
