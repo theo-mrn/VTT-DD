@@ -1367,6 +1367,25 @@ export const MapLiveMessage = z.object({
     .array(z.tuple([z.string(), LiveNumber, LiveNumber, LiveNumber, LiveNumber, LiveNumber]))
     .max(200)
     .optional(),
+  /**
+   * Mesure en cours de l'émetteur (outil Mesurer, une seule par auteur) ; `null` : effacée.
+   * Après `end`, elle reste quelques secondes chez les autres ; `pinned` : épinglée, le gabarit
+   * durable (`map_measurement.created`) la remplace.
+   */
+  measure: z
+    .object({
+      id: z.string().max(64),
+      shape: MapMeasurementShape,
+      from: z.tuple([LiveNumber, LiveNumber]),
+      to: z.tuple([LiveNumber, LiveNumber]),
+      color: z.string().max(50),
+      skin: z.string().max(200).nullable().optional(),
+      /** Options de la forme (cône : `coneAngle`, `coneMode`, `coneWidth`…), comme le gabarit. */
+      options: z.record(z.string().max(40), z.union([z.number(), z.string().max(40)])).optional(),
+      pinned: z.literal(true).optional(),
+    })
+    .nullable()
+    .optional(),
   end: z.literal(true).optional(),
 });
 export type MapLiveMessage = z.infer<typeof MapLiveMessage>;

@@ -251,3 +251,56 @@ describe('réception', () => {
     expect(((mid.rotation! % 360) + 360) % 360).toBeCloseTo(0);
   });
 });
+
+describe('mesure (outil Mesurer)', () => {
+  const m = {
+    id: 'm1',
+    shape: 'line' as const,
+    from: [10.04, 20] as [number, number],
+    to: [110, 20.06] as [number, number],
+    color: '#ffd700',
+  };
+
+  it('part à 15 Hz, puis avec end ; MJ seulement pour une mesure privée', () => {
+    const { live, sent } = channel();
+    live.measure(m);
+    vi.advanceTimersByTime(100);
+    expect(sent[0]!.data.measure).toMatchObject({ id: 'm1', from: [10, 20], to: [110, 20.1] });
+    expect(sent[0]!.options).toEqual({});
+    live.measure({ ...m, to: [200, 20] });
+    live.end();
+    vi.advanceTimersByTime(200);
+    const last = sent[sent.length - 1]!;
+    expect(last.data).toMatchObject({ end: true, measure: { to: [200, 20] } });
+
+    live.measure(m, 'gm');
+    vi.advanceTimersByTime(200);
+    expect(sent[sent.length - 1]!.options).toEqual({ gmOnly: true });
+    live.measure(null, 'gm');
+    live.end();
+    vi.advanceTimersByTime(200);
+    expect(sent[sent.length - 1]!.data).toMatchObject({ measure: null, end: true });
+  });
+
+  it('réception : mesure, effacement et fin du geste de l’auteur', () => {
+    const { live } = channel();
+    const got: unknown[] = [];
+    live.onMeasure((e) => got.push(e));
+    const from = { userId: 'u2', role: 'player' };
+    live.receive({ kind: LIVE_KIND, data: { m: 'carte', s: 1, measure: m }, from });
+    live.receive({ kind: LIVE_KIND, data: { m: 'carte', s: 2, end: true }, from });
+    live.receive({ kind: LIVE_KIND, data: { m: 'carte', s: 3, measure: null }, from });
+    // Une autre carte, ou une forme inconnue : ignorées
+    live.receive({ kind: LIVE_KIND, data: { m: 'autre', s: 4, measure: m }, from });
+    live.receive({
+      kind: LIVE_KIND,
+      data: { m: 'carte', s: 5, measure: { ...m, shape: 'star' } },
+      from,
+    });
+    expect(got).toEqual([
+      { userId: 'u2', measure: m, end: false },
+      { userId: 'u2', measure: undefined, end: true },
+      { userId: 'u2', measure: null, end: false },
+    ]);
+  });
+});

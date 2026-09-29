@@ -3,7 +3,7 @@
  * stocké. Deux sortes de messages :
  *
  * - `map.live`, émis à 15 Hz au plus pendant un geste, puis une dernière fois avec `end`. Il
- *   regroupe tout ce qui bouge chez l'émetteur (glisser, poignées, tracé, curseur), en **un
+ *   regroupe tout ce qui bouge chez l'émetteur (glisser, poignées, tracé, mesure, curseur), en **un
  *   message par audience** : public, MJ seulement (`gmOnly`), ou certains joueurs (`toUsers`).
  *   Il pèse moins de 4 Kio : au-delà, les points du tracé partent au message suivant.
  * - `map.ping` : une onde chez tous ; `focus` (MJ) amène la caméra de chacun à ce point.
@@ -50,6 +50,8 @@ export type PingMessage = MapPingMessage;
 export type DragEntry = NonNullable<LiveMessage['drag']>[number];
 export type TransformEntry = NonNullable<LiveMessage['transform']>[number];
 export type LiveStroke = NonNullable<LiveMessage['stroke']>;
+/** Mesure en cours de l'outil Mesurer (une seule par auteur). */
+export type LiveMeasure = NonNullable<LiveMessage['measure']>;
 
 /** Audience d'un élément qui bouge (§ 8, aucune fuite). */
 export type LiveAudience = 'public' | 'gm' | { users: readonly string[] };
@@ -95,6 +97,14 @@ export interface PingEvent {
   x: number;
   y: number;
   focus: boolean;
+}
+
+export interface MeasureEvent {
+  userId: string;
+  /** La mesure reçue ; null : effacée ; absente : seulement la fin du geste. */
+  measure: LiveMeasure | null | undefined;
+  /** Fin du geste de cet utilisateur : sa mesure ne bouge plus. */
+  end: boolean;
 }
 
 export interface StrokeEvent {
@@ -173,6 +183,9 @@ export class LiveChannel {
   private cursorDirty = false;
   private strokeMeta: Omit<LiveStroke, 'points'> | null = null;
   private strokePoints: number[] = [];
+  /** Mesure à envoyer (undefined : rien ; null : effacée) et son audience. */
+  private measureState: LiveMeasure | null | undefined = undefined;
+  private measureAudience: LiveAudience = 'public';
   private ending = false;
   /** Audiences qui ont reçu un message pendant le geste en cours (elles recevront `end`). */
   private gestureAudiences = new Map<string, LiveAudience>();
@@ -188,6 +201,7 @@ export class LiveChannel {
   private readonly cursors = new Map<string, { samples: Sample[]; last: number }>();
   private readonly pingListeners = new Set<(p: PingEvent) => void>();
   private readonly strokeListeners = new Set<(s: StrokeEvent) => void>();
+  private readonly measureListeners = new Set<(m: MeasureEvent) => void>();
   private readonly activityListeners = new Set<() => void>();
 
   /** Messages envoyés (tests, diagnostic). */
@@ -250,13 +264,27 @@ export class LiveChannel {
     this.request();
   }
 
+  /**
+   * Ma mesure en cours (outil Mesurer) ; null : effacée. Audience : publique, ou MJ seulement
+   * (mesure privée du MJ).
+   */
+  measure(m: LiveMeasure | null, audience: LiveAudience = 'public') {
+    this.measureState = m
+      ? { ...m, from: [r1(m.from[0]), r1(m.from[1])], to: [r1(m.to[0]), r1(m.to[1])] }
+      : null;
+    this.measureAudience = audience;
+    this.ending = false;
+    this.request();
+  }
+
   /** Fin du geste : un dernier message avec `end` à chaque audience du geste. */
   end() {
     if (
       !this.gestureAudiences.size &&
       !this.drags.size &&
       !this.transforms.size &&
-      !this.strokeMeta
+      !this.strokeMeta &&
+      this.measureState === undefined
     )
       return;
     this.ending = true;
@@ -292,6 +320,7 @@ export class LiveChannel {
       this.transforms.size > 0 ||
       this.cursorDirty ||
       this.strokePoints.length > 0 ||
+      this.measureState !== undefined ||
       this.ending
     );
   }
@@ -336,10 +365,13 @@ export class LiveChannel {
     if (this.cursorDirty && this.cursorPos) group('public')[0]!.cursor = this.cursorPos;
     if (this.strokeMeta && this.strokePoints.length)
       group('public')[0]!.stroke = { ...this.strokeMeta, points: this.strokePoints };
+    if (this.measureState !== undefined)
+      for (const msg of group(this.measureAudience)) msg.measure = this.measureState;
     if (this.ending) {
       for (const a of this.gestureAudiences.values()) for (const msg of group(a)) msg.end = true;
       for (const g of groups.values())
-        if (g.msg.drag || g.msg.transform || g.msg.stroke) g.msg.end = true;
+        if (g.msg.drag || g.msg.transform || g.msg.stroke || g.msg.measure !== undefined)
+          g.msg.end = true;
     }
     return [...groups.values()];
   }
@@ -395,7 +427,12 @@ export class LiveChannel {
       this.tokens -= 1;
       this.sent += 1;
       this.transport.send(LIVE_KIND, fitted.msg, sendOptions(audience));
-      if (fitted.msg.drag || fitted.msg.transform || fitted.msg.stroke)
+      if (
+        fitted.msg.drag ||
+        fitted.msg.transform ||
+        fitted.msg.stroke ||
+        fitted.msg.measure !== undefined
+      )
         this.gestureAudiences.set(audienceKey(audience), audience);
       if (fitted.msg.cursor) this.lastCursorSent = this.now();
     }
@@ -404,6 +441,7 @@ export class LiveChannel {
     this.drags.clear();
     this.transforms.clear();
     this.cursorDirty = false;
+    this.measureState = undefined;
     this.strokePoints = leftover;
     if (ended) {
       this.ending = false;
@@ -417,6 +455,7 @@ export class LiveChannel {
     this.drags.clear();
     this.transforms.clear();
     this.cursorDirty = false;
+    this.measureState = undefined;
     this.strokePoints = [];
     this.strokeMeta = null;
     this.ending = false;
@@ -434,6 +473,12 @@ export class LiveChannel {
   onStroke(listener: (s: StrokeEvent) => void): () => void {
     this.strokeListeners.add(listener);
     return () => void this.strokeListeners.delete(listener);
+  }
+
+  /** Mesures en cours des autres (le module mesures les dessine). */
+  onMeasure(listener: (m: MeasureEvent) => void): () => void {
+    this.measureListeners.add(listener);
+    return () => void this.measureListeners.delete(listener);
   }
 
   /** Quelque chose est arrivé : le moteur relance ses images. */
@@ -492,6 +537,9 @@ export class LiveChannel {
     if (msg.stroke || msg.end)
       for (const l of this.strokeListeners)
         l({ userId: user, stroke: msg.stroke ?? null, end: msg.end === true });
+    if (msg.measure !== undefined || msg.end)
+      for (const l of this.measureListeners)
+        l({ userId: user, measure: msg.measure, end: msg.end === true });
     if (msg.end)
       for (const track of this.tracks.values())
         if (track.userId === user) {
@@ -573,6 +621,7 @@ export class LiveChannel {
     this.cursors.clear();
     this.pingListeners.clear();
     this.strokeListeners.clear();
+    this.measureListeners.clear();
     this.activityListeners.clear();
   }
 }

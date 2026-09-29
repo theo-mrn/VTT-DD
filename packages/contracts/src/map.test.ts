@@ -118,6 +118,33 @@ describe('contrat de la carte', () => {
     expect(MapLiveMessage.safeParse({ ...msg, stroke: { ...plain, fill: 3 } }).success).toBe(false);
   });
 
+  it('map.live : mesure en cours, effacée (null) ou épinglée', () => {
+    const measure = {
+      id: 'm1',
+      shape: 'cone',
+      from: [10, 20],
+      to: [110, 20],
+      color: '#ffd700',
+      skin: 'Cone/cone1.webm',
+      options: { coneAngle: 60, coneShape: 'flat' },
+    };
+    expect(MapLiveMessage.parse({ m: 'carte', s: 5, measure })).toMatchObject({ measure });
+    expect(MapLiveMessage.safeParse({ m: 'carte', s: 6, measure: null, end: true }).success).toBe(
+      true,
+    );
+    expect(
+      MapLiveMessage.safeParse({ m: 'carte', s: 7, measure: { ...measure, pinned: true } }).success,
+    ).toBe(true);
+    expect(
+      MapLiveMessage.safeParse({ m: 'carte', s: 8, measure: { ...measure, shape: 'star' } })
+        .success,
+    ).toBe(false);
+    expect(
+      MapLiveMessage.safeParse({ m: 'carte', s: 9, measure: { ...measure, options: { a: {} } } })
+        .success,
+    ).toBe(false);
+  });
+
   it('média : https, chemin absolu, ou http sur la boucle locale seulement', () => {
     const ok = (u: string) => MediaUrl.safeParse(u).success;
     expect(ok('https://assets.yner.fr/Cartes/a.webp')).toBe(true);
