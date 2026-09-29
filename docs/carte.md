@@ -284,7 +284,17 @@ Chaque sorte d'entité déclare :
   pour les sortes rangées dans les calques : `stacking`) ;
 - `can(action, entity, viewer)` : les droits, miroir exact du backend ;
 - `render(entity, display, ctx)`, puis `update(...)` incrémental ;
-- `actions(entity, ctx)` : les entrées propres au menu contextuel.
+- `actions(entity, ctx)` : les entrées propres au menu contextuel ;
+- `editTool` (facultatif) : l'outil qui l'édite (murs et pièces : W, zones : G, lumières : L).
+  Hors de cet outil, la sorte ne se touche pas (ni clic, ni lasso, ni menu) : un mur ne vole
+  jamais le clic d'un token posé contre lui ;
+- `click` (facultatif) : l'action d'un clic simple, pour tous, même hors de son outil (ouvrir ou
+  fermer une porte, sur son icône) ; la sélection ne change pas ;
+- `selfOutline` : la sorte dessine elle-même son survol et sa sélection (trait d'un mur, contour
+  d'une zone) au lieu du rectangle commun.
+
+Un outil peut aussi dire ce qu'il touche (`Tool.targets`) : l'outil obstacles ne touche que murs
+et pièces, l'outil brouillard que les zones, l'outil lumières que les lumières.
 
 Les actions **communes** sont générées à partir des capacités, avec les mêmes libellés partout :
 
@@ -324,7 +334,7 @@ Règles de ces gestes :
 - **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A (outils), R (pivoter) et K
   (calques, MJ). F, D, C, N, J, H, S, B, M, O et E (Scènes, MJ) appartiennent aux panneaux de la
   table. Encore libres : Q, U, X, Y, Z et les chiffres (pris par l'outil actif quand il en a
-  l'usage : nombre d'exemplaires d'une pose de PNJ).
+  l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes des outils W et G).
 
 ### Outils (`tools/`)
 
@@ -347,6 +357,11 @@ Règles de ces gestes :
 
   La barre d'outils porte aussi « Vue » (MJ / vue d'un joueur, § 9), « Calques » (panneau des
   calques du MJ, K) et « Affichage » (familles affichées, `map.display`).
+
+- **Sous-modes par chiffres** quand l'outil actif en a : obstacles (W) 1 Mur, 2 Rectangle de
+  murs, 3 Porte, 4 Fenêtre, 5 Sens unique, 6 Pièce, 7 Édition ; brouillard (G) 1 Rectangle,
+  2 Cercle, 3 Main levée, 4 Sélection. La barre contextuelle les montre avec leur touche et un
+  rappel des gestes.
 
 ## 7. Données, synchronisation, annuler
 
@@ -721,32 +736,60 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 
 ### Obstacles (`obstacles`), outils de pose
 
-- **Mur.**
-  - Chaîne clic à clic ; double clic, Entrée ou clic sur le premier point pour finir ; Échap
-    annule le segment en cours.
-  - ⇧ aligne à 15°.
-  - Aimantation, dans l'ordre : extrémités existantes (10 px écran), point sur un segment
-    existant (qui est alors scindé : jonction soudée), grille.
-- **Rectangle de murs** : glisser, 4 murs soudés.
-- **Porte.**
-  - Clic sur un mur : insère une porte de largeur réglable (1 case par défaut) centrée sur le
-    clic, en scindant le mur en mur, porte, mur. Ou tracer une porte libre.
-  - Clic sur une porte (tous) : ouvrir ou fermer. Clic droit : verrouiller (MJ).
-- **Fenêtre**, **mur à sens unique** : mêmes gestes que le mur. Menu : « Inverser le sens ».
-- **Pièce.**
-  - Polygone clic à clic ou rectangle glissé.
-  - Option « Poser aussi les murs » : murs soudés sur le contour, en une commande.
-  - Détection auto : « Créer une pièce » sur une boucle de murs fermée sélectionnée.
-- **Édition** (outil obstacles, sélection).
-  - Glisser un sommet : les sommets soudés bougent ensemble.
-  - Double clic sur un segment : ajoute un sommet. Suppr : supprime le sommet ou le segment.
-  - « Détacher » un sommet soudé (Alt + glisser).
-  - Transparence (`opacity`) et couleur dans l'inspecteur.
-- **Validation** : segments de moins de 2 px refusés, doublons fusionnés, soudure au pixel près,
-  tout passe par `/batch`. Chaque geste est **une** commande annulable.
-- **Rendu MJ** : murs épais, portes (icône ouverte ou fermée, cadenas), sens unique (flèche),
-  fenêtres (tirets), pièces (contour pointillé et nom). Les poignées ne s'affichent qu'avec
-  l'outil actif.
+Modèle : un mur est une **ligne brisée** (`points`), fermée quand son dernier point répète le
+premier (rectangle de murs, chaîne finie sur son premier point). Deux sommets sont **soudés**
+quand leurs coordonnées sont identiques (arrondies au centième de pixel des deux côtés) : c'est
+la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit.
+
+- **Outil W** (MJ). Murs et pièces ne se touchent qu'avec lui (`editTool`) ; ses poignées (un
+  point plein par jonction soudée, un rond creux par bout libre) ne s'affichent qu'avec lui.
+- **Mur** (1).
+  - Chaîne clic à clic (glisser : un segment) ; double clic, Entrée ou clic sur le premier point
+    pour finir. Retour arrière retire le dernier point.
+  - Échap abandonne le segment en cours et pose les segments déjà posés (rien n'est perdu ;
+    ⌘/Ctrl+Z les retire). Une chaîne d'un seul point n'écrit rien.
+  - ⇧ aligne à 15° depuis le point précédent (seul un sommet existant l'emporte).
+  - Aimantation, dans l'ordre : sommets existants des murs et des pièces (10 px écran), point sur
+    un segment de mur (qui est alors scindé : jonction soudée), grille (Alt : sans grille). Le
+    retour visuel dit lequel : anneau (sommet), losange et segment surligné (segment), croix
+    (grille). La longueur du segment en cours s'affiche en cases.
+- **Rectangle de murs** (2) : glisser, une ligne fermée de 4 murs soudés (⇧ : carré).
+- **Porte** (3).
+  - Survol d'un mur : la porte qui serait posée s'affiche. Clic : porte de largeur réglable
+    (1 case par défaut, barre contextuelle) centrée sur le clic, le mur scindé en mur, porte,
+    mur, en une commande. Un segment plus court que la porte devient la porte ; un bout de mur
+    de moins de 2 px n'est pas gardé.
+  - Ailleurs : porte libre en deux clics.
+  - Icône de porte (tous, taille constante) : un clic ouvre ou ferme, hors de la pile
+    d'annulation ; porte verrouillée : un joueur est refusé (toast). Clic droit (MJ) :
+    « Verrouiller la porte ».
+- **Fenêtre** (4), **mur à sens unique** (5) : mêmes gestes que le mur. La flèche, au milieu de
+  chaque segment, montre le sens où l'on voit. Menu : « Inverser le sens ».
+- **Pièce** (6).
+  - Rectangle glissé, ou polygone clic à clic (premier point, double clic ou Entrée pour finir).
+  - « Poser aussi les murs » (activé par défaut) : murs soudés sur le contour, et aux murs
+    existants, en une commande.
+  - « Créer une pièce » sur une boucle de murs fermée sélectionnée (les bouts pendants sont
+    ignorés ; plusieurs boucles : refusé). « Poser les murs du contour » sur une pièce.
+- **Édition** (7).
+  - Glisser un sommet : les sommets soudés (murs et pièces) bougent ensemble ; Alt + glisser le
+    détache. Glisser un mur : il se déplace et ses voisins soudés s'étirent (Alt : il s'en
+    détache). Flèches : une case (⇧ : cinq), voisins étirés.
+  - Clic sur un sommet ou un segment : le sélectionne ; Suppr le supprime (le mur se scinde ou
+    s'ouvre). Double clic sur un segment : ajoute un sommet.
+  - Lasso : murs et pièces dont un segment touche le rectangle.
+  - Inspecteur : type, ouverte, verrouillée, sens, couleur (donnée), opacité (`opacity`).
+  - Menu : Convertir en ▸, « Remplacer par un mur » (porte, fenêtre ou sens unique, fondu avec
+    les murs qu'il prolonge), « Sélectionner les murs reliés ». Barre : « Tout effacer ».
+- **Validation** : segments de moins de 2 px refusés (fondus), murs dégénérés supprimés,
+  doublons fusionnés (un segment qui existe déjà n'est pas recréé), sommets posés sur un mur
+  insérés dans ce mur et sommets existants sur un mur neuf insérés dans celui-ci (soudure dans
+  les deux sens). Chaque geste est **une** commande annulable, envoyée en **un** `/batch` par
+  couche : un mur scindé pour une porte ne reste jamais à moitié écrit.
+- **Rendu MJ** (plan `gm`) : murs épais (liseré sombre, trait clair ou à leur couleur, intensité
+  selon `opacity`), fenêtres en tirets, portes (trait plein fermées, tirets ouvertes), sens
+  unique (flèches), pièces (contour pointillé, nom au centre). Survol et sélection : halo sous
+  le trait. Portes : plan `adornments`, icône vue de tous.
 
 ### Brouillard (`fog`) et lumières (`lights`)
 

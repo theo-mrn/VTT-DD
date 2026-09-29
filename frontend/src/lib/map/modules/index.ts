@@ -58,7 +58,7 @@ import { sceneModule } from './scene';
 import { drawingsModule } from './drawings';
 import { tokensModule } from './tokens';
 import { objectsModule } from './objects';
-// import { obstaclesModule } from './obstacles';
+import { obstaclesModule } from './obstacles';
 // import { fogModule } from './fog';
 // import { lightsModule } from './lights';
 // import { visionModule } from './vision';
@@ -73,7 +73,7 @@ export const MAP_MODULES: readonly MapModule[] = [
   // Lot 2 « Objets » : objets, fouille
   objectsModule,
   // Lot 2 « Outils de visibilité » : murs, portes, fenêtres, sens unique, pièces (W)
-  // obstaclesModule,
+  obstaclesModule,
   // Lot 2 « Outils de visibilité » : zones de brouillard (G)
   // fogModule,
   // Lot 2 « Outils de visibilité » : lumières (L)
