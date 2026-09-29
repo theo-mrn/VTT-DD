@@ -24,6 +24,7 @@ import { CORNERS, handlePositions, HANDLE_RADIUS } from './interaction/transform
 import { IMPLICIT_LAYER_ID } from './layers';
 import type { EngineView, MapEngine } from './map-engine';
 import { MAP_PLANES, type PlaneId } from './planes';
+import { drawVisibilityBadge, HIDDEN_VEIL, WHITE } from './visibility-badge';
 import { SelectTool } from './tools/select-tool';
 import type { Tool } from './tools/tool';
 import type { MapDto } from '../store/map-store';
@@ -66,24 +67,6 @@ function readTheme(host: HTMLElement): MapTheme {
     destructive: readThemeColor(style, '--destructive', 0xe5484d),
     success: readThemeColor(style, '--success', 0x30a46c),
   };
-}
-
-// ─── Hachures (entité masquée aux joueurs, vue du MJ) ────────────────────────
-
-/** Segments de hachures à 45° dans un rectangle centré (demi-largeur, demi-hauteur). */
-function hatchSegments(hw: number, hh: number, step: number): [Point, Point][] {
-  const out: [Point, Point][] = [];
-  // Droites y = x + c, c de -(hw + hh) à (hw + hh)
-  for (let c = -(hw + hh) + step / 2; c < hw + hh; c += step) {
-    const x0 = Math.max(-hw, -hh - c);
-    const x1 = Math.min(hw, hh - c);
-    if (x1 > x0)
-      out.push([
-        { x: x0, y: x0 + c },
-        { x: x1, y: x1 + c },
-      ]);
-  }
-  return out;
 }
 
 // ─── Vue ─────────────────────────────────────────────────────────────────────
@@ -424,29 +407,21 @@ class PixiView implements EngineView {
     const selected = engine.selectedEntities();
     const hovered = engine.hovered;
 
-    // Masqués aux joueurs (vue du MJ) : hachures et badge « œil barré »
+    // Masqués aux joueurs (vue du MJ) : voile blanc et badge « œil barré » (commun aux sortes
+    // qui ne dessinent pas le leur, `selfHiddenMark`)
     if (gm)
       for (const e of engine.entities()) {
-        if (!e.state.hiddenForPlayers || !e.display?.visible) continue;
+        if (!e.state.hiddenForPlayers || !e.display?.visible || e.kind.selfHiddenMark) continue;
         const c = e.current;
-        for (const [a, b] of hatchSegments(c.width / 2, c.height / 2, 10 * px)) {
-          const wa = toWorld(c, a);
-          const wb = toWorld(c, b);
-          g.moveTo(wa.x, wa.y).lineTo(wb.x, wb.y);
-        }
-        g.stroke({ width: px, color: foreground, alpha: 0.35 });
-        const corner = geometryCorners(c)[1];
-        const r = 8 * px;
-        g.circle(corner.x, corner.y, r)
-          .fill({ color: background, alpha: 0.9 })
-          .stroke({ width: px, color: muted });
-        g.ellipse(corner.x, corner.y, r * 0.55, r * 0.32).stroke({
-          width: 1.2 * px,
-          color: foreground,
+        const corners = geometryCorners(c);
+        g.poly(
+          corners.flatMap((p) => [p.x, p.y]),
+          true,
+        ).fill({
+          color: WHITE,
+          alpha: HIDDEN_VEIL.hidden,
         });
-        g.moveTo(corner.x - r * 0.55, corner.y + r * 0.5)
-          .lineTo(corner.x + r * 0.55, corner.y - r * 0.5)
-          .stroke({ width: 1.2 * px, color: foreground });
+        drawVisibilityBadge(g, this.theme, 'hidden', corners[1]!.x, corners[1]!.y, px);
       }
 
     // Une sorte qui dessine elle-même son survol et sa sélection (mur, zone) n'a pas de contour

@@ -376,7 +376,8 @@ Règles de ces gestes :
   token pour le déplacer : seules les actions marquées pour lui (`forPlayers`, « Fouiller »)
   s'y montrent, le reste est au clic droit.
 - **Verrouillé** : un élément verrouillé se sélectionne et s'inspecte, mais ne bouge pas.
-- **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
+- **Élément masqué aux joueurs** : le MJ le voit sous un voile blanc, à 50 %, avec un badge « œil
+  barré » de taille constante à l'écran (`engine/visibility-badge.ts`, commun à toutes les sortes).
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
   pendant la saisie. Une lettre est celle que la touche tape (`shortcutCode`, `lib/keyboard.ts`,
   comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
@@ -775,8 +776,11 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   - Ressource principale : lue comme le bandeau de la fiche (premier bloc « ressources » de la
     présentation, sinon première ressource du type d'entité), couleur de la présentation. Le MJ
     la voit partout ; un joueur, sur ses personnages.
-  - Anneau de survol et de sélection dessiné par la sorte (`selfOutline`). MJ : pastille pour
-    « caché » et « pour certains joueurs » ; « invisible » est le masquage commun (hachures).
+  - Anneau de survol et de sélection dessiné par la sorte (`selfOutline`). MJ (`selfHiddenMark`) :
+    « caché » et « invisible » ont un voile blanc sur le portrait (plus marqué pour invisible)
+    et un œil barré (fond neutre, inversé pour invisible) ; « pour certains joueurs », un œil
+    ouvert doré. Badge en haut à droite, taille constante à l'écran. Pas d'info-bulle du nom au
+    survol (`showsName`) : il est déjà sous le token.
   - Chaque partie n'est redessinée que si ce qui la décrit a changé.
 - **Annuaire.** Le token ne porte que `characterId` ; nom, portrait, camp, nature et
   ressource viennent de React (surcouche sans rendu `TokenCharacterFeed`) : liste de la
@@ -836,7 +840,7 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
   chargement : cadre discret ; illisible : cadre barré, pour tous. **Zone à fouiller** (objet
   sans image, posé sur un coffre peint dans le fond) : un cadre pour le MJ, rien pour les
   joueurs hors du repère de fouille. Repères à taille constante : cadenas (MJ, verrouillé), loupe
-  (à fouiller, pour tous). Le masquage aux joueurs (hachures, œil barré) est celui du moteur.
+  (à fouiller, pour tous). Le masquage aux joueurs (voile blanc, œil barré) est celui du moteur.
 - **Pose** : outil « Objets » (I, MJ). Sa bibliothèque est un panneau déplaçable à gauche
   (comme celle des personnages), en deux onglets :
   - **objets du système** : les catégories que la présentation du système déclare

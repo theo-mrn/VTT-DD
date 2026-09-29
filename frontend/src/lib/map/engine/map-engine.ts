@@ -1248,7 +1248,7 @@ export class MapEngine {
       this.tooltipId = null;
       this.invalidate();
     }
-    if (next && next.kind.name?.(next.data, this.kindCtx) && this.view) {
+    if (next && !next.kind.showsName && next.kind.name?.(next.data, this.kindCtx) && this.view) {
       this.tooltipTimer = setTimeout(() => {
         this.tooltipTimer = null;
         if (this.hoveredId === id) {

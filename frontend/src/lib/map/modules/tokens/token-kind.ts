@@ -52,11 +52,10 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
       resource: c?.resource ?? null,
       pending: !!d.draft || d.id.startsWith('tmp-'),
       badge:
-        gm && d.visibility === 'hidden'
-          ? 'hidden'
-          : gm && d.visibility === 'custom'
-            ? 'custom'
-            : null,
+        gm &&
+        (d.visibility === 'hidden' || d.visibility === 'invisible' || d.visibility === 'custom')
+          ? d.visibility
+          : null,
       hovered: e.state.hovered,
       selected: e.state.selected || e.state.dragging,
       locked: e.state.locked,
@@ -96,6 +95,9 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
     },
     display: 'characters',
     selfOutline: true,
+    // Voile blanc et œil barré dessinés par le token ; son nom est déjà sous lui
+    selfHiddenMark: true,
+    showsName: true,
     geometry: tokenGeometry,
     applyGeometry: applyTokenGeometry,
     keepAspectRatio: true,

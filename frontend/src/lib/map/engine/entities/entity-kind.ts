@@ -244,6 +244,13 @@ export interface EntityKind<D extends MapDto = MapDto> {
    */
   readonly pickOutsideTool?: boolean;
   /**
+   * La sorte dessine elle-même sa marque « masqué aux joueurs » (voile, badge) : le moteur ne
+   * pose pas ses hachures ni son badge commun (token rond : voile blanc et œil barré).
+   */
+  readonly selfHiddenMark?: boolean;
+  /** Le nom est déjà écrit sur l'entité (token) : pas d'info-bulle du nom au survol. */
+  readonly showsName?: boolean;
+  /**
    * Action d'un clic simple (sans glisser ni modificateur), pour tous : ouvrir ou fermer une
    * porte. Renvoie vrai si le clic est pris (la sélection ne change pas). Une sorte qui la
    * déclare reste touchable hors de son outil là où son `hitTest` le dit (icône de porte).

@@ -16,6 +16,12 @@ import type * as Pixi from 'pixi.js';
 import type { BitmapText, Container, Graphics, Texture } from 'pixi.js';
 import type { MapTheme, RenderContext } from '../../engine/entities/entity-kind';
 import type { MapEntity } from '../../engine/entities/entity';
+import {
+  drawVisibilityBadge,
+  HIDDEN_VEIL,
+  WHITE,
+  type VisibilityBadge,
+} from '../../engine/visibility-badge';
 import type { CharacterInfo, TokenData } from './model';
 
 /** Police des noms : installée une fois pour la page (atlas partagé, glyphes à la demande). */
@@ -56,6 +62,8 @@ export function sideColor(theme: MapTheme, side: CharacterInfo['side']): number 
 }
 
 /** Ce que le rendu lit d'un token : donnée, personnage, état. */
+export type TokenBadge = VisibilityBadge;
+
 export interface TokenLook {
   size: number;
   shape: TokenData['shape'];
@@ -65,8 +73,11 @@ export interface TokenLook {
   resource: CharacterInfo['resource'];
   /** Brouillon ou écriture optimiste pas encore confirmée. */
   pending: boolean;
-  /** Pastille de visibilité du MJ. */
-  badge: 'hidden' | 'custom' | null;
+  /**
+   * Visibilité vue par le MJ : `hidden` (vu de près ou éclairé) et `invisible` (MJ seul) ont un
+   * voile blanc et un œil barré ; `custom` (pour certains joueurs) un œil ouvert doré.
+   */
+  badge: TokenBadge | null;
   hovered: boolean;
   selected: boolean;
   locked: boolean;
@@ -78,6 +89,8 @@ interface TokenVisual {
   body: Graphics;
   outline: Graphics;
   badge: Graphics;
+  badgeRoot: Container;
+  releaseBadge: () => void;
   label: Container;
   bar: Graphics;
   plate: Graphics;
@@ -104,6 +117,9 @@ export function renderToken(
   const body = new pixi.Graphics({ label: 'portrait' });
   const outline = new pixi.Graphics({ label: 'contour' });
   const badge = new pixi.Graphics({ label: 'visibilite' });
+  // Badge à taille constante à l'écran, posé en haut à droite du portrait
+  const badgeRoot = new pixi.Container({ label: 'badge' });
+  badgeRoot.addChild(badge);
   const label = new pixi.Container({ label: 'etiquette' });
   const bar = new pixi.Graphics({ label: 'jauge' });
   const plate = new pixi.Graphics({ label: 'plaque' });
@@ -114,12 +130,14 @@ export function renderToken(
   });
   name.tint = ctx.theme.foreground;
   label.addChild(bar, plate, name);
-  display.addChild(body, outline, badge, label);
+  display.addChild(body, outline, badgeRoot, label);
   const visual: TokenVisual = {
     lookOf,
     body,
     outline,
     badge,
+    badgeRoot,
+    releaseBadge: ctx.screenSpace.add(badgeRoot, 1),
     label,
     bar,
     plate,
@@ -147,6 +165,7 @@ export function updateToken(entity: MapEntity<TokenData>, ctx: RenderContext) {
     texture ? look.imageUrl : '',
     look.side ?? '',
     look.pending ? 1 : 0,
+    look.badge ?? '',
   ].join('|');
   if (bodyKey !== v.keys.body) {
     v.keys.body = bodyKey;
@@ -166,11 +185,13 @@ export function updateToken(entity: MapEntity<TokenData>, ctx: RenderContext) {
     drawOutline(ctx, v.outline, look);
   }
 
-  const badgeKey = `${look.size}|${look.badge ?? ''}`;
-  if (badgeKey !== v.keys.badge) {
-    v.keys.badge = badgeKey;
-    drawBadge(ctx.theme, v.badge, look);
+  if ((look.badge ?? '') !== v.keys.badge) {
+    v.keys.badge = look.badge ?? '';
+    drawBadge(ctx.theme, v.badge, look.badge);
   }
+  // En haut à droite, sur le bord (rond : à 45°)
+  const k = (look.size / 2) * (look.shape === 'circle' ? Math.SQRT1_2 : 0.9);
+  v.badgeRoot.position.set(k, -k);
 
   const r = look.resource;
   const labelKey = [
@@ -190,6 +211,7 @@ export function disposeToken(entity: MapEntity<TokenData>) {
   const v = visualOf(entity);
   if (!v) return;
   v.releaseLabel();
+  v.releaseBadge();
   // Les textures sont partagées (cache du moteur) : jamais détruites ici
   v.texture = null;
   delete entity.renderState.token;
@@ -242,7 +264,7 @@ function shapePath(g: Graphics, shape: TokenData['shape'], r: number) {
 function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Texture | null) {
   const { theme, pixi } = ctx;
   const r = look.size / 2;
-  const ring = Math.max(look.size * 0.07, 0.5);
+  const ring = Math.max(look.size * 0.055, 0.5);
   g.clear();
   if (texture && texture.width > 0 && texture.height > 0) {
     // Cadrage « couvrir » : la texture est placée (en pixels) centrée, à l'échelle du token
@@ -262,6 +284,11 @@ function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Tex
       alpha: 0.7,
     });
   }
+  // Masqué aux joueurs (vue du MJ) : voile blanc sur le portrait, comme l'ancienne carte
+  if (look.badge === 'hidden' || look.badge === 'invisible') {
+    shapePath(g, look.shape, r - ring);
+    g.fill({ color: WHITE, alpha: HIDDEN_VEIL[look.badge] });
+  }
   shapePath(g, look.shape, r - ring / 2);
   g.stroke({ width: ring, color: sideColor(theme, look.side), alpha: look.pending ? 0.5 : 1 });
   g.alpha = look.pending ? 0.55 : 1;
@@ -280,30 +307,10 @@ function drawOutline(ctx: RenderContext, g: Graphics, look: TokenLook) {
   });
 }
 
-function drawBadge(theme: MapTheme, g: Graphics, look: TokenLook) {
+/** Badge de visibilité (pixels d'écran, conteneur à taille constante). */
+function drawBadge(theme: MapTheme, g: Graphics, badge: TokenBadge | null) {
   g.clear();
-  if (!look.badge) return;
-  const r = look.size / 2;
-  const b = Math.max(look.size * 0.15, 1);
-  const x = -r * 0.72;
-  const y = -r * 0.72;
-  g.circle(x, y, b)
-    .fill({ color: theme.background, alpha: 0.92 })
-    .stroke({
-      width: b * 0.14,
-      color: theme.muted,
-    });
-  if (look.badge === 'hidden') {
-    // Croissant : vu seulement de près ou éclairé
-    g.circle(x, y, b * 0.55).fill({ color: theme.foreground });
-    g.circle(x + b * 0.3, y - b * 0.2, b * 0.48).fill({ color: theme.background });
-  } else {
-    // Deux silhouettes : vu de certains joueurs
-    for (const dx of [-0.32, 0.32]) {
-      g.circle(x + dx * b, y - b * 0.22, b * 0.2).fill({ color: theme.foreground });
-      g.ellipse(x + dx * b, y + b * 0.3, b * 0.28, b * 0.2).fill({ color: theme.foreground });
-    }
-  }
+  if (badge) drawVisibilityBadge(g, theme, badge);
 }
 
 function drawLabel(theme: MapTheme, v: TokenVisual, look: TokenLook) {
