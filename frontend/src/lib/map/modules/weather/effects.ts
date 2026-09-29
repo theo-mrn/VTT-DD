@@ -65,6 +65,13 @@ export interface MistSpec {
   breathe?: { period: number; depth: number };
 }
 
+export interface StrongSpec {
+  density: number;
+  speed: number;
+  alpha: number;
+  lightning?: number;
+}
+
 export interface WeatherEffect {
   id: WeatherType;
   label: string;
@@ -73,6 +80,12 @@ export interface WeatherEffect {
   wind: { direction: number; strength: number } | null;
   /** Force minimale : l'effet reste poussé même « sans vent » (sable, blizzard). */
   minWind?: number;
+  /**
+   * Renfort au-delà de l'intensité 1 (l'ancien maximum, au milieu du curseur), atteint à 2 :
+   * multiplicateurs du nombre de particules, de leur vitesse, des opacités (particules, voile,
+   * nappes, vignette, grain) et de la fréquence des éclairs. Montée linéaire entre 1 et 2.
+   */
+  strong: StrongSpec;
   veil?: {
     color: number;
     alpha: Range;
@@ -137,6 +150,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'rain',
     label: 'Pluie',
     group: 'nature',
+    strong: { density: 2.4, speed: 1.3, alpha: 1.35 },
     wind: { direction: 0, strength: 0.2 },
     veil: { color: 0x0f1a2a, alpha: [0.02, 0.08] },
     emitters: [rainDrops(380, [900, 1300], [14, 26]), splashes(40)],
@@ -145,6 +159,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'storm',
     label: 'Orage',
     group: 'nature',
+    strong: { density: 2.3, speed: 1.3, alpha: 1.35, lightning: 2 },
     wind: { direction: 0, strength: 0.45 },
     veil: { color: 0x0b1220, alpha: [0.08, 0.22] },
     emitters: [rainDrops(520, [1100, 1600], [18, 34]), splashes(60)],
@@ -154,6 +169,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'snow',
     label: 'Neige',
     group: 'nature',
+    strong: { density: 2.4, speed: 1.15, alpha: 1.15 },
     wind: { direction: 0, strength: 0.15 },
     veil: { color: 0xe8eef7, alpha: [0.01, 0.06] },
     emitters: [
@@ -187,6 +203,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'blizzard',
     label: 'Blizzard',
     group: 'nature',
+    strong: { density: 2.4, speed: 1.35, alpha: 1.35 },
     wind: { direction: 20, strength: 0.85 },
     minWind: 0.35,
     veil: { color: 0xf0f4fa, alpha: [0.08, 0.24] },
@@ -224,6 +241,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'fog',
     label: 'Brouillard',
     group: 'nature',
+    strong: { density: 1, speed: 1.2, alpha: 1.45 },
     wind: { direction: 0, strength: 0.2 },
     veil: { color: 0xd0d5df, alpha: [0.04, 0.16] },
     mists: [
@@ -250,6 +268,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'leaves',
     label: 'Feuilles au vent',
     group: 'nature',
+    strong: { density: 2.4, speed: 1.2, alpha: 1 },
     wind: { direction: 15, strength: 0.55 },
     minWind: 0.2,
     emitters: [
@@ -274,6 +293,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'embers',
     label: 'Cendres et braises',
     group: 'nature',
+    strong: { density: 2.4, speed: 1.15, alpha: 1.2 },
     wind: { direction: 0, strength: 0.15 },
     veil: { color: 0x2a1408, alpha: [0.02, 0.1] },
     emitters: [
@@ -308,6 +328,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'sandstorm',
     label: 'Tempête de sable',
     group: 'nature',
+    strong: { density: 2.4, speed: 1.35, alpha: 1.35 },
     wind: { direction: 0, strength: 0.9 },
     minWind: 0.35,
     veil: { color: 0xc49a56, alpha: [0.08, 0.3], breathe: { period: 5, depth: 0.25 } },
@@ -335,6 +356,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'alert',
     label: 'Alerte rouge',
     group: 'scifi',
+    strong: { density: 1, speed: 1, alpha: 1.25 },
     wind: null,
     emitters: [],
     vignette: { color: 0xd20f0f, alpha: [0.35, 0.8], pulse: { period: 2.2, depth: 0.45 } },
@@ -343,6 +365,7 @@ export const WEATHER_EFFECTS: Readonly<Record<WeatherType, WeatherEffect>> = {
     id: 'static',
     label: 'Parasites',
     group: 'scifi',
+    strong: { density: 1, speed: 1, alpha: 1.5 },
     wind: null,
     emitters: [],
     static: { noise: [0.04, 0.26], scanlines: [0.02, 0.14], bands: [0.03, 0.14] },
@@ -354,5 +377,5 @@ export const WEATHER_EFFECT_LIST: readonly WeatherEffect[] = WEATHER_TYPES.map(
   (t) => WEATHER_EFFECTS[t],
 );
 
-/** Intensité proposée quand le MJ passe de « Aucune » à un effet. */
-export const DEFAULT_INTENSITY = 0.6;
+/** Intensité proposée quand le MJ passe de « Aucune » à un effet : le milieu du curseur. */
+export const DEFAULT_INTENSITY = 1;

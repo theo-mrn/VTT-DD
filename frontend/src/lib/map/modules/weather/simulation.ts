@@ -13,7 +13,7 @@
 import type { Texture } from 'pixi.js';
 import { ATLAS } from './atlas';
 import type { AtlasFrame, EmitterSpec, Range, WeatherEffect } from './effects';
-import { particleBudget, STILL_ALPHA, type WeatherSettings } from './model';
+import { baseLevel, overdrive, particleBudget, STILL_ALPHA, type WeatherSettings } from './model';
 
 /** Marge hors de la vue où les particules continuent de vivre (px). */
 export const WRAP_MARGIN = 48;
@@ -59,7 +59,8 @@ export class WeatherParticle {
   // ─── Simulation ───
   frame: AtlasFrame = 'dot';
   bgr = 0xffffff;
-  /** Opacité et échelles de base (avant scintillement, retournement, vie). */
+  /** Opacité tirée, puis celle de l'intensité (renfort), avant scintillement et vie. */
+  a0 = 1;
   alpha = 1;
   sx = 1;
   sy = 1;
@@ -170,6 +171,10 @@ export class WeatherSim {
   private strikeDouble = false;
   private noiseIn = 0;
   private bandsIn = 0;
+  /** Renfort de l'intensité au-delà de 1 (opacités, vitesses, éclairs), fixé par `configure`. */
+  private alphaBoost = 1;
+  private speedBoost = 1;
+  private boltBoost = 1;
 
   constructor(private readonly rng: () => number = Math.random) {}
 
@@ -195,6 +200,11 @@ export class WeatherSim {
     this.height = Math.max(0, height);
     this.still = opts.still === true;
     this.flashes = opts.flashes !== false;
+    const strong = effect?.strong;
+    const intensity = settings?.intensity ?? 0;
+    this.alphaBoost = overdrive(intensity, strong?.alpha);
+    this.speedBoost = overdrive(intensity, strong?.speed);
+    this.boltBoost = overdrive(intensity, strong?.lightning);
     if (effect !== this.effect) {
       this.effect = effect;
       this.emitters = effect ? effect.emitters.map((spec) => new EmitterState(spec)) : [];
@@ -274,7 +284,7 @@ export class WeatherSim {
       const spec = specs[i]!;
       const mist = mists[i]!;
       const rad = ((s.wind.direction + (spec.angle ?? 0)) * Math.PI) / 180;
-      const speed = spec.speed * Math.max(0.25, s.wind.strength);
+      const speed = spec.speed * Math.max(0.25, s.wind.strength) * this.speedBoost;
       const period = NOISE_SIZE * mist.scale;
       mist.x = mod(mist.x + Math.cos(rad) * speed * dt, period);
       mist.y = mod(mist.y + Math.sin(rad) * speed * dt, period);
@@ -384,7 +394,7 @@ export class WeatherSim {
     this.bandsIn -= dt;
     if (this.bandsIn <= 0) {
       this.bandsIn = 0.12;
-      const intensity = this.settings!.intensity;
+      const intensity = baseLevel(this.settings!.intensity);
       const count = this.flashes ? Math.min(MAX_BANDS, Math.round(intensity * MAX_BANDS)) : 0;
       this.frame.bandCount = count;
       for (let i = 0; i < count; i++) {
@@ -401,17 +411,22 @@ export class WeatherSim {
     const f = this.frame;
     const s = this.settings;
     const effect = s?.effect;
-    const i = s?.intensity ?? 0;
+    // Plages des effets jusqu'à l'ancien maximum, puis le renfort (opacités bornées à 1)
+    const i = baseLevel(s?.intensity ?? 0);
     const t = this.time;
-    const quiet = this.still ? 0.8 : 1;
+    const quiet = (this.still ? 0.8 : 1) * this.alphaBoost;
 
     const veil = effect?.veil;
     f.veil.color = veil?.color ?? 0;
-    f.veil.alpha = veil && s ? lerp(veil.alpha, i) * breathe(veil.breathe, t) * quiet : 0;
+    f.veil.alpha =
+      veil && s ? Math.min(1, lerp(veil.alpha, i) * breathe(veil.breathe, t) * quiet) : 0;
 
     const specs = effect?.mists;
     for (let k = 0; specs && k < specs.length && k < f.mists.length; k++)
-      f.mists[k]!.alpha = lerp(specs[k]!.alpha, i) * breathe(specs[k]!.breathe, t) * quiet;
+      f.mists[k]!.alpha = Math.min(
+        1,
+        lerp(specs[k]!.alpha, i) * breathe(specs[k]!.breathe, t) * quiet,
+      );
 
     const bolt = effect?.lightning;
     if (bolt && this.flashes && !this.still && this.strikeT >= 0) {
@@ -425,17 +440,18 @@ export class WeatherSim {
 
     const vignette = effect?.vignette;
     f.vignette.color = vignette?.color ?? 0;
-    f.vignette.alpha = vignette
-      ? lerp(vignette.alpha, i) *
-        (this.flashes && !this.still ? breathe(vignette.pulse, t) : 1 - vignette.pulse.depth / 2) *
-        quiet
+    const pulse = vignette
+      ? this.flashes && !this.still
+        ? breathe(vignette.pulse, t)
+        : 1 - vignette.pulse.depth / 2
       : 0;
+    f.vignette.alpha = vignette ? Math.min(1, lerp(vignette.alpha, i) * pulse * quiet) : 0;
 
     const noise = effect?.static;
-    f.noise.alpha = noise ? lerp(noise.noise, i) * quiet : 0;
-    f.scanlines.alpha = noise ? lerp(noise.scanlines, i) * quiet : 0;
+    f.noise.alpha = noise ? Math.min(1, lerp(noise.noise, i) * quiet) : 0;
+    f.scanlines.alpha = noise ? Math.min(1, lerp(noise.scanlines, i) * quiet) : 0;
     if (noise) {
-      const bandAlpha = lerp(noise.bands, i);
+      const bandAlpha = Math.min(1, lerp(noise.bands, i) * this.alphaBoost);
       for (let k = 0; k < f.bands.length; k++) f.bands[k]!.alpha = bandAlpha;
     }
     if (!noise || this.still || !this.flashes) f.bandCount = 0;
@@ -444,9 +460,10 @@ export class WeatherSim {
   private nextStrike(): number {
     const bolt = this.settings?.effect.lightning;
     if (!bolt) return Infinity;
-    const i = this.settings!.intensity;
-    // Plus l'orage est fort, plus les éclairs sont fréquents (4 à 12 s à pleine intensité)
-    return lerp(bolt.interval, this.rng()) / (0.5 + 0.5 * i);
+    const i = baseLevel(this.settings!.intensity);
+    // Plus l'orage est fort, plus les éclairs sont fréquents : 4 à 12 s à l'intensité 1, deux
+    // fois plus souvent à 2 (renfort de l'effet)
+    return lerp(bolt.interval, this.rng()) / (0.5 + 0.5 * i) / this.boltBoost;
   }
 
   /** Direction du balancement : perpendiculaire au mouvement moyen de l'émetteur. */
@@ -488,7 +505,7 @@ export class WeatherSim {
     p.scaleY = p.sy;
     p.anchorX = 0.5;
     p.anchorY = 0.5;
-    p.alpha = lerp(spec.alpha, rng()) * (0.5 + 0.5 * p.depth);
+    p.a0 = lerp(spec.alpha, rng()) * (0.5 + 0.5 * p.depth);
     p.rotation = spec.spin ? rng() * TAU : 0;
     p.spin = spec.spin ? lerp(spec.spin, rng()) * (rng() < 0.5 ? -1 : 1) : 0;
     p.amp = spec.sway ? lerp(spec.sway.amp, rng()) : 0;
@@ -504,8 +521,10 @@ export class WeatherSim {
 
   /** Vitesse selon le vent courant, orientation des traînées, couleur de base. */
   private motion(spec: EmitterSpec, p: WeatherParticle, s: WeatherSettings) {
-    const fall = lerp(spec.fall, p.r1) * p.depth;
-    const drift = spec.drift * (0.75 + 0.5 * p.r2) * p.depth;
+    // Renfort de l'intensité : plus rapides et plus opaques
+    const fall = lerp(spec.fall, p.r1) * p.depth * this.speedBoost;
+    const drift = spec.drift * (0.75 + 0.5 * p.r2) * p.depth * this.speedBoost;
+    p.alpha = Math.min(1, p.a0 * this.alphaBoost);
     p.vx = s.wind.x * drift;
     p.vy = fall + s.wind.y * drift;
     if (spec.length) {

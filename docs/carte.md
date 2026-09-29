@@ -1028,8 +1028,9 @@ plafonné, et arrêté dès qu'il ne sert à rien.
   `MapWeather` :
   - `type` : l'effet (tableau ci-dessous) ; `null` : aucune. Un type inconnu (données
     anciennes) est gardé tel quel et n'affiche rien ;
-  - `intensity` : 0 à 1. L'import de l'ancienne app a pu écrire jusqu'à 10 : au-delà de 1,
-    compris comme 1 ;
+  - `intensity` : 0 à 2 (le contrat accepte jusqu'à 10, compris comme 2 au-delà). 1 garde son
+    sens, l'ancien maximum, au milieu du curseur ; de 1 à 2, l'effet se renforce (voir
+    « Intensité ») ;
   - `wind` (facultatif, ajout rétrocompatible) : `{ direction, strength }`. `direction` : où
     va le vent, en degrés (0 vers l'est, 90 vers le sud, sens horaire à l'écran) ; `strength` :
     0 à 1. Absent : le vent propre à l'effet (la pluie penche un peu vers l'est comme avant, le
@@ -1079,9 +1080,17 @@ plafonné, et arrêté dès qu'il ne sert à rien.
   - vignette, éclair, grain, trames, bandes : sprites et `TilingSprite` sur des textures faites
     une fois ;
   - ni filtre, ni mode de fusion avancé, ni second contexte WebGL.
+- **Intensité** (`densityFactor`, `overdrive`, testés). Jusqu'à 1, les plages de chaque effet
+  (densité × intensité, opacités entre leurs deux bornes). De 1 à 2, un renfort propre à
+  l'effet (`strong`), linéaire, sans palier : 2,3 à 2,4 fois plus de particules, et pour la
+  pluie, l'orage, le blizzard et le sable des particules 1,3 fois plus rapides et 1,35 fois plus
+  opaques (voile et nappes compris) ; éclairs deux fois plus fréquents ; brouillard, alerte et
+  parasites plus opaques. Les opacités restent bornées à 1, l'éclair à 0,28.
 - **Budget** (`particleBudget`, testé) : densité de l'émetteur (particules par million de
-  pixels CSS, à intensité 1) × surface de la vue × intensité ; le total est ramené
-  proportionnellement sous **1 400 particules**, **600 sous Windows**. Animation coupée ou
+  pixels CSS, à intensité 1) × surface de la vue × part de l'intensité ; le total est ramené
+  proportionnellement sous le plafond : **1 400 par million de pixels et 3 000 en tout**,
+  **700 par million et 1 200 en tout sous Windows**. Le nombre reste proportionnel à la surface
+  de la vue ; seuls les très grands écrans touchent le plafond total. Animation coupée ou
   « mouvement réduit » : 35 % des particules, à 60 % de leur opacité, immobiles.
 - **Cadence et arrêt** (`WeatherDriver`, testé sans WebGL) :
   - la simulation avance à chaque image rendue (à 60 i/s pendant un glisser, puisque l'image
@@ -1095,7 +1104,8 @@ plafonné, et arrêté dès qu'il ne sert à rien.
   - **aucune allocation par image** : tableaux et particules sont créés au changement de réglage
     ou de taille de la vue ; le rappel du minuteur est créé une fois.
 - **Pas de clignotement brutal.** Éclair : un voile bleu-blanc qui monte en 90 ms jusqu'à 0,28
-  d'opacité au plus et s'éteint en 0,7 s, parfois doublé 0,2 s plus tard, toutes les 4 à 12 s ;
+  d'opacité au plus et s'éteint en 0,7 s, parfois doublé 0,2 s plus tard, toutes les 4 à 12 s
+  (deux fois plus souvent à l'intensité 2) ;
   l'alerte pulse en 2,2 s ; les bandes des parasites sautent toutes les 120 ms à faible
   opacité. Préférence « Éclairs et clignotements » coupée : ni éclair ni bande, alerte fixe,
   grain plus lent.
@@ -1104,9 +1114,9 @@ plafonné, et arrêté dès qu'il ne sert à rien.
 - **Réglage du MJ** : bouton « Météo » (emplacement `view` de la barre, icône de la météo en
   cours, allumé quand il y en a une), popover `components/map/weather/weather-menu.tsx` :
   - vignettes des effets (icône et nom), « Aucune » en tête, « Science-fiction » à part ; choisir
-    un effet garde l'intensité en cours (60 % depuis « Aucune ») ;
-  - intensité : curseur, aperçu local pendant le geste, une commande au lâcher (comme le
-    quadrillage) ;
+    un effet garde l'intensité en cours (le milieu du curseur depuis « Aucune ») ;
+  - intensité : curseur de 5 à 100 %, où 50 % est l'intensité 1 et 100 % l'intensité 2 ; aperçu
+    local pendant le geste, une commande au lâcher (comme le quadrillage) ;
   - vent, pour les effets qui en ont l'usage : rose des vents à 8 directions (le centre : sans
     vent) et force ; « Vent de l'effet » revient au vent par défaut ;
   - chaque changement est une commande annulable (« Météo », ⌘Z) ;
@@ -1114,8 +1124,18 @@ plafonné, et arrêté dès qu'il ne sert à rien.
 - **Joueurs** : le bouton n'apparaît que quand la scène a une météo : son nom, son intensité et
   les préférences locales.
 - **Mesures** : en développement, `window.__vttWeather.summary()` (étapes `step` : simulation,
-  `frame` : tout le module) et un résumé dans la console toutes les 5 s ; `weather.bench.ts`
-  mesure la simulation à blanc.
+  `draw` : objets Pixi, `frame` : tout le module ; nombre de particules) et un résumé dans la
+  console toutes les 5 s. `weather.bench.ts` mesure la part CPU à blanc (Apple Silicon,
+  Node 24), simulation et ancrage d'une image :
+
+  | Cas (intensité 2)                     | Particules | Moyenne | p99     |
+  | ------------------------------------- | ---------- | ------- | ------- |
+  | orage, 1920 × 1080                    | 2 766      | 0,11 ms | 0,23 ms |
+  | orage, 3840 × 2160 (plafond total)    | 2 999      | 0,13 ms | 0,37 ms |
+  | orage, Windows, 1920 × 1080           | 1 199      | 0,06 ms | 0,26 ms |
+  | blizzard, 1920 × 1080                 | 2 885      | 0,15 ms | 0,49 ms |
+  | changement d'effet (une fois)         | —          | 1,7 ms  | 5,4 ms  |
+  | bruit des nappes, 256 × 256 (montage) | —          | 5,5 ms  | —       |
 
 ### Portails (`portals`)
 

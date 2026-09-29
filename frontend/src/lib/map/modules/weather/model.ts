@@ -7,14 +7,25 @@ import { WEATHER_EFFECTS, type WeatherEffect, type WeatherType } from './effects
 
 /** Images par seconde demandées par la météo elle-même, au plus. */
 export const WEATHER_FPS = 30;
-/** Plafond de particules (toute la vue), et sous Windows (plantages GPU relevés). */
-export const MAX_PARTICLES = 1_400;
-export const MAX_PARTICLES_WINDOWS = 600;
+/**
+ * Plafonds de particules : par million de pixels CSS de la vue (le nombre reste proportionnel à
+ * sa surface), et en tout (grands écrans) ; plus bas sous Windows (plantages GPU relevés).
+ */
+export const MAX_DENSITY = 1_400;
+export const MAX_DENSITY_WINDOWS = 700;
+export const MAX_PARTICLES = 3_000;
+export const MAX_PARTICLES_WINDOWS = 1_200;
+/**
+ * Intensité enregistrée la plus forte (le contrat accepte jusqu'à 10 : au-delà, comprise comme
+ * 2). 1 garde son sens, l'ancien maximum, désormais au milieu du curseur ; de 1 à 2, le
+ * renfort de l'effet (`strong`) monte linéairement.
+ */
+export const MAX_INTENSITY = 2;
 /** Image fixe (animation coupée, « mouvement réduit ») : part des particules et de leur opacité. */
 export const STILL_COUNT = 0.35;
 export const STILL_ALPHA = 0.6;
 
-/** Météo lue et bornée : l'effet, l'intensité de 0 à 1, le vent effectif. */
+/** Météo lue et bornée : l'effet, l'intensité de 0 à 2, le vent effectif. */
 export interface WeatherSettings {
   effect: WeatherEffect;
   intensity: number;
@@ -41,9 +52,26 @@ export function effectOf(raw: unknown): WeatherEffect | null {
   return isType(type) ? WEATHER_EFFECTS[type] : null;
 }
 
-/** Intensité de 0 à 1 (l'ancienne app a pu écrire jusqu'à 10 : compris comme 1). */
+/** Intensité de 0 à 2 (le contrat accepte jusqu'à 10 : au-delà de 2, comprise comme 2). */
 export function clampIntensity(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0;
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(MAX_INTENSITY, Math.max(0, v)) : 0;
+}
+
+/** Part de l'intensité jusqu'à l'ancien maximum (0 à 1) : les plages des effets. */
+export const baseLevel = (intensity: number) => Math.min(1, Math.max(0, intensity));
+
+/**
+ * Renfort au-delà de 1 : ×1 à l'intensité 1, ×`factor` à 2, linéaire entre les deux (aucun
+ * palier) ; ×1 en dessous de 1.
+ */
+export function overdrive(intensity: number, factor: number | undefined): number {
+  const k = Math.min(1, Math.max(0, intensity - 1));
+  return 1 + k * ((factor ?? 1) - 1);
+}
+
+/** Part du nombre de particules : l'intensité jusqu'à 1, puis le renfort de l'effet. */
+export function densityFactor(effect: WeatherEffect, intensity: number): number {
+  return intensity <= 1 ? Math.max(0, intensity) : overdrive(intensity, effect.strong.density);
 }
 
 /** Vent enregistré, sinon celui de l'effet ; plancher de l'effet ; sans vent pour l'alerte. */
@@ -81,18 +109,21 @@ export interface BudgetOptions {
 }
 
 /**
- * Nombre de particules de chaque émetteur : densité × surface de la vue × intensité, puis le
- * total ramené proportionnellement sous le plafond (plus bas sous Windows).
+ * Nombre de particules de chaque émetteur : densité × surface de la vue × part de l'intensité
+ * (renfort compris), puis le total ramené proportionnellement sous le plafond : par million de
+ * pixels et en tout, plus bas sous Windows.
  */
 export function particleBudget(effect: WeatherEffect, opts: BudgetOptions): number[] {
   const area = (Math.max(0, opts.width) * Math.max(0, opts.height)) / 1_000_000;
-  const intensity = clampIntensity(opts.intensity);
+  const level = densityFactor(effect, clampIntensity(opts.intensity));
   const raw = effect.emitters.map((e) => {
     if (opts.still && e.still === false) return 0;
-    return e.density * area * intensity * (opts.still ? STILL_COUNT : 1);
+    return e.density * area * level * (opts.still ? STILL_COUNT : 1);
   });
   const total = raw.reduce((a, b) => a + b, 0);
-  const cap = opts.windows ? MAX_PARTICLES_WINDOWS : MAX_PARTICLES;
+  const cap = opts.windows
+    ? Math.min(MAX_PARTICLES_WINDOWS, MAX_DENSITY_WINDOWS * area)
+    : Math.min(MAX_PARTICLES, MAX_DENSITY * area);
   const k = total > cap ? cap / total : 1;
   return raw.map((n) => Math.floor(n * k));
 }

@@ -10,7 +10,11 @@ import { FRAME_TARGET_MS, MAX_STEP_S, WeatherDriver, type DriverEnv } from './dr
 import { WEATHER_EFFECTS, WEATHER_TYPES } from './effects';
 import { weatherModule } from './index';
 import {
+  densityFactor,
   isWindowsPlatform,
+  MAX_DENSITY,
+  MAX_DENSITY_WINDOWS,
+  MAX_INTENSITY,
   MAX_PARTICLES,
   MAX_PARTICLES_WINDOWS,
   normalizeWeather,
@@ -43,12 +47,14 @@ const settings = (weather: Partial<MapWeather> & { type: string }) =>
 const HD = { width: 1920, height: 1080 };
 
 describe('météo : lecture de maps.weather', () => {
-  it('aucune, type inconnu, intensité nulle : rien ; au-delà de 1 (ancienne app) : 1', () => {
+  it('aucune, type inconnu, intensité nulle : rien ; au-delà de 2 (contrat : 10) : 2', () => {
     expect(normalizeWeather(null)).toBeNull();
     expect(normalizeWeather({ type: 'none', intensity: 1 })).toBeNull();
     expect(normalizeWeather({ type: 'aurore', intensity: 1 })).toBeNull();
     expect(normalizeWeather({ type: 'rain', intensity: 0 })).toBeNull();
-    expect(normalizeWeather({ type: 'rain', intensity: 2 })?.intensity).toBe(1);
+    expect(normalizeWeather({ type: 'rain', intensity: 1 })?.intensity).toBe(1);
+    expect(normalizeWeather({ type: 'rain', intensity: 2 })?.intensity).toBe(MAX_INTENSITY);
+    expect(normalizeWeather({ type: 'rain', intensity: 10 })?.intensity).toBe(MAX_INTENSITY);
     expect(normalizeWeather({ type: 'snow', intensity: 0.4 })?.effect.id).toBe('snow');
     // Tous les types du catalogue se lisent
     for (const t of WEATHER_TYPES)
@@ -111,6 +117,53 @@ describe('météo : budget des particules', () => {
     expect(storm[0]! / storm[1]!).toBeCloseTo(520 / 60, 0);
   });
 
+  it('intensité : 1 (ancien maximum) au milieu, puis jusqu’à 2,4 fois plus dense, sans palier', () => {
+    for (const t of WEATHER_TYPES) {
+      const effect = WEATHER_EFFECTS[t];
+      expect(densityFactor(effect, 1)).toBe(1);
+      expect(densityFactor(effect, 2)).toBe(effect.strong.density);
+      // Montée continue : aucun saut entre deux crans du curseur (5 %, soit 0,1)
+      let prev = 0;
+      for (let i = 0.1; i <= 2 + 1e-9; i += 0.1) {
+        const d = densityFactor(effect, i);
+        expect(d).toBeGreaterThanOrEqual(prev);
+        expect(d - prev).toBeLessThanOrEqual(0.15);
+        prev = d;
+      }
+    }
+    const rain = WEATHER_EFFECTS.rain;
+    const at = (intensity: number) =>
+      particleBudget(rain, { ...HD, intensity }).reduce((a, b) => a + b, 0);
+    expect(at(2) / at(1)).toBeCloseTo(2.4, 1);
+    expect(at(1.5) / at(1)).toBeCloseTo(1.7, 1);
+    for (const t of ['rain', 'blizzard', 'sandstorm', 'storm'] as const)
+      expect(WEATHER_EFFECTS[t].strong).toMatchObject({
+        density: expect.toSatisfy((v: number) => v >= 2 && v <= 2.5),
+        speed: expect.toSatisfy((v: number) => v > 1.2),
+        alpha: expect.toSatisfy((v: number) => v > 1.2),
+      });
+    expect(WEATHER_EFFECTS.storm.strong.lightning).toBe(2);
+  });
+
+  it('plafond proportionnel à la surface de la vue, et en tout ; plus bas sous Windows', () => {
+    const dense = WEATHER_EFFECTS.blizzard;
+    const laptop = { width: 1280, height: 720, intensity: 2 };
+    const area = 0.9216;
+    const sum = (o: object) =>
+      particleBudget(dense, { ...laptop, ...o }).reduce((a, b) => a + b, 0);
+    expect(sum({})).toBeLessThanOrEqual(MAX_DENSITY * area);
+    expect(sum({ windows: true })).toBeLessThanOrEqual(MAX_DENSITY_WINDOWS * area);
+    expect(sum({ windows: true })).toBeLessThan(sum({}));
+    // Même densité à l'écran sur une vue deux fois plus grande
+    expect(sum({ width: 2560 }) / sum({})).toBeCloseTo(2, 1);
+    // Écran 4K : le plafond total (arrondis de chaque émetteur compris)
+    expect(sum({ width: 3840, height: 2160 })).toBeLessThanOrEqual(MAX_PARTICLES);
+    expect(sum({ width: 3840, height: 2160 })).toBeGreaterThanOrEqual(MAX_PARTICLES - 2);
+    expect(sum({ width: 3840, height: 2160, windows: true })).toBeLessThanOrEqual(
+      MAX_PARTICLES_WINDOWS,
+    );
+  });
+
   it('image fixe : 35 % des particules, sans éclaboussures', () => {
     const [drops, splash] = particleBudget(rain, { ...HD, intensity: 1, still: true });
     expect(drops).toBe(Math.floor(380 * 2.0736 * STILL_COUNT));
@@ -144,6 +197,25 @@ describe('météo : simulation', () => {
         expect(p.y).toBeGreaterThanOrEqual(-WRAP_MARGIN);
         expect(p.y).toBeLessThanOrEqual(HD.height + WRAP_MARGIN);
       }
+  });
+
+  it('intensité la plus forte : pluie, blizzard et sable plus rapides et plus opaques', () => {
+    for (const type of ['rain', 'blizzard', 'sandstorm'] as const) {
+      const mean = (intensity: number) => {
+        const s = sim();
+        s.configure(settings({ type, intensity }), 1000, 1000, {});
+        const list = s.emitters[0]!.particles;
+        const speed = list.reduce((a, p) => a + Math.hypot(p.vx, p.vy), 0) / list.length;
+        const alpha = list.reduce((a, p) => a + p.alpha, 0) / list.length;
+        return { speed, alpha, veil: s.frame.veil.alpha, count: list.length };
+      };
+      const mid = mean(1);
+      const max = mean(2);
+      expect(max.speed / mid.speed).toBeGreaterThan(1.25);
+      expect(max.alpha / mid.alpha).toBeGreaterThan(1.2);
+      expect(max.veil).toBeGreaterThan(mid.veil);
+      expect(max.count / mid.count).toBeGreaterThan(2);
+    }
   });
 
   it('braises qui montent, sable qui file avec le vent, feuilles qui tournoient', () => {
@@ -249,9 +321,9 @@ describe('météo : pas de clignotement brutal', () => {
   });
 
   it('orage : éclairs espacés, jamais au-dessus de 0,28 ; aucun sans « Éclairs »', () => {
-    const run = (flashes: boolean) => {
+    const run = (flashes: boolean, intensity = 1) => {
       const s = new WeatherSim(prng(7));
-      s.configure(settings({ type: 'storm' }), 800, 600, { flashes });
+      s.configure(settings({ type: 'storm', intensity }), 800, 600, { flashes });
       let max = 0;
       let strikes = 0;
       let lit = false;
@@ -276,6 +348,11 @@ describe('météo : pas de clignotement brutal', () => {
     // Pas plus des deux tiers du sommet en une image de 33 ms
     expect(on.jump).toBeLessThan(0.2);
     expect(run(false)).toMatchObject({ max: 0, strikes: 0 });
+    // Intensité la plus forte : deux fois plus d'éclairs, toujours doux
+    const strong = run(true, 2);
+    expect(strong.strikes).toBeGreaterThan(on.strikes * 1.4);
+    expect(strong.max).toBeLessThanOrEqual(0.28 + 1e-9);
+    expect(strong.jump).toBeLessThan(0.2);
   });
 
   it('alerte : pulsation lente, fixe sans clignotements ; parasites sans bandes', () => {

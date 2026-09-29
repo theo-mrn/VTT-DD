@@ -40,7 +40,7 @@ import {
   type WeatherEffect,
   type WeatherType,
 } from '@/lib/map/modules/weather/effects';
-import { clampIntensity, effectOf, windOf } from '@/lib/map/modules/weather/model';
+import { clampIntensity, effectOf, MAX_INTENSITY, windOf } from '@/lib/map/modules/weather/model';
 import {
   saveWeather,
   setWeatherAnimated,
@@ -83,7 +83,13 @@ const DEFAULT_WIND_STRENGTH = 0.4;
 const readWeather = (s: MapStoreState) =>
   (s.scene?.weather as MapWeather | null | undefined) ?? null;
 
-const percent = (v: number) => `${Math.round(v * 100)} %`;
+/**
+ * Curseur d'intensité, de 0 à 100 % : 50 % est l'intensité 1 (l'ancien maximum), 100 % la plus
+ * forte (2) ; l'échelle enregistrée ne change pas.
+ */
+const toSlider = (intensity: number) => Math.round((intensity / MAX_INTENSITY) * 100);
+const fromSlider = (v: number) => (v / 100) * MAX_INTENSITY;
+const percent = (intensity: number) => `${toSlider(intensity)} %`;
 
 export function WeatherControls({ engine }: { engine: MapEngine }) {
   const gm = engine.viewer.role === 'gm';
@@ -175,14 +181,18 @@ function GmWeather({ engine, weather }: { engine: MapEngine; weather: MapWeather
       {effect && weather && (
         <SliderRow
           label="Intensité"
-          value={Math.round(intensity * 100)}
+          value={toSlider(intensity)}
           min={5}
           max={100}
           step={5}
           format={(v) => `${v} %`}
-          onPreview={(v) => setWeatherPreview(engine, { ...weather, intensity: v / 100 })}
+          onPreview={(v) => setWeatherPreview(engine, { ...weather, intensity: fromSlider(v) })}
           onCommit={(v) =>
-            void saveWeather(engine, { ...weather, intensity: v / 100 }, 'Intensité de la météo')
+            void saveWeather(
+              engine,
+              { ...weather, intensity: fromSlider(v) },
+              'Intensité de la météo',
+            )
           }
         />
       )}
