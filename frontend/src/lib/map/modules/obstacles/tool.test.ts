@@ -92,6 +92,16 @@ describe('outil obstacles : chaîne de murs', () => {
     expect(b.walls()[0]!.points).toEqual([P(100, 100), P(300, 100), P(300, 300), P(100, 100)]);
   });
 
+  it('fermer la boucle par un double clic sur le premier point ne recommence pas de chaîne', () => {
+    const b = bench();
+    for (const p of [P(100, 100), P(300, 100), P(300, 300)]) b.click(p);
+    b.doubleClick(P(100, 100));
+    expect(b.tool.state).toBe('idle');
+    expect(b.tool.chain).toEqual([]);
+    expect(b.walls()).toHaveLength(1);
+    expect(b.walls()[0]!.points).toHaveLength(4);
+  });
+
   it('Échap abandonne le segment en cours et pose les segments déjà posés', () => {
     const b = bench();
     b.click(P(100, 100));
@@ -317,6 +327,16 @@ describe('outil obstacles : édition', () => {
     const byId = new Map(b.walls().map((w) => [w.id, w.points]));
     expect(byId.get('a')).toEqual([P(100, 150), P(300, 150)]);
     expect(byId.get('b')).toEqual([P(300, 150), P(300, 300)]);
+  });
+
+  it('un clic sur l’icône d’une porte la sélectionne dans l’outil W (sans l’ouvrir)', () => {
+    const b = bench({
+      mode: 'edit',
+      walls: [wall('d', [P(100, 100), P(300, 100)], { kind: 'door' })],
+    });
+    b.click(P(200, 100));
+    expect(b.engine.selection.ids).toEqual(['d']);
+    expect(b.walls()[0]!.isOpen).toBe(false);
   });
 
   it('les tokens et objets ne se touchent pas avec l’outil W', () => {

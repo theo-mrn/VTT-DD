@@ -62,7 +62,7 @@ import {
   segmentTouchesRect,
   type Pts,
 } from './geometry';
-import { doorIconHit, newPlan, roomLabelHit, toggleDoors, type ObstacleContext } from './kinds';
+import { newPlan, roomLabelHit, type ObstacleContext } from './kinds';
 import {
   defaultProps,
   nextRoomName,
@@ -144,7 +144,6 @@ type PressTarget =
   | { type: 'point'; point: Point }
   | { type: 'door-insert'; hover: DoorHover }
   | { type: 'vertex'; point: Point }
-  | { type: 'door-icon'; entity: MapEntity }
   | { type: 'entity'; entity: MapEntity; segment: number | null }
   | { type: 'void' };
 
@@ -214,6 +213,8 @@ export class ObstacleTool implements Tool {
   private vertexDrag: VertexDrag | null = null;
   private moveDrag: MoveDrag | null = null;
   private engine: MapEngine | null = null;
+  /** Une chaîne vient d'être posée par un clic : le second clic d'un double clic est ignoré. */
+  private justFinished = false;
 
   constructor(private readonly ctx: ObstacleContext) {}
 
@@ -308,6 +309,7 @@ export class ObstacleTool implements Tool {
 
   down(e: MapPointer, engine: MapEngine): boolean {
     if (e.button !== 0) return false;
+    this.justFinished = false;
     this.refresh(engine);
     this.dirty = true;
     const mode = this.mode;
@@ -441,6 +443,11 @@ export class ObstacleTool implements Tool {
     this.refresh(engine);
     this.dirty = true;
     if (this.mode === 'edit') return this.editDoubleClick(e, engine);
+    // Boucle fermée au premier clic d'un double clic : le second ne commence pas de chaîne
+    if (this.justFinished) {
+      this.justFinished = false;
+      return true;
+    }
     if (this.state === 'chain' && this.chain.length) {
       // Le premier clic du double clic a déjà posé le point : on finit là
       this.chainPress = null;
@@ -570,6 +577,7 @@ export class ObstacleTool implements Tool {
     this.chain = [];
     this.chainPress = null;
     this.state = 'idle';
+    this.justFinished = true;
     this.dirty = true;
     engine.invalidate();
     if (mode === 'room') {
@@ -653,7 +661,6 @@ export class ObstacleTool implements Tool {
       case 'vertex':
         this.startVertexDrag(t.point, e, engine);
         return;
-      case 'door-icon':
       case 'entity':
         this.startMoveDrag(t.entity, e, engine);
         return;
@@ -688,9 +695,6 @@ export class ObstacleTool implements Tool {
         this.sub = { type: 'vertex', ref, point: t.point };
         return;
       }
-      case 'door-icon':
-        toggleDoors(this.ctx, [t.entity]);
-        return;
       case 'entity':
         if (shift) {
           engine.selection.toggle(t.entity.id);
@@ -711,19 +715,16 @@ export class ObstacleTool implements Tool {
   // ─── Édition ───────────────────────────────────────────────────────────────
 
   private editDown(e: MapPointer, engine: MapEngine): boolean {
+    // Dans l'outil W, un clic édite : l'icône d'une porte la sélectionne (on l'ouvre par le
+    // menu, l'inspecteur ou l'outil sélection)
     const vertex = this.vertexAt(engine, e.world);
     let target: PressTarget;
     if (vertex) target = { type: 'vertex', point: vertex };
     else {
       const hit = this.entityAt(engine, e.world);
-      if (!hit) target = { type: 'void' };
-      else if (
-        hit.kind.id === OBSTACLE_KIND &&
-        (hit.data as ObstacleData).kind === 'door' &&
-        doorIconHit(engine, this.ctx.view.pointsOf(hit), e.world)
-      )
-        target = { type: 'door-icon', entity: hit };
-      else target = { type: 'entity', entity: hit, segment: this.segmentOf(hit, e.world) };
+      target = hit
+        ? { type: 'entity', entity: hit, segment: this.segmentOf(hit, e.world) }
+        : { type: 'void' };
     }
     this.press = { pointer: e, target };
     this.state = 'pressing';
@@ -741,15 +742,6 @@ export class ObstacleTool implements Tool {
     const hit = this.entityAt(engine, e.world);
     if (!hit) return false;
     const segment = this.segmentOf(hit, e.world);
-    const isDoorIcon =
-      hit.kind.id === OBSTACLE_KIND &&
-      (hit.data as ObstacleData).kind === 'door' &&
-      doorIconHit(engine, this.ctx.view.pointsOf(hit), e.world);
-    if (isDoorIcon) {
-      // Chaque clic sur l'icône ouvre ou ferme
-      toggleDoors(this.ctx, [hit]);
-      return true;
-    }
     const onRoomName =
       hit.kind.id === ROOM_KIND && roomLabelHit(engine, this.ctx.view.pointsOf(hit), e.world);
     const isDoor = hit.kind.id === OBSTACLE_KIND && (hit.data as ObstacleData).kind === 'door';
