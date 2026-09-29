@@ -5,10 +5,10 @@
  * dans son menu. Panneau flottant à droite ; ses sections viennent des modules (fiche d'un PNJ,
  * propriétés d'un objet…), chacune déclarant la sélection à laquelle elle s'applique.
  */
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useMemo } from 'react';
-import { Button } from '@/components/ui/button';
 import { useEntities, useExtensions, useMapEngine, useMapUi } from './engine-context';
+import { MapPanel } from './map-panel';
 
 export function MapInspector() {
   const engine = useMapEngine();
@@ -30,27 +30,16 @@ export function MapInspector() {
     : [...new Set(entities.map((e) => e.kind.label))].join(', ');
 
   return (
-    <aside
-      aria-label={`Inspecteur : ${title}`}
-      className="pointer-events-auto flex max-h-full w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background/95 shadow-elevated backdrop-blur-md"
+    <MapPanel
+      id="inspector"
+      label={`Inspecteur : ${title}`}
+      icon={SlidersHorizontal}
+      title={title}
+      subtitle={subtitle}
+      closeLabel="Fermer l’inspecteur"
+      onClose={() => engine.closeInspector()}
+      className="w-80"
     >
-      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <SlidersHorizontal className="size-4" aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[15px] font-semibold">{title}</h2>
-          <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Fermer l’inspecteur"
-          onClick={() => engine.closeInspector()}
-        >
-          <X />
-        </Button>
-      </header>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
         {sections.length ? (
           sections.map((section) => (
@@ -65,6 +54,6 @@ export function MapInspector() {
           <p className="text-sm text-muted-foreground">Rien à régler ici.</p>
         )}
       </div>
-    </aside>
+    </MapPanel>
   );
 }

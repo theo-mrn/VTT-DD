@@ -29,7 +29,6 @@ import {
   SquareDashedMousePointer,
   Trash2,
   UserRoundX,
-  X,
 } from 'lucide-react';
 import { useMemo, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -43,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Kbd } from '@/components/ui/kbd';
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import {
@@ -58,6 +56,7 @@ import { sortLayers, type LayerLike } from '@/lib/map/engine/layers';
 import { STACKED_COLLECTIONS } from '@/lib/map/store/collections';
 import { cn } from '@/lib/utils';
 import { useMapEngine, useMapState, useMapUi } from '../engine-context';
+import { MapPanel } from '../map-panel';
 
 export function LayersPanel() {
   const engine = useMapEngine();
@@ -105,26 +104,16 @@ export function LayersPanel() {
   };
 
   return (
-    <aside
-      aria-label="Calques"
-      className="pointer-events-auto flex max-h-full w-72 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background/95 shadow-elevated backdrop-blur-md"
+    <MapPanel
+      id="layers"
+      label="Calques"
+      icon={Layers}
+      title="Calques"
+      shortcut="K"
+      closeLabel="Fermer les calques"
+      onClose={() => engine.toggleLayersPanel(false)}
+      className="w-72"
     >
-      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Layers className="size-4" aria-hidden />
-        </span>
-        <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold">Calques</h2>
-        <Kbd aria-hidden>K</Kbd>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Fermer les calques"
-          onClick={() => engine.toggleLayersPanel(false)}
-        >
-          <X />
-        </Button>
-      </header>
-
       {layers.length ? (
         <ol
           aria-label="Pile des calques, du haut vers le bas"
@@ -174,7 +163,7 @@ export function LayersPanel() {
           Nouveau calque
         </Button>
       </footer>
-    </aside>
+    </MapPanel>
   );
 }
 

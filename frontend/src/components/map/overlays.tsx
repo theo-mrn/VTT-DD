@@ -16,7 +16,7 @@ export function MapOverlays() {
   return (
     <>
       {left.length > 0 && (
-        <div className="pointer-events-none absolute bottom-24 left-3 top-20 z-10 flex items-start gap-3">
+        <div className="pointer-events-none absolute bottom-24 left-3 top-20 z-10 flex items-start gap-3 lg:left-[5.75rem]">
           {left.map((o) => (
             <o.component key={o.id} engine={engine} />
           ))}

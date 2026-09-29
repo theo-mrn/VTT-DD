@@ -11,16 +11,7 @@
  * pose, message clair en cas d'échec.
  */
 import type { MapTokenVisibility } from '@vtt/contracts';
-import {
-  AlertTriangle,
-  Loader2,
-  Minus,
-  Plus,
-  SearchX,
-  Skull,
-  UserRoundPlus,
-  X,
-} from 'lucide-react';
+import { AlertTriangle, Loader2, Minus, Plus, SearchX, Skull, UserRoundPlus } from 'lucide-react';
 import {
   useCallback,
   useDeferredValue,
@@ -60,6 +51,7 @@ import { useActiveToolId, useMapUi } from '../engine-context';
 import { LibraryCard, NPC_DRAG_TYPE, type CardDrag } from './library-card';
 import { QuickCreate } from './quick-create';
 import { useLibrary, useTokens } from './use-tokens';
+import { MapPanel } from '../map-panel';
 
 const PAGE = 40;
 const ALL = '';
@@ -96,8 +88,14 @@ function Library({ engine }: { engine: MapEngine }) {
   const drag = useSceneDrop(engine, tokens);
 
   return (
-    <aside
-      aria-label="Bibliothèque des personnages"
+    <MapPanel
+      id="token-library"
+      label="Bibliothèque des personnages"
+      icon={UserRoundPlus}
+      title="Personnages"
+      shortcut="A"
+      closeLabel="Fermer la bibliothèque"
+      onClose={() => engine.tools.activate(SELECT_TOOL_ID)}
       onKeyDown={(e) => {
         // Échap dans le panneau : la carte choisie est rendue (la carte n'a pas le focus)
         if (e.key === 'Escape' && tokens.library.getState().armed) {
@@ -105,24 +103,8 @@ function Library({ engine }: { engine: MapEngine }) {
           arm(null);
         }
       }}
-      className="pointer-events-auto flex max-h-full w-80 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border-strong bg-background/95 shadow-elevated backdrop-blur-md"
+      className="w-80"
     >
-      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <UserRoundPlus className="size-4" aria-hidden />
-        </span>
-        <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold">Personnages</h2>
-        <Kbd aria-hidden>A</Kbd>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Fermer la bibliothèque"
-          onClick={() => engine.tools.activate(SELECT_TOOL_ID)}
-        >
-          <X />
-        </Button>
-      </header>
-
       <Tabs
         value={tab}
         onValueChange={(v) => tokens.library.setState({ tab: v as LibraryTab })}
@@ -198,7 +180,7 @@ function Library({ engine }: { engine: MapEngine }) {
       </Tabs>
 
       <PlacementOptions tokens={tokens} />
-    </aside>
+    </MapPanel>
   );
 }
 
