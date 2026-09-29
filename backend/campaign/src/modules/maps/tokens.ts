@@ -13,7 +13,14 @@
  * reste est réservé au MJ. Un déplacement produit un seul `token.moved`
  * (from/to) : les positions intermédiaires du drag passent par realtime.
  */
-import { CreateMapToken, MoveMapTokens, TravelToMap, UpdateMapToken, uuidv7 } from '@vtt/contracts';
+import {
+  CreateMapToken,
+  MoveMapTokens,
+  TravelToMap,
+  UpdateMapToken,
+  uuidv7,
+  type MapToken,
+} from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -53,7 +60,7 @@ import {
 
 export type TokenRow = typeof mapTokens.$inferSelect;
 
-export const tokenApi = (t: TokenRow) => ({
+export const tokenApi = (t: TokenRow): MapToken => ({
   id: t.id,
   mapId: t.mapId,
   characterId: t.characterId,

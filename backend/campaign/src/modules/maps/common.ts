@@ -7,6 +7,7 @@
  */
 import {
   ExpectedVersion,
+  type MapSettings,
   MapColor,
   MapPoint,
   mapPoints,
@@ -257,7 +258,7 @@ export const sqlBlocksSight = (eye: SQL, target: SQL) => sql`(
 // ─── Réglages de carte ───────────────────────────────────────────────────────
 
 type SettingsRow = typeof mapSettings.$inferSelect;
-export const settingsApi = (campaignId: string, s: SettingsRow | undefined) => ({
+export const settingsApi = (campaignId: string, s: SettingsRow | undefined): MapSettings => ({
   campaignId,
   partyMapId: s?.partyMapId ?? null,
   tokenScale: s?.tokenScale ?? 1,

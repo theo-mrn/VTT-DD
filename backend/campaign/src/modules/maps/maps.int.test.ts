@@ -3,6 +3,7 @@
  * MJ/joueur, visibilité côté serveur (brouillard, murs, lumières, rayon de
  * vision), requêtes spatiales et événements de l'outbox.
  */
+import { MapSnapshot } from '@vtt/contracts';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { outbox } from '../../db/schema.js';
@@ -237,6 +238,9 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
 
     // Chargement initial : tout d'un coup, filtré pour le joueur
     const snap = await h.ok<Record<string, Item[]>>(alice, 'GET', base);
+    // Conforme au contrat partagé avec le front
+    expect(MapSnapshot.safeParse(snap).error).toBeUndefined();
+    expect(MapSnapshot.safeParse(await h.ok(gm, 'GET', base)).error).toBeUndefined();
     expect(snap.objects).toHaveLength(1);
     expect(snap.obstacles).toHaveLength(3);
     expect(snap.measurements).toHaveLength(1);

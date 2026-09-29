@@ -3,6 +3,7 @@
  * défaut, arrange, suppression, calque masqué aux joueurs), pièces, zones de brouillard,
  * murs à sens unique et translucides, mise à l'échelle.
  */
+import { MapSnapshot } from '@vtt/contracts';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { outbox } from '../../db/schema.js';
@@ -363,6 +364,7 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : refonte', () => {
       sx: 2,
       sy: 2,
     });
+    expect(MapSnapshot.safeParse(snap).error).toBeUndefined();
     expect(snap.map).toMatchObject({ width: 2000, height: 2000, spawn: { x: 20, y: 40 } });
     expect(snap.tokens![0]).toMatchObject({ pos: { x: 200, y: 200 }, visionRadius: 200, scale: 2 });
     expect(snap.objects![0]).toMatchObject({ pos: { x: 20, y: 20 }, width: 40, height: 80 });

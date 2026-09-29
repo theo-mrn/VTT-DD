@@ -24,6 +24,8 @@ import {
   UpdateMapScene,
   UpdateMapSettings,
   uuidv7,
+  type MapGroup,
+  type MapScene,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, eq, or, sql } from 'drizzle-orm';
@@ -72,7 +74,7 @@ import {
 import { rescaleMap } from './rescale.js';
 import { listTokens } from './tokens.js';
 
-export const mapApi = (m: MapRow) => ({
+export const mapApi = (m: MapRow): MapScene => ({
   id: m.id,
   name: m.name,
   description: m.description,
@@ -91,7 +93,7 @@ export const mapApi = (m: MapRow) => ({
 });
 
 type GroupRow = typeof mapGroups.$inferSelect;
-const groupApi = (g: GroupRow) => ({
+const groupApi = (g: GroupRow): MapGroup => ({
   id: g.id,
   name: g.name,
   sortOrder: g.sortOrder,
