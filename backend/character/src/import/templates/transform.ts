@@ -17,7 +17,8 @@
  * import retrouve les mêmes lignes et les ignore.
  */
 import { createHash } from 'node:crypto';
-import { calculer, EtatEntite, type Effet, type SystemeCharge } from '@vtt/rules';
+import type { EtatEntite, SystemeCharge } from '@vtt/rules';
+import { keepDerivedValues } from '../../regles/npc.js';
 import * as sw from '../correspondances/star-wars-eote.js';
 import { dateIso, nombre, texte, type DocFirestore, type PersonnageLegacy } from '../legacy.js';
 import {
@@ -207,45 +208,14 @@ export function keepTemplateValues(
   legacy: Record<string, unknown>,
   warn: (w: string) => void,
 ): { etat: EtatEntite; kept: string[] } {
-  const attributs = systeme.entites.get(etat.type)?.attributs;
-  if (!attributs) return { etat, kept: [] };
   const renamed = LEGACY_KEYS[systeme.source.id] ?? {};
   const legacyKeyOf = new Map(Object.entries(renamed).map(([from, to]) => [to, from]));
-  const fiche = calculer(systeme, etat);
-  const targets = new Map<string, number>();
-  const effets: Effet[] = [];
-  for (const [cle, a] of attributs) {
-    if (a.nature !== 'derivee') continue;
-    const target = nombre(legacy[legacyKeyOf.get(cle) ?? cle]);
-    const computed = fiche.valeur(cle);
-    if (target === undefined || typeof computed !== 'number' || computed === target) continue;
-    targets.set(cle, target);
-    effets.push({
-      sur: 'attribut',
-      attribut: cle,
-      operation: 'ajouter',
-      valeur: String(target - computed),
-      description: `${a.nom} du modèle : ${target}`,
-    });
-  }
-  if (!effets.length) return { etat, kept: [] };
-
-  const next = EtatEntite.parse({
-    ...etat,
-    bonus: [
-      ...etat.bonus,
-      { id: 'valeurs-du-modele', nom: 'Valeurs du modèle', source: 'MJ', effets, actif: true },
-    ],
-  });
-  const after = calculer(systeme, next);
-  const kept: string[] = [];
-  for (const [cle, target] of targets) {
-    const v = after.valeur(cle);
-    if (v === target) kept.push(cle);
-    else
-      warn(`${attributs.get(cle)!.nom} : ${target} dans le modèle, ${String(v)} après migration`);
-  }
-  return { etat: next, kept };
+  return keepDerivedValues(
+    systeme,
+    etat,
+    (cle) => nombre(legacy[legacyKeyOf.get(cle) ?? cle]),
+    warn,
+  );
 }
 
 /** Avertissements de la migration des personnages sans objet pour un modèle (jamais de race ni de profil). */

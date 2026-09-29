@@ -704,43 +704,70 @@ export function donnerObjet(
       : donneur.possessions.filter((p) => p !== objet),
   };
 
-  // Receveur : même objet (unités ajoutées), sinon un nouvel exemplaire
-  const chezLui = receveur.possessions.filter((p) => p.entree === d.entree);
+  const recu = ajouterObjetRecu(systeme, receveur, objet, quantite, 'Le receveur');
+  return {
+    donneur: suivantDonneur,
+    receveur: recu.etat,
+    quantite,
+    ...(recu.exemplaire !== undefined ? { recu: recu.exemplaire } : {}),
+  };
+}
+
+/**
+ * Objet reçu par une entité (don, butin d'un coffre de la carte) : ses unités s'ajoutent à
+ * un exemplaire identique (sorte à quantités), sinon un nouvel exemplaire est créé, rangé
+ * et visible, équipé seulement si la sorte ne s'équipe pas ; ses valeurs et effets propres
+ * le suivent. `qui` : sujet des messages de refus (« Le receveur », « Le personnage »).
+ */
+export function ajouterObjetRecu(
+  systeme: SystemeCharge,
+  receveur: EtatEntite,
+  objet: Possession,
+  quantite: number,
+  qui: string,
+): { etat: EtatEntite; exemplaire?: string } {
+  const entree = systeme.entrees.get(objet.entree);
+  if (!entree) throw refus(`Entrée inconnue : ${objet.entree}`, 'entree_inconnue');
+  const sorte = systeme.sortes.get(entree.sorte)!;
+  if (!sorte.pour.includes(receveur.type)) {
+    const type = systeme.entites.get(receveur.type)?.type.nom ?? receveur.type;
+    throw refus(`${sorte.nom} non possédable par ${type}`, 'don_impossible');
+  }
+  // Même objet (unités ajoutées), sinon un nouvel exemplaire
+  const chezLui = receveur.possessions.filter((p) => p.entree === objet.entree);
   const identique = sorte.quantites ? chezLui.find((p) => memeObjet(p, objet)) : undefined;
   if (identique) {
     return {
-      donneur: suivantDonneur,
-      receveur: {
+      etat: {
         ...receveur,
         possessions: receveur.possessions.map((p) =>
           p === identique ? { ...p, quantite: (p.quantite ?? 1) + quantite } : p,
         ),
       },
-      quantite,
-      ...(identique.exemplaire !== undefined ? { recu: identique.exemplaire } : {}),
+      ...(identique.exemplaire !== undefined ? { exemplaire: identique.exemplaire } : {}),
     };
   }
   if (chezLui.length && !sorte.exemplaires)
-    throw refus(`${entree.nom} est déjà possédé par le receveur`, 'deja_possede');
+    throw refus(`${entree.nom} est déjà possédé par ${qui.toLowerCase()}`, 'deja_possede');
   const nombre = receveur.possessions.filter(
     (p) => systeme.entrees.get(p.entree)?.sorte === sorte.id,
   ).length;
   if (sorte.maximum !== undefined && nombre >= sorte.maximum)
-    throw refus(`Le receveur a déjà ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom}`);
-  const recu = chezLui.length ? nouvelExemplaire(receveur.possessions, d.entree) : undefined;
-  const nouvelle = nouvellePossession(d.entree, objet.rang, {
+    throw refus(`${qui} a déjà ${sorte.maximum} ${sorte.nomPluriel ?? sorte.nom}`);
+  const exemplaire = chezLui.length
+    ? nouvelExemplaire(receveur.possessions, objet.entree)
+    : undefined;
+  const nouvelle = nouvellePossession(objet.entree, objet.rang, {
     actif: !sorte.activable,
     choix: objet.choix,
     champs: objet.champs,
     effets: objet.effets,
-    ...(recu !== undefined ? { exemplaire: recu } : {}),
+    ...(exemplaire !== undefined ? { exemplaire } : {}),
     ...(sorte.quantites && quantite > 1 ? { quantite } : {}),
   });
   return {
-    donneur: suivantDonneur,
-    receveur: { ...receveur, possessions: [...receveur.possessions, nouvelle] },
-    quantite,
-    ...(recu !== undefined ? { recu } : {}),
+    etat: { ...receveur, possessions: [...receveur.possessions, nouvelle] },
+    ...(exemplaire !== undefined ? { exemplaire } : {}),
   };
 }
 

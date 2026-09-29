@@ -7,10 +7,10 @@
  * Chaque système n'est lu et chargé (compilation des formules) qu'une fois,
  * puis gardé en mémoire : le calcul d'une fiche ne relit jamais le disque.
  */
-import { readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import type { SystemeCharge, SystemeSaisi } from '@vtt/rules';
+import { Bestiary, type SystemeCharge, type SystemeSaisi } from '@vtt/rules';
 import { documentPresentation, documentSysteme, systeme } from '@vtt/systemes';
 
 export interface ResumeSysteme {
@@ -29,14 +29,21 @@ export interface Catalogue {
   documents(id: string): { systeme: SystemeSaisi; presentation: unknown } | undefined;
   /** Système chargé, prêt à calculer ; `undefined` s'il est inconnu. */
   charge(id: string): SystemeCharge | undefined;
+  /**
+   * Bestiaire de référence du système (`dist/systemes/bestiaires/<id>.json` de
+   * @vtt/systemes, validé au build) ; `undefined` s'il n'en a pas.
+   */
+  bestiaire?(id: string): Bestiary | undefined;
 }
+
+/** Dossier des systèmes assemblés de @vtt/systemes (dist/systemes/). */
+const dossierSystemes = () =>
+  join(dirname(createRequire(import.meta.url).resolve('@vtt/systemes')), 'systemes');
 
 /** Identifiants des systèmes de référence : fichiers `<id>.json` à côté de @vtt/systemes. */
 export function idsReference(): string[] {
   // Point d'entrée du paquet (dist/index.js) : les systèmes sont dans dist/systemes/
-  const entree = createRequire(import.meta.url).resolve('@vtt/systemes');
-  const dossier = join(dirname(entree), 'systemes');
-  return readdirSync(dossier)
+  return readdirSync(dossierSystemes())
     .filter((f) => f.endsWith('.json') && !f.endsWith('.presentation.json'))
     .map((f) => f.slice(0, -'.json'.length))
     .sort();
@@ -49,6 +56,7 @@ export function catalogueReference(ids: string[] = idsReference()): Catalogue {
   const connus = new Set(ids);
   const documents = new Map<string, { systeme: SystemeSaisi; presentation: unknown }>();
   const charges = new Map<string, SystemeCharge>();
+  const bestiaires = new Map<string, Bestiary | undefined>();
 
   const lireDocuments = (id: string) => {
     if (!connus.has(id)) return undefined;
@@ -79,6 +87,19 @@ export function catalogueReference(ids: string[] = idsReference()): Catalogue {
         charges.set(id, s);
       }
       return s;
+    },
+    bestiaire(id) {
+      if (!connus.has(id)) return undefined;
+      if (!bestiaires.has(id)) {
+        const fichier = join(dossierSystemes(), 'bestiaires', `${id}.json`);
+        bestiaires.set(
+          id,
+          existsSync(fichier)
+            ? Bestiary.parse(JSON.parse(readFileSync(fichier, 'utf8')))
+            : undefined,
+        );
+      }
+      return bestiaires.get(id);
     },
   };
 }

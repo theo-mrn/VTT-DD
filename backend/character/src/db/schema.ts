@@ -50,6 +50,10 @@ export const characters = schemaCharacters.table('characters', {
   kind: text('kind').$type<'pc' | 'npc'>().notNull().default('pc'),
   /** Mise en page de la fiche ; null : disposition par défaut de la présentation. */
   sheetLayout: jsonb('sheet_layout').$type<SheetLayout>(),
+  /** Instance de PNJ (0009) : modèle copié (trace, sans clé étrangère). */
+  templateId: uuid('template_id'),
+  /** Instance de PNJ (0009) : campagne pour laquelle elle a été créée (numérotation). */
+  campaignId: uuid('campaign_id'),
   version: integer('version').notNull().default(1),
   createdAt: horodatage('created_at').notNull().defaultNow(),
   updatedAt: horodatage('updated_at').notNull().defaultNow(),

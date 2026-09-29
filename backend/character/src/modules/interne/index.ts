@@ -14,6 +14,8 @@
  *        (initiative d'un combat : la réponse porte les clés de tri `cles`)
  *   POST /internal/characters/:id/durees/decompter   fin de round : durées -1,
  *        possessions arrivées à 0 retirées
+ *   POST /internal/npcs, /internal/npcs/delete, /internal/characters/:id/possessions/receive
+ *        instances de PNJ et butin de la carte (./npcs.ts)
  */
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -33,6 +35,7 @@ import {
   type Appelant,
 } from '../personnages/depot.js';
 import { CharacterSummary } from '../../regles/summary.js';
+import { registerNpcRoutes } from './npcs.js';
 
 const IdPersonnage = z.uuid('Identifiant de personnage invalide').transform((s) => s.toLowerCase());
 const IdUtilisateur = z.uuid().transform((s) => s.toLowerCase());
@@ -85,6 +88,9 @@ export const register: Module = async (app, deps) => {
     // Toutes les requêtes viennent de campaign (peu d'IP) : limite large
     config: { rateLimit: { max: 3000, timeWindow: '1 minute' } } as FastifyContextConfig,
   };
+
+  // Instances de PNJ de la carte et butin (docs/carte.md § 12)
+  registerNpcRoutes(app, deps, interne);
 
   r.get(
     '/internal/characters/:id',
