@@ -2,10 +2,11 @@
 
 /**
  * Palette des couleurs de dessin et de texte : les teintes viennent de la palette du module
- * (données, `lib/map/modules/drawings/palette.ts`), plus une couleur personnalisée.
+ * (données, `lib/map/modules/drawings/palette.ts`), plus une couleur personnalisée, prise à la
+ * fermeture du sélecteur du navigateur (une seule modification, pas une par mouvement).
  */
 import { Check, Pipette } from 'lucide-react';
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Info } from '@/components/ui/tooltip';
 import { DRAWING_COLORS, parseColor } from '@/lib/map/modules/drawings/palette';
 import { cn } from '@/lib/utils';
@@ -21,7 +22,25 @@ export function ColorPalette({
   label?: string;
 }) {
   const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const latest = useRef(onChange);
+  useEffect(() => {
+    latest.current = onChange;
+  });
+  // Événement natif `change` : à la fermeture du sélecteur (React n'expose que `input`)
+  useEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    const commit = () => latest.current(el.value);
+    el.addEventListener('change', commit);
+    return () => el.removeEventListener('change', commit);
+  }, []);
   const current = parseColor(value)?.hex ?? value;
+  const hex = parseColor(current)?.hex ?? DRAWING_COLORS[0]!.value;
+  // Champ non contrôlé : sa valeur suit la couleur courante
+  useEffect(() => {
+    if (input.current && input.current.value !== hex) input.current.value = hex;
+  }, [hex]);
   const custom = !DRAWING_COLORS.some((c) => c.value === current);
   return (
     <div role="radiogroup" aria-label={label} className="grid grid-cols-7 gap-1.5">
@@ -59,11 +78,11 @@ export function ColorPalette({
         >
           <Pipette className={cn('size-3.5', custom && 'text-foreground mix-blend-difference')} />
           <input
+            ref={input}
             id={id}
             type="color"
             aria-label="Couleur personnalisée"
-            value={parseColor(current)?.hex ?? DRAWING_COLORS[0]!.value}
-            onChange={(e) => onChange(e.target.value)}
+            defaultValue={hex}
             className="absolute inset-0 size-full cursor-pointer opacity-0"
           />
         </label>
