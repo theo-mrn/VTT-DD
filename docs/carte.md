@@ -76,7 +76,8 @@ frontend/src/lib/map/
   engine/
     map-engine.ts        MapEngine : Application Pixi, montage, destruction, rendu à la demande
     camera.ts            Camera : monde ⇄ écran, zoom, pan, cadrage, bornes, animations
-    layers.ts            calques Pixi et leur ordre (§ 5)
+    planes.ts            plans de rendu techniques et leur ordre (§ 5)
+    layers.ts            calques du MJ : pile ordonnée, ordre des entités (§ 5, Calques)
     background.ts        fond image ou vidéo, taille du monde
     screen-space.ts      éléments à taille constante à l'écran (étiquettes, poignées)
     spatial-index.ts     grille spatiale : test de toucher, sélection au lasso, culling
@@ -167,27 +168,78 @@ sections d'inspecteur, ses entrées de barre d'outils et ses abonnements au stor
     (`engine.invalidate()`).
   - Fond vidéo : 30 i/s au plus.
 - **Culling** par l'index spatial : seuls les éléments qui touchent la vue sont `visible`.
-- **Calques, du bas vers le haut** (`layers.ts`) :
+- **Plans de rendu, du bas vers le haut** (`planes.ts`) :
 
-  | #   | Calque       | Contenu                                                                                                                                     |
-  | --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 1   | `background` | image ou vidéo de fond                                                                                                                      |
-  | 2   | `decor`      | objets `isBackground`                                                                                                                       |
-  | 3   | `objects`    | objets                                                                                                                                      |
-  | 4   | `tokens`     | PNJ et personnages                                                                                                                          |
-  | 5   | `vision`     | obscurité, brouillard, lueurs (§ 9), pour les joueurs et la « vue joueur » du MJ                                                            |
-  | 6   | `allies`     | personnages joueurs hors de ma vue : toujours vus, dessinés au-dessus de l'ombre à 60 %                                                     |
-  | 7   | `drawings`   | dessins et textes (annotations, jamais dans l'ombre)                                                                                        |
-  | 8   | `gm`         | surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. Toujours au-dessus de l'ombre, quel que soit le réglage des calques |
-  | 9   | `adornments` | survol, sélection, poignées, étiquettes (taille constante)                                                                                  |
-  | 10  | `live`       | fantômes des glissers des autres, tracés en cours, curseurs, pings                                                                          |
-  | 11  | `tool`       | aperçu de l'outil actif                                                                                                                     |
+  | #   | Plan          | Contenu                                                                                                                                     |
+  | --- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 1   | `background`  | image ou vidéo de fond                                                                                                                      |
+  | 2   | `content`     | les **calques du MJ** (ci-dessous), du plus bas au plus haut ; dans chaque calque, les entités par `z` croissant                            |
+  | 3   | `vision`      | obscurité, brouillard, lueurs (§ 9), pour les joueurs et la « vue joueur » du MJ                                                            |
+  | 4   | `allies`      | personnages joueurs hors de ma vue : toujours vus, dessinés au-dessus de l'ombre à 60 %                                                     |
+  | 5   | `annotations` | dessins et textes hors calque (`layerId` nul) : annotations, jamais dans l'ombre                                                            |
+  | 6   | `gm`          | surcouches MJ : murs, portes, pièces, contours de brouillard, lumières. Toujours au-dessus de l'ombre, quel que soit le réglage d'affichage |
+  | 7   | `adornments`  | survol, sélection, poignées, étiquettes (taille constante)                                                                                  |
+  | 8   | `live`        | fantômes des glissers des autres, tracés en cours, curseurs, pings                                                                          |
+  | 9   | `tool`        | aperçu de l'outil actif                                                                                                                     |
 
 - **Portes pour les joueurs.** Les icônes de porte sont dessinées dans `adornments` pour qu'un
   joueur puisse ouvrir une porte proche.
-- **Réglage des calques.** `map.layers` (réglage MJ) masque des calques entiers, comme avant.
+- **Affichage.** `map.display` (ex-`map.layers`, réglage MJ) masque des familles entières
+  (lumières, obstacles, brouillard…), comme avant. Ce n'est pas la même chose que les calques.
 - **Aucune allocation par image** dans les boucles chaudes (réutiliser les `Graphics`, tableaux
   typés), et **aucun `Graphics` recréé** si l'entité n'a pas changé.
+
+### Calques du MJ (niveaux)
+
+L'ancienne carte n'en avait pas, et c'est ce qui coinçait : impossible de poser un pont au-dessus
+d'un personnage, un tapis sous une table ou un toit au-dessus de tout. Chaque carte a donc une
+**pile ordonnée de calques**, gérée par le MJ, et tout ce qui est posé peut passer au-dessus ou
+en dessous de n'importe quoi d'autre.
+
+- **Modèle.** `MapLayer` = `{ id, mapId, name, sortOrder, visibleToPlayers, locked, opacity }`.
+  - Une nouvelle carte naît avec trois calques : « Sol » (décors), « Objets », « Personnages ».
+  - Les cartes existantes sont migrées : objets `isBackground` → Sol, autres objets → Objets,
+    tokens → Personnages. `isBackground` disparaît du contrat : le calque le remplace.
+- **Appartenance.**
+  - Tokens et objets appartiennent à exactement un calque (`layerId`) et ont un ordre `z`
+    (nombre réel) dans ce calque.
+  - Dessins et textes : `layerId` facultatif. Nul, c'est une annotation (plan `annotations`,
+    au-dessus de l'ombre) ; sinon, ils font partie du monde comme le reste.
+  - Ordre d'affichage = ordre des calques, puis `z`. Réordonner n'écrit que l'élément déplacé
+    (`z` pris entre ses voisins), jamais toute la pile.
+- **Gestes communs**, pour toutes les sortes, sélection multiple comprise (l'ordre relatif est
+  gardé) :
+  - menu contextuel « Ordre ▸ » : Avancer, Reculer, Premier plan, Arrière-plan (dans le calque) ;
+  - menu contextuel « Calque ▸ » : la liste des calques (coche sur l'actuel), Calque au-dessus,
+    Calque en dessous ;
+  - clavier : ⌘/Ctrl+↑ et ↓ avancent et reculent d'un cran, ⌘/Ctrl+⇧+↑ et ↓ mettent au premier
+    plan et à l'arrière-plan, ⌥+⌘/Ctrl+↑ et ↓ changent de calque. Pas de [ et ], peu pratiques
+    en AZERTY.
+- **Panneau « Calques »** (MJ, bouton de la barre d'outils, touche K) :
+  - liste du haut vers le bas, comme un logiciel de dessin ;
+  - glisser pour réordonner, double clic pour renommer, nombre d'éléments ;
+  - **calque actif** : ce qui est posé y va ; sinon le calque par défaut de la sorte (objet →
+    Objets, PNJ → Personnages) ;
+  - « Masqué aux joueurs » (`visibleToPlayers`, enregistré) : le calque et tout son contenu ne
+    sont jamais envoyés aux joueurs (filtre serveur) ;
+  - œil local (MJ seulement, non enregistré) : cache le calque sur mon écran pour travailler
+    dessous ; « Isoler » : estompe tous les autres ;
+  - cadenas (`locked`) : ses éléments ne se sélectionnent plus, ni au clic ni au lasso (on clique
+    à travers), sauf les tokens d'un joueur pour lui ;
+  - opacité du calque (feuillage, toit en transparence) ;
+  - « Sélectionner le contenu » ; supprimer (le contenu descend dans le calque du dessous, après
+    confirmation).
+- **Toucher.** Du calque le plus haut au plus bas, puis du `z` le plus grand au plus petit. Les
+  calques verrouillés ou cachés localement sont ignorés.
+- **Visibilité.** Tous les calques sont sous le plan `vision` : l'ombre et le masquage des PNJ et
+  objets derrière les murs s'appliquent à tous.
+- **Synchronisation.**
+  - Chaque changement de calque est une commande annulable.
+  - Événements `map_layer.*`. Quand un calque est masqué aux joueurs, ils reçoivent
+    `map_layer.hidden { id }` et retirent son contenu. Quand il redevient visible, ils relisent
+    la carte.
+- **Étages.** Un autre étage est une autre scène, reliée par un portail (lot suivant, § 11). Les
+  calques servent aux superpositions d'une même scène.
 
 ## 6. Entités et interaction commune
 
@@ -195,7 +247,7 @@ sections d'inspecteur, ses entrées de barre d'outils et ses abonnements au stor
 
 Classe de base de tout ce qui est posé. Elle porte :
 
-- l'identité : `id`, `kind`, `layer` ;
+- l'identité : `id`, `kind`, `plane` (plan de rendu), `layerId` et `z` (calque du MJ et ordre) ;
 - la transformation : `x, y, rotation, width, height` ;
 - ce que le toucher et l'index utilisent : `bounds()` et `hitTest(p, tolerancePx)` ;
 - l'état d'affichage : `EntityState` = `hovered`, `selected`, `dragging`, `locked`,
@@ -220,7 +272,7 @@ Les actions **communes** sont générées à partir des capacités, avec les mê
 - Visible pour… ;
 - Pivoter ;
 - Dupliquer ;
-- Premier plan et Arrière-plan ;
+- Ordre ▸ (avancer, reculer, premier plan, arrière-plan) et Calque ▸ (§ 5, Calques) ;
 - Supprimer.
 
 ### Gestes communs (`interaction/controller.ts`)
@@ -239,7 +291,7 @@ Les actions **communes** sont générées à partir des capacités, avec les mê
 | ⌘/Ctrl+Z, ⌘/Ctrl+⇧+Z                       | annuler, refaire (§ 7)                                                                                                                                                                                    |
 | ⌘/Ctrl+D                                   | dupliquer                                                                                                                                                                                                 |
 | R, ⇧R                                      | pivoter de 15°, dans un sens ou dans l'autre                                                                                                                                                              |
-| [ et ]                                     | ordre d'affichage                                                                                                                                                                                         |
+| ⌘/Ctrl+↑↓, ⇧, ⌥                            | ordre dans le calque, premier plan / arrière-plan, changement de calque (§ 5, Calques)                                                                                                                    |
 | Échap                                      | annule le geste, puis l'outil, puis la sélection                                                                                                                                                          |
 
 Règles de ces gestes :
@@ -249,7 +301,7 @@ Règles de ces gestes :
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
   pendant la saisie.
 - **Lettres réservées** : A, E, G, I, K, L, P, Q, R, T, U, V, W, X, Y, Z et les chiffres sont
-  libres. F, D, C, N, J, H, S, B, M et O appartiennent aux panneaux de la table.
+  libres (K : panneau Calques). F, D, C, N, J, H, S, B, M et O appartiennent aux panneaux de la table.
 
 ### Outils (`tools/`)
 
@@ -268,7 +320,8 @@ Règles de ces gestes :
   | G      | brouillard | `fog`       |
   | L      | lumières   | `lights`    |
 
-  La barre d'outils porte aussi « Vue » (MJ / vue d'un joueur, § 9) et « Calques ».
+  La barre d'outils porte aussi « Vue » (MJ / vue d'un joueur, § 9), « Calques » (panneau des
+  calques du MJ, K) et « Affichage » (familles affichées, `map.display`).
 
 ## 7. Données, synchronisation, annuler
 
@@ -381,7 +434,7 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
   - token : centre et 8 points à 0,7 × rayon ;
   - objet : centre, coins et milieux des bords du rectangle tourné.
     Un PNJ ou un objet non vu n'est ni rendu ni envoyé au joueur (serveur, § 12).
-    Un objet `isBackground` (décor) n'est pas filtré : l'obscurité le couvre.
+    Un objet de sorte `decor` n'est pas filtré : l'obscurité le couvre, comme le fond.
 - **Personnages joueurs** : toujours vus. Hors de ma vue, ils sont dans le calque `allies` à 60 %.
 - **Vue du MJ.**
   - Par défaut, tout est visible. L'ombre des joueurs est montrée en voile léger (25 %) pour
@@ -508,7 +561,7 @@ closedRooms(prep): Set<string> ; innermostRoom(prep, p): Room | null ; inFog(pre
 - **Pose** : depuis les modèles d'objets (`object-templates`) ou une image envoyée ; glisser vers
   la carte.
 - **Gestes** : tous les gestes communs (glisser, poignées de rotation et de taille, verrou,
-  masquer, visible pour…, ordre, décor d'arrière-plan).
+  masquer, visible pour…, ordre et calque).
 - **Fouiller**, activé par le MJ (`searchable`, `searchRadius` en unités).
   - Un joueur dont un personnage est à portée voit « Fouiller ». Le contenu (`items`) s'ouvre
     dans une fenêtre, et « Prendre » ajoute l'objet à l'inventaire du personnage (§ 12).
@@ -600,7 +653,7 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
    défaut.
 5. **Lumières** : `color`, `intensity` (0 à 1), `falloff` (0 à 1), `attached_token_id`.
 6. **Objets.**
-   - `searchable`, `search_radius`, `z_index`.
+   - `searchable`, `search_radius` (l'ordre passe par `layer_id` et `z`, point 12).
    - `items` typés : `[{ id, name, quantity, imageUrl?, ref? }]`, où `ref` est une référence au
      catalogue du système.
    - Routes :
@@ -629,11 +682,28 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
 11. **Visibilité serveur sur `@vtt/vision`** : fait par le module vision, après les lots 1 et 2
     (§ 9, Serveur).
 
+12. **Calques du MJ** (§ 5, Calques).
+    - Table `map_layers` : `name`, `sort_order` (réel), `visible_to_players`, `locked`, `opacity`.
+    - Colonnes `layer_id` et `z` (double) sur `map_tokens` et `map_objects` (obligatoires après
+      migration), sur `map_drawings` et `map_notes` (facultatives).
+    - Migration : trois calques par carte existante, contenu réparti selon `is_background`.
+    - Trois calques créés avec chaque nouvelle carte.
+    - Routes :
+      - `/maps/:mapId/layers` : CRUD et `batch` (réordonner). `DELETE` fait descendre le contenu
+        dans le calque du dessous, ou `?moveTo=`.
+      - `POST /maps/:mapId/arrange { items: [{ kind, id, layerId, z }] }` : réordonnancement d'une
+        sélection, en une transaction.
+    - Filtrage : le contenu d'un calque `visible_to_players = false` n'est jamais envoyé à un
+      joueur (REST, bus, rejeu).
+    - Événements `map_layer.created | updated | deleted | hidden`.
+    - Renommage du réglage d'affichage `map.layers` en `map.display` dans le contrat, puisque le
+      nouveau front n'en dépend pas encore.
+
 ## 13. Découpage du chantier
 
 | Lot | Agent                           | Possède                                                                                                                                                   |
 | --- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Moteur                          | `lib/map/{engine,store,live,api.ts,modules/index.ts}`, `components/map/*.tsx`, `components/map/scenes/`, `table/map-stage.tsx`, page de la table          |
+| 1   | Moteur                          | `lib/map/{engine,store,live,api.ts,modules/index.ts}`, `components/map/*.tsx`, `components/map/{scenes,layers}/`, `table/map-stage.tsx`, page de la table |
 | 1   | Vision (paquet)                 | `packages/vision/**`                                                                                                                                      |
 | 1   | Backend                         | `packages/contracts/src/map.ts`, `backend/campaign/**` (carte), `backend/character/**` (instances de PNJ, don d'objet), `backend/realtime/**`, docs d'API |
 | 2   | Dessins                         | `modules/drawings`, `components/map/drawings`                                                                                                             |
