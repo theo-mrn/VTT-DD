@@ -1,12 +1,18 @@
 /**
- * Images des campagnes, envoyées directement au stockage (R2 en prod,
- * SeaweedFS en dev) comme les avatars d'identity : le service signe une URL
- * PUT à durée courte, le navigateur y envoie le fichier sans passer par nous.
+ * Médias des campagnes (images, vidéos de fond), envoyés directement au stockage
+ * (R2 en prod, SeaweedFS en dev) comme les avatars d'identity : le service signe une
+ * URL PUT à durée courte, le navigateur y envoie le fichier sans passer par nous.
  * Type et taille sont signés : le stockage refuse un autre fichier que celui annoncé.
+ *
+ * Trois portes, une seule signature (`signUpload`) : l'image de la campagne
+ * (`/image`, 5 Mo), les images des notes (`/notes/upload`) et les médias de la carte
+ * (`/media` : images 10 Mo, vidéos webm ou mp4 100 Mo, contrat @vtt/contracts).
  */
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { uuidv7 } from '@vtt/contracts';
+import { MEDIA_IMAGE_TYPES, MEDIA_VIDEO_TYPES, uuidv7 } from '@vtt/contracts';
+import { HttpError } from '@vtt/platform';
+import type { FastifyBaseLogger } from 'fastify';
 import type { CampaignConfig } from '../config.js';
 
 /** Durée de validité d'une URL d'envoi, en secondes. */
@@ -18,11 +24,18 @@ export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
 export type ImageType = (typeof IMAGE_TYPES)[number];
 
-const EXTENSIONS: Record<ImageType, string> = {
+/** Tout type de média accepté par l'une des portes d'envoi. */
+export type MediaType =
+  ImageType | (typeof MEDIA_IMAGE_TYPES)[number] | (typeof MEDIA_VIDEO_TYPES)[number];
+
+const EXTENSIONS: Record<MediaType, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
   'image/gif': 'gif',
+  'image/avif': 'avif',
+  'video/webm': 'webm',
+  'video/mp4': 'mp4',
 };
 
 /** Dossier des images de campagne dans le bucket partagé. */
@@ -30,7 +43,7 @@ const FOLDER = 'campaigns';
 
 export interface SignatureRequest {
   key: string;
-  contentType: ImageType;
+  contentType: MediaType;
   size: number;
   expiresIn: number;
 }
@@ -39,8 +52,40 @@ export interface SignatureRequest {
 export type UploadSigner = (request: SignatureRequest) => Promise<string>;
 
 /** Clé de l'objet : campaigns/<campaignId>/<uuidv7>.<ext> (jamais réutilisée). */
-export function imageKey(campaignId: string, contentType: ImageType): string {
+export function mediaKey(campaignId: string, contentType: MediaType): string {
   return `${FOLDER}/${campaignId}/${uuidv7()}.${EXTENSIONS[contentType]}`;
+}
+
+export const storageUnavailable = () =>
+  new HttpError(
+    503,
+    'Service indisponible',
+    'storage_unavailable',
+    'L’envoi de fichiers n’est pas configuré sur ce serveur',
+  );
+
+/**
+ * URL d'envoi d'un média de la campagne et son URL publique. Stockage absent ou
+ * signature impossible : 503 `storage_unavailable`. Droits vérifiés par l'appelant.
+ */
+export async function signUpload(
+  signer: UploadSigner | undefined,
+  s3PublicUrl: string | undefined,
+  campaignId: string,
+  file: { contentType: MediaType; size: number },
+  log: FastifyBaseLogger,
+) {
+  const base = publicBase(s3PublicUrl);
+  if (!signer || !base) throw storageUnavailable();
+  const key = mediaKey(campaignId, file.contentType);
+  let uploadUrl: string;
+  try {
+    uploadUrl = await signer({ key, ...file, expiresIn: UPLOAD_EXPIRY });
+  } catch (err) {
+    log.error({ err }, 'signature de l’URL d’envoi impossible');
+    throw storageUnavailable();
+  }
+  return { uploadUrl, publicUrl: `${base}/${key}`, expiresIn: UPLOAD_EXPIRY };
 }
 
 /** URL publique du stockage sans barre finale, ou null si non configurée. */

@@ -296,6 +296,37 @@ describe.skipIf(!TEST_DATABASE_URL)('carte : refonte', () => {
     expect((await los('180,50', '220,50')).blocked).toBe(true);
   });
 
+  it('médias : URL d’envoi signée, images et vidéos, MJ seulement', async () => {
+    const mo = 1024 * 1024;
+    const image = await h.ok<{ uploadUrl: string; publicUrl: string; expiresIn: number }>(
+      gm,
+      'POST',
+      url('/media'),
+      { kind: 'image', contentType: 'image/avif', size: 9 * mo },
+    );
+    expect(image.publicUrl).toMatch(
+      new RegExp(`^https://cdn\\.test\\.local/vtt/campaigns/${campaignId}/[0-9a-f-]+\\.avif$`),
+    );
+    expect(image.uploadUrl).toContain('X-Amz-Signature');
+    const video = await h.ok<{ publicUrl: string }>(gm, 'POST', url('/media'), {
+      kind: 'video',
+      contentType: 'video/webm',
+      size: 100 * mo,
+    });
+    expect(video.publicUrl).toMatch(/\.webm$/);
+    expect(t.uploads.at(-1)).toMatchObject({ contentType: 'video/webm', size: 100 * mo });
+    // Trop gros, type d'une autre sorte, joueur : refusés
+    const big = { kind: 'video', contentType: 'video/mp4', size: 100 * mo + 1 };
+    expect((await h.request(gm, 'POST', url('/media'), big)).statusCode).toBe(400);
+    const odd = { kind: 'image', contentType: 'video/mp4', size: 10 };
+    expect((await h.request(gm, 'POST', url('/media'), odd)).statusCode).toBe(400);
+    const ok = { kind: 'image', contentType: 'image/png', size: 10 };
+    expect((await h.request(alice, 'POST', url('/media'), ok)).statusCode).toBe(403);
+    // Une vidéo envoyée sert de fond de carte
+    const map = await newMap({ backgroundUrl: video.publicUrl });
+    expect(map.backgroundUrl).toBe(video.publicUrl);
+  });
+
   it('mise à l’échelle : toute la géométrie en une transaction', async () => {
     const map = await newMap({ spawn: { x: 10, y: 20 } });
     const base = url(`/maps/${map.id}`);

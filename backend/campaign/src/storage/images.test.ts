@@ -4,16 +4,16 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { CampaignConfig } from '../config.js';
-import { createS3Signer, imageKey, isAcceptedImageUrl, publicBase } from './images.js';
+import { createS3Signer, mediaKey, isAcceptedImageUrl, publicBase } from './images.js';
 
 const CAMPAIGN = '01900000-0000-7000-8000-000000000001';
 const BASE = 'https://cdn.test.local/vtt';
 
 describe('images de campagne', () => {
   it('clé : campaigns/<campagne>/<uuid>.<extension>, jamais réutilisée', () => {
-    const key = imageKey(CAMPAIGN, 'image/jpeg');
+    const key = mediaKey(CAMPAIGN, 'image/jpeg');
     expect(key).toMatch(new RegExp(`^campaigns/${CAMPAIGN}/[0-9a-f-]{36}\\.jpg$`));
-    expect(imageKey(CAMPAIGN, 'image/jpeg')).not.toBe(key);
+    expect(mediaKey(CAMPAIGN, 'image/jpeg')).not.toBe(key);
   });
 
   it('URL acceptée : null, l’actuelle, ou un fichier du dossier de la campagne', () => {

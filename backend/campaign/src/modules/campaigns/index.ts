@@ -17,7 +17,7 @@
  *   GET    /v1/campaigns/:id/bans                bannissements (MJ)
  *   DELETE /v1/campaigns/:id/bans/:userId        lever un bannissement (MJ)
  */
-import { changesPayload, uuidv7 } from '@vtt/contracts';
+import { changesPayload, MediaUploadRequest, MediaUploadTicket, uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { FastifyContextConfig } from 'fastify';
@@ -28,10 +28,9 @@ import type { Module } from '../../deps.js';
 import {
   IMAGE_MAX_BYTES,
   IMAGE_TYPES,
-  imageKey,
   isAcceptedImageUrl,
   publicBase,
-  UPLOAD_EXPIRY,
+  signUpload,
 } from '../../storage/images.js';
 import { removeFromCombat } from '../combat/repository.js';
 import {
@@ -76,14 +75,6 @@ const CODE_ATTEMPTS = 5;
 const UPLOAD_LIMIT = {
   rateLimit: { max: 20, timeWindow: '1 minute' },
 } as FastifyContextConfig;
-
-const storageUnavailable = () =>
-  new HttpError(
-    503,
-    'Service indisponible',
-    'storage_unavailable',
-    'L’envoi d’images n’est pas configuré sur ce serveur',
-  );
 
 /** Champs modifiables par PATCH /v1/campaigns/:id, comparés pour `changes` de campaign.updated. */
 const editable = (c: typeof campaigns.$inferSelect) => ({
@@ -459,21 +450,32 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const a = await gmAccess(db, req.params.id, currentUser(req));
-      if (!deps.signer || !base) throw storageUnavailable();
-      const key = imageKey(a.campaign.id, req.body.contentType);
-      let uploadUrl: string;
-      try {
-        uploadUrl = await deps.signer({
-          key,
-          contentType: req.body.contentType,
-          size: req.body.size,
-          expiresIn: UPLOAD_EXPIRY,
-        });
-      } catch (err) {
-        req.log.error({ err }, 'signature de l’URL d’envoi impossible');
-        throw storageUnavailable();
-      }
-      return { uploadUrl, publicUrl: `${base}/${key}`, expiresIn: UPLOAD_EXPIRY };
+      return signUpload(deps.signer, deps.config.S3_PUBLIC_URL, a.campaign.id, req.body, req.log);
+    },
+  );
+
+  // Médias de la carte (fonds image ou vidéo, objets) : MJ, mêmes URL signées que l'image
+  r.post(
+    '/v1/campaigns/:id/media',
+    {
+      config: UPLOAD_LIMIT,
+      preValidation: (req, reply) => app.authenticate(req, reply),
+      schema: {
+        params: Params,
+        body: MediaUploadRequest,
+        response: { 200: MediaUploadTicket },
+      },
+    },
+    async (req) => {
+      const a = await gmAccess(db, req.params.id, currentUser(req));
+      const { contentType, size } = req.body;
+      return signUpload(
+        deps.signer,
+        deps.config.S3_PUBLIC_URL,
+        a.campaign.id,
+        { contentType, size },
+        req.log,
+      );
     },
   );
 

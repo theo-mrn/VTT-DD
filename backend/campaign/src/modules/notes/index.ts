@@ -32,13 +32,7 @@ import { z } from 'zod';
 import type { EventContext, Tx } from '../../db/outbox.js';
 import { notePins, notes } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import {
-  IMAGE_MAX_BYTES,
-  IMAGE_TYPES,
-  imageKey,
-  publicBase,
-  UPLOAD_EXPIRY,
-} from '../../storage/images.js';
+import { IMAGE_MAX_BYTES, IMAGE_TYPES, publicBase, signUpload } from '../../storage/images.js';
 import { campaignNotFound } from '../campaigns/repository.js';
 import { CampaignId, currentUser, eventContext } from '../schemas.js';
 import { BACKFILL_INTERVAL_MS, resanitizeNotes } from './backfill.js';
@@ -86,14 +80,6 @@ const UPLOAD_LIMIT = {
 const Params = z.object({ id: CampaignId });
 const NoteParams = z.object({ noteId: NoteId });
 const CampaignNoteParams = z.object({ id: CampaignId, noteId: NoteId });
-
-const storageUnavailable = () =>
-  new HttpError(
-    503,
-    'Service indisponible',
-    'storage_unavailable',
-    'L’envoi d’images n’est pas configuré sur ce serveur',
-  );
 
 const shareRequiresShared = () =>
   HttpError.badRequest(
@@ -531,21 +517,7 @@ export const register: Module = async (app, deps) => {
     async (req) => {
       const reader = await campaignReader(db, req.params.id, currentUser(req));
       requireWriter(reader, req.params.id);
-      if (!deps.signer || !base) throw storageUnavailable();
-      const key = imageKey(req.params.id, req.body.contentType);
-      let uploadUrl: string;
-      try {
-        uploadUrl = await deps.signer({
-          key,
-          contentType: req.body.contentType,
-          size: req.body.size,
-          expiresIn: UPLOAD_EXPIRY,
-        });
-      } catch (err) {
-        req.log.error({ err }, 'signature de l’URL d’envoi impossible');
-        throw storageUnavailable();
-      }
-      return { uploadUrl, publicUrl: `${base}/${key}`, expiresIn: UPLOAD_EXPIRY };
+      return signUpload(deps.signer, deps.config.S3_PUBLIC_URL, req.params.id, req.body, req.log);
     },
   );
 };

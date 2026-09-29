@@ -16,6 +16,10 @@ const EXCEPTIONS: Record<string, string> = {
   'POST /v1/campaigns/:id/image':
     'Signe une URL d’envoi vers le stockage, rien n’est écrit en base. L’image est enregistrée ' +
     'ensuite par PATCH /v1/campaigns/:id, tracée par campaign.updated (changes.imageUrl).',
+  'POST /v1/campaigns/:id/media':
+    'Signe une URL d’envoi d’un média de la carte (fond image ou vidéo, objet), rien n’est ' +
+    'écrit en base. Le média entre ensuite dans la carte par PATCH /maps/:mapId ou une couche, ' +
+    'tracés par map.updated ou <domaine>.created/updated.',
   'POST /v1/campaigns/:id/notes/upload':
     'Signe une URL d’envoi d’image de note, rien n’est écrit en base. L’image entre ensuite ' +
     'dans une note par POST ou PATCH /v1/campaigns/:id/notes, tracés par note.created/updated.',
