@@ -53,9 +53,11 @@ export const weatherModule: MapModule = {
       return camera;
     };
 
+    // Onglet en arrière-plan : plus de minuteur ; au retour, une image (reprise d'un pas nul)
     const onVisibility = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible')
-        engine.invalidate();
+      if (typeof document === 'undefined') return;
+      if (document.visibilityState === 'hidden') driver.stop();
+      else engine.invalidate();
     };
     if (typeof document !== 'undefined')
       document.addEventListener('visibilitychange', onVisibility);

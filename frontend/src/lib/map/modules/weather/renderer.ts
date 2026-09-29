@@ -41,8 +41,10 @@ export class WeatherRenderer {
   constructor(
     private readonly pixi: typeof Pixi,
     plane: Container,
+    /** Textures faites une fois (canevas 2D) ; données par les tests, sans DOM. */
+    textures?: WeatherTextures,
   ) {
-    this.textures = createWeatherTextures(pixi);
+    this.textures = textures ?? createWeatherTextures(pixi);
     const { Container, Sprite, Texture, TilingSprite } = pixi;
     this.root = new Container({ label: 'weather' });
     this.root.visible = false;
@@ -83,13 +85,22 @@ export class WeatherRenderer {
   private syncStructure(sim: WeatherSim) {
     if (sim.structure === this.structure) return;
     this.structure = sim.structure;
+    this.dropContainers();
+    this.containers = sim.emitters.map((e) => this.containerFor(e));
+    for (const c of this.containers) this.particles.addChild(c);
+  }
+
+  /**
+   * Détruit les conteneurs de particules (pas leurs particules, ni l'atlas). À part de
+   * `destroyDisplay` : `ParticleContainer.removeChildren()` lève une erreur.
+   */
+  private dropContainers() {
     for (const c of this.containers) {
       c.particleChildren = [];
       c.removeFromParent();
       c.destroy();
     }
-    this.containers = sim.emitters.map((e) => this.containerFor(e));
-    for (const c of this.containers) this.particles.addChild(c);
+    this.containers = [];
   }
 
   private containerFor(e: EmitterState): ParticleContainer {
@@ -215,10 +226,9 @@ export class WeatherRenderer {
   }
 
   destroy() {
-    for (const c of this.containers) c.particleChildren = [];
+    this.dropContainers();
     this.root.removeFromParent();
     destroyDisplay(this.root);
-    this.containers = [];
     this.textures.destroy();
   }
 }
