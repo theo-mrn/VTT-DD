@@ -311,6 +311,7 @@ export function lightKind(ctx: LightContext, view: LightView): EntityKind<MapDto
     plane: 'gm',
     display: 'lights',
     editTool: LIGHTS_TOOL_ID,
+    pickOutsideTool: true,
     selfOutline: true,
     transformDisplay: false,
     geometry: (l) => {

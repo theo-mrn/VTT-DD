@@ -174,7 +174,6 @@ export function toggleDoors(ctx: ObstacleContext, entities: readonly MapEntity[]
 
 export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
   const { engine, view } = ctx;
-  const activeTool = () => engine.tools.getActiveId() === OBSTACLES_TOOL_ID;
   return {
     id: OBSTACLE_KIND,
     label: 'Obstacle',
@@ -183,6 +182,8 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
     plane: (o) => ((o as ObstacleData).kind === 'door' ? 'adornments' : 'gm'),
     display: 'obstacles',
     editTool: OBSTACLES_TOOL_ID,
+    // Outil sélection : un clic sur un mur (rien d'autre dessous) le sélectionne, Suppr l'efface
+    pickOutsideTool: true,
     selfOutline: true,
     transformDisplay: false,
     geometry: (o) => boxGeometry((o as ObstacleData).points),
@@ -200,7 +201,8 @@ export function obstacleKind(ctx: ObstacleContext): EntityKind<MapDto> {
     hitTest(e, p, tol) {
       const pts = view.pointsOf(e);
       if (obstacleOf(e).kind === 'door' && doorIconHit(engine, pts, p)) return true;
-      if (!activeTool() || !isGm(engine.viewer)) return false;
+      // Le tracé des murs n'est dessiné (et touchable) que pour le MJ
+      if (!isGm(engine.viewer)) return false;
       return distanceToPolyline(p, pts) <= tol + 3 / engine.camera.zoom;
     },
     bounds(e) {
@@ -408,6 +410,7 @@ export function roomKind(ctx: ObstacleContext): EntityKind<MapDto> {
     plane: 'gm',
     display: 'obstacles',
     editTool: OBSTACLES_TOOL_ID,
+    pickOutsideTool: true,
     selfOutline: true,
     transformDisplay: false,
     geometry: (r) => boxGeometry((r as RoomData).points),

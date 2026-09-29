@@ -1056,9 +1056,11 @@ export class MapEngine {
    */
   isInteractive(e: MapEntity): boolean {
     if (e.masks.size) return false;
-    // L'outil actif choisit ce qu'il touche ; sinon, une sorte réservée à son outil ne se touche pas
+    // L'outil actif choisit ce qu'il touche ; sinon, une sorte réservée à son outil ne se touche
+    // pas, sauf en dernier recours si elle le permet (`pickOutsideTool`)
     const tool = this.tools.active;
-    if (tool.targets ? !tool.targets(e) : !!e.kind.editTool) return false;
+    if (tool.targets ? !tool.targets(e) : !!e.kind.editTool && !e.kind.pickOutsideTool)
+      return false;
     if (!hasCapability(e.kind, 'select') || !e.kind.can('select', e, this.viewer)) return false;
     if (e.layerId) {
       const ui = this.ui.getState();
@@ -1091,6 +1093,8 @@ export class MapEngine {
   ): MapEntity | null {
     const tol = this.camera.screenToWorldLength(opts.tolerancePx ?? HIT_TOLERANCE_PX);
     let best: MapEntity | null = null;
+    // Touchées hors de leur outil (murs, lumières) : seulement si rien d'autre n'est dessous
+    let fallback: MapEntity | null = null;
     // L'index ne fait que dégrossir : une sorte peut toucher un peu au-delà de sa boîte (trait)
     for (const id of this.index.queryPoint(world, tol * 2)) {
       const e = this.entityMap.get(id);
@@ -1098,15 +1102,25 @@ export class MapEngine {
       if (!e || !(this.isInteractive(e) || this.isClickable(e))) continue;
       if (opts.filter && !opts.filter(e)) continue;
       if (!e.hitTest(world, tol)) continue;
-      if (!best || this.compareStack(e, best) > 0) best = e;
+      if (this.isFallbackPick(e)) {
+        if (!fallback || this.compareStack(e, fallback) > 0) fallback = e;
+      } else if (!best || this.compareStack(e, best) > 0) best = e;
     }
-    return best;
+    return best ?? fallback;
   }
 
   /**
    * L'entité se touche pour sa seule action de clic (`EntityKind.click` : ouvrir une porte),
    * sans être sélectionnable : visible, et l'outil actif ne l'exclut pas.
    */
+  /**
+   * Touchée hors de son outil, en dernier recours (`pickOutsideTool`) : ni glissée, ni prise au
+   * lasso, et seulement si rien d'autre n'est sous le pointeur.
+   */
+  isFallbackPick(e: MapEntity): boolean {
+    return !!e.kind.editTool && !!e.kind.pickOutsideTool && !this.tools.active.targets;
+  }
+
   isClickable(e: MapEntity): boolean {
     if (!e.kind.click || e.masks.size) return false;
     const tool = this.tools.active;
@@ -1118,7 +1132,8 @@ export class MapEngine {
     const out: MapEntity[] = [];
     for (const id of this.index.queryRect(rect)) {
       const e = this.entityMap.get(id);
-      if (e && this.isInteractive(e) && rectsIntersect(e.bounds(), rect)) out.push(e);
+      if (e && this.isInteractive(e) && !this.isFallbackPick(e) && rectsIntersect(e.bounds(), rect))
+        out.push(e);
     }
     return out.sort((a, b) => this.compareStack(a, b));
   }
@@ -1127,6 +1142,7 @@ export class MapEngine {
   movableSelection(primary: MapEntity): MapEntity[] {
     const canMove = (e: MapEntity) =>
       hasCapability(e.kind, 'move') &&
+      !this.isFallbackPick(e) &&
       !!e.kind.applyGeometry &&
       !e.state.locked &&
       e.kind.can('move', e, this.viewer);

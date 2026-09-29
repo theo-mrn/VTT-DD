@@ -224,6 +224,14 @@ export interface EntityKind<D extends MapDto = MapDto> {
    */
   readonly editTool?: string;
   /**
+   * Avec `editTool` : hors de son outil (outil sélection), l'entité se touche quand même, mais
+   * en dernier recours, seulement si rien d'autre n'est sous le pointeur. On la sélectionne, on
+   * ouvre son menu et son inspecteur, on la supprime ; on ne la glisse pas (son outil garde les
+   * gestes qui la déforment : soudures des murs) et le lasso ne la prend pas. Murs, pièces,
+   * lumières ; pas les zones de brouillard, qui couvrent la carte et prendraient chaque clic.
+   */
+  readonly pickOutsideTool?: boolean;
+  /**
    * Action d'un clic simple (sans glisser ni modificateur), pour tous : ouvrir ou fermer une
    * porte. Renvoie vrai si le clic est pris (la sélection ne change pas). Une sorte qui la
    * déclare reste touchable hors de son outil là où son `hitTest` le dit (icône de porte).
