@@ -46,6 +46,10 @@ export interface SettingsLike {
   [field: string]: unknown;
 }
 
+/** Nom de l'unité de la carte (« m », « cases »…), comme le serveur par défaut : `m`. */
+export const unitNameOf = (settings: SettingsLike | null | undefined): string =>
+  typeof settings?.unitName === 'string' && settings.unitName.trim() ? settings.unitName : 'm';
+
 export type MapStatus = 'loading' | 'ready' | 'error' | 'gone';
 
 export type Collections = Readonly<Record<string, ReadonlyMap<string, MapDto>>>;

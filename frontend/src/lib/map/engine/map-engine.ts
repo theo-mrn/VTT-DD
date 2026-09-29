@@ -49,6 +49,7 @@ import {
   type MapStore,
   type MapStoreState,
   type SceneLike,
+  unitNameOf,
 } from '../store/map-store';
 import { Camera, cameraStorageKey, loadCamera, saveCamera } from './camera';
 import { commonActions } from './entities/common-actions';
@@ -675,6 +676,7 @@ export class MapEngine {
         typeof settings?.tokenScale === 'number' && settings.tokenScale > 0
           ? settings.tokenScale
           : 1,
+      unitName: unitNameOf(settings),
     };
   }
 

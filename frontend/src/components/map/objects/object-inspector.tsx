@@ -47,6 +47,7 @@ import {
   ToggleRow,
 } from './fields';
 import { OBJECT_IMAGE_ACCEPT } from './object-library';
+import { unitNameOf } from '@/lib/map/store/map-store';
 
 const KINDS: readonly { value: MapObjectKind; label: string }[] = [
   { value: 'item', label: 'Objet' },
@@ -140,7 +141,7 @@ function ManyObjects({ engine, entities }: { engine: MapEngine; entities: readon
 
 function SingleObject({ engine, entity }: { engine: MapEngine; entity: MapEntity }) {
   const o = entity.data as ObjectData;
-  const unit = useMapState((s) => s.settings?.unitName ?? 'cases');
+  const unit = useMapState((s) => unitNameOf(s.settings));
   const ppu = engine.kindContext().pixelsPerUnit;
   const g = entity.geometry;
   const locked = entity.state.locked;

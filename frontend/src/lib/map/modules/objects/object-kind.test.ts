@@ -323,6 +323,7 @@ function fakeContext(viewer = GM) {
     scene: null,
     settings: null,
     pixelsPerUnit: 50,
+    unitName: 'm',
     tokenScale: 1,
     pixi,
     zoom: 1,

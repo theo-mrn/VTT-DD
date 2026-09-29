@@ -1164,7 +1164,7 @@ export class ObstacleTool implements Tool {
     const u = 1 / rc.zoom;
     const { primary, background, foreground, muted, success } = rc.theme;
     const ppu = rc.pixelsPerUnit;
-    const unit = (rc.settings?.unitName as string | undefined) ?? 'm';
+    const unit = rc.unitName;
     const showLabel = (text: string, at: Point) => {
       label.text = text;
       label.visible = true;

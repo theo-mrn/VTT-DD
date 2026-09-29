@@ -4,9 +4,9 @@
  *
  * - Joueur : obscurité à `shadowOpacity` hors de sa vue, brume dans le brouillard, lueurs des
  *   lumières ; PNJ, objets (hors décor) et icônes de porte non vus masqués (fondu de 150 ms,
- *   une porte masquée ne s'ouvre plus) ; personnages
- *   joueurs hors de sa vue au-dessus de l'ombre, à 60 % (plan `allies`). Pendant un glisser, la
- *   vue suit la position en direct (aperçu local, direct interpolé des autres).
+ *   une porte masquée ne s'ouvre plus) ; personnages joueurs hors de sa vue au-dessus de
+ *   l'ombre, à 60 % (plan `allies`). Pendant un glisser, la vue suit la position en direct
+ *   (aperçu local, direct interpolé des autres).
  * - MJ : tout est visible, l'ombre des joueurs en voile léger (25 %) ; « Vue de … » : le rendu
  *   exact de ce joueur, entités non vues masquées. Les surcouches du MJ (plan `gm`) restent
  *   au-dessus de l'ombre.
@@ -111,8 +111,7 @@ export const visionModule: MapModule = {
             fogClock += Math.min(0.25, (now - lastTick) / 1000);
           lastTick = now;
           const cam = engine.camera;
-          const ppu = Number(engine.store.getState().settings?.pixelsPerUnit) || 50;
-          renderer.noisePeriod = Math.max(20, ppu * 3);
+          renderer.noisePeriod = Math.max(20, engine.kindContext().pixelsPerUnit * 3);
           renderer.draw(
             state.picture(),
             {

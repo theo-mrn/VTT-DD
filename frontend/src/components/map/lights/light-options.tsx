@@ -27,7 +27,7 @@ function Options({ engine, tool }: { engine: MapEngine; tool: LightTool }) {
   const color = useStore(tool.settings, (s) => s.color);
   const intensity = useStore(tool.settings, (s) => s.intensity);
   const falloff = useStore(tool.settings, (s) => s.falloff);
-  const unit = (engine.kindContext().settings?.unitName as string | undefined) ?? 'm';
+  const unit = engine.kindContext().unitName;
   const set = tool.settings.setState;
 
   return (

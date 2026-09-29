@@ -37,7 +37,7 @@ export function RoomInspector({ engine, entities }: InspectorSectionProps) {
     );
   };
   const kc = engine.kindContext();
-  const unit = (kc.settings?.unitName as string | undefined) ?? 'm';
+  const unit = kc.unitName;
   const area = Math.abs(signedArea(room.points)) / (kc.pixelsPerUnit || 50) ** 2;
 
   return (

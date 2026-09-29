@@ -233,7 +233,7 @@ function VisibilityField({ tokens, entities: es }: FieldProps) {
 function VisionField({ tokens, entities: es }: FieldProps) {
   const { engine } = tokens;
   const ctx = engine.kindContext();
-  const unit = typeof ctx.settings?.unitName === 'string' ? ctx.settings.unitName : 'cases';
+  const unit = ctx.unitName;
   const ppu = ctx.pixelsPerUnit;
   const radius = common(es, (d) => d.visionRadius);
   const units = radius === null ? null : Math.round((radius / ppu) * 10) / 10;

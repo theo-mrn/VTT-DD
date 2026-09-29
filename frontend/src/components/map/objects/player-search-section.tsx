@@ -12,12 +12,13 @@ import { reachOf } from '@/lib/map/modules/objects/object-kind';
 import { searchControllerOf } from '@/lib/map/modules/objects/search';
 import type { ObjectData } from '@/lib/map/modules/objects/types';
 import { useMapState } from '../engine-context';
+import { unitNameOf } from '@/lib/map/store/map-store';
 
 export function PlayerSearchSection({ engine, entities }: InspectorSectionProps) {
   const entity = entities[0]!;
   const o = entity.data as ObjectData;
   const tokens = useMapState((s) => s.collections.tokens);
-  const unit = useMapState((s) => s.settings?.unitName ?? 'cases');
+  const unit = useMapState((s) => unitNameOf(s.settings));
   const reach = useMemo(
     () => reachOf(engine, o),
     // Les tokens changent : la portée aussi

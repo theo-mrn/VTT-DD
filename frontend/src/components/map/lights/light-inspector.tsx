@@ -40,7 +40,7 @@ export function LightInspector({ engine, entities }: InspectorSectionProps) {
     lights.every((l) => pick(l) === pick(first)) ? pick(first) : null;
   const patch = (label: string, fn: (l: LightData) => Partial<LightData>) =>
     void patchLights(ctx, entities, fn, label);
-  const unit = (engine.kindContext().settings?.unitName as string | undefined) ?? 'm';
+  const unit = engine.kindContext().unitName;
   const attached = same((l) => l.attachedTokenId);
   const tokens = engine
     .entitiesOfKind(TOKEN_KIND)

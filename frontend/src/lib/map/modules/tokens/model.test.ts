@@ -18,6 +18,7 @@ const ctx = (extra: Partial<KindContext> = {}): KindContext => ({
   scene: null,
   settings: null,
   pixelsPerUnit: 50,
+  unitName: 'm',
   tokenScale: 1,
   ...extra,
 });

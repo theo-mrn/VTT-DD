@@ -57,6 +57,15 @@ describe('MapEngine', () => {
     expect(mixed).toEqual(['lock', 'rotate', 'duplicate', 'order', 'delete']);
   });
 
+  it('contexte des sortes : échelle et nom de l’unité, défauts du serveur', () => {
+    const t = setup();
+    expect(t.engine.kindContext()).toMatchObject({ pixelsPerUnit: 50, unitName: 'm' });
+    t.store.getState().patchSettings({ unitName: 'cases', pixelsPerUnit: 70 });
+    expect(t.engine.kindContext()).toMatchObject({ pixelsPerUnit: 70, unitName: 'cases' });
+    t.store.getState().patchSettings({ unitName: '  ' });
+    expect(t.engine.kindContext().unitName).toBe('m');
+  });
+
   it('« Affichage » masque une famille entière : ni vue, ni touchable', () => {
     const t = setup({ boxes: [box('a', 100, 100)], kind: { display: 'objects' } });
     expect(t.engine.hitTest({ x: 100, y: 100 })?.id).toBe('a');

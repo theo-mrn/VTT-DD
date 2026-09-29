@@ -173,7 +173,7 @@ function Summary({ engine, entities }: { engine: MapEngine; entities: readonly M
       length += Math.hypot(b.x - a.x, b.y - a.y);
     }
   const kc = engine.kindContext();
-  const unit = (kc.settings?.unitName as string | undefined) ?? 'm';
+  const unit = kc.unitName;
   return (
     <p className="text-xs text-muted-foreground">
       {segments} segment{segments > 1 ? 's' : ''} · {formatLength(length, kc.pixelsPerUnit, unit)}

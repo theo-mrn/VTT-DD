@@ -316,7 +316,7 @@ export class LightTool implements Tool {
       .fill({ color: background })
       .stroke({ width: 1.5 * u, color: primary });
     // Valeur du rayon, en unités
-    const unit = (rc.settings?.unitName as string | undefined) ?? 'm';
+    const unit = rc.unitName;
     label.text = `${radius.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ${unit}`;
     label.visible = true;
     label.scale.set(u);

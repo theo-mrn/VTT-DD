@@ -109,7 +109,7 @@ export class SearchController {
   /** Portée lisible (« 1,5 m »). */
   reachText(o: ObjectData | undefined): string | undefined {
     if (!o) return undefined;
-    const unit = this.engine.store.getState().settings?.unitName ?? 'cases';
+    const unit = this.engine.kindContext().unitName;
     return `${(o.searchRadius ?? 0).toLocaleString('fr-FR')} ${unit}`;
   }
 

@@ -91,7 +91,7 @@ export function tokenMenu(tokens: TokensState, all: readonly TokenEntity[]): Men
 
   // ── Vision ──
   const ctx = engine.kindContext();
-  const unit = typeof ctx.settings?.unitName === 'string' ? ctx.settings.unitName : 'cases';
+  const unit = ctx.unitName;
   const radii = new Set(entities.map((e) => e.data.visionRadius));
   const radius = radii.size === 1 ? [...radii][0]! : null;
   items.push({

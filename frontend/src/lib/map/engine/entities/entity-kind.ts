@@ -122,6 +122,8 @@ export interface KindContext {
   pixelsPerUnit: number;
   /** Échelle globale des tokens (`map_settings.tokenScale`, 1 par défaut). */
   tokenScale: number;
+  /** Nom de l'unité (`map_settings.unitName`, « m » par défaut, comme le serveur). */
+  unitName: string;
 }
 
 /** Couleurs du thème, lues dans les variables CSS de la page (jamais de couleur en dur). */
