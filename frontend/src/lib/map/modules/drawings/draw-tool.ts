@@ -324,7 +324,16 @@ export class DrawTool implements Tool {
 
   private liveMeta(): Omit<LiveStroke, 'points'> {
     const tool = this.shape === 'eraser' ? 'pen' : this.shape;
-    return { id: this.strokeId, tool, color: this.style.color, width: this.style.width };
+    const meta: Omit<LiveStroke, 'points'> = {
+      id: this.strokeId,
+      tool,
+      color: this.style.color,
+      width: this.style.width,
+    };
+    // Forme fermée remplie : le remplissage part avec elle (le fantôme est rempli chez les autres)
+    const closed = tool === 'rectangle' || tool === 'circle';
+    if (closed && this.style.fill) meta.fill = this.style.fill;
+    return meta;
   }
 
   private broadcast(points: readonly number[]) {

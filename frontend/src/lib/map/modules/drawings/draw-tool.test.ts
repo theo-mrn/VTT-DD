@@ -456,6 +456,31 @@ describe('outil Dessin : direct', () => {
     expect(last.end).toBe(true);
   });
 
+  it('une forme remplie envoie son remplissage ; un trait n’en envoie pas', () => {
+    const t = liveSetup();
+    t.rt.settings.patch({ shape: 'rectangle', fill: true });
+    t.engine.tools.activate('draw');
+    const c = t.engine.controller;
+    c.pointerDown(t.pointer({ x: 100, y: 100 }));
+    c.pointerMove(t.pointer({ x: 150, y: 150 }, { button: -1 }));
+    c.pointerUp(t.pointer({ x: 150, y: 150 }, { buttons: 0 }));
+    t.flush();
+    const shape = t.sent.find((m) => m.data.stroke)!.data.stroke!;
+    const drawing = [...t.engine.store.getState().collections.drawings!.values()][0]!;
+    expect(shape.fill).toBeTruthy();
+    expect(shape.fill).toBe(drawing.fill);
+
+    const u = liveSetup();
+    u.rt.settings.patch({ shape: 'line', fill: true });
+    u.engine.tools.activate('draw');
+    const d = u.engine.controller;
+    d.pointerDown(u.pointer({ x: 100, y: 100 }));
+    d.pointerMove(u.pointer({ x: 150, y: 150 }, { button: -1 }));
+    d.pointerUp(u.pointer({ x: 150, y: 150 }, { buttons: 0 }));
+    u.flush();
+    expect(u.sent.find((m) => m.data.stroke)!.data.stroke!.fill).toBeUndefined();
+  });
+
   it('rien ne part en direct pour un calque masqué aux joueurs', () => {
     const t = liveSetup();
     t.rt.settings.patch({ target: 'layer' });

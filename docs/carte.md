@@ -402,7 +402,7 @@ de messages seulement.
     s: number;                    // compteur de l'émetteur
     drag?: [id: string, x: number, y: number, rotation?: number][];
     cursor?: [x: number, y: number];
-    stroke?: { id: string; tool; color; width; points: number[] /* delta depuis le dernier envoi */ };
+    stroke?: { id: string; tool; color; width; fill?; points: number[] /* delta depuis le dernier envoi */ };
     transform?: [id: string, x, y, width, height, rotation][];
     end?: true;
   }
@@ -677,8 +677,8 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
     la première transformation ;
   - texte : `pos` est le début de la ligne de base de la première ligne ; interligne 1,25.
 - **Direct** : le tracé en cours part dans `map.live.stroke` (points ajoutés depuis le dernier
-  envoi ; une forme envoie son origine puis son extrémité), avec la couleur de l'auteur ; rien ne
-  part pour un calque masqué aux joueurs. Au lâcher, `POST drawings` par une commande annulable ;
+  envoi ; une forme envoie son origine puis son extrémité), avec la couleur de l'auteur et le
+  remplissage d'une forme remplie ; rien ne part pour un calque masqué aux joueurs. Au lâcher, `POST drawings` par une commande annulable ;
   chez les autres, le fantôme reste jusqu'à l'arrivée du dessin du même auteur parti du même
   point (3 s au plus). Un tracé abandonné (Échap) se termine par un dernier message
   `tool: 'eraser'` : le fantôme disparaît.

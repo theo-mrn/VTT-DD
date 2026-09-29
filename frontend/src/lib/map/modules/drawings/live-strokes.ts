@@ -5,7 +5,7 @@
  * part du même point (ou 3 s après la fin du geste, s'il n'arrive jamais).
  *
  * - main levée : les points s'ajoutent (messages en deltas) ;
- * - forme : on garde l'origine et la dernière extrémité reçue ;
+ * - forme : on garde l'origine et la dernière extrémité reçue, et son remplissage ;
  * - un dernier message `tool: 'eraser'` annule le tracé (Échap chez l'auteur).
  *
  * Données pures : le rendu (un `Graphics` par fantôme, plan `live`) est dans `register.ts`.
@@ -32,6 +32,8 @@ export interface Ghost {
   tool: MapDrawingTool;
   color: string;
   width: number;
+  /** Remplissage d'une forme fermée (couleur de l'auteur), null : aucun. */
+  fill: string | null;
   /** Points à plat (forme : origine, extrémité). */
   flat: number[];
   startedAt: number;
@@ -95,6 +97,7 @@ export class LiveStrokes {
             tool: s.tool,
             color: s.color,
             width: s.width,
+            fill: s.fill ?? null,
             flat: [],
             startedAt: now,
             last: now,
@@ -107,6 +110,7 @@ export class LiveStrokes {
         g.tool = s.tool;
         g.color = s.color;
         g.width = s.width;
+        g.fill = s.fill ?? null;
         const pts = s.points;
         const pairs = Math.floor(pts.length / 2);
         if (SHAPES.has(s.tool)) {

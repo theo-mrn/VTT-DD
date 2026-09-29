@@ -27,6 +27,16 @@ describe('tracés en cours des autres', () => {
     g.receive(msg('ana', { ...meta('r', 'rectangle'), points: [0, 0, 10, 10] }), 0);
     g.receive(msg('ana', { ...meta('r', 'rectangle'), points: [20, 20, 30, 40] }), 50);
     expect(g.get('ana:r')!.flat).toEqual([0, 0, 30, 40]);
+    expect(g.get('ana:r')!.fill).toBeNull();
+  });
+
+  it('forme remplie : le fantôme garde le remplissage de l’auteur', () => {
+    const g = new LiveStrokes();
+    g.receive(
+      msg('ana', { ...meta('r', 'rectangle'), fill: '#3e9bf559', points: [0, 0, 10, 10] }),
+      0,
+    );
+    expect(g.get('ana:r')!.fill).toBe('#3e9bf559');
   });
 
   it('un dernier message « eraser » annule le tracé', () => {

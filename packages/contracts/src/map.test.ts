@@ -95,6 +95,26 @@ describe('contrat de la carte', () => {
     expect(MapLiveMessage.safeParse({ m: 'carte', s: 1, drag: [['a', 1]] }).success).toBe(false);
   });
 
+  it('map.live : tracé d’une forme remplie (le remplissage part avec elle)', () => {
+    const msg = {
+      m: 'carte',
+      s: 4,
+      stroke: {
+        id: 't',
+        tool: 'rectangle',
+        color: '#ff0000ff',
+        width: 3,
+        fill: '#ff000059',
+        points: [0, 0, 10, 10],
+      },
+    };
+    expect(MapLiveMessage.parse(msg)).toEqual(msg);
+    // Sans remplissage : champ absent ou nul
+    const { fill: _fill, ...plain } = msg.stroke;
+    expect(MapLiveMessage.safeParse({ ...msg, stroke: plain }).success).toBe(true);
+    expect(MapLiveMessage.safeParse({ ...msg, stroke: { ...plain, fill: 3 } }).success).toBe(false);
+  });
+
   it('média : https, chemin absolu, ou http sur la boucle locale seulement', () => {
     const ok = (u: string) => MediaUrl.safeParse(u).success;
     expect(ok('https://assets.yner.fr/Cartes/a.webp')).toBe(true);

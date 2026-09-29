@@ -278,7 +278,8 @@ Messages relayés par realtime, jamais stockés ([api-realtime.md](api-realtime.
 [carte.md](carte.md) § 8), schémas du contrat :
 
 - `map.live` (`MapLiveMessage`) : `{ m, s, drag?, cursor?, stroke?, transform?, end? }`, 15 Hz
-  au plus pendant un geste, 4 Kio au plus ;
+  au plus pendant un geste, 4 Kio au plus ; `stroke` : `{ id, tool, color, width, fill?, points }`
+  (`fill` : remplissage d'une forme fermée) ;
 - `map.ping` (`MapPingMessage`) : `{ m, x, y, focus? }`.
 
 Audience : public ; `gmOnly` pour une entité cachée ; `toUsers` (50 au plus) pour une entité vue

@@ -195,7 +195,7 @@ export function mountLiveStrokes(engine: MapEngine): () => void {
             width: ghost.width,
             closed: ghost.tool !== 'line',
           });
-          drawShape(g, shape, stroke, null);
+          drawShape(g, shape, stroke, ghost.fill ? pixiColor(pixi, ghost.fill) : null);
         } else drawFlatPolyline(g, f, Math.floor(f.length / 2), stroke);
       }
       for (const [key, entry] of drawn) {

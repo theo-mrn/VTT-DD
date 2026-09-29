@@ -1230,6 +1230,8 @@ export const MapLiveMessage = z.object({
       tool: MapDrawingTool,
       color: z.string(),
       width: z.number(),
+      /** Remplissage d'une forme fermée (rectangle, ellipse), comme `MapDrawing.fill` ; absent : aucun. */
+      fill: z.string().nullable().optional(),
       /** Points ajoutés depuis le dernier envoi, à plat : x0, y0, x1, y1… */
       points: z.array(LiveNumber),
     })
