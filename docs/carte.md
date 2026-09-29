@@ -122,6 +122,7 @@ frontend/src/lib/map/
     fog/                 zones de brouillard
     lights/              lumières
     portals/             portails : même carte, autre scène, aller-retour, outil X, emprunter
+    measurements/        distance au clic, outil Mesurer (Z), gabarits épinglés, effets animés
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
     weather/             météo de la scène (pluie, neige, brouillard…), plan `weather`, espace écran
 frontend/src/components/map/
@@ -391,11 +392,13 @@ Règles de ces gestes :
   pendant la saisie. Une lettre est celle que la touche tape (`shortcutCode`, `lib/keyboard.ts`,
   comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
   annule. Les chiffres comptent par leur position (sans ⇧ en AZERTY), pavé numérique compris.
-- **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A, X (outils), R (pivoter) et K
-  (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O, E (Scènes, MJ) et U (Mes
-  PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : Y, Z et les chiffres (pris
+- **Lettres réservées** : la carte prend V, P, T, Z, W, G, L, I, A, X (outils), R (pivoter) et
+  K (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O, E (Scènes, MJ) et U (Mes
+  PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : Y et les chiffres (pris
   par l'outil actif quand il en a l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes
-  des outils W et G).
+  des outils W et G, formes de l'outil Z).
+- **⌘/Ctrl + clic** (outil sélection) : ne change pas la sélection ; le moteur le signale comme
+  un clic de mesure (§ 10, Mesures). ⌘/Ctrl + glisser déplace la vue.
 
 ### Outils (`tools/`)
 
@@ -405,18 +408,19 @@ Règles de ces gestes :
 - **Échap** revient toujours à un état sûr, sans écriture partielle.
 - **Barre d'outils** (MJ, et joueurs pour le dessin et les textes) :
 
-  | Touche | Outil       | Module      | Qui                     |
-  | ------ | ----------- | ----------- | ----------------------- |
-  | V      | sélection   | moteur      | tous                    |
-  | P      | dessin      | `drawings`  | MJ et joueurs           |
-  | T      | texte       | `drawings`  | MJ et joueurs           |
-  | I      | objets      | `objects`   | MJ                      |
-  | A      | personnages | `tokens`    | MJ                      |
-  | X      | portails    | `portals`   | MJ                      |
-  | W      | obstacles   | `obstacles` | MJ                      |
-  | G      | brouillard  | `fog`       | MJ                      |
-  | L      | lumières    | `lights`    | MJ                      |
-  | K      | calques     | moteur      | MJ (panneau, pas outil) |
+  | Touche | Outil       | Module         | Qui                     |
+  | ------ | ----------- | -------------- | ----------------------- |
+  | V      | sélection   | moteur         | tous                    |
+  | P      | dessin      | `drawings`     | MJ et joueurs           |
+  | T      | texte       | `drawings`     | MJ et joueurs           |
+  | Z      | mesurer     | `measurements` | MJ et joueurs           |
+  | I      | objets      | `objects`      | MJ                      |
+  | A      | personnages | `tokens`       | MJ                      |
+  | X      | portails    | `portals`      | MJ                      |
+  | W      | obstacles   | `obstacles`    | MJ                      |
+  | G      | brouillard  | `fog`          | MJ                      |
+  | L      | lumières    | `lights`       | MJ                      |
+  | K      | calques     | moteur         | MJ (panneau, pas outil) |
 
   Dans cet ordre dans la barre : sélection, outils de pose, puis outils de visibilité. Chaque
   bouton a son info-bulle (nom et touche) ; un spectateur n'a que la sélection.
@@ -479,11 +483,15 @@ de messages seulement.
     cursor?: [x: number, y: number];
     stroke?: { id: string; tool; color; width; fill?; points: number[] /* delta depuis le dernier envoi */ };
     transform?: [id: string, x, y, width, height, rotation][];
+    measure?: { id; shape; from: [x, y]; to: [x, y]; color; skin?; options?; pinned? } | null;
     end?: true;
   }
   ```
 
   Le message pèse moins de 4 Kio. Au-delà, les points du tracé partent au message suivant.
+
+  `measure` : la mesure en cours de l'émetteur (une seule par auteur, § 10, Mesures) ; `null` :
+  effacée (Échap) ; `pinned` : épinglée, le gabarit durable suit. Après `end`, elle reste 6 s.
 
 - **`map.ping`** : `{ m, x, y, focus? }`.
   - Alt+clic : onde à cet endroit, chez tous.
@@ -1230,12 +1238,116 @@ comme les autres, et le serveur décide qui passe et où.
   - un joueur ne reçoit ni `target`, ni `targetMapId`, ni `linkedPortalId` (nuls pour lui, en
     REST comme sur le bus) : il ne sait où mène un portail qu'en l'empruntant.
 
+### Mesures (`measurements`)
+
+Refonte des mesures de l'ancienne carte (`MeasurementPanel`, `MeasurementShapeSelector`,
+`MeasurementSkinSelector`, `ConeConfigDialog`, `measurements.ts`, RTDB `measurements`) : une
+distance au clic pour chacun, et un outil « Mesurer » (règle, cône, cercle, carré) dont la
+mesure se voit chez tous pendant le geste, s'efface ensuite, ou s'épingle en gabarit durable.
+
+- **Unités** (`modules/measurements/model.ts`, testé) :
+  - distance **euclidienne** entre deux points du monde, divisée par la case de la scène
+    (`pixelsPerUnit`, § 4), arrondie à la demi-unité, écrite avec `unitName` : « 12 m »,
+    « 4,5 m ». Aucune règle de jeu dans le code ;
+  - avec une grille de jeu, le **nombre de cases** à parcourir s'ajoute (« 4 m · 3 cases »),
+    compté entre les cases des deux points selon un **réglage de comptage** de chacun
+    (préférence locale, barre de l'outil Z) : « Diagonale : 1 case » (défaut : pas de roi,
+    le plus neutre), « Diagonales alternées (1, 2, 1…) », « Sans diagonale », « Ne pas
+    compter ». Sans grille de jeu, pas de cases. Une présentation de système pourra un jour
+    en donner le défaut ; aucune clé de jeu n'est lue dans le code.
+- **Distance au clic** (tous, local : rien ne part aux autres) :
+  - un joueur qui clique (sans glisser, sans Alt) avec l'outil sélection, n'importe où (vide,
+    personnage, PNJ, objet, décor), voit aussitôt la distance depuis **son personnage** : un
+    trait fin en tirets (1,5 px d'écran, épaisseur constante) de son token au point visé, et une
+    étiquette (« 12 m · 8 cases »). Le clic garde son effet (sélection, « Fouiller »,
+    portails, portes) : le moteur prévient les modules d'un clic simple **après** l'avoir
+    traité (`engine.onMapClick`) ;
+  - son personnage : celui qu'il incarne (en tête de `viewer.characterIds`) s'il est sur la
+    carte, sinon son token le plus proche du clic ; aucun token à lui : rien. Clic sur son
+    propre token ou à moins d'un quart d'unité : rien ;
+  - le point visé : le centre d'un token ou d'un objet (hors décor) cliqué **et vu** (aucun
+    masque : la vision cache ce que le joueur ne voit pas) ; sinon le point cliqué, décor
+    compris (le centre d'un décor dans le noir dirait qu'il y a quelque chose). Cliquer dans
+    le noir ne révèle donc rien : on ne mesure que vers un point choisi ou un élément déjà
+    montré ;
+  - la mesure suit les tokens s'ils bougent, reste 2,5 s puis s'efface en 0,5 s (opacité, sans
+    redessin) ; le clic suivant la remplace ;
+  - **⌘/Ctrl + clic** (tous, MJ compris) : la distance depuis le token **sélectionné** (un seul),
+    et la sélection ne change pas ; sans token sélectionné, un joueur mesure depuis son
+    personnage. C'est le geste du MJ : Alt est déjà le ping de tous, un clic simple doit rester
+    muet pendant qu'il édite, et un modificateur garde la sélection pour mesurer plusieurs
+    cibles de suite. ⌘/Ctrl + glisser déplace la vue ;
+  - préférence locale « Distance au clic » (menu « Vue », activée par défaut).
+- **Outil Mesurer (Z, tous sauf les spectateurs)**, machine à états (testée sans rendu) :
+
+  | État        | Entrée                                                             | Sortie                                                                     |
+  | ----------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+  | `idle`      | poignée d'extrémité d'un gabarit sélectionné (auteur ou MJ)        | → `reshaping` ; bouton ailleurs → `pressing` (origine aimantée)            |
+  | `pressing`  | +4 px d'écran → `measuring`                                        | lâcher (clic) : gabarit sous le pointeur sélectionné, sinon sélection vide |
+  | `measuring` | l'extrémité suit (aimantation, Alt l'inverse ; ⇧ : 15°), direct    | lâcher → mesure récente (ou gabarit si « Épingler au lâcher ») ; Échap     |
+  | `reshaping` | extrémité du gabarit (longueur et direction), aperçu local, direct | lâcher → **une** commande ; Échap → rien                                   |
+  - formes au clavier : 1 Règle, 2 Cône, 3 Cercle, 4 Carré ; Entrée épingle la mesure récente ;
+    Échap : le geste, puis la mesure récente, puis retour à la sélection ;
+  - **Règle** : segment, distance au milieu pendant le geste ; **Cercle** : depuis le centre,
+    rayon ; **Carré** (cube) : centré sur l'origine, orienté vers le pointeur (qui marque le
+    milieu d'un côté), côté = 2 × la distance ; **Cône** : depuis l'origine, vers le pointeur,
+    - mode « Angle » : 53° par défaut (largeur = longueur, le « 1:1 » de l'ancienne app),
+      raccourcis 45°, 53°, 60°, 90°, ou un angle libre (5 à 180°) ;
+    - mode « Dimensions » : largeur au bout (unités) ; longueur fixe facultative (le pointeur ne
+      donne plus que la direction) ;
+    - bout arrondi (arc) ou plat (triangle) ;
+  - étiquettes : « 12 m · 8 cases » (règle), « Rayon 4 m · 50 m² », « Côté 6 m · 36 m² »,
+    « 9 m · 53° » (cône ; « 9 × 6 m » en dimensions) ;
+  - réglages (barre de l'outil, gardés dans le navigateur) : forme, couleur (nuancier de
+    données, or par défaut comme avant), options du cône, effet animé, « Épingler au lâcher »
+    (l'ancien « Mode permanent »), comptage des cases, et pour le MJ « Visible des joueurs »
+    (activé par défaut ; éteint, le direct ne part qu'aux MJ). « Effacer mes gabarits » (et,
+    pour le MJ, « Effacer tous les gabarits ») : une commande annulable.
+
+- **Éphémère par défaut** (comme l'ancienne app) : pendant le geste, la mesure part à tous
+  dans `map.live.measure` (15 Hz, § 8), une seule par auteur ; au lâcher, elle reste 6 s chez
+  tous puis s'efface en 0,6 s. Chez l'auteur, une petite barre au bout de la mesure propose
+  **« Épingler »** (Entrée) et « Effacer » tant qu'elle est là.
+- **Épingler** : un gabarit durable (couche `measurements`, `POST …/measurements/batch` par
+  une commande annulable : ⌘Z le retire). Chez les autres, le fantôme reste jusqu'à l'arrivée
+  du gabarit du même auteur parti du même point (3 s au plus), sans clignoter.
+- **Gabarit épinglé** (sorte `measurement`, plan `annotations` : au-dessus de l'ombre) :
+  - donnée : `shape`, `start` (origine ou centre), `end` (pointeur), `color`, `skin`,
+    `options` (cône : `coneAngle`, `coneMode`, `coneWidth`, `fixedLength`, `coneShape`, noms de
+    l'ancienne app, repris tels quels par la migration) ;
+  - toucher : le **contour** (ou le trait de la règle) et l'origine seulement, à 6 px d'écran :
+    un personnage dans un cercle de boule de feu reste cliquable ;
+  - gestes communs : sélection, glisser, Suppr, ⌘Z, ⌘D, menu, inspecteur ; droits : l'auteur
+    ou le MJ (`authorOrGm`, miroir du serveur) ; les autres regardent. Longueur et direction :
+    poignée d'extrémité avec l'outil Z, ou l'inspecteur (longueur, angle, forme du cône,
+    couleur, effet) ;
+  - étiquette montrée au survol et à la sélection (sinon la carte se couvre de textes) ;
+  - menu : « Sélectionner les personnages dans la zone (n) » (tokens vus dont le centre est
+    dans la forme : remplace l'ancien « Attaquer », le combat depuis la carte reste au § 11),
+    « Couleur ▸ ».
+- **Effets animés (skins)** : vidéos webm de l'ancienne bibliothèque (`/asset-mappings.json`,
+  dossiers `Effect/Fireballs` pour le cercle, `Effect/Cone` pour le cône, vignettes webp),
+  choisies dans la barre ou l'inspecteur ; la valeur enregistrée reste le chemin relatif de
+  l'ancienne app (`Cone/cone1.webm`). Rendu : une texture vidéo **partagée** par effet
+  (compte de références), cadencée à 30 i/s au plus comme le fond vidéo, mise en pause dès
+  qu'aucune mesure ne la montre ; cône : découpée par la forme ; cercle : 1,35 × le rayon
+  (marges transparentes des vidéos), comme avant. Préférence locale « Animer les effets »
+  (éteinte avec « mouvement réduit » : première image fixe).
+- **Rendu** : un `Graphics` par mesure, redessiné seulement quand elle change ou quand le zoom
+  change de palier (`OverlayRedraw`) ; étiquettes `BitmapText` à taille constante ; traits
+  d'épaisseur constante à l'écran ; l'effacement ne touche que l'opacité. Aucune allocation
+  par image pendant un geste (objets gardés, textes changés seulement s'ils diffèrent).
+- **Écarts avec l'ancienne app** : « Étalonner » disparaît (la case est la grille de jeu,
+  « Ajuster sur l'image », § 4) ; « Attaquer » devient « Sélectionner les personnages dans la
+  zone » (le combat depuis la carte est au § 11) ; un carré tiré en diagonale est désormais
+  orienté vers le pointeur (l'ancienne app le gardait droit) ; les mesures éphémères ne
+  passent plus par une base (RTDB) mais par le direct.
+
 ## 11. Hors de ce lot, conservé
 
 Les données et routes restent, et le lot suivant les rebranche sur le même modèle d'entité :
 
 - zones sonores (service audio) ;
-- gabarits et mesures (règle, cône…) ;
 - partage d'écran ;
 - attaque et combat depuis la carte ;
 - interactions marchand, jeu et butin ;
