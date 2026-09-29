@@ -43,7 +43,7 @@ function setup(viewer = undefined as typeof ALICE | undefined) {
 }
 
 describe('menu d’un token (MJ)', () => {
-  it('actions communes, puis Fiche, Visibilité, Vision, Retirer de la carte', () => {
+  it('actions communes, puis Fiche, Visibilité, Vision, Retirer de la carte, Supprimer en dernier', () => {
     const t = setup();
     const ids = t
       .menu('g1')
@@ -54,11 +54,11 @@ describe('menu d’un token (MJ)', () => {
       'duplicate',
       'order',
       'layer',
-      'delete',
       'token:sheet',
       'token:visibility',
       'token:vision',
       'token:remove-from-map',
+      'delete',
     ]);
     // Un personnage joueur ne se duplique pas
     expect(t.menu('h1').some((i) => i.id === 'duplicate')).toBe(false);

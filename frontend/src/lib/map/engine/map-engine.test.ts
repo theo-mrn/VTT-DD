@@ -22,6 +22,41 @@ describe('MapEngine', () => {
     expect(t.engine.selection.ids).toEqual([]);
   });
 
+  it('menu : actions communes, puis celles de la sorte, « Supprimer » en dernier ; sélection mixte : communes seules', () => {
+    const t = setup({
+      boxes: [box('a', 100, 100)],
+      kind: { actions: () => [{ id: 'box:open', label: 'Ouvrir' }] },
+    });
+    const ids = (sel: string[]) =>
+      t.engine
+        .menuItems(sel, { x: 0, y: 0 })
+        .map((i) => i.id)
+        .filter((id) => !id.startsWith('sep:'));
+    expect(ids(['a'])).toEqual([
+      'inspect',
+      'lock',
+      'rotate',
+      'duplicate',
+      'order',
+      'box:open',
+      'delete',
+    ]);
+    // Une autre sorte avec ses propres actions : la sélection mixte n'en montre aucune
+    t.engine.registerKind({
+      ...boxKind(spyPersistence()),
+      id: 'crate',
+      label: 'Caisse',
+      collection: 'crates',
+      actions: () => [{ id: 'crate:open', label: 'Forcer' }],
+    });
+    t.store.getState().upsert('crates', [box('c', 300, 300)]);
+    const mixed = ids(['a', 'c']);
+    expect(mixed).not.toContain('box:open');
+    expect(mixed).not.toContain('crate:open');
+    expect(mixed[mixed.length - 1]).toBe('delete');
+    expect(mixed).toEqual(['lock', 'rotate', 'duplicate', 'order', 'delete']);
+  });
+
   it('« Affichage » masque une famille entière : ni vue, ni touchable', () => {
     const t = setup({ boxes: [box('a', 100, 100)], kind: { display: 'objects' } });
     expect(t.engine.hitTest({ x: 100, y: 100 })?.id).toBe('a');

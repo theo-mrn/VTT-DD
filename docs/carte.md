@@ -296,15 +296,21 @@ Chaque sorte d'entité déclare :
 Un outil peut aussi dire ce qu'il touche (`Tool.targets`) : l'outil obstacles ne touche que murs
 et pièces, l'outil brouillard que les zones, l'outil lumières que les lumières.
 
-Les actions **communes** sont générées à partir des capacités, avec les mêmes libellés partout :
+Les actions **communes** sont générées à partir des capacités, avec les mêmes libellés et le
+même ordre partout (`entities/common-actions.ts`) :
 
+- Inspecter (une seule entité) ;
 - Verrouiller et Déverrouiller ;
 - Masquer aux joueurs et Montrer ;
 - Visible pour… ;
 - Pivoter ;
 - Dupliquer ;
 - Ordre ▸ (avancer, reculer, premier plan, arrière-plan) et Calque ▸ (§ 5, Calques) ;
-- Supprimer.
+- puis les actions propres à la sorte (une seule sorte sélectionnée) ;
+- Supprimer, toujours en dernier.
+
+Une sélection mixte (token, objet, dessin…) ne propose que les actions communes permises pour
+toutes les entités.
 
 ### Gestes communs (`interaction/controller.ts`)
 

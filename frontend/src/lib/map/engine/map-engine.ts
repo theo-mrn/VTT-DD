@@ -1709,8 +1709,13 @@ export class MapEngine {
       return e && e.kind.can('view', e, this.viewer) ? [e] : [];
     });
     const items: MenuItem[] = [];
+    // « Supprimer » (action dangereuse) toujours en dernier, après les actions de la sorte
+    let remove: MenuItem | undefined;
     if (entities.length) {
-      items.push(...commonActions(this, entities));
+      const common = commonActions(this, entities);
+      remove = common.find((i) => i.id === 'delete');
+      items.push(...common.filter((i) => i !== remove));
+      // Sélection mixte (token, objet, dessin…) : les seules actions communes
       const kinds = new Set(entities.map((e) => e.kind));
       if (kinds.size === 1) {
         const kind = [...kinds][0]!;
@@ -1722,6 +1727,7 @@ export class MapEngine {
       const extra = provider({ engine: this, entities, world, viewer: this.viewer });
       if (extra.length) items.push(separator(`provider-${items.length}`), ...extra);
     }
+    if (remove) items.push(separator('delete'), remove);
     if (!entities.length) items.push(...this.mapMenu(world));
     return trimSeparators(items);
   }
