@@ -169,6 +169,28 @@ describe.skipIf(!TEST_DATABASE_URL)('modèles du MJ', () => {
     ]);
   });
 
+  it('valeurs clés : à la création (création rapide gardée comme modèle) puis à la modification', async () => {
+    const m = await ok(mj, 'POST', `${base}/npc-templates`, {
+      name: 'Garde du pont',
+      systemeId: 'dnd-classic',
+      type: 'personnage',
+      valeurs: { FOR: 14, niveau: 3 },
+    });
+    expect(m.etat).toMatchObject({ creation: false, valeurs: { FOR: 14, niveau: 3 } });
+    const plus = await ok(mj, 'PATCH', `${base}/npc-templates/${m.id}`, {
+      version: m.version,
+      valeurs: { FOR: 18 },
+    });
+    // Seule la valeur envoyée change, le reste de l'état est gardé
+    expect(plus.etat).toMatchObject({ valeurs: { FOR: 18, niveau: 3 } });
+    expect(plus.version).toBe(m.version + 1);
+    const inconnue = await o.requete(mj, 'PATCH', `${base}/npc-templates/${m.id}`, {
+      version: plus.version,
+      valeurs: { inexistante: 3 },
+    });
+    expect(inconnue.statusCode).toBe(422);
+  });
+
   it('catégories : une catégorie d’une autre campagne est refusée ; supprimée, ses modèles restent', async () => {
     const c = await ok(mj, 'POST', `${base}/npc-template-categories`, {
       name: 'Rencontre #1',

@@ -10,7 +10,7 @@
  */
 import { changesPayload, uuidv7 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
-import { EtatEntite, ficheJson, type SystemeCharge } from '@vtt/rules';
+import { EtatEntite, ficheJson, type SystemeCharge, type Valeur } from '@vtt/rules';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import { appendEvent, type EventContext, type Tx } from '../../db/outbox.js';
@@ -21,7 +21,7 @@ import {
   type NpcTemplateAction,
 } from '../../db/schema.js';
 import type { Catalogue } from '../../regles/catalogue.js';
-import { etatInitial, refus, verifierEtat } from '../../regles/operations.js';
+import { etatInitial, modifierValeurs, refus, verifierEtat } from '../../regles/operations.js';
 import { etatNormalise, IDENTITES } from '../personnages/depot.js';
 
 export type CategoryRow = typeof npcTemplateCategories.$inferSelect;
@@ -77,19 +77,42 @@ function systemOf(catalogue: Catalogue, id: string): SystemeCharge {
 }
 
 /**
+ * Pose des valeurs saisissables sur un état de modèle, avec les droits du MJ (valeurs de base,
+ * choix, textes). Un état illisible est rendu tel quel : `templateState` le refusera.
+ */
+function withValues(catalogue: Catalogue, raw: unknown, valeurs: Record<string, Valeur>): unknown {
+  const r = EtatEntite.safeParse(raw);
+  if (!r.success) return raw;
+  return modifierValeurs(systemOf(catalogue, r.data.systeme.id), r.data, valeurs, {
+    proprietaire: true,
+    mj: true,
+  });
+}
+
+/**
  * État d'un modèle de PNJ, validé et recalculé comme celui d'un personnage
  * (`verifierEtat`). Un modèle n'est jamais en cours de création : `creation`
  * est toujours enregistré à faux. `systemId` : système imposé (mise à jour).
  */
 export function templateState(
   catalogue: Catalogue,
-  input: { etat?: unknown; systemeId?: string; type?: string },
+  input: {
+    etat?: unknown;
+    systemeId?: string;
+    type?: string;
+    /** Valeurs saisissables à poser sur l'état (création rapide, modification d'un modèle). */
+    valeurs?: Record<string, Valeur>;
+  },
   systemId?: string,
 ): EtatEntite {
-  const raw =
+  const base =
     input.etat !== undefined
       ? input.etat
       : etatInitial(systemOf(catalogue, input.systemeId!), input.type!);
+  const raw =
+    input.valeurs && Object.keys(input.valeurs).length
+      ? withValues(catalogue, base, input.valeurs)
+      : base;
   const r = EtatEntite.safeParse(raw);
   if (!r.success) {
     const detail = r.error.issues.map((i) => `${i.path.join('.')} : ${i.message}`).join(' ; ');

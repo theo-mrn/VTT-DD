@@ -149,13 +149,14 @@ export const register: Module = async (app, deps) => {
     },
     async (req, reply) => {
       const a = await gm(req, req.params.campaignId);
-      const { etat, systemeId, type, ...data } = req.body;
+      const { etat, systemeId, type, valeurs, ...data } = req.body;
       const row = await createNpcTemplate(db, context(req), a, {
         ...data,
         etat: templateState(catalogue, {
           etat,
           ...(systemeId ? { systemeId } : {}),
           ...(type ? { type } : {}),
+          ...(valeurs ? { valeurs } : {}),
         }),
       });
       reply.code(201);
@@ -171,7 +172,7 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const a = await gm(req, req.params.campaignId);
-      const { version, etat, ...patch } = req.body;
+      const { version, etat, valeurs, ...patch } = req.body;
       const row = await updateNpcTemplate(
         db,
         context(req),
@@ -179,7 +180,14 @@ export const register: Module = async (app, deps) => {
         req.params.templateId,
         version,
         patch,
-        etat === undefined ? undefined : (t) => templateState(catalogue, { etat }, t.systemId),
+        etat === undefined && valeurs === undefined
+          ? undefined
+          : (t) =>
+              templateState(
+                catalogue,
+                { etat: etat ?? t.etat, ...(valeurs ? { valeurs } : {}) },
+                t.systemId,
+              ),
       );
       return npcTemplateApi(catalogue, row);
     },

@@ -2,6 +2,7 @@
  * Schémas Zod de l'API des modèles du MJ (contrat : docs/api-templates.md).
  */
 import { z } from 'zod';
+import { Valeurs } from '../../regles/operations.js';
 
 const uuid = (message: string) => z.uuid(message).transform((s) => s.toLowerCase());
 
@@ -69,7 +70,8 @@ export const UpdateCategory = z.object({
 
 /**
  * Nouveau modèle de PNJ : `etat` complet (EtatEntite), ou `systemeId` et
- * `type` pour partir d'un état vide, comme `POST /v1/characters`.
+ * `type` pour partir d'un état vide, comme `POST /v1/characters`, avec
+ * `valeurs` (attributs saisissables : valeurs clés de la création rapide).
  */
 export const CreateNpcTemplate = z
   .object({
@@ -81,6 +83,7 @@ export const CreateNpcTemplate = z
     etat: z.unknown().optional(),
     systemeId: SystemId.optional(),
     type: SystemId.optional(),
+    valeurs: Valeurs.optional(),
   })
   .refine((b) => b.etat !== undefined || (b.systemeId && b.type), {
     message: '`etat`, ou `systemeId` et `type`, requis',
@@ -94,6 +97,8 @@ export const UpdateNpcTemplate = z.object({
   tokenUrl: ImageUrl.nullable().optional(),
   actions: Actions.optional(),
   etat: z.unknown().optional(),
+  /** Valeurs saisissables à changer sur l'état actuel (ou sur `etat` s'il est fourni). */
+  valeurs: Valeurs.optional(),
 });
 
 export const CreateObjectTemplate = z.object({
