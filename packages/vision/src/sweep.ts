@@ -101,7 +101,13 @@ let csb: Int32Array = new Int32Array(0);
 let cso: Float64Array = new Float64Array(0);
 let cox = 0;
 let coy = 0;
-/** Rayon de référence (direction) pour le repli du comparateur. */
+/**
+ * Rayon de référence pour le repli du comparateur : bissectrice des directions vers les
+ * sommets `refV1` et `refV2`, calculée seulement quand le repli sert (rare).
+ */
+let refV1 = 0;
+let refV2 = 0;
+let refReady = false;
 let crx = 1;
 let cry = 0;
 let heap: Int32Array = new Int32Array(0);
@@ -110,6 +116,7 @@ let hsize = 0;
 
 /** Distance (paramètre) de O à la droite du segment s le long du rayon de référence. */
 function rayParam(s: number): number {
+  if (!refReady) computeReference();
   const a = csa[s]!;
   const b = csb[s]!;
   const ax = cvx[a]!;
@@ -401,7 +408,7 @@ export function computeStar(
     // référence : milieu de l'intervalle qui va du dernier lot au premier.
     let lastStart = nUsed - 1;
     while (lastStart > 0 && keys[lastStart - 1] === keys[nUsed - 1]) lastStart--;
-    setReference(vx, vy, ox, oy, idx[lastStart]!, idx[0]!);
+    setReference(idx[lastStart]!, idx[0]!);
     for (let k = 0; k < nWrap; k++) heapInsert(wrapList[k]!);
 
     const vertStart = walls.vertStart;
@@ -421,7 +428,7 @@ export function computeStar(
         }
       }
       // Ajouts du lot, comparés au milieu de l'intervalle qui commence ici.
-      setReference(vx, vy, ox, oy, idx[i]!, j < nUsed ? idx[j]! : idx[0]!);
+      setReference(idx[i]!, j < nUsed ? idx[j]! : idx[0]!);
       for (let k = i; k < j; k++) {
         const v = idx[k]!;
         for (let e = vertStart[v]!, end = vertStart[v + 1]!; e < end; e++) {
@@ -457,20 +464,19 @@ export function computeStar(
 }
 
 /** Rayon de référence : bissectrice des directions de O vers les sommets v1 et v2. */
-function setReference(
-  vx: Float64Array,
-  vy: Float64Array,
-  ox: number,
-  oy: number,
-  v1: number,
-  v2: number,
-) {
-  const x1 = vx[v1]! - ox;
-  const y1 = vy[v1]! - oy;
-  const x2 = vx[v2]! - ox;
-  const y2 = vy[v2]! - oy;
-  const l1 = Math.hypot(x1, y1) || 1;
-  const l2 = Math.hypot(x2, y2) || 1;
+function setReference(v1: number, v2: number) {
+  refV1 = v1;
+  refV2 = v2;
+  refReady = false;
+}
+
+function computeReference() {
+  const x1 = cvx[refV1]! - cox;
+  const y1 = cvy[refV1]! - coy;
+  const x2 = cvx[refV2]! - cox;
+  const y2 = cvy[refV2]! - coy;
+  const l1 = Math.sqrt(x1 * x1 + y1 * y1) || 1;
+  const l2 = Math.sqrt(x2 * x2 + y2 * y2) || 1;
   crx = x1 / l1 + x2 / l2;
   cry = y1 / l1 + y2 / l2;
   if (crx === 0 && cry === 0) {
@@ -478,6 +484,7 @@ function setReference(
     crx = -y1;
     cry = x1;
   }
+  refReady = true;
 }
 
 /**

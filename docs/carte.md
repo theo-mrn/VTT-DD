@@ -407,7 +407,7 @@ de messages seulement.
 | Porte `door`                     | fermée : comme un mur ; ouverte : laisse voir. `isLocked` : un joueur ne peut pas l'ouvrir                                                                                                                                                                                |
 | Fenêtre `window`                 | laisse voir ; ne compte pas pour ouvrir une pièce                                                                                                                                                                                                                         |
 | Mur à sens unique `one_way_wall` | segment orienté a→b, `blocksFrom: 'left' \| 'right'` : bloque la vue d'un observateur situé de ce côté ; de l'autre côté, on voit à travers. Côté gauche : `cross(b − a, p − a) < 0` en coordonnées écran (y vers le bas). La flèche dessinée montre le sens où l'on voit |
-| Pièce `room`                     | polygone fermé, sans effet de mur par lui-même. **Fermée** si aucune porte ouverte ne se trouve sur son contour (extrémités à 3 px au plus) ; une fenêtre ne l'ouvre pas                                                                                                  |
+| Pièce `room`                     | polygone fermé, sans effet de mur par lui-même. **Fermée** si aucune porte ouverte ne se trouve sur son contour (extrémités et milieu à 3 px au plus : une porte en travers de la pièce n'en fait pas partie) ; une fenêtre ne l'ouvre pas                                |
 | Zone de brouillard               | `circle`, `rect`, `polygon` (main levée), en mode `fog` (ajoute) ou `clear` (retire), appliquées dans l'ordre de création ; `maps.fogFull` : toute la carte au départ                                                                                                     |
 | Lumière                          | cercle de rayon `radius` (unités) et `falloff` ; sa portée est coupée par les murs (polygone de vue depuis la lumière) ; éteinte : sans effet ; peut suivre un token (`attachedTokenId`)                                                                                  |
 | Observateur                      | chaque token d'un joueur (ses personnages et les `ally`), `visionRadius` en pixels, ×3 avec `visionBoost`                                                                                                                                                                 |
@@ -420,8 +420,9 @@ segment.
 
 ```
 LOS(O)  = polygone de vue depuis O (murs opaques, portes fermées, sens unique vu depuis O), borné à la carte
-Pièce   = si O est dans une pièce fermée R (la plus intérieure) : LOS(O) ∩ R
-          sinon : LOS(O) − (toutes les pièces fermées qui ne contiennent pas O)
+Pièce   = LOS(O) ∩ R − (toutes les pièces fermées qui ne contiennent pas O)
+          où R est la pièce fermée la plus intérieure (la plus petite) qui contient O ;
+          sans R, pas d'intersection. Une pièce fermée imbriquée dans R est aussi retirée.
 Portée  = (hors brouillard) ∪ disque(O, visionRadius) ∪ (⋃ lumières allumées : disque(L, rayon) ∩ LOS(L))
 Vu(O)   = Pièce ∩ Portée
 Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
@@ -461,33 +462,49 @@ Vu(joueur) = ⋃ Vu(O) pour chacun de ses observateurs
 
 ### `@vtt/vision` (paquet pur)
 
+Mode d'emploi détaillé : `packages/vision/README.md`.
+
 ```ts
-prepareScene(scene: VisionScene): PreparedScene          // index des segments, pièces, portes du contour, zones
-visibilityPolygon(prep, origin, opts?): Polygon          // balayage angulaire, murs opaques seulement
-translucentShadows(prep, origin): { polygon: Polygon; opacity: number }[]
-lightArea(prep, light): { polygon: Polygon; radius: number }
-viewerView(prep, viewer): View                            // Vu(O), composable
-playerView(prep, viewers): View                           // union
-View.contains(p): boolean ; View.containsAny(points): boolean
-closedRooms(prep): Set<string> ; innermostRoom(prep, p): Room | null ; inFog(prep, p): boolean
+prepareScene(scene: VisionScene, { snap?, doorTolerance? }?): PreparedScene
+                                   // murs soudés et découpés, index, pièces et portes du contour, zones
+withLights(prep, lights): PreparedScene                 // autres lumières, murs partagés (torche)
+visibilityPolygon(prep, origin, { maxRadius? }?): Polygon // LOS : balayage angulaire, murs opaques
+translucentShadows(prep, origin): { id; polygon; opacity }[]
+lightArea(prep, light): { id; center; radius; falloff; polygon }   // LOS(L) coupée au disque
+viewerView(prep, viewer): View                           // Vu(O)
+playerView(prep, viewers): View                          // union
+View.contains(p) ; View.containsXY(x, y) ; View.containsAny(points)
+View.viewers : { origin; los; clipRoom; subtractRooms; visionRadius }[] ; View.lights
+closedRooms(prep): Set<string> ; innermostRoom(prep, p, { closedOnly? }?): Room | null
+inFog(prep, p): boolean ; pointInPolygon(p, polygon) ; sideOf(a, b, p)
+sampleCircle(center, r) ; sampleRect(x, y, w, h, rotation) ; isEntityVisible(view, samples)
+segmentsFromPolyline(props, points, closed?): Segment[]
 ```
+
+`Polygon` = `Float64Array` à plat `[x0, y0, x1, y1, …]`. Les types d'entrée ne dépendent pas
+des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`, `MapFogZone`,
+`MapLight` (rayon × `pixelsPerUnit`) et les tokens.
 
 **Exigences.**
 
 - Robustesse :
   - points colinéaires, sommets exactement sur un rayon ;
-  - jonctions en T, segments nuls ou confondus ;
-  - observateur sur un mur ou une extrémité (décalé d'un epsilon) ;
-  - grandes coordonnées.
-- Aucune fuite entre deux murs soudés.
+  - jonctions en T, segments nuls ou confondus, murs qui se croisent (découpés au croisement) ;
+  - observateur sur un mur ou une extrémité : décalé d'un epsilon (10⁻⁷ × la taille de la
+    carte), dans une direction fixe ; hors de la carte : ramené dedans ;
+  - grandes coordonnées (carte de 1 000 000 px).
+- Aucune fuite entre deux murs soudés : extrémités soudées à 0,5 px près (`snap`), extrémité à
+  0,5 px de l'intérieur d'un mur soudée dessus. Une fente plus étroite ne laisse pas passer la
+  vue.
 - Tests de propriété contre un lancer de rayons naïf.
-- Performances, mesurées par `vitest bench` :
+- Performances, mesurées par `vitest bench` (donjon de 2 000 segments, 85 pièces, 20 zones,
+  20 lumières) :
 
-  | Opération                           | Budget   |
-  | ----------------------------------- | -------- |
-  | `prepareScene`, 2 000 segments      | < 5 ms   |
-  | `visibilityPolygon`, 2 000 segments | < 1,5 ms |
-  | `contains`, 10 000 requêtes         | < 5 ms   |
+  | Opération                           | Budget   | Mesuré  |
+  | ----------------------------------- | -------- | ------- |
+  | `prepareScene`, 2 000 segments      | < 5 ms   | 1,7 ms  |
+  | `visibilityPolygon`, 2 000 segments | < 1,5 ms | 0,45 ms |
+  | `contains`, 10 000 requêtes         | < 5 ms   | 1,2 ms  |
 
 ### Serveur
 
