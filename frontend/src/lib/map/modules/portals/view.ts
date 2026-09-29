@@ -192,13 +192,12 @@ export class PortalView {
     v.disk.tint = color;
     const icon = PORTAL_ICONS.some((i) => i.value === p.icon) ? p.icon! : 'portal';
     if (v.glyph.context !== ctxs.glyphs[icon]) v.glyph.context = ctxs.glyphs[icon];
-    v.ring.visible = selected;
+    // Anneau de sélection, estompé au survol
+    v.ring.visible = selected || hovered;
+    v.ring.alpha = selected ? 1 : 0.45;
     v.link.visible = gm && !!p.linkedPortalId;
     v.auto.visible = p.auto;
     v.hidden.visible = masked;
-    const s = hovered && !selected ? 1.08 : 1;
-    v.disk.scale.set(s);
-    v.glyph.scale.set(s);
 
     // Nom, sur sa pastille
     const text = portalLabel(p);
