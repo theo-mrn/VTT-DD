@@ -9,6 +9,7 @@ import { createStore } from 'zustand/vanilla';
 import type { InspectorSectionProps, MapEngine } from '../../engine/map-engine';
 import type { MapDto } from '../../store/map-store';
 import { echoPersistence } from '../obstacles/commands';
+import { stepZoom, zoomStep } from '../obstacles/overlay';
 import { ClickDistance } from './click-distance';
 import type { LocalState, MeasureModule } from './context';
 import { measurementKind, TemplateView } from './kind';
@@ -98,9 +99,11 @@ export function registerMeasurements(engine: MapEngine, ui: MeasureUi = {}): () 
       engine.invalidate();
     }),
     engine.onFrame((now) => {
+      // Traits d'épaisseur constante : redessinés au palier de zoom (± 9 %), pas à chaque cran
+      const zoom = stepZoom(zoomStep(engine.camera.zoom));
       const m = ctx.clickDistance.resolve(now);
-      clickView?.sync(m, engine.camera.zoom);
-      const fading = layer?.sync(now, engine.camera.zoom) ?? false;
+      clickView?.sync(m, zoom);
+      const fading = layer?.sync(now, zoom) ?? false;
       // Une image de plus seulement pendant un effacement (rendu à la demande)
       return m?.fading === true || fading;
     }),
