@@ -74,6 +74,19 @@ const rectOf = (a: Point, b: Point): Rect => ({
   height: Math.abs(a.y - b.y),
 });
 
+/** Morceaux de courbe échantillonnés par segment lissé (toucher, boîte englobante). */
+export const CURVE_SAMPLES = 8;
+
+/**
+ * Forme telle qu'elle se voit, pour le toucher et la boîte : un tracé lissé est remplacé par sa
+ * courbe échantillonnée (elle s'écarte un peu de la polyligne de ses points).
+ */
+export function outlineOf(d: DrawingLike): DrawingShape {
+  const s = shapeOf(d);
+  if (s.type !== 'path' || !s.smooth || s.points.length < 3) return s;
+  return { type: 'path', points: sampleCurve(s.points, s.closed), closed: s.closed, smooth: false };
+}
+
 /** La forme a un intérieur (rectangle, ellipse, tracé fermé). */
 export const isClosedShape = (s: DrawingShape) =>
   s.type === 'rect' || s.type === 'ellipse' || (s.type === 'path' && s.closed);
@@ -94,7 +107,7 @@ export function shapeBounds(s: DrawingShape): Rect {
 
 /** Boîte englobante du dessin, épaisseur du trait comprise. */
 export function drawingBounds(d: DrawingLike): Rect {
-  const r = shapeBounds(shapeOf(d));
+  const r = shapeBounds(outlineOf(d));
   const half = Math.max(0, d.width) / 2;
   return { x: r.x - half, y: r.y - half, width: r.width + 2 * half, height: r.height + 2 * half };
 }
@@ -177,7 +190,9 @@ export function transformDrawing<D extends DrawingLike>(d: D, to: Rect): D {
       ],
     };
   }
-  const from = shapeBounds(shape);
+  // Même boîte que la géométrie (courbe lissée comprise) : la transformation est affine, la
+  // courbe des nouveaux points remplit exactement la boîte visée
+  const from = shapeBounds(outlineOf(data));
   const sx = from.width > 1e-6 ? to.width / from.width : 1;
   const sy = from.height > 1e-6 ? to.height / from.height : 1;
   const points = data.points.map((p) => ({
@@ -270,6 +285,29 @@ export function catmullRom(points: readonly Point[], closed: boolean, visit: Cur
       p2.y,
     );
   }
+}
+
+/** Courbe lissée échantillonnée (`CURVE_SAMPLES` points par segment), premier point compris. */
+export function sampleCurve(points: readonly Point[], closed: boolean): Point[] {
+  const out: Point[] = [];
+  if (!points.length) return out;
+  let x0 = points[0]!.x;
+  let y0 = points[0]!.y;
+  out.push({ x: x0, y: y0 });
+  catmullRom(points, closed, (c1x, c1y, c2x, c2y, x, y) => {
+    for (let i = 1; i <= CURVE_SAMPLES; i++) {
+      const t = i / CURVE_SAMPLES;
+      const u = 1 - t;
+      const a = u * u * u;
+      const b = 3 * u * u * t;
+      const c = 3 * u * t * t;
+      const e = t * t * t;
+      out.push({ x: a * x0 + b * c1x + c * c2x + e * x, y: a * y0 + b * c1y + c * c2y + e * y });
+    }
+    x0 = x;
+    y0 = y;
+  });
+  return out;
 }
 
 // ─── Formes ──────────────────────────────────────────────────────────────────

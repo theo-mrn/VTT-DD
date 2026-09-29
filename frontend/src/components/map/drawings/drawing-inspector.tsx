@@ -40,7 +40,13 @@ function recolor(d: MapDto, hex: string, alpha: number): MapDto {
   return { ...d, color, fill };
 }
 
-function Placement({ engine, entities }: { engine: MapEngine; entities: readonly MapEntity[] }) {
+function PlacementInfo({
+  engine,
+  entities,
+}: {
+  engine: MapEngine;
+  entities: readonly MapEntity[];
+}) {
   const layered = entities.filter((e) => e.layerId !== null);
   const layer = layered.length === entities.length ? engine.layer(layered[0]!.layerId) : null;
   const author = entities.length === 1 ? String(entities[0]!.data.createdBy ?? '') : '';
@@ -136,7 +142,7 @@ export function DrawingInspector({ engine, entities }: InspectorSectionProps) {
           </label>
         )}
       </fieldset>
-      <Placement engine={engine} entities={entities} />
+      <PlacementInfo engine={engine} entities={entities} />
     </div>
   );
 }
@@ -200,7 +206,7 @@ export function NoteInspector({ engine, entities }: InspectorSectionProps) {
         }}
         onFont={(font) => update('Police', (d) => ({ ...d, fontFamily: font }))}
       />
-      <Placement engine={engine} entities={entities} />
+      <PlacementInfo engine={engine} entities={entities} />
     </div>
   );
 }

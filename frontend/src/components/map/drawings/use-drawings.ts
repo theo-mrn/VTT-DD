@@ -4,7 +4,7 @@
  * Accès React au module « dessins » : réglages des outils, éditeur de texte, caméra. Lectures
  * par sélecteurs à instantané stable : rien ne se re-rend au mouvement du pointeur.
  */
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { useStore } from 'zustand';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import type { NoteEditorState } from '@/lib/map/modules/drawings/note-editor';
@@ -27,17 +27,19 @@ export function useNoteEditor<T>(engine: MapEngine, selector: (s: NoteEditorStat
 
 /** Compteur qui change avec la caméra (surcouches positionnées sur la carte). */
 export function useCameraTick(engine: MapEngine, enabled: boolean): number {
-  return useSyncExternalStore(
-    (listener) => {
+  const subscribe = useCallback(
+    (listener: () => void) => {
       if (!enabled) return () => undefined;
       return engine.camera.onChange(() => {
         tick += 1;
         listener();
       });
     },
-    () => tick,
-    () => tick,
+    [engine, enabled],
   );
+  return useSyncExternalStore(subscribe, readTick, readTick);
 }
+
+const readTick = () => tick;
 
 let tick = 0;

@@ -5,6 +5,8 @@ import {
   drawingBounds,
   hitShape,
   isFilled,
+  outlineOf,
+  sampleCurve,
   shapeOf,
   simplify,
   transformDrawing,
@@ -192,5 +194,36 @@ describe('couleurs', () => {
   it('le remplissage reprend la couleur, plus transparente', () => {
     expect(parseColor(fillFor('#3e9bf5'))?.hex).toBe('#3e9bf5');
     expect(parseColor(fillFor('#3e9bf5'))!.alpha).toBeLessThan(0.5);
+  });
+});
+
+describe('tracé lissé', () => {
+  // Deux points proches entre deux lointains : la courbe dépasse (Catmull-Rom)
+  const smooth = {
+    tool: 'pen',
+    smooth: true,
+    points: pts(0, 0, 50, 100, 60, 100, 200, 0),
+    width: 0,
+  };
+
+  it('la boîte et le toucher suivent la courbe, pas seulement ses points', () => {
+    const curve = sampleCurve(smooth.points, false);
+    expect(curve[0]).toEqual({ x: 0, y: 0 });
+    expect(curve[curve.length - 1]).toEqual({ x: 200, y: 0 });
+    const peak = curve.reduce((a, p) => (p.y > a.y ? p : a));
+    expect(peak.y).toBeCloseTo(112.5, 1);
+    expect(drawingBounds(smooth).height).toBeCloseTo(112.5, 1);
+    expect(hitShape(outlineOf(smooth), peak, 0.5, false)).toBe(true);
+    // La polyligne des points seule le manquerait
+    expect(hitShape(shapeOf(smooth), peak, 0.5, false)).toBe(false);
+  });
+
+  it('mis à l’échelle, il remplit exactement la boîte visée', () => {
+    const out = transformDrawing(smooth, { x: 10, y: 20, width: 300, height: 400 });
+    const b = drawingBounds(out);
+    expect(b.x).toBeCloseTo(10, 1);
+    expect(b.y).toBeCloseTo(20, 1);
+    expect(b.width).toBeCloseTo(300, 1);
+    expect(b.height).toBeCloseTo(400, 1);
   });
 });

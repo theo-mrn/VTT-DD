@@ -31,7 +31,7 @@ import {
   drawingBounds,
   hitShape,
   isFilled,
-  shapeOf,
+  outlineOf,
   transformDrawing,
   translatePoints,
   type DrawingShape,
@@ -68,12 +68,12 @@ export function applyDrawingGeometry(d: DrawingData, next: EntityGeometry): Draw
   });
 }
 
-// Forme d'une donnée (les données sont immuables : un cache par référence)
+// Forme touchable d'une donnée (les données sont immuables : un cache par référence)
 const shapes = new WeakMap<DrawingData, DrawingShape>();
 const shapeFor = (d: DrawingData) => {
   let s = shapes.get(d);
   if (!s) {
-    s = shapeOf(d);
+    s = outlineOf(d);
     shapes.set(d, s);
   }
   return s;
