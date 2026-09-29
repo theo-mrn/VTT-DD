@@ -121,8 +121,8 @@ export const panelRegistry = [
   },
   {
     id: 'joueurs',
-    label: 'Joueurs',
-    description: 'Les membres de la table et leurs héros',
+    label: 'Personnages',
+    description: 'Les personnages de la table, d’une fiche à l’autre en un clic',
     icon: Users,
     shortcut: { code: 'KeyJ', label: 'J' },
     width: 'full',
