@@ -186,20 +186,22 @@ function SingleObject({ engine, entity }: { engine: MapEngine; entity: MapEntity
           <CommitNumber
             aria-label={`Largeur en ${unit}`}
             value={g.width / ppu}
-            min={0.1}
+            min={0.2}
             max={2000}
             step={0.25}
             suffix="L"
-            onCommit={(w) => !locked && transform('Redimensionner', { width: w * ppu })}
+            disabled={locked}
+            onCommit={(w) => transform('Redimensionner', { width: w * ppu })}
           />
           <CommitNumber
             aria-label={`Hauteur en ${unit}`}
             value={g.height / ppu}
-            min={0.1}
+            min={0.2}
             max={2000}
             step={0.25}
             suffix="H"
-            onCommit={(h) => !locked && transform('Redimensionner', { height: h * ppu })}
+            disabled={locked}
+            onCommit={(h) => transform('Redimensionner', { height: h * ppu })}
           />
         </div>
         <SizeButtons engine={engine} entities={[entity]} />
@@ -215,7 +217,8 @@ function SingleObject({ engine, entity }: { engine: MapEngine; entity: MapEntity
             max={360}
             suffix="°"
             className="w-24"
-            onCommit={(r) => !locked && transform('Pivoter', { rotation: normalizeDegrees(r) })}
+            disabled={locked}
+            onCommit={(r) => transform('Pivoter', { rotation: normalizeDegrees(r) })}
           />
           <Info texte="De 15° à gauche (⇧R)">
             <Button

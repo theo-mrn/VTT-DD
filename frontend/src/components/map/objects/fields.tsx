@@ -72,6 +72,7 @@ export function CommitNumber({
   max,
   step = 1,
   suffix,
+  disabled,
   className,
   'aria-label': ariaLabel,
 }: {
@@ -82,6 +83,7 @@ export function CommitNumber({
   max?: number;
   step?: number;
   suffix?: string;
+  disabled?: boolean;
   className?: string;
   'aria-label'?: string;
 }) {
@@ -105,6 +107,7 @@ export function CommitNumber({
         inputMode="decimal"
         value={draft}
         step={step}
+        disabled={disabled}
         aria-label={ariaLabel}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
