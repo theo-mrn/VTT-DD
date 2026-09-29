@@ -400,7 +400,7 @@ export class VisionState {
         e.kind.collection === TOKENS ||
         e.kind.collection === OBJECTS ||
         (viewAs && e.layerId !== null) ||
-        (player && e.kind.visionSamples !== undefined),
+        (player && e.kind.visionSamples?.(e) != null),
     );
     const entitiesChanged =
       entities.length !== this.entityRefs.length ||
