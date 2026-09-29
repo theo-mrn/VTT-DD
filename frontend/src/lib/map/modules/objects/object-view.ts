@@ -16,7 +16,7 @@
  *
  * Aucun import de `pixi.js` ici : le module arrive par `ctx.pixi` (le fichier reste testable).
  */
-import type { Graphics, Sprite, Texture } from 'pixi.js';
+import type { Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
 import type { MapEntity } from '../../engine/entities/entity';
 import type { MapTheme, RenderContext } from '../../engine/entities/entity-kind';
 import type { MapDto } from '../../store/map-store';
@@ -26,8 +26,9 @@ type Status = 'none' | 'loading' | 'ready' | 'error';
 interface ObjectView {
   sprite: Sprite;
   frame: Graphics;
-  lock: Graphics;
-  search: Graphics;
+  /** Repères créés au premier besoin (la plupart des objets n'en ont pas). */
+  lock: Graphics | null;
+  search: Graphics | null;
   url: string;
   status: Status;
   width: number;
@@ -68,9 +69,8 @@ export function imageAspect(entity: MapEntity): number | null {
 }
 
 /** Cadenas dans un disque, centré sur (0, 0), en pixels d'écran. */
-function drawLock(g: Graphics, theme: MapTheme) {
-  g.clear()
-    .circle(0, 0, BADGE_RADIUS)
+function drawLock(g: GraphicsContext, theme: MapTheme) {
+  g.circle(0, 0, BADGE_RADIUS)
     .fill({ color: theme.background, alpha: 0.9 })
     .stroke({ width: 1, color: theme.muted, alpha: 0.9 })
     .roundRect(-3.8, -0.8, 7.6, 5.6, 1.2)
@@ -83,9 +83,8 @@ function drawLock(g: Graphics, theme: MapTheme) {
 }
 
 /** Loupe dans un disque, centrée sur (0, 0), en pixels d'écran. */
-function drawSearch(g: Graphics, theme: MapTheme) {
-  g.clear()
-    .circle(0, 0, BADGE_RADIUS)
+function drawSearch(g: GraphicsContext, theme: MapTheme) {
+  g.circle(0, 0, BADGE_RADIUS)
     .fill({ color: theme.background, alpha: 0.9 })
     .stroke({ width: 1, color: theme.primary, alpha: 0.9 })
     .circle(-1.2, -1.2, 3.3)
@@ -93,6 +92,43 @@ function drawSearch(g: Graphics, theme: MapTheme) {
     .moveTo(1.3, 1.3)
     .lineTo(4.2, 4.2)
     .stroke({ width: 1.8, color: theme.primary, cap: 'round' });
+}
+
+type BadgeKind = 'lock' | 'search';
+
+/**
+ * Dessins des repères, tracés une fois par thème et partagés par tous les objets (un seul
+ * `GraphicsContext` par repère : la géométrie n'est pas dupliquée sur le GPU).
+ */
+const badgeContexts = new WeakMap<MapTheme, Record<BadgeKind, GraphicsContext>>();
+
+function badgeContext(ctx: RenderContext, kind: BadgeKind): GraphicsContext {
+  let shared = badgeContexts.get(ctx.theme);
+  if (!shared) {
+    const lock = new ctx.pixi.GraphicsContext();
+    const search = new ctx.pixi.GraphicsContext();
+    drawLock(lock, ctx.theme);
+    drawSearch(search, ctx.theme);
+    shared = { lock, search };
+    badgeContexts.set(ctx.theme, shared);
+  }
+  return shared[kind];
+}
+
+/** Repère de l'objet, créé au premier besoin (taille constante à l'écran). */
+function badge(
+  view: ObjectView,
+  kind: BadgeKind,
+  ctx: RenderContext,
+  display: MapEntity['display'],
+) {
+  const existing = view[kind];
+  if (existing || !display) return existing;
+  const g = new ctx.pixi.Graphics({ context: badgeContext(ctx, kind), label: kind });
+  display.addChild(g);
+  view[kind] = g;
+  view.releases.push(ctx.screenSpace.add(g));
+  return g;
 }
 
 /** Cadre de l'objet : zone sans image (MJ), chargement, image illisible. */
@@ -137,15 +173,23 @@ function drawFrame(view: ObjectView, theme: MapTheme) {
 }
 
 /** Place les repères aux coins et les garde droits (ils ne tournent pas avec l'objet). */
-function placeBadges(view: ObjectView, o: ObjectLike) {
+function placeBadges(view: ObjectView, o: ObjectLike, ctx: RenderContext, entity: MapEntity) {
   const hw = view.width / 2;
   const hh = view.height / 2;
-  view.lock.visible = view.gm && o.isLocked === true;
-  view.lock.position.set(-hw, -hh);
-  view.lock.angle = -(o.rotation || 0);
-  view.search.visible = o.searchable === true;
-  view.search.position.set(hw, hh);
-  view.search.angle = -(o.rotation || 0);
+  const locked = view.gm && o.isLocked === true;
+  const lock = locked ? badge(view, 'lock', ctx, entity.display) : view.lock;
+  if (lock) {
+    lock.visible = locked;
+    lock.position.set(-hw, -hh);
+    lock.angle = -(o.rotation || 0);
+  }
+  const searchable = o.searchable === true;
+  const search = searchable ? badge(view, 'search', ctx, entity.display) : view.search;
+  if (search) {
+    search.visible = searchable;
+    search.position.set(hw, hh);
+    search.angle = -(o.rotation || 0);
+  }
 }
 
 function loadImage(view: ObjectView, url: string, ctx: RenderContext) {
@@ -184,26 +228,22 @@ function loadImage(view: ObjectView, url: string, ctx: RenderContext) {
   );
 }
 
-/** Premier rendu : sprite, cadre et repères, créés une fois pour toute la vie de l'entité. */
+/** Premier rendu : sprite et cadre, créés une fois pour toute la vie de l'entité. */
 export function renderObject(entity: MapEntity, ctx: RenderContext) {
   const display = entity.display;
   if (!display) return;
   const o = entity.data as ObjectLike;
-  const { pixi, theme } = ctx;
+  const { pixi } = ctx;
   const sprite = new pixi.Sprite();
   sprite.anchor.set(0.5);
   sprite.visible = false;
   const frame = new pixi.Graphics({ label: 'frame' });
-  const lock = new pixi.Graphics({ label: 'lock' });
-  const search = new pixi.Graphics({ label: 'search' });
-  drawLock(lock, theme);
-  drawSearch(search, theme);
-  display.addChild(frame, sprite, lock, search);
+  display.addChild(frame, sprite);
   const view: ObjectView = {
     sprite,
     frame,
-    lock,
-    search,
+    lock: null,
+    search: null,
     url: '',
     status: 'none',
     width: o.width,
@@ -211,11 +251,11 @@ export function renderObject(entity: MapEntity, ctx: RenderContext) {
     gm: ctx.viewer.role === 'gm',
     loads: 0,
     disposed: false,
-    releases: [ctx.screenSpace.add(lock), ctx.screenSpace.add(search)],
+    releases: [],
   };
   entity.renderState[VIEW_KEY] = view;
   loadImage(view, o.imageUrl ?? '', ctx);
-  placeBadges(view, o);
+  placeBadges(view, o, ctx, entity);
 }
 
 /** Mise à jour incrémentale : seulement ce que la donnée a changé. */
@@ -241,7 +281,7 @@ export function updateObject(entity: MapEntity, ctx: RenderContext, change: { pr
   const url = o.imageUrl ?? '';
   if (url !== view.url) loadImage(view, url, ctx);
   else if (redraw) drawFrame(view, ctx.theme);
-  placeBadges(view, o);
+  placeBadges(view, o, ctx, entity);
 }
 
 /** L'entité disparaît : plus de repères à taille constante, plus de chargement attendu. */

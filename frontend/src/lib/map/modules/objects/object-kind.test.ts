@@ -250,8 +250,10 @@ describe('sorte « objet »', () => {
 // ─── Rendu sans WebGL ────────────────────────────────────────────────────────
 
 /** Graphics factice : toute méthode de dessin s'enchaîne ; `clear` est compté. */
-function fakeGraphics() {
+function fakeGraphics(opts: { label?: string; context?: unknown } = {}) {
   const base = {
+    label: opts.label,
+    context: opts.context,
     visible: true,
     destroyed: false,
     parent: null,
@@ -304,10 +306,16 @@ function fakeContext(viewer = GM) {
       );
     return textures.get(url)!;
   });
+  const contexts: unknown[] = [];
   const pixi = {
     Sprite: FakeSprite,
-    Graphics: function Graphics() {
-      return fakeGraphics();
+    Graphics: function Graphics(opts?: { label?: string; context?: unknown }) {
+      return fakeGraphics(opts);
+    },
+    GraphicsContext: function GraphicsContext() {
+      const c = fakeGraphics();
+      contexts.push(c);
+      return c;
     },
   } as unknown as typeof Pixi;
   const ctx: RenderContext = {
@@ -323,7 +331,7 @@ function fakeContext(viewer = GM) {
     texture: texture as unknown as RenderContext['texture'],
     invalidate: vi.fn(),
   };
-  return { ctx, texture };
+  return { ctx, texture, contexts };
 }
 
 function fakeDisplay() {
@@ -352,6 +360,8 @@ describe('rendu d’un objet (sans WebGL)', () => {
     kind.render!(b, ctx);
     await flush();
     expect(FakeSprite.created).toBe(2);
+    // Aucun repère ici : ni cadenas ni loupe créés
+    expect((a.display as unknown as { children: unknown[] }).children).toHaveLength(2);
     // Même adresse : une seule texture chargée par le cache du moteur, partagée
     expect(new Set(texture.mock.results.map((r) => r.value)).size).toBe(1);
     expect(imageAspect(a as unknown as MapEntity)).toBe(2);
@@ -394,23 +404,27 @@ describe('rendu d’un objet (sans WebGL)', () => {
     expect(frame.visible).toBe(true);
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
-    expect(lock.visible).toBe(true);
-    expect(search.visible).toBe(true);
+    expect(lock).toMatchObject({ label: 'lock', visible: true });
+    expect(search).toMatchObject({ label: 'search', visible: true });
     // Repères à taille constante à l'écran, retirés avec l'entité
     expect(gm.ctx.screenSpace.size).toBe(2);
     kind.dispose!(casse);
     expect(gm.ctx.screenSpace.size).toBe(0);
 
-    // Zone sans image : le MJ voit son cadre, un joueur ne voit rien (hors repère de fouille)
+    // Zone sans image : un joueur ne voit rien (pas de cadre, aucun repère créé)
     const zone = t.engine.entity('zone')! as unknown as MapEntity<ObjectData>;
     zone.display = fakeDisplay() as never;
-    kind.render!(zone, fakeContext(PLAYER).ctx);
-    const [zframe, , zlock, zsearch] = (
-      zone.display as unknown as { children: ReturnType<typeof fakeGraphics>[] }
-    ).children;
-    expect(zframe!.visible).toBe(false);
-    expect(zlock!.visible).toBe(false);
-    expect(zsearch!.visible).toBe(false);
+    const player = fakeContext(PLAYER);
+    kind.render!(zone, player.ctx);
+    const zchildren = (zone.display as unknown as { children: ReturnType<typeof fakeGraphics>[] })
+      .children;
+    expect(zchildren).toHaveLength(2);
+    expect(zchildren[0]!.visible).toBe(false);
+    // Devenue fouillable : la loupe apparaît, pour tous
+    const previous = zone.data;
+    zone.data = { ...zone.data, searchable: true, version: 2 };
+    kind.update!(zone, player.ctx, { previous });
+    expect(zchildren[2]).toMatchObject({ label: 'search', visible: true });
     const zoneGm = t.engine.entity('zone')! as unknown as MapEntity<ObjectData>;
     zoneGm.display = fakeDisplay() as never;
     kind.render!(zoneGm, fakeContext(GM).ctx);
@@ -418,5 +432,26 @@ describe('rendu d’un objet (sans WebGL)', () => {
       (zoneGm.display as unknown as { children: ReturnType<typeof fakeGraphics>[] }).children[0]!
         .visible,
     ).toBe(true);
+  });
+
+  it('les repères partagent un seul dessin par thème, quel que soit le nombre d’objets', () => {
+    const t = setupObjects({
+      objects: Array.from({ length: 5 }, (_, i) =>
+        obj(`v${i}`, i * 150, 0, { isLocked: true, searchable: true }),
+      ),
+    });
+    const { ctx, contexts } = fakeContext(GM);
+    const kind = t.kinds[0];
+    const drawn = new Set<unknown>();
+    for (let i = 0; i < 5; i++) {
+      const e = t.engine.entity(`v${i}`)! as unknown as MapEntity<ObjectData>;
+      e.display = fakeDisplay() as never;
+      kind.render!(e, ctx);
+      const children = (e.display as unknown as { children: { context?: unknown }[] }).children;
+      for (const c of children.slice(2)) drawn.add(c.context);
+    }
+    // Un contexte pour le cadenas, un pour la loupe
+    expect(contexts).toHaveLength(2);
+    expect(drawn.size).toBe(2);
   });
 });
