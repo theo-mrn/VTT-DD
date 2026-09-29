@@ -40,12 +40,18 @@ export const ExpectedVersion = z.number().int().positive().optional();
  * Média (image, vidéo, son) : URL https ou chemin absolu du site (bibliothèque d'actifs).
  * Comme l'ancienne carte, le MJ peut pointer vers un hébergeur tiers ; un envoi passe par
  * `POST /v1/campaigns/:id/media` (URL présignée, voir `MediaUploadRequest`).
+ *
+ * Exception : `http://` sur la boucle locale (`localhost`, `127.0.0.1`, `[::1]`), où le
+ * stockage de développement sert les fichiers (`S3_PUBLIC_URL=http://localhost:8333/…`). Les
+ * navigateurs tiennent cette origine pour sûre (pas de contenu mixte) ; aucun autre `http://`.
  */
+const LOOPBACK_HTTP = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?\/\S*$/;
+
 export const MediaUrl = z
   .string()
   .trim()
   .max(2048, '2048 caractères au plus')
-  .refine((u) => /^https:\/\/\S+$/.test(u) || /^\/[^/]\S*$/.test(u), {
+  .refine((u) => /^https:\/\/\S+$/.test(u) || /^\/[^/]\S*$/.test(u) || LOOPBACK_HTTP.test(u), {
     message: 'URL https ou chemin absolu attendu',
   });
 

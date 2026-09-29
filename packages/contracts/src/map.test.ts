@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MediaUrl,
   CreateMapFogZone,
   CreateMapNpcs,
   CreateMapObject,
@@ -92,5 +93,18 @@ describe('contrat de la carte', () => {
     };
     expect(MapLiveMessage.parse(msg)).toEqual(msg);
     expect(MapLiveMessage.safeParse({ m: 'carte', s: 1, drag: [['a', 1]] }).success).toBe(false);
+  });
+
+  it('média : https, chemin absolu, ou http sur la boucle locale seulement', () => {
+    const ok = (u: string) => MediaUrl.safeParse(u).success;
+    expect(ok('https://assets.yner.fr/Cartes/a.webp')).toBe(true);
+    expect(ok('/Assets/fond.webm')).toBe(true);
+    expect(ok('http://localhost:8333/vtt-dev/campaigns/x/fond.webm')).toBe(true);
+    expect(ok('http://127.0.0.1:8333/vtt-dev/a.png')).toBe(true);
+    expect(ok('http://[::1]:8333/a.png')).toBe(true);
+    expect(ok('http://exemple.fr/a.png')).toBe(false);
+    expect(ok('http://localhost.exemple.fr/a.png')).toBe(false);
+    expect(ok('//cdn.exemple.fr/a.png')).toBe(false);
+    expect(ok('javascript:alert(1)')).toBe(false);
   });
 });
