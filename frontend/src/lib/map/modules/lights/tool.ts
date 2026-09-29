@@ -226,10 +226,10 @@ export class LightTool implements Tool {
     return state !== 'idle';
   }
 
-  /** Pose une lumière au point (au centre de la case, Alt : libre) et la sélectionne. */
+  /** Pose une lumière au point (aimantation de la carte, Alt l'inverse) et la sélectionne. */
   private place(engine: MapEngine, e: MapPointer) {
-    const grid = engine.grid();
-    const p = grid && !e.alt ? snapToCellCenter(e.world, grid) : e.world;
+    const grid = engine.snapGrid(e.alt);
+    const p = grid ? snapToCellCenter(e.world, grid) : e.world;
     const pos = { x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 };
     const s = engine.store.getState();
     const draft = lightDraft(s.mapId, pos, this.settings.getState());

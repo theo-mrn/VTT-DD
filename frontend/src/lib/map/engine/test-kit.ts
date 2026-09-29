@@ -125,6 +125,8 @@ export function setup(
     commands,
     backend,
     rememberCamera: false,
+    // Aimantation à la case : les tests des gestes la vérifient (la préférence réelle est libre)
+    snap: 1,
     notify,
     directory: opts.directory,
   });

@@ -11,7 +11,6 @@ import {
   CloudFog,
   CloudOff,
   Eraser,
-  Grid3x3,
   Lasso,
   MousePointer2,
   RectangleHorizontal,
@@ -44,7 +43,6 @@ export function FogOptions({ engine }: { engine: MapEngine }) {
 function Options({ engine, tool }: { engine: MapEngine; tool: FogTool }) {
   const shape = useStore(tool.settings, (s) => s.shape);
   const mode = useStore(tool.settings, (s) => s.mode);
-  const grid = useStore(tool.settings, (s) => s.grid);
   const fogFull = useMapState((s) => s.scene?.fogFull === true);
   const zones = useMapState((s) => s.collections[FOG_ZONES]?.size ?? 0);
   const info = FOG_SHAPES.find((s) => s.id === shape)!;
@@ -97,16 +95,6 @@ function Options({ engine, tool }: { engine: MapEngine; tool: FogTool }) {
             </Info>
           ))}
         </div>
-
-        {shape === 'rect' && (
-          <OptionButton
-            label={grid ? 'Aimanté à la grille' : 'Sans aimantation'}
-            active={grid}
-            onClick={() => tool.settings.setState({ grid: !grid })}
-          >
-            <Grid3x3 />
-          </OptionButton>
-        )}
 
         <OptionSeparator />
         <Info texte="Toute la carte sous le brouillard (les zones posées disparaissent)">

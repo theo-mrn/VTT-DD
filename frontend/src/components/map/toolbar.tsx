@@ -4,15 +4,25 @@
  * Barre d'outils de la carte (docs/carte.md § 6) : les outils fournis par les modules (outil
  * actif, raccourci affiché), annuler et refaire, l'emplacement « Vue » (module vision),
  * « Calques » (panneau des calques du MJ, K), « Affichage » (familles affichées, MJ),
- * « Montrer mon curseur » et « Recadrer ». Les réglages de l'outil actif s'affichent au-dessus.
+ * « Aimantation » (libre ou grille fine), « Montrer mon curseur » et « Recadrer ». Les réglages de l'outil actif s'affichent au-dessus.
  */
-import { Focus, Layers, MousePointerClick, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
+import {
+  Check,
+  Focus,
+  Layers,
+  Magnet,
+  MousePointerClick,
+  Redo2,
+  SlidersHorizontal,
+  Undo2,
+} from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Info } from '@/components/ui/tooltip';
+import { SNAP_STEPS, type SnapStep } from '@/lib/map/engine/map-engine';
 import { DISPLAY_TOGGLES, displayOf, isDisplayed } from '@/lib/map/engine/planes';
 import { cn } from '@/lib/utils';
 import {
@@ -172,6 +182,7 @@ export function MapToolbar() {
         )}
 
         <Separator />
+        {viewer.role !== 'spectator' && <SnapMenu />}
         {viewer.role !== 'spectator' && (
           <ToolbarButton
             label={shareCursor ? 'Cacher mon curseur' : 'Montrer mon curseur'}
@@ -189,6 +200,71 @@ export function MapToolbar() {
         ))}
       </div>
     </div>
+  );
+}
+
+const SNAP_LABELS: Record<`${SnapStep}`, { label: string; hint: string }> = {
+  off: { label: 'Libre', hint: 'Posé exactement sous le pointeur' },
+  '1': { label: 'Grille : une case', hint: 'Centré dans la case' },
+  '0.5': { label: 'Grille : demi-case', hint: 'Deux crans par case' },
+  '0.25': { label: 'Grille : quart de case', hint: 'Quatre crans par case' },
+};
+
+/**
+ * « Aimantation » : où se posent jetons, objets, murs et zones pendant un geste. Libre par
+ * défaut ; Alt inverse le réglage le temps du geste. Les extrémités des murs restent aimantées.
+ */
+function SnapMenu() {
+  const engine = useMapEngine();
+  const snap = useMapUi((s) => s.snap);
+  const current = SNAP_LABELS[`${snap}`];
+  return (
+    <Popover>
+      <Info texte={`Aimantation : ${current.label.toLowerCase()}`}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Aimantation : ${current.label}`}
+            className={cn(snap !== 'off' && 'text-primary')}
+          >
+            <Magnet />
+          </Button>
+        </PopoverTrigger>
+      </Info>
+      <PopoverContent side="top" className="w-64 p-2">
+        <p className="px-2 pb-1 pt-1 text-sm font-semibold">Aimantation</p>
+        <div role="radiogroup" aria-label="Aimantation" className="space-y-0.5">
+          {SNAP_STEPS.map((step) => {
+            const t = SNAP_LABELS[`${step}`];
+            const on = step === snap;
+            return (
+              <button
+                key={step}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => engine.setSnap(step)}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
+                  'hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                  on && 'text-primary',
+                )}
+              >
+                <Check className={cn('size-3.5 shrink-0', !on && 'invisible')} aria-hidden />
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-medium">{t.label}</span>
+                  <span className="block text-[11px] text-muted-foreground">{t.hint}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="px-2 pb-1 pt-2 text-[11px] text-muted-foreground">
+          Alt pendant le geste inverse le réglage. Les extrémités des murs s’aimantent toujours.
+        </p>
+      </PopoverContent>
+    </Popover>
   );
 }
 

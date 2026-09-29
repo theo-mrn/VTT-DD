@@ -132,6 +132,7 @@ export function setupTokens(
     commands,
     backend,
     rememberCamera: false,
+    snap: 1,
     notify,
     directory: {
       characters: () => opts.players ?? [],

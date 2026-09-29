@@ -141,7 +141,7 @@ export function placeObject(
   const draft = objectDraft(source, world, {
     mapId: engine.store.getState().mapId,
     pixelsPerUnit: engine.kindContext().pixelsPerUnit,
-    grid: opts.snap ? engine.grid() : null,
+    grid: engine.snapGrid(!opts.snap),
     layerId,
     z,
   });

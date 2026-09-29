@@ -327,25 +327,31 @@ toutes les entités.
 
 ### Gestes communs (`interaction/controller.ts`)
 
-| Geste                                      | Effet                                                                                                                                                                                                     |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Survol                                     | contour et curseur (`grab`, `pointer`, `not-allowed` si verrouillé) ; nom en info-bulle après 400 ms                                                                                                      |
-| Clic                                       | sélectionne (⇧ : ajoute ou retire) ; clic dans le vide : désélectionne                                                                                                                                    |
-| Glisser (seuil de 4 px écran)              | déplace la sélection si `move` et `can` ; aperçu local, direct (§ 8), aimantation (grille, Alt pour s'en passer) ; au lâcher : **une** commande pour toute la sélection ; Échap pendant le geste : annule |
-| Glisser dans le vide (outil sélection)     | lasso rectangulaire (⇧ : ajoute)                                                                                                                                                                          |
-| Double clic                                | inspecteur (fiche du PNJ, propriétés de l'objet…) ; un texte s'édite en place                                                                                                                             |
-| Clic droit ou appui long (500 ms, tactile) | menu contextuel : actions communes et actions de la sorte ; sélection multiple : actions communes à toutes                                                                                                |
-| Poignées (`transform-gizmo.ts`)            | rotation (⇧ : pas de 15°), taille par les coins (⇧ : garde les proportions) ; mêmes poignées pour objets, tokens et textes                                                                                |
-| Suppr / Retour arrière                     | supprime la sélection (confirmation pour une instance de PNJ)                                                                                                                                             |
-| Flèches                                    | déplacent d'une case (⇧ : de 5)                                                                                                                                                                           |
-| ⌘/Ctrl+Z, ⌘/Ctrl+⇧+Z                       | annuler, refaire (§ 7)                                                                                                                                                                                    |
-| ⌘/Ctrl+D                                   | dupliquer                                                                                                                                                                                                 |
-| R, ⇧R                                      | pivoter de 15°, dans un sens ou dans l'autre                                                                                                                                                              |
-| ⌘/Ctrl+↑↓, ⇧, ⌥                            | ordre dans le calque, premier plan / arrière-plan, changement de calque (§ 5, Calques)                                                                                                                    |
-| Échap                                      | annule le geste, puis l'outil, puis la sélection                                                                                                                                                          |
+| Geste                                      | Effet                                                                                                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Survol                                     | contour et curseur (`grab`, `pointer`, `not-allowed` si verrouillé) ; nom en info-bulle après 400 ms                                                                                                                |
+| Clic                                       | sélectionne (⇧ : ajoute ou retire) ; clic dans le vide : désélectionne                                                                                                                                              |
+| Glisser (seuil de 4 px écran)              | déplace la sélection si `move` et `can` ; aperçu local, direct (§ 8), aimantation (réglage « Aimantation », Alt l'inverse) ; au lâcher : **une** commande pour toute la sélection ; Échap pendant le geste : annule |
+| Glisser dans le vide (outil sélection)     | lasso rectangulaire (⇧ : ajoute)                                                                                                                                                                                    |
+| Double clic                                | inspecteur (fiche du PNJ, propriétés de l'objet…) ; un texte s'édite en place                                                                                                                                       |
+| Clic droit ou appui long (500 ms, tactile) | menu contextuel : actions communes et actions de la sorte ; sélection multiple : actions communes à toutes                                                                                                          |
+| Poignées (`transform-gizmo.ts`)            | rotation (⇧ : pas de 15°), taille par les coins (⇧ : garde les proportions) ; mêmes poignées pour objets, tokens et textes                                                                                          |
+| Suppr / Retour arrière                     | supprime la sélection (confirmation pour une instance de PNJ)                                                                                                                                                       |
+| Flèches                                    | déplacent d'une case (⇧ : de 5)                                                                                                                                                                                     |
+| ⌘/Ctrl+Z, ⌘/Ctrl+⇧+Z                       | annuler, refaire (§ 7)                                                                                                                                                                                              |
+| ⌘/Ctrl+D                                   | dupliquer                                                                                                                                                                                                           |
+| R, ⇧R                                      | pivoter de 15°, dans un sens ou dans l'autre                                                                                                                                                                        |
+| ⌘/Ctrl+↑↓, ⇧, ⌥                            | ordre dans le calque, premier plan / arrière-plan, changement de calque (§ 5, Calques)                                                                                                                              |
+| Échap                                      | annule le geste, puis l'outil, puis la sélection                                                                                                                                                                    |
 
 Règles de ces gestes :
 
+- **Aimantation** (bouton de la barre, préférence de chacun gardée dans le navigateur) :
+  **libre par défaut** (posé exactement sous le pointeur), ou grille d'une case, d'une demi-case
+  ou d'un quart de case. Alt inverse le réglage le temps du geste. Elle vaut pour tous les gestes
+  (glisser, poser un jeton, un objet, une lumière, tracer un mur ou une zone). Les extrémités et
+  segments des murs existants s'aimantent toujours, pour les souder. Les flèches du clavier
+  avancent toujours d'une case.
 - **Verrouillé** : un élément verrouillé se sélectionne et s'inspecte, mais ne bouge pas.
 - **Élément masqué aux joueurs** : le MJ le voit hachuré, à 50 %, avec un badge « œil barré ».
 - **Clavier** : les raccourcis de la carte ne sont actifs que si la carte a le focus, et jamais
@@ -807,7 +813,7 @@ des contrats : le client et le serveur y convertissent `MapObstacle`, `MapRoom`,
 - **Pose** : outil « Objets » (I, MJ). Sa bibliothèque s'affiche au-dessus de la barre : modèles
   d'objets de la campagne (`object-templates`, recherche, catégories, retirer), « Envoyer une
   image » (`/media`, gardée aussi comme modèle), « Zone à fouiller ».
-  - Choisir un objet puis cliquer sur la carte (⇧ : en poser plusieurs, Alt : sans la grille,
+  - Choisir un objet puis cliquer sur la carte (⇧ : en poser plusieurs, Alt : aimantation inversée,
     Échap : annuler), ou le glisser sur la carte ; une image de l'ordinateur déposée sur la
     carte est envoyée puis posée là.
   - Taille par défaut : une case sur le petit côté, l'autre selon les proportions de l'image
@@ -861,7 +867,7 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
     ⌘/Ctrl+Z les retire). Une chaîne d'un seul point n'écrit rien.
   - ⇧ aligne à 15° depuis le point précédent (seul un sommet existant l'emporte).
   - Aimantation, dans l'ordre : sommets existants des murs et des pièces (10 px écran), point sur
-    un segment de mur (qui est alors scindé : jonction soudée), grille (Alt : sans grille). Le
+    un segment de mur (qui est alors scindé : jonction soudée), grille si l'aimantation est active (Alt l'inverse). Le
     retour visuel dit lequel : anneau (sommet), losange et segment surligné (segment), croix
     (grille). La longueur du segment en cours s'affiche en cases.
 - **Rectangle de murs** (2) : glisser, une ligne fermée de 4 murs soudés (⇧ : carré).
@@ -905,7 +911,7 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
 ### Brouillard (`fog`) et lumières (`lights`)
 
 - **Brouillard** (outil G, MJ ; zones touchables seulement avec lui) :
-  - formes : 1 Rectangle (aimanté à la grille, désactivable), 2 Cercle (depuis le centre ; ⇧ :
+  - formes : 1 Rectangle (aimantation commune), 2 Cercle (depuis le centre ; ⇧ :
     rayon en cases entières), 3 Main levée (tracé simplifié par Ramer-Douglas-Peucker à 1,5 px
     d'écran), 4 Sélection (gestes communs : clic, glisser, poignées de taille, lasso, Suppr) ;
   - mode ajouter ou retirer (gomme de brouillard) dans la barre ; Alt inverse le temps du
@@ -917,7 +923,7 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
   - dessin MJ : contour et voile pour `fog`, hachures et contour en tirets pour `clear`. Le
     brouillard vu des joueurs est rendu par le module vision.
 - **Lumières** (outil L, MJ ; lumières touchables seulement avec lui) :
-  - clic pour poser (centre de la case, comme le glisser ; Alt : libre), la lumière posée est
+  - clic pour poser (centre de la case si l'aimantation est active, comme le glisser ; Alt l'inverse), la lumière posée est
     sélectionnée ; réglages des lumières posées dans la barre (rayon, couleur, intensité,
     dégradé) ;
   - poignée de rayon sur le cercle de la lumière sélectionnée : rayon en unités, par demi-case

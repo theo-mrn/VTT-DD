@@ -301,7 +301,7 @@ export class ObstacleTool implements Tool {
     }
     return this.snapper.snap(e.world, {
       tolerance,
-      grid: e.alt ? null : engine.grid(),
+      grid: engine.snapGrid(e.alt),
       extraPoints: this.chain,
     });
   }
@@ -891,7 +891,7 @@ export class ObstacleTool implements Tool {
     const origin = drag.origin;
     const target = this.snapper.snap(e.world, {
       tolerance: this.tolerance(engine),
-      grid: e.alt ? null : engine.grid(),
+      grid: engine.snapGrid(e.alt),
       skipVertices: new Set([drag.key]),
       skipSegment: (s) => samePoint(s.a, origin) || samePoint(s.b, origin),
     });
@@ -968,7 +968,7 @@ export class ObstacleTool implements Tool {
     const moving = new Set(drag.affected.map((a) => a.id));
     const target = this.snapper.snap(raw, {
       tolerance: this.tolerance(engine),
-      grid: e.alt ? null : engine.grid(),
+      grid: engine.snapGrid(e.alt),
       skipVertices: drag.skip,
       skipSegment: (s) =>
         moving.has(s.id) || drag.skip.has(pointKey(s.a)) || drag.skip.has(pointKey(s.b)),

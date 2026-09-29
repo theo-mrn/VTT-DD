@@ -46,7 +46,7 @@ export class DragSession {
     if (this.done) return;
     let dx = world.x - this.start.x;
     let dy = world.y - this.start.y;
-    const grid = opts.snap ? this.engine.grid() : null;
+    const grid = this.engine.snapGrid(!opts.snap);
     if (grid) {
       const g = this.primary.geometry;
       const snapped = snapGeometryToGrid({ ...g, x: g.x + dx, y: g.y + dy }, grid);

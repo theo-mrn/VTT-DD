@@ -177,6 +177,24 @@ export interface ConfirmRequest {
   resolve(ok: boolean): void;
 }
 
+/**
+ * Aimantation des gestes (poser, glisser, tracer) : libre, ou une grille d'une case, d'une
+ * demi-case ou d'un quart de case. Préférence de chacun (navigateur), libre par défaut.
+ */
+export type SnapStep = 'off' | 1 | 0.5 | 0.25;
+export const SNAP_STEPS: readonly SnapStep[] = ['off', 1, 0.5, 0.25];
+const SNAP_KEY = 'vtt:map:snap';
+
+function readSnap(): SnapStep {
+  try {
+    const raw = globalThis.localStorage?.getItem(SNAP_KEY);
+    const value = raw === 'off' ? raw : Number(raw);
+    return SNAP_STEPS.includes(value as SnapStep) ? (value as SnapStep) : 'off';
+  } catch {
+    return 'off';
+  }
+}
+
 export interface MapUiState {
   /** Rendu monté (Pixi prêt). */
   mounted: boolean;
@@ -198,6 +216,8 @@ export interface MapUiState {
   shareCursor: boolean;
   /** MJ : vue simulée d'un joueur (module vision), null : vue du MJ. */
   viewAs: string | null;
+  /** Aimantation des gestes (libre par défaut). */
+  snap: SnapStep;
 }
 
 const NO_LAYERS: ReadonlySet<string> = new Set();
@@ -272,6 +292,8 @@ export interface MapEngineOptions {
   notify?(message: string): void;
   /** Mémoire de la vue (localStorage) ; false : aucune. */
   rememberCamera?: boolean;
+  /** Aimantation de départ (tests) ; sinon la préférence du navigateur. */
+  snap?: SnapStep;
   now?(): number;
   timers?: ControllerTimers;
 }
@@ -371,6 +393,7 @@ export class MapEngine {
       isolatedLayer: null,
       shareCursor: false,
       viewAs: null,
+      snap: opts.snap ?? readSnap(),
     }));
     this.tools = new ToolManager(this);
     this.controller = new InteractionController(this, opts.timers);
@@ -1001,6 +1024,30 @@ export class MapEngine {
   grid(): GridSpec | null {
     const size = this.kindCtx.pixelsPerUnit;
     return size > 0 ? { size } : null;
+  }
+
+  /**
+   * Grille d'aimantation d'un geste (null : placement libre), selon la préférence (`snap`).
+   * `invert` (Alt pendant le geste) : libre si l'aimantation est active, une case sinon. Les
+   * extrémités des murs restent aimantées à part, toujours.
+   */
+  snapGrid(invert = false): GridSpec | null {
+    const cell = this.grid();
+    if (!cell) return null;
+    const step = this.ui.getState().snap;
+    const on = step !== 'off';
+    if (on === invert) return null;
+    return { ...cell, size: cell.size * (step === 'off' ? 1 : step) };
+  }
+
+  /** Change l'aimantation (gardée dans ce navigateur). */
+  setSnap(step: SnapStep) {
+    this.ui.setState({ snap: step });
+    try {
+      globalThis.localStorage?.setItem(SNAP_KEY, String(step));
+    } catch {
+      // Stockage indisponible (navigation privée) : réglage gardé pour la session
+    }
   }
 
   /**

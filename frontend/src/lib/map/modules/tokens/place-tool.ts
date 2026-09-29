@@ -174,7 +174,7 @@ export class TokenPlaceTool implements Tool {
     if (!armed || !this.hover) return;
     const count = clampCount(lib.count);
     const engine = this.tokens.engine;
-    const center = snapPlacement(this.hover, count, ctx, this.free ? null : engine.grid());
+    const center = snapPlacement(this.hover, count, ctx, engine.snapGrid(this.free));
     const step = cellSize(ctx);
     const color = sideColor(ctx.theme, lib.side);
     for (const p of gridAround(center, count, step)) {

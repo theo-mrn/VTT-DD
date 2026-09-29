@@ -73,8 +73,6 @@ export const FOG_SHAPES: readonly { id: FogShape; label: string; key: string; hi
 export interface FogSettings {
   shape: FogShape;
   mode: FogMode;
-  /** Rectangle aimanté à la grille. */
-  grid: boolean;
 }
 
 export type FogState = 'idle' | 'pressing' | 'drawing' | 'select';
@@ -91,7 +89,6 @@ export class FogTool implements Tool {
   readonly settings: StoreApi<FogSettings> = createStore<FogSettings>()(() => ({
     shape: 'rect',
     mode: 'fog',
-    grid: true,
   }));
   /** Gestes communs (sélection, glisser, poignées, lasso), restreints aux zones. */
   private readonly select = new SelectTool();
@@ -250,7 +247,8 @@ export class FogTool implements Tool {
     const round = (v: number) => Math.round(v * 100) / 100;
     switch (this.shape) {
       case 'rect': {
-        const grid = this.settings.getState().grid ? engine.grid() : null;
+        // Aimantation commune (Alt inverse ici le mode, pas l'aimantation)
+        const grid = engine.snapGrid();
         const a = grid ? snapToGridLines(start.world, grid) : start.world;
         const b = grid ? snapToGridLines(e.world, grid) : e.world;
         const r = rectFromPoints(a, b);

@@ -120,7 +120,7 @@ export function placeArmed(
   const engine = tokens.engine;
   const ctx = engine.kindContext();
   const count = clampCount(lib.count);
-  const center = snapPlacement(world, count, ctx, opts.snap === false ? null : engine.grid());
+  const center = snapPlacement(world, count, ctx, engine.snapGrid(opts.snap === false));
   // Le calque actif s'il y en a un, sinon « Personnages » (comme les objets) : envoyé au service,
   // et les fantômes y sont aussi, pour ne pas changer de calque à la réponse
   const layerId = engine.targetLayer('tokens');
