@@ -41,18 +41,19 @@ import {
   envelope,
   ItemParams,
   loadMap,
-  MapParams,
   mapEvent,
+  MapParams,
+  type MapRow,
+  mapSettingsOf,
   notFound,
   requestContext,
   requireGm,
-  mapSettingsOf,
   requireWriter,
+  sceneSettingsOf,
   sqlPoint,
   versionConflict,
-  viewerOf,
-  type MapRow,
   type Viewer,
+  viewerOf,
 } from './common.js';
 import {
   eventTarget,
@@ -461,7 +462,7 @@ async function arrivalSpots(
   around: MapPoint | undefined,
   travellers: readonly string[],
 ): Promise<MapPoint[]> {
-  const { pixelsPerUnit } = await mapSettingsOf(tx, map.campaignId);
+  const { pixelsPerUnit } = await sceneSettingsOf(tx, map);
   const cell = pixelsPerUnit > 0 ? pixelsPerUnit : 50;
   const center =
     around ??

@@ -77,6 +77,13 @@ export async function rescaleMap(tx: Tx, map: MapRow, { sx, sy }: RescaleMap): P
       width: size(map.width, sx),
       height: size(map.height, sy),
       spawn: map.spawn ? { x: map.spawn.x * sx, y: map.spawn.y * sy } : null,
+      // Quadrillages : la case suit le fond (longueur × √(sx·sy)), l'origine aussi
+      grids: map.grids.map((g) => ({
+        ...g,
+        size: Math.min(10_000, Math.max(4, g.size * Math.sqrt(sx * sy))),
+        offsetX: g.offsetX * sx,
+        offsetY: g.offsetY * sy,
+      })),
       version: sql`${maps.version} + 1`,
       updatedAt: sql`now()`,
     })

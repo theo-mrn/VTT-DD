@@ -23,16 +23,16 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 
 ## Cartes (scènes)
 
-| Méthode | Route                                   | Corps                                                                                                                                    | Réponse                                                                                             |
-| ------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| GET     | `/v1/campaigns/:id/maps`                | —                                                                                                                                        | `{ items: [Map] }` ; joueur : cartes `visibleToPlayers` et celle où se trouve un de ses personnages |
-| POST    | `/v1/campaigns/:id/maps`                | `{ name, description?, groupId?, backgroundUrl?, isDefault?, visibleToPlayers?, spawn?, width?, height?, weather?, display?, fogFull? }` | 201 `Map` (MJ), née avec ses trois calques ; 409 `default_map_exists` ; 422 `unknown_group`         |
-| GET     | `/v1/campaigns/:id/maps/:mapId?bbox=`   | —                                                                                                                                        | `MapSnapshot` : chargement initial, filtré pour l'appelant                                          |
-| PATCH   | `/v1/campaigns/:id/maps/:mapId`         | mêmes champs, tous facultatifs, `version?`                                                                                               | `Map` (MJ) ; `width`/`height` vont ensemble (400 `size_incomplete`)                                 |
-| DELETE  | `/v1/campaigns/:id/maps/:mapId`         | —                                                                                                                                        | 204 (MJ) ; tout ce qui est posé dessus disparaît ; 409 `players_present` si un joueur s'y trouve    |
-| POST    | `/v1/campaigns/:id/maps/:mapId/rescale` | `{ sx, sy }` (0 à 1000 exclus)                                                                                                           | `MapSnapshot` (MJ) : toute la géométrie mise à l'échelle en une transaction                         |
+| Méthode | Route                                   | Corps                                                                                                                                            | Réponse                                                                                             |
+| ------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| GET     | `/v1/campaigns/:id/maps`                | —                                                                                                                                                | `{ items: [Map] }` ; joueur : cartes `visibleToPlayers` et celle où se trouve un de ses personnages |
+| POST    | `/v1/campaigns/:id/maps`                | `{ name, description?, groupId?, backgroundUrl?, isDefault?, visibleToPlayers?, spawn?, width?, height?, weather?, display?, fogFull?, grids? }` | 201 `Map` (MJ), née avec ses trois calques ; 409 `default_map_exists` ; 422 `unknown_group`         |
+| GET     | `/v1/campaigns/:id/maps/:mapId?bbox=`   | —                                                                                                                                                | `MapSnapshot` : chargement initial, filtré pour l'appelant                                          |
+| PATCH   | `/v1/campaigns/:id/maps/:mapId`         | mêmes champs, tous facultatifs, `version?`                                                                                                       | `Map` (MJ) ; `width`/`height` vont ensemble (400 `size_incomplete`)                                 |
+| DELETE  | `/v1/campaigns/:id/maps/:mapId`         | —                                                                                                                                                | 204 (MJ) ; tout ce qui est posé dessus disparaît ; 409 `players_present` si un joueur s'y trouve    |
+| POST    | `/v1/campaigns/:id/maps/:mapId/rescale` | `{ sx, sy }` (0 à 1000 exclus)                                                                                                                   | `MapSnapshot` (MJ) : toute la géométrie mise à l'échelle en une transaction                         |
 
-`Map` (`MapScene`) : `{ id, name, description, groupId, backgroundUrl, isDefault, visibleToPlayers, spawn, width, height, weather, display, fogFull, version, updatedAt }`.
+`Map` (`MapScene`) : `{ id, name, description, groupId, backgroundUrl, isDefault, visibleToPlayers, spawn, width, height, weather, display, fogFull, grids, version, updatedAt }`.
 
 - `isDefault` : le fond global de l'ancienne app (aucune scène sélectionnée), une par campagne au plus.
 - `backgroundUrl` : image (png, jpeg, webp, avif, gif) ou vidéo (webm, mp4). `width`/`height` :
@@ -41,6 +41,12 @@ objets à portée de ses personnages. Un spectateur lit seulement. Au-delà : 40
 - `display` (ex-`layers`) : familles affichées, réglage du MJ,
   `{ lights, obstacles, notes, drawings, objects, characters, fog, music: boolean }` ;
   `obstacles: false` coupe aussi l'occlusion côté serveur. Ce ne sont pas les calques du MJ.
+- `grids` : quadrillages de la scène (`MapGrid`, quatre au plus) :
+  `{ id, name, size, offsetX, offsetY, color, opacity, thickness, visibleToPlayers, primary }`,
+  en pixels du monde (`thickness` en pixels d'écran). La grille de jeu (`primary`, une au plus,
+  400 sinon) donne la case de la scène : rayons des lumières et de la fouille, écart des PNJ
+  posés, arrivée du groupe (`scenePixelsPerUnit`), sinon `pixelsPerUnit` des réglages. Lue par
+  tous (la grille de jeu compte même cachée aux joueurs), modifiée par le MJ (`PATCH`).
 - `fogFull` : toute la carte est sous le brouillard au départ (remplace `fullMapFog`) ; les zones
   de brouillard s'appliquent ensuite.
 - `?bbox=x1,y1,x2,y2` : ne renvoie que ce qui touche ce rectangle (index GiST), aussi sur chaque liste.

@@ -36,13 +36,13 @@ import {
   ItemParams,
   loadMap,
   MapParams,
-  mapSettingsOf,
+  type MapRow,
   notFound,
   requestContext,
   requireGm,
-  viewerOf,
-  type MapRow,
+  sceneSettingsOf,
   type Viewer,
+  viewerOf,
 } from './common.js';
 import { deleteToken, lockToken, tokenApi, tokenEvent, type TokenRow } from './tokens.js';
 
@@ -114,7 +114,7 @@ async function engageAndPlace(
 ) {
   const campaignId = map.campaignId;
   await lockCampaign(tx, campaignId);
-  const settings = await mapSettingsOf(tx, campaignId);
+  const settings = await sceneSettingsOf(tx, map);
   const step = settings.pixelsPerUnit * settings.tokenScale * (o.look.scale ?? 1);
   const places = gridAround(o.pos, created.length, step);
   const tokens: TokenRow[] = [];

@@ -34,7 +34,7 @@ import {
   mapRooms,
   mapTokens,
 } from '../../db/schema.js';
-import { hiddenLayerIds, mapEvent, mapSettingsOf, type Viewer } from './common.js';
+import { hiddenLayerIds, mapEvent, sceneSettingsOf, type Viewer } from './common.js';
 import {
   foggedScene,
   geometryScene,
@@ -243,7 +243,8 @@ export async function loadMapVision(
   const tokens = await presentTokens(db, mapId);
   const lightRows = await db.select().from(mapLights).where(eq(mapLights.mapId, mapId));
   const hiddenLayers = await hiddenLayerIds(db, mapId);
-  const { pixelsPerUnit, tokenScale } = await mapSettingsOf(db, campaignId);
+  // Case de la scène (grille de jeu), comme le client
+  const { pixelsPerUnit, tokenScale } = await sceneSettingsOf(db, { id: mapId, campaignId });
   const byId = new Map(tokens.map((t) => [t.id, t.pos]));
   const lights = lightsOf(lightRows, (id) => byId.get(id), pixelsPerUnit);
   const key = lightsKey(lights);

@@ -30,12 +30,12 @@ import {
   ItemParams,
   loadMap,
   mapEvent,
-  mapSettingsOf,
+  type MapRow,
   requestContext,
   requireWriter,
-  viewerOf,
-  type MapRow,
+  sceneSettingsOf,
   type Viewer,
+  viewerOf,
 } from './common.js';
 import { layerDef, lockItem, writeItem, type LayerRow } from './layers.js';
 
@@ -72,7 +72,7 @@ async function reach(tx: Tx, v: Viewer, map: MapRow, objectId: string, character
   const object = (await lockItem(tx, layerDef('objects'), v, map.id, objectId)) as ObjectRow;
   if (v.isGm) return { object, playerId: engagement.playedBy };
   if (!object.searchable) throw refused(403, 'not_searchable', 'Cet objet ne se fouille pas');
-  const { pixelsPerUnit } = await mapSettingsOf(tx, map.campaignId);
+  const { pixelsPerUnit } = await sceneSettingsOf(tx, map);
   const { rows } = await tx.execute<{ distance: number }>(sql`
     SELECT ST_Distance(t.pos, ST_Rotate(
              ST_MakeEnvelope(ST_X(o.pos), ST_Y(o.pos), ST_X(o.pos) + o.width, ST_Y(o.pos) + o.height, 0),

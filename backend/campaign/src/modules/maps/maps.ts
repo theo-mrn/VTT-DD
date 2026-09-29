@@ -23,6 +23,7 @@ import {
   UpdateMapGroup,
   UpdateMapScene,
   UpdateMapSettings,
+  playGridOf,
   uuidv7,
   type MapGroup,
   type MapScene,
@@ -48,18 +49,19 @@ import { CampaignId, Uuid } from '../schemas.js';
 import {
   Bbox,
   loadMap,
-  MapParams,
   mapEvent,
+  MapParams,
+  type MapRow,
   notFound,
   requestContext,
   requireGm,
+  sceneSettingsOf,
   settingsApi,
   sqlPoint,
   sqlUuids,
   versionConflict,
-  viewerOf,
-  type MapRow,
   type Viewer,
+  viewerOf,
 } from './common.js';
 import {
   LAYERS,
@@ -89,6 +91,7 @@ export const mapApi = (m: MapRow): MapScene => ({
   weather: m.weather,
   display: m.layers,
   fogFull: m.fogFull,
+  grids: m.grids,
   version: m.version,
   updatedAt: m.updatedAt.toISOString(),
 });
@@ -264,8 +267,10 @@ export const registerMaps: Module = async (app, deps) => {
               payload: { id: before.id },
             });
           // Brouillard, taille ou occlusion changés : la vue des joueurs aussi
+          // (la case de la scène change les rayons des lumières)
           if (
             before.fogFull !== after!.fogFull ||
+            playGridOf(before)?.size !== playGridOf(after)?.size ||
             before.width !== after!.width ||
             before.height !== after!.height ||
             occlusionOn(before.layers) !== occlusionOn(after!.layers)
@@ -389,11 +394,7 @@ export const registerMaps: Module = async (app, deps) => {
       const v = await viewerOf(db, req.params.id, userId);
       const map = await loadMap(db, v, req.params.mapId);
       const p = sqlPoint(req.query);
-      const [settings] = await db
-        .select({ ppu: mapSettings.pixelsPerUnit })
-        .from(mapSettings)
-        .where(eq(mapSettings.campaignId, map.campaignId));
-      const ppu = settings?.ppu ?? 50;
+      const ppu = (await sceneSettingsOf(db, map)).pixelsPerUnit;
       const [zones, portals, lights] = await Promise.all([
         db
           .select()

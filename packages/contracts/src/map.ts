@@ -120,6 +120,60 @@ export type MapWeather = z.infer<typeof MapWeather>;
 export const MapDisplaySetting = z.record(z.string().regex(/^[a-z_]{1,30}$/), z.boolean());
 export type MapDisplaySetting = z.infer<typeof MapDisplaySetting>;
 
+/**
+ * Quadrillage d'une scène (docs/carte.md § 4) : en pixels du monde (du fond), donc au même
+ * endroit pour tous, quels que soient l'écran et le zoom. Une scène en a plusieurs au plus
+ * `MAP_GRIDS_MAX` ; sa grille de jeu (`primary`, une au plus) donne la case de la scène :
+ * taille des tokens, rayons en unités, aimantation (`scenePixelsPerUnit`).
+ */
+export const MapGrid = z.strictObject({
+  id: z.string().regex(/^[a-z0-9-]{1,40}$/, 'Identifiant de grille invalide'),
+  name: z.string().trim().max(60, '60 caractères au plus'),
+  /** Côté d'une case, en pixels du monde. */
+  size: z.number().min(4, '4 px au moins').max(10_000),
+  /** Origine du quadrillage (pixels du monde) : une ligne passe par `offsetX`, une par `offsetY`. */
+  offsetX: z.number().min(-100_000).max(100_000),
+  offsetY: z.number().min(-100_000).max(100_000),
+  color: MapColor,
+  opacity: z.number().min(0).max(1),
+  /** Épaisseur du trait, en pixels d'écran (la même à tous les zooms). */
+  thickness: z.number().min(0.5).max(8),
+  /** Montrée aux joueurs ; la grille de jeu compte pour eux même cachée. */
+  visibleToPlayers: z.boolean(),
+  /** Grille de jeu de la scène. */
+  primary: z.boolean(),
+});
+export type MapGrid = z.infer<typeof MapGrid>;
+
+export const MAP_GRIDS_MAX = 4;
+
+export const MapGrids = z
+  .array(MapGrid)
+  .max(MAP_GRIDS_MAX, `${MAP_GRIDS_MAX} quadrillages au plus`)
+  .refine((gs) => gs.filter((g) => g.primary).length <= 1, 'Une seule grille de jeu')
+  .refine((gs) => new Set(gs.map((g) => g.id)).size === gs.length, 'Identifiants en double');
+
+/** Grille de jeu d'une scène, null sans elle. */
+export function playGridOf(
+  scene: { grids?: readonly MapGrid[] | null } | null | undefined,
+): MapGrid | null {
+  return scene?.grids?.find((g) => g.primary) ?? null;
+}
+
+/**
+ * Case d'une scène, en pixels du monde : sa grille de jeu, sinon le réglage de la campagne
+ * (`pixelsPerUnit`, 50 par défaut). Même règle pour le client et le serveur.
+ */
+export function scenePixelsPerUnit(
+  scene: { grids?: readonly MapGrid[] | null } | null | undefined,
+  settings: { pixelsPerUnit?: number | null } | null | undefined,
+): number {
+  const grid = playGridOf(scene);
+  if (grid && grid.size > 0) return grid.size;
+  const ppu = settings?.pixelsPerUnit;
+  return typeof ppu === 'number' && ppu > 0 ? ppu : 50;
+}
+
 export const MapScene = z.object({
   id: Id,
   name: z.string(),
@@ -138,6 +192,8 @@ export const MapScene = z.object({
   display: MapDisplaySetting,
   /** Toute la carte est sous le brouillard au départ ; les zones s'appliquent ensuite. */
   fogFull: z.boolean(),
+  /** Quadrillages (MJ) ; la grille de jeu donne la case de la scène. */
+  grids: z.array(MapGrid),
   version: z.number().int(),
   updatedAt: Timestamp,
 });
@@ -156,6 +212,7 @@ export const MapSceneFields = z.strictObject({
   weather: MapWeather.nullable(),
   display: MapDisplaySetting,
   fogFull: z.boolean(),
+  grids: MapGrids,
 });
 
 /** `width` et `height` vont ensemble. */

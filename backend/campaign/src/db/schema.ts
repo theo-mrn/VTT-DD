@@ -3,6 +3,7 @@
  * La source de vérité est le changelog Liquibase (backend/campaign/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
+import type { MapGrid } from '@vtt/contracts';
 import { sql } from 'drizzle-orm';
 import {
   MapBlocksFrom,
@@ -408,6 +409,8 @@ export const maps = campaignSchema.table('maps', {
   layers: jsonb('layers').$type<Record<string, boolean>>().notNull().default({}),
   /** Toute la carte sous le brouillard au départ (0017) ; les zones s'appliquent ensuite. */
   fogFull: boolean('fog_full').notNull().default(false),
+  /** Quadrillages (0021), grille de jeu comprise (`MapGrid`, @vtt/contracts). */
+  grids: jsonb('grids').$type<MapGrid[]>().notNull().default([]),
   version: integer('version').notNull().default(1),
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),

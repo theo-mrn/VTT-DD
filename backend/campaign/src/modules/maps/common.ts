@@ -12,6 +12,7 @@ import {
   MapPoint,
   mapPoints,
   MediaUrl as ContractMediaUrl,
+  scenePixelsPerUnit,
   type Visibility,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
@@ -254,6 +255,23 @@ export const settingsApi = (campaignId: string, s: SettingsRow | undefined): Map
 export async function mapSettingsOf(db: Db | Tx, campaignId: string) {
   const [s] = await db.select().from(mapSettings).where(eq(mapSettings.campaignId, campaignId));
   return settingsApi(campaignId, s);
+}
+
+/**
+ * Réglages vus depuis une scène : la case (`pixelsPerUnit`) est celle de sa grille de jeu si
+ * elle en a une, sinon celle de la campagne (`scenePixelsPerUnit`, même règle que le client).
+ */
+export async function sceneSettingsOf(
+  db: Db | Tx,
+  map: { id: string; campaignId: string; grids?: MapRow['grids'] },
+) {
+  const settings = await mapSettingsOf(db, map.campaignId);
+  let grids = map.grids;
+  if (!grids) {
+    const [row] = await db.select({ grids: maps.grids }).from(maps).where(eq(maps.id, map.id));
+    grids = row?.grids ?? [];
+  }
+  return { ...settings, pixelsPerUnit: scenePixelsPerUnit({ grids }, settings) };
 }
 
 export const iso = (d: Date) => d.toISOString();

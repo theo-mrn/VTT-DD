@@ -481,6 +481,48 @@ describe.skipIf(!TEST_DATABASE_URL)('carte', () => {
     }
   });
 
+  it('quadrillages : par scène, lus par tous ; la grille de jeu donne la case de la scène', async () => {
+    const map = await newMap();
+    const base = url(`/maps/${map.id}`);
+    const grid = {
+      id: 'cases',
+      name: 'Cases',
+      size: 100,
+      offsetX: 10,
+      offsetY: 20,
+      color: '#000000',
+      opacity: 0.4,
+      thickness: 1,
+      visibleToPlayers: true,
+      primary: true,
+    };
+    const zones = { ...grid, id: 'zones', name: 'Zones', size: 500, primary: false };
+    // Lumière de 2 unités : 100 px avec la case de la campagne (50), 200 px avec la grille (100)
+    await h.ok(gm, 'POST', `${base}/lights`, { pos: { x: 300, y: 300 }, radius: 2 });
+    const lit = async () =>
+      (await h.ok<{ lights: Item[] }>(gm, 'GET', `${base}/at?x=450&y=300`)).lights.length;
+    expect(await lit()).toBe(0);
+
+    const updated = await h.ok<Item>(gm, 'PATCH', base, { grids: [grid, zones] });
+    expect(updated.grids).toEqual([grid, zones]);
+    expect(await lit()).toBe(1);
+    const snap = await h.ok<{ map: Item }>(alice, 'GET', base);
+    expect(snap.map.grids).toEqual([grid, zones]);
+
+    // Une seule grille de jeu ; le MJ seul règle les quadrillages
+    expect(
+      (await h.request(gm, 'PATCH', base, { grids: [grid, { ...zones, primary: true }] }))
+        .statusCode,
+    ).toBe(400);
+    expect((await h.request(alice, 'PATCH', base, { grids: [] })).statusCode).toBe(403);
+
+    // Mise à l'échelle du fond : la case et l'origine suivent
+    await h.ok(gm, 'PATCH', base, { width: 1000, height: 1000 });
+    await h.ok(gm, 'POST', `${base}/rescale`, { sx: 2, sy: 2 });
+    const [scaled] = (await h.ok<{ map: Item }>(gm, 'GET', base)).map.grids as (typeof grid)[];
+    expect(scaled).toMatchObject({ size: 200, offsetX: 20, offsetY: 40 });
+  });
+
   it('personnages joueurs : sur la scène du groupe dès leur arrivée, sans s’empiler', async () => {
     const road = await newMap({ name: 'Route', spawn: { x: 500, y: 500 } });
     await h.ok(gm, 'PATCH', url('/map-settings'), { partyMapId: road.id });

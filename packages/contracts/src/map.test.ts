@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MapGrids,
+  scenePixelsPerUnit,
   MediaUrl,
   CreateMapFogZone,
   CreateMapNpcs,
@@ -126,5 +128,29 @@ describe('contrat de la carte', () => {
     expect(ok('http://localhost.exemple.fr/a.png')).toBe(false);
     expect(ok('//cdn.exemple.fr/a.png')).toBe(false);
     expect(ok('javascript:alert(1)')).toBe(false);
+  });
+
+  it('quadrillages : une seule grille de jeu, qui donne la case de la scène', () => {
+    const grid = (id: string, primary: boolean, size = 70) => ({
+      id,
+      name: id,
+      size,
+      offsetX: 12,
+      offsetY: 5,
+      color: '#000000',
+      opacity: 0.4,
+      thickness: 1,
+      visibleToPlayers: true,
+      primary,
+    });
+    expect(MapGrids.safeParse([grid('a', true), grid('b', false, 350)]).success).toBe(true);
+    expect(MapGrids.safeParse([grid('a', true), grid('b', true)]).success).toBe(false);
+    expect(MapGrids.safeParse([grid('a', false), grid('a', false)]).success).toBe(false);
+    expect(MapGrids.safeParse([1, 2, 3, 4, 5].map((i) => grid(`g${i}`, false))).success).toBe(
+      false,
+    );
+    expect(scenePixelsPerUnit({ grids: [grid('a', false), grid('b', true, 88)] }, null)).toBe(88);
+    expect(scenePixelsPerUnit({ grids: [grid('a', false)] }, { pixelsPerUnit: 64 })).toBe(64);
+    expect(scenePixelsPerUnit(null, null)).toBe(50);
   });
 });
