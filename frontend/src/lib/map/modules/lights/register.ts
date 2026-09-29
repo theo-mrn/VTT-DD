@@ -35,7 +35,7 @@ export function registerLights(engine: MapEngine, ui: LightUi = {}): () => void 
       label: 'Lumières',
       icon: Lightbulb,
       shortcut: { code: 'KeyL', label: 'L' },
-      order: 60,
+      order: 72,
       available: isGm,
       create: () => new LightTool(ctx, view),
       options: ui.options,

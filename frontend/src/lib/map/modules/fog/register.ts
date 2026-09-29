@@ -63,7 +63,7 @@ export function registerFog(engine: MapEngine, ui: FogUi = {}): () => void {
       label: 'Brouillard',
       icon: CloudFog,
       shortcut: { code: 'KeyG', label: 'G' },
-      order: 50,
+      order: 71,
       available: isGm,
       create: () => new FogTool(ctx),
       options: ui.options,

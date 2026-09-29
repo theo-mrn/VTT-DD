@@ -50,7 +50,7 @@ export function registerObstacles(engine: MapEngine, ui: ObstacleUi = {}): () =>
       label: 'Obstacles',
       icon: BrickWall,
       shortcut: { code: 'KeyW', label: 'W' },
-      order: 40,
+      order: 70,
       available: isGm,
       create: () => new ObstacleTool(ctx),
       options: ui.options,
