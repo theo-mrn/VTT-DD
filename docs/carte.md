@@ -121,6 +121,7 @@ frontend/src/lib/map/
     obstacles/           murs, portes, fenêtres, sens unique, pièces
     fog/                 zones de brouillard
     lights/              lumières
+    portals/             portails : même carte, autre scène, aller-retour, outil X, emprunter
     vision/              rendu de la visibilité (ombres, brouillard, lumières, masquage)
     weather/             météo de la scène (pluie, neige, brouillard…), plan `weather`, espace écran
 frontend/src/components/map/
@@ -289,8 +290,8 @@ en dessous de n'importe quoi d'autre.
   - Événements `map_layer.*`. Quand un calque est masqué aux joueurs, ils reçoivent
     `map_layer.hidden { id }` et retirent son contenu. Quand il redevient visible, ils relisent
     la carte.
-- **Étages.** Un autre étage est une autre scène, reliée par un portail (lot suivant, § 11). Les
-  calques servent aux superpositions d'une même scène.
+- **Étages.** Un autre étage est une autre scène, reliée par un portail aller-retour (§ 10,
+  Portails). Les calques servent aux superpositions d'une même scène.
 
 ## 6. Entités et interaction commune
 
@@ -390,10 +391,11 @@ Règles de ces gestes :
   pendant la saisie. Une lettre est celle que la touche tape (`shortcutCode`, `lib/keyboard.ts`,
   comme les panneaux de la table) : en AZERTY, la touche A pose des personnages et ⌘/Ctrl+Z
   annule. Les chiffres comptent par leur position (sans ⇧ en AZERTY), pavé numérique compris.
-- **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A (outils), R (pivoter) et K
+- **Lettres réservées** : la carte prend V, P, T, W, G, L, I, A, X (outils), R (pivoter) et K
   (calques, MJ) et Q (quadrillage). F, D, C, N, J, H, S, B, M, O, E (Scènes, MJ) et U (Mes
-  PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : X, Y, Z et les chiffres (pris par l'outil actif quand il en a
-  l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes des outils W et G).
+  PNJ, MJ) appartiennent aux panneaux de la table. Encore libres : Y, Z et les chiffres (pris
+  par l'outil actif quand il en a l'usage : nombre d'exemplaires d'une pose de PNJ, sous-modes
+  des outils W et G).
 
 ### Outils (`tools/`)
 
@@ -410,6 +412,7 @@ Règles de ces gestes :
   | T      | texte       | `drawings`  | MJ et joueurs           |
   | I      | objets      | `objects`   | MJ                      |
   | A      | personnages | `tokens`    | MJ                      |
+  | X      | portails    | `portals`   | MJ                      |
   | W      | obstacles   | `obstacles` | MJ                      |
   | G      | brouillard  | `fog`       | MJ                      |
   | L      | lumières    | `lights`    | MJ                      |
@@ -1114,11 +1117,101 @@ plafonné, et arrêté dès qu'il ne sert à rien.
   `frame` : tout le module) et un résumé dans la console toutes les 5 s ; `weather.bench.ts`
   mesure la simulation à blanc.
 
+### Portails (`portals`)
+
+Refonte des portails de l'ancienne carte (`PortalConfigDialog`, `PortalsLayer`, bouton
+« Entrer → » du joueur) : téléportation sur la même carte et changement de scène, en éléments
+comme les autres, et le serveur décide qui passe et où.
+
+- **Modèle** (`MapPortal`, couche `portals`) : un portail est **une entrée**.
+  - `pos` (centre), `radius` (pixels du monde, montré en cases), `name`, `icon` (`stairs`
+    escalier, `door` porte, `portal` portail, `ladder` échelle), `color` (donnée), `visible`
+    (des joueurs) ;
+  - destination : `same_map` (arrivée `target` sur la carte, `targetMapId` nul) ou
+    `scene_change` (`targetMapId` ; `target` : point de cette scène, nul pour son point
+    d'arrivée des joueurs, sinon son centre) ;
+  - `auto` : franchi dès qu'un joueur y lâche son token, sans question ;
+  - `linkedPortalId` : son **retour** (aller-retour).
+- **Aller-retour** : deux portails reliés, sur la même carte ou sur deux scènes (escalier du
+  rez-de-chaussée et de la cave). Le lien est symétrique et tenu par le serveur, dans la même
+  transaction : l'arrivée de l'un est toujours la place de l'autre (déplacer l'un déplace
+  l'arrivée de l'autre ; déplacer l'arrivée d'un portail relié déplace son retour) ; changer la
+  scène visée délie ; supprimer l'un délie l'autre, qui reste à sens unique. Les paires de
+  l'ancienne app (portails jumeaux « same-map ») sont reliées par la migration.
+- **Sorte `portal`** (plan `gm`, outil X ; hors de lui, touchée en dernier recours comme une
+  lumière : un token posé sur un portail reste prioritaire au clic) :
+  - rendu : zone en dégradé radial de sa couleur et anneau ; icône à taille constante (disque
+    de sa couleur, liseré clair, glyphe blanc de l'escalier, de la porte, du portail ou de
+    l'échelle) ; petits badges « aller-retour » et « automatique » ; nom en étiquette sous
+    l'icône. Masqué aux joueurs : anneau en tirets, œil barré (MJ). Sélectionné : son arrivée
+    sur la carte (repère d'arrivée relié par des tirets fléchés), ou son retour ;
+  - gestes communs : sélection, glisser (outil X), Suppr, ⌘Z, ⌘D, menu, barre, inspecteur,
+    « Masquer aux joueurs » et « Montrer » (`visible`) ;
+  - chaque partie n'est redessinée que si ce qui la décrit change ; icônes en `GraphicsContext`
+    partagés, teintés ; traits redessinés au palier de zoom (`OverlayRedraw`) ;
+  - pour un joueur : montré (et touché) seulement si son centre ou un point de sa zone est dans
+    sa vue (`visionSamples`), comme une icône de porte.
+- **Outil Portails (X, MJ)**, machine à états (testée sans rendu) :
+
+  | État          | Entrée                                                      | Sortie                                                        |
+  | ------------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
+  | `idle`        | poignée de rayon → `radius` ; poignée d'arrivée → `arrival` | portail : gestes communs (`select`) ; vide → `pressing`       |
+  | `pressing`    | +4 px : lasso (gestes communs)                              | lâcher : entrée posée (brouillon) → `destination`             |
+  | `destination` | clic sur la carte : arrivée ici ; panneau : une autre scène | le portail (et son retour) en **une** commande ; Échap : rien |
+  | `pick`        | « Choisir l'arrivée sur la carte » (inspecteur)             | clic : arrivée du portail (commande) ; Échap : rien           |
+  | `radius`      | rayon par demi-case (Alt : libre), valeur affichée          | lâcher : une commande ; Échap : rien                          |
+  | `arrival`     | glisser l'arrivée d'un portail interne non relié (aimantée) | lâcher : une commande ; Échap : rien                          |
+  - En `destination`, un panneau « Destination » (colonne de gauche) : « Cliquez sur la carte
+    pour une arrivée sur cette scène », ou la liste des autres scènes (dossiers, vignette,
+    cachée aux joueurs) ; une scène choisie, son arrivée : son point d'arrivée des joueurs (par
+    défaut) ou un point choisi sur l'aperçu de son fond ; puis « Poser le portail ». La ligne
+    entrée → pointeur est tracée pendant le choix.
+  - Barre contextuelle (réglages des portails posés, gardés dans le navigateur) : icône,
+    couleur, rayon, « Aller-retour » (activé par défaut : le retour est posé à l'arrivée, relié,
+    avec les mêmes réglages), « Automatique », « Visible des joueurs ».
+  - Nom par défaut : celui de l'icône (« Escalier »), **jamais celui de la scène visée** : une
+    scène cachée ne se nomme pas par ses portails.
+  - ⌘Z retire le portail et son retour (même sur l'autre scène).
+
+- **Inspecteur (MJ)** : nom, icône, couleur, rayon (cases), visible, automatique ;
+  destination : « Sur cette carte » (« Choisir l'arrivée sur la carte ») ou une autre scène
+  (liste ; arrivée de la scène ou point choisi sur l'aperçu) ; retour : « Relié à … »
+  (sélectionner s'il est sur la carte, délier), sinon « Poser le retour ».
+- **Menus.**
+  - Portail (MJ) : « Faire passer tout le groupe », « Faire passer les tokens de la zone »,
+    « Aller à l'arrivée » (caméra, ou le retour sélectionné) ou « Ouvrir la scène d'arrivée »,
+    « Automatique », « Sélectionner le retour », « Poser le retour », « Délier le retour ».
+  - Token ou sélection de tokens (MJ) : « Emprunter un portail ▸ » (portails de la carte).
+  - Joueur : « Emprunter » (barre de la sélection, `forPlayers`) sur un portail où se trouve un
+    de ses tokens, « Trop loin » grisé sinon ; sur son token dans un portail, au clic droit.
+- **Emprunter** (`POST …/portals/:id/use`, § 12) :
+  - un joueur qui **lâche** son token (glisser, flèches) dans un portail visible où il n'était
+    pas se voit proposer « Emprunter : <nom> » au-dessus du portail (×, Échap ou sortir de la
+    zone : la proposition disparaît) ; portail automatique : franchi aussitôt. Arriver dans un
+    portail ne le déclenche pas : pas d'aller-retour sans fin ;
+  - interne : le token va à l'arrivée ; autre scène : le personnage y voyage (`travel`) et la
+    vue du joueur suit la scène (`token.moved` de son personnage) ;
+  - arrivée : autour du point d'arrivée, une case d'écart, sans empiler (`spreadAround`, comme
+    le groupe qui voyage) ;
+  - MJ : « Faire passer tout le groupe » — interne : les personnages joueurs présents sur la
+    carte ; autre scène : tout le groupe, et la scène devient celle du groupe (comme « Faire
+    venir ») ;
+  - direct : les `token.moved` du serveur (les autres voient le token partir et arriver) ; le
+    MJ est prévenu par un toast (`map_portal.used`, MJ seul) : « Aria a emprunté
+    « Escalier » ». Un joueur ne reçoit pas le nom de la scène avant d'y arriver.
+- **Droits** (serveur, miroir côté client pour les menus) :
+  - un joueur n'emprunte un portail visible qu'avec ses personnages, dont le token est sur la
+    carte **dans la zone** (centre du token à `radius` au plus du centre du portail) ; le
+    portail lui ouvre la scène visée, même cachée aux joueurs (`/travel` reste limité aux
+    scènes qu'il voit) ;
+  - le MJ fait passer tout personnage engagé présent sur la carte, sans condition de zone ;
+  - un joueur ne reçoit ni `target`, ni `targetMapId`, ni `linkedPortalId` (nuls pour lui, en
+    REST comme sur le bus) : il ne sait où mène un portail qu'en l'empruntant.
+
 ## 11. Hors de ce lot, conservé
 
 Les données et routes restent, et le lot suivant les rebranche sur le même modèle d'entité :
 
-- portails et changement de scène par portail ;
 - zones sonores (service audio) ;
 - gabarits et mesures (règle, cône…) ;
 - partage d'écran ;
@@ -1227,6 +1320,21 @@ contrats dans `@vtt/contracts`, tests d'intégration, `docs/api-map.md` et `docs
       (`characters/visibility.ts`), `campaign.character_added` d'un PNJ en `gm_only`, et
       `token.deleted` d'un personnage retiré adressé par la vision (`deleteToken`, partagé avec
       la carte).
+14. **Portails** (§ 10, Portails ; changeset `0022-map-portals-use.sql`).
+    - Colonnes `auto` (faux par défaut) et `linked_portal_id` (portail de la même campagne,
+      clé étrangère composite, `ON DELETE SET NULL`) sur `map_portals` ; les paires jumelles de
+      l'ancienne app (même carte, arrivées croisées) sont reliées par la migration.
+    - Lien tenu par le service (`portals.ts`), dans la transaction de l'écriture : relier
+      (`linkedPortalId`) aligne la destination des deux portails ; déplacer l'un déplace
+      l'arrivée de l'autre ; déplacer l'arrivée d'un portail relié déplace son retour ; changer
+      la scène visée délie ; supprimer délie le retour. Un `map_portal.updated` par portail
+      touché, même sur une autre carte.
+    - `POST …/portals/:itemId/use { characterIds } | { party: true }` : le serveur vérifie les
+      droits (§ 10, Portails), déplace (`/tokens/move`) ou fait voyager (`travel`) et rend
+      `{ mapId, items }` ; événement `map_portal.used`, MJ seul.
+    - Non-fuite : `target`, `targetMapId` et `linkedPortalId` nuls pour un joueur (liste,
+      chargement initial, `…/at`, événements : l'événement complet part aux MJ, l'autre, de même
+      version, aux joueurs).
 
 ## 13. Découpage du chantier
 
