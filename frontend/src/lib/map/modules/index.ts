@@ -59,8 +59,8 @@ import { drawingsModule } from './drawings';
 import { tokensModule } from './tokens';
 import { objectsModule } from './objects';
 import { obstaclesModule } from './obstacles';
-// import { fogModule } from './fog';
-// import { lightsModule } from './lights';
+import { fogModule } from './fog';
+import { lightsModule } from './lights';
 import { visionModule } from './vision';
 
 export const MAP_MODULES: readonly MapModule[] = [
@@ -75,9 +75,9 @@ export const MAP_MODULES: readonly MapModule[] = [
   // Lot 2 « Outils de visibilité » : murs, portes, fenêtres, sens unique, pièces (W)
   obstaclesModule,
   // Lot 2 « Outils de visibilité » : zones de brouillard (G)
-  // fogModule,
+  fogModule,
   // Lot 2 « Outils de visibilité » : lumières (L)
-  // lightsModule,
+  lightsModule,
   // Lot 2 « Rendu de la visibilité » : ombres, brouillard, lueurs, masquage, sélecteur « Vue »
   visionModule,
 ];

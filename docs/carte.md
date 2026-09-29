@@ -862,15 +862,32 @@ la donnée elle-même, et non une tolérance, qui garantit qu'aucune vue ne fuit
 
 ### Brouillard (`fog`) et lumières (`lights`)
 
-- **Brouillard** :
-  - outils cercle, rectangle et lasso à main levée ;
-  - chacun en mode ajouter ou retirer (gomme de brouillard, Alt inverse) ;
-  - « Tout couvrir » (`fogFull`), « Tout découvrir » ;
-  - zones sélectionnables, déplaçables, supprimables comme toute entité.
-- **Lumières** :
-  - clic pour poser, poignée de rayon (en unités, affichée) ;
-  - couleur, intensité, dégradé, allumée ou éteinte ;
-  - attacher à un token (torche) : la lumière suit le token, aussi en direct.
+- **Brouillard** (outil G, MJ ; zones touchables seulement avec lui) :
+  - formes : 1 Rectangle (aimanté à la grille, désactivable), 2 Cercle (depuis le centre ; ⇧ :
+    rayon en cases entières), 3 Main levée (tracé simplifié par Ramer-Douglas-Peucker à 1,5 px
+    d'écran), 4 Sélection (gestes communs : clic, glisser, poignées de taille, lasso, Suppr) ;
+  - mode ajouter ou retirer (gomme de brouillard) dans la barre ; Alt inverse le temps du
+    geste ; un clic sans glisser sélectionne la zone touchée ;
+  - « Tout couvrir » (`fogFull` vrai) et « Tout découvrir » (faux) : les zones posées
+    disparaissent, en une commande annulable (elles reviennent dans leur ordre) ;
+  - chaque zone est une commande ; `order` et `createdBy` viennent du serveur (le brouillon est
+    posé au-dessus des autres). Une création n'envoie que les champs de sa forme ;
+  - dessin MJ : contour et voile pour `fog`, hachures et contour en tirets pour `clear`. Le
+    brouillard vu des joueurs est rendu par le module vision.
+- **Lumières** (outil L, MJ ; lumières touchables seulement avec lui) :
+  - clic pour poser (centre de la case, comme le glisser ; Alt : libre), la lumière posée est
+    sélectionnée ; réglages des lumières posées dans la barre (rayon, couleur, intensité,
+    dégradé) ;
+  - poignée de rayon sur le cercle de la lumière sélectionnée : rayon en unités, par demi-case
+    (Alt : libre), valeur affichée ; une commande au lâcher, Échap : rien ;
+  - inspecteur et menu : nom, allumée ou éteinte, rayon, couleur (donnée), intensité, dégradé ;
+  - « Attacher à un token » (torche) : la lumière est là où est le token, à chaque image, aperçu
+    du glisser et direct compris ; attachée, elle ne se déplace pas seule ; « Détacher » la
+    laisse à la dernière place du token. Le module vision lit `lightPosition(engine, light)`
+    (`modules/lights`) : une seule règle ;
+  - éteinte : le serveur ne l'envoie pas aux joueurs, son direct reste chez le MJ ;
+  - dessin MJ : icône teintée de sa couleur (taille constante), cercle du rayon, tirets à la
+    limite du plein éclairage (`falloff`) ; éteinte : cercle gris en tirets.
 
 ### Vision (`vision`)
 
