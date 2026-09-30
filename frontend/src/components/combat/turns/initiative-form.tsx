@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { SIDE_LABELS, SIDES } from './model';
 
-type Parametre = Action['parametres'][number];
+export type Parametre = Action['parametres'][number];
 
 /** Action d'initiative du système, s'il en déclare une. */
 export function initiativeAction(systeme: SystemeCharge | null | undefined): Action | null {
@@ -32,6 +32,41 @@ export function initiativeParams(action: Action | null): Parametre[] {
 }
 
 const DEFAULT = '';
+
+/** Paramètre à choix (entrée, attribut, option nommée) : une liste déroulante. */
+export function isChoiceParam(p: Parametre): boolean {
+  const type = (p as { type: string }).type;
+  return type === 'entree' || type === 'attribut' || type === 'choix';
+}
+
+/**
+ * Premier paramètre à choix de l'action d'initiative (la compétence d'un système à créneaux) :
+ * celui que l'en-tête propose par camp, comme l'ancienne app. Null : rien à choisir.
+ */
+export function sideChoiceParam(action: Action | null): Parametre | null {
+  return initiativeParams(action).find(isChoiceParam) ?? null;
+}
+
+/** Options d'un paramètre à choix, lues dans le système (sans fiche). */
+export function entryOptionsOf(systeme: SystemeCharge, p: Parametre) {
+  const type = (p as { type: string }).type;
+  if (type === 'entree') return entryOptions(systeme, p as Extract<Parametre, { type: 'entree' }>);
+  if (type === 'attribut')
+    return attributeOptions(systeme, p as Extract<Parametre, { type: 'attribut' }>);
+  const options = (p as { options?: unknown }).options;
+  return Array.isArray(options)
+    ? options.flatMap((o) =>
+        o && typeof o === 'object' && typeof (o as { valeur?: unknown }).valeur === 'string'
+          ? [
+              {
+                valeur: (o as { valeur: string }).valeur,
+                nom: String((o as { nom?: unknown }).nom ?? (o as { valeur: string }).valeur),
+              },
+            ]
+          : [],
+      )
+    : [];
+}
 
 function entryOptions(systeme: SystemeCharge, p: Extract<Parametre, { type: 'entree' }>) {
   return [...systeme.entrees.values()]
@@ -122,8 +157,7 @@ export function InitiativeParamsForm({
               />
             </div>
           );
-        const options =
-          p.type === 'entree' ? entryOptions(systeme, p) : attributeOptions(systeme, p);
+        const options = entryOptionsOf(systeme, p);
         return (
           <div key={p.id} className="space-y-1.5">
             <Label htmlFor={id} className="text-[13px]">
@@ -186,14 +220,4 @@ export function SideParamsForm({
       ))}
     </div>
   );
-}
-
-/** Paramètres par camp prêts à envoyer (camps sans choix retirés) ; undefined si rien. */
-export function sideParamsBody(value: Partial<Record<CampaignSide, ActionParams>>) {
-  const out: Partial<Record<CampaignSide, ActionParams>> = {};
-  for (const side of SIDES) {
-    const v = value[side];
-    if (v && Object.keys(v).length) out[side] = v;
-  }
-  return Object.keys(out).length ? out : undefined;
 }

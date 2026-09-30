@@ -215,10 +215,11 @@ export const panelRegistry = [
     // Remplace le panneau « MJ » (alias `mj` : anciens liens et rails personnalisés)
     id: 'combat',
     label: 'Combat',
-    description: 'Tours, initiative, rapports d’attaque et héros de la table',
+    description: 'Ordre du tour, personnage actif, rapports d’attaque et héros de la table',
     icon: Swords,
     shortcut: { code: 'KeyM', label: 'M' },
-    width: 'medium',
+    // L'ancien tableau de bord : ordre à gauche, cartes et rapports à droite
+    width: 'full',
     mode: 'side',
     roles: ['gm'],
     activity: ['combat.attack_resolved'],

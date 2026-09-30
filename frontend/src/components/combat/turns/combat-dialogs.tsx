@@ -26,12 +26,8 @@ import { combatFailure, combatSettings, useCombatCommands } from '@/lib/combat/u
 import { cn } from '@/lib/utils';
 import { CheckBox } from '../check-box';
 import { SIDE_LABELS, startCandidates } from './model';
-import {
-  SideParamsForm,
-  initiativeAction,
-  initiativeParams,
-  sideParamsBody,
-} from './initiative-form';
+import { SideParamsForm, initiativeAction, initiativeParams } from './initiative-form';
+import { sideParamsBody } from './setup';
 import { SettingsFields } from './start-combat';
 import type { CastMember } from './use-cast';
 import { useSceneTokens } from './use-scene-tokens';
@@ -57,15 +53,47 @@ export function InitiativeDialog({
   campaignId,
   combat,
   systeme,
+  initial,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
   campaignId: string;
   combat: CombatState;
   systeme: SystemeCharge | null;
+  /** Choix par camp de l'en-tête, repris à l'ouverture. */
+  initial?: Partial<Record<CampaignSide, ActionParams>>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && (
+        <InitiativeBody
+          campaignId={campaignId}
+          combat={combat}
+          systeme={systeme}
+          initial={initial ?? {}}
+          onOpenChange={onOpenChange}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function InitiativeBody({
+  onOpenChange,
+  campaignId,
+  combat,
+  systeme,
+  initial,
+}: {
+  onOpenChange(open: boolean): void;
+  campaignId: string;
+  combat: CombatState;
+  systeme: SystemeCharge | null;
+  initial: Partial<Record<CampaignSide, ActionParams>>;
 }) {
   const commands = useCombatCommands(campaignId);
-  const [sideParams, setSideParams] = useState<Partial<Record<CampaignSide, ActionParams>>>({});
+  const [sideParams, setSideParams] =
+    useState<Partial<Record<CampaignSide, ActionParams>>>(initial);
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const action = initiativeAction(systeme);
@@ -90,52 +118,54 @@ export function InitiativeDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Initiative</DialogTitle>
-          <DialogDescription>
-            {action
-              ? `« ${action.nom} » pour chaque participant ; l’ordre suit le résultat.`
-              : 'Le système ne déclare pas d’initiative.'}
-          </DialogDescription>
-        </DialogHeader>
-        {action && systeme && (
-          <div className="space-y-4">
-            <SideParamsForm
-              systeme={systeme}
-              parametres={parametres}
-              sides={sides}
-              value={sideParams}
-              onChange={setSideParams}
-              disabled={busy}
-            />
-            {combat.initiativeRolled && (
-              <div className="flex items-center justify-between gap-4">
-                <Label htmlFor="init-missing" className="text-[13px]">
-                  Seulement ceux qui n’en ont pas ({missing.length})
-                </Label>
-                <Switch
-                  id="init-missing"
-                  checked={onlyMissing}
-                  disabled={busy || !missing.length}
-                  onCheckedChange={setOnlyMissing}
-                />
-              </div>
-            )}
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-            Annuler
-          </Button>
-          <Button onClick={() => void roll()} loading={busy} disabled={!action}>
-            <Dices />
-            {combat.initiativeRolled ? 'Relancer' : 'Lancer l’initiative'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <DialogContent
+      className="sm:max-w-md"
+      onInteractOutside={(e) => busy && e.preventDefault()}
+      onEscapeKeyDown={(e) => busy && e.preventDefault()}
+    >
+      <DialogHeader>
+        <DialogTitle>Initiative</DialogTitle>
+        <DialogDescription>
+          {action
+            ? `« ${action.nom} » pour chaque participant ; l’ordre suit le résultat.`
+            : 'Le système ne déclare pas d’initiative.'}
+        </DialogDescription>
+      </DialogHeader>
+      {action && systeme && (
+        <div className="space-y-4">
+          <SideParamsForm
+            systeme={systeme}
+            parametres={parametres}
+            sides={sides}
+            value={sideParams}
+            onChange={setSideParams}
+            disabled={busy}
+          />
+          {combat.initiativeRolled && (
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="init-missing" className="text-[13px]">
+                Seulement ceux qui n’en ont pas ({missing.length})
+              </Label>
+              <Switch
+                id="init-missing"
+                checked={onlyMissing}
+                disabled={busy || !missing.length}
+                onCheckedChange={setOnlyMissing}
+              />
+            </div>
+          )}
+        </div>
+      )}
+      <DialogFooter>
+        <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+          Annuler
+        </Button>
+        <Button onClick={() => void roll()} loading={busy} disabled={!action}>
+          <Dices />
+          {combat.initiativeRolled ? 'Relancer' : 'Lancer l’initiative'}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 

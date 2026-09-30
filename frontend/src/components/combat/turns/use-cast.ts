@@ -20,6 +20,12 @@ import {
   type SystemeCharge,
 } from '@vtt/rules';
 import { useMemo, useRef } from 'react';
+import {
+  estRessource,
+  visiblePour,
+  widgetsDe,
+  type ContexteFiche,
+} from '@/components/fiche/widgets';
 import { mainResource } from '@/components/map/tokens/resource';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne } from '@/lib/campagnes';
@@ -160,10 +166,62 @@ export function statesOf(
 
 // ─── Fiches des participants ─────────────────────────────────────────────────
 
+/**
+ * Valeur clé d'un personnage pour les cartes compactes : celles du premier bloc « ressources »
+ * de la présentation (PV et Défense, Blessures et Stress…), l'ancien « DEF · PV ».
+ */
+export interface KeyStat {
+  key: string;
+  label: string;
+  /** Texte affiché : « 12 / 20 » pour une ressource, la valeur sinon. */
+  value: string;
+  /** Ressource : part (0 à 1), couleur de la présentation, jauge qui se remplit. */
+  gauge: { ratio: number; color: string | null; rising: boolean } | null;
+}
+
+/** Valeurs clés d'une fiche calculée (trois au plus), visibles de ce viewer. */
+export function keyStatsOf(ctx: ContexteFiche, max = 3): KeyStat[] {
+  const { fiche, presentation } = ctx;
+  const bloc = widgetsDe(ctx).find((w) => w.type === 'ressources');
+  const keys =
+    bloc?.type === 'ressources'
+      ? bloc.attributs
+      : [...fiche.entite.attributs.values()]
+          .filter((a) => a.nature === 'ressource')
+          .map((a) => a.cle);
+  const out: KeyStat[] = [];
+  for (const key of keys) {
+    if (out.length >= max) break;
+    const a = fiche.entite.attributs.get(key);
+    const v = fiche.valeurs.get(key);
+    if (!a || !v || !visiblePour(ctx, key)) continue;
+    const label = a.abrege ?? a.nom;
+    if (estRessource(ctx, key) && typeof v.valeur === 'number') {
+      const top = typeof v.max === 'number' ? v.max : v.valeur;
+      const look = presentation?.ressources[key];
+      out.push({
+        key,
+        label,
+        value: `${v.valeur} / ${top}`,
+        gauge: {
+          ratio: top > 0 ? Math.max(0, Math.min(1, v.valeur / top)) : 0,
+          color: look?.couleur ?? null,
+          rising: look?.sens === 'montant',
+        },
+      });
+    } else if (v.valeur !== undefined && v.valeur !== '') {
+      out.push({ key, label, value: String(v.valeur), gauge: null });
+    }
+  }
+  return out;
+}
+
 export interface ParticipantSheet {
   sheet: FichePersonnage;
   fiche: Fiche | null;
   gauge: ResourceGauge | null;
+  /** Valeurs clés de la présentation (cartes compactes). */
+  keyStats: KeyStat[];
   states: TimedState[];
 }
 
@@ -178,7 +236,11 @@ export function useParticipantSheets(
   campaignId: string,
   systemId: string,
   ids: readonly string[],
-): { sheets: ReadonlyMap<string, ParticipantSheet>; systeme: SystemeCharge | null } {
+): {
+  sheets: ReadonlyMap<string, ParticipantSheet>;
+  systeme: SystemeCharge | null;
+  presentation: Presentation | null;
+} {
   const sys = useCampaignSystem(systemId, campaignId);
   const sheets = useQueries({
     queries: ids.map((id) => ({
@@ -205,13 +267,22 @@ export function useParticipantSheets(
       }
       let fiche: Fiche | null = null;
       let gauge: ResourceGauge | null = null;
+      let keyStats: KeyStat[] = [];
       try {
         fiche = calculer(s.systeme, sheet.state);
+        const personnage = { id: sheet.id, name: sheet.name, roomId: campaignId };
         gauge = mainResource({
           systeme: s.systeme,
           presentation: s.presentation,
           fiche,
-          personnage: { id: sheet.id, name: sheet.name, roomId: campaignId },
+          personnage,
+          mj: true,
+        });
+        keyStats = keyStatsOf({
+          systeme: s.systeme,
+          presentation: s.presentation,
+          fiche,
+          personnage,
           mj: true,
         });
       } catch {
@@ -221,6 +292,7 @@ export function useParticipantSheets(
         sheet,
         fiche,
         gauge,
+        keyStats,
         states: statesOf(sheet, s.systeme, stateSorts, stateIcons),
       };
       cache.current.set(sheet, { sys: s, value });
@@ -229,5 +301,9 @@ export function useParticipantSheets(
     return map;
   }, [sheets, sys.data, campaignId]);
 
-  return { sheets: out, systeme: sys.data?.systeme ?? null };
+  return {
+    sheets: out,
+    systeme: sys.data?.systeme ?? null,
+    presentation: sys.data?.presentation ?? null,
+  };
 }

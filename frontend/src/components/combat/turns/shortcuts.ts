@@ -44,4 +44,4 @@ export function combatShortcutOf(e: ShortcutKey): CombatShortcut | null {
 
 /** Sélecteur des cibles où une touche appartient à la saisie ou à un menu ouvert. */
 export const TYPING_SELECTOR =
-  'input, textarea, select, [contenteditable="true"], [role="menu"], [role="listbox"], [role="radiogroup"], [role="dialog"]:not([data-table-panel]), [role="alertdialog"]';
+  'input, textarea, select, [contenteditable="true"], [role="menu"], [role="listbox"], [role="combobox"], [role="radiogroup"], [role="slider"], [role="tablist"], [role="dialog"]:not([data-table-panel]), [role="alertdialog"]';

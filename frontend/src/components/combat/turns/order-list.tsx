@@ -1,16 +1,18 @@
 'use client';
 
 /**
- * Ordre du tour (docs/combat.md § 12.3) : position, portrait, nom, jauge de la ressource
- * principale, initiative et son détail, états et durées, caché aux joueurs, hors de combat
- * grisé. Glisser une ligne la déplace (ou « Monter », « Descendre » au menu, au clavier) ; un
- * clic ouvre la fiche du participant ; le menu donne le tour, relance l'initiative, etc.
+ * Ordre du tour (docs/combat.md § 12.3), colonne de gauche du panneau Combat : position,
+ * portrait, nom, jauge de la ressource principale, détail d'initiative, états et durées, puces
+ * de situation (surpris, a agi, visé ce round), « + » (ressources) ; tour courant surligné,
+ * caché aux joueurs marqué, hors de combat grisé. Un clic consulte le participant (carte
+ * « Consulté », ou sa fiche en vue empilée) ; glisser une ligne la déplace (ou « Monter »,
+ * « Descendre » au menu, au clavier) ; le menu de ligne donne le tour, attaque avec, relance ou
+ * saisit l'initiative, cache, surprend, met hors de combat, retire.
  */
 import type { CombatState } from '@vtt/contracts';
 import {
   ArrowDown,
   ArrowUp,
-  Check,
   Dices,
   ExternalLink,
   Eye,
@@ -18,11 +20,15 @@ import {
   GripVertical,
   Hand,
   Hourglass,
+  IdCard,
   MoreHorizontal,
+  PencilLine,
   Skull,
   Swords,
   UserMinus,
+  Zap,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useState, type DragEvent } from 'react';
 import { Illustration } from '@/components/commun/illustration';
 import { PanelLink } from '@/components/table/panels/navigation';
@@ -36,43 +42,54 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Info } from '@/components/ui/tooltip';
-import type { ResourceGauge } from '@/lib/map/modules/tokens/model';
 import { cn } from '@/lib/utils';
 import { SIDE_LABELS, turnRows, type TurnRow } from './model';
+import { Gauge, ResourcesPopover, SituationChips } from './parts';
+import { situationChips } from './situation';
 import { StateBadge } from './states-manager';
 import type { CastMember, ParticipantSheet } from './use-cast';
 
 export interface OrderActions {
+  /** Clic sur la ligne : consulter (carte « Consulté », ou fiche en vue empilée). */
+  consult(characterId: string): void;
+  /** Fiche détaillée (initiative à saisir…). */
   open(characterId: string): void;
   attackWith(characterId: string): void;
   giveTurn(characterId: string): void;
   reroll(characterId: string): void;
   setHidden(characterId: string, hidden: boolean): void;
+  setSurprised(characterId: string, surprised: boolean): void;
   setDefeated(characterId: string, defeated: boolean): void;
   move(characterId: string, to: number): void;
   remove(characterId: string): void;
 }
 
 const MAX_BADGES = 3;
+const ROW_TRANSITION = { type: 'spring', stiffness: 520, damping: 42, mass: 0.8 } as const;
 
 export function OrderList({
   combat,
   cast,
   sheets,
   busy,
+  consulted,
+  canAttack,
   actions,
 }: {
   combat: CombatState;
   cast: ReadonlyMap<string, CastMember>;
   sheets: ReadonlyMap<string, ParticipantSheet>;
   busy: boolean;
+  /** Participant affiché dans la carte « Consulté ». */
+  consulted: string | null;
+  canAttack: boolean;
   actions: OrderActions;
 }) {
   const rows = turnRows(combat);
   const [dragged, setDragged] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
 
-  const over = (e: DragEvent<HTMLLIElement>, index: number) => {
+  const over = (e: DragEvent<HTMLDivElement>, index: number) => {
     if (!dragged) return;
     e.preventDefault();
     const box = e.currentTarget.getBoundingClientRect();
@@ -89,71 +106,59 @@ export function OrderList({
     setDropAt(null);
   };
 
+  if (!rows.length)
+    return (
+      <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-[13px] text-muted-foreground">
+        Personne au combat : ajoutez des participants.
+      </p>
+    );
+
   return (
-    <ol className="space-y-1" aria-label="Ordre du tour" onDragEnd={() => setDragged(null)}>
+    <ol className="space-y-1" aria-label="Ordre du tour">
       {rows.map((row, i) => (
-        <li
-          key={row.characterId}
-          draggable={!busy}
-          onDragStart={(e) => {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', row.characterId);
-            setDragged(row.characterId);
-          }}
-          onDragOver={(e) => over(e, i)}
-          onDrop={(e) => {
-            e.preventDefault();
-            drop();
-          }}
-          className={cn(
-            'relative',
-            dragged === row.characterId && 'opacity-40',
-            dropAt === i &&
-              dragged &&
-              'before:absolute before:inset-x-2 before:-top-[3px] before:h-0.5 before:rounded-full before:bg-primary',
-            dropAt === i + 1 &&
-              dragged &&
-              i === rows.length - 1 &&
-              'after:absolute after:inset-x-2 after:-bottom-[3px] after:h-0.5 after:rounded-full after:bg-primary',
-          )}
-        >
-          <OrderRow
-            row={row}
-            member={cast.get(row.characterId) ?? null}
-            sheet={sheets.get(row.characterId) ?? null}
-            count={rows.length}
-            busy={busy}
-            actions={actions}
-          />
-        </li>
+        <motion.li key={row.characterId} layout="position" transition={ROW_TRANSITION}>
+          <div
+            draggable={!busy}
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', row.characterId);
+              setDragged(row.characterId);
+            }}
+            onDragEnd={() => {
+              setDragged(null);
+              setDropAt(null);
+            }}
+            onDragOver={(e) => over(e, i)}
+            onDrop={(e) => {
+              e.preventDefault();
+              drop();
+            }}
+            className={cn(
+              'relative',
+              dragged === row.characterId && 'opacity-40',
+              dropAt === i &&
+                dragged &&
+                'before:absolute before:inset-x-2 before:-top-[3px] before:h-0.5 before:rounded-full before:bg-primary',
+              dropAt === i + 1 &&
+                dragged &&
+                i === rows.length - 1 &&
+                'after:absolute after:inset-x-2 after:-bottom-[3px] after:h-0.5 after:rounded-full after:bg-primary',
+            )}
+          >
+            <OrderRow
+              row={row}
+              member={cast.get(row.characterId) ?? null}
+              sheet={sheets.get(row.characterId) ?? null}
+              count={rows.length}
+              busy={busy}
+              consulted={consulted === row.characterId}
+              canAttack={canAttack}
+              actions={actions}
+            />
+          </div>
+        </motion.li>
       ))}
     </ol>
-  );
-}
-
-function Gauge({ gauge }: { gauge: ResourceGauge }) {
-  const ratio = gauge.max > 0 ? Math.max(0, Math.min(1, gauge.value / gauge.max)) : 0;
-  return (
-    <span
-      className="flex w-20 shrink-0 flex-col gap-0.5"
-      title={`${gauge.label} : ${gauge.value} / ${gauge.max}`}
-    >
-      <span className="flex items-baseline justify-between text-[10px] leading-none">
-        <span className="truncate text-subtle">{gauge.label}</span>
-        <span className="font-mono tabular-nums text-muted-foreground">
-          {gauge.value}/{gauge.max}
-        </span>
-      </span>
-      <span className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-        <span
-          className={cn('block h-full rounded-full', !gauge.color && 'bg-primary')}
-          style={{
-            width: `${ratio * 100}%`,
-            ...(gauge.color ? { background: gauge.color } : {}),
-          }}
-        />
-      </span>
-    </span>
   );
 }
 
@@ -163,6 +168,8 @@ function OrderRow({
   sheet,
   count,
   busy,
+  consulted,
+  canAttack,
   actions,
 }: {
   row: TurnRow;
@@ -170,11 +177,15 @@ function OrderRow({
   sheet: ParticipantSheet | null;
   count: number;
   busy: boolean;
+  consulted: boolean;
+  canAttack: boolean;
   actions: OrderActions;
 }) {
   const name = member?.name ?? 'Personnage';
   const states = sheet?.states ?? [];
   const id = row.characterId;
+  const p = row.participant;
+  const chips = situationChips(p, { current: row.current });
   const [confirm, setConfirm] = useState(false);
   return (
     <div
@@ -182,15 +193,25 @@ function OrderRow({
         'group relative flex items-center gap-2.5 rounded-xl border px-2 py-2 transition-colors',
         row.current
           ? 'border-primary/50 bg-primary/10 shadow-surface'
-          : 'border-transparent hover:border-border hover:bg-surface',
+          : consulted
+            ? 'border-info/40 bg-info/5'
+            : 'border-transparent hover:border-border hover:bg-surface',
         row.defeated && 'opacity-55',
       )}
       aria-current={row.current ? 'step' : undefined}
     >
+      {row.current && (
+        <motion.span
+          layoutId="combat-turn-marker"
+          aria-hidden
+          className="absolute inset-y-2 left-0 w-1 rounded-full bg-primary"
+          transition={ROW_TRANSITION}
+        />
+      )}
       <button
         type="button"
-        onClick={() => actions.open(id)}
-        aria-label={`${name} : ouvrir sa fiche de combat`}
+        onClick={() => actions.consult(id)}
+        aria-label={`Consulter ${name}`}
         className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       />
       <span
@@ -201,7 +222,7 @@ function OrderRow({
       </span>
       <span
         className={cn(
-          'w-5 shrink-0 text-center font-mono text-xs tabular-nums',
+          'w-5 shrink-0 text-center font-mono text-sm tabular-nums',
           row.current ? 'font-bold text-primary-strong' : 'text-subtle',
         )}
       >
@@ -213,7 +234,7 @@ function OrderRow({
           graine={name}
           position="top"
           className={cn(
-            'size-9 rounded-full ring-2',
+            'size-10 rounded-full ring-2',
             row.current ? 'ring-primary' : 'ring-border',
             row.defeated && 'grayscale',
           )}
@@ -226,14 +247,17 @@ function OrderRow({
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className={cn('truncate text-sm font-medium', row.defeated && 'line-through')}>
+          <span
+            className={cn(
+              'truncate text-sm font-medium',
+              row.current && 'font-semibold',
+              row.defeated && 'line-through',
+            )}
+          >
             {name}
           </span>
           {row.hidden && (
             <EyeOff className="size-3.5 shrink-0 text-info" aria-label="Caché aux joueurs" />
-          )}
-          {row.acted && !row.current && (
-            <Check className="size-3.5 shrink-0 text-success" aria-label="A agi ce round" />
           )}
           {row.pendingInitiative && (
             <Hourglass
@@ -243,28 +267,44 @@ function OrderRow({
           )}
         </span>
         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="shrink-0">{SIDE_LABELS[row.participant.side].name}</span>
+          <span className="shrink-0">{SIDE_LABELS[p.side].name}</span>
           {row.initiative && (
             <>
               <span aria-hidden>·</span>
-              <span className="truncate font-mono tabular-nums" title={row.initiative}>
-                Init. {row.initiative}
+              <span className="flex min-w-0 items-center gap-1" title={row.initiative}>
+                <Dices className="size-3 shrink-0" aria-hidden />
+                <span className="truncate font-mono tabular-nums">{row.initiative}</span>
               </span>
             </>
           )}
         </span>
-        {states.length > 0 && (
-          <span className="mt-1 flex flex-wrap gap-1">
+        {(states.length > 0 || chips.length > 0) && (
+          <span className="relative z-10 mt-1 flex flex-wrap items-center gap-1">
+            <SituationChips chips={chips} />
             {states.slice(0, MAX_BADGES).map((s) => (
               <StateBadge key={s.key} state={s} />
             ))}
             {states.length > MAX_BADGES && (
-              <span className="text-[11px] text-subtle">+{states.length - MAX_BADGES}</span>
+              <Info
+                texte={states
+                  .slice(MAX_BADGES)
+                  .map((s) => s.name)
+                  .join(', ')}
+              >
+                <span className="cursor-help text-[11px] text-subtle">
+                  +{states.length - MAX_BADGES}
+                </span>
+              </Info>
             )}
           </span>
         )}
       </span>
       {sheet?.gauge && <Gauge gauge={sheet.gauge} />}
+      <ResourcesPopover
+        characterId={id}
+        name={name}
+        className="opacity-100 transition-opacity lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100"
+      />
       <DropdownMenu onOpenChange={(open) => !open && setConfirm(false)}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -277,23 +317,42 @@ function OrderRow({
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem disabled={row.current} onSelect={() => actions.giveTurn(id)}>
+        <DropdownMenuContent align="end" className="w-60">
+          <DropdownMenuItem onSelect={() => actions.open(id)}>
+            <IdCard />
+            Fiche de combat
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={row.current || row.defeated}
+            onSelect={() => actions.giveTurn(id)}
+          >
             <Hand />
             Donner le tour
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={row.defeated} onSelect={() => actions.attackWith(id)}>
+          <DropdownMenuItem
+            disabled={row.defeated || !canAttack}
+            onSelect={() => actions.attackWith(id)}
+          >
             <Swords />
             Attaquer avec
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => actions.reroll(id)}>
             <Dices />
             {row.initiative ? 'Relancer l’initiative' : 'Lancer l’initiative'}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => actions.open(id)}>
+            <PencilLine />
+            Saisir l’initiative…
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => actions.setHidden(id, !row.hidden)}>
             {row.hidden ? <Eye /> : <EyeOff />}
             {row.hidden ? 'Montrer aux joueurs' : 'Cacher aux joueurs'}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => actions.setSurprised(id, p.surprised !== true)}>
+            <Zap />
+            {p.surprised ? 'N’est plus surpris' : 'Surpris'}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => actions.setDefeated(id, !row.defeated)}>
             <Skull />
@@ -344,7 +403,7 @@ function OrderRow({
 export function OrderHint() {
   return (
     <Info texte="Glissez une ligne pour changer l’ordre ; le tour reste au même participant.">
-      <span className="text-[11px] text-subtle">Glisser pour réordonner</span>
+      <span className="cursor-help text-[11px] text-subtle">Glisser pour réordonner</span>
     </Info>
   );
 }

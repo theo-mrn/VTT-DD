@@ -5,6 +5,8 @@ describe('registre des panneaux', () => {
   it('le panneau Combat remplace le panneau MJ (touche M, MJ seul)', () => {
     const combat = panelsFor('gm').find((p) => p.id === 'combat');
     expect(combat?.shortcut.label).toBe('M');
+    // L'ancien tableau de bord : ordre à gauche, rapports à droite, toute la largeur
+    expect(combat?.width).toBe('full');
     expect(panelsFor('player').some((p) => p.id === 'combat')).toBe(false);
   });
 
