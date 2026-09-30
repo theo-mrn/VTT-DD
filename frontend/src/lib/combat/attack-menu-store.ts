@@ -25,12 +25,15 @@ export interface AttackMenuStore {
   flow: AttackFlowState;
   /** Compteur des ouvertures (un hôte réagit à chaque « Attaquer », même menu déjà ouvert). */
   opens: number;
+  /** Hôtes montés par campagne (la table) : sans hôte, « Attaquer » n'est pas proposé. */
+  hosts: Readonly<Record<string, number>>;
   dispatch(event: AttackFlowEvent): void;
 }
 
 export const attackMenuStore = createStore<AttackMenuStore>()((set, get) => ({
   flow: CLOSED,
   opens: 0,
+  hosts: {},
   dispatch: (event) => {
     const next = reduceAttackFlow(get().flow, event);
     if (event.type === 'open') set((s) => ({ flow: next, opens: s.opens + 1 }));
@@ -57,4 +60,24 @@ export function closeAttackMenu() {
 /** Lecture sélective de l'état du menu (re-rendu seulement si la sélection change). */
 export function useAttackFlow<T>(selector: (flow: AttackFlowState) => T): T {
   return useStore(attackMenuStore, (s) => selector(s.flow));
+}
+
+/** Un hôte du menu est monté pour cette campagne (la table) ; renvoie son retrait. */
+export function registerAttackHost(campaignId: string): () => void {
+  const bump = (n: number) =>
+    attackMenuStore.setState((s) => ({
+      hosts: { ...s.hosts, [campaignId]: Math.max(0, (s.hosts[campaignId] ?? 0) + n) },
+    }));
+  bump(1);
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    bump(-1);
+  };
+}
+
+/** Le menu d'attaque peut s'ouvrir pour cette campagne (on est à sa table). */
+export function useAttackHost(campaignId: string | null | undefined): boolean {
+  return useStore(attackMenuStore, (s) => Boolean(campaignId && s.hosts[campaignId]));
 }

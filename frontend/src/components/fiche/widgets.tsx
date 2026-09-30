@@ -25,7 +25,7 @@ import { Progress } from '@/components/ui/progress';
 import { FittingLabel } from '@/components/ui/fitting-label';
 import { Info } from '@/components/ui/tooltip';
 import { targetedActions } from '@/lib/combat/actions';
-import { openAttackMenu } from '@/lib/combat/attack-menu-store';
+import { openAttackMenu, useAttackHost } from '@/lib/combat/attack-menu-store';
 import { afficherValeur, champsLisibles, explication, groupesAttributs } from '@/lib/creation';
 import type {
   DemandeBonus,
@@ -699,11 +699,12 @@ export function BlocActions({
 }) {
   const actions = actionsDisponibles(ctx, widget.actions);
   const [ouverte, setOuverte] = useState<string | null>(null);
-  // Actions à cible (attaques, sorts, soins) : elles se jouent dans le menu d'attaque, en campagne
+  // Actions à cible (attaques, sorts, soins) : elles se jouent dans le menu d'attaque, à la table
   const campagne = ctx.personnage.roomId;
-  const attaque = Boolean(
-    campagne && ctx.operations && targetedActions(ctx.systeme, ctx.fiche).length,
-  );
+  const aLaTable = useAttackHost(campagne);
+  const attaque =
+    aLaTable &&
+    Boolean(campagne && ctx.operations && targetedActions(ctx.systeme, ctx.fiche).length);
   // Le service tire les jets d'action pour qui peut modifier le personnage
   if ((actions.length === 0 && !attaque) || !ctx.operations) return null;
   const operations = ctx.operations;

@@ -15,7 +15,7 @@ import { usePanelStoreApi } from '@/components/table/panels/store';
 import { panelRegistry } from '@/components/table/panels/registry';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { useActiveMap } from '@/lib/map/active-map';
-import { attackMenuStore } from '@/lib/combat/attack-menu-store';
+import { attackMenuStore, registerAttackHost } from '@/lib/combat/attack-menu-store';
 import { AttackMenu } from './attack-menu';
 
 /** Surcouche de la carte (colonne de gauche). */
@@ -30,6 +30,7 @@ export function AttackMenuSlot({ engine }: { engine: MapEngine }) {
  */
 export function AttackMenuFallback({ campaignId }: { campaignId: string }) {
   const { engine } = useActiveMap(campaignId);
+  useEffect(() => registerAttackHost(campaignId), [campaignId]);
   useCloseCoveringPanel(campaignId);
   if (engine) return null;
   return (
