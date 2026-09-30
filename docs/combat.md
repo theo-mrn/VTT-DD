@@ -939,8 +939,17 @@ onglets. Entrée du registre `combat` (touche M, rôles `gm`, largeur `full`) ; 
   présentation, ressource principale, « Attaquer avec ») ; un clic ouvre la fiche détaillée en
   dialogue : ressources ±, états (catalogue, état libre, durée), attributs, initiative et son
   override. Dessous, **Rapports d'attaque** sur tout l'espace restant (§ 12.4).
-- Panneau étroit ou mobile : carte active, rapports, ordre, empilés.
+- Panneau étroit ou mobile : carte active, rapports, ordre, empilés. La mise en page suit la
+  largeur du panneau, mesurée (`turns/layout.ts`, `use-combat-layout.ts`), jamais celle de
+  l'écran : deux colonnes dès 720 px, rapports sur deux colonnes dès 1 080 px (640 px empilé).
+  Chaque mode a son arbre, dans l'ordre visuel (lecteur d'écran, tabulation). En vue empilée,
+  un clic sur une ligne ouvre directement la fiche (pas de carte « Consulté »).
 - **Héros de la table** : vue secondaire (menu ⋯), contenu de l'ancien panneau MJ (§ 2.6).
+- **Ajouts** (au-delà de l'ancienne app) : raccourcis du panneau (→ Suivant, ← Précédent,
+  A attaquer avec le personnage actif, T tout appliquer ; focus dans le panneau ou nulle part,
+  jamais en saisie), liste au menu ⋯ ; « + » d'une ligne : ressources de la fiche en fenêtre
+  surgissante ; la ligne du tour reste en vue dans sa colonne ; fiche détaillée : « Viser avec »
+  (le participant qui agit attaque ce personnage).
 
 ### 12.4 Rapports (MJ)
 
@@ -956,6 +965,11 @@ onglets. Entrée du registre `combat` (touche M, rôles `gm`, largeur `full`) ; 
 - Modifier : tiroir avec les raccourcis de § 7.1 (cible modifiable, ± pré-remplis, aperçu de la
   ressource avant et après).
 - Décidé : grisé, ce qui a été appliqué, « Annuler l'application ».
+- **Ajouts** : un rapport décidé sous les yeux du MJ reste grisé dans « En attente » jusqu'au
+  passage de tour (l'ancienne app le gardait jusqu'à « Suivant »), « Ranger les décidés » ;
+  filtre par personnage (attaquant, cible ou réattribué ; aussi au menu ⋯ d'une carte) ; clic
+  sur un nom : sa fiche ; « Appliquer tout le rapport tel quel » au menu d'une carte à
+  plusieurs cibles ; valeur rouge quand elle aggrave la cible (jauge qui se vide ou qui monte).
 
 ### 12.5 Carte
 
