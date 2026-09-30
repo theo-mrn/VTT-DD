@@ -97,6 +97,7 @@ export function registerCombat(
         s,
         draft?.attackerId ? { attackerId: draft.attackerId, targetIds: draft.targetIds } : null,
       ),
+      defeated: new Set(s.defeatedIds),
     };
   };
 
@@ -126,7 +127,16 @@ export function registerCombat(
       syncTool();
       notify();
     }),
-    state.subscribe(notify),
+    state.subscribe((s, prev) => {
+      // Les badges d'états ont leur propre abonnement : les anneaux ne se refont pas pour eux
+      if (
+        s.turnCharacterId !== prev.turnCharacterId ||
+        s.openTargetIds !== prev.openTargetIds ||
+        s.aims !== prev.aims ||
+        s.defeatedIds !== prev.defeatedIds
+      )
+        notify();
+    }),
     mountCombatRings(engine, {
       snapshot,
       subscribe: (l) => {

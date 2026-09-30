@@ -6,6 +6,7 @@
  * Aucune fuite : un token masqué pour moi (vision, affichage) ne compte jamais, ni pour les
  * anneaux ni pour une zone ; ce que je vois de la carte est ce que le serveur m'a donné.
  */
+import type { CombatState } from '@vtt/contracts';
 import type { MapEntity } from '../../engine/entities/entity';
 import type { MapEngine } from '../../engine/map-engine';
 import { TOKEN_KIND_ID } from '../tokens/edit';
@@ -22,6 +23,8 @@ export interface CombatMapState {
   aims: readonly { attackerId: string; targetIds: readonly string[] }[];
   /** États des personnages dont je lis la fiche (badges des tokens). */
   states: ReadonlyMap<string, readonly MapStateBadge[]>;
+  /** Participants hors de combat que je vois (tokens grisés). */
+  defeatedIds: readonly string[];
 }
 
 export const EMPTY_COMBAT_MAP: CombatMapState = {
@@ -29,6 +32,7 @@ export const EMPTY_COMBAT_MAP: CombatMapState = {
   openTargetIds: [],
   aims: [],
   states: new Map(),
+  defeatedIds: [],
 };
 
 export const isToken = (e: MapEntity) => e.kind.id === TOKEN_KIND_ID;
@@ -70,4 +74,12 @@ export function aimLines(
 ): { attackerId: string; targetIds: readonly string[] }[] {
   const lines = state.aims.filter((a) => a.targetIds.length);
   return mine && mine.targetIds.length ? [...lines, mine] : lines;
+}
+
+/**
+ * Participants hors de combat à griser : ceux de l'état que j'ai reçu (vue expurgée pour un
+ * joueur : un participant caché n'y est pas, rien n'est révélé).
+ */
+export function defeatedOf(combat: Pick<CombatState, 'order'> | null | undefined): string[] {
+  return (combat?.order ?? []).filter((p) => p.defeated === true).map((p) => p.characterId);
 }

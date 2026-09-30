@@ -5,7 +5,7 @@
  * montrent vient de React et part dans l'état du module.
  *
  * - Participant qui agit (`useCombat`, vue expurgée pour un joueur : un participant caché
- *   n'a pas d'anneau).
+ *   n'a pas d'anneau), et participants hors de combat (tokens grisés).
  * - Cibles des attaques ouvertes (réactions, dés, rapport en attente) : le service ne donne à
  *   un joueur que les siennes.
  * - Visées en direct (`combat.aim`, MJ seulement) : effacées à `end` ou au bout de 30 s sans
@@ -23,6 +23,7 @@ import { isOpen, useAttacks } from '@/lib/combat/use-attacks';
 import { currentActorId, useCombat } from '@/lib/combat/use-combat';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
 import { readableSheets, type MapStateBadge } from '@/lib/map/modules/combat/badges';
+import { defeatedOf } from '@/lib/map/modules/combat/model';
 import { combatModuleOf } from '@/lib/map/modules/combat/register';
 import type { TokenData } from '@/lib/map/modules/tokens/model';
 import { clesPersonnages, personnages, type FichePersonnage } from '@/lib/personnages';
@@ -51,9 +52,13 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
     return [...ids];
   }, [inProgress.attacks, pending.attacks]);
 
+  // Hors de combat : participants tombés que je vois (la vue expurgée ne donne que ceux-là)
+  const defeatedKey = defeatedOf(combat).join(',');
+  const defeatedIds = useMemo(() => (defeatedKey ? defeatedKey.split(',') : []), [defeatedKey]);
+
   useEffect(() => {
-    mod?.state.setState({ turnCharacterId, openTargetIds });
-  }, [mod, turnCharacterId, openTargetIds]);
+    mod?.state.setState({ turnCharacterId, openTargetIds, defeatedIds });
+  }, [mod, turnCharacterId, openTargetIds, defeatedIds]);
 
   // États des personnages posés, lus sur leur fiche (badges des tokens)
   const campagne = useCampagne(campaignId);

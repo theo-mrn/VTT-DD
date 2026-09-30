@@ -8,6 +8,8 @@
  * - Anneau des cibles : cibles des attaques ouvertes (MJ : toutes ; joueur : les siennes) et
  *   de celle que je compose ; réticule à quatre branches.
  * - Traits de visée : attaquant → cibles, en direct (MJ), et le mien pendant la composition.
+ * - Hors de combat : voile gris et croix sur le token d'un participant tombé (MJ ; joueur :
+ *   participant qu'il voit, la vue expurgée ne lui donne que ceux-là).
  *
  * Un token masqué pour moi (vision, affichage) n'a ni anneau ni trait : rien n'est révélé.
  * Chaque anneau est un `Graphics` redessiné seulement quand le rayon ou le palier de zoom
@@ -28,6 +30,8 @@ export interface RingSnapshot {
   mine: readonly string[];
   targets: ReadonlySet<string>;
   lines: readonly { attackerId: string; targetIds: readonly string[] }[];
+  /** Participants hors de combat (vus de moi). */
+  defeated: ReadonlySet<string>;
 }
 
 export interface RingSource {
@@ -35,7 +39,7 @@ export interface RingSource {
   subscribe(listener: () => void): () => void;
 }
 
-type RingKind = 'turn' | 'target';
+type RingKind = 'turn' | 'target' | 'defeated';
 
 function drawRing(
   g: Graphics,
@@ -46,6 +50,14 @@ function drawRing(
   theme: MapTheme,
 ) {
   g.clear();
+  if (kind === 'defeated') {
+    // Voile gris sur le portrait, et une croix : tombé, gardé dans l'ordre
+    g.circle(0, 0, r).fill({ color: theme.background, alpha: 0.55 });
+    const k = r * 0.45;
+    g.moveTo(-k, -k).lineTo(k, k).moveTo(k, -k).lineTo(-k, k);
+    g.stroke({ width: 3 * unit, color: theme.muted, alpha: 0.9, cap: 'round' });
+    return;
+  }
   if (kind === 'turn') {
     g.circle(0, 0, r + 4 * unit).stroke({ width: 8 * unit, color: theme.primary, alpha: 0.2 });
     g.circle(0, 0, r + 3 * unit).stroke({ width: 2.5 * unit, color: theme.primary, alpha: 0.95 });
@@ -103,6 +115,7 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
       const wanted = new Set<string>([
         ...(snap.turnCharacterId ? [snap.turnCharacterId] : []),
         ...snap.targets,
+        ...snap.defeated,
         ...snap.lines.flatMap((l) => [l.attackerId, ...l.targetIds]),
       ]);
       byCharacter = new Map();
@@ -129,6 +142,8 @@ export function mountCombatRings(engine: MapEngine, source: RingSource): () => v
         want(e, 'turn', snap.mine.includes(turn!));
       for (const c of snap.targets)
         for (const e of byCharacter.get(c) ?? []) want(e, 'target', false);
+      for (const c of snap.defeated)
+        for (const e of byCharacter.get(c) ?? []) want(e, 'defeated', false);
       for (const [id, ring] of rings)
         if (!keep.has(id)) {
           ring.g.destroy();

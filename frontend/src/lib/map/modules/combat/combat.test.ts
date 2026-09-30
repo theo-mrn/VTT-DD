@@ -11,7 +11,7 @@ import type { MenuItem, MapViewer } from '../../engine/entities/entity-kind';
 import { SELECT_TOOL_ID } from '../../engine/tools/tool-manager';
 import { ALICE, character, setupTokens, SPECTATOR, token } from '../tokens/test-kit';
 import { AIM_TOOL_ID } from './aim-tool';
-import { aimLines, EMPTY_COMBAT_MAP, ringTargets } from './model';
+import { aimLines, defeatedOf, EMPTY_COMBAT_MAP, ringTargets } from './model';
 import { combatModuleOf, registerCombat, type AttackMenuPort } from './register';
 
 /** Menu d'attaque de test : la vraie machine, dans un magasin à part. */
@@ -198,5 +198,21 @@ describe('anneaux et traits', () => {
     const t = setup();
     combatModuleOf(t.engine)!.state.setState({ turnCharacterId: 'gobelin' });
     expect(combatModuleOf(t.engine)!.state.getState().turnCharacterId).toBe('gobelin');
+  });
+});
+
+describe('hors de combat sur la carte', () => {
+  it('grise les participants tombés que je vois, rien d’autre', () => {
+    const p = (characterId: string, defeated?: boolean) => ({
+      characterId,
+      side: 'enemies' as const,
+      sortKeys: [],
+      hasActed: false,
+      ...(defeated !== undefined ? { defeated } : {}),
+    });
+    expect(defeatedOf({ order: [p('gobelin', true), p('loup', false), p('orc')] })).toEqual([
+      'gobelin',
+    ]);
+    expect(defeatedOf(null)).toEqual([]);
   });
 });
