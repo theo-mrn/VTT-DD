@@ -10,6 +10,7 @@ import type { MapEntity } from '../../engine/entities/entity';
 import type { MapEngine } from '../../engine/map-engine';
 import { TOKEN_KIND_ID } from '../tokens/edit';
 import type { TokenData } from '../tokens/model';
+import type { MapStateBadge } from './badges';
 
 /** État des surcouches du combat pour ce moteur (alimenté par React, lu par le rendu). */
 export interface CombatMapState {
@@ -19,12 +20,15 @@ export interface CombatMapState {
   openTargetIds: readonly string[];
   /** Visées en direct des autres (MJ) : attaquant → cibles. */
   aims: readonly { attackerId: string; targetIds: readonly string[] }[];
+  /** États des personnages dont je lis la fiche (badges des tokens). */
+  states: ReadonlyMap<string, readonly MapStateBadge[]>;
 }
 
 export const EMPTY_COMBAT_MAP: CombatMapState = {
   turnCharacterId: null,
   openTargetIds: [],
   aims: [],
+  states: new Map(),
 };
 
 export const isToken = (e: MapEntity) => e.kind.id === TOKEN_KIND_ID;

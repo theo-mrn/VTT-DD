@@ -3,7 +3,7 @@
  * - état des surcouches (tour, cibles des attaques ouvertes, visées), alimenté par React ;
  * - entrées « Attaquer » du menu et de la barre de la sélection, touche Y ;
  * - outil de visée (hors barre), piloté par le menu d'attaque (`attack-menu-store`) ;
- * - anneaux et traits de visée (plan `adornments`).
+ * - anneaux et traits de visée, badges d'états des tokens (plan `adornments`).
  * L'interface (surcouches React) est ajoutée par `index.ts`.
  */
 import { Crosshair } from 'lucide-react';
@@ -19,6 +19,7 @@ import type { AttackFlowEvent, AttackFlowState, AttackMenuRequest } from '@/lib/
 import { AIM_TOOL_ID, AimTool } from './aim-tool';
 import { attackSelection, combatMenu, type AttackOpener } from './menu';
 import { aimLines, EMPTY_COMBAT_MAP, ringTargets, type CombatMapState } from './model';
+import { mountStateBadges } from './badges';
 import { mountCombatRings, type RingSnapshot } from './rings';
 
 export interface CombatUi {
@@ -132,6 +133,13 @@ export function registerCombat(
         listeners.add(l);
         return () => void listeners.delete(l);
       },
+    }),
+    mountStateBadges(engine, {
+      snapshot: () => state.getState().states,
+      subscribe: (l) =>
+        state.subscribe((s, prev) => {
+          if (s.states !== prev.states) l();
+        }),
     }),
     ...(ui.overlays ?? []).map((o) => engine.registerOverlay(o)),
   ];
