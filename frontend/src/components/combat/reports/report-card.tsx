@@ -359,7 +359,7 @@ export function ReportCard({
               label={attributeLabel(systeme, m.attribute, member?.type)}
               value={`${m.operation === 'add' ? '+' : '−'}${m.value}`}
               sub={m.damageType ? damageTypeName(systeme, m.damageType) : undefined}
-              tone={m.operation === 'add' ? 'success' : 'danger'}
+              tone={harmful(m, presentation) ? 'danger' : 'success'}
             />
           ))}
         </div>
@@ -695,6 +695,18 @@ function NumberBox({
       {sub && <p className="truncate text-[10px] text-muted-foreground">{sub}</p>}
     </div>
   );
+}
+
+/**
+ * La valeur aggrave l'état de la cible : retirer d'une jauge qui se vide (PV), ajouter à une
+ * jauge qui se remplit (Blessures, `sens: montant` de la présentation).
+ */
+function harmful(
+  m: { attribute: string; operation: 'add' | 'subtract' | 'set' },
+  presentation: Presentation | null,
+): boolean {
+  const rising = presentation?.ressources[m.attribute]?.sens === 'montant';
+  return (m.operation === 'subtract') !== rising;
 }
 
 type Roll = NonNullable<AttackTarget['view']>['roll'];
