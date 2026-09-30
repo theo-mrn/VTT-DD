@@ -347,6 +347,11 @@ export async function fakeCharacter(secret: string) {
     if (behaviour.down?.has(path)) return reply(503, { title: 'Indisponible' });
 
     // ─── Attaques (docs/combat.md § 11.2) ───
+    // Jet d'une attaque calculée par le navigateur : relayé à dice (ici, seulement noté)
+    if (req.method === 'POST' && path === '/internal/actions/rolls') {
+      const views = (body.views as unknown[] | undefined) ?? [];
+      return reply(202, { forwarded: body.rollMode === 'shared' ? 1 : views.length });
+    }
     if (req.method === 'POST' && path === '/internal/actions/prepare') {
       const action = actions.get(body.action as string);
       const actor = sheet(body.actorId as string);

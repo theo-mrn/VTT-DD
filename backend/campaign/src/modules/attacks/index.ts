@@ -49,6 +49,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type {
   ActionResolution,
+  AttackRollsInput,
   KnownFace,
   ResolvedAction,
   ResolveInput,
@@ -79,6 +80,7 @@ import {
   isResolving,
   outOfTurnOf,
   preparedTargets,
+  reportedTargets,
   resolvedTarget,
   statusAfterResolution,
   statusBeforeResolution,
@@ -369,6 +371,8 @@ async function declare(
 ): Promise<LoadedAttack[]> {
   requireActor(v);
   const keys = key ? bodies.map((_, i) => (bodies.length > 1 ? `${key}#${i}` : key)) : null;
+  /** Jets des attaques calculées par le navigateur, relayés à l'historique après l'écriture. */
+  const forwards: AttackRollsInput[] = [];
   const run = async (outer: Tx | null) => {
     if (keys) {
       const existing = await findByKeys(outer ?? deps.db, a.campaign.id, userId, keys);
@@ -400,6 +404,44 @@ async function declare(
         dice,
         diceHistory,
       };
+      // Attaque déjà calculée par le navigateur de l'attaquant (Théo, 2026-09-30) : le
+      // rapport est rangé tel quel, en attente du MJ ; rien n'est demandé à character
+      if (body.resolved) {
+        const resolution = reportOf(body);
+        const valid = resolution.targets.filter((t) => t.status !== 'failed');
+        if (state)
+          tallies.push(
+            ...rowsOfDeclaration(
+              state.round,
+              body.attackerId,
+              valid.map((t) => t.characterId),
+            ),
+          );
+        prepared.push({
+          body,
+          attackId: attackIds[i]!,
+          targetIds: body.targets,
+          action: { id: body.action, name: body.resolved.actionName },
+          rollMode: body.rollMode ?? 'per_target',
+          snapshot: null,
+          visibility,
+          targets: reportedTargets(body.targets, resolution),
+          resolution,
+          step: null,
+          faces: [],
+        });
+        if (valid.length)
+          forwards.push({
+            campaignId: a.campaign.id,
+            authorId: userId,
+            characterId: body.attackerId,
+            visibility,
+            action: body.action,
+            rollMode: body.rollMode ?? 'per_target',
+            views: valid.flatMap((t) => (t.view ? [t.view] : [])),
+          });
+        continue;
+      }
       const combatContext = combatContextOf(state, tallies, body.attackerId, body.targets);
       let p;
       try {
@@ -544,14 +586,59 @@ async function declare(
     };
     return outer ? write(outer) : deps.db.transaction(write);
   };
-  if (!keys) return run(null);
-  // Deux requêtes de même clé : la seconde attend la première, puis rend son attaque
-  return deps.db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`attack:${a.campaign.id}:${userId}:${keys[0]}`}))`,
-    );
-    return run(tx);
-  });
+  const loaded = !keys
+    ? await run(null)
+    : // Deux requêtes de même clé : la seconde attend la première, puis rend son attaque
+      await deps.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${`attack:${a.campaign.id}:${userId}:${keys[0]}`}))`,
+        );
+        return run(tx);
+      });
+  // Historique des dés : jamais bloquant, une panne est journalisée (l'attaque est enregistrée)
+  const origin = { userId, campaignId: a.campaign.id, correlationId: req.ctx.correlationId };
+  for (const f of forwards)
+    void deps.character
+      .forwardAttackRolls(f, origin)
+      .catch((e: unknown) => req.log.warn({ err: e }, 'jet d’attaque non transmis à dice'));
+  return loaded;
+}
+
+/**
+ * Rapport d'une attaque calculée par le navigateur (`DeclareAttack.resolved`), vérifié : les
+ * mêmes cibles que la déclaration, dans le même ordre ; une cible résolue porte son rapport et
+ * la vue de l'attaquant, une cible refusée son message.
+ */
+function reportOf(body: Declaration): ActionResolution {
+  const r = body.resolved!;
+  const invalid = (detail: string) => HttpError.badRequest(detail, 'invalid_resolution');
+  if (
+    r.targets.length !== body.targets.length ||
+    r.targets.some((t, i) => t.characterId !== body.targets[i])
+  )
+    throw invalid('Le rapport doit porter les cibles de la déclaration, dans le même ordre');
+  return {
+    targets: r.targets.map((t) => {
+      if (t.status === 'resolved' && (!t.result || !t.view))
+        throw invalid(`Rapport ou vue manquant pour la cible ${t.characterId}`);
+      return t.status === 'resolved'
+        ? {
+            characterId: t.characterId,
+            status: 'resolved',
+            error: null,
+            result: t.result!,
+            view: t.view!,
+          }
+        : {
+            characterId: t.characterId,
+            status: 'failed',
+            error: t.error ?? 'Cible refusée',
+            result: null,
+            view: null,
+          };
+    }),
+    actor: { modifications: r.actor?.modifications ?? [] },
+  };
 }
 
 /**

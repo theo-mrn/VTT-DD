@@ -118,6 +118,33 @@ export function preparedTargets(
   });
 }
 
+/**
+ * Cibles d'une attaque déjà résolue par le navigateur de l'attaquant (`DeclareAttack.resolved`) :
+ * rapport et vue repris tels quels, en attente du MJ ; une cible absente du rapport est refusée.
+ */
+export function reportedTargets(
+  targetIds: string[],
+  resolution: ActionResolution,
+): Omit<TargetRow, 'attackId'>[] {
+  return targetIds.map((characterId, position) =>
+    resolvedTarget(
+      {
+        characterId,
+        position,
+        status: 'awaiting_dice',
+        decision: 'pending',
+        reactionParams: [],
+        reaction: null,
+        view: null,
+        result: null,
+        applied: null,
+        error: null,
+      },
+      resolution,
+    ),
+  );
+}
+
 /** Cible après la résolution. */
 export function resolvedTarget<T extends Omit<TargetRow, 'attackId'>>(
   target: T,

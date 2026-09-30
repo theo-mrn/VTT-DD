@@ -197,6 +197,17 @@ export interface ResolveInput {
   diceHistory?: DiceHistory;
 }
 
+/** Jet d'une attaque calculée par le navigateur, pour l'historique des dés. */
+export interface AttackRollsInput {
+  campaignId: string;
+  authorId: string;
+  characterId: string;
+  visibility: AttackVisibility;
+  action: string;
+  rollMode: AttackRollMode;
+  views: AttackTargetView[];
+}
+
 /** Modifications décidées pour une fiche, et tables appliquées (entrée de la ligne). */
 export interface ApplicationItem {
   characterId: string;
@@ -343,6 +354,11 @@ export interface CharacterClient {
   prepareAction(input: PrepareInput, origin?: CallOrigin): Promise<PreparedAction>;
   /** Résout (ou avance d'une étape de dés) une attaque préparée. */
   resolveAction(input: ResolveInput, origin?: CallOrigin): Promise<ResolvedAction>;
+  /**
+   * Jet d'une attaque calculée par le navigateur de l'attaquant, relayé par character à
+   * l'historique des dés depuis les vues de l'attaquant (jamais le rapport complet).
+   */
+  forwardAttackRolls(input: AttackRollsInput, origin?: CallOrigin): Promise<void>;
   /** Applique des décisions, sans aucun dé ; une transaction, idempotent par applicationId. */
   applyModifications(
     applications: ApplicationInput[],
@@ -389,6 +405,9 @@ export const characterUnavailable: CharacterClient = {
     throw unavailable();
   },
   resolveAction: async () => {
+    throw unavailable();
+  },
+  forwardAttackRolls: async () => {
     throw unavailable();
   },
   applyModifications: async () => {
@@ -530,6 +549,9 @@ export function characterClient(o: {
     },
     resolveAction(input, origin) {
       return request('POST', '/internal/actions/resolve', ResolveResponse, origin, input);
+    },
+    async forwardAttackRolls(input, origin) {
+      await request('POST', '/internal/actions/rolls', z.unknown(), origin, input);
     },
     applyModifications(applications, origin) {
       return request('POST', '/internal/modifications/apply', ApplyResponse, origin, {
