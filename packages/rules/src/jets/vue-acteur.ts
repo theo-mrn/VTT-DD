@@ -13,6 +13,7 @@ import type { Valeur } from '../formules/index.js';
 import {
   decrireEtape,
   decrireJet,
+  defautParametre,
   type BonusJet,
   type EtapePool,
   type JetNumeriqueResultat,
@@ -57,6 +58,14 @@ const anonymiserEtape = (e: EtapePool): EtapePool =>
 export function vueActeur(systeme: SystemeCharge, resultat: ResultatAction): VueActeur {
   const action = systeme.actions.get(resultat.action);
   const explications: string[] = [];
+  // Situation déclarée par qui agit (couvert, avantage…) : il la connaît, elle éclaire le jet
+  for (const p of action?.parametres ?? []) {
+    const v = resultat.parametres[p.id];
+    if (p.section !== 'situation' || p.par === 'cible' || v === undefined) continue;
+    if (v === defautParametre(p)) continue;
+    const option = p.type === 'choix' ? p.options.find((o) => o.valeur === v)?.nom : undefined;
+    explications.push(`${p.nom} : ${option ?? String(v)}`);
+  }
   const src = resultat.jet;
   let jet: JetNumeriqueResultat | JetSymbolesResultat;
 

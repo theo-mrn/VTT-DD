@@ -9,7 +9,7 @@ import { charger, type SystemeCharge } from '../chargement/index.js';
 import { afficher, aleatoireImpose } from '../formules/index.js';
 import { EtatEntite, verifierPresentation, type SystemeSaisi } from '../schema/index.js';
 import { miniD20 } from '../test/mini-systemes.js';
-import { executerAction, executerMulticible, type ResultatAction } from './index.js';
+import { executerAction, executerMulticible, vueActeur, type ResultatAction } from './index.js';
 
 function systeme(s: unknown): SystemeCharge {
   const r = charger(s);
@@ -275,6 +275,17 @@ describe('situation commune', () => {
     expect(r.explications).toContain('Avantage de situation : + 1 → avantages');
     const d = jouer('attaque', { avantage: 'desavantage' }, [4, 15]);
     expect(d.jet.type === 'numerique' && d.jet.naturel).toBe(4);
+  });
+
+  it('la vue de l’acteur rappelle la situation déclarée', () => {
+    const r = jouer('attaque', { couvert: 'partiel', bonusToucher: 1 }, [10]);
+    const vue = vueActeur(s, r);
+    expect(vue.explications.slice(0, 2)).toEqual([
+      'Couvert de la cible : Partiel (+2 DEF)',
+      'Bonus au toucher : 1',
+    ]);
+    expect(vue.explications).toContain('Couvert de la cible : − 2');
+    expect(vueActeur(s, jouer('attaque', {}, [10])).explications[0]).toMatch(/^Jet /);
   });
 
   it('une situation sans rien de particulier ne dit rien', () => {
