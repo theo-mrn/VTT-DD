@@ -14,12 +14,33 @@ export const PORTRAIT_MAX_HEIGHT = 1200;
 
 const QUALITY = 0.88;
 
+/**
+ * Octets d'une image distante, lisibles par le canvas. `no-store` : le CDN n'envoie l'en-tête
+ * CORS qu'aux requêtes qui portent un `Origin` ; une copie en cache, chargée sans (une simple
+ * balise <img>), serait refusée.
+ */
+async function fetchImage(src: string): Promise<Blob> {
+  const res = await fetch(src, { mode: 'cors', credentials: 'omit', cache: 'no-store' });
+  if (!res.ok) throw new Error('Image introuvable');
+  return res.blob();
+}
+
 /** Image chargée pour le dessin (fichier local, ou adresse autorisée par CORS). */
 export async function loadBitmap(src: File | Blob | string): Promise<ImageBitmap> {
-  if (typeof src !== 'string') return createImageBitmap(src);
-  const res = await fetch(src, { mode: 'cors', credentials: 'omit' });
-  if (!res.ok) throw new Error('Image introuvable');
-  return createImageBitmap(await res.blob());
+  return createImageBitmap(typeof src === 'string' ? await fetchImage(src) : src);
+}
+
+/** Image d'origine du Studio : copie locale (affichage sans CORS) et image décodée (dessin). */
+export interface LoadedImage {
+  /** Adresse locale (`blob:`), à libérer avec `URL.revokeObjectURL`. */
+  url: string;
+  bitmap: ImageBitmap;
+}
+
+export async function loadImage(src: File | string): Promise<LoadedImage> {
+  const blob = typeof src === 'string' ? await fetchImage(src) : src;
+  const bitmap = await createImageBitmap(blob);
+  return { url: URL.createObjectURL(blob), bitmap };
 }
 
 function canvas(w: number, h: number): HTMLCanvasElement | OffscreenCanvas {
