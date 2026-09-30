@@ -16,6 +16,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { DotsBackdrop } from '../backdrop';
 
 export const MODE_LABELS: Record<CombatMode, string> = {
   individual: 'Individuel',
@@ -91,7 +92,8 @@ export function StartSettingsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="isolate sm:max-w-md">
+        <DotsBackdrop />
         <DialogHeader>
           <DialogTitle>Réglages du prochain combat</DialogTitle>
           <DialogDescription>

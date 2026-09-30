@@ -15,6 +15,7 @@ import { ReportsSection } from '../reports/report-list';
 import { DEFAULT_REPORT_VIEW, useReports, type ReportView } from '../reports/use-reports';
 import { combatPresentation } from '../turns/use-cast';
 import type { LiveReports } from '../live-reports/use-live-reports';
+import { DotsBackdrop } from '../backdrop';
 
 export function ReportsDialog({
   open,
@@ -31,7 +32,8 @@ export function ReportsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(88dvh,52rem)] flex-col gap-0 p-0 sm:max-w-2xl">
+      <DialogContent className="isolate flex h-[min(88dvh,52rem)] flex-col gap-0 p-0 sm:max-w-2xl">
+        <DotsBackdrop />
         <DialogTitle className="sr-only">Rapports d’attaque</DialogTitle>
         {open && <ReportsBody combat={combat} live={live} onOpenCharacter={onOpenCharacter} />}
       </DialogContent>

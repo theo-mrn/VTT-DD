@@ -31,6 +31,7 @@ import { sideParamsBody } from './setup';
 import { SettingsFields } from './start-combat';
 import type { CastMember } from './use-cast';
 import { useSceneTokens } from './use-scene-tokens';
+import { DotsBackdrop } from '../backdrop';
 
 async function attempt(label: string, work: () => Promise<unknown>): Promise<boolean> {
   try {
@@ -119,10 +120,11 @@ function InitiativeBody({
 
   return (
     <DialogContent
-      className="sm:max-w-md"
+      className="isolate sm:max-w-md"
       onInteractOutside={(e) => busy && e.preventDefault()}
       onEscapeKeyDown={(e) => busy && e.preventDefault()}
     >
+      <DotsBackdrop />
       <DialogHeader>
         <DialogTitle>Initiative</DialogTitle>
         <DialogDescription>
@@ -221,7 +223,8 @@ export function AddParticipantsDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="isolate sm:max-w-md">
+        <DotsBackdrop />
         <DialogHeader>
           <DialogTitle>Ajouter au combat</DialogTitle>
           <DialogDescription>
@@ -339,7 +342,8 @@ export function EndCombatDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="isolate sm:max-w-md">
+        <DotsBackdrop />
         <DialogHeader>
           <DialogTitle>Terminer le combat ?</DialogTitle>
           <DialogDescription>
@@ -430,7 +434,8 @@ export function SettingsDialog({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="isolate sm:max-w-md">
+        <DotsBackdrop />
         <DialogHeader>
           <DialogTitle>Réglages du combat</DialogTitle>
           <DialogDescription>

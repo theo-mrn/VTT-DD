@@ -44,6 +44,7 @@ import { SetupList } from '../turns/setup-list';
 import { StartSettingsDialog } from '../turns/start-combat';
 import { systemInitiativeMode, useCast, useParticipantSheets } from '../turns/use-cast';
 import { useSceneTokens } from '../turns/use-scene-tokens';
+import { DotsBackdrop } from '../backdrop';
 
 export function StartCombatDialog({
   open,
@@ -59,7 +60,8 @@ export function StartCombatDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(88dvh,46rem)] flex-col gap-0 p-0 sm:max-w-xl">
+      <DialogContent className="isolate flex max-h-[min(88dvh,46rem)] flex-col gap-0 p-0 sm:max-w-xl">
+        <DotsBackdrop />
         {open && (
           <StartBody
             campagne={campagne}

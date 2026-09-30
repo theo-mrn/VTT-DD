@@ -47,6 +47,7 @@ import { SituationChips } from './parts';
 import { situationChips } from './situation';
 import { StatesManager } from './states-manager';
 import { combatPresentation, statesOf, type CastMember } from './use-cast';
+import { DotsBackdrop } from '../backdrop';
 
 /** D'où la fiche a été ouverte : le libellé et la teinte de son bandeau. */
 export interface DialogOrigin {
@@ -105,7 +106,8 @@ export function CharacterDialog({
   return (
     <Dialog open={characterId !== null} onOpenChange={(open) => !open && onClose()}>
       {characterId && (
-        <DialogContent className="gap-0 p-0 sm:max-w-md">
+        <DialogContent className="isolate gap-0 p-0 sm:max-w-md">
+          <DotsBackdrop tone={origin.tone} />
           <DialogBody
             key={characterId}
             campaignId={campaignId}
