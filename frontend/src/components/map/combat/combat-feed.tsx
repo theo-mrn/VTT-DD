@@ -141,6 +141,8 @@ export function CombatMapFeed({ engine }: { engine: MapEngine }) {
           id: 'combat:revive',
           label: 'Relever',
           icon: HeartPulse,
+          urgent: true,
+          primary: true,
           run: () => void commands.updateParticipant(id, { defeated: false }),
         },
       ];

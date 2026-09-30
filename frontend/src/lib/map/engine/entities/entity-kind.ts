@@ -176,6 +176,8 @@ export interface MenuItem {
   danger?: boolean;
   /** Action principale de la sorte : bouton libellé dans la barre de la sélection. */
   primary?: boolean;
+  /** À faire d'abord (« Relever » un personnage hors de combat) : en tête du menu. */
+  urgent?: boolean;
   /**
    * Montrée aussi à un joueur dans la barre de la sélection (« Fouiller »). Un joueur n'a pas
    * de barre au clic, sinon (il clique sans cesse son token pour le déplacer) : ses actions

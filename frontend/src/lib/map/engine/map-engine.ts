@@ -2010,6 +2010,10 @@ export class MapEngine {
     }
     if (remove) items.push(separator('delete'), remove);
     if (!entities.length) items.push(...this.mapMenu(world));
+    // Les entrées urgentes passent en tête, séparées du reste
+    const urgent = items.filter((i) => i.urgent);
+    if (urgent.length)
+      return trimSeparators([...urgent, separator('urgent'), ...items.filter((i) => !i.urgent)]);
     return trimSeparators(items);
   }
 
