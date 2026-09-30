@@ -27,7 +27,7 @@ export interface KeyStat {
 
 const shortName = (ctx: ContexteFiche, key: string) => {
   const a = ctx.fiche.entite.attributs.get(key);
-  return a?.abrege ?? a?.nom ?? key;
+  return a?.nom ?? key;
 };
 
 function valueText(ctx: ContexteFiche, key: string): string | null {

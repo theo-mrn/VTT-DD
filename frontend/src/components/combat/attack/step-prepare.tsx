@@ -12,13 +12,22 @@
  */
 import type { AttackRollMode } from '@vtt/contracts';
 import type { Action, Fiche, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
-import { ChevronDown, Dices, RotateCcw, SlidersHorizontal, Users } from 'lucide-react';
+import {
+  ChevronDown,
+  Dices,
+  Info,
+  RotateCcw,
+  SlidersHorizontal,
+  Swords,
+  Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   multitargetOf,
   poolCounts,
+  previewRoll,
   type ActionGroup,
   type RollPreview,
 } from '@/lib/combat/actions';
@@ -27,12 +36,12 @@ import {
   attackerParams,
   attributeOptions,
   choiceOptions,
+  isAfterRoll,
   isChoiceParam,
   paramDescription,
   paramSection,
   type ActionParam,
 } from '@/lib/combat/params';
-import { libelleAttribut } from '@/lib/creation';
 import { cn } from '@/lib/utils';
 import { SectionTitle, Segmented, Stepper, ToggleTile } from './controls';
 import { PreviewBox } from './preview';
@@ -62,6 +71,7 @@ export function StepPrepare({
   onHidden,
   canChangeAction,
   onChangeAction,
+  onLaunch,
   disabled,
 }: {
   ctx: AttackContext;
@@ -85,6 +95,8 @@ export function StepPrepare({
   onHidden: (h: boolean) => void;
   canChangeAction: boolean;
   onChangeAction: () => void;
+  /** Lance l'attaque avec ces valeurs (clic sur une carte du type d'attaque). */
+  onLaunch: (patch: Record<string, Valeur>) => void;
   disabled?: boolean;
 }) {
   const params = attackerParams(systeme, action, fiche);
@@ -93,6 +105,105 @@ export function StepPrepare({
   const entries = main.filter((p) => p.type === 'entree');
   const options = main.filter((p) => p.type !== 'entree');
   const group = groups.find((g) => g.actions.some((a) => a.id === action.id));
+
+  // Action dont l'arme se choisit après le jet : de grandes cartes, une par type d'attaque ;
+  // le reste (situation, options, bonus au total) replié
+  const card = action.parametres.some(isAfterRoll)
+    ? main.find((p) => p.type === 'attribut' || isChoiceParam(p))
+    : undefined;
+  if (card) {
+    const own = new Set(choiceOptions(card).flatMap((o) => o.parametres ?? []));
+    const rest = options.filter((p) => p !== card && !own.has(p.id));
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center gap-2">
+          <h3 className="font-display text-xl font-semibold">{action.nom}</h3>
+          {action.description && (
+            <Info className="size-4 text-subtle" aria-label={action.description}>
+              <title>{action.description}</title>
+            </Info>
+          )}
+          {canChangeAction && (
+            <Button variant="ghost" size="sm" onClick={onChangeAction} className="ml-auto">
+              Changer d’action
+            </Button>
+          )}
+        </div>
+        <AttackCards
+          systeme={systeme}
+          fiche={fiche}
+          action={action}
+          param={card}
+          params={main}
+          values={values}
+          onParam={onParam}
+          onLaunch={onLaunch}
+          disabled={disabled}
+        />
+        <details className="group rounded-2xl border border-border bg-surface/60">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-[13px] font-medium text-muted-foreground hover:text-foreground">
+            <ChevronDown
+              className="size-4 transition-transform group-open:rotate-180"
+              aria-hidden
+            />
+            Situation et options
+          </summary>
+          <div className="space-y-5 px-4 pb-4">
+            {rest.length > 0 && (
+              <OptionsSection
+                fiche={fiche}
+                params={rest}
+                values={values}
+                onParam={onParam}
+                disabled={disabled}
+              />
+            )}
+            <SituationBlock
+              ctx={ctx}
+              systeme={systeme}
+              action={action}
+              params={situation}
+              values={values}
+              onParam={onParam}
+              attackerId={attackerId}
+              targetIds={targetIds}
+              disabled={disabled}
+            />
+            {targetIds.length > 1 && (
+              <Segmented
+                label="Mode de jet"
+                value={rollMode}
+                onChange={(v) => onRollMode(v as AttackRollMode)}
+                disabled={disabled}
+                options={[
+                  { value: 'per_target', label: 'Un jet par cible' },
+                  { value: 'shared', label: 'Jet commun' },
+                ]}
+              />
+            )}
+            {ctx.gm && (
+              <ToggleTile
+                label="Jet caché aux joueurs"
+                checked={hidden}
+                onChange={onHidden}
+                disabled={disabled}
+              />
+            )}
+            <DicePool
+              systeme={systeme}
+              presentation={presentation}
+              action={action}
+              preview={preview}
+              adjustments={adjustments}
+              onAdjustment={onAdjustment}
+              onReset={onResetAdjustments}
+              disabled={disabled}
+            />
+          </div>
+        </details>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] lg:gap-8">
@@ -308,7 +419,7 @@ function OptionsSection({
                       const m = fiche.valeurs.get(cle)?.modificateur;
                       return {
                         value: cle,
-                        label: libelleAttribut(fiche, cle),
+                        label: fiche.entite.attributs.get(cle)?.nom ?? cle,
                         meta: m === undefined ? undefined : `${m >= 0 ? '+' : ''}${m}`,
                       };
                     })
@@ -455,5 +566,104 @@ function DicePool({
         })}
       </div>
     </section>
+  );
+}
+
+/**
+ * Cartes du type d'attaque (écran 1, comme l'ancienne page) : une par option (Contact,
+ * Distance, Magie : nom complet), avec son jet (« 1d20 + 5 ») ; un clic lance l'attaque. Une
+ * option à paramètres propres (« Libre » : dés, faces, modificateur) les montre, puis se lance.
+ */
+function AttackCards({
+  systeme,
+  fiche,
+  action,
+  param,
+  params,
+  values,
+  onParam,
+  onLaunch,
+  disabled,
+}: {
+  systeme: SystemeCharge;
+  fiche: Fiche;
+  action: Action;
+  param: ActionParam;
+  params: readonly ActionParam[];
+  values: Record<string, Valeur>;
+  onParam: (id: string, v: Valeur) => void;
+  onLaunch: (patch: Record<string, Valeur>) => void;
+  disabled?: boolean | undefined;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const options =
+    param.type === 'attribut'
+      ? attributeOptions(fiche, param).map((cle) => ({
+          valeur: cle,
+          nom: fiche.entite.attributs.get(cle)?.nom ?? cle,
+          parametres: [] as string[],
+        }))
+      : choiceOptions(param).map((o) => ({ ...o, parametres: o.parametres ?? [] }));
+  const formula = (v: string) => {
+    const p = previewRoll(systeme, action, fiche, { ...values, [param.id]: v });
+    return p?.kind === 'numeric' ? p.formula : null;
+  };
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {options.map((o) => {
+        const own = params.filter((p) => o.parametres.includes(p.id));
+        const expanded = open === o.valeur && own.length > 0;
+        return (
+          <div
+            key={o.valeur}
+            className={cn(
+              'rounded-2xl border bg-surface/60 transition-colors',
+              expanded ? 'border-primary/60' : 'border-border hover:border-primary/50',
+            )}
+          >
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                if (own.length) {
+                  onParam(param.id, o.valeur);
+                  setOpen(expanded ? null : o.valeur);
+                } else onLaunch({ [param.id]: o.valeur });
+              }}
+              className="flex w-full flex-col items-start gap-1 rounded-2xl px-5 py-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            >
+              <span className="font-display text-2xl font-semibold">{o.nom}</span>
+              {!own.length && (
+                <span className="font-mono text-lg text-muted-foreground">
+                  {formula(o.valeur) ?? ''}
+                </span>
+              )}
+            </button>
+            {expanded && (
+              <div className="space-y-3 px-5 pb-5">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {own.map((p) => (
+                    <Stepper
+                      key={p.id}
+                      label={p.nom}
+                      value={typeof values[p.id] === 'number' ? (values[p.id] as number) : 0}
+                      onChange={(v) => onParam(p.id, v)}
+                      disabled={disabled}
+                    />
+                  ))}
+                </div>
+                <Button
+                  disabled={disabled}
+                  onClick={() => onLaunch({ [param.id]: o.valeur })}
+                  className="w-full"
+                >
+                  <Swords /> {formula(o.valeur) ?? 'Lancer'}
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -72,6 +72,8 @@ export function EntryPicker({
   value,
   onChange,
   disabled,
+  hideNone = false,
+  prefer,
 }: {
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -81,21 +83,32 @@ export function EntryPicker({
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  /** Pas de choix « Aucune » (écran des dégâts : chaque carte lance). */
+  hideNone?: boolean;
+  /** Entrées montrées d'abord (armes du type d'attaque choisi). */
+  prefer?: (entree: Entree) => boolean;
 }) {
-  const options = useMemo(() => entryOptions(fiche, param), [fiche, param]);
+  const options = useMemo(() => {
+    const all = entryOptions(fiche, param);
+    if (!prefer) return all;
+    const first = (o: EntryOption) => {
+      const e = fiche.systeme.entrees.get(o.id.split('#', 1)[0]!);
+      return e && prefer(e) ? 0 : 1;
+    };
+    return [...all].sort((a, b) => first(a) - first(b));
+  }, [fiche, param, prefer]);
+  const none = param.facultatif && !hideNone;
   const hint = paramDescription(param);
   const title = (
     <SectionTitle hint={hint}>
       {param.nom}
-      {param.facultatif && (
-        <span className="normal-case tracking-normal text-subtle">(facultatif)</span>
-      )}
+      {none && <span className="normal-case tracking-normal text-subtle">(facultatif)</span>}
     </SectionTitle>
   );
 
   if (!looksLikeGear(systeme, param.sorte)) {
     const buttons = [
-      ...(param.facultatif || !options.length
+      ...(none || !options.length
         ? [{ value: '', label: options.length ? 'Aucune' : 'Aucune disponible' }]
         : []),
       ...options.map((o) => ({
@@ -122,7 +135,7 @@ export function EntryPicker({
             value={value}
             onChange={onChange}
             disabled={disabled}
-            none={param.facultatif}
+            none={none}
           />
         )}
       </section>
@@ -163,7 +176,7 @@ export function EntryPicker({
     <section>
       {title}
       <div role="radiogroup" aria-label={param.nom} className="grid gap-2.5 sm:grid-cols-2">
-        {param.facultatif && (
+        {none && (
           <button
             type="button"
             role="radio"

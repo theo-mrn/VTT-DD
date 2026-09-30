@@ -37,7 +37,15 @@ export interface ChoiceOption {
   nom: string;
   /** Précision de l'option (info-bulle). */
   description?: string;
+  /** Paramètres propres à l'option, proposés avec elle (les dés d'un jet « Libre »). */
+  parametres?: string[];
 }
+
+/**
+ * Paramètre choisi après le jet (`etape: apres`) : l'arme, une fois la cible touchée. Jamais
+ * demandé à la déclaration ; l'étape des dégâts le demande (`RollStep.params`).
+ */
+export const isAfterRoll = (p: ActionParam) => (p as { etape?: unknown }).etape === 'apres';
 
 /** Le paramètre est un choix parmi des options nommées (couvert : aucun, partiel…). */
 export const isChoiceParam = (p: ActionParam) => (p.type as string) === 'choix';
@@ -56,6 +64,7 @@ export function choiceOptions(p: ActionParam): ChoiceOption[] {
       cle?: unknown;
       nom?: unknown;
       description?: unknown;
+      parametres?: unknown;
     };
     const valeur = [x.valeur, x.id, x.cle].find((v) => typeof v === 'string') as string | undefined;
     if (!valeur) return [];
@@ -65,6 +74,9 @@ export function choiceOptions(p: ActionParam): ChoiceOption[] {
         nom: typeof x.nom === 'string' ? x.nom : valeur,
         ...(typeof x.description === 'string' && x.description
           ? { description: x.description }
+          : {}),
+        ...(Array.isArray(x.parametres)
+          ? { parametres: x.parametres.filter((v): v is string => typeof v === 'string') }
           : {}),
       },
     ];
@@ -237,15 +249,28 @@ export function paramAllowed(
   }
 }
 
-/** Paramètres demandés à l'attaquant : les siens (pas ceux de la cible), permis par sa fiche. */
+/**
+ * Paramètres demandés à l'attaquant à la déclaration : les siens (pas ceux de la cible), permis
+ * par sa fiche, hors ceux choisis après le jet.
+ */
 export function attackerParams(
   systeme: SystemeCharge,
   action: Action,
   fiche: Fiche,
 ): ActionParam[] {
   return action.parametres.filter(
-    (p) => paramChooser(p) === 'acteur' && paramAllowed(systeme, action, p, fiche),
+    (p) =>
+      paramChooser(p) === 'acteur' && !isAfterRoll(p) && paramAllowed(systeme, action, p, fiche),
   );
+}
+
+/** Paramètres choisis après le jet (l'arme, les dégâts libres), permis par sa fiche. */
+export function afterRollParams(
+  systeme: SystemeCharge,
+  action: Action,
+  fiche: Fiche,
+): ActionParam[] {
+  return action.parametres.filter((p) => isAfterRoll(p) && paramAllowed(systeme, action, p, fiche));
 }
 
 /** Paramètres de défense active, choisis par la cible (proposés à qui l'incarne). */

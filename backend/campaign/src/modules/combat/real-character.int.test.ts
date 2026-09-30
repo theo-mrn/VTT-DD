@@ -1048,7 +1048,12 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           results: [],
         });
         expect(hit.targets[0]!.view?.outcome.success).toBe(true);
-        expect(hit.pendingSteps[0]).toMatchObject({ phase: 'after', params: ['arme'], dice: [] });
+        // Arme, sort à dés ou dégâts libres : tous les paramètres de l'étape
+        expect(hit.pendingSteps[0]).toMatchObject({
+          phase: 'after',
+          params: ['arme', 'capacite', 'nbDes', 'faces', 'bonus'],
+          dice: [],
+        });
         const missing = await dice(erin, hit, { stepId: hit.pendingSteps[0]!.id, results: [] });
         expect(missing.statusCode).toBe(400);
         expect(missing.json()).toMatchObject({ code: 'invalid_step_params' });
@@ -1057,7 +1062,7 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         const armed = await ok<Attack>(erin, 'POST', `${attacks()}/${declared.id}/dice`, {
           stepId: hit.pendingSteps[0]!.id,
           results: [],
-          params: { arme: 'epee-longue' },
+          params: { arme: 'epee-longue', capacite: '', nbDes: 1, faces: 6, bonus: 0 },
         });
         expect(armed.params).toMatchObject({ score: 'Contact', arme: 'epee-longue' });
         expect(armed.pendingSteps[0]!.dice.map((d) => d.faces)).toEqual([8, 8]);

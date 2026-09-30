@@ -26,7 +26,7 @@ export function attributeLabel(
   entityType?: string | null,
 ) {
   const a = attributeOf(systeme, key, entityType);
-  return a?.abrege || a?.nom || key;
+  return a?.nom || key;
 }
 
 export function entryName(systeme: SystemeCharge | null, id: string) {

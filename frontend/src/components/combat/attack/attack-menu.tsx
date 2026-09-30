@@ -34,6 +34,8 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import type { ActionParams } from '@vtt/contracts';
+import type { Valeur } from '@vtt/rules';
 import { Message } from '@/components/compte/elements';
 import type { ContexteFiche } from '@/components/fiche/widgets';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +65,7 @@ import { cn } from '@/lib/utils';
 import { AimPill } from './aim-pill';
 import { MyAttacks } from './my-attacks';
 import { StepAction } from './step-action';
+import { StepDamage } from './step-damage';
 import { StepPrepare } from './step-prepare';
 import { ReportStatus, StepRoll, useDeclaredAttack } from './step-roll';
 import { useAttackContext, type AttackContext } from './use-attack-context';
@@ -117,14 +120,23 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
   const back = () => attackMenu.dispatch({ type: 'setStep', step: 'action' });
   const [launching, setLaunching] = useState(false);
   const nextStep = attack ? stepToLaunch(attack) : null;
-  const launchNext = async () => {
+  /**
+   * Lance l'étape suivante. Une étape qui demande des paramètres (l'arme, une fois touché) les
+   * reçoit ici ; les dés qu'ils impliquent partent aussitôt (un seul clic pour les dégâts).
+   */
+  const launchNext = async (params?: Record<string, Valeur>) => {
     if (!attack || !nextStep || launching) return;
     setLaunching(true);
     try {
-      attackMenu.dispatch({
-        type: 'attackUpdated',
-        attack: await model.commands.submitDice(attack.id, { stepId: nextStep.id, results: [] }),
+      let updated = await model.commands.submitDice(attack.id, {
+        stepId: nextStep.id,
+        results: [],
+        ...(params ? { params: params as ActionParams } : {}),
       });
+      const then = params ? stepToLaunch(updated) : null;
+      if (then && then.phase === nextStep.phase && !then.params?.length)
+        updated = await model.commands.submitDice(attack.id, { stepId: then.id, results: [] });
+      attackMenu.dispatch({ type: 'attackUpdated', attack: updated });
     } catch (err) {
       toast.error(combatErrorMessage(err));
     } finally {
@@ -170,7 +182,7 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
       }
       return;
     }
-    if (stage === 'roll' && nextStep && e.key === 'Enter' && !typing) {
+    if (stage === 'roll' && nextStep && !nextStep.params?.length && e.key === 'Enter' && !typing) {
       e.preventDefault();
       void launchNext();
       return;
@@ -297,6 +309,8 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
                       loading={loading}
                       attack={attack}
                       revealed={revealed}
+                      launching={launching}
+                      onLaunchParams={(params) => void launchNext(params)}
                       instant={reduced || !attack || model.liveAttackId !== attack.id}
                       onRevealed={() => {
                         if (flow.phase === 'declared') setRevealedId(flow.attack.id);
@@ -502,6 +516,8 @@ function StageBody({
   loading,
   attack,
   revealed,
+  launching,
+  onLaunchParams,
   instant,
   onRevealed,
 }: {
@@ -512,10 +528,35 @@ function StageBody({
   loading: boolean;
   attack: ReturnType<typeof useDeclaredAttack>;
   revealed: boolean;
+  launching: boolean;
+  onLaunchParams: (params: Record<string, Valeur>) => void;
   instant: boolean;
   onRevealed: () => void;
 }) {
   const systeme = ctx.systeme;
+  // Touché : l'écran des dégâts (arme, sort à dés, dégâts libres), une fois l'issue montrée
+  const paramsStep = attack && flow.phase === 'declared' ? stepToLaunch(attack) : null;
+  if (
+    stage === 'roll' &&
+    attack &&
+    systeme &&
+    model.fiche &&
+    paramsStep?.params?.length &&
+    (revealed || instant)
+  )
+    return (
+      <StepDamage
+        key={paramsStep.id}
+        attack={attack}
+        stepParams={paramsStep.params}
+        ctx={ctx}
+        systeme={systeme}
+        presentation={ctx.presentation}
+        fiche={model.fiche}
+        launching={launching}
+        onLaunch={onLaunchParams}
+      />
+    );
   if (stage === 'roll' || stage === 'end')
     return systeme ? (
       <StepRoll
@@ -591,6 +632,7 @@ function StageBody({
       }
       canChangeAction={canGoBack('prepare', model.actions.length)}
       onChangeAction={() => attackMenu.dispatch({ type: 'setStep', step: 'action' })}
+      onLaunch={(patch) => void model.submit(patch)}
       disabled={busy}
     />
   );
@@ -754,6 +796,26 @@ function Footer({
   }
 
   const next = stepToLaunch(attack);
+  // Écran des dégâts : chaque carte lance ; il ne reste qu'à abandonner
+  if (stage === 'roll' && s === 'next' && next?.params?.length)
+    return (
+      <Bar>
+        <Button
+          variant="ghost"
+          loading={busy === 'cancel'}
+          disabled={launching}
+          onClick={() =>
+            void run('cancel', async () => ({
+              type: 'attackUpdated',
+              attack: await model.commands.cancel(attack.id, { version: attack.version }),
+            }))
+          }
+        >
+          <Undo2 /> Abandonner
+        </Button>
+        <span />
+      </Bar>
+    );
   if (stage === 'roll' && s === 'next' && next)
     return (
       <Bar>

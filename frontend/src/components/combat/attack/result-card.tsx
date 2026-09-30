@@ -42,7 +42,7 @@ const TONES: Record<
 function attributeName(systeme: SystemeCharge, key: string): string {
   for (const e of systeme.entites.values()) {
     const a = e.attributs.get(key);
-    if (a) return a.abrege ?? a.nom;
+    if (a) return a.nom;
   }
   return key;
 }

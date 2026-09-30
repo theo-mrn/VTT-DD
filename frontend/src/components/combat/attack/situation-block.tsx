@@ -259,5 +259,5 @@ function valueOf(fiche: Fiche, key: string): { key: string; label: string; value
     a.nature === 'ressource' && typeof v.valeur === 'number' && v.max !== undefined
       ? `${v.valeur} / ${v.max}`
       : String(v.valeur);
-  return [{ key, label: a.abrege ?? a.nom, value }];
+  return [{ key, label: a.nom, value }];
 }

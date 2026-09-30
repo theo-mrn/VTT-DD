@@ -9,6 +9,7 @@
  * L'état reste dans la machine (`attack-flow.ts`) : ce hook ne fait que la lire et lui envoyer
  * des événements.
  */
+import type { ActionParams } from '@vtt/contracts';
 import type { Action } from '@vtt/rules';
 import { useEffect, useMemo, useState } from 'react';
 import { useDicePreferences } from '@/lib/dice-preferences';
@@ -142,10 +143,13 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     });
   }
 
-  async function submit() {
+  /** `patch` : valeurs choisies au clic (carte du type d'attaque), gardées dans le brouillon. */
+  async function submit(patch?: ActionParams) {
     if (flow.phase !== 'compose' || !action || !systeme || disabledReason) return;
     const key = submitKey(flow, newIdempotencyKey);
-    const params = paramsToSend(systeme, action, fiche, draft.params);
+    const values = patch ? { ...draft.params, ...patch } : draft.params;
+    if (patch) attackMenu.dispatch({ type: 'setParams', params: values });
+    const params = paramsToSend(systeme, action, fiche, values);
     const body = declareBody(flow, {
       gm: ctx.gm,
       settings,
