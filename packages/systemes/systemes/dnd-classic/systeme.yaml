@@ -508,6 +508,8 @@ creation:
 #   reduction, demiDM, instinct   effets défensifs de la cible (`cote: cible`) :
 #                                 DM retranchés, DM divisés par 2, DM divisés par 2
 #                                 s'ils devaient l'amener à 0 PV
+# La situation (bloc `situation` ci-dessous) s'ajoute à `avantages`, `avantagesTest`,
+# `bonusDM` et au total du test d'attaque.
 # Une attaque qui touche inflige ses dégâts (`apres`), moins la RD de la cible
 # (au moins 1 DM), retirés des PV de la cible.
 # Types de dégâts : l'action déclare le sien (`typeDegats`), les capacités de
@@ -528,6 +530,86 @@ typesDegats:
   - { id: necrotique, nom: Nécrotiques, description: 'Drain de vie, putréfaction, morts-vivants.' }
   - { id: psychique, nom: Psychiques }
 
+# ─── Situation des attaques ─────────────────────────────────────────────────
+# Paramètres communs à toutes les actions à cible, rangés « Situation » dans le menu
+# d'attaque (docs/regles.md, « Situation du combat »), et leurs effets. Règles du
+# glossaire : Avantage et Désavantage, Abri (partiel +2 DEF, important +5 DEF),
+# Action Esquiver (attaques contre elle au désavantage) ; à terre (Prone, mise à terre
+# par Bousculer) : avantage au contact, désavantage à distance. La cible surprise ou prise
+# à revers est propre à l'Attaque sournoise (le MJ la marque surprise dans le combat).
+# S'en excluent : soins et dégâts sans test d'attaque (situation: false), attaques au
+# d12 ou à 2d20 imposés (ni avantage ni désavantage), Blagues et cabrioles (test de CHA).
+situation:
+  parametres:
+    - id: avantage
+      nom: Avantage ou désavantage
+      description: >-
+        Deux d20, le meilleur (avantage) ou le pire (désavantage). Plusieurs sources ne
+        donnent toujours que deux dés ; avantage et désavantage s'annulent.
+      type: choix
+      options:
+        - { valeur: normal, nom: Normal }
+        - { valeur: avantage, nom: Avantage }
+        - { valeur: desavantage, nom: Désavantage }
+    - id: couvert
+      nom: Abri de la cible
+      description: >-
+        Abri partiel (moitié du corps) +2 DEF, important (trois quarts) +5 DEF ; un abri
+        total empêche de la viser.
+      type: choix
+      options:
+        - { valeur: aucun, nom: Aucun }
+        - { valeur: partiel, nom: Partiel (+2 DEF) }
+        - { valeur: important, nom: Important (+5 DEF) }
+    - id: cibleATerre
+      nom: Cible à terre
+      description: À terre, attaquée au contact avec avantage, à distance avec désavantage.
+      type: choix
+      options:
+        - { valeur: non, nom: Non }
+        - { valeur: contact, nom: 'Oui, attaque au contact (avantage)' }
+        - { valeur: distance, nom: 'Oui, attaque à distance (désavantage)' }
+    - id: cibleEsquive
+      nom: La cible esquive
+      description: >-
+        Action Esquiver jusqu'au début de son prochain tour : attaques contre elle au
+        désavantage si elle voit l'attaquant.
+      type: booleen
+    - id: bonusToucher
+      nom: Bonus ou malus au toucher
+      description: Décision du MJ (terrain, visibilité, position…), ajoutée au test d'attaque.
+      type: nombre
+    - id: bonusDegats
+      nom: Bonus ou malus aux DM
+      description: Décision du MJ, ajoutée aux DM si l'attaque touche.
+      type: nombre
+  effets:
+    - sur: jet
+      description: Avantage de situation
+      ajout:
+        variable: avantages
+        ajouter: 'si(avantage == "avantage", 1, si(avantage == "desavantage", -1, 0))'
+    - sur: jet
+      description: Avantage de situation
+      ajout:
+        variable: avantagesTest
+        ajouter: 'si(avantage == "avantage", 1, si(avantage == "desavantage", -1, 0))'
+    - sur: jet
+      description: Cible à terre
+      ajout:
+        variable: avantages
+        ajouter: 'si(cibleATerre == "contact", 1, si(cibleATerre == "distance", -1, 0))'
+    - sur: jet
+      description: La cible esquive
+      ajout: { variable: avantages, ajouter: 'si(cibleEsquive, -1, 0)' }
+    - sur: jet
+      description: Abri de la cible
+      ajout: { bonus: 'si(couvert == "partiel", -2, si(couvert == "important", -5, 0))' }
+    - { sur: jet, description: Bonus de situation, ajout: { bonus: bonusToucher } }
+    - sur: jet
+      description: Bonus de situation aux DM
+      ajout: { variable: bonusDM, ajouter: bonusDegats }
+
 actions:
   - id: attaque
     nom: Attaque avec une arme
@@ -541,8 +623,6 @@ actions:
     cible: personnage
     parametres:
       - &arme { id: arme, nom: Arme, type: entree, sorte: arme }
-      - &avantage { id: avantage, nom: Avantage, type: booleen }
-      - &desavantage { id: desavantage, nom: Désavantage, type: booleen }
       - id: auD12
         nom: 'Attaque au d12 (Déluge de coups, Danse des lames, Combat à deux armes)'
         type: booleen
@@ -561,7 +641,11 @@ actions:
         exige: 'possede("prestige-guerrier-armes-a-2-mains-attaque-a-outrance")'
       - id: premiereAttaque
         nom: 'Première attaque du combat (À l’abordage +5/+1d6, Frappe du vide +2/+1d6)'
+        description: >-
+          Frappe du vide : sabre au fourreau. À l'abordage est compté d'office à la première
+          attaque au contact d'un combat en cours ; la case sert hors du suivi du combat.
         type: booleen
+        section: situation
         exige: 'possede("prestige-arquebusier-flibustier-a-l-abordage") ou possede("samourai-sabre-frappe-du-vide")'
       - id: nouvelleCible
         nom: 'Cible différente du tour précédent (Volte-face : +2, +1d6 DM)'
@@ -604,8 +688,8 @@ actions:
         nom: 'Ouverture mortelle : critique automatique'
         type: booleen
         exige: 'possede("voleur-assassin-ouverture-mortelle")'
-    variables: &vars-arme
-      - &v-avantages { cle: avantages, formule: 'si(avantage, 1, 0) - si(desavantage, 1, 0)' }
+    variables: &vars-arme # Avantage de situation, états et capacités s'y ajoutent (effets de jet)
+      - &v-avantages { cle: avantages, formule: 0 }
       - cle: bonusAttaque
         formule: &f-att-arme >-
           si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
@@ -697,13 +781,11 @@ actions:
     cible: personnage
     parametres:
       - { id: score, nom: Attaque, type: attribut, attributs: [Contact, Distance, Magie] }
-      - *avantage
-      - *desavantage
       - &p-nb-des { id: nbDes, nom: Nombre de dés, type: nombre, defaut: 1 }
       - &p-faces { id: faces, nom: Faces, type: nombre, defaut: 6 }
       - &p-bonus { id: bonus, nom: Bonus aux DM, type: nombre, defaut: 0 }
     variables: &vars-attaque
-      - { cle: avantages, formule: 'si(avantage, 1, 0) - si(desavantage, 1, 0)' }
+      - *v-avantages
       - cle: bonusAttaque
         formule: &f-att >-
           si(possede("prestige-rodeur-chasseur-de-corruption-combattre-la-corruption")
@@ -757,6 +839,7 @@ actions:
     description: Dégâts sans test d'attaque (zone, piège, chute), moins la RD de la cible.
     pour: [personnage]
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     parametres:
       - *p-nb-des
@@ -791,8 +874,8 @@ actions:
           groupe: caracteristiques,
         }
       - &p-difficulte { id: difficulte, nom: Difficulté, type: nombre, defaut: 10 }
-      - *avantage
-      - *desavantage
+      - &avantage { id: avantage, nom: Avantage, type: booleen }
+      - &desavantage { id: desavantage, nom: Désavantage, type: booleen }
       - id: atout
         nom: Capacité invoquée
         type: entree
@@ -868,8 +951,8 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-barde-bouffon-blagues-et-cabrioles")'
     cible: personnage
-    parametres: [*avantage, *desavantage]
-    variables: [*v-avantages-test]
+    situation: { sauf: [couvert, cibleATerre, cibleEsquive, bonusDegats] }
+    variables: [{ cle: avantagesTest, formule: 0 }]
     jet:
       type: numerique
       formule: 'si(avantagesTest > 0, 2d20k1, si(avantagesTest < 0, 2d20kl1, 1d20)) + mod(@CHA)'
@@ -910,7 +993,7 @@ actions:
     pour: [personnage]
     exige: 'possede("barbare-pourfendeur-charge") ou possede("barde-saltimbanque-grace-feline") ou possede("race-minotaure-charge")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -943,8 +1026,6 @@ actions:
     cible: personnage
     parametres:
       - *arme
-      - *avantage
-      - *desavantage
       - { id: puissante, nom: 'Pénalité de −5 pour +2d6 DM (rang 5)', type: booleen }
     variables: *vars-arme
     jet:
@@ -980,8 +1061,6 @@ actions:
     cible: personnage
     parametres:
       - *arme
-      - *avantage
-      - *desavantage
       - { id: feinteReussie, nom: La feinte (ou la blague) a réussi, type: booleen }
     variables: *vars-arme
     jet:
@@ -1011,7 +1090,7 @@ actions:
     pour: [personnage]
     exige: 'possede("barde-escrime-attaque-flamboyante")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -1040,7 +1119,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-guerre-sainte-chatiment-divin")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -1069,6 +1148,8 @@ actions:
     pour: [personnage]
     exige: 'possede("chevalier-guerre-frappe-lourde")'
     cible: personnage
+    # d12 ou 2d20 imposés : ni avantage ni désavantage
+    situation: { sauf: [avantage, cibleATerre, cibleEsquive] }
     parametres: [*arme]
     variables: &vars-arme-sans-avantage
       - { cle: bonusAttaque, formule: *f-att-arme }
@@ -1108,6 +1189,8 @@ actions:
     pour: [personnage]
     exige: 'possede("guerrier-combat-attaque-puissante") ou possede("samourai-ki-puissance-du-ki") ou possede("moine-poing-puissance-du-ki")'
     cible: personnage
+    # d12 ou 2d20 imposés : ni avantage ni désavantage
+    situation: { sauf: [avantage, cibleATerre, cibleEsquive] }
     parametres: [*arme]
     variables: *vars-arme-sans-avantage
     jet:
@@ -1130,6 +1213,8 @@ actions:
     pour: [personnage]
     exige: 'possede("guerrier-maitre-d-armes-attaque-parfaite")'
     cible: personnage
+    # d12 ou 2d20 imposés : ni avantage ni désavantage
+    situation: { sauf: [avantage, cibleATerre, cibleEsquive] }
     parametres: [*arme]
     variables: *vars-arme-sans-avantage
     jet:
@@ -1159,6 +1244,8 @@ actions:
     pour: [personnage]
     exige: 'possede("chevalier-cavalier-charge")'
     cible: personnage
+    # d12 ou 2d20 imposés : ni avantage ni désavantage
+    situation: { sauf: [avantage, cibleATerre, cibleEsquive] }
     parametres: [*arme]
     variables: *vars-arme-sans-avantage
     jet:
@@ -1181,8 +1268,11 @@ actions:
     pour: [personnage]
     exige: 'possede("druide-fauve-attaque-bondissante")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
+    verifications:
+      - condition: non @combat.enCours ou @combat.premierRound
+        message: 'Attaque bondissante : au premier tour du combat seulement'
     jet:
       type: numerique
       formule: >-
@@ -1207,8 +1297,24 @@ actions:
     pour: [personnage]
     exige: 'possede("voleur-assassin-attaque-sournoise") ou possede("voleur-spadassin-botte-secrete")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage, *p-ouverture]
+    parametres:
+      - *arme
+      - *p-ouverture
+      - id: cibleSurprise
+        nom: Cible surprise ou prise à revers
+        description: >-
+          Elle ne vous a pas vu venir (embuscade, attaque dans le dos). Comptée d'office quand
+          le MJ l'a marquée surprise dans le combat.
+        type: booleen
+        section: situation
     variables: *vars-arme
+    verifications:
+      # Surprise marquée par le MJ dans le combat (@combat), ou déclarée dans la situation
+      - condition: >-
+          cibleSurprise ou @combat.cible.surpris ou possede("voleur-spadassin-botte-secrete")
+        message: 'Attaque sournoise : la cible doit être surprise ou prise à revers (situation)'
+      - condition: non cible_possede("barbare-primitif-vigilance")
+        message: 'La cible est immunisée aux attaques sournoises (Vigilance du barbare)'
     jet:
       type: numerique
       formule: &d20-arme >-
@@ -1245,8 +1351,6 @@ actions:
     cible: personnage
     parametres:
       - *arme
-      - *avantage
-      - *desavantage
       - {
           id: taille,
           nom: 'Taille de la cible (d6 bonus : moyenne 1 … colossale 5)',
@@ -1279,7 +1383,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-rodeur-archer-arcanique-fleche-intangible")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -1310,7 +1414,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-moine-contact-mortel-frappe-de-l-enclume")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -1341,7 +1445,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-chevalier-grand-veneur-mise-a-mort")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -1373,7 +1477,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-chevalier-tournoi-briser-l-armure")'
     cible: personnage
-    parametres: [*arme, *avantage, *desavantage]
+    parametres: [*arme]
     variables: *vars-arme
     jet:
       type: numerique
@@ -1404,7 +1508,6 @@ actions:
     pour: [personnage]
     exige: 'possede("moine-poing-poings-de-fer") ou possede("samourai-ki-main-vide") ou possede("race-ame-forgee-main-lourde")'
     cible: personnage
-    parametres: [*avantage, *desavantage]
     variables: *vars-attaque
     jet:
       type: numerique
@@ -1439,7 +1542,6 @@ actions:
     pour: [personnage]
     exige: 'possede("minotaure-coup-de-corne") ou possede("race-minotaure-encorner")'
     cible: personnage
-    parametres: [*avantage, *desavantage]
     variables: *vars-attaque
     jet:
       type: numerique
@@ -1468,6 +1570,8 @@ actions:
     pour: [personnage]
     exige: 'possede("chevalier-guerre-coup-de-bouclier")'
     cible: personnage
+    # d12 ou 2d20 imposés : ni avantage ni désavantage
+    situation: { sauf: [avantage, cibleATerre, cibleEsquive] }
     variables: &vars-attaque-sans-avantage
       - { cle: bonusAttaque, formule: *f-att }
       - { cle: bonusDM, formule: *f-dm }
@@ -1503,7 +1607,6 @@ actions:
     pour: [personnage]
     exige: 'possede("race-wolfer-armes-naturelles")'
     cible: personnage
-    parametres: [*avantage, *desavantage]
     variables: *vars-attaque
     jet:
       type: numerique
@@ -1525,7 +1628,6 @@ actions:
     pour: [personnage]
     exige: 'possede("race-ame-forgee-choc-electrique")'
     cible: personnage
-    parametres: [*avantage, *desavantage]
     variables: *vars-attaque
     jet:
       type: numerique
@@ -1552,7 +1654,7 @@ actions:
     pour: [personnage]
     exige: 'possede("moine-energie-vitale-mains-d-energie")'
     cible: personnage
-    parametres: [*avantage, *desavantage, *p-nb-des, *p-faces, *p-bonus]
+    parametres: [*p-nb-des, *p-faces, *p-bonus]
     variables: *vars-attaque
     jet:
       type: numerique
@@ -1578,7 +1680,6 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-foi-arme-d-argent")'
     cible: personnage
-    parametres: [*avantage, *desavantage]
     variables: *vars-attaque
     jet:
       type: numerique
@@ -1613,8 +1714,6 @@ actions:
     exige: 'possede("forgesort-artefacts-baton-de-mage")'
     cible: personnage
     parametres:
-      - *avantage
-      - *desavantage
       - { id: limitee, nom: 'Action limitée : attaque magique, 2d6 DM (rang 3)', type: booleen }
     variables: *vars-attaque
     jet:
@@ -1653,8 +1752,6 @@ actions:
     cible: personnage
     parametres:
       - { id: capacite, nom: Sort, type: entree, sorte: capacite, etiquette: sort }
-      - *avantage
-      - *desavantage
       - id: rituel
         nom: 'Rituel de puissance (d12, +2d6 DM)'
         type: booleen
@@ -1702,8 +1799,6 @@ actions:
     cible: personnage
     multicible: { jet: commun }
     parametres: &params-magie
-      - { id: avantage, nom: Avantage, type: booleen }
-      - { id: desavantage, nom: Désavantage, type: booleen }
       - &p-rituel
         id: rituel
         nom: 'Rituel de puissance (d12, +2d6 DM)'
@@ -1854,8 +1949,6 @@ actions:
     exige: 'possede("moine-energie-vitale-projection-du-ki")'
     cible: personnage
     parametres:
-      - *avantage
-      - *desavantage
       - *p-rituel
       - id: puissante
         nom: Projection puissante (DM doublés)
@@ -1981,8 +2074,6 @@ actions:
     exige: 'possede("psionique-attaque-mentale-attaque-mentale")'
     cible: personnage
     parametres:
-      - *avantage
-      - *desavantage
       - *p-rituel
       - id: etourdissante
         nom: 'Attaque étourdissante (d12 : cible étourdie)'
@@ -2077,6 +2168,7 @@ actions:
     pour: [personnage]
     exige: 'possede("magicien-magie-destructrice-projectile-magique")'
     cible: personnage
+    situation: false
     variables: *vars-degats
     jet: { type: numerique, formule: 'des(1, si(rang("magicien-magie-destructrice") >= 4, 6, 4))' }
     apres: &apres-auto
@@ -2096,6 +2188,7 @@ actions:
     pour: [personnage]
     exige: 'possede("forgesort-artefacts-frappe-des-arcanes")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     jet: { type: numerique, formule: '2d6 + mod(@INT)' }
@@ -2110,6 +2203,7 @@ actions:
     pour: [personnage]
     exige: 'possede("forgesort-elixirs-feu-gregeois")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     jet: { type: numerique, formule: 'des(rang("forgesort-elixirs"), 6)' }
@@ -2123,6 +2217,7 @@ actions:
     pour: [personnage]
     exige: 'possede("moine-maitrise-fureur-du-dragon")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     jet: { type: numerique, formule: '2d6 + mod(@FOR)' }
@@ -2137,6 +2232,7 @@ actions:
     pour: [personnage]
     exige: 'possede("psionique-telekinesie-onde-de-choc")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     jet:
@@ -2156,6 +2252,7 @@ actions:
     pour: [personnage]
     exige: 'possede("race-drakonide-souffle") ou possede("prestige-ensorceleur-sang-dragon-souffle-du-dragon")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     jet:
@@ -2174,6 +2271,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-ensorceleur-gel-cone-de-froid")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     parametres:
       - &p-moitie { id: moitie, nom: La cible réussit son test (moitié des DM), type: booleen }
@@ -2198,6 +2296,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-barde-voix-cri-de-la-banshee")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     jet: { type: numerique, formule: 6d6 }
@@ -2212,6 +2311,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-pretre-commerce-piege")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     parametres: [*p-moitie]
     variables: *vars-degats
@@ -2230,6 +2330,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-priere-destruction-des-morts-vivants")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     variables: *vars-degats
     verifications:
@@ -2248,6 +2349,7 @@ actions:
     pour: [personnage]
     exige: 'possede("race-orque-attaque-sanglante") ou possede("race-elfe-sylvain-fleche-sanglante")'
     cible: personnage
+    situation: false
     variables: *vars-degats
     jet: { type: numerique, formule: 1d6 }
     apres: *apres-auto
@@ -2261,6 +2363,7 @@ actions:
     pour: [personnage]
     exige: 'possede("necromancien-outre-tombe-armee-des-morts")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     parametres:
       - { id: degage, nom: La cible se dégage à l’arme lourde (1d6), type: booleen }
@@ -2277,6 +2380,7 @@ actions:
     pour: [personnage]
     exige: 'possede("necromancien-sang-sang-mordant")'
     cible: personnage
+    situation: false
     variables: *vars-degats
     jet: { type: numerique, formule: 1d6 }
     apres: *apres-auto
@@ -2291,6 +2395,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-soins-soins-legers")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: '1d8 + @niveau + rang("prestige-pretre-guerisseur")' }
     consequences:
       - &soigner-cible { entite: cible, attribut: PV, operation: ajouter, valeur: 'max(0, total)' }
@@ -2301,6 +2406,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-soins-soins-moderes")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: '2d8 + @niveau + rang("prestige-pretre-guerisseur")' }
     consequences:
       - *soigner-cible
@@ -2311,6 +2417,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-soins-soins-de-groupe")'
     cible: personnage
+    situation: false
     multicible: { jet: par-cible }
     jet: { type: numerique, formule: '1d8 + @niveau + rang("prestige-pretre-guerisseur")' }
     consequences:
@@ -2322,6 +2429,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-soins-guerison")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: '@cible.PV_Max' }
     consequences:
       - { entite: cible, attribut: PV, operation: fixer, valeur: total }
@@ -2332,6 +2440,7 @@ actions:
     pour: [personnage]
     exige: 'possede("pretre-soins-rappel-a-la-vie")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: 1d6 }
     consequences:
       - { entite: cible, attribut: PV, operation: fixer, valeur: total }
@@ -2342,6 +2451,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-pretre-guerisseur-premiers-soins")'
     cible: personnage
+    situation: false
     verifications:
       - { condition: '@cible.PV == 0', message: La cible n’est pas à 0 PV }
     jet: { type: numerique, formule: '2d6 + mod(@SAG)' }
@@ -2354,6 +2464,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-pretre-guerisseur-zone-de-vie")'
     cible: personnage
+    situation: false
     multicible: { jet: par-cible }
     jet: { type: numerique, formule: 1d6 }
     consequences:
@@ -2367,6 +2478,7 @@ actions:
     pour: [personnage]
     exige: 'possede("prestige-pretre-guerisseur-phenix")'
     cible: personnage
+    situation: false
     multicible: { jet: commun }
     jet: { type: numerique, formule: '3d6 + mod(@SAG)' }
     consequences:
@@ -2378,6 +2490,7 @@ actions:
     pour: [personnage]
     exige: 'possede("druide-protecteur-regeneration")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: '3' }
     consequences:
       - *soigner-cible
@@ -2388,6 +2501,7 @@ actions:
     pour: [personnage]
     exige: 'possede("druide-protecteur-baies-magiques")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: 1d6 + @niveau }
     consequences:
       - *soigner-cible
@@ -2398,6 +2512,7 @@ actions:
     pour: [personnage]
     exige: 'possede("forgesort-elixirs-elixir-de-guerison")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: '3d6 + mod(@INT)' }
     consequences:
       - *soigner-cible
@@ -2408,6 +2523,7 @@ actions:
     pour: [personnage]
     exige: 'possede("forgesort-elixirs-fortifiant")'
     cible: personnage
+    situation: false
     jet: { type: numerique, formule: '1d4 + rang("forgesort-elixirs")' }
     consequences:
       - *soigner-cible

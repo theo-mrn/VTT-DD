@@ -689,23 +689,24 @@ describe('dnd-classic : actions', () => {
     expect(r.variables.total).toBe(10 + 2 + (6 - 2)); // Contact 2, Distance 6
   });
 
-  it('attaque libre : avantage et désavantage, 2d20 le meilleur ou le pire', () => {
+  it('attaque libre : avantage et désavantage de situation, 2d20 le meilleur ou le pire', () => {
     const cible = grok(); // Défense 10
     const distance = { score: 'Distance' };
     const avec = agir('attaque-libre', elaria(), [5, 17, 4], cible, {
       ...distance,
-      avantage: true,
+      avantage: 'avantage',
     });
     expect([avec.variables.total, avec.variables.degats]).toEqual([17 + 6, 4]);
     const contre = agir('attaque-libre', elaria(), [5, 17, 4], cible, {
       ...distance,
-      desavantage: true,
+      avantage: 'desavantage',
     });
     expect(contre.variables.total).toBe(5 + 6);
+    // Avantage de situation et cible à terre visée à distance (désavantage) : ils s'annulent
     const annules = agir('attaque-libre', elaria(), [5, 4], cible, {
       score: 'Magie',
-      avantage: true,
-      desavantage: true,
+      avantage: 'avantage',
+      cibleATerre: 'distance',
     });
     expect(annules.variables.total).toBe(5 + 8);
   });
@@ -1095,6 +1096,7 @@ describe('dnd-classic : capacités codées', () => {
     const ouverture = agir('attaque-sournoise', assassin, [2, 1, 1, 1, 1, 1], imprenable, {
       ...arme('epee-longue'),
       ouvertureMortelle: true,
+      cibleSurprise: true,
     });
     // Critique automatique : 2d8 de l'arme + 3d6 d'attaque sournoise
     expect([ouverture.reussi, ouverture.variables.degats]).toEqual([true, 5]);
@@ -1164,7 +1166,8 @@ describe('dnd-classic : toutes les actions', () => {
         systeme: { id: 'dnd-classic', version: '1.0.0' },
         valeurs: { PV: 0 },
         possessions: [
-          ...voies.slice(0, 40),
+          // Sans la Vigilance du barbare, immunisée aux attaques sournoises
+          ...voies.filter((v) => v.entree !== 'barbare-primitif').slice(0, 40),
           { entree: 'mort-vivant' },
           { entree: 'plaque-complete' },
         ],
@@ -1177,6 +1180,8 @@ describe('dnd-classic : toutes les actions', () => {
         if (p.type === 'entree' && !p.facultatif)
           parametres[p.id] = p.sorte === 'arme' ? 'epee-longue' : 'necromancien-sang-saignements';
         if (p.type === 'attribut') parametres[p.id] = p.attributs?.[0] ?? 'FOR';
+        // Attaque sournoise : contre une cible surprise ou prise à revers
+        if (p.id === 'cibleSurprise') parametres[p.id] = true;
       }
       const r = executerAction(systeme, {
         action: action.id,

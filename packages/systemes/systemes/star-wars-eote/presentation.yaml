@@ -232,3 +232,10 @@ combat:
       traumatisme-severe: blessure
       blessure-mortelle: blessure
       mort: inconscient
+  # Icônes des paramètres de situation du menu d'attaque
+  situation:
+    icones:
+      couvert: couvert
+      desFortune: benediction
+      desInfortune: malediction
+      frappeRapide: alerte

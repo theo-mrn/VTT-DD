@@ -89,7 +89,7 @@
   description: |-
     Lors d'un test de Mêlée ou de Corps à corps, subit un nombre de points de stress (au plus ses rangs) pour améliorer l'attaque d'autant.
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : Frenzied Attack.
 
@@ -433,7 +433,7 @@
   description: |-
     Lors des tests de Mêlée, peut infliger les dégâts sous forme de stress plutôt que de blessures (l'Encaissement s'applique).
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : Stunning Blow.
 
@@ -722,7 +722,7 @@
   description: |-
     Ajoute 1 dé de Fortune par rang aux tests de combat contre les cibles qui n'ont pas encore agi pendant la rencontre.
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : Quick Strike.
 
@@ -1102,7 +1102,7 @@
   description: |-
     Lors d'un test de Corps à corps, au lieu d'infliger des dégâts, peut infliger autant de stress, plus un stress supplémentaire égal à ses rangs en Médecine (ignore l'Encaissement).
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : Pressure Point.
 
@@ -1436,7 +1436,7 @@
   description: |-
     Avant une attaque à distance (hors arme de jet), manœuvre Tir de précision : augmente la portée de l'arme d'une bande par rang, et améliore la difficulté de l'attaque de 1 par bande ajoutée.
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : Sniper Shot.
 
@@ -1540,7 +1540,7 @@
   description: |-
     Une fois par round, manœuvre Visée parfaite : bénéficie des avantages de la visée et améliore le test de combat une fois par rang.
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : True Aim.
 
@@ -1551,6 +1551,6 @@
   description: |-
     Une fois par round, manœuvre Visée précise : subit un nombre de points de stress (au plus ses rangs) et réduit d'autant la Défense de mêlée et à distance de la cible.
 
-    Dans l'app : option de l'action « Attaque ».
+    Dans l’app : d’office au premier round d’un combat contre une cible dont le tour n’est pas passé ; sinon, option de l’action « Attaque ».
 
     VO : Precise Aim.

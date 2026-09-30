@@ -882,6 +882,40 @@ des:
 # Les options des talents (paramètres `exige`) ne sont proposées qu'à qui possède le talent ; leur
 # coût en stress passe par les conséquences, leur plafond (un point par rang) par les vérifications.
 
+# ─── Situation des actions à cible ───────────────────────────────────────────
+# Paramètres communs à l'attaque, au test contre un personnage et aux soins, rangés
+# « Situation » dans le menu d'attaque (docs/regles.md, « Situation du combat ») :
+# Fortune et Infortune de situation (résolution d'une attaque, étape 2 ; aide d'un allié),
+# difficulté améliorée ou dégradée. Le couvert de la cible est propre à l'attaque. Le test
+# de compétence sans cible garde ses propres paramètres, du même nom. Stimpack et
+# Protecteur n'ont pas de jet de dés.
+situation:
+  parametres:
+    - id: desFortune
+      nom: Dés de Fortune de situation
+      description: >-
+        Circonstance favorable (position idéale, éclairage parfait), aide d'un allié : un
+        Succès à l'assistance donne 1 dé de Fortune, un Triomphe 2.
+      type: nombre
+    - id: desInfortune
+      nom: Dés d'Infortune de situation
+      description: >-
+        Circonstance défavorable que la difficulté ne compte pas déjà (obscurité partielle,
+        arme endommagée, blessure).
+      type: nombre
+    - id: ameliorationsDifficulte
+      nom: Difficulté améliorée
+      description: Dés de Difficulté améliorés en Défi.
+      type: nombre
+    - id: retrogradationsDifficulte
+      nom: Difficulté dégradée
+      description: Dés de Défi dégradés en Difficulté.
+      type: nombre
+  effets:
+    - sur: jet
+      description: Difficulté dégradée
+      ajout: { retrograder: defi, vers: difficulte, nombre: retrogradationsDifficulte }
+
 actions:
   - id: test
     nom: Test de compétence
@@ -1006,9 +1040,6 @@ actions:
       - *competence
       - *circonstance
       - *difficulte
-      - *ameliorations
-      - *fortune
-      - *infortune
       - *coupDeGenie
       - *concentration
       - *intimidant
@@ -1074,16 +1105,29 @@ actions:
     parametres:
       - { id: arme, nom: Arme, type: entree, sorte: arme, possedee: false }
       - { id: portee, nom: Portée, type: entree, sorte: portee, possedee: false }
-      - {
-          id: difficulteSupplementaire,
-          nom: Dés de Difficulté supplémentaires,
-          type: nombre,
-          defaut: 0,
-        }
-      - *ameliorations
-      - *fortune
-      - *infortune
-      - { id: visee, nom: 'Manœuvres Viser (0 à 2) : 1 dé de Fortune chacune', type: nombre }
+      - id: difficulteSupplementaire
+        nom: Dés de Difficulté supplémentaires
+        description: Circonstance qui rend la tâche plus difficile (obscurité, terrain, urgence).
+        type: nombre
+        section: situation
+      # Couvert et manœuvres défensives : partiel +1 Difficulté, intégral +2 (tirs) ; le
+      # couvert que la cible porte déjà (état) compte, le plus fort l'emporte
+      - id: couvert
+        nom: Couvert de la cible
+        description: >-
+          Tirs seulement. Le couvert que la cible porte déjà (état) compte : le plus fort
+          l'emporte. Un couvert intégral peut interdire le tir direct.
+        type: choix
+        section: situation
+        options:
+          - { valeur: aucun, nom: Aucun }
+          - { valeur: partiel, nom: Partiel (+1 Difficulté) }
+          - { valeur: integral, nom: Intégral (+2 Difficulté) }
+      - id: visee
+        nom: 'Manœuvres Viser (0 à 2) : 1 dé de Fortune chacune'
+        description: 'Viser (manœuvre) : 1 dé de Fortune au prochain jet d’attaque ce round.'
+        type: nombre
+        section: situation
       # Réaction de la cible (défense active) : elle choisit le stress qu'elle subit
       - {
           id: esquive,
@@ -1092,12 +1136,14 @@ actions:
           par: cible,
           exige: possede("esquive"),
         }
-      - {
-          id: frappeRapide,
-          nom: "Frappe rapide : la cible n'a pas encore agi",
-          type: booleen,
-          exige: possede("frappe-rapide"),
-        }
+      - id: frappeRapide
+        nom: "Frappe rapide : la cible n'a pas encore agi"
+        description: >-
+          Comptée d'office au premier round d'un combat en cours contre une cible dont le tour
+          n'est pas encore passé ; la case sert pour une cible qui a rejoint le combat plus tard.
+        type: booleen
+        section: situation
+        exige: possede("frappe-rapide")
       - {
           id: viseePrecise,
           nom: "Visée précise : stress subi pour réduire d'autant la Défense de la cible",
@@ -1171,7 +1217,8 @@ actions:
         formule: portee.ordre <= porteeMax et non (portee == "engage" et arme.competence == "artillerie")
       - cle: difficulte
         formule: >-
-          si(arme.melee, 2, portee.difficulte + @cible.couvert
+          si(arme.melee, 2, portee.difficulte
+          + max(@cible.couvert, si(couvert == "partiel", 1, si(couvert == "integral", 2, 0)))
           + si(portee == "engage" et arme.competence == "distance-lourde", 1, 0))
           + difficulteSupplementaire + si(coupHandicapant, 1, 0)
       # Visée précise réduit la Défense de la cible
@@ -1210,7 +1257,8 @@ actions:
         - de: fortune
           nombre: >-
             desFortune + arme.precis + si(arme.melee, @cible.vulnerabiliteMelee, 0) + visee
-            + si(viseeParfaite, 1, 0) + si(frappeRapide, rang("frappe-rapide"), 0)
+            + si(viseeParfaite, 1, 0)
+            + si(frappeRapide ou (@combat.premierRound et non @combat.cible.aAgi), rang("frappe-rapide"), 0)
         # Toutes les compétences de combat sont d'Agilité ou de Vigueur : l'excédent s'applique
         - {
             de: infortune,
@@ -1357,15 +1405,11 @@ actions:
           etiquette: soins,
           possedee: false,
         }
-      - {
-          id: difficulteSupplementaire,
-          nom: Dés de Difficulté supplémentaires,
-          type: nombre,
-          defaut: 0,
-        }
-      - *ameliorations
-      - *fortune
-      - *infortune
+      - id: difficulteSupplementaire
+        nom: Dés de Difficulté supplémentaires
+        description: Circonstance qui rend la tâche plus difficile (obscurité, terrain, urgence).
+        type: nombre
+        section: situation
       - {
           id: maitre,
           nom: 'Maître médecin (2 stress) : difficulté réduite de 1',
@@ -1419,6 +1463,7 @@ actions:
     nom: Stimpack
     pour: [personnage]
     cible: personnage
+    situation: false
     description: >-
       Injection sans jet : soigne 5 blessures, 1 de moins par stimpack déjà reçu par la cible dans la
       journée. Sans effet sur un droïde. Consomme un stimpack de l'acteur.
@@ -1583,6 +1628,7 @@ actions:
       attaques qui visent ce personnage est améliorée d'autant. Avec 0 point de stress, la garde prend fin.
     pour: [personnage]
     cible: personnage
+    situation: false
     exige: possede("protecteur")
     parametres:
       - *stressSubi

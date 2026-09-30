@@ -124,3 +124,8 @@ references:
 combat:
   groupes:
     - { titre: Attaques, actions: [attaque, coup-de-corne] }
+  # Icônes des paramètres de situation du menu d'attaque
+  situation:
+    icones:
+      couvert: couvert
+      cibleATerre: a-terre

@@ -261,3 +261,10 @@ combat:
       desoriente: desoriente
       affaibli: affaibli
       saignant: saignement
+  # Icônes des paramètres de situation du menu d'attaque
+  situation:
+    icones:
+      couvert: couvert
+      cibleATerre: a-terre
+      cibleEsquive: protection
+      cibleSurprise: alerte

@@ -2699,6 +2699,21 @@
   champs: { voie: prestige-arquebusier-flibustier, rangVoie: 3, activation: Capacité passive }
   description: |-
     Effet : Le personnage sait s’élancer vers ses ennemis et mettre du cœur dans sa première attaque au contact lors d’un combat. Lors de cette première attaque, il obtient un bonus de +5 en attaque et de +1d6 aux DM.
+  # D'office à la première attaque au contact d'un combat en cours (@combat) ; hors du suivi
+  # du combat, la case « Première attaque du combat » de l'attaque le donne
+  effets:
+    - sur: jet
+      description: À l’abordage !
+      si: &abordage >-
+        non premiereAttaque et arme.attaque == "Contact" et @combat.enCours
+        et @combat.acteur.attaques == 0
+      ajout: { bonus: 5 }
+    - {
+        sur: jet,
+        description: À l’abordage !,
+        si: *abordage,
+        ajout: { variable: desDM, ajouter: 1 },
+      }
 
 - id: prestige-arquebusier-flibustier-sabre-au-poing
   sorte: capacite
