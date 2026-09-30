@@ -12,18 +12,15 @@
  */
 import { MediaUrl } from '@vtt/contracts';
 import type { Attribut, EtatEntite, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
-import { ImageUp } from 'lucide-react';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { toast } from 'sonner';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 import { statGroupsFor } from '@/components/resources/model/bestiary';
+import { ImageDrop } from '@/components/uploads/image-drop';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectField } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { messageErreur } from '@/lib/api';
 import type { NpcTemplateCategory } from '@/lib/bestiary';
-import { mapsApi } from '@/lib/map/api';
 import { cn } from '@/lib/utils';
 
 /** Natures que le formulaire saisit (les valeurs calculées suivent les règles). */
@@ -134,7 +131,7 @@ export function NpcForm({
   onSubmit(result: NpcFormResult): void;
   onCancel?(): void;
 }) {
-  const ids = { name: useId(), type: useId(), image: useId(), category: useId() };
+  const ids = { name: useId(), type: useId(), category: useId() };
   const types = useMemo(
     () => [...systeme.entites.values()].map((e) => ({ id: e.type.id, nom: e.type.nom })),
     [systeme],
@@ -146,9 +143,7 @@ export function NpcForm({
   const [category, setCategory] = useState(
     (initial ? initial.categoryId : defaultCategoryId) ?? NONE,
   );
-  const [uploading, setUploading] = useState(false);
   const [touched, setTouched] = useState(false);
-  const file = useRef<HTMLInputElement>(null);
 
   const attributs = useMemo(
     () => keyAttributes(systeme, presentation, type),
@@ -166,17 +161,6 @@ export function NpcForm({
     imageCheck && !imageCheck.success ? 'Adresse https ou chemin du site attendu.' : null;
   const nameError = touched && !name.trim() ? 'Donnez un nom au PNJ.' : null;
   const ready = name.trim().length > 0 && !imageError && Boolean(type);
-
-  const upload = async (f: File) => {
-    setUploading(true);
-    try {
-      setImage(await mapsApi.upload(campaignId, f, 'npc-image'));
-    } catch (err) {
-      toast.error(messageErreur(err, 'L’image n’a pas pu être envoyée.'));
-    } finally {
-      setUploading(false);
-    }
-  };
 
   return (
     <form
@@ -257,48 +241,20 @@ export function NpcForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor={ids.image} className="text-xs text-muted-foreground">
-          Image
-        </Label>
-        <div className="flex gap-1.5">
-          <Input
-            id={ids.image}
-            value={image}
-            placeholder="https://…"
-            aria-invalid={imageError ? true : undefined}
-            aria-describedby={imageError ? `${ids.image}-erreur` : undefined}
-            onChange={(e) => setImage(e.target.value)}
-            className="h-9 min-w-0 flex-1 text-[13px]"
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            aria-label="Envoyer une image"
-            loading={uploading}
-            onClick={() => file.current?.click()}
-          >
-            <ImageUp />
-          </Button>
-        </div>
+        <Label className="text-xs text-muted-foreground">Image</Label>
+        <ImageDrop
+          className="w-32"
+          target={{ kind: 'campaign', id: campaignId }}
+          usage="npc-image"
+          value={image.trim() || null}
+          onChange={(url) => setImage(url ?? '')}
+          label="Image du PNJ"
+        />
         {imageError && (
-          <p id={`${ids.image}-erreur`} role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-xs text-destructive">
             {imageError}
           </p>
         )}
-        <input
-          ref={file}
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/avif,image/gif"
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (f) void upload(f);
-          }}
-        />
       </div>
 
       {attributs.length > 0 && (
