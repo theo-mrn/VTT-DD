@@ -18,10 +18,12 @@ import {
   Circle,
   CloudUpload,
   ImageOff,
+  Link2,
   Library,
   Loader2,
   RotateCcw,
   Square,
+  Unlink2,
   UserSquare2,
   X,
 } from 'lucide-react';
@@ -42,6 +44,7 @@ import {
   composeToken,
   loadBitmap,
   loadImage,
+  portraitFromToken,
   type LoadedImage,
 } from '@/lib/portraits/compose';
 import { MAX_SIDE, prepareImage } from '@/lib/uploads/image';
@@ -134,6 +137,8 @@ function Body({
   });
   // Change à chaque nouvelle image ou « Recentrer » : le cadrage repart de `crops`
   const [cropKey, setCropKey] = useState(0);
+  // Le portrait suit le token jusqu'à ce qu'on le règle à part (docs/portraits.md)
+  const [follows, setFollows] = useState(initial.portraitFollowsToken ?? true);
   const [radius, setRadius] = useState(initial.radius);
   const [inset, setInset] = useState(initial.inset);
   const [frame, setFrame] = useState<string | null>(initial.frame);
@@ -142,6 +147,7 @@ function Body({
 
   const reset = () => {
     setCrops({ token: null, portrait: null });
+    setFollows(true);
     setCropKey((k) => k + 1);
   };
   const pick = (s: Source) => {
@@ -159,11 +165,8 @@ function Body({
   };
 
   const image = loaded.status === 'ready' ? loaded.image : null;
-  // Cadrages en vigueur : ceux choisis, sinon centrés
-  const effective = image && {
-    token: crops.token ?? centeredSquare(image.bitmap.width, image.bitmap.height),
-    portrait: crops.portrait ?? centeredPortrait(image.bitmap.width, image.bitmap.height),
-  };
+  // Cadrages en vigueur : ceux choisis, sinon par défaut ; le portrait tiré du token s'il le suit
+  const effective = image && effectiveCrops(image.bitmap, crops, follows);
 
   async function save() {
     if (!source || !image || !effective) return;
@@ -206,7 +209,14 @@ function Body({
       await onSave({
         portraitUrl,
         tokenUrl,
-        studio: { source: sourceUrl, ...effective, frame, radius, inset },
+        studio: {
+          source: sourceUrl,
+          ...effective,
+          portraitFollowsToken: follows,
+          frame,
+          radius,
+          inset,
+        },
       });
       toast.success('Portrait et token enregistrés');
       onClose();
@@ -309,8 +319,9 @@ function Body({
                     url={loaded.image.url}
                     aspect={ASPECT[tab]}
                     token={tab === 'token' ? { radius, inset, frame } : null}
-                    initial={crops[tab]}
+                    initial={effective?.[tab] ?? crops[tab]}
                     onChange={(c) => setCrops((x) => ({ ...x, [tab]: c }))}
+                    onInteract={tab === 'portrait' ? () => setFollows(false) : undefined}
                   />
                 </Fade>
               )}
@@ -340,11 +351,20 @@ function Body({
               <FrameGallery value={frame} onChange={setFrame} />
             </>
           ) : (
-            <PortraitPreview
-              url={image?.url ?? null}
-              crop={effective?.portrait ?? null}
-              name={name}
-            />
+            <>
+              <FollowToggle
+                follows={follows}
+                onFollow={() => {
+                  setFollows(true);
+                  setCropKey((k) => k + 1);
+                }}
+              />
+              <PortraitPreview
+                url={image?.url ?? null}
+                crop={effective?.portrait ?? null}
+                name={name}
+              />
+            </>
           )}
         </aside>
       </div>
@@ -515,12 +535,15 @@ function CropArea({
   token,
   initial,
   onChange,
+  onInteract,
 }: {
   url: string;
   aspect: number;
   token: TokenLook | null;
   initial: StudioCrop | null;
   onChange(c: StudioCrop): void;
+  /** Geste de l'utilisateur (glisser, molette, clavier, zoom) : pas les réglages appliqués. */
+  onInteract?: () => void;
 }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -560,7 +583,13 @@ function CropArea({
 
   return (
     <div className="absolute inset-0 flex flex-col">
-      <div ref={box} className="relative min-h-0 flex-1 overflow-hidden">
+      <div
+        ref={box}
+        className="relative min-h-0 flex-1 overflow-hidden"
+        onPointerDownCapture={onInteract}
+        onWheelCapture={onInteract}
+        onKeyDownCapture={onInteract}
+      >
         <Cropper
           image={url}
           crop={crop}
@@ -610,12 +639,50 @@ function CropArea({
           min={1}
           max={5}
           step={0.01}
-          onValueChange={(v) => setZoom(v[0] ?? 1)}
+          onValueChange={(v) => {
+            onInteract?.();
+            setZoom(v[0] ?? 1);
+          }}
           aria-label="Zoom"
           className="flex-1"
         />
       </div>
     </div>
+  );
+}
+
+/** Cadrages en vigueur : ceux choisis, sinon par défaut ; le portrait tiré du token s'il le suit. */
+function effectiveCrops(
+  bitmap: { width: number; height: number },
+  crops: Record<Tab, StudioCrop | null>,
+  follows: boolean,
+): Record<Tab, StudioCrop> {
+  const { width: w, height: h } = bitmap;
+  const token = crops.token ?? centeredSquare(w, h);
+  const portrait = follows
+    ? portraitFromToken(token, w, h)
+    : (crops.portrait ?? centeredPortrait(w, h));
+  return { token, portrait };
+}
+
+/** Le portrait suit le token, ou est réglé à part (un geste dans le cadrage l'en détache). */
+function FollowToggle({ follows, onFollow }: { follows: boolean; onFollow(): void }) {
+  return (
+    <Info
+      texte={follows ? 'Le portrait reprend le cadrage du token' : 'Reprendre le cadrage du token'}
+    >
+      <Button
+        variant={follows ? 'secondary' : 'ghost'}
+        size="sm"
+        aria-pressed={follows}
+        disabled={follows}
+        onClick={onFollow}
+        className="w-full justify-start"
+      >
+        {follows ? <Link2 /> : <Unlink2 />}
+        {follows ? 'Suit le token' : 'Réglé à part'}
+      </Button>
+    </Info>
   );
 }
 

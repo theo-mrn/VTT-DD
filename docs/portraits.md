@@ -9,11 +9,17 @@ carré). Les deux sortent du **Studio du portrait**, à partir d'une seule image
 fiche (qui peut modifier le personnage) et par « Studio » à l'étape Portrait de la création.
 
 - **Image d'origine** : glisser, coller, importer, ou un portrait de la bibliothèque.
-- **Deux cadrages** (`react-easy-crop`) : Token (carré, guide rond dès l'arrondi fort) et Portrait
-  (3:4). Glisser pour placer, molette ou curseur pour zoomer.
+- **Deux cadrages** (`react-easy-crop`) : Token (carré) et Portrait (3:4). Glisser pour placer,
+  molette ou curseur pour zoomer. Le cadrage du token montre la forme (arrondi) et le cadre posé
+  autour, à la taille de la marge : c'est l'aperçu.
+- **Le portrait suit le token** (`portraitFollowsToken`, `portraitFromToken`) : même centre, même
+  largeur, en 3:4, calé en haut du token. Un geste dans le cadrage du portrait (glisser, molette,
+  clavier, zoom) l'en détache ; « Suit le token » l'y relie. Réglages d'avant ce champ : suit.
+- Le cadrage retenu est celui affiché : `onCropAreaChange` (le cadrage enregistré appliqué au
+  chargement compris), pas `onCropComplete`, qui signale d'abord un cadrage centré.
 - **Token** : arrondi de 0 % (carré) à 50 % (cercle), marge de 0 à 30 % (l'image rentre dans le
   cadre), cadre choisi parmi ceux de la bibliothèque (catégorie `Token`) ou aucun.
-- **Aperçus en direct** : le token à trois tailles sur une trame de carte, la vignette du portrait.
+- **Aperçu du portrait** : tel que la fiche et les listes l’affichent (onglet Portrait).
 
 ## Enregistrer
 

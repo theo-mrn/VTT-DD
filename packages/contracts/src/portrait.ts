@@ -21,6 +21,11 @@ export const PortraitStudio = z.strictObject({
   /** Cadrage du portrait (3:4) et du token (carré). */
   portrait: StudioCrop.nullable(),
   token: StudioCrop.nullable(),
+  /**
+   * Le portrait suit le cadrage du token (même visage, en 3:4) ; false : réglé à part. Absent
+   * (réglages d'avant) : suit.
+   */
+  portraitFollowsToken: z.boolean().optional(),
   /** Cadre du token (image de la bibliothèque) ; null : aucun. */
   frame: z.string().max(2048).nullable(),
   /** Arrondi du token, en % du côté : 0 carré, 50 cercle. */
@@ -35,6 +40,7 @@ export const DEFAULT_PORTRAIT_STUDIO: PortraitStudio = {
   source: null,
   portrait: null,
   token: null,
+  portraitFollowsToken: true,
   frame: null,
   radius: 50,
   inset: 0,

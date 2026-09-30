@@ -136,3 +136,22 @@ export function centeredPortrait(w: number, h: number): StudioCrop {
   const height = (width * 4) / 3;
   return { x: (w - width) / 2 / w, y: 0, width: width / w, height: height / h };
 }
+
+/**
+ * Portrait tiré du cadrage du token : même centre en largeur, même largeur (bornée à l'image),
+ * format 3:4, haut calé sur celui du token. Le visage cadré pour la carte l'est aussi pour la
+ * fiche.
+ */
+export function portraitFromToken(token: StudioCrop, w: number, h: number): StudioCrop {
+  const side = token.width * w;
+  let pw = Math.min(w, side);
+  let ph = (pw * 4) / 3;
+  if (ph > h) {
+    ph = h;
+    pw = (ph * 3) / 4;
+  }
+  const cx = token.x * w + side / 2;
+  const px = Math.min(Math.max(cx - pw / 2, 0), w - pw);
+  const py = Math.min(Math.max(token.y * h, 0), h - ph);
+  return { x: px / w, y: py / h, width: pw / w, height: ph / h };
+}
