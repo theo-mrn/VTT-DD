@@ -335,6 +335,18 @@ app où ce jet se faisait à la main.
 
 ### 5.4 Résolution
 
+**Calcul dans le navigateur (décision de Théo, 2026-09-30 : « plus on allège le serveur, mieux
+c'est »)** : le navigateur de l'attaquant lit la fiche de chaque cible (§ 9.1), exécute l'action
+avec `@vtt/rules` (`frontend/src/lib/combat/local-attack.ts` : `executerMulticible` et le
+générateur planifié, faces tirées dans le navigateur), étape par étape sans appel réseau (le jet,
+TOUCHÉ ou RATÉ ; l'arme `etape: apres` puis les dégâts ; les tables), avec le contexte `@combat.*`
+tiré de l'état du combat chargé. Une seule requête à la fin : `DeclareAttack.resolved` (rapport
+complet et vue de l'attaquant par cible, coûts de l'attaquant), rangé en `pending` par campaign
+avec les mêmes droits, événements et idempotence ; le jet part à l'historique depuis les vues
+(relais `POST /internal/actions/rolls` de character). La triche (fiche de la cible lue, rapport
+forgé) est acceptée par Théo. Une cible qui a une **défense active** à choisir garde le chemin
+serveur ci-dessous, qui reste en place (à retirer ensuite) :
+
 - **Par character**, sur un **instantané des fiches** pris à la déclaration (attaquant et cibles,
   avec les règles optionnelles de la campagne) : la résolution ne bouge pas pendant qu'on lance les
   dés ; l'application, elle, s'écrit sur l'état du moment (§ 7.2). L'instantané reste dans campaign
@@ -434,6 +446,9 @@ Réalisé (moteur, systèmes, campaign, character) :
   garde dans l'instantané.
 
 ## 6. Dés : l'animation fait foi
+
+Depuis le 2026-09-30 (§ 5.4), les faces sont tirées dans le navigateur et l'attaque y est
+calculée : les étapes ci-dessous ne passent plus par le serveur, sauf pour une défense active.
 
 ### 6.1 Étapes de dés
 
@@ -660,6 +675,11 @@ Le menu les propose en tête ; une déclaration porte `presetId`. Elles viennent
 | Abandonner une attaque non résolue                           | oui                    | ses attaques                                                            | non                    |
 | Appliquer, écarter, annuler, corriger l'issue                | oui                    | non                                                                     | non                    |
 | Lire                                                         | tout                   | ses attaques (vue de l'attaquant) ; combat en vue expurgée              | combat en vue expurgée |
+
+**Fiches des cibles (Q4 levée par Théo le 2026-09-30)** : un joueur de la campagne lit la fiche
+calculée de tout personnage engagé qu'il peut viser, PNJ ennemis compris (`GET
+/v1/characters/:id`) : son navigateur calcule l'attaque. Un spectateur ne lit toujours pas la
+fiche d'un PNJ ennemi.
 
 « Incarner » = `campaign_characters.played_by` (existant). Un joueur n'agit jamais avec le
 personnage d'un autre, même du camp des joueurs, sauf s'il l'incarne.
@@ -1270,6 +1290,13 @@ Réalisé par le lot 2 (étapes A et B), précisions :
 Le contrat (`packages/contracts/src/combat.ts`) est livré ; un lot n'y fait que des ajouts, remontés
 dans son rapport.
 
+**Calcul dans le navigateur (2026-09-30, décision de Théo)** : fait. Le front calcule l'attaque
+(`lib/combat/local-attack.ts`, `lib/combat/report.ts`) et envoie `DeclareAttack.resolved` ; campaign
+l'enregistre sans appeler `prepare` ni `resolve` ; character ouvre la fiche des PNJ aux joueurs de
+la campagne et relaie le jet à dice (`/internal/actions/rolls`). Reste à faire, dans une livraison
+à part : retirer le chemin serveur (`prepare`, `resolve`, étapes `…/dice`) une fois la défense
+active passée elle aussi dans le navigateur.
+
 ### Lot 1 : backend campaign
 
 - `backend/campaign/db/changes/0023-combat-turns.sql` (réglages, acteur, tour, journal, colonnes des
@@ -1407,4 +1434,4 @@ Réalisé par le lot 1 (étapes A et B), précisions et écarts :
 | Q1  | Un joueur peut-il attaquer **hors du tour** de son personnage (réaction, attaque d'opportunité) ? | **Oui par défaut** (l'ancienne app ne vérifiait rien) : attaque marquée « hors tour » dans le rapport ; réglage du combat pour l'interdire.                                                   |
 | Q2  | **Son d'arme** : l'ancienne app le jouait à tous ; la décision audio Q4 réserve les effets au MJ. | **campaign le joue** à la touche (auteur système), seulement le son lié à l'exemplaire, pris dans la bibliothèque de la campagne, avec la limite de débit : le joueur ne lance rien lui-même. |
 | Q3  | Les attaques du **MJ** sont-elles **cachées** par défaut ?                                        | **Oui** : les joueurs ne voyaient jamais les jets des PNJ dans l'ancienne app ; bascule par attaque et réglage du combat.                                                                     |
-| Q4  | **Fiches de PNJ** : aujourd'hui lisibles par tout membre (character). On restreint ?              | **Oui** : fiche d'un PNJ hors du camp des joueurs réservée au MJ (parité avec l'ancienne app, `canViewDetails`) ; les alliés restent lisibles. Sans cela, aucun filtrage n'a de sens.         |
+| Q4  | **Fiches de PNJ** : aujourd'hui lisibles par tout membre (character). On restreint ?              | **Levée par Théo (2026-09-30)** : l'attaque se calcule dans le navigateur, un joueur de la campagne lit la fiche du PNJ qu'il vise ; un spectateur non.                                       |
