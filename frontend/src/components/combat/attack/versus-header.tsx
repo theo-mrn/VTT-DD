@@ -77,7 +77,7 @@ export function VersusHeader({
     <header
       className={cn(
         'relative isolate shrink-0 overflow-hidden border-b border-border',
-        'bg-[linear-gradient(100deg,hsl(var(--primary)/0.09),transparent_38%,transparent_62%,hsl(var(--destructive)/0.09))]',
+        'bg-[linear-gradient(100deg,color-mix(in_srgb,hsl(var(--primary))_9%,transparent),transparent_38%,transparent_62%,color-mix(in_srgb,hsl(var(--destructive))_9%,transparent))]',
       )}
     >
       <span
