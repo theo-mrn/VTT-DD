@@ -10,7 +10,7 @@
  * de sa fiche.
  */
 import { Check, Crosshair, Plus, ScrollText, UserRoundCog, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Illustration } from '@/components/commun/illustration';
 import type { ContexteFiche } from '@/components/fiche/widgets';
 import {
@@ -51,6 +51,7 @@ export function VersusHeader({
   onRemoveTarget,
   onAim,
   badges,
+  promptAttacker = false,
 }: {
   ctx: AttackContext;
   attackerId: string | null;
@@ -69,6 +70,8 @@ export function VersusHeader({
   onAim: () => void;
   /** Pastilles sous le nom (tour, hors tour). */
   badges?: React.ReactNode;
+  /** Aucun attaquant choisi, ni proposé : la liste s'ouvre d'elle-même. */
+  promptAttacker?: boolean;
 }) {
   return (
     <header
@@ -93,6 +96,7 @@ export function VersusHeader({
           editable={editable}
           onAttacker={onAttacker}
           badges={badges}
+          promptAttacker={promptAttacker}
         />
         <TargetsSide
           ctx={ctx}
@@ -121,6 +125,7 @@ function AttackerSide({
   editable,
   onAttacker,
   badges,
+  promptAttacker,
 }: {
   ctx: AttackContext;
   attackerId: string | null;
@@ -130,6 +135,7 @@ function AttackerSide({
   editable: boolean;
   onAttacker: (id: string) => void;
   badges?: React.ReactNode;
+  promptAttacker: boolean;
 }) {
   const known = attackerId ? ctx.known.get(attackerId) : undefined;
   const label = name ?? known?.name ?? (attackerId ? 'Personnage' : 'Qui attaque ?');
@@ -177,7 +183,12 @@ function AttackerSide({
             </Popover>
           )}
           {choosable && (
-            <AttackerSwitch ctx={ctx} attackerId={attackerId} onAttacker={onAttacker} />
+            <AttackerSwitch
+              ctx={ctx}
+              attackerId={attackerId}
+              prompt={promptAttacker}
+              onAttacker={onAttacker}
+            />
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -213,13 +224,19 @@ function AttackerSide({
 function AttackerSwitch({
   ctx,
   attackerId,
+  prompt,
   onAttacker,
 }: {
   ctx: AttackContext;
   attackerId: string | null;
+  prompt: boolean;
   onAttacker: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(!attackerId);
+  const [open, setOpen] = useState(false);
+  // Personne n'attaque encore (MJ sans PNJ qui agit) : la liste s'ouvre d'elle-même
+  useEffect(() => {
+    if (prompt) setOpen(true);
+  }, [prompt]);
   const order = ctx.combat?.order.map((p) => p.characterId) ?? [];
   const inCombat = ctx.attackers
     .filter((c) => order.includes(c.id))

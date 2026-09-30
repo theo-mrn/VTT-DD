@@ -249,6 +249,9 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
                 }
                 onAim={aim}
                 badges={standingBadge}
+                promptAttacker={
+                  flow.phase === 'compose' && !flow.autoAttacker && !draft.attackerId && !loading
+                }
               />
               <main className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin]">
                 <AnimatePresence mode="wait" initial={false} custom={direction}>
