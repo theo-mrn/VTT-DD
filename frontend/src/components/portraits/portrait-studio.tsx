@@ -319,7 +319,7 @@ function Body({
         </section>
 
         {/* Aperçus et réglages de l'onglet */}
-        <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto [&>*]:shrink-0 border-t border-border p-4 [scrollbar-width:thin] sm:p-5 lg:border-l lg:border-t-0">
+        <aside className="min-h-0 space-y-5 overflow-y-auto border-t border-border p-4 [scrollbar-width:thin] sm:p-5 lg:border-l lg:border-t-0">
           {tab === 'token' ? (
             <>
               <TokenPreviews
@@ -589,7 +589,7 @@ function TokenPreviews({
   frame: string | null;
 }) {
   return (
-    <div className="relative isolate flex h-36 items-center justify-center gap-5 overflow-hidden rounded-2xl border border-border bg-surface-2">
+    <div className="relative isolate flex h-36 shrink-0 items-center justify-center gap-5 overflow-hidden rounded-2xl border border-border bg-surface-2">
       <span aria-hidden className="absolute inset-0 -z-10 bg-dots opacity-70" />
       {[36, 60, 100].map((size) => (
         <div key={size} className="relative shrink-0" style={{ width: size, height: size }}>
