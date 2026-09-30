@@ -176,7 +176,45 @@ function AttackerSide({
 
   return (
     <div className="flex min-w-0 items-center gap-2.5 sm:gap-5">
-      {attackerId ? (
+      {attackerId && fc ? (
+        <Popover>
+          <Info texte="Statistiques">
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Statistiques de ${label}`}
+                className={cn(
+                  'group/portrait relative shrink-0 rounded-xl transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0',
+                  FOCUS,
+                )}
+              >
+                <Illustration
+                  src={portraitUrl}
+                  graine={label}
+                  alt=""
+                  position="top"
+                  className={cn(
+                    PORTRAIT,
+                    'ring-1 ring-primary/50 transition-shadow group-hover/portrait:ring-primary',
+                  )}
+                />
+                <span
+                  aria-hidden
+                  className="absolute -bottom-1.5 -right-1.5 grid size-6 place-items-center rounded-full border border-border-strong bg-popover text-muted-foreground shadow-surface transition-colors group-hover/portrait:text-foreground"
+                >
+                  <ScrollText className="size-3" />
+                </span>
+              </button>
+            </PopoverTrigger>
+          </Info>
+          <PopoverContent
+            align="start"
+            className="max-h-[min(32rem,70dvh)] w-72 overflow-y-auto [scrollbar-width:thin]"
+          >
+            <AttackerStats ctx={fc} name={label} />
+          </PopoverContent>
+        </Popover>
+      ) : attackerId ? (
         <Illustration
           src={portraitUrl}
           graine={label}
@@ -202,27 +240,6 @@ function AttackerSide({
             <h2 className="min-w-0 truncate font-display text-base font-semibold leading-tight xs:text-lg sm:text-3xl">
               {label}
             </h2>
-            {fc && (
-              <Popover>
-                <Info texte="Statistiques">
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Statistiques de l’attaquant"
-                      className={cn(iconButton, 'max-sm:hidden')}
-                    >
-                      <ScrollText className="size-3.5" aria-hidden />
-                    </button>
-                  </PopoverTrigger>
-                </Info>
-                <PopoverContent
-                  align="start"
-                  className="max-h-[min(32rem,70dvh)] w-72 overflow-y-auto [scrollbar-width:thin]"
-                >
-                  <AttackerStats ctx={fc} name={label} />
-                </PopoverContent>
-              </Popover>
-            )}
             {choosable && (
               <AttackerSwitch
                 ctx={ctx}

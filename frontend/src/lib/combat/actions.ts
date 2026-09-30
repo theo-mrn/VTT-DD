@@ -236,6 +236,13 @@ export function previewRoll(
   return { kind: 'symbols', dice, upgrades, dependsOnTarget };
 }
 
+/** Faces du premier dé d'une formule (« 2d6 + 3 » → 6), pour dessiner son dé ; null sinon. */
+export function firstDieFaces(formula: string | null | undefined): number | null {
+  const m = formula ? /(?<![a-z])\d*d(\d+)/i.exec(formula) : null;
+  const faces = m ? Number(m[1]) : NaN;
+  return Number.isFinite(faces) && faces > 1 ? faces : null;
+}
+
 /**
  * Nombre de dés de chaque sorte que l'aperçu donne à l'attaquant, améliorations comprises
  * (un dé amélioré passe de sa sorte à `vers`) : la valeur « de la fiche » des compteurs du

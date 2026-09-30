@@ -1,6 +1,7 @@
 import type { Presentation } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
 import {
+  firstDieFaces,
   flatActions,
   groupActions,
   multitargetOf,
@@ -26,6 +27,7 @@ import {
   paramsToSend,
   paramValueValid,
   reactionParams,
+  typeCardParam,
 } from './params';
 import { combatSystem, loadSystem, sheet } from './test-kit';
 
@@ -338,5 +340,48 @@ describe('entrée qui se passe d’être possédée (mains nues)', () => {
     expect(defaultParams(sys, coup, sheet(sys)).arme).toBe('poings');
     const archer = sheet(sys, { possessions: [{ entree: 'arc', rang: 0 }] });
     expect(defaultParams(sys, coup, archer).arme).toBe('arc');
+  });
+});
+
+describe('écran 1 : cartes du type d’attaque (l’arme après le jet)', () => {
+  const score = {
+    id: 'score',
+    nom: 'Type d’attaque',
+    type: 'choix',
+    options: [
+      { valeur: 'contact', nom: 'Contact' },
+      { valeur: 'libre', nom: 'Libre', parametres: ['faces'] },
+    ],
+  };
+  const couvert = {
+    id: 'couvert',
+    nom: 'Couvert',
+    type: 'choix',
+    section: 'situation',
+    options: [{ valeur: 'aucun', nom: 'Aucun' }],
+  };
+  const faces = { id: 'faces', nom: 'Faces', type: 'nombre', defaut: 20 };
+  const arme = { ...frappe.parametres[0]!, etape: 'apres' };
+  const avecCartes = {
+    ...frappe,
+    parametres: [couvert, score, faces, arme, frappe.parametres[1]!],
+  } as never;
+
+  it('le choix du jet porte les cartes quand l’arme vient après le jet', () => {
+    expect(typeCardParam(s, avecCartes, guerrier)?.id).toBe('score');
+  });
+
+  it('arme choisie à la déclaration : pas de cartes (arme en tuiles, « Lancer »)', () => {
+    expect(typeCardParam(s, frappe, guerrier)).toBeNull();
+    const sansChoix = { ...frappe, parametres: [arme, faces] } as never;
+    expect(typeCardParam(s, sansChoix, guerrier)).toBeNull();
+  });
+
+  it('dé dessiné sur la carte : le premier dé de la formule', () => {
+    expect(firstDieFaces('1d20 + 5')).toBe(20);
+    expect(firstDieFaces('2d6+3')).toBe(6);
+    expect(firstDieFaces('mod(@FOR) + d8')).toBe(8);
+    expect(firstDieFaces('5')).toBeNull();
+    expect(firstDieFaces(null)).toBeNull();
   });
 });

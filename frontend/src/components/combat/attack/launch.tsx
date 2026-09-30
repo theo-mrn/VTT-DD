@@ -18,14 +18,8 @@ import { forwardRef, type ReactNode } from 'react';
 import { DeVisuel } from '@/components/des/de-visuel';
 import { FOCUS, TACTILE } from '@/components/des/tactile';
 import { Kbd } from '@/components/ui/kbd';
+import { firstDieFaces } from '@/lib/combat/actions';
 import { cn } from '@/lib/utils';
-
-/** Faces du premier dé d'une formule (« 2d6 + 3 » → 6), pour dessiner son dé ; null sinon. */
-export function firstDieFaces(formula: string | null | undefined): number | null {
-  const m = formula ? /(\d*)\s*d\s*(\d+)/i.exec(formula) : null;
-  const faces = m ? Number(m[2]) : NaN;
-  return Number.isFinite(faces) && faces > 1 ? faces : null;
-}
 
 /** Entrée décalée des cartes d'une grille (30 à 40 ms chacune, rien en mouvement réduit). */
 export function Stagger({

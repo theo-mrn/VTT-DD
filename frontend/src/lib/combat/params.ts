@@ -273,6 +273,24 @@ export function afterRollParams(
   return action.parametres.filter((p) => isAfterRoll(p) && paramAllowed(systeme, action, p, fiche));
 }
 
+/**
+ * Paramètre qui porte les cartes du type d'attaque (écran 1 du menu, § 12.1) : l'action choisit
+ * son arme après le jet (`etape: apres`) et son jet dépend d'un choix ou d'un attribut de
+ * l'attaquant hors situation (Contact, Distance, Magie, Libre) ; sinon null.
+ */
+export function typeCardParam(
+  systeme: SystemeCharge,
+  action: Action,
+  fiche: Fiche,
+): ActionParam | null {
+  if (!action.parametres.some(isAfterRoll)) return null;
+  return (
+    attackerParams(systeme, action, fiche).find(
+      (p) => paramSection(p) !== 'situation' && (p.type === 'attribut' || isChoiceParam(p)),
+    ) ?? null
+  );
+}
+
 /** Paramètres de défense active, choisis par la cible (proposés à qui l'incarne). */
 export function reactionParams(action: Action): ActionParam[] {
   return action.parametres.filter((p) => paramChooser(p) === 'cible');

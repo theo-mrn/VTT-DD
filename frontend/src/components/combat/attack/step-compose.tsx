@@ -34,10 +34,10 @@ import {
   attributeOptions,
   choiceOptions,
   defaultParamValue,
-  isAfterRoll,
   isChoiceParam,
   paramDescription,
   paramSection,
+  typeCardParam,
   type ActionParam,
 } from '@/lib/combat/params';
 import { cn } from '@/lib/utils';
@@ -47,20 +47,6 @@ import { hasSituation, SituationBlock } from './situation-block';
 import type { AttackContext } from './use-attack-context';
 import type { AttackModel } from './use-attack-model';
 import { EntryPicker } from './weapon-cards';
-
-/** Paramètre qui porte les cartes du type d'attaque (l'arme vient après le jet), sinon null. */
-export function typeCardParam(
-  systeme: SystemeCharge,
-  action: Action,
-  fiche: Fiche,
-): ActionParam | null {
-  if (!action.parametres.some(isAfterRoll)) return null;
-  return (
-    attackerParams(systeme, action, fiche).find(
-      (p) => paramSection(p) !== 'situation' && (p.type === 'attribut' || isChoiceParam(p)),
-    ) ?? null
-  );
-}
 
 interface TypeOption {
   valeur: string;

@@ -47,6 +47,7 @@ import { shortcutCode } from '@/lib/keyboard';
 import { useCampaignEphemeral } from '@/lib/realtime';
 import { AimSender, aimMessage, COMBAT_AIM_KIND } from '@/lib/combat/aim';
 import { combatErrorMessage } from '@/lib/combat/api';
+import { typeCardParam } from '@/lib/combat/params';
 import {
   declaredStage,
   isMinimized,
@@ -62,7 +63,7 @@ import { AimPill } from './aim-pill';
 import { LaunchButton } from './launch';
 import { MyAttacks } from './my-attacks';
 import { PreviewText } from './preview';
-import { StepCompose, typeCardParam } from './step-compose';
+import { StepCompose } from './step-compose';
 import { StepDamage } from './step-damage';
 import { ReportStatus, StepRoll, useDeclaredAttack } from './step-roll';
 import { useAttackContext, type AttackContext } from './use-attack-context';
