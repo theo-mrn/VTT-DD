@@ -40,6 +40,8 @@ type Phase =
   | { kind: 'error'; message: string; retry: File | null };
 
 const MB = 1024 * 1024;
+/** Adresse web, ou chemin de la bibliothèque du site (« /bibliotheque/… »). */
+const ADDRESS = /^(https?:\/\/\S+|\/[^/\s]\S*)$/i;
 const fmtSize = (n: number) =>
   n >= MB ? `${(n / MB).toFixed(1)} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`;
 
@@ -139,9 +141,11 @@ export function ImageDrop({
 
   async function fromUrl() {
     const address = url.trim();
-    if (!/^https?:\/\/\S+$/i.test(address)) return;
+    if (!ADDRESS.test(address)) return;
     setUrlMode(false);
     setUrl('');
+    // Chemin de la bibliothèque du site : gardé tel quel
+    if (address.startsWith('/')) return onChange(address);
     const file = await fetchImage(address);
     // Le site refuse le téléchargement (CORS) : l'adresse est gardée telle quelle
     if (file) take(file);
@@ -346,7 +350,7 @@ export function ImageDrop({
               aria-label="Adresse de l’image"
               className="h-8 text-xs"
             />
-            <Button type="submit" size="xs" disabled={!/^https?:\/\/\S+$/i.test(url.trim())}>
+            <Button type="submit" size="xs" disabled={!ADDRESS.test(url.trim())}>
               Ajouter
             </Button>
             <Button

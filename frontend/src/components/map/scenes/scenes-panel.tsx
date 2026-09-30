@@ -236,6 +236,7 @@ export function ScenesPanel() {
       )}
 
       <SceneDialog
+        campaignId={campaignId}
         open={editing !== null}
         scene={editing?.scene ?? null}
         defaultGroupId={editing?.groupId ?? null}
