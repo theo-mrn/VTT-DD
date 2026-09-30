@@ -494,7 +494,7 @@ Le fichier `presentation.yaml` de chaque système décrit :
   - `ressources` : en jauges (défaut) ou en chiffres (`affichage: valeur` : « PV / PV max », et d'autres attributs en valeur simple, comme la Défense) ;
   - `inventaire` : source unique de l'équipement, toutes sortes d'objets réunies ; regroupé par sorte, ou par un champ (`groupeChamp`), ou par une liste de champs quand les sortes n'ont pas le même (`[attaque, categorie]` : pour chaque objet, le premier que déclare sa sorte, sinon sa sorte) ;
 - l'ordre et les groupes des attributs du lanceur de dés (`des.jets`, voir « Attributs jetables ») ;
-- le combat (`combat`) : groupes du menu d'attaque et états proposés, avec leurs icônes (voir « Combat ») ;
+- le combat (`combat`) : groupes du menu d'attaque et états proposés, avec leurs icônes (voir « Combat »), et l'icône de certains paramètres de situation (`combat.situation.icones`, par identifiant de paramètre rangé `section: situation` : couvert, cible à terre…) ;
 - les icônes des objets de l'inventaire (`iconesObjets`) : une icône générique (`epee`, `cible`, `bouclier`, `fiole`, `pieces`, `sac`…) par sorte, ou par valeur d'un champ (`{ champ: categorie, valeur: potions, icone: fiole }`, `{ champ: melee, valeur: true, icone: epee }`) ; la première règle qui convient l'emporte, vérifiée contre le système (`erreursRegleIcone`). Sans règle, le front déduit l'icône de la forme de la sorte (formule de jet, équipable, en quantité) ;
 - la géométrie des arbres, les images et les bibliothèques.
 

@@ -249,6 +249,11 @@ export const PresentationCombat = z.object({
       icones: z.record(z.string(), IconeEtat).default({}),
     })
     .optional(),
+  /**
+   * Paramètres de situation du menu d'attaque (docs/regles.md, « Situation du combat ») :
+   * icône de certains d'entre eux, par identifiant (couvert, cible à terre…) ; absente : aucune.
+   */
+  situation: z.object({ icones: z.record(z.string(), IconeEtat).default({}) }).optional(),
 });
 export type PresentationCombat = z.output<typeof PresentationCombat>;
 
@@ -543,6 +548,15 @@ export function erreursCombat(systeme: SystemeCharge, c: PresentationCombat): Er
       else if (!c.etats.sortes.includes(e.sorte))
         erreur('etats/icones', `${id} n’est pas un état (sorte ${e.sorte})`);
     }
+  }
+  if (c.situation) {
+    // Paramètres rangés en situation : ceux du système et ceux propres à une action
+    const situation = new Set<string>();
+    for (const a of systeme.actions.values())
+      for (const p of a.parametres) if (p.section === 'situation') situation.add(p.id);
+    for (const id of Object.keys(c.situation.icones))
+      if (!situation.has(id))
+        erreur('situation/icones', `${id} n’est pas un paramètre de situation d’une action`);
   }
   return erreurs;
 }

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { calculer, type Fiche } from '../calcul/index.js';
 import { charger, type SystemeCharge } from '../chargement/index.js';
 import { afficher, aleatoireImpose } from '../formules/index.js';
-import { EtatEntite, type SystemeSaisi } from '../schema/index.js';
+import { EtatEntite, verifierPresentation, type SystemeSaisi } from '../schema/index.js';
 import { miniD20 } from '../test/mini-systemes.js';
 import { executerAction, executerMulticible, type ResultatAction } from './index.js';
 
@@ -492,5 +492,23 @@ describe('contexte du combat (@combat.*)', () => {
   it('une clé à plusieurs niveaux se relit telle quelle', () => {
     const f = sc.formules.get('actions/abordage/variables/rythme')!;
     expect(afficher(f.noeud)).toBe('(@combat.round * 10) + @combat.cible.viseRound');
+  });
+});
+
+describe('présentation : icônes de la situation', () => {
+  it('seulement pour des paramètres rangés en situation', () => {
+    const p = (icones: Record<string, string>) =>
+      verifierPresentation(
+        { format: 1, systeme: 'mini-situation', combat: { situation: { icones } } },
+        s,
+      );
+    expect(p({ couvert: 'couvert', avantage: 'alerte' }).ok).toBe(true);
+    expect(p({ couvert: 'inconnue' }).ok).toBe(false);
+    const ko = p({ difficulte: 'etat' });
+    expect(ko.ok).toBe(false);
+    if (ko.ok) return;
+    expect(ko.erreurs.map((e) => e.message).join('\n')).toContain(
+      'difficulte n’est pas un paramètre de situation d’une action',
+    );
   });
 });
