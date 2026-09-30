@@ -20,6 +20,7 @@ import {
   Battery,
   Check,
   CheckCheck,
+  Dices,
   ChevronDown,
   EyeOff,
   Pencil,
@@ -203,6 +204,33 @@ export function LiveReports({
     }
   };
 
+  /** Le serveur tire tout ce qui reste (auteur parti) : le rapport arrive. */
+  const rollRest = async (a: Attack) => {
+    const step = a.pendingSteps[0];
+    if (!step) return;
+    setBusy(`${a.id}:server`);
+    try {
+      await commands.submitDice(a.id, { stepId: step.id, results: [], serverFallback: true });
+    } catch (err) {
+      toast.error('Les dés n’ont pas pu être tirés', { description: combatErrorMessage(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const cancel = async (a: Attack) => {
+    setBusy(`${a.id}:cancel`);
+    try {
+      await commands.cancel(a.id, { version: a.version });
+    } catch (err) {
+      toast.error('L’attaque n’a pas pu être abandonnée', {
+        description: combatErrorMessage(err),
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const undo = async (s: Settled) => {
     setBusy(`${s.attack.id}:undo`);
     try {
@@ -290,6 +318,8 @@ export function LiveReports({
                         first={item.attack.id === stack.first?.id}
                         onDecide={(scope, apply) => void decide(item.attack, scope, apply)}
                         onEdit={() => setDeciding(item.attack.id)}
+                        onServer={() => void rollRest(item.attack)}
+                        onCancel={() => void cancel(item.attack)}
                       />
                     )}
                   </motion.li>
@@ -397,6 +427,8 @@ function LiveCard({
   first,
   onDecide,
   onEdit,
+  onServer,
+  onCancel,
 }: {
   item: LiveItem;
   cast: Cast;
@@ -406,6 +438,9 @@ function LiveCard({
   first: boolean;
   onDecide(scope: Scope, apply: boolean): void;
   onEdit(): void;
+  /** Attaque en cours : le serveur tire la suite, ou elle est abandonnée. */
+  onServer(): void;
+  onCancel(): void;
 }) {
   const a = item.attack;
   const progress = item.kind === 'progress';
@@ -419,6 +454,9 @@ function LiveCard({
   const tone0 = t0 ? outcomeOf(t0, successRule)?.tone : undefined;
   const all: Scope = { targets: decidable, actor: true };
   const isBusy = busy !== null && busy.startsWith(`${a.id}:`);
+  // Raté, rien à appliquer : le bouton principal classe le rapport
+  const nothing =
+    !actorDecidable(a) && decidable.every((t) => !(t.result?.modifications ?? []).length);
   const keyOf = (s: Scope, apply: boolean) =>
     `${a.id}:${s.targets.map((t) => t.characterId).join(',')}:${s.actor}:${apply}`;
 
@@ -492,7 +530,7 @@ function LiveCard({
       <Marks attack={a} />
 
       {progress ? (
-        <InProgress attack={a} />
+        <InProgress attack={a} busy={busy} onServer={onServer} onCancel={onCancel} />
       ) : single && t0 ? (
         <SingleBody
           attack={a}
@@ -537,14 +575,15 @@ function LiveCard({
         <footer className="flex items-center gap-1.5 px-3 pb-3 pt-3">
           <Button
             size="sm"
-            className="h-9 flex-1 rounded-xl font-semibold shadow-glow"
-            onClick={() => onDecide(all, true)}
-            loading={busy === keyOf(all, true)}
+            className={cn('h-9 flex-1 rounded-xl font-semibold', !nothing && 'shadow-glow')}
+            variant={nothing ? 'secondary' : 'default'}
+            onClick={() => onDecide(all, !nothing)}
+            loading={busy === keyOf(all, !nothing)}
             disabled={isBusy}
             aria-keyshortcuts={first ? 'Enter' : undefined}
           >
-            {single ? <Check /> : <CheckCheck />}
-            {single ? 'Appliquer' : `Tout appliquer (${decidable.length})`}
+            {nothing ? <Check /> : single ? <Check /> : <CheckCheck />}
+            {nothing ? 'Classer' : single ? 'Appliquer' : `Tout appliquer (${decidable.length})`}
             {first && (
               <kbd className="ml-1 hidden rounded border border-primary-foreground/30 px-1 font-sans text-[10px] leading-4 opacity-80 sm:inline">
                 ↵
@@ -656,23 +695,66 @@ function Marks({ attack: a }: { attack: Attack }) {
   );
 }
 
-/** Attaque pas encore résolue : défense ou dés attendus, en discret. */
-function InProgress({ attack: a }: { attack: Attack }) {
+/**
+ * Attaque pas encore résolue : défense ou dés attendus. Le MJ peut tirer la suite par le
+ * serveur (auteur parti, onglet fermé) ou abandonner l'attaque : une carte ne reste jamais
+ * bloquée.
+ */
+function InProgress({
+  attack: a,
+  busy,
+  onServer,
+  onCancel,
+}: {
+  attack: Attack;
+  busy: string | null;
+  onServer(): void;
+  onCancel(): void;
+}) {
   const reacting = a.targets.some((t) => t.status === 'awaiting_reaction');
+  const canRoll = a.status === 'awaiting_dice' && !a.resolving && a.pendingSteps.length > 0;
   return (
-    <p className="flex items-center gap-2 pb-3 pl-4 pr-3 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 pb-3 pl-4 pr-3 pt-1">
       <span className="flex gap-0.5" aria-hidden>
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="size-1 rounded-full bg-warning"
+            className="size-1.5 rounded-full bg-warning"
             animate={{ opacity: [0.25, 1, 0.25] }}
             transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18 }}
           />
         ))}
       </span>
-      {reacting ? 'Défense attendue' : 'Dés en cours de lancer'}
-    </p>
+      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+        {reacting ? 'Défense attendue' : a.resolving ? 'Résolution en cours' : 'Dés à lancer'}
+      </span>
+      {canRoll && (
+        <Button
+          size="xs"
+          variant="secondary"
+          className="rounded-lg"
+          onClick={onServer}
+          loading={busy === `${a.id}:server`}
+          disabled={busy !== null}
+        >
+          <Dices />
+          Tirer
+        </Button>
+      )}
+      <Info texte="Abandonner l’attaque" cote="bottom">
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          className="rounded-lg text-muted-foreground hover:text-destructive"
+          onClick={onCancel}
+          loading={busy === `${a.id}:cancel`}
+          disabled={busy !== null}
+          aria-label="Abandonner l’attaque"
+        >
+          <X />
+        </Button>
+      </Info>
+    </div>
   );
 }
 
