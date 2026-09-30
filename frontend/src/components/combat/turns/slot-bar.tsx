@@ -2,17 +2,13 @@
 
 /**
  * Créneaux du round (mode `slots`, Star Wars ; docs/combat.md § 4.3, § 12.3) : la suite J/E
- * du round, le créneau courant surligné (un clic sur un autre créneau y donne le tour), puis
- * « Qui agit ? » : les participants du camp du créneau, coche sur ceux qui ont déjà agi ;
- * désigner l'un d'eux, ou le faire rejouer (`force`, comme l'ancienne app le permettait).
+ * du round, le créneau courant surligné ; un clic sur un autre créneau y donne le tour.
+ * « Qui agit ? » (désigner, faire rejouer avec `force`) est la carte du personnage actif
+ * (`SlotPickCard`, `side-cards.tsx`) tant que le créneau n'a pas d'acteur.
  */
 import type { CombatState } from '@vtt/contracts';
-import { Check, RotateCcw, UserCheck } from 'lucide-react';
-import { Illustration } from '@/components/commun/illustration';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SIDE_LABELS, slotBar, slotCandidates } from './model';
-import type { CastMember } from './use-cast';
+import { SIDE_LABELS, slotBar } from './model';
 
 export function SlotBar({
   combat,
@@ -60,71 +56,6 @@ export function SlotBar({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-export function SlotActorPicker({
-  combat,
-  cast,
-  busy,
-  onChoose,
-}: {
-  combat: CombatState;
-  cast: ReadonlyMap<string, CastMember>;
-  busy: boolean;
-  onChoose(characterId: string, force: boolean): void;
-}) {
-  const candidates = slotCandidates(combat);
-  const side = combat.slots?.[combat.currentIndex]?.side;
-  if (!side) return null;
-  return (
-    <div className="rounded-xl border border-border bg-surface/60 p-3">
-      <p className="mb-2 text-xs font-semibold text-muted-foreground">
-        Qui agit pour les {SIDE_LABELS[side].name.toLowerCase()} ?
-      </p>
-      {candidates.length === 0 ? (
-        <p className="text-[13px] text-subtle">Personne de ce camp ne peut agir.</p>
-      ) : (
-        <ul className="flex flex-wrap gap-1.5">
-          {candidates.map((c) => {
-            const m = cast.get(c.characterId);
-            const name = m?.name ?? 'Personnage';
-            return (
-              <li key={c.characterId}>
-                <Button
-                  variant={c.actor ? 'default' : 'secondary'}
-                  size="sm"
-                  disabled={busy || c.actor}
-                  onClick={() => onChoose(c.characterId, c.acted)}
-                  aria-pressed={c.actor}
-                  title={c.acted ? `${name} a déjà agi ce round : le faire rejouer` : undefined}
-                  className="h-9 gap-2 pl-1.5"
-                >
-                  <Illustration
-                    src={m?.portraitUrl ?? null}
-                    graine={name}
-                    position="top"
-                    className="size-6 rounded-full"
-                  />
-                  <span className={cn('max-w-32 truncate', c.acted && !c.actor && 'text-subtle')}>
-                    {name}
-                  </span>
-                  {c.actor ? (
-                    <UserCheck aria-label="Agit maintenant" />
-                  ) : c.acted ? (
-                    <>
-                      <Check className="text-success" aria-label="A déjà agi" />
-                      <RotateCcw aria-hidden />
-                      <span className="sr-only">Rejouer</span>
-                    </>
-                  ) : null}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </div>
   );
 }
