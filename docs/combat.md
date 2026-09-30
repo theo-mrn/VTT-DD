@@ -1053,13 +1053,14 @@ l'outil sélection (`engine.onMapClick`, `quickAimTarget` : token vu, pas à lui
 autre que celui des joueurs, sans ⇧ ni Alt) et ouvre le menu en visée (`aim: true`). L'outil de
 visée prend aussi le vide : un clic y annule la visée rapide, un glisser déplace la vue.
 
-### 12.6 Vue des tours pour les joueurs
+### 12.6 Bandeau des tours (MJ)
 
-Bandeau d'initiative en haut de la table (HUD) : portraits dans l'ordre (vue expurgée), tour courant
-surligné, round ; « À vous ! » quand c'est le tour d'un personnage que j'incarne, avec « Terminer mon
-tour » ; en mode slots, suite J/E et « Je prends ce créneau » pour mon personnage si le créneau est à
-mon camp ; invite d'initiative à lancer ; invite de réaction. Les spectateurs voient le bandeau sans
-boutons.
+Décidé par Théo le 2026-09-30 : **les joueurs n'ont plus de bandeau d'initiative**. Le MJ garde
+en haut de la table un bandeau (HUD) : round, suite J/E en créneaux, portraits dans l'ordre, tour
+courant surligné, et de quoi mener les tours sans ouvrir le panneau Combat : « Lancer
+l'initiative » tant qu'elle n'est pas tirée, Précédent, Suivant, ouverture du panneau. Les invites
+de réaction d'un joueur attaqué restent (au même endroit). Sans bandeau, un joueur ne passe plus
+son tour, ne prend plus un créneau et ne lance plus son initiative lui-même : le MJ s'en charge.
 
 ## 13. Nuances par système
 

@@ -58,7 +58,7 @@ export function HudCampaign({ table }: { table: Table }) {
 }
 
 /**
- * Au centre, pendant un combat : le bandeau d'initiative (docs/combat.md § 12.6) ; dessous,
+ * Au centre, pendant un combat : le bandeau d'initiative du MJ (docs/combat.md § 12.6) ; dessous,
  * les invites de défense active d'un joueur dont le personnage est attaqué (en combat ou non).
  */
 export function HudCombat({ table }: { table: Table }) {
@@ -71,10 +71,10 @@ export function HudCombat({ table }: { table: Table }) {
   );
   const reacts = role === 'player' && mine.size > 0;
   const sys = useCampaignSystem(reacts ? c.system : null, c.id);
-  if (!combat && !reacts) return null;
+  if (!(combat && role === 'gm') && !reacts) return null;
   return (
     <div className="pointer-events-none flex min-w-0 flex-1 flex-col items-center gap-2">
-      {combat && <InitiativeStrip campaignId={c.id} combat={combat} mine={mine} role={role} />}
+      {combat && role === 'gm' && <InitiativeStrip campaignId={c.id} combat={combat} />}
       {reacts && (
         <ReactionPrompts campaignId={c.id} mine={mine} systeme={sys.data?.systeme ?? null} />
       )}
