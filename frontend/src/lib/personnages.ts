@@ -25,6 +25,7 @@ import {
   type Tirage,
   type Valeur,
 } from '@vtt/rules';
+import type { PortraitStudio } from '@vtt/contracts';
 import { useMemo } from 'react';
 import { api, ApiError } from './api';
 import {
@@ -70,6 +71,8 @@ interface CharacterApi {
   ownerId: string;
   nom: string;
   avatarUrl: string | null;
+  tokenUrl?: string | null;
+  portraitStudio?: PortraitStudio | null;
   etat: unknown;
   fiche: unknown;
   details: DetailsApi;
@@ -164,6 +167,10 @@ export interface SheetLayout {
 
 /** Personnage complet : état saisi (calculé par le moteur), présentation, version. */
 export interface FichePersonnage extends Personnage {
+  /** Token fabriqué par le Studio du portrait ; null : le portrait sert de token. */
+  tokenUrl: string | null;
+  /** Réglages du Studio du portrait, pour le rouvrir. */
+  portraitStudio: PortraitStudio | null;
   state: EtatEntite;
   details: DetailsPersonnage;
   /** Mise en page choisie ; null : disposition par défaut de la présentation. */
@@ -188,6 +195,8 @@ export interface TirageCreation {
 export interface ModificationProfil {
   name?: string;
   portraitUrl?: string | null;
+  tokenUrl?: string | null;
+  portraitStudio?: PortraitStudio | null;
   details?: Partial<DetailsPersonnage>;
 }
 
@@ -274,6 +283,8 @@ function versFiche(p: CharacterApi): FichePersonnage {
     id: p.id,
     name: p.nom,
     portraitUrl: p.avatarUrl,
+    tokenUrl: p.tokenUrl ?? null,
+    portraitStudio: p.portraitStudio ?? null,
     system: state.systeme,
     type: state.type,
     inCreation: state.creation,
@@ -337,6 +348,8 @@ function versCorpsProfil(m: ModificationProfil) {
   return {
     ...(m.name !== undefined ? { nom: m.name.trim() } : {}),
     ...(m.portraitUrl !== undefined ? { avatarUrl: m.portraitUrl } : {}),
+    ...(m.tokenUrl !== undefined ? { tokenUrl: m.tokenUrl } : {}),
+    ...(m.portraitStudio !== undefined ? { portraitStudio: m.portraitStudio } : {}),
     ...(m.details !== undefined ? { details: m.details } : {}),
   };
 }
