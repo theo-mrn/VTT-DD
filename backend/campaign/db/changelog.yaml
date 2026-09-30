@@ -40,5 +40,9 @@ databaseChangeLog:
   - include: { file: changes/0021-map-grids.sql, relativeToChangelogFile: true }
   # Portails : franchissement automatique et aller-retour relié (docs/carte.md § 10)
   - include: { file: changes/0022-map-portals-use.sql, relativeToChangelogFile: true }
+  # Combat, tours : réglages, acteur du créneau, participants cachés, journal des passages (docs/combat.md § 4)
+  - include: { file: changes/0023-combat-turns.sql, relativeToChangelogFile: true }
+  # Combat, attaques : déclarations, cibles, rapports et applications (docs/combat.md § 5 à § 7)
+  - include: { file: changes/0024-combat-attacks.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }

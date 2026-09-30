@@ -3,7 +3,17 @@
  * La source de vérité est le changelog Liquibase (backend/campaign/db) ; ce
  * fichier doit lui correspondre colonne pour colonne.
  */
-import type { MapGrid, MapWeather } from '@vtt/contracts';
+import type {
+  AttackActor,
+  AttackAppliedTarget,
+  AttackTargetResult,
+  AttackTargetView,
+  CombatInitiative,
+  CombatSettings,
+  MapGrid,
+  MapWeather,
+  RollStep,
+} from '@vtt/contracts';
 import { sql } from 'drizzle-orm';
 import {
   MapBlocksFrom,
@@ -218,8 +228,15 @@ export const campaignCombats = campaignSchema.table('campaign_combats', {
   initiativeRolled: boolean('initiative_rolled').notNull().default(false),
   version: integer('version').notNull().default(1),
   startedBy: uuid('started_by').notNull(),
+  /** Début du combat (`startedAt` de l'API). */
   createdAt: timestampTz('created_at').notNull().defaultNow(),
   updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+  /** Réglages du MJ ; `{}` (combat d'avant 0023) : les défauts. */
+  settings: jsonb('settings').$type<Partial<CombatSettings>>().notNull().default({}),
+  /** Acteur désigné du créneau courant (mode slots), sinon null. */
+  currentActorId: uuid('current_actor_id'),
+  /** Compteur des passages de tour (journal). */
+  turn: integer('turn').notNull().default(0),
 });
 
 export const campaignCombatParticipants = campaignSchema.table(
@@ -233,9 +250,159 @@ export const campaignCombatParticipants = campaignSchema.table(
     side: text('side').$type<Side>().notNull(),
     sortKeys: jsonb('sort_keys').$type<number[]>().notNull().default([]),
     hasActed: boolean('has_acted').notNull().default(false),
+    visibleToPlayers: boolean('visible_to_players').notNull().default(true),
+    initiative: jsonb('initiative').$type<CombatInitiative | null>(),
+    initiativePending: boolean('initiative_pending').notNull().default(false),
+    joinedRound: integer('joined_round').notNull().default(1),
+    defeated: boolean('defeated').notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.campaignId, t.characterId] })],
 );
+
+/** Raison d'un passage de tour enregistré dans le journal (« Précédent » le dépile). */
+export const TURN_LOG_REASONS = ['next', 'new_round', 'slot_actor', 'turn_set'] as const;
+export type TurnLogReason = (typeof TURN_LOG_REASONS)[number];
+
+/** État d'avant un passage : participants par identité (l'ordre a pu changer depuis). */
+export interface TurnSnapshot {
+  round: number;
+  currentIndex: number;
+  /** Participant dont c'était le tour (individual), sinon null. */
+  currentId: string | null;
+  currentActorId: string | null;
+  turn: number;
+  /** Participants qui avaient déjà agi pendant ce round. */
+  acted: string[];
+}
+
+/** Journal des passages de tour (0023-combat-turns.sql). */
+export const campaignCombatTurns = campaignSchema.table('campaign_combat_turns', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id')
+    .notNull()
+    .references(() => campaignCombats.campaignId, { onDelete: 'cascade' }),
+  combatId: uuid('combat_id').notNull(),
+  reason: text('reason').$type<TurnLogReason>().notNull(),
+  before: jsonb('before').$type<TurnSnapshot>().notNull(),
+  tickId: text('tick_id'),
+  /** Entrées expirées par personnage lors du décompte de ce passage. */
+  expired: jsonb('expired').$type<Record<string, string[]>>(),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+});
+
+// ─── Attaques (0024-combat-attacks.sql, docs/combat.md § 5 à § 7) ───────────
+
+export type AttackStatusValue =
+  | 'awaiting_reactions'
+  | 'awaiting_dice'
+  | 'pending'
+  | 'applied'
+  | 'dismissed'
+  | 'cancelled'
+  | 'failed';
+export type AttackTargetStatusValue = 'awaiting_reaction' | 'awaiting_dice' | 'resolved' | 'failed';
+export type AttackDecisionValue = 'pending' | 'applied' | 'skipped' | 'reverted';
+export type ParamValue = number | string | boolean;
+
+export const campaignAttacks = campaignSchema.table('campaign_attacks', {
+  id: uuid('id').primaryKey(),
+  campaignId: uuid('campaign_id')
+    .notNull()
+    .references(() => campaigns.id, { onDelete: 'cascade' }),
+  combatId: uuid('combat_id'),
+  round: integer('round'),
+  turn: integer('turn'),
+  attackerId: uuid('attacker_id').notNull(),
+  actionId: text('action_id').notNull(),
+  actionName: text('action_name').notNull(),
+  params: jsonb('params').$type<Record<string, ParamValue>>().notNull().default({}),
+  rollMode: text('roll_mode').$type<'per_target' | 'shared'>().notNull(),
+  dice: text('dice').$type<'physical' | 'server'>().notNull(),
+  visibility: text('visibility').$type<'public' | 'private' | 'gm'>().notNull(),
+  status: text('status').$type<AttackStatusValue>().notNull(),
+  outOfTurn: boolean('out_of_turn').notNull().default(false),
+  selfTarget: boolean('self_target').notNull().default(false),
+  origin: text('origin').$type<'map' | 'selection' | 'measurement' | 'sheet' | 'turns'>(),
+  presetId: text('preset_id'),
+  adjustments: jsonb('adjustments').$type<{
+    dice?: { die: string; count: number }[];
+    bonus?: number;
+  } | null>(),
+  actor: jsonb('actor').$type<AttackActor | null>(),
+  /** Instantané opaque de character, réservé au serveur, effacé à la résolution. */
+  snapshot: jsonb('snapshot').$type<unknown>(),
+  faces: jsonb('faces')
+    .$type<{ id: string; value: number; source?: string }[]>()
+    .notNull()
+    .default([]),
+  pendingSteps: jsonb('pending_steps').$type<RollStep[]>().notNull().default([]),
+  note: text('note'),
+  idempotencyKey: text('idempotency_key'),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  resolvedAt: timestampTz('resolved_at'),
+  decidedAt: timestampTz('decided_at'),
+  updatedAt: timestampTz('updated_at').notNull().defaultNow(),
+  version: integer('version').notNull().default(1),
+});
+
+export const campaignAttackTargets = campaignSchema.table(
+  'campaign_attack_targets',
+  {
+    attackId: uuid('attack_id')
+      .notNull()
+      .references(() => campaignAttacks.id, { onDelete: 'cascade' }),
+    characterId: uuid('character_id').notNull(),
+    position: integer('position').notNull(),
+    status: text('status').$type<AttackTargetStatusValue>().notNull(),
+    decision: text('decision').$type<AttackDecisionValue>().notNull().default('pending'),
+    reactionParams: jsonb('reaction_params').$type<string[]>().notNull().default([]),
+    reaction: jsonb('reaction').$type<{
+      params: Record<string, ParamValue>;
+      skipped: boolean;
+      answeredBy: string | null;
+    } | null>(),
+    view: jsonb('view').$type<AttackTargetView | null>(),
+    result: jsonb('result').$type<AttackTargetResult | null>(),
+    applied: jsonb('applied').$type<AttackAppliedTarget | null>(),
+    error: text('error'),
+  },
+  (t) => [primaryKey({ columns: [t.attackId, t.characterId] })],
+);
+
+/**
+ * Décision d'une application : une cible (ou les coûts de l'attaquant), appliquée ou non, les
+ * fiches qu'elle écrit et ce qui est appliqué. Assez pour finir l'application après une panne.
+ */
+export interface ApplicationDecision {
+  /** Cible décidée ; null : coûts de l'attaquant. */
+  targetId: string | null;
+  apply: boolean;
+  /** Fiches écrites par cette décision (cible ou réattribution, attaquant). */
+  characterIds: string[];
+  /** Ce qui est appliqué (`defeated` complété à la réponse de character). */
+  applied: AttackAppliedTarget | null;
+  reverted: boolean;
+}
+
+export const campaignAttackApplications = campaignSchema.table('campaign_attack_applications', {
+  id: uuid('id').primaryKey(),
+  attackId: uuid('attack_id')
+    .notNull()
+    .references(() => campaignAttacks.id, { onDelete: 'cascade' }),
+  campaignId: uuid('campaign_id').notNull(),
+  status: text('status').$type<'applying' | 'applied' | 'reverted'>().notNull(),
+  decisions: jsonb('decisions').$type<ApplicationDecision[]>().notNull(),
+  items: jsonb('items').$type<unknown[]>().notNull(),
+  result: jsonb('result').$type<unknown>(),
+  note: text('note'),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: timestampTz('created_at').notNull().defaultNow(),
+  appliedAt: timestampTz('applied_at'),
+  revertedAt: timestampTz('reverted_at'),
+  revertedBy: uuid('reverted_by'),
+});
 
 export const outbox = campaignSchema.table('outbox', {
   id: uuid('id').primaryKey(),
