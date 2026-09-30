@@ -25,6 +25,8 @@ import {
   modeDeJet,
   parametresReaction,
   vueActeur,
+  type CibleEnAttente,
+  type DeRequis,
   type ResultatAction,
   type ResultatMulticible,
 } from './index.js';
@@ -132,6 +134,56 @@ const combatD20: SystemeSaisi = {
         },
       ],
       tables: [{ table: 'critiques', condition: 'critique' }],
+    },
+    // Attaque en deux étapes : pas de dégâts sur un raté, dés doublés sur un critique
+    {
+      id: 'epee',
+      nom: 'Épée',
+      pour: ['personnage'],
+      cible: 'personnage',
+      jet: {
+        type: 'numerique',
+        formule: '1d20',
+        reussite: 'total >= @cible.Defense',
+        critique: 'naturel == 20',
+      },
+      apres: [
+        {
+          cle: 'degats',
+          nom: 'Dégâts',
+          visibilite: 'acteur',
+          formule: 'si(reussi, multiplier_des(si(critique, 2, 1), 1d8), 0)',
+        },
+      ],
+      consequences: [
+        {
+          condition: 'reussi',
+          entite: 'cible',
+          attribut: 'PV',
+          operation: 'retirer',
+          valeur: 'degats',
+        },
+      ],
+      tables: [{ table: 'critiques', condition: 'critique' }],
+    },
+    {
+      id: 'frappe-explosive',
+      nom: 'Frappe explosive',
+      pour: ['personnage'],
+      cible: 'personnage',
+      jet: { type: 'numerique', formule: '1d20', reussite: 'total >= @cible.Defense' },
+      apres: [
+        { cle: 'degats', nom: 'Dégâts', visibilite: 'acteur', formule: 'si(reussi, 1d6!, 0)' },
+      ],
+      consequences: [{ entite: 'cible', attribut: 'PV', operation: 'retirer', valeur: 'degats' }],
+    },
+    {
+      id: 'soin-fixe',
+      nom: 'Soin fixe',
+      pour: ['personnage'],
+      cible: 'personnage',
+      jet: { type: 'numerique', formule: '0' },
+      consequences: [{ entite: 'cible', attribut: 'PV', operation: 'ajouter', valeur: 3 }],
     },
   ],
   tables: [
@@ -612,5 +664,207 @@ describe('dés planifiés (dés physiques)', () => {
     const g: Generateur = aleatoirePlanifie({ faces: {}, commun: true }).pour('x', 0);
     g.entier(20);
     expect(() => g.phase?.('apres')).toThrow(DesRequis);
+  });
+});
+
+describe('étapes de dés : une phase qui demande des dés est une étape', () => {
+  /** Joue l'attaque étape par étape : les faces de chaque étape viennent de `lancer`. */
+  function parEtapes(
+    sys: SystemeCharge,
+    demande: Omit<Parameters<typeof executerMulticible>[1], 'aleatoire'>,
+    lancer: (d: DeRequis) => number,
+  ) {
+    const commun = (demande.jet ?? modeDeJet(sys.actions.get(demande.action)!)) === 'commun';
+    const faces: Record<string, number> = {};
+    const etapes: { des: DeRequis[]; enAttente: CibleEnAttente[]; finies: string[] }[] = [];
+    for (let i = 0; i < 10; i++) {
+      const r = reussie(
+        executerMulticible(sys, { ...demande, aleatoire: aleatoirePlanifie({ faces, commun }) }),
+      );
+      if (!r.requis.length) return { etapes, final: r, faces };
+      etapes.push({
+        des: r.requis,
+        enAttente: r.enAttente,
+        finies: r.cibles.map((c) => c.id),
+      });
+      for (const d of r.requis) faces[d.id] = lancer(d);
+    }
+    throw new Error('Trop d’étapes');
+  }
+
+  it('jet par cible, deux cibles : le d20 de chacune, puis les dégâts de la seule touchée', () => {
+    const d20 = { '0:jet:d20:0': 15, '1:jet:d20:0': 3 };
+    const { etapes, final, faces } = parEtapes(
+      s,
+      {
+        action: 'epee',
+        acteur: mage,
+        cibles: [
+          { id: 'g', fiche: gobelin },
+          { id: 'z', fiche: zombie },
+        ],
+      },
+      (d) => (d.id in d20 ? d20[d.id as keyof typeof d20] : 5),
+    );
+    expect(etapes.map((e) => e.des)).toEqual([
+      [
+        { id: '0:jet:d20:0', phase: 'jet', faces: 20, cible: 'g' },
+        { id: '1:jet:d20:0', phase: 'jet', faces: 20, cible: 'z' },
+      ],
+      // Le zombie est raté : seuls les dés du gobelin touché sont lancés
+      [{ id: '0:apres:d8:0', phase: 'apres', faces: 8, cible: 'g' }],
+    ]);
+    // Étape 1 : aucune issue n'est connue avant le d20
+    expect(etapes[0]!.enAttente.map((c) => [c.id, c.phase, c.partiel])).toEqual([
+      ['g', 'jet', null],
+      ['z', 'jet', null],
+    ]);
+    // Étape 2 : le raté est fini ; le touché attend ses dégâts, son jet est déjà exact
+    expect(etapes[1]!.finies).toEqual(['z']);
+    const [g] = etapes[1]!.enAttente;
+    expect(g).toMatchObject({ id: 'g', phase: 'apres', partiel: { reussi: true } });
+    expect(g!.partiel!.jet).toMatchObject({ type: 'numerique', total: 15 });
+    expect(g!.partiel!.variables.degats).toBeUndefined();
+    expect(g!.partiel!.modifications).toEqual([]);
+    // La vue de l'attaquant sur l'étape 1 : l'issue, sans dégâts
+    expect(vueActeur(s, g!.partiel!)).toMatchObject({ reussi: true, valeurs: [] });
+
+    // Même résultat que le serveur qui tire tout d'un coup, dans le même ordre
+    expect(final.cibles.map((c) => c.id)).toEqual(['g', 'z']);
+    expect(resultat(final, 'g').variables.degats).toBe(5);
+    expect(resultat(final, 'z').reussi).toBe(false);
+    const serveur = executerMulticible(s, {
+      action: 'epee',
+      acteur: mage,
+      cibles: [
+        { id: 'g', fiche: gobelin },
+        { id: 'z', fiche: zombie },
+      ],
+      aleatoire: aleatoireImpose([15, 5, 3]),
+    });
+    expect(final).toEqual(serveur);
+    expect(Object.keys(faces)).toHaveLength(3);
+  });
+
+  it('raté partout : une seule étape, pas de dégâts', () => {
+    const { etapes, final } = parEtapes(
+      s,
+      {
+        action: 'epee',
+        acteur: mage,
+        cibles: [
+          { id: 'g', fiche: gobelin },
+          { id: 'z', fiche: zombie },
+        ],
+      },
+      () => 2,
+    );
+    expect(etapes).toHaveLength(1);
+    expect(final.enAttente).toEqual([]);
+    expect(final.cibles.map((c) => c.ok && c.resultat.reussi)).toEqual([false, false]);
+  });
+
+  it('jet commun (boule de feu) : un d20, puis les dés communs et ceux propres à une cible', () => {
+    const { etapes, final } = parEtapes(
+      s,
+      {
+        action: 'boule-de-feu',
+        acteur: mage,
+        cibles: [
+          { id: 'g', fiche: gobelin },
+          { id: 'z', fiche: zombie },
+        ],
+      },
+      () => 4,
+    );
+    expect(etapes.map((e) => e.des.map((d) => [d.id, d.cible ?? null]))).toEqual([
+      [['jet:d20:0', null]],
+      [
+        ['apres:d6:0', null],
+        ['apres:d6:1', null],
+        ['apres:d6:2', 'z'],
+      ],
+    ]);
+    // Coûts de l'acteur : une fois, à la fin seulement
+    expect(final.acteur).toEqual([
+      expect.objectContaining({ entite: 'acteur', attribut: 'stress', valeur: 1 }),
+    ]);
+  });
+
+  it('critique : dés de dégâts doublés, puis la table (étape « tables ») ; mêmes faces, même résultat', () => {
+    const { etapes, final, faces } = parEtapes(
+      s,
+      { action: 'epee', acteur: mage, cibles: [{ id: 'g', fiche: gobelin }] },
+      (d) => (d.phase === 'jet' ? 20 : d.phase === 'apres' ? 6 : 7),
+    );
+    expect(etapes.map((e) => e.des.map((d) => [d.id, d.phase]))).toEqual([
+      [['0:jet:d20:0', 'jet']],
+      [
+        ['0:apres:d8:0', 'apres'],
+        ['0:apres:d8:1', 'apres'],
+      ],
+      [['0:tables:d10:0', 'tables']],
+    ]);
+    // Avant la table : le jet, les dégâts et leurs modifications sont exacts
+    const [avant] = etapes[2]!.enAttente;
+    expect(avant).toMatchObject({ phase: 'tables', partiel: { variables: { degats: 12 } } });
+    expect(avant!.partiel!.modifications).toEqual([
+      expect.objectContaining({ attribut: 'PV', valeur: 12 }),
+    ]);
+    expect(avant!.partiel!.tables).toEqual([]);
+    expect(resultat(final, 'g').tables.map((t) => t.ligne?.nom)).toEqual(['Blessure']);
+    // Rejouer les mêmes faces rend exactement le même résultat
+    const rejoue = executerMulticible(s, {
+      action: 'epee',
+      acteur: mage,
+      cibles: [{ id: 'g', fiche: gobelin }],
+      aleatoire: aleatoirePlanifie({ faces, commun: false }),
+    });
+    expect(rejoue).toEqual(final);
+  });
+
+  it('explosion : le dé qui explose en demande un autre, à une nouvelle étape de la même phase', () => {
+    const { etapes, final } = parEtapes(
+      s,
+      { action: 'frappe-explosive', acteur: mage, cibles: [{ id: 'g', fiche: gobelin }] },
+      (d) => (d.phase === 'jet' ? 18 : d.id === '0:apres:d6:0' ? 6 : 2),
+    );
+    expect(etapes.map((e) => e.des.map((d) => d.id))).toEqual([
+      ['0:jet:d20:0'],
+      ['0:apres:d6:0'],
+      ['0:apres:d6:1'],
+    ]);
+    expect(resultat(final, 'g').variables.degats).toBe(8);
+  });
+
+  it('repli du serveur : tout le reste est tiré, sans étape', () => {
+    const plan = aleatoirePlanifie({
+      faces: { '0:jet:d20:0': 20 },
+      commun: false,
+      repli: aleatoireImpose([6, 6, 7]),
+    });
+    const r = reussie(
+      executerMulticible(s, {
+        action: 'epee',
+        acteur: mage,
+        cibles: [{ id: 'g', fiche: gobelin }],
+        aleatoire: plan,
+      }),
+    );
+    expect(r.requis).toEqual([]);
+    expect(plan.tires).toEqual({ '0:apres:d8:0': 6, '0:apres:d8:1': 6, '0:tables:d10:0': 7 });
+  });
+
+  it('une action sans dé n’a aucune étape', () => {
+    const r = reussie(
+      executerMulticible(s, {
+        action: 'soin-fixe',
+        acteur: mage,
+        cibles: [{ id: 'g', fiche: gobelin }],
+        aleatoire: aleatoirePlanifie({ faces: {}, commun: false }),
+      }),
+    );
+    expect(r.requis).toEqual([]);
+    expect(r.cibles).toHaveLength(1);
   });
 });

@@ -11,10 +11,16 @@
  *
  * Les coûts de l'acteur (ses modifications : stress d'une option, munitions) ne comptent
  * qu'une fois : ceux de la première cible résolue.
+ *
+ * Dés planifiés (`aleatoirePlanifie`, dés physiques ou tirés à la demande) : l'exécution
+ * avance par étapes. Une cible dont des dés manquent est `enAttente` (avec ce qui est déjà
+ * exact : le jet et son issue quand il ne manque que les dégâts) ; les autres sont finies
+ * (un raté ne demande pas de dégâts). `requis` : les dés de l'étape suivante, pour toutes les
+ * cibles ensemble.
  */
 import type { Fiche } from '../calcul/index.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
-import type { Generateur, Valeur } from '../formules/index.js';
+import type { Generateur, PhaseDes, Valeur } from '../formules/index.js';
 import type { Action, ContexteCombatSaisi } from '../schema/index.js';
 import {
   executer,
@@ -71,13 +77,25 @@ export type ResultatCible =
   | { id: string; ok: true; resultat: ResultatAction }
   | { id: string; ok: false; erreurs: ErreurAction[] };
 
+/** Cible dont des dés restent à lancer (générateur planifié). */
+export interface CibleEnAttente {
+  id: string;
+  /** Phase des dés qui lui manquent. */
+  phase: PhaseDes;
+  /** Ce qui est déjà exact (jet et issue, puis valeurs après le jet) ; null avant le jet. */
+  partiel: ResultatAction | null;
+}
+
 export type ResultatMulticible =
   | { ok: false; erreurs: ErreurAction[] }
   | {
       ok: true;
       jet: ModeJet;
+      /** Cibles finies (résolues ou refusées), dans l'ordre de la demande. */
       cibles: ResultatCible[];
-      /** Modifications de l'acteur (coûts), comptées une fois. */
+      /** Cibles dont des dés restent à lancer (générateur planifié), dans l'ordre. */
+      enAttente: CibleEnAttente[];
+      /** Modifications de l'acteur (coûts), comptées une fois ; vides tant qu'un dé manque. */
       acteur: Modification[];
       /** Dés encore à lancer (générateur planifié) : le résultat n'est pas encore final. */
       requis: DeRequis[];
@@ -140,6 +158,7 @@ export function executerMulticible(
   );
 
   const cibles: ResultatCible[] = [];
+  const enAttente: CibleEnAttente[] = [];
   const requis = new Map<string, DeRequis & { demandes: number }>();
   let acteur: Modification[] | undefined;
   demande.cibles.forEach((c, index) => {
@@ -173,6 +192,13 @@ export function executerMulticible(
       });
     } catch (e) {
       if (!(e instanceof DesRequis)) throw e;
+      const partiel = e.partiel
+        ? {
+            ...e.partiel,
+            modifications: e.partiel.modifications.filter((m) => m.entite === 'cible'),
+          }
+        : null;
+      enAttente.push({ id: c.id, phase: e.phase, partiel });
       for (const d of e.des) {
         const deja = requis.get(d.id);
         if (deja) deja.demandes++;
@@ -190,7 +216,8 @@ export function executerMulticible(
   return {
     ok: true,
     jet,
-    cibles: aLancer.length ? [] : cibles,
+    cibles,
+    enAttente,
     acteur: aLancer.length ? [] : (acteur ?? []),
     requis: aLancer,
   };

@@ -41,6 +41,7 @@ import {
   type Generateur,
   type JetDes,
   type ModeDes,
+  type PhaseDes,
   type ResultatEvaluation,
   type TypeValeur,
   type Valeur,
@@ -58,6 +59,7 @@ import {
   type Pool,
 } from './symboles.js';
 import { tirerTable, type TirageTable } from './tables.js';
+import { DesRequis } from './planification.js';
 
 export interface DemandeAction {
   /** Identifiant de l'action du système. */
@@ -385,7 +387,20 @@ export function executer(
 
   // ─── Contexte d'évaluation ────────────────────────────────────────────────
 
-  aleatoire.phase?.('jet');
+  /**
+   * Changement de phase. Un générateur planifié (dés physiques) y lève `DesRequis` si des dés
+   * de la phase finie manquent : on y joint ce qui est déjà exact (`partiel`).
+   */
+  const passer = (nom: PhaseDes, partiel?: () => ResultatAction) => {
+    try {
+      aleatoire.phase?.(nom);
+    } catch (e) {
+      if (e instanceof DesRequis && partiel && !e.partiel) e.partiel = partiel();
+      throw e;
+    }
+  };
+
+  passer('jet');
   const ch = (x: string) => chemins.action(action.id, x);
   const erreurs: ErreurJet[] = [];
   const explications: string[] = [];
@@ -915,10 +930,35 @@ export function executer(
   if (force) explications.push('Issue corrigée par le MJ');
   variables.set('reussi', reussi);
   explications.push(reussi ? 'Réussite' : 'Échec');
+  const ajuste = Boolean(bonusLibre) || (demande.ajustements?.des ?? []).some((a) => a.nombre);
+  const modifications: Modification[] = [];
+
+  /** Résultat tel qu'il est à ce point de l'exécution : tout ce qui suit reste à faire. */
+  const etatA = (): (() => ResultatAction) => {
+    const vars = Object.fromEntries(variables);
+    const mods = [...modifications];
+    const nbExplications = explications.length;
+    const nbErreurs = erreurs.length;
+    return () => ({
+      action: action.id,
+      parametres,
+      variables: vars,
+      jet: resultatJet,
+      reussi,
+      modifications: mods,
+      tables: [],
+      explications: explications.slice(0, nbExplications),
+      erreurs: erreurs.slice(0, nbErreurs),
+      ...(ajuste ? { ajuste } : {}),
+      ...(force ? { force } : {}),
+    });
+  };
 
   // ─── Après le jet, conséquences, tables ───────────────────────────────────
 
-  aleatoire.phase?.('apres');
+  // Dés du jet manquants : rien n'est encore exact
+  passer('apres');
+  const apresJet = etatA();
   for (const v of action.apres) {
     const chemin = ch(`apres/${v.cle}`);
     const r = calculerFormule(chemin, defautDe(systeme.formule(chemin).type), ctx);
@@ -935,7 +975,6 @@ export function executer(
     variables.set(v.cle, valeur);
   }
 
-  const modifications: Modification[] = [];
   action.consequences.forEach((c, i) => {
     const ou = ch(`consequences/${i}`);
     if (c.condition !== undefined && ev(`${ou}/condition`, false) !== true) return;
@@ -1032,7 +1071,9 @@ export function executer(
     explications.push(`${qui} : ${nom} ${op}`);
   });
 
-  aleatoire.phase?.('tables');
+  // Dés d'après le jet manquants (dégâts) : le jet et son issue sont exacts
+  passer('tables', apresJet);
+  const avantTables = etatA();
   const tables: TirageTable[] = [];
   action.tables.forEach((t, i) => {
     const ou = ch(`tables/${i}`);
@@ -1045,8 +1086,8 @@ export function executer(
     explications.push(`${nom} : ${tirage.valeur} → ${tirage.ligne?.nom ?? 'aucune ligne'}`);
   });
 
-  aleatoire.phase?.('fin');
-  const ajuste = Boolean(bonusLibre) || (demande.ajustements?.des ?? []).some((a) => a.nombre);
+  // Dés des tables manquants : tout est exact sauf les tirages
+  passer('fin', avantTables);
   return {
     ok: true,
     resultat: {

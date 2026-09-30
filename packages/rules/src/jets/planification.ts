@@ -11,6 +11,7 @@
  * Tout est déterministe : mêmes dés fournis, même suite de résultats.
  */
 import type { ContexteDe, Generateur, PhaseDes } from '../formules/index.js';
+import type { ResultatAction } from './actions.js';
 
 /** Un dé demandé par une action et pas encore connu (dés physiques à lancer). */
 export interface DeRequis {
@@ -29,10 +30,30 @@ export interface DeRequis {
  * aucun calcul n'est rendu avec une valeur provisoire, l'appelant lance ces dés puis rejoue.
  */
 export class DesRequis extends Error {
+  /**
+   * Ce qui est déjà exact, posé par `executer` au changement de phase : le jet et son issue
+   * quand les dés manquent après le jet (dégâts), plus les valeurs après le jet et les
+   * modifications quand ils manquent aux tables. Absent : les dés du jet manquent.
+   */
+  partiel?: ResultatAction;
+
   constructor(public readonly des: DeRequis[]) {
     super(`${des.length} dé(s) à lancer`);
     this.name = 'DesRequis';
   }
+
+  /** Phase des dés manquants (la plus tôt s'il y en a de plusieurs). */
+  get phase(): PhaseDes {
+    return premierePhase(this.des.map((d) => d.phase)) ?? 'jet';
+  }
+}
+
+/** Ordre des phases d'une action. */
+export const PHASES: readonly PhaseDes[] = ['jet', 'apres', 'tables', 'fin'];
+
+/** La plus tôt de ces phases, ou undefined s'il n'y en a aucune. */
+export function premierePhase(phases: readonly PhaseDes[]): PhaseDes | undefined {
+  return [...phases].sort((a, b) => PHASES.indexOf(a) - PHASES.indexOf(b))[0];
 }
 
 /** Générateurs par cible d'une exécution à plusieurs cibles. */
