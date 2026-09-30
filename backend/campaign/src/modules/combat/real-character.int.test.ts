@@ -671,6 +671,56 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         expect(text).not.toContain('Gobelin');
       });
 
+      it('en masse : deux attaques d’un coup, tout appliquer (réattribuée, auto-attaque)', async () => {
+        t.impose(1, 1);
+        const { attacks: batch } = await ok<{ attacks: Attack[] }>(
+          gm,
+          'POST',
+          `${attacks()}/batch`,
+          {
+            attacks: [
+              {
+                attackerId: hob2,
+                action: 'degats-libres',
+                params: { nbDes: 1, faces: 2, bonus: 0 },
+                targets: [balin],
+              },
+              {
+                attackerId: hob2,
+                action: 'degats-libres',
+                params: { nbDes: 1, faces: 2, bonus: 0 },
+                targets: [hob2],
+              },
+            ],
+          },
+        );
+        expect(batch.map((a) => [a.status, a.visibility])).toEqual([
+          ['pending', 'gm'],
+          ['pending', 'gm'],
+        ]);
+        expect((batch[1] as Attack & { selfTarget: boolean }).selfTarget).toBe(true);
+        const balinBefore = await value(bob, balin, 'PV');
+        const hobBefore = await value(gm, hob2, 'PV');
+        const done = await ok<{ attacks: Attack[] }>(gm, 'POST', `${attacks()}/apply`, {
+          items: [
+            {
+              attackId: batch[0]!.id,
+              version: batch[0]!.version,
+              targets: [{ characterId: balin, apply: true, redirectTo: hob2 }],
+            },
+            {
+              attackId: batch[1]!.id,
+              version: batch[1]!.version,
+              targets: [{ characterId: hob2, apply: true }],
+            },
+          ],
+        });
+        expect(done.attacks.map((a) => a.status)).toEqual(['applied', 'applied']);
+        // Réattribuée : Balin ne perd rien, le hobgobelin prend les deux coups (une transaction)
+        expect(await value(bob, balin, 'PV')).toBe(balinBefore);
+        expect(await value(gm, hob2, 'PV')).toBe(hobBefore - 2);
+      });
+
       it('écarter tout un rapport', async () => {
         t.impose(CRIT, 2, 2);
         let a = await ok<Attack>(gm, 'POST', attacks(), {
@@ -826,6 +876,30 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
             (e) => e.type.startsWith('combat.attack_') && e.type !== 'combat.attack_updated',
           ),
         ).toEqual([]);
+      });
+
+      it('créneaux : le joueur prend le créneau de son camp et le termine', async () => {
+        const url = `/v1/campaigns/${c.id}/combat`;
+        let s = await ok<Combat>(gm, 'GET', url);
+        for (let i = 0; i < 2; i++) {
+          if (s.slots![s.currentIndex]!.side === 'players') {
+            // Un joueur ne désigne que son personnage, pour un créneau de son camp
+            s = await ok<Combat>(carol, 'POST', `${url}/slot-actor`, { characterId: chewie });
+            expect(s).toMatchObject({ currentActorId: chewie, redacted: true });
+            s = await ok<Combat>(carol, 'POST', `${url}/next`, {
+              characterId: chewie,
+              version: s.version,
+            });
+          } else {
+            // Créneau ennemi : Carol ne peut pas le prendre
+            const refused = await t.toCampaign(carol, 'POST', `${url}/slot-actor`, {
+              characterId: chewie,
+            });
+            expect(refused.statusCode).toBeGreaterThanOrEqual(400);
+            s = await ok<Combat>(gm, 'POST', `${url}/next`, { version: s.version });
+          }
+        }
+        expect(s.round).toBe(2);
       });
     });
   },
