@@ -71,7 +71,9 @@ export const UpdateCategory = z.object({
 /**
  * Nouveau modèle de PNJ : `etat` complet (EtatEntite), ou `systemeId` et
  * `type` pour partir d'un état vide, comme `POST /v1/characters`, avec
- * `valeurs` (attributs saisissables : valeurs clés de la création rapide).
+ * `valeurs` (attributs saisissables : valeurs clés de la création rapide) ; ou
+ * `systemeId` et `bestiary` (créature du bestiaire de référence : état, image et
+ * actions tirés de la créature, comme une pose sur la carte).
  */
 export const CreateNpcTemplate = z
   .object({
@@ -84,9 +86,10 @@ export const CreateNpcTemplate = z
     systemeId: SystemId.optional(),
     type: SystemId.optional(),
     valeurs: Valeurs.optional(),
+    bestiary: z.object({ key: z.string().min(1).max(200) }).optional(),
   })
-  .refine((b) => b.etat !== undefined || (b.systemeId && b.type), {
-    message: '`etat`, ou `systemeId` et `type`, requis',
+  .refine((b) => b.etat !== undefined || (b.systemeId && (b.type || b.bestiary)), {
+    message: '`etat`, ou `systemeId` et `type` (ou `bestiary`), requis',
   });
 
 export const UpdateNpcTemplate = z.object({

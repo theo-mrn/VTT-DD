@@ -70,7 +70,7 @@ const iso = (d: Date) => d.toISOString();
 
 // ─── État d'un modèle de PNJ ─────────────────────────────────────────────────
 
-function systemOf(catalogue: Catalogue, id: string): SystemeCharge {
+export function systemOf(catalogue: Catalogue, id: string): SystemeCharge {
   const s = catalogue.charge(id);
   if (!s) throw HttpError.badRequest(`Système inconnu : ${id}`, 'systeme_inconnu');
   return s;

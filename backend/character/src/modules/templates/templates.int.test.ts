@@ -191,6 +191,23 @@ describe.skipIf(!TEST_DATABASE_URL)('modèles du MJ', () => {
     expect(inconnue.statusCode).toBe(422);
   });
 
+  it('depuis le bestiaire : état, image et actions de la créature ; créature inconnue : 404', async () => {
+    const m = await ok(mj, 'POST', `${base}/npc-templates`, {
+      name: 'Aigle',
+      systemeId: 'dnd-classic',
+      bestiary: { key: 'eagle' },
+    });
+    expect(m.etat).toMatchObject({ creation: false, systeme: { id: 'dnd-classic' } });
+    expect(m.actions[0]).toMatchObject({ name: 'Talons', toHit: 4 });
+    expect(m.imageUrl).toMatch(/^https:/);
+    const inconnue = await o.requete(mj, 'POST', `${base}/npc-templates`, {
+      name: 'Rien',
+      systemeId: 'dnd-classic',
+      bestiary: { key: 'inexistante' },
+    });
+    expect(inconnue.statusCode).toBe(404);
+  });
+
   it('catégories : une catégorie d’une autre campagne est refusée ; supprimée, ses modèles restent', async () => {
     const c = await ok(mj, 'POST', `${base}/npc-template-categories`, {
       name: 'Rencontre #1',

@@ -15,6 +15,7 @@ import type { FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Module } from '../../deps.js';
+import { bestiaryState } from '../../regles/npc.js';
 import {
   categoryApi,
   createCategory,
@@ -28,6 +29,7 @@ import {
   listObjectTemplates,
   npcTemplateApi,
   objectTemplateApi,
+  systemOf,
   templateState,
   updateCategory,
   updateNpcTemplate,
@@ -48,6 +50,8 @@ import {
   UpdateNpcTemplate,
   UpdateObjectTemplate,
 } from './schemas.js';
+
+const HttpUrl = z.url({ protocol: /^https?$/ }).max(2048);
 
 const context = (req: FastifyRequest) => ({
   correlationId: req.ctx.correlationId,
@@ -149,11 +153,30 @@ export const register: Module = async (app, deps) => {
     },
     async (req, reply) => {
       const a = await gm(req, req.params.campaignId);
-      const { etat, systemeId, type, valeurs, ...data } = req.body;
+      const { etat, systemeId, type, valeurs, bestiary, ...data } = req.body;
+      // Créature du bestiaire : son état (valeurs du livre gardées), son image, ses actions
+      const creature = bestiary
+        ? catalogue.bestiaire?.(systemeId!)?.creatures.find((c) => c.id === bestiary.key)
+        : undefined;
+      if (bestiary && !creature) throw HttpError.notFound('Créature du bestiaire introuvable');
+      const image =
+        creature?.image && HttpUrl.safeParse(creature.image).success ? creature.image : null;
       const row = await createNpcTemplate(db, context(req), a, {
         ...data,
+        ...(creature
+          ? {
+              imageUrl: data.imageUrl ?? image,
+              actions:
+                data.actions ??
+                creature.actions.map((x) => ({
+                  name: x.nom,
+                  description: x.description,
+                  toHit: x.toucher ?? 0,
+                })),
+            }
+          : {}),
         etat: templateState(catalogue, {
-          etat,
+          etat: creature ? bestiaryState(systemOf(catalogue, systemeId!), creature) : etat,
           ...(systemeId ? { systemeId } : {}),
           ...(type ? { type } : {}),
           ...(valeurs ? { valeurs } : {}),

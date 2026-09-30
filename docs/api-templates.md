@@ -67,24 +67,27 @@ créés par le MJ), pas des objets du catalogue : ils restent en forme libre. `d
 Préfixe : `/v1/campaigns/:campaignId`. Une écriture qui envoie une `version` périmée reçoit **409**
 `version_perimee`.
 
-| Méthode | Route                                  | Corps                                                                                               | Réponse                    |
-| ------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------- |
-| GET     | `/npc-template-categories`             | —                                                                                                   | `[Catégorie]` (création ↑) |
-| POST    | `/npc-template-categories`             | `{ name, color? }`                                                                                  | 201 `Catégorie`            |
-| PATCH   | `/npc-template-categories/:categoryId` | `{ version, name?, color? }`                                                                        | `Catégorie`                |
-| DELETE  | `/npc-template-categories/:categoryId` | —                                                                                                   | 204                        |
-| GET     | `/npc-templates`                       | —                                                                                                   | `[Modèle de PNJ]`          |
-| POST    | `/npc-templates`                       | `{ name, categoryId?, imageUrl?, tokenUrl?, actions?, etat }` ou `{ …, systemeId, type, valeurs? }` | 201 `Modèle de PNJ`        |
-| PATCH   | `/npc-templates/:templateId`           | `{ version, name?, categoryId?, imageUrl?, tokenUrl?, actions?, etat?, valeurs? }`                  | `Modèle de PNJ`            |
-| DELETE  | `/npc-templates/:templateId`           | —                                                                                                   | 204                        |
-| GET     | `/object-templates`                    | —                                                                                                   | `[Modèle d'objet]`         |
-| POST    | `/object-templates`                    | `{ name, imageUrl?, category? }`                                                                    | 201 `Modèle d'objet`       |
-| PATCH   | `/object-templates/:templateId`        | `{ version, name?, imageUrl?, category? }`                                                          | `Modèle d'objet`           |
-| DELETE  | `/object-templates/:templateId`        | —                                                                                                   | 204                        |
+| Méthode | Route                                  | Corps                                                                                                                                        | Réponse                    |
+| ------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| GET     | `/npc-template-categories`             | —                                                                                                                                            | `[Catégorie]` (création ↑) |
+| POST    | `/npc-template-categories`             | `{ name, color? }`                                                                                                                           | 201 `Catégorie`            |
+| PATCH   | `/npc-template-categories/:categoryId` | `{ version, name?, color? }`                                                                                                                 | `Catégorie`                |
+| DELETE  | `/npc-template-categories/:categoryId` | —                                                                                                                                            | 204                        |
+| GET     | `/npc-templates`                       | —                                                                                                                                            | `[Modèle de PNJ]`          |
+| POST    | `/npc-templates`                       | `{ name, categoryId?, imageUrl?, tokenUrl?, actions?, etat }` ou `{ …, systemeId, type, valeurs? }` ou `{ …, systemeId, bestiary: { key } }` | 201 `Modèle de PNJ`        |
+| PATCH   | `/npc-templates/:templateId`           | `{ version, name?, categoryId?, imageUrl?, tokenUrl?, actions?, etat?, valeurs? }`                                                           | `Modèle de PNJ`            |
+| DELETE  | `/npc-templates/:templateId`           | —                                                                                                                                            | 204                        |
+| GET     | `/object-templates`                    | —                                                                                                                                            | `[Modèle d'objet]`         |
+| POST    | `/object-templates`                    | `{ name, imageUrl?, category? }`                                                                                                             | 201 `Modèle d'objet`       |
+| PATCH   | `/object-templates/:templateId`        | `{ version, name?, imageUrl?, category? }`                                                                                                   | `Modèle d'objet`           |
+| DELETE  | `/object-templates/:templateId`        | —                                                                                                                                            | 204                        |
 
 - `valeurs` (création et modification) : attributs saisissables posés sur l'état avec les droits
   du MJ (valeurs de base, choix, textes, booléens), comme la création rapide d'un PNJ ; en
   modification, seules les valeurs envoyées changent. Clé inconnue ou non saisissable : 422.
+- `POST /npc-templates` avec `bestiary: { key }` (et `systemeId`) : modèle tiré d'une créature du
+  bestiaire de référence (état comme une pose sur la carte, image et actions de la créature si
+  elles ne sont pas données) ; créature inconnue : 404. Sert au générateur de rencontres.
 - `POST /npc-templates` : `etat` complet (EtatEntite), ou `systemeId` et `type` pour partir d'un
   état vide du système, comme `POST /v1/characters`. Système inconnu : 400 `systeme_inconnu` ; état
   invalide ou d'un autre système (PATCH) : 422 `etat_invalide`.
