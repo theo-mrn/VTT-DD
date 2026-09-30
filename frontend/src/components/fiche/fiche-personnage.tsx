@@ -2,6 +2,7 @@
 
 import { calculer } from '@vtt/rules';
 import {
+  Crop,
   Hammer,
   LayoutGrid,
   SlidersHorizontal,
@@ -20,6 +21,7 @@ import { useNomSysteme } from '@/components/campagnes/carte-campagne';
 import { Illustration } from '@/components/commun/illustration';
 import { EtatVide, Page } from '@/components/commun/page';
 import { Chargement, formaterDepuis, Message } from '@/components/compte/elements';
+import { PortraitStudio } from '@/components/portraits/portrait-studio';
 import { SheetGrid } from '@/components/sheet-grid/sheet-grid';
 import { Button } from '@/components/ui/button';
 import {
@@ -271,15 +273,7 @@ function EnTeteFiche({
           dansPanneau ? 'pt-5 lg:pt-6' : 'pt-8 lg:pt-10',
         )}
       >
-        <Illustration
-          src={p.portraitUrl}
-          graine={p.name}
-          position="top"
-          className={cn(
-            'aspect-[3/4] shrink-0 self-start rounded-xl shadow-elevated ring-1 ring-white/10',
-            dansPanneau ? 'w-20 sm:w-28' : 'w-28 sm:w-36',
-          )}
-        />
+        <PortraitFiche personnage={p} peutModifier={peutModifier} dansPanneau={dansPanneau} />
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1 space-y-1">
@@ -489,6 +483,67 @@ function Histoire({ personnage: p }: { personnage: Fiche }) {
         </section>
       )}
     </div>
+  );
+}
+
+/** Portrait de l'en-tête ; un clic ouvre le Studio (cadrages, token) à qui peut modifier. */
+function PortraitFiche({
+  personnage: p,
+  peutModifier,
+  dansPanneau,
+}: {
+  personnage: Fiche;
+  peutModifier: boolean;
+  dansPanneau: boolean;
+}) {
+  const modifier = useModifierPersonnage(p.id);
+  const [studio, setStudio] = useState(false);
+  const image = (
+    <Illustration
+      src={p.portraitUrl}
+      graine={p.name}
+      position="top"
+      className="aspect-[3/4] size-full"
+      classeImage="transition-transform duration-500 group-hover:scale-105"
+    />
+  );
+  const taille = dansPanneau ? 'w-20 sm:w-28' : 'w-28 sm:w-36';
+  const cadre =
+    'shrink-0 self-start overflow-hidden rounded-xl shadow-elevated ring-1 ring-white/10';
+  if (!peutModifier) return <div className={cn(cadre, taille)}>{image}</div>;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setStudio(true)}
+        aria-label="Studio du portrait"
+        className={cn(
+          cadre,
+          taille,
+          'group relative transition-shadow hover:ring-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        )}
+      >
+        {image}
+        <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-gradient-to-t from-background/90 to-transparent pb-2 pt-6 text-xs font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          <Crop className="size-3.5" aria-hidden />
+          Studio
+        </span>
+      </button>
+      <PortraitStudio
+        open={studio}
+        onOpenChange={setStudio}
+        characterId={p.id}
+        name={p.name}
+        current={{ portraitUrl: p.portraitUrl, studio: p.portraitStudio }}
+        onSave={async (r) => {
+          await modifier.mutateAsync({
+            portraitUrl: r.portraitUrl,
+            tokenUrl: r.tokenUrl,
+            portraitStudio: r.studio,
+          });
+        }}
+      />
+    </>
   );
 }
 

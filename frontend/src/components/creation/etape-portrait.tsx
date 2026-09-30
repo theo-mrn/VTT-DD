@@ -1,14 +1,16 @@
 'use client';
 
 import type { Fiche, Presentation } from '@vtt/rules';
-import { Check, ImageOff } from 'lucide-react';
+import { Check, Crop, ImageOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Illustration } from '@/components/commun/illustration';
+import { PortraitStudio } from '@/components/portraits/portrait-studio';
 import { ImageDrop } from '@/components/uploads/image-drop';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { portraitsParDossier, useAssets } from '@/lib/assets';
 import { motsClesPortrait } from '@/lib/creation';
+import { useModifierPersonnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 
 const PAR_PAGE = 36;
@@ -64,10 +66,20 @@ export function EtapePortrait({
           label="Votre image"
         />
         {portrait && (
-          <Button variant="ghost" size="sm" onClick={() => onPortrait(null)}>
-            <ImageOff />
-            Sans portrait
-          </Button>
+          <div className="flex flex-col items-start gap-1.5">
+            {personnageId && (
+              <OuvrirStudio
+                personnageId={personnageId}
+                nom={nom}
+                portrait={portrait}
+                onPortrait={onPortrait}
+              />
+            )}
+            <Button variant="ghost" size="sm" onClick={() => onPortrait(null)}>
+              <ImageOff />
+              Sans portrait
+            </Button>
+          </div>
         )}
       </section>
 
@@ -146,6 +158,45 @@ export function EtapePortrait({
         )}
       </section>
     </div>
+  );
+}
+
+/** Studio du portrait : cadrages et token, enregistrés sur le personnage en création. */
+function OuvrirStudio({
+  personnageId,
+  nom,
+  portrait,
+  onPortrait,
+}: {
+  personnageId: string;
+  nom: string;
+  portrait: string;
+  onPortrait: (url: string | null) => void;
+}) {
+  const modifier = useModifierPersonnage(personnageId);
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" size="sm" onClick={() => setOuvert(true)}>
+        <Crop />
+        Studio
+      </Button>
+      <PortraitStudio
+        open={ouvert}
+        onOpenChange={setOuvert}
+        characterId={personnageId}
+        name={nom}
+        current={{ portraitUrl: portrait, studio: null }}
+        onSave={async (r) => {
+          await modifier.mutateAsync({
+            portraitUrl: r.portraitUrl,
+            tokenUrl: r.tokenUrl,
+            portraitStudio: r.studio,
+          });
+          onPortrait(r.portraitUrl);
+        }}
+      />
+    </>
   );
 }
 

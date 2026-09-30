@@ -12,7 +12,7 @@ Nos services ne font que **signer** : ils ne voient jamais passer le fichier.
 | --------- | --------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | identity  | `POST /v1/users/me/uploads`       | `avatar`, `banner`                                                          | l'utilisateur                                                  |
 | campaign  | `POST /v1/campaigns/:id/uploads`  | `campaign-image`, `map-background`, `map-object`, `npc-image`, `note-image` | MJ ; `note-image` : qui écrit des notes dans la campagne       |
-| character | `POST /v1/characters/:id/uploads` | `portrait`                                                                  | qui a la main sur le personnage (propriétaire, MJ de sa table) |
+| character | `POST /v1/characters/:id/uploads` | `portrait`, `token`                                                         | qui a la main sur le personnage (propriétaire, MJ de sa table) |
 
 Demande : `{ usage, contentType, size, name? }` (`name` pour les journaux seulement). Réponse :
 `{ method: 'PUT', url, headers, publicUrl, key, expiresAt }`. Le navigateur envoie le fichier par
@@ -38,6 +38,7 @@ Le serveur s'en sert pour refuser, le front pour prévenir et recadrer (mêmes v
 | `map-object`     | images + AVIF            | 10 Mo                         | `campaigns`  | libre     |
 | `npc-image`      | PNG, JPEG, WebP, GIF     | 5 Mo                          | `campaigns`  | carré     |
 | `portrait`       | PNG, JPEG, WebP, GIF     | 5 Mo                          | `characters` | 3:4       |
+| `token`          | PNG, JPEG, WebP, GIF     | 5 Mo                          | `characters` | carré     |
 
 Clé : `<dossier>/<propriétaire>/<uuidv7>.<ext>` (propriétaire : utilisateur, campagne ou
 personnage). Jamais réutilisée, jamais tirée du nom envoyé. Le type et la taille sont **signés** :
@@ -66,7 +67,8 @@ que vérifier ses droits puis appeler `ticket`.
   gardée telle quelle ; chemins de la bibliothèque acceptés), recadrage (`react-easy-crop`) au format
   de l'usage, anneau de progression avec octets et « Annuler », erreurs avec « Réessayer ».
 
-Branchée aujourd'hui : portrait à la création de personnage, fond de scène ; les autres envois
+Branchée aujourd’hui : portrait à la création de personnage, fond de scène ; le Studio du
+portrait (docs/portraits.md) envoie portrait et token ; les autres envois
 (objets, images de PNJ et de token, couverture, avatar, bannière) passent par `uploadFile` avec
 leur usage.
 
