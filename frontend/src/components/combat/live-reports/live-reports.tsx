@@ -26,11 +26,21 @@ import {
   ScrollText,
   ShieldHalf,
   Skull,
+  Swords,
   Undo2,
   X,
 } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion, type Transition } from 'motion/react';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { PanelLink } from '@/components/table/panels/navigation';
@@ -43,7 +53,9 @@ import { useCampaignSystem } from '@/lib/campaign-settings';
 import { hasSuccessRule } from '@/lib/combat/actions';
 import { combatErrorMessage } from '@/lib/combat/api';
 import { useAttackCommands, useAttacks } from '@/lib/combat/use-attacks';
-import { outcomeLabel } from '@/lib/combat/view';
+import { rollFigure } from '@/lib/combat/attack-flow-result';
+import { outcomeLabel, targetDisplay, type OutcomeTone } from '@/lib/combat/view';
+import { ResultatsSymboles } from '@/components/fiche/symboles';
 import { usePreferenceLocale } from '@/lib/preference-locale';
 import { cn } from '@/lib/utils';
 import { DecisionDrawer } from '../reports/decision-drawer';
@@ -67,6 +79,26 @@ import { liveItems, liveStack, SETTLED_MS, type LiveItem } from './model';
 
 const GLASS =
   'rounded-2xl border border-border-strong bg-popover/85 shadow-elevated backdrop-blur-xl';
+
+/** Carte d'un rapport : verre plus dense, arrondi généreux, ombre portée. */
+const CARD =
+  'relative overflow-hidden rounded-[1.25rem] border border-border-strong bg-popover/95 shadow-elevated backdrop-blur-2xl';
+
+/** Liseré et halo selon l'issue. */
+const RAIL: Record<OutcomeTone, string> = {
+  success: 'bg-success',
+  critical: 'bg-primary',
+  failure: 'bg-subtle',
+  fumble: 'bg-destructive',
+  neutral: 'bg-primary/60',
+};
+const GLOW: Record<OutcomeTone, string> = {
+  success: 'bg-success',
+  critical: 'bg-primary',
+  failure: 'bg-transparent',
+  fumble: 'bg-destructive',
+  neutral: 'bg-primary/60',
+};
 
 /** Ressort court : une carte sort de la barre, se pose, sans rebond appuyé. */
 const SPRING: Transition = { type: 'spring', stiffness: 520, damping: 38, mass: 0.7 };
@@ -390,64 +422,68 @@ function LiveCard({
   const keyOf = (s: Scope, apply: boolean) =>
     `${a.id}:${s.targets.map((t) => t.characterId).join(',')}:${s.actor}:${apply}`;
 
+  const title = params.length ? params.join(', ') : a.action.name;
+  const targetNames = a.targets.map((t) => cast.get(t.characterId)?.name ?? 'Personnage');
   return (
     <article
-      aria-label={`${a.action.name} : ${attackerName} contre ${a.targets.map((t) => cast.get(t.characterId)?.name ?? 'Personnage').join(', ')}`}
-      className={cn(
-        GLASS,
-        'relative overflow-hidden',
-        progress && 'bg-popover/65',
-        first && !progress && 'border-primary/40',
-      )}
+      aria-label={`${a.action.name} : ${attackerName} contre ${targetNames.join(', ')}`}
+      className={cn(CARD, progress && 'opacity-90', first && !progress && 'ring-1 ring-primary/35')}
     >
+      {/* Halo et liseré de l'issue */}
       <span
         aria-hidden
         className={cn(
-          'absolute inset-y-0 left-0 w-1',
-          progress
-            ? 'bg-warning/70'
-            : tone0 === 'critical'
-              ? 'bg-arcane'
-              : tone0 === 'fumble'
-                ? 'bg-destructive'
-                : tone0 === 'failure'
-                  ? 'bg-subtle'
-                  : 'bg-primary',
+          'pointer-events-none absolute -top-12 left-6 h-24 w-2/3 rounded-full opacity-35 blur-3xl',
+          progress ? 'bg-warning' : GLOW[tone0 ?? 'neutral'],
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-y-3 left-0 w-1 rounded-r-full',
+          progress ? 'bg-warning/70' : RAIL[tone0 ?? 'neutral'],
         )}
       />
 
-      {/* Qui attaque qui, avec quoi */}
-      <header className="flex items-center gap-2.5 py-2.5 pl-4 pr-3">
-        <span className="flex shrink-0 items-center">
-          <Portrait name={attackerName} src={attacker?.portraitUrl ?? null} />
-          <ArrowRight className="mx-1 size-3.5 text-subtle" aria-hidden />
-          <span className="flex -space-x-2">
-            {a.targets.slice(0, 3).map((t) => {
+      {/* Duel : qui attaque qui, avec quoi */}
+      <header className="relative flex items-center gap-3 px-4 pb-1 pt-3.5">
+        <span className="relative flex shrink-0 items-center">
+          <Portrait
+            name={attackerName}
+            src={attacker?.portraitUrl ?? null}
+            ring="ring-primary/70"
+          />
+          <span className="z-10 -mx-1.5 grid size-6 place-items-center rounded-full border border-border-strong bg-popover text-muted-foreground shadow-surface">
+            <Swords className="size-3" aria-hidden />
+          </span>
+          <span className="flex -space-x-3">
+            {a.targets.slice(0, 3).map((t, i) => {
               const m = cast.get(t.characterId);
               return (
                 <Portrait
                   key={t.characterId}
                   name={m?.name ?? 'Personnage'}
                   src={m?.portraitUrl ?? null}
-                  ring="ring-popover"
+                  ring="ring-destructive/60"
+                  style={{ zIndex: 3 - i }}
                 />
               );
             })}
             {a.targets.length > 3 && (
-              <span className="grid size-7 place-items-center rounded-full bg-surface-3 text-[10px] font-semibold ring-2 ring-popover">
+              <span className="grid size-10 place-items-center rounded-full bg-surface-3 text-xs font-semibold ring-2 ring-popover">
                 +{a.targets.length - 3}
               </span>
             )}
           </span>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold leading-tight">
-            {params.length ? params.join(', ') : a.action.name}
+          <span className="block truncate font-display text-[15px] font-semibold leading-tight">
+            {title}
           </span>
-          <span className="block truncate text-[11px] text-muted-foreground">
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {attackerName}
-            {single && t0 ? ` → ${cast.get(t0.characterId)?.name ?? 'Personnage'}` : ''}
-            {params.length ? ` · ${a.action.name}` : ''}
+            <span className="px-1 text-subtle">→</span>
+            {single ? targetNames[0] : `${a.targets.length} cibles`}
           </span>
         </span>
         {single && t0 && <OutcomePill target={t0} successRule={successRule} />}
@@ -464,9 +500,10 @@ function LiveCard({
           cast={cast}
           systeme={systeme}
           presentation={presentation}
+          tone={tone0 ?? 'neutral'}
         />
       ) : (
-        <ul className="space-y-1 px-3 pb-1">
+        <ul className="space-y-1.5 px-3 pb-1 pt-2">
           {a.targets.map((t) => (
             <TargetRow
               key={t.characterId}
@@ -497,10 +534,10 @@ function LiveCard({
       )}
 
       {!progress && decidable.length > 0 && (
-        <footer className="flex items-center gap-1.5 px-3 pb-3 pt-2">
+        <footer className="flex items-center gap-1.5 px-3 pb-3 pt-3">
           <Button
             size="sm"
-            className="flex-1"
+            className="h-9 flex-1 rounded-xl font-semibold shadow-glow"
             onClick={() => onDecide(all, true)}
             loading={busy === keyOf(all, true)}
             disabled={isBusy}
@@ -518,6 +555,7 @@ function LiveCard({
             <Button
               size="icon-sm"
               variant="secondary"
+              className="size-9 rounded-xl"
               onClick={onEdit}
               disabled={isBusy}
               aria-label="Modifier avant d’appliquer"
@@ -530,6 +568,7 @@ function LiveCard({
               <Button
                 size="icon-sm"
                 variant="ghost"
+                className="size-9 rounded-xl text-muted-foreground hover:text-destructive"
                 onClick={() => onDecide({ targets: decidable, actor: false }, false)}
                 loading={busy === keyOf({ targets: decidable, actor: false }, false)}
                 disabled={isBusy}
@@ -550,18 +589,24 @@ function Portrait({
   name,
   src,
   ring = 'ring-border',
+  size = 'size-10',
+  style,
 }: {
   name: string;
   src: string | null;
   ring?: string;
+  size?: string;
+  style?: CSSProperties;
 }) {
   return (
-    <Illustration
-      src={src}
-      graine={name}
-      position="top"
-      className={cn('size-7 shrink-0 rounded-full ring-2', ring)}
-    />
+    <span style={style} className="relative block shrink-0 rounded-full">
+      <Illustration
+        src={src}
+        graine={name}
+        position="top"
+        className={cn('rounded-full ring-2 ring-offset-2 ring-offset-popover', size, ring)}
+      />
+    </span>
   );
 }
 
@@ -631,57 +676,152 @@ function InProgress({ attack: a }: { attack: Attack }) {
   );
 }
 
-/** Une cible : la valeur en gros chiffre, les réductions en info-bulle. */
+/** Une cible : cases « Jet » et valeur en gros chiffres, comme les rapports de l'ancienne app. */
 function SingleBody({
   attack: a,
   target: t,
   cast,
   systeme,
   presentation,
+  tone,
 }: {
   attack: Attack;
   target: AttackTarget;
   cast: Cast;
   systeme: SystemeCharge | null;
   presentation: Presentation | null;
+  tone: OutcomeTone;
 }) {
   const amounts = targetAmounts(t);
   const type = cast.get(t.characterId)?.type;
+  const figure = rollFigure(targetDisplay(a, t).roll);
   const others = (t.result?.modifications ?? []).filter(
     (m) => m.entity === 'target' && m.kind === 'entry',
   );
-  if (!amounts.length && !others.length)
-    return (
-      <p className="pb-1 pl-4 pr-3 text-xs text-subtle">
-        {isDecidable(t) ? 'Aucune valeur à appliquer.' : null}
-      </p>
-    );
+  const [main, ...rest] = amounts;
   return (
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-1 pb-1 pl-4 pr-3">
-      {amounts.map((m, i) => (
-        <Amount
-          key={`${a.id}:${i}`}
-          m={m}
-          label={attributeLabel(systeme, m.attribute, type)}
-          sub={m.damageType ? damageTypeName(systeme, m.damageType) : null}
-          danger={harmful(m, presentation)}
-          size="lg"
-          systeme={systeme}
-        />
-      ))}
-      {others.length > 0 && (
-        <span className="flex flex-wrap gap-1 pb-1">
+    <div className="px-3 pt-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Tile label="Jet">
+          {figure?.kind === 'numeric' ? (
+            <>
+              <BigNumber value={String(figure.total)} className="text-foreground" />
+              <span className="mt-1 block truncate font-mono text-[10.5px] text-subtle">
+                {figure.dice}
+                {figure.modifier
+                  ? ` ${figure.modifier > 0 ? '+' : '−'} ${Math.abs(figure.modifier)}`
+                  : ''}
+              </span>
+            </>
+          ) : figure?.kind === 'symbols' && systeme ? (
+            <span className="flex min-h-9 items-center justify-center">
+              <ResultatsSymboles
+                systeme={systeme}
+                presentation={presentation}
+                resultats={figure.roll.results}
+              />
+            </span>
+          ) : (
+            <BigNumber value="—" className="text-subtle" />
+          )}
+        </Tile>
+        {main ? (
+          <Tile
+            label={attributeLabel(systeme, main.attribute, type)}
+            tone={harmful(main, presentation) ? 'danger' : 'good'}
+          >
+            <Amount
+              m={main}
+              label={main.damageType ? damageTypeName(systeme, main.damageType) : ''}
+              sub={null}
+              danger={harmful(main, presentation)}
+              size="lg"
+              systeme={systeme}
+            />
+          </Tile>
+        ) : (
+          <Tile label={tone === 'failure' || tone === 'fumble' ? 'Raté' : 'Valeur'}>
+            <BigNumber value="0" className="text-subtle" />
+            <span className="mt-1 block text-[10.5px] text-subtle">
+              {isDecidable(t) ? 'Rien à appliquer' : ''}
+            </span>
+          </Tile>
+        )}
+      </div>
+      {(rest.length > 0 || others.length > 0) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {rest.map((m, i) => (
+            <span
+              key={`${a.id}:rest:${i}`}
+              className="rounded-lg border border-border bg-surface/70 px-2 py-0.5"
+            >
+              <Amount
+                m={m}
+                label={attributeLabel(systeme, m.attribute, type)}
+                sub={null}
+                danger={harmful(m, presentation)}
+                size="sm"
+                systeme={systeme}
+              />
+            </span>
+          ))}
           {others.map((m, i) => (
             <span
-              key={i}
-              className="rounded-md border border-border bg-surface px-1.5 py-0.5 text-[11px]"
+              key={`${a.id}:entry:${i}`}
+              className="rounded-lg border border-border bg-surface/70 px-2 py-0.5 text-[11px]"
             >
               {modificationText(systeme, toInput(m), type)}
             </span>
           ))}
-        </span>
+        </div>
       )}
     </div>
+  );
+}
+
+/** Case d'un chiffre clé (Jet, Dégâts), comme les rapports de l'ancienne app. */
+function Tile({
+  label,
+  tone,
+  children,
+}: {
+  label: string;
+  tone?: 'danger' | 'good';
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-xl border px-3 py-2 text-center',
+        tone === 'danger'
+          ? 'border-destructive/25 bg-destructive/[0.07]'
+          : tone === 'good'
+            ? 'border-success/25 bg-success/[0.07]'
+            : 'border-border bg-surface/70',
+      )}
+    >
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-subtle">
+        {label}
+      </span>
+      <span className="mt-0.5 block">{children}</span>
+    </div>
+  );
+}
+
+function BigNumber({ value, className }: { value: string; className?: string }) {
+  return (
+    <motion.span
+      key={value}
+      initial={{ scale: 0.6, opacity: 0, y: 4 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={SPRING}
+      className={cn(
+        'block font-display text-[1.9rem] font-bold leading-none tabular-nums',
+        className,
+      )}
+    >
+      {value}
+    </motion.span>
   );
 }
 
@@ -702,26 +842,41 @@ function Amount({
 }) {
   const r = reductionDetail(m);
   const value = `${m.operation === 'add' ? '+' : '−'}${m.value}`;
-  const number = (
-    <span className="flex items-baseline gap-1">
-      <motion.span
-        key={value}
-        initial={{ scale: 0.6, opacity: 0, y: 4 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={SPRING}
-        className={cn(
-          'font-mono font-bold leading-none tabular-nums',
-          size === 'lg' ? 'text-3xl' : 'text-lg',
-          danger ? 'text-destructive' : 'text-success',
-        )}
-      >
-        {value}
-      </motion.span>
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      {sub && size === 'lg' && <span className="text-[11px] text-subtle">{sub}</span>}
-      {r && <ShieldHalf className="size-3.5 self-center text-info" aria-label="Réduit" />}
-    </span>
-  );
+  const number =
+    size === 'lg' ? (
+      <span className="flex flex-col items-center">
+        <motion.span
+          key={value}
+          initial={{ scale: 0.6, opacity: 0, y: 4 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={SPRING}
+          className={cn(
+            'font-display text-[1.9rem] font-bold leading-none tabular-nums',
+            danger ? 'text-destructive' : 'text-success',
+          )}
+        >
+          {value}
+        </motion.span>
+        <span className="mt-1 flex items-center gap-1 text-[10.5px] text-subtle">
+          {label}
+          {r && <ShieldHalf className="size-3 text-info" aria-label="Réduit" />}
+        </span>
+      </span>
+    ) : (
+      <span className="flex items-baseline gap-1">
+        <span
+          className={cn(
+            'font-display text-base font-bold leading-none tabular-nums',
+            danger ? 'text-destructive' : 'text-success',
+          )}
+        >
+          {value}
+        </span>
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        {sub && <span className="text-[11px] text-subtle">{sub}</span>}
+        {r && <ShieldHalf className="size-3 self-center text-info" aria-label="Réduit" />}
+      </span>
+    );
   if (!r) return number;
   return (
     <Info
@@ -783,13 +938,13 @@ function TargetRow({
     <motion.li
       layout="position"
       className={cn(
-        'flex items-center gap-2 rounded-xl border border-border bg-surface/60 py-1 pl-1.5 pr-1 transition-opacity',
-        !decidable && 'opacity-55',
+        'flex items-center gap-2.5 rounded-xl border border-border bg-surface/70 py-1.5 pl-2 pr-1.5 transition-opacity',
+        !decidable && 'opacity-50',
       )}
     >
-      <Portrait name={name} src={m?.portraitUrl ?? null} />
+      <Portrait name={name} src={m?.portraitUrl ?? null} size="size-8" ring="ring-destructive/50" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium">{name}</span>
+        <span className="block truncate text-[13px] font-medium">{name}</span>
       </span>
       <OutcomePill target={t} successRule={successRule} />
       <span className="flex shrink-0 gap-2">
@@ -808,9 +963,9 @@ function TargetRow({
       {decidable ? (
         <span className="flex shrink-0">
           <Button
-            size="icon-xs"
+            size="icon-sm"
             variant="ghost"
-            className="text-success hover:text-success"
+            className="rounded-lg text-success hover:bg-success/10 hover:text-success"
             onClick={() => onDecide(true)}
             loading={loadingApply}
             disabled={busy}
@@ -819,8 +974,9 @@ function TargetRow({
             <Check />
           </Button>
           <Button
-            size="icon-xs"
+            size="icon-sm"
             variant="ghost"
+            className="rounded-lg text-muted-foreground hover:text-destructive"
             onClick={() => onDecide(false)}
             loading={loadingSkip}
             disabled={busy}
