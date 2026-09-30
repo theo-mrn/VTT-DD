@@ -95,7 +95,9 @@ Un seul personnage actif, pas de notion de possession. Qui peut quoi sur un pers
 | En création (`etat.creation`), engagé ou non | son propriétaire, plus les ayants droit ci-dessous s'il est engagé                             | son propriétaire, les membres |
 | Engagé dans une campagne                     | le membre qui l'incarne (`campaign_characters.played_by`) et le MJ de la campagne              | les membres, son propriétaire |
 
-Le propriétaire d'un personnage engagé qu'il n'incarne pas (et dont il n'est pas MJ) le **lit seulement** : **403** à l'écriture. Il le lit toujours, même hors de la table. Un étranger reçoit **404** (on ne révèle pas l'existence du personnage). Le rôle des événements suit : `user` pour qui a la main (joueur qui l'incarne, propriétaire hors campagne ou en création), `gm` pour le MJ qui n'incarne pas le personnage.
+Le propriétaire d'un personnage engagé qu'il n'incarne pas (et dont il n'est pas MJ) le **lit seulement** : **403** à l'écriture. Il le lit toujours, même hors de la table. Un étranger reçoit **404** (on ne révèle pas l'existence du personnage).
+
+**Fiches de PNJ** (docs/combat.md, Q4) : un PNJ (`kind: npc`) ne se lit, pour qui ne l'écrit pas (joueur, spectateur), que s'il est du camp des joueurs ou allié dans une des campagnes du lecteur ; la fiche d'un ennemi est réservée au MJ (**404** pour les autres, comme un étranger). Son propriétaire (le MJ qui l'a créé) et qui l'incarne le lisent toujours. Le camp vient de la route interne de campaign `GET /internal/campaigns/:id/rights?userId=&characterId=` (`character.side`), même cache ; campaign injoignable : **503**. Un personnage joueur ennemi (PvP) reste lisible. Le rôle des événements suit : `user` pour qui a la main (joueur qui l'incarne, propriétaire hors campagne ou en création), `gm` pour le MJ qui n'incarne pas le personnage.
 
 **Suppression** (`DELETE /v1/characters/:id`) : le propriétaire seul (**403** pour les autres), et pas tant qu'un autre membre incarne le personnage dans une campagne : **409** `character_played` (le retirer d'abord de la campagne, ce que seul le MJ peut faire tant qu'un autre membre l'incarne, voir [api-campaign.md](api-campaign.md)). On ne supprime pas la fiche que quelqu'un joue.
 
@@ -140,7 +142,9 @@ Un attribut inconnu, calculé, une valeur hors bornes ou de mauvaise nature donn
 
 ### Possessions : exemplaires et quantités
 
-Corps de `POST /possessions` : `{ version, entree, exemplaire?, nouveau?, quantite?, rang?, actif?, choix?, champs?, effets?, hidden?, folder? }`. Seuls les champs fournis changent ; `effets` (effets propres à l'exemplaire) remplace les précédents.
+Corps de `POST /possessions` : `{ version, entree, exemplaire?, nouveau?, quantite?, rang?, actif?, choix?, champs?, effets?, hidden?, folder?, duree? }`. Seuls les champs fournis changent ; `effets` (effets propres à l'exemplaire) remplace les précédents.
+
+`duree` (entier de 1 à 10 000 rounds) donne l'état pour un temps : il perd un round à chaque fin de round de combat et disparaît à 0 (voir « Combat »). `null` retire la durée : la possession reste jusqu'à son retrait.
 
 `champs` (valeurs propres de l'exemplaire) est vérifié contre les champs de la sorte (`verifierChampsExemplaire` de `@vtt/rules`) : champ connu, nombre, texte, booléen, option d'un `choix`, attribut ou entrée existants. Un champ `formule` reçoit la formule propre de l'exemplaire, qui remplace celle de l'entrée (dés d'une arme : `1d6 + @FOR + 2`) : elle est compilée par le moteur (attributs du porteur, champs de l'objet `source.x`, dés seulement pour un champ `des`), 500 caractères au plus. Elle s'écrit en clés nues comme au lanceur de dés (`1d6-CON+8` : `CON` vaut son apport au jet, le modificateur en D&D), normalisée par `normaliserFormuleJet` avant la compilation, et enregistrée telle que saisie ; une clé inconnue est refusée avec un message lisible (« « CONS » n'est pas un attribut du personnage »). Une chaîne vide revient à la formule de l'entrée. Refus : **422** `champs_invalides`, avec le détail de chaque erreur.
 
@@ -181,7 +185,7 @@ L'événement `character.updated` d'une possession porte la demande avec l'exemp
 
 Un exemplaire `hidden: true` n'est visible que de qui peut écrire sur le personnage (joueur qui l'incarne, MJ, propriétaire hors campagne). Pour tout autre lecteur, le service le retire de `GET /v1/characters/:id` (état **et** fiche, recalculée sans lui : ses effets disparaissent aussi) et de `GET /achats`. Le résumé (`summary`) ne nomme jamais une entrée dont tous les exemplaires sont cachés. Les événements `character.updated` ne sont jamais publics (l'auteur, ou les MJ et le joueur qui incarne) : le temps réel ne le révèle pas.
 
-En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre.
+En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre. Avec `tickId` (`tick:<combatId>:<round>`), le décompte n'a lieu qu'une fois par personnage : une reprise rend la réponse d'origine avec `replayed: true` ; il s'annule par `POST /internal/modifications/revert` (`applicationId = tickId`, voir « Combat »).
 
 ### Instances de PNJ et butin de la carte (routes internes)
 
@@ -219,9 +223,64 @@ qui a déjà vérifié les droits ([api-map.md](api-map.md), PNJ et fouille) :
   le butin produit `character.updated` (opération `possession.butin`, `butin: { entree,
 exemplaire?, quantity, name }`), `gm_only` avec `visibleToUsers: [playerId]`.
 
+### Combat (routes internes)
+
+Appelées par campaign seulement (secret `INTERNAL_API_SECRET`), qui a déjà vérifié les droits, le
+tour et les cibles vues ([combat.md](combat.md) § 5 à 7, forme exacte au § 11.2). character résout
+avec `@vtt/rules` ; campaign garde les attaques, les rapports et les décisions du MJ.
+
+| Méthode | Route                                       | Corps                                                                                                                       | Réponse                                                                                                     |
+| ------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| POST    | `/internal/actions/prepare`                 | `{ actorId, action, params?, targetIds, rollMode?, adjustments?, dice?, userId, campaignId, diceHistory? }`                 | `{ snapshot, action, rollMode, dice, targets: [{ characterId, error, reactionParams }], step, resolution }` |
+| POST    | `/internal/actions/resolve`                 | `{ snapshot, params?, rollMode, adjustments?, dice?, reactions?, stepId?, faces?, serverFallback?, forcer?, diceHistory? }` | `{ step, resolution }`                                                                                      |
+| POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId?, campaignId, items: [{ characterId, modifications, tables? }] }] }`              | `{ applications: [{ applicationId, replayed, items: [{ characterId, version, changes, defeated }] }] }`     |
+| POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force?, userId? }`                                                                         | `{ applicationId, items: [{ characterId, status, version, changes, defeated? }] }`                          |
+| POST    | `/internal/characters/:id/durees/decompter` | `{ userId?, roomId?, tickId? }`                                                                                             | `{ modifie, retirees, version, replayed?, personnage? }`                                                    |
+
+- **Préparer** : les fiches de l'attaquant et des cibles sont figées dans `snapshot` (état et
+  règles optionnelles de chaque campagne), objet opaque que campaign garde et rend tel quel à
+  `resolve` : la résolution ne bouge pas pendant qu'on lance les dés. Les règles sont vérifiées
+  d'abord, sans dé : refus de l'attaquant ou de toutes les cibles, **422** `action_refusee`
+  (messages du moteur) ; refus d'une partie des cibles, leur `error` (elles seront `failed`).
+  `reactionParams` : paramètres `par: cible` proposés à la cible (défense active, leur `exige`
+  est vrai pour elle). Sans réaction attendue, `resolution` est rendue tout de suite (dés
+  serveur). Personnage absent : **404** `character_not_found`.
+- **Résoudre** : une exécution de l'action par cible (`executerMulticible`), avec les paramètres
+  de l'attaquant et la réaction de la cible (`skipped` : valeurs par défaut) ; `rollMode:
+shared` partage les dés par phase et par position. Par cible : `result` (contrat
+  `AttackTargetResult`, MJ seul : jet, issue, variables, modifications proposées avec types de
+  dégâts et résistances, tables tirées, déroulé, erreurs) et `view` (`AttackTargetView`, vue de
+  l'attaquant). `actor.modifications` : coûts de l'attaquant, comptés une fois. Déterministe :
+  même instantané, mêmes dés, même résultat. Étape B : le serveur tire tous les dés (`step`
+  toujours null, `faces` ignorées).
+- **Historique des dés** : avec `diceHistory`, le jet part à dice réduit à la vue de l'attaquant
+  (jamais le déroulé complet, qui nomme les défenses de la cible) : un par cible, un seul pour un
+  jet commun.
+- **Appliquer** : aucun dé ; les modifications décidées (contrat `AttackModificationInput`) et
+  les tables (`entry` : l'entrée d'une ligne de la table, tirée ou choisie par le MJ) sont écrites
+  dans **une transaction** pour toutes les applications et toutes les fiches (verrouillées dans
+  l'ordre des identifiants). Une ressource est ramenée dans ses bornes (pas au-dessus du maximum
+  d'une ressource non plafonnée). Par fiche : nouvelle `version`, `changes` (le diff de
+  `character.updated`), `defeated` (formule `horsCombat` du type d'entité). Idempotent par
+  `applicationId` : une reprise rend la réponse d'origine (`replayed: true`). Attribut qui n'est
+  ni de base ni une ressource, entrée inconnue ou non possédable, table inconnue, entrée absente
+  de la table : **422** `modification_invalide` avec `errors: [{ characterId, message }]`, rien
+  n'est écrit.
+- **Annuler** : pour chaque élément changé (valeur, possession `entree#exemplaire`, bonus), la
+  valeur d'avant revient si l'actuelle est toujours celle d'après ; sinon **409**
+  `revert_conflict` avec `conflicts: [{ characterId, paths }]`, rien n'est écrit, et `force` rend
+  quand même. `status` : `reverted`, `already_reverted` (annuler deux fois ne rend rien de plus),
+  `missing` (personnage supprimé depuis). Application inconnue : **404** `application_not_found`.
+- Événements : `character.updated` (opérations `combat.application`, `combat.annulation`,
+  `durees.decompte`, avec `applicationId` ou `tickId`), publiés dans la campagne en `gm_only`
+  avec `visibleToUsers` : le joueur qui incarne le personnage.
+- Base : changeset `0010-applications.sql` (`applications` : une par `applicationId` ou
+  `tickId`, avec la réponse d'origine ; `application_items` : une par personnage touché, delta
+  avant/après pour l'annulation, résultat, date d'annulation).
+
 ### Actions
 
-Les jets d'action sont tirés par le serveur avec `aleatoireCrypto()`. Avec `appliquer: true`, les modifications de l'acteur et de la cible sont appliquées dans la même transaction, à deux conditions :
+Les jets d'action sont tirés par le serveur avec `aleatoireCrypto()`. Une action à cible transmet à dice la vue de l'acteur (`vueActeur`), pas le déroulé complet. La route publique avec `appliquer` et une cible reste pour la compatibilité : le front attaque par le combat (campaign), et la cible doit être lisible par l'appelant (un PNJ ennemi ne l'est pas pour un joueur). Avec `appliquer: true`, les modifications de l'acteur et de la cible sont appliquées dans la même transaction, à deux conditions :
 
 - l'appelant possède l'acteur ;
 - pour la cible, en attendant les campagnes : il la possède aussi.

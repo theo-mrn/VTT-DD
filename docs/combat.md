@@ -1021,6 +1021,29 @@ Nooblies `degats`, Star Wars `degatsBruts`) ; Star Wars `initiative.mode: crenea
 `par: cible` ; `horsCombat` de chaque type d'entité ; présentation `combat` des trois systèmes.
 Chaque ajout est validé au chargement (références, types) et documenté dans regles.md.
 
+Réalisé par le lot 2 (étapes A et B), précisions :
+
+- `variables` et `apres` prennent aussi un `nom` (libellé de la valeur montrée à l'attaquant).
+- Icônes des états : énumération `IconeEtat` de la présentation (le front les dessine, comme
+  `IconeObjet`) : `etat` (générique), `aveugle`, `assourdi`, `charme`, `peur`, `paralyse`,
+  `etourdi`, `inconscient`, `poison`, `saignement`, `affaibli`, `desoriente`, `a-terre`,
+  `entrave`, `danse`, `protection`, `couvert`, `blessure`, `feu`, `froid`, `rage`, `invisible`,
+  `benediction`, `malediction`, `alerte`.
+- Esquive (Star Wars) : `par: cible` avec `exige: possede("esquive")` : proposée à la seule cible
+  qui a le talent. Hors de combat : `@neutralise ou possede("mort")` (blessure critique « Mort
+  instantanée ») ; véhicule : `@coque > @seuilCoque`.
+- D&D, jet commun : `degats-libres`, `attaque-sonore`, `foudre`, `boule-de-feu`,
+  `foudres-divines`, `frappe-des-arcanes`, `feu-gregeois`, `fureur-du-dragon`, `onde-de-choc`,
+  `souffle`, `cone-de-froid`, `cri-de-la-banshee`, `piege-de-feu`,
+  `destruction-des-morts-vivants`, `armee-des-morts`, `phenix` ; un jet par cible déclaré :
+  `soins-de-groupe`, `zone-de-vie`.
+- Un dé est repéré par `phase:sorte:k` (préfixé par la place de la cible pour un jet par cible) :
+  ce sont les identifiants des `RollDieRequest` de l'étape C. Un dé commun écrit après un dé propre
+  à une cible décale les positions : les formules des zones mettent les dés communs d'abord.
+- Q4 : seuls les PNJ (`kind: npc`) sont protégés ; le camp est lu sur la route interne existante
+  de campaign `GET /internal/campaigns/:id/rights?userId=&characterId=` (`character.side`), sans
+  changement de campaign.
+
 ## 15. Incohérences de l'existant relevées
 
 1. **`appliquer` relance les dés** (`jouerAction`) : résolution et application dans le même appel,

@@ -186,7 +186,7 @@ Une **action** assemble un jet et ses conséquences, toutes en données :
 - **initiative** : jet, puis tri par attributs (par exemple succès nets, puis avantages) ;
 - **test de compétence**, **jet de sauvegarde**, **soins**…
 
-Le combat du service campaign exécute ces actions sans connaître le jeu.
+Le combat du service campaign exécute ces actions sans connaître le jeu (conception : [combat.md](combat.md)). Une action à cible se joue contre plusieurs cibles (une exécution par cible, jet commun ou par cible), la cible réagit par ses paramètres `par: cible`, l'attaquant ne voit que sa vue du résultat (`vueActeur`), et les modifications proposées ne sont appliquées qu'une fois décidées par le MJ, sans relancer un dé.
 
 ### 8. Tables
 
@@ -291,7 +291,28 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
   - ils donnent un bonus au total, ou modifient une variable (avantage, dégâts).
 - `apres` (les dés y sont permis), puis :
   - `consequences`, qui sont des modifications proposées, appliquées par `appliquerModifications` ;
-  - `tables`, tirées par `tirerTable` et appliquées par `appliquerTirage`.
+  - `tables`, tirées par `tirerTable` et appliquées par `appliquerTirage`. Une table appliquée plus tard donne l'entrée de sa ligne tirée, ou d'une autre ligne choisie par le MJ (`ligneDeTable`), sans nouveau tirage.
+- Valeurs (`variables`, `apres`) : `nom` (libellé) et `visibilite` : `mj` (défaut) ou `acteur`, montrée à qui agit (dégâts lancés) dans sa vue et dans le jet de l'historique des dés.
+- Côté de chaque ligne d'un jet (`EtapePool.cote`, `BonusJet.cote`) : `action`, `acteur` (ses effets, ses ajustements) ou `cible` (défense active).
+- `DemandeAction.ajustements` : dés à symboles ajoutés (nombre positif) ou retirés (négatif) par sorte, bonus au total d'un jet numérique ; hors règles, appliqués après les effets, marqués « Ajusté à la main » (`resultat.ajuste`). `DemandeAction.forcer` : issue imposée par le MJ (`reussi`, `critique` d'un jet numérique), mêmes dés (`resultat.force`).
+
+### Combat
+
+Briques de [combat.md](combat.md) § 14, toutes en données :
+
+| Brique                       | Où             | Sens                                                                                                                                                                                                                                 |
+| ---------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `multicible: { jet, max? }`  | action à cible | `commun` (zone : les dés de chaque phase sont lancés une fois pour toutes) ou `par-cible` (défaut) : mode de jet proposé ; `max` borne le nombre de cibles                                                                           |
+| `par: cible` (paramètre)     | action à cible | réaction de la cible (Esquive) : proposée à la cible dont l'`exige` est vrai (`parametresReaction`), jamais prise à l'acteur                                                                                                         |
+| `initiative.mode`            | système        | `individuel` (défaut) ou `creneaux` (créneaux par camp, Star Wars)                                                                                                                                                                   |
+| `horsCombat`                 | type d'entité  | formule booléenne (`@PV <= 0`, `@neutralise ou possede("mort")`) évaluée après chaque application (`estHorsCombat` ; sans formule, pas de détection)                                                                                 |
+| `combat: { groupes, etats }` | présentation   | groupes du menu d'attaque (actions à cible, une seule fois chacune) ; sortes d'états du catalogue proposées sur la fiche du participant, icône de chaque état (`IconeEtat` : `aveugle`, `poison`, `etourdi`, `a-terre`, `blessure`…) |
+
+Moteur :
+
+- `executerMulticible(systeme, { action, acteur, cibles: [{ id, fiche, reaction?, forcer? }], parametres?, jet?, ajustements?, aleatoire })` : une exécution par cible ; les paramètres `par: cible` viennent des réactions ; résultat par cible (`ok`, ou les refus propres à cette cible), modifications de l'acteur (coûts) comptées une fois, celles de chaque cible dans son résultat.
+- `vueActeur(systeme, resultat)` : dés et total (ou pool), issue, valeurs `visibilite: acteur`, déroulé reconstruit ; les lignes de la cible deviennent « Défense de la cible ». Jamais un attribut, une variable, une résistance, une modification ou une table de la cible.
+- Générateur : `entier(max, contexte?)` (`contexte.de` : sorte d'un dé à symboles) et `phase?(nom)`, appelé par le moteur au début du jet (`jet`), d'`apres`, des `tables` et à la `fin`. Un dé est repéré par sa phase, sa sorte et son rang dans la phase : `partagerGenerateur` (jet commun), `generateurParCible`, et `aleatoirePlanifie({ faces, commun, repli? })` pour les dés physiques (étape C) : il rejoue les faces fournies, note les dés manquants (valeur provisoire 1) et lève `DesRequis` au changement de phase ; `executerMulticible` les réunit dans `requis` (identifiants `phase:sorte:k`, préfixés par la place de la cible pour un jet par cible). Aucun calcul n'est rendu avec une valeur provisoire.
 
 ### Exemplaires, quantités et saisie
 
@@ -365,6 +386,7 @@ Le fichier `presentation.yaml` de chaque système décrit :
   - `ressources` : en jauges (défaut) ou en chiffres (`affichage: valeur` : « PV / PV max », et d'autres attributs en valeur simple, comme la Défense) ;
   - `inventaire` : source unique de l'équipement, toutes sortes d'objets réunies ; regroupé par sorte, ou par un champ (`groupeChamp`), ou par une liste de champs quand les sortes n'ont pas le même (`[attaque, categorie]` : pour chaque objet, le premier que déclare sa sorte, sinon sa sorte) ;
 - l'ordre et les groupes des attributs du lanceur de dés (`des.jets`, voir « Attributs jetables ») ;
+- le combat (`combat`) : groupes du menu d'attaque et états proposés, avec leurs icônes (voir « Combat ») ;
 - les icônes des objets de l'inventaire (`iconesObjets`) : une icône générique (`epee`, `cible`, `bouclier`, `fiole`, `pieces`, `sac`…) par sorte, ou par valeur d'un champ (`{ champ: categorie, valeur: potions, icone: fiole }`, `{ champ: melee, valeur: true, icone: epee }`) ; la première règle qui convient l'emporte, vérifiée contre le système (`erreursRegleIcone`). Sans règle, le front déduit l'icône de la forme de la sorte (formule de jet, équipable, en quantité) ;
 - la géométrie des arbres, les images et les bibliothèques.
 
@@ -384,13 +406,13 @@ Calcul : `calculer(systeme, etat, { options })`, ou `avecOptions(systeme, option
 
 Le portage complet de D&D et de Star Wars a fait apparaître des besoins qui ne sont pas des règles de fiche : ils dépendent du déroulement de la partie. Ils seront portés par les services, avec les règles comme source de vérité.
 
-| Besoin                   | Exemples                                                    | Approche prévue                                                                                                                          |
-| ------------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Durées                   | Pas de côté jusqu'au round suivant, Rage, sorts actifs      | Un état est une possession activable ; l'état de combat enregistre son expiration (fin de round, de tour, de rencontre) et le désactive. |
-| Usages limités           | Talents « une fois par séance », relances                   | Un compteur d'usage par possession et par période, remis à zéro par la séance ou la rencontre.                                           |
-| Ressources de groupe     | Points de Destin, total d'Obligation du groupe              | Des ressources et des agrégats au niveau de la campagne, calculés sur les fiches des personnages joueurs.                                |
-| Dépenses après le jet    | Avantages et Triomphes dépensés (Désorientation, Renverser) | Des options proposées après le jet ; chacune consomme des résultats et produit des conséquences.                                         |
-| Cibles multiples, alliés | Commandant de terrain, attaques de zone                     | Une action exécutée pour chaque cible, avec un résultat groupé dans l'historique.                                                        |
-| Initiative par camp      | Créneaux joueurs et PNJ (Star Wars)                         | Camps et créneaux dans l'état de combat ; le tri reste celui du système.                                                                 |
-| Lien pilote et véhicule  | Talents de pilotage                                         | Une relation entre entités dans la campagne ; les effets s'appliquent à l'entité liée.                                                   |
-| Exemplaires multiples    | Deux dagues, consommables                                   | Fait : sortes `exemplaires` et `quantites` (voir la référence rapide), routes de possessions du service character.                       |
+| Besoin                   | Exemples                                                    | Approche prévue                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Durées                   | Pas de côté jusqu'au round suivant, Rage, sorts actifs      | Fait : durée en rounds d'une possession ou d'un bonus (`POST /possessions` avec `duree`), décomptée en fin de round (`tickId`, annulable). Fin de tour, de rencontre : à venir. |
+| Usages limités           | Talents « une fois par séance », relances                   | Un compteur d'usage par possession et par période, remis à zéro par la séance ou la rencontre.                                                                                  |
+| Ressources de groupe     | Points de Destin, total d'Obligation du groupe              | Des ressources et des agrégats au niveau de la campagne, calculés sur les fiches des personnages joueurs.                                                                       |
+| Dépenses après le jet    | Avantages et Triomphes dépensés (Désorientation, Renverser) | Des options proposées après le jet ; chacune consomme des résultats et produit des conséquences.                                                                                |
+| Cibles multiples, alliés | Commandant de terrain, attaques de zone                     | Fait pour les attaques : `executerMulticible`, jet commun ou par cible (voir « Combat ») ; commandement d'alliés à venir.                                                       |
+| Initiative par camp      | Créneaux joueurs et PNJ (Star Wars)                         | Camps et créneaux dans l'état de combat ; le tri reste celui du système, le mode vient de `initiative.mode`.                                                                    |
+| Lien pilote et véhicule  | Talents de pilotage                                         | Une relation entre entités dans la campagne ; les effets s'appliquent à l'entité liée.                                                                                          |
+| Exemplaires multiples    | Deux dagues, consommables                                   | Fait : sortes `exemplaires` et `quantites` (voir la référence rapide), routes de possessions du service character.                                                              |
