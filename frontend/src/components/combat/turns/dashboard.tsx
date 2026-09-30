@@ -21,7 +21,7 @@ import {
   type CombatTurnResponse,
 } from '@vtt/contracts';
 import { ChevronLeft, Eye, IdCard, ListOrdered, Swords, Target, UserPlus } from 'lucide-react';
-import { AnimatePresence, MotionConfig } from 'motion/react';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { toast } from 'sonner';
 import { usePanelVisible } from '@/components/table/panels/navigation';
@@ -736,9 +736,13 @@ function OrderPanel({
           <SlotBar combat={combat} busy={busy !== null} onSlot={onSlot} />
         )}
       </header>
-      <div className={cn('p-2', fill && 'min-h-0 flex-1 overflow-y-auto overscroll-contain')}>
+      {/* `layoutScroll` : les lignes qui changent de place s'animent juste, liste défilée */}
+      <motion.div
+        layoutScroll
+        className={cn('p-2', fill && 'min-h-0 flex-1 overflow-y-auto overscroll-contain')}
+      >
         {children}
-      </div>
+      </motion.div>
       {combat && (
         <footer className="border-t border-border p-2">
           <Button variant="ghost" size="sm" className="w-full" onClick={onAdd}>

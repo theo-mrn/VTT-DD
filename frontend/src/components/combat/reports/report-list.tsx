@@ -171,7 +171,10 @@ export function ReportsSection({
         </div>
       </header>
 
-      <div className={cn('p-3', fill && 'min-h-0 flex-1 overflow-y-auto overscroll-contain')}>
+      <motion.div
+        layoutScroll
+        className={cn('p-3', fill && 'min-h-0 flex-1 overflow-y-auto overscroll-contain')}
+      >
         {data.loading ? (
           <ListSkeleton rows={3} />
         ) : data.error ? (
@@ -240,7 +243,7 @@ export function ReportsSection({
             </Button>
           </div>
         )}
-      </div>
+      </motion.div>
     </section>
   );
 }

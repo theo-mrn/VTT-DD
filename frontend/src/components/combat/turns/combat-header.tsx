@@ -186,7 +186,8 @@ export function CombatHeader({
         />
       </div>
 
-      {(sideChoice || hasInitiative || !inCombat) && (
+      {/* Initiative déjà tirée et rien à choisir par camp : « Relancer » reste au menu ⋯ */}
+      {(!inCombat || sideChoice || (hasInitiative && !rolled)) && (
         <div className="flex flex-wrap items-end gap-2">
           {sideChoice && systeme && <SideSelects choice={sideChoice} systeme={systeme} />}
           <span className="flex-1" />
