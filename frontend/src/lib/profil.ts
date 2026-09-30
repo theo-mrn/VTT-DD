@@ -2,7 +2,10 @@
  * Profils, titres et envoi d'images (service identity).
  * Les composants passent par ces fonctions typées, jamais par fetch directement.
  */
+import { checkUpload, UPLOAD_USAGES } from '@vtt/contracts';
 import { api, ApiError } from './api';
+import { MAX_SIDE, prepareImage } from './uploads/image';
+import { uploadFile, type UploadProgress } from './uploads/uploader';
 
 export type Fournisseur = 'google' | 'discord';
 
@@ -86,46 +89,31 @@ export function rechercherJoueurs(texte: string, limite = 10) {
 
 export type TypeImage = 'avatar' | 'banner';
 export const TYPES_IMAGE = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
-export const TAILLE_MAX_IMAGE = 5 * 1024 * 1024;
-
-interface UrlEnvoi {
-  uploadUrl: string;
-  publicUrl: string;
-  expiresIn: number;
-}
+export const TAILLE_MAX_IMAGE = UPLOAD_USAGES.avatar.maxBytes;
 
 /** Vérifie le fichier avant envoi ; renvoie un message d'erreur ou null. */
 export function verifierImage(fichier: File): string | null {
-  if (!(TYPES_IMAGE as readonly string[]).includes(fichier.type))
-    return 'Format non pris en charge : PNG, JPEG, WebP ou GIF uniquement.';
-  if (fichier.size > TAILLE_MAX_IMAGE) return 'Image trop lourde : 5 Mo maximum.';
-  return null;
+  return (
+    checkUpload({ usage: 'avatar', contentType: fichier.type, size: fichier.size })?.message ?? null
+  );
 }
 
 /**
- * Envoie une image en trois temps : URL présignée, dépôt direct du fichier
- * sur le stockage (sans jeton), puis enregistrement de l'URL publique.
+ * Envoie une image (route commune d'envoi, docs/uploads.md) : compressée en WebP, déposée
+ * directement sur le stockage, puis son adresse enregistrée sur le profil.
  */
-export async function envoyerImage(type: TypeImage, fichier: File): Promise<Profil> {
-  const { uploadUrl, publicUrl } = await api<UrlEnvoi>('/v1/users/me/uploads', {
-    method: 'POST',
-    body: JSON.stringify({ kind: type, contentType: fichier.type, size: fichier.size }),
-  });
-  let depot: Response;
-  try {
-    depot = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'content-type': fichier.type },
-      body: fichier,
-    });
-  } catch {
-    throw new ApiError({ status: 0, title: "L'envoi du fichier vers le stockage a échoué." });
-  }
-  if (!depot.ok)
-    throw new ApiError({
-      status: depot.status,
-      title: `Le stockage a refusé le fichier (${depot.status}).`,
-    });
+export async function envoyerImage(
+  type: TypeImage,
+  fichier: File,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<Profil> {
+  const pret = await prepareImage(fichier, { maxSide: MAX_SIDE[type] });
+  const publicUrl = await uploadFile(
+    { kind: 'user' },
+    type,
+    pret,
+    onProgress ? { onProgress } : {},
+  );
   return modifierMonProfil(type === 'avatar' ? { avatarUrl: publicUrl } : { bannerUrl: publicUrl });
 }
 
