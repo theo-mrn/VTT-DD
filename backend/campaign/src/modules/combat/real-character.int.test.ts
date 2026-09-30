@@ -15,8 +15,9 @@
  * une étape.
  *
  * Non-fuite, de bout en bout : un joueur ne reçoit aucune valeur d'un PNJ (REST, événements de
- * campaign et de character, jets transmis à l'historique des dés), ni la fiche d'un PNJ ennemi
- * (Q4) ; les attaques du MJ sont cachées par défaut.
+ * campaign et de character, jets transmis à l'historique des dés) ; les attaques du MJ sont
+ * cachées par défaut. Q4 levée : le joueur lit la fiche du PNJ qu'il attaque, son navigateur
+ * calcule l'attaque et envoie le rapport résolu (`resolved`), que le MJ applique.
  */
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -303,11 +304,9 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         ).map((n) => n.id) as [string];
       });
 
-      it('Q4 : la fiche d’un PNJ ennemi est réservée au MJ ; celle d’un héros reste lisible', async () => {
-        expect((await t.toCharacter(alice, 'GET', `/v1/characters/${hob1}`)).statusCode).toBe(404);
-        expect((await t.toCharacter(alice, 'GET', `/v1/characters/${goblin}`)).statusCode).toBe(
-          404,
-        );
+      it('Q4 levée : un joueur lit la fiche du PNJ ennemi qu’il peut attaquer', async () => {
+        // L'attaque se calcule dans son navigateur, avec la fiche de sa cible (Théo, 2026-09-30)
+        expect((await t.toCharacter(alice, 'GET', `/v1/characters/${hob1}`)).statusCode).toBe(200);
         expect((await t.toCharacter(alice, 'GET', `/v1/characters/${balin}`)).statusCode).toBe(200);
         expect((await t.toCharacter(gm, 'GET', `/v1/characters/${hob1}`)).statusCode).toBe(200);
         // La liste de la campagne ne donne pas le PNJ invisible au joueur
@@ -1283,6 +1282,122 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
         expect(tally(tireur)).toMatchObject({ attacksMade: 1, attacksMadeRound: 1 });
         expect(tally(lent)).toMatchObject({ targeted: 1 });
         expect(tally(vif)).toMatchObject({ targeted: 1 });
+      });
+    });
+
+    // ─── Attaque calculée dans le navigateur (Théo, 2026-09-30) ──────────────
+
+    describe('Attaque calculée par le navigateur de l’attaquant', () => {
+      it('le joueur lit la fiche du PNJ, envoie le rapport résolu ; le MJ l’applique', async () => {
+        const gm = await t.user('MJ');
+        const zoe = await t.user('Zoé');
+        const c = await table(gm, 'dnd-classic', [zoe]);
+        const hero = (await dwarf(zoe, 'Nori')).id;
+        await join(c, gm, zoe, hero, 100);
+        const [hob] = (
+          await npcs(c, gm, { bestiary: { systemeId: 'dnd-classic', key: 'hobgoblin' } }, 400)
+        ).map((n) => n.id) as [string];
+
+        // La fiche du PNJ : lue par le joueur, comme le fait son navigateur avant de calculer
+        const before = Number((await sheet(zoe, hob)).fiche.valeurs.PV?.valeur);
+        expect(before).toBeGreaterThan(3);
+
+        const outcome = { success: true, critical: false, fumble: false };
+        const roll = {
+          kind: 'numeric',
+          formula: '1d20 + 3',
+          dice: [
+            { faces: 20, values: [{ value: 15, kept: true, exploded: false, source: 'server' }] },
+          ],
+          value: 18,
+          bonuses: [],
+          total: 18,
+          natural: 15,
+        };
+        const body = {
+          attackerId: hero,
+          action: 'attaque',
+          params: { score: 'Contact', arme: 'epee-longue' },
+          targets: [hob],
+          resolved: {
+            actionName: 'Attaque avec une arme',
+            targets: [
+              {
+                characterId: hob,
+                status: 'resolved',
+                result: {
+                  outcome,
+                  roll,
+                  variables: { degats: 3 },
+                  modifications: [
+                    {
+                      kind: 'attribute',
+                      entity: 'target',
+                      attribute: 'PV',
+                      operation: 'subtract',
+                      value: 3,
+                    },
+                  ],
+                  tables: [],
+                  explanations: ['Touché : 3 dégâts'],
+                  errors: [],
+                },
+                view: {
+                  outcome,
+                  roll,
+                  values: [{ key: 'degats', name: 'Dégâts', value: 3 }],
+                  explanations: ['Touché : 3 dégâts'],
+                },
+              },
+            ],
+          },
+        };
+        const res = await t.toCampaign(zoe, 'POST', `/v1/campaigns/${c.id}/attacks`, body, {
+          'idempotency-key': 'e2e-navigateur-1',
+        });
+        expect(res.statusCode, res.body).toBe(201);
+        const mine = res.json() as Attack;
+        expect(mine).toMatchObject({ status: 'pending', redacted: true, pendingSteps: [] });
+        expect(mine.targets[0]!.view?.values).toEqual([
+          expect.objectContaining({ key: 'degats', value: 3 }),
+        ]);
+        expect(mine.targets[0]!.result).toBeUndefined();
+
+        // Même clé : la même attaque
+        const again = await t.toCampaign(zoe, 'POST', `/v1/campaigns/${c.id}/attacks`, body, {
+          'idempotency-key': 'e2e-navigateur-1',
+        });
+        expect((again.json() as Attack).id).toBe(mine.id);
+
+        // Jet à l'historique des dés, relayé par le vrai character depuis la vue
+        for (let i = 0; i < 50 && !t.rolls.some((r) => r.campaignId === c.id); i++)
+          await new Promise((r) => setTimeout(r, 20));
+        const forwarded = t.rolls.filter((r) => r.campaignId === c.id);
+        expect(forwarded).toHaveLength(1);
+        expect(forwarded[0]).toMatchObject({
+          authorId: zoe.id,
+          characterId: hero,
+          characterName: 'Nori',
+          actionId: 'attaque',
+          visibility: 'public',
+          total: 18,
+          outcome: { success: true },
+        });
+        expect(JSON.stringify(forwarded[0])).not.toContain(hob);
+
+        // Le MJ applique : les PV du PNJ baissent chez character, sans aucun dé
+        const full = await ok<Attack>(gm, 'GET', `/v1/campaigns/${c.id}/attacks/${mine.id}`);
+        expect(full.targets[0]!.result?.modifications).toEqual([
+          expect.objectContaining({ attribute: 'PV', operation: 'subtract', value: 3 }),
+        ]);
+        const applied = await ok<Attack>(
+          gm,
+          'POST',
+          `/v1/campaigns/${c.id}/attacks/${mine.id}/apply`,
+          { version: full.version, targets: [{ characterId: hob, apply: true }] },
+        );
+        expect(applied.status).toBe('applied');
+        expect(await value(gm, hob, 'PV')).toBe(before - 3);
       });
     });
   },
