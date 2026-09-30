@@ -318,7 +318,7 @@ function TypeCards({
               formula={formula(o.valeur)}
               shortcut={i < 9 ? i + 1 : null}
               active={o.valeur === current && !expanded}
-              expanded={expanded?.valeur === o.valeur}
+              expanded={o.parametres.length ? expanded?.valeur === o.valeur : undefined}
               disabled={disabled}
               onClick={() => {
                 if (o.parametres.length) {
