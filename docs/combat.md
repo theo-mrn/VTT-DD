@@ -926,8 +926,14 @@ Nouveau module `lib/map/modules/combat/` (surcouches, sans entité) :
 - token hors de combat grisé (MJ ; joueurs pour un personnage vu) ;
 - outil de visée du menu d'attaque (curseur, clic sur un token), qui ne vole aucun autre geste.
 
-Entrées de menu : `lib/map/modules/tokens/menu.ts`, `components/map/selection-bar.tsx`,
-`lib/map/modules/measurements/kind.ts`.
+Entrées de menu (écart du lot 3) : elles ne sont pas écrites dans les menus des tokens, de la barre
+de la sélection et des mesures, mais données par un **fournisseur de menu du module combat**
+(`engine.registerMenuProvider`, `lib/map/modules/combat/menu.ts`) : le moteur les ajoute au menu
+contextuel comme à la barre de la sélection (`engine.menuItems`), sans que les modules `tokens` et
+`measurements` connaissent le combat. Token : « Attaquer (n) » (dans la barre d'un joueur au clic
+sur un token qui n'est pas à lui, `forPlayers`) ; MJ : « Attaquer avec », « Attaquer avec la
+sélection (n) » ; gabarit (hors ligne) : « Attaquer la zone (n) ». Touche `Y` : raccourci du même
+module (`engine.registerShortcut`).
 
 ### 12.6 Vue des tours pour les joueurs
 
