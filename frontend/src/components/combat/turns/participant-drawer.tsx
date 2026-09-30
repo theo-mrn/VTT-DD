@@ -12,6 +12,7 @@ import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { useFicheCalculee } from '@/components/fiche/fiche-personnage';
+import { BannerIdentity, BannerStats } from '@/components/fiche/banner';
 import { BlocRessources, widgetsDe } from '@/components/fiche/widgets';
 import { PanelLink } from '@/components/table/panels/navigation';
 import { TABLE_PARAMS } from '@/components/table/panels/registry';
@@ -116,7 +117,10 @@ function DrawerBody({
   const systeme = sys.data?.systeme ?? null;
   const action = initiativeAction(systeme);
   const parametres = initiativeParams(action);
-  const ressources = ctx ? widgetsDe(ctx).find((w) => w.type === 'ressources') : undefined;
+  const widgets = ctx ? widgetsDe(ctx) : [];
+  const ressources = widgets.find((w) => w.type === 'ressources');
+  // Bandeau de la fiche (présentation du système) : identité et valeurs clés
+  const details = widgets.find((w) => w.type === 'details');
   const { stateSorts } = combatPresentation(sys.data?.presentation);
   const states = perso.data && systeme ? statesOf(perso.data, systeme, stateSorts) : [];
 
@@ -153,6 +157,13 @@ function DrawerBody({
           </div>
         </div>
       </header>
+
+      {ctx && details?.type === 'details' && (
+        <div className="space-y-2 px-5 pb-4">
+          <BannerIdentity ctx={ctx} widget={details} />
+          <BannerStats ctx={ctx} widget={details} />
+        </div>
+      )}
 
       <Section title="Au combat">
         <div className="flex items-center justify-between gap-4">
