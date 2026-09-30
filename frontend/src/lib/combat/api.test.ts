@@ -10,7 +10,8 @@ import {
   isRetryable,
   retryWhileInProgress,
 } from './api';
-import { combatCommands, combatFailure } from './use-combat';
+import type { RealtimeEvent } from '../realtime';
+import { applyCombatEvent, combatCommands, combatFailure } from './use-combat';
 
 const problem = (status: number, code?: string, detail?: string) =>
   new ApiError({
@@ -93,5 +94,36 @@ describe('commandes du combat', () => {
     vi.spyOn(combatApi, 'end').mockRejectedValue(problem(403, 'forbidden'));
     await expect(combatCommands(client, 'camp').end({})).rejects.toBeInstanceOf(ApiError);
     expect(client.getQueryData(combatKeys.state('camp'))).toEqual(state);
+  });
+});
+
+describe('tours reçus en direct', () => {
+  const turn = (visibility: string, version: number, redacted = false): RealtimeEvent => ({
+    seq: version,
+    redacted,
+    event: {
+      id: `t${version}-${visibility}`,
+      type: 'combat.turn_changed',
+      version: 1,
+      occurredAt: '2026-09-30T10:00:00Z',
+      roomId: 'camp',
+      actor: { userId: 'mj', role: 'gm', characterId: null },
+      aggregate: { type: 'combat', id: 'c1' },
+      visibility,
+      payload: { reason: 'next', version },
+    } as unknown as RealtimeEvent['event'],
+  });
+
+  it('MJ : le second tour, expurgé et de même version, ne remplace pas l’état complet', () => {
+    const client = new QueryClient();
+    const key = combatKeys.state('camp');
+    client.setQueryData(key, { id: 'c1', version: 4, redacted: false } as CombatState);
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    applyCombatEvent(client, 'camp', turn('public', 4));
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(client.getQueryData<CombatState>(key)?.redacted).toBe(false);
+    // Un tour plus récent : relu (en REST, vue complète pour le MJ)
+    applyCombatEvent(client, 'camp', turn('gm_only', 5));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: key, exact: true });
   });
 });
