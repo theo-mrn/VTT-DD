@@ -127,7 +127,11 @@ export const BonusLibre = z.object({
   nom: z.string().min(1).max(200),
   /** D'où vient le bonus, pour l'affichage (« Potion de force », « MJ »). */
   source: z.string().max(200).optional(),
-  effets: z.array(Effet).min(1),
+  /**
+   * Effets du bonus ; vide : état libre, un simple marqueur (nom, durée) sans effet mécanique,
+   * posé par le MJ sur un participant du combat (docs/combat.md § 4.5).
+   */
+  effets: z.array(Effet).default([]),
   actif: z.boolean().default(true),
   /** Rounds restants (décomptés par l'état de combat) ; absent : permanent. */
   duree: z.number().int().nonnegative().optional(),

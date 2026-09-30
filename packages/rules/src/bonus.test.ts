@@ -47,6 +47,15 @@ describe('bonus libres', () => {
     expect(f.sources.map((s) => [s.id, s.genre])).toContainEqual(['bonus:potion', 'bonus']);
   });
 
+  it('état libre : un bonus sans effet, juste un nom et une durée', () => {
+    const f = fiche(d20, { bonus: [{ id: 'marque', nom: 'Marqué par le MJ', duree: 2 }] });
+    expect(f.etat.bonus).toEqual([
+      { id: 'marque', nom: 'Marqué par le MJ', effets: [], actif: true, duree: 2 },
+    ]);
+    expect(f.erreurs).toEqual([]);
+    expect(f.valeur('FOR')).toBe(10);
+  });
+
   it('un bonus inactif ne compte pas', () => {
     expect(fiche(d20, { bonus: [{ ...potion, actif: false }] }).valeur('FOR')).toBe(10);
   });
