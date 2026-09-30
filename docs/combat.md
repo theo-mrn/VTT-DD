@@ -909,6 +909,27 @@ changer d'attaquant ; « Mes attaques » ; fermer.
 temps de cliquer les tokens (⇧ : plusieurs) ; Échap ou « Valider » la rouvre. `combat.aim` part au
 MJ à chaque changement.
 
+Réalisé (menu d'attaque, `components/combat/attack/`), précisions :
+
+- **Étapes** : dans la machine (`attack-flow.ts`, `step` et `menuStage`) ; « Fin » garde le résultat
+  à l'écran, le pied passe au statut du rapport et à la suite. Une attaque rouverte depuis « Mes
+  attaques », ou le mouvement réduit, montre le résultat d'un coup.
+- **Clavier** : 1 à 9 choisissent une action, Entrée reprend l'action mise en avant ou lance
+  l'attaque (les options, radios et bascules, laissent passer Entrée ; ⌘/Ctrl + Entrée partout),
+  V vise sur la carte, Échap ferme (ou quitte la visée).
+- **Dernière attaque** : action et paramètres gardés par personnage dans le navigateur
+  (`attack-flow-memory.ts`), repris à l'ouverture, carte marquée « Dernière jouée ».
+- **Cartes d'arme** : champs de l'entrée que l'action lit par son paramètre (`arme.degats`…) et
+  ses listes (qualités) ; action sur tout le catalogue (`possedee: false`) : armes du personnage,
+  puis celles qui se passent d'être possédées (champ booléen lu avec `possede(arme)` dans une
+  formule de l'action : mains nues), proposées par défaut faute d'arme ; le reste dans une liste.
+- **Situation** : paramètres `section: situation` (puces pour `choix` et `booleen`, ± pour
+  `nombre`, icône de `combat.situation.icones`, description en info-bulle) ; puces du combat
+  (`attack-flow-situation.ts`) ; MJ : sous chaque cible, les attributs qu'elle a et que l'action
+  lit (`@cible.X`).
+- **Pool** : un compteur par sorte de dé du système, valeur de l'aperçu (améliorations
+  comprises, « ? » si la cible compte) ; la différence part en `adjustments`.
+
 ### 12.2 Dés dans le menu
 
 - Une étape = un lancer 3D (`useDiceThrowStore`, `lib/dice-throw.ts`) ; chaque dé porte un repère
