@@ -958,6 +958,25 @@ export function formatHistoryEvent(e: HistoryEvent, ctx: FormatContext): GameEve
 }
 
 /**
+ * `combat.turn_changed` arrive en double quand le combat a un participant caché : la charge
+ * complète aux MJ (`gm_only`), puis la même version expurgée pour toute la table (`public`).
+ * Le MJ garde la complète : la publique de même version est retirée de sa chronique (un joueur
+ * ne reçoit jamais la première, rien ne change pour lui).
+ */
+export function withoutRedactedTwins(events: readonly HistoryEvent[]): HistoryEvent[] {
+  const turnKey = (e: HistoryEvent) => `${e.aggregate.id}:${String(e.payload.version)}`;
+  const full = new Set(
+    events
+      .filter((e) => e.type === 'combat.turn_changed' && e.visibility === 'gm_only')
+      .map(turnKey),
+  );
+  if (!full.size) return [...events];
+  return events.filter(
+    (e) => !(e.type === 'combat.turn_changed' && e.visibility === 'public' && full.has(turnKey(e))),
+  );
+}
+
+/**
  * Noms connus par les événements eux-mêmes (personnage engagé puis retiré,
  * ancien Historique, auteur d'un jet) : repli quand la campagne ne les liste plus.
  */

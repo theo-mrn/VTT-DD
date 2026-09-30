@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { HistoryEvent } from '@/lib/history';
-import { formatHistoryEvent, type CharacterLabel, type FormatContext } from './format';
+import {
+  formatHistoryEvent,
+  withoutRedactedTwins,
+  type CharacterLabel,
+  type FormatContext,
+} from './format';
 
 const characters = new Map<string, CharacterLabel>([
   ['lyra', { name: 'Lyra', avatarUrl: null, side: 'players', type: null }],
@@ -167,6 +172,25 @@ describe('chronique du combat', () => {
     );
     expect(defeated?.type).toBe('mort');
     expect(defeated?.message).toBe('**Orc** est hors de combat !');
+  });
+
+  it('tours en double (complet au MJ, expurgé pour tous, même version) : le MJ garde le complet', () => {
+    const turn = (visibility: HistoryEvent['visibility'], version: number, extra = {}) => ({
+      ...event('combat.turn_changed', { reason: 'turn_set', version, ...extra }),
+      id: `t-${visibility}-${version}`,
+      aggregate: { type: 'combat', id: 'c1' },
+      visibility,
+    });
+    const full = turn('gm_only', 4, { currentActorId: 'orc' });
+    const redacted = turn('public', 4, { currentActorId: null });
+    const alone = turn('public', 5, { currentActorId: 'lyra' });
+    expect(withoutRedactedTwins([full, redacted, alone]).map((e) => e.id)).toEqual([
+      full.id,
+      alone.id,
+    ]);
+    // Un joueur ne reçoit que les publics : rien n'est retiré
+    expect(withoutRedactedTwins([redacted, alone])).toEqual([redacted, alone]);
+    expect(formatHistoryEvent(full, ctx(true))?.message).toBe('Le MJ donne la main à **Orc**.');
   });
 
   it('tours : retour arrière, main donnée ; le signal attack_updated ne se raconte pas', () => {

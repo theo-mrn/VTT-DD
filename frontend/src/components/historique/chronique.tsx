@@ -42,6 +42,7 @@ import { useSysteme } from '@/lib/systemes';
 import { cn } from '@/lib/utils';
 import {
   formatHistoryEvent,
+  withoutRedactedTwins,
   namesFromEvents,
   type CharacterLabel,
   type EventType,
@@ -270,7 +271,8 @@ function Flux({
   const ctx = useContexteFormat(campagne, bruts);
   const lignes = useMemo(
     () =>
-      bruts
+      // MJ : les tours en double (complet et expurgé, même version) ne comptent qu'une fois
+      withoutRedactedTwins(bruts)
         .map((e) => formatHistoryEvent(e, ctx))
         .filter((e): e is GameEvent => e !== null)
         // Journal : les doublons (jet d'une action…) ne sont montrés que par personnage
