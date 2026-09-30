@@ -15,6 +15,7 @@ export const MAX_SIDE: Record<UploadUsageId, number> = {
   'map-object': 2048,
   'npc-image': 1024,
   portrait: 1200,
+  token: 512,
 };
 
 /** Zone gardée, en pixels de l'image d'origine (sortie de react-easy-crop). */

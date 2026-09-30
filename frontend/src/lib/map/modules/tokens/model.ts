@@ -71,6 +71,8 @@ export interface CharacterInfo {
   id: string;
   name: string | null;
   portraitUrl: string | null;
+  /** Token fabriqué par le Studio du portrait (forme et cadre compris) ; null : le portrait. */
+  tokenUrl?: string | null;
   side: CampaignSide | null;
   /** Personnage joueur ou PNJ, selon character ; null s'il ne le dit pas. */
   kind: 'pc' | 'npc' | null;

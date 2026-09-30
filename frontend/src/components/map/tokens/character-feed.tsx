@@ -115,6 +115,7 @@ export function TokenCharacterFeed({ engine }: { engine: MapEngine }) {
         id: c.characterId,
         name: c.name,
         portraitUrl: c.avatarUrl,
+        tokenUrl: c.tokenUrl ?? null,
         side: c.side,
         kind: c.kind,
         ownerId: c.ownerId,

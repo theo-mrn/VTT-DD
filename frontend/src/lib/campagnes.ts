@@ -116,6 +116,8 @@ export interface CampaignCharacterApi {
   characterId: string;
   name: string | null;
   avatarUrl: string | null;
+  /** Token du Studio du portrait ; null : le portrait sert de token. */
+  tokenUrl?: string | null;
   type: string | null;
   /** Personnage joueur ou PNJ, selon character ; null s'il ne le dit pas. */
   kind: CharacterKindApi | null;
