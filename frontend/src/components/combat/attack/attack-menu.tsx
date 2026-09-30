@@ -1,164 +1,307 @@
 'use client';
 
 /**
- * Menu d'attaque (docs/combat.md § 12.1) : panneau non modal, la carte reste visible et
- * cliquable pour viser. Une seule vue, de haut en bas : attaquant, action, paramètres, cibles,
- * options du jet, aperçu, « Attaquer » ; puis le suivi de l'attaque (défense de la cible, dés,
- * résultat par cible, décision du MJ en direct), et « Mes attaques ».
+ * Menu d'attaque (docs/combat.md § 12.1), repris de l'ancienne page d'attaque : plein écran
+ * (portail, fond assombri, défilement bloqué ; fenêtre large centrée sur ordinateur, tout
+ * l'écran sur mobile), en-tête « versus », puis des étapes : Action, Préparer, Jet, Fin. Même
+ * menu pour un joueur et pour le MJ (qui attaque avec un PNJ comme un joueur).
  *
  * L'état vit dans la machine `lib/combat/attack-flow.ts` (magasin de l'onglet) : la carte y
- * ajoute les cibles visées, la fiche et le panneau Combat l'ouvrent. Joueur et MJ (qui attaque
- * avec un PNJ comme un joueur) ; aucune clé de jeu : actions, paramètres, dés et symboles
- * viennent du système et de sa présentation.
+ * ajoute les cibles visées, la fiche et le panneau Combat l'ouvrent. « Viser sur la carte »
+ * réduit la fenêtre à une pastille (`AimPill`) ; aucune clé de jeu : actions, paramètres, dés
+ * et symboles viennent du système et de sa présentation.
+ *
+ * Clavier : 1 à 9 choisissent une action, Entrée lance l'attaque (ou reprend l'action mise en
+ * avant), V vise sur la carte, Échap ferme.
  */
-import type { Attack } from '@vtt/contracts';
-import type { Action } from '@vtt/rules';
-import { Loader2, RotateCcw, Shield, Swords, Target, Undo2, UserRoundCog, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Clock,
+  History,
+  Loader2,
+  RotateCcw,
+  Shield,
+  Swords,
+  Target,
+  Undo2,
+  UserRoundCog,
+  X,
+} from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Message } from '@/components/compte/elements';
-import { MapPanel } from '@/components/map/map-panel';
+import type { ContexteFiche } from '@/components/fiche/widgets';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDicePreferences } from '@/lib/dice-preferences';
+import { Kbd } from '@/components/ui/kbd';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { shortcutCode } from '@/lib/keyboard';
 import { useCampaignEphemeral } from '@/lib/realtime';
 import { AimSender, aimMessage, COMBAT_AIM_KIND } from '@/lib/combat/aim';
+import { flatActions } from '@/lib/combat/actions';
+import { combatErrorMessage } from '@/lib/combat/api';
 import {
-  groupActions,
-  hasSuccessRule,
-  multitargetOf,
-  previewRoll,
-  targetedActions,
-} from '@/lib/combat/actions';
-import { combatErrorMessage, isRetryable, newIdempotencyKey } from '@/lib/combat/api';
-import {
-  blockedByTurn,
-  canSubmit,
-  declareBody,
+  canGoBack,
   declaredStage,
-  defaultAttacker,
-  effectiveRollMode,
-  effectiveVisibility,
-  submitKey,
-  turnStanding,
-  type AttackFlowState,
-  type DeclaredState,
+  isMinimized,
+  MENU_STAGE_LABELS,
+  menuStage,
+  visibleStages,
+  type MenuStage,
 } from '@/lib/combat/attack-flow';
 import { attackMenu, useAttackFlow } from '@/lib/combat/attack-menu-store';
-import { chooseDiceMode, serverRunner } from '@/lib/combat/dice-steps';
-import { mergeParams, missingParams, paramsToSend } from '@/lib/combat/params';
-import { ATTACK_STATUS_LABELS, useAttack, useAttackCommands } from '@/lib/combat/use-attacks';
-import { combatSettings, currentActorId } from '@/lib/combat/use-combat';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
-import { ActionPicker } from './action-picker';
-import { AttackerHeader } from './attacker-header';
+import { AimPill } from './aim-pill';
 import { MyAttacks } from './my-attacks';
-import { ParamsForm } from './params-form';
-import { ResultCard } from './result-card';
-import { RollOptions, RollPreviewLine } from './roll-options';
-import { TargetsSection } from './targets';
-import { useAttackContext, useComputedSheet, type AttackContext } from './use-attack-context';
-
-type OpenFlow = Exclude<AttackFlowState, { phase: 'closed' }>;
+import { StepAction } from './step-action';
+import { StepPrepare } from './step-prepare';
+import { ReportStatus, StepRoll, useDeclaredAttack } from './step-roll';
+import { useAttackContext, type AttackContext } from './use-attack-context';
+import { useAttackModel, type AttackModel, type OpenFlow } from './use-attack-model';
+import { VersusHeader } from './versus-header';
 
 /** Menu d'attaque d'une campagne, s'il est ouvert pour elle. */
 export function AttackMenu({
   campaignId,
   canAim,
-  className,
 }: {
   campaignId: string;
-  /** Une carte est affichée : l'outil de visée y est disponible. */
+  /** Une carte est affichée : « Viser sur la carte » y est possible. */
   canAim: boolean;
-  className?: string;
 }) {
   const flow = useAttackFlow((f) => f);
   if (flow.phase === 'closed' || flow.campaignId !== campaignId) return null;
-  return <OpenMenu flow={flow} canAim={canAim} className={className} />;
+  return <OpenMenu flow={flow} canAim={canAim} />;
 }
 
-function OpenMenu({
-  flow,
-  canAim,
-  className,
-}: {
-  flow: OpenFlow;
-  canAim: boolean;
-  className?: string | undefined;
-}) {
+const TYPING = 'input, textarea, select, [contenteditable="true"], [cmdk-root]';
+/**
+ * Éléments qu'Entrée active d'elle-même (bouton, lien) : on la leur laisse. Les options
+ * (radios, bascules : Espace les coche) laissent Entrée lancer l'attaque.
+ */
+const PRESSABLE =
+  'a[href], button:not([role="radio"]):not([role="switch"]):not([role="checkbox"]), [role="button"]';
+
+function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
   const ctx = useAttackContext(flow.campaignId);
-  const [tab, setTab] = useState<'attack' | 'mine'>('attack');
-  useAimBroadcast(flow, ctx.gm);
+  const model = useAttackModel(flow, ctx);
+  const attack = useDeclaredAttack(flow, model.commands);
+  useAimBroadcast(flow);
+  const reduced = useReducedMotion() ?? false;
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+
+  const draft = flow.draft;
+  const composing = flow.phase === 'compose';
+  const loading = ctx.loading || !ctx.systeme || (Boolean(draft.attackerId) && model.sheet.loading);
+  const actionCount = model.actions.length;
+  const revealed = flow.phase === 'declared' && revealedId === flow.attack.id;
+  const stage = menuStage(flow, { actionCount: loading ? 2 : actionCount, revealed }) ?? 'action';
+  const minimized = isMinimized(flow);
+  const canAimNow = canAim && composing;
+  const flat = useMemo(() => flatActions(model.groups), [model.groups]);
 
   const close = () => attackMenu.dispatch({ type: 'close' });
-  const round = ctx.combat ? `Round ${ctx.combat.round}` : 'Hors combat';
+  const aim = () => {
+    if (canAimNow) attackMenu.dispatch({ type: 'aim', on: true });
+  };
+  const back = () => attackMenu.dispatch({ type: 'setStep', step: 'action' });
+
+  // Sens de la transition : en avant ou en arrière dans les étapes
+  const order: MenuStage[] = ['action', 'prepare', 'roll', 'end'];
+  const prev = useRef(stage);
+  const direction = order.indexOf(stage) >= order.indexOf(prev.current) ? 1 : -1;
+  useEffect(() => {
+    prev.current = stage;
+  }, [stage]);
+
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.defaultPrevented || e.altKey || e.repeat) return;
+    const target = e.target as HTMLElement;
+    const typing = Boolean(target.closest(TYPING));
+    const mods = e.metaKey || e.ctrlKey || e.shiftKey;
+    if (
+      !typing &&
+      !mods &&
+      shortcutCode(e) === 'KeyV' &&
+      canAimNow &&
+      (stage === 'action' || stage === 'prepare')
+    ) {
+      e.preventDefault();
+      aim();
+      return;
+    }
+    if (stage === 'action' && composing && !typing && !mods) {
+      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+      const a = digit ? flat[Number(digit[1]) - 1] : undefined;
+      if (a) {
+        e.preventDefault();
+        model.choose(a);
+        return;
+      }
+      if (e.key === 'Enter' && !target.closest(PRESSABLE) && model.action) {
+        e.preventDefault();
+        model.choose(model.action);
+      }
+      return;
+    }
+    if (stage === 'prepare' && e.key === 'Enter') {
+      const forced = e.metaKey || e.ctrlKey;
+      if (!forced && (typing || target.closest(PRESSABLE))) return;
+      e.preventDefault();
+      void model.submit();
+    }
+  }
+
+  const fc: ContexteFiche | null =
+    model.fiche && ctx.systeme && draft.attackerId
+      ? {
+          systeme: ctx.systeme,
+          presentation: ctx.presentation,
+          fiche: model.fiche,
+          personnage: {
+            id: draft.attackerId,
+            name: model.sheet.name ?? ctx.known.get(draft.attackerId)?.name ?? 'Personnage',
+            roomId: ctx.campagne?.id ?? null,
+          },
+          mj: ctx.gm,
+        }
+      : null;
+
+  const standingBadge =
+    draft.attackerId && model.standing !== 'free' && flow.phase !== 'declared' ? (
+      model.standing === 'on_turn' ? (
+        <Badge ton="primaire" taille="md">
+          <Swords aria-hidden /> Son tour
+        </Badge>
+      ) : (
+        <Badge ton={model.blocked ? 'danger' : 'alerte'} taille="md">
+          <Clock aria-hidden /> {model.blocked ? 'Pas son tour' : 'Hors tour'}
+        </Badge>
+      )
+    ) : null;
+
   return (
-    <MapPanel
-      id="attack-menu"
-      label="Menu d’attaque"
-      icon={Swords}
-      title="Attaquer"
-      subtitle={round}
-      closeLabel="Fermer le menu d’attaque"
-      onClose={close}
-      onKeyDown={(e) => {
-        if (e.key !== 'Escape' || flow.phase === 'submitting') return;
-        e.stopPropagation();
-        if (flow.phase === 'compose' && flow.aiming)
-          attackMenu.dispatch({ type: 'aim', on: false });
-        else close();
-      }}
-      className={cn('w-[24rem]', className)}
-    >
-      <Tabs
-        value={tab}
-        onValueChange={(v) => setTab(v as 'attack' | 'mine')}
-        className="flex min-h-0 flex-1 flex-col"
+    <>
+      <DialogPrimitive.Root
+        open={!minimized}
+        onOpenChange={(open) => {
+          if (!open && flow.phase !== 'submitting') close();
+        }}
       >
-        <div className="border-b border-border px-4 py-2">
-          <TabsList className="w-full">
-            <TabsTrigger value="attack" className="flex-1">
-              <Target aria-hidden /> Attaque
-            </TabsTrigger>
-            <TabsTrigger value="mine" className="flex-1">
-              <Swords aria-hidden /> Mes attaques
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="attack" className="mt-0 flex min-h-0 flex-1 flex-col">
-          {ctx.loading || !ctx.systeme ? (
-            <p className="flex items-center justify-center gap-2 px-4 py-10 text-[13px] text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" aria-hidden /> Préparation du menu…
-            </p>
-          ) : flow.phase === 'declared' ? (
-            <Tracking flow={flow} ctx={ctx} />
-          ) : (
-            <Compose flow={flow} ctx={ctx} canAim={canAim} />
-          )}
-        </TabsContent>
-        <TabsContent value="mine" className="mt-0 min-h-0 flex-1 overflow-y-auto p-4">
-          <MyAttacks
-            campaignId={flow.campaignId}
-            combatId={ctx.combat?.id ?? null}
-            userId={ctx.me.id}
-            known={ctx.known}
-            onShow={(attack) => {
-              attackMenu.dispatch({ type: 'show', attack });
-              setTab('attack');
-            }}
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className={cn(
+              'fixed inset-0 z-50 bg-black/80 sm:bg-black/70 sm:backdrop-blur-[3px]',
+              'data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none',
+            )}
           />
-        </TabsContent>
-      </Tabs>
-    </MapPanel>
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            onInteractOutside={(e) => e.preventDefault()}
+            onKeyDown={onKeyDown}
+            className="fixed inset-0 z-50 flex items-stretch justify-center outline-none sm:items-center sm:p-4"
+          >
+            <div
+              className={cn(
+                'relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground',
+                'pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]',
+                'sm:h-[min(48rem,calc(100dvh-2rem))] sm:max-w-[76rem] sm:rounded-[1.75rem] sm:border sm:border-border-strong sm:py-0 sm:shadow-elevated',
+                'duration-200 animate-in fade-in-0 zoom-in-[0.98] motion-reduce:animate-none',
+              )}
+            >
+              <DialogPrimitive.Title className="sr-only">Menu d’attaque</DialogPrimitive.Title>
+              <TopBar
+                ctx={ctx}
+                flow={flow}
+                stage={stage}
+                actionCount={actionCount}
+                onBack={back}
+                onClose={close}
+              />
+              <VersusHeader
+                ctx={ctx}
+                attackerId={draft.attackerId}
+                attackerName={model.sheet.name}
+                portraitUrl={model.sheet.portraitUrl}
+                fc={fc}
+                targetIds={draft.targetIds}
+                editable={composing}
+                canAim={canAimNow}
+                maxTargets={model.multi.max}
+                onAttacker={(id) => attackMenu.dispatch({ type: 'setAttacker', attackerId: id })}
+                onToggleTarget={(id) =>
+                  attackMenu.dispatch({ type: 'toggleTarget', characterId: id })
+                }
+                onRemoveTarget={(id) =>
+                  attackMenu.dispatch({ type: 'removeTarget', characterId: id })
+                }
+                onAim={aim}
+                badges={standingBadge}
+              />
+              <main className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin]">
+                <AnimatePresence mode="wait" initial={false} custom={direction}>
+                  <motion.div
+                    key={stage === 'end' ? 'roll' : stage}
+                    custom={direction}
+                    initial={reduced ? { opacity: 0 } : { opacity: 0, x: 28 * direction }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={reduced ? { opacity: 0 } : { opacity: 0, x: -20 * direction }}
+                    transition={{ duration: reduced ? 0.12 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="px-4 py-5 sm:px-10 sm:py-8"
+                  >
+                    <StageBody
+                      ctx={ctx}
+                      flow={flow}
+                      model={model}
+                      stage={stage}
+                      loading={loading}
+                      attack={attack}
+                      revealed={revealed}
+                      instant={reduced || !attack || model.liveAttackId !== attack.id}
+                      onRevealed={() => {
+                        if (flow.phase === 'declared') setRevealedId(flow.attack.id);
+                      }}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </main>
+              <Footer
+                ctx={ctx}
+                flow={flow}
+                model={model}
+                stage={stage}
+                attack={attack}
+                actionCount={actionCount}
+                onBack={back}
+                onClose={close}
+              />
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+      {minimized && (
+        <AimPill
+          ctx={ctx}
+          attackerId={draft.attackerId}
+          attackerName={model.sheet.name}
+          attackerPortrait={model.sheet.portraitUrl}
+          targetIds={draft.targetIds}
+          onDone={() => attackMenu.dispatch({ type: 'aim', on: false })}
+        />
+      )}
+    </>
   );
 }
 
 // ─── Visée en direct ─────────────────────────────────────────────────────────
 
 /** Attaquant et cibles partent aux MJ pendant la composition, `end` ensuite (§ 10.2). */
-function useAimBroadcast(flow: OpenFlow, gm: boolean) {
+function useAimBroadcast(flow: OpenFlow) {
   const { send } = useCampaignEphemeral(flow.campaignId, [COMBAT_AIM_KIND], () => undefined);
   const sendRef = useRef(send);
   sendRef.current = send;
@@ -170,274 +313,276 @@ function useAimBroadcast(flow: OpenFlow, gm: boolean) {
   const attackerId = flow.draft.attackerId;
   const targetsKey = flow.draft.targetIds.join(',');
   useEffect(() => {
-    // Le MJ voit déjà sa propre visée ; un autre MJ la reçoit aussi
     if (composing) sender.update(aimMessage(attackerId, targetsKey ? targetsKey.split(',') : []));
     else sender.end();
-  }, [sender, composing, attackerId, targetsKey, gm]);
+  }, [sender, composing, attackerId, targetsKey]);
   useEffect(() => () => sender.end(), [sender]);
 }
 
-// ─── Composition ─────────────────────────────────────────────────────────────
+// ─── Barre du haut : round, étapes, « Mes attaques », fermer ─────────────────
 
-function Compose({
-  flow,
+function TopBar({
   ctx,
-  canAim,
+  flow,
+  stage,
+  actionCount,
+  onBack,
+  onClose,
 }: {
-  flow: Extract<OpenFlow, { phase: 'compose' | 'submitting' }>;
   ctx: AttackContext;
-  canAim: boolean;
+  flow: OpenFlow;
+  stage: MenuStage;
+  actionCount: number;
+  onBack: () => void;
+  onClose: () => void;
 }) {
-  const systeme = ctx.systeme!;
-  const draft = flow.draft;
-  const busy = flow.phase === 'submitting';
-  const sheet = useComputedSheet(ctx, draft.attackerId);
-  const fiche = sheet.fiche;
-  const actorId = currentActorId(ctx.combat);
-  const settings = combatSettings(ctx.combat);
-  const prefs = useDicePreferences();
-  const commands = useAttackCommands(flow.campaignId);
-
-  // Attaquant par défaut à l'ouverture (mon personnage ; MJ : le PNJ qui agit)
-  const autoAttacker = flow.phase === 'compose' && flow.autoAttacker;
-  useEffect(() => {
-    if (!autoAttacker || ctx.loading) return;
-    const id = defaultAttacker({
-      candidates: ctx.attackers.map((a) => a.id),
-      gm: ctx.gm,
-      heroId: ctx.heroId,
-      currentActorId: actorId,
-      sideOf: (c) => ctx.known.get(c)?.side ?? null,
-    });
-    attackMenu.dispatch({ type: 'setAttacker', attackerId: id });
-  }, [autoAttacker, ctx.loading, ctx.attackers, ctx.gm, ctx.heroId, ctx.known, actorId]);
-
-  const actions = useMemo(() => (fiche ? targetedActions(systeme, fiche) : []), [systeme, fiche]);
-  const groups = useMemo(
-    () => groupActions(actions, ctx.presentation),
-    [actions, ctx.presentation],
-  );
-  const action = actions.find((a) => a.id === draft.actionId) ?? null;
-
-  // Action indisponible pour cet attaquant (ou aucune) : la première proposée ; paramètres
-  // gardés s'ils restent valides (PNJ suivant, changement d'attaquant)
-  useEffect(() => {
-    if (!fiche || busy) return;
-    const target = action ?? groups[0]?.actions[0] ?? null;
-    if (!target) {
-      if (draft.actionId) attackMenu.dispatch({ type: 'setAction', actionId: null });
-      return;
-    }
-    const params = mergeParams(systeme, target, fiche, draft.params);
-    if (target.id !== draft.actionId)
-      attackMenu.dispatch({ type: 'setAction', actionId: target.id, params });
-    else if (!sameParams(params, draft.params)) attackMenu.dispatch({ type: 'setParams', params });
-  }, [fiche, busy, action, groups, systeme, draft.actionId, draft.params]);
-
-  const multi = multitargetOf(action);
-  const standing = turnStanding(ctx.combat, draft.attackerId, actorId);
-  const blocked = blockedByTurn(standing, ctx.gm, settings);
-  const missing = action && fiche ? missingParams(systeme, action, fiche, draft.params) : [];
-  const check = canSubmit(flow, { maxTargets: multi.max });
-  const preview = action && fiche ? previewRoll(systeme, action, fiche, draft.params) : null;
-  const hidden = effectiveVisibility(draft, { gm: ctx.gm, settings }) === 'gm';
-
-  const selectAction = (a: Action) => {
-    if (!fiche || a.id === draft.actionId) return;
-    attackMenu.dispatch({
-      type: 'setAction',
-      actionId: a.id,
-      params: mergeParams(systeme, a, fiche, draft.params),
-    });
-  };
-
-  async function submit() {
-    if (flow.phase !== 'compose' || !action || !check.ok || blocked || missing.length) return;
-    const key = submitKey(flow, newIdempotencyKey);
-    const body = declareBody(flow, {
-      gm: ctx.gm,
-      settings,
-      params: paramsToSend(systeme, action, fiche, draft.params),
-      actionDefaultRollMode: multi.rollMode,
-      dice: chooseDiceMode({
-        physicalAllowed: settings.physicalDice,
-        animation3d: prefs.data?.animation3d ?? true,
-      }),
-    });
-    attackMenu.dispatch({ type: 'submit', key });
-    try {
-      const attack = await commands.declare(body, key);
-      attackMenu.dispatch({ type: 'declared', attack });
-    } catch (err) {
-      attackMenu.dispatch({
-        type: 'rejected',
-        message: combatErrorMessage(err),
-        retryable: isRetryable(err),
-      });
-    }
-  }
-
-  const disabledReason = blocked
-    ? 'Pas le tour de votre personnage'
-    : !check.ok
-      ? check.message
-      : missing.length
-        ? `${missing[0]!.nom} : aucune disponible`
-        : null;
-
+  const [mine, setMine] = useState(false);
+  const stages = visibleStages(actionCount);
+  const current = stages.indexOf(stage);
   return (
-    <>
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 [scrollbar-width:thin]">
-        <AttackerHeader
-          ctx={ctx}
-          attackerId={draft.attackerId}
-          fiche={fiche}
-          name={sheet.name}
-          portraitUrl={sheet.portraitUrl}
-          standing={standing}
-          blocked={blocked}
-          disabled={busy}
-          onChange={(id) => attackMenu.dispatch({ type: 'setAttacker', attackerId: id })}
-        />
+    <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-2 text-[12px] text-muted-foreground">
+        <Swords className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="font-semibold uppercase tracking-[0.14em] text-foreground">Attaque</span>
+        <span aria-hidden>·</span>
+        <span className="truncate">{ctx.combat ? `Round ${ctx.combat.round}` : 'Hors combat'}</span>
         {flow.queue.length > 0 && (
-          <p className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            <UserRoundCog className="size-4" aria-hidden />
-            Ensuite : {flow.queue.map((id) => targetName(id, ctx.known)).join(', ')}
-          </p>
+          <span className="hidden truncate lg:inline">
+            · Ensuite : {flow.queue.map((id) => targetName(id, ctx.known)).join(', ')}
+          </span>
         )}
-
-        {!draft.attackerId ? (
-          <p className="text-[13px] text-muted-foreground">Choisissez d’abord qui attaque.</p>
-        ) : sheet.loading ? (
-          <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden /> Lecture de la fiche…
-          </p>
-        ) : !fiche ? (
-          <Message>La fiche de ce personnage n’est pas disponible.</Message>
-        ) : (
-          <>
-            <ActionPicker
-              groups={groups}
-              selected={draft.actionId}
-              onSelect={selectAction}
-              disabled={busy}
-            />
-            {action && (
-              <ParamsForm
-                systeme={systeme}
-                action={action}
-                fiche={fiche}
-                values={draft.params}
-                onChange={(id, value) => attackMenu.dispatch({ type: 'setParam', id, value })}
-                compact
-              />
-            )}
-          </>
-        )}
-
-        <TargetsSection
-          ctx={ctx}
-          attackerId={draft.attackerId}
-          targetIds={draft.targetIds}
-          max={multi.max}
-          aiming={flow.phase === 'compose' && flow.aiming}
-          canAim={canAim}
-          disabled={busy}
-          onToggle={(id) => attackMenu.dispatch({ type: 'toggleTarget', characterId: id })}
-          onRemove={(id) => attackMenu.dispatch({ type: 'removeTarget', characterId: id })}
-          onAim={(on) => attackMenu.dispatch({ type: 'aim', on })}
-        />
-
-        {action && (
-          <RollOptions
-            systeme={systeme}
-            presentation={ctx.presentation}
-            action={action}
-            targetCount={draft.targetIds.length}
-            rollMode={effectiveRollMode(draft, multi.rollMode)}
-            actionRollMode={multi.rollMode}
-            onRollMode={(rollMode) => attackMenu.dispatch({ type: 'setRollMode', rollMode })}
-            gm={ctx.gm}
-            hidden={hidden}
-            onHidden={(h) =>
-              attackMenu.dispatch({ type: 'setVisibility', visibility: h ? 'gm' : 'public' })
-            }
-            adjustments={draft.adjustments}
-            onAdjustment={(die, value) =>
-              attackMenu.dispatch({ type: 'setAdjustment', die, value })
-            }
-            onResetAdjustments={() => attackMenu.dispatch({ type: 'resetAdjustments' })}
-            disabled={busy}
-          />
-        )}
-        <RollPreviewLine preview={preview} presentation={ctx.presentation} />
       </div>
 
-      <footer className="space-y-2 border-t border-border px-4 py-3">
-        {flow.phase === 'compose' && flow.error && <Message>{flow.error}</Message>}
+      <ol aria-label="Étapes" className="hidden items-center gap-1 md:flex">
+        {stages.map((s, i) => {
+          const done = i < current;
+          const active = i === current;
+          const clickable = s === 'action' && stage === 'prepare' && canGoBack(stage, actionCount);
+          const content = (
+            <>
+              <span
+                className={cn(
+                  'grid size-5 place-items-center rounded-full border text-[10px] font-bold tabular-nums',
+                  active
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : done
+                      ? 'border-primary/40 bg-primary/15 text-primary'
+                      : 'border-border-strong text-subtle',
+                )}
+              >
+                {done ? <Check className="size-3" strokeWidth={3} aria-hidden /> : i + 1}
+              </span>
+              <span className={cn(active ? 'text-foreground' : 'text-muted-foreground')}>
+                {MENU_STAGE_LABELS[s]}
+              </span>
+            </>
+          );
+          return (
+            <li
+              key={s}
+              className="flex items-center gap-1"
+              aria-current={active ? 'step' : undefined}
+            >
+              {i > 0 && (
+                <span
+                  aria-hidden
+                  className={cn('h-px w-5', done || active ? 'bg-primary/50' : 'bg-border-strong')}
+                />
+              )}
+              {clickable ? (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-[12px] font-medium transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                >
+                  {content}
+                </button>
+              ) : (
+                <span className="flex items-center gap-1.5 px-1.5 py-0.5 text-[12px] font-medium">
+                  {content}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <p className="text-[12px] text-muted-foreground md:hidden" aria-live="polite">
+        {current + 1}/{stages.length} · {MENU_STAGE_LABELS[stage]}
+      </p>
+
+      <div className="flex flex-1 items-center justify-end gap-1">
+        <Popover open={mine} onOpenChange={setMine}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="max-sm:px-2">
+              <History />
+              <span className="hidden sm:inline">Mes attaques</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="max-h-[min(34rem,70dvh)] w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto p-3 [scrollbar-width:thin]"
+          >
+            <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">
+              Mes attaques
+            </p>
+            <MyAttacks
+              campaignId={flow.campaignId}
+              combatId={ctx.combat?.id ?? null}
+              userId={ctx.me.id}
+              known={ctx.known}
+              onShow={(a) => {
+                setMine(false);
+                if (flow.phase !== 'submitting') attackMenu.dispatch({ type: 'show', attack: a });
+              }}
+            />
+          </PopoverContent>
+        </Popover>
         <Button
-          size="lg"
-          className="w-full"
-          loading={busy}
-          disabled={Boolean(disabledReason)}
-          onClick={() => void submit()}
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Fermer le menu d’attaque"
+          onClick={onClose}
+          disabled={flow.phase === 'submitting'}
+          className="max-sm:size-10"
         >
-          {!busy && <Swords />}
-          {flow.phase === 'compose' && flow.retryKey ? 'Réessayer' : 'Attaquer'}
-          {draft.targetIds.length > 1 ? ` (${draft.targetIds.length} cibles)` : ''}
+          <X />
         </Button>
-        {disabledReason && !busy && (
-          <p className="text-center text-[12px] text-subtle">{disabledReason}</p>
-        )}
-      </footer>
-    </>
+      </div>
+    </div>
   );
 }
 
-function sameParams(a: Record<string, unknown>, b: Record<string, unknown>) {
-  const ka = Object.keys(a);
-  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+// ─── Corps de l'étape ────────────────────────────────────────────────────────
+
+function StageBody({
+  ctx,
+  flow,
+  model,
+  stage,
+  loading,
+  attack,
+  revealed,
+  instant,
+  onRevealed,
+}: {
+  ctx: AttackContext;
+  flow: OpenFlow;
+  model: AttackModel;
+  stage: MenuStage;
+  loading: boolean;
+  attack: ReturnType<typeof useDeclaredAttack>;
+  revealed: boolean;
+  instant: boolean;
+  onRevealed: () => void;
+}) {
+  const systeme = ctx.systeme;
+  if (stage === 'roll' || stage === 'end')
+    return systeme ? (
+      <StepRoll
+        attack={flow.phase === 'submitting' ? null : attack}
+        ctx={ctx}
+        systeme={systeme}
+        presentation={ctx.presentation}
+        instant={instant}
+        revealed={revealed}
+        onRevealed={onRevealed}
+      />
+    ) : null;
+  if (loading)
+    return (
+      <p className="flex min-h-[16rem] items-center justify-center gap-2 text-[13px] text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" aria-hidden /> Préparation du menu…
+      </p>
+    );
+  if (!flow.draft.attackerId)
+    return (
+      <div className="mx-auto max-w-sm py-12 text-center">
+        <UserRoundCog className="mx-auto mb-3 size-8 text-subtle" aria-hidden />
+        <p className="font-medium">Qui attaque ?</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Choisissez l’attaquant à côté de son portrait, en haut à gauche.
+        </p>
+      </div>
+    );
+  if (!model.fiche || !systeme)
+    return <Message>La fiche de ce personnage n’est pas disponible.</Message>;
+  if (stage === 'action')
+    return (
+      <StepAction
+        systeme={systeme}
+        presentation={ctx.presentation}
+        fiche={model.fiche}
+        groups={model.groups}
+        selected={model.action?.id ?? null}
+        rememberedId={model.remembered?.id ?? null}
+        onChoose={model.choose}
+      />
+    );
+  if (!model.action)
+    return (
+      <p className="flex min-h-[12rem] items-center justify-center gap-2 text-[13px] text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" aria-hidden /> Préparation de l’action…
+      </p>
+    );
+  const draft = flow.draft;
+  const busy = flow.phase !== 'compose';
+  return (
+    <StepPrepare
+      ctx={ctx}
+      systeme={systeme}
+      presentation={ctx.presentation}
+      fiche={model.fiche}
+      action={model.action}
+      groups={model.groups}
+      values={draft.params}
+      onParam={(id, value) => attackMenu.dispatch({ type: 'setParam', id, value })}
+      attackerId={draft.attackerId}
+      targetIds={draft.targetIds}
+      preview={model.preview}
+      adjustments={draft.adjustments}
+      onAdjustment={(die, value) => attackMenu.dispatch({ type: 'setAdjustment', die, value })}
+      onResetAdjustments={() => attackMenu.dispatch({ type: 'resetAdjustments' })}
+      rollMode={model.rollMode}
+      actionRollMode={model.multi.rollMode}
+      onRollMode={(rollMode) => attackMenu.dispatch({ type: 'setRollMode', rollMode })}
+      hidden={model.hidden}
+      onHidden={(h) =>
+        attackMenu.dispatch({ type: 'setVisibility', visibility: h ? 'gm' : 'public' })
+      }
+      canChangeAction={canGoBack('prepare', model.actions.length)}
+      onChangeAction={() => attackMenu.dispatch({ type: 'setStep', step: 'action' })}
+      disabled={busy}
+    />
+  );
 }
 
-// ─── Suivi de l'attaque déclarée ─────────────────────────────────────────────
+// ─── Pied : l'action principale de l'étape ───────────────────────────────────
 
-function Tracking({ flow, ctx }: { flow: DeclaredState; ctx: AttackContext }) {
-  const systeme = ctx.systeme!;
-  const commands = useAttackCommands(flow.campaignId);
-  const live = useAttack(flow.campaignId, flow.attack.id);
-  const attack =
-    live.attack && live.attack.version >= flow.attack.version ? live.attack : flow.attack;
+function Footer({
+  ctx,
+  flow,
+  model,
+  stage,
+  attack,
+  actionCount,
+  onBack,
+  onClose,
+}: {
+  ctx: AttackContext;
+  flow: OpenFlow;
+  model: AttackModel;
+  stage: MenuStage;
+  attack: ReturnType<typeof useDeclaredAttack>;
+  actionCount: number;
+  onBack: () => void;
+  onClose: () => void;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
 
-  // Direct : la machine suit la dernière version (« Mêmes cibles » part de là)
-  useEffect(() => {
-    if (live.attack && live.attack.version > flow.attack.version)
-      attackMenu.dispatch({ type: 'attackUpdated', attack: live.attack });
-  }, [live.attack, flow.attack.version]);
-
-  // Dés à lancer (étape C à venir) : le serveur tire, rien n'est animé
-  const sent = useRef(new Set<string>());
-  useEffect(() => {
-    if (attack.status !== 'awaiting_dice') return;
-    for (const step of attack.pendingSteps) {
-      if (sent.current.has(step.id)) continue;
-      sent.current.add(step.id);
-      void serverRunner
-        .run(step)
-        .then((body) => commands.submitDice(attack.id, body))
-        .catch((err) => toast.error(combatErrorMessage(err)));
-    }
-  }, [attack, commands]);
-
-  const stage = declaredStage(attack);
-  const action = systeme.actions.get(attack.action.id) ?? null;
-  const successRule = hasSuccessRule(action);
-  const waiting = awaitingReaction(attack);
-
-  async function run(label: string, fn: () => Promise<Attack>) {
+  async function run(label: string, fn: () => Promise<Parameters<typeof attackMenu.dispatch>[0]>) {
     setBusy(label);
     try {
-      attackMenu.dispatch({ type: 'attackUpdated', attack: await fn() });
+      attackMenu.dispatch(await fn());
     } catch (err) {
       toast.error(combatErrorMessage(err));
     } finally {
@@ -445,147 +590,176 @@ function Tracking({ flow, ctx }: { flow: DeclaredState; ctx: AttackContext }) {
     }
   }
 
-  const cancel = () => run('cancel', () => commands.cancel(attack.id, { version: attack.version }));
-  const skipReactions = () =>
-    run('skip', async () => {
-      let last = attack;
-      for (const t of waiting)
-        last = await commands.react(attack.id, { characterId: t.characterId, skip: true });
-      return last;
-    });
-
-  return (
-    <>
-      <div
-        className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 [scrollbar-width:thin]"
-        aria-live="polite"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate font-display text-lg font-semibold leading-tight">
-              {attack.action.name}
-            </p>
-            <p className="truncate text-[13px] text-muted-foreground">
-              {targetName(attack.attackerId, ctx.known)}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap justify-end gap-1">
-            {attack.outOfTurn && <Badge ton="alerte">hors tour</Badge>}
-            {attack.selfTarget && <Badge ton="alerte">auto-attaque</Badge>}
-            {attack.visibility === 'gm' && <Badge>caché</Badge>}
-          </div>
-        </div>
-
-        {stage === 'reactions' && (
-          <StageNote icon={<Shield className="size-4" aria-hidden />}>
-            En attente de la défense de{' '}
-            {waiting.map((t) => targetName(t.characterId, ctx.known)).join(', ') || 'la cible'}…
-          </StageNote>
-        )}
-        {stage === 'dice' && (
-          <StageNote icon={<Loader2 className="size-4 animate-spin" aria-hidden />}>
-            Le serveur lance les dés…
-          </StageNote>
-        )}
-        {stage === 'cancelled' && <Message ton="info">Attaque abandonnée.</Message>}
-        {stage === 'failed' && (
-          <Message>
-            Refusée par les règles
-            {attack.targets.find((t) => t.error)?.error
-              ? ` : ${attack.targets.find((t) => t.error)!.error}`
-              : '.'}
-          </Message>
-        )}
-
-        {(stage === 'result' || stage === 'failed') && (
-          <>
-            <ul className="space-y-2">
-              {attack.targets.map((t) => (
-                <ResultCard
-                  key={t.characterId}
-                  attack={attack}
-                  target={t}
-                  known={ctx.known}
-                  systeme={systeme}
-                  presentation={ctx.presentation}
-                  successRule={successRule}
-                />
-              ))}
-            </ul>
-            <p className="text-center text-[12px] text-subtle">
-              {attack.status === 'pending'
-                ? ctx.gm
-                  ? 'Rapport en attente : décidez dans le panneau Combat.'
-                  : 'Rapport envoyé au MJ.'
-                : ATTACK_STATUS_LABELS[attack.status]}
-            </p>
-          </>
-        )}
-      </div>
-
-      <footer className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
-        {stage === 'reactions' || stage === 'dice' ? (
-          <>
-            {ctx.gm && stage === 'reactions' && waiting.length > 0 && (
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={busy === 'skip'}
-                onClick={() => void skipReactions()}
-              >
-                <Shield /> Passer les défenses
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              loading={busy === 'cancel'}
-              onClick={() => void cancel()}
-            >
-              <Undo2 /> Abandonner
-            </Button>
-          </>
+  if (stage === 'action') {
+    const resume = model.remembered;
+    return (
+      <Bar>
+        <p className="hidden items-center gap-2 text-[12px] text-subtle sm:flex">
+          <Kbd>1</Kbd>–<Kbd>9</Kbd> choisir une action
+          {model.action && (
+            <>
+              <span aria-hidden>·</span> <Kbd>Entrée</Kbd> {model.action.nom}
+            </>
+          )}
+        </p>
+        {resume && flow.phase === 'compose' ? (
+          <Button onClick={() => model.choose(resume)} className="ml-auto" variant="secondary">
+            <History /> Reprendre : {resume.nom}
+          </Button>
         ) : (
-          <>
-            {flow.queue.length > 0 && (
-              <Button size="sm" onClick={() => attackMenu.dispatch({ type: 'nextAttacker' })}>
-                <UserRoundCog /> Suivant : {targetName(flow.queue[0]!, ctx.known)}
-              </Button>
-            )}
-            <Button
-              variant={flow.queue.length ? 'secondary' : 'default'}
-              size="sm"
-              onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: true })}
-            >
-              <RotateCcw /> Mêmes cibles
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: false })}
-            >
-              <Target /> Nouvelle attaque
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-auto"
-              onClick={() => attackMenu.dispatch({ type: 'close' })}
-            >
-              <X /> Fermer
-            </Button>
-          </>
+          <span />
         )}
-      </footer>
-    </>
+      </Bar>
+    );
+  }
+
+  if (stage === 'prepare') {
+    const error = flow.phase === 'compose' ? flow.error : null;
+    const retry = flow.phase === 'compose' && flow.retryKey;
+    const n = flow.draft.targetIds.length;
+    return (
+      <Bar className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+        {error && (
+          <div className="sm:order-2 sm:flex-1">
+            <Message>{error}</Message>
+          </div>
+        )}
+        <div className="flex items-center gap-2 sm:order-1">
+          {canGoBack(stage, actionCount) && (
+            <Button variant="ghost" onClick={onBack} disabled={model.busy}>
+              <ArrowLeft /> Retour
+            </Button>
+          )}
+          {model.disabledReason && !model.busy && (
+            <p className="text-[12px] text-subtle sm:hidden">{model.disabledReason}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-3 sm:order-3 sm:ml-auto">
+          {model.disabledReason && !model.busy && (
+            <p className="hidden text-[12px] text-subtle sm:block">{model.disabledReason}</p>
+          )}
+          <Button
+            size="xl"
+            className="w-full min-w-[15rem] shadow-glow sm:w-auto"
+            loading={model.busy}
+            disabled={Boolean(model.disabledReason)}
+            onClick={() => void model.submit()}
+          >
+            {!model.busy && <Swords />}
+            {retry ? 'Réessayer' : 'Lancer l’attaque'}
+            {n > 1 ? ` (${n} cibles)` : ''}
+            {!model.busy && !model.disabledReason && (
+              <Kbd className="ml-1 border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground max-sm:hidden">
+                Entrée
+              </Kbd>
+            )}
+          </Button>
+        </div>
+      </Bar>
+    );
+  }
+
+  if (!attack)
+    return (
+      <Bar>
+        <span />
+      </Bar>
+    );
+  const s = declaredStage(attack);
+
+  if (stage === 'roll' && (s === 'reactions' || s === 'dice')) {
+    const waiting = awaitingReaction(attack);
+    return (
+      <Bar>
+        {ctx.gm && s === 'reactions' && waiting.length > 0 ? (
+          <Button
+            variant="secondary"
+            loading={busy === 'skip'}
+            onClick={() =>
+              void run('skip', async () => {
+                let last = attack;
+                for (const t of waiting)
+                  last = await model.commands.react(attack.id, {
+                    characterId: t.characterId,
+                    skip: true,
+                  });
+                return { type: 'attackUpdated', attack: last };
+              })
+            }
+          >
+            <Shield /> Passer les défenses
+          </Button>
+        ) : (
+          <span />
+        )}
+        <Button
+          variant="ghost"
+          loading={busy === 'cancel'}
+          onClick={() =>
+            void run('cancel', async () => ({
+              type: 'attackUpdated',
+              attack: await model.commands.cancel(attack.id, { version: attack.version }),
+            }))
+          }
+        >
+          <Undo2 /> Abandonner
+        </Button>
+      </Bar>
+    );
+  }
+
+  if (stage === 'roll')
+    return (
+      <Bar>
+        <span />
+      </Bar>
+    );
+
+  // Fin : statut du rapport, puis la suite
+  return (
+    <Bar className="flex-col items-stretch gap-3 lg:flex-row lg:items-center">
+      <div className="lg:mr-auto">
+        <ReportStatus attack={attack} gm={ctx.gm} />
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+        {flow.queue.length > 0 && (
+          <Button
+            className="col-span-2"
+            onClick={() => attackMenu.dispatch({ type: 'nextAttacker' })}
+          >
+            <UserRoundCog /> Suivant : {targetName(flow.queue[0]!, ctx.known)}
+            <ArrowRight />
+          </Button>
+        )}
+        <Button
+          variant={flow.queue.length ? 'secondary' : 'default'}
+          onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: true })}
+        >
+          <RotateCcw /> Mêmes cibles
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => attackMenu.dispatch({ type: 'again', keepTargets: false })}
+        >
+          <Target /> Nouvelle attaque
+        </Button>
+        <Button variant="ghost" className="col-span-2 sm:col-span-1" onClick={onClose}>
+          Terminer
+        </Button>
+      </div>
+    </Bar>
   );
 }
 
-function StageNote({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+function Bar({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-[13px]">
-      <span className="text-primary">{icon}</span>
-      <span>{children}</span>
-    </p>
+    <footer
+      className={cn(
+        'flex shrink-0 items-center justify-between gap-3 border-t border-border bg-surface/60 px-4 py-3 sm:px-8',
+        className,
+      )}
+    >
+      {children}
+    </footer>
   );
 }

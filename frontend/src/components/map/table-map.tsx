@@ -7,7 +7,7 @@
  */
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
-import { AttackMenuFallback } from '@/components/combat/attack/attack-menu-host';
+import { AttackMenuHost } from '@/components/combat/attack/attack-menu-host';
 import { useTable } from '@/components/table/contexte';
 import { MapStage } from '@/components/table/map-stage';
 import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
@@ -84,8 +84,8 @@ export function TableMap() {
           />
         ) : null}
       </MapStage>
-      {/* Menu d'attaque sans carte ouverte, et fermeture du panneau qui la couvre à l'ouverture */}
-      <AttackMenuFallback campaignId={campagne.id} />
+      {/* Menu d'attaque (plein écran), avec ou sans scène ouverte */}
+      <AttackMenuHost campaignId={campagne.id} />
     </>
   );
 }

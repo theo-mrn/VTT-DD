@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { attackerChips, combatSituation, targetChips } from './attack-flow-situation';
+import {
+  attackerChips,
+  combatSituation,
+  situationIconOf,
+  targetChips,
+} from './attack-flow-situation';
 import { combatState } from './test-kit';
 
 const tally = (t: Partial<Record<string, number>> = {}) => ({
@@ -95,5 +100,15 @@ describe('situation du combat en puces (§ 5.7)', () => {
     const s = combatSituation(combat, 'hero', ['loup', 'gobelin']);
     expect(s.round).toBe(2);
     expect(s.targets.map((t) => t.characterId)).toEqual(['loup', 'gobelin']);
+  });
+});
+
+describe('icônes des paramètres de situation', () => {
+  it('celle de la présentation, sinon aucune', () => {
+    const presentation = { combat: { situation: { icones: { couvert: 'couvert' } } } } as never;
+    expect(situationIconOf(presentation, 'couvert')).toBe('couvert');
+    expect(situationIconOf(presentation, 'avantage')).toBeNull();
+    expect(situationIconOf(null, 'couvert')).toBeNull();
+    expect(situationIconOf({ combat: {} } as never, 'couvert')).toBeNull();
   });
 });

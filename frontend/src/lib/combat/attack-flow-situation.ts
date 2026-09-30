@@ -8,6 +8,7 @@
  * facultatifs : absents, leurs puces ne s'affichent pas, rien d'autre ne change.
  */
 import type { CombatParticipant, CombatState } from '@vtt/contracts';
+import type { IconeEtat, Presentation } from '@vtt/rules';
 
 export type SituationTone = 'positive' | 'warning' | 'info' | 'neutral' | 'danger';
 
@@ -148,4 +149,19 @@ export function combatSituation(
       chips: targetChips(combat, id, attackerId),
     })),
   };
+}
+
+/**
+ * Icône d'un paramètre de situation (couvert, cible à terre…), déclarée par la présentation
+ * (`combat.situation.icones`) ; null sans icône. Lue sans supposer la présence du champ.
+ */
+export function situationIconOf(
+  presentation: Presentation | null | undefined,
+  paramId: string,
+): IconeEtat | null {
+  const combat = (presentation as { combat?: { situation?: { icones?: unknown } } } | null)?.combat;
+  const icons = combat?.situation?.icones;
+  if (!icons || typeof icons !== 'object') return null;
+  const icon = (icons as Record<string, unknown>)[paramId];
+  return typeof icon === 'string' ? (icon as IconeEtat) : null;
 }

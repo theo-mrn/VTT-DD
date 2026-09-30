@@ -53,6 +53,7 @@ export function HintIcon({ text }: { text: string }) {
 /** Compteur ± (dés du pool, bonus, paramètre nombre). */
 export function Stepper({
   label,
+  name: accessibleName,
   value,
   display,
   min = -99,
@@ -65,6 +66,8 @@ export function Stepper({
   className,
 }: {
   label: ReactNode;
+  /** Nom accessible, quand le libellé n'est pas un simple texte. */
+  name?: string;
   value: number;
   /** Valeur affichée (sinon `value`). */
   display?: ReactNode;
@@ -79,7 +82,7 @@ export function Stepper({
   hint?: string | null;
   className?: string;
 }) {
-  const name = typeof label === 'string' ? label : 'Valeur';
+  const name = accessibleName ?? (typeof label === 'string' ? label : 'Valeur');
   return (
     <div
       className={cn(
@@ -189,6 +192,46 @@ export function ToggleTile({
       )}
     </div>
   );
+}
+
+/** Bascule en puce (paramètre de situation booléen) : compacte, icône facultative. */
+export function TogglePill({
+  label,
+  checked,
+  onChange,
+  disabled,
+  hint,
+  icon,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean | undefined;
+  hint?: string | null;
+  icon?: ReactNode;
+}) {
+  const pill = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-description={hint ?? undefined}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-[13px] leading-snug transition-colors max-sm:min-h-11',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-50',
+        '[&_svg]:size-3.5 [&_svg]:shrink-0',
+        checked
+          ? 'border-primary/60 bg-primary/15 text-primary-strong'
+          : 'border-border-strong text-muted-foreground hover:border-primary/30 hover:text-foreground',
+      )}
+    >
+      {checked ? <Check strokeWidth={3} aria-hidden /> : icon}
+      {label}
+    </button>
+  );
+  return hint ? <Info texte={hint}>{pill}</Info> : pill;
 }
 
 export interface SegmentOption {
