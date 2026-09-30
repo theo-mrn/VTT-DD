@@ -167,6 +167,8 @@ describe.skipIf(!TEST_DATABASE_URL)('bonus par HTTP', () => {
           .db!.select()
           .from(outbox)
           .where(sql`${outbox.envelope}->'aggregate'->>'id' = ${id}`)
+          // Ordre d'écriture : sans tri, PostgreSQL rend les lignes dans l'ordre du tas
+          .orderBy(outbox.createdAt)
       )
         .map((l) => l.envelope as { type: string; payload: Record<string, unknown> })
         .filter((e) => e.type === 'character.updated' && e.payload.operation === 'effet');
