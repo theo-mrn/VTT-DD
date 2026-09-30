@@ -20,6 +20,11 @@
  * au MJ) : GET /internal/campaigns/:id/rights?userId=, même cache. Une panne de
  * campaign fait échouer la requête (503) au lieu de passer pour un refus.
  *
+ * Camp d'un personnage dans une campagne (`players`, `allies`, `enemies`) : la fiche d'un PNJ
+ * ennemi n'est lisible que par le MJ (docs/combat.md, Q4). GET
+ * /internal/campaigns/:id/rights?userId=&characterId=, même cache ; une panne de campaign fait
+ * échouer la lecture (503), jamais passer pour un droit.
+ *
  * Règles optionnelles de la campagne d'un personnage (encombrement…), pour
  * calculer sa fiche : GET /internal/characters/:id/rules, même durée de cache
  * (character ne lit pas le bus : un réglage du MJ compte au plus tard à
@@ -59,6 +64,9 @@ export interface Droits {
 /** Rôle dans une campagne (contrat de campaign). */
 export type RoleCampagne = 'gm' | 'player' | 'spectator';
 
+/** Camp d'un personnage engagé (contrat de campaign). */
+export type CampPersonnage = 'players' | 'allies' | 'enemies';
+
 export interface DroitsCampagnes {
   /**
    * Droits de `userId` sur le personnage `characterId` (voir `Droits`). `frais` :
@@ -75,6 +83,11 @@ export interface DroitsCampagnes {
    * système) ; `{}` hors campagne, ou si campaign ne répond pas.
    */
   options(characterId: string): Promise<Record<string, boolean>>;
+  /**
+   * Camp du personnage dans la campagne (vu par `userId`, qui doit en être membre) ; `null`
+   * s'il n'y est pas engagé. Lève une erreur 503 si campaign ne répond pas.
+   */
+  camp(campaignId: string, characterId: string, userId: string): Promise<CampPersonnage | null>;
 }
 
 export const AUCUN_DROIT: Droits = Object.freeze({ lecture: false, ecriture: false });
@@ -102,6 +115,7 @@ export const sansCampagnes: DroitsCampagnes = {
     throw campaignIndisponible();
   },
   options: async () => ({}),
+  camp: async () => null,
 };
 
 /** Réponse de campaign (contrat en anglais : read, write, engaged…). */
@@ -125,6 +139,9 @@ const Reponse = z.object({
 const ReponseRole = z.object({
   member: z.boolean(),
   role: z.enum(['gm', 'player', 'spectator']).nullable(),
+  character: z
+    .object({ side: z.enum(['players', 'allies', 'enemies']).nullable().default(null) })
+    .optional(),
 });
 /** Réponse de GET /internal/characters/:id/rules. */
 const ReponseRegles = z.object({
@@ -153,8 +170,39 @@ export function droitsCampaign(o: OptionsCampaign): DroitsCampagnes {
   const cache = new Map<string, { droits: Droits; jusqua: number }>();
   const roles = new Map<string, { role: RoleCampagne | null; jusqua: number }>();
   const reglages = new Map<string, { options: Record<string, boolean>; jusqua: number }>();
+  const camps = new Map<string, { camp: CampPersonnage | null; jusqua: number }>();
 
   return {
+    async camp(campaignId, characterId, userId) {
+      const cle = `${campaignId}:${characterId}:${userId}`;
+      const entree = camps.get(cle);
+      if (entree && entree.jusqua > maintenant()) return entree.camp;
+      camps.delete(cle);
+
+      let camp: CampPersonnage | null;
+      try {
+        const url = new URL(`/internal/campaigns/${encodeURIComponent(campaignId)}/rights`, o.url);
+        url.searchParams.set('userId', userId);
+        url.searchParams.set('characterId', characterId);
+        const res = await appel(url, {
+          headers: { [EN_TETE_SECRET_INTERNE]: o.secret, accept: 'application/json' },
+          signal: AbortSignal.timeout(DELAI_MS),
+        });
+        if (!res.ok) throw new Error(`campaign a répondu ${res.status}`);
+        camp = ReponseRole.parse(await res.json()).character?.side ?? null;
+      } catch (erreur) {
+        // Pas de mise en cache d'une panne : la prochaine requête réessaie
+        o.signaler?.(erreur);
+        throw campaignIndisponible();
+      }
+
+      if (o.cacheMs > 0) {
+        if (camps.size >= TAILLE_MAX_CACHE) camps.delete(camps.keys().next().value!);
+        camps.set(cle, { camp, jusqua: maintenant() + o.cacheMs });
+      }
+      return camp;
+    },
+
     async options(characterId) {
       const entree = reglages.get(characterId);
       if (entree && entree.jusqua > maintenant()) return entree.options;

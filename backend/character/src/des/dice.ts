@@ -5,6 +5,10 @@
  *
  * L'envoi part après l'enregistrement de l'action et n'est jamais bloquant :
  * une panne de dice est journalisée, l'action reste jouée.
+ *
+ * Une action à cible n'envoie que la vue de l'acteur (`vueActeur` de @vtt/rules : ses dés,
+ * l'issue, les valeurs que le système lui montre) : le déroulé complet nomme les défenses et
+ * les valeurs de la cible, qu'un joueur ne doit jamais lire (docs/combat.md § 7.7).
  */
 import type { ResultatAction, SystemeCharge } from '@vtt/rules';
 import { EN_TETE_SECRET_INTERNE } from '../interne/secret.js';
@@ -74,13 +78,23 @@ export function journalDes(o: {
   };
 }
 
-/** Jet d'une action résolue, au format de dice. */
+/**
+ * Jet d'une action résolue, au format de dice : le résultat d'une action sans cible, ou la vue
+ * de l'acteur (`vueActeur`) d'une action à cible. `success` remplace la réussite (null : elle
+ * n'est pas la même pour toutes les cibles d'un jet commun).
+ */
 export function jetPourDes(
   systeme: SystemeCharge,
   acteur: { id: string; nom: string; avatarUrl: string | null },
-  resultat: ResultatAction,
-  contexte: { authorId: string; campaignId?: string; visibility?: VisibiliteJet },
+  resultat: Pick<ResultatAction, 'action' | 'reussi' | 'jet' | 'explications'>,
+  contexte: {
+    authorId: string;
+    campaignId?: string;
+    visibility?: VisibiliteJet;
+    success?: boolean | null;
+  },
 ): JetAction {
+  const success = contexte.success === undefined ? resultat.reussi : contexte.success;
   const action = systeme.source.actions.find((a) => a.id === resultat.action);
   const jet = resultat.jet;
   const commun = {
@@ -104,7 +118,7 @@ export function jetPourDes(
         values: j.des.map((d) => ({ value: d.valeur, kept: d.garde, exploded: d.explosion })),
       })),
       total: jet.total,
-      outcome: { success: resultat.reussi, critical: jet.critique, fumble: jet.fumble },
+      outcome: { success, critical: jet.critique, fumble: jet.fumble },
     };
   }
   return {
@@ -115,6 +129,6 @@ export function jetPourDes(
       totals: jet.symboles,
       results: jet.resultats,
     },
-    outcome: { success: resultat.reussi, critical: false, fumble: false },
+    outcome: { success, critical: false, fumble: false },
   };
 }

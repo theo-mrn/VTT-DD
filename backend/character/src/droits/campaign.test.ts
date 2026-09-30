@@ -198,4 +198,31 @@ describe('règles optionnelles de la campagne d’un personnage', () => {
     expect(await droits.options('p')).toEqual({ encombrement: true });
     expect(signaler).toHaveBeenCalledTimes(2);
   });
+
+  it('camp d’un personnage dans une campagne : en cache, une panne n’ouvre aucun droit', async () => {
+    let enPanne = false;
+    const fetch = vi.fn(async (_url: URL | RequestInfo) =>
+      enPanne
+        ? reponse({}, 503)
+        : reponse({
+            member: true,
+            role: 'player',
+            character: { engaged: true, side: 'enemies', read: true, write: false },
+          }),
+    );
+    const droits = droitsCampaign({
+      url: 'http://campaign.local',
+      secret: SECRET,
+      cacheMs: 5_000,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+    });
+    expect(await droits.camp('camp-1', 'pnj-1', 'user-1')).toBe('enemies');
+    expect(String(fetch.mock.calls[0]![0])).toBe(
+      'http://campaign.local/internal/campaigns/camp-1/rights?userId=user-1&characterId=pnj-1',
+    );
+    await droits.camp('camp-1', 'pnj-1', 'user-1');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    enPanne = true;
+    await expect(droits.camp('camp-2', 'pnj-1', 'user-1')).rejects.toMatchObject({ status: 503 });
+  });
 });

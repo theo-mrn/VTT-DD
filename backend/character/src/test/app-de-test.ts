@@ -12,11 +12,12 @@ import { generateKeyPair, SignJWT } from 'jose';
 import { buildCharacter } from '../app.js';
 import { CharacterConfig } from '../config.js';
 import { createDb } from '../db/client.js';
-import { characters, outbox } from '../db/schema.js';
+import { applicationItems, applications, characters, outbox } from '../db/schema.js';
 import type { JetAction, JournalDes } from '../des/dice.js';
 import type { Catalogue } from '../regles/catalogue.js';
 import {
   campaignIndisponible,
+  type CampPersonnage,
   type Droits,
   type DroitsCampagnes,
   type RoleCampagne,
@@ -63,6 +64,7 @@ export function droitsSimules() {
   const table = new Map<string, Droits>();
   const roles = new Map<string, RoleCampagne>();
   const options = new Map<string, Record<string, boolean>>();
+  const camps = new Map<string, CampPersonnage>();
   let enPanne = false;
   const droits: DroitsCampagnes = {
     de: async (characterId, userId) =>
@@ -72,6 +74,10 @@ export function droitsSimules() {
       return roles.get(`${campaignId}:${userId}`) ?? null;
     },
     options: async (characterId) => options.get(characterId) ?? {},
+    camp: async (campaignId, characterId) => {
+      if (enPanne) throw campaignIndisponible();
+      return camps.get(`${campaignId}:${characterId}`) ?? null;
+    },
   };
   const accorder = (characterId: string, userId: string, d: Droits) =>
     table.set(`${characterId}:${userId}`, d);
@@ -81,7 +87,10 @@ export function droitsSimules() {
     enPanne = oui;
   };
   const regler = (characterId: string, o: Record<string, boolean>) => options.set(characterId, o);
-  return { droits, accorder, nommer, panne, regler };
+  /** Camp d'un personnage engagé dans une campagne (lecture des PNJ ennemis : MJ seul). */
+  const camper = (campaignId: string, characterId: string, camp: CampPersonnage) =>
+    camps.set(`${campaignId}:${characterId}`, camp);
+  return { droits, accorder, nommer, panne, regler, camper };
 }
 
 export async function appDeTest(
@@ -146,6 +155,10 @@ export async function appDeTest(
       if (ids.length) {
         await db.delete(outbox).where(inArray(sql`${outbox.envelope}->'aggregate'->>'id'`, ids));
         await db.delete(characters).where(inArray(characters.id, ids));
+        // Applications du combat dont tous les personnages viennent d'être supprimés
+        await db.execute(
+          sql`delete from ${applications} a where not exists (select 1 from ${applicationItems} i where i.application_id = a.application_id)`,
+        );
       }
     }
     await connexion?.pool.end();

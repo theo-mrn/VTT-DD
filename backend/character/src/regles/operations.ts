@@ -371,6 +371,11 @@ export const DemandePossession = z.object({
   hidden: z.boolean().optional(),
   /** Dossier d'inventaire (`folders` de l'état) ; null : retour à la racine. */
   folder: Id.nullable().optional(),
+  /**
+   * Durée en rounds (état donné pour un temps), décomptée en fin de round de combat ; null la
+   * retire : la possession reste jusqu'à son retrait.
+   */
+  duree: z.number().int().min(1).max(10_000).nullable().optional(),
 });
 export type DemandePossession = z.output<typeof DemandePossession>;
 
@@ -530,6 +535,8 @@ export function poserPossession(
     if (d.choix !== undefined) existante.choix = d.choix;
     if (champs !== undefined) existante.champs = { ...existante.champs, ...champs };
     if (d.quantite !== undefined) existante.quantite = d.quantite;
+    if (d.duree === null) delete existante.duree;
+    else if (d.duree !== undefined) existante.duree = d.duree;
     rangement(existante);
     return {
       etat: { ...etat, possessions, effetsDesactives },
@@ -551,6 +558,7 @@ export function poserPossession(
     effets: d.effets ?? [],
     ...(exemplaire !== undefined ? { exemplaire } : {}),
     ...(d.quantite !== undefined ? { quantite: d.quantite } : {}),
+    ...(d.duree != null ? { duree: d.duree } : {}),
   });
   rangement(nouvelle);
   possessions.push(nouvelle);

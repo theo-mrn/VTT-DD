@@ -8,7 +8,7 @@
  * attendre ni échouer si dice ne répond pas.
  */
 import { HttpError } from '@vtt/platform';
-import type { Valeur } from '@vtt/rules';
+import { vueActeur, type Valeur } from '@vtt/rules';
 import type { EventContext } from '../../db/outbox.js';
 import type { Deps } from '../../deps.js';
 import { jetPourDes, type VisibiliteJet } from '../../des/dice.js';
@@ -129,12 +129,13 @@ export async function jouerAction(
       ...(r.cles ? { cles: r.cles } : {}),
     });
 
-    // Auteur du jet : l'utilisateur qui agit (pas de jet transmis pour un appel du système)
+    // Auteur du jet : l'utilisateur qui agit (pas de jet transmis pour un appel du système).
+    // Avec une cible, seulement la vue de l'acteur : le déroulé nomme les défenses de la cible
     if (appelant.userId)
       jet = [
         systeme,
         acteur,
-        r.resultat,
+        cible ? vueActeur(systeme, r.resultat) : r.resultat,
         {
           authorId: appelant.userId,
           ...(demande.campaignId ? { campaignId: demande.campaignId } : {}),

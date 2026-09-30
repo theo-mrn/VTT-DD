@@ -13,9 +13,13 @@
  *   POST /internal/characters/:id/actions/:action    action jouée par le serveur
  *        (initiative d'un combat : la réponse porte les clés de tri `cles`)
  *   POST /internal/characters/:id/durees/decompter   fin de round : durées -1,
- *        possessions arrivées à 0 retirées
+ *        possessions arrivées à 0 retirées ; `tickId` : une seule fois par passage de round
+ *        (reprise : réponse d'origine), annulable par /internal/modifications/revert
  *   POST /internal/npcs, /internal/npcs/delete, /internal/characters/:id/possessions/receive
  *        instances de PNJ et butin de la carte (./npcs.ts)
+ *   POST /internal/actions/prepare, /internal/actions/resolve   attaques du combat (./actions.ts)
+ *   POST /internal/modifications/apply, /internal/modifications/revert   décisions du MJ
+ *        appliquées sans relancer un dé, et leur annulation (./modifications.ts)
  */
 import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -35,6 +39,12 @@ import {
   type Appelant,
 } from '../personnages/depot.js';
 import { CharacterSummary } from '../../regles/summary.js';
+import { registerActionRoutes } from './actions.js';
+import {
+  decompteDejaFait,
+  enregistrerDecompte,
+  registerModificationRoutes,
+} from './modifications.js';
 import { registerNpcRoutes } from './npcs.js';
 
 const IdPersonnage = z.uuid('Identifiant de personnage invalide').transform((s) => s.toLowerCase());
@@ -91,6 +101,9 @@ export const register: Module = async (app, deps) => {
 
   // Instances de PNJ de la carte et butin (docs/carte.md § 12)
   registerNpcRoutes(app, deps, interne);
+  // Attaques du combat : préparer, résoudre ; appliquer, annuler (docs/combat.md § 11.2)
+  registerActionRoutes(app, deps, interne);
+  registerModificationRoutes(app, deps, interne);
 
   r.get(
     '/internal/characters/:id',
@@ -226,12 +239,17 @@ export const register: Module = async (app, deps) => {
       schema: {
         hide: true,
         params: z.object({ id: IdPersonnage }),
-        body: Origine.default({}),
+        body: Origine.extend({
+          /** Passage de round (`tick:<combatId>:<round>`) : décompté une seule fois. */
+          tickId: z.string().trim().min(1).max(200).optional(),
+        }).default({}),
         response: {
           200: z.object({
             modifie: z.boolean(),
             retirees: z.array(z.string()),
             version: z.number().int(),
+            /** Même `tickId` déjà décompté : réponse d'origine, rien de plus. */
+            replayed: z.boolean().optional(),
             personnage: Personnage.optional(),
           }),
         },
@@ -239,25 +257,45 @@ export const register: Module = async (app, deps) => {
     },
     async (req) => {
       const ctx = contexte(req);
+      const { tickId, ...origine } = req.body;
       const options = await deps.droits.options(req.params.id);
       return db.transaction(async (tx) => {
         const [ligne] = await verrouiller(tx, [req.params.id]);
+        if (tickId) {
+          const fait = await decompteDejaFait(tx, tickId, ligne!.id);
+          if (fait) return { ...fait, replayed: true };
+        }
         const { etat, retirees } = decompterDurees(ligne!.etat);
-        if (!etat) return { modifie: false, retirees, version: ligne!.version };
-        const suivante = await enregistrer(
-          tx,
-          ctx,
-          catalogue,
-          appelant(req.body),
-          ligne!,
-          { etat },
-          { operation: 'durees.decompte', details: { retirees } },
-          options,
-        );
+        const suivante = etat
+          ? await enregistrer(
+              tx,
+              ctx,
+              catalogue,
+              appelant(origine),
+              ligne!,
+              { etat },
+              {
+                operation: 'durees.decompte',
+                details: { retirees, ...(tickId ? { tickId } : {}) },
+              },
+              options,
+            )
+          : ligne!;
+        const resultat = { modifie: Boolean(etat), retirees, version: suivante.version };
+        if (tickId)
+          await enregistrerDecompte(tx, {
+            tickId,
+            characterId: ligne!.id,
+            campaignId: origine.roomId ?? null,
+            userId: origine.userId ?? null,
+            avant: ligne!.etat,
+            apres: suivante.etat,
+            resultat,
+          });
+        if (!etat) return { ...resultat, ...(tickId ? { replayed: false } : {}) };
         return {
-          modifie: true,
-          retirees,
-          version: suivante.version,
+          ...resultat,
+          ...(tickId ? { replayed: false } : {}),
           personnage: versApi(catalogue, suivante, { options }),
         };
       });

@@ -151,6 +151,37 @@ export const objectTemplates = schemaCharacters.table('object_templates', {
   updatedAt: horodatage('updated_at').notNull().defaultNow(),
 });
 
+/**
+ * Application du combat (0010) : modifications décidées par le MJ, ou décompte des durées d'un
+ * round (`kind: tick`). `response` : réponse d'origine, rendue telle quelle à une reprise.
+ */
+export const applications = schemaCharacters.table('applications', {
+  applicationId: text('application_id').primaryKey(),
+  kind: text('kind').$type<'application' | 'tick'>().notNull(),
+  campaignId: uuid('campaign_id'),
+  userId: uuid('user_id'),
+  response: jsonb('response'),
+  createdAt: horodatage('created_at').notNull().defaultNow(),
+});
+
+/** Personnage touché par une application : delta (annulation) et résultat (idempotence). */
+export const applicationItems = schemaCharacters.table(
+  'application_items',
+  {
+    applicationId: text('application_id')
+      .notNull()
+      .references(() => applications.applicationId, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    delta: jsonb('delta').notNull(),
+    result: jsonb('result').notNull(),
+    revertedAt: horodatage('reverted_at'),
+    createdAt: horodatage('created_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.applicationId, t.characterId] })],
+);
+
 export const outbox = schemaCharacters.table('outbox', {
   id: uuid('id').primaryKey(),
   subject: text('subject').notNull(),

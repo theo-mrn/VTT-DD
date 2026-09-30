@@ -5,10 +5,11 @@
  * Accès (`acces`, `autoriser`) : un seul personnage actif, pas de possession.
  * Engagé dans une campagne, un personnage s'écrit par le membre qui l'incarne
  * et par le MJ ; les autres membres le lisent, son propriétaire compris s'il ne
- * l'incarne pas. Son propriétaire garde la main hors campagne (jamais engagé)
- * et pendant la création, et seul il le supprime. Pour tout autre utilisateur,
- * un personnage, ou un personnage supprimé, est introuvable (404) : on ne
- * révèle pas son existence.
+ * l'incarne pas, sauf la fiche d'un PNJ ennemi, réservée au MJ (docs/combat.md, Q4 :
+ * les PNJ du camp des joueurs et les alliés restent lisibles). Son propriétaire garde
+ * la main hors campagne (jamais engagé) et pendant la création, et seul il le supprime.
+ * Pour tout autre utilisateur, un personnage, ou un personnage supprimé, est
+ * introuvable (404) : on ne révèle pas son existence.
  */
 import { changesPayload, uuidv7, type ActorRole, type DiffOptions } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
@@ -125,14 +126,16 @@ export interface Acces {
  *  - pendant la création, son propriétaire a la main (sans interroger campaign) ;
  *  - jamais engagé dans une campagne, son propriétaire aussi ;
  *  - engagé : le membre qui l'incarne et le MJ écrivent, les membres lisent, le
- *    propriétaire lit toujours (même s'il ne siège plus à la table).
+ *    propriétaire lit toujours (même s'il ne siège plus à la table) ;
+ *  - un PNJ ne se lit, pour qui ne l'écrit pas, que s'il est du camp des joueurs ou allié
+ *    dans une des campagnes du lecteur : la fiche d'un ennemi est réservée au MJ.
  * campaign en panne : le propriétaire garde la lecture, personne n'écrit
  * (`droits.indisponible`, 503 à l'écriture). `frais` : droits relus sans cache.
  */
 export async function acces(
   droits: DroitsCampagnes,
   userId: string,
-  ligne: { id: string; ownerId: string; creation: boolean },
+  ligne: { id: string; ownerId: string; creation: boolean; kind?: 'pc' | 'npc' },
   o: { frais?: boolean } = {},
 ): Promise<Acces> {
   const proprietaire = ligne.ownerId === userId;
@@ -140,8 +143,15 @@ export async function acces(
   const dr = await droits.de(ligne.id, userId, o);
   if (proprietaire && !dr.engage && !dr.indisponible)
     return { lecture: true, ecriture: true, role: 'user', droits: dr };
+  let lecture = proprietaire || dr.lecture;
+  if (lecture && !proprietaire && !dr.ecriture && ligne.kind === 'npc') {
+    const camps = await Promise.all(
+      (dr.campagnes ?? []).map((c) => droits.camp(c, ligne.id, userId)),
+    );
+    lecture = camps.some((c) => c === 'players' || c === 'allies');
+  }
   return {
-    lecture: proprietaire || dr.lecture,
+    lecture,
     ecriture: dr.ecriture,
     // Qui l'incarne écrit en joueur, même s'il est aussi MJ ; sinon, c'est le MJ
     role: dr.incarne ? 'user' : 'gm',
@@ -164,7 +174,12 @@ export async function autoriser(
 ): Promise<ActorRole> {
   const ids = [...new Set(demandes.map((d) => d.id))];
   const lignes = await db
-    .select({ id: characters.id, ownerId: characters.ownerId, creation: enCreation })
+    .select({
+      id: characters.id,
+      ownerId: characters.ownerId,
+      creation: enCreation,
+      kind: characters.kind,
+    })
     .from(characters)
     .where(and(inArray(characters.id, ids), isNull(characters.deletedAt)));
   let role: ActorRole = 'user';

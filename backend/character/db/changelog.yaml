@@ -17,5 +17,7 @@ databaseChangeLog:
   - include: { file: changes/0008-legacy-items.sql, relativeToChangelogFile: true }
   # Instances de PNJ de la carte : modèle copié et campagne de création
   - include: { file: changes/0009-npc-instances.sql, relativeToChangelogFile: true }
+  # Applications du combat (dégâts décidés par le MJ) et décomptes des durées : annulables
+  - include: { file: changes/0010-applications.sql, relativeToChangelogFile: true }
   # Toujours en dernier : protège le journal de Liquibase contre le rôle du service
   - include: { file: changes/9999-droits.sql, relativeToChangelogFile: true }
