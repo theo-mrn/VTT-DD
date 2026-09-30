@@ -65,6 +65,24 @@ function clearDefeated() {
   queue.setState({ ids: [] });
 }
 
+// ─── Un seul dialogue monté à la fois ────────────────────────────────────────
+
+/**
+ * Le dialogue est monté par le panneau Combat et par la pile du bandeau (panneau jamais
+ * ouvert) : seul le premier monté s'affiche, les autres se taisent.
+ */
+const hosts = createStore<{ ids: readonly number[] }>()(() => ({ ids: [] }));
+let nextHost = 0;
+
+function useDefeatedHost(): boolean {
+  const [id] = useState(() => ++nextHost);
+  useEffect(() => {
+    hosts.setState((s) => ({ ids: [...s.ids, id] }));
+    return () => hosts.setState((s) => ({ ids: s.ids.filter((x) => x !== id) }));
+  }, [id]);
+  return useStore(hosts, (s) => s.ids[0] === id);
+}
+
 // ─── Dialogue ────────────────────────────────────────────────────────────────
 
 type Choice = 'keep' | 'remove' | 'delete';
@@ -83,6 +101,7 @@ export function DefeatedDialog({
   combat: CombatState | null;
 }) {
   const ids = useStore(queue, (s) => s.ids);
+  const host = useDefeatedHost();
   const cast = useCast(campagne.id);
   const { engine } = useSceneTokens(campagne.id);
   const commands = useCombatCommands(campagne.id);
@@ -153,7 +172,10 @@ export function DefeatedDialog({
   };
 
   return (
-    <Dialog open={ids.length > 0} onOpenChange={(open) => !open && !busy && clearDefeated()}>
+    <Dialog
+      open={host && ids.length > 0}
+      onOpenChange={(open) => !open && !busy && clearDefeated()}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

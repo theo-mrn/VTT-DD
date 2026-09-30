@@ -89,7 +89,7 @@ import {
 
 const HOUR = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-const TONES: Record<OutcomeTone, 'arcane' | 'succes' | 'danger' | 'neutre' | 'alerte'> = {
+export const TONES: Record<OutcomeTone, 'arcane' | 'succes' | 'danger' | 'neutre' | 'alerte'> = {
   critical: 'arcane',
   success: 'succes',
   fumble: 'danger',
@@ -701,7 +701,7 @@ function NumberBox({
  * La valeur aggrave l'état de la cible : retirer d'une jauge qui se vide (PV), ajouter à une
  * jauge qui se remplit (Blessures, `sens: montant` de la présentation).
  */
-function harmful(
+export function harmful(
   m: { attribute: string; operation: 'add' | 'subtract' | 'set' },
   presentation: Presentation | null,
 ): boolean {
