@@ -37,3 +37,14 @@ export function portraitsParDossier(assets: Asset[]): Map<string, Asset[]> {
   }
   return r;
 }
+
+const CDN = 'https://assets.yner.fr/';
+
+/**
+ * Vignette d'une image de la bibliothèque, redimensionnée par le CDN (Cloudflare) : quelques Ko
+ * au lieu d'un ou deux Mo. Toute autre adresse est rendue telle quelle.
+ */
+export function vignette(url: string, largeur: number): string {
+  if (!url.startsWith(CDN)) return url;
+  return `${CDN}cdn-cgi/image/width=${Math.round(largeur)},format=auto/${url.slice(CDN.length)}`;
+}

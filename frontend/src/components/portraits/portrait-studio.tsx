@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Slider } from '@/components/ui/slider';
 import { Info } from '@/components/ui/tooltip';
 import { messageErreur } from '@/lib/api';
-import { portraitsParDossier, useAssets, type Asset } from '@/lib/assets';
+import { portraitsParDossier, useAssets, vignette, type Asset } from '@/lib/assets';
 import {
   centeredPortrait,
   centeredSquare,
@@ -319,7 +319,7 @@ function Body({
         </section>
 
         {/* Aperçus et réglages de l'onglet */}
-        <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto border-t border-border p-4 [scrollbar-width:thin] sm:p-5 lg:border-l lg:border-t-0">
+        <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto [&>*]:shrink-0 border-t border-border p-4 [scrollbar-width:thin] sm:p-5 lg:border-l lg:border-t-0">
           {tab === 'token' ? (
             <>
               <TokenPreviews
@@ -602,7 +602,7 @@ function TokenPreviews({
           {frame && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={frame}
+              src={vignette(frame, 224)}
               alt=""
               draggable={false}
               className="pointer-events-none absolute inset-0 size-full"
@@ -702,7 +702,7 @@ function FrameGallery({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={f.path}
+              src={vignette(f.path, 128)}
               alt=""
               loading="lazy"
               decoding="async"
@@ -781,7 +781,7 @@ function LibraryGrid({ onPick }: { onPick(url: string): void }) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={a.path}
+              src={vignette(a.path, 240)}
               alt=""
               loading="lazy"
               decoding="async"
