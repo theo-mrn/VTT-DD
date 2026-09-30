@@ -16,7 +16,6 @@
  *   POST   /v1/campaigns/:id/notes                 créer dans la campagne
  *   PATCH  /v1/campaigns/:id/notes/:noteId         modifier : privée, l'auteur ; partagée, qui la lit
  *   DELETE /v1/campaigns/:id/notes/:noteId         supprimer : mêmes droits
- *   POST   /v1/campaigns/:id/notes/upload          URL d'envoi d'une image de note (rien d'écrit)
  *
  * Comme l'ancienne app, une note partagée se modifie et se supprime par
  * quiconque la lit ; seul son auteur la rend privée ou la change de campagne
@@ -32,7 +31,7 @@ import { z } from 'zod';
 import type { EventContext, Tx } from '../../db/outbox.js';
 import { notePins, notes } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import { IMAGE_MAX_BYTES, IMAGE_TYPES, publicBase, signUpload } from '../../storage/images.js';
+import { publicBase } from '../../storage/images.js';
 import { campaignNotFound } from '../campaigns/repository.js';
 import { CampaignId, currentUser, eventContext } from '../schemas.js';
 import { BACKFILL_INTERVAL_MS, resanitizeNotes } from './backfill.js';
@@ -494,30 +493,6 @@ export const register: Module = async (app, deps) => {
         deleteNote(tx, eventContext(req), reader, req.params.noteId, req.params.id),
       );
       reply.code(204);
-    },
-  );
-
-  r.post(
-    '/v1/campaigns/:id/notes/upload',
-    {
-      config: UPLOAD_LIMIT,
-      // Fonction fléchée : passer app.authenticate tel quel fige le type de `config` sans rateLimit
-      preValidation: (req, reply) => app.authenticate(req, reply),
-      schema: {
-        params: Params,
-        body: z.object({
-          contentType: z.enum(IMAGE_TYPES),
-          size: z.number().int().min(1).max(IMAGE_MAX_BYTES),
-        }),
-        response: {
-          200: z.object({ uploadUrl: z.string(), publicUrl: z.string(), expiresIn: z.number() }),
-        },
-      },
-    },
-    async (req) => {
-      const reader = await campaignReader(db, req.params.id, currentUser(req));
-      requireWriter(reader, req.params.id);
-      return signUpload(deps.signer, deps.config.S3_PUBLIC_URL, req.params.id, req.body, req.log);
     },
   );
 };

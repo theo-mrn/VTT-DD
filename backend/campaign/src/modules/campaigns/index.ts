@@ -21,8 +21,6 @@ import {
   changesPayload,
   FileUploadRequest,
   FileUploadTicket,
-  MediaUploadRequest,
-  MediaUploadTicket,
   uuidv7,
   type UploadUsageId,
 } from '@vtt/contracts';
@@ -33,13 +31,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { campaignBans, campaignCharacters, campaignMembers, campaigns } from '../../db/schema.js';
 import type { Module } from '../../deps.js';
-import {
-  IMAGE_MAX_BYTES,
-  IMAGE_TYPES,
-  isAcceptedImageUrl,
-  publicBase,
-  signUpload,
-} from '../../storage/images.js';
+import { isAcceptedImageUrl, publicBase } from '../../storage/images.js';
 import { removeFromCombat } from '../combat/repository.js';
 import { campaignReader, requireWriter } from '../notes/common.js';
 import {
@@ -448,54 +440,6 @@ export const register: Module = async (app, deps) => {
     });
     reply.code(204);
   });
-
-  r.post(
-    '/v1/campaigns/:id/image',
-    {
-      config: UPLOAD_LIMIT,
-      // Fonction fléchée : passer app.authenticate tel quel fige le type de `config` sans rateLimit
-      preValidation: (req, reply) => app.authenticate(req, reply),
-      schema: {
-        params: Params,
-        body: z.object({
-          contentType: z.enum(IMAGE_TYPES),
-          size: z.number().int().min(1).max(IMAGE_MAX_BYTES),
-        }),
-        response: {
-          200: z.object({ uploadUrl: z.string(), publicUrl: z.string(), expiresIn: z.number() }),
-        },
-      },
-    },
-    async (req) => {
-      const a = await gmAccess(db, req.params.id, currentUser(req));
-      return signUpload(deps.signer, deps.config.S3_PUBLIC_URL, a.campaign.id, req.body, req.log);
-    },
-  );
-
-  // Médias de la carte (fonds image ou vidéo, objets) : MJ, mêmes URL signées que l'image
-  r.post(
-    '/v1/campaigns/:id/media',
-    {
-      config: UPLOAD_LIMIT,
-      preValidation: (req, reply) => app.authenticate(req, reply),
-      schema: {
-        params: Params,
-        body: MediaUploadRequest,
-        response: { 200: MediaUploadTicket },
-      },
-    },
-    async (req) => {
-      const a = await gmAccess(db, req.params.id, currentUser(req));
-      const { contentType, size } = req.body;
-      return signUpload(
-        deps.signer,
-        deps.config.S3_PUBLIC_URL,
-        a.campaign.id,
-        { contentType, size },
-        req.log,
-      );
-    },
-  );
 
   // Route commune d'envoi (docs/uploads.md) : image de la campagne, fonds et objets de la
   // carte, images des PNJ (MJ) ; images des notes (qui écrit des notes dans la campagne)

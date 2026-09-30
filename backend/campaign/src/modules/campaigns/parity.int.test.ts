@@ -168,25 +168,24 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
     await h.ok(gm, 'POST', `/v1/campaigns/${c.id}/invitations`, {});
     const id = await h.campaign(gm, 'dnd-classic', [alice]);
 
-    const upload = await h.ok<{ uploadUrl: string; publicUrl: string; expiresIn: number }>(
+    const upload = await h.ok<{ url: string; publicUrl: string; expiresAt: string }>(
       gm,
       'POST',
-      `/v1/campaigns/${id}/image`,
-      { contentType: 'image/webp', size: 1234 },
+      `/v1/campaigns/${id}/uploads`,
+      { usage: 'campaign-image', contentType: 'image/webp', size: 1234 },
     );
     expect(upload.publicUrl).toMatch(
       new RegExp(`^https://cdn\\.test\\.local/vtt/campaigns/${id}/[0-9a-f-]{36}\\.webp$`),
     );
-    expect(upload.uploadUrl).toContain(
-      upload.publicUrl.slice('https://cdn.test.local/vtt/'.length),
-    );
-    expect(upload.expiresIn).toBe(300);
+    expect(upload.url).toContain(upload.publicUrl.slice('https://cdn.test.local/vtt/'.length));
+    expect(Date.parse(upload.expiresAt)).toBeGreaterThan(Date.now());
     expect(t.uploads.at(-1)).toMatchObject({ contentType: 'image/webp', size: 1234 });
 
-    // Joueur : 403 ; non-membre : 404 ; fichier trop gros ou type refusé : 400
+    // Joueur : 403 ; non-membre : 404 ; fichier trop gros : 413 ; type refusé : 415
     expect(
       (
-        await h.request(alice, 'POST', `/v1/campaigns/${id}/image`, {
+        await h.request(alice, 'POST', `/v1/campaigns/${id}/uploads`, {
+          usage: 'campaign-image',
           contentType: 'image/png',
           size: 10,
         })
@@ -194,17 +193,20 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
     ).toBe(403);
     expect(
       (
-        await h.request(bob, 'POST', `/v1/campaigns/${id}/image`, {
+        await h.request(bob, 'POST', `/v1/campaigns/${id}/uploads`, {
+          usage: 'campaign-image',
           contentType: 'image/png',
           size: 10,
         })
       ).statusCode,
     ).toBe(404);
-    for (const body of [
-      { contentType: 'image/png', size: 6 * 1024 * 1024 },
-      { contentType: 'image/svg+xml', size: 10 },
-    ]) {
-      expect((await h.request(gm, 'POST', `/v1/campaigns/${id}/image`, body)).statusCode).toBe(400);
+    for (const [body, status] of [
+      [{ usage: 'campaign-image', contentType: 'image/png', size: 6 * 1024 * 1024 }, 413],
+      [{ usage: 'campaign-image', contentType: 'image/svg+xml', size: 10 }, 415],
+    ] as const) {
+      expect((await h.request(gm, 'POST', `/v1/campaigns/${id}/uploads`, body)).statusCode).toBe(
+        status,
+      );
     }
 
     const withImage = await h.ok<Campaign>(gm, 'PATCH', `/v1/campaigns/${id}`, {
@@ -236,7 +238,8 @@ describe.skipIf(!TEST_DATABASE_URL)('campagnes : parité avec l’ancienne app',
       const bh = helpers(bare);
       const u = await bare.user();
       const id = await bh.campaign(u);
-      const res = await bh.request(u, 'POST', `/v1/campaigns/${id}/image`, {
+      const res = await bh.request(u, 'POST', `/v1/campaigns/${id}/uploads`, {
+        usage: 'campaign-image',
         contentType: 'image/png',
         size: 10,
       });
