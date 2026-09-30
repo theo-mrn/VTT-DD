@@ -7,6 +7,9 @@
  * du MJ en jet commun, décisions (appliquer, modifier, écarter), hors de combat, annulation
  * (et son conflit 409, puis forcée), fin de combat qui retire les états à durée.
  * Star Wars : mode créneaux, attaque d'un PNJ, Esquive choisie par le joueur de la cible.
+ * Situation (§ 5.7) : l'abri de la cible et l'avantage de situation changent l'issue (D&D) ;
+ * participant surpris, décompte des attaques, Frappe rapide d'office contre la cible qui n'a
+ * pas encore agi, par le contexte `@combat.*` que campaign fige et envoie (Star Wars).
  *
  * Non-fuite, de bout en bout : un joueur ne reçoit aucune valeur d'un PNJ (REST, événements de
  * campaign et de character, jets transmis à l'historique des dés), ni la fiche d'un PNJ ennemi
@@ -900,6 +903,133 @@ describe.skipIf(!TEST_DATABASE_URL || !CHARACTER_TEST_DATABASE_URL)(
           }
         }
         expect(s.round).toBe(2);
+      });
+    });
+
+    // ─── Situation du combat (§ 5.7) ─────────────────────────────────────────
+
+    describe('Situation du combat : paramètres, décompte, contexte des règles', () => {
+      type Pool = { die: string; count: number }[];
+      interface Full extends Attack {
+        targets: (Target & {
+          result?: {
+            outcome: { success: boolean };
+            roll: {
+              kind: string;
+              pool?: Pool;
+              bonuses?: { name: string; value: number; side: string }[];
+            };
+            explanations: string[];
+          } | null;
+        })[];
+      }
+
+      it('D&D : l’abri de la cible et l’avantage de situation changent l’issue', async () => {
+        const gm = await t.user('MJ');
+        const dana = await t.user('Dana');
+        const c = await table(gm, 'dnd-classic', [dana]);
+        const hero = (await dwarf(dana, 'Dori')).id;
+        await join(c, gm, dana, hero, 100);
+        const [hob] = (
+          await npcs(c, gm, { bestiary: { systemeId: 'dnd-classic', key: 'hobgoblin' } }, 400)
+        ).map((n) => n.id) as [string];
+        // Le d20 qui atteint juste la Défense du hobgobelin
+        const n = (await value(gm, hob, 'Defense')) - (await value(dana, hero, 'Distance'));
+        expect(n).toBeGreaterThanOrEqual(5);
+        expect(n).toBeLessThanOrEqual(19);
+        const tirer = async (params: Record<string, unknown>, faces: number[]) => {
+          t.impose(...faces);
+          const a = await ok<Full>(dana, 'POST', `/v1/campaigns/${c.id}/attacks`, {
+            attackerId: hero,
+            action: 'attaque-libre',
+            params: { score: 'Distance', nbDes: 1, faces: 6, bonus: 0, ...params },
+            targets: [hob],
+          });
+          return a;
+        };
+        expect((await tirer({}, [n, 3])).targets[0]!.view?.outcome.success).toBe(true);
+        // Abri partiel : +2 DEF, le même d20 rate ; le MJ lit la ligne dans le rapport
+        const abri = await tirer({ couvert: 'partiel' }, [n]);
+        expect(abri.targets[0]!.view?.outcome.success).toBe(false);
+        const full = await ok<Full>(gm, 'GET', `/v1/campaigns/${c.id}/attacks/${abri.id}`);
+        expect(full.targets[0]!.result?.roll.bonuses).toContainEqual(
+          expect.objectContaining({ name: 'Abri de la cible', value: -2, side: 'action' }),
+        );
+        // Avantage de situation : deux d20, le meilleur ; sans lui, le premier rate
+        expect((await tirer({}, [n - 3, n])).targets[0]!.view?.outcome.success).toBe(false);
+        const avantage = await tirer({ avantage: 'avantage' }, [n - 3, n, 3]);
+        expect(avantage.targets[0]!.view?.outcome.success).toBe(true);
+        // Le joueur voit la situation qu'il a déclarée, et l'abri dans son jet (côté action)
+        expect(avantage.targets[0]!.view?.explanations[0]).toBe(
+          'Avantage ou désavantage : Avantage',
+        );
+        expect(abri.targets[0]!.view?.explanations).toContain('Abri de la cible : − 2');
+      });
+
+      it('Star Wars : surpris, décompte, Frappe rapide contre la cible qui n’a pas agi', async () => {
+        const gm = await t.user('MJ');
+        const c = await table(gm, 'star-wars-eote', []);
+        const [tireur] = (
+          await npcs(c, gm, { quick: { name: 'Tireur', type: 'personnage' } }, 100)
+        ).map((x) => x.id) as [string];
+        let s = await sheet(gm, tireur);
+        for (const x of [
+          { entree: 'fusil-blaster' },
+          { entree: 'distance-lourde', rang: 1 },
+          { entree: 'frappe-rapide', rang: 2 },
+        ])
+          s = await okSheet(gm, 'POST', `/v1/characters/${tireur}/possessions`, {
+            version: s.version,
+            ...x,
+          });
+        const [lent] = (
+          await npcs(c, gm, { quick: { name: 'Lent', type: 'personnage' } }, 500)
+        ).map((x) => x.id) as [string];
+        const [vif] = (await npcs(c, gm, { quick: { name: 'Vif', type: 'personnage' } }, 600)).map(
+          (x) => x.id,
+        ) as [string];
+        const url = `/v1/campaigns/${c.id}/combat`;
+        let combat = await ok<Combat & { order: (Participant & { surprised?: boolean })[] }>(
+          gm,
+          'POST',
+          url,
+          {
+            participants: [tireur, lent, vif],
+            surprised: [lent],
+            rollInitiative: true,
+            paramsBySide: { enemies: { competence: 'vigilance' } },
+          },
+        );
+        expect(combat.order.find((p) => p.characterId === lent)?.surprised).toBe(true);
+        // Vif prend le premier créneau et le termine : il a agi ce round
+        combat = await ok(gm, 'POST', `${url}/slot-actor`, { characterId: vif });
+        combat = await ok(gm, 'POST', `${url}/next`, { version: combat.version });
+        expect(combat.round).toBe(1);
+
+        const a = await ok<Full>(gm, 'POST', `/v1/campaigns/${c.id}/attacks`, {
+          attackerId: tireur,
+          action: 'attaque',
+          params: { arme: 'fusil-blaster', portee: 'moyenne' },
+          targets: [lent, vif],
+        });
+        const fortune = (id: string) =>
+          a.targets
+            .find((x) => x.characterId === id)!
+            .result!.roll.pool!.find((p) => p.die === 'fortune')?.count ?? 0;
+        // Frappe rapide (rang 2) d'office contre Lent, qui n'a pas encore agi
+        expect(fortune(lent)).toBe(fortune(vif) + 2);
+
+        // Décompte : l'attaque compte pour le tireur et ses deux cibles
+        const after = await ok<{
+          order: {
+            characterId: string;
+            tally?: { attacksMade: number; attacksMadeRound: number; targeted: number };
+          }[];
+        }>(gm, 'GET', url);
+        const tally = (id: string) => after.order.find((p) => p.characterId === id)?.tally;
+        expect(tally(tireur)).toMatchObject({ attacksMade: 1, attacksMadeRound: 1 });
+        expect(tally(lent)).toMatchObject({ targeted: 1 });
+        expect(tally(vif)).toMatchObject({ targeted: 1 });
       });
     });
   },
