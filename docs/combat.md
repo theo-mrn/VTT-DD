@@ -1062,6 +1062,24 @@ l'initiative » tant qu'elle n'est pas tirée, Précédent, Suivant, ouverture d
 de réaction d'un joueur attaqué restent (au même endroit). Sans bandeau, un joueur ne passe plus
 son tour, ne prend plus un créneau et ne lance plus son initiative lui-même : le MJ s'en charge.
 
+**Rapports en direct** (demandé par Théo le 2026-09-30,
+`components/combat/live-reports/`) : sous le bandeau, une pile de rapports, sans changer de
+panneau. Chaque attaque qui attend une décision (`pending`) sort de la barre dès qu'elle arrive
+(ressort court, `motion`, `prefers-reduced-motion` respecté) ; une attaque en cours (défense ou
+dés attendus) y paraît discrète et se complète en place. Les plus récentes en haut, trois cartes
+au plus, « +n » ouvre le panneau Combat ; la pile se replie d'un clic (préférence du navigateur)
+et s'efface quand le panneau Combat est ouvert (il montre déjà les rapports). Carte compacte par
+attaque : attaquant → cible(s) en portraits, action et arme, issue par cible (Touché, Raté,
+Critique…), valeur en gros chiffre (rouge quand elle aggrave la cible), réductions en
+info-bulle, marques (auto-attaque, hors tour, ajusté à la main, caché), coûts de l'attaquant ;
+**Appliquer**, **Modifier** (le tiroir de décision du § 12.4), **Ne pas appliquer** ; plusieurs
+cibles : par cible, plus « Tout appliquer ». Décidé depuis la pile : coche tracée,
+« Appliqué : −7 PV à Gobelin », « Annuler » (annulation du § 7.3) pendant quelques secondes, puis
+la carte s'en va. Pile au focus : Entrée applique le premier rapport, Suppr ne l'applique pas.
+Mêmes corps de décision que le panneau (`reports/model.ts`) ; le dialogue « Hors de combat »
+s'ouvre après une application (un seul monté, panneau ou pile). Aucun toast n'annonçait les
+rapports : la pastille du panneau Combat reste.
+
 ## 13. Nuances par système
 
 ### 13.1 D&D classique (`dnd-classic`)

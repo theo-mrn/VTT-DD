@@ -4,6 +4,7 @@ import { ArrowLeft, Crown, Eye, UserRoundCog } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
+import { LiveReports } from '@/components/combat/live-reports/live-reports';
 import { InitiativeStrip } from '@/components/combat/player/initiative-strip';
 import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
 import { Illustration } from '@/components/commun/illustration';
@@ -58,8 +59,9 @@ export function HudCampaign({ table }: { table: Table }) {
 }
 
 /**
- * Au centre, pendant un combat : le bandeau d'initiative du MJ (docs/combat.md § 12.6) ; dessous,
- * les invites de défense active d'un joueur dont le personnage est attaqué (en combat ou non).
+ * Au centre, pendant un combat : le bandeau d'initiative du MJ (docs/combat.md § 12.6) et, dessous,
+ * ses rapports d'attaque en direct ; pour un joueur, les invites de défense active quand son
+ * personnage est attaqué (en combat ou non).
  */
 export function HudCombat({ table }: { table: Table }) {
   const { campagne: c, gm, moi } = table;
@@ -75,6 +77,7 @@ export function HudCombat({ table }: { table: Table }) {
   return (
     <div className="pointer-events-none flex min-w-0 flex-1 flex-col items-center gap-2">
       {combat && role === 'gm' && <InitiativeStrip campaignId={c.id} combat={combat} />}
+      {combat && role === 'gm' && <LiveReports campagne={c} combat={combat} />}
       {reacts && (
         <ReactionPrompts campaignId={c.id} mine={mine} systeme={sys.data?.systeme ?? null} />
       )}
