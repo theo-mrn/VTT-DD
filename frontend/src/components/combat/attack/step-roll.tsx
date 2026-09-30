@@ -12,9 +12,8 @@
  */
 import type { Attack } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
-import { MotionConfig } from 'framer-motion';
 import { Ban, ChevronDown, Send, Shield } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
@@ -333,14 +332,15 @@ function Duel({
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
   const fig = summary.figure;
-  const pop = (delay: number, on: boolean) =>
-    on
-      ? {
-          initial: { opacity: 0, scale: 0.7 },
-          animate: { opacity: 1, scale: 1 },
-          transition: { delay: delay / 1000, type: 'spring' as const, stiffness: 300, damping: 22 },
-        }
-      : {};
+  // L'état final est toujours donné : passer en affichage instantané ne laisse jamais un
+  // élément figé à son état de départ (invisible)
+  const pop = (delay: number, on: boolean) => ({
+    initial: on ? { opacity: 0, scale: 0.7 } : false,
+    animate: { opacity: 1, scale: 1 },
+    transition: on
+      ? { delay: delay / 1000, type: 'spring' as const, stiffness: 300, damping: 22 }
+      : { duration: 0 },
+  });
   const damage = summary.damage;
   return (
     <div
@@ -431,12 +431,13 @@ function BigRoll({
       <p className="max-w-full truncate font-mono text-xs text-subtle">
         {figure.dice}
         {figure.modifier !== 0 && ` ${signed(figure.modifier)}`} = {figure.total}
-        <span className="ml-2">
-          ({figure.formula}
-          {figure.bonuses.length > 0 &&
-            ` · ${figure.bonuses.map((b) => `${b.name} ${b.value >= 0 ? '+' : ''}${b.value}`).join(', ')}`}
-          )
-        </span>
+        {figure.bonuses.length > 0 && (
+          <span className="ml-2">
+            (
+            {figure.bonuses.map((b) => `${b.name} ${b.value >= 0 ? '+' : ''}${b.value}`).join(', ')}
+            )
+          </span>
+        )}
       </p>
     </div>
   );
@@ -516,10 +517,11 @@ function TargetRow({
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
   const fig = summary.figure;
-  const fade = (d: number, on: boolean) =>
-    on
-      ? { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { delay: d } }
-      : {};
+  const fade = (d: number, on: boolean) => ({
+    initial: on ? { opacity: 0, y: 6 } : false,
+    animate: { opacity: 1, y: 0 },
+    transition: on ? { delay: d } : { duration: 0 },
+  });
   return (
     <motion.li
       {...fade(Math.max(0, delay - 0.3), !quick)}
