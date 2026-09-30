@@ -464,6 +464,237 @@ function characterUpdated(e: HistoryEvent, ctx: FormatContext): Formatted | null
   }
 }
 
+// ─── Attaques (docs/combat.md § 7.7, § 10) ───────────────────────────────────
+
+/** Issue d'une cible, en mots de l'ancienne page d'attaque. */
+function outcomeWord(o: unknown): string | null {
+  const outcome = obj(o);
+  if (!outcome || typeof outcome.success !== 'boolean') return null;
+  if (outcome.success) return outcome.critical === true ? 'critique' : 'touché';
+  return outcome.fumble === true ? 'échec critique' : 'raté';
+}
+
+/** Total d'un jet numérique, ou résultats nets d'un pool (noms du système). */
+function rollText(ctx: FormatContext, r: unknown): string | null {
+  const roll = obj(r);
+  if (!roll) return null;
+  if (roll.kind === 'numeric') return num(roll.total) !== null ? String(roll.total) : null;
+  const results = obj(roll.results);
+  if (!results) return null;
+  const declared = ctx.system?.source.des?.resultats ?? [];
+  const parts = declared
+    .filter((d) => d.visible !== false && (num(results[d.cle]) ?? 0) > 0)
+    .map((d) => `${results[d.cle]} ${d.nom.toLowerCase()}`);
+  if (!declared.length)
+    for (const [k, v] of Object.entries(results)) if ((num(v) ?? 0) > 0) parts.push(`${v} ${k}`);
+  return parts.length ? parts.join(', ') : 'aucun symbole net';
+}
+
+function damageTypeName(ctx: FormatContext, id: string | null): string | null {
+  if (!id) return null;
+  return ctx.system?.source.typesDegats.find((t) => t.id === id)?.nom ?? id;
+}
+
+/** Une modification lisible : « −7 PV (feu) », « +3 Stress », « Brûlé (2 rounds) ». */
+function modificationText(
+  ctx: FormatContext,
+  entityType: string | null,
+  m: unknown,
+): string | null {
+  const mod = obj(m);
+  if (!mod) return null;
+  if (mod.kind === 'entry') {
+    const name = entryName(ctx, str(mod.entry));
+    if (mod.operation === 'remove') return `sans ${name}`;
+    const duration = num(mod.duration);
+    return duration ? `${name} (${duration} round${duration > 1 ? 's' : ''})` : name;
+  }
+  const key = str(mod.attribute);
+  const value = num(mod.value);
+  if (!key || value === null) return null;
+  const attr = attributeOf(ctx, entityType, key)?.attr;
+  if (attr?.visibilite === 'mj' && !ctx.viewerIsGm) return null;
+  const sign = mod.operation === 'subtract' ? '−' : mod.operation === 'add' ? '+' : '= ';
+  const type = damageTypeName(ctx, str(mod.damageType));
+  return `${sign}${value} ${attributeLabel(attr, key)}${type ? ` (${type})` : ''}`;
+}
+
+function modificationsText(
+  ctx: FormatContext,
+  entityType: string | null,
+  mods: unknown,
+): string | null {
+  const parts = (Array.isArray(mods) ? mods : [])
+    .map((m) => modificationText(ctx, entityType, m))
+    .filter((t): t is string => !!t);
+  return parts.length ? parts.join(', ') : null;
+}
+
+const listOf = (v: unknown): Payload[] =>
+  (Array.isArray(v) ? v : []).map(obj).filter((x): x is Payload => !!x);
+
+/** Attaquant nommé par la charge ; null : caché au lecteur (« Un adversaire »). */
+function attackerName(ctx: FormatContext, id: string | null) {
+  return id ? bold(characterName(ctx, id)) : 'Un adversaire';
+}
+
+/** « de **Orc** », ou rien quand l'attaquant n'est pas connu. */
+const ofAttacker = (ctx: FormatContext, id: string | null) =>
+  id ? ` de ${bold(characterName(ctx, id))}` : '';
+
+/**
+ * Événements réservés au MJ (rapport complet, décision, annulation, hors de combat) : le
+ * serveur ne les donne qu'au MJ ; un lecteur qui n'est pas MJ ne les met jamais en mots.
+ */
+const gmOnly =
+  (f: Formatter): Formatter =>
+  (e, ctx) =>
+    ctx.viewerIsGm ? f(e, ctx) : null;
+
+const COMBAT_FORMATTERS: Record<string, Formatter> = {
+  // Qui attaque qui, et l'issue (attaques publiques) ; un attaquant caché n'est pas nommé
+  'combat.attack_announced': (e, ctx) => {
+    const p = e.payload;
+    const attackerId = str(p.attackerId);
+    const action = str(obj(p.action)?.name) ?? 'une attaque';
+    const targets = listOf(p.targets).map((t) => {
+      const outcome = outcomeWord(t.outcome);
+      return `${bold(characterName(ctx, str(t.characterId)))}${outcome ? ` : ${bold(outcome)}` : ''}`;
+    });
+    return {
+      ...characterFields(ctx, attackerId),
+      type: 'combat',
+      message: `${attackerName(ctx, attackerId)} utilise ${bold(action)}${
+        targets.length ? ` contre ${targets.join(' ; ')}` : ''
+      }.`,
+    };
+  },
+
+  // Décision du MJ racontée à la table : montants du camp des joueurs seulement (serveur)
+  'combat.attack_concluded': (e, ctx) => {
+    const p = e.payload;
+    const attackerId = str(p.attackerId);
+    const parts = listOf(p.targets).flatMap((t) => {
+      const id = str(t.characterId);
+      const who = bold(characterName(ctx, id));
+      if (t.decision === 'skipped') return [`${who} : sans effet`];
+      if (t.decision !== 'applied') return [];
+      const character = characterOf(ctx, id);
+      const amounts = listOf(t.amounts)
+        .map((a) => {
+          const key = str(a.attribute);
+          const value = num(a.value);
+          if (!key || value === null) return null;
+          const attr = attributeOf(ctx, character?.type, key)?.attr;
+          if (attr?.visibilite === 'mj' && !ctx.viewerIsGm) return null;
+          const type = damageTypeName(ctx, str(a.damageType));
+          return `${value} ${attributeLabel(attr, key)}${type ? ` (${type})` : ''}`;
+        })
+        .filter((x): x is string => !!x);
+      return [amounts.length ? `${who} (${amounts.join(', ')})` : who];
+    });
+    if (!parts.length) return null;
+    return {
+      ...characterFields(ctx, attackerId),
+      type: 'combat',
+      message: `Attaque${attackerId ? ofAttacker(ctx, attackerId) : ' d’un adversaire'} appliquée : ${parts.join(' ; ')}.`,
+    };
+  },
+
+  // Rapport complet (MJ) : dés, issue, valeurs proposées par cible
+  'combat.attack_resolved': gmOnly((e, ctx) => {
+    const attack = obj(e.payload.attack);
+    if (!attack) return null;
+    const attackerId = str(attack.attackerId);
+    const action = str(obj(attack.action)?.name) ?? 'une attaque';
+    const parts = listOf(attack.targets).map((t) => {
+      const id = str(t.characterId);
+      const who = bold(characterName(ctx, id));
+      const error = str(t.error);
+      if (t.status === 'failed') return `${who} : refusé${error ? ` (${error})` : ''}`;
+      const result = obj(t.result);
+      const outcome = outcomeWord(result?.outcome);
+      const roll = rollText(ctx, result?.roll);
+      const mods = modificationsText(
+        ctx,
+        characterOf(ctx, id)?.type ?? null,
+        result?.modifications,
+      );
+      return `${who} : ${[outcome ? bold(outcome) : null, roll ? `jet ${roll}` : null, mods]
+        .filter(Boolean)
+        .join(', ')}`;
+    });
+    return {
+      ...characterFields(ctx, attackerId),
+      type: 'combat',
+      message: `${attackerName(ctx, attackerId)} utilise ${bold(action)}${
+        parts.length ? ` : ${parts.join(' ; ')}` : ''
+      }.`,
+    };
+  }),
+
+  'combat.attack_decided': gmOnly((e, ctx) => {
+    const p = e.payload;
+    const attackerId = e.actor.characterId;
+    const targets = listOf(p.targets);
+    const applied = targets.filter((t) => t.decision === 'applied');
+    const parts = targets.map((t) => {
+      const target = str(t.characterId);
+      const app = obj(t.applied);
+      const redirected = str(app?.redirectedTo);
+      const touched = redirected ?? target;
+      const who = bold(characterName(ctx, touched));
+      if (t.decision === 'skipped') return `${who} : non appliqué`;
+      if (t.decision !== 'applied') return `${who} : en attente`;
+      const mods = modificationsText(
+        ctx,
+        characterOf(ctx, touched)?.type ?? null,
+        app?.modifications,
+      );
+      const tables = listOf(app?.tables)
+        .map((x) => str(x.entry))
+        .filter((x): x is string => !!x)
+        .map((x) => entryName(ctx, x));
+      const detailText = [mods, ...tables].filter(Boolean).join(', ');
+      return `${who}${redirected ? ' (réattribué)' : ''}${detailText ? ` : ${detailText}` : ''}`;
+    });
+    const note = str(p.note);
+    return {
+      ...characterFields(ctx, attackerId),
+      type: 'combat',
+      message: `Le MJ ${applied.length ? 'applique' : 'écarte'} l’attaque${ofAttacker(
+        ctx,
+        attackerId,
+      )}${parts.length ? ` : ${parts.join(' ; ')}` : ''}.${note ? ` « ${note} »` : ''}`,
+    };
+  }),
+
+  'combat.attack_reverted': gmOnly((e, ctx) => {
+    const p = e.payload;
+    const names = (Array.isArray(p.targetIds) ? p.targetIds : [])
+      .filter((id): id is string => typeof id === 'string')
+      .map((id) => bold(characterName(ctx, id)));
+    const attackerId = e.actor.characterId;
+    return {
+      ...characterFields(ctx, attackerId),
+      type: 'combat',
+      message: `Application annulée${p.forced === true ? ' (forcée)' : ''} : attaque${ofAttacker(
+        ctx,
+        attackerId,
+      )}${names.length ? ` sur ${names.join(', ')}` : ''}${p.actor === true ? ', coûts de l’attaquant rendus' : ''}.`,
+    };
+  }),
+
+  'combat.participant_defeated': gmOnly((e, ctx) => {
+    const id = str(e.payload.characterId);
+    return {
+      ...characterFields(ctx, id),
+      type: 'mort',
+      message: `${bold(characterName(ctx, id))} est hors de combat !`,
+    };
+  }),
+};
+
 const FORMATTERS: Record<string, Formatter> = {
   'character.updated': characterUpdated,
 
@@ -535,6 +766,37 @@ const FORMATTERS: Record<string, Formatter> = {
 
   'combat.turn_changed': (e, ctx) => {
     const p = e.payload;
+    if (p.reason === 'previous')
+      return {
+        type: 'combat',
+        message:
+          num(p.round) !== null
+            ? `Retour au tour précédent (round ${bold(num(p.round)!)}).`
+            : 'Retour au tour précédent.',
+      };
+    if (p.reason === 'turn_set') {
+      const actor = str(p.currentActorId);
+      return {
+        ...characterFields(ctx, actor),
+        type: 'combat',
+        message: actor
+          ? `Le MJ donne la main à ${bold(characterName(ctx, actor))}.`
+          : 'Le MJ passe la main.',
+      };
+    }
+    if (p.reason === 'participants_added') {
+      // `added` ne part qu'aux MJ : un joueur ne sait pas qui a rejoint (PNJ caché)
+      const added = (Array.isArray(p.added) ? p.added : []).filter(
+        (id): id is string => typeof id === 'string',
+      );
+      if (!added.length) return null;
+      return {
+        type: 'combat',
+        message: `${added.map((id) => bold(characterName(ctx, id))).join(', ')} ${
+          added.length > 1 ? 'rejoignent' : 'rejoint'
+        } le combat.`,
+      };
+    }
     if (p.reason === 'initiative') {
       const order = (Array.isArray(p.order) ? p.order : [])
         .map((o) => str(obj(o)?.characterId))
@@ -558,6 +820,8 @@ const FORMATTERS: Record<string, Formatter> = {
       message: round && round > 1 ? `Fin du combat après ${bold(round)} rounds.` : 'Fin du combat.',
     };
   },
+
+  ...COMBAT_FORMATTERS,
 
   'campaign.member_joined': (e, ctx) => {
     const id = str(e.payload.userId) ?? e.actor.userId;
