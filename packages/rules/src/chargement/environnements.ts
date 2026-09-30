@@ -4,7 +4,7 @@
  */
 import type { EnvironnementTypes, InfoAttribut, SignatureFonction } from '../formules/index.js';
 import type { Noeud, TypeValeur } from '../formules/index.js';
-import type { Attribut, Champ } from '../schema/index.js';
+import { ENTITE_COMBAT, VALEURS_COMBAT, type Attribut, type Champ } from '../schema/index.js';
 
 export function typeAttribut(a: Attribut): TypeValeur {
   switch (a.nature) {
@@ -122,6 +122,8 @@ export interface OptionsEnv {
    * (`couvert == "partiel"`) doit être l'une de ses options. Vérifié par le chargeur.
    */
   choix?: ReadonlyMap<string, readonly string[]>;
+  /** Contexte du combat lisible (`@combat.round`, `@combat.cible.aAgi`…) : formules d'action. */
+  combat?: boolean;
 }
 
 /**
@@ -178,9 +180,13 @@ export function env(o: OptionsEnv): EnvironnementTypes {
     attribut: (cle, entite) =>
       entite === undefined
         ? attributCommun(o.entite ?? [], cle)
-        : o.externes?.[entite]
-          ? attributCommun(o.externes[entite]!, cle)
-          : undefined,
+        : entite === ENTITE_COMBAT
+          ? o.combat && VALEURS_COMBAT[cle]
+            ? { type: VALEURS_COMBAT[cle], modificateur: false }
+            : undefined
+          : o.externes?.[entite]
+            ? attributCommun(o.externes[entite]!, cle)
+            : undefined,
     variable: (nom) => o.variables?.[nom],
     ...(o.entree ? { entree: o.entree } : {}),
     ...(o.option && avecEntite ? { option: o.option } : {}),

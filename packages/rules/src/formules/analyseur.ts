@@ -157,7 +157,9 @@ function decouper(s: string): JetonFormule[] {
       const fin = lireIdent(s, i + 1);
       const premier = s.slice(i + 1, fin);
       if (s[fin] === '.' && LETTRE.test(s[fin + 1] ?? '')) {
-        const fin2 = lireIdent(s, fin + 1);
+        let fin2 = lireIdent(s, fin + 1);
+        // Clé à plusieurs niveaux (`@combat.cible.aAgi`) : elle garde ses points
+        while (s[fin2] === '.' && LETTRE.test(s[fin2 + 1] ?? '')) fin2 = lireIdent(s, fin2 + 1);
         jetons.push({ k: 'ref', entite: premier, cle: s.slice(fin + 1, fin2), pos });
         i = fin2;
       } else {

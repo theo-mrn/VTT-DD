@@ -6,10 +6,10 @@
 import { describe, expect, it } from 'vitest';
 import { calculer, type Fiche } from '../calcul/index.js';
 import { charger, type SystemeCharge } from '../chargement/index.js';
-import { aleatoireImpose } from '../formules/index.js';
+import { afficher, aleatoireImpose } from '../formules/index.js';
 import { EtatEntite, type SystemeSaisi } from '../schema/index.js';
 import { miniD20 } from '../test/mini-systemes.js';
-import { executerAction, type ResultatAction } from './index.js';
+import { executerAction, executerMulticible, type ResultatAction } from './index.js';
 
 function systeme(s: unknown): SystemeCharge {
   const r = charger(s);
@@ -297,5 +297,200 @@ describe('situation commune', () => {
     const p = jouer('poussee', { avantage: true, couvert: 'important' }, [10]);
     expect(p.jet.type === 'numerique' && p.jet.total).toBe(10);
     expect(p.jet.type === 'numerique' && p.jet.valeur).toBe(15);
+  });
+});
+
+describe('contexte du combat (@combat.*)', () => {
+  /** Situation et talent qui lisent le combat ; action qui compte ses propres attaques. */
+  const avecCombat: SystemeSaisi = {
+    ...avecSituation,
+    id: 'mini-combat-contexte',
+    catalogue: [
+      ...avecSituation.catalogue!,
+      {
+        id: 'frappe-rapide',
+        sorte: 'don',
+        nom: 'Frappe rapide',
+        effets: [
+          {
+            sur: 'jet',
+            description: 'Frappe rapide',
+            si: '@combat.premierRound et non @combat.cible.aAgi',
+            ajout: { bonus: '2 * rang' },
+          },
+        ],
+      },
+    ],
+    situation: {
+      parametres: [
+        ...avecSituation.situation!.parametres!,
+        { id: 'cibleSurprise', nom: 'Cible surprise', type: 'booleen' },
+      ],
+      effets: [
+        ...avecSituation.situation!.effets!,
+        {
+          sur: 'jet',
+          description: 'Cible surprise',
+          si: 'cibleSurprise ou @combat.cible.surpris',
+          ajout: { bonus: 5 },
+        },
+      ],
+    },
+    actions: [
+      ...avecSituation.actions!.filter((a) => a.id !== 'test'),
+      {
+        id: 'abordage',
+        nom: 'À l’abordage',
+        pour: ['personnage'],
+        cible: 'personnage',
+        situation: false,
+        variables: [
+          { cle: 'premiere', formule: '@combat.enCours et @combat.acteur.attaques == 0' },
+          { cle: 'rythme', formule: '@combat.round * 10 + @combat.cible.viseRound' },
+        ],
+        jet: { type: 'numerique', formule: '1d20 + si(premiere, 5, 0)' },
+      },
+    ],
+  };
+  const sc = systeme(avecCombat);
+  const f = (
+    valeurs: Record<string, number>,
+    possessions: { entree: string; rang: number }[] = [],
+  ) =>
+    calculer(
+      sc,
+      EtatEntite.parse({
+        type: 'personnage',
+        systeme: { id: 'mini-combat-contexte', version: '1.0.0' },
+        creation: false,
+        valeurs,
+        possessions,
+      }),
+    );
+  const rapide = f({ FOR: 14 }, [{ entree: 'frappe-rapide', rang: 1 }]);
+  const gobelin = f({ DEX: 14 });
+  const jouerC = (
+    action: string,
+    combat: Parameters<typeof executerAction>[1]['combat'],
+    parametres: Record<string, string | number | boolean> = {},
+    des = [10],
+  ): ResultatAction => {
+    const r = executerAction(sc, {
+      action,
+      acteur: rapide,
+      cible: gobelin,
+      parametres,
+      aleatoire: aleatoireImpose(des),
+      ...(combat ? { combat } : {}),
+    });
+    if (!r.ok) throw new Error(JSON.stringify(r.erreurs));
+    return r.resultat;
+  };
+  const total = (r: ResultatAction) => (r.jet.type === 'numerique' ? r.jet.total : NaN);
+
+  it('valide les références au chargement', () => {
+    const avec = (formule: string) =>
+      erreurs({
+        ...avecCombat,
+        actions: [
+          {
+            id: 'x',
+            nom: 'X',
+            pour: ['personnage'],
+            cible: 'personnage',
+            situation: false,
+            jet: { type: 'numerique', formule },
+          },
+        ],
+      }).join('\n');
+    expect(avec('1d20 + @combat.round')).toBe('');
+    expect(avec('1d20 + si(@combat.cible.surpris, 2, 0)')).toBe('');
+    expect(avec('1d20 + @combat.tour')).toContain('Attribut inconnu : @combat.tour');
+    expect(avec('1d20 + @combat.cible.pv')).toContain('Attribut inconnu : @combat.cible.pv');
+    expect(avec('1d20 + si(@combat.round, 1, 0)')).toContain('booleen attendu, nombre obtenu');
+    // Hors d'une action (attribut dérivé) : pas de combat
+    const e = erreurs({
+      ...avecCombat,
+      entites: [
+        {
+          ...avecCombat.entites![0]!,
+          attributs: [
+            ...avecCombat.entites![0]!.attributs,
+            { cle: 'enRage', nom: 'En rage', nature: 'derivee', formule: '@combat.round' },
+          ],
+        },
+      ],
+    }).join('\n');
+    expect(e).toContain('Attribut inconnu : @combat.round');
+  });
+
+  it('hors combat, valeurs neutres', () => {
+    const r = jouerC('abordage', undefined);
+    expect(r.variables.premiere).toBe(false);
+    expect(r.variables.rythme).toBe(0);
+    expect(total(jouerC('attaque', undefined))).toBe(13);
+  });
+
+  it('lit le round et ce que le combat a compté pour l’acteur et la cible', () => {
+    const premiere = jouerC('abordage', {
+      round: 2,
+      acteur: { attaques: 0 },
+      cible: { viseRound: 3 },
+    });
+    expect(premiere.variables.premiere).toBe(true);
+    expect(premiere.variables.rythme).toBe(23);
+    expect(total(premiere)).toBe(15);
+    const deja = jouerC('abordage', { round: 2, acteur: { attaques: 1 } });
+    expect(deja.variables.premiere).toBe(false);
+  });
+
+  it('un effet possédé lit le combat : Frappe rapide contre une cible qui n’a pas agi', () => {
+    const r = jouerC('attaque', { round: 1, cible: { aAgi: false } });
+    expect(r.jet.type === 'numerique' && r.jet.bonus.map((b) => [b.nom, b.valeur])).toEqual([
+      ['Frappe rapide', 2],
+    ]);
+    expect(total(jouerC('attaque', { round: 1, cible: { aAgi: true } }))).toBe(13);
+    expect(total(jouerC('attaque', { round: 2, cible: { aAgi: false } }))).toBe(13);
+  });
+
+  it('la situation lit le combat : cible surprise par le MJ ou déclarée', () => {
+    expect(total(jouerC('attaque', { round: 3, cible: { surpris: true } }))).toBe(18);
+    expect(total(jouerC('attaque', undefined, { cibleSurprise: true }))).toBe(18);
+    expect(total(jouerC('attaque', { round: 3, cible: { surpris: false } }))).toBe(13);
+  });
+
+  it('un contexte par cible dans une action à plusieurs cibles', () => {
+    const r = executerMulticible(sc, {
+      action: 'attaque',
+      acteur: rapide,
+      cibles: [
+        { id: 'a', fiche: gobelin, combat: { round: 3, cible: { surpris: true } } },
+        { id: 'b', fiche: gobelin },
+      ],
+      combat: { round: 3 },
+      aleatoire: aleatoireImpose([10, 10]),
+    });
+    if (!r.ok) throw new Error(JSON.stringify(r.erreurs));
+    const totaux = r.cibles.map((c) =>
+      c.ok && c.resultat.jet.type === 'numerique' ? c.resultat.jet.total : NaN,
+    );
+    expect(totaux).toEqual([18, 13]);
+  });
+
+  it('refuse un contexte mal formé', () => {
+    const r = executerAction(sc, {
+      action: 'attaque',
+      acteur: rapide,
+      cible: gobelin,
+      combat: { round: -1, cible: { attaques: 1.5 } } as never,
+      aleatoire: aleatoireImpose([10]),
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erreurs[0]!.message).toContain('Contexte du combat invalide');
+  });
+
+  it('une clé à plusieurs niveaux se relit telle quelle', () => {
+    const f = sc.formules.get('actions/abordage/variables/rythme')!;
+    expect(afficher(f.noeud)).toBe('(@combat.round * 10) + @combat.cible.viseRound');
   });
 });

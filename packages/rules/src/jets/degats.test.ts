@@ -180,6 +180,14 @@ describe('minimum de dégâts', () => {
     expect(reduireDegats(f, 0, 'tranchant', 'PV', 1).valeur).toBe(0);
     expect(reduireDegats(f, 9, 'froid', 'PV', 1).valeur).toBe(0);
   });
+
+  it('le rapport dit quand le minimum a relevé les dégâts', () => {
+    const f = fiche({ possessions: [{ entree: 'ecailles' }] });
+    const releve = reduireDegats(f, 2, 'tranchant', 'PV', 1);
+    expect(releve).toMatchObject({ brut: 2, valeur: 1, minimum: 1 });
+    expect(releve.lignes.map((l) => [l.nom, l.operation])).toEqual([['Écailles', 'reduire']]);
+    expect(reduireDegats(f, 9, 'tranchant', 'PV', 1).minimum).toBeUndefined();
+  });
 });
 
 describe('type de dégâts calculé', () => {

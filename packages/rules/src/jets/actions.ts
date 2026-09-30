@@ -22,7 +22,16 @@ import {
   variablesObjet,
   type SystemeCharge,
 } from '../chargement/index.js';
-import { defautChoix, quantiteDe, recoitSituation, type Parametre } from '../schema/index.js';
+import {
+  ContexteCombat,
+  defautChoix,
+  ENTITE_COMBAT,
+  quantiteDe,
+  recoitSituation,
+  valeurCombat,
+  type ContexteCombatSaisi,
+  type Parametre,
+} from '../schema/index.js';
 import {
   ErreurEvaluation,
   evaluer,
@@ -63,6 +72,11 @@ export interface DemandeAction {
   ajustements?: Ajustements;
   /** Issue corrigée par le MJ : remplace la réussite (et le critique d'un jet numérique). */
   forcer?: IssueForcee;
+  /**
+   * Contexte du combat (`@combat.*`), figé par qui mène le combat à la déclaration, sans
+   * l'action en cours. Absent : hors combat, valeurs neutres.
+   */
+  combat?: ContexteCombatSaisi;
 }
 
 /**
@@ -341,7 +355,19 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   const bonusLibre = demande.ajustements?.bonus;
   if (bonusLibre !== undefined && !Number.isFinite(bonusLibre))
     refus.push({ message: 'Ajustement : bonus numérique attendu' });
+  const lu = demande.combat === undefined ? undefined : ContexteCombat.safeParse(demande.combat);
+  if (lu && !lu.success)
+    refus.push({
+      message: `Contexte du combat invalide : ${lu.error.issues.map((i) => i.path.join('.') || i.message).join(', ')}`,
+    });
   if (refus.length) return { ok: false, erreurs: refus };
+  const combat = lu?.success ? lu.data : undefined;
+  /** `@combat.<cle>` : lu dans le contexte fourni, neutre hors combat. */
+  const lireCombat = (cle: string): Valeur => {
+    const v = valeurCombat(combat, cle);
+    if (v === undefined) throw new ErreurEvaluation(`Valeur de combat inconnue : ${cle}`, 0);
+    return v;
+  };
 
   const exige = systeme.formules.get(chemins.action(action.id, 'exige'));
   if (exige && acteur.evaluer(exige, {}, false) !== true) {
@@ -440,6 +466,12 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
     if (e === 'cible' && cible) return cible;
     throw new ErreurEvaluation(`Entité « ${e} » absente du contexte`, 0);
   };
+  /** Attributs d'une fiche, et `@combat.*` (le même pour l'acteur, la cible et leurs effets). */
+  const attributsAvecCombat = (fiche: Fiche) => {
+    const base = fiche.contexte();
+    return (cle: string, e?: string): Valeur =>
+      e === ENTITE_COMBAT ? lireCombat(cle) : base.attribut(cle, e);
+  };
   const lireVariable = (nom: string, mode?: ModeDes): Valeur => {
     const differee = differees.get(nom);
     if (differee) return differee(mode);
@@ -450,7 +482,11 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   const moi = acteur.contexte();
   const ctx = acteur.contexte({
     attribut: (cle, e) =>
-      e === undefined ? moi.attribut(cle) : entite(e).contexte().attribut(cle),
+      e === undefined
+        ? moi.attribut(cle)
+        : e === ENTITE_COMBAT
+          ? lireCombat(cle)
+          : entite(e).contexte().attribut(cle),
     modificateur: (cle, e) =>
       e === undefined ? moi.modificateur(cle) : entite(e).contexte().modificateur(cle),
     variable: lireVariable,
@@ -574,9 +610,10 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
   // entrées du catalogue, exemplaires et bonus libres, par le même chemin
   const porteurs: [Fiche, 'acteur' | 'cible'][] = [[acteur, 'acteur']];
   if (cible) porteurs.push([cible, 'cible']);
-  for (const [fiche, cote] of porteurs)
+  for (const [fiche, cote] of porteurs) {
+    const attribut = attributsAvecCombat(fiche);
     for (const source of fiche.sources) {
-      const ctxEffet = fiche.contexte({ variable: variablesEffet(source) });
+      const ctxEffet = fiche.contexte({ variable: variablesEffet(source), attribut });
       source.effets.forEach((f, i) => {
         if (f.sur !== 'jet' || !f.ajout || source.desactive(i)) return;
         if (f.cote !== cote) return;
@@ -607,6 +644,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         });
       });
     }
+  }
 
   // Situation du système (couvert, avantage de situation…) : effets de l'action elle-même,
   // lus avec ses paramètres, la cible et le combat ; sans effet, ils ne disent rien
@@ -953,7 +991,8 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
               : `−${l.valeur}`;
         explications.push(`${l.nom} : ${effet}${l.ignore ? ' (ignoré)' : ''}`);
       }
-      explications.push(`Dégâts (${typeNom}) : ${recus.brut} → ${recus.valeur}`);
+      const auMoins = recus.minimum !== undefined ? ` (au moins ${recus.minimum})` : '';
+      explications.push(`Dégâts (${typeNom}) : ${recus.brut} → ${recus.valeur}${auMoins}`);
       modifications.push({
         entite: c.entite,
         attribut: c.attribut,
@@ -962,6 +1001,7 @@ export function executer(systeme: SystemeCharge, demande: DemandeAction): Execut
         ...(typeDegats ? { type: typeDegats } : {}),
         brut: recus.brut,
         ...(recus.lignes.length ? { resistances: recus.lignes } : {}),
+        ...(recus.minimum !== undefined ? { minimum: recus.minimum } : {}),
       });
       valeur = recus.valeur;
     } else {

@@ -292,10 +292,11 @@ Ces notions sont implémentées dans `packages/rules`. Les systèmes de `package
   - ils ajoutent, améliorent, rétrogradent ou retirent des dés ;
   - ils donnent un bonus au total, ou modifient une variable (avantage, dégâts).
 - `apres` (les dés y sont permis), puis :
-  - `consequences`, qui sont des modifications proposées, appliquées par `appliquerModifications` ;
+  - `consequences`, qui sont des modifications proposées, appliquées par `appliquerModifications` ; une conséquence de dégâts détaille, pour le rapport du MJ, les dégâts bruts (`brut`), leur type, chaque résistance, réduction, immunité ou vulnérabilité de l'entité touchée avec son nom (`resistances`, celles écartées par leur famille comprises), le résultat (`valeur`) et le minimum qui l'a relevé (`minimum`, « au moins 1 DM ») ;
   - `tables`, tirées par `tirerTable` et appliquées par `appliquerTirage`. Une table appliquée plus tard donne l'entrée de sa ligne tirée, ou d'une autre ligne choisie par le MJ (`ligneDeTable`), sans nouveau tirage.
 - Valeurs (`variables`, `apres`) : `nom` (libellé) et `visibilite` : `mj` (défaut) ou `acteur`, montrée à qui agit (dégâts lancés) dans sa vue et dans le jet de l'historique des dés.
 - Côté de chaque ligne d'un jet (`EtapePool.cote`, `BonusJet.cote`) : `action`, `acteur` (ses effets, ses ajustements) ou `cible` (défense active).
+- `DemandeAction.combat` : contexte du combat lu sous `@combat.*` (voir « Contexte du combat »).
 - `DemandeAction.ajustements` : dés à symboles ajoutés (nombre positif) ou retirés (négatif) par sorte, bonus au total d'un jet numérique ; hors règles, appliqués après les effets, marqués « Ajusté à la main » (`resultat.ajuste`). `DemandeAction.forcer` : issue imposée par le MJ (`reussi`, `critique` d'un jet numérique), mêmes dés (`resultat.force`).
 
 ### Combat
@@ -375,8 +376,8 @@ situation:
 - **Effets de situation.** Seulement des effets de jet (`sur: jet` : dés ajoutés, améliorés,
   rétrogradés ou retirés, bonus au total, valeur ajoutée à une variable de l'action), sans côté
   (`cote: cible` refusé : ils ne viennent d'aucun porteur). Ils sont compilés pour chaque action
-  qui reçoit la situation, avec ses paramètres, son acteur (`@X`) et sa cible (`@cible.X`,
-  `cible_possede`) ; `actions` les restreint à certaines actions,
+  qui reçoit la situation, avec ses paramètres, son acteur (`@X`), sa cible (`@cible.X`,
+  `cible_possede`) et le combat (`@combat.*`) ; `actions` les restreint à certaines actions,
   `implique`, `condition` et `si` jouent comme pour un effet possédé. Un effet dont la valeur est
   0 ne s'applique pas et ne dit rien ; sinon sa ligne a pour source `situation`, pour nom sa
   `description` (sinon « Situation ») et pour côté `action` : l'attaquant la voit, c'est lui ou
@@ -384,6 +385,42 @@ situation:
   soin) ne fait rien.
 - **Déroulé.** Un paramètre de situation laissé à sa valeur par défaut n'apparaît pas dans les
   explications ; une option retenue y figure par son nom (« Couvert de la cible : Partiel »).
+
+### Contexte du combat (`@combat.*`)
+
+Ce que le combat a compté se lit dans les formules sous `@combat.` (une clé à plusieurs niveaux,
+`@combat.cible.aAgi`, garde ses points) :
+
+| Référence                      | Type    | Sens                                                        |
+| ------------------------------ | ------- | ----------------------------------------------------------- |
+| `@combat.enCours`              | booléen | un combat est en cours (round 1 ou plus)                    |
+| `@combat.round`                | nombre  | round courant, 1 au premier ; 0 hors combat                 |
+| `@combat.premierRound`         | booléen | round 1                                                     |
+| `@combat.acteur.attaques`      | nombre  | attaques faites par l'acteur depuis le début du combat      |
+| `@combat.acteur.attaquesRound` | nombre  | attaques faites par l'acteur ce round                       |
+| `@combat.acteur.vise`          | nombre  | fois où l'acteur a été visé depuis le début                 |
+| `@combat.acteur.viseRound`     | nombre  | fois où l'acteur a été visé ce round                        |
+| `@combat.acteur.aAgi`          | booléen | le tour de l'acteur est déjà passé ce round                 |
+| `@combat.acteur.surpris`       | booléen | l'acteur est surpris (marqué par le MJ)                     |
+| `@combat.cible.…`              | —       | les mêmes six valeurs pour la cible (`attaques`… `surpris`) |
+
+- **Qui le fournit.** Le contexte entre par la demande d'exécution (`DemandeAction.combat`,
+  `DemandeMulticible.combat`, ou `CibleAction.combat` propre à une cible), à côté des paramètres :
+  `{ round, acteur?, cible? }`, chaque participant `{ attaques, attaquesRound, vise, viseRound,
+aAgi, surpris }` (schéma `ContexteCombat`, vérifié : entiers positifs, booléens ; sinon refus).
+  Le moteur ne l'invente jamais. Le service campaign le fige à la déclaration, **sans l'action en
+  cours** : `@combat.acteur.attaques == 0` est vrai pour la première attaque du combat.
+- **Valeurs neutres.** Sans contexte, hors combat (`round` 0) ou pour un participant absent du
+  contexte : 0 et faux. Une règle écrite avec `@combat.enCours` ou `@combat.premierRound` ne se
+  déclenche donc jamais hors combat.
+- **Où.** Dans toutes les formules d'une action (variables, vérifications, jet, `apres`,
+  conséquences, tables), dans les effets de la situation, et dans `si` et les valeurs d'un effet
+  de jet possédé (Frappe rapide :
+  `si: '@combat.premierRound et non @combat.cible.aAgi'`). `acteur` et `cible` désignent
+  toujours qui agit et qui est visé, quel que soit le porteur de l'effet. Ailleurs (attributs,
+  achats, `exige`, condition d'un effet d'attribut), `@combat` est refusé.
+- **Vérifié au chargement.** Une référence inconnue (`@combat.tour`, `@combat.cible.pv`) ou mal
+  typée est refusée avec sa position, comme un attribut (« Attribut inconnu : @combat.tour »).
 
 ### Exemplaires, quantités et saisie
 

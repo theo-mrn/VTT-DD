@@ -28,6 +28,8 @@ export interface ModificationAttribut {
   brut?: number;
   /** Résistances, immunités et vulnérabilités de l'entité touchée, appliquées aux dégâts. */
   resistances?: LigneResistance[];
+  /** Minimum de la conséquence qui a relevé les dégâts (« au moins 1 DM »). */
+  minimum?: number;
 }
 
 /**

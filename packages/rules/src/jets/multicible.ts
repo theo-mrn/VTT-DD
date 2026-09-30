@@ -15,7 +15,7 @@
 import type { Fiche } from '../calcul/index.js';
 import { chemins, type SystemeCharge } from '../chargement/index.js';
 import type { Generateur, Valeur } from '../formules/index.js';
-import type { Action } from '../schema/index.js';
+import type { Action, ContexteCombatSaisi } from '../schema/index.js';
 import {
   executer,
   type Ajustements,
@@ -42,6 +42,8 @@ export interface CibleAction {
   reaction?: Record<string, Valeur>;
   /** Issue imposée pour cette cible (MJ). */
   forcer?: IssueForcee;
+  /** Contexte du combat propre à cette cible (`@combat.*`) ; absent : celui de la demande. */
+  combat?: ContexteCombatSaisi;
 }
 
 export interface DemandeMulticible {
@@ -53,6 +55,11 @@ export interface DemandeMulticible {
   /** Mode de jet ; absent : celui que déclare l'action (`multicible.jet`), sinon `par-cible`. */
   jet?: ModeJet;
   ajustements?: Ajustements;
+  /**
+   * Contexte du combat (`@combat.*`) commun à toutes les cibles, figé à la déclaration ; une
+   * cible peut porter le sien (`CibleAction.combat`). Absent : hors combat.
+   */
+  combat?: ContexteCombatSaisi;
   /**
    * Générateur des dés (il est partagé ou non selon le mode), ou source de générateurs par
    * cible déjà prête (dés planifiés, voir `aleatoirePlanifie`).
@@ -148,6 +155,7 @@ export function executerMulticible(
         aleatoire: source.pour(c.id, index),
         ...(demande.ajustements ? { ajustements: demande.ajustements } : {}),
         ...(c.forcer ? { forcer: c.forcer } : {}),
+        ...((c.combat ?? demande.combat) ? { combat: c.combat ?? demande.combat } : {}),
       });
       if (!r.ok) {
         cibles.push({ id: c.id, ok: false, erreurs: r.erreurs });

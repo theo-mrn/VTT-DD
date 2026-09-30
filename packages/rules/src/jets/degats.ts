@@ -21,6 +21,8 @@ export interface DegatsRecus {
   /** Dégâts après résistances (entier, jamais négatif). */
   valeur: number;
   lignes: LigneResistance[];
+  /** Minimum qui a relevé le résultat (« au moins 1 DM ») ; absent s'il n'a rien changé. */
+  minimum?: number;
 }
 
 /**
@@ -86,5 +88,11 @@ export function reduireDegats(
 
   const immunise = actives.some((l) => l.operation === 'annuler');
   const plancher = !immunise && montant > 0 ? Math.max(0, minimum) : 0;
-  return { brut: montant, valeur: Math.max(plancher, Math.floor(v)), lignes: candidates };
+  const reduit = Math.max(0, Math.floor(v));
+  return {
+    brut: montant,
+    valeur: Math.max(plancher, reduit),
+    lignes: candidates,
+    ...(plancher > reduit ? { minimum: plancher } : {}),
+  };
 }

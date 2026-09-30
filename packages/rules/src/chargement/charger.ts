@@ -968,6 +968,7 @@ class Chargeur {
         externes: a.cible ? { cible: this.attributsDe(a.cible) } : {},
         variables: { ...variables },
         choix,
+        combat: true,
         dynamique: true,
         // Possessions de la cible : `cible_possede("mort-vivant")`, `cible_rang("esquive")`
         fonctions: a.cible
@@ -1124,6 +1125,7 @@ class Chargeur {
             externes: o.externes ?? {},
             fonctions: { ...oe.fonctions, ...o.fonctions },
             choix: o.choix ?? new Map(),
+            combat: true,
           },
           attendu,
         ),

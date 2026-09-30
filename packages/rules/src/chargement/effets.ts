@@ -175,6 +175,8 @@ export function verifierEffets(
           ...oEffet,
           variables: variablesJet(ctx, variables),
           choix: choixJet(ctx),
+          // Contexte du combat : `@combat.cible.aAgi` (Frappe rapide), `@combat.acteur.attaques`
+          combat: true,
         };
         if (f.si !== undefined) ctx.compiler(ch('si'), f.si, oJet, 'booleen');
         const aj = f.ajout;
