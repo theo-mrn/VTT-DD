@@ -462,6 +462,7 @@ export function AssistantPersonnage({
                       portrait={portraitUrl}
                       onPortrait={setPortraitUrl}
                       nom={nom}
+                      personnageId={id}
                     />
                   )}
 

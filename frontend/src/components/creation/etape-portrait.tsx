@@ -1,11 +1,11 @@
 'use client';
 
 import type { Fiche, Presentation } from '@vtt/rules';
-import { Check, ImageOff, Link2 } from 'lucide-react';
+import { Check, ImageOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Illustration } from '@/components/commun/illustration';
+import { ImageDrop } from '@/components/uploads/image-drop';
 import { Button } from '@/components/ui/button';
-import { InputGroup } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { portraitsParDossier, useAssets } from '@/lib/assets';
 import { motsClesPortrait } from '@/lib/creation';
@@ -16,8 +16,9 @@ const PAR_PAGE = 36;
 const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /**
- * Portrait : illustrations des entrées choisies (race, profil…), bibliothèque
- * de portraits filtrée par ces mêmes entrées, ou une adresse d'image.
+ * Portrait : votre image (glisser, coller, recadrer au format portrait, envoi sur le
+ * stockage), illustrations des entrées choisies (race, profil…), bibliothèque de portraits
+ * filtrée par ces mêmes entrées.
  */
 export function EtapePortrait({
   fiche,
@@ -25,12 +26,15 @@ export function EtapePortrait({
   portrait,
   onPortrait,
   nom,
+  personnageId,
 }: {
   fiche: Fiche;
   presentation: Presentation | null;
   portrait: string | null;
   onPortrait: (url: string | null) => void;
   nom: string;
+  /** Personnage en création : son dossier reçoit l'image envoyée. */
+  personnageId: string | null;
 }) {
   const assets = useAssets();
   const dossiers = useMemo(() => portraitsParDossier(assets.data ?? []), [assets.data]);
@@ -41,7 +45,6 @@ export function EtapePortrait({
     ) ?? null;
   const [dossier, setDossier] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [url, setUrl] = useState('');
   const actif = dossier ?? suggere ?? [...dossiers.keys()][0] ?? null;
 
   const illustrations = [...fiche.possessions.values()]
@@ -51,6 +54,23 @@ export function EtapePortrait({
 
   return (
     <div className="space-y-7">
+      <section className="flex items-start gap-4">
+        <ImageDrop
+          className="w-44 shrink-0"
+          target={personnageId ? { kind: 'character', id: personnageId } : null}
+          usage="portrait"
+          value={portrait}
+          onChange={onPortrait}
+          label="Votre image"
+        />
+        {portrait && (
+          <Button variant="ghost" size="sm" onClick={() => onPortrait(null)}>
+            <ImageOff />
+            Sans portrait
+          </Button>
+        )}
+      </section>
+
       {illustrations.length > 0 && (
         <section>
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-subtle">
@@ -124,30 +144,6 @@ export function EtapePortrait({
             )}
           </>
         )}
-      </section>
-
-      <section className="flex flex-col gap-3 sm:flex-row">
-        <InputGroup
-          avant={<Link2 />}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="Ou collez l'adresse https:// d'une image"
-          aria-label="Adresse d'un portrait"
-        />
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            className="h-10"
-            disabled={!/^https:\/\/\S+$/i.test(url.trim())}
-            onClick={() => onPortrait(url.trim())}
-          >
-            Utiliser
-          </Button>
-          <Button variant="ghost" className="h-10" onClick={() => onPortrait(null)}>
-            <ImageOff />
-            Sans portrait
-          </Button>
-        </div>
       </section>
     </div>
   );
