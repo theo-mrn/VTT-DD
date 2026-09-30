@@ -1066,19 +1066,34 @@ son tour, ne prend plus un créneau et ne lance plus son initiative lui-même : 
 `components/combat/live-reports/`) : sous le bandeau, une pile de rapports, sans changer de
 panneau. Chaque attaque qui attend une décision (`pending`) sort de la barre dès qu'elle arrive
 (ressort court, `motion`, `prefers-reduced-motion` respecté) ; une attaque en cours (défense ou
-dés attendus) y paraît discrète et se complète en place. Les plus récentes en haut, trois cartes
-au plus, « +n » ouvre le panneau Combat ; la pile se replie d'un clic (préférence du navigateur)
-et s'efface quand le panneau Combat est ouvert (il montre déjà les rapports). Carte compacte par
-attaque : attaquant → cible(s) en portraits, action et arme, issue par cible (Touché, Raté,
-Critique…), valeur en gros chiffre (rouge quand elle aggrave la cible), réductions en
-info-bulle, marques (auto-attaque, hors tour, ajusté à la main, caché), coûts de l'attaquant ;
-**Appliquer**, **Modifier** (le tiroir de décision du § 12.4), **Ne pas appliquer** ; plusieurs
-cibles : par cible, plus « Tout appliquer ». Décidé depuis la pile : coche tracée,
-« Appliqué : −7 PV à Gobelin », « Annuler » (annulation du § 7.3) pendant quelques secondes, puis
-la carte s'en va. Pile au focus : Entrée applique le premier rapport, Suppr ne l'applique pas.
-Mêmes corps de décision que le panneau (`reports/model.ts`) ; le dialogue « Hors de combat »
-s'ouvre après une application (un seul monté, panneau ou pile). Aucun toast n'annonçait les
-rapports : la pastille du panneau Combat reste.
+dés attendus) y paraît discrète et se complète en place, avec Tirer (le serveur tire la suite) et
+Abandonner. Les plus récentes en haut, trois au plus, « +n » ouvre le panneau Combat ; la pile
+s'efface quand le panneau Combat est ouvert (il montre déjà les rapports). Marques (auto-attaque,
+hors tour, ajusté à la main, caché), coûts de l'attaquant, réductions en info-bulle. Décidé depuis
+la pile : coche tracée, « Appliqué : −7 PV à Gobelin », « Annuler » (annulation du § 7.3) pendant
+quelques secondes, puis la ligne s'en va. Pile au focus : Entrée applique la carte dépliée, Suppr
+ne l'applique pas. Mêmes corps de décision que le panneau (`reports/model.ts`) ; le dialogue
+« Hors de combat » s'ouvre après une application (un seul monté, panneau ou pile). Aucun toast
+n'annonce les rapports : la pastille du panneau Combat reste.
+
+Refonte du 2026-09-30 (demandée par Théo : ergonomie, cohérence, beauté) : la barre et la pile
+forment un seul ensemble, dans la matière du lanceur de dés et du bandeau de la fiche
+(`live-reports/look.ts` : carte, trame de points, halo selon l'issue, bouton principal du
+lanceur, libellés discrets et chiffres en mono séparés de filets).
+
+- Barre : round en chiffre mono, créneaux J/E, portraits (tour courant agrandi et souligné, le
+  trait glisse au passage du tour ; a agi estompé, hors de combat gris avec crâne, initiative
+  attendue en point d'alerte ; nom et initiative en info-bulle), nom de qui agit, Précédent,
+  Suivant ou « Lancer l'initiative », **pastille des rapports** (nombre à décider ; un clic
+  replie ou déplie la pile, préférence du navigateur) et panneau Combat.
+- Pile : **une seule carte dépliée** (la plus récente à décider, ou celle que le MJ ouvre ; elle
+  reste dépliée quand un rapport arrive) : duel en portraits, Touché ou Raté (l'ancienne app),
+  jet avec le total et les dés du lanceur (`TotalJet`, `DesDuJet` : critique à côté du chiffre),
+  valeur à appliquer en grand (rouge quand elle aggrave la cible), puis Appliquer, Modifier (le
+  tiroir du § 12.4), Ne pas appliquer ; un raté sans rien à appliquer se **classe**. Plusieurs
+  cibles : une ligne par cible (appliquer ou non) et « Tout appliquer ». Les autres rapports à
+  décider sont des **lignes** (qui, issue, valeur) décidables d'un clic et dépliées d'un clic.
+  Aucun texte d'aide : libellés d'action en info-bulle.
 
 ## 13. Nuances par système
 

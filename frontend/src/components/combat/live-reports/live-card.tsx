@@ -220,7 +220,7 @@ function SingleTarget({
   return (
     <div className="space-y-2.5 pl-4 pr-3 pt-3">
       <dl className="flex items-stretch">
-        <Figure label="Jet" className="flex-1 pr-4">
+        <Figure label="Jet" className="flex-[1.4] pr-4">
           <RollFigure attack={a} target={t} systeme={systeme} presentation={presentation} />
         </Figure>
         {main && (
