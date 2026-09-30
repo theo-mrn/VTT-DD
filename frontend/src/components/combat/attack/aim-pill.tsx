@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
+import { Info } from '@/components/ui/tooltip';
 import { targetName } from '@/lib/combat/view';
 import { useActiveMap } from '@/lib/map/active-map';
 import { aimDistanceText } from '@/lib/map/modules/combat/aim-distance';
@@ -125,17 +126,18 @@ export function AimPill({
                 ? targetName(targetIds[0]!, ctx.known)
                 : `${n} cibles`}
           </span>
-          {distance ? (
-            <span className="flex items-center gap-1 text-[11.5px] tabular-nums text-muted-foreground">
+          {distance && (
+            <span className="flex items-center gap-1 font-mono text-[11.5px] tabular-nums text-muted-foreground">
               <Ruler className="size-3 shrink-0" aria-hidden />
               {distance}
             </span>
-          ) : (
-            <span className="hidden text-[11.5px] text-muted-foreground sm:block">
-              Cliquez les tokens · <Kbd>⇧</Kbd> plusieurs
-            </span>
           )}
         </span>
+        <Info texte="⇧ + clic : plusieurs cibles">
+          <span tabIndex={0} className="rounded max-sm:hidden [@media(pointer:coarse)]:hidden">
+            <Kbd>⇧</Kbd>
+          </span>
+        </Info>
         {quick && (
           <Button
             size="icon-sm"

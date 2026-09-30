@@ -57,6 +57,7 @@ export function TotalJet({
   taille = 'lg',
   cle,
   symboles = null,
+  sansBadge = false,
 }: {
   total: number | null;
   critique: Critique;
@@ -64,6 +65,8 @@ export function TotalJet({
   /** Change à chaque jet pour rejouer l'apparition. */
   cle?: string;
   symboles?: string | null;
+  /** Pas de pastille « Critique » : l'issue est dite ailleurs (menu d'attaque). */
+  sansBadge?: boolean;
 }) {
   if (total === null)
     return (
@@ -99,7 +102,7 @@ export function TotalJet({
           {symboles ?? total}
         </motion.span>
       </AnimatePresence>
-      {critique && (
+      {critique && !sansBadge && (
         <motion.span
           initial={{ opacity: 0, x: -6 }}
           animate={{ opacity: 1, x: 0 }}

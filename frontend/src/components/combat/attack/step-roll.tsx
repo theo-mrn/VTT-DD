@@ -1,36 +1,26 @@
 'use client';
 
 /**
- * Étapes « Jet » et « Fin » du menu d'attaque (docs/combat.md § 12.1, 3 et 4), mises en scène
- * comme l'ancienne page : attente (défense de la cible, dés), grand chiffre du jet (dés + mod
- * = total, ou les symboles), TOUCHÉ ou RATÉ, puis le grand chiffre des dégâts et leur détail ;
- * une rangée par cible s'il y en a plusieurs. Puis « Rapport envoyé au MJ » et son statut en
- * direct.
+ * Jet et fin du menu d'attaque (docs/combat.md § 12.1) : l'attente (défense de la cible, dés qui
+ * roulent), puis le résultat comme le lanceur de dés le montre (les dés, le total en grand,
+ * doré sur un critique) et TOUCHÉ ou RATÉ en très grand ; les dégâts à côté, en grand chiffre.
+ * Une rangée par cible s'il y en a plusieurs. Enfin le statut du rapport, en direct.
  *
- * Étape B : le serveur tire les dés (`serverRunner`), rien ne roule vers une face choisie :
- * le résultat apparaît, il n'est pas « lancé ». Le branchement des dés 3D (étape C) reste
- * celui de `dice-steps.ts`.
+ * Étape B : le serveur tire les dés (`serverRunner`), rien ne roule vers une face choisie : le
+ * résultat apparaît, il n'est pas « lancé ». Le branchement des dés 3D (étape C) reste celui de
+ * `dice-steps.ts`.
  */
 import type { Attack } from '@vtt/contracts';
 import type { Presentation, SystemeCharge } from '@vtt/rules';
-import {
-  Ban,
-  Check,
-  ChevronDown,
-  Crown,
-  Dices,
-  Send,
-  Shield,
-  Skull,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { MotionConfig } from 'framer-motion';
+import { Ban, ChevronDown, Send, Shield } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
 import { Message } from '@/components/compte/elements';
-import { DesDuJet } from '@/components/des/resultat-jet';
+import { DeVisuel } from '@/components/des/de-visuel';
+import { DesDuJet, TotalJet } from '@/components/des/resultat-jet';
 import { DesSymboles, ResultatsSymboles } from '@/components/fiche/symboles';
 import { Badge } from '@/components/ui/badge';
 import { hasSuccessRule } from '@/lib/combat/actions';
@@ -47,8 +37,9 @@ import {
 import { attackMenu } from '@/lib/combat/attack-menu-store';
 import { serverRunner } from '@/lib/combat/dice-steps';
 import { ATTACK_STATUS_LABELS, useAttack, type useAttackCommands } from '@/lib/combat/use-attacks';
-import { awaitingReaction, targetName, type OutcomeTone } from '@/lib/combat/view';
+import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
+import { OUTCOME_STYLE, rollGroups } from './outcome';
 import { ResultCard } from './result-card';
 import type { AttackContext } from './use-attack-context';
 import type { OpenFlow } from './use-attack-model';
@@ -110,6 +101,7 @@ export function StepRoll({
   presentation: Presentation | null;
   /** Mouvement réduit, ou attaque rouverte : tout d'un coup. */
   instant: boolean;
+  /** Le résultat a déjà été dévoilé une fois (retour des dégâts) : seuls les dégâts arrivent. */
   revealed: boolean;
   onRevealed: () => void;
 }) {
@@ -119,14 +111,12 @@ export function StepRoll({
     const waiting = awaitingReaction(attack);
     return (
       <Waiting
-        icon={Shield}
+        shield
         title={`Défense de ${waiting.map((t) => targetName(t.characterId, ctx.known)).join(', ') || 'la cible'}…`}
-        subtitle="La cible choisit sa réaction avant le jet."
       />
     );
   }
-  if (stage === 'dice')
-    return <Waiting title="Les dés roulent…" subtitle="Le serveur lance les dés de l’attaque." />;
+  if (stage === 'dice') return <Waiting title="Les dés roulent…" />;
   if (stage === 'cancelled')
     return (
       <Centered>
@@ -142,7 +132,7 @@ export function StepRoll({
       systeme={systeme}
       presentation={presentation}
       instant={instant}
-      revealed={revealed}
+      settled={revealed}
       onRevealed={onRevealed}
     />
   );
@@ -156,32 +146,27 @@ function Centered({ children }: { children: ReactNode }) {
   );
 }
 
-function Waiting({
-  title,
-  subtitle,
-  icon: Icon = Dices,
-}: {
-  title: string;
-  subtitle?: string;
-  icon?: LucideIcon;
-}) {
+/** Attente : le d20 du lanceur qui tremble (le bouclier pendant la défense). */
+function Waiting({ title, shield = false }: { title: string; shield?: boolean }) {
   return (
     <div
       role="status"
-      className="flex min-h-[18rem] flex-col items-center justify-center gap-5 text-center"
+      className="flex min-h-[18rem] flex-col items-center justify-center gap-6 text-center"
     >
-      <div className="relative grid size-24 place-items-center">
-        <span aria-hidden className="absolute inset-0 rounded-full border-4 border-border" />
-        <span
-          aria-hidden
-          className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary motion-reduce:animate-none"
-        />
-        <Icon className="size-8 text-primary" aria-hidden />
+      <div className="relative grid size-28 place-items-center">
+        <span aria-hidden className="absolute inset-0 rounded-full bg-halo" />
+        {shield ? (
+          <Shield
+            className="size-12 animate-pulse text-primary motion-reduce:animate-none"
+            aria-hidden
+          />
+        ) : (
+          <span className="animate-shake-die motion-reduce:animate-none">
+            <DeVisuel faces={20} taille="xl" />
+          </span>
+        )}
       </div>
-      <div>
-        <p className="font-display text-2xl font-semibold">{title}</p>
-        {subtitle && <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p>}
-      </div>
+      <p className="font-display text-2xl font-semibold">{title}</p>
     </div>
   );
 }
@@ -197,13 +182,20 @@ function attributeNamer(systeme: SystemeCharge) {
   };
 }
 
+/** Libellé discret au-dessus d'une valeur, comme le bandeau de la fiche. */
+function Label({ children }: { children: ReactNode }) {
+  return <p className="text-[11px] font-medium uppercase tracking-wider text-subtle">{children}</p>;
+}
+
+const signed = (n: number) => (n >= 0 ? `+ ${n}` : `− ${Math.abs(n)}`);
+
 function Result({
   attack,
   ctx,
   systeme,
   presentation,
   instant,
-  revealed,
+  settled,
   onRevealed,
 }: {
   attack: Attack;
@@ -211,11 +203,13 @@ function Result({
   systeme: SystemeCharge;
   presentation: Presentation | null;
   instant: boolean;
-  revealed: boolean;
+  settled: boolean;
   onRevealed: () => void;
 }) {
   const reduced = useReducedMotion() ?? false;
   const quick = instant || reduced;
+  // Retour de l'écran des dégâts : le jet est déjà connu, seuls les dégâts arrivent
+  const rollQuick = quick || settled;
   const successRule = hasSuccessRule(systeme.actions.get(attack.action.id));
   const attributeName = attributeNamer(systeme);
   const summaries = attack.targets.map((t) =>
@@ -225,8 +219,9 @@ function Result({
   const t = revealTimeline({
     targets: summaries.length,
     damage: summaries.some((s) => s.damage),
-    instant: quick,
+    instant: rollQuick,
   });
+  const damageDelay = settled && !quick ? 150 : t.damage;
   const done = useRef(onRevealed);
   done.current = onRevealed;
   useEffect(() => {
@@ -236,77 +231,182 @@ function Result({
   }, [attack.id]);
   const failed = attack.status === 'failed';
   const first = summaries[0];
+  const glow = first?.outcome ? OUTCOME_STYLE[first.outcome.tone].glow : '--primary';
 
   return (
-    <div className="space-y-6" aria-live="polite">
-      {failed && (
-        <Message>
-          Refusée par les règles
-          {summaries.find((s) => s.error)?.error
-            ? ` : ${summaries.find((s) => s.error)!.error}`
-            : '.'}
-        </Message>
-      )}
-      {shared && first?.figure && (
-        <BigRoll
-          figure={first.figure}
-          systeme={systeme}
-          presentation={presentation}
-          quick={quick}
+    <MotionConfig reducedMotion={rollQuick ? 'always' : 'user'}>
+      <div className="relative isolate space-y-6" aria-live="polite">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-8 -z-10 h-80"
+          style={{
+            background: `radial-gradient(55% 60% at 50% 30%, hsl(var(${glow}) / 0.12), transparent 70%)`,
+          }}
         />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-8 -z-10 h-80 bg-dots opacity-60 mask-radial"
+        />
+        {failed && (
+          <Message>
+            Refusée par les règles
+            {summaries.find((s) => s.error)?.error
+              ? ` : ${summaries.find((s) => s.error)!.error}`
+              : '.'}
+          </Message>
+        )}
+        {summaries.length === 1 && first ? (
+          <Duel
+            summary={first}
+            systeme={systeme}
+            presentation={presentation}
+            successRule={successRule}
+            quick={rollQuick}
+            outcomeDelay={t.outcome}
+            damageDelay={damageDelay}
+            animateDamage={!quick}
+          />
+        ) : (
+          <>
+            {shared && first?.figure && (
+              <div className="flex flex-col items-center gap-3">
+                <BigRoll
+                  figure={first.figure}
+                  systeme={systeme}
+                  presentation={presentation}
+                  quick={rollQuick}
+                  critique={first.outcome ? OUTCOME_STYLE[first.outcome.tone].critique : null}
+                  cle={attack.id}
+                />
+              </div>
+            )}
+            <ul className="mx-auto max-w-3xl space-y-2.5">
+              {summaries.map((s, i) => (
+                <TargetRow
+                  key={s.characterId}
+                  summary={s}
+                  ctx={ctx}
+                  systeme={systeme}
+                  presentation={presentation}
+                  showRoll={!shared}
+                  delay={rollQuick ? 0 : (t.outcome + i * 120) / 1000}
+                  damageDelay={quick ? 0 : (damageDelay + i * 120) / 1000}
+                  successRule={successRule}
+                  quick={rollQuick}
+                  animateDamage={!quick}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+        {(settled || quick) && (
+          <Details attack={attack} ctx={ctx} systeme={systeme} presentation={presentation} />
+        )}
+      </div>
+    </MotionConfig>
+  );
+}
+
+// ─── Une cible : le jet, puis les dégâts à côté ──────────────────────────────
+
+function Duel({
+  summary,
+  systeme,
+  presentation,
+  successRule,
+  quick,
+  outcomeDelay,
+  damageDelay,
+  animateDamage,
+}: {
+  summary: TargetSummary;
+  systeme: SystemeCharge;
+  presentation: Presentation | null;
+  successRule: boolean;
+  quick: boolean;
+  outcomeDelay: number;
+  damageDelay: number;
+  animateDamage: boolean;
+}) {
+  const o = summary.outcome;
+  const style = o ? OUTCOME_STYLE[o.tone] : null;
+  const fig = summary.figure;
+  const pop = (delay: number, on: boolean) =>
+    on
+      ? {
+          initial: { opacity: 0, scale: 0.7 },
+          animate: { opacity: 1, scale: 1 },
+          transition: { delay: delay / 1000, type: 'spring' as const, stiffness: 300, damping: 22 },
+        }
+      : {};
+  const damage = summary.damage;
+  return (
+    <div
+      className={cn(
+        'mx-auto grid max-w-4xl items-center gap-8',
+        damage && 'sm:grid-cols-2 sm:gap-0',
       )}
-      {summaries.length === 1 && first ? (
-        <SingleOutcome summary={first} successRule={successRule} delays={t} quick={quick} />
-      ) : (
-        <ul className="mx-auto max-w-3xl space-y-2.5">
-          {summaries.map((s, i) => (
-            <TargetRow
-              key={s.characterId}
-              summary={s}
-              ctx={ctx}
-              systeme={systeme}
-              presentation={presentation}
-              showRoll={!shared}
-              delay={quick ? 0 : (t.outcome + i * 120) / 1000}
-              damageDelay={quick ? 0 : (t.damage + i * 120) / 1000}
-              successRule={successRule}
-              quick={quick}
+    >
+      <div className="flex flex-col items-center gap-4 text-center">
+        {summary.error && <Message>{summary.error}</Message>}
+        {fig && (
+          <BigRoll
+            figure={fig}
+            systeme={systeme}
+            presentation={presentation}
+            quick={quick}
+            critique={style?.critique ?? null}
+            cle={summary.characterId}
+          />
+        )}
+        {o && style && (
+          <motion.p
+            {...pop(outcomeDelay, !quick)}
+            className="flex items-center gap-3 font-display text-4xl font-black uppercase tracking-[0.18em] sm:text-6xl"
+          >
+            <style.icon
+              className={cn('size-9 shrink-0 sm:size-12', style.tint)}
+              strokeWidth={2.5}
+              aria-hidden
             />
-          ))}
-        </ul>
-      )}
-      {revealed && (
-        <Details attack={attack} ctx={ctx} systeme={systeme} presentation={presentation} />
+            <span className={style.text}>{o.label}</span>
+          </motion.p>
+        )}
+      </div>
+      {damage && (
+        <motion.div
+          {...pop(damageDelay, animateDamage)}
+          className="flex flex-col items-center gap-3 border-t border-border pt-8 text-center sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0"
+        >
+          <Label>{damage.name ?? 'Valeur'}</Label>
+          <DamageNumber damage={damage} successRule={successRule} size="xl" />
+          <DamageDetails damage={damage} className="justify-center" />
+        </motion.div>
       )}
     </div>
   );
 }
 
-// ─── Grand chiffre ───────────────────────────────────────────────────────────
-
-const signed = (n: number) => (n >= 0 ? `+ ${n}` : `− ${Math.abs(n)}`);
-
+/** Le jet comme le lanceur de dés l'affiche : les dés, le total, le détail. */
 function BigRoll({
   figure,
   systeme,
   presentation,
   quick,
+  critique,
+  cle,
 }: {
   figure: RollFigure;
   systeme: SystemeCharge;
   presentation: Presentation | null;
   quick: boolean;
+  critique: 'success' | 'failure' | null;
+  cle: string;
 }) {
-  const pop = quick
-    ? {}
-    : {
-        initial: { scale: 0.55, opacity: 0 },
-        animate: { scale: 1, opacity: 1 },
-        transition: { type: 'spring' as const, stiffness: 260, damping: 20 },
-      };
   if (figure.kind === 'symbols')
     return (
-      <motion.div {...pop} className="mx-auto flex max-w-xl flex-col items-center gap-3">
+      <div className="flex max-w-xl flex-col items-center gap-3">
+        <Label>Jet</Label>
         <ResultatsSymboles
           systeme={systeme}
           presentation={presentation}
@@ -317,110 +417,54 @@ function BigRoll({
           presentation={presentation}
           des={figure.roll.dice.map((x) => ({ de: x.die, face: x.face, symboles: x.symbols }))}
         />
-      </motion.div>
+      </div>
     );
   return (
-    <div className="flex flex-col items-center text-center">
-      <motion.p
-        {...pop}
-        aria-label={`Total du jet : ${figure.total}`}
-        className="bg-gradient-to-b from-foreground to-muted-foreground bg-clip-text font-display text-[5.5rem] font-bold leading-none tabular-nums text-transparent sm:text-[8.5rem]"
-      >
-        {figure.total}
-      </motion.p>
-      <div className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-border bg-surface/80 px-5 py-2 font-mono text-lg tabular-nums shadow-surface">
-        <span>{figure.dice}</span>
-        {figure.modifier !== 0 && <span className="text-info">{signed(figure.modifier)}</span>}
-        <span className="text-subtle">=</span>
-        <span className="font-bold">{figure.total}</span>
+    <div className="flex flex-col items-center gap-3">
+      <Label>Jet</Label>
+      <DesDuJet taille="md" entree={!quick} groupes={rollGroups(figure.roll)} />
+      <div aria-label={`Total du jet : ${figure.total}`}>
+        <TotalJet total={figure.total} critique={critique} taille="xl" cle={cle} sansBadge />
       </div>
-      <div className="mt-3">
-        <DesDuJet
-          taille="sm"
-          entree={!quick}
-          groupes={figure.roll.dice.map((g) => ({
-            faces: g.faces,
-            total: g.values.filter((v) => v.kept).reduce((s, v) => s + v.value, 0),
-            dice: g.values.map((v) => ({ value: v.value, kept: v.kept, exploded: v.exploded })),
-          }))}
-        />
-      </div>
-      <p className="mt-2 max-w-full truncate font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
-        {figure.formula}
-        {figure.bonuses.length > 0 &&
-          ` · ${figure.bonuses.map((b) => `${b.name} ${b.value >= 0 ? '+' : ''}${b.value}`).join(', ')}`}
+      <p className="max-w-full truncate font-mono text-xs text-subtle">
+        {figure.dice}
+        {figure.modifier !== 0 && ` ${signed(figure.modifier)}`} = {figure.total}
+        <span className="ml-2">
+          ({figure.formula}
+          {figure.bonuses.length > 0 &&
+            ` · ${figure.bonuses.map((b) => `${b.name} ${b.value >= 0 ? '+' : ''}${b.value}`).join(', ')}`}
+          )
+        </span>
       </p>
     </div>
   );
 }
 
-const OUTCOME_STYLE: Record<OutcomeTone, { className: string; icon: LucideIcon }> = {
-  success: { className: 'text-success', icon: Check },
-  critical: { className: 'text-primary', icon: Crown },
-  fumble: { className: 'text-destructive', icon: Skull },
-  failure: { className: 'text-destructive', icon: X },
-  neutral: { className: 'text-muted-foreground', icon: Dices },
-};
-
 function damageTone(d: DamageFigure, successRule: boolean) {
   if (d.sense === 'add') return 'text-success';
   if (d.sense === 'subtract' || successRule) return 'text-destructive';
-  return 'text-primary';
+  return 'text-gradient-primary';
 }
 
-function SingleOutcome({
-  summary,
+function DamageNumber({
+  damage,
   successRule,
-  delays,
-  quick,
+  size,
 }: {
-  summary: TargetSummary;
+  damage: DamageFigure;
   successRule: boolean;
-  delays: { outcome: number; damage: number };
-  quick: boolean;
+  size: 'md' | 'xl';
 }) {
-  const o = summary.outcome;
-  const style = o ? OUTCOME_STYLE[o.tone] : null;
-  const enter = (delay: number) =>
-    quick
-      ? {}
-      : {
-          initial: { opacity: 0, scale: 0.7 },
-          animate: { opacity: 1, scale: 1 },
-          transition: { delay: delay / 1000, type: 'spring' as const, stiffness: 300, damping: 22 },
-        };
   return (
-    <div className="flex flex-col items-center gap-6 text-center">
-      {summary.error && <Message>{summary.error}</Message>}
-      {o && style && (
-        <motion.p
-          {...enter(delays.outcome)}
-          className={cn(
-            'flex items-center gap-3 font-display text-4xl font-black uppercase tracking-[0.18em] sm:text-6xl',
-            style.className,
-          )}
-        >
-          <style.icon className="size-9 sm:size-12" strokeWidth={2.5} aria-hidden />
-          {o.label}
-        </motion.p>
+    <span
+      className={cn(
+        'font-mono font-bold leading-none tabular',
+        size === 'xl' ? 'text-7xl sm:text-8xl' : 'text-3xl',
+        damageTone(damage, successRule),
       )}
-      {summary.damage && (
-        <motion.div {...enter(delays.damage)} className="flex flex-col items-center">
-          <p
-            className={cn(
-              'font-display text-7xl font-bold leading-none tabular-nums sm:text-[7rem]',
-              damageTone(summary.damage, successRule),
-            )}
-          >
-            {summary.damage.value}
-          </p>
-          <p className="mt-2 text-sm font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-            {summary.damage.name ?? 'Valeur'}
-          </p>
-          <DamageDetails damage={summary.damage} className="mt-3 justify-center" />
-        </motion.div>
-      )}
-    </div>
+    >
+      {damage.value}
+    </span>
   );
 }
 
@@ -431,15 +475,17 @@ function DamageDetails({ damage, className }: { damage: DamageFigure; className?
       {damage.details.map((d, i) => (
         <li
           key={`${d.label}-${i}`}
-          className="rounded-full border border-border bg-surface/70 px-2.5 py-0.5 text-[12px]"
+          className="inline-flex items-baseline gap-1 rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[11px]"
         >
-          <span className="text-subtle">{d.label}</span>{' '}
-          <span className="font-mono font-medium">{d.value}</span>
+          <span className="text-subtle">{d.label}</span>
+          <span className="font-mono font-medium text-foreground">{d.value}</span>
         </li>
       ))}
     </ul>
   );
 }
+
+// ─── Plusieurs cibles : une rangée chacune ───────────────────────────────────
 
 function TargetRow({
   summary,
@@ -451,6 +497,7 @@ function TargetRow({
   damageDelay,
   successRule,
   quick,
+  animateDamage,
 }: {
   summary: TargetSummary;
   ctx: AttackContext;
@@ -461,20 +508,21 @@ function TargetRow({
   damageDelay: number;
   successRule: boolean;
   quick: boolean;
+  animateDamage: boolean;
 }) {
   const name = targetName(summary.characterId, ctx.known);
   const o = summary.outcome;
   const style = o ? OUTCOME_STYLE[o.tone] : null;
   const fig = summary.figure;
-  const fade = (d: number) =>
-    quick
-      ? {}
-      : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { delay: d } };
+  const fade = (d: number, on: boolean) =>
+    on
+      ? { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { delay: d } }
+      : {};
   return (
     <motion.li
-      {...fade(Math.max(0, delay - 0.3))}
+      {...fade(Math.max(0, delay - 0.3), !quick)}
       className={cn(
-        'flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border bg-surface/70 px-4 py-3',
+        'flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border bg-surface-2/50 p-3',
         o?.tone === 'success' || o?.tone === 'critical'
           ? 'border-success/25'
           : o?.tone === 'failure' || o?.tone === 'fumble'
@@ -486,18 +534,23 @@ function TargetRow({
         <Illustration
           src={ctx.known.get(summary.characterId)?.portraitUrl}
           graine={name}
-          className="size-10 shrink-0 rounded-full ring-2 ring-destructive/60"
+          position="top"
+          className="aspect-[3/4] w-9 shrink-0 rounded-lg ring-1 ring-destructive/40"
         />
-        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-sm font-semibold">{name}</span>
       </div>
       {showRoll && fig && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {fig.kind === 'numeric' ? (
             <>
-              <span className="font-display text-3xl font-bold tabular-nums">{fig.total}</span>
-              <span className="font-mono text-[12px] text-subtle">
-                {fig.dice} {fig.modifier ? signed(fig.modifier) : ''}
-              </span>
+              <TotalJet
+                total={fig.total}
+                critique={style?.critique ?? null}
+                taille="md"
+                cle={summary.characterId}
+                sansBadge
+              />
+              <DesDuJet taille="xs" entree={!quick} groupes={rollGroups(fig.roll)} />
             </>
           ) : (
             <ResultatsSymboles
@@ -510,27 +563,17 @@ function TargetRow({
       )}
       {o && style && (
         <motion.span
-          {...fade(delay)}
-          className={cn(
-            'inline-flex items-center gap-1.5 font-display text-lg font-black uppercase tracking-[0.14em]',
-            style.className,
-          )}
+          {...fade(delay, !quick)}
+          className="inline-flex items-center gap-1.5 font-display text-lg font-black uppercase tracking-[0.14em]"
         >
-          <style.icon className="size-5" strokeWidth={2.5} aria-hidden />
-          {o.label}
+          <style.icon className={cn('size-5', style.tint)} strokeWidth={2.5} aria-hidden />
+          <span className={style.text}>{o.label}</span>
         </motion.span>
       )}
       {summary.damage && (
-        <motion.span {...fade(damageDelay)} className="flex items-baseline gap-2">
-          <span
-            className={cn(
-              'font-display text-3xl font-bold tabular-nums',
-              damageTone(summary.damage, successRule),
-            )}
-          >
-            {summary.damage.value}
-          </span>
-          <span className="text-[12px] uppercase tracking-wider text-muted-foreground">
+        <motion.span {...fade(damageDelay, animateDamage)} className="flex items-baseline gap-2">
+          <DamageNumber damage={summary.damage} successRule={successRule} size="md" />
+          <span className="text-[11px] font-medium uppercase tracking-wider text-subtle">
             {summary.damage.name ?? 'Valeur'}
           </span>
         </motion.span>
@@ -563,13 +606,13 @@ function Details({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="mx-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="mx-auto flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       >
         <ChevronDown
           className={cn('size-4 transition-transform', open && 'rotate-180')}
           aria-hidden
         />
-        {open ? 'Masquer le détail' : 'Voir le détail'}
+        Détail
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -611,7 +654,7 @@ export function ReportStatus({ attack, gm }: { attack: Attack; gm: boolean }) {
   return (
     <div
       role="status"
-      className="flex flex-wrap items-center justify-center gap-2 text-[13px] text-muted-foreground"
+      className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground"
     >
       <Send className="size-4 text-primary" aria-hidden />
       <span>{label}</span>

@@ -2,8 +2,7 @@
 
 /**
  * Aperçu du jet de l'attaquant (docs/combat.md § 5.2) : formule avec les valeurs de sa fiche
- * (« 1d20 + 5 »), ou pool de dés à symboles aux couleurs de la présentation. Ce qui dépend de
- * la cible reste « selon la cible » : un joueur n'a pas sa fiche.
+ * (« 1d20 + 5 »), ou pool de dés à symboles aux couleurs de la présentation (bouton « Lancer »).
  */
 import type { Presentation } from '@vtt/rules';
 import type { RollPreview } from '@/lib/combat/actions';
@@ -58,37 +57,5 @@ export function PreviewText({
         </span>
       ))}
     </span>
-  );
-}
-
-/** Aperçu détaillé (colonne de la préparation). */
-export function PreviewBox({
-  preview,
-  presentation,
-}: {
-  preview: RollPreview | null;
-  presentation: Presentation | null;
-}) {
-  if (!preview) return null;
-  return (
-    <div
-      aria-label="Aperçu du jet"
-      className="min-w-0 rounded-2xl border border-border bg-surface/70 px-4 py-3 text-[13px]"
-    >
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">
-        Aperçu du jet
-      </p>
-      <div
-        className={cn(
-          'text-foreground [overflow-wrap:anywhere]',
-          preview.kind === 'numeric' && 'font-display text-xl font-semibold',
-        )}
-      >
-        <PreviewText preview={preview} presentation={presentation} />
-      </div>
-      {preview.dependsOnTarget && (
-        <p className="mt-1 text-[12px] text-subtle">Le reste dépend de la cible.</p>
-      )}
-    </div>
   );
 }

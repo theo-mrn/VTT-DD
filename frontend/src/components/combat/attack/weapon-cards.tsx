@@ -1,10 +1,13 @@
 'use client';
 
 /**
- * Choix d'une entrée (docs/combat.md § 12.1, 2) : une arme se choisit sur des cartes comme
- * dans l'ancienne page (nom, dégâts, critique, qualités), les autres entrées (portée,
- * compétence…) en boutons. Aucun champ nommé : la carte montre les champs que l'action lit
- * par ce paramètre (`arme.degats`, `arme.critique`…), et les listes de l'entrée (qualités).
+ * Choix d'une entrée (docs/combat.md § 12.1) : armes, sorts, compétences en tuiles, comme les
+ * tuiles d'action de la fiche (`SourceCard`). Aucun champ nommé : la tuile montre les champs que
+ * l'action lit par ce paramètre (`arme.degats`, `arme.critique`…) et les listes de l'entrée.
+ *
+ * - `select` (à la déclaration) : un choix exclusif ; une entrée sans équipement (portée…) en
+ *   boutons segmentés.
+ * - `launch` (écran des dégâts) : chaque tuile lance ; touches 1 à 9 à partir de `firstShortcut`.
  *
  * Une action qui prend toute arme du catalogue (`possedee: false`) propose d'abord celles du
  * personnage ; les autres se cherchent dans la liste « Autre… ».
@@ -34,10 +37,11 @@ import {
 } from '@/lib/combat/params';
 import { cn } from '@/lib/utils';
 import { Segmented, SectionTitle } from './controls';
+import { SourceCard, Stagger, type SourceField } from './launch';
 
-/** Cartes montrées d'office pour le catalogue ; au-delà, la liste « Autre… ». */
+/** Tuiles montrées d'office pour le catalogue ; au-delà, la liste « Autre… ». */
 const CATALOGUE_CARDS = 6;
-/** Au-delà, une entrée sans carte se choisit dans une liste. */
+/** Au-delà, une entrée sans tuile se choisit dans une liste. */
 const MAX_BUTTONS = 12;
 
 interface Resolved {
@@ -57,10 +61,32 @@ function resolve(fiche: Fiche, option: EntryOption): Resolved | null {
   return { option, entree, possession };
 }
 
-/** L'entrée se présente en cartes (arme : formule de dégâts, exemplaires) ou en boutons. */
+/** L'entrée se présente en tuiles (arme : formule de dégâts, exemplaires) ou en boutons. */
 function looksLikeGear(systeme: SystemeCharge, sorteId: string) {
   const sorte = systeme.sortes.get(sorteId);
   return Boolean(sorte && (sorte.exemplaires || sorte.champs.some((c) => c.type === 'formule')));
+}
+
+/** Champs d'une entrée que l'action lit (formule mise en avant), quatre au plus. */
+function fieldsOf(fiche: Fiche, r: Resolved, refs: readonly string[]): SourceField[] {
+  const sorte = fiche.systeme.sortes.get(r.entree.sorte);
+  if (!sorte) return [];
+  return champsAffiches(fiche, r.entree, sorte, r.possession)
+    .filter(
+      (c) =>
+        !c.identite &&
+        c.valeur !== '—' &&
+        (refs.includes(c.champ.id) || c.champ.type === 'entrees') &&
+        !(c.champ.type === 'booleen' && c.brut !== true) &&
+        c.valeur.length <= 48,
+    )
+    .slice(0, 4)
+    .map((c) => ({
+      key: c.champ.id,
+      label: c.champ.nom,
+      value: c.champ.type === 'booleen' ? '' : c.valeur,
+      formula: c.champ.type === 'formule',
+    }));
 }
 
 export function EntryPicker({
@@ -72,8 +98,9 @@ export function EntryPicker({
   value,
   onChange,
   disabled,
-  hideNone = false,
+  mode = 'select',
   prefer,
+  firstShortcut = null,
 }: {
   systeme: SystemeCharge;
   presentation: Presentation | null;
@@ -83,10 +110,12 @@ export function EntryPicker({
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
-  /** Pas de choix « Aucune » (écran des dégâts : chaque carte lance). */
-  hideNone?: boolean;
+  /** `launch` : chaque tuile lance (écran des dégâts), pas de choix « Aucune ». */
+  mode?: 'select' | 'launch';
   /** Entrées montrées d'abord (armes du type d'attaque choisi). */
   prefer?: (entree: Entree) => boolean;
+  /** Raccourci de la première tuile (1 à 9), null : aucun. */
+  firstShortcut?: number | null;
 }) {
   const options = useMemo(() => {
     const all = entryOptions(fiche, param);
@@ -97,16 +126,19 @@ export function EntryPicker({
     };
     return [...all].sort((a, b) => first(a) - first(b));
   }, [fiche, param, prefer]);
-  const none = param.facultatif && !hideNone;
-  const hint = paramDescription(param);
+  const launch = mode === 'launch';
+  const none = param.facultatif && !launch;
+  if (launch && !options.length) return null;
   const title = (
-    <SectionTitle hint={hint}>
+    <SectionTitle hint={paramDescription(param)}>
       {param.nom}
       {none && <span className="normal-case tracking-normal text-subtle">(facultatif)</span>}
     </SectionTitle>
   );
+  const refs = paramFieldRefs(systeme, action, param.id);
+  const gear = looksLikeGear(systeme, param.sorte);
 
-  if (!looksLikeGear(systeme, param.sorte)) {
+  if (!gear && !launch) {
     const buttons = [
       ...(none || !options.length
         ? [{ value: '', label: options.length ? 'Aucune' : 'Aucune disponible' }]
@@ -142,40 +174,29 @@ export function EntryPicker({
     );
   }
 
-  const refs = paramFieldRefs(systeme, action, param.id);
   const owned = options.filter((o) => o.owned);
-  // Catalogue : celles qui se passent d'être possédées (mains nues) en cartes, les autres à
+  // Catalogue : celles qui se passent d'être possédées (mains nues) en tuiles, les autres à
   // chercher dans la liste
   const waivers = possessionWaivers(systeme, action, param);
   const free = options.filter((o) => !o.owned && isWaived(fiche, waivers, o.id));
   const catalogue = options.filter((o) => !o.owned && !free.includes(o));
-  // Tout le catalogue : les armes du personnage, puis quelques-unes du catalogue (la choisie
-  // d'abord) ; le reste dans la liste
   const selectedOther = catalogue.find((o) => o.id === value);
   const shownOthers =
     catalogue.length <= CATALOGUE_CARDS ? catalogue : selectedOther ? [selectedOther] : [];
-  const card = (o: EntryOption, note: string | null = null) => {
-    const r = resolve(fiche, o);
-    if (!r) return null;
-    return (
-      <WeaponCard
-        key={o.id}
-        fiche={fiche}
-        presentation={presentation}
-        resolved={r}
-        refs={refs}
-        selected={value === o.id}
-        note={note}
-        disabled={disabled}
-        onSelect={() => onChange(o.id)}
-      />
-    );
-  };
+  const shown: { o: EntryOption; note: string | null }[] = [
+    ...owned.map((o) => ({ o, note: null })),
+    ...free.map((o) => ({ o, note: 'Toujours disponible' })),
+    ...shownOthers.map((o) => ({ o, note: 'Catalogue' })),
+  ];
 
   return (
     <section>
       {title}
-      <div role="radiogroup" aria-label={param.nom} className="grid gap-2.5 sm:grid-cols-2">
+      <div
+        role={launch ? undefined : 'radiogroup'}
+        aria-label={param.nom}
+        className="grid gap-2.5 sm:grid-cols-2"
+      >
         {none && (
           <button
             type="button"
@@ -184,7 +205,7 @@ export function EntryPicker({
             disabled={disabled}
             onClick={() => onChange('')}
             className={cn(
-              'flex min-h-[4.5rem] items-center justify-center rounded-xl border border-dashed px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+              'flex min-h-[4rem] items-center justify-center rounded-xl border border-dashed px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
               value === ''
                 ? 'border-primary/60 bg-primary/10 text-foreground'
                 : 'border-border-strong text-muted-foreground hover:text-foreground',
@@ -193,13 +214,39 @@ export function EntryPicker({
             Aucune
           </button>
         )}
-        {owned.map((o) => card(o))}
-        {free.map((o) => card(o, 'Toujours disponible'))}
-        {shownOthers.map((o) => card(o, 'Catalogue'))}
+        {shown.map(({ o, note }, i) => {
+          const r = resolve(fiche, o);
+          if (!r) return null;
+          const sorte = fiche.systeme.sortes.get(r.entree.sorte);
+          const n = firstShortcut !== null ? firstShortcut + i : null;
+          return (
+            <Stagger key={o.id} index={i}>
+              <SourceCard
+                icon={
+                  sorte
+                    ? iconeObjet(presentation?.iconesObjets ?? [], {
+                        entree: r.entree,
+                        sorte,
+                        possession: r.possession,
+                      })
+                    : Library
+                }
+                name={o.nom}
+                note={[o.rang > 0 ? `rang ${o.rang}` : null, note].filter(Boolean).join(' · ')}
+                fields={fieldsOf(fiche, r, refs)}
+                mode={mode}
+                selected={!launch && value === o.id}
+                shortcut={n !== null && n <= 9 ? n : null}
+                disabled={disabled}
+                onClick={() => onChange(o.id)}
+              />
+            </Stagger>
+          );
+        })}
       </div>
-      {!options.length && (
+      {!options.length && !launch && (
         <p className="rounded-xl border border-dashed border-border-strong px-3 py-3 text-[13px] text-muted-foreground">
-          Aucune disponible pour ce personnage.
+          Aucune disponible
         </p>
       )}
       {catalogue.length > shownOthers.length && (
@@ -218,112 +265,17 @@ export function EntryPicker({
   );
 }
 
-/** Carte d'une arme (ou de tout équipement) : icône, nom, champs lus par l'action. */
-function WeaponCard({
-  fiche,
-  presentation,
-  resolved,
-  refs,
-  selected,
-  note,
-  disabled,
-  onSelect,
-}: {
-  fiche: Fiche;
-  presentation: Presentation | null;
-  resolved: Resolved;
-  refs: readonly string[];
-  selected: boolean;
-  /** Précision sous le nom (« Toujours disponible », « Catalogue »). */
-  note: string | null;
-  disabled?: boolean | undefined;
-  onSelect: () => void;
-}) {
-  const { option, entree, possession } = resolved;
-  const sorte = fiche.systeme.sortes.get(entree.sorte);
-  const Icon = sorte
-    ? iconeObjet(presentation?.iconesObjets ?? [], { entree, sorte, possession })
-    : Library;
-  const fields = sorte
-    ? champsAffiches(fiche, entree, sorte, possession)
-        .filter(
-          (c) =>
-            !c.identite &&
-            c.valeur !== '—' &&
-            (refs.includes(c.champ.id) || c.champ.type === 'entrees') &&
-            !(c.champ.type === 'booleen' && c.brut !== true) &&
-            c.valeur.length <= 48,
-        )
-        .slice(0, 4)
-    : [];
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={disabled}
-      onClick={onSelect}
-      className={cn(
-        'group relative flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-50',
-        selected
-          ? 'border-primary/60 bg-primary/[0.08] shadow-glow'
-          : 'border-border bg-surface/70 hover:-translate-y-px hover:border-border-strong hover:bg-surface-2 motion-reduce:hover:translate-y-0',
-      )}
-    >
-      <span
-        className={cn(
-          'grid size-9 shrink-0 place-items-center rounded-lg border',
-          selected
-            ? 'border-primary/40 bg-primary/15 text-primary'
-            : 'border-border-strong bg-surface-2 text-muted-foreground',
-        )}
-      >
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2 pr-5">
-          <span className="truncate text-[14px] font-semibold">{option.nom}</span>
-          {option.rang > 0 && (
-            <span className="shrink-0 font-mono text-[11px] text-subtle">rang {option.rang}</span>
-          )}
-        </span>
-        {note && <span className="block text-[11px] text-subtle">{note}</span>}
-        {fields.length > 0 && (
-          <span className="mt-1.5 flex flex-wrap gap-1">
-            {fields.map((f) => (
-              <span
-                key={f.champ.id}
-                className="inline-flex max-w-full items-baseline gap-1 truncate rounded-md bg-surface-3/80 px-1.5 py-0.5 text-[11px]"
-              >
-                {f.champ.type === 'booleen' ? (
-                  <span className="text-muted-foreground">{f.champ.nom}</span>
-                ) : (
-                  <>
-                    <span className="text-subtle">{f.champ.nom}</span>
-                    <span className="truncate font-mono font-medium text-foreground">
-                      {f.valeur}
-                    </span>
-                  </>
-                )}
-              </span>
-            ))}
-          </span>
-        )}
-      </span>
-      <span
-        aria-hidden
-        className={cn(
-          'absolute right-2.5 top-2.5 grid size-4 place-items-center rounded-full border transition-colors',
-          selected
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-border-strong text-transparent',
-        )}
-      >
-        <Check className="size-2.5" strokeWidth={3.5} />
-      </span>
-    </button>
-  );
+/** Nombre de tuiles numérotées d'une entrée (pour enchaîner les raccourcis). */
+export function entryCardCount(
+  systeme: SystemeCharge,
+  fiche: Fiche,
+  action: Action,
+  param: EntryParam,
+): number {
+  const options = entryOptions(fiche, param);
+  const waivers = possessionWaivers(systeme, action, param);
+  const catalogue = options.filter((o) => !o.owned && !isWaived(fiche, waivers, o.id));
+  return options.length - (catalogue.length > CATALOGUE_CARDS ? catalogue.length : 0);
 }
 
 /** Liste avec recherche, pour un catalogue ou une longue liste d'entrées. */

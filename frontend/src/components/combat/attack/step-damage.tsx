@@ -1,19 +1,21 @@
 'use client';
 
 /**
- * Écran des dégâts (docs/combat.md § 12.1) : seulement si l'attaque touche, l'étape demande les
- * paramètres choisis après le jet (`RollStep.params`, `etape: apres`). Le jet est rappelé en une
- * ligne (« Touché : 17 contre Gobelin ») ; puis les armes de l'inventaire en cartes (celles du
- * type d'attaque choisi d'abord), les autres entrées (sorts à dés), et « Dégâts libres » (les
- * nombres de l'étape : dés, faces, modificateur). Un clic lance les dégâts.
+ * Écran 2 du menu d'attaque (docs/combat.md § 12.1) : seulement si l'attaque touche, l'étape des
+ * dégâts demande les paramètres choisis après le jet (`RollStep.params`, `etape: apres`).
+ *
+ * Le jet est rappelé en une ligne, comme le dernier jet du lanceur (« TOUCHÉ 17 · Gobelin ») ;
+ * puis les armes en tuiles (celles du type d'attaque choisi d'abord), les autres entrées (sorts
+ * à dés), et « Dégâts libres » (les nombres de l'étape : dés, faces, modificateur). Un clic
+ * lance les dégâts ; touches 1 à 9 sur les tuiles.
  */
 import type { Attack } from '@vtt/contracts';
 import type { Action, Fiche, Presentation, SystemeCharge, Valeur } from '@vtt/rules';
 import { Dices } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { DesDuJet } from '@/components/des/resultat-jet';
 import { hasSuccessRule } from '@/lib/combat/actions';
-import { summarizeTarget } from '@/lib/combat/attack-flow-result';
+import { summarizeTarget, type TargetSummary } from '@/lib/combat/attack-flow-result';
 import {
   afterRollParams,
   defaultParamValue,
@@ -22,9 +24,12 @@ import {
   type EntryParam,
 } from '@/lib/combat/params';
 import { targetName } from '@/lib/combat/view';
-import { SectionTitle, Stepper, ToggleTile } from './controls';
+import { cn } from '@/lib/utils';
+import { Stepper, TogglePill } from './controls';
+import { LaunchButton, Stagger } from './launch';
+import { OUTCOME_STYLE, rollGroups } from './outcome';
 import type { AttackContext } from './use-attack-context';
-import { EntryPicker } from './weapon-cards';
+import { EntryPicker, entryCardCount } from './weapon-cards';
 
 export function StepDamage({
   attack,
@@ -64,9 +69,6 @@ export function StepDamage({
   const entries = params.filter((p): p is EntryParam => p.type === 'entree');
   const numbers = params.filter((p) => p.type === 'nombre');
   const toggles = params.filter((p) => p.type === 'booleen');
-  const others = params.filter(
-    (p) => p.type !== 'entree' && p.type !== 'nombre' && p.type !== 'booleen',
-  );
 
   /** Tous les paramètres de l'étape : la source choisie, les autres entrées vides. */
   const launch = (patch: Record<string, Valeur>) =>
@@ -83,25 +85,29 @@ export function StepDamage({
   const declared = new Set(Object.values(attack.params).filter((v) => typeof v === 'string'));
   const successRule = hasSuccessRule(action);
   const hits = attack.targets
-    .map((t) => ({ t, s: summarizeTarget(attack, t, { successRule }) }))
-    .filter((x) => x.s.hit);
+    .map((t) => summarizeTarget(attack, t, { successRule }))
+    .filter((s) => s.hit !== false);
+
+  // Raccourcis : les tuiles de chaque entrée à la suite
+  let next = 1;
+  const shortcuts = entries.map((p) => {
+    const first = next;
+    next += entryCardCount(systeme, fiche, action, p);
+    return first <= 9 ? first : null;
+  });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <ul className="space-y-1">
-        {hits.map(({ t, s }) => (
-          <li key={t.characterId} className="text-[14px] text-muted-foreground">
-            <span className="font-semibold text-foreground">{s.outcome?.label ?? 'Touché'}</span>
-            {s.figure?.kind === 'numeric' ? ` : ${s.figure.total}` : ''} contre{' '}
-            {targetName(t.characterId, ctx.known)}
-          </li>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <ul className="flex flex-col items-center gap-1.5" aria-label="Jet d’attaque">
+        {hits.map((s) => (
+          <RecapLine key={s.characterId} summary={s} name={targetName(s.characterId, ctx.known)} />
         ))}
       </ul>
 
       {toggles.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-wrap justify-center gap-1.5">
           {toggles.map((p) => (
-            <ToggleTile
+            <TogglePill
               key={p.id}
               label={p.nom}
               checked={values[p.id] === true}
@@ -113,7 +119,7 @@ export function StepDamage({
         </div>
       )}
 
-      {entries.map((p) => (
+      {entries.map((p, i) => (
         <EntryPicker
           key={p.id}
           systeme={systeme}
@@ -122,7 +128,8 @@ export function StepDamage({
           action={action}
           param={p}
           value=""
-          hideNone
+          mode="launch"
+          firstShortcut={shortcuts[i] ?? null}
           prefer={(entree) =>
             Object.values(entree.champs).some((v) => typeof v === 'string' && declared.has(v))
           }
@@ -131,31 +138,61 @@ export function StepDamage({
         />
       ))}
 
-      {(numbers.length > 0 || others.length > 0) && (
-        <section className="rounded-2xl border border-border bg-surface/60 p-4">
-          <SectionTitle icon={<Dices aria-hidden />}>Dégâts libres</SectionTitle>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {numbers.map((p) => (
-              <Stepper
-                key={p.id}
-                label={p.nom}
-                value={typeof values[p.id] === 'number' ? (values[p.id] as number) : 0}
-                onChange={(v) => setValues((x) => ({ ...x, [p.id]: v }))}
-                disabled={launching}
-                hint={paramDescription(p)}
-              />
-            ))}
-          </div>
-          <Button
-            className="mt-3"
-            loading={launching}
-            onClick={() => launch({})}
-            disabled={launching}
+      {numbers.length > 0 && (
+        <Stagger index={2}>
+          <section
+            aria-label="Dégâts libres"
+            className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-surface sm:p-4"
           >
-            <Dices /> Lancer les dégâts libres
-          </Button>
-        </section>
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-surface-3 text-primary">
+                <Dices className="size-[1.125rem]" aria-hidden />
+              </span>
+              <span className="flex-1 text-sm font-semibold">Dégâts libres</span>
+              <LaunchButton busy={launching} onClick={() => launch({})}>
+                Lancer
+              </LaunchButton>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {numbers.map((p) => (
+                <Stepper
+                  key={p.id}
+                  label={p.nom}
+                  value={typeof values[p.id] === 'number' ? (values[p.id] as number) : 0}
+                  onChange={(v) => setValues((x) => ({ ...x, [p.id]: v }))}
+                  disabled={launching}
+                  hint={paramDescription(p)}
+                />
+              ))}
+            </div>
+          </section>
+        </Stagger>
       )}
     </div>
+  );
+}
+
+/** Le jet d'attaque en une ligne, comme « Dernier jet » du lanceur. */
+function RecapLine({ summary: s, name }: { summary: TargetSummary; name: string }) {
+  const style = s.outcome ? OUTCOME_STYLE[s.outcome.tone] : null;
+  const fig = s.figure;
+  return (
+    <li className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 rounded-full border border-border bg-surface-2/50 py-1 pl-3 pr-2">
+      {s.outcome && style && (
+        <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider">
+          <style.icon className={cn('size-3.5', style.tint)} strokeWidth={2.5} aria-hidden />
+          <span className={style.text}>{s.outcome.label}</span>
+        </span>
+      )}
+      {fig?.kind === 'numeric' && (
+        <>
+          <span className="font-mono text-base font-semibold leading-none tabular">
+            {fig.total}
+          </span>
+          <DesDuJet taille="xs" groupes={rollGroups(fig.roll)} />
+        </>
+      )}
+      <span className="text-[13px] text-muted-foreground">{name}</span>
+    </li>
   );
 }

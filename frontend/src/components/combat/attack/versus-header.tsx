@@ -1,17 +1,20 @@
 'use client';
 
 /**
- * En-tête « versus » du menu d'attaque (docs/combat.md § 2.1 A5, § 12.1), repris de l'ancienne
- * page : l'attaquant à gauche (grand portrait cerclé, pastille « Attaquant », nom, statistiques,
- * MJ : changer d'attaquant), « VS » en filigrane, les cibles à droite (portraits chevauchés,
- * pastille du nom, « N cibles », « + » pour en ajouter, retrait, visée sur la carte).
+ * Duel en tête du menu d'attaque (docs/combat.md § 2.1 A5, § 12.1), avec les pièces de l'en-tête
+ * de la fiche : portraits au format de la fiche (3/4, arrondis, ombre), fond des portraits
+ * floutés, nom en titre, ressources en jauges (`BannerStats`). L'attaquant à gauche (ses
+ * statistiques, MJ : changer d'attaquant), « VS » au milieu, les cibles à droite (portraits
+ * chevauchés, « + » pour en ajouter, retrait, visée sur la carte).
  *
- * Une cible que la liste de la campagne ne me donne pas reste « Adversaire » : rien n'est lu
- * de sa fiche.
+ * Une cible que la liste de la campagne ne me donne pas reste « Adversaire » : rien n'est lu de
+ * sa fiche.
  */
 import { Check, Crosshair, Plus, ScrollText, UserRoundCog, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Illustration } from '@/components/commun/illustration';
+import { FOCUS } from '@/components/des/tactile';
+import { BannerStats } from '@/components/fiche/banner';
 import type { ContexteFiche } from '@/components/fiche/widgets';
 import {
   Command,
@@ -27,14 +30,27 @@ import { Info } from '@/components/ui/tooltip';
 import { targetGroups, type RosterCharacter } from '@/lib/combat/roster';
 import { targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
-import { AttackerStats, Gauge, profileStats, resourceStats } from './attacker-stats';
+import { AttackerStats } from './attacker-stats';
 import type { AttackContext } from './use-attack-context';
 
 /** Portraits montrés au plus ; au-delà, « +N ». */
-const MAX_PORTRAITS = 4;
+const MAX_PORTRAITS = 3;
 
-const iconButton =
-  'grid size-8 shrink-0 place-items-center rounded-full border border-border-strong bg-surface-2/80 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-40 max-sm:size-9';
+/** Portrait au format de la fiche (3/4), à la taille du duel. */
+const PORTRAIT =
+  'aspect-[3/4] w-12 shrink-0 rounded-xl shadow-elevated xs:w-14 sm:w-[5.5rem] lg:w-24';
+
+const iconButton = cn(
+  'grid size-8 shrink-0 place-items-center rounded-full border border-border-strong bg-surface-2/80 text-muted-foreground backdrop-blur transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-40 max-sm:size-9',
+  FOCUS,
+);
+
+/** Petit libellé au-dessus d'un nom, comme les libellés du bandeau de la fiche. */
+function Kicker({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={cn('text-[11px] font-medium uppercase tracking-wider', className)}>{children}</p>
+  );
+}
 
 export function VersusHeader({
   ctx,
@@ -50,7 +66,7 @@ export function VersusHeader({
   onToggleTarget,
   onRemoveTarget,
   onAim,
-  badges,
+  bar,
   promptAttacker = false,
 }: {
   ctx: AttackContext;
@@ -68,36 +84,55 @@ export function VersusHeader({
   onToggleTarget: (id: string) => void;
   onRemoveTarget: (id: string) => void;
   onAim: () => void;
-  /** Pastilles sous le nom (tour, hors tour). */
-  badges?: React.ReactNode;
+  /** Barre du haut (round, « Mes attaques », fermer). */
+  bar: ReactNode;
   /** Aucun attaquant choisi, ni proposé : la liste s'ouvre d'elle-même. */
   promptAttacker?: boolean;
 }) {
+  const known = attackerId ? ctx.known.get(attackerId) : undefined;
+  const attackerPortrait = portraitUrl ?? known?.portraitUrl ?? null;
+  const firstTarget = targetIds[0] ? ctx.known.get(targetIds[0]) : undefined;
   return (
-    <header
-      className={cn(
-        'relative isolate shrink-0 overflow-hidden border-b border-border',
-        'bg-[linear-gradient(100deg,color-mix(in_srgb,hsl(var(--primary))_9%,transparent),transparent_38%,transparent_62%,color-mix(in_srgb,hsl(var(--destructive))_9%,transparent))]',
-      )}
-    >
-      <span
+    <header className="relative isolate shrink-0 overflow-hidden border-b border-border">
+      {/* Fond : les deux portraits floutés, comme l'en-tête de la fiche */}
+      <div aria-hidden className="absolute inset-0 -z-10 grid grid-cols-2">
+        <Illustration
+          src={attackerPortrait}
+          graine={attackerName ?? known?.name ?? 'attaquant'}
+          initiale={false}
+          className="opacity-40"
+          classeImage="scale-110 blur-3xl"
+        />
+        <Illustration
+          src={firstTarget?.portraitUrl}
+          graine={firstTarget?.name ?? targetIds[0] ?? 'cible'}
+          initiale={false}
+          className={cn('opacity-40', !targetIds.length && 'opacity-0')}
+          classeImage="scale-110 blur-3xl"
+        />
+      </div>
+      <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2 select-none font-display text-6xl font-black italic tracking-tighter text-foreground/[0.06] sm:text-[7.5rem]"
-      >
-        VS
-      </span>
-      <div className="flex items-center justify-between gap-3 px-4 pb-6 pt-4 sm:px-10 sm:pb-8 sm:pt-6">
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-background/50 via-background/85 to-background"
+      />
+      {bar}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 pb-5 pt-1 sm:gap-6 sm:px-8 sm:pb-6">
         <AttackerSide
           ctx={ctx}
           attackerId={attackerId}
           name={attackerName}
-          portraitUrl={portraitUrl}
+          portraitUrl={attackerPortrait}
           fc={fc}
           editable={editable}
           onAttacker={onAttacker}
-          badges={badges}
           promptAttacker={promptAttacker}
         />
+        <span
+          aria-hidden
+          className="select-none font-display text-2xl font-black italic tracking-tighter text-foreground/15 sm:text-5xl"
+        >
+          VS
+        </span>
         <TargetsSide
           ctx={ctx}
           attackerId={attackerId}
@@ -124,7 +159,6 @@ function AttackerSide({
   fc,
   editable,
   onAttacker,
-  badges,
   promptAttacker,
 }: {
   ctx: AttackContext;
@@ -134,87 +168,76 @@ function AttackerSide({
   fc: ContexteFiche | null;
   editable: boolean;
   onAttacker: (id: string) => void;
-  badges?: React.ReactNode;
   promptAttacker: boolean;
 }) {
   const known = attackerId ? ctx.known.get(attackerId) : undefined;
   const label = name ?? known?.name ?? (attackerId ? 'Personnage' : 'Qui attaque ?');
   const choosable = editable && (ctx.attackers.length > 1 || !attackerId);
-  const resources = fc ? resourceStats(fc, 2) : [];
-  const profile = fc ? profileStats(fc).slice(0, 2) : [];
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-6">
-      <div className="relative shrink-0">
+    <div className="flex min-w-0 items-center gap-2.5 sm:gap-5">
+      {attackerId ? (
         <Illustration
-          src={portraitUrl ?? known?.portraitUrl}
-          graine={attackerId ? label : '?'}
+          src={portraitUrl}
+          graine={label}
           alt=""
-          className="size-14 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-background sm:size-24 sm:ring-[3px] sm:ring-offset-[3px]"
+          position="top"
+          className={cn(PORTRAIT, 'ring-1 ring-primary/50')}
         />
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground shadow-surface sm:px-2.5 sm:text-[11px]">
-          Attaquant
+      ) : (
+        <span
+          aria-hidden
+          className={cn(
+            PORTRAIT,
+            'grid place-items-center border-2 border-dashed border-primary/40 font-display text-2xl text-primary/60 shadow-none sm:text-4xl',
+          )}
+        >
+          ?
         </span>
-      </div>
-      <div className="min-w-0 space-y-1.5 sm:space-y-2.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <h2 className="max-w-full truncate font-display text-lg font-semibold leading-tight tracking-tight sm:text-[1.9rem]">
-            {label}
-          </h2>
-          {fc && (
-            <Popover>
-              <Info texte="Statistiques">
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Statistiques de l’attaquant"
-                    className={iconButton}
-                  >
-                    <ScrollText className="size-3.5" aria-hidden />
-                  </button>
-                </PopoverTrigger>
-              </Info>
-              <PopoverContent
-                align="start"
-                className="max-h-[min(32rem,70dvh)] w-72 overflow-y-auto [scrollbar-width:thin]"
-              >
-                <AttackerStats ctx={fc} name={label} />
-              </PopoverContent>
-            </Popover>
-          )}
-          {choosable && (
-            <AttackerSwitch
-              ctx={ctx}
-              attackerId={attackerId}
-              prompt={promptAttacker}
-              onAttacker={onAttacker}
-            />
-          )}
+      )}
+      <div className="min-w-0 space-y-2">
+        <div className="min-w-0">
+          <Kicker className="text-primary">Attaquant</Kicker>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h2 className="min-w-0 truncate font-display text-base font-semibold leading-tight xs:text-lg sm:text-3xl">
+              {label}
+            </h2>
+            {fc && (
+              <Popover>
+                <Info texte="Statistiques">
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Statistiques de l’attaquant"
+                      className={cn(iconButton, 'max-sm:hidden')}
+                    >
+                      <ScrollText className="size-3.5" aria-hidden />
+                    </button>
+                  </PopoverTrigger>
+                </Info>
+                <PopoverContent
+                  align="start"
+                  className="max-h-[min(32rem,70dvh)] w-72 overflow-y-auto [scrollbar-width:thin]"
+                >
+                  <AttackerStats ctx={fc} name={label} />
+                </PopoverContent>
+              </Popover>
+            )}
+            {choosable && (
+              <AttackerSwitch
+                ctx={ctx}
+                attackerId={attackerId}
+                prompt={promptAttacker}
+                onAttacker={onAttacker}
+              />
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {badges}
-          {resources.map((r) => (
-            <span
-              key={r.key}
-              className="hidden min-w-[5.5rem] flex-col gap-1 rounded-lg border border-border bg-surface/70 px-2 py-1 sm:flex"
-            >
-              <span className="flex items-baseline justify-between gap-2 text-[11px]">
-                <span className="text-subtle">{r.label}</span>
-                <span className="font-mono font-semibold tabular-nums">{r.value}</span>
-              </span>
-              <Gauge stat={r} />
-            </span>
-          ))}
-          {profile.map((p) => (
-            <span
-              key={p.key}
-              className="hidden items-center gap-1.5 rounded-lg border border-border bg-surface/70 px-2 py-1 text-[11px] md:inline-flex"
-            >
-              <span className="text-subtle">{p.label}</span>
-              <span className="font-mono font-semibold tabular-nums">{p.value}</span>
-            </span>
-          ))}
-        </div>
+        {fc && (
+          <div className="hidden lg:block">
+            <BannerStats ctx={fc} widget={undefined} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -313,93 +336,107 @@ function TargetsSide({
   const rest = n - shown.length;
   const names = targetIds.map((id) => targetName(id, ctx.known));
   const title = n === 0 ? 'Aucune cible' : n === 1 ? names[0]! : `${n} cibles`;
+  const self = n === 1 && targetIds[0] === attackerId;
 
   return (
-    <div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:gap-6">
-      <div className="hidden min-w-0 text-right sm:block">
-        <p className="truncate font-display text-[1.9rem] font-semibold leading-tight tracking-tight">
-          {title}
-        </p>
-        <p className="truncate text-[12px] text-muted-foreground">
-          {n > 1
-            ? names.join(', ')
-            : n === 0
-              ? editable
-                ? canAim
-                  ? 'Ajoutez-en une, ou visez sur la carte'
-                  : 'Ajoutez-en une'
-                : ''
-              : maxTargets < 50
-                ? `${maxTargets} cible${maxTargets > 1 ? 's' : ''} au plus`
-                : ''}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        {n === 0 ? (
-          <span
-            aria-hidden
-            className="grid size-14 place-items-center rounded-full border-2 border-dashed border-destructive/40 font-display text-2xl text-destructive/60 sm:size-24 sm:text-4xl"
-          >
-            ?
-          </span>
-        ) : (
-          <ul aria-label="Cibles" className="flex -space-x-4 sm:-space-x-6">
-            {shown.map((id, i) => (
-              <TargetPortrait
-                key={id}
-                ctx={ctx}
-                id={id}
-                self={id === attackerId}
-                z={shown.length - i}
-                pill={n <= 2}
-                editable={editable}
-                onRemove={() => onRemove(id)}
-              />
-            ))}
-            {rest > 0 && (
-              <li style={{ zIndex: 0 }}>
-                <Info texte={names.slice(shown.length).join(', ')}>
-                  <span
-                    tabIndex={0}
-                    className="grid size-14 place-items-center rounded-full bg-surface-3 font-mono text-sm font-semibold ring-2 ring-destructive/60 ring-offset-2 ring-offset-background sm:size-24 sm:text-xl"
-                  >
-                    +{rest}
-                  </span>
-                </Info>
-              </li>
-            )}
-          </ul>
-        )}
-        {editable && (
-          <div className="flex flex-col gap-1.5">
-            <TargetPicker
+    <div className="flex min-w-0 flex-row-reverse items-center gap-2.5 sm:gap-5">
+      {n === 0 ? (
+        <button
+          type="button"
+          onClick={canAim && editable ? onAim : undefined}
+          disabled={!canAim || !editable}
+          aria-label="Viser sur la carte"
+          className={cn(
+            PORTRAIT,
+            'grid place-items-center border-2 border-dashed border-destructive/40 text-destructive/70 shadow-none transition-colors enabled:hover:border-destructive/70 enabled:hover:text-destructive',
+            FOCUS,
+          )}
+        >
+          <Crosshair className="size-5 sm:size-7" aria-hidden />
+        </button>
+      ) : (
+        <ul aria-label="Cibles" className="flex shrink-0 -space-x-6 sm:-space-x-10">
+          {shown.map((id, i) => (
+            <TargetPortrait
+              key={id}
               ctx={ctx}
-              attackerId={attackerId}
-              targetIds={targetIds}
-              full={n >= maxTargets}
-              canAim={canAim}
-              onToggle={onToggle}
-              onAim={onAim}
+              id={id}
+              self={id === attackerId}
+              z={shown.length - i}
+              editable={editable}
+              onRemove={() => onRemove(id)}
             />
-            {canAim && (
-              <Info
-                texte={
-                  <span className="flex items-center gap-1.5">
-                    Viser sur la carte <Kbd>V</Kbd>
-                  </span>
-                }
-              >
-                <button
-                  type="button"
-                  aria-label="Viser sur la carte"
-                  onClick={onAim}
-                  className={iconButton}
+          ))}
+          {rest > 0 && (
+            <li style={{ zIndex: 0 }}>
+              <Info texte={names.slice(shown.length).join(', ')}>
+                <span
+                  tabIndex={0}
+                  className={cn(
+                    PORTRAIT,
+                    'grid place-items-center bg-surface-3 font-mono text-sm font-semibold ring-1 ring-destructive/50 sm:text-xl',
+                    FOCUS,
+                  )}
                 >
-                  <Crosshair className="size-4" aria-hidden />
-                </button>
+                  +{rest}
+                </span>
               </Info>
+            </li>
+          )}
+        </ul>
+      )}
+      <div className="min-w-0 space-y-2 text-right">
+        <div className="min-w-0">
+          <Kicker className={self ? 'text-warning' : 'text-destructive'}>
+            {self ? 'Lui-même' : n > 1 ? 'Cibles' : 'Cible'}
+          </Kicker>
+          <div className="flex min-w-0 items-center justify-end gap-1.5">
+            {editable && (
+              <>
+                {canAim && (
+                  <Info
+                    texte={
+                      <span className="flex items-center gap-1.5">
+                        Viser sur la carte <Kbd>V</Kbd>
+                      </span>
+                    }
+                  >
+                    <button
+                      type="button"
+                      aria-label="Viser sur la carte"
+                      aria-keyshortcuts="V"
+                      onClick={onAim}
+                      className={cn(iconButton, 'max-sm:hidden')}
+                    >
+                      <Crosshair className="size-4" aria-hidden />
+                    </button>
+                  </Info>
+                )}
+                <TargetPicker
+                  ctx={ctx}
+                  attackerId={attackerId}
+                  targetIds={targetIds}
+                  full={n >= maxTargets}
+                  canAim={canAim}
+                  onToggle={onToggle}
+                  onAim={onAim}
+                />
+              </>
             )}
+            <h2
+              className={cn(
+                'min-w-0 truncate font-display text-base font-semibold leading-tight xs:text-lg sm:text-3xl',
+                n === 0 && 'text-muted-foreground',
+              )}
+            >
+              {title}
+            </h2>
           </div>
+        </div>
+        {n > 1 && (
+          <p className="hidden truncate text-[13px] text-muted-foreground sm:block">
+            {names.join(', ')}
+          </p>
         )}
       </div>
     </div>
@@ -411,7 +448,6 @@ function TargetPortrait({
   id,
   self,
   z,
-  pill,
   editable,
   onRemove,
 }: {
@@ -419,7 +455,6 @@ function TargetPortrait({
   id: string;
   self: boolean;
   z: number;
-  pill: boolean;
   editable: boolean;
   onRemove: () => void;
 }) {
@@ -432,30 +467,23 @@ function TargetPortrait({
         src={c?.portraitUrl}
         graine={name}
         alt={name}
+        position="top"
         className={cn(
-          'size-14 rounded-full ring-2 ring-offset-2 ring-offset-background transition-transform sm:size-24 sm:ring-[3px] sm:ring-offset-[3px]',
-          self ? 'ring-warning' : 'ring-destructive/80',
+          PORTRAIT,
+          'ring-1',
+          self ? 'ring-warning/60' : 'ring-destructive/50',
           defeated && 'opacity-50 grayscale',
         )}
       />
-      {pill && (
-        <span
-          className={cn(
-            'absolute -bottom-2 left-1/2 max-w-[5.5rem] -translate-x-1/2 truncate whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-surface sm:max-w-[8rem] sm:px-2.5 sm:text-[11px]',
-            self
-              ? 'bg-warning text-primary-foreground'
-              : 'bg-destructive text-destructive-foreground',
-          )}
-        >
-          {name}
-        </span>
-      )}
       {editable && (
         <button
           type="button"
           aria-label={`Retirer ${name} des cibles`}
           onClick={onRemove}
-          className="absolute -right-1 -top-1 grid size-7 place-items-center rounded-full border border-border-strong bg-popover text-muted-foreground opacity-0 shadow-surface transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+          className={cn(
+            'absolute -right-1.5 -top-1.5 grid size-7 place-items-center rounded-full border border-border-strong bg-popover text-muted-foreground opacity-0 shadow-surface transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100',
+            FOCUS,
+          )}
         >
           <X className="size-3.5" aria-hidden />
         </button>

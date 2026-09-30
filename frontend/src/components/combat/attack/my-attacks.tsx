@@ -37,23 +37,10 @@ export function MyAttacks({
   if (isLoading)
     return <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">Chargement…</p>;
   if (isError)
-    return (
-      <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">
-        Les attaques ne sont pas disponibles pour le moment.
-      </p>
-    );
+    return <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">Indisponible</p>;
   if (!mine.length)
     return (
-      <EtatVide
-        icone={Swords}
-        titre="Aucune attaque"
-        description={
-          combatId
-            ? 'Vous n’avez pas encore attaqué pendant ce combat.'
-            : 'Vous n’avez pas encore attaqué.'
-        }
-        className="border-none bg-transparent py-6"
-      />
+      <EtatVide icone={Swords} titre="Aucune attaque" className="border-none bg-transparent py-6" />
     );
 
   return (

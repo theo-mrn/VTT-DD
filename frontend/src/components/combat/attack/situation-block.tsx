@@ -30,6 +30,22 @@ import { cn } from '@/lib/utils';
 import { HintIcon, SectionTitle, Segmented, SituationPill, Stepper, TogglePill } from './controls';
 import { useComputedSheet, type AttackContext } from './use-attack-context';
 
+/** Le bloc a quelque chose à montrer : paramètres de situation, puces du combat, aperçu MJ. */
+export function hasSituation(
+  ctx: Pick<AttackContext, 'combat' | 'gm'>,
+  systeme: SystemeCharge,
+  action: Action,
+  params: readonly ActionParam[],
+  attackerId: string | null,
+  targetIds: readonly string[],
+): boolean {
+  if (params.length) return true;
+  const s = combatSituation(ctx.combat, attackerId, targetIds);
+  if (!s.inCombat) return false;
+  if (s.attacker.length || s.targets.some((t) => t.chips.length)) return true;
+  return ctx.gm && targetIds.length > 0 && targetAttributeKeys(systeme, action).length > 0;
+}
+
 export function SituationBlock({
   ctx,
   systeme,
@@ -67,12 +83,10 @@ export function SituationBlock({
   };
   const hasCombatInfo =
     situation.attacker.length > 0 || situation.targets.some((t) => t.chips.length > 0);
+  if (!hasSituation(ctx, systeme, action, params, attackerId, targetIds)) return null;
 
   return (
-    <section
-      aria-labelledby="attack-situation"
-      className="rounded-2xl border border-border bg-surface/60 p-4"
-    >
+    <section aria-labelledby="attack-situation">
       <SectionTitle icon={<Radar aria-hidden />}>
         <span id="attack-situation">Situation</span>
         {situation.round !== null && (
@@ -142,13 +156,7 @@ export function SituationBlock({
         </div>
       )}
 
-      {!situation.inCombat ? (
-        <p className="text-[13px] text-muted-foreground">
-          Hors combat : aucun décompte des attaques.
-        </p>
-      ) : !targetIds.length && !situation.attacker.length ? (
-        <p className="text-[13px] text-muted-foreground">Choisissez une cible.</p>
-      ) : (
+      {situation.inCombat && (hasCombatInfo || (ctx.gm && insightKeys.length > 0)) && (
         <ul className="space-y-2.5">
           {situation.attacker.length > 0 && (
             <SituationRow
@@ -158,21 +166,20 @@ export function SituationBlock({
               tone="attacker"
             />
           )}
-          {situation.targets.map((t) => (
-            <SituationRow
-              key={t.characterId}
-              label={targetName(t.characterId, ctx.known)}
-              chips={t.chips}
-              portrait={ctx.known.get(t.characterId)?.portraitUrl ?? null}
-              tone="target"
-            >
-              {ctx.gm && insightKeys.length > 0 && (
-                <GmTargetInsight ctx={ctx} targetId={t.characterId} keys={insightKeys} />
-              )}
-            </SituationRow>
-          ))}
-          {!hasCombatInfo && !ctx.gm && (
-            <li className="text-[12px] text-subtle">Rien de particulier.</li>
+          {situation.targets.map((t) =>
+            t.chips.length || (ctx.gm && insightKeys.length) ? (
+              <SituationRow
+                key={t.characterId}
+                label={targetName(t.characterId, ctx.known)}
+                chips={t.chips}
+                portrait={ctx.known.get(t.characterId)?.portraitUrl ?? null}
+                tone="target"
+              >
+                {ctx.gm && insightKeys.length > 0 && (
+                  <GmTargetInsight ctx={ctx} targetId={t.characterId} keys={insightKeys} />
+                )}
+              </SituationRow>
+            ) : null,
           )}
         </ul>
       )}
@@ -210,14 +217,12 @@ function SituationRow({
         <p className={cn('truncate text-[13px] font-medium', tone === 'attacker' && 'sr-only')}>
           {label}
         </p>
-        {chips.length > 0 ? (
+        {chips.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {chips.map((c) => (
               <SituationPill key={c.id} chip={c} />
             ))}
           </div>
-        ) : (
-          tone === 'target' && <p className="text-[12px] text-subtle">Rien de particulier.</p>
         )}
         {children}
       </div>
