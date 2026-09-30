@@ -182,6 +182,54 @@ interface Target {
   level: number;
 }
 
+/** Part des créatures tirées dans la catégorie de la rencontre (le reste : n'importe laquelle). */
+const COHESION = 0.8;
+
+/** Poids d'une catégorie : déclaré par le système, 1 sinon. */
+const weightOf = (rules: Rencontres, category: string) =>
+  rules.categories.find((c) => c.nom === category)?.poids ?? 1;
+
+/** Tirage pondéré (null si tout pèse 0). */
+function weighted<T>(rng: Random, items: readonly T[], weight: (t: T) => number): T | null {
+  const total = items.reduce((s, x) => s + Math.max(0, weight(x)), 0);
+  if (total <= 0) return null;
+  let r = rng() * total;
+  for (const x of items) {
+    r -= Math.max(0, weight(x));
+    if (r < 0) return x;
+  }
+  return items[items.length - 1] ?? null;
+}
+
+/**
+ * Catégorie de la rencontre, tirée selon les poids du système parmi celles qui ont des
+ * candidates : une rencontre de bandits plutôt qu'un mélange au hasard, et les catégories
+ * nombreuses (les bêtes) ne l'emportent plus par leur seul nombre.
+ */
+function theme(rng: Random, rules: Rencontres, candidates: readonly EncounterCreature[]) {
+  const cats = [...new Set(candidates.map((c) => c.category))];
+  return weighted(rng, cats, (c) => weightOf(rules, c));
+}
+
+/** `n` créatures distinctes, de la catégorie `cat` pour la plupart (sinon n'importe laquelle). */
+function choose(
+  rng: Random,
+  candidates: readonly EncounterCreature[],
+  n: number,
+  cat: string | null,
+): EncounterCreature[] {
+  const out: EncounterCreature[] = [];
+  const left = [...candidates];
+  while (out.length < n && left.length) {
+    const same = cat ? left.filter((c) => c.category === cat) : [];
+    const from = same.length && (rng() < COHESION || out.length === 0) ? same : left;
+    const c = pick(rng, from);
+    out.push(c);
+    left.splice(left.indexOf(c), 1);
+  }
+  return out;
+}
+
 /** Une composition tirée au hasard pour ce scénario, avec ce qui est gardé (`fixed`). */
 function draw(
   rng: Random,
@@ -201,9 +249,21 @@ function draw(
     const leaders = free(s.puissanceMax * t.level, minion);
     const minions = free(minion);
     if (!leaders.length || !minions.length) return null;
-    const leader = pick(rng, leaders);
+    // Le chef donne sa catégorie ; ses sbires en sont, s'il y en a
+    const cat =
+      theme(
+        rng,
+        t.rules,
+        leaders.filter((l) => minions.some((m) => m.category === l.category)),
+      ) ?? theme(rng, t.rules, leaders);
+    const leader = pick(
+      rng,
+      leaders.filter((l) => l.category === cat).length
+        ? leaders.filter((l) => l.category === cat)
+        : leaders,
+    );
     const kinds = Math.min(minions.length, total - 1 >= 4 ? randInt(rng, 1, 2) : 1);
-    const chosen = shuffle(rng, minions).slice(0, kinds);
+    const chosen = choose(rng, minions, kinds, leader.category);
     const counts = split(rng, Math.max(kinds, total - 1), kinds);
     return [
       { creature: leader, count: 1 },
@@ -214,8 +274,10 @@ function draw(
   if (total <= 0) return [...fixed];
   const candidates = free(s.puissanceMax * t.level);
   if (!candidates.length) return fixed.length ? [...fixed] : null;
+  // Gardées : leur catégorie reste celle de la rencontre
+  const cat = fixed[0]?.creature.category ?? theme(rng, t.rules, candidates);
   const kinds = Math.min(candidates.length, total, randInt(rng, 1, Math.min(3, total)));
-  const chosen = shuffle(rng, candidates).slice(0, kinds);
+  const chosen = choose(rng, candidates, kinds, cat);
   const counts = split(rng, total, kinds);
   return [...fixed, ...chosen.map((c, i) => ({ creature: c, count: counts[i]! }))];
 }

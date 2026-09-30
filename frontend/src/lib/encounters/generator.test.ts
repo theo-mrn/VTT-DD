@@ -64,6 +64,7 @@ const rules: Rencontres = {
     },
   ],
   filtres: ['PV_Max'],
+  categories: [],
 };
 
 const creature = (id: string, power: number, category = 'Bête', pv = 10): EncounterCreature => ({
@@ -172,6 +173,37 @@ describe('génération', () => {
     const [leader, ...minions] = e!.groups;
     expect(leader!.count).toBe(1);
     expect(minions.every((g) => g.creature.power < leader!.creature.power)).toBe(true);
+  });
+
+  it('catégorie pondérée : les humanoïdes l’emportent malgré le nombre de bêtes', () => {
+    const beasts = Array.from({ length: 30 }, (_, i) => creature(`bete${i}`, 0.25, 'Bête'));
+    const humans = Array.from({ length: 3 }, (_, i) => creature(`humain${i}`, 0.25, 'Humanoïde'));
+    const weightedRules = {
+      ...rules,
+      categories: [
+        { nom: 'Humanoïde', poids: 6 },
+        { nom: 'Bête', poids: 1 },
+      ],
+    };
+    let human = 0;
+    let total = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const [e] = generate({
+        rules: weightedRules,
+        pool: [...beasts, ...humans],
+        party,
+        difficultyId: 'moyenne',
+        scenarioId: 'horde',
+        count: 1,
+        rng: seeded(seed),
+      });
+      if (!e) continue;
+      total += 1;
+      const main = e.groups[0]!.creature.category;
+      if (main === 'Humanoïde') human += 1;
+    }
+    // Poids 6 contre 1 : bien plus d'une rencontre sur deux, malgré 30 bêtes pour 3 humains
+    expect(human / total).toBeGreaterThan(0.6);
   });
 
   it('vivier vide ou scénario inconnu : rien', () => {

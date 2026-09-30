@@ -875,6 +875,12 @@ export const Rencontres = z.object({
     .min(1),
   /** Valeurs des créatures filtrables par intervalle (PV, Défense…). */
   filtres: z.array(Cle).default([]),
+  /**
+   * Probabilité de chaque catégorie de créatures (« Humanoïde » plus souvent que « Céleste ») :
+   * une rencontre tire d'abord sa catégorie selon ces poids, puis ses créatures, qui en sont
+   * pour la plupart. Une catégorie absente pèse 1.
+   */
+  categories: z.array(z.object({ nom: Libelle, poids: z.number().nonnegative() })).default([]),
 });
 export type Rencontres = z.output<typeof Rencontres>;
 

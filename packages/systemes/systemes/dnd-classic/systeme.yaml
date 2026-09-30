@@ -2858,3 +2858,21 @@ rencontres:
       chef: true
       puissanceSbires: 0.4
   filtres: [PV_Max, Defense]
+  # Rencontres plus probables : humanoïdes (bandits, soldats, cultistes) et ennemis courants
+  # d'abord, créatures rares (célestes, fées) rarement
+  categories:
+    - { nom: Humanoïde, poids: 6 }
+    - { nom: Monstruosité, poids: 3 }
+    - { nom: Mort-vivant, poids: 3 }
+    - { nom: Bête, poids: 2 }
+    - { nom: Géant, poids: 1.5 }
+    - { nom: Fiélon, poids: 1.5 }
+    - { nom: Dragon, poids: 1 }
+    - { nom: Élémentaire, poids: 1 }
+    - { nom: Nuée de bêtes, poids: 1 }
+    - { nom: Artificiel, poids: 1 }
+    - { nom: Aberration, poids: 0.75 }
+    - { nom: Plante, poids: 0.5 }
+    - { nom: Vase, poids: 0.5 }
+    - { nom: Fée, poids: 0.5 }
+    - { nom: Céleste, poids: 0.4 }
