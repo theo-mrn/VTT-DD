@@ -22,8 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { combatErrorMessage } from '@/lib/combat/api';
-import { combatSettings, useCombatCommands } from '@/lib/combat/use-combat';
+import { combatFailure, combatSettings, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
 import { CheckBox } from '../check-box';
 import { SIDE_LABELS, startCandidates } from './model';
@@ -42,7 +41,10 @@ async function attempt(label: string, work: () => Promise<unknown>): Promise<boo
     await work();
     return true;
   } catch (err) {
-    toast.error(label, { description: combatErrorMessage(err) });
+    {
+      const message = combatFailure(err);
+      if (message) toast.error(label, { description: message });
+    }
     return false;
   }
 }

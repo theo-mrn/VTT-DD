@@ -120,6 +120,7 @@ export const combatApi = {
     try {
       return await api<CombatState>(combatUrl(campaignId));
     } catch (err) {
+      // `no_combat` : aucun combat ; tout autre 404 (campagne quittée) : rien à montrer non plus
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
     }
@@ -169,16 +170,24 @@ export const combatApi = {
 // ─── Attaques et rapports ────────────────────────────────────────────────────
 
 export const attacksApi = {
-  /** Déclare une attaque ; `idempotencyKey` : la même pour une reprise (double clic, réseau). */
+  /**
+   * Déclare une attaque ; `idempotencyKey` : la même pour une reprise (double clic, réseau).
+   * Une requête de même clé encore en cours (409 `idempotency_in_progress`) est reprise avec la
+   * même clé : le serveur rend alors la réponse de la première, sans relancer de dé.
+   */
   declare: (campaignId: string, body: DeclareAttack, idempotencyKey: string) =>
-    send<Attack>('POST', campaignUrl(campaignId, '/attacks'), body, idempotency(idempotencyKey)),
-  /** Plusieurs attaques d'un coup (MJ, PNJ à la suite). */
+    retryWhileInProgress(() =>
+      send<Attack>('POST', campaignUrl(campaignId, '/attacks'), body, idempotency(idempotencyKey)),
+    ),
+  /** Plusieurs attaques d'un coup (MJ, PNJ à la suite) ; même reprise que `declare`. */
   declareMany: (campaignId: string, body: DeclareAttacks, idempotencyKey: string) =>
-    send<{ attacks: Attack[] }>(
-      'POST',
-      campaignUrl(campaignId, '/attacks/batch'),
-      body,
-      idempotency(idempotencyKey),
+    retryWhileInProgress(() =>
+      send<{ attacks: Attack[] }>(
+        'POST',
+        campaignUrl(campaignId, '/attacks/batch'),
+        body,
+        idempotency(idempotencyKey),
+      ),
     ),
   /** Attaques filtrées pour l'appelant, les plus récentes d'abord. */
   list: (campaignId: string, query: ListAttacksQuery = {}) =>
@@ -220,6 +229,7 @@ const MESSAGES: Record<string, string> = {
   no_initiative: 'Le système ne déclare pas d’initiative.',
   nothing_to_undo: 'Aucun passage de tour à annuler.',
   revert_conflict: 'La fiche a changé depuis l’application.',
+  idempotency_in_progress: 'La même demande est encore en cours : réessayez dans un instant.',
 };
 
 /** Messages des règles joints à un refus (`action_refused` : `errors` ou `messages`). */
@@ -249,8 +259,48 @@ export function combatErrorMessage(err: unknown): string {
   return messageErreur(err);
 }
 
-/** Erreur passagère (réseau, service indisponible) : on peut reprendre avec la même clé. */
+/** « Aucun combat » (404 `no_combat`) : le combat vient de se terminer, rien à signaler. */
+export function isNoCombat(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404 && err.problem.code === 'no_combat';
+}
+
+/** Même requête (même clé d'idempotence) encore en cours de traitement (409). */
+export function isInProgress(err: unknown): boolean {
+  return (
+    err instanceof ApiError && err.status === 409 && err.problem.code === 'idempotency_in_progress'
+  );
+}
+
+/**
+ * Erreur passagère (réseau, service indisponible, même requête encore en cours) : on peut
+ * reprendre avec la même clé.
+ */
 export function isRetryable(err: unknown): boolean {
   if (!(err instanceof ApiError)) return true;
-  return err.status === 0 || err.status === 429 || err.status >= 500;
+  return err.status === 0 || err.status === 429 || err.status >= 500 || isInProgress(err);
+}
+
+/** Attentes avant de reprendre une requête encore en cours (le premier traitement finit). */
+export const IN_PROGRESS_DELAYS_MS = [250, 500, 1000, 2000] as const;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Reprend `run` tant que le serveur répond 409 `idempotency_in_progress` (au plus une fois par
+ * délai) ; toute autre erreur, ou la dernière, remonte telle quelle.
+ */
+export async function retryWhileInProgress<T>(
+  run: () => Promise<T>,
+  delays: readonly number[] = IN_PROGRESS_DELAYS_MS,
+  wait: (ms: number) => Promise<void> = sleep,
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await run();
+    } catch (err) {
+      const delay = delays[attempt];
+      if (!isInProgress(err) || delay === undefined) throw err;
+      await wait(delay);
+    }
+  }
 }

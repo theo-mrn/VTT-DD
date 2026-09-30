@@ -26,8 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { campagnes, clePersonnagesCampagne } from '@/lib/campagnes';
-import { combatErrorMessage } from '@/lib/combat/api';
-import { useCombatCommands } from '@/lib/combat/use-combat';
+import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
 import {
   SIDE_LABELS,
@@ -83,7 +82,10 @@ export function InitiativeStrip({
     try {
       await work();
     } catch (err) {
-      toast.error(label, { description: combatErrorMessage(err) });
+      {
+        const message = combatFailure(err);
+        if (message) toast.error(label, { description: message });
+      }
     } finally {
       setBusy(null);
     }

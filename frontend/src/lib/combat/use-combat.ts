@@ -11,7 +11,9 @@
  * ```
  *
  * Les commandes écrivent la réponse du service dans le cache (`combatKeys.state`) : l'écran se
- * met à jour sans attendre l'événement, qui est ignoré s'il n'est pas plus récent.
+ * met à jour sans attendre l'événement, qui est ignoré s'il n'est pas plus récent. « Aucun
+ * combat » (404 `no_combat`, terminé ailleurs) remet l'écran hors combat : `combatFailure(err)`
+ * n'en fait aucun message.
  */
 'use client';
 
@@ -37,7 +39,7 @@ import type {
 import { DEFAULT_COMBAT_SETTINGS } from '@vtt/contracts';
 import { useEffect, useMemo } from 'react';
 import { useCampaignEvents, type RealtimeEvent } from '../realtime';
-import { combatApi, combatKeys } from './api';
+import { combatApi, combatErrorMessage, combatKeys, isNoCombat } from './api';
 
 /** Événements des tours (les attaques ont les leurs, `use-attacks.ts`). */
 export const COMBAT_TURN_EVENTS = [
@@ -144,49 +146,81 @@ export function useCombat(campaignId: string | null | undefined, opts: { enabled
  */
 export function useCombatCommands(campaignId: string) {
   const client = useQueryClient();
-  return useMemo(() => {
-    const key = combatKeys.state(campaignId);
-    const keep = <T extends CombatState>(state: T): T => {
-      client.setQueryData(key, state);
+  return useMemo(() => combatCommands(client, campaignId), [client, campaignId]);
+}
+
+/** Commandes du combat sur ce cache (`useCombatCommands`, testées sans React). */
+export function combatCommands(client: QueryClient, campaignId: string) {
+  const key = combatKeys.state(campaignId);
+  const ended = () => {
+    client.setQueryData(key, null);
+    void client.invalidateQueries({ queryKey: combatKeys.attacks(campaignId) });
+  };
+  // « Aucun combat » (terminé ailleurs entre-temps) : l'écran repasse hors combat ; l'erreur
+  // remonte quand même, sans message (`isNoCombat`)
+  const call = async <T>(run: () => Promise<T>): Promise<T> => {
+    try {
+      return await run();
+    } catch (err) {
+      if (isNoCombat(err)) ended();
+      throw err;
+    }
+  };
+  const keep = async <T extends CombatState>(run: () => Promise<T>): Promise<T> => {
+    const state = await call(run);
+    client.setQueryData(key, state);
+    return state;
+  };
+  return {
+    start: async (body: StartCombat) => {
+      const state = await keep(() => combatApi.start(campaignId, body));
+      void client.invalidateQueries({ queryKey: combatKeys.attacks(campaignId) });
       return state;
-    };
-    return {
-      start: async (body: StartCombat) => {
-        const state = keep(await combatApi.start(campaignId, body));
-        void client.invalidateQueries({ queryKey: combatKeys.attacks(campaignId) });
-        return state;
-      },
-      rollInitiative: async (body?: RollCombatInitiative) =>
-        keep(await combatApi.rollInitiative(campaignId, body)),
-      next: async (body?: NextTurn) => keep(await combatApi.next(campaignId, body)),
-      previous: async (body?: PreviousTurn) => keep(await combatApi.previous(campaignId, body)),
-      setTurn: async (body: SetTurn) => keep(await combatApi.setTurn(campaignId, body)),
-      chooseSlotActor: async (body: ChooseSlotActor) =>
-        keep(await combatApi.chooseSlotActor(campaignId, body)),
-      reorder: async (body: ReorderCombat) => keep(await combatApi.reorder(campaignId, body)),
-      updateSettings: async (body: UpdateCombatSettings) =>
-        keep(await combatApi.updateSettings(campaignId, body)),
-      addParticipants: async (body: AddCombatParticipants) =>
-        keep(await combatApi.addParticipants(campaignId, body)),
-      updateParticipant: async (characterId: string, body: UpdateCombatParticipant) =>
-        keep(await combatApi.updateParticipant(campaignId, characterId, body)),
-      removeParticipant: async (characterId: string) =>
-        keep(await combatApi.removeParticipant(campaignId, characterId)),
-      rollParticipantInitiative: async (characterId: string, body?: RollParticipantInitiative) => {
-        const r = await combatApi.rollParticipantInitiative(campaignId, characterId, body);
-        keep(r.combat);
-        return r;
-      },
-      submitInitiativeDice: async (characterId: string, body: SubmitRollDice) => {
-        const r = await combatApi.submitInitiativeDice(campaignId, characterId, body);
-        keep(r.combat);
-        return r;
-      },
-      end: async (body?: EndCombat) => {
+    },
+    rollInitiative: (body?: RollCombatInitiative) =>
+      keep(() => combatApi.rollInitiative(campaignId, body)),
+    next: (body?: NextTurn) => keep(() => combatApi.next(campaignId, body)),
+    previous: (body?: PreviousTurn) => keep(() => combatApi.previous(campaignId, body)),
+    setTurn: (body: SetTurn) => keep(() => combatApi.setTurn(campaignId, body)),
+    chooseSlotActor: (body: ChooseSlotActor) =>
+      keep(() => combatApi.chooseSlotActor(campaignId, body)),
+    reorder: (body: ReorderCombat) => keep(() => combatApi.reorder(campaignId, body)),
+    updateSettings: (body: UpdateCombatSettings) =>
+      keep(() => combatApi.updateSettings(campaignId, body)),
+    addParticipants: (body: AddCombatParticipants) =>
+      keep(() => combatApi.addParticipants(campaignId, body)),
+    updateParticipant: (characterId: string, body: UpdateCombatParticipant) =>
+      keep(() => combatApi.updateParticipant(campaignId, characterId, body)),
+    removeParticipant: (characterId: string) =>
+      keep(() => combatApi.removeParticipant(campaignId, characterId)),
+    rollParticipantInitiative: async (characterId: string, body?: RollParticipantInitiative) => {
+      const r = await call(() =>
+        combatApi.rollParticipantInitiative(campaignId, characterId, body),
+      );
+      client.setQueryData(key, r.combat);
+      return r;
+    },
+    submitInitiativeDice: async (characterId: string, body: SubmitRollDice) => {
+      const r = await call(() => combatApi.submitInitiativeDice(campaignId, characterId, body));
+      client.setQueryData(key, r.combat);
+      return r;
+    },
+    end: async (body?: EndCombat) => {
+      try {
         await combatApi.end(campaignId, body);
-        client.setQueryData(key, null);
-        void client.invalidateQueries({ queryKey: combatKeys.attacks(campaignId) });
-      },
-    };
-  }, [client, campaignId]);
+      } catch (err) {
+        // Déjà terminé ailleurs : le résultat voulu est atteint
+        if (!isNoCombat(err)) throw err;
+      }
+      ended();
+    },
+  };
+}
+
+/**
+ * Message d'échec d'une commande du combat, sauf « aucun combat » : le combat vient de se
+ * terminer ailleurs, l'écran repasse hors combat sans erreur à lire.
+ */
+export function combatFailure(err: unknown): string | null {
+  return isNoCombat(err) ? null : combatErrorMessage(err);
 }

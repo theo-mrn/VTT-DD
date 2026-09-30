@@ -32,8 +32,7 @@ import {
 import { Info } from '@/components/ui/tooltip';
 import type { DetailCampagne } from '@/lib/campagnes';
 import { openAttackMenu } from '@/lib/combat/attack-menu-store';
-import { combatErrorMessage } from '@/lib/combat/api';
-import { useCombatCommands } from '@/lib/combat/use-combat';
+import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import {
   AddParticipantsDialog,
   EndCombatDialog,
@@ -132,7 +131,10 @@ function ActiveCombat({
     try {
       return await work();
     } catch (err) {
-      toast.error(label, { description: combatErrorMessage(err) });
+      {
+        const message = combatFailure(err);
+        if (message) toast.error(label, { description: message });
+      }
       return null;
     } finally {
       setBusy(null);

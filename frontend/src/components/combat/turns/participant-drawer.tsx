@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { combatErrorMessage } from '@/lib/combat/api';
-import { useCombatCommands } from '@/lib/combat/use-combat';
+import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { SIDE_LABELS } from './model';
 import { InitiativeParamsForm, initiativeAction, initiativeParams } from './initiative-form';
 import { StatesManager } from './states-manager';
@@ -107,7 +107,10 @@ function DrawerBody({
       await work();
       return true;
     } catch (err) {
-      toast.error(label, { description: combatErrorMessage(err) });
+      {
+        const message = combatFailure(err);
+        if (message) toast.error(label, { description: message });
+      }
       return false;
     } finally {
       setBusy(null);
