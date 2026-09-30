@@ -39,7 +39,7 @@ import { cn } from '@/lib/utils';
 import { ReactionForm } from '../player/reaction-prompt';
 import type { CastMember } from '../turns/use-cast';
 import { reportDefeated } from './defeated-dialog';
-import { dieName, keyParams, modificationText, rollSummary, tableName } from './labels';
+import { dieName, keyParams, modificationText, pathLabel, rollSummary, tableName } from './labels';
 import {
   actorDecidable,
   buildApply,
@@ -54,6 +54,7 @@ import {
   isPending,
   revertConflictOf,
   toInput,
+  type RevertConflict,
 } from './model';
 
 const HOUR = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -85,7 +86,7 @@ export function ReportCard({
   const commands = useAttackCommands(campaignId);
   const [busy, setBusy] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
-  const [conflict, setConflict] = useState<string[] | null>(null);
+  const [conflict, setConflict] = useState<RevertConflict[] | null>(null);
   const [confirmDismiss, setConfirmDismiss] = useState(false);
   const attacker = cast.get(attack.attackerId);
   const attackerName = attacker?.name ?? 'Personnage';
@@ -105,7 +106,7 @@ export function ReportCard({
       return true;
     } catch (err) {
       const c = revertConflictOf(err);
-      if (key === 'revert' && c) setConflict(c.paths);
+      if (key === 'revert' && c) setConflict(c);
       else toast.error(label, { description: combatErrorMessage(err) });
       return false;
     } finally {
@@ -307,7 +308,18 @@ export function ReportCard({
             entre-temps.
           </p>
           {conflict.length > 0 && (
-            <p className="font-mono text-[11px] text-muted-foreground">{conflict.join(', ')}</p>
+            <ul className="text-[11px] text-muted-foreground">
+              {conflict.map((c, i) => (
+                <li key={i}>
+                  {c.characterId ? `${nameOf(c.characterId)} : ` : ''}
+                  {c.paths
+                    .map((p) =>
+                      pathLabel(systeme, p, c.characterId ? cast.get(c.characterId)?.type : null),
+                    )
+                    .join(', ')}
+                </li>
+              ))}
+            </ul>
           )}
           <div className="flex justify-end gap-2">
             <Button size="xs" variant="ghost" onClick={() => setConflict(null)}>

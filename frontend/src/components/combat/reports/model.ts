@@ -15,7 +15,6 @@ import {
   type Attack,
   type AttackModification,
   type AttackModificationInput,
-  type AttackOutcome,
   type AttackTableChoice,
   type AttackTarget,
   type DieSource,
@@ -83,20 +82,6 @@ export function canRevert(a: Attack): boolean {
 }
 
 // ─── Lecture d'un rapport ────────────────────────────────────────────────────
-
-export type OutcomeTone = 'critical' | 'success' | 'failure' | 'fumble';
-
-export function outcomeTone(o: AttackOutcome): OutcomeTone {
-  if (o.success) return o.critical ? 'critical' : 'success';
-  return o.fumble ? 'fumble' : 'failure';
-}
-
-export const OUTCOME_LABELS: Record<OutcomeTone, string> = {
-  critical: 'Critique',
-  success: 'Touché',
-  failure: 'Raté',
-  fumble: 'Échec critique',
-};
 
 export type DiceOrigin = 'physical' | 'server' | 'mixed';
 
@@ -435,23 +420,42 @@ export function buildApplyAll(
 
 // ─── Annulation ──────────────────────────────────────────────────────────────
 
+export interface RevertConflict {
+  /** Personnage dont la fiche a changé ; null si le serveur ne le dit pas. */
+  characterId: string | null;
+  /** Chemins de la fiche en cause (`etat.valeurs.PV`…). */
+  paths: string[];
+}
+
+const pathOf = (p: unknown): string[] =>
+  typeof p === 'string'
+    ? [p]
+    : p && typeof p === 'object' && typeof (p as { path?: unknown }).path === 'string'
+      ? [(p as { path: string }).path]
+      : [];
+
 /**
- * Conflit d'une annulation (409 `revert_conflict`) : la fiche a changé depuis ; chemins en
- * cause, s'ils sont donnés. Null pour toute autre erreur.
+ * Conflit d'une annulation (409 `revert_conflict`) : la fiche a changé depuis, par personnage
+ * (`conflicts: [{ characterId, paths }]`, ou une liste de chemins). Null pour toute autre
+ * erreur.
  */
-export function revertConflictOf(err: unknown): { paths: string[] } | null {
+export function revertConflictOf(err: unknown): RevertConflict[] | null {
   if (!err || typeof err !== 'object' || !('problem' in err)) return null;
   const problem = (err as { problem: Record<string, unknown> }).problem;
   if (problem.status !== 409 || problem.code !== 'revert_conflict') return null;
-  const raw = problem.paths ?? problem.conflicts;
-  const paths = Array.isArray(raw)
-    ? raw.flatMap((p) =>
-        typeof p === 'string'
-          ? [p]
-          : p && typeof p === 'object' && typeof (p as { path?: unknown }).path === 'string'
-            ? [(p as { path: string }).path]
-            : [],
-      )
-    : [];
-  return { paths };
+  const raw = problem.conflicts ?? problem.paths;
+  if (!Array.isArray(raw)) return [];
+  const loose: string[] = [];
+  const out: RevertConflict[] = [];
+  for (const c of raw) {
+    const o = c && typeof c === 'object' ? (c as { characterId?: unknown; paths?: unknown }) : null;
+    if (o && Array.isArray(o.paths))
+      out.push({
+        characterId: typeof o.characterId === 'string' ? o.characterId : null,
+        paths: o.paths.flatMap(pathOf),
+      });
+    else loose.push(...pathOf(c));
+  }
+  if (loose.length) out.push({ characterId: null, paths: loose });
+  return out;
 }

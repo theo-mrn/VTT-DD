@@ -46,6 +46,15 @@ export function tableName(systeme: SystemeCharge | null, id: string) {
   return systeme?.tables.get(id)?.nom ?? id;
 }
 
+const VALUE_PATH = /^etat\.valeurs(?:\.([^.[\]]+)|\["?([^"\]]+)"?\])$/;
+
+/** Chemin d'une fiche lisible : « PV » pour `etat.valeurs.PV`, sinon le chemin brut. */
+export function pathLabel(systeme: SystemeCharge | null, path: string, entityType?: string | null) {
+  const m = VALUE_PATH.exec(path);
+  const key = m?.[1] ?? m?.[2];
+  return key ? attributeLabel(systeme, key, entityType) : path;
+}
+
 /** Types de dégâts déclarés par le système. */
 export function damageTypes(systeme: SystemeCharge | null) {
   return systeme?.source.typesDegats ?? [];

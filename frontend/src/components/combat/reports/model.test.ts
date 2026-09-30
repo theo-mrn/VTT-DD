@@ -18,7 +18,6 @@ import {
   filterReports,
   halve,
   isAsProposed,
-  outcomeTone,
   pendingCount,
   reduceBy,
   revertConflictOf,
@@ -132,13 +131,6 @@ describe('filtres et pastille', () => {
 });
 
 describe('lecture', () => {
-  it('issue', () => {
-    expect(outcomeTone({ success: true, critical: true, fumble: false })).toBe('critical');
-    expect(outcomeTone({ success: true, critical: false, fumble: false })).toBe('success');
-    expect(outcomeTone({ success: false, critical: false, fumble: true })).toBe('fumble');
-    expect(outcomeTone({ success: false, critical: false, fumble: false })).toBe('failure');
-  });
-
   it('source des dés : 3D, serveur ou mixte', () => {
     expect(diceOrigin(attack('a'))).toBe('server');
     const mixed = target('kael');
@@ -379,16 +371,27 @@ describe('revue groupée', () => {
 });
 
 describe('annulation', () => {
-  it('reconnaît le conflit et ses chemins', () => {
+  it('reconnaît le conflit et ses chemins, par personnage', () => {
     const err = {
       problem: {
         status: 409,
-        title: 'Conflict',
+        title: 'Conflit',
+        code: 'revert_conflict',
+        conflicts: [{ characterId: 'lyra', paths: ['etat.valeurs.hp'] }],
+      },
+    };
+    expect(revertConflictOf(err)).toEqual([{ characterId: 'lyra', paths: ['etat.valeurs.hp'] }]);
+    const loose = {
+      problem: {
+        status: 409,
         code: 'revert_conflict',
         paths: ['etat.valeurs.hp', { path: 'etat.valeurs.stress' }],
       },
     };
-    expect(revertConflictOf(err)).toEqual({ paths: ['etat.valeurs.hp', 'etat.valeurs.stress'] });
+    expect(revertConflictOf(loose)).toEqual([
+      { characterId: null, paths: ['etat.valeurs.hp', 'etat.valeurs.stress'] },
+    ]);
+    expect(revertConflictOf({ problem: { status: 409, code: 'revert_conflict' } })).toEqual([]);
     expect(revertConflictOf({ problem: { status: 409, code: 'version_conflict' } })).toBeNull();
     expect(revertConflictOf(new Error('x'))).toBeNull();
   });
