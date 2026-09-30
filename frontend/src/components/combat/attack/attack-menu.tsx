@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Check,
   Clock,
+  Dices,
   History,
   Loader2,
   RotateCcw,
@@ -47,6 +48,8 @@ import { combatErrorMessage } from '@/lib/combat/api';
 import {
   canGoBack,
   declaredStage,
+  stepButtonLabel,
+  stepToLaunch,
   isMinimized,
   isQuickAim,
   MENU_STAGE_LABELS,
@@ -112,6 +115,22 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
     if (canAimNow) attackMenu.dispatch({ type: 'aim', on: true });
   };
   const back = () => attackMenu.dispatch({ type: 'setStep', step: 'action' });
+  const [launching, setLaunching] = useState(false);
+  const nextStep = attack ? stepToLaunch(attack) : null;
+  const launchNext = async () => {
+    if (!attack || !nextStep || launching) return;
+    setLaunching(true);
+    try {
+      attackMenu.dispatch({
+        type: 'attackUpdated',
+        attack: await model.commands.submitDice(attack.id, { stepId: nextStep.id, results: [] }),
+      });
+    } catch (err) {
+      toast.error(combatErrorMessage(err));
+    } finally {
+      setLaunching(false);
+    }
+  };
 
   // Sens de la transition : en avant ou en arrière dans les étapes
   const order: MenuStage[] = ['action', 'prepare', 'roll', 'end'];
@@ -149,6 +168,11 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
         e.preventDefault();
         model.choose(model.action);
       }
+      return;
+    }
+    if (stage === 'roll' && nextStep && e.key === 'Enter' && !typing) {
+      e.preventDefault();
+      void launchNext();
       return;
     }
     if (stage === 'prepare' && e.key === 'Enter') {
@@ -290,6 +314,8 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
                 actionCount={actionCount}
                 onBack={back}
                 onClose={close}
+                onLaunchNext={() => void launchNext()}
+                launching={launching}
               />
             </div>
           </DialogPrimitive.Content>
@@ -581,6 +607,8 @@ function Footer({
   actionCount,
   onBack,
   onClose,
+  onLaunchNext,
+  launching,
 }: {
   ctx: AttackContext;
   flow: OpenFlow;
@@ -590,6 +618,9 @@ function Footer({
   actionCount: number;
   onBack: () => void;
   onClose: () => void;
+  /** Lance l'étape suivante (dégâts après TOUCHÉ). */
+  onLaunchNext: () => void;
+  launching: boolean;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -721,6 +752,41 @@ function Footer({
       </Bar>
     );
   }
+
+  const next = stepToLaunch(attack);
+  if (stage === 'roll' && s === 'next' && next)
+    return (
+      <Bar>
+        <Button
+          variant="ghost"
+          loading={busy === 'cancel'}
+          disabled={launching}
+          onClick={() =>
+            void run('cancel', async () => ({
+              type: 'attackUpdated',
+              attack: await model.commands.cancel(attack.id, { version: attack.version }),
+            }))
+          }
+        >
+          <Undo2 /> Abandonner
+        </Button>
+        <Button
+          size="xl"
+          className="min-w-[15rem] shadow-glow"
+          loading={launching}
+          disabled={busy !== null}
+          onClick={onLaunchNext}
+        >
+          {!launching && <Dices />}
+          {stepButtonLabel(next)}
+          {!launching && (
+            <Kbd className="ml-1 border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground max-sm:hidden">
+              Entrée
+            </Kbd>
+          )}
+        </Button>
+      </Bar>
+    );
 
   if (stage === 'roll')
     return (

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AIM_TTL_MS, AimBoard, AimSender, aimMessage } from './aim';
+import { declaredStage, stepButtonLabel, stepToLaunch } from './attack-flow';
 import { partitionStep, serverRunner } from './dice-steps';
+import { attack as testAttack } from './test-kit';
 
 describe('visée en direct (combat.aim)', () => {
   it('n’envoie que les changements, puis `end` une seule fois', () => {
@@ -41,17 +43,30 @@ describe('visée en direct (combat.aim)', () => {
 });
 
 describe('étapes de dés (point d’extension de l’étape C)', () => {
-  it('repli du serveur : aucune face, le serveur tire', async () => {
+  it('repli du serveur : aucune face, le serveur tire cette étape seulement', async () => {
     const step = {
       id: 's1',
       phase: 'roll' as const,
       dice: [{ id: 'd1', targetId: null, faces: 20 }],
     };
-    expect(await serverRunner.run(step)).toEqual({
-      stepId: 's1',
-      results: [],
-      serverFallback: true,
-    });
+    expect(await serverRunner.run(step)).toEqual({ stepId: 's1', results: [] });
+  });
+
+  it('dégâts après TOUCHÉ : étape que l’attaquant déclenche, libellé tiré des données', () => {
+    const attack = testAttack;
+    const roll = { id: 'r', phase: 'roll' as const, dice: [] };
+    const after = { id: 'a', phase: 'after' as const, label: 'Dégâts', dice: [] };
+    expect(stepToLaunch(attack({ status: 'awaiting_dice', pendingSteps: [roll] }))).toBeNull();
+    expect(declaredStage(attack({ status: 'awaiting_dice', pendingSteps: [roll] }))).toBe('dice');
+    const waiting = attack({ status: 'awaiting_dice', pendingSteps: [after] });
+    expect(stepToLaunch(waiting)).toBe(after);
+    expect(declaredStage(waiting)).toBe('next');
+    expect(stepToLaunch({ ...waiting, resolving: true })).toBeNull();
+    expect(stepButtonLabel(after)).toBe('Lancer les dégâts');
+    expect(stepButtonLabel({ ...after, phase: 'table', label: 'Blessure critique' })).toBe(
+      'Tirer : Blessure critique',
+    );
+    expect(stepButtonLabel({ ...after, label: undefined })).toBe('Lancer la suite');
   });
 
   it('dés lancés en 3D et dés laissés au serveur (d100, limite du lanceur)', () => {

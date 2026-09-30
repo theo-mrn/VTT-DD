@@ -225,6 +225,7 @@ const MESSAGES: Record<string, string> = {
   already_resolved: 'L’attaque est déjà résolue.',
   step_outdated: 'Ces dés ont déjà été lancés.',
   invalid_physical_result: 'Les faces lues sur les dés sont invalides.',
+  resolution_in_progress: 'Les dés précédents sont en train d’être comptés : patientez.',
   character_unavailable: 'Les fiches ne répondent pas : rien n’a été fait, réessayez.',
   no_initiative: 'Le système ne déclare pas d’initiative.',
   nothing_to_undo: 'Aucun passage de tour à annuler.',

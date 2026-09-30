@@ -23,9 +23,12 @@ export interface DiceStepRunner {
   run(step: RollStep): Promise<SubmitRollDice>;
 }
 
-/** Repli : le serveur tire tous les dés de l'étape (§ 6.3). */
+/**
+ * Repli : le serveur tire les dés de **cette** étape seulement (§ 6.3) ; l'étape suivante
+ * (dégâts après TOUCHÉ) reste à lancer par l'attaquant.
+ */
 export const serverRunner: DiceStepRunner = {
-  run: async (step) => ({ stepId: step.id, results: [], serverFallback: true }),
+  run: async (step) => ({ stepId: step.id, results: [] }),
 };
 
 /** Forme 3D d'un dé demandé, ou null s'il n'en a pas (dé à symboles : forme de la présentation). */

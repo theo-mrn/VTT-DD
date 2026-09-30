@@ -75,12 +75,13 @@ export function useDeclaredAttack(flow: OpenFlow, commands: Commands): Attack | 
       attackMenu.dispatch({ type: 'attackUpdated', attack: live.attack });
   }, [declared, live.attack]);
 
-  // Dés à lancer (étape C à venir) : le serveur tire, rien n'est animé
+  // Jet d'attaque : lancé tout seul (le serveur tire, rien n'est animé) ; la suite (dégâts),
+  // l'attaquant la déclenche après avoir vu TOUCHÉ ou RATÉ (`stepToLaunch`)
   const sent = useRef(new Set<string>());
   useEffect(() => {
-    if (!attack || attack.status !== 'awaiting_dice') return;
+    if (!attack || attack.status !== 'awaiting_dice' || attack.resolving) return;
     for (const step of attack.pendingSteps) {
-      if (sent.current.has(step.id)) continue;
+      if (step.phase !== 'roll' || sent.current.has(step.id)) continue;
       sent.current.add(step.id);
       void serverRunner
         .run(step)

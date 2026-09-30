@@ -542,7 +542,25 @@ export const isQuickAim = (s: AttackFlowState) =>
 
 // ─── Attaque déclarée ────────────────────────────────────────────────────────
 
-export type DeclaredStage = 'reactions' | 'dice' | 'result' | 'cancelled' | 'failed';
+export type DeclaredStage = 'reactions' | 'dice' | 'next' | 'result' | 'cancelled' | 'failed';
+
+/**
+ * Étape de dés que l'attaquant déclenche lui-même (§ 6.1) : la suite d'un jet dont l'issue est
+ * déjà connue (« Lancer les dégâts » après TOUCHÉ). Le jet d'attaque, lui, part tout seul.
+ */
+export function stepToLaunch(attack: Attack): Attack['pendingSteps'][number] | null {
+  if (attack.status !== 'awaiting_dice' || attack.resolving) return null;
+  const step = attack.pendingSteps[0];
+  return step && step.phase !== 'roll' ? step : null;
+}
+
+/** « Lancer les dégâts », « Lancer les soins », « Tirer : Blessures critiques »… */
+export function stepButtonLabel(step: Attack['pendingSteps'][number]): string {
+  const label = step.label?.trim();
+  if (!label) return 'Lancer la suite';
+  if (step.phase === 'table') return `Tirer : ${label}`;
+  return /s$/i.test(label) ? `Lancer les ${label.toLowerCase()}` : `Lancer : ${label}`;
+}
 
 /** Étape à montrer pour une attaque déclarée, d'après son statut. */
 export function declaredStage(attack: Attack): DeclaredStage {
@@ -550,7 +568,7 @@ export function declaredStage(attack: Attack): DeclaredStage {
     case 'awaiting_reactions':
       return 'reactions';
     case 'awaiting_dice':
-      return 'dice';
+      return stepToLaunch(attack) ? 'next' : 'dice';
     case 'cancelled':
       return 'cancelled';
     case 'failed':
