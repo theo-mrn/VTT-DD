@@ -211,3 +211,45 @@ export function previewRoll(
   });
   return { kind: 'symbols', dice, upgrades, dependsOnTarget };
 }
+
+/**
+ * Nombre de dés de chaque sorte que l'aperçu donne à l'attaquant, améliorations comprises
+ * (un dé amélioré passe de sa sorte à `vers`) : la valeur « de la fiche » des compteurs du
+ * pool (§ 12.1, 2). `null` : dépend de la cible, inconnu avant le jet.
+ */
+export function poolCounts(preview: RollPreview | null): Readonly<Record<string, number | null>> {
+  if (!preview || preview.kind !== 'symbols') return {};
+  const counts: Record<string, number | null> = {};
+  for (const d of preview.dice)
+    counts[d.die] =
+      d.count === null || counts[d.die] === null ? null : (counts[d.die] ?? 0) + d.count;
+  for (const u of preview.upgrades) {
+    const from = counts[u.die];
+    if (u.count === null || from === null) {
+      counts[u.to] = null;
+      continue;
+    }
+    // On n'améliore que les dés présents ; le reste reste de la sorte d'origine
+    const moved = Math.min(u.count, from ?? 0);
+    counts[u.die] = (from ?? 0) - moved;
+    counts[u.to] = counts[u.to] === null ? null : (counts[u.to] ?? 0) + moved;
+  }
+  return counts;
+}
+
+/**
+ * Attributs de la cible que lisent les formules de l'action (`@cible.X`) : l'aperçu par cible
+ * du MJ les montre (Défense, Encaissement…), sans rien supposer du jeu.
+ */
+export function targetAttributeKeys(systeme: SystemeCharge, action: Action): string[] {
+  const prefix = chemins.action(action.id, '');
+  const keys = new Set<string>();
+  for (const [path, f] of systeme.formules) {
+    if (!path.startsWith(prefix)) continue;
+    for (const k of f.dependancesExternes.get('cible') ?? []) keys.add(k);
+  }
+  return [...keys];
+}
+
+/** Actions dans l'ordre de leurs groupes (raccourcis 1 à 9). */
+export const flatActions = (groups: readonly ActionGroup[]) => groups.flatMap((g) => g.actions);

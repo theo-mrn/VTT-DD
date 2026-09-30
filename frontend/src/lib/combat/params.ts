@@ -27,6 +27,44 @@ export type EntryParam = Extract<ActionParam, { type: 'entree' }>;
 export const paramChooser = (p: ActionParam): 'acteur' | 'cible' =>
   (p as { par?: 'acteur' | 'cible' }).par === 'cible' ? 'cible' : 'acteur';
 
+// ─── Choix, section, description (§ 5.7) ─────────────────────────────────────
+//
+// Lus sans supposer leur présence dans le schéma du moteur : un paramètre `choix` (options
+// nommées), rangé dans la section `situation` du menu, avec une `description` courte.
+
+export interface ChoiceOption {
+  valeur: string;
+  nom: string;
+}
+
+/** Le paramètre est un choix parmi des options nommées (couvert : aucun, partiel…). */
+export const isChoiceParam = (p: ActionParam) => (p.type as string) === 'choix';
+
+/** Options d'un paramètre `choix` (vide pour un autre type). */
+export function choiceOptions(p: ActionParam): ChoiceOption[] {
+  if (!isChoiceParam(p)) return [];
+  const raw = (p as unknown as { options?: unknown }).options;
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((o: unknown) => {
+    if (typeof o === 'string') return [{ valeur: o, nom: o }];
+    if (!o || typeof o !== 'object') return [];
+    const x = o as { valeur?: unknown; id?: unknown; cle?: unknown; nom?: unknown };
+    const valeur = [x.valeur, x.id, x.cle].find((v) => typeof v === 'string') as string | undefined;
+    if (!valeur) return [];
+    return [{ valeur, nom: typeof x.nom === 'string' ? x.nom : valeur }];
+  });
+}
+
+/** Section du menu où ranger le paramètre : `situation` (§ 5.7) ou la préparation. */
+export const paramSection = (p: ActionParam): 'situation' | 'main' =>
+  (p as { section?: unknown }).section === 'situation' ? 'situation' : 'main';
+
+/** Description courte d'un paramètre (info-bulle), s'il en a une. */
+export function paramDescription(p: ActionParam): string | null {
+  const d = (p as { description?: unknown }).description;
+  return typeof d === 'string' && d.trim() ? d.trim() : null;
+}
+
 /** Attributs proposés par un paramètre `attribut` (ceux d'une règle éteinte sont retirés). */
 export function attributeOptions(fiche: Fiche, p: AttributeParam): string[] {
   if (p.attributs?.length) return p.attributs.filter((c) => fiche.attributActif(c));
@@ -40,6 +78,8 @@ export interface EntryOption {
   id: string;
   nom: string;
   rang: number;
+  /** Possédée par le personnage (sinon proposée depuis le catalogue, `possedee: false`). */
+  owned: boolean;
 }
 
 /**
@@ -58,28 +98,60 @@ export function entryOptions(fiche: Fiche, p: EntryParam): EntryOption[] {
         id: ex.exemplaire === undefined ? id : `${id}#${ex.exemplaire}`,
         nom: nom === x.entree.nom ? `${nom} (n° ${i + 1})` : nom,
         rang: x.rang,
+        owned: true,
       };
     });
   };
+  const owned = (e: { id: string }) => fiche.possessions.has(e.id);
   if (!p.possedee)
-    return [...fiche.systeme.entrees.values()]
-      .filter(fits)
-      .flatMap(
-        (e) =>
-          copies(e.id) ?? [{ id: e.id, nom: e.nom, rang: fiche.possessions.get(e.id)?.rang ?? 0 }],
-      );
+    return [...fiche.systeme.entrees.values()].filter(fits).flatMap(
+      (e) =>
+        copies(e.id) ?? [
+          {
+            id: e.id,
+            nom: owned(e)
+              ? nomPossession(
+                  e,
+                  fiche.possessions.get(e.id)!.sorte,
+                  fiche.possessions.get(e.id)!.possession,
+                )
+              : e.nom,
+            rang: fiche.possessions.get(e.id)?.rang ?? 0,
+            owned: owned(e),
+          },
+        ],
+    );
   return [...fiche.possessions.values()]
     .filter((x) => fits(x.entree))
     .flatMap(
       (x) =>
         copies(x.entree.id) ?? [
-          { id: x.entree.id, nom: nomPossession(x.entree, x.sorte, x.possession), rang: x.rang },
+          {
+            id: x.entree.id,
+            nom: nomPossession(x.entree, x.sorte, x.possession),
+            rang: x.rang,
+            owned: true,
+          },
         ],
     );
 }
 
-/** Valeur par défaut d'un paramètre, pour préremplir le formulaire (`''` : aucune). */
+/** Identifiant d'entrée d'une option (`entree#exemplaire` → `entree`). */
+export const entryIdOf = (option: string) => option.split('#', 1)[0]!;
+
+/**
+ * Valeur par défaut d'un paramètre, pour préremplir le formulaire (`''` : aucune). Une entrée
+ * prise dans tout le catalogue (`possedee: false`) propose d'abord celle que le personnage
+ * possède (son arme plutôt que la première du catalogue).
+ */
 export function defaultParamValue(fiche: Fiche, p: ActionParam): Valeur {
+  if (isChoiceParam(p)) {
+    const d = (p as { defaut?: unknown }).defaut;
+    const options = choiceOptions(p);
+    return typeof d === 'string' && options.some((o) => o.valeur === d)
+      ? d
+      : (options[0]?.valeur ?? '');
+  }
   switch (p.type) {
     case 'nombre':
       return p.defaut;
@@ -87,9 +159,13 @@ export function defaultParamValue(fiche: Fiche, p: ActionParam): Valeur {
       return p.defaut;
     case 'attribut':
       return attributeOptions(fiche, p)[0] ?? '';
-    case 'entree':
-      return p.facultatif ? '' : (entryOptions(fiche, p)[0]?.id ?? '');
+    case 'entree': {
+      if (p.facultatif) return '';
+      const options = entryOptions(fiche, p);
+      return (options.find((o) => o.owned) ?? options[0])?.id ?? '';
+    }
   }
+  return '';
 }
 
 /** L'`exige` du paramètre est vrai pour `decideur` (vrai sans condition). */
@@ -152,6 +228,8 @@ export function mergeParams(
 
 /** La valeur convient à ce paramètre pour cette fiche (type, option proposée). */
 export function paramValueValid(fiche: Fiche, p: ActionParam, v: Valeur): boolean {
+  if (isChoiceParam(p))
+    return typeof v === 'string' && choiceOptions(p).some((o) => o.valeur === v);
   switch (p.type) {
     case 'nombre':
       return typeof v === 'number' && Number.isFinite(v);
@@ -165,6 +243,7 @@ export function paramValueValid(fiche: Fiche, p: ActionParam, v: Valeur): boolea
         ((p.facultatif && v === '') || entryOptions(fiche, p).some((o) => o.id === v))
       );
   }
+  return false;
 }
 
 /**

@@ -1,19 +1,27 @@
 import type { Presentation } from '@vtt/rules';
 import { describe, expect, it } from 'vitest';
 import {
+  flatActions,
   groupActions,
   multitargetOf,
+  poolCounts,
   previewRoll,
   presentationGroups,
+  targetAttributeKeys,
   targetedActions,
 } from './actions';
 import {
   attackerParams,
+  choiceOptions,
   defaultParams,
+  entryIdOf,
   entryOptions,
   mergeParams,
   missingParams,
+  paramDescription,
+  paramSection,
   paramsToSend,
+  paramValueValid,
   reactionParams,
 } from './params';
 import { loadSystem, sheet } from './test-kit';
@@ -113,5 +121,93 @@ describe('actions du menu d’attaque', () => {
     const soin = previewRoll(s, s.actions.get('soin')!, guerrier, {});
     expect(soin?.kind === 'numeric' && soin.dependsOnTarget).toBe(true);
     expect(soin?.kind === 'numeric' && soin.formula).toContain('@cible.PV_Max');
+  });
+});
+
+describe('paramètres de situation (§ 5.7) : choix, section, description', () => {
+  // Forme du moteur (paramètre `choix`, `section`, `description`), ajoutée par-dessus l'action
+  const couvert = {
+    id: 'couvert',
+    nom: 'Couvert de la cible',
+    type: 'choix',
+    par: 'acteur',
+    section: 'situation',
+    description: 'Le couvert gêne l’attaquant.',
+    options: [
+      { valeur: 'aucun', nom: 'Aucun' },
+      { valeur: 'partiel', nom: 'Partiel', description: '+2 en Défense' },
+      { valeur: 'important', nom: 'Important' },
+    ],
+    defaut: 'aucun',
+  };
+  const surprise = { id: 'surprise', nom: 'Cible surprise', type: 'booleen', defaut: false };
+  const action = { ...frappe, parametres: [...frappe.parametres, couvert, surprise] } as never;
+  const param = (id: string) => attackerParams(s, action, guerrier).find((p) => p.id === id)!;
+
+  it('options nommées, défaut, validation', () => {
+    const p = param('couvert');
+    expect(choiceOptions(p).map((o) => o.valeur)).toEqual(['aucun', 'partiel', 'important']);
+    expect(defaultParams(s, action, guerrier).couvert).toBe('aucun');
+    expect(paramValueValid(guerrier, p, 'partiel')).toBe(true);
+    expect(paramValueValid(guerrier, p, 'total')).toBe(false);
+    // Valeur précédente invalide : retour au défaut
+    expect(mergeParams(s, action, guerrier, { couvert: 'total' }).couvert).toBe('aucun');
+    expect(choiceOptions(param('surprise'))).toEqual([]);
+  });
+
+  it('rangement : situation à part, le reste en préparation ; description en info-bulle', () => {
+    expect(paramSection(param('couvert'))).toBe('situation');
+    expect(paramSection(param('surprise'))).toBe('main');
+    expect(paramSection(param('arme'))).toBe('main');
+    expect(paramDescription(param('couvert'))).toBe('Le couvert gêne l’attaquant.');
+    expect(paramDescription(param('arme'))).toBeNull();
+  });
+});
+
+describe('armes proposées et pool', () => {
+  it('catalogue entier (`possedee: false`) : les armes possédées marquées, et choisies d’abord', () => {
+    const libre = {
+      ...frappe,
+      parametres: [{ id: 'arme', nom: 'Arme', type: 'entree', sorte: 'arme', possedee: false }],
+    } as never;
+    const archer = sheet(s, { possessions: [{ entree: 'arc', rang: 0 }] });
+    const p = attackerParams(s, libre, archer)[0]!;
+    expect(entryOptions(archer, p as never).map((o) => [o.id, o.owned])).toEqual([
+      ['epee', false],
+      ['arc', true],
+    ]);
+    expect(defaultParams(s, libre, archer).arme).toBe('arc');
+    expect(entryIdOf('arc#2')).toBe('arc');
+  });
+
+  it('compteurs du pool : améliorations appliquées, inconnu si la cible compte', () => {
+    expect(
+      poolCounts({
+        kind: 'symbols',
+        dice: [
+          { die: 'aptitude', name: 'Aptitude', count: 3 },
+          { die: 'difficulte', name: 'Difficulté', count: 2 },
+          { die: 'infortune', name: 'Infortune', count: null },
+        ],
+        upgrades: [
+          { die: 'aptitude', to: 'maitrise', name: 'Maîtrise', count: 2 },
+          { die: 'difficulte', to: 'defi', name: 'Défi', count: null },
+        ],
+        dependsOnTarget: true,
+      }),
+    ).toEqual({ aptitude: 1, maitrise: 2, difficulte: 2, defi: null, infortune: null });
+    expect(poolCounts(null)).toEqual({});
+    expect(poolCounts({ kind: 'numeric', formula: '1d20', dependsOnTarget: false })).toEqual({});
+  });
+
+  it('aperçu par cible (MJ) : attributs de la cible lus par l’action', () => {
+    expect(targetAttributeKeys(s, frappe)).toEqual(['Defense']);
+    expect(targetAttributeKeys(s, s.actions.get('soin')!).sort()).toEqual(['PV', 'PV_Max']);
+    expect(targetAttributeKeys(s, s.actions.get('charge')!)).toEqual([]);
+  });
+
+  it('raccourcis 1 à 9 : les actions dans l’ordre de leurs groupes', () => {
+    const groups = groupActions(targetedActions(s, bretteur), null);
+    expect(flatActions(groups).map((a) => a.id)).toEqual(['frappe', 'soin', 'charge']);
   });
 });
