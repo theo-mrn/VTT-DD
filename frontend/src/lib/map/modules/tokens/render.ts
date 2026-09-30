@@ -270,8 +270,7 @@ function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Tex
   const ring = Math.max(look.size * 0.055, 0.5);
   g.clear();
   if (look.baked && texture && texture.width > 0 && texture.height > 0) {
-    // Token du Studio : l'image entière (forme, arrondi et cadre y sont déjà), puis un fin
-    // liseré de la couleur du camp, juste autour
+    // Token du Studio : l'image entière (forme, arrondi et cadre y sont déjà)
     const s = look.size / Math.max(texture.width, texture.height);
     const matrix = new pixi.Matrix()
       .scale(s, s)
@@ -281,12 +280,6 @@ function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Tex
       shapePath(g, look.shape, r - ring);
       g.fill({ color: WHITE, alpha: HIDDEN_VEIL[look.badge] });
     }
-    shapePath(g, look.shape, r + ring * 0.35);
-    g.stroke({
-      width: ring * 0.5,
-      color: sideColor(theme, look.side),
-      alpha: look.pending ? 0.4 : 0.85,
-    });
     g.alpha = look.pending ? 0.55 : 1;
     return;
   }
@@ -313,8 +306,6 @@ function drawBody(ctx: RenderContext, g: Graphics, look: TokenLook, texture: Tex
     shapePath(g, look.shape, r - ring);
     g.fill({ color: WHITE, alpha: HIDDEN_VEIL[look.badge] });
   }
-  shapePath(g, look.shape, r - ring / 2);
-  g.stroke({ width: ring, color: sideColor(theme, look.side), alpha: look.pending ? 0.5 : 1 });
   g.alpha = look.pending ? 0.55 : 1;
 }
 
