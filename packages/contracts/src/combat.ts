@@ -942,6 +942,38 @@ export type AttackPage = z.infer<typeof AttackPage>;
 // ─── Entrées : attaques ──────────────────────────────────────────────────────
 
 /**
+ * Cible d'une attaque déjà résolue par le navigateur de l'attaquant : le rapport complet (MJ)
+ * et la vue de l'attaquant (`vueActeur`), ou le refus des règles pour cette cible.
+ */
+export const ResolvedAttackTarget = z.strictObject({
+  characterId: InputId('Identifiant de cible invalide'),
+  status: z.enum(['resolved', 'failed']),
+  error: z.string().max(2000).nullable().optional(),
+  result: AttackTargetResult.nullable().optional(),
+  view: AttackTargetView.nullable().optional(),
+});
+export type ResolvedAttackTarget = z.input<typeof ResolvedAttackTarget>;
+
+/**
+ * Attaque calculée dans le navigateur de l'attaquant avec `@vtt/rules` (décision de Théo,
+ * 2026-09-30) : dés, touché ou raté, dégâts, résistances, critique, tables. Le serveur ne
+ * recalcule rien : il range le rapport en `pending` pour la décision du MJ. Mêmes cibles, dans
+ * le même ordre, que `targets` de la déclaration.
+ */
+export const ResolvedAttack = z.strictObject({
+  /** Nom de l'action (système de la campagne), repris dans le rapport. */
+  actionName: z.string().trim().min(1).max(200),
+  targets: z.array(ResolvedAttackTarget).min(1).max(ATTACK_TARGETS_MAX),
+  /** Coûts de l'attaquant (stress, munitions), comptés une fois. */
+  actor: z
+    .strictObject({
+      modifications: z.array(AttackModification).max(ATTACK_MODIFICATIONS_MAX),
+    })
+    .optional(),
+});
+export type ResolvedAttack = z.input<typeof ResolvedAttack>;
+
+/**
  * `POST …/attacks` : déclarer une attaque. L'action doit déclarer une cible (`cible`) ; ses
  * paramètres sont ceux de l'attaquant (les paramètres `par: cible` viennent des réactions).
  */
@@ -963,6 +995,12 @@ export const DeclareAttack = z.strictObject({
   presetId: z.string().trim().min(1).max(200).optional(),
   adjustments: RollAdjustments.optional(),
   origin: AttackOrigin.optional(),
+  /**
+   * Rapport déjà calculé par le navigateur de l'attaquant (`ResolvedAttack`) : l'attaque est
+   * enregistrée résolue, en attente du MJ, sans préparation ni étape de dés. Absent : l'ancien
+   * chemin (résolution par le serveur, gardé pour la défense active).
+   */
+  resolved: ResolvedAttack.optional(),
 });
 export type DeclareAttack = z.input<typeof DeclareAttack>;
 
