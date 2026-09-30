@@ -297,6 +297,7 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
       </DialogPrimitive.Root>
       {minimized && (
         <AimPill
+          campaignId={flow.campaignId}
           ctx={ctx}
           attackerId={draft.attackerId}
           attackerName={model.sheet.name}

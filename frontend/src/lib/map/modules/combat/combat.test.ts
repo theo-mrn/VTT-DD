@@ -14,6 +14,7 @@ import type { MenuItem, MapViewer } from '../../engine/entities/entity-kind';
 import { SELECT_TOOL_ID } from '../../engine/tools/tool-manager';
 import { barLayout } from '@/components/map/selection-bar';
 import { ALICE, character, setupTokens, SPECTATOR, token } from '../tokens/test-kit';
+import { aimDistanceText } from './aim-distance';
 import { AIM_TOOL_ID } from './aim-tool';
 import { aimLines, defeatedOf, EMPTY_COMBAT_MAP, ringTargets } from './model';
 import { combatModuleOf, registerCombat, type AttackMenuPort } from './register';
@@ -164,7 +165,7 @@ describe('outil de visée', () => {
     expect(flow.phase === 'compose' && flow.draft.targetIds).toEqual(['gobelin']);
   });
 
-  it('pastille : menu réduit pendant la visée, « Valider » le rouvre à l’étape « Préparer »', () => {
+  it('pastille : menu réduit pendant la visée, « Attaquer » le rouvre à l’étape « Préparer »', () => {
     const t = setup();
     t.menu.port.open({ campaignId: 'campagne', origin: 'map', attackerId: 'hero' });
     t.menu.port.dispatch({ type: 'chooseAction', actionId: 'frappe' });
@@ -260,7 +261,7 @@ describe('visée rapide d’un joueur (clic sur un PNJ)', () => {
     expect(t.engine.tools.getActiveId()).toBe(AIM_TOOL_ID);
   });
 
-  it('« Valider » ouvre le menu à l’étape « Action »', () => {
+  it('« Attaquer » ouvre le menu à l’étape « Action »', () => {
     const t = setup(ALICE);
     t.click({ x: 500, y: 500 });
     t.menu.port.dispatch({ type: 'aim', on: false });
@@ -340,5 +341,23 @@ describe('hors de combat sur la carte', () => {
       'gobelin',
     ]);
     expect(defeatedOf(null)).toEqual([]);
+  });
+});
+
+describe('distance de la visée', () => {
+  it('de l’attaquant à une cible, puis de la plus proche à la plus lointaine', () => {
+    const t = setup();
+    const one = aimDistanceText(t.engine, 'hero', ['gobelin']);
+    const many = aimDistanceText(t.engine, 'hero', ['gobelin', 'loup']);
+    expect(one).toMatch(/^\d/);
+    expect(many).toMatch(/^\d[\d,]* à \d/);
+    expect(many).not.toBe(one);
+  });
+
+  it('rien sans token vu de l’attaquant ou sans cible', () => {
+    const t = setup();
+    expect(aimDistanceText(t.engine, 'personne', ['gobelin'])).toBeNull();
+    expect(aimDistanceText(t.engine, 'hero', [])).toBeNull();
+    expect(aimDistanceText(t.engine, 'hero', ['hero'])).toBeNull();
   });
 });

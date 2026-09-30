@@ -3,23 +3,46 @@
 /**
  * Pastille de visée (docs/combat.md § 12.1, « Viser sur la carte ») : le menu d'attaque se
  * réduit à elle le temps de cliquer les tokens (⇧ : plusieurs). Attaquant → cibles, leur
- * nombre, « Valider » ; depuis le menu, Échap ou « Valider » le rouvrent à la même étape.
+ * nombre, la distance, « Attaquer » ; depuis le menu, Échap ou « Attaquer » le rouvrent à la
+ * même étape.
  *
  * Visée rapide (clic d'un joueur sur un PNJ) : le menu s'ouvre ainsi, ce PNJ en cible ; un
- * clic choisit une autre cible, ⇧ en ajoute ou en retire ; « Valider » ouvre le menu à l'étape
- * « Action », Échap, « Annuler » ou un clic dans le vide annulent sans rien déclarer.
+ * clic choisit une autre cible, ⇧ en ajoute ou en retire ; « Attaquer » ouvre le menu à
+ * l'étape « Action », Échap, « Annuler » ou un clic dans le vide annulent sans rien déclarer.
  */
-import { ArrowRight, Check, Crosshair, X } from 'lucide-react';
+import { ArrowRight, Crosshair, Ruler, Swords, X } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Illustration } from '@/components/commun/illustration';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { targetName } from '@/lib/combat/view';
+import { useActiveMap } from '@/lib/map/active-map';
+import { aimDistanceText } from '@/lib/map/modules/combat/aim-distance';
 import type { AttackContext } from './use-attack-context';
 
+/** Distance de l'attaquant aux cibles, suivie quand les tokens bougent. */
+function useAimDistance(
+  campaignId: string,
+  attackerId: string | null,
+  targetIds: readonly string[],
+): string | null {
+  const { engine } = useActiveMap(campaignId);
+  const key = targetIds.join(',');
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!engine) return setText(null);
+    const ids = key ? key.split(',') : [];
+    const update = () => setText(aimDistanceText(engine, attackerId, ids));
+    update();
+    return engine.store.subscribe(update);
+  }, [engine, attackerId, key]);
+  return text;
+}
+
 export function AimPill({
+  campaignId,
   ctx,
   attackerId,
   attackerName,
@@ -29,6 +52,7 @@ export function AimPill({
   onDone,
   onCancel,
 }: {
+  campaignId: string;
   ctx: AttackContext;
   attackerId: string | null;
   attackerName: string | null;
@@ -36,12 +60,13 @@ export function AimPill({
   targetIds: readonly string[];
   /** Visée rapide : Échap annule l'attaque (sinon : retour au menu). */
   quick: boolean;
-  /** « Valider » : le menu se rouvre. */
+  /** « Attaquer » : le menu se rouvre. */
   onDone: () => void;
   /** Échap : retour au menu, ou attaque annulée (visée rapide). */
   onCancel: () => void;
 }) {
   const reduced = useReducedMotion();
+  const distance = useAimDistance(campaignId, attackerId, targetIds);
 
   // Échap (hors d'un geste de la carte, qui le garde pour lui) : retour au menu, ou annulation
   useEffect(() => {
@@ -100,10 +125,16 @@ export function AimPill({
                 ? targetName(targetIds[0]!, ctx.known)
                 : `${n} cibles`}
           </span>
-          <span className="hidden text-[11.5px] text-muted-foreground sm:block">
-            Cliquez les tokens · <Kbd>⇧</Kbd> plusieurs · <Kbd>Échap</Kbd>{' '}
-            {quick ? 'annuler' : 'retour'}
-          </span>
+          {distance ? (
+            <span className="flex items-center gap-1 text-[11.5px] tabular-nums text-muted-foreground">
+              <Ruler className="size-3 shrink-0" aria-hidden />
+              {distance}
+            </span>
+          ) : (
+            <span className="hidden text-[11.5px] text-muted-foreground sm:block">
+              Cliquez les tokens · <Kbd>⇧</Kbd> plusieurs
+            </span>
+          )}
         </span>
         {quick && (
           <Button
@@ -116,8 +147,13 @@ export function AimPill({
             <X />
           </Button>
         )}
-        <Button size="sm" className="shrink-0 rounded-full" onClick={onDone}>
-          <Check /> Valider
+        <Button
+          size="sm"
+          className="shrink-0 rounded-full"
+          disabled={quick && n === 0}
+          onClick={onDone}
+        >
+          <Swords /> Attaquer
         </Button>
       </div>
     </motion.div>,

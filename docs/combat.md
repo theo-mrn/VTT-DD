@@ -940,10 +940,10 @@ changer d'attaquant ; « Mes attaques » ; fermer.
 4. **Fin** : « Rapport envoyé au MJ » puis son statut en direct ; « Nouvelle attaque », « Mêmes
    cibles », « Terminer ».
 
-**Viser sur la carte** : réduit la fenêtre à une pastille (attaquant → n cibles, « Valider ») le
-temps de cliquer les tokens (⇧ : plusieurs) ; Échap ou « Valider » la rouvre. `combat.aim` part au
+**Viser sur la carte** : réduit la fenêtre à une pastille (attaquant → n cibles, distance, « Attaquer ») le
+temps de cliquer les tokens (⇧ : plusieurs) ; Échap ou « Attaquer » la rouvre. `combat.aim` part au
 MJ à chaque changement. Visée rapide (joueur) : même pastille, mais un clic choisit la cible (⇧ :
-en ajoute ou en retire) sans rouvrir le menu ; « Valider » l'ouvre à l'étape « Action » ; Échap,
+en ajoute ou en retire) sans rouvrir le menu ; « Attaquer » l'ouvre à l'étape « Action » ; Échap,
 « Annuler » ou un clic dans le vide annulent sans rien déclarer ; un glisser déplace la vue.
 
 Réalisé (menu d'attaque, `components/combat/attack/`), précisions :
