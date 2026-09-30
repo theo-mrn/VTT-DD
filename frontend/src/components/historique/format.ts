@@ -339,6 +339,45 @@ function valueLines(
   return lines.filter((l): l is Line => l !== null);
 }
 
+/**
+ * États et entrées donnés ou retirés d'un coup (application du combat, annulation) : lus dans
+ * le diff, chemin `etat.possessions[entree#exemplaire]` et `etat.bonus[id]` (état libre).
+ */
+function possessionLines(ctx: FormatContext, who: string, changes: Change[] | null): Line[] {
+  const lines: Line[] = [];
+  for (const c of changes ?? []) {
+    const m = POSSESSION_PATH.exec(c.path);
+    if (m && m[2] === undefined) {
+      const name = bold(entryName(ctx, unquote(m[1]!).split('#')[0]));
+      if (!('before' in c) || c.before == null) {
+        const duration = num(obj(c.after)?.duree);
+        lines.push({
+          type: 'combat',
+          text:
+            duration !== null
+              ? `${who} est ${name} (${duration} round${duration > 1 ? 's' : ''}).`
+              : `${who} reçoit ${name}.`,
+        });
+      } else if (!('after' in c) || c.after == null)
+        lines.push({ type: 'combat', text: `${who} n'est plus ${name}.` });
+      continue;
+    }
+    const b = BONUS_PATH.exec(c.path);
+    if (b && c.path.endsWith(']')) {
+      const before = obj(c.before);
+      const after = obj(c.after);
+      if (after && !before)
+        lines.push({ type: 'combat', text: `${who} est ${bold(str(after.nom) ?? 'un état')}.` });
+      else if (before && !after)
+        lines.push({
+          type: 'combat',
+          text: `${who} n'est plus ${bold(str(before.nom) ?? 'un état')}.`,
+        });
+    }
+  }
+  return lines;
+}
+
 // ─── Formateurs par type ─────────────────────────────────────────────────────
 
 type Formatted = Omit<GameEvent, 'id' | 'seq' | 'source' | 'timestamp'>;
@@ -447,6 +486,28 @@ function characterUpdated(e: HistoryEvent, ctx: FormatContext): Formatted | null
         );
       if (!names.length) return null;
       return line('combat', `${who} n'est plus ${names.map(bold).join(', ')}.`);
+    }
+    // Décision du MJ appliquée par le combat (docs/combat.md § 7.2) : valeurs et états touchés
+    case 'combat.application': {
+      const c = combine([
+        ...valueLines(ctx, who, character, p, changes),
+        ...possessionLines(ctx, who, changes),
+      ]);
+      return c && line(c.type, c.text);
+    }
+    // Annulation : d'une application (MJ), ou des durées d'un round (« Précédent », `tick:…`)
+    case 'combat.annulation': {
+      const c = combine([
+        ...valueLines(ctx, who, character, p, changes),
+        ...possessionLines(ctx, who, changes),
+      ]);
+      if (!c) return null;
+      const round = str(detail(p, 'applicationId'))?.startsWith('tick:') === true;
+      const forced = detail(p, 'forced') === true;
+      return line(
+        'combat',
+        `${round ? 'Retour au tour précédent' : `Annulation du MJ${forced ? ' (forcée)' : ''}`} : ${c.text}`,
+      );
     }
     case 'repos': {
       const rest = combine([

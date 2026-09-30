@@ -208,4 +208,52 @@ describe('chronique du combat', () => {
       formatHistoryEvent(event('combat.attack_updated', { attackId: 'a1' }), ctx(true)),
     ).toBeNull();
   });
+
+  it('fiche modifiée par le combat : application, annulation, durées rendues', () => {
+    const updated = (payload: Record<string, unknown>) => ({
+      ...event('character.updated', payload),
+      aggregate: { type: 'character', id: 'lyra' },
+    });
+    const applied = formatHistoryEvent(
+      updated({
+        operation: 'combat.application',
+        applicationId: 'app-1',
+        changes: [
+          { path: 'etat.valeurs.PV', before: 12, after: 8 },
+          { path: 'etat.possessions[etourdi]', after: { entree: 'etourdi', duree: 2 } },
+        ],
+      }),
+      ctx(true),
+    );
+    expect(applied).toMatchObject({ type: 'combat', characterId: 'lyra' });
+    expect(applied?.message).toBe(
+      '**Lyra** : PV passe de 12 à **8**. **Lyra** est **etourdi** (2 rounds).',
+    );
+
+    const reverted = formatHistoryEvent(
+      updated({
+        operation: 'combat.annulation',
+        applicationId: 'app-1',
+        forced: true,
+        changes: [
+          { path: 'etat.valeurs.PV', before: 8, after: 12 },
+          { path: 'etat.possessions[etourdi]', before: { entree: 'etourdi', duree: 2 } },
+        ],
+      }),
+      ctx(true),
+    );
+    expect(reverted?.message).toBe(
+      "Annulation du MJ (forcée) : **Lyra** : PV passe de 8 à **12**. **Lyra** n'est plus **etourdi**.",
+    );
+
+    const round = formatHistoryEvent(
+      updated({
+        operation: 'combat.annulation',
+        applicationId: 'tick:c1:1:t1',
+        changes: [{ path: 'etat.possessions[aveugle]', after: { entree: 'aveugle', duree: 1 } }],
+      }),
+      ctx(true),
+    );
+    expect(round?.message).toBe('Retour au tour précédent : **Lyra** est **aveugle** (1 round).');
+  });
 });
