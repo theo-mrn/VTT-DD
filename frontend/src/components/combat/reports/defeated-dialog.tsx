@@ -44,13 +44,24 @@ interface DefeatedQueue {
 
 const queue = createStore<DefeatedQueue>()(() => ({ ids: [] }));
 
-/** Signale des personnages hors de combat (réponse d'une application). */
+/**
+ * Personnages déjà traités, et quand : l'événement du bus arrive souvent juste après la
+ * réponse de l'application ; il ne rouvre pas le dialogue pour la même chute.
+ */
+const handled = new Map<string, number>();
+const HANDLED_MS = 30_000;
+
+/** Signale des personnages hors de combat (réponse d'une application, événement). */
 export function reportDefeated(ids: readonly string[]) {
-  if (!ids.length) return;
-  queue.setState((s) => ({ ids: [...new Set([...s.ids, ...ids])] }));
+  const now = Date.now();
+  const fresh = ids.filter((id) => now - (handled.get(id) ?? 0) > HANDLED_MS);
+  if (!fresh.length) return;
+  queue.setState((s) => ({ ids: [...new Set([...s.ids, ...fresh])] }));
 }
 
 function clearDefeated() {
+  const now = Date.now();
+  for (const id of queue.getState().ids) handled.set(id, now);
   queue.setState({ ids: [] });
 }
 
