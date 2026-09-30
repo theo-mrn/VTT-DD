@@ -158,6 +158,40 @@ describe('paramètres de situation (§ 5.7) : choix, section, description', () =
     expect(choiceOptions(param('surprise'))).toEqual([]);
   });
 
+  it('aperçu : un choix de situation (avantage) lu par la formule du jet', () => {
+    const avantage = {
+      id: 'avantage',
+      nom: 'Avantage ou désavantage',
+      type: 'choix',
+      par: 'acteur',
+      section: 'situation',
+      options: [
+        { valeur: 'normal', nom: 'Normal' },
+        { valeur: 'avantage', nom: 'Avantage' },
+      ],
+    };
+    const sys = loadSystem({
+      ...combatSystem,
+      actions: [
+        {
+          id: 'tir',
+          nom: 'Tir',
+          pour: ['personnage'],
+          cible: 'personnage',
+          parametres: [avantage as never],
+          jet: { type: 'numerique', formule: 'si(avantage == "avantage", 2d20k1, 1d20) + 2' },
+        },
+      ],
+    });
+    const tir = sys.actions.get('tir')!;
+    const f = sheet(sys);
+    expect(defaultParams(sys, tir, f)).toEqual({ avantage: 'normal' });
+    expect(previewRoll(sys, tir, f, { avantage: 'avantage' })).toMatchObject({
+      kind: 'numeric',
+      formula: expect.stringContaining('2d20k1'),
+    });
+  });
+
   it('rangement : situation à part, le reste en préparation ; description en info-bulle', () => {
     expect(paramSection(param('couvert'))).toBe('situation');
     expect(paramSection(param('surprise'))).toBe('main');

@@ -19,7 +19,7 @@ import {
   type SystemeCharge,
   type Valeur,
 } from '@vtt/rules';
-import { attackerParams, paramAllowed } from './params';
+import { attackerParams, defaultParamValue, isChoiceParam, paramAllowed } from './params';
 
 // ─── Actions à cible ─────────────────────────────────────────────────────────
 
@@ -155,10 +155,11 @@ function previewVariables(
       if (typeof value === 'number' || typeof value === 'boolean')
         values.set(`${p.id}.${champ}`, value);
   }
-  // Paramètres cachés : leur défaut (le moteur fait de même)
+  // Paramètres cachés : leur défaut (le moteur fait de même), un choix compris
   for (const p of action.parametres)
     if (!values.has(p.id) && !paramAllowed(systeme, action, p, fiche)) {
       if (p.type === 'nombre' || p.type === 'booleen') values.set(p.id, p.defaut);
+      else if (isChoiceParam(p)) values.set(p.id, defaultParamValue(fiche, p));
     }
   return (name) => values.get(name);
 }
