@@ -89,5 +89,17 @@ describe('conversions vers le contrat', () => {
       raw: 4,
       resistances: [{ source: 'x', name: 'X', operation: 'multiply', value: 0.5, ignored: false }],
     });
+    // Minimum qui a relevé les dégâts (« au moins 1 DM ») : dans le rapport du MJ
+    expect(
+      versModification({
+        entite: 'cible',
+        attribut: 'PV',
+        operation: 'retirer',
+        valeur: 1,
+        brut: 2,
+        resistances: [{ source: 'rd', nom: 'Peau de pierre', operation: 'reduire', valeur: 5 }],
+        minimum: 1,
+      }),
+    ).toMatchObject({ value: 1, raw: 2, minimum: 1, resistances: [{ name: 'Peau de pierre' }] });
   });
 });

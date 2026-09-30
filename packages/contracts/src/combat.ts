@@ -238,6 +238,29 @@ export const CombatTally = z.object({
 export type CombatTally = z.infer<typeof CombatTally>;
 
 /**
+ * Ce que les règles lisent d'un participant sous `@combat.acteur.*` et `@combat.cible.*`
+ * (§ 5.7, docs/regles.md « Contexte du combat ») : son décompte sur toutes les attaques du
+ * combat (vue du MJ), sans l'attaque en cours, a agi ce round, surpris.
+ */
+export const CombatRulesParticipant = CombatTally.extend({
+  hasActed: z.boolean(),
+  surprised: z.boolean(),
+});
+export type CombatRulesParticipant = z.infer<typeof CombatRulesParticipant>;
+
+/**
+ * Contexte du combat figé par campaign à la déclaration d'une attaque et envoyé à character
+ * (`combat` de `POST /internal/actions/prepare`) : gardé dans l'instantané, il sert à toute la
+ * résolution. Un participant absent (attaquant ou cible hors du combat) : valeurs neutres.
+ */
+export const AttackCombatContext = z.object({
+  round: z.number().int().positive(),
+  actor: CombatRulesParticipant.optional(),
+  targets: z.array(CombatRulesParticipant.extend({ characterId: Id })).max(50),
+});
+export type AttackCombatContext = z.infer<typeof AttackCombatContext>;
+
+/**
  * Participant du combat. Les quatre premiers champs existent déjà ; les suivants sont
  * facultatifs (absents des réponses d'avant ce contrat).
  */
@@ -716,6 +739,8 @@ export const AttackModification = z.discriminatedUnion('kind', [
     /** Dégâts avant les résistances de la cible (dégâts typés). */
     raw: z.number().optional(),
     resistances: z.array(ResistanceLine).optional(),
+    /** Minimum qui a relevé les dégâts après les résistances (« au moins 1 DM »). */
+    minimum: z.number().optional(),
   }),
   z.object({ ...EntryModificationFields, entity: ModificationEntity }),
 ]);

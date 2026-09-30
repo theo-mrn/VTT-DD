@@ -14,6 +14,7 @@
  * physiques (`faces`, `step`) viendront avec l'étape C.
  */
 import {
+  AttackCombatContext,
   AttackModification,
   AttackRollMode,
   AttackTargetResult,
@@ -22,11 +23,14 @@ import {
   RollDiceMode,
   RollStep,
   type AttackVisibility,
+  type CombatRulesParticipant,
 } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import {
   executerMulticible,
   modeDeJet,
+  type ContexteCombatSaisi,
+  type ContexteCombattantSaisi,
   parametresReaction,
   vueActeur,
   type Ajustements,
@@ -67,6 +71,8 @@ const CorpsPreparer = z.object({
   userId: Id,
   campaignId: Id,
   diceHistory: HistoriqueDes.optional(),
+  /** Contexte du combat (`@combat.*`) figé par campaign, sans l'attaque en cours. */
+  combat: AttackCombatContext.optional(),
 });
 
 const CorpsResoudre = z.object({
@@ -140,8 +146,29 @@ const Instantane = z.object({
   refused: z.array(z.object({ id: z.string(), error: z.string() })).max(50),
   /** Ordre des cibles de la déclaration. */
   order: z.array(z.string()).min(1).max(50),
+  /** Contexte du combat reçu à la préparation (absent : hors combat, ou avant ce champ). */
+  combat: AttackCombatContext.optional(),
 });
 type Instantane = z.infer<typeof Instantane>;
+
+/** Participant du contrat → moteur (`@combat.acteur.*`, `@combat.cible.*`). */
+const combattant = (p: CombatRulesParticipant | undefined): ContexteCombattantSaisi | undefined =>
+  p && {
+    attaques: p.attacksMade,
+    attaquesRound: p.attacksMadeRound,
+    vise: p.targeted,
+    viseRound: p.targetedRound,
+    aAgi: p.hasActed,
+    surpris: p.surprised,
+  };
+
+/** Contexte du combat (moteur) pour une cible ; hors combat : absent. */
+function contexteCombat(c: Instantane['combat'], cibleId: string): ContexteCombatSaisi | undefined {
+  if (!c) return undefined;
+  const acteur = combattant(c.actor);
+  const cible = combattant(c.targets.find((t) => t.characterId.toLowerCase() === cibleId));
+  return { round: c.round, ...(acteur ? { acteur } : {}), ...(cible ? { cible } : {}) };
+}
 
 const MODE_JET = { per_target: 'par-cible', shared: 'commun' } as const;
 const MODE_ROLL = { 'par-cible': 'per_target', commun: 'shared' } as const;
@@ -210,9 +237,11 @@ function resoudre(
     acteur,
     cibles: cibles.map((c) => {
       const f = forcer.get(c.id);
+      const combat = contexteCombat(inst.combat, c.id);
       return {
         id: c.id,
         fiche: c.fiche,
+        ...(combat ? { combat } : {}),
         ...(reaction.has(c.id) ? { reaction: reaction.get(c.id)! } : {}),
         ...(f && (f.success !== undefined || f.critical !== undefined)
           ? {
@@ -394,12 +423,17 @@ export function registerActionRoutes(
         targets: memeSysteme.map(figer),
         refused,
         order: b.targetIds,
+        ...(b.combat ? { combat: b.combat } : {}),
       };
       const fiches = fichesDe(deps, inst);
       const essai = executerMulticible(systeme, {
         action: action.id,
         acteur: fiches.acteur,
-        cibles: fiches.cibles,
+        // Les vérifications peuvent lire le combat (« au premier tour seulement »)
+        cibles: fiches.cibles.map((c) => {
+          const combat = contexteCombat(inst.combat, c.id);
+          return combat ? { ...c, combat } : c;
+        }),
         ...(b.params ? { parametres: b.params } : {}),
         jet: 'par-cible',
         aleatoire: SANS_DES,

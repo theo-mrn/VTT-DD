@@ -158,6 +158,63 @@ describe.skipIf(!TEST_DATABASE_URL)('combat : routes internes', () => {
     expect(t.jets[0]!.explanations.join('\n')).not.toMatch(/Défense|PV|subis/);
   });
 
+  it('contexte du combat (@combat.*) : figé à la préparation, lu à la résolution', async () => {
+    const bossk = await starWars(alice, 'Bossk', [
+      { entree: 'bothan' },
+      { entree: 'fusil-blaster' },
+      { entree: 'frappe-rapide', rang: 2 },
+    ]);
+    const endormi = await starWars(mj, 'Endormi', [{ entree: 'wookiee' }]);
+    const vif = await starWars(mj, 'Vif', [{ entree: 'wookiee' }]);
+    const compte = { attacksMade: 0, attacksMadeRound: 0, targeted: 0, targetedRound: 0 };
+    const p = await preparer({
+      actorId: bossk.id,
+      action: 'attaque',
+      params: { arme: 'fusil-blaster', portee: 'moyenne' },
+      targetIds: [endormi.id, vif.id],
+      // Premier round : Frappe rapide contre la cible dont le tour n'est pas encore passé
+      combat: {
+        round: 1,
+        actor: { ...compte, hasActed: false, surprised: false },
+        targets: [
+          { characterId: endormi.id, ...compte, hasActed: false, surprised: true },
+          { characterId: vif.id, ...compte, hasActed: true, surprised: false },
+        ],
+      },
+    });
+    type Pool = { kind: string; pool?: { die: string; count: number }[] };
+    const fortune = (r: Resolution, i: number) =>
+      (r.targets[i]!.result!.roll as Pool).pool?.find((x) => x.die === 'fortune')?.count ?? 0;
+    expect(fortune(p.resolution!, 0)).toBe(fortune(p.resolution!, 1) + 2);
+    // L'instantané garde le contexte : la résolution suivante le relit
+    const res = await post('/internal/actions/resolve', {
+      snapshot: p.snapshot,
+      params: { arme: 'fusil-blaster', portee: 'moyenne' },
+      rollMode: 'per_target',
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    const r = (res.json() as { resolution: Resolution }).resolution;
+    expect(fortune(r, 0)).toBe(fortune(r, 1) + 2);
+    // Sans contexte : hors combat, rien d'office
+    const hors = await preparer({
+      actorId: bossk.id,
+      action: 'attaque',
+      params: { arme: 'fusil-blaster', portee: 'moyenne' },
+      targetIds: [endormi.id, vif.id],
+    });
+    expect(fortune(hors.resolution!, 0)).toBe(fortune(hors.resolution!, 1));
+    // Contexte mal formé : refusé par la validation
+    const mauvais = await post('/internal/actions/prepare', {
+      userId: mj.id,
+      campaignId: campagne,
+      actorId: bossk.id,
+      action: 'attaque',
+      targetIds: [vif.id],
+      combat: { round: 0, targets: [] },
+    });
+    expect(mauvais.statusCode).toBe(400);
+  });
+
   it('déterministe : même instantané, mêmes dés, même résultat', async () => {
     const thorin = await o.nainGuerrier(alice, 'Thorin');
     const gobelin = await o.nainGuerrier(mj, 'Gobelin');

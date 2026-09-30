@@ -235,7 +235,7 @@ avec `@vtt/rules` ; campaign garde les attaques, les rapports et les décisions 
 
 | Méthode | Route                                       | Corps                                                                                                                       | Réponse                                                                                                     |
 | ------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| POST    | `/internal/actions/prepare`                 | `{ actorId, action, params?, targetIds, rollMode?, adjustments?, dice?, userId, campaignId, diceHistory? }`                 | `{ snapshot, action, rollMode, dice, targets: [{ characterId, error, reactionParams }], step, resolution }` |
+| POST    | `/internal/actions/prepare`                 | `{ actorId, action, params?, targetIds, rollMode?, adjustments?, dice?, userId, campaignId, diceHistory?, combat? }`        | `{ snapshot, action, rollMode, dice, targets: [{ characterId, error, reactionParams }], step, resolution }` |
 | POST    | `/internal/actions/resolve`                 | `{ snapshot, params?, rollMode, adjustments?, dice?, reactions?, stepId?, faces?, serverFallback?, forcer?, diceHistory? }` | `{ step, resolution }`                                                                                      |
 | POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId?, campaignId, items: [{ characterId, modifications, tables? }] }] }`              | `{ applications: [{ applicationId, replayed, items: [{ characterId, version, changes, defeated }] }] }`     |
 | POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force?, userId? }`                                                                         | `{ applicationId, items: [{ characterId, status, version, changes, defeated? }] }`                          |
@@ -250,11 +250,20 @@ avec `@vtt/rules` ; campaign garde les attaques, les rapports et les décisions 
   `reactionParams` : paramètres `par: cible` proposés à la cible (défense active, leur `exige`
   est vrai pour elle). Sans réaction attendue, `resolution` est rendue tout de suite (dés
   serveur). Personnage absent : **404** `character_not_found`.
+- **Contexte du combat** (`combat`, contrat `AttackCombatContext`) : figé par campaign à la
+  déclaration, sans l'attaque en cours : `{ round, actor?, targets: [{ characterId, … }] }`,
+  chaque participant `{ attacksMade, attacksMadeRound, targeted, targetedRound, hasActed,
+surprised }`. Il est gardé dans `snapshot` et donné au moteur pour chaque cible
+  (`@combat.round`, `@combat.acteur.attaques`, `@combat.cible.aAgi`… : docs/regles.md, « Contexte
+  du combat ») : à la préparation (vérifications, « au premier tour seulement ») comme à la
+  résolution. Absent (hors combat), ou participant absent : valeurs neutres. Mal formé : **400**.
 - **Résoudre** : une exécution de l'action par cible (`executerMulticible`), avec les paramètres
   de l'attaquant et la réaction de la cible (`skipped` : valeurs par défaut) ; `rollMode:
 shared` partage les dés par phase et par position. Par cible : `result` (contrat
   `AttackTargetResult`, MJ seul : jet, issue, variables, modifications proposées avec types de
-  dégâts et résistances, tables tirées, déroulé, erreurs) et `view` (`AttackTargetView`, vue de
+  dégâts, dégâts bruts (`raw`), chaque résistance, réduction, immunité ou vulnérabilité de la
+  cible nommée (`resistances`), minimum qui a relevé le résultat (`minimum`), tables tirées,
+  déroulé, erreurs) et `view` (`AttackTargetView`, vue de
   l'attaquant). `actor.modifications` : coûts de l'attaquant, comptés une fois. Déterministe :
   même instantané, mêmes dés, même résultat. Étape B : le serveur tire tous les dés (`step`
   toujours null, `faces` ignorées).

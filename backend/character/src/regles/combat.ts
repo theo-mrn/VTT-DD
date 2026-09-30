@@ -123,6 +123,7 @@ export function versModification(m: Modification): AttackModification {
     value: m.valeur,
     ...(m.type !== undefined ? { damageType: m.type } : {}),
     ...(m.brut !== undefined ? { raw: m.brut } : {}),
+    ...(m.minimum !== undefined ? { minimum: m.minimum } : {}),
     ...(m.resistances?.length
       ? {
           resistances: m.resistances.map((l) => ({
