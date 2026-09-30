@@ -20,6 +20,7 @@ import {
   Dices,
   EyeOff,
   Pencil,
+  ShieldOff,
   ShieldQuestion,
   Undo2,
   X,
@@ -36,6 +37,7 @@ import { hasSuccessRule } from '@/lib/combat/actions';
 import { ATTACK_STATUS_LABELS, useAttackCommands } from '@/lib/combat/use-attacks';
 import { decisionLabel, outcomeLabel, type OutcomeTone } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
+import { awaitingMyReaction } from '../player/model';
 import { ReactionForm } from '../player/reaction-prompt';
 import type { CastMember } from '../turns/use-cast';
 import { reportDefeated } from './defeated-dialog';
@@ -162,6 +164,16 @@ export function ReportCard({
     void run('cancel', 'L’attaque n’a pas pu être abandonnée', () =>
       commands.cancel(attack.id, { version: attack.version }),
     );
+
+  /** Le MJ passe la défense de toutes les cibles qui n'ont pas répondu. */
+  const awaiting = awaitingMyReaction(attack, 'all');
+  const skipAll = () =>
+    void run('skip', 'Les défenses n’ont pas pu être passées', async () => {
+      let last = attack;
+      for (const t of awaiting)
+        last = await commands.react(attack.id, { characterId: t.characterId, skip: true });
+      return last;
+    });
 
   const origin = diceOrigin(attack);
   const targets = attack.targets;
@@ -348,6 +360,18 @@ export function ReportCard({
           Détail
         </Button>
         <span className="flex-1" />
+        {awaiting.length > 0 && (
+          <Button
+            size="xs"
+            variant="secondary"
+            onClick={skipAll}
+            loading={busy === 'skip'}
+            disabled={busy !== null}
+          >
+            <ShieldOff />
+            Passer pour tous
+          </Button>
+        )}
         {isOpen(attack) && attack.pendingSteps.length > 0 && (
           <Info texte="L’auteur ne lance pas ses dés : le serveur tire la suite">
             <Button size="xs" variant="secondary" onClick={serverDice} loading={busy === 'dice'}>
