@@ -5,6 +5,7 @@ import { noProfiles, profilesClient } from './clients/profiles.js';
 import type { CampaignConfig } from './config.js';
 import { createDb, type Db } from './db/client.js';
 import type { Deps } from './deps.js';
+import { register as attacks } from './modules/attacks/index.js';
 import { register as campaigns } from './modules/campaigns/index.js';
 import { register as characters } from './modules/characters/index.js';
 import { register as combat } from './modules/combat/index.js';
@@ -71,6 +72,7 @@ export async function buildCampaign(
     invitations,
     characters,
     combat,
+    attacks,
     maps,
     sessions,
     messages,

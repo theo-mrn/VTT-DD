@@ -46,6 +46,7 @@ import {
   campaignCombats,
 } from '../../db/schema.js';
 import type { Deps, Module } from '../../deps.js';
+import { dismissPendingOfCombat } from '../attacks/application.js';
 import { access, gmAccess, lockCampaign, type Access } from '../campaigns/repository.js';
 import { CampaignId, currentUser, eventContext } from '../schemas.js';
 import {
@@ -601,6 +602,8 @@ export const register: Module = async (app, deps) => {
         const a = await gmAccess(tx, req.params.id, userId);
         const loaded = await loadCombat(tx, a.campaign.id, true);
         if (!loaded) throw noCombat();
+        if (options.pendingAttacks === 'dismiss')
+          await dismissPendingOfCombat(tx, eventContext(req), a, loaded.combat.id, userId);
         await tx.delete(campaignCombats).where(eq(campaignCombats.campaignId, a.campaign.id));
         await combatEvent(tx, eventContext(req), {
           type: 'combat.ended',
