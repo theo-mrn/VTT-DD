@@ -43,8 +43,8 @@ function rollFace(faces: number): number {
 
 /**
  * Dés tirés dans le navigateur (décidé par Théo le 2026-09-30) : chaque dé de l'étape reçoit sa
- * face ici, le serveur ne fait que rejouer ces faces et calculer (la fiche de la cible reste
- * chez lui). Aucun aller-retour pour tirer : un seul appel par étape.
+ * face ici. L'attaque elle-même se calcule aussi dans le navigateur (`local-attack.ts`) ; pour
+ * une défense active, le serveur rejoue ces faces, un appel par étape.
  */
 export const clientRunner: DiceStepRunner = {
   run: async (step) => ({

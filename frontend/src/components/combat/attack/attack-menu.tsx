@@ -58,6 +58,7 @@ import {
 } from '@/lib/combat/attack-flow';
 import { attackMenu, useAttackFlow } from '@/lib/combat/attack-menu-store';
 import { clientRunner } from '@/lib/combat/dice-steps';
+import { isLocalAttack } from '@/lib/combat/local-attack';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
 import { AimPill } from './aim-pill';
@@ -108,7 +109,11 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
   const draft = flow.draft;
   const composing = flow.phase === 'compose';
   const loading = ctx.loading || !ctx.systeme || (Boolean(draft.attackerId) && model.sheet.loading);
-  const revealed = flow.phase === 'declared' && revealedId === flow.attack.id;
+  // Le rapport d'une attaque calculée ici remplace l'attaque locale : déjà dévoilée
+  const revealed =
+    flow.phase === 'declared' &&
+    revealedId !== null &&
+    (revealedId === flow.attack.id || revealedId === flow.previousId);
   const stage =
     menuStage(flow, { actionCount: loading ? 2 : model.actions.length, revealed }) ?? 'action';
   const minimized = isMinimized(flow);
@@ -134,6 +139,11 @@ function OpenMenu({ flow, canAim }: { flow: OpenFlow; canAim: boolean }) {
     if (!attack || !nextStep || launching) return;
     setLaunching(true);
     try {
+      // Calculée dans le navigateur : la suite aussi, sans appel réseau jusqu'au rapport
+      if (isLocalAttack(attack)) {
+        await model.continueInBrowser(attack, params as ActionParams | undefined);
+        return;
+      }
       let updated = await model.commands.submitDice(attack.id, {
         ...(await clientRunner.run(nextStep)),
         ...(params ? { params: params as ActionParams } : {}),
@@ -587,10 +597,12 @@ function Footer({
       loading={busy === 'cancel'}
       disabled={launching}
       onClick={() =>
-        void run('cancel', async () => ({
-          type: 'attackUpdated',
-          attack: await model.commands.cancel(attack.id, { version: attack.version }),
-        }))
+        isLocalAttack(attack)
+          ? model.cancelInBrowser(attack)
+          : void run('cancel', async () => ({
+              type: 'attackUpdated',
+              attack: await model.commands.cancel(attack.id, { version: attack.version }),
+            }))
       }
     >
       <Undo2 /> Abandonner

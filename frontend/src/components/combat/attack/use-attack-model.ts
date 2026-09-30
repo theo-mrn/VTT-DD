@@ -9,9 +9,10 @@
  * L'état reste dans la machine (`attack-flow.ts`) : ce hook ne fait que la lire et lui envoyer
  * des événements.
  */
-import type { ActionParams } from '@vtt/contracts';
-import type { Action } from '@vtt/rules';
-import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ActionParams, Attack, DeclareAttack } from '@vtt/contracts';
+import { calculer, type Action } from '@vtt/rules';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDicePreferences } from '@/lib/dice-preferences';
 import {
   groupActions,
@@ -34,11 +35,37 @@ import {
 } from '@/lib/combat/attack-flow';
 import { browserMemory, recallAttack, rememberAttack } from '@/lib/combat/attack-flow-memory';
 import { attackMenu } from '@/lib/combat/attack-menu-store';
-import { chooseDiceMode } from '@/lib/combat/dice-steps';
+import { chooseDiceMode, clientRunner } from '@/lib/combat/dice-steps';
+import {
+  combatContextOf,
+  continueLocal,
+  isFinished,
+  localAttackOf,
+  LocalRefusal,
+  LOCAL_ATTACK_PREFIX,
+  needsReaction,
+  resolvedReport,
+  startLocal,
+  type DiceRoller,
+  type LocalAttackMeta,
+  type LocalSession,
+} from '@/lib/combat/local-attack';
 import { mergeParams, missingParams, paramsToSend } from '@/lib/combat/params';
 import { useAttackCommands } from '@/lib/combat/use-attacks';
 import { combatSettings, currentActorId } from '@/lib/combat/use-combat';
+import { clesPersonnages, personnages } from '@/lib/personnages';
 import { useComputedSheet, type AttackContext } from './use-attack-context';
+
+/** Faces tirées dans le navigateur, étape par étape. */
+const browserDice: DiceRoller = async (step) => (await clientRunner.run(step)).results;
+
+/** Attaque calculée dans le navigateur, entre deux étapes : de quoi la finir et l'envoyer. */
+interface LocalEntry {
+  session: LocalSession;
+  meta: LocalAttackMeta;
+  body: DeclareAttack;
+  key: string;
+}
 
 export type OpenFlow = Exclude<AttackFlowState, { phase: 'closed' }>;
 
@@ -60,6 +87,9 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
   const commands = useAttackCommands(flow.campaignId);
   /** Attaque déclarée depuis ce menu (son résultat se dévoile ; une attaque rouverte non). */
   const [liveAttackId, setLiveAttackId] = useState<string | null>(null);
+  const client = useQueryClient();
+  /** Attaques calculées ici, pas encore envoyées (entre le jet et les dégâts). */
+  const locals = useRef(new Map<string, LocalEntry>());
 
   const memory = useMemo(
     () => recallAttack(browserMemory(), flow.campaignId, draft.attackerId),
@@ -162,7 +192,30 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     });
     attackMenu.dispatch({ type: 'submit', key });
     try {
-      const attack = await commands.declare(body, key);
+      // Calcul dans le navigateur (Théo, 2026-09-30) ; défense active : le serveur, comme avant
+      const session = await startInBrowser(body);
+      let attack: Attack;
+      if (!session) attack = await commands.declare(body, key);
+      else {
+        const meta: LocalAttackMeta = {
+          id: `${LOCAL_ATTACK_PREFIX}${key}`,
+          campaignId: flow.campaignId,
+          combat: ctx.combat,
+          attackerId: body.attackerId,
+          actionName: action.nom,
+          visibility: effectiveVisibility(draft, { gm: ctx.gm, settings }),
+          gm: ctx.gm,
+          userId: ctx.me.id,
+          origin: body.origin,
+          presetId: body.presetId,
+        };
+        const entry: LocalEntry = { session, meta, body, key };
+        if (isFinished(session)) attack = await report(entry);
+        else {
+          locals.current.set(meta.id, entry);
+          attack = localAttackOf(session, meta);
+        }
+      }
       setLiveAttackId(attack.id);
       attackMenu.dispatch({ type: 'declared', attack });
       rememberAttack(browserMemory(), flow.campaignId, body.attackerId, {
@@ -172,10 +225,97 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     } catch (err) {
       attackMenu.dispatch({
         type: 'rejected',
-        message: combatErrorMessage(err),
-        retryable: isRetryable(err),
+        message: err instanceof LocalRefusal ? err.message : combatErrorMessage(err),
+        retryable: !(err instanceof LocalRefusal) && isRetryable(err),
       });
     }
+  }
+
+  /**
+   * Fiches des cibles (lues à l'instant : l'instantané de l'attaque), puis le jet dans le
+   * navigateur. null : l'attaque passe par le serveur (une cible a une défense active à
+   * choisir, ou une fiche n'a pas pu être lue).
+   */
+  async function startInBrowser(body: DeclareAttack): Promise<LocalSession | null> {
+    if (!systeme || !fiche || !action) return null;
+    let targets: { id: string; fiche: ReturnType<typeof calculer> }[];
+    try {
+      targets = await Promise.all(
+        body.targets.map(async (id) => {
+          if (id === body.attackerId) return { id, fiche };
+          const p = await client.fetchQuery({
+            queryKey: clesPersonnages.un(id),
+            queryFn: () => personnages.lire(id),
+            staleTime: 2_000,
+          });
+          return { id, fiche: calculer(systeme, p.state) };
+        }),
+      );
+    } catch {
+      return null;
+    }
+    if (needsReaction(systeme, action.id, targets)) return null;
+    return startLocal(
+      {
+        systeme,
+        actionId: action.id,
+        actor: fiche,
+        targets,
+        params: body.params ?? {},
+        rollMode: body.rollMode ?? 'per_target',
+        adjustments: body.adjustments,
+        combat: combatContextOf(ctx.combat, body.attackerId, body.targets),
+      },
+      browserDice,
+    );
+  }
+
+  /** Une seule requête, à la fin : le rapport résolu, rangé en attente du MJ. */
+  function report(entry: LocalEntry): Promise<Attack> {
+    const { session, meta, body, key } = entry;
+    const params = session.params;
+    return commands.declare(
+      {
+        ...body,
+        ...(Object.keys(params).length ? { params } : {}),
+        resolved: resolvedReport(session, meta.actionName),
+      },
+      key,
+    );
+  }
+
+  /**
+   * Étape suivante d'une attaque calculée ici (l'arme puis les dégâts, la table), sans appel
+   * réseau ; une fois résolue, le rapport part et remplace l'attaque locale. Un envoi en échec
+   * se reprend tel quel (mêmes faces, même clé).
+   */
+  async function continueInBrowser(attack: Attack, stepParams?: ActionParams) {
+    const entry = locals.current.get(attack.id);
+    if (!entry) throw new Error('Cette attaque n’est plus en cours');
+    if (!isFinished(entry.session))
+      entry.session = await continueLocal(entry.session, stepParams, browserDice);
+    if (!isFinished(entry.session)) {
+      attackMenu.dispatch({
+        type: 'attackUpdated',
+        attack: localAttackOf(entry.session, entry.meta),
+      });
+      return;
+    }
+    const reported = await report(entry);
+    locals.current.delete(attack.id);
+    setLiveAttackId(reported.id);
+    attackMenu.dispatch({ type: 'reported', localId: attack.id, attack: reported });
+  }
+
+  /** Abandon d'une attaque calculée ici : rien n'a été envoyé, rien ne part. */
+  function cancelInBrowser(attack: Attack) {
+    const entry = locals.current.get(attack.id);
+    locals.current.delete(attack.id);
+    if (entry)
+      attackMenu.dispatch({
+        type: 'attackUpdated',
+        attack: localAttackOf(entry.session, entry.meta, 'cancelled'),
+      });
   }
 
   return {
@@ -202,6 +342,8 @@ export function useAttackModel(flow: OpenFlow, ctx: AttackContext) {
     commands,
     choose,
     submit,
+    continueInBrowser,
+    cancelInBrowser,
   };
 }
 

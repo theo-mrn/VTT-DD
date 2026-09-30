@@ -35,6 +35,7 @@ import {
 } from '@/lib/combat/attack-flow-result';
 import { attackMenu } from '@/lib/combat/attack-menu-store';
 import { clientRunner } from '@/lib/combat/dice-steps';
+import { isLocalAttack } from '@/lib/combat/local-attack';
 import { ATTACK_STATUS_LABELS, useAttack, type useAttackCommands } from '@/lib/combat/use-attacks';
 import { awaitingReaction, targetName } from '@/lib/combat/view';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,11 @@ type Commands = ReturnType<typeof useAttackCommands>;
  */
 export function useDeclaredAttack(flow: OpenFlow, commands: Commands): Attack | null {
   const declared = flow.phase === 'declared' ? flow.attack : null;
-  const live = useAttack(flow.campaignId, declared?.id ?? null);
+  // Attaque calculée dans le navigateur, pas encore envoyée : rien à relire au serveur
+  const live = useAttack(
+    flow.campaignId,
+    declared && !isLocalAttack(declared) ? declared.id : null,
+  );
   const attack = !declared
     ? null
     : live.attack && live.attack.id === declared.id && live.attack.version >= declared.version

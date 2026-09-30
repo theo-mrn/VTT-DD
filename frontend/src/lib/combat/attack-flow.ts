@@ -111,7 +111,15 @@ export type AttackFlowState =
       retryKey: string | null;
     })
   | (Opened & { phase: 'submitting'; key: string })
-  | (Opened & { phase: 'declared'; attack: Attack });
+  | (Opened & {
+      phase: 'declared';
+      attack: Attack;
+      /**
+       * Identifiant de l'attaque calculée dans le navigateur que celle-ci remplace (son rapport
+       * vient d'être enregistré) : le résultat déjà dévoilé ne se rejoue pas.
+       */
+      previousId?: string;
+    });
 
 export type ComposeState = Extract<AttackFlowState, { phase: 'compose' }>;
 export type DeclaredState = Extract<AttackFlowState, { phase: 'declared' }>;
@@ -152,6 +160,8 @@ export type AttackFlowEvent =
   | { type: 'declared'; attack: Attack }
   | { type: 'rejected'; message: string; retryable: boolean }
   | { type: 'attackUpdated'; attack: Attack }
+  /** Le rapport de l'attaque calculée dans le navigateur (`localId`) est enregistré. */
+  | { type: 'reported'; localId: string; attack: Attack }
   /** Montrer une attaque déjà déclarée (« Mes attaques ») : son suivi en direct. */
   | { type: 'show'; attack: Attack }
   /** « Nouvelle attaque » (cibles vidées) ou « Mêmes cibles ». */
@@ -247,6 +257,9 @@ export function reduceAttackFlow(state: AttackFlowState, event: AttackFlowEvent)
             retryKey: event.retryable ? state.key : null,
           })
         : state;
+    case 'reported':
+      if (state.phase !== 'declared' || state.attack.id !== event.localId) return state;
+      return { ...state, attack: event.attack, previousId: event.localId };
     case 'attackUpdated':
       if (state.phase !== 'declared' || state.attack.id !== event.attack.id) return state;
       return event.attack.version >= state.attack.version

@@ -142,6 +142,20 @@ describe('menu d’attaque : déclaration', () => {
     expect(other).toBe(updated);
   });
 
+  it('attaque calculée dans le navigateur : son rapport enregistré la remplace', () => {
+    let s = reduceAttackFlow(ready(), { type: 'submit', key: 'k' });
+    const local = attack({ id: 'local-k', version: 0, status: 'awaiting_dice' });
+    s = reduceAttackFlow(s, { type: 'declared', attack: local });
+    const saved = attack({ id: 'serveur', version: 1, status: 'pending' });
+    // Un autre rapport ne remplace pas l'attaque suivie
+    expect(reduceAttackFlow(s, { type: 'reported', localId: 'autre', attack: saved })).toBe(s);
+    const reported = reduceAttackFlow(s, { type: 'reported', localId: 'local-k', attack: saved });
+    expect(reported.phase === 'declared' && [reported.attack.id, reported.previousId]).toEqual([
+      'serveur',
+      'local-k',
+    ]);
+  });
+
   it('échec passager : même clé d’idempotence à la reprise ; refus : clé neuve', () => {
     const fresh = () => 'neuve';
     const sent = reduceAttackFlow(ready(), { type: 'submit', key: 'k1' });
