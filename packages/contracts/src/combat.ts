@@ -221,6 +221,23 @@ export const CombatInitiative = z.object({
 export type CombatInitiative = z.infer<typeof CombatInitiative>;
 
 /**
+ * Ce que le combat a compté pour un participant (§ 5.7) : attaques non annulées de ce combat.
+ * Montré par le menu d'attaque (« première attaque », « déjà visé ce round ») et fourni aux
+ * règles à la résolution (`@combat.*`). Vue d'un joueur : seules les attaques publiques comptent.
+ */
+export const CombatTally = z.object({
+  /** Attaques qu'il a déclarées ce round. */
+  attacksMadeRound: z.number().int().nonnegative(),
+  /** Attaques qu'il a déclarées depuis le début du combat (0 : sa première est à venir). */
+  attacksMade: z.number().int().nonnegative(),
+  /** Attaques qui l'ont visé ce round. */
+  targetedRound: z.number().int().nonnegative(),
+  /** Attaques qui l'ont visé depuis le début du combat. */
+  targeted: z.number().int().nonnegative(),
+});
+export type CombatTally = z.infer<typeof CombatTally>;
+
+/**
  * Participant du combat. Les quatre premiers champs existent déjà ; les suivants sont
  * facultatifs (absents des réponses d'avant ce contrat).
  */
@@ -239,6 +256,9 @@ export const CombatParticipant = z.object({
   joinedRound: z.number().int().positive().optional(),
   /** Hors de combat (règle `horsCombat` du système, ou décision du MJ) : grisé, gardé. */
   defeated: z.boolean().optional(),
+  /** Surpris (embuscade) : marqué par le MJ, lu par les règles (`@combat.*`, § 5.7). */
+  surprised: z.boolean().optional(),
+  tally: CombatTally.optional(),
 });
 export type CombatParticipant = z.infer<typeof CombatParticipant>;
 
@@ -322,6 +342,11 @@ export const StartCombat = z.object({
     .array(InputId('Identifiant de personnage invalide'))
     .max(COMBAT_PARTICIPANTS_MAX)
     .optional(),
+  /** Participants surpris dès le départ (§ 5.7). */
+  surprised: z
+    .array(InputId('Identifiant de personnage invalide'))
+    .max(COMBAT_PARTICIPANTS_MAX)
+    .optional(),
   settings: CombatSettingsInput.optional(),
   /** Tirer tout de suite l'initiative de tous (serveur), avec ces paramètres par camp. */
   rollInitiative: z.boolean().optional(),
@@ -393,10 +418,15 @@ export const UpdateCombatParticipant = z
     sortKeys: z.array(z.number().finite()).min(1).max(SORT_KEYS_MAX).optional(),
     visibleToPlayers: z.boolean().optional(),
     defeated: z.boolean().optional(),
+    surprised: z.boolean().optional(),
     version: ExpectedVersion.optional(),
   })
   .refine(
-    (v) => v.sortKeys !== undefined || v.visibleToPlayers !== undefined || v.defeated !== undefined,
+    (v) =>
+      v.sortKeys !== undefined ||
+      v.visibleToPlayers !== undefined ||
+      v.defeated !== undefined ||
+      v.surprised !== undefined,
     { message: 'Rien à changer' },
   );
 export type UpdateCombatParticipant = z.input<typeof UpdateCombatParticipant>;

@@ -34,49 +34,49 @@ les agents d'implémentation les reportent dans `docs/api-*.md` au fur et à mes
 
 ### 2.1 Page d'attaque (`combat.tsx`, 1 818 lignes)
 
-| #   | Fonctionnalité              | Ancienne app                                                                                                                                                                                      | Devient                                                                                                                                               |
-| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A1  | Ouverture                   | « Attaquer » dans le menu d'un token (pastille et onglet Actions) ; MJ : l'attaquant est le personnage actif du tour (erreur s'il n'y en a pas) ; joueur : son personnage                         | menu d'attaque (§ 12.1), ouvert depuis le token, la barre de la sélection, la fiche, le panneau Combat ou un gabarit ; l'attaquant se choisit (§ 5.2) |
-| A2  | Attaque de zone             | « Attaquer la zone » d'une mesure : cibles = personnages dont la position est dans la forme, attaquant compris ; attaquant : mon personnage, sinon (MJ) le token sélectionné, l'actif, le premier | « Attaquer la zone (n) » d'un gabarit ou de la mesure récente : tokens vus dans la forme ; jet commun si l'action le déclare                          |
-| A3  | Zone d'un vaisseau          | gabarit posé depuis un objet (`startAreaAttack`) : liste des cibles touchées, sans jet                                                                                                            | « Sélectionner les personnages dans la zone (n) » d'un gabarit le fait déjà (carte) ; entités de groupe et véhicules hors de ce chantier (§ 13.3)     |
-| A4  | Plein écran                 | portail, défilement bloqué, gestes tactiles iOS, autres dialogues masqués                                                                                                                         | panneau flottant non modal (la carte reste visible pour viser), plein écran sur mobile                                                                |
-| A5  | En-tête « versus »          | portrait et nom de l'attaquant ; popover des stats (jauges valeur/max, caractéristiques visibles, bonus d'attaque) ; portraits des cibles (« N cibles »)                                          | en-tête du menu : bandeau de la fiche (présentation) ; puces des cibles                                                                               |
-| A6  | Types d'attaque (numérique) | une carte par `combatAttackKeys` avec son bonus (base + bonus en direct) ; « Custom » : NdF + mod                                                                                                 | les actions du système qui ont une cible, paramètres générés ; « Custom » = `attaque-libre`, `degats-libres` (D&D)                                    |
-| A7  | Jet d'attaque               | 1d20 + bonus par `Math.random` dans le navigateur ; grand chiffre, dés + mod = total ; choix de l'arme 1,5 s après                                                                                | jet de l'action résolu par le serveur avec les faces des dés 3D (§ 6), détail par cible (§ 5.5)                                                       |
-| A8  | Actions de PNJ              | liste `Actions` (Nom, Description, Toucher) à la place des types ; jet saisi (1d20 + 0) comparé au « Seuil » ; dés de dégâts saisis                                                               | attaques enregistrées du personnage (§ 8.3), reprises des actions du bestiaire                                                                        |
-| A9  | Choix de l'arme (numérique) | armes de l'inventaire (`NdF`, `damageStatKeys` ajoutés), « compétences » à dés (`Bonus`), dégâts libres                                                                                           | paramètre `entree` de l'action (exemplaires compris) ; dégâts par la formule de l'arme ; capacités par leurs actions                                  |
-| A10 | Son d'arme                  | icône son sur chaque arme : bibliothèque plein écran (recherche, catégories, écoute, « Silencieux ») ; `soundId` sur l'objet ; joué à tous au jet de dégâts (numérique) ou à la touche (symboles) | `soundAssetId` sur l'exemplaire (character), choisi parmi les effets de la campagne ; joué à la touche (§ 7.7, Q2)                                    |
-| A11 | Dégâts                      | grand chiffre, détail des modificateurs ; « Nouvelle attaque », « Terminer » ; dégâts lancés même sur un raté                                                                                     | dégâts calculés par l'action (`apres`), seulement si elle touche ; « Nouvelle attaque », « Mêmes cibles », « Fermer »                                 |
-| A12 | Mode à symboles (EotE)      | arme (dont « Mains nues »), compétence d'attaque avec aperçu du pool ; mains nues sans compétence : `unarmedBaseDice` dés de base                                                                 | action `attaque` de Star Wars : arme (mains nues `toujoursDisponible`), portée, options des talents ; compétence lue sur l'arme                       |
-| A13 | Compteurs du pool           | un compteur par dé du système, pré-rempli depuis la fiche, surchargeable (point sur une valeur forcée), « Réinitialiser »                                                                         | paramètres de l'action (difficulté, améliorations, Fortune…) ; ajustements libres du pool, marqués dans le rapport (§ 5.2)                            |
-| A14 | Résultat à symboles         | touché si succès nets ≥ 1 ; dégâts = base + succès nets ; critique déclenchable ×N (+10 par activation en plus) ; badges des symboles ; détail des dés ; conseils de dépense                      | résultat de l'action (réussite, valeurs visibles, symboles avec les icônes de la présentation), table des blessures critiques tirée (§ 13.3)          |
-| A15 | Rapport                     | un document par cible sous l'attaquant : jet, dégâts, arme, cible, touché si jet ≥ Défense (10 par défaut), symboles, critique                                                                    | attaque et rapport en base (campaign), une entrée par cible, résultat complet (§ 5, § 7)                                                              |
-| A16 | Cibles engagées             | marqueur écrit au lancer (15 s) pour le surlignage du MJ                                                                                                                                          | déclaration (`combat.attack_updated`), visée en direct (`combat.aim`), surlignage tant que le rapport est ouvert (§ 12.5)                             |
+| #   | Fonctionnalité              | Ancienne app                                                                                                                                                                                      | Devient                                                                                                                                                       |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | Ouverture                   | « Attaquer » dans le menu d'un token (pastille et onglet Actions) ; MJ : l'attaquant est le personnage actif du tour (erreur s'il n'y en a pas) ; joueur : son personnage                         | menu d'attaque (§ 12.1), ouvert depuis le token, la barre de la sélection, la fiche, le panneau Combat ou un gabarit ; l'attaquant se choisit (§ 5.2)         |
+| A2  | Attaque de zone             | « Attaquer la zone » d'une mesure : cibles = personnages dont la position est dans la forme, attaquant compris ; attaquant : mon personnage, sinon (MJ) le token sélectionné, l'actif, le premier | « Attaquer la zone (n) » d'un gabarit ou de la mesure récente : tokens vus dans la forme ; jet commun si l'action le déclare                                  |
+| A3  | Zone d'un vaisseau          | gabarit posé depuis un objet (`startAreaAttack`) : liste des cibles touchées, sans jet                                                                                                            | « Sélectionner les personnages dans la zone (n) » d'un gabarit le fait déjà (carte) ; entités de groupe et véhicules hors de ce chantier (§ 13.3)             |
+| A4  | Plein écran                 | portail, défilement bloqué, gestes tactiles iOS, autres dialogues masqués                                                                                                                         | plein écran repris (fenêtre large centrée, tout l’écran sur mobile) ; « Viser sur la carte » la réduit à une pastille le temps de cliquer les tokens (§ 12.1) |
+| A5  | En-tête « versus »          | portrait et nom de l'attaquant ; popover des stats (jauges valeur/max, caractéristiques visibles, bonus d'attaque) ; portraits des cibles (« N cibles »)                                          | en-tête « versus » repris : attaquant (portrait, statistiques de la présentation), VS, cibles (portraits, ajout et retrait) (§ 12.1)                          |
+| A6  | Types d'attaque (numérique) | une carte par `combatAttackKeys` avec son bonus (base + bonus en direct) ; « Custom » : NdF + mod                                                                                                 | les actions du système qui ont une cible, paramètres générés ; « Custom » = `attaque-libre`, `degats-libres` (D&D)                                            |
+| A7  | Jet d'attaque               | 1d20 + bonus par `Math.random` dans le navigateur ; grand chiffre, dés + mod = total ; choix de l'arme 1,5 s après                                                                                | même mise en scène (grand chiffre, dés + mod = total, puis Touché ou Raté par cible) ; jet résolu par le serveur avec les faces des dés 3D (§ 6)              |
+| A8  | Actions de PNJ              | liste `Actions` (Nom, Description, Toucher) à la place des types ; jet saisi (1d20 + 0) comparé au « Seuil » ; dés de dégâts saisis                                                               | attaques enregistrées du personnage (§ 8.3), reprises des actions du bestiaire                                                                                |
+| A9  | Choix de l'arme (numérique) | armes de l'inventaire (`NdF`, `damageStatKeys` ajoutés), « compétences » à dés (`Bonus`), dégâts libres                                                                                           | paramètre `entree` de l'action (exemplaires compris) ; dégâts par la formule de l'arme ; capacités par leurs actions                                          |
+| A10 | Son d'arme                  | icône son sur chaque arme : bibliothèque plein écran (recherche, catégories, écoute, « Silencieux ») ; `soundId` sur l'objet ; joué à tous au jet de dégâts (numérique) ou à la touche (symboles) | `soundAssetId` sur l'exemplaire (character), choisi parmi les effets de la campagne ; joué à la touche (§ 7.7, Q2)                                            |
+| A11 | Dégâts                      | grand chiffre, détail des modificateurs ; « Nouvelle attaque », « Terminer » ; dégâts lancés même sur un raté                                                                                     | grand chiffre des dégâts et leur détail, seulement si l’action touche ; « Nouvelle attaque », « Mêmes cibles », « Terminer »                                  |
+| A12 | Mode à symboles (EotE)      | arme (dont « Mains nues »), compétence d'attaque avec aperçu du pool ; mains nues sans compétence : `unarmedBaseDice` dés de base                                                                 | action `attaque` de Star Wars : arme (mains nues `toujoursDisponible`), portée, options des talents ; compétence lue sur l'arme                               |
+| A13 | Compteurs du pool           | un compteur par dé du système, pré-rempli depuis la fiche, surchargeable (point sur une valeur forcée), « Réinitialiser »                                                                         | paramètres de l'action (difficulté, améliorations, Fortune…) ; ajustements libres du pool, marqués dans le rapport (§ 5.2)                                    |
+| A14 | Résultat à symboles         | touché si succès nets ≥ 1 ; dégâts = base + succès nets ; critique déclenchable ×N (+10 par activation en plus) ; badges des symboles ; détail des dés ; conseils de dépense                      | résultat de l'action (réussite, valeurs visibles, symboles avec les icônes de la présentation), table des blessures critiques tirée (§ 13.3)                  |
+| A15 | Rapport                     | un document par cible sous l'attaquant : jet, dégâts, arme, cible, touché si jet ≥ Défense (10 par défaut), symboles, critique                                                                    | attaque et rapport en base (campaign), une entrée par cible, résultat complet (§ 5, § 7)                                                                      |
+| A16 | Cibles engagées             | marqueur écrit au lancer (15 s) pour le surlignage du MJ                                                                                                                                          | déclaration (`combat.attack_updated`), visée en direct (`combat.aim`), surlignage tant que le rapport est ouvert (§ 12.5)                                     |
 
 ### 2.2 Tableau de bord du MJ (`MJcombat.tsx`, 2 160 lignes)
 
-| #   | Fonctionnalité        | Ancienne app                                                                                                                                                                    | Devient                                                                                                                                  |
-| --- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| B1  | Participants          | tous les personnages de la salle filtrés par scène (joueurs et alliés qui suivent le groupe ou y sont, PNJ de la scène)                                                         | participants explicites (existant), présélectionnés depuis les tokens de la scène ; ajout et retrait en cours (§ 4.2)                    |
-| B2  | Tri                   | initiative décroissante, départage, joueur avant PNJ à égalité ; l'ordre tourne (l'actif en tête)                                                                               | tri par les clés du système, camp `players` d'abord à égalité (existant) ; l'ordre ne tourne plus, le tour courant est surligné          |
-| B3  | Initiative par camp   | pool de compétence : compétence des joueurs, des ennemis, override par personnage (« Camp (défaut) ») ; état local perdu au rechargement                                        | paramètres de l'action d'initiative par camp et par participant, enregistrés (§ 4.4)                                                     |
-| B4  | Relancer l'initiative | tout le monde : formule, pool (rang, départage) ou repli 1d20 + stat ; `initDetails` ; créneaux ou joueur actif                                                                 | `…/initiative` (existant) + par camp, sous-ensemble, relance individuelle, saisie, jet demandé aux joueurs                               |
-| B5  | Suivant               | supprime les rapports de l'actif, fait tourner, `activePlayer`                                                                                                                  | `…/next` (existant) ; les rapports restent (§ 7)                                                                                         |
-| B6  | Précédent             | rotation arrière, rien d'autre                                                                                                                                                  | `…/previous` : retour propre au passage précédent, durées rendues (§ 4.3)                                                                |
-| B7  | Créneaux (EotE)       | barre : round, suite J/E ; « qui agit ? » dans le camp (déjà agi : coché, peut rejouer) ; avancer purge les rapports ; reculer rend l'acteur du créneau                         | mode `slots` (existant) + acteur du créneau (`…/slot-actor`, `force` pour rejouer), journal des passages (§ 4.3)                         |
-| B8  | Personnage actif      | portrait, DEF, PV ; détail : type, INIT et son détail, override de compétence, PV modifiables, états, caractéristiques et modificateurs                                         | fiche du participant dans le panneau Combat (§ 12.3)                                                                                     |
-| B9  | Personnage consulté   | clic dans l'ordre : carte « Consulté »                                                                                                                                          | même fiche du participant                                                                                                                |
-| B10 | Cibles des rapports   | bouton « Cibles (n) » : liste puis détail (DEF, PV, états, stats)                                                                                                               | chaque rapport montre ses cibles ; un clic ouvre la fiche du participant                                                                 |
-| B11 | Ordre du tour         | position, portrait, nom, PV, détail d'initiative, icônes d'états, « + » (PV)                                                                                                    | liste du panneau Combat (§ 12.3)                                                                                                         |
-| B12 | Ajuster les PV        | tiroir ±1, journal ; PNJ à 0 PV (ou au seuil pour une jauge qui monte) : confirmer la suppression                                                                               | bloc Ressources de la fiche ; hors de combat par la règle du système (§ 4.5)                                                             |
-| B13 | États                 | Empoisonné, Étourdi, Aveuglé (en dur) + état libre ; journal ; icônes sur le token                                                                                              | états du catalogue (effets, durée) + état libre (bonus libre sans effet) ; badges sur le token (§ 12.5)                                  |
-| B14 | Rapports              | ceux de l'actif seulement ; arme, cible, touché, jet, dégâts, symboles, dés, critique, « AUTO-ATTAQUE », appliqué grisé, « x/y appliqués »                                      | tous les rapports, filtres, `selfTarget` (§ 12.4)                                                                                        |
-| B15 | Appliquer             | cible modifiable, détail de l'encaissement, dégâts ±1 pré-remplis (dégâts − encaissement), sens selon `recoversToZero`, toast, défi « dégâts infligés », journal des deux côtés | décision du MJ (§ 7.1) : valeurs des règles (encaissement, résistances comptés), corrigeables, réattribution ; événements (§ 10) ; défis |
-| B16 | Tout appliquer        | revue groupée : dégâts modifiables, cases, ajustement global ±1 ; morts regroupées                                                                                              | `…/attacks/apply` (§ 7.4), même revue                                                                                                    |
-| B17 | PNJ tombés            | dialogue groupé, cases (« boss à seconde phase »), suppression des PNJ et de leurs rapports                                                                                     | dialogue « Hors de combat » : garder, retirer du combat, supprimer l'instance (§ 7.4)                                                    |
-| B18 | Mort d'un personnage  | ses rapports, sa fiche supprimés, le tour passe                                                                                                                                 | suppression de l'instance de PNJ (carte), le combat le retire (existant)                                                                 |
-| B19 | Mobile                | carte active, rapports, ordre                                                                                                                                                   | panneau adaptatif                                                                                                                        |
-| B20 | Décor                 | `LightRays` (7 calques flous animés)                                                                                                                                            | non repris : décor coûteux ; le design system suffit                                                                                     |
+| #   | Fonctionnalité        | Ancienne app                                                                                                                                                                    | Devient                                                                                                                                                              |
+| --- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | Participants          | tous les personnages de la salle filtrés par scène (joueurs et alliés qui suivent le groupe ou y sont, PNJ de la scène)                                                         | participants explicites (existant), présélectionnés depuis les tokens de la scène ; ajout et retrait en cours (§ 4.2)                                                |
+| B2  | Tri                   | initiative décroissante, départage, joueur avant PNJ à égalité ; l'ordre tourne (l'actif en tête)                                                                               | tri par les clés du système, camp `players` d'abord à égalité (existant) ; l'ordre ne tourne plus, le tour courant est surligné                                      |
+| B3  | Initiative par camp   | pool de compétence : compétence des joueurs, des ennemis, override par personnage (« Camp (défaut) ») ; état local perdu au rechargement                                        | paramètres de l'action d'initiative par camp et par participant, enregistrés (§ 4.4)                                                                                 |
+| B4  | Relancer l'initiative | tout le monde : formule, pool (rang, départage) ou repli 1d20 + stat ; `initDetails` ; créneaux ou joueur actif                                                                 | `…/initiative` (existant) + par camp, sous-ensemble, relance individuelle, saisie, jet demandé aux joueurs                                                           |
+| B5  | Suivant               | supprime les rapports de l'actif, fait tourner, `activePlayer`                                                                                                                  | `…/next` (existant) ; les rapports restent (§ 7)                                                                                                                     |
+| B6  | Précédent             | rotation arrière, rien d'autre                                                                                                                                                  | `…/previous` : retour propre au passage précédent, durées rendues (§ 4.3)                                                                                            |
+| B7  | Créneaux (EotE)       | barre : round, suite J/E ; « qui agit ? » dans le camp (déjà agi : coché, peut rejouer) ; avancer purge les rapports ; reculer rend l'acteur du créneau                         | mode `slots` (existant) + acteur du créneau (`…/slot-actor`, `force` pour rejouer), journal des passages (§ 4.3)                                                     |
+| B8  | Personnage actif      | portrait, DEF, PV ; détail : type, INIT et son détail, override de compétence, PV modifiables, états, caractéristiques et modificateurs                                         | carte « Personnage actif » reprise (colonne de droite) ; détail en dialogue : ressources ±, états, attributs de la présentation, initiative et son override (§ 12.3) |
+| B9  | Personnage consulté   | clic dans l'ordre : carte « Consulté »                                                                                                                                          | carte « Consulté » reprise (§ 12.3)                                                                                                                                  |
+| B10 | Cibles des rapports   | bouton « Cibles (n) » : liste puis détail (DEF, PV, états, stats)                                                                                                               | carte « Cibles (n) » reprise : cibles des rapports en attente, liste puis détail (§ 12.3)                                                                            |
+| B11 | Ordre du tour         | position, portrait, nom, PV, détail d'initiative, icônes d'états, « + » (PV)                                                                                                    | colonne de gauche du panneau Combat, à l’identique, plus jauge, œil (caché), hors de combat grisé (§ 12.3)                                                           |
+| B12 | Ajuster les PV        | tiroir ±1, journal ; PNJ à 0 PV (ou au seuil pour une jauge qui monte) : confirmer la suppression                                                                               | bloc Ressources de la fiche ; hors de combat par la règle du système (§ 4.5)                                                                                         |
+| B13 | États                 | Empoisonné, Étourdi, Aveuglé (en dur) + état libre ; journal ; icônes sur le token                                                                                              | états du catalogue (effets, durée) + état libre (bonus libre sans effet) ; badges sur le token (§ 12.5)                                                              |
+| B14 | Rapports              | ceux de l'actif seulement ; arme, cible, touché, jet, dégâts, symboles, dés, critique, « AUTO-ATTAQUE », appliqué grisé, « x/y appliqués »                                      | tous les rapports du combat (en attente par défaut), une carte par cible comme avant, sous les cartes de la colonne de droite (§ 12.4)                               |
+| B15 | Appliquer             | cible modifiable, détail de l'encaissement, dégâts ±1 pré-remplis (dégâts − encaissement), sens selon `recoversToZero`, toast, défi « dégâts infligés », journal des deux côtés | décision du MJ (§ 7.1) : valeurs des règles (encaissement, résistances comptés), corrigeables, réattribution ; événements (§ 10) ; défis                             |
+| B16 | Tout appliquer        | revue groupée : dégâts modifiables, cases, ajustement global ±1 ; morts regroupées                                                                                              | `…/attacks/apply` (§ 7.4), même revue                                                                                                                                |
+| B17 | PNJ tombés            | dialogue groupé, cases (« boss à seconde phase »), suppression des PNJ et de leurs rapports                                                                                     | dialogue « Hors de combat » : garder, retirer du combat, supprimer l'instance (§ 7.4)                                                                                |
+| B18 | Mort d'un personnage  | ses rapports, sa fiche supprimés, le tour passe                                                                                                                                 | suppression de l'instance de PNJ (carte), le combat le retire (existant)                                                                                             |
+| B19 | Mobile                | carte active, rapports, ordre                                                                                                                                                   | vue empilée : carte active, rapports, ordre (panneau étroit ou mobile)                                                                                               |
+| B20 | Décor                 | `LightRays` (7 calques flous animés)                                                                                                                                            | non repris : décor coûteux ; le design system suffit                                                                                                                 |
 
 ### 2.3 Carte
 
@@ -373,6 +373,33 @@ donnée avec sa durée) ; tables tirées (valeur, ligne, entrée) ; déroulé ; 
 Jamais : un attribut, une variable, une résistance, une modification ou une table de la cible. La
 même vue sert au jet transmis à l'historique des dés (§ 7.7). Après la décision, l'attaquant voit
 le statut (appliqué, écarté) sans les montants, sauf pour un personnage du camp des joueurs.
+
+### 5.7 Situation du combat
+
+Demandé par Théo le 2026-09-30 : le menu doit prendre bien plus de paramètres que l'ancienne app
+(réduction contre un type, bonus, première attaque, cible déjà attaquée ou non…).
+
+- **Ce que compte le combat** (campaign) : pour chaque participant, `tally` (attaques faites ce
+  round et depuis le début, fois où il a été visé ce round et depuis le début, sur les attaques non
+  annulées du combat), `hasActed`, `surprised` (MJ : au démarrage, puis en cours). Vue d'un joueur :
+  seules les attaques publiques comptent.
+- **Contexte des règles** : à la déclaration, campaign fige pour chaque cible ce contexte (sans
+  l'attaque en cours) et l'envoie à character avec la résolution. Les formules le lisent sous
+  `@combat.*` : round, premier round, et pour l'acteur comme pour la cible : attaques faites,
+  fois visé (ce round, en tout), a agi ce round, surpris. Noms exacts : regles.md. Un système n'est
+  jamais obligé de s'en servir ; ceux du dépôt s'en servent là où leurs règles le disent (attaque
+  sournoise contre une cible qui n'a pas agi, surprise…).
+- **Paramètres de situation** : déclarés une fois par le système pour toutes ses actions à cible,
+  en plus des paramètres de l'action. Nouveau type de paramètre `choix` (options nommées : couvert
+  aucun, partiel, important) ; `section: situation` range un paramètre à part dans le menu ;
+  `description` courte (info-bulle). Exemples, selon les règles de chaque système :
+  - D&D et Nooblies : avantage ou désavantage, couvert de la cible, cible à terre, cible surprise,
+    bonus ou malus au toucher, bonus ou malus aux dégâts ;
+  - Star Wars : couvert, visée, Fortune ou Infortune de situation, difficulté améliorée ou
+    dégradée.
+- **Réductions par type de dégâts** : déjà dans les formules et les effets de la cible (RD,
+  résistances, immunités, vulnérabilités). Le rapport les détaille au MJ (dégâts bruts, type, chaque
+  réduction nommée, résultat) ; le tiroir de décision garde ses raccourcis (§ 7.1).
 
 ## 6. Dés : l'animation fait foi
 
@@ -836,8 +863,9 @@ de la campagne, avec la limite de débit des effets. Seul appelant : campaign, s
 
 ### 12.1 Menu d'attaque
 
-Panneau flottant non modal, ancré à gauche de la carte (plein écran sur mobile) : la carte reste
-visible et cliquable pour viser.
+Inspiré de l'ancienne page d'attaque (§ 2.1), qui sert de base, enrichi du nouveau moteur. Plein
+écran : portail, fond assombri, défilement bloqué ; sur ordinateur une fenêtre large centrée, sur
+mobile tout l'écran. Même menu pour un joueur et pour le MJ (qui attaque avec un PNJ).
 
 **Entrées :**
 
@@ -848,29 +876,38 @@ visible et cliquable pour viser.
   joueur, « Attaquer » s'affiche au clic sur un token qui n'est pas à lui (`forPlayers`) ;
 - gabarit ou mesure récente : « Attaquer la zone (n) » (tokens vus dans la forme, jet commun si
   l'action le déclare) ;
-- fiche : bouton « Attaquer » du bloc Actions (les actions à cible y sont aujourd'hui écartées) ;
-- panneau Combat : « Attaquer » sur le participant qui agit ;
-- clavier : `Y` (encore libre, carte.md § 6), sélection = cibles (proposition).
+- fiche : bouton « Attaquer » du bloc Actions ;
+- panneau Combat : « Attaquer avec » sur le personnage actif ou une ligne de l'ordre ;
+- clavier : `Y`, sélection = cibles.
 
-**Déroulé (une seule vue, de haut en bas) :**
+**En-tête « versus »** (comme avant) : à gauche l'attaquant (grand portrait cerclé, pastille
+« Attaquant », nom, bouton des statistiques : jauges valeur/max et attributs de la présentation,
+puces des bonus clés) ; « VS » en filigrane ; à droite les cibles (portraits chevauchés, pastille
+du nom, « N cibles »), « + » pour en ajouter (participants et tokens vus), retrait au survol ; MJ :
+changer d'attaquant ; « Mes attaques » ; fermer.
 
-1. **Attaquant** : bandeau de la fiche (portrait, ressources, attributs de la présentation), menu
-   pour en changer (MJ).
-2. **Action** : attaques enregistrées, puis actions groupées par la présentation ; description.
-3. **Paramètres** : formulaire généré ; son d'arme à côté d'un paramètre d'exemplaire (choix parmi
-   les effets de la campagne, écoute, « Silencieux », enregistré sur l'exemplaire).
-4. **Cibles** : puces (portrait, nom connu de moi) ; mode visée : curseur de visée, un clic sur un
-   token ajoute ou retire (⇧ : plusieurs), Échap termine ; « Cibles dans la zone » ; liste des
-   participants. `combat.aim` part au MJ à chaque changement.
-5. **Jet** : un jet par cible ou commun (dès deux cibles), dés 3D ou serveur, visibilité (MJ),
-   ajustements libres (repliés).
-6. **Aperçu** : formule ou pool de l'attaquant, « selon la cible » pour le reste.
-7. **Attaquer** : invite de réaction s'il y a lieu (« En attente de la défense de … »), puis dés 3D
-   (§ 12.2), puis résultat par cible : issue (Touché, Raté, Critique, Échec critique), dés et
-   total, valeurs visibles, symboles (icônes de la présentation), « Rapport envoyé au MJ » puis son
-   statut en direct (appliqué, écarté). Boutons : « Nouvelle attaque », « Mêmes cibles », « Fermer ».
+**Étapes** (une à la fois, transitions courtes, « Retour ») :
 
-« Mes attaques » : les attaques du combat de ce joueur, avec leur statut.
+1. **Action** : une grande carte par action à cible (icône, nom, bonus ou pool en pastille,
+   description courte), attaques enregistrées d'abord, groupées par la présentation. Une seule
+   action : étape sautée.
+2. **Préparer** : cartes d'arme pour un paramètre d'exemplaire (nom, dégâts, critique, qualités ;
+   « Mains nues » compris ; son d'arme), autres paramètres de l'action ; compteurs du pool (un par
+   dé du système, valeur de la fiche, point sur une valeur forcée, « Réinitialiser ») ; jet commun
+   ou par cible ; caché (MJ).
+   - **Situation** (§ 5.7) : paramètres de situation du système (puces, choix, bonus ±) et ce que
+     sait le combat, en puces lisibles par cible : « Première attaque », « Déjà visé 2 fois ce
+     round », « N'a pas encore agi », « Surpris ».
+   - Aperçu (formule ou pool), puis grand bouton « Lancer l'attaque ».
+3. **Jet** : attente (défense de la cible, dés), puis grand chiffre du jet (dés + mod = total, ou
+   badges des symboles), puis TOUCHÉ ou RATÉ par cible ; les dégâts arrivent ensuite en grand
+   chiffre avec leur détail ; plusieurs cibles : une rangée par cible.
+4. **Fin** : « Rapport envoyé au MJ » puis son statut en direct ; « Nouvelle attaque », « Mêmes
+   cibles », « Terminer ».
+
+**Viser sur la carte** : réduit la fenêtre à une pastille (attaquant → n cibles, « Valider ») le
+temps de cliquer les tokens (⇧ : plusieurs) ; Échap ou « Valider » la rouvre. `combat.aim` part au
+MJ à chaque changement.
 
 ### 12.2 Dés dans le menu
 
@@ -882,37 +919,43 @@ visible et cliquable pour viser.
 
 ### 12.3 Panneau Combat (MJ) : remplace « MJ »
 
-Entrée du registre `combat` (libellé « Combat », touche M, rôles `gm`, largeur `medium`, ancré à
-gauche : la carte reste visible) ; `?panneau=mj` y mène. Trois onglets :
+Inspiré du tableau de bord de l'ancienne app (§ 2.2), qui sert de base : **une seule vue**, sans
+onglets. Entrée du registre `combat` (touche M, rôles `gm`, largeur `full`) ; `?panneau=mj` y mène.
 
-- **Tours** (par défaut en combat) :
-  - hors combat : « Démarrer un combat » (tokens de la scène présélectionnés, cases, cachés,
-    initiative tout de suite, paramètres par camp, réglages) ;
-  - en-tête : round, mode, Initiative (tous, par camp : formulaire de l'action d'initiative),
-    Précédent, Suivant, Terminer (rapports en attente : garder ou écarter ; états à durée) ;
-  - mode slots : barre des créneaux J/E (courant surligné), « Qui agit ? » : participants du camp,
-    coche sur ceux qui ont agi, « Rejouer » (force) ;
-  - ordre : position, portrait, nom, jauge de la ressource principale, initiative et son détail,
-    badges d'états avec durée, œil (caché aux joueurs), hors de combat grisé ; glisser pour
-    réordonner ; menu : relancer ou saisir l'initiative, donner le tour, attaquer avec, fiche,
-    retirer ; « Ajouter » (tokens de la scène, personnages engagés) ;
-  - fiche du participant (tiroir) : bandeau de la présentation, ressources modifiables, états (liste
-    du système, état libre, durée), initiative et ses paramètres (l'ancien override par personnage),
-    « Ouvrir la fiche ».
-- **Rapports** (pastille : nombre en attente) : § 12.4.
-- **Héros** : l'ancien panneau MJ à l'identique (§ 2.6).
+- **En-tête** : « Combat », round (et créneau), « Initiative » (tous ; systèmes à créneaux :
+  compétence des joueurs et des ennemis en deux listes, comme avant), « Précédent », « Suivant » ;
+  menu ⋯ : ajouter des participants, réglages, héros de la table, terminer le combat.
+- **Hors combat** : la même vue. L'ordre montre les personnages de la scène (joueurs, alliés, PNJ
+  posés) : case pour écarter, œil pour cacher, « Surpris » ; « Lancer l'initiative » démarre le
+  combat avec eux et tire l'initiative ; « Démarrer sans initiative ».
+- **Colonne de gauche, Ordre du tour** : barre des créneaux en mode slots (« Qui agit ? », coche
+  sur ceux qui ont agi, rejouer) ; lignes : position, portrait, nom, jauge de la ressource
+  principale, détail d'initiative, icônes d'états, puces de situation (surpris, a agi, visé ce
+  round), « + » (ressources) ; tour courant surligné, hors de combat grisé ; clic : carte
+  « Consulté » ; menu de ligne : relancer ou saisir l'initiative, donner le tour, attaquer avec,
+  cacher, surpris, hors de combat, retirer ; glisser pour réordonner.
+- **Colonne de droite** : cartes compactes « Consulté » (si choisi), « Cibles (n) » (cibles des
+  rapports en attente : liste puis détail), « Personnage actif » (portrait, attributs clés de la
+  présentation, ressource principale, « Attaquer avec ») ; un clic ouvre la fiche détaillée en
+  dialogue : ressources ±, états (catalogue, état libre, durée), attributs, initiative et son
+  override. Dessous, **Rapports d'attaque** sur tout l'espace restant (§ 12.4).
+- Panneau étroit ou mobile : carte active, rapports, ordre, empilés.
+- **Héros de la table** : vue secondaire (menu ⋯), contenu de l'ancien panneau MJ (§ 2.6).
 
 ### 12.4 Rapports (MJ)
 
-- Filtres : en attente, décidés, tous ; ce combat, hors combat.
-- Carte d'un rapport : attaquant → cibles, action et paramètres clés (arme), « hors tour »,
-  « auto-attaque », « ajusté à la main », source des dés (3D, mixte, serveur), heure.
-- Une ligne par cible : issue, dés (repliés), modifications proposées (valeur, type, résistances
-  appliquées en info-bulle), table tirée, puis **Appliquer**, **Modifier**, **Ne pas appliquer** ;
-  coûts de l'attaquant sur une ligne à part.
-- Modifier : tiroir avec les raccourcis de § 7.1, aperçu de la ressource avant et après.
+- En-tête : « x/y appliqués », filtre (en attente par défaut, décidés, tous ; ce combat, hors
+  combat), « Tout appliquer (n) » : revue groupée (§ 7.4) avec ajustement global ±1, cases et champ
+  par ligne ; PNJ tombés regroupés ensuite.
+- **Une carte par cible**, comme avant : liseré d'état à gauche, action et arme, attaquant → cible,
+  pastille Touché ou Manqué (Critique, Échec critique), cases Jet et Dégâts en gros chiffres,
+  symboles, « AUTO-ATTAQUE », « hors tour », « ajusté à la main », situation retenue (§ 5.7), dés
+  et déroulé repliés ; réductions de la cible détaillées (brut, type, chaque réduction, résultat) ;
+  puis **Appliquer**, **Modifier**, **Ne pas appliquer** ; coûts de l'attaquant sur une ligne à
+  part.
+- Modifier : tiroir avec les raccourcis de § 7.1 (cible modifiable, ± pré-remplis, aperçu de la
+  ressource avant et après).
 - Décidé : grisé, ce qui a été appliqué, « Annuler l'application ».
-- « Tout appliquer (n) » : revue groupée (§ 7.4). « Détail » : déroulé complet, construction du pool.
 
 ### 12.5 Carte
 
