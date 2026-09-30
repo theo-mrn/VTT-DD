@@ -124,8 +124,8 @@ function DrawerBody({
   const ressources = widgets.find((w) => w.type === 'ressources');
   // Bandeau de la fiche (présentation du système) : identité et valeurs clés
   const details = widgets.find((w) => w.type === 'details');
-  const { stateSorts } = combatPresentation(sys.data?.presentation);
-  const states = perso.data && systeme ? statesOf(perso.data, systeme, stateSorts) : [];
+  const { stateSorts, stateIcons } = combatPresentation(sys.data?.presentation);
+  const states = perso.data && systeme ? statesOf(perso.data, systeme, stateSorts, stateIcons) : [];
 
   return (
     <div className="flex min-h-full flex-col">

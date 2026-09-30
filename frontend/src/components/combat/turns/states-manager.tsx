@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectField } from '@/components/ui/select';
 import { messageErreur } from '@/lib/api';
+import { STATE_ICONS } from '@/lib/combat/state-icons';
 import type { DemandePossession, FichePersonnage, OperationsPersonnage } from '@/lib/personnages';
 import { FREE_STATE_SOURCE, type TimedState } from './use-cast';
 
@@ -29,7 +30,13 @@ export function durationLabel(duration: number | null): string {
   return `${duration} round${duration > 1 ? 's' : ''}`;
 }
 
-/** Pastille d'un état : nom et durée restante. */
+/** Icône d'un état (présentation du système), dessinée par lucide. */
+export function StateIcon({ state, className }: { state: TimedState; className?: string }) {
+  const Icon = STATE_ICONS[state.icon];
+  return <Icon className={className ?? 'size-3 shrink-0'} aria-hidden />;
+}
+
+/** Pastille d'un état : icône, nom et durée restante. */
 export function StateBadge({ state, className }: { state: TimedState; className?: string }) {
   return (
     <span
@@ -39,6 +46,7 @@ export function StateBadge({ state, className }: { state: TimedState; className?
       }
       title={`${state.name} : ${durationLabel(state.duration)}`}
     >
+      <StateIcon state={state} />
       <span className="truncate">{state.name}</span>
       {state.duration !== null && (
         <span className="shrink-0 font-mono tabular-nums opacity-80">{state.duration}</span>
@@ -148,6 +156,7 @@ export function StatesManager({
               key={s.key}
               className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5"
             >
+              <StateIcon state={s} className="size-3.5 shrink-0 text-warning" />
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{s.name}</span>
               {s.duration !== null ? (
                 <span className="flex items-center gap-0.5">

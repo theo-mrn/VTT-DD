@@ -12,11 +12,18 @@
 
 import { useQueries, useQuery } from '@tanstack/react-query';
 import type { CampaignSide } from '@vtt/contracts';
-import { calculer, type Fiche, type Presentation, type SystemeCharge } from '@vtt/rules';
+import {
+  calculer,
+  type Fiche,
+  type IconeEtat,
+  type Presentation,
+  type SystemeCharge,
+} from '@vtt/rules';
 import { useMemo, useRef } from 'react';
 import { mainResource } from '@/components/map/tokens/resource';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { campagnes, clePersonnagesCampagne } from '@/lib/campagnes';
+import { stateIconOf, stateIconsOf } from '@/lib/combat/state-icons';
 import type { ResourceGauge } from '@/lib/map/modules/tokens/model';
 import { clesPersonnages, personnages, type FichePersonnage } from '@/lib/personnages';
 
@@ -73,11 +80,14 @@ export function useCast(campaignId: string) {
  */
 export function combatPresentation(presentation: Presentation | null | undefined): {
   stateSorts: string[];
+  /** Icône de chaque état déclarée par la présentation (`combat.etats.icones`). */
+  stateIcons: Readonly<Record<string, IconeEtat>>;
 } {
   const combat = (presentation as { combat?: { etats?: { sortes?: unknown } } } | null)?.combat;
   const sorts = combat?.etats?.sortes;
   return {
     stateSorts: Array.isArray(sorts) ? sorts.filter((s): s is string => typeof s === 'string') : [],
+    stateIcons: stateIconsOf(presentation),
   };
 }
 
@@ -99,6 +109,8 @@ export interface TimedState {
   /** Bonus libre (état libre). */
   bonusId?: string;
   name: string;
+  /** Icône de l'état (présentation), l'icône générique pour un état libre. */
+  icon: IconeEtat;
   /** Rounds restants ; null : jusqu'au retrait. */
   duration: number | null;
 }
@@ -114,6 +126,7 @@ export function statesOf(
   sheet: Pick<FichePersonnage, 'state'>,
   systeme: SystemeCharge,
   stateSorts: readonly string[],
+  stateIcons: Readonly<Record<string, IconeEtat>> = {},
 ): TimedState[] {
   const sorts = new Set(stateSorts);
   const out: TimedState[] = [];
@@ -127,6 +140,7 @@ export function statesOf(
       entry: p.entree,
       instance: p.exemplaire,
       name: entry?.nom ?? p.entree,
+      icon: stateIconOf(stateIcons, p.entree),
       duration: p.duree ?? null,
     });
   }
@@ -137,6 +151,7 @@ export function statesOf(
       kind: 'bonus',
       bonusId: b.id,
       name: b.nom,
+      icon: stateIconOf(stateIcons, null),
       duration: b.duree ?? null,
     });
   }
@@ -180,7 +195,7 @@ export function useParticipantSheets(
     const map = new Map<string, ParticipantSheet>();
     const s = sys.data;
     if (!s) return map;
-    const { stateSorts } = combatPresentation(s.presentation);
+    const { stateSorts, stateIcons } = combatPresentation(s.presentation);
     for (const sheet of sheets) {
       if (!sheet) continue;
       const known = cache.current.get(sheet);
@@ -202,7 +217,12 @@ export function useParticipantSheets(
       } catch {
         fiche = null;
       }
-      const value = { sheet, fiche, gauge, states: statesOf(sheet, s.systeme, stateSorts) };
+      const value = {
+        sheet,
+        fiche,
+        gauge,
+        states: statesOf(sheet, s.systeme, stateSorts, stateIcons),
+      };
       cache.current.set(sheet, { sys: s, value });
       map.set(sheet.id, value);
     }
