@@ -102,6 +102,11 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
   );
   const stack = liveStack(items, collapsed);
   const focus = focusOf(stack, chosen);
+  // La carte dépliée le reste : un rapport qui arrive se range en ligne au-dessus, sans
+  // replier celle que le MJ lit (ni déplacer le bouton qu'il allait cliquer)
+  useEffect(() => {
+    if (focus && focus !== chosen) setFocus(focus);
+  }, [focus, chosen]);
   const deciding = decidingId
     ? (items.find((i) => i.attack.id === decidingId)?.attack ?? null)
     : null;

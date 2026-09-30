@@ -1,352 +1,128 @@
 'use client';
 
 /**
- * Rapports en direct sous le bandeau du MJ (docs/combat.md § 12.6) : chaque rapport qui attend
- * une décision sort de la barre dès qu'il arrive, sans changer de panneau. Carte compacte par
- * attaque : attaquant → cible(s), action et arme, issue par cible, valeur en gros chiffre
- * (rouge quand elle aggrave la cible), réductions en info-bulle, marques ; puis Appliquer,
- * Modifier (tiroir de décision du panneau), Ne pas appliquer ; par cible quand il y en a
- * plusieurs, plus « Tout appliquer ». Décidé : confirmation brève et « Annuler », puis la carte
- * s'en va. Une attaque en cours (défense, dés) paraît discrète et se complète en place.
- *
- * Trois cartes au plus, « +n » ouvre le panneau Combat ; repliable (préférence gardée).
- * Entrée applique le premier rapport, Suppr ne l'applique pas, quand la pile a le focus.
- * Les décisions passent par les mêmes corps que le panneau (`reports/model.ts`).
+ * Rapports en direct sous la barre de combat du MJ (docs/combat.md § 12.6). Chaque rapport qui
+ * attend une décision sort de la barre dès qu'il arrive. Une seule carte dépliée (la plus
+ * récente à décider, ou celle que le MJ choisit) ; les autres en lignes décidables d'un clic ;
+ * attaques en cours et confirmations en lignes aussi. Trois au plus, « +n » ouvre le panneau
+ * Combat ; la pastille de la barre replie la pile. Pile au focus : Entrée applique la carte
+ * dépliée, Suppr ne l'applique pas.
  */
-import type { Attack, AttackTarget, CombatState } from '@vtt/contracts';
-import type { Presentation, SystemeCharge } from '@vtt/rules';
-import {
-  ArrowRight,
-  Battery,
-  Check,
-  CheckCheck,
-  Dices,
-  ChevronDown,
-  EyeOff,
-  Pencil,
-  ScrollText,
-  ShieldHalf,
-  Skull,
-  Swords,
-  Undo2,
-  X,
-} from 'lucide-react';
-import { AnimatePresence, MotionConfig, motion, type Transition } from 'motion/react';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
-import { toast } from 'sonner';
-import { Illustration } from '@/components/commun/illustration';
+import type { CombatState } from '@vtt/contracts';
+import { ScrollText } from 'lucide-react';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import type { KeyboardEvent } from 'react';
 import { PanelLink } from '@/components/table/panels/navigation';
-import { usePanelStore } from '@/components/table/panels/store';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
 import type { DetailCampagne } from '@/lib/campagnes';
-import { useCampaignSystem } from '@/lib/campaign-settings';
-import { hasSuccessRule } from '@/lib/combat/actions';
-import { combatErrorMessage } from '@/lib/combat/api';
-import { useAttackCommands, useAttacks } from '@/lib/combat/use-attacks';
-import { rollFigure } from '@/lib/combat/attack-flow-result';
-import { outcomeLabel, targetDisplay, type OutcomeTone } from '@/lib/combat/view';
-import { ResultatsSymboles } from '@/components/fiche/symboles';
-import { usePreferenceLocale } from '@/lib/preference-locale';
 import { cn } from '@/lib/utils';
 import { DecisionDrawer } from '../reports/decision-drawer';
-import { DefeatedDialog, reportDefeated } from '../reports/defeated-dialog';
-import { attributeLabel, damageTypeName, keyParams, modificationText } from '../reports/labels';
+import { DefeatedDialog } from '../reports/defeated-dialog';
+import { combatPresentation } from '../turns/use-cast';
 import {
-  actorDecidable,
-  buildApply,
-  decidableTargets,
-  defeatedBy,
-  draftOf,
-  isDecidable,
-  reductionDetail,
-  revertConflictOf,
-  targetAmounts,
-  toInput,
-} from '../reports/model';
-import { harmful, TONES } from '../reports/report-card';
-import { combatPresentation, useCast, type CastMember } from '../turns/use-cast';
-import { liveItems, liveStack, SETTLED_MS, type LiveItem } from './model';
+  ProgressRow,
+  ReportCard,
+  ReportRow,
+  rowDecision,
+  nothingToApply,
+  SettledRow,
+} from './live-card';
+import { EXIT, GLASS, NUMBER_SPRING, SPRING, TOUCH } from './look';
+import type { LiveItem } from './model';
+import { wholeScope, type LiveReports as Live } from './use-live-reports';
 
-const GLASS =
-  'rounded-2xl border border-border-strong bg-popover/85 shadow-elevated backdrop-blur-xl';
-
-/** Carte d'un rapport : verre plus dense, arrondi généreux, ombre portée. */
-const CARD =
-  'relative overflow-hidden rounded-[1.25rem] border border-border-strong bg-popover/95 shadow-elevated backdrop-blur-2xl';
-
-/** Liseré et halo selon l'issue. */
-const RAIL: Record<OutcomeTone, string> = {
-  success: 'bg-success',
-  critical: 'bg-primary',
-  failure: 'bg-subtle',
-  fumble: 'bg-destructive',
-  neutral: 'bg-primary/60',
-};
-const GLOW: Record<OutcomeTone, string> = {
-  success: 'bg-success',
-  critical: 'bg-primary',
-  failure: 'bg-transparent',
-  fumble: 'bg-destructive',
-  neutral: 'bg-primary/60',
-};
-
-/** Ressort court : une carte sort de la barre, se pose, sans rebond appuyé. */
-const SPRING: Transition = { type: 'spring', stiffness: 520, damping: 38, mass: 0.7 };
-
-type Cast = ReadonlyMap<string, CastMember>;
-
-interface Settled {
-  attack: Attack;
-  message: string;
-  applied: boolean;
-}
+/** La pile se montre : des rapports, et le panneau Combat fermé (il les montre déjà). */
+export const pileShown = (live: Live) => live.items.length > 0 && !live.panelOpen;
 
 export function LiveReports({
+  live,
   campagne,
   combat,
 }: {
+  live: Live;
   campagne: DetailCampagne;
   combat: CombatState | null;
 }) {
-  const campaignId = campagne.id;
-  // Le panneau Combat ouvert montre déjà les rapports : la pile s'efface
-  const panelOpen = usePanelStore((s) => s.active === 'combat');
-  const pending = useAttacks(campaignId, { status: 'pending', limit: 100 });
-  const open = useAttacks(campaignId, { status: 'open', limit: 50 });
-  const cast = useCast(campaignId);
-  const sys = useCampaignSystem(campagne.system, campaignId);
-  const systeme = sys.data?.systeme ?? null;
-  const presentation = sys.data?.presentation ?? null;
-  const commands = useAttackCommands(campaignId);
-  const [collapsed, setCollapsed] = usePreferenceLocale('combat:pile-rapports-repliee', false);
-  const [settled, setSettled] = useState<ReadonlyMap<string, Settled>>(new Map());
-  const [busy, setBusy] = useState<string | null>(null);
-  const [deciding, setDeciding] = useState<string | null>(null);
-
-  const settledAttacks = useMemo(
-    () => new Map([...settled].map(([id, s]) => [id, s.attack])),
-    [settled],
-  );
-  const items = useMemo(
-    () => liveItems([open.attacks, pending.attacks], settledAttacks),
-    [open.attacks, pending.attacks, settledAttacks],
-  );
-  const stack = liveStack(items, collapsed);
-  const decidingAttack = deciding
-    ? (items.find((i) => i.attack.id === deciding)?.attack ?? null)
-    : null;
-
-  // Une confirmation s'en va d'elle-même
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const forget = useCallback((id: string) => {
-    clearTimeout(timers.current.get(id));
-    timers.current.delete(id);
-    setSettled((s) => {
-      const next = new Map(s);
-      next.delete(id);
-      return next;
-    });
-  }, []);
-  useEffect(() => {
-    const all = timers.current;
-    return () => all.forEach(clearTimeout);
-  }, []);
-
-  const nameOf = (id: string) => cast.byId.get(id)?.name ?? 'Personnage';
-
-  /** Même corps que le panneau : cibles telles quelles (appliquer ou non), coûts à part. */
-  const decide = async (
-    a: Attack,
-    scope: { targets: readonly AttackTarget[]; actor: boolean },
-    apply: boolean,
-  ) => {
-    const key = `${a.id}:${scope.targets.map((t) => t.characterId).join(',')}:${scope.actor}:${apply}`;
-    setBusy(key);
-    try {
-      const actor =
-        scope.actor && actorDecidable(a)
-          ? { apply, modifications: a.actor!.modifications.map(toInput) }
-          : null;
-      const updated = await commands.apply(
-        a.id,
-        buildApply(
-          a,
-          scope.targets.map((t) => ({ ...draftOf(t), apply })),
-          actor,
-        ),
-      );
-      reportDefeated(defeatedBy(updated));
-      if (updated.status !== 'pending') {
-        const message = settledMessage(updated, nameOf, systeme, cast.byId);
-        setSettled((s) => new Map(s).set(a.id, { attack: updated, ...message }));
-        timers.current.set(
-          a.id,
-          setTimeout(() => forget(a.id), SETTLED_MS),
-        );
-      }
-    } catch (err) {
-      toast.error('La décision n’a pas pu être appliquée', {
-        description: combatErrorMessage(err),
-      });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /** Le serveur tire tout ce qui reste (auteur parti) : le rapport arrive. */
-  const rollRest = async (a: Attack) => {
-    const step = a.pendingSteps[0];
-    if (!step) return;
-    setBusy(`${a.id}:server`);
-    try {
-      await commands.submitDice(a.id, { stepId: step.id, results: [], serverFallback: true });
-    } catch (err) {
-      toast.error('Les dés n’ont pas pu être tirés', { description: combatErrorMessage(err) });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const cancel = async (a: Attack) => {
-    setBusy(`${a.id}:cancel`);
-    try {
-      await commands.cancel(a.id, { version: a.version });
-    } catch (err) {
-      toast.error('L’attaque n’a pas pu être abandonnée', {
-        description: combatErrorMessage(err),
-      });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const undo = async (s: Settled) => {
-    setBusy(`${s.attack.id}:undo`);
-    try {
-      await commands.revert(s.attack.id, { version: s.attack.version });
-      forget(s.attack.id);
-    } catch (err) {
-      toast.error('L’application n’a pas pu être annulée', {
-        description: revertConflictOf(err)
-          ? 'La fiche a changé entre-temps : voyez le panneau Combat.'
-          : combatErrorMessage(err),
-      });
-    } finally {
-      setBusy(null);
-    }
-  };
+  const { stack, focus, busy } = live;
+  const focused = stack.visible.find((i) => i.attack.id === focus)?.attack ?? null;
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
-    const first = stack.first;
-    if (!first || busy || e.defaultPrevented) return;
+    if (!focused || busy || e.defaultPrevented) return;
     const target = e.target as HTMLElement;
     if (target.closest('input, textarea, [role="menu"]')) return;
     // Un bouton garde sa propre touche Entrée
     if (e.key === 'Enter' && target.closest('button, a')) return;
-    const all = { targets: decidableTargets(first), actor: true };
     if (e.key === 'Enter') {
       e.preventDefault();
-      void decide(first, all, true);
+      void live.decide(focused, wholeScope(focused), !nothingToApply(focused));
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
-      void decide(first, { targets: all.targets, actor: false }, false);
+      void live.decide(focused, rowDecision(focused).skip, false);
     }
   };
 
-  const empty = items.length === 0 || panelOpen;
+  const shown = pileShown(live) && !live.collapsed;
 
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence>
-        {!empty && (
+        {shown && (
           <motion.section
             key="pile"
             aria-label="Rapports d’attaque en direct"
             aria-keyshortcuts="Enter Delete"
             tabIndex={0}
             onKeyDown={onKeyDown}
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8, transition: { duration: 0.15 } }}
+            exit={{ opacity: 0, y: -6, transition: EXIT }}
             transition={SPRING}
-            className="pointer-events-none flex w-[min(27rem,100%)] flex-col items-stretch gap-1.5 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            className="pointer-events-none flex w-[min(26rem,100%)] flex-col items-stretch gap-1.5 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           >
-            <StackHeader
-              waiting={stack.waiting}
-              collapsed={collapsed}
-              onToggle={() => setCollapsed(!collapsed)}
-            />
             <motion.ol
               layoutScroll
-              className="pointer-events-auto flex max-h-[min(60vh,34rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain rounded-2xl [scrollbar-width:thin]"
+              className="pointer-events-auto flex max-h-[min(62vh,36rem)] flex-col gap-1.5 overflow-y-auto overscroll-contain rounded-2xl [scrollbar-width:thin]"
             >
               <AnimatePresence initial={false} mode="popLayout">
                 {stack.visible.map((item) => (
                   <motion.li
                     key={item.attack.id}
                     layout
-                    initial={{ opacity: 0, y: -18, scale: 0.96 }}
+                    initial={{ opacity: 0, y: -16, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: 28, scale: 0.97, transition: { duration: 0.2 } }}
+                    exit={{ opacity: 0, x: 24, scale: 0.98, transition: EXIT }}
                     transition={SPRING}
+                    className="relative"
                   >
-                    {item.kind === 'settled' ? (
-                      <SettledCard
-                        settled={settled.get(item.attack.id)!}
-                        busy={busy === `${item.attack.id}:undo`}
-                        onUndo={(s) => void undo(s)}
-                        onClose={() => forget(item.attack.id)}
-                      />
-                    ) : (
-                      <LiveCard
-                        item={item}
-                        cast={cast.byId}
-                        systeme={systeme}
-                        presentation={presentation}
-                        busy={busy}
-                        first={item.attack.id === stack.first?.id}
-                        onDecide={(scope, apply) => void decide(item.attack, scope, apply)}
-                        onEdit={() => setDeciding(item.attack.id)}
-                        onServer={() => void rollRest(item.attack)}
-                        onCancel={() => void cancel(item.attack)}
-                      />
-                    )}
+                    <Card item={item} live={live} expanded={item.attack.id === focus} />
                   </motion.li>
                 ))}
               </AnimatePresence>
             </motion.ol>
             <AnimatePresence initial={false}>
-              {stack.hidden > 0 && !collapsed && (
+              {stack.hidden > 0 && (
                 <motion.div
                   key="more"
                   layout
-                  initial={{ opacity: 0, y: -6 }}
+                  initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
+                  exit={{ opacity: 0, transition: EXIT }}
                   transition={SPRING}
                   className="flex justify-center"
                 >
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    asChild
-                    className={cn(GLASS, 'pointer-events-auto rounded-full')}
-                  >
-                    <PanelLink panel="combat">
-                      +{stack.hidden} autre{stack.hidden > 1 ? 's' : ''} dans le panneau Combat
+                  <Info texte="Voir tout dans le panneau Combat" cote="bottom">
+                    <PanelLink
+                      panel="combat"
+                      aria-label={`${stack.hidden} autre${stack.hidden > 1 ? 's' : ''} rapport${stack.hidden > 1 ? 's' : ''}, dans le panneau Combat`}
+                      className={cn(
+                        GLASS,
+                        'pointer-events-auto rounded-full px-3 py-1 font-mono text-xs font-semibold tabular text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                        TOUCH,
+                      )}
+                    >
+                      +{stack.hidden}
                     </PanelLink>
-                  </Button>
+                  </Info>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -354,867 +130,103 @@ export function LiveReports({
         )}
       </AnimatePresence>
       <DecisionDrawer
-        campaignId={campaignId}
-        attack={decidingAttack}
-        systeme={systeme}
-        cast={cast.byId}
-        stateSorts={combatPresentation(presentation).stateSorts}
-        onClose={() => setDeciding(null)}
+        campaignId={live.campaignId}
+        attack={live.deciding}
+        systeme={live.systeme}
+        cast={live.cast}
+        stateSorts={combatPresentation(live.presentation).stateSorts}
+        onClose={() => live.setDeciding(null)}
       />
       <DefeatedDialog campagne={campagne} combat={combat} />
     </MotionConfig>
   );
 }
 
-// ─── En-tête de la pile ──────────────────────────────────────────────────────
-
-function StackHeader({
-  waiting,
-  collapsed,
-  onToggle,
-}: {
-  waiting: number;
-  collapsed: boolean;
-  onToggle(): void;
-}) {
-  return (
-    <header className="flex justify-center rounded-full">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!collapsed}
-        className={cn(
-          GLASS,
-          'group pointer-events-auto flex items-center gap-2 rounded-full py-1 pl-2.5 pr-2 text-xs font-medium transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-        )}
-      >
-        <ScrollText className="size-3.5 text-primary" aria-hidden />
-        <span>{waiting ? 'Rapports à décider' : 'Attaques en cours'}</span>
-        {waiting > 0 && (
-          <motion.span
-            key={waiting}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={SPRING}
-            className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 font-mono text-[10px] font-bold tabular-nums text-primary-foreground"
-          >
-            {waiting}
-          </motion.span>
-        )}
-        <ChevronDown
-          className={cn(
-            'size-3.5 text-subtle transition-transform duration-200',
-            collapsed && '-rotate-90',
-          )}
-          aria-hidden
-        />
-        <span className="sr-only">{collapsed ? 'Déplier' : 'Replier'}</span>
-      </button>
-    </header>
-  );
-}
-
-// ─── Carte d'une attaque ─────────────────────────────────────────────────────
-
-type Scope = { targets: readonly AttackTarget[]; actor: boolean };
-
-function LiveCard({
-  item,
-  cast,
-  systeme,
-  presentation,
-  busy,
-  first,
-  onDecide,
-  onEdit,
-  onServer,
-  onCancel,
-}: {
-  item: LiveItem;
-  cast: Cast;
-  systeme: SystemeCharge | null;
-  presentation: Presentation | null;
-  busy: string | null;
-  first: boolean;
-  onDecide(scope: Scope, apply: boolean): void;
-  onEdit(): void;
-  /** Attaque en cours : le serveur tire la suite, ou elle est abandonnée. */
-  onServer(): void;
-  onCancel(): void;
-}) {
+/** Une place de la pile : la carte change de forme (ligne, dépliée, confirmée) en fondu. */
+function Card({ item, live, expanded }: { item: LiveItem; live: Live; expanded: boolean }) {
   const a = item.attack;
-  const progress = item.kind === 'progress';
-  const attacker = cast.get(a.attackerId);
-  const attackerName = attacker?.name ?? 'Personnage';
-  const params = keyParams(systeme, a.action.id, a.params);
-  const successRule = hasSuccessRule(systeme?.actions.get(a.action.id) ?? null);
-  const decidable = decidableTargets(a);
-  const single = a.targets.length === 1;
-  const t0 = a.targets[0];
-  const tone0 = t0 ? outcomeOf(t0, successRule)?.tone : undefined;
-  const all: Scope = { targets: decidable, actor: true };
-  const isBusy = busy !== null && busy.startsWith(`${a.id}:`);
-  // Raté, rien à appliquer : le bouton principal classe le rapport
-  const nothing =
-    !actorDecidable(a) && decidable.every((t) => !(t.result?.modifications ?? []).length);
-  const keyOf = (s: Scope, apply: boolean) =>
-    `${a.id}:${s.targets.map((t) => t.characterId).join(',')}:${s.actor}:${apply}`;
-
-  const title = params.length ? params.join(', ') : a.action.name;
-  const targetNames = a.targets.map((t) => cast.get(t.characterId)?.name ?? 'Personnage');
+  const settled = item.kind === 'settled' ? live.settled.get(a.id) : undefined;
+  const shape = settled
+    ? 'settled'
+    : item.kind === 'progress'
+      ? 'progress'
+      : expanded
+        ? 'card'
+        : 'row';
   return (
-    <article
-      aria-label={`${a.action.name} : ${attackerName} contre ${targetNames.join(', ')}`}
-      className={cn(CARD, progress && 'opacity-90', first && !progress && 'ring-1 ring-primary/35')}
-    >
-      {/* Halo et liseré de l'issue */}
-      <span
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute -top-12 left-6 h-24 w-2/3 rounded-full opacity-35 blur-3xl',
-          progress ? 'bg-warning' : GLOW[tone0 ?? 'neutral'],
-        )}
-      />
-      <span
-        aria-hidden
-        className={cn(
-          'absolute inset-y-3 left-0 w-1 rounded-r-full',
-          progress ? 'bg-warning/70' : RAIL[tone0 ?? 'neutral'],
-        )}
-      />
-
-      {/* Duel : qui attaque qui, avec quoi */}
-      <header className="relative flex items-center gap-3 px-4 pb-1 pt-3.5">
-        <span className="relative flex shrink-0 items-center">
-          <Portrait
-            name={attackerName}
-            src={attacker?.portraitUrl ?? null}
-            ring="ring-primary/70"
+    <AnimatePresence initial={false} mode="popLayout">
+      <motion.div
+        key={shape}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+        transition={{ duration: 0.18 }}
+      >
+        {settled ? (
+          <SettledRow
+            settled={settled}
+            busy={live.busy === `${a.id}:undo`}
+            onUndo={() => void live.undo(settled)}
+            onClose={() => live.forget(a.id)}
           />
-          <span className="z-10 -mx-1.5 grid size-6 place-items-center rounded-full border border-border-strong bg-popover text-muted-foreground shadow-surface">
-            <Swords className="size-3" aria-hidden />
-          </span>
-          <span className="flex -space-x-3">
-            {a.targets.slice(0, 3).map((t, i) => {
-              const m = cast.get(t.characterId);
-              return (
-                <Portrait
-                  key={t.characterId}
-                  name={m?.name ?? 'Personnage'}
-                  src={m?.portraitUrl ?? null}
-                  ring="ring-destructive/60"
-                  style={{ zIndex: 3 - i }}
-                />
-              );
-            })}
-            {a.targets.length > 3 && (
-              <span className="grid size-10 place-items-center rounded-full bg-surface-3 text-xs font-semibold ring-2 ring-popover">
-                +{a.targets.length - 3}
-              </span>
-            )}
-          </span>
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-display text-[15px] font-semibold leading-tight">
-            {title}
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {attackerName}
-            <span className="px-1 text-subtle">→</span>
-            {single ? targetNames[0] : `${a.targets.length} cibles`}
-          </span>
-        </span>
-        {single && t0 && <OutcomePill target={t0} successRule={successRule} />}
-      </header>
-
-      <Marks attack={a} />
-
-      {progress ? (
-        <InProgress attack={a} busy={busy} onServer={onServer} onCancel={onCancel} />
-      ) : single && t0 ? (
-        <SingleBody
-          attack={a}
-          target={t0}
-          cast={cast}
-          systeme={systeme}
-          presentation={presentation}
-          tone={tone0 ?? 'neutral'}
-        />
-      ) : (
-        <ul className="space-y-1.5 px-3 pb-1 pt-2">
-          {a.targets.map((t) => (
-            <TargetRow
-              key={t.characterId}
-              attack={a}
-              target={t}
-              cast={cast}
-              systeme={systeme}
-              presentation={presentation}
-              successRule={successRule}
-              busy={isBusy}
-              loadingApply={busy === keyOf({ targets: [t], actor: false }, true)}
-              loadingSkip={busy === keyOf({ targets: [t], actor: false }, false)}
-              onDecide={(apply) => onDecide({ targets: [t], actor: false }, apply)}
-            />
-          ))}
-        </ul>
-      )}
-
-      {!progress && actorDecidable(a) && (
-        <ActorCosts
-          attack={a}
-          cast={cast}
-          systeme={systeme}
-          only={decidable.length === 0}
-          busy={isBusy}
-          onDecide={(apply) => onDecide({ targets: [], actor: true }, apply)}
-        />
-      )}
-
-      {!progress && decidable.length > 0 && (
-        <footer className="flex items-center gap-1.5 px-3 pb-3 pt-3">
-          <Button
-            size="sm"
-            className={cn('h-9 flex-1 rounded-xl font-semibold', !nothing && 'shadow-glow')}
-            variant={nothing ? 'secondary' : 'default'}
-            onClick={() => onDecide(all, !nothing)}
-            loading={busy === keyOf(all, !nothing)}
-            disabled={isBusy}
-            aria-keyshortcuts={first ? 'Enter' : undefined}
-          >
-            {nothing ? <Check /> : single ? <Check /> : <CheckCheck />}
-            {nothing ? 'Classer' : single ? 'Appliquer' : `Tout appliquer (${decidable.length})`}
-            {first && (
-              <kbd className="ml-1 hidden rounded border border-primary-foreground/30 px-1 font-sans text-[10px] leading-4 opacity-80 sm:inline">
-                ↵
-              </kbd>
-            )}
-          </Button>
-          <Info texte="Modifier avant d’appliquer" cote="bottom">
-            <Button
-              size="icon-sm"
-              variant="secondary"
-              className="size-9 rounded-xl"
-              onClick={onEdit}
-              disabled={isBusy}
-              aria-label="Modifier avant d’appliquer"
-            >
-              <Pencil />
-            </Button>
-          </Info>
-          {single && (
-            <Info texte="Ne pas appliquer" cote="bottom">
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="size-9 rounded-xl text-muted-foreground hover:text-destructive"
-                onClick={() => onDecide({ targets: decidable, actor: false }, false)}
-                loading={busy === keyOf({ targets: decidable, actor: false }, false)}
-                disabled={isBusy}
-                aria-label="Ne pas appliquer"
-                aria-keyshortcuts={first ? 'Delete' : undefined}
-              >
-                <X />
-              </Button>
-            </Info>
-          )}
-        </footer>
-      )}
-    </article>
-  );
-}
-
-function Portrait({
-  name,
-  src,
-  ring = 'ring-border',
-  size = 'size-10',
-  style,
-}: {
-  name: string;
-  src: string | null;
-  ring?: string;
-  size?: string;
-  style?: CSSProperties;
-}) {
-  return (
-    <span style={style} className="relative block shrink-0 rounded-full">
-      <Illustration
-        src={src}
-        graine={name}
-        position="top"
-        className={cn('rounded-full ring-2 ring-offset-2 ring-offset-popover', size, ring)}
-      />
-    </span>
-  );
-}
-
-function outcomeOf(t: AttackTarget, successRule: boolean) {
-  return outcomeLabel(t.result?.outcome ?? t.view?.outcome ?? null, successRule);
-}
-
-function OutcomePill({ target, successRule }: { target: AttackTarget; successRule: boolean }) {
-  const o = outcomeOf(target, successRule);
-  if (!o) return null;
-  return (
-    <motion.span
-      key={o.label}
-      initial={{ scale: 0.7, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={SPRING}
-      className="shrink-0"
-    >
-      <Badge ton={TONES[o.tone]} className="font-bold uppercase tracking-wide">
-        {o.label}
-      </Badge>
-    </motion.span>
-  );
-}
-
-/** Auto-attaque, hors tour, ajusté à la main, caché. */
-function Marks({ attack: a }: { attack: Attack }) {
-  const self = a.targets.some((t) => t.characterId === a.attackerId);
-  if (!self && !a.outOfTurn && !a.adjustments && a.visibility === 'public') return null;
-  return (
-    <div className="-mt-1 flex flex-wrap gap-1 pb-1.5 pl-4 pr-3">
-      {self && (
-        <Badge ton="danger" className="font-bold uppercase tracking-wide">
-          <Skull />
-          Auto-attaque
-        </Badge>
-      )}
-      {a.outOfTurn && <Badge ton="alerte">Hors tour</Badge>}
-      {a.adjustments && <Badge ton="info">Ajusté à la main</Badge>}
-      {a.visibility !== 'public' && (
-        <Badge>
-          <EyeOff />
-          {a.visibility === 'gm' ? 'Caché' : 'Privé'}
-        </Badge>
-      )}
-    </div>
+        ) : item.kind === 'progress' ? (
+          <ProgressRow
+            attack={a}
+            live={live}
+            onRoll={() => void live.rollRest(a)}
+            onCancel={() => void live.cancel(a)}
+          />
+        ) : expanded ? (
+          <ReportCard attack={a} live={live} />
+        ) : (
+          <ReportRow attack={a} live={live} />
+        )}
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
 /**
- * Attaque pas encore résolue : défense ou dés attendus. Le MJ peut tirer la suite par le
- * serveur (auteur parti, onglet fermé) ou abandonner l'attaque : une carte ne reste jamais
- * bloquée.
+ * Pastille des rapports dans la barre : combien attendent le MJ, et le repli de la pile. Une
+ * attaque seulement en cours : un point qui respire.
  */
-function InProgress({
-  attack: a,
-  busy,
-  onServer,
-  onCancel,
-}: {
-  attack: Attack;
-  busy: string | null;
-  onServer(): void;
-  onCancel(): void;
-}) {
-  const reacting = a.targets.some((t) => t.status === 'awaiting_reaction');
-  const canRoll = a.status === 'awaiting_dice' && !a.resolving && a.pendingSteps.length > 0;
+export function ReportsToggle({ live }: { live: Live }) {
+  if (!pileShown(live)) return null;
+  const { waiting } = live.stack;
+  const label = live.collapsed ? 'Déplier les rapports' : 'Replier les rapports';
   return (
-    <div className="flex items-center gap-2 pb-3 pl-4 pr-3 pt-1">
-      <span className="flex gap-0.5" aria-hidden>
-        {[0, 1, 2].map((i) => (
-          <motion.span
-            key={i}
-            className="size-1.5 rounded-full bg-warning"
-            animate={{ opacity: [0.25, 1, 0.25] }}
-            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18 }}
-          />
-        ))}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-        {reacting ? 'Défense attendue' : a.resolving ? 'Résolution en cours' : 'Dés à lancer'}
-      </span>
-      {canRoll && (
-        <Button
-          size="xs"
-          variant="secondary"
-          className="rounded-lg"
-          onClick={onServer}
-          loading={busy === `${a.id}:server`}
-          disabled={busy !== null}
-        >
-          <Dices />
-          Tirer
-        </Button>
-      )}
-      <Info texte="Abandonner l’attaque" cote="bottom">
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          className="rounded-lg text-muted-foreground hover:text-destructive"
-          onClick={onCancel}
-          loading={busy === `${a.id}:cancel`}
-          disabled={busy !== null}
-          aria-label="Abandonner l’attaque"
-        >
-          <X />
-        </Button>
-      </Info>
-    </div>
-  );
-}
-
-/** Une cible : cases « Jet » et valeur en gros chiffres, comme les rapports de l'ancienne app. */
-function SingleBody({
-  attack: a,
-  target: t,
-  cast,
-  systeme,
-  presentation,
-  tone,
-}: {
-  attack: Attack;
-  target: AttackTarget;
-  cast: Cast;
-  systeme: SystemeCharge | null;
-  presentation: Presentation | null;
-  tone: OutcomeTone;
-}) {
-  const amounts = targetAmounts(t);
-  const type = cast.get(t.characterId)?.type;
-  const figure = rollFigure(targetDisplay(a, t).roll);
-  const others = (t.result?.modifications ?? []).filter(
-    (m) => m.entity === 'target' && m.kind === 'entry',
-  );
-  const [main, ...rest] = amounts;
-  return (
-    <div className="px-3 pt-2">
-      <div className="grid grid-cols-2 gap-2">
-        <Tile label="Jet">
-          {figure?.kind === 'numeric' ? (
-            <>
-              <BigNumber value={String(figure.total)} className="text-foreground" />
-              <span className="mt-1 block truncate font-mono text-[10.5px] text-subtle">
-                {figure.dice}
-                {figure.modifier
-                  ? ` ${figure.modifier > 0 ? '+' : '−'} ${Math.abs(figure.modifier)}`
-                  : ''}
-              </span>
-            </>
-          ) : figure?.kind === 'symbols' && systeme ? (
-            <span className="flex min-h-9 items-center justify-center">
-              <ResultatsSymboles
-                systeme={systeme}
-                presentation={presentation}
-                resultats={figure.roll.results}
-              />
-            </span>
-          ) : (
-            <BigNumber value="—" className="text-subtle" />
-          )}
-        </Tile>
-        {main ? (
-          <Tile
-            label={attributeLabel(systeme, main.attribute, type)}
-            tone={harmful(main, presentation) ? 'danger' : 'good'}
-          >
-            <Amount
-              m={main}
-              label={main.damageType ? damageTypeName(systeme, main.damageType) : ''}
-              sub={null}
-              danger={harmful(main, presentation)}
-              size="lg"
-              systeme={systeme}
-            />
-          </Tile>
-        ) : (
-          <Tile label={tone === 'failure' || tone === 'fumble' ? 'Raté' : 'Valeur'}>
-            <BigNumber value="0" className="text-subtle" />
-            <span className="mt-1 block text-[10.5px] text-subtle">
-              {isDecidable(t) ? 'Rien à appliquer' : ''}
-            </span>
-          </Tile>
-        )}
-      </div>
-      {(rest.length > 0 || others.length > 0) && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {rest.map((m, i) => (
-            <span
-              key={`${a.id}:rest:${i}`}
-              className="rounded-lg border border-border bg-surface/70 px-2 py-0.5"
-            >
-              <Amount
-                m={m}
-                label={attributeLabel(systeme, m.attribute, type)}
-                sub={null}
-                danger={harmful(m, presentation)}
-                size="sm"
-                systeme={systeme}
-              />
-            </span>
-          ))}
-          {others.map((m, i) => (
-            <span
-              key={`${a.id}:entry:${i}`}
-              className="rounded-lg border border-border bg-surface/70 px-2 py-0.5 text-[11px]"
-            >
-              {modificationText(systeme, toInput(m), type)}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Case d'un chiffre clé (Jet, Dégâts), comme les rapports de l'ancienne app. */
-function Tile({
-  label,
-  tone,
-  children,
-}: {
-  label: string;
-  tone?: 'danger' | 'good';
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-xl border px-3 py-2 text-center',
-        tone === 'danger'
-          ? 'border-destructive/25 bg-destructive/[0.07]'
-          : tone === 'good'
-            ? 'border-success/25 bg-success/[0.07]'
-            : 'border-border bg-surface/70',
-      )}
-    >
-      <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-subtle">
-        {label}
-      </span>
-      <span className="mt-0.5 block">{children}</span>
-    </div>
-  );
-}
-
-function BigNumber({ value, className }: { value: string; className?: string }) {
-  return (
-    <motion.span
-      key={value}
-      initial={{ scale: 0.6, opacity: 0, y: 4 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={SPRING}
-      className={cn(
-        'block font-display text-[1.9rem] font-bold leading-none tabular-nums',
-        className,
-      )}
-    >
-      {value}
-    </motion.span>
-  );
-}
-
-function Amount({
-  m,
-  label,
-  sub,
-  danger,
-  size,
-  systeme,
-}: {
-  m: ReturnType<typeof targetAmounts>[number];
-  label: string;
-  sub: string | null;
-  danger: boolean;
-  size: 'lg' | 'sm';
-  systeme: SystemeCharge | null;
-}) {
-  const r = reductionDetail(m);
-  const value = `${m.operation === 'add' ? '+' : '−'}${m.value}`;
-  const number =
-    size === 'lg' ? (
-      <span className="flex flex-col items-center">
-        <motion.span
-          key={value}
-          initial={{ scale: 0.6, opacity: 0, y: 4 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={SPRING}
-          className={cn(
-            'font-display text-[1.9rem] font-bold leading-none tabular-nums',
-            danger ? 'text-destructive' : 'text-success',
-          )}
-        >
-          {value}
-        </motion.span>
-        <span className="mt-1 flex items-center gap-1 text-[10.5px] text-subtle">
-          {label}
-          {r && <ShieldHalf className="size-3 text-info" aria-label="Réduit" />}
-        </span>
-      </span>
-    ) : (
-      <span className="flex items-baseline gap-1">
-        <span
-          className={cn(
-            'font-display text-base font-bold leading-none tabular-nums',
-            danger ? 'text-destructive' : 'text-success',
-          )}
-        >
-          {value}
-        </span>
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
-        {sub && <span className="text-[11px] text-subtle">{sub}</span>}
-        {r && <ShieldHalf className="size-3 self-center text-info" aria-label="Réduit" />}
-      </span>
-    );
-  if (!r) return number;
-  return (
-    <Info
-      cote="bottom"
-      texte={
-        <span className="block space-y-0.5 text-xs">
-          <span className="block font-mono tabular-nums">
-            {r.raw}
-            {r.damageType ? ` ${damageTypeName(systeme, r.damageType)}` : ''} brut
-          </span>
-          {r.lines.map((l, j) => (
-            <span key={j} className={cn('block', l.ignored && 'line-through opacity-60')}>
-              {l.name} <span className="font-mono">{l.effect}</span>
-            </span>
-          ))}
-          <span className="block font-mono font-semibold tabular-nums">= {r.result}</span>
-        </span>
-      }
-    >
-      <span
-        tabIndex={0}
-        className="cursor-help rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
-      >
-        {number}
-      </span>
-    </Info>
-  );
-}
-
-/** Une cible parmi plusieurs : issue, valeur, appliquer ou non. */
-function TargetRow({
-  attack: a,
-  target: t,
-  cast,
-  systeme,
-  presentation,
-  successRule,
-  busy,
-  loadingApply,
-  loadingSkip,
-  onDecide,
-}: {
-  attack: Attack;
-  target: AttackTarget;
-  cast: Cast;
-  systeme: SystemeCharge | null;
-  presentation: Presentation | null;
-  successRule: boolean;
-  busy: boolean;
-  loadingApply: boolean;
-  loadingSkip: boolean;
-  onDecide(apply: boolean): void;
-}) {
-  const m = cast.get(t.characterId);
-  const name = m?.name ?? 'Personnage';
-  const decidable = isDecidable(t);
-  const amounts = targetAmounts(t);
-  return (
-    <motion.li
-      layout="position"
-      className={cn(
-        'flex items-center gap-2.5 rounded-xl border border-border bg-surface/70 py-1.5 pl-2 pr-1.5 transition-opacity',
-        !decidable && 'opacity-50',
-      )}
-    >
-      <Portrait name={name} src={m?.portraitUrl ?? null} size="size-8" ring="ring-destructive/50" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium">{name}</span>
-      </span>
-      <OutcomePill target={t} successRule={successRule} />
-      <span className="flex shrink-0 gap-2">
-        {amounts.map((x, i) => (
-          <Amount
-            key={`${a.id}:${t.characterId}:${i}`}
-            m={x}
-            label={attributeLabel(systeme, x.attribute, m?.type)}
-            sub={null}
-            danger={harmful(x, presentation)}
-            size="sm"
-            systeme={systeme}
-          />
-        ))}
-      </span>
-      {decidable ? (
-        <span className="flex shrink-0">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="rounded-lg text-success hover:bg-success/10 hover:text-success"
-            onClick={() => onDecide(true)}
-            loading={loadingApply}
-            disabled={busy}
-            aria-label={`Appliquer à ${name}`}
-          >
-            <Check />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="rounded-lg text-muted-foreground hover:text-destructive"
-            onClick={() => onDecide(false)}
-            loading={loadingSkip}
-            disabled={busy}
-            aria-label={`Ne pas appliquer à ${name}`}
-          >
-            <X />
-          </Button>
-        </span>
-      ) : (
-        <span className="grid size-7 shrink-0 place-items-center text-subtle" aria-hidden>
-          {t.decision === 'applied' ? (
-            <Check className="size-3.5 text-success" />
-          ) : (
-            <X className="size-3.5" />
-          )}
-        </span>
-      )}
-    </motion.li>
-  );
-}
-
-/** Coûts de l'attaquant (stress, munitions…) : appliqués avec « Appliquer », ou à part. */
-function ActorCosts({
-  attack: a,
-  cast,
-  systeme,
-  only,
-  busy,
-  onDecide,
-}: {
-  attack: Attack;
-  cast: Cast;
-  systeme: SystemeCharge | null;
-  /** Plus que les coûts à décider : leurs propres boutons. */
-  only: boolean;
-  busy: boolean;
-  onDecide(apply: boolean): void;
-}) {
-  const attacker = cast.get(a.attackerId);
-  return (
-    <div className="mx-3 mt-1 flex items-center gap-2 rounded-xl border border-dashed border-border-strong px-2.5 py-1.5 text-[11px] text-muted-foreground">
-      <Battery className="size-3.5 shrink-0 text-warning" aria-hidden />
-      <span className="min-w-0 flex-1 truncate">
-        Coûts de {attacker?.name ?? 'l’attaquant'} :{' '}
-        {a
-          .actor!.modifications.map((m) => modificationText(systeme, toInput(m), attacker?.type))
-          .join(', ')}
-      </span>
-      {only && (
-        <span className="flex shrink-0 gap-1">
-          <Button size="xs" variant="secondary" onClick={() => onDecide(true)} disabled={busy}>
-            <Check />
-            Appliquer
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => onDecide(false)}
-            disabled={busy}
-            aria-label="Ne pas appliquer les coûts"
-          >
-            <X />
-          </Button>
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ─── Confirmation ────────────────────────────────────────────────────────────
-
-/** « Appliqué : −7 PV à Gobelin », « Non appliqué », « Écarté ». */
-function settledMessage(
-  a: Attack,
-  nameOf: (id: string) => string,
-  systeme: SystemeCharge | null,
-  cast: Cast,
-): { message: string; applied: boolean } {
-  const parts = a.targets.flatMap((t) => {
-    if (t.decision !== 'applied' || !t.applied) return [];
-    const who = t.applied.redirectedTo ?? t.characterId;
-    const values = t.applied.modifications
-      .filter((m) => m.kind === 'attribute')
-      .map((m) => modificationText(systeme, toInput(m), cast.get(who)?.type));
-    return [`${values.length ? values.join(', ') : 'effets'} à ${nameOf(who)}`];
-  });
-  if (parts.length) return { message: `Appliqué : ${parts.join(' · ')}`, applied: true };
-  if (a.status === 'dismissed') return { message: 'Rapport écarté', applied: false };
-  return { message: 'Non appliqué', applied: false };
-}
-
-function SettledCard({
-  settled: s,
-  busy,
-  onUndo,
-  onClose,
-}: {
-  settled: Settled;
-  busy: boolean;
-  onUndo(s: Settled): void;
-  onClose(): void;
-}) {
-  return (
-    <div
-      role="status"
-      className={cn(GLASS, 'relative flex items-center gap-2.5 overflow-hidden py-2 pl-3 pr-1.5')}
-    >
-      <CheckMark applied={s.applied} />
-      <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{s.message}</span>
-      {s.applied && (
-        <Button size="xs" variant="ghost" onClick={() => onUndo(s)} loading={busy}>
-          <Undo2 />
-          Annuler
-        </Button>
-      )}
-      <Button size="icon-xs" variant="ghost" onClick={onClose} aria-label="Fermer">
-        <X />
-      </Button>
-      {/* Le temps qui reste avant que la carte s'en aille */}
-      <motion.span
-        aria-hidden
+    <Info texte={label} cote="bottom">
+      <button
+        type="button"
+        onClick={() => live.setCollapsed(!live.collapsed)}
+        aria-expanded={!live.collapsed}
+        aria-label={`${label}${waiting ? `, ${waiting} à décider` : ''}`}
         className={cn(
-          'absolute inset-x-0 bottom-0 h-0.5 origin-left',
-          s.applied ? 'bg-success/60' : 'bg-border-strong',
+          'relative grid size-8 shrink-0 place-items-center rounded-lg transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+          live.collapsed
+            ? 'text-muted-foreground hover:text-foreground'
+            : 'bg-surface-3 text-foreground',
+          TOUCH,
         )}
-        initial={{ scaleX: 1 }}
-        animate={{ scaleX: 0 }}
-        transition={{ duration: SETTLED_MS / 1000, ease: 'linear' }}
-      />
-    </div>
-  );
-}
-
-/** Coche tracée (appliqué) ou trait (non appliqué), dans un disque qui se pose. */
-function CheckMark({ applied }: { applied: boolean }) {
-  return (
-    <motion.span
-      initial={{ scale: 0.4, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={SPRING}
-      className={cn(
-        'grid size-6 shrink-0 place-items-center rounded-full',
-        applied ? 'bg-success/15 text-success' : 'bg-surface-3 text-muted-foreground',
-      )}
-      aria-hidden
-    >
-      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={3}>
-        <motion.path
-          d={applied ? 'M5 12.5l4.5 4.5L19 7.5' : 'M7 12h10'}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 0.35, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
-    </motion.span>
+      >
+        <ScrollText className="size-4" aria-hidden />
+        {waiting > 0 ? (
+          <motion.span
+            key={waiting}
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={NUMBER_SPRING}
+            className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 font-mono text-[10px] font-bold leading-none tabular text-primary-foreground shadow-glow"
+          >
+            {waiting}
+          </motion.span>
+        ) : (
+          <span
+            aria-hidden
+            className="absolute right-0.5 top-0.5 size-2 animate-pulse rounded-full bg-warning motion-reduce:animate-none"
+          />
+        )}
+      </button>
+    </Info>
   );
 }

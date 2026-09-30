@@ -1,10 +1,12 @@
 'use client';
 
+import type { CombatState } from '@vtt/contracts';
 import { ArrowLeft, Crown, Eye, UserRoundCog } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { useNomSysteme } from '@/components/campagnes/carte-campagne';
-import { LiveReports } from '@/components/combat/live-reports/live-reports';
+import { LiveReports, ReportsToggle } from '@/components/combat/live-reports/live-reports';
+import { useLiveReports } from '@/components/combat/live-reports/use-live-reports';
 import { InitiativeStrip } from '@/components/combat/player/initiative-strip';
 import { ReactionPrompts } from '@/components/combat/player/reaction-prompt';
 import { Illustration } from '@/components/commun/illustration';
@@ -14,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from '@/components/ui/tooltip';
 import { useCampaignSystem } from '@/lib/campaign-settings';
 import { useCombat } from '@/lib/combat/use-combat';
+import type { DetailCampagne } from '@/lib/campagnes';
 import type { Personnage } from '@/lib/personnages';
 import { cn } from '@/lib/utils';
 import type { Table } from './contexte';
@@ -59,9 +62,9 @@ export function HudCampaign({ table }: { table: Table }) {
 }
 
 /**
- * Au centre, pendant un combat : le bandeau d'initiative du MJ (docs/combat.md § 12.6) et, dessous,
- * ses rapports d'attaque en direct ; pour un joueur, les invites de défense active quand son
- * personnage est attaqué (en combat ou non).
+ * Au centre, pendant un combat : la barre de combat du MJ (docs/combat.md § 12.6) et, dessous,
+ * ses rapports d'attaque en direct, un seul ensemble ; pour un joueur, les invites de défense
+ * active quand son personnage est attaqué (en combat ou non).
  */
 export function HudCombat({ table }: { table: Table }) {
   const { campagne: c, gm, moi } = table;
@@ -76,12 +79,26 @@ export function HudCombat({ table }: { table: Table }) {
   if (!(combat && role === 'gm') && !reacts) return null;
   return (
     <div className="pointer-events-none flex min-w-0 flex-1 flex-col items-center gap-2">
-      {combat && role === 'gm' && <InitiativeStrip campaignId={c.id} combat={combat} />}
-      {combat && role === 'gm' && <LiveReports campagne={c} combat={combat} />}
+      {combat && role === 'gm' && <GmCombat campagne={c} combat={combat} />}
       {reacts && (
         <ReactionPrompts campaignId={c.id} mine={mine} systeme={sys.data?.systeme ?? null} />
       )}
     </div>
+  );
+}
+
+/** Barre du MJ et pile de rapports : l'état des rapports est partagé (pastille, repli). */
+function GmCombat({ campagne, combat }: { campagne: DetailCampagne; combat: CombatState }) {
+  const live = useLiveReports(campagne);
+  return (
+    <>
+      <InitiativeStrip
+        campaignId={campagne.id}
+        combat={combat}
+        reports={<ReportsToggle live={live} />}
+      />
+      <LiveReports live={live} campagne={campagne} combat={combat} />
+    </>
   );
 }
 
