@@ -83,3 +83,13 @@ export function liveStack(
     first: visible.find((i) => i.kind === 'decide')?.attack ?? null,
   };
 }
+
+/**
+ * Carte dépliée de la pile : celle que le MJ a choisie si elle attend encore une décision, sinon
+ * la première à décider. Les autres restent en lignes compactes (décision en un clic).
+ */
+export function focusOf(stack: LiveStack, chosen: string | null): string | null {
+  if (chosen && stack.visible.some((i) => i.kind === 'decide' && i.attack.id === chosen))
+    return chosen;
+  return stack.first?.id ?? null;
+}

@@ -1,7 +1,7 @@
 import type { Attack } from '@vtt/contracts';
 import { describe, expect, it } from 'vitest';
 import { attack as baseAttack, attackTarget } from '@/lib/combat/test-kit';
-import { liveItems, liveStack, needsDecision } from './model';
+import { focusOf, liveItems, liveStack, needsDecision } from './model';
 
 const at = (minute: number) => `2026-09-30T20:${String(minute).padStart(2, '0')}:00.000Z`;
 
@@ -89,5 +89,34 @@ describe('bornes de la pile', () => {
       new Map([['s', attack('s', 8, { status: 'applied' })]]),
     );
     expect(liveStack(mixed, false).first?.id).toBe('d');
+  });
+});
+
+describe('carte dépliée', () => {
+  const stack = liveStack(
+    liveItems(
+      [[attack('p', 9, { status: 'awaiting_dice' }), attack('b', 2), attack('a', 1)]],
+      new Map([['s', attack('s', 8, { status: 'applied' })]]),
+    ),
+    false,
+    4,
+  );
+
+  it('par défaut, la première à décider', () => {
+    expect(focusOf(stack, null)).toBe('b');
+  });
+
+  it('celle que le MJ a choisie, tant qu’elle attend une décision', () => {
+    expect(focusOf(stack, 'a')).toBe('a');
+  });
+
+  it('un choix en cours, confirmé ou parti revient à la première à décider', () => {
+    expect(focusOf(stack, 'p')).toBe('b');
+    expect(focusOf(stack, 's')).toBe('b');
+    expect(focusOf(stack, 'z')).toBe('b');
+  });
+
+  it('rien à décider : aucune', () => {
+    expect(focusOf(liveStack([], false), 'a')).toBeNull();
   });
 });
