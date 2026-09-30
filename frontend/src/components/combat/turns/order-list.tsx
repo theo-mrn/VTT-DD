@@ -28,8 +28,8 @@ import {
   UserMinus,
   Zap,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useState, type DragEvent } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Illustration } from '@/components/commun/illustration';
 import { PanelLink } from '@/components/table/panels/navigation';
 import { TABLE_PARAMS } from '@/components/table/panels/registry';
@@ -74,6 +74,7 @@ export function OrderList({
   busy,
   consulted,
   canAttack,
+  followCurrent,
   actions,
 }: {
   combat: CombatState;
@@ -83,10 +84,23 @@ export function OrderList({
   /** Participant affiché dans la carte « Consulté ». */
   consulted: string | null;
   canAttack: boolean;
+  /** Colonne qui défile seule : la ligne du tour y reste en vue (jamais en vue empilée). */
+  followCurrent: boolean;
   actions: OrderActions;
 }) {
   const rows = turnRows(combat);
   const [dragged, setDragged] = useState<string | null>(null);
+  const currentRef = useRef<HTMLLIElement | null>(null);
+  const reduced = useReducedMotion();
+  const current = rows.find((r) => r.current)?.characterId ?? null;
+  // Le tour passe : la ligne de celui qui agit reste en vue (longue liste, colonne défilée)
+  useEffect(() => {
+    if (!current || !followCurrent) return;
+    currentRef.current?.scrollIntoView({
+      block: 'nearest',
+      behavior: reduced ? 'auto' : 'smooth',
+    });
+  }, [current, reduced, followCurrent]);
   const [dropAt, setDropAt] = useState<number | null>(null);
 
   const over = (e: DragEvent<HTMLDivElement>, index: number) => {
@@ -116,7 +130,12 @@ export function OrderList({
   return (
     <ol className="space-y-1" aria-label="Ordre du tour">
       {rows.map((row, i) => (
-        <motion.li key={row.characterId} layout="position" transition={ROW_TRANSITION}>
+        <motion.li
+          key={row.characterId}
+          ref={row.current ? currentRef : undefined}
+          layout="position"
+          transition={ROW_TRANSITION}
+        >
           <div
             draggable={!busy}
             onDragStart={(e) => {

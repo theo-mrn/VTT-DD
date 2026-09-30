@@ -12,6 +12,7 @@
 import type { ActionParams, CombatParticipant, CombatState } from '@vtt/contracts';
 import {
   ChevronLeft,
+  Crosshair,
   Dices,
   ExternalLink,
   EyeOff,
@@ -76,6 +77,8 @@ const TONE_RING: Record<DialogOrigin['tone'], string> = {
 export interface CharacterDialogActions {
   attackWith(characterId: string): void;
   giveTurn(characterId: string): void;
+  /** Le personnage qui agit attaque celui-ci ; absent : personne n'agit. */
+  aimAt?: { actorName: string; run(targetId: string): void; actorId: string };
 }
 
 export function CharacterDialog({
@@ -440,6 +443,19 @@ function DialogBody({
           >
             <UserMinus />
             {confirmRemove ? 'Confirmer le retrait' : 'Retirer du combat'}
+          </Button>
+        )}
+        {canAttack && actions.aimAt && actions.aimAt.actorId !== characterId && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              actions.aimAt!.run(characterId);
+              onClose();
+            }}
+          >
+            <Crosshair />
+            Viser avec {actions.aimAt.actorName}
           </Button>
         )}
         {canAttack && !p?.defeated && (

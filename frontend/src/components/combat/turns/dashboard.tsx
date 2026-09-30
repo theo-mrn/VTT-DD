@@ -529,6 +529,7 @@ export function CombatDashboard({ campagne }: { campagne: DetailCampagne }) {
           busy={busy !== null}
           consulted={split ? consulted : null}
           canAttack={canAttack}
+          followCurrent={split}
           actions={orderActions}
         />
       ) : (
@@ -649,7 +650,25 @@ export function CombatDashboard({ campagne }: { campagne: DetailCampagne }) {
         member={detail ? (cast.byId.get(detail.id) ?? null) : null}
         playerName={detail ? (playerOf.get(detail.id) ?? null) : null}
         origin={detailOrigin}
-        actions={{ attackWith, giveTurn }}
+        actions={{
+          attackWith,
+          giveTurn,
+          ...(actor
+            ? {
+                aimAt: {
+                  actorId: actor,
+                  actorName: cast.nameOf(actor),
+                  run: (targetId: string) =>
+                    openAttackMenu({
+                      campaignId,
+                      origin: 'turns',
+                      attackerId: actor,
+                      targetIds: [targetId],
+                    }),
+                },
+              }
+            : {}),
+        }}
         canAttack={canAttack}
         onBack={
           detail?.back
