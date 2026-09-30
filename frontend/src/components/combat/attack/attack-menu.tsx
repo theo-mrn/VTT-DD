@@ -308,10 +308,12 @@ function Compose({
 
         {!draft.attackerId ? (
           <p className="text-[13px] text-muted-foreground">Choisissez d’abord qui attaque.</p>
-        ) : sheet.loading || !fiche ? (
+        ) : sheet.loading ? (
           <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden /> Lecture de la fiche…
           </p>
+        ) : !fiche ? (
+          <Message>La fiche de ce personnage n’est pas disponible.</Message>
         ) : (
           <>
             <ActionPicker
