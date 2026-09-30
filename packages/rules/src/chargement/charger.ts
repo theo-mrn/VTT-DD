@@ -945,6 +945,10 @@ class Chargeur {
             p.id,
             p.options.map((o) => o.valeur),
           );
+          for (const o of p.options)
+            for (const id of o.parametres ?? [])
+              if (!a.parametres.some((x) => x.id === id))
+                this.erreur(ou, `Option ${o.valeur} : paramètre inconnu ${id}`);
           continue;
         }
         if (p.type !== 'entree') {

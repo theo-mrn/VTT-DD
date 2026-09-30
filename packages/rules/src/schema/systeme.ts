@@ -551,6 +551,11 @@ export const OptionChoix = z.object({
   valeur: Cle,
   nom: Libelle,
   description: z.string().max(500).optional(),
+  /**
+   * Paramètres propres à cette option, proposés avec elle quand elle est choisie (les dés d'un
+   * jet « Libre » : nombre, faces, modificateur). Sans effet sur le calcul.
+   */
+  parametres: z.array(Cle).optional(),
 });
 export type OptionChoix = z.output<typeof OptionChoix>;
 

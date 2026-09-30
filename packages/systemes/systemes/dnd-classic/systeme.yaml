@@ -622,10 +622,34 @@ actions:
       naturel rate toujours. Options réservées aux capacités qui les ouvrent.
     pour: [personnage]
     cible: personnage
-    # Type d'attaque d'abord (le jet), l'arme après, seulement si l'attaque touche (les dégâts)
+    # Type d'attaque d'abord (le jet : Contact, Distance, Magie, ou un jet libre), puis, seulement
+    # si l'attaque touche, la source des dégâts : une arme, un sort à dés, ou des dégâts libres
     parametres:
-      - { id: score, nom: Type d'attaque, type: attribut, attributs: [Contact, Distance, Magie] }
-      - { id: arme, nom: Arme, type: entree, sorte: arme, etape: apres }
+      - id: score
+        nom: Type d'attaque
+        type: choix
+        options:
+          - { valeur: Contact, nom: Contact }
+          - { valeur: Distance, nom: Distance }
+          - { valeur: Magie, nom: Magie }
+          - valeur: libre
+            nom: Libre
+            description: Jet au choix (nombre de dés, faces, modificateur).
+            parametres: [desToucher, facesToucher, modToucher]
+      - { id: desToucher, nom: Dés, type: nombre, defaut: 1 }
+      - { id: facesToucher, nom: Faces, type: nombre, defaut: 20 }
+      - { id: modToucher, nom: Modificateur, type: nombre, defaut: 0 }
+      - { id: arme, nom: Arme, type: entree, sorte: arme, facultatif: true, etape: apres }
+      - id: capacite
+        nom: Sort
+        type: entree
+        sorte: capacite
+        etiquette: sort
+        facultatif: true
+        etape: apres
+      - { id: nbDes, nom: Dés de dégâts, type: nombre, defaut: 1, etape: apres }
+      - { id: faces, nom: Faces, type: nombre, defaut: 6, etape: apres }
+      - { id: bonus, nom: Modificateur, type: nombre, defaut: 0, etape: apres }
       - id: auD12
         nom: 'Attaque au d12 (Déluge de coups, Danse des lames, Combat à deux armes)'
         type: booleen
@@ -724,15 +748,16 @@ actions:
       - &v-des-critique { cle: desCritique, formule: 0 }
       - &v-mult-critique { cle: multCritique, formule: 2 }
       # Seuil du personnage au jet (20 en Magie) ; celui de l'arme est confirmé après le jet
-      - { cle: seuilCritique, formule: 'si(score == "Magie", 20, @Critique)' }
+      - { cle: seuilCritique, formule: 'si(score == "Magie" ou score == "libre", 20, @Critique)' }
       - &v-reduction { cle: reduction, formule: 0 }
       - &v-demi { cle: demiDM, formule: 0 }
       - &v-instinct { cle: instinct, formule: 0 }
     jet:
       type: numerique
       formule: >-
-        si(auD12, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20)))
-        + valeur(score) + bonusAttaque + si(double, -2, 0)
+        si(score == "libre", des(desToucher, facesToucher) + modToucher,
+        si(auD12, 1d12, si(avantages > 0, 2d20k1, si(avantages < 0, 2d20kl1, 1d20))) + valeur(score))
+        + bonusAttaque + si(double, -2, 0)
         + si(premiereAttaque, si(possede("prestige-arquebusier-flibustier-a-l-abordage"), 5, 2), 0)
         + si(nouvelleCible, 2, 0) + si(simultanee, 2, 0) + si(gage, 2, 0) + si(pasDeQuartier, 5, 0)
         + min(max(0, allies), si(possede("guerrier-soldat-combat-en-phalange"), 99, 5))
@@ -743,16 +768,18 @@ actions:
       critique: 'ouvertureMortelle ou naturel >= seuilCritique'
       # Arme choisie après le jet : son seuil de critique (19 et plus…) élargit celui du
       # personnage, sur une attaque qui touche (hors Magie)
-      confirmerCritique: 'score != "Magie" et naturel >= arme.critique'
+      confirmerCritique: 'arme != "" et score != "Magie" et score != "libre" et naturel >= arme.critique'
       fumble: &fumble naturel == 1
     apres:
       - cle: degats
         nom: Dégâts
         visibilite: acteur
         formule: >-
-          si(reussi, si(assautFinal, 2, 1) * (max(0, si(degatsMax, maximum_des(multiplier_des(si(critique, multCritique, 1), arme.degats)),
-          multiplier_des(si(critique, multCritique, 1), arme.degats))
-          + arme.bonusDegats + bonusDM + si(cibleDefiee, rang("samourai-honneur"), 0) + si(gage, 2, 0)
+          si(reussi, si(assautFinal, 2, 1) * (max(0, si(arme != "", si(degatsMax, maximum_des(multiplier_des(si(critique, multCritique, 1), arme.degats)),
+          multiplier_des(si(critique, multCritique, 1), arme.degats)) + arme.bonusDegats,
+          si(capacite != "", des(si(critique, multCritique, 1) * capacite.nbDes, capacite.faces) + capacite.bonusDegats,
+          des(si(critique, multCritique, 1) * nbDes, faces) + bonus))
+          + bonusDM + si(cibleDefiee, rang("samourai-honneur"), 0) + si(gage, 2, 0)
           + si(possede("barde-escrime-botte-mortelle") et arme.attaque == "Contact"
           et total >= @cible.Defense + 10, 2d6, 0)
           + si(possede("prestige-rodeur-archer-arcanique-fleche-vivante") et a_etiquette(arme, "arc")

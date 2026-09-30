@@ -205,7 +205,10 @@ describe('dnd-classic : le type d’attaque au jet, l’arme après, si l’atta
   it('touché : l’arme est demandée à l’étape des dégâts, puis ses dés', () => {
     const d20 = { '0:jet:d20:0': Math.min(19, defense) };
     const etape2 = jouer(d20);
-    expect([etape2.requis, etape2.parametres]).toEqual([[], ['arme']]);
+    expect([etape2.requis, etape2.parametres]).toEqual([
+      [],
+      ['arme', 'capacite', 'nbDes', 'faces', 'bonus'],
+    ]);
     expect(issue(etape2, 'a')).toMatchObject({ reussi: true });
     const des = jouer(d20, 'epee-longue');
     expect(des.parametres).toEqual([]);
