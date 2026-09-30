@@ -45,7 +45,7 @@ import {
   type LoadedImage,
 } from '@/lib/portraits/compose';
 import { MAX_SIDE, prepareImage } from '@/lib/uploads/image';
-import { uploadFile } from '@/lib/uploads/uploader';
+import { importFile, uploadFile } from '@/lib/uploads/uploader';
 import { cn } from '@/lib/utils';
 import { DotsBackdrop } from '../combat/backdrop';
 
@@ -54,7 +54,7 @@ type Tab = 'token' | 'portrait';
 type Source = { file: File; remote?: undefined } | { remote: string; file?: undefined };
 type Loaded =
   | { status: 'loading' }
-  | { status: 'ready'; image: LoadedImage }
+  | { status: 'ready'; image: LoadedImage; remote: string | null }
   | { status: 'error'; message: string };
 
 export interface StudioResult {
@@ -126,7 +126,7 @@ function Body({
   const initial = current.studio ?? DEFAULT_PORTRAIT_STUDIO;
   const firstUrl = initial.source ?? current.portraitUrl;
   const [source, setSource] = useState<Source | null>(firstUrl ? { remote: firstUrl } : null);
-  const loaded = useLoadedImage(source);
+  const loaded = useLoadedImage(source, characterId);
   const [tab, setTab] = useState<Tab>('token');
   const [crops, setCrops] = useState<Record<Tab, StudioCrop | null>>({
     token: initial.token,
@@ -184,7 +184,7 @@ function Body({
       ]);
       const target = { kind: 'character' as const, id: characterId };
       // L'image d'origine n'est envoyée qu'une fois (déposée ici) ; sinon son adresse est gardée
-      let sourceUrl = source.remote ?? null;
+      let sourceUrl = loaded.status === 'ready' ? loaded.remote : null;
       if (source.file) {
         setSaving('Envoi de l’image d’origine…');
         sourceUrl = await uploadFile(
@@ -392,25 +392,42 @@ function Body({
   );
 }
 
-/** Charge l'image d'origine (copie locale), libérée au changement et au départ. */
-function useLoadedImage(source: Source | null): Loaded {
+/**
+ * Charge l'image d'origine (copie locale), libérée au changement et au départ. Une image d'un
+ * autre site que le navigateur ne peut pas lire (CORS) est d'abord importée sur notre stockage :
+ * `remote` donne alors l'adresse de notre copie, gardée comme source du Studio.
+ */
+function useLoadedImage(source: Source | null, characterId: string): Loaded {
   // Rattaché à sa source : l'image précédente (déjà libérée) n'est jamais rendue
   const [state, setState] = useState<{ source: Source; loaded: Loaded } | null>(null);
   useEffect(() => {
     if (!source) return;
     let alive = true;
     let done: LoadedImage | null = null;
-    loadImage(source.file ?? source.remote)
-      .then((image) => {
+    const load = async (): Promise<{ image: LoadedImage; remote: string | null }> => {
+      if (source.file) return { image: await loadImage(source.file), remote: null };
+      try {
+        return { image: await loadImage(source.remote), remote: source.remote };
+      } catch {
+        const copy = await importFile(
+          { kind: 'character', id: characterId },
+          'portrait',
+          source.remote,
+        );
+        return { image: await loadImage(copy.publicUrl), remote: copy.publicUrl };
+      }
+    };
+    load()
+      .then(({ image, remote }) => {
         done = image;
-        if (alive) setState({ source, loaded: { status: 'ready', image } });
+        if (alive) setState({ source, loaded: { status: 'ready', image, remote } });
         else {
           URL.revokeObjectURL(image.url);
           image.bitmap.close();
         }
       })
-      .catch(() => {
-        if (alive) setState({ source, loaded: { status: 'error', message: 'Image illisible' } });
+      .catch((err: unknown) => {
+        if (alive) setState({ source, loaded: { status: 'error', message: messageErreur(err) } });
       });
     return () => {
       alive = false;
@@ -419,7 +436,7 @@ function useLoadedImage(source: Source | null): Loaded {
         done.bitmap.close();
       }
     };
-  }, [source]);
+  }, [source, characterId]);
   return state && state.source === source ? state.loaded : { status: 'loading' };
 }
 

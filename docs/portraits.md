@@ -30,8 +30,11 @@ Tout est fabriqué dans le navigateur (`lib/portraits/compose.ts`), en WebP :
 était : `source`, cadrages `portrait` et `token` en **fractions** de l'image (indépendants de sa
 taille), `frame`, `radius`, `inset`.
 
-Les cadres et les portraits de la bibliothèque sont servis avec `Access-Control-Allow-Origin: *` :
-nécessaire pour les dessiner. Une image qu'on ne peut pas lire fait échouer l'enregistrement (rien
+L'image est chargée une fois, sans le cache du navigateur (le CDN de la bibliothèque n'envoie
+l'en-tête CORS qu'aux requêtes qui portent un `Origin` ; une copie en cache serait refusée), et
+sert au cadrage, aux aperçus et à la fabrication. Une image d'un autre site que le navigateur ne
+peut pas lire (Pinterest…) est d'abord importée sur notre stockage (`POST
+/v1/characters/:id/uploads/import`, docs/uploads.md) : notre copie devient la source du Studio. Une image qu'on ne peut pas lire fait échouer l'enregistrement (rien
 n'est enregistré à moitié).
 
 ## Sur la carte

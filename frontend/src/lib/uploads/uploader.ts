@@ -9,7 +9,12 @@
  */
 import AwsS3 from '@uppy/aws-s3';
 import Uppy from '@uppy/core';
-import { checkUpload, type FileUploadTicket, type UploadUsageId } from '@vtt/contracts';
+import {
+  checkUpload,
+  type FileImport,
+  type FileUploadTicket,
+  type UploadUsageId,
+} from '@vtt/contracts';
 import { api } from '../api';
 
 /** À qui appartient le fichier (le service qui le signe). */
@@ -41,6 +46,21 @@ export function requestTicket(
       size: file.size,
       ...(file.name ? { name: file.name.slice(0, 255) } : {}),
     }),
+  });
+}
+
+/**
+ * Import d'une image d'un autre site que le navigateur ne peut pas lire (CORS) : le service la
+ * télécharge et la range sur notre stockage (`POST …/uploads/import`). Rend sa copie.
+ */
+export function importFile(
+  target: UploadTarget,
+  usage: UploadUsageId,
+  url: string,
+): Promise<FileImport> {
+  return api<FileImport>(`${uploadRoute(target)}/import`, {
+    method: 'POST',
+    body: JSON.stringify({ usage, url }),
   });
 }
 
