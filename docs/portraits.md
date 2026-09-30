@@ -39,6 +39,12 @@ n'est enregistré à moitié).
 
 ## Sur la carte
 
-Le token d'un personnage : `imageUrl` du token posé, sinon `tokenUrl` du personnage, sinon son
-portrait. Un token du Studio est affiché **entier** (forme et cadre compris), avec un fin anneau de
-la couleur de son camp ; un portrait brut reste découpé en rond comme avant.
+Image d'un token (`tokenImage`, `lib/map/modules/tokens/model.ts`) : le token du Studio de son
+personnage d'abord, sinon l'image propre au token (tokens importés de l'ancienne version, image
+choisie à la pose), sinon le portrait. Le token du Studio passe devant : un token importé garde
+l'ancienne image de son personnage, qui ne doit plus s'afficher une fois le Studio utilisé. Il
+est affiché **entier** (forme et cadre compris), avec un fin anneau de la couleur de son camp ; un
+portrait brut reste découpé en rond.
+
+Cadrages par défaut (image jamais cadrée) : centrés en largeur, **en haut** de l'image, là où est
+le visage d'un personnage en pied.

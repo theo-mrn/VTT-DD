@@ -35,6 +35,7 @@ import {
 import {
   ownsToken,
   SIDE_LABELS,
+  tokenImage,
   VISIBILITY_LABELS,
   VISIBILITY_ORDER,
   type ResourceGauge,
@@ -70,7 +71,7 @@ export function TokenCharacterSection({ engine, entities }: InspectorSectionProp
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <Illustration
-          src={token.imageUrl ?? info?.portraitUrl ?? null}
+          src={tokenImage(token, info).url}
           graine={name}
           alt=""
           className="size-14 shrink-0 rounded-xl border border-border"

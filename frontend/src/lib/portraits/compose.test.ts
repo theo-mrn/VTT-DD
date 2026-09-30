@@ -6,16 +6,16 @@ describe('cadrages par défaut', () => {
     expect(centeredSquare(2000, 1000)).toEqual({ x: 0.25, y: 0, width: 0.5, height: 1 });
   });
 
-  it('carré centré dans une image haute', () => {
-    expect(centeredSquare(1000, 2000)).toEqual({ x: 0, y: 0.25, width: 1, height: 0.5 });
+  it('carré en haut d’une image haute (le visage)', () => {
+    expect(centeredSquare(1000, 2000)).toEqual({ x: 0, y: 0, width: 1, height: 0.5 });
   });
 
-  it('zone 3:4 centrée, largeur ou hauteur pleine', () => {
+  it('zone 3:4 centrée en largeur, en haut en hauteur', () => {
     expect(centeredPortrait(1200, 800)).toEqual({ x: 0.25, y: 0, width: 0.5, height: 1 });
     const haute = centeredPortrait(600, 1600);
     expect(haute.width).toBe(1);
     expect(haute.height * 1600).toBeCloseTo(800);
-    expect(haute.y).toBeCloseTo(0.25);
+    expect(haute.y).toBe(0);
   });
 });
 

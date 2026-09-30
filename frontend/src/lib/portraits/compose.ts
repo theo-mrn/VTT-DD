@@ -121,15 +121,18 @@ export async function composeToken(
   return toWebp(c, `${name}-token.webp`);
 }
 
-/** Carré centré, en fractions (cadrage par défaut d'un token). */
+/**
+ * Carré par défaut d'un token, en fractions : centré en largeur, en haut de l'image (le visage
+ * d'un personnage en pied y est ; une image large reste centrée).
+ */
 export function centeredSquare(w: number, h: number): StudioCrop {
   const side = Math.min(w, h);
-  return { x: (w - side) / 2 / w, y: (h - side) / 2 / h, width: side / w, height: side / h };
+  return { x: (w - side) / 2 / w, y: 0, width: side / w, height: side / h };
 }
 
-/** Zone 3:4 centrée, en fractions (cadrage par défaut d'un portrait). */
+/** Zone 3:4 par défaut d'un portrait, en fractions : centrée en largeur, en haut de l'image. */
 export function centeredPortrait(w: number, h: number): StudioCrop {
   const width = Math.min(w, (h * 3) / 4);
   const height = (width * 4) / 3;
-  return { x: (w - width) / 2 / w, y: (h - height) / 2 / h, width: width / w, height: height / h };
+  return { x: (w - width) / 2 / w, y: 0, width: width / w, height: height / h };
 }

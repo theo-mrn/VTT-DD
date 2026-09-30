@@ -83,6 +83,19 @@ export interface CharacterInfo {
 }
 
 /** C'est un PNJ (duplicable, supprimable avec son personnage). */
+/**
+ * Image d'un token : le token du Studio de son personnage d'abord (image finale, forme et cadre
+ * compris : `baked`), sinon l'image propre au token (tokens importés de l'ancienne version,
+ * image choisie à la pose), sinon le portrait du personnage, sinon celle du brouillon.
+ */
+export function tokenImage(
+  d: Pick<TokenData, 'imageUrl' | 'draft'>,
+  c: Pick<CharacterInfo, 'tokenUrl' | 'portraitUrl'> | null | undefined,
+): { url: string | null; baked: boolean } {
+  if (c?.tokenUrl) return { url: c.tokenUrl, baked: true };
+  return { url: d.imageUrl ?? c?.portraitUrl ?? d.draft?.imageUrl ?? null, baked: false };
+}
+
 export function isNpc(info: Pick<CharacterInfo, 'kind' | 'side'> | null | undefined): boolean {
   if (!info) return false;
   if (info.kind) return info.kind === 'npc';

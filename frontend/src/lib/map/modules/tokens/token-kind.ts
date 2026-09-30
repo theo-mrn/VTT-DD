@@ -22,6 +22,7 @@ import {
   tokenCan,
   tokenContains,
   tokenGeometry,
+  tokenImage,
   withVisibility,
   type TokenData,
 } from './model';
@@ -46,9 +47,9 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
     return {
       size: e.geometry.width,
       shape: d.shape,
-      imageUrl: d.imageUrl ?? c?.tokenUrl ?? c?.portraitUrl ?? d.draft?.imageUrl ?? null,
+      imageUrl: tokenImage(d, c).url,
       // Token du Studio : sa forme et son cadre sont déjà dans l'image
-      baked: !d.imageUrl && Boolean(c?.tokenUrl),
+      baked: tokenImage(d, c).baked,
       side: c?.side ?? d.draft?.side ?? null,
       name: c?.name ?? d.draft?.name ?? null,
       resource: c?.resource ?? null,
@@ -111,8 +112,7 @@ export function createTokenKind(tokens: TokensState): EntityKind<TokenData> {
     },
     isOwn: ownsToken,
     name: (d) => info(d)?.name ?? d.draft?.name ?? null,
-    thumbnail: (d) =>
-      d.imageUrl ?? info(d)?.tokenUrl ?? info(d)?.portraitUrl ?? d.draft?.imageUrl ?? null,
+    thumbnail: (d) => tokenImage(d, info(d)).url,
     can: (action, e, viewer) => tokenCan(action, e.data, viewer, info(e.data)),
     hitTest: (e, p, tolerance) => tokenContains(e.data.shape, e.current, p, tolerance),
     render: (e, ctx) => renderToken(e, ctx, lookOf),
