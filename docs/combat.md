@@ -1087,8 +1087,16 @@ rapports : la pastille du panneau Combat reste.
 - Attaque : `1d20 + valeur(arme.attaque)` (Contact ou Distance) contre `@cible.Defense` (+
   `DefContact` au contact) ; avantage et désavantage (`2d20k1`, `2d20kl1`) par paramètres et par
   états (`cote: cible` : attaques contre un aveuglé à l'avantage).
-- Critique à partir du seuil de l'arme (`min(@Critique, arme.critique)`) : touche toujours, double
-  les dés de l'arme (`multiplier_des`) ; 1 naturel : échec critique.
+- Déroulé (demandé par Théo le 2026-09-30, comme l'ancienne page) : cartes Contact, Distance,
+  Magie ou Libre (jet saisi) → TOUCHÉ ou RATÉ ; seulement si touché, l'arme, un sort à dés ou des
+  dégâts libres (paramètres `etape: apres`) → dégâts. Les capacités d'attaque (Charge…) gardent
+  l'arme à la déclaration.
+- Critique : au jet, seuil du personnage (`@Critique`, 20 en Magie ou Libre) : touche toujours ;
+  une fois l'arme choisie, son seuil (19…) confirme le critique d'une attaque qui touche
+  (`jet.confirmerCritique`) et double ses dés. Limite assumée : un 19 qui rate avec une arme à 19
+  reste raté, et les bonus au toucher liés à l'arme (prédilection, hache du nain, seuil des
+  arbalètes) ne comptent pas au jet de l'attaque d'arme (l'arme n'y est pas connue) ; ceux aux DM
+  comptent. 1 naturel : échec critique.
 - Options réservées aux capacités (Double attaque, Attaque à outrance, Assaut final…) : paramètres
   à `exige`, cachés si le personnage n'a pas la capacité.
 - Dégâts typés (`typesDegats`), RD, résistances et immunités (`sur: degats`), Instinct de survie et
