@@ -193,9 +193,26 @@ export type ExecutionInterne =
     }
   | { ok: false; erreurs: ErreurAction[] };
 
+/**
+ * Exécution d'un coup. Des paramètres à choisir après le jet manquent sur une réussite (l'arme,
+ * une fois la cible touchée) : refus qui les nomme ; l'exécution par étapes (`executerMulticible`
+ * avec des dés planifiés) les demande au lieu de refuser.
+ */
 export function executerAction(systeme: SystemeCharge, demande: DemandeAction): ResultatExecution {
-  const r = executer(systeme, demande);
-  return r.ok ? { ok: true, resultat: r.resultat } : r;
+  try {
+    const r = executer(systeme, demande);
+    return r.ok ? { ok: true, resultat: r.resultat } : r;
+  } catch (e) {
+    if (!(e instanceof ParametresRequis)) throw e;
+    const action = systeme.actions.get(demande.action);
+    return {
+      ok: false,
+      erreurs: e.parametres.map((id) => ({
+        parametre: id,
+        message: `${action?.parametres.find((p) => p.id === id)?.nom ?? id} : à choisir après le jet`,
+      })),
+    };
+  }
 }
 
 const defautDe = (t: TypeValeur): Valeur => (t === 'nombre' ? 0 : t === 'booleen' ? false : '');
@@ -236,8 +253,15 @@ export function executer(
 
   const fournis = demande.parametres ?? {};
   const parametres: Record<string, Valeur> = {};
-  /** Paramètres choisis après le jet et pas encore fournis (l'arme, avant de savoir si on touche). */
+  /**
+   * Paramètres choisis après le jet et pas encore fournis (l'arme, avant de savoir si on touche).
+   * Dès que l'un d'eux est fourni (l'étape des dégâts, ou d'avance), les autres prennent leur
+   * défaut comme à la déclaration.
+   */
   const absents: string[] = [];
+  const apresFournis = action.parametres.some(
+    (p) => p.etape === 'apres' && fournis[p.id] !== undefined,
+  );
   const choisies = new Map<string, PossessionEffective>();
   for (const cle of Object.keys(fournis)) {
     if (!action.parametres.some((p) => p.id === cle))
@@ -262,7 +286,7 @@ export function executer(
         continue;
       }
     }
-    if (p.etape === 'apres' && v === undefined) {
+    if (p.etape === 'apres' && !apresFournis && v === undefined) {
       absents.push(p.id);
       parametres[p.id] = defautParametre(p);
       continue;
