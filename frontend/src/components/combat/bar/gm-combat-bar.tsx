@@ -4,7 +4,8 @@
  * Barre de combat du MJ (docs/combat.md § 12.6) : tout ce que faisait le panneau Combat, depuis
  * la barre. Hors combat, « Combat » ouvre la préparation (`start-dialog.tsx`). En combat, la
  * barre des tours (`InitiativeStrip`) : un portrait ouvre sa fiche de combat
- * (`CharacterDialog`) ; le menu ⋯ ajoute des participants, relance l'initiative (par camp),
+ * (`CharacterDialog`) ; « +n » et le nom de qui agit déplient l'ordre (`order-content.tsx`) ; le
+ * menu ⋯ ajoute des participants, relance l'initiative (par camp),
  * règle, montre les rapports et leurs cibles, termine le combat. Les rapports en direct restent
  * dessous (`live-reports/`).
  */
@@ -52,6 +53,7 @@ import { sideParamsFromCombat } from '../turns/setup';
 import { TargetsDialog } from '../turns/side-cards';
 import { useCast, useParticipantSheets } from '../turns/use-cast';
 import { ReportsDialog } from './reports-dialog';
+import { OrderContent } from './order-content';
 import { StartCombatDialog } from './start-dialog';
 import { useTurnActions } from './use-turn-actions';
 
@@ -81,11 +83,15 @@ export function GmCombatBar({
   const turns = useTurnActions(campaignId, combat);
   const [dialog, setDialog] = useState<BarDialog | null>(null);
   const [detail, setDetail] = useState<{ id: string; target?: boolean } | null>(null);
+  const [orderOpen, setOrderOpen] = useState(false);
   const systeme = live.systeme;
 
   // Un autre écran termine ou démarre le combat : ses fenêtres se referment
   const combatId = combat?.id ?? null;
-  useEffect(() => setDialog((d) => (d && IN_COMBAT.includes(d) ? null : d)), [combatId]);
+  useEffect(() => {
+    setDialog((d) => (d && IN_COMBAT.includes(d) ? null : d));
+    setOrderOpen(false);
+  }, [combatId]);
 
   const toReview = useMemo(() => live.items.map((i) => i.attack).filter(isPending), [live.items]);
   const targets = useMemo(() => pendingTargetIds(toReview), [toReview]);
@@ -100,7 +106,10 @@ export function GmCombatBar({
 
   const attackWith = (id: string) =>
     openAttackMenu({ campaignId, origin: 'turns', attackerId: id });
-  const open = (id: string) => setDetail({ id });
+  const open = (id: string) => {
+    setOrderOpen(false);
+    setDetail({ id });
+  };
 
   const menu = (
     <BarMenu
@@ -127,6 +136,22 @@ export function GmCombatBar({
           reports={reports}
           menu={menu}
           onFace={open}
+          order={{
+            open: orderOpen,
+            onOpenChange: setOrderOpen,
+            content: (
+              <OrderContent
+                campagne={campagne}
+                combat={combat}
+                turns={turns}
+                onOpen={open}
+                onAttack={(id) => {
+                  setOrderOpen(false);
+                  attackWith(id);
+                }}
+              />
+            ),
+          }}
         />
       ) : (
         <OffCombatBar onStart={() => setDialog('start')} reports={reports} menu={menu} />
