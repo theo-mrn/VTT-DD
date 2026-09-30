@@ -1076,6 +1076,12 @@ ne l'applique pas. Mêmes corps de décision que le panneau (`reports/model.ts`)
 « Hors de combat » s'ouvre après une application (un seul monté, panneau ou pile). Aucun toast
 n'annonce les rapports : la pastille du panneau Combat reste.
 
+Retouche du 2026-09-30 (Théo) : le bandeau ne montre plus tous les participants (les PNJ se
+multiplient) : **qui agit**, en grand, puis les **quatre suivants empilés** (portraits qui se
+chevauchent, hors de combat écartés), « +n » pour le reste. Plus de bouton du panneau Combat,
+ni de renvoi vers lui : « +n » de la pile des rapports la déplie sur place. Le but est de se
+passer du panneau Combat.
+
 Refonte du 2026-09-30 (demandée par Théo : ergonomie, cohérence, beauté) : la barre et la pile
 forment un seul ensemble, dans la matière du lanceur de dés et du bandeau de la fiche
 (`live-reports/look.ts` : carte, trame de points, halo selon l'issue, bouton principal du

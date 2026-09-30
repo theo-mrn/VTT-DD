@@ -55,6 +55,9 @@ export interface LiveReports {
   presentation: Presentation | null;
   items: LiveItem[];
   stack: LiveStack;
+  /** Toute la pile montrée (« +n »), ou les premières seulement. */
+  showAll: boolean;
+  setShowAll(v: boolean): void;
   /** Carte dépliée (les autres en lignes compactes). */
   focus: string | null;
   setFocus(id: string | null): void;
@@ -100,7 +103,9 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     () => liveItems([open.attacks, pending.attacks], settledAttacks),
     [open.attacks, pending.attacks, settledAttacks],
   );
-  const stack = liveStack(items, collapsed);
+  // « +n » déplie toute la pile sur place (plus de renvoi au panneau Combat)
+  const [showAll, setShowAll] = useState(false);
+  const stack = liveStack(items, collapsed, showAll ? Infinity : undefined);
   const focus = focusOf(stack, chosen);
   // La carte dépliée le reste : un rapport qui arrive se range en ligne au-dessus, sans
   // replier celle que le MJ lit (ni déplacer le bouton qu'il allait cliquer)
@@ -212,6 +217,8 @@ export function useLiveReports(campagne: DetailCampagne): LiveReports {
     presentation,
     items,
     stack,
+    showAll,
+    setShowAll,
     focus,
     setFocus,
     settled,

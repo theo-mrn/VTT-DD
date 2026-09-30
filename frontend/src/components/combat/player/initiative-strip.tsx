@@ -11,12 +11,11 @@
  * Noms et portraits viennent de la liste des personnages de la campagne.
  */
 import type { CombatState } from '@vtt/contracts';
-import { ChevronLeft, ChevronRight, Dices, Skull, Swords } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dices } from 'lucide-react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Illustration } from '@/components/commun/illustration';
-import { PanelLink } from '@/components/table/panels/navigation';
 import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
 import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
@@ -25,8 +24,24 @@ import { CTA, EXIT, GLASS, LABEL, NUMBER_SPRING, SPRING, TOUCH } from '../live-r
 import { SIDE_LABELS, currentActorOf, slotBar, turnRows, type TurnRow } from '../turns/model';
 import { useCast } from '../turns/use-cast';
 
-/** Au-delà, les portraits suivants sont résumés (« +4 »). */
-const MAX_PORTRAITS = 12;
+/** Participants suivants montrés, empilés, après celui qui agit (le reste : « +n »). */
+const UPCOMING = 4;
+
+/**
+ * Qui agit, puis les suivants dans l'ordre du tour (en repartant du début), sans les hors de
+ * combat ; sans tour courant (initiative à lancer, créneau sans acteur), les premiers de l'ordre.
+ */
+export function upcomingRows<T extends { current: boolean; defeated: boolean }>(
+  rows: readonly T[],
+  max = UPCOMING,
+): { current: T | null; next: T[]; more: number } {
+  const at = rows.findIndex((r) => r.current);
+  const current = at >= 0 ? rows[at]! : null;
+  const rest = (at >= 0 ? [...rows.slice(at + 1), ...rows.slice(0, at)] : [...rows]).filter(
+    (r) => !r.defeated,
+  );
+  return { current, next: rest.slice(0, max), more: Math.max(0, rest.length - max) };
+}
 
 export function InitiativeStrip({
   campaignId,
@@ -181,14 +196,6 @@ export function InitiativeStrip({
         )}
 
         {reports}
-
-        <Info texte="Panneau Combat" cote="bottom">
-          <Button variant="ghost" size="icon-sm" className={TOUCH} asChild>
-            <PanelLink panel="combat" aria-label="Ouvrir le panneau Combat">
-              <Swords />
-            </PanelLink>
-          </Button>
-        </Info>
       </section>
     </MotionConfig>
   );
@@ -236,93 +243,119 @@ function Portraits({
   nameOf(id: string): string;
   portraitOf(id: string): string | null | undefined;
 }) {
-  const shown = rows.slice(0, MAX_PORTRAITS);
+  const { current, next, more } = upcomingRows(rows);
   return (
     <LayoutGroup id="combat-turn">
-      <motion.div layoutScroll className="min-w-0 overflow-x-auto px-1 [scrollbar-width:none]">
-        <ol className="flex items-center gap-1.5 py-2" aria-label="Ordre du tour">
-          {shown.map((r) => {
-            const name = nameOf(r.characterId);
-            const state = r.current
-              ? 'son tour'
-              : r.defeated
-                ? 'hors de combat'
-                : r.pendingInitiative
-                  ? 'initiative attendue'
-                  : r.acted
-                    ? 'a agi'
-                    : null;
-            return (
-              <li
-                key={r.characterId}
-                aria-current={r.current ? 'step' : undefined}
-                className="relative shrink-0"
-              >
-                <Info
-                  cote="bottom"
-                  texte={
-                    <span className="flex items-baseline gap-2">
-                      <span className="font-medium">{name}</span>
-                      {r.score && <span className="font-mono text-subtle tabular">{r.score}</span>}
-                      {state && state !== 'son tour' && (
-                        <span className="text-subtle">{state}</span>
-                      )}
-                    </span>
-                  }
-                >
-                  <motion.span
-                    className="relative block"
-                    animate={{
-                      scale: r.current ? 1.14 : 1,
-                      opacity: r.acted && !r.current ? 0.4 : 1,
-                    }}
-                    transition={SPRING}
-                  >
-                    <Illustration
-                      src={portraitOf(r.characterId) ?? null}
-                      graine={name}
-                      position="top"
-                      className={cn(
-                        'size-8 rounded-full ring-2 ring-offset-2 ring-offset-popover transition-[box-shadow] duration-200',
-                        r.current ? 'ring-primary' : 'ring-transparent',
-                        r.defeated && 'grayscale',
-                      )}
-                    />
-                    {r.defeated && (
-                      <span className="absolute -bottom-1 -right-1 grid size-4 place-items-center rounded-full border border-border-strong bg-card text-destructive">
-                        <Skull className="size-2.5" aria-hidden />
-                      </span>
-                    )}
-                    {r.pendingInitiative && !r.defeated && (
-                      <span
-                        aria-hidden
-                        className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-2 ring-popover"
-                      />
-                    )}
-                    <span className="sr-only">
-                      {name}
-                      {state ? `, ${state}` : ''}
-                    </span>
-                  </motion.span>
-                </Info>
-                {r.current && (
-                  <motion.span
-                    layoutId="turn-marker"
-                    aria-hidden
-                    className="absolute -bottom-2 inset-x-1.5 h-0.5 rounded-full bg-primary shadow-glow"
-                    transition={SPRING}
+      <ol className="flex min-w-0 items-center gap-2 px-1 py-2" aria-label="Ordre du tour">
+        {current && (
+          <Face
+            key={current.characterId}
+            row={current}
+            name={nameOf(current.characterId)}
+            portrait={portraitOf(current.characterId)}
+            big
+          />
+        )}
+        {next.length > 0 && (
+          <li className="flex items-center">
+            <ol className="flex items-center -space-x-2.5" aria-label="Ensuite">
+              <AnimatePresence initial={false} mode="popLayout">
+                {next.map((r, i) => (
+                  <Face
+                    key={r.characterId}
+                    row={r}
+                    name={nameOf(r.characterId)}
+                    portrait={portraitOf(r.characterId)}
+                    z={next.length - i}
                   />
-                )}
-              </li>
-            );
-          })}
-          {rows.length > MAX_PORTRAITS && (
-            <li className="px-1 font-mono text-[11px] text-subtle tabular">
-              +{rows.length - MAX_PORTRAITS}
-            </li>
-          )}
-        </ol>
-      </motion.div>
+                ))}
+              </AnimatePresence>
+            </ol>
+            {more > 0 && (
+              <span className="ml-1.5 font-mono text-[11px] text-subtle tabular">+{more}</span>
+            )}
+          </li>
+        )}
+      </ol>
     </LayoutGroup>
+  );
+}
+
+/** Un portrait : grand et souligné pour qui agit, empilé pour les suivants. */
+function Face({
+  row: r,
+  name,
+  portrait,
+  big = false,
+  z,
+}: {
+  row: TurnRow;
+  name: string;
+  portrait: string | null | undefined;
+  big?: boolean;
+  z?: number;
+}) {
+  const state = r.current
+    ? 'son tour'
+    : r.pendingInitiative
+      ? 'initiative attendue'
+      : r.acted
+        ? 'a agi'
+        : null;
+  return (
+    <motion.li
+      layout
+      layoutId={`face-${r.characterId}`}
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: r.acted && !r.current ? 0.5 : 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={SPRING}
+      aria-current={r.current ? 'step' : undefined}
+      style={z !== undefined ? { zIndex: z } : undefined}
+      className="relative shrink-0"
+    >
+      <Info
+        cote="bottom"
+        texte={
+          <span className="flex items-baseline gap-2">
+            <span className="font-medium">{name}</span>
+            {r.score && <span className="font-mono text-subtle tabular">{r.score}</span>}
+            {state && state !== 'son tour' && <span className="text-subtle">{state}</span>}
+          </span>
+        }
+      >
+        <span className="relative block">
+          <Illustration
+            src={portrait ?? null}
+            graine={name}
+            position="top"
+            className={cn(
+              'rounded-full',
+              big
+                ? 'size-9 ring-2 ring-primary ring-offset-2 ring-offset-popover'
+                : 'size-7 ring-2 ring-popover',
+            )}
+          />
+          {r.pendingInitiative && (
+            <span
+              aria-hidden
+              className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-warning ring-2 ring-popover"
+            />
+          )}
+          <span className="sr-only">
+            {name}
+            {state ? `, ${state}` : ''}
+          </span>
+        </span>
+      </Info>
+      {big && (
+        <motion.span
+          layoutId="turn-marker"
+          aria-hidden
+          className="absolute inset-x-1.5 -bottom-2 h-0.5 rounded-full bg-primary shadow-glow"
+          transition={SPRING}
+        />
+      )}
+    </motion.li>
   );
 }

@@ -12,7 +12,6 @@ import type { CombatState } from '@vtt/contracts';
 import { ScrollText } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type { KeyboardEvent } from 'react';
-import { PanelLink } from '@/components/table/panels/navigation';
 import { Info } from '@/components/ui/tooltip';
 import type { DetailCampagne } from '@/lib/campagnes';
 import { cn } from '@/lib/utils';
@@ -100,7 +99,7 @@ export function LiveReports({
               </AnimatePresence>
             </motion.ol>
             <AnimatePresence initial={false}>
-              {stack.hidden > 0 && (
+              {(stack.hidden > 0 || live.showAll) && (
                 <motion.div
                   key="more"
                   layout
@@ -110,19 +109,23 @@ export function LiveReports({
                   transition={SPRING}
                   className="flex justify-center"
                 >
-                  <Info texte="Voir tout dans le panneau Combat" cote="bottom">
-                    <PanelLink
-                      panel="combat"
-                      aria-label={`${stack.hidden} autre${stack.hidden > 1 ? 's' : ''} rapport${stack.hidden > 1 ? 's' : ''}, dans le panneau Combat`}
-                      className={cn(
-                        GLASS,
-                        'pointer-events-auto rounded-full px-3 py-1 font-mono text-xs font-semibold tabular text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-                        TOUCH,
-                      )}
-                    >
-                      +{stack.hidden}
-                    </PanelLink>
-                  </Info>
+                  <button
+                    type="button"
+                    onClick={() => live.setShowAll(!live.showAll)}
+                    aria-expanded={live.showAll}
+                    aria-label={
+                      live.showAll
+                        ? 'Ne montrer que les premiers rapports'
+                        : `Montrer les ${stack.hidden} autres rapports`
+                    }
+                    className={cn(
+                      GLASS,
+                      'pointer-events-auto rounded-full px-3 py-1 font-mono text-xs font-semibold tabular text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
+                      TOUCH,
+                    )}
+                  >
+                    {live.showAll ? 'Moins' : `+${stack.hidden}`}
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
