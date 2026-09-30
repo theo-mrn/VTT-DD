@@ -236,12 +236,15 @@ d'abord, puis ordre stable (existant ; règle de l'ancienne app pour tous les sy
 
 - **États** = entrées du catalogue d'une sorte déclarée par la présentation (`combat.etats`,
   § 14), avec leurs effets ; donnés avec une durée en rounds, ou jusqu'au retrait. **État libre** =
-  bonus libre sans effet (nom, durée) : il remplace l'état saisi à la main de l'ancienne app.
+  bonus libre sans effet (nom, durée ; `effets` vide ou absent, accepté par `BonusLibre`) : il
+  remplace l'état saisi à la main de l'ancienne app.
 - **Gestion** : fiche du participant (panneau Combat) : ajouter (liste du système, état libre),
   durée, retirer ; par les routes de character (`POST /possessions` avec `duree`, à ajouter ;
   `bonus`). Les actions en donnent aussi (conséquence `donner` avec `duree` : sort qui étourdit).
 - **Décompte** : fin de round (existant), rendu idempotent par `tickId` et annulable (§ 4.3).
-- **Fin de combat** : option « Retirer les états à durée » (`clearTimedStates`).
+- **Fin de combat** : option « Retirer les états à durée » (`clearTimedStates`) : campaign appelle
+  le décompte de chaque participant avec `clear: true` (tout ce qui a une durée est retiré,
+  annulable comme un round).
 - **Hors de combat** : formule `horsCombat` du type d'entité (§ 14 : D&D `@PV <= 0`, Star Wars
   `@neutralise`), évaluée par character après chaque application. Vraie : `defeated`, événement
   `combat.participant_defeated`, dialogue du MJ (§ 7.4). Sans formule dans le système, pas de
@@ -818,8 +821,9 @@ ActionResolution = {
 - Un décompte de durées se rend de la même façon : `applicationId = tickId`.
 
 **`POST /internal/characters/:id/durees/decompter`** : corps existant + `tickId?` (texte,
-`tick:<combatId>:<round>`) ; réponse existante (`modifie`, `retirees`, `version`) + `replayed`. Même
-`tickId` et même personnage : rien n'est décompté une seconde fois, la réponse d'origine revient.
+`tick:<combatId>:<round>`) et `clear?` (fin de combat : tout ce qui a une durée est retiré) ;
+réponse existante (`modifie`, `retirees`, `version`) + `replayed`. Même `tickId` et même
+personnage : rien n'est décompté une seconde fois, la réponse d'origine revient.
 
 ### 11.3 audio (Q2)
 
@@ -954,13 +958,17 @@ boutons.
 - Jets de sauvegarde (« test de DEX pour la moitié ») : texte aujourd'hui ; brique `sauvegarde`
   (étape D), « Moitié » d'ici là.
 - Initiative individuelle, `1d20 + @INIT`. Hors de combat : `@PV <= 0`.
+- États proposés (présentation `combat.etats`) : la sorte `etat` du catalogue (aveuglé, charmé,
+  étourdi, empoisonné, paralysé…), chacun avec son icône ; plus l'état libre.
 - PNJ du bestiaire : actions imprimées → attaques enregistrées (§ 8.3).
 
 ### 13.2 Nooblies
 
 Structure de D&D, plus simple : `attaque` (score d'attaque au choix, dés de dégâts saisis),
 `coup-de-corne` (capacité raciale), Instinct de survie de la cible (capacité raciale
-`cote: cible`), initiative `1d20 + @INIT`, individuelle. Hors de combat : `@PV <= 0`.
+`cote: cible`), initiative `1d20 + @INIT`, individuelle. Hors de combat : `@PV <= 0`. Le catalogue
+n'a pas de sorte d'états : la présentation ne déclare pas `combat.etats`, seul l'état libre est
+proposé.
 
 ### 13.3 Star Wars, Aux confins de l'Empire
 
@@ -982,6 +990,9 @@ Structure de D&D, plus simple : `attaque` (score d'attaque au choix, dés de dé
   tri succès nets puis avantages nets ; joueurs d'abord à égalité ; **mode créneaux**
   (`initiative.mode: creneaux`).
 - Hors de combat : attribut dérivé `neutralise` (blessures ou stress au-delà du seuil).
+- États proposés (présentation `combat.etats`) : sortes `etat` (étourdi, désorienté, immobilisé, à
+  terre, couverts…) et `blessureCritique` (la blessure tirée s'y ajoute), avec leurs icônes ; plus
+  l'état libre.
 - Soins (Médecine, Mécanique pour un droïde), stimpack : actions à cible, même menu, même rapport.
 - Avantages et Menaces à dépenser (Désorientation, Renverser…) : montrés au MJ dans le rapport
   (symboles) ; « options après le jet » restent une brique à venir (regles.md, « Dépenses après le

@@ -185,7 +185,11 @@ L'événement `character.updated` d'une possession porte la demande avec l'exemp
 
 Un exemplaire `hidden: true` n'est visible que de qui peut écrire sur le personnage (joueur qui l'incarne, MJ, propriétaire hors campagne). Pour tout autre lecteur, le service le retire de `GET /v1/characters/:id` (état **et** fiche, recalculée sans lui : ses effets disparaissent aussi) et de `GET /achats`. Le résumé (`summary`) ne nomme jamais une entrée dont tous les exemplaires sont cachés. Les événements `character.updated` ne sont jamais publics (l'auteur, ou les MJ et le joueur qui incarne) : le temps réel ne le révèle pas.
 
-En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre. Avec `tickId` (`tick:<combatId>:<round>`), le décompte n'a lieu qu'une fois par personnage : une reprise rend la réponse d'origine avec `replayed: true` ; il s'annule par `POST /internal/modifications/revert` (`applicationId = tickId`, voir « Combat »).
+En fin de round (route interne `POST /internal/characters/:id/durees/decompter`, appelée par campaign), chaque exemplaire décompte sa propre durée ; `retirees` nomme `entree`, ou `entree#exemplaire` pour un exemplaire identifié, et `bonus:<id>` pour un bonus libre. `clear: true` (fin de combat, « Retirer les états à durée ») retire d'un coup tout ce qui a une durée. Avec `tickId` (`tick:<combatId>:<round>`), le décompte n'a lieu qu'une fois par personnage : une reprise rend la réponse d'origine avec `replayed: true` ; il s'annule par `POST /internal/modifications/revert` (`applicationId = tickId`, voir « Combat »).
+
+#### Bonus libres et états libres
+
+`POST /bonus` (`{ version, id?, nom, source?, effets?, actif?, duree? }`) pose un bonus libre, ou remplace celui du même `id` ; `DELETE /bonus/:bonusId?version=` le retire. `effets` vide ou absent : **état libre**, un marqueur nommé sans effet mécanique (docs/combat.md § 4.5) ; avec `duree`, il est décompté en fin de round comme un état du catalogue.
 
 ### Instances de PNJ et butin de la carte (routes internes)
 
@@ -235,7 +239,7 @@ avec `@vtt/rules` ; campaign garde les attaques, les rapports et les décisions 
 | POST    | `/internal/actions/resolve`                 | `{ snapshot, params?, rollMode, adjustments?, dice?, reactions?, stepId?, faces?, serverFallback?, forcer?, diceHistory? }` | `{ step, resolution }`                                                                                      |
 | POST    | `/internal/modifications/apply`             | `{ applications: [{ applicationId, userId?, campaignId, items: [{ characterId, modifications, tables? }] }] }`              | `{ applications: [{ applicationId, replayed, items: [{ characterId, version, changes, defeated }] }] }`     |
 | POST    | `/internal/modifications/revert`            | `{ applicationId, characterIds?, force?, userId? }`                                                                         | `{ applicationId, items: [{ characterId, status, version, changes, defeated? }] }`                          |
-| POST    | `/internal/characters/:id/durees/decompter` | `{ userId?, roomId?, tickId? }`                                                                                             | `{ modifie, retirees, version, replayed?, personnage? }`                                                    |
+| POST    | `/internal/characters/:id/durees/decompter` | `{ userId?, roomId?, tickId?, clear? }`                                                                                     | `{ modifie, retirees, version, replayed?, personnage? }`                                                    |
 
 - **Préparer** : les fiches de l'attaquant et des cibles sont figées dans `snapshot` (état et
   règles optionnelles de chaque campagne), objet opaque que campaign garde et rend tel quel à
