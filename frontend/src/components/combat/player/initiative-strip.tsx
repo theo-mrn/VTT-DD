@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/tooltip';
 import { combatFailure, useCombatCommands } from '@/lib/combat/use-combat';
 import { cn } from '@/lib/utils';
-import { CTA, EXIT, GLASS, LABEL, NUMBER_SPRING, SPRING, TOUCH } from '../live-reports/look';
+import { EXIT, GLASS, LABEL, NUMBER_SPRING, SPRING, TOUCH } from '../live-reports/look';
 import { SIDE_LABELS, currentActorOf, slotBar, turnRows, type TurnRow } from '../turns/model';
 import { useCast } from '../turns/use-cast';
 
@@ -122,11 +122,12 @@ export function InitiativeStrip({
           portraitOf={(id) => cast.byId.get(id)?.portraitUrl}
         />
 
+        {/* Largeur fixe : un nom plus long ou plus court ne fait jamais bouger la barre */}
         <span
-          className="hidden min-w-0 max-w-40 overflow-hidden px-1.5 md:block"
+          className="relative hidden h-5 w-36 shrink-0 overflow-hidden px-1.5 md:block"
           aria-live="polite"
         >
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence initial={false}>
             {headline && (
               <motion.span
                 key={headline}
@@ -134,7 +135,7 @@ export function InitiativeStrip({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10, transition: EXIT }}
                 transition={SPRING}
-                className="block truncate font-display text-sm font-semibold"
+                className="absolute inset-x-1.5 top-0 block truncate font-display text-sm font-semibold"
               >
                 {headline}
               </motion.span>
@@ -147,7 +148,7 @@ export function InitiativeStrip({
         {!combat.initiativeRolled ? (
           <Button
             size="sm"
-            className={cn('mx-0.5 h-8 px-3', CTA)}
+            className="mx-0.5 h-8 rounded-xl px-3 text-[13px] font-semibold shadow-glow hover:bg-primary-strong [@media(pointer:coarse)]:min-h-11"
             onClick={() =>
               void run('init', 'L’initiative n’a pas pu être lancée', () =>
                 commands.rollInitiative(),
@@ -160,12 +161,21 @@ export function InitiativeStrip({
             Lancer l’initiative
           </Button>
         ) : (
-          <span className="flex shrink-0 items-center gap-0.5">
+          // Précédent et Suivant : une seule commande en deux parties, même hauteur, même
+          // arrondi ; le principal se distingue par sa couleur, pas par sa forme
+          <span
+            role="group"
+            aria-label="Tours"
+            className="mx-0.5 flex h-8 shrink-0 items-stretch overflow-hidden rounded-xl border border-border-strong shadow-glow"
+          >
             <Info texte="Tour précédent" cote="bottom">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className={TOUCH}
+                className={cn(
+                  'h-full w-8 rounded-none border-r border-border-strong bg-surface-2 text-muted-foreground hover:bg-surface-3 hover:text-foreground',
+                  TOUCH,
+                )}
                 aria-label="Tour précédent"
                 onClick={() =>
                   void run('previous', 'Le retour arrière n’a pas pu se faire', () =>
@@ -180,7 +190,7 @@ export function InitiativeStrip({
             </Info>
             <Button
               size="sm"
-              className={cn('group h-8 pl-3.5 pr-2.5', CTA)}
+              className="group h-full gap-1 rounded-none pl-3 pr-2 text-[13px] font-semibold hover:bg-primary-strong active:scale-[0.98] motion-reduce:active:scale-100 [@media(pointer:coarse)]:min-h-11"
               onClick={() =>
                 void run('next', 'Le tour n’a pas pu passer', () =>
                   commands.next({ version: combat.version }),
