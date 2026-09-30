@@ -7,6 +7,7 @@
  */
 import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
+import { AttackMenuFallback } from '@/components/combat/attack/attack-menu-host';
 import { useTable } from '@/components/table/contexte';
 import { MapStage } from '@/components/table/map-stage';
 import type { MapViewer } from '@/lib/map/engine/entities/entity-kind';
@@ -69,18 +70,22 @@ export function TableMap() {
       : 'Le MJ n’a pas encore ouvert de scène.';
 
   return (
-    <MapStage backdropUrl={campagne.coverUrl} seed={campagne.name} emptyMessage={empty}>
-      {target.mapId ? (
-        <MapCanvas
-          key={target.mapId}
-          campaignId={campagne.id}
-          mapId={target.mapId}
-          viewer={viewer}
-          characters={characters}
-          members={members}
-          players={players}
-        />
-      ) : null}
-    </MapStage>
+    <>
+      <MapStage backdropUrl={campagne.coverUrl} seed={campagne.name} emptyMessage={empty}>
+        {target.mapId ? (
+          <MapCanvas
+            key={target.mapId}
+            campaignId={campagne.id}
+            mapId={target.mapId}
+            viewer={viewer}
+            characters={characters}
+            members={members}
+            players={players}
+          />
+        ) : null}
+      </MapStage>
+      {/* Menu d'attaque sans carte ouverte, et fermeture du panneau qui la couvre à l'ouverture */}
+      <AttackMenuFallback campaignId={campagne.id} />
+    </>
   );
 }

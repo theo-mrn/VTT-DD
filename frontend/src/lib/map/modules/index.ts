@@ -66,6 +66,7 @@ import { portalsModule } from './portals';
 import { measurementsModule } from './measurements';
 import { visionModule } from './vision';
 import { weatherModule } from './weather';
+import { combatModule } from './combat';
 
 export const MAP_MODULES: readonly MapModule[] = [
   // Moteur : point d'apparition de la scène
@@ -92,4 +93,6 @@ export const MAP_MODULES: readonly MapModule[] = [
   visionModule,
   // Météo de la scène : pluie, neige, brouillard… (plan weather, espace écran)
   weatherModule,
+  // Combat : anneaux du tour et des cibles, visée, entrées « Attaquer », menu d'attaque
+  combatModule,
 ];

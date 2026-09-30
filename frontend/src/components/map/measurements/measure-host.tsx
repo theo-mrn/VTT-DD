@@ -2,18 +2,21 @@
 
 /**
  * Présence du module « mesures » à la table (surcouche sans emplacement) : au bout de ma mesure
- * récente, « Épingler » (Entrée avec l'outil Z) et « Effacer », tant qu'elle est là (6 s). La
+ * récente, « Épingler » (Entrée avec l'outil Z), « Attaquer la zone (n) » et « Effacer », tant
+ * qu'elle est là (6 s). La
  * barre suit la mesure sans re-rendre React : sa position est écrite dans le DOM à chaque image.
  */
-import { Pin, X } from 'lucide-react';
+import { Pin, Target, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
 import { Button } from '@/components/ui/button';
 import type { MapEngine } from '@/lib/map/engine/map-engine';
-import { clearLocal, pin } from '@/lib/map/modules/measurements/operations';
+import { clearLocal, pin, tokensInZone } from '@/lib/map/modules/measurements/operations';
+import { openAttackMenu } from '@/lib/combat/attack-menu-store';
+import { charactersOf } from '@/lib/map/modules/combat/model';
 import { measureModuleOf } from '@/lib/map/modules/measurements/register';
 import { labelAnchor } from '@/lib/map/modules/measurements/render';
-import type { MeasureModule } from '@/lib/map/modules/measurements/context';
+import type { LocalMeasure, MeasureModule } from '@/lib/map/modules/measurements/context';
 
 export function MeasureHost({ engine }: { engine: MapEngine }) {
   const ctx = measureModuleOf(engine);
@@ -62,6 +65,7 @@ function PinBar({ ctx }: { ctx: MeasureModule }) {
         <Pin />
         Épingler
       </Button>
+      <AttackZone ctx={ctx} spec={recent.spec} />
       <Button
         variant="ghost"
         size="icon-xs"
@@ -71,5 +75,29 @@ function PinBar({ ctx }: { ctx: MeasureModule }) {
         <X />
       </Button>
     </div>
+  );
+}
+
+/** « Attaquer la zone (n) » (docs/combat.md § 12.1) : les personnages vus dans la forme. */
+function AttackZone({ ctx, spec }: { ctx: MeasureModule; spec: LocalMeasure['spec'] }) {
+  const { engine } = ctx;
+  if (spec.shape === 'line' || engine.viewer.role === 'spectator') return null;
+  const targets = charactersOf(tokensInZone(engine, spec));
+  if (!targets.length) return null;
+  return (
+    <Button
+      size="xs"
+      variant="secondary"
+      onClick={() =>
+        openAttackMenu({
+          campaignId: engine.store.getState().campaignId,
+          origin: 'measurement',
+          targetIds: targets,
+        })
+      }
+    >
+      <Target />
+      Attaquer la zone ({targets.length})
+    </Button>
   );
 }
