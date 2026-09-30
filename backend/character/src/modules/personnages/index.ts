@@ -7,6 +7,7 @@
  * membres le lisent ; hors campagne et pendant la création, son propriétaire
  * a la main ; lui seul le supprime (voir `acces` et `autoriser`).
  */
+import { FileUploadRequest, FileUploadTicket } from '@vtt/contracts';
 import { HttpError } from '@vtt/platform';
 import { campaignIndisponible } from '../../droits/campaign.js';
 import { achatsPossibles, creationDe, etapesCreation } from '@vtt/rules';
@@ -291,6 +292,26 @@ export const register: Module = async (app, deps) => {
         },
       }));
       return api(ligne);
+    },
+  );
+
+  // Envoi d'un portrait (docs/uploads.md) : billet signé, le navigateur envoie le fichier
+  // au stockage, puis enregistre son adresse par PATCH /v1/characters/:id { portraitUrl }
+  r.post(
+    '/v1/characters/:id/uploads',
+    {
+      ...auth,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } } as FastifyContextConfig,
+      schema: {
+        params: Params,
+        body: FileUploadRequest,
+        response: { 200: FileUploadTicket },
+      },
+    },
+    async (req) => {
+      const { id } = req.params;
+      await autoriser(db, deps.droits, moi(req), [{ id, mode: 'ecriture' }]);
+      return deps.uploads.ticket(req.body, id, ['portrait'], req.log);
     },
   );
 

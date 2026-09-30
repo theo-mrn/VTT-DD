@@ -3,7 +3,7 @@
  * (src/modules/<nom>/index.ts) reçoit l'instance Fastify et ces dépendances.
  */
 import type { Generateur } from '@vtt/rules';
-import type { createService } from '@vtt/platform';
+import type { createService, Uploads } from '@vtt/platform';
 import type { CharacterConfig } from './config.js';
 import type { Db } from './db/client.js';
 import type { JournalDes } from './des/dice.js';
@@ -24,6 +24,8 @@ export interface Deps {
   maintenant: () => Date;
   /** Droits sur les personnages des autres, décidés par les campagnes de campaign. */
   droits: DroitsCampagnes;
+  /** Envoi de fichiers (portraits) vers le stockage : billets signés (docs/uploads.md). */
+  uploads: Uploads;
   /** Historique des jets (service dice) : reçoit chaque jet d'action. */
   des: JournalDes;
 }

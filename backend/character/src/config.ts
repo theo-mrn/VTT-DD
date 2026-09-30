@@ -47,6 +47,17 @@ export const CharacterConfig = BaseConfig.extend({
    * pour l'historique des jets. Absent : les jets d'action n'y apparaissent pas.
    */
   DICE_URL: facultatif(z.string().url()),
+  /**
+   * Stockage des portraits (docs/uploads.md) : SeaweedFS en dev (`pnpm dev --stockage`), R2 en
+   * prod ; mêmes valeurs que campaign et identity. Absent : l'envoi répond 503.
+   */
+  S3_ENDPOINT: facultatif(z.string().url()),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: facultatif(z.string()),
+  S3_ACCESS_KEY_ID: facultatif(z.string()),
+  S3_SECRET_ACCESS_KEY: facultatif(z.string()),
+  /** URL publique des fichiers envoyés (domaine R2 en prod). */
+  S3_PUBLIC_URL: facultatif(z.string().url()),
   /** Durée de vie en mémoire des droits renvoyés par campaign, en millisecondes. */
   DROITS_CACHE_MS: z.coerce.number().int().nonnegative().default(5_000),
 });

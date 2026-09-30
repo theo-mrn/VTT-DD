@@ -1,4 +1,4 @@
-import { createService, type ServiceOptions } from '@vtt/platform';
+import { createService, Uploads, type ServiceOptions } from '@vtt/platform';
 import { aleatoireCrypto } from '@vtt/rules';
 import { sql } from 'drizzle-orm';
 import type { CharacterConfig } from './config.js';
@@ -15,7 +15,7 @@ import { catalogueReference, type Catalogue } from './regles/catalogue.js';
 export async function buildCharacter(
   config: CharacterConfig,
   extra: Omit<ServiceOptions, 'config'> &
-    Partial<Pick<Deps, 'aleatoire' | 'maintenant' | 'droits' | 'des'>> & {
+    Partial<Pick<Deps, 'aleatoire' | 'maintenant' | 'droits' | 'des' | 'uploads'>> & {
       db?: Db;
       catalogue?: Catalogue;
     } = {},
@@ -27,6 +27,7 @@ export async function buildCharacter(
     maintenant,
     droits,
     des,
+    uploads,
     ...options
   } = extra;
   if (!config.JWKS_URL && !options.authKeyResolver) {
@@ -56,6 +57,7 @@ export async function buildCharacter(
     maintenant: maintenant ?? (() => new Date()),
     droits: droits ?? droitsDesCampagnes(config, app.log),
     des: des ?? journalDesJets(config, app.log),
+    uploads: uploads ?? Uploads.fromSettings(config),
   };
 
   // Un module par domaine fonctionnel (src/modules/<nom>)
